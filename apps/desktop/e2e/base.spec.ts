@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { createHash } from 'node:crypto';
 import { test, expect, type Page } from '@playwright/test';
 
 // E2E of the `.base` database viewer (plan Base-Erweiterungen W7): table with
@@ -2439,6 +2440,33 @@ test('pinboard: an EMPTY pinboard offers New entry in its empty state', async ({
   await dlg.getByTestId('pinboard-entry-save').click();
   await expect(dlg).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Leer/Erster Zettel.md'])).toContain('# Erster Zettel');
+});
+
+test('pinboard: what an app that went away left of an entry is finished at the next start — unchanged goes, changed stays (E15)', async ({ page }) => {
+  // The state an app leaves when it is closed or killed with two entries open:
+  // both drafts on record, one untouched, one typed into before the end.
+  const written = '---\ntype: Note\ntags:\n  - zettel\n---\n';
+  const sha256 = createHash('sha256').update(written).digest('hex');
+  await page.addInitScript(({ written, sha256 }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Zettel/2026-09-23 18.00.00.md'] = written;
+    fs['/test-vault/Zettel/2026-09-23 18.05.00.md'] = written + 'Kaffee\n';
+    fs['/test-vault/Zettel/2026-09-23 18.10.00.md'] = written;
+    for (const path of ['Zettel/2026-09-23 18.00.00.md', 'Zettel/2026-09-23 18.05.00.md', 'Zettel/Weg.md']) {
+      localStorage.setItem(`plainva-pinboard-draft:/test-vault:${path}`, JSON.stringify({ path, sha256, at: 1 }));
+    }
+  }, { written, sha256 });
+  await page.goto('/');
+  await expect(page.getByTestId('file-tree')).toBeVisible({ timeout: 15000 });
+  // The untouched draft went the way closing its window would have taken it.
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/2026-09-23 18.00.00.md'])).toBeUndefined();
+  // What was typed into stays; a file nobody put on record is never touched,
+  // even with the same bytes; and the record is empty afterwards.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/2026-09-23 18.05.00.md'])).toContain('Kaffee');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/2026-09-23 18.10.00.md'])).toBe(written);
+  await expect
+    .poll(() => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('plainva-pinboard-draft:'))))
+    .toEqual([]);
 });
 
 

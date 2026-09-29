@@ -25,6 +25,7 @@ import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCa
 import { applyTextShape, isVaultPathLink, looksBinary, planRelativeLinkOpen, readTextShape, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
+import { answerEditorPathProbe } from "@plainva/ui";
 import { EmojiPicker, type EmojiPickerLabels } from "./EmojiPicker";
 import { docIconValue } from "@plainva/ui";
 import { ColorPopover } from "./ColorPopover";
@@ -140,6 +141,11 @@ export const Editor: React.FC<{
     if (isActivePane) editorCommandTarget.focus(commandId);
   }, [isActivePane, commandId]);
   const isCommandTarget = useCallback(() => editorCommandTarget.is(commandId, isActivePaneRef.current), [commandId]);
+  // A pinboard draft this editor shows is never taken for what a crash left
+  // behind (plan Befunde 2026-09-24, E15): the clean-up asks every editor.
+  const shownRef = useRef({ vaultKey: vaultContext.vaultPath ?? null, path: activePath ?? null });
+  useEffect(() => { shownRef.current = { vaultKey: vaultContext.vaultPath ?? null, path: activePath ?? null }; }, [vaultContext.vaultPath, activePath]);
+  useEffect(() => answerEditorPathProbe(() => shownRef.current), []);
   // Live-document channel this editor publishes to. A scoped channel (peek) drives
   // its own inline Properties; only the editor that owns the GLOBAL channel touches
   // the shared sidebar/status-bar selection stats.

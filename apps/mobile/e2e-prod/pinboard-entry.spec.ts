@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
@@ -127,6 +128,40 @@ test("an empty board offers New entry in its empty state, and Done puts the firs
     await expect(page.locator("[data-pinboard-card]").filter({ hasText: "First card" })).toHaveCount(1, { timeout: 15000 });
     expect(await listFolder(page, "Leer")).toEqual(["First card.md"]);
     expect(await readNote(page, "Leer/First card.md")).toContain("# First card\n");
+  } finally {
+    sql.close();
+  }
+});
+
+test("what an app that went away left of an entry is finished at the next start: unchanged goes, changed stays (E15)", async ({ page, context }) => {
+  const sql = await installSqlBridge(context);
+  // The state an app leaves when it is closed or killed with two entries open:
+  // both drafts on record, one untouched, one typed into before the end.
+  const written = "---\ntype: Note\n---\n";
+  const sha256 = createHash("sha256").update(written).digest("hex");
+  try {
+    await context.addInitScript(() => localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" })));
+    await page.goto("/");
+    await waitForVaultDirectory(page);
+    await page.evaluate(async ({ written, sha256 }) => {
+      const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
+      const put = (path: string, data: string) => fs.writeFile({ path: `vault/${path}`, data, directory: "DATA", encoding: "utf8", recursive: true });
+      await put("Zettel/2026-09-23 18.00.00.md", written);
+      await put("Zettel/2026-09-23 18.05.00.md", written + "Coffee\n");
+      await put("Zettel/2026-09-23 18.10.00.md", written);
+      for (const path of ["Zettel/2026-09-23 18.00.00.md", "Zettel/2026-09-23 18.05.00.md", "Zettel/Gone.md"]) {
+        localStorage.setItem(`plainva-pinboard-draft:local:${path}`, JSON.stringify({ path, sha256, at: 1 }));
+      }
+    }, { written, sha256 });
+    await page.reload();
+    await expect(page.locator("#root > *").first()).toBeVisible();
+    // The untouched draft went the way closing its page would have taken it;
+    // what was typed into stays; a file nobody put on record is never touched.
+    await expect.poll(() => listFolder(page, "Zettel"), { timeout: 20000 }).toEqual(["2026-09-23 18.05.00.md", "2026-09-23 18.10.00.md"]);
+    expect(await readNote(page, "Zettel/2026-09-23 18.05.00.md")).toContain("Coffee");
+    await expect
+      .poll(() => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("plainva-pinboard-draft:"))))
+      .toEqual([]);
   } finally {
     sql.close();
   }

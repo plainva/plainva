@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import {
   deleteFrontmatterPath,
   renameFrontmatterKey,
@@ -19,7 +20,9 @@ import {
   finalizeItemContent,
   finalizePinboardEntry,
   notifyFileOps,
+  pinboardDraftLedger,
   planPinboardEntry,
+  sweepPinboardDrafts,
   deletePropertyFromConfig,
   migrateFiltersToPerView,
   nextItemName,
@@ -32,6 +35,8 @@ import {
   viewPrefill,
   writeNoteProperty,
   type PinboardDraft,
+  type PinboardDraftLedger,
+  type PinboardDraftSweep,
   type PinboardEntryChip,
   type PinboardEntryFiles,
   type PinboardEntryPlan,
@@ -426,9 +431,35 @@ export function pinboardEntryFiles(v: MobileVault): PinboardEntryFiles {
     },
     write: (p, text) => vaultOps.save(v, p, text),
     rename: (p, stem) => vaultOps.rename(v, p, stem),
-    // The person's own draft with nothing in it, or a confirmed discard.
+    // The person's own draft with nothing in it, a confirmed discard, or what
+    // an app that went away during an entry left behind unchanged.
     remove: (p) => vaultOps.remove(v, p, { confirmed: true }),
+    // The file's bytes, exactly, on a phone. The web build's Filesystem keeps a
+    // text file as the text it was given and hands that back even when bytes
+    // are asked for, so there the text IS the file.
+    readBytes: async (p) =>
+      Capacitor.isNativePlatform() ? v.files.readBinaryFile(p) : new TextEncoder().encode(await v.files.readTextFile(p)),
   };
+}
+
+/**
+ * This device's record of the drafts it created and has not ended (plan
+ * Befunde 2026-09-24, E15) — per vault, in the device's own storage.
+ */
+export function mobileDraftLedger(v: MobileVault): PinboardDraftLedger {
+  return pinboardDraftLedger(v.vaultId);
+}
+
+/**
+ * What an app that was closed or killed during a pinboard entry left behind,
+ * finished when the vault is opened (`usePinboardDraftSweep`): an empty draft
+ * goes the way closing its page would have taken it, anything that changed
+ * since stays. The same rule the next entry's plan applies first.
+ */
+export async function sweepMobilePinboardDrafts(v: MobileVault): Promise<PinboardDraftSweep> {
+  const swept = await sweepPinboardDrafts(pinboardEntryFiles(v), mobileDraftLedger(v));
+  if (swept.removed.length > 0) syncSoon();
+  return swept;
 }
 
 /**
@@ -450,6 +481,7 @@ export async function planMobilePinboardEntry(
     folder: opts.folder,
     noteType: getMobileSettings().defaultNoteType,
     now: new Date(),
+    ledger: mobileDraftLedger(v),
     // The base's default template fills the body; its questions come first.
     template: template
       ? async ({ title, folder }) => {
@@ -480,7 +512,7 @@ export async function finalizeMobilePinboardEntry(
   opts: { title: string; removedChips: readonly PinboardEntryChip[]; intent: "save" | "close" },
 ): Promise<PinboardEntryResult> {
   await noteSaver.flush(draft.path, v);
-  const result = await finalizePinboardEntry(pinboardEntryFiles(v), { draft, ...opts });
+  const result = await finalizePinboardEntry(pinboardEntryFiles(v), { draft, ...opts, ledger: mobileDraftLedger(v) });
   syncSoon();
   return result;
 }
@@ -492,7 +524,7 @@ export async function discardMobilePinboardEntry(
   opts: { title: string; confirm: () => Promise<boolean> },
 ): Promise<"removed" | "kept"> {
   await noteSaver.flush(draft.path, v);
-  const outcome = await discardPinboardEntry(pinboardEntryFiles(v), { draft, ...opts });
+  const outcome = await discardPinboardEntry(pinboardEntryFiles(v), { draft, ...opts, ledger: mobileDraftLedger(v) });
   if (outcome === "removed") syncSoon();
   return outcome;
 }

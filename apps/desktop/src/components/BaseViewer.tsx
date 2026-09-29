@@ -31,7 +31,8 @@ import {
   nextItemName,
   relationPrefill,
 } from "../services/newItemFlow";
-import { planPinboardEntry, pinboardLabelProperty, viewPrefill, type PinboardDraft, type PinboardEntryFiles, type PinboardEntryResult } from "@plainva/ui";
+import { planPinboardEntry, pinboardDraftLedger, pinboardLabelProperty, viewPrefill, type PinboardDraft, type PinboardEntryFiles, type PinboardEntryResult } from "@plainva/ui";
+import { desktopDraftFiles } from "../services/pinboardDrafts";
 import { addTemplateForAssignment, removeTemplateForAssignment } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -1095,7 +1096,10 @@ export function BaseViewer({
   const entryFiles = useMemo<PinboardEntryFiles | null>(() => {
     if (!vaultAdapter) return null;
     return {
-      exists: (p) => vaultAdapter.exists(p),
+      // exists, readBytes and remove: the person's own draft, with nothing
+      // typed into it (or a confirmed discard), goes into the trash like
+      // every other delete — never silently gone.
+      ...desktopDraftFiles(vaultAdapter, indexer ?? null),
       read: (p) => vaultAdapter.readTextFile(p),
       write: (p, text) => vaultAdapter.writeTextFile(p, text),
       rename: async (p, stem) => {
@@ -1106,15 +1110,11 @@ export function BaseViewer({
         if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
         return result.newPath;
       },
-      remove: async (p) => {
-        // The person's own draft, with nothing typed into it (or a confirmed
-        // discard): into the trash like every other delete, never silently gone.
-        await vaultAdapter.deleteItem(p, false, { confirmed: true });
-        if (indexer) await applyIndexChanges(indexer, { removed: [p] }).catch(() => {});
-        notifyFileOps([{ type: "delete", path: p }]);
-      },
     };
   }, [vaultAdapter, queryService, indexer, t]);
+  // This device's record of open drafts (E15): what a closed or killed app
+  // left behind is finished before the next entry is planned.
+  const draftLedger = useMemo(() => (vaultPath ? pinboardDraftLedger(vaultPath) : undefined), [vaultPath]);
 
   /**
    * Opens "New entry": the draft is written into the target folder NOW (an
@@ -1139,6 +1139,7 @@ export function BaseViewer({
         now: new Date(),
         extraPrefills: await scopePrefills(),
         getInput: cells.getColumnInput,
+        ledger: draftLedger,
         template: template
           ? async ({ title, folder }) => {
               let raw: string;
@@ -2737,6 +2738,7 @@ export function BaseViewer({
           draft={entryDraft}
           files={entryFiles}
           vaultPath={vaultPath}
+          ledger={draftLedger}
           onDone={onPinboardEntryDone}
         />
       )}

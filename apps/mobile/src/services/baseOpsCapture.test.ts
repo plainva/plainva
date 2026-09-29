@@ -53,9 +53,26 @@ vi.mock("./templateInteractive", () => ({
   buildNewNoteFromTemplate: (opts: { type: string; fallbackBody: string }) => buildNewNoteFromTemplate(opts),
 }));
 
-import { createBaseItem, discardMobilePinboardEntry, finalizeMobilePinboardEntry, planMobilePinboardEntry } from "./baseOps";
+import { pinboardDraftHash, pinboardDraftKey, pinboardDraftLedger } from "@plainva/ui";
+import { createBaseItem, discardMobilePinboardEntry, finalizeMobilePinboardEntry, planMobilePinboardEntry, sweepMobilePinboardDrafts } from "./baseOps";
 
-const vault = { files: { exists: async (p: string) => files.has(p) } } as any;
+const vault = {
+  vaultId: "phone-vault",
+  files: {
+    exists: async (p: string) => files.has(p),
+    readBinaryFile: async (p: string) => {
+      const content = files.get(p);
+      if (content === undefined) throw new Error(`missing ${p}`);
+      return new TextEncoder().encode(content);
+    },
+    readTextFile: async (p: string) => {
+      const content = files.get(p);
+      if (content === undefined) throw new Error(`missing ${p}`);
+      return content;
+    },
+  },
+} as any;
+const remembered = () => pinboardDraftLedger("phone-vault").list().map((e) => e.path);
 
 const zettel = {
   filters: { and: ['file.hasTag("zettel")'] },
@@ -73,6 +90,7 @@ describe("planMobilePinboardEntry", () => {
   beforeEach(() => {
     files.clear();
     log.length = 0;
+    localStorage.clear();
     answerTemplateFile.mockReset();
   });
 
@@ -213,5 +231,42 @@ describe("createBaseItem", () => {
     expect(text).not.toMatch(/status: offen/);
     expect(text).toMatch(/prio: hoch/);
     expect(text).toMatch(/tags:\n\s+- vorlage\n\s+- zettel/);
+  });
+});
+
+describe("what a closed or killed app left of an entry (E15)", () => {
+  beforeEach(() => {
+    files.clear();
+    log.length = 0;
+    localStorage.clear();
+  });
+
+  it("the plan remembers its draft on this device; ending the entry forgets it", async () => {
+    const draft = await ready({ ...zettel, newItemFolder: "Zettel" });
+    expect(remembered()).toEqual([draft.path]);
+    await finalizeMobilePinboardEntry(vault, draft, { title: "", removedChips: [], intent: "close" });
+    expect(remembered()).toEqual([]);
+    const second = await ready({ ...zettel, newItemFolder: "Zettel" });
+    files.set(second.path, files.get(second.path)! + "Text\n");
+    expect(await discardMobilePinboardEntry(vault, second, { title: "", confirm: async () => true })).toBe("removed");
+    expect(remembered()).toEqual([]);
+  });
+
+  it("at the start, an unchanged leftover goes through the ordinary delete; a changed one stays; both are forgotten", async () => {
+    const leftover = "Zettel/2026-09-23 18.00.00.md";
+    const typed = "Zettel/2026-09-23 18.05.00.md";
+    const written = "---\ntype: Note\n---\n";
+    files.set(leftover, written);
+    files.set(typed, written + "Kaffee\n");
+    for (const path of [leftover, typed]) {
+      localStorage.setItem(pinboardDraftKey("phone-vault", path), JSON.stringify({ path, sha256: pinboardDraftHash(written), at: 1 }));
+    }
+    const swept = await sweepMobilePinboardDrafts(vault);
+    expect(swept.removed).toEqual([leftover]);
+    expect(swept.kept).toEqual([typed]);
+    expect(log).toContain(`remove ${leftover} (confirmed)`);
+    expect(files.has(leftover)).toBe(false);
+    expect(files.get(typed)).toBe(written + "Kaffee\n");
+    expect(remembered()).toEqual([]);
   });
 });

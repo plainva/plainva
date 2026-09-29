@@ -29,6 +29,11 @@ function memoryFiles(initial: Record<string, string> = {}) {
       if (v === undefined) throw new Error(`missing ${p}`);
       return v;
     },
+    readBytes: async (p) => {
+      const v = store.get(p);
+      if (v === undefined) throw new Error(`missing ${p}`);
+      return new TextEncoder().encode(v);
+    },
     write: async (p, c) => {
       log.push(`write ${p}`);
       store.set(p, c);

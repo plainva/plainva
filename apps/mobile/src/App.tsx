@@ -23,6 +23,7 @@ import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVau
 import { startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
+import { usePinboardDraftSweep } from "./services/usePinboardDraftSweep";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { onAppBackground, onAppForeground } from "./services/appLifecycle";
 import { recordProcessExitsOnBoot } from "./services/processExits";
@@ -204,6 +205,7 @@ export default function App() {
   }, [vault]);
 
   useBackupSchedule(vault, vaultName);
+  usePinboardDraftSweep(vault); // what a crash left of a pinboard entry (E15)
   useIndexAutoUpdate(vault, vaultName);
   useNavPersistence(vault, nav); // the session outlives the app (P6)
   const connectionRun = useConnectionRun();

@@ -47,6 +47,7 @@ import { getWindowBus } from "../services/windowBus";
 import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
+import { usePinboardDraftSweep } from "../services/usePinboardDraftSweep";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -1723,7 +1724,6 @@ export const VaultProvider: React.FC<{
     if (isClient || !state.vaultPath) return;
     return installSyncStatusMirror(state.vaultPath);
   }, [isClient, state.vaultPath]);
-
   // Client: the owner owns the index, so its broadcast is what makes the views
   // in this window refresh. Without it an auxiliary window would show whatever
   // the index held when it opened.
@@ -2385,6 +2385,18 @@ export const VaultProvider: React.FC<{
       setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
     }
   };
+
+  // What an app that was closed or killed during a pinboard entry left
+  // behind (plan Befunde 2026-09-24, E15), finished once per opened vault in
+  // the main window, which holds the adapter chain and the index.
+  usePinboardDraftSweep({
+    owner: !isClient,
+    ready: !state.isLoading,
+    vaultPath: state.vaultPath,
+    adapter: state.vaultAdapter,
+    indexer: state.indexer,
+    onRemoved: triggerFileTreeUpdate,
+  });
 
   // Kept current for the owner bus (C1). Written in an effect, never during
   // render, so the value the handler reads is the one the last render produced.

@@ -18,6 +18,7 @@ import {
   type PinboardDraft,
   type PinboardEntryChip,
   type PinboardEntryFiles,
+  type PinboardDraftLedger,
   type PinboardEntryResult,
 } from "@plainva/ui";
 import { createDocChannel } from "../../services/activeDocument";
@@ -56,11 +57,14 @@ export function PinboardEntryModal({
   draft,
   files,
   vaultPath,
+  ledger,
   onDone,
 }: {
   draft: PinboardDraft;
   files: PinboardEntryFiles;
   vaultPath: string | null;
+  /** This device's record of open drafts: the entry is forgotten there once it ends. */
+  ledger?: PinboardDraftLedger;
   /** The entry ended — kept at `path`, or removed. */
   onDone: (result: PinboardEntryResult) => void;
 }) {
@@ -109,7 +113,7 @@ export function PinboardEntryModal({
     setBusy(true);
     try {
       if (!(await flush())) return;
-      const result = await finalizePinboardEntry(files, { draft, title, removedChips, intent, live: liveText() });
+      const result = await finalizePinboardEntry(files, { draft, title, removedChips, intent, live: liveText(), ledger });
       endedRef.current = true;
       onDone(result);
     } catch (e) {
@@ -128,6 +132,7 @@ export function PinboardEntryModal({
       if (!(await flush())) return;
       const outcome = await discardPinboardEntry(files, {
         draft,
+        ledger,
         title,
         live: liveText(),
         confirm: () =>
@@ -173,8 +178,8 @@ export function PinboardEntryModal({
   // StrictMode unmounts and remounts every component once, and that must not
   // end an entry that has only just opened.
   const unmountTimer = useRef<number | null>(null);
-  const endContext = useRef({ files, vaultPath });
-  useEffect(() => { endContext.current = { files, vaultPath }; }, [files, vaultPath]);
+  const endContext = useRef({ files, vaultPath, ledger });
+  useEffect(() => { endContext.current = { files, vaultPath, ledger }; }, [files, vaultPath, ledger]);
   useEffect(() => {
     if (unmountTimer.current !== null) {
       window.clearTimeout(unmountTimer.current);
@@ -186,14 +191,14 @@ export function PinboardEntryModal({
         // An end already under way finishes on its own.
         if (endedRef.current || endingRef.current) return;
         endedRef.current = true;
-        const { files: ends, vaultPath: vault } = endContext.current;
+        const { files: ends, vaultPath: vault, ledger: record } = endContext.current;
         void (async () => {
           try {
             await requestSaveFlush(draft.path, vault ?? undefined);
           } catch {
             return; // the text could not land; leave the file exactly as it is
           }
-          await finalizePinboardEntry(ends, { draft, title: latest.current.title, removedChips: latest.current.removedChips, intent: "close" }).catch(() => {});
+          await finalizePinboardEntry(ends, { draft, title: latest.current.title, removedChips: latest.current.removedChips, intent: "close", ledger: record }).catch(() => {});
         })();
       }, 0);
     };

@@ -2,6 +2,7 @@ import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "
 import { finalizeItemContent } from "../lib/newItemContent";
 import { resolveNewItemTarget } from "./baseRelations";
 import { viewPrefill } from "./newItemPrefill";
+import { sweepPinboardDrafts, type PinboardDraftLedger, type PinboardDraftSweepFiles } from "./pinboardDraftLedger";
 import { captureFileName, captureTimestampName } from "./pinboardModel";
 
 /**
@@ -31,6 +32,12 @@ import { captureFileName, captureTimestampName } from "./pinboardModel";
  *    a draft that was already uploaded arrives on the other devices as a move.
  *    Closing (X, Escape, the back key) NEVER throws away what was typed; only
  *    "Discard" does, after a question, and into the trash.
+ *
+ * An app that is closed or killed while an entry is open ends nothing; with a
+ * `ledger` (`pinboardDraftLedger`), each draft is remembered on this device
+ * until its entry ends, and what such an app left behind is finished at the
+ * next start and before the next plan — an empty draft goes as if its window
+ * had been closed.
  *
  * Pure except for the injected file operations; no React, no settings.
  */
@@ -63,8 +70,11 @@ export interface PinboardDraft {
   chips: PinboardEntryChip[];
 }
 
-/** The shell's file operations — each one its normal write path. */
-export interface PinboardEntryFiles {
+/**
+ * The shell's file operations — each one its normal write path. `exists`,
+ * `readBytes` and `remove` also finish what a crash left (`sweepPinboardDrafts`).
+ */
+export interface PinboardEntryFiles extends PinboardDraftSweepFiles {
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<string>;
   write(path: string, content: string): Promise<void>;
@@ -103,6 +113,12 @@ export interface PlanPinboardEntryOptions {
    * cancelled the questions, and nothing is created.
    */
   template?: (ctx: { title: string; folder: string }) => Promise<{ text: string; caret: number | null } | null | undefined>;
+  /**
+   * This device's record of open drafts (`pinboardDraftLedger`). With it, the
+   * plan first finishes what an app that went away during an entry left
+   * behind, then remembers the new draft until its entry ends.
+   */
+  ledger?: PinboardDraftLedger;
 }
 
 const withDir = (folder: string, stem: string) => (folder ? `${folder}/${stem}.md` : `${stem}.md`);
@@ -147,6 +163,9 @@ function listOf(value: unknown): string[] {
 
 /** Creates the draft of a new pinboard entry; see the module comment. */
 export async function planPinboardEntry(files: PinboardEntryFiles, opts: PlanPinboardEntryOptions): Promise<PinboardEntryPlan> {
+  // Whatever an app that went away during an earlier entry left behind is
+  // finished first, the way closing that entry would have (E15).
+  if (opts.ledger) await sweepPinboardDrafts(files, opts.ledger);
   const target = resolveNewItemTarget(opts.config);
   const answered = opts.folder != null ? cleanFolder(opts.folder) : null;
   const folder = answered ?? (target.folder != null ? cleanFolder(target.folder) : null);
@@ -216,7 +235,15 @@ export async function planPinboardEntry(files: PinboardEntryFiles, opts: PlanPin
     }
   }
 
-  await files.write(path, initial);
+  // Remembered BEFORE the write: an app that goes away right after it still
+  // has the draft on record at its next start.
+  opts.ledger?.remember(path, initial);
+  try {
+    await files.write(path, initial);
+  } catch (e) {
+    opts.ledger?.forget(path);
+    throw e;
+  }
   return { status: "ready", draft: { path, folder, stem, initial, caret, chips } };
 }
 
@@ -330,6 +357,8 @@ export interface FinalizePinboardEntryOptions {
    * only when the file AND this are empty — see `draftStateOf`.
    */
   live?: string;
+  /** The ledger the draft was remembered in; an entry that ended is forgotten. */
+  ledger?: PinboardDraftLedger;
 }
 
 export interface PinboardEntryResult {
@@ -343,6 +372,19 @@ export interface PinboardEntryResult {
 
 /** Ends an entry; see the module comment. The shell flushes its editor first. */
 export async function finalizePinboardEntry(files: PinboardEntryFiles, opts: FinalizePinboardEntryOptions): Promise<PinboardEntryResult> {
+  // Saving is a decision to keep — made before anything is written: a saved
+  // template nobody typed into has exactly the bytes Plainva wrote, and an app
+  // that goes away in the middle of the save must not have it on record as a
+  // leftover to take back.
+  if (opts.intent === "save") opts.ledger?.forget(opts.draft.path);
+  const result = await endPinboardEntry(files, opts);
+  // The entry ended — kept or taken back — so its draft is no longer a
+  // crash's leftover to clean up. A close that failed stays remembered.
+  opts.ledger?.forget(opts.draft.path);
+  return result;
+}
+
+async function endPinboardEntry(files: PinboardEntryFiles, opts: FinalizePinboardEntryOptions): Promise<PinboardEntryResult> {
   const { draft, title } = opts;
   let current: string;
   try {
@@ -383,15 +425,18 @@ export async function finalizePinboardEntry(files: PinboardEntryFiles, opts: Fin
  */
 export async function discardPinboardEntry(
   files: PinboardEntryFiles,
-  opts: { draft: PinboardDraft; title: string; confirm: () => Promise<boolean>; live?: string },
+  opts: { draft: PinboardDraft; title: string; confirm: () => Promise<boolean>; live?: string; ledger?: PinboardDraftLedger },
 ): Promise<"removed" | "kept"> {
-  let current: string;
+  let current: string | null = null;
   try {
     current = await files.read(opts.draft.path);
   } catch {
-    return "removed";
+    /* gone already: nothing to discard */
   }
-  if (draftStateOf(current, opts.live, opts.draft.initial, opts.title) === "content" && !(await opts.confirm())) return "kept";
-  await files.remove(opts.draft.path);
+  if (current !== null) {
+    if (draftStateOf(current, opts.live, opts.draft.initial, opts.title) === "content" && !(await opts.confirm())) return "kept";
+    await files.remove(opts.draft.path);
+  }
+  opts.ledger?.forget(opts.draft.path);
   return "removed";
 }
