@@ -1,14 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// Walks the whole source tree from disk: about half a second on its own, but past
-// the 5 s unit-test default under the full suite's parallel load — six of these
-// guards timed out at once and passed in isolation (2026-08-24). A default meant
-// for unit tests is the wrong yardstick for a check whose runtime grows with the
-// repo; 30 s still catches a hang.
-vi.setConfig({ testTimeout: 30_000 });
+import { describe, expect, it } from "vitest";
+import { sourceFile, sourceTexts, type SourceText } from "./test-sourceTree";
 
 /**
  * The empty-state duty, on the desktop (S18).
@@ -34,21 +25,23 @@ vi.setConfig({ testTimeout: 30_000 });
  * agree in the file a later change would touch.
  */
 
-const SRC = fileURLToPath(new URL(".", import.meta.url));
-const LOCALES = join(SRC, "..", "..", "..", "packages", "ui", "src", "locales");
+const SRC = "apps/desktop/src";
+const LOCALES = "packages/ui/src/locales";
 const LANGS = ["en", "de", "fr", "es", "it", "nl", "pl", "pt-BR", "ja", "zh-CN"];
 
-const read = (...parts: string[]) => readFileSync(join(SRC, ...parts), "utf8");
+// Files are read once, the components from the scan guards' shared snapshot
+// (test-sourceTree.ts): walking and reading them from disk took this guard past
+// the unit-test limit under load (2026-08-24; Befunde 2026-09-24, Z2).
+const read = (...parts: string[]) => sourceFile([SRC, ...parts].join("/"));
 const stripComments = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === "node_modules" || entry === "dist") continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) walk(full, out);
-    else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) out.push(full);
-  }
-  return out;
+let shipped: readonly SourceText[] | undefined;
+/** The shipped sources under a folder of the desktop's src, by path inside src. */
+function sourcesUnder(folder: string): SourceText[] {
+  shipped ??= sourceTexts([SRC], "shipped");
+  return shipped
+    .filter((f) => f.rel.startsWith(`${SRC}/${folder}/`))
+    .map((f) => ({ rel: f.rel.slice(SRC.length + 1), text: f.text }));
 }
 
 describe("an empty state never denies a shipped feature", () => {
@@ -58,9 +51,9 @@ describe("an empty state never denies a shipped feature", () => {
     // right, and the surface is the one the user believes.
     const promise = /coming soon|folgt in einem|in einem sp(ä|ae)teren Schritt|noch nicht verf(ü|ue)gbar|will be available/i;
     const offenders: string[] = [];
-    for (const file of walk(join(SRC, "components")).concat(join(SRC, "App.tsx"))) {
-      const text = stripComments(readFileSync(file, "utf8"));
-      if (promise.test(text)) offenders.push(file.replace(SRC, ""));
+    for (const { rel, text: source } of [...sourcesUnder("components"), { rel: "App.tsx", text: read("App.tsx") }]) {
+      const text = stripComments(source);
+      if (promise.test(text)) offenders.push(rel);
     }
     expect(offenders, offenders.join("\n")).toEqual([]);
   });
@@ -96,7 +89,7 @@ describe("an error is not \"there is nothing here\"", () => {
 
   it("keeps one sentence for it, in every language", () => {
     for (const lang of LANGS) {
-      const dict = JSON.parse(readFileSync(join(LOCALES, `${lang}.json`), "utf8")) as Record<string, Record<string, string>>;
+      const dict = JSON.parse(sourceFile(`${LOCALES}/${lang}.json`)) as Record<string, Record<string, string>>;
       expect(dict.common.loadFailed, `${lang} lacks common.loadFailed`).toBeTruthy();
       // Without the placeholder the sentence is a shrug: "could not be loaded"
       // and nothing about why.
@@ -119,8 +112,8 @@ describe("an empty view offers the action its surface can keep", () => {
     // Five views each had their own bare EmptyState. One definition means a
     // later change (an icon, a wording, the action) lands everywhere at once.
     const strays: string[] = [];
-    for (const file of walk(join(SRC, "components", "base"))) {
-      if (/database\.emptyView/.test(stripComments(readFileSync(file, "utf8")))) strays.push(file.replace(SRC, ""));
+    for (const { rel, text } of sourcesUnder("components/base")) {
+      if (/database\.emptyView/.test(stripComments(text))) strays.push(rel);
     }
     expect(strays, strays.join("\n")).toEqual([]);
   });

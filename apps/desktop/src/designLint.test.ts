@@ -1,14 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// Walks the whole source tree from disk: about half a second on its own, but past
-// the 5 s unit-test default under the full suite's parallel load — six of these
-// guards timed out at once and passed in isolation (2026-08-24). A default meant
-// for unit tests is the wrong yardstick for a check whose runtime grows with the
-// repo; 30 s still catches a hang.
-vi.setConfig({ testTimeout: 30_000 });
+import { describe, it, expect } from "vitest";
+import { sourceFile, sourceTexts, type SourceText } from "./test-sourceTree";
 
 /**
  * Design-language ratchet 2.0 (design sweep 2026-07-19; v1: plan Designsprache
@@ -39,19 +30,22 @@ vi.setConfig({ testTimeout: 30_000 });
  * such matches are budgeted like any other — only increases fail.
  */
 
-const SRC = fileURLToPath(new URL(".", import.meta.url));
+const SRC = "apps/desktop/src";
 // Desktop components + shell roots (App.tsx/main.tsx/services were a scan gap
 // in v1) + the extracted shared editor layer (ADR 0011); budget keys keep
 // their original "components/..." form across both roots. The shared .base
-// layer scans under "base/...", shell roots under "src/...".
+// layer scans under "base/...", shell roots under "src/...". Repository-
+// relative: the sources come from the scan guards' shared snapshot
+// (test-sourceTree.ts) — walking and reading them took this guard past the
+// unit-test limit under load (2026-08-24; Befunde 2026-09-24, Z2).
 const COMPONENT_ROOTS: Array<{ dir: string; prefix: string }> = [
-  { dir: join(SRC, "components"), prefix: "components/" },
-  { dir: join(SRC, "services"), prefix: "services/" },
-  { dir: join(SRC, "../../../packages/ui/src/components"), prefix: "components/" },
-  { dir: join(SRC, "../../../packages/ui/src/base"), prefix: "base/" },
+  { dir: `${SRC}/components`, prefix: "components/" },
+  { dir: `${SRC}/services`, prefix: "services/" },
+  { dir: "packages/ui/src/components", prefix: "components/" },
+  { dir: "packages/ui/src/base", prefix: "base/" },
   // The mail core moved to the shared package (feinplan G0.1) — it must stay
   // under the same ratchet it had in the shell.
-  { dir: join(SRC, "../../../packages/ui/src/mail"), prefix: "mail/" },
+  { dir: "packages/ui/src/mail", prefix: "mail/" },
 ];
 /** Shell root files scanned individually (walk would pull in tests/config). */
 const ROOT_FILES = ["App.tsx", "main.tsx"];
@@ -252,18 +246,21 @@ const BUDGET: Record<string, Counts> = {
   "components/AppRibbon.tsx": {nakedButton:1},
 };
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    if (statSync(p).isDirectory()) {
-      // ui/ primitives own the canonical overlay/shadow implementations — not ratcheted.
-      if (name === "ui") continue;
-      walk(p, out);
-    } else if (/\.tsx?$/.test(name) && !/\.test\./.test(name) && name !== "palette.ts") {
-      // palette.ts is a token SOURCE (accent hex values written into user
-      // frontmatter — data, not styling), excluded like styles/tokens.css.
-      out.push(p);
-    }
+let shipped: readonly SourceText[] | undefined;
+/** The ratcheted files of one root: [path inside the root, text]. */
+function ratcheted(dir: string): Array<[string, string]> {
+  shipped ??= sourceTexts([SRC, "packages/ui/src"], "shipped");
+  const out: Array<[string, string]> = [];
+  for (const { rel, text } of shipped) {
+    if (!rel.startsWith(`${dir}/`)) continue;
+    const inner = rel.slice(dir.length + 1);
+    const parts = inner.split("/");
+    // ui/ primitives own the canonical overlay/shadow implementations — not ratcheted.
+    if (parts.slice(0, -1).includes("ui")) continue;
+    // palette.ts is a token SOURCE (accent hex values written into user
+    // frontmatter — data, not styling), excluded like styles/tokens.css.
+    if (parts[parts.length - 1] === "palette.ts") continue;
+    out.push([inner, text]);
   }
   return out;
 }
@@ -343,20 +340,19 @@ function scan(): Record<string, Counts> {
     if (Object.keys(counts).length) actual[rel] = counts;
   };
   for (const root of COMPONENT_ROOTS) {
-    for (const file of walk(root.dir)) {
-      const rel = root.prefix + relative(root.dir, file).replace(/\\/g, "/");
-      record(rel, countFile(readFileSync(file, "utf8")));
+    for (const [inner, text] of ratcheted(root.dir)) {
+      record(root.prefix + inner, countFile(text));
     }
   }
   for (const name of ROOT_FILES) {
-    record(`src/${name}`, countFile(readFileSync(join(SRC, name), "utf8")));
+    record(`src/${name}`, countFile(sourceFile(`${SRC}/${name}`)));
   }
   // App.css: full rule set (v1 only counted raw radii there).
-  record("App.css", countFile(readFileSync(join(SRC, "App.css"), "utf8"), true));
+  record("App.css", countFile(sourceFile(`${SRC}/App.css`), true));
   // mail.css: the one component stylesheet outside styles/ — same contract.
   record(
     "components/mail/mail.css",
-    countFile(readFileSync(join(SRC, "components/mail/mail.css"), "utf8"), true)
+    countFile(sourceFile(`${SRC}/components/mail/mail.css`), true)
   );
   return actual;
 }

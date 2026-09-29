@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { sourceFile, sourceTexts } from "./test-sourceTree";
 
 /**
  * One store per vault (Nachschaerfung, N0).
@@ -15,8 +13,9 @@ import { fileURLToPath } from "node:url";
  * branch at a call site, and no behaviour test looks at those.
  */
 
-const SRC = fileURLToPath(new URL(".", import.meta.url));
-const read = (...p: string[]) => readFileSync(join(SRC, ...p), "utf8");
+// Each file once, however many tests look at it — the vault context six times
+// (Befunde 2026-09-24, Z2).
+const read = (...p: string[]) => sourceFile(["apps/desktop/src", ...p].join("/"));
 const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("the vault context chooses one comment store", () => {
@@ -133,19 +132,15 @@ describe("the comment texts live in their own namespace (N4)", () => {
     // The feature stopped hanging on the encryption in Stufe D; the KI harness
     // adds more comment texts, and they must not land under "security" either.
     // `commentOnly` is a workspace ROLE description and stays where it is.
-    const roots = [join(SRC), join(SRC, "..", "..", "mobile", "src"), join(SRC, "..", "..", "..", "packages", "ui", "src")];
+    // All TypeScript of both shells and the shared UI, tests included, from
+    // the scan guards' shared snapshot (test-sourceTree.ts).
     const offenders: string[] = [];
-    const walk = (dir: string) => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-        const path = join(dir, entry.name);
-        if (entry.isDirectory()) { if (entry.name !== "node_modules") walk(path); continue; }
-        if (!/\.(ts|tsx)$/.test(entry.name) || path.endsWith("commentStoreWiring.test.ts")) continue;
-        const content = readFileSync(path, "utf8").split("workspaceSecurity.commentOnly").join("");
-        const hit = content.match(/workspaceSecurity\.(?:comment|suggest)[A-Za-z]*/);
-        if (hit) offenders.push(`${path} :: ${hit[0]}`);
-      }
-    };
-    for (const root of roots) walk(root);
+    for (const { rel, text } of sourceTexts(["apps/desktop/src", "apps/mobile/src", "packages/ui/src"], "code")) {
+      if (rel.endsWith("commentStoreWiring.test.ts")) continue;
+      const content = text.split("workspaceSecurity.commentOnly").join("");
+      const hit = content.match(/workspaceSecurity\.(?:comment|suggest)[A-Za-z]*/);
+      if (hit) offenders.push(`${rel} :: ${hit[0]}`);
+    }
     expect(offenders).toEqual([]);
   });
 });

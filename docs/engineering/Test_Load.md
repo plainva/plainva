@@ -37,7 +37,10 @@ files it did not need.
 5. **Source-scan guards read through `test-sourceTree.ts`.** Listing the trees
    stays cheap; reading ~1 300 files one by one took 10–26 s under load. The
    helper keeps a snapshot under `node_modules/.cache/plainva-scan-guards` and
-   re-reads only files whose size or modification time changed.
+   re-reads only files whose size or modification time changed. That holds for
+   the code trees, the user guide and the locale bundles alike. A guard reads
+   a tree once per test file, not once per test, and a file several tests look
+   at comes through `sourceFile`, read once.
 6. **Disk only where files are the subject.** A test about a vault's content —
    a template, an index, a database — runs on `MemoryVaultAdapter`
    (`packages/core/test/helpers/memoryVault.ts`), which `memory-vault.test.ts`

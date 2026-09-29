@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { defaultImportRegistry } from "@plainva/core";
+import { sourceTexts } from "./test-sourceTree";
 
 /**
  * Import options declared in core must have a label in every language.
@@ -15,13 +13,16 @@ import { defaultImportRegistry } from "@plainva/core";
  * declaration in core and the texts in i18n only ever change together.
  */
 
-const LOCALES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../packages/ui/src/locales");
+const LOCALES_DIR = "packages/ui/src/locales";
 
+let bundles: Array<[string, Record<string, any>]> | undefined;
+/** Every locale bundle, read and parsed once for both checks, from the scan guards' shared snapshot. */
 function locales(): Array<[string, Record<string, any>]> {
-  return readdirSync(LOCALES_DIR)
-    .filter((f) => f.endsWith(".json"))
-    .sort()
-    .map((f) => [f.replace(/\.json$/, ""), JSON.parse(readFileSync(join(LOCALES_DIR, f), "utf8"))]);
+  bundles ??= sourceTexts([LOCALES_DIR], "json")
+    .map(({ rel, text }) => [rel.slice(LOCALES_DIR.length + 1), text] as const)
+    .filter(([name]) => !name.includes("/"))
+    .map(([name, text]): [string, Record<string, any>] => [name.replace(/\.json$/, ""), JSON.parse(text)]);
+  return bundles;
 }
 
 describe("import option labels", () => {

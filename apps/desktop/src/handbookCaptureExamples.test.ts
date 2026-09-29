@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { captureVocabularyFrom, parseTaskCapture, type CaptureVocabulary } from "@plainva/ui";
+import { sourceFile, sourceMap } from "./test-sourceTree";
 
 /**
  * The handbook shows one capture sentence per language — "Send offer tomorrow
@@ -13,7 +14,10 @@ import { captureVocabularyFrom, parseTaskCapture, type CaptureVocabulary } from 
  */
 
 const DOCS = join(__dirname, "../../../docs/user");
-const LOCALES = join(__dirname, "../../../packages/ui/src/locales");
+const LOCALES = "packages/ui/src/locales";
+// The guide's pages from the scan guards' shared snapshot (test-sourceTree.ts):
+// one read instead of thirty.
+const guide = sourceMap(["docs/user"], "markdown");
 const MARKER = "<!-- planner-capture-2026-09-20 -->";
 // A Monday; "tomorrow" is the 22nd in every language.
 const TODAY = "2026-09-21";
@@ -22,7 +26,7 @@ const TOMORROW = "2026-09-22";
 const languages = readdirSync(DOCS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 
 function vocab(lang: string): CaptureVocabulary {
-  const tasks = JSON.parse(readFileSync(join(LOCALES, `${lang}.json`), "utf8")).tasks as Record<string, string>;
+  const tasks = JSON.parse(sourceFile(`${LOCALES}/${lang}.json`)).tasks as Record<string, string>;
   return captureVocabularyFrom(
     {
       today: tasks.captureToday, tomorrow: tasks.captureTomorrow, dayAfterTomorrow: tasks.captureDayAfterTomorrow,
@@ -38,7 +42,8 @@ function vocab(lang: string): CaptureVocabulary {
 
 /** The code spans of the section the planner round added to a page. */
 function spans(lang: string, page: string): string[] {
-  const text = readFileSync(join(DOCS, lang, page), "utf8");
+  const text = guide.get(`docs/user/${lang}/${page}`);
+  if (text === undefined) throw new Error(`docs/user/${lang}/${page} does not exist`);
   const at = text.indexOf(MARKER);
   expect(at, `${lang}/${page} carries the planner section`).toBeGreaterThan(-1);
   return [...text.slice(at).matchAll(/`([^`\n]+)`/g)].map((match) => match[1]);

@@ -1,7 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { sourceFile, sourceTexts } from "./test-sourceTree";
 
 // Terminology guard (Befunde 2026-09-24, E26). zh-CN had three names for the
 // daily note side by side — 日记, 每日笔记 and, on the journal's day card, even
@@ -11,8 +9,6 @@ import { fileURLToPath } from "node:url";
 // retired variant from coming back through a new string, a guide page, a vault
 // template or a tour lesson.
 
-const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-
 /** A term a language no longer uses, and the one it uses instead. */
 const RETIRED: { lang: string; term: string; use: string }[] = [
   { lang: "zh-CN", term: "每日笔记", use: "日记" },
@@ -20,21 +16,22 @@ const RETIRED: { lang: string; term: string; use: string }[] = [
 
 type Source = { path: string; text: string };
 
+// Each file once; the guide pages from the scan guards' shared snapshot
+// (test-sourceTree.ts).
 function read(path: string): Source {
-  return { path, text: readFileSync(join(REPO, path), "utf8") };
+  return { path, text: sourceFile(path) };
 }
 
 /** Everything a language's reader sees in words: UI, guide, templates, tour. */
 function sourcesOf(lang: string): Source[] {
-  const guide = `docs/user/${lang}`;
+  const guide = `docs/user/${lang}/`;
   return [
     read(`packages/ui/src/locales/${lang}.json`),
     read(`packages/ui/src/vaultTemplates/templates.${lang}.ts`),
     read(`packages/ui/src/vaultTemplates/tourLessons.${lang}.json`),
-    ...readdirSync(join(REPO, guide))
-      .filter((f) => f.endsWith(".md"))
-      .sort()
-      .map((f) => read(`${guide}/${f}`)),
+    ...sourceTexts(["docs/user"], "markdown")
+      .filter(({ rel }) => rel.startsWith(guide) && !rel.slice(guide.length).includes("/"))
+      .map(({ rel, text }) => ({ path: rel, text })),
   ];
 }
 
@@ -48,7 +45,7 @@ function flatten(node: unknown, prefix = "", out: Record<string, string> = {}): 
 }
 
 function locale(lang: string): Record<string, string> {
-  return flatten(JSON.parse(readFileSync(join(REPO, `packages/ui/src/locales/${lang}.json`), "utf8")));
+  return flatten(JSON.parse(sourceFile(`packages/ui/src/locales/${lang}.json`)));
 }
 
 describe("translation terms", () => {

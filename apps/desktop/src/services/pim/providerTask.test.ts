@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { anchorMatchesTask, createProviderTask, readProviderTaskAnchor, taskAnchorIdentity, type ProviderTaskAnchor } from "@plainva/ui";
 import { readFrontmatterPath } from "@plainva/core";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { sourceTexts } from "../../test-sourceTree";
 
 /**
  * C4/S16 — creating a task in Plainva that also exists at the provider.
@@ -346,32 +347,25 @@ describe("the desktop creation path", () => {
     }
   });
 
-  // The only assertion in this file that reads the component tree from disk, so
-  // the only one that outgrows the 5 s default under the full suite's load
-  // (2026-08-24). The rest are pure and stay on the default.
+  // The only assertion in this file that reads the component tree. Read from
+  // disk it outgrew the 5 s default under the full suite's load (2026-08-24)
+  // and needed a raised limit; it reads the scan guards' shared snapshot now
+  // (test-sourceTree.ts), each file once (Befunde 2026-09-24, Z2).
   it("leaves no way of creating a task that skips the provider", () => {
     // The drift guard. Three call sites today; a fourth added without this
     // route would silently create tasks that never reach the list — and it
     // would look fine, because the note is there.
-    const dir = join(__dirname, "..", "..");
-    const files = [
-      ...readdirSync(join(dir, "components"), { recursive: true, encoding: "utf8" })
-        .filter((f) => f.endsWith(".tsx") || f.endsWith(".ts"))
-        .map((f) => join("components", String(f))),
-    ];
-    const creators: string[] = [];
-    for (const rel of files) {
-      const src = readFileSync(join(dir, rel), "utf8");
-      if (/createTaskInDatabase\(\{|promoteTask\(\{/.test(src)) creators.push(rel);
-    }
+    const components = sourceTexts(["apps/desktop/src"], "code")
+      .filter(({ rel }) => rel.startsWith("apps/desktop/src/components/"))
+      .map(({ rel, text }) => ({ rel: rel.slice("apps/desktop/src/".length), text }));
+    const creators = components.filter(({ text }) => /createTaskInDatabase\(\{|promoteTask\(\{/.test(text));
     expect(creators.length, "no creation call site found — re-point this guard").toBeGreaterThan(0);
-    for (const rel of creators) {
-      const src = readFileSync(join(dir, rel), "utf8");
-      expect(src, `${rel} creates tasks without sending them to the provider list`).toMatch(
+    for (const { rel, text } of creators) {
+      expect(text, `${rel} creates tasks without sending them to the provider list`).toMatch(
         /sendToProvider\(|sendTaskToProviderList\(/
       );
     }
-  }, 30_000);
+  });
 
   it("never lets a provider failure cost the note", () => {
     // The note exists on disk when the service runs. Its own error path must
