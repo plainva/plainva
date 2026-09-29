@@ -64,6 +64,23 @@ Notes:
   from `packages/ui/src/locales/<code>.json`; vault-template prose uses the
   same terms.
 
+## Daily note and journal (zh-CN)
+
+The daily note (one note per day, named by the vault's date format) and the
+journal (time-stamped lines under a heading of that note) are two things, and
+zh-CN names them apart:
+
+| Term | zh-CN |
+|---|---|
+| Daily note | 日记 (Obsidian's term) |
+| Journal | 日志 |
+| Journal entry | 日志条目 |
+
+日记 is used everywhere — UI, user guide, vault templates and tour lessons; 每日笔记
+is retired (decision 2026-09-24). 日志 also names technical logs such as the
+deletion log. `apps/desktop/src/translationTerms.test.ts` fails when a retired
+variant comes back or a daily-note string loses 日记.
+
 ## Process Rules
 
 - New UI strings are ALWAYS added to all files under `packages/ui/src/locales/`

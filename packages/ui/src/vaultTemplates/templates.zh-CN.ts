@@ -70,7 +70,7 @@ $$
 
 const TOUR_STRINGS_ZH_CN: TourStrings = {
   name: "Plainva导览",
-  description: "一个带导览的仓库：便签板、每日笔记、领域、项目和任务——Plainva提供的每一种视图，都配有示例。",
+  description: "一个带导览的仓库：便签板、日记、领域、项目和任务——Plainva提供的每一种视图，都配有示例。",
   folders: {
     quickNotes: "快速笔记",
     journal: "日记",
@@ -107,7 +107,7 @@ const TOUR_STRINGS_ZH_CN: TourStrings = {
     quickNote: { file: "快速笔记.md", body: "# {{title}}\n\n" },
     daily: {
       file: "日记.md",
-      description: "新建每日笔记时使用的模板——{{date}}、{{time}} 和 {{daily±1}} 会在创建笔记时被替换。",
+      description: "新建日记时使用的模板——{{date}}、{{time}} 和 {{daily±1}} 会在创建笔记时被替换。",
       body: "# {{title}}\n\n{{daily-1}} · {{date:dddd}} · {{daily+1}}\n\n## 任务\n\n- [ ] \n\n## 笔记\n\n{{cursor}}\n",
     },
     meeting: {
@@ -627,7 +627,7 @@ const JD_STRINGS_ZH_CN: JdStrings = {
 
 const JOURNAL_STRINGS_ZH_CN: JournalStrings = {
   name: "Journal",
-  description: "配有现成模板和日记数据库的每日笔记——一切都已即时预先设置好。",
+  description: "日记，配有现成模板和日记数据库——一切都已即时预先设置好。",
   folders: { journal: "日记", templates: "模板" },
   folderHints: {
     journal: "你的日记，一天一篇。",
