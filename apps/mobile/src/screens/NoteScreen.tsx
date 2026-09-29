@@ -30,15 +30,15 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, healMissingNote, movedChoiceBodyKey, movedFolderLabel } from "@plainva/ui";
+import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
-import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
+import { getLastPersistedText, noteSaver, rememberPersistedText, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
@@ -111,11 +111,21 @@ export function NoteScreen({
    * phone's own vault is visible in the iOS Files app, and a note moved there
    * sits in another folder with the same content. `looking` while the search
    * runs; the candidates when none of them is certain; `settled` once the
-   * missing state is the answer.
+   * missing state is the answer. `searching` while the vault-wide pass behind
+   * that first answer still runs.
    */
-  const [movedLookup, setMovedLookup] = useState<{ kind: "looking" } | { kind: "choose"; candidates: string[] } | { kind: "settled" } | null>(null);
+  const [movedLookup, setMovedLookup] = useState<{ kind: "looking" } | { kind: "choose"; candidates: string[]; searching: boolean } | { kind: "settled"; searching: boolean } | null>(null);
   /** A failed load can be looked into: the lookup below runs for it. */
   const canLookForMoved = !!(vault.indexer && vault.db);
+  /**
+   * The file of a note with UNSAVED text vanished while it was open (issue
+   * 110, E9): the text stays in the editor — and in the draft journal — and
+   * the question sits above it. Nothing is written back to the old place
+   * unless the reader says so.
+   */
+  const [vanished, setVanished] = useState<{ kind: "checking" } | { kind: "ask"; candidates: string[]; searching: boolean } | { kind: "gone"; searching: boolean } | null>(null);
+  /** Content hash and modification time the index held at the last load or save. */
+  const knownIdentityRef = useRef<KnownFileIdentity | null>(null);
   const [marked, setMarked] = useState(false);
   const [info, setInfo] = useState<ContextTab | null>(null);
   // The context surface can stand beside the work (S14) — but only where a
@@ -462,6 +472,12 @@ export function NoteScreen({
         if (stale) return;
         setLoadError(false);
         setDoc(text);
+        // What was loaded, for the day the file vanishes (issue 110, E9).
+        if (vault.db) {
+          void readIndexedIdentity(vault.db, path)
+            .then((identity) => { if (!stale && identity) knownIdentityRef.current = identity; })
+            .catch(() => {});
+        }
         // Draft recovery (package G): offer an unsaved draft that is newer
         // than the file on disk and differs from it.
         const d = await readDraft(vault, path);
@@ -484,39 +500,193 @@ export function NoteScreen({
 
   // One match at the same modification time (a move keeps it): the screen
   // follows it and says where. Anything less certain: the reader picks. None:
-  // the missing state — the stale index row is already gone.
+  // the missing state — the stale index row is already gone. The first answer
+  // comes from the parent folder; a vault-wide pass may still change it, and
+  // the screen updates when it does.
   const followMoved = useStableHandler((to: string) => {
     void getVaultEntry(vault.vaultId).catch(() => null).then((entry) => {
       toast.info(t("mobile.noteMovedFollowed", { folder: movedFolderLabel(to, entry?.name || t("mobile.vaultLocal")) }));
     });
     onRenamed(to);
   });
+  /**
+   * What a move made in Plainva carries along — bookmarks, pinboard places,
+   * the note's remarks — for a move made elsewhere, once it is proven or the
+   * reader picked the file. Links in other notes stay as they are.
+   */
+  const adoptMove = useStableHandler(async (from: string, to: string) => {
+    await adoptExternalMove({
+      retargetBookmarks: (f, tt) => renameBookmarksOnDisk(vault.adapter, f, tt),
+      pinboard: { adapter: vault.files, queryService: vault.queryService },
+      reindex: (paths) => vault.reindexPaths(paths),
+    }, from, to);
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  });
+  /** One search for this note, shared with every other surface that asks. */
+  const searchFor = useStableHandler((): Promise<MissingFileSearch> | null => {
+    if (!vault.indexer || !vault.db) return null;
+    return healMissingNote(path, { exists: (p) => vault.adapter.exists(p), db: vault.db, indexer: vault.indexer }, vault.vaultId,
+      { known: knownIdentityRef.current, onProvenMove: adoptMove });
+  });
   useEffect(() => {
-    if (!loadError || !vault.indexer || !vault.db) {
+    const search = loadError ? searchFor() : null;
+    if (!search) {
       setMovedLookup(null);
       return;
     }
     let stale = false;
     setMovedLookup({ kind: "looking" });
-    void healMissingNote(path, { exists: (p) => vault.adapter.exists(p), db: vault.db, indexer: vault.indexer }, vault.vaultId)
-      .then((outcome) => {
-        // Every answer but "present" changed the index (the stale row went,
-        // the new place came in); the lists hear of it even when this screen
-        // has gone meanwhile.
-        if (outcome.kind !== "present") window.dispatchEvent(new CustomEvent("m-vault-changed"));
-        if (stale) return;
-        if (outcome.kind === "moved") {
-          setMovedLookup(null);
-          followMoved(outcome.to);
-          return;
-        }
-        setMovedLookup(outcome.kind === "ambiguous" ? { kind: "choose", candidates: outcome.candidates } : { kind: "settled" });
-      })
-      .catch(() => { if (!stale) setMovedLookup({ kind: "settled" }); });
+    const apply = (outcome: MissingFileOutcome, searching: boolean) => {
+      // Every answer but "present" changed the index (the stale row went,
+      // the new place came in); the lists hear of it even when this screen
+      // has gone meanwhile.
+      if (outcome.kind !== "present") window.dispatchEvent(new CustomEvent("m-vault-changed"));
+      if (stale) return;
+      const step = planMissingNote(outcome, false);
+      if (step.kind === "follow") {
+        setMovedLookup(null);
+        followMoved(step.to);
+        return;
+      }
+      setMovedLookup(step.kind === "ask" ? { kind: "choose", candidates: step.candidates, searching } : { kind: "settled", searching });
+    };
+    const fail = () => {
+      if (!stale) setMovedLookup((m) => (m && m.kind !== "looking" ? { ...m, searching: false } : { kind: "settled", searching: false }));
+    };
+    void search.then((found) => {
+      apply(found.first, !!found.settled);
+      found.settled?.then((outcome) => apply(outcome, false), fail);
+    }, fail);
     return () => { stale = true; };
     // The lookup belongs to one failed load of one note.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadError, path, vault]);
+
+  // A save that landed tells what the file is now — kept for the day it
+  // vanishes (issue 110, E9).
+  useEffect(() => {
+    const saved = (event: Event) => {
+      const d = (event as CustomEvent<{ vaultId: string; path: string }>).detail;
+      if (d.vaultId !== vault.vaultId || d.path !== path || !vault.db) return;
+      setVanished(null);
+      void readIndexedIdentity(vault.db, path).then((identity) => { if (identity) knownIdentityRef.current = identity; }).catch(() => {});
+    };
+    window.addEventListener("m-editor-save-confirmed", saved);
+    return () => window.removeEventListener("m-editor-save-confirmed", saved);
+  }, [vault, path]);
+
+  // The file of the OPEN note vanished — the re-read on return, a pull or
+  // sync removed it, or a save found it gone (issue 110, E9). A clean note
+  // simply takes the failed load's way, which looks for it. A note with
+  // unsaved text keeps it on screen and asks above it; if the file turns out
+  // moved, the text is written to the NEW place first and the screen follows.
+  const aliveRef = useRef(true);
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; }; }, []);
+  const vanishTimerRef = useRef<number | null>(null);
+  useEffect(() => () => { if (vanishTimerRef.current !== null) window.clearTimeout(vanishTimerRef.current); }, []);
+  /** The editor's text right now, or null without an editor. */
+  const liveText = (): string | null => {
+    try {
+      return captureCommentEditor(vault.vaultId, path).text;
+    } catch {
+      return null;
+    }
+  };
+  /** Writes the unsaved text to where the file lives now, then follows it there. */
+  const carryAndFollow = useStableHandler(async (to: string, picked: boolean) => {
+    const text = liveText();
+    if (text === null || !aliveRef.current) return;
+    // The new file holds what was last saved (its hash matched), so that is
+    // the base the unsaved text applies to.
+    const base = getLastPersistedText(vault, path);
+    // Held still while it travels: a keystroke now would land at the old place.
+    const wasEditing = editing;
+    setEditing(false);
+    noteSaver.discard(path, vault);
+    if (base !== null) rememberPersistedText(vault, to, base);
+    noteSaver.schedule(vault, to, text);
+    try {
+      await noteSaver.flush(to, vault);
+    } catch (e) {
+      console.error("[NoteScreen] carrying the unsaved text to the moved file failed", e);
+      toast.error(t("editor.saveFailed"));
+      setEditing(wasEditing);
+      return;
+    }
+    if (picked) await adoptMove(path, to);
+    // The old place holds nothing any more; its journal entry is settled.
+    clearDraft(vault, path);
+    setVanished(null);
+    followMoved(to);
+  });
+  /** "Save here again": the reader brings the file back where it was. */
+  const restoreHere = useStableHandler(async () => {
+    const text = liveText();
+    if (text === null) return;
+    try {
+      // The plain write on purpose: the editor save refuses to recreate a
+      // vanished file; this is the reader saying it should.
+      await vaultOps.save(vault, path, text);
+    } catch {
+      toast.error(t("editor.saveFailed"));
+      return;
+    }
+    rememberPersistedText(vault, path, text);
+    noteSaver.discard(path, vault);
+    clearDraft(vault, path);
+    setVanished(null);
+    if (vault.db) {
+      const identity = await readIndexedIdentity(vault.db, path).catch(() => null);
+      if (identity) knownIdentityRef.current = identity;
+    }
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  });
+  const lookForVanishedFile = useStableHandler(async () => {
+    if (!aliveRef.current || loadError || doc === null) return;
+    // Another program's atomic save deletes and writes again — the file may
+    // simply be back.
+    if (await vault.adapter.exists(path).catch(() => true)) return;
+    const text = liveText();
+    const unsaved = noteSaver.hasPending(path, vault) || (text !== null && text !== (getLastPersistedText(vault, path) ?? doc));
+    if (!unsaved) {
+      // Nothing unsaved: the failed load's way — the screen looks for it.
+      setDoc(null);
+      setLoadError(true);
+      return;
+    }
+    const search = searchFor();
+    if (!search) return;
+    setVanished({ kind: "checking" });
+    const apply = (outcome: MissingFileOutcome, searching: boolean) => {
+      if (outcome.kind !== "present") window.dispatchEvent(new CustomEvent("m-vault-changed"));
+      if (!aliveRef.current) return;
+      const step = planMissingNote(outcome, true);
+      if (step.kind === "stay") setVanished(null);
+      else if (step.kind === "follow") void carryAndFollow(step.to, false);
+      else if (step.kind === "ask") setVanished({ kind: "ask", candidates: step.candidates, searching });
+      else setVanished({ kind: "gone", searching });
+    };
+    try {
+      const found = await search;
+      apply(found.first, !!found.settled);
+      found.settled?.then((outcome) => apply(outcome, false), () => setVanished((v) => (v && v.kind !== "checking" ? { ...v, searching: false } : v)));
+    } catch {
+      setVanished({ kind: "gone", searching: false });
+    }
+  });
+  /**
+   * Entry point for every report that the open file may be gone. Deferred a
+   * moment: a deletion made in Plainva leaves this screen right after, and a
+   * re-read indexes the other side of a move in the same breath. Once asked,
+   * the question stands until the reader answers it.
+   */
+  const noticeVanished = useStableHandler(() => {
+    if (vanishTimerRef.current !== null || loadError || vanished) return;
+    vanishTimerRef.current = window.setTimeout(() => {
+      vanishTimerRef.current = null;
+      void lookForVanishedFile();
+    }, 400);
+  });
 
   /** Regenerates this overview from the folder it belongs to. */
   const refreshManagedIndex = () => {
@@ -827,8 +997,9 @@ export function NoteScreen({
   const loadFailed = doc === null && loadError;
   // A floating bar is for reading under it. The failed-load states sit in the
   // flow below the bar instead — laid under it, they lost their icon and
-  // title (issue 110: "Moved?" was the part that was hidden).
-  const readerOverlay = !loadFailed && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince;
+  // title (issue 110: "Moved?" was the part that was hidden) — and so does a
+  // vanished file's question, which must not scroll away with the bar.
+  const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince;
   const { chromeRef, away: chromeAway, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview);
   const page = (
     <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
@@ -973,10 +1144,37 @@ export function NoteScreen({
             </Button>
           </div>
         )}
+      {vanished && vanished.kind !== "checking" && doc !== null && (
+        /* The file of this note vanished while it held unsaved text (issue
+           110, E9): the text stays in the editor below, the question sits
+           here. Picking a file carries the text there; "Save here again"
+           brings the file back where it was. */
+        <div data-testid="note-vanished">
+          <Banner
+            kind="warning"
+            actions={
+              <>
+                {vanished.kind === "ask" && vanished.candidates.map((candidate) => (
+                  <Button key={candidate} size="sm" variant="ghost" data-testid="note-vanished-candidate" onClick={() => { void carryAndFollow(candidate, true); }}>
+                    {candidate}
+                  </Button>
+                ))}
+                <Button size="sm" variant="ghost" data-testid="note-vanished-restore" onClick={() => { void restoreHere(); }}>
+                  {t("editor.vanishedRestore")}
+                </Button>
+              </>
+            }
+          >
+            {vanished.kind === "ask" ? t("editor.vanishedAsk") : t("editor.vanishedGone")}
+            {vanished.searching && <> {t("editor.movedFileStillLooking")}</>}
+          </Banner>
+        </div>
+      )}
       </div>
       {doc !== null && (
         <EditorHost
           onReaderBlockedChange={setReaderBlocked}
+          onVanished={noticeVanished}
           editable={(editing && workspaceCanWrite && !managedIndex) || suggesting}
           initialDoc={doc}
           key={`${path}#${reloadTick}`}
@@ -1023,7 +1221,12 @@ export function NoteScreen({
           action={
             <div role="group" aria-label={t("editor.movedFileAskTitle")} className="m-moved-choice">
               {movedLookup.candidates.map((candidate) => (
-                <Button key={candidate} data-testid="note-moved-candidate" onClick={() => followMoved(candidate)} variant="tonal">
+                <Button key={candidate} data-testid="note-moved-candidate" onClick={() => {
+                  // The reader said which file it is: that move is as good as
+                  // proven, and what Plainva stores about the note follows.
+                  void adoptMove(path, candidate);
+                  followMoved(candidate);
+                }} variant="tonal">
                   {candidate}
                 </Button>
               ))}
@@ -1036,6 +1239,7 @@ export function NoteScreen({
           title={t("editor.movedFileAskTitle")}
         >
           {t(movedChoiceBodyKey(movedLookup.candidates.length))}
+          {movedLookup.searching && <p className="m-hint" data-testid="note-still-looking">{t("editor.movedFileStillLooking")}</p>}
         </EmptyState>
       )}
       {doc === null && loadError && (movedLookup?.kind === "settled" || !canLookForMoved) && (
@@ -1051,6 +1255,11 @@ export function NoteScreen({
           icon={<FileX size={ICON.touch} />}
         >
           {t("mobile.noteMissing")}
+          {movedLookup?.kind === "settled" && movedLookup.searching && (
+            // The parent folder had nothing; a vault-wide pass still looks,
+            // and the screen follows if it finds the file (issue 110, E9).
+            <p className="m-hint" data-testid="note-still-looking">{t("editor.movedFileStillLooking")}</p>
+          )}
         </EmptyState>
       )}
       {/* Nothing to edit when the load failed: the pencil only switched the

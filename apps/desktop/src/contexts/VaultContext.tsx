@@ -952,6 +952,10 @@ export const VaultProvider: React.FC<{
           void enqueueLocalChange(path);
         },
         onLocalFileDeleted: (path) => {
+          // An editor that shows this file learns that it vanished (issue 110,
+          // E9) — moved or deleted outside Plainva while open. It looks for
+          // the file; the owner bridge carries the event to other windows.
+          if (!path.includes(".plainva")) window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
           if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
           if (workspaceMaterializedPaths.delete(path)) return;
           // The worker mirrored a remote deletion: its sync_state is already

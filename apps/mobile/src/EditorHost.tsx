@@ -86,6 +86,7 @@ export function EditorHost({
   onSuggestionApply,
   onSuggestionDecline,
   onReaderBlockedChange,
+  onVanished,
 }: {
   vault: MobileVault;
   path: string;
@@ -129,12 +130,19 @@ export function EditorHost({
   onSuggestionApply?: (commentId: string) => void;
   onSuggestionDecline?: (commentId: string) => void;
   onReaderBlockedChange?: (blocked: boolean) => void;
+  /**
+   * The file under this editor is gone — moved or deleted outside Plainva, or
+   * by sync, while the note was open (issue 110, E9). The screen looks for it.
+   */
+  onVanished?: () => void;
 }) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<EditorSession | null>(null);
   const highlightsRef = useRef<readonly AnchorHighlight[]>([]);
   const editableRef = useRef(editable);
+  const onVanishedRef = useRef(onVanished);
+  useEffect(() => { onVanishedRef.current = onVanished; }, [onVanished]);
   /** True while the view holds the suggestion mode's copy (V5): no saving. */
   const suggestingRef = useRef(false);
   // Block-handle menu (R1.2): the grip tap dispatches a window event (shared
@@ -688,7 +696,10 @@ export function EditorHost({
       try {
         disk = await vaultOps.readEditor(vault, path);
       } catch {
-        return; // deleted/renamed under us; the tree refresh handles that
+        // Gone from under us (issue 110, E9): the screen looks for the file —
+        // the text in this editor stays until it knows where it goes.
+        if (!(await vault.adapter.exists(path).catch(() => true))) onVanishedRef.current?.();
+        return;
       }
       if (sessionRef.current !== s) return;
       const draft = s.view.state.doc.toString();

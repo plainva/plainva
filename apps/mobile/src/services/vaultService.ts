@@ -617,6 +617,10 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         void enqueueLocal(path);
       },
       onLocalFileDeleted: (path) => {
+        // A note screen that shows this file learns that it vanished (issue
+        // 110, E9) — moved or deleted outside Plainva while open, found by the
+        // re-read on return or the pull. The editor looks for it.
+        if (!isInternal(path)) window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: entry.id } }));
         // The worker mirrored a remote deletion (finding 2026-09-20): nothing is
         // left to delete remotely, and queueing it is how a wrongly mirrored
         // file went back up as a remote deletion. Asked first, so the mark is
@@ -1335,8 +1339,17 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
   // S5: a conflict is not a transient failure. The adapter has already written
   // the user's text to a `.CONFLICT` sibling; retrying writes another one every
   // backoff round, and none of them is anywhere on screen.
-  isTerminal: (err) => err instanceof ConflictError,
+  // Nor is a note whose file vanished under the editor (issue 110, E9): the
+  // adapter refuses to recreate it at its old place, and retrying cannot
+  // change that. The text stays in the editor and the draft journal; the note
+  // screen looks for the file and asks where the text goes.
+  // (Asked by the error code: a vanished file is the adapter's FILE_NOT_FOUND.)
+  isTerminal: (err) => err instanceof ConflictError || (err as { code?: string } | null)?.code === "FILE_NOT_FOUND",
   onError: (path, err, attempt, vault) => {
+    if ((err as { code?: string } | null)?.code === "FILE_NOT_FOUND") {
+      window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
+      return;
+    }
     console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);
     if (err instanceof ConflictError) {
       // An end state, shown as a banner at the note itself — not a toast that

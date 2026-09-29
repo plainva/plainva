@@ -538,6 +538,117 @@ test('a single look-alike written at another time is offered, never followed (is
   expect(await page.evaluate(() => '/test-vault/4 blog/link-50-draft.md' in (window as any).mockFs)).toBe(true);
 });
 
+// Issue 110 (E9), the note that is OPEN while its file moves. The watcher (or
+// a reconcile, or sync) reports the old path as gone; VaultContext passes
+// that on as an external update, simulated here the same way.
+async function openBlogNote(page: import('@playwright/test').Page, extra: Record<string, string> = {}) {
+  await page.addInitScript((files) => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/4 blog': { isDir: true },
+      '/test-vault/4 blog/taken': { isDir: true },
+      '/test-vault/4 blog/link-50.md': '# The Markdown Link no. 50\n\nNine editors that stood out.\n',
+      ...files,
+    });
+  }, extra);
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('4 blog', { exact: true })).toBeVisible({ timeout: 10000 });
+  await tree.getByText('4 blog', { exact: true }).click();
+  await tree.getByText('link-50', { exact: true }).click();
+  await expect(page.getByText('Nine editors that stood out.')).toBeVisible();
+}
+async function moveOutside(page: import('@playwright/test').Page, to: string | null) {
+  await page.evaluate((target) => {
+    const fs = (window as any).mockFs;
+    if (target) fs[`/test-vault/${target}`] = fs['/test-vault/4 blog/link-50.md'];
+    delete fs['/test-vault/4 blog/link-50.md'];
+  }, to);
+}
+const reportGone = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-external-update', { detail: { path: '4 blog/link-50.md' } })));
+
+test('an open note follows its file when it is moved outside Plainva, and so does its bookmark (issue 110)', async ({ page }) => {
+  await page.addInitScript((stamp) => {
+    // The index answers for the note from the start, so the open tab knows it.
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      const q = String(args?.query || '');
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT sha256, mtime_local FROM files WHERE path = ?')) return [{ sha256: 'hash-of-link-50', mtime_local: stamp }];
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT path, mtime_local FROM files WHERE sha256 = ?')) return [{ path: '4 blog/taken/link-50.md', mtime_local: stamp }];
+      return orig(cmd, args, options);
+    };
+  }, STAMP);
+  await openBlogNote(page, { '/test-vault/.plainva/bookmarks.json': JSON.stringify({ items: [{ type: 'file', path: '4 blog/link-50.md' }] }) });
+
+  await moveOutside(page, '4 blog/taken/link-50.md');
+  await reportGone(page);
+
+  await expect(page.getByText(/Moved outside Plainva\. The tab now shows the file in 4 blog\/taken\//)).toBeVisible();
+  await expect(page.getByText('Nine editors that stood out.')).toBeVisible();
+  await expect(page.getByTestId('editor-missing-file')).toHaveCount(0);
+  // A proven move carries what Plainva stores about the note: the bookmark.
+  await expect.poll(() => page.evaluate(() => JSON.parse((window as any).mockFs['/test-vault/.plainva/bookmarks.json']).items.map((i: any) => i.path)))
+    .toEqual(['4 blog/taken/link-50.md']);
+  expect(await page.evaluate(() => '/test-vault/4 blog/link-50.md' in (window as any).mockFs)).toBe(false);
+});
+
+test('unsaved text of an open note goes with it to the new place, never back to the old one (issue 110)', async ({ page }) => {
+  await page.addInitScript((stamp) => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      const q = String(args?.query || '');
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT sha256, mtime_local FROM files WHERE path = ?')) return [{ sha256: 'hash-of-link-50', mtime_local: stamp }];
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT path, mtime_local FROM files WHERE sha256 = ?')) return [{ path: '4 blog/taken/link-50.md', mtime_local: stamp }];
+      return orig(cmd, args, options);
+    };
+  }, STAMP);
+  await openBlogNote(page);
+  const editor = page.locator('.cm-content').first();
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Typed while it moved.');
+  // Moved before the autosave: the save finds the file gone and asks.
+  await moveOutside(page, '4 blog/taken/link-50.md');
+
+  await expect(page.getByText(/Moved outside Plainva\. The tab now shows the file in 4 blog\/taken\//)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('Typed while it moved.')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/4 blog/taken/link-50.md'])).toContain('Typed while it moved.');
+  // Nothing was written back to the old place, not even by a late save.
+  await page.waitForTimeout(2500);
+  expect(await page.evaluate(() => '/test-vault/4 blog/link-50.md' in (window as any).mockFs)).toBe(false);
+});
+
+test('unsaved text of a note deleted outside Plainva stays until the reader saves it back (issue 110)', async ({ page }) => {
+  await page.addInitScript((stamp) => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      const q = String(args?.query || '');
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT sha256, mtime_local FROM files WHERE path = ?')) return [{ sha256: 'hash-of-link-50', mtime_local: stamp }];
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT path, mtime_local FROM files WHERE sha256 = ?')) return [];
+      return orig(cmd, args, options);
+    };
+  }, STAMP);
+  await openBlogNote(page);
+  const editor = page.locator('.cm-content').first();
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Still mine.');
+  await moveOutside(page, null);
+  await reportGone(page);
+
+  const banner = page.getByTestId('editor-vanished');
+  await expect(banner).toBeVisible({ timeout: 10000 });
+  await expect(banner).toContainText('This file was removed outside Plainva. Your unsaved changes are kept here.');
+  await expect(page.getByText('Still mine.')).toBeVisible();
+  // No silent resurrection: the autosave keeps its hands off the old place.
+  await page.waitForTimeout(2500);
+  expect(await page.evaluate(() => '/test-vault/4 blog/link-50.md' in (window as any).mockFs)).toBe(false);
+
+  await banner.getByRole('button', { name: 'Save here again' }).click();
+  await expect(banner).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/4 blog/link-50.md'])).toContain('Still mine.');
+});
+
 test('Lists: nested items get a stepped hanging indent in the editor', async ({ page }) => {
   // #2: verifies the listIndent decoration applies with the expected padding
   // (top level one step in from body, nested one step deeper) in live mode.

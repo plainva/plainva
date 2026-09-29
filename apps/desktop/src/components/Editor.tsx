@@ -12,7 +12,7 @@ import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
-  healMissingNote, movedChoiceBodyKey, movedFolderLabel, vaultDisplayName,
+  adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, vaultDisplayName, type KnownFileIdentity, type MissingFileSearch,
   type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
@@ -53,6 +53,7 @@ import { noteEmbedPlugin } from "./NoteEmbedPlugin";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isOwnerWindow } from "../services/windowContext";
 import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/fileActions";
+import { retargetDesktopBookmarks } from "../services/bookmarks";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { getTemplateFolder } from "../services/newItemFlow";
 import { TemplateTargetsModal } from "./TemplateTargetsModal";
@@ -72,7 +73,7 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { mergeEditorText, containsTextChanges } from "@plainva/core";
+import { mergeEditorText, containsTextChanges, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
@@ -702,9 +703,27 @@ export const Editor: React.FC<{
    * What became of a file that could not be read (issue 110, E9): `checking`
    * while it is looked for, `ambiguous` with the files that carry its content
    * when none of them is certain, `settled` once the missing state is the
-   * answer. A certain match never lands here — the tab follows it instead.
+   * answer. `searching` while the vault-wide pass behind that first answer
+   * still runs. A certain match never lands here — the tab follows it instead.
    */
-  const [missingLookup, setMissingLookup] = useState<{ kind: "checking" } | { kind: "ambiguous"; candidates: string[] } | { kind: "settled" } | null>(null);
+  const [missingLookup, setMissingLookup] = useState<{ kind: "checking" } | { kind: "ambiguous"; candidates: string[]; searching: boolean } | { kind: "settled"; searching: boolean } | null>(null);
+  /**
+   * The file of a note with UNSAVED text vanished while the note was open
+   * (issue 110, E9). The text stays in the editor — and in the draft journal —
+   * and the question sits above it; nothing is written back to the old place
+   * unless the reader says so.
+   */
+  const [vanished, setVanished] = useState<{ kind: "checking" } | { kind: "ask"; candidates: string[]; searching: boolean } | { kind: "gone"; searching: boolean } | null>(null);
+  /**
+   * Content hash and modification time the index held for this file at the
+   * last load or save. By the time an open note learns that its file
+   * vanished, the watcher has usually removed the row that carried them.
+   */
+  const knownIdentityRef = useRef<KnownFileIdentity | null>(null);
+  /** A clean note whose file vanished reloads, and the failed load looks for it. */
+  const [reloadNonce, setReloadNonce] = useState(0);
+  /** The vanish check, defined further down; a failed save asks it too. */
+  const vanishCheckRef = useRef<((path: string) => void) | null>(null);
   /**
    * A file whose NAME says text and whose bytes say otherwise (C15, S13). The
    * extension is a claim: a rotated `.log` or a dump called `.csv` decodes to a
@@ -1923,6 +1942,10 @@ export const Editor: React.FC<{
   }, [isActivePane, isLoading, activePath]);
   useEffect(() => () => cancelAnimationFrame(caretRafRef.current), []);
 
+  // A new path starts without a remembered identity; a reload of the same path
+  // (the vanish check below) keeps the one it had.
+  useEffect(() => { knownIdentityRef.current = null; setVanished(null); }, [activePath]);
+
   // Load content when activePath changes
   useEffect(() => {
     if (!vaultAdapter || !activePath) {
@@ -2004,19 +2027,33 @@ export const Editor: React.FC<{
     });
 
     return () => { isMounted = false; };
-  }, [vaultAdapter, activePath, vaultPath, saveState]);
+    // `reloadNonce`: a clean note whose file vanished while open loads again,
+    // and the failed load looks for the file (issue 110, E9).
+  }, [vaultAdapter, activePath, vaultPath, saveState, reloadNonce]);
+
+  // The identity of what was just loaded, kept for the day the file vanishes.
+  useEffect(() => {
+    if (isLoading || loadError || !activePath || loadedPathRef.current !== activePath || !queryService?.db) return;
+    let stale = false;
+    void readIndexedIdentity(queryService.db, activePath)
+      .then((identity) => { if (!stale && identity) knownIdentityRef.current = identity; })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [isLoading, loadError, activePath, queryService]);
 
   // A file that could not be read is looked for before the missing state is
   // shown (issue 110, E9) — moved outside Plainva, it sits somewhere else
   // with the same content. One match at the same modification time (a move
   // keeps it): the tab follows and says where. Anything less certain: the
   // card asks. None: the missing state, and the index row is already gone
-  // (resolveMissingFile removes it once the file is PROVEN missing).
+  // (searchMissingFile removes it once the file is PROVEN missing). The first
+  // answer comes from the parent folder; a vault-wide pass may still change
+  // it, and the surface updates when it does.
   const followMovedFile = useStableHandler((from: string, to: string) => {
     // Every surface that shows an editor can navigate; one that could not
     // would be left "looking" forever, so it settles on the missing state.
     if (!onRenamed && !onOpenPath) {
-      setMissingLookup({ kind: "settled" });
+      setMissingLookup({ kind: "settled", searching: false });
       return;
     }
     toast.info(t("editor.movedFileFollowed", {
@@ -2028,39 +2065,226 @@ export const Editor: React.FC<{
     if (onRenamed) onRenamed(from, to);
     else onOpenPath?.(to, false);
   });
+  /**
+   * What a move made in Plainva carries along — bookmarks, pinboard places,
+   * the note's remarks — for a move made elsewhere, once it is proven or the
+   * reader picked the file. Links in other notes stay as they are.
+   */
+  const adoptMove = useStableHandler(async (from: string, to: string) => {
+    if (!vaultAdapter) return;
+    await adoptExternalMove({
+      retargetBookmarks: (f, tt) => retargetDesktopBookmarks(vaultAdapter, f, tt),
+      pinboard: { adapter: vaultAdapter, queryService },
+      reindex: async (paths) => { if (indexer) await applyIndexChanges(indexer, { added: paths }); },
+    }, from, to);
+  });
+  /** One search for this path, shared with every other surface that asks. */
+  const searchFor = useStableHandler((path: string): Promise<MissingFileSearch> | null => {
+    if (!vaultAdapter || !indexer || !queryService?.db) return null;
+    return healMissingNote(path, { exists: (p) => vaultAdapter.exists(p), db: queryService.db, indexer }, vaultPath ?? "",
+      { known: knownIdentityRef.current, onProvenMove: adoptMove });
+  });
   /** A failed load can be looked into: the lookup below runs for it. */
   const canLookForMissing = !!(activePath && vaultAdapter && indexer && queryService?.db);
   useEffect(() => {
-    if (!loadError || !activePath || !vaultAdapter || !indexer || !queryService?.db) {
+    const path = activePath;
+    const search = loadError && path ? searchFor(path) : null;
+    if (!search || !path) {
       setMissingLookup(null);
       return;
     }
     let stale = false;
-    const path = activePath;
     setMissingLookup({ kind: "checking" });
-    void healMissingNote(path, { exists: (p) => vaultAdapter.exists(p), db: queryService.db, indexer }, vaultPath ?? "")
-      .then((outcome) => {
-        // Every answer but "present" changed the index (the stale row went,
-        // the new place came in), and the tree hears of it even when this
-        // editor has moved on meanwhile. Structural: a move made in another
-        // app may have created or emptied folders, which the tree lists from
-        // the disk.
-        if (outcome.kind !== "present") triggerFileTreeUpdate();
-        if (stale) return;
-        if (outcome.kind === "moved") {
-          followMovedFile(path, outcome.to);
-          return;
-        }
-        setMissingLookup(outcome.kind === "ambiguous" ? { kind: "ambiguous", candidates: outcome.candidates } : { kind: "settled" });
-      })
-      .catch((e) => {
-        console.warn("[Editor] looking for a missing file failed", e);
-        if (!stale) setMissingLookup({ kind: "settled" });
-      });
+    const apply = (outcome: MissingFileOutcome, searching: boolean) => {
+      // Every answer but "present" changed the index (the stale row went,
+      // the new place came in), and the tree hears of it even when this
+      // editor has moved on meanwhile. Structural: a move made in another
+      // app may have created or emptied folders, which the tree lists from
+      // the disk.
+      if (outcome.kind !== "present") triggerFileTreeUpdate();
+      if (stale) return;
+      const step = planMissingNote(outcome, false);
+      if (step.kind === "follow") {
+        followMovedFile(path, step.to);
+        return;
+      }
+      setMissingLookup(step.kind === "ask" ? { kind: "ambiguous", candidates: step.candidates, searching } : { kind: "settled", searching });
+    };
+    const fail = (e: unknown) => {
+      console.warn("[Editor] looking for a missing file failed", e);
+      if (!stale) setMissingLookup((m) => (m && m.kind !== "checking" ? { ...m, searching: false } : { kind: "settled", searching: false }));
+    };
+    void search.then((found) => {
+      apply(found.first, !!found.settled);
+      found.settled?.then((outcome) => apply(outcome, false), fail);
+    }, fail);
     return () => { stale = true; };
     // The lookup belongs to one failed load of one path.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadError, activePath]);
+
+  // The file of an OPEN note vanished — the watcher, a reconcile or sync
+  // removed it, or a save found it gone (issue 110, E9). A clean note simply
+  // loads again, and the failed load above looks for it. A note with unsaved
+  // text keeps it on screen and asks above it; if the file turns out moved,
+  // the text is written to the NEW place first and the tab follows.
+  const aliveRef = useRef(true);
+  const activePathRef = useRef(activePath);
+  useEffect(() => { activePathRef.current = activePath; }, [activePath]);
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; }; }, []);
+  const vanishTimerRef = useRef<number | null>(null);
+  useEffect(() => () => { if (vanishTimerRef.current !== null) window.clearTimeout(vanishTimerRef.current); }, []);
+  const liveText = () => sessionRef.current?.view.state.doc.toString() ?? contentRef.current;
+  /** Writes the unsaved text to where the file lives now, then follows it there. */
+  const carryAndFollow = useStableHandler(async (from: string, to: string, picked: boolean) => {
+    if (!vaultAdapter || !aliveRef.current) return;
+    if (saveTimeoutRef.current !== null) { window.clearTimeout(saveTimeoutRef.current); saveTimeoutRef.current = null; }
+    if (draftTimerRef.current !== null) { window.clearTimeout(draftTimerRef.current); draftTimerRef.current = null; }
+    const shape = saveState.shape;
+    const draft = liveText();
+    const text = shape ? applyTextShape(draft, shape) : draft;
+    const persisted = saveState.persisted;
+    // The new file holds what was last saved (its hash matched), so that is
+    // the base the unsaved text applies to; a different disk merges or keeps
+    // a conflict copy, as every editor save does.
+    const base = persisted === null ? null : shape ? applyTextShape(persisted, shape) : persisted;
+    // Held still while it travels: a keystroke now would land at the old place.
+    sessionRef.current?.setEditable(false);
+    try {
+      await withPendingWrite(vaultPath ?? "", to, async () => {
+        if (vaultAdapter.writeEditorText) {
+          await vaultAdapter.writeEditorText(to, text, base);
+        } else {
+          const disk = await vaultAdapter.readTextFile(to);
+          if (base !== null && disk !== base && disk !== text) throw new Error("The file changed at its new place");
+          await vaultAdapter.writeTextFile(to, text);
+        }
+      });
+      if (indexer) await applyIndexChanges(indexer, { added: [to] }).catch(() => {});
+    } catch (e) {
+      console.error("[Editor] carrying the unsaved text to the moved file failed", e);
+      toast.error(t("editor.saveFailed"));
+      sessionRef.current?.setEditable(!workspaceReadOnly && !saveState.transferFrozen);
+      return;
+    }
+    if (picked) await adoptMove(from, to);
+    // The old place holds nothing any more; its journal entry is settled.
+    saveState.update({ dirty: false });
+    dirtyStore.set(from, false, saveState.id);
+    if (vaultPath) {
+      void import("../services/draftJournal").then(({ clearDraft }) => clearDraft(vaultPath, from, saveState.revision, saveState.id)).catch(() => {});
+    }
+    setVanished(null);
+    followMovedFile(from, to);
+  });
+  /** "Save here again": the reader brings the file back where it was. */
+  const restoreHere = useStableHandler(async () => {
+    const path = activePath;
+    if (!vaultAdapter || !path) return;
+    const shape = saveState.shape;
+    const draft = liveText();
+    try {
+      // The plain write on purpose: the editor save refuses to recreate a
+      // vanished file; this is the reader saying it should.
+      await withPendingWrite(vaultPath ?? "", path, () => vaultAdapter.writeTextFile(path, shape ? applyTextShape(draft, shape) : draft));
+      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
+    } catch (e) {
+      console.error("[Editor] saving the vanished file back failed", e);
+      toast.error(t("editor.saveFailed"));
+      return;
+    }
+    saveState.update({ persisted: draft });
+    saveState.update({ baseInput: draft });
+    saveState.update({ dirty: false });
+    dirtyStore.set(path, false, saveState.id);
+    setSaveError(null);
+    setVanished(null);
+    if (queryService?.db) {
+      const identity = await readIndexedIdentity(queryService.db, path).catch(() => null);
+      if (identity) knownIdentityRef.current = identity;
+    }
+    if (vaultPath) {
+      void import("../services/draftJournal").then(({ clearDraft }) => clearDraft(vaultPath, path, saveState.revision, saveState.id)).catch(() => {});
+    }
+    triggerFileTreeUpdate([path]);
+  });
+  const lookForVanishedFile = useStableHandler(async (path: string) => {
+    if (!vaultAdapter || path !== activePath || !aliveRef.current || loadError) return;
+    // Another program's atomic save deletes and writes again — the file may
+    // simply be back.
+    if (await vaultAdapter.exists(path).catch(() => true)) return;
+    if (!aliveRef.current || path !== activePath) return;
+    if (!saveState.dirty) {
+      // Nothing unsaved: the load's own way — it fails, and looks.
+      setReloadNonce((n) => n + 1);
+      return;
+    }
+    const search = searchFor(path);
+    if (!search) return;
+    setVanished({ kind: "checking" });
+    const apply = (outcome: MissingFileOutcome, searching: boolean) => {
+      if (outcome.kind !== "present") triggerFileTreeUpdate();
+      if (!aliveRef.current || path !== activePathRef.current) return;
+      const step = planMissingNote(outcome, true);
+      if (step.kind === "stay") {
+        // Back after all: the failed save is simply made again.
+        setVanished(null);
+        scheduleSave(liveText);
+      } else if (step.kind === "follow") {
+        void carryAndFollow(path, step.to, false);
+      } else if (step.kind === "ask") {
+        setVanished({ kind: "ask", candidates: step.candidates, searching });
+      } else {
+        setVanished({ kind: "gone", searching });
+      }
+    };
+    try {
+      const found = await search;
+      apply(found.first, !!found.settled);
+      found.settled?.then((outcome) => apply(outcome, false), () => setVanished((v) => (v && v.kind !== "checking" ? { ...v, searching: false } : v)));
+    } catch (e) {
+      console.warn("[Editor] looking for a vanished file failed", e);
+      setVanished({ kind: "gone", searching: false });
+    }
+  });
+  /**
+   * Entry point for every report that the open file may be gone. Deferred a
+   * moment: a deletion made in Plainva closes this tab right after, and a
+   * watcher batch indexes the other side of a move in the same breath.
+   */
+  const noticeVanished = useStableHandler((path: string) => {
+    // Once asked, the question stands until the reader answers it; the saves
+    // that keep failing meanwhile do not search again.
+    if (path !== activePath || vanishTimerRef.current !== null || loadError || vanished) return;
+    vanishTimerRef.current = window.setTimeout(() => {
+      vanishTimerRef.current = null;
+      void lookForVanishedFile(path);
+    }, 400);
+  });
+  useEffect(() => { vanishCheckRef.current = noticeVanished; return () => { vanishCheckRef.current = null; }; }, [noticeVanished]);
+  // A save that failed because the file is gone hands over to the vanish
+  // check: the editor save refuses to write it back at the old place.
+  useEffect(() => {
+    const path = activePath;
+    if (!saveError || !path || !vaultAdapter) return;
+    let stale = false;
+    void vaultAdapter.exists(path).then((there) => { if (!stale && !there) noticeVanished(path); }).catch(() => {});
+    return () => { stale = true; };
+  }, [saveError, activePath, vaultAdapter, noticeVanished]);
+  // A save that landed: the file is there — a vanished-file question is
+  // answered — and what the index holds for it now is what it knows.
+  useEffect(() => {
+    const onSaved = (event: Event) => {
+      const d = (event as CustomEvent<{ path?: string; vaultPath?: string }>).detail;
+      if (!activePath || d?.path !== activePath || (d.vaultPath !== undefined && d.vaultPath !== (vaultPath ?? ""))) return;
+      setVanished(null);
+      if (queryService?.db) {
+        void readIndexedIdentity(queryService.db, activePath).then((identity) => { if (identity) knownIdentityRef.current = identity; }).catch(() => {});
+      }
+    };
+    window.addEventListener("plainva-note-saved", onSaved);
+    return () => window.removeEventListener("plainva-note-saved", onSaved);
+  }, [activePath, vaultPath, queryService]);
 
   // Listen for external updates
   useEffect(() => {
@@ -2145,7 +2369,16 @@ export const Editor: React.FC<{
           await clearDraft(vaultPath, path, revision, saveState.id);
         }
         await vaultAdapter.acknowledgeExternalUpdate?.(path);
-      }).catch((error) => {
+      }).catch(async (error) => {
+        if (!current()) return;
+        // The file is gone — moved or deleted outside Plainva, or by sync
+        // (issue 110, E9). That is not a failed save; the vanish check takes
+        // over. Asked by existence, because a client window's error comes
+        // over the bus without its class.
+        if (!(await vaultAdapter.exists(path).catch(() => true))) {
+          vanishCheckRef.current?.(path);
+          return;
+        }
         console.error("[Editor] external update could not be completed", error);
         if (current()) setSaveError(error instanceof Error ? error.message : String(error));
       });
@@ -3171,6 +3404,33 @@ export const Editor: React.FC<{
         </div>
       )}
 
+      {vanished && vanished.kind !== "checking" && activePath && (
+        // The file of this note vanished while it held unsaved text (issue
+        // 110, E9): the text stays here, the question sits above it. Picking
+        // a file carries the text there; "Save here again" brings the file
+        // back where it was. Nothing is written until the reader decides.
+        <div data-testid="editor-vanished">
+          <Banner
+            kind="warning"
+            actions={
+              <>
+                {vanished.kind === "ask" && vanished.candidates.map((candidate) => (
+                  <Button key={candidate} size="sm" variant="secondary" data-testid="editor-vanished-candidate" onClick={() => { void carryAndFollow(activePath, candidate, true); }}>
+                    {candidate}
+                  </Button>
+                ))}
+                <Button size="sm" variant="secondary" data-testid="editor-vanished-restore" onClick={() => { void restoreHere(); }}>
+                  {t("editor.vanishedRestore")}
+                </Button>
+              </>
+            }
+          >
+            {vanished.kind === "ask" ? t("editor.vanishedAsk") : t("editor.vanishedGone")}
+            {vanished.searching && <> {t("editor.movedFileStillLooking")}</>}
+          </Banner>
+        </div>
+      )}
+
       {conflictInfo && (
         // The shared Banner (P1, Build-91 feedback): this strip carried its own
         // flex-wrap by hand while the primitive the phone uses had none — the
@@ -3348,11 +3608,20 @@ export const Editor: React.FC<{
             <p style={{ margin: 0, fontSize: "var(--text-md)", maxWidth: "42ch" }}>{t(movedChoiceBodyKey(missingLookup.candidates.length))}</p>
             <div role="group" aria-label={t("editor.movedFileAskTitle")} style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)", alignItems: "stretch" }}>
               {missingLookup.candidates.map((candidate) => (
-                <Button key={candidate} variant="secondary" data-testid="editor-moved-candidate" onClick={() => { if (activePath) followMovedFile(activePath, candidate); }}>
+                <Button key={candidate} variant="secondary" data-testid="editor-moved-candidate" onClick={() => {
+                  if (!activePath) return;
+                  // The reader said which file it is: that move is as good as
+                  // proven, and what Plainva stores about the note follows.
+                  void adoptMove(activePath, candidate);
+                  followMovedFile(activePath, candidate);
+                }}>
                   {candidate}
                 </Button>
               ))}
             </div>
+            {missingLookup.searching && (
+              <p data-testid="editor-still-looking" style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-faint)" }}>{t("editor.movedFileStillLooking")}</p>
+            )}
             {onCloseTab && (
               <Button variant="ghost" onClick={onCloseTab}>
                 {t("editor.missingFileCloseTab")}
@@ -3371,6 +3640,11 @@ export const Editor: React.FC<{
             <strong style={{ fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("editor.missingFileTitle")}</strong>
             <code style={{ fontSize: "var(--text-sm)" }}>{activePath}</code>
             <p style={{ margin: 0, fontSize: "var(--text-md)", maxWidth: "42ch" }}>{t("editor.missingFileBody")}</p>
+            {missingLookup?.kind === "settled" && missingLookup.searching && (
+              // The parent folder had nothing; a vault-wide pass still looks,
+              // and the tab follows if it finds the file (issue 110, E9).
+              <p data-testid="editor-still-looking" style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-faint)" }}>{t("editor.movedFileStillLooking")}</p>
+            )}
             <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: "center" }}>
               {onCloseTab && (
                 <Button variant="primary" onClick={onCloseTab}>

@@ -51,6 +51,39 @@ async function onDisk(page: Page, path: string): Promise<boolean> {
   }, path);
 }
 
+async function readVaultFile(page: Page, path: string): Promise<string | null> {
+  return page.evaluate(async (p) => {
+    try {
+      return String((await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({ path: "vault/" + p, directory: "DATA", encoding: "utf8" })).data);
+    } catch {
+      return null;
+    }
+  }, path);
+}
+
+/** Turns to editing and types at the end of the open note. */
+async function typeIntoNote(page: Page, text: string) {
+  await page.getByTestId("note-edit").click();
+  const editor = page.locator('.cm-content[contenteditable="true"]').first();
+  await expect(editor).toContainText("Nine editors that stood out.");
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type(text);
+}
+
+/** Away from the app and back: the web shell reports it as a visibility change. */
+async function returnToApp(page: Page) {
+  await page.evaluate(() => {
+    const set = (hidden: boolean) => {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (hidden ? "hidden" : "visible") });
+      document.dispatchEvent(new Event("visibilitychange"));
+    };
+    set(true);
+    set(false);
+  });
+}
+
 type Bridge = Awaited<ReturnType<typeof installSqlBridge>>;
 const indexed = (sql: Bridge, path: string) => sql.count(INDEX, `files WHERE path = '${path.replace(/'/g, "''")}' AND sha256 IS NOT NULL`);
 
@@ -168,6 +201,81 @@ test.describe("a note moved outside Plainva (issue 110)", () => {
       await expectStateInView(page, "This note could not be found.");
       await expect.poll(() => sql.count(INDEX, "files WHERE path = '4 blog/link-50.md'")).toBe(0);
       expect(indexed(sql, "4 blog/other.md")).toBe(1);
+    } finally {
+      sql.close();
+    }
+  });
+});
+
+test.describe("a note that is OPEN while it is moved outside Plainva (issue 110)", () => {
+  test.beforeEach(async ({ page, context }) => {
+    test.setTimeout(90_000);
+    await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+    await context.addInitScript(() => localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" })));
+  });
+
+  test("follows its file after the return to the app, and so does its bookmark", async ({ page, context }) => {
+    const sql = await installSqlBridge(context);
+    try {
+      const row = await openBlogFolder(page, sql, [["4 blog/link-50.md", NOTE], ["4 blog/taken/keep.md", "# Keep\n"]]);
+      // A bookmark on the note, in the device-local store the ordinary move rewrites.
+      await write(page, [[".plainva/bookmarks.json", JSON.stringify({ items: [{ type: "file", path: "4 blog/link-50.md" }] })]]);
+      await row.click();
+      await expect(page.locator(".cm-content")).toContainText("Nine editors that stood out.");
+
+      await moveOutside(page, "4 blog/link-50.md", "4 blog/taken/link-50.md");
+      // The iOS Files app moved it while Plainva was away; the return re-reads.
+      await returnToApp(page);
+
+      await expect(page.locator(".pv-toast").filter({ hasText: "Moved outside Plainva. The note is now in 4 blog/taken/." })).toBeVisible({ timeout: 20_000 });
+      await expect(page.locator(".cm-content")).toContainText("Nine editors that stood out.");
+      await expect.poll(async () => JSON.parse((await readVaultFile(page, ".plainva/bookmarks.json")) ?? "{}").items?.map((i: { path: string }) => i.path))
+        .toEqual(["4 blog/taken/link-50.md"]);
+      expect(await onDisk(page, "4 blog/link-50.md")).toBe(false);
+    } finally {
+      sql.close();
+    }
+  });
+
+  test("takes its unsaved text to the new place, never back to the old one", async ({ page, context }) => {
+    const sql = await installSqlBridge(context);
+    try {
+      const row = await openBlogFolder(page, sql, [["4 blog/link-50.md", NOTE], ["4 blog/taken/keep.md", "# Keep\n"]]);
+      await row.click();
+      await typeIntoNote(page, " Typed while it moved.");
+      // Moved before the autosave: the save finds the file gone and asks.
+      await moveOutside(page, "4 blog/link-50.md", "4 blog/taken/link-50.md");
+
+      await expect(page.locator(".pv-toast").filter({ hasText: "The note is now in 4 blog/taken/." })).toBeVisible({ timeout: 20_000 });
+      await expect(page.locator(".cm-content")).toContainText("Typed while it moved.");
+      await expect.poll(() => readVaultFile(page, "4 blog/taken/link-50.md")).toContain("Typed while it moved.");
+      // No late save puts a copy back at the old place.
+      await page.waitForTimeout(2500);
+      expect(await onDisk(page, "4 blog/link-50.md")).toBe(false);
+    } finally {
+      sql.close();
+    }
+  });
+
+  test("keeps the unsaved text of a note deleted outside Plainva until it is saved back", async ({ page, context }) => {
+    const sql = await installSqlBridge(context);
+    try {
+      const row = await openBlogFolder(page, sql, [["4 blog/link-50.md", NOTE], ["4 blog/other.md", "# Other\n"]]);
+      await row.click();
+      await typeIntoNote(page, " Still mine.");
+      await removeOutside(page, "4 blog/link-50.md");
+
+      const banner = page.getByTestId("note-vanished");
+      await expect(banner).toBeVisible({ timeout: 20_000 });
+      await expect(banner).toContainText("This file was removed outside Plainva. Your unsaved changes are kept here.");
+      await expect(page.locator(".cm-content")).toContainText("Still mine.");
+      // The autosave does not bring the file back on its own.
+      await page.waitForTimeout(2500);
+      expect(await onDisk(page, "4 blog/link-50.md")).toBe(false);
+
+      await banner.getByRole("button", { name: "Save here again" }).click();
+      await expect(banner).toHaveCount(0);
+      await expect.poll(() => readVaultFile(page, "4 blog/link-50.md")).toContain("Still mine.");
     } finally {
       sql.close();
     }

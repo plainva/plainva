@@ -4,14 +4,15 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.ts";
 import { VaultIndexer } from "../src/vault/VaultIndexer.ts";
-import { resolveMissingFile } from "../src/vault/missingFile.ts";
+import { readIndexedIdentity, resolveMissingFile, searchMissingFile } from "../src/vault/missingFile.ts";
 import { realSqlite } from "./helpers/realSqlite.ts";
 
 /**
  * Issue #110 (E9): the tab of a note moved outside Plainva said "This file no
  * longer exists" while the file sat two folders further. The note is found by
- * its content hash; exactly one candidate is followed, several are offered,
- * none leaves the missing state — with the stale index row already gone.
+ * its content hash; exactly one candidate written at the same time is
+ * followed, anything less certain is offered, none leaves the missing state —
+ * with the stale index row already gone.
  */
 
 async function harness() {
@@ -96,6 +97,9 @@ describe("resolveMissingFile", () => {
       await h.vault.createDir("b");
       await h.vault.writeTextFile("a/note.md", "# Same\n");
       await h.vault.writeTextFile("b/copy.md", "# Same\n");
+      // The copy is a day older than the note it copies.
+      await fs.utimes(path.join(h.tmpDir, "b/copy.md"), new Date("2026-09-22T08:00:00Z"), new Date("2026-09-22T08:00:00Z"));
+      await fs.utimes(path.join(h.tmpDir, "a/note.md"), new Date("2026-09-23T08:00:00Z"), new Date("2026-09-23T08:00:00Z"));
       await h.indexer.indexVaultFull();
       await h.move("a/note.md", "b/note.md");
 
@@ -146,6 +150,63 @@ describe("resolveMissingFile", () => {
       expect(await resolveMissingFile("here.md", failing)).toEqual({ kind: "present" });
       expect(reconcile).not.toHaveBeenCalled();
       expect(await h.rows()).toEqual(["here.md"]);
+    } finally {
+      await h.dispose();
+    }
+  });
+});
+
+describe("searchMissingFile", () => {
+  it("follows a note that is open while it moves: what the tab knew stands in for the row the watcher removed", async () => {
+    const h = await harness();
+    try {
+      await h.vault.createDir("4 blog/taken");
+      await h.vault.writeTextFile("4 blog/link-50.md", "# The Markdown Link no. 50\n");
+      await h.vault.writeTextFile("4 blog/taken/keep.md", "# Keep\n");
+      await h.indexer.indexVaultFull();
+      // The open tab remembers the identity of what it loaded.
+      const known = await readIndexedIdentity(h.db, "4 blog/link-50.md");
+      await h.move("4 blog/link-50.md", "4 blog/taken/link-50.md");
+      // The watcher reported both sides: the row is gone, the new place indexed.
+      await h.indexer.indexPath("4 blog/link-50.md");
+      await h.indexer.indexPath("4 blog/taken/link-50.md");
+      expect(await readIndexedIdentity(h.db, "4 blog/link-50.md")).toBeNull();
+      const full = vi.spyOn(h.indexer, "indexVaultFull");
+
+      const search = await searchMissingFile("4 blog/link-50.md", h.deps, known);
+      expect(search.first).toEqual({ kind: "moved", to: "4 blog/taken/link-50.md" });
+      // Certain at once: no full reconcile in front of the answer, nor behind it.
+      expect(search.settled).toBeNull();
+      expect(full).not.toHaveBeenCalled();
+      // Without the remembered identity there is nothing to look for.
+      expect(await resolveMissingFile("4 blog/link-50.md", h.deps)).toEqual({ kind: "gone" });
+    } finally {
+      await h.dispose();
+    }
+  });
+
+  it("answers from the parent folder at once and settles after the full reconcile", async () => {
+    const h = await harness();
+    try {
+      await h.vault.createDir("4 blog/taken");
+      await h.vault.writeTextFile("4 blog/link-50.md", "# The Markdown Link no. 50\n");
+      await h.indexer.indexVaultFull();
+      await h.move("4 blog/link-50.md", "4 blog/taken/link-50.md");
+      let fullDone = false;
+      const full = h.indexer.indexVaultFull.bind(h.indexer);
+      vi.spyOn(h.indexer, "indexVaultFull").mockImplementation(async () => {
+        const report = await full();
+        fullDone = true;
+        return report;
+      });
+
+      const search = await searchMissingFile("4 blog/link-50.md", h.deps);
+      // Nobody indexed the new place yet: the first answer does not wait for
+      // the vault-wide pass that finds it.
+      expect(search.first).toEqual({ kind: "gone" });
+      expect(fullDone).toBe(false);
+      expect(await search.settled).toEqual({ kind: "moved", to: "4 blog/taken/link-50.md" });
+      expect(fullDone).toBe(true);
     } finally {
       await h.dispose();
     }
