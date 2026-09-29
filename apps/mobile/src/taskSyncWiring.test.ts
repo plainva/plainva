@@ -18,12 +18,14 @@ import { readFileSync } from "node:fs";
  * confirm whichever wiring it was handed.
  */
 
-const SOURCE = readFileSync(new URL("./services/pim/pimService.ts", import.meta.url), "utf8");
+// The worker and both of its hooks are built in pimRuntime.ts since the runtime
+// moved out of pimService (Befunde 2026-09-24, Z2).
+const SOURCE = readFileSync(new URL("./services/pim/pimRuntime.ts", import.meta.url), "utf8");
 
 /** The body of an object property whose value is an arrow function. */
 function handlerBody(source: string, name: string): string {
   const start = source.indexOf(`${name}: (`);
-  if (start < 0) throw new Error(`${name} handler not found in pimService`);
+  if (start < 0) throw new Error(`${name} handler not found in pimRuntime`);
   const open = source.indexOf("{", start);
   let depth = 0;
   for (let i = open; i < source.length; i++) {

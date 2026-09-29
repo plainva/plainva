@@ -55,7 +55,8 @@ describe("PIM refresh wiring", () => {
   }
 
   it("the foreground trigger also replans the reminders", () => {
-    const src = read("services/pim/pimService.ts");
+    // The runtime and its triggers live in pimRuntime.ts (Befunde 2026-09-24, Z2).
+    const src = read("services/pim/pimRuntime.ts");
     const fn = src.slice(src.indexOf("export function pimForegroundSync"));
     const body = fn.slice(0, fn.indexOf("\n}\n"));
     // A cycle that finds nothing new fires no `onDataChanged`, so the
@@ -67,10 +68,25 @@ describe("PIM refresh wiring", () => {
   });
 
   it("the throttle is its own, not shared with the file sync", () => {
-    const src = read("services/pim/pimService.ts");
+    const src = read("services/pim/pimRuntime.ts");
     // A shared counter would let either cycle suppress the other; they cost
     // different things and answer to different triggers.
     expect(src).toContain("PIM_FOREGROUND_THROTTLE_MS");
     expect(src).not.toContain("lastForegroundSyncAt");
+  });
+
+  it("the runtime loads without the sign-ins, the provider clients and the shared UI", () => {
+    // Through pimService the runtime's test loaded half the app and all of
+    // @plainva/ui — 23 to 45 seconds before its first line, past a 60-second
+    // hook timeout under a loaded commit hook (Befunde 2026-09-24, Z2). The
+    // runtime reaches the rest of the phone only through the core's worker
+    // and cache, the device trigger, the task-sync runtime (faked where the
+    // runtime is tested) and the lazily loaded reminder scheduler; everything
+    // heavier is handed in by pimService as PimRuntimeWiring.
+    const src = read("services/pim/pimRuntime.ts");
+    const valueImports = [...src.matchAll(/^import\s+(?!type\s)[^;]*?\sfrom\s+"([^"]+)";/gm)].map((m) => m[1]);
+    expect(valueImports.sort()).toEqual(["../../platform/devicePim", "./taskSyncRuntime", "@plainva/core"]);
+    const lazyImports = new Set([...src.matchAll(/\bimport\("([^"]+)"\)/g)].map((m) => m[1]));
+    expect([...lazyImports]).toEqual(["../reminderScheduler"]);
   });
 });

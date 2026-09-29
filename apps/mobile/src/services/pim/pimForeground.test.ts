@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MobileVault } from "../vaultService";
+import * as pim from "./pimRuntime";
 
 /**
  * The phone brings the PIM cycle back when it comes back (plan
@@ -14,6 +15,13 @@ import type { MobileVault } from "../vaultService";
  * Two things therefore have to happen on return, and both are asserted here:
  * the cycle is asked for, and the reminders are replanned even when that cycle
  * turns out to have nothing new (a quiet cycle fires no `onDataChanged`).
+ *
+ * The runtime lives in pimRuntime.ts, apart from the sign-ins, provider clients
+ * and diagnostics of pimService (Befunde 2026-09-24, Z2): importing pimService
+ * loaded the whole shared UI package, 23 to 45 seconds before the first test,
+ * and under a loaded commit hook it ran past a 60-second hook timeout. This
+ * file now loads the runtime, the core's worker and cache (both faked below)
+ * and nothing else.
  */
 
 const { triggered, started, scopeState } = vi.hoisted(() => ({ triggered: { count: 0 }, started: vi.fn(), scopeState: vi.fn(async () => {}) }));
@@ -29,8 +37,9 @@ vi.mock("./taskSyncRuntime", () => ({
   runMobileTaskSync: vi.fn(),
 }));
 
-vi.mock("@plainva/core", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@plainva/core")>();
+// The runtime takes exactly two things from the core, so the fakes ARE the
+// module: loading the real core only to replace these two would cost seconds.
+vi.mock("@plainva/core", () => {
   class FakeCache {
     listAccounts = async () => [{ id: "a1", enabled: true }];
     setScopeState = scopeState;
@@ -43,21 +52,24 @@ vi.mock("@plainva/core", async (importOriginal) => {
       return Promise.resolve();
     }
   }
-  return { ...actual, PimCacheRepository: FakeCache, PimWorker: FakeWorker };
+  return { PimCacheRepository: FakeCache, PimWorker: FakeWorker };
 });
 
 const vault = { vaultId: "v1", db: {} } as unknown as MobileVault;
 
-let pim: typeof import("./pimService");
+// What pimService hands in. The fake worker runs no cycle, so none of it is called.
+const wiring: pim.PimRuntimeWiring = {
+  buildTarget: async () => null,
+  accountAuthRevision: async () => undefined,
+  parkedMessage: "sign-in required",
+  onCycle: () => {},
+};
 
 beforeAll(async () => {
-  // Booted ONCE: this module graph is large, and re-importing it per test is
-  // what the throttle reset seam exists to avoid.
-  pim = await import("./pimService");
-  await pim.startPim(vault);
-  // Generous on purpose: importing this module graph costs seconds on a loaded
-  // machine, and the default hook timeout is not about that.
-}, 60_000);
+  // Booted ONCE: the other tests start from this runtime, and the throttle
+  // reset seam is what lets each of them start from a known throttle state.
+  await pim.startPimRuntime(vault, wiring);
+});
 
 beforeEach(() => {
   triggered.count = 0;
@@ -73,7 +85,7 @@ describe("pimForegroundSync", () => {
     await pim.restartPimAccountAfterLogin("v1", "a1");
     expect(started).not.toHaveBeenCalled();
     expect(triggered.count).toBe(0);
-    await pim.startPim(vault);
+    await pim.startPimRuntime(vault, wiring);
   });
   it("reconnect clears the captured vault's calendar failure and starts its worker", async () => {
     await pim.restartPimAccountAfterLogin("v1", "a1");
@@ -136,6 +148,6 @@ describe("pimForegroundSync", () => {
     pim.pimForegroundSync(2_000_000);
     expect(triggered.count).toBe(0);
     expect(rescheduleReminders).not.toHaveBeenCalled();
-    await pim.startPim(vault); // leave the module as the other tests expect it
+    await pim.startPimRuntime(vault, wiring); // leave the module as the other tests expect it
   });
 });
