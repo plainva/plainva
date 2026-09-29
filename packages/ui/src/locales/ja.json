@@ -2590,6 +2590,7 @@
     "settingInboxFolder": "インボックスフォルダー",
     "settingTemplateFolder": "テンプレートフォルダー",
     "areas": "エリア",
+    "settingSaveFailed": "設定を保存できませんでした。",
     "navBar": "ナビゲーションバー",
     "navBarArrange": "ナビゲーションバーを並べ替え…",
     "navBarCount": "バー内のエリア",

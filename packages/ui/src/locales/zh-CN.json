@@ -2590,6 +2590,7 @@
     "settingInboxFolder": "收件箱文件夹",
     "settingTemplateFolder": "模板文件夹",
     "areas": "区域",
+    "settingSaveFailed": "无法保存该设置。",
     "navBar": "导航栏",
     "navBarArrange": "自定义导航栏…",
     "navBarCount": "导航栏中的区域",

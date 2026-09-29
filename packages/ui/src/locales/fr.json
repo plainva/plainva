@@ -2620,6 +2620,7 @@
     "settingInboxFolder": "Dossier de la boîte de réception",
     "settingTemplateFolder": "Dossier des modèles",
     "areas": "Rubriques",
+    "settingSaveFailed": "Le réglage n’a pas pu être enregistré.",
     "navBar": "Barre de navigation",
     "navBarArrange": "Personnaliser la barre de navigation…",
     "navBarCount": "Rubriques dans la barre",

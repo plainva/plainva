@@ -473,8 +473,8 @@ export function MailAccountsScreen({
             <FolderField
               hint={t("mail.folderHint")}
               label={t("mail.folder")}
-              onBlur={() => void updateMobileSettings({ mailFolder: mailFolder.trim() || "Mail" })}
-              onChange={setMailFolder}
+              normalize={(v) => v.trim() || "Mail"}
+              onSave={(v) => { setMailFolder(v); void updateMobileSettings({ mailFolder: v }); }}
               onPick={() => setPickMailFolder(true)}
               placeholder="Mail"
               value={mailFolder}

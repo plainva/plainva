@@ -9,12 +9,11 @@ import { LCARS_VARIANTS } from "@plainva/ui";
 import { getThemeDef, pinnedModeHintKey } from "@plainva/ui";
 import { mSelect } from "../services/mobileDialogs";
 import {
-  getMobileSettings,
-  updateMobileSettings,
   type MotionPref,
   type ThemeMode,
 } from "../services/mobileSettings";
 import { AppBar } from "../components/AppBar";
+import { useSettingsState } from "../hooks/useSettingsState";
 
 /**
  * Appearance screen (M3E mockup 9): theme cards with three-stripe previews
@@ -27,7 +26,9 @@ export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => 
   const { t } = useTranslation();
   // Device-local, off by default (plan Journal-Erweiterungen, E6).
   const [placeStamp, setPlaceStamp] = useState(placeStampEnabled);
-  const [settings, setSettings] = useState(getMobileSettings());
+  // The one optimistic settings hook (E23): the size slider snapped back while
+  // its save was in flight.
+  const { settings, update, refresh } = useSettingsState();
   const [hailing, setHailing] = useState(false);
   const [fontSheet, setFontSheet] = useState<FontSlot | null>(null);
   /** What the row says: the custom name, or the words for a preset/theme. */
@@ -54,10 +55,6 @@ export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => 
       .then((info) => setVersion(info.version))
       .catch(() => {});
   }, []);
-
-  const update = (patch: Parameters<typeof updateMobileSettings>[0]) => {
-    void updateMobileSettings(patch).then(() => setSettings(getMobileSettings()));
-  };
 
   const pinnedHint = pinnedModeHintKey(settings.themeName);
   const MODES: Array<[ThemeMode, string]> = [
@@ -166,7 +163,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
               })}
             </SectionLabel>
             <div className="m-freqrow">
-              <FrequencyChips onChanged={() => setSettings(getMobileSettings())} />
+              <FrequencyChips onChanged={refresh} />
             </div>
           </>
         )}
@@ -318,7 +315,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
 
       </div>
 
-      {hailing && <HailingSheet onChanged={() => setSettings(getMobileSettings())} onClose={() => setHailing(false)} />}
+      {hailing && <HailingSheet onChanged={refresh} onClose={() => setHailing(false)} />}
       {fontSheet && (
         <FontSlotSheet
           slot={fontSheet}

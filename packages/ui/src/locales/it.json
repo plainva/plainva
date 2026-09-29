@@ -2620,6 +2620,7 @@
     "settingInboxFolder": "Cartella Inbox",
     "settingTemplateFolder": "Cartella dei modelli",
     "areas": "Aree",
+    "settingSaveFailed": "Impossibile salvare l’impostazione.",
     "navBar": "Barra di navigazione",
     "navBarArrange": "Personalizza la barra di navigazione…",
     "navBarCount": "Aree nella barra",

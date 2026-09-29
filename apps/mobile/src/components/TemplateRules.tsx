@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
 import {
   Button,
+  CommittedTextInput,
   GroupCard,
   ICON,
   IconButton,
@@ -12,7 +13,6 @@ import {
   RowList,
   SectionLabel,
   SettingField,
-  TextInput,
   type FolderTemplateRule,
   type TypeTemplateRule,
 } from "@plainva/ui";
@@ -124,11 +124,11 @@ export function TemplateRules({
               }
               key={`type-${index}`}
               label={
-                <TextInput
-                  onChange={(e) =>
-                    setTypeRules(
-                      settings.typeTemplates.map((r, i) => (i === index ? { ...r, type: e.target.value } : r))
-                    )
+                // Its own draft (E23): a rule saved per keystroke pulled the
+                // text back under the caret while the write was in flight.
+                <CommittedTextInput
+                  onSave={(type) =>
+                    setTypeRules(settings.typeTemplates.map((r, i) => (i === index ? { ...r, type } : r)))
                   }
                   value={rule.type}
                 />

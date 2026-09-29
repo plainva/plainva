@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GroupCard, Row, RowList, SectionLabel, Switch, toast } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
-import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { updateMobileSettings } from "../services/mobileSettings";
+import { useSettingsState } from "../hooks/useSettingsState";
 import { resetMobileWhatsNew } from "../services/mobileWhatsNew";
 
 /**
@@ -20,10 +20,8 @@ import { resetMobileWhatsNew } from "../services/mobileWhatsNew";
  */
 export function BehaviorAreaScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
-  const [settings, setSettings] = useState(getMobileSettings());
-  const update = (patch: Parameters<typeof updateMobileSettings>[0]) => {
-    void updateMobileSettings(patch).then(() => setSettings(getMobileSettings()));
-  };
+  // The one optimistic settings hook (E23) — this screen had its own copy.
+  const { settings, update } = useSettingsState();
   return (
     <div className="m-page">
       <AppBar onBack={onBack} title={t("settings.sectionBehavior")} testId="appbar-area-behavior" />

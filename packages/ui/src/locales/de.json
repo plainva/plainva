@@ -2605,6 +2605,7 @@
     "settingInboxFolder": "Inbox-Ordner",
     "settingTemplateFolder": "Vorlagen-Ordner",
     "areas": "Bereiche",
+    "settingSaveFailed": "Die Einstellung konnte nicht gespeichert werden.",
     "navBar": "Navigationsleiste",
     "navBarArrange": "Navigationsleiste anpassen…",
     "navBarCount": "Bereiche in der Leiste",

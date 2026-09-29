@@ -2620,6 +2620,7 @@
     "settingInboxFolder": "Pasta de entrada",
     "settingTemplateFolder": "Pasta de modelos",
     "areas": "Seções",
+    "settingSaveFailed": "Não foi possível salvar a configuração.",
     "navBar": "Barra de navegação",
     "navBarArrange": "Personalizar a barra de navegação…",
     "navBarCount": "Seções na barra",

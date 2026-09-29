@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, X } from "lucide-react";
-import { Button, DAY_END_CHOICES, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, TextInput, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat } from "@plainva/ui";
+import { Button, CommittedTextInput, DAY_END_CHOICES, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, boundaryLabel, clampBoundary, okfBundleStatusLines, sanitizeDailyNoteFormat } from "@plainva/ui";
 import { Select } from "../Select";
 import { AreaHead } from "./AppPages";
 import { ReminderSettings } from "../pim/ReminderSettings";
@@ -140,7 +140,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
       <SettingCard label={t("settings.groupTemplates", { defaultValue: "Vorlagen" })}>
         <SettingRow label={t("settings.templateFolder")} desc={t("settings.templateFolderDesc")}>
           <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-            <input autoComplete="off" value={p.templateFolder} onChange={(e) => p.onTemplateFolder(e.target.value)} placeholder="Templates/" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
+            <CommittedTextInput autoComplete="off" value={p.templateFolder} onSave={p.onTemplateFolder} placeholder="Templates/" style={{ flex: 1, minWidth: 0 }} />
             <IconButton
               label={t("settings.browseFolders")}
               data-testid="browse-template-folder"
@@ -164,14 +164,14 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           <div className="pv-rulelist" data-testid="folder-template-rules">
             {p.folderTemplates.map((rule, index) => (
               <div className="pv-rule" key={index}>
-                <input
+                <CommittedTextInput
                   autoComplete="off"
-                  className="pv-field pv-rule-from"
+                  className="pv-rule-from"
                   value={rule.folder}
                   placeholder={t("settings.ruleFolderPlaceholder", { defaultValue: "Ordner …" })}
                   aria-label={t("settings.folderTemplates", { defaultValue: "Vorlagen je Ordner" })}
-                  onChange={(e) =>
-                    p.onFolderTemplates(p.folderTemplates.map((r, i) => (i === index ? { ...r, folder: e.target.value } : r)))
+                  onSave={(folder) =>
+                    p.onFolderTemplates(p.folderTemplates.map((r, i) => (i === index ? { ...r, folder } : r)))
                   }
                 />
                 <IconButton
@@ -228,14 +228,14 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           <div className="pv-rulelist" data-testid="type-template-rules">
             {p.typeTemplates.map((rule, index) => (
               <div className="pv-rule" key={index}>
-                <input
+                <CommittedTextInput
                   autoComplete="off"
-                  className="pv-field pv-rule-from"
+                  className="pv-rule-from"
                   value={rule.type}
                   placeholder={DEFAULT_NOTE_TYPE}
                   aria-label={t("settings.typeTemplates", { defaultValue: "Vorlagen je Notiztyp" })}
-                  onChange={(e) =>
-                    p.onTypeTemplates(p.typeTemplates.map((r, i) => (i === index ? { ...r, type: e.target.value } : r)))
+                  onSave={(type) =>
+                    p.onTypeTemplates(p.typeTemplates.map((r, i) => (i === index ? { ...r, type } : r)))
                   }
                 />
                 <span className="pv-rule-arrow" aria-hidden>→</span>
@@ -287,7 +287,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
             the device that has the smaller screen. */}
         <SettingRow label={t("settings.inboxFolder")} desc={t("settings.inboxFolderDesc")}>
           <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-            <input autoComplete="off" value={p.inboxFolder} onChange={(e) => p.onInboxFolder(e.target.value)} placeholder="Inbox/" className="pv-field" style={{ flex: 1, minWidth: 0 }} data-testid="inbox-folder" />
+            <CommittedTextInput autoComplete="off" value={p.inboxFolder} onSave={p.onInboxFolder} placeholder="Inbox/" style={{ flex: 1, minWidth: 0 }} data-testid="inbox-folder" />
             <IconButton
               label={t("settings.browseFolders")}
               data-testid="browse-inbox-folder"
@@ -303,7 +303,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
             placeholder rather than a forced value. */}
         <SettingRow label={t("settings.attachmentFolder")} desc={t("settings.attachmentFolderDesc")}>
           <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-            <input autoComplete="off" value={p.attachmentFolder} onChange={(e) => p.onAttachmentFolder(e.target.value)} placeholder="Attachments/" className="pv-field" style={{ flex: 1, minWidth: 0 }} data-testid="attachment-folder" />
+            <CommittedTextInput autoComplete="off" value={p.attachmentFolder} onSave={p.onAttachmentFolder} placeholder="Attachments/" style={{ flex: 1, minWidth: 0 }} data-testid="attachment-folder" />
             <IconButton
               label={t("settings.browseFolders")}
               data-testid="browse-attachment-folder"
@@ -318,12 +318,11 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
             system. It can only ADD — the built-in list stays whatever this
             says, so a typo here can never turn a note into an OS handoff. */}
         <SettingRow label={t("settings.textFileExtensions")} desc={t("settings.textFileExtensionsDesc")}>
-          <input
+          <CommittedTextInput
             autoComplete="off"
             value={p.textFileExtensions}
-            onChange={(e) => p.onTextFileExtensions(e.target.value)}
+            onSave={p.onTextFileExtensions}
             placeholder="fountain, adoc"
-            className="pv-field"
             style={{ width: "100%" }}
             data-testid="text-file-extensions"
           />
@@ -333,7 +332,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
       <SettingCard label={t("settings.groupDailyNotes", { defaultValue: "Tagesnotizen" })}>
         <SettingRow label={t("settings.dailyNotesFolder")}>
           <div style={{ display: "flex", gap: "0.4rem", width: "100%", alignItems: "center" }}>
-            <input autoComplete="off" value={p.dailyNotesFolder} onChange={(e) => p.onDailyNotesFolder(e.target.value)} placeholder="Tagebuch/" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
+            <CommittedTextInput autoComplete="off" value={p.dailyNotesFolder} onSave={p.onDailyNotesFolder} placeholder="Tagebuch/" style={{ flex: 1, minWidth: 0 }} />
             <IconButton
               label={t("settings.browseFolders")}
               data-testid="browse-daily-folder"
@@ -345,7 +344,9 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
           </div>
         </SettingRow>
         <SettingRow label={t("settings.dailyNotesFormat")} desc={t("settings.dailyNotesFormatDesc")}>
-          <input autoComplete="off" value={p.dailyNotesFormat} onChange={(e) => p.onDailyNotesFormat(sanitizeDailyNoteFormat(e.target.value))} placeholder="YYYY-MM-DD" className="pv-field" style={{ width: "100%" }} />
+          {/* Sanitized when saved, never under the caret (E23): a rewrite per
+              keystroke moved the caret whenever the sanitizer changed a letter. */}
+          <CommittedTextInput autoComplete="off" value={p.dailyNotesFormat} normalize={sanitizeDailyNoteFormat} onSave={p.onDailyNotesFormat} placeholder="YYYY-MM-DD" style={{ width: "100%" }} />
         </SettingRow>
         <SettingRow label={t("settings.dailyNotesTemplate")} desc={t("settings.dailyNotesTemplateDesc")}>
           {p.templateFiles.length > 0 ? (
@@ -356,14 +357,14 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
               options={[{ value: "", label: "—" }, ...p.templateFiles.map((f) => ({ value: f, label: f }))]}
             />
           ) : (
-            <input autoComplete="off" value={p.dailyNoteTemplate} onChange={(e) => p.onDailyNoteTemplate(e.target.value)} placeholder="DailyTemplate.md" className="pv-field" style={{ width: "100%" }} />
+            <CommittedTextInput autoComplete="off" value={p.dailyNoteTemplate} onSave={p.onDailyNoteTemplate} placeholder="DailyTemplate.md" style={{ width: "100%" }} />
           )}
         </SettingRow>
         <SettingRow label={t("settings.journalHeading")} desc={t("settings.journalHeadingDesc")}>
-          <TextInput autoComplete="off" value={p.journalHeading} onChange={(e) => p.onJournalHeading(e.target.value)} placeholder={DEFAULT_JOURNAL_HEADING} data-testid="journal-heading" />
+          <CommittedTextInput autoComplete="off" value={p.journalHeading} onSave={p.onJournalHeading} placeholder={DEFAULT_JOURNAL_HEADING} data-testid="journal-heading" />
         </SettingRow>
         <SettingRow label={t("settings.journalMood")} desc={t("settings.journalMoodDesc")}>
-          <TextInput autoComplete="off" value={p.journalMoodProperty} onChange={(e) => p.onJournalMoodProperty(e.target.value)} placeholder="stimmung" data-testid="journal-mood-property" />
+          <CommittedTextInput autoComplete="off" value={p.journalMoodProperty} onSave={p.onJournalMoodProperty} placeholder="stimmung" data-testid="journal-mood-property" />
         </SettingRow>
         <SettingRow label={t("settings.dayEndsAt")} desc={t("settings.dayEndsAtDesc")}>
           <Select
@@ -392,7 +393,7 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
                 />
               </div>
             ) : (
-              <input autoComplete="off" value={p.taskDatabase} onChange={(e) => p.onTaskDatabase(e.target.value)} placeholder="Tasks.base" className="pv-field" style={{ flex: 1, minWidth: 0 }} />
+              <CommittedTextInput autoComplete="off" value={p.taskDatabase} onSave={p.onTaskDatabase} placeholder="Tasks.base" style={{ flex: 1, minWidth: 0 }} />
             )}
             <button
               onClick={p.onCreateTaskDb}
@@ -409,13 +410,13 @@ export const ContentPage: React.FC<ContentPageProps> = (p) => {
 
       <SettingCard label={t("settings.groupOkfStructure", { defaultValue: "OKF & Struktur" })}>
         <SettingRow label={t("settings.defaultNoteType")} desc={t("settings.defaultNoteTypeDesc")}>
-          <input autoComplete="off" value={p.defaultNoteType} onChange={(e) => p.onDefaultNoteType(e.target.value)} placeholder={DEFAULT_NOTE_TYPE} className="pv-field" style={{ width: "100%" }} />
+          <CommittedTextInput autoComplete="off" value={p.defaultNoteType} onSave={p.onDefaultNoteType} placeholder={DEFAULT_NOTE_TYPE} style={{ width: "100%" }} />
         </SettingRow>
         <SettingRow label={t("settings.dailyNoteType")} desc={t("settings.dailyNoteTypeDesc")}>
-          <input autoComplete="off" value={p.dailyNoteType} onChange={(e) => p.onDailyNoteType(e.target.value)} placeholder={DEFAULT_DAILY_NOTE_TYPE} className="pv-field" style={{ width: "100%" }} />
+          <CommittedTextInput autoComplete="off" value={p.dailyNoteType} onSave={p.onDailyNoteType} placeholder={DEFAULT_DAILY_NOTE_TYPE} style={{ width: "100%" }} />
         </SettingRow>
         <SettingRow label={t("settings.verifierName")} desc={t("settings.verifierNameDesc")}>
-          <input autoComplete="off" value={p.verifierName} onChange={(e) => p.onVerifierName(e.target.value)} placeholder={t("trust.verifierPlaceholder")} className="pv-field" style={{ width: "100%" }} data-testid="verifier-name" />
+          <CommittedTextInput autoComplete="off" value={p.verifierName} onSave={p.onVerifierName} placeholder={t("trust.verifierPlaceholder")} style={{ width: "100%" }} data-testid="verifier-name" />
         </SettingRow>
         {p.isActiveVault && (
           <>

@@ -2620,6 +2620,7 @@
     "settingInboxFolder": "Carpeta de entrada",
     "settingTemplateFolder": "Carpeta de plantillas",
     "areas": "Áreas",
+    "settingSaveFailed": "No se pudo guardar el ajuste.",
     "navBar": "Barra de navegación",
     "navBarArrange": "Personalizar la barra de navegación…",
     "navBarCount": "Áreas en la barra",

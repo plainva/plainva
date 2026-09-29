@@ -298,6 +298,7 @@ export * from "./hooks/useMinuteClock";
 export * from "./hooks/useJournalFeed";
 export * from "./hooks/useJournalActions";
 export * from "./hooks/useJournalDay";
+export * from "./hooks/useFieldDraft";
 export * from "./hooks/useHoldDrag";
 
 // Editor layer (M0.4): the CodeMirror session and its portable plugins.

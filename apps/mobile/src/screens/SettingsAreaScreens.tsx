@@ -5,20 +5,17 @@ import { ChevronRight } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, CommittedTextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
-import {
-  getMobileSettings,
-  updateMobileSettings,
-  type DefaultView,
-} from "../services/mobileSettings";
+import { type DefaultView } from "../services/mobileSettings";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { deletionLogChecker } from "../services/syncService";
 import { AppBar } from "../components/AppBar";
 import { TemplateRules } from "../components/TemplateRules";
 import { FolderField } from "../components/FolderField";
+import { useSettingsState } from "../hooks/useSettingsState";
 
 /**
  * Settings detail screens (redesign 2026-07-18, P4): the master list mirrors
@@ -53,14 +50,6 @@ function AreaHeader({ id, title, onBack }: { id: string; title: string; onBack: 
   return (
     <AppBar onBack={onBack} title={title} testId={`appbar-area-${id}`} />
   );
-}
-
-function useSettingsState() {
-  const [settings, setSettings] = useState(getMobileSettings());
-  const update = (patch: Parameters<typeof updateMobileSettings>[0]) => {
-    void updateMobileSettings(patch).then(() => setSettings(getMobileSettings()));
-  };
-  return { settings, update };
 }
 
 /** Editor & notes: the default note view. */
@@ -223,27 +212,33 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         <SectionLabel>{t("mobile.settingFolders")}</SectionLabel>
         <GroupCard>
           <RowList>
+            {/* Normalized when saved, not per keystroke (E23): `|| "Daily"`
+                refilled a cleared field while one was still typing. */}
             <FolderField
               label={t("mobile.settingDailyFolder")}
-              onChange={(v) => update({ dailyFolder: v.trim() || "Daily" })}
+              normalize={(v) => v.trim() || "Daily"}
+              onSave={(v) => update({ dailyFolder: v })}
               onPick={() => setPickFor("dailyFolder")}
               value={settings.dailyFolder}
             />
             <FolderField
               label={t("mobile.settingInboxFolder")}
-              onChange={(v) => update({ inboxFolder: v.trim() || "Inbox" })}
+              normalize={(v) => v.trim() || "Inbox"}
+              onSave={(v) => update({ inboxFolder: v })}
               onPick={() => setPickFor("inboxFolder")}
               value={settings.inboxFolder}
             />
             <FolderField
               label={t("settings.attachmentFolder")}
-              onChange={(v) => update({ attachmentFolder: v.trim() })}
+              normalize={(v) => v.trim()}
+              onSave={(v) => update({ attachmentFolder: v })}
               onPick={() => setPickFor("attachmentFolder")}
               value={settings.attachmentFolder}
             />
             <FolderField
               label={t("mobile.settingTemplateFolder")}
-              onChange={(v) => update({ templateFolder: v.trim() || "Templates" })}
+              normalize={(v) => v.trim() || "Templates"}
+              onSave={(v) => update({ templateFolder: v })}
               onPick={() => setPickFor("templateFolder")}
               value={settings.templateFolder}
             />
@@ -279,44 +274,49 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
         <GroupCard>
           <RowList>
             <SettingField hint={t("settings.dailyNotesFormatDesc")} label={t("settings.dailyNotesFormat")}>
-              <TextInput
-                onChange={(e) => update({ dailyFormat: sanitizeDailyNoteFormat(e.target.value) })}
+              {/* The field owns its draft (TestFlight 2026-09-22, E23): bound to the
+                  stored value, every key waited for the asynchronous save and the
+                  caret jumped to the end; a second quick key was lost. */}
+              <CommittedTextInput
+                data-testid="daily-format"
+                normalize={sanitizeDailyNoteFormat}
+                onSave={(v) => update({ dailyFormat: v })}
                 value={settings.dailyFormat}
               />
             </SettingField>
             <SettingField label={t("settings.dailyNoteType")}>
-              <TextInput
-                onChange={(e) => update({ dailyNoteType: e.target.value })}
+              <CommittedTextInput
+                onSave={(v) => update({ dailyNoteType: v })}
                 value={settings.dailyNoteType}
               />
             </SettingField>
             <SettingField hint={t("settings.journalMoodDesc")} label={t("settings.journalMood")}>
-              <TextInput
+              <CommittedTextInput
                 data-testid="journal-mood-property"
-                onBlur={(e) => update({ journalMoodProperty: e.target.value.trim() })}
-                onChange={(e) => update({ journalMoodProperty: e.target.value })}
+                normalize={(v) => v.trim()}
+                onSave={(v) => update({ journalMoodProperty: v })}
                 placeholder="stimmung"
                 value={settings.journalMoodProperty}
               />
             </SettingField>
             <SettingField hint={t("settings.journalHeadingDesc")} label={t("settings.journalHeading")}>
-              <TextInput
+              <CommittedTextInput
                 data-testid="journal-heading"
-                onBlur={(e) => update({ journalHeading: normalizeJournalHeading(e.target.value) })}
-                onChange={(e) => update({ journalHeading: e.target.value })}
+                normalize={normalizeJournalHeading}
+                onSave={(v) => update({ journalHeading: v })}
                 placeholder={DEFAULT_JOURNAL_HEADING}
                 value={settings.journalHeading}
               />
             </SettingField>
             <SettingField hint={t("settings.defaultNoteTypeDesc")} label={t("settings.defaultNoteType")}>
-              <TextInput
-                onChange={(e) => update({ defaultNoteType: e.target.value })}
+              <CommittedTextInput
+                onSave={(v) => update({ defaultNoteType: v })}
                 value={settings.defaultNoteType}
               />
             </SettingField>
             <SettingField hint={t("settings.verifierNameDesc")} label={t("settings.verifierName")}>
-              <TextInput
-                onChange={(e) => update({ verifierName: e.target.value })}
+              <CommittedTextInput
+                onSave={(v) => update({ verifierName: v })}
                 placeholder={t("trust.verifierPlaceholder")}
                 value={settings.verifierName}
               />

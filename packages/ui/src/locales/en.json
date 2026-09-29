@@ -2605,6 +2605,7 @@
     "settingInboxFolder": "Inbox folder",
     "settingTemplateFolder": "Template folder",
     "areas": "Areas",
+    "settingSaveFailed": "The setting could not be saved.",
     "navBar": "Navigation bar",
     "navBarArrange": "Customize the navigation bar…",
     "navBarCount": "Areas in the bar",

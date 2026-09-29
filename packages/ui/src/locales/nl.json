@@ -2605,6 +2605,7 @@
     "settingInboxFolder": "Inbox-map",
     "settingTemplateFolder": "Sjablonenmap",
     "areas": "Onderdelen",
+    "settingSaveFailed": "De instelling kon niet worden opgeslagen.",
     "navBar": "Navigatiebalk",
     "navBarArrange": "Navigatiebalk aanpassen…",
     "navBarCount": "Onderdelen in de balk",

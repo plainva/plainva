@@ -2635,6 +2635,7 @@
     "settingInboxFolder": "Folder skrzynki",
     "settingTemplateFolder": "Folder szablonów",
     "areas": "Obszary",
+    "settingSaveFailed": "Nie udało się zapisać ustawienia.",
     "navBar": "Pasek nawigacji",
     "navBarArrange": "Dostosuj pasek nawigacji…",
     "navBarCount": "Obszary na pasku",
