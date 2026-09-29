@@ -8,10 +8,15 @@ import { join } from "node:path";
  *
  * The Playwright suites drive a MOCKED `__TAURI_INTERNALS__` and prove UI logic,
  * not the native app (the gap that let the macOS print bug, issue #6, ship). This
- * runs the BUILT Tauri binary through `@wdio/tauri-service` (embedded driver —
- * Windows/Linux/macOS). It is NOT exercised in the CI-mocked test harness (there
- * is no native build there); its first green run is a maintainer / CI-runner step
- * (`pnpm --filter desktop test:native`, or the native-smoke workflow).
+ * runs the BUILT Tauri binary through `@wdio/tauri-service` with the EXTERNAL
+ * driver: a cargo-installed `tauri-driver` in front of WebKitWebDriver (Linux) or
+ * the Edge WebDriver (Windows). The service's default, the embedded driver, needs
+ * `tauri-plugin-wdio-webdriver` compiled into the app — the first run of the
+ * native-smoke workflow (2026-09-29) failed on exactly that; putting a WebDriver
+ * server into the binary is a decision of its own (see WebDriver_Smoke.md), so
+ * macOS stays uncovered here. It is NOT exercised in the CI-mocked test harness
+ * (there is no native build there): `pnpm --filter desktop test:native`, or the
+ * native-smoke workflow.
  */
 
 const APP_ID = "com.plainva.desktop";
@@ -44,7 +49,10 @@ export const config: WebdriverIO.Config = {
       "tauri:options": { application },
     } as WebdriverIO.Capabilities,
   ],
-  services: ["@wdio/tauri-service"],
+  // `external` + `autoInstallTauriDriver`: the service installs tauri-driver with
+  // cargo when it is missing (the workflow sets up the Rust toolchain) and manages
+  // the Edge WebDriver on Windows; Linux needs `webkit2gtk-driver` (installed there).
+  services: [["@wdio/tauri-service", { driverProvider: "external", autoInstallTauriDriver: true }]],
   framework: "mocha",
   reporters: ["spec"],
   mochaOpts: { timeout: 180_000 },
