@@ -27,7 +27,13 @@ describe("durable conflict editing", () => {
   });
   afterEach(async () => { vi.restoreAllMocks(); await db.close(); await rm(directory, { recursive: true, force: true }); });
 
-  it.each(["adapter", "editor-save", "editor-external", "sync-pull"] as const)("%s keeps one copy through 100 saves and a new adapter", async writer => {
+  // Twenty saves on real files, the adapter replaced after ten. Every save after
+  // the first takes the same path — one session row, one working copy, one
+  // remembered write per path — so a hundred proved nothing that twenty do not,
+  // and on a loaded Windows runner the hundred ran past 20 s (v0.8.3 release
+  // preflight, 2026-09-18; Befunde 2026-09-24, Z2).
+  const SAVES = 20;
+  it.each(["adapter", "editor-save", "editor-external", "sync-pull"] as const)(`%s keeps one copy through ${SAVES} saves and a new adapter`, async writer => {
     if (writer === "adapter") await adapter.writeTextFile(original, "local 0\n").catch(error => { expect(error.name).toBe("ConflictError"); });
     if (writer === "editor-save") await adapter.writeEditorText(original, "local 0\n", base);
     if (writer === "editor-external") await adapter.preserveConflict(original, "local 0\n", writer);
@@ -40,13 +46,13 @@ describe("durable conflict editing", () => {
     }
     const first = { session: await adapter.getConflictSession(original) };
     expect(first.session).not.toBeNull();
-    for (let i = 1; i <= 100; i++) {
-      if (i === 50) adapter = new ConflictAwareVaultAdapter(files, new SyncStateRepository(db));
+    for (let i = 1; i <= SAVES; i++) {
+      if (i === SAVES / 2) adapter = new ConflictAwareVaultAdapter(files, new SyncStateRepository(db));
       const saved = await adapter.writeEditorText(original, `local ${i}\n`, `local ${i - 1}\n`);
       expect(saved.session?.workingCopyPath).toBe(first.session!.workingCopyPath);
     }
     expect(await files.readTextFile(original)).toBe(external);
-    expect(await files.readTextFile(first.session!.workingCopyPath)).toBe("local 100\n");
+    expect(await files.readTextFile(first.session!.workingCopyPath)).toBe(`local ${SAVES}\n`);
     expect((await files.listDir("notes", true)).filter(f => f.path.includes(".CONFLICT-"))).toHaveLength(1);
     expect(await repo.getBaseText(original)).toBe(writer === "sync-pull" ? external : base);
     expect((await repo.getConflictSession(original))?.baseRevision).toBe(await conflictHash(base));

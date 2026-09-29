@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
 import { sameStoredValue, storedJson } from "@plainva/core";
+import { shippedSources } from "./test-sourceTree";
 
 /**
  * No equality check over JSON TEXT (finding 2026-09-24).
@@ -20,9 +19,6 @@ import { sameStoredValue, storedJson } from "@plainva/core";
  * the class spread.
  */
 
-const REPO = resolve(__dirname, "../../..");
-const ROOTS = ["apps/desktop/src", "apps/mobile/src", "packages/ui/src", "packages/core/src"];
-
 /**
  * The only comparisons allowed to stay, each with the reason it cannot meet a
  * store. A stale entry fails too, so the list can only shrink.
@@ -32,17 +28,6 @@ const ALLOWED: Record<string, string> = {
   // every editor update — a hot path with no store in between.
   "packages/ui/src/components/LivePreviewPlugin.ts": "in-memory widget identity",
 };
-
-function sourceFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    if (entry === "node_modules" || entry === "dist") continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(...sourceFiles(full));
-    else if (/\.tsx?$/.test(entry) && !/\.(test|spec)\.tsx?$/.test(entry)) out.push(full);
-  }
-  return out;
-}
 
 /** Index of the `)` closing the call whose `(` ends right before `start`. */
 function closingParen(text: string, start: number): number {
@@ -66,6 +51,8 @@ const CALL = "JSON.stringify(";
 
 /** Every `JSON.stringify(…)` that is an operand of `===` / `!==`. */
 function textComparisons(source: string): string[] {
+  // Most files never call it, and stripping comments cannot add a call.
+  if (!source.includes(CALL)) return [];
   // Comments may quote the pattern (storedValue.ts does); strip them first.
   const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
   const found: string[] = [];
@@ -87,17 +74,15 @@ describe("comparing stored values", () => {
   it("never compares JSON text in shipped code", () => {
     const findings: string[] = [];
     const allowedHit = new Set<string>();
-    for (const root of ROOTS) {
-      for (const file of sourceFiles(join(REPO, root))) {
-        const rel = relative(REPO, file).replace(/\\/g, "/");
-        const hits = textComparisons(readFileSync(file, "utf8"));
-        if (hits.length === 0) continue;
-        if (ALLOWED[rel]) {
-          allowedHit.add(rel);
-          continue;
-        }
-        for (const hit of hits) findings.push(`${rel}: ${hit}`);
+    // The four code roots, read through the scan guards' shared snapshot.
+    for (const { rel, text } of shippedSources()) {
+      const hits = textComparisons(text);
+      if (hits.length === 0) continue;
+      if (ALLOWED[rel]) {
+        allowedHit.add(rel);
+        continue;
       }
+      for (const hit of hits) findings.push(`${rel}: ${hit}`);
     }
     expect(
       findings,

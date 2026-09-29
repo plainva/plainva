@@ -1,14 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// Walks the whole source tree from disk: about half a second on its own, but past
-// the 5 s unit-test default under the full suite's parallel load — six of these
-// guards timed out at once and passed in isolation (2026-08-24). A default meant
-// for unit tests is the wrong yardstick for a check whose runtime grows with the
-// repo; 30 s still catches a hang.
-vi.setConfig({ testTimeout: 30_000 });
+import { describe, it, expect } from "vitest";
+import { shippedSources } from "./test-sourceTree";
 
 /**
  * Platform-boundary ratchet (ADR 0011, M0.3): direct settings/keychain
@@ -18,27 +9,19 @@ vi.setConfig({ testTimeout: 30_000 });
  * exempt — they mock the plugin module by its specifier.
  */
 
-const SRC = fileURLToPath(new URL(".", import.meta.url));
+const ROOT = "apps/desktop/src";
 
 const ALLOWED = new Set(["services/settingsStore.ts", "services/CredentialManager.ts"]);
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.tsx?$/.test(name)) out.push(p);
-  }
-  return out;
-}
 
 describe("platform boundary (plugin-store)", () => {
   it("only the designated adapters import @tauri-apps/plugin-store", () => {
     const offenders: string[] = [];
-    for (const file of walk(SRC)) {
-      const rel = relative(SRC, file).replace(/\\/g, "/");
+    // The shell's shipped sources (tests are exempt), read through the scan
+    // guards' shared snapshot; `rel` is relative to src as ALLOWED has it.
+    for (const file of shippedSources([ROOT])) {
+      const rel = file.rel.slice(ROOT.length + 1);
       if (ALLOWED.has(rel)) continue;
-      if (/\.(test|spec)\.tsx?$/.test(rel)) continue;
-      if (readFileSync(file, "utf8").includes("@tauri-apps/plugin-store")) {
+      if (file.text.includes("@tauri-apps/plugin-store")) {
         offenders.push(rel);
       }
     }
