@@ -12,7 +12,7 @@ import {
 import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
 import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
-import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, isPimTraceEnabled, setPimTraceEnabled, Switch, type CustomThemeDesign } from "@plainva/ui";
+import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, Switch, type CustomThemeDesign } from "@plainva/ui";
 import type { JournalCheckResult } from "@plainva/core";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { QuickCaptureSettings } from "./QuickCaptureSettings";
@@ -417,7 +417,6 @@ export interface AboutPageProps {
 
 export const AboutPage: React.FC<AboutPageProps> = (p) => {
   const { t } = useTranslation();
-  const [pimTrace, setPimTrace] = React.useState(isPimTraceEnabled);
   const [journalBusy, setJournalBusy] = React.useState(false);
   const [journalNote, setJournalNote] = React.useState<string | null>(null);
   const checkDeletionLog = async () => {
@@ -452,12 +451,6 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
       </SettingCard>
 
       <SettingCard label={t("settings.groupDiagnostics", { defaultValue: "Diagnose" })}>
-        {/* The task trace (finding 2026-09-19): off by default, and meant to be
-            switched off again - it answers one question with the provider's own
-            rows and adds them to the diagnostics export above. */}
-        <SettingRow label={t("settings.pimTrace")} desc={t("settings.pimTraceDesc")}>
-          <Switch checked={pimTrace} label={t("settings.pimTrace")} onChange={(next) => { setPimTraceEnabled(next); setPimTrace(next); }} />
-        </SettingRow>
         {/* The deletion log travels to every device and explains absences there
             without a question — so a wrong entry is worth a way to find it
             (finding 2026-09-20). The result replaces the hint. */}

@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { HailingSheet } from "../components/HailingSheet";
-import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, isPimTraceEnabled, setPimTraceEnabled, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
+import { boundaryLabel, Button, clampBoundary, createTaskDatabase, DAY_END_CHOICES, formatBuildLine, formatDiagnosticsExport, GroupCard, ICON, listTemplates, PlainvaLogo, Row, RowList, sanitizeDailyNoteFormat, SectionLabel, SettingField, Switch, TextInput, userGuideUrl } from "@plainva/ui";
 import { Browser } from "@capacitor/browser";
 import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
@@ -484,7 +484,6 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
       .then((info) => setAppVersion(info.version))
       .catch(() => {});
   }, []);
-  const [pimTrace, setPimTrace] = useState(isPimTraceEnabled);
   // "Check deletion log" (finding 2026-09-20): the desktop's row, the same
   // worker call. Present only while a plain file sync runs.
   const checkJournal = deletionLogChecker();
@@ -559,16 +558,6 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
               onClick={exportDiagnostics}
               title={t("settings.exportDiagnostics")}
             />
-            {/* The task trace (finding 2026-09-19): the desktop's switch, the
-                same key. Off by default, and meant to be switched off again. */}
-            <Row
-              end={<Switch
-                checked={pimTrace}
-                label={t("settings.pimTrace")}
-                onChange={(next) => { setPimTraceEnabled(next); setPimTrace(next); }}
-              />}
-              title={t("settings.pimTrace")}
-            />
             {checkJournal && (
               <Row
                 end={<ChevronRight className="m-chevron" size={ICON.ui} />}
@@ -583,7 +572,6 @@ export function AboutAreaScreen({ onBack }: { onBack: () => void }) {
             />
           </RowList>
         </GroupCard>
-        <p className="m-hint">{t("settings.pimTraceDesc")}</p>
         {checkJournal && <p className="m-hint" data-testid="deletion-log-note">{journalNote ?? t("sync.journalCheckHint")}</p>}
       </div>
 

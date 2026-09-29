@@ -10,7 +10,7 @@ import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import "./mobile.css";
-import { initPimTrace, logDiagnostic, setPlatformServices, ToastHost } from "@plainva/ui";
+import { logDiagnostic, removeRetiredStorage, setPlatformServices, ToastHost } from "@plainva/ui";
 import { initMobileSettings } from "./services/mobileSettings";
 import { initWindowClass } from "./services/windowClass";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
@@ -131,9 +131,9 @@ async function boot(): Promise<void> {
   // i18n/settings problem degrades to defaults instead of a black screen.
   await i18nReady.catch((e) => console.error("[boot] i18n init failed", e));
   await initMobileSettings().catch((e) => console.error("[boot] settings init failed", e));
-  // The task trace (finding 2026-09-19): re-installs its listener when the
-  // diagnostic switch was left on; a no-op otherwise.
-  initPimTrace();
+  // What retired features left in this device's storage goes, once per start
+  // (E13: the task trace's provider rows) — the desktop does the same.
+  removeRetiredStorage();
   // AFTER i18n, and that ordering is the fix, not an incidental detail: the
   // reminder action types are registered with the operating system once and
   // kept for the life of the process, so a registration that runs while `t()`

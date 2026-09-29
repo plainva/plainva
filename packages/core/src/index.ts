@@ -102,7 +102,6 @@ export * from "./db/Schema.js";
 export * from "./db/batch.js";
 export * from "./pim/types.js";
 export * from "./pim/requestError.js";
-export * from "./pim/pimTrace.js";
 export * from "./pim/recurrence.js";
 export * from "./pim/PimCacheRepository.js";
 export * from "./pim/CalDavPimTarget.js";
