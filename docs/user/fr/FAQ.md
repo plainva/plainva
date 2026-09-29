@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-09-03
+Dernière mise à jour : 2026-09-24
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -91,6 +91,14 @@ Normalement, Plainva remarque de lui-même quand un autre programme modifie quel
 Plainva affiche ensuite un court rapport : combien de fichiers étaient nouveaux, modifiés ou supprimés — et **quelles entrées ont été ignorées**. Un dossier ignoré est la raison la plus fréquente pour laquelle un fichier n'« arrive » jamais : Plainva n'a pas pu le lire (droits manquants, lecteur réseau déconnecté) ou il pointe vers lui-même en boucle. Pour les vaults en ligne, le rapport indique en plus qu'une synchronisation complète du cloud a été demandée.
 
 Plainva réconcilie en plus automatiquement dès que vous revenez à la fenêtre depuis un autre programme (au maximum toutes les 30 secondes ; le cloud au maximum toutes les 5 minutes). Si un fichier reste invisible malgré tout, utilisez **Reconstruire entièrement l'index** sous Paramètres → Vault → Maintenance.
+
+### J'ai déplacé un fichier en dehors de Plainva
+
+Plainva le suit. L'arborescence affiche le fichier à son nouvel emplacement, même si vous l'avez déplacé dans le Finder, l'Explorateur ou un autre programme. Si vous ouvrez la note à son ancien emplacement — par exemple dans un onglet qui l'affichait —, Plainva la recherche : quand exactement un fichier ailleurs a le même contenu et la même date de modification, l'onglet le suit et un court message indique le nouveau dossier. Si ce n'est pas certain, par exemple parce que le même contenu existe à plusieurs endroits, **Déplacé ?** demande de quel fichier il s'agit, et vous choisissez le bon. Si Plainva n'en trouve aucun, l'onglet reste sur **Ce fichier n'existe plus**, et Plainva retire de lui-même l'entrée obsolète de l'index.
+
+Sur le téléphone, rien ne surveille le dossier pendant que vous travaillez. Plainva relit plutôt le vault chaque fois que vous **revenez dans l'app** (au plus une fois par minute) et chaque fois que vous **tirez une liste vers le bas** — pour chaque vault, y compris celui de l'app, que l'app Fichiers affiche sous iOS. Une note déplacée y suit son fichier de la même façon ; si Plainva ne la trouve pas, **Cette note est introuvable.** s'affiche.
+
+Plainva ignore les fichiers système : `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (icônes de dossier), `.Spotlight-V100`, `.Trashes`, `.fseventsd` ainsi que les fichiers AppleDouble que macOS place à côté de chaque fichier sur les lecteurs réseau et les clés USB (`._Note.md`). Ils n'apparaissent pas dans l'arborescence et ne sont ni envoyés ni téléchargés. Une copie qu'une version antérieure a déjà envoyée reste intacte dans le cloud. Une de vos notes dont le nom commence simplement par `._` reste visible — Plainva reconnaît les fichiers AppleDouble à leur contenu, pas à leur nom.
 
 ### Pourquoi ne vois-je aucune animation ?
 

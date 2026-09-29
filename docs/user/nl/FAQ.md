@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-09-03
+Laatst bijgewerkt: 2026-09-24
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -91,6 +91,14 @@ Normaal gesproken merkt Plainva vanzelf wanneer een ander programma iets wijzigt
 Plainva toont vervolgens een kort rapport: hoeveel bestanden nieuw, gewijzigd of verwijderd waren — en **welke items zijn overgeslagen**. Een overgeslagen map is de meest voorkomende reden dat een bestand nooit "aankomt": Plainva kon de map niet lezen (ontbrekende rechten, losgekoppelde netwerkschijf) of de map verwijst in een kring naar zichzelf. Bij online vaults meldt het rapport bovendien dat een volledige cloudsynchronisatie is aangevraagd.
 
 Daarnaast gelijkt Plainva automatisch af zodra je vanuit een ander programma terugkeert naar het venster (maximaal elke 30 seconden; de cloud maximaal elke 5 minuten). Blijft een bestand ook dan onzichtbaar, gebruik dan **Index volledig opnieuw opbouwen** onder Instellingen → Vault → Onderhoud.
+
+### Ik heb een bestand buiten Plainva verplaatst
+
+Plainva volgt het. De bestandsboom toont het bestand op de nieuwe plek, ook als je het in de Finder, de Verkenner of een ander programma hebt verplaatst. Open je de notitie nog op de oude plek — bijvoorbeeld in een tabblad dat haar eerder toonde —, dan zoekt Plainva haar: heeft precies één bestand elders dezelfde inhoud en hetzelfde wijzigingstijdstip, dan volgt het tabblad dat bestand en noemt een korte melding de nieuwe map. Is dat niet eenduidig, bijvoorbeeld omdat dezelfde inhoud op meerdere plekken staat, dan vraagt **Verplaatst?** welke het is en kies je het juiste bestand. Vindt Plainva er geen, dan blijft het tabblad bij **Dit bestand bestaat niet meer** en ruimt Plainva de verouderde indexvermelding vanzelf op.
+
+Op de telefoon houdt niets de map in de gaten terwijl je werkt. In plaats daarvan leest Plainva de vault opnieuw in zodra je **terugkeert naar de app** (hoogstens één keer per minuut) en zodra je een lijst **omlaag trekt** — voor elke vault, ook de vault in de app zelf, die de Bestanden-app op iOS toont. Een verplaatste notitie volgt daar haar bestand op dezelfde manier; vindt Plainva haar niet, dan verschijnt **Deze notitie is niet gevonden.**
+
+Systeembestanden slaat Plainva over: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (mapsymbolen), `.Spotlight-V100`, `.Trashes`, `.fseventsd` en de AppleDouble-bestanden die macOS op netwerkschijven en USB-sticks naast elk bestand legt (`._Notitie.md`). Ze verschijnen niet in de bestandsboom en worden niet geüpload of gedownload. Een kopie die een eerdere versie al naar de cloud heeft geüpload, blijft daar onaangeroerd. Een eigen notitie waarvan de naam toevallig met `._` begint, blijft zichtbaar — Plainva herkent AppleDouble-bestanden aan hun inhoud, niet aan hun naam.
 
 ### Waarom zie ik geen animaties?
 

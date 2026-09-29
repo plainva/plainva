@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-09-03
+Stan na: 2026-09-24
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -91,6 +91,14 @@ Zwykle Plainva sama zauważa, gdy inny program zmienia coś w folderze Twojego v
 Plainva pokazuje wtedy krótki raport: ile plików było nowych, zmienionych lub usuniętych — oraz **które wpisy zostały pominięte**. Pominięty folder jest najczęstszym powodem, dla którego plik nigdy „nie dociera": Plainva nie mogła go odczytać (brak uprawnień, odłączony dysk sieciowy) albo folder odsyła sam do siebie w kółko. Przy vaultach online raport dodatkowo informuje, że zażądano pełnej synchronizacji z chmurą.
 
 Dodatkowo Plainva uzgadnia stan automatycznie za każdym razem, gdy wracasz do okna z innego programu (co najwyżej co 30 sekund; chmura co najwyżej co 5 minut). Jeśli plik mimo to pozostaje niewidoczny, użyj **Odbuduj indeks od zera** w Ustawienia → Vault → Konserwacja.
+
+### Plik został przeniesiony poza Plainva
+
+Plainva za nim podąża. Drzewo plików pokazuje plik w nowym miejscu, nawet jeśli przeniesiono go w Finderze, Eksploratorze lub innym programie. Gdy notatka zostanie otwarta w starym miejscu — na przykład w karcie, która wcześniej ją pokazywała — Plainva jej szuka: jeśli dokładnie jeden plik w innym miejscu ma tę samą treść i ten sam czas modyfikacji, karta za nim podąża, a krótki komunikat podaje nowy folder. Jeśli nie jest to jednoznaczne, na przykład dlatego, że ta sama treść jest w kilku miejscach, **Przeniesiono?** pyta, który to plik, i wybierasz właściwy. Jeśli Plainva nie znajdzie żadnego, karta pokazuje dalej **Ten plik już nie istnieje**, a nieaktualny wpis w indeksie Plainva usuwa samodzielnie.
+
+Na telefonie nic nie obserwuje folderu podczas pracy. Zamiast tego Plainva ponownie wczytuje vault za każdym razem, gdy **wracasz do aplikacji** (najwyżej raz na minutę), oraz gdy **pociągasz listę w dół** — dla każdego vaulta, także tego w samej aplikacji, który na iOS pokazuje aplikacja Pliki. Przeniesiona notatka podąża tam za swoim plikiem w ten sam sposób; jeśli Plainva jej nie znajdzie, pojawia się **Nie znaleziono tej notatki.**
+
+Plainva pomija pliki systemowe: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (ikony folderów), `.Spotlight-V100`, `.Trashes`, `.fseventsd` oraz pliki AppleDouble, które macOS kładzie obok każdego pliku na dyskach sieciowych i pendrive'ach (`._Notatka.md`). Nie pojawiają się w drzewie plików i nie są ani wysyłane, ani pobierane. Kopia, którą wcześniejsza wersja już wysłała do chmury, pozostaje tam nietknięta. Twoja własna notatka, której nazwa po prostu zaczyna się od `._`, pozostaje widoczna — Plainva rozpoznaje pliki AppleDouble po treści, a nie po nazwie.
 
 ### Dlaczego nie widzę żadnych animacji?
 

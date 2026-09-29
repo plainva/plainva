@@ -30,7 +30,8 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks } from "@plainva/ui";
+import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, healMissingNote, movedChoiceBodyKey, movedFolderLabel } from "@plainva/ui";
+import { getVaultEntry } from "../services/vaultRegistry";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
@@ -105,6 +106,16 @@ export function NoteScreen({
     [doc]
   );
   const [loadError, setLoadError] = useState(false);
+  /**
+   * A note that could not be read is looked for first (issue 110, E9): the
+   * phone's own vault is visible in the iOS Files app, and a note moved there
+   * sits in another folder with the same content. `looking` while the search
+   * runs; the candidates when none of them is certain; `settled` once the
+   * missing state is the answer.
+   */
+  const [movedLookup, setMovedLookup] = useState<{ kind: "looking" } | { kind: "choose"; candidates: string[] } | { kind: "settled" } | null>(null);
+  /** A failed load can be looked into: the lookup below runs for it. */
+  const canLookForMoved = !!(vault.indexer && vault.db);
   const [marked, setMarked] = useState(false);
   const [info, setInfo] = useState<ContextTab | null>(null);
   // The context surface can stand beside the work (S14) — but only where a
@@ -471,6 +482,42 @@ export function NoteScreen({
     };
   }, [vault, path, t]);
 
+  // One match at the same modification time (a move keeps it): the screen
+  // follows it and says where. Anything less certain: the reader picks. None:
+  // the missing state — the stale index row is already gone.
+  const followMoved = useStableHandler((to: string) => {
+    void getVaultEntry(vault.vaultId).catch(() => null).then((entry) => {
+      toast.info(t("mobile.noteMovedFollowed", { folder: movedFolderLabel(to, entry?.name || t("mobile.vaultLocal")) }));
+    });
+    onRenamed(to);
+  });
+  useEffect(() => {
+    if (!loadError || !vault.indexer || !vault.db) {
+      setMovedLookup(null);
+      return;
+    }
+    let stale = false;
+    setMovedLookup({ kind: "looking" });
+    void healMissingNote(path, { exists: (p) => vault.adapter.exists(p), db: vault.db, indexer: vault.indexer }, vault.vaultId)
+      .then((outcome) => {
+        // Every answer but "present" changed the index (the stale row went,
+        // the new place came in); the lists hear of it even when this screen
+        // has gone meanwhile.
+        if (outcome.kind !== "present") window.dispatchEvent(new CustomEvent("m-vault-changed"));
+        if (stale) return;
+        if (outcome.kind === "moved") {
+          setMovedLookup(null);
+          followMoved(outcome.to);
+          return;
+        }
+        setMovedLookup(outcome.kind === "ambiguous" ? { kind: "choose", candidates: outcome.candidates } : { kind: "settled" });
+      })
+      .catch(() => { if (!stale) setMovedLookup({ kind: "settled" }); });
+    return () => { stale = true; };
+    // The lookup belongs to one failed load of one note.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadError, path, vault]);
+
   /** Regenerates this overview from the folder it belongs to. */
   const refreshManagedIndex = () => {
     void (async () => {
@@ -776,7 +823,12 @@ export function NoteScreen({
 
   const [readerBlocked, setReaderBlocked] = useState(false);
   const readerConflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
-  const readerOverlay = !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince;
+  /** The load failed: no text on this screen, only its states ("Moved?", not found). */
+  const loadFailed = doc === null && loadError;
+  // A floating bar is for reading under it. The failed-load states sit in the
+  // flow below the bar instead — laid under it, they lost their icon and
+  // title (issue 110: "Moved?" was the part that was hidden).
+  const readerOverlay = !loadFailed && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince;
   const { chromeRef, away: chromeAway, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview);
   const page = (
     <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
@@ -963,7 +1015,30 @@ export function NoteScreen({
         />
       )}
       {!workspaceCanWrite && <div className="m-inline-notice">{workspaceCapabilities?.includes("comment.create") ? t("workspaceSecurity.commentOnly", { defaultValue: "Comment-only access — file content is read-only." }) : t("workspaceSecurity.readOnly", { defaultValue: "Read-only access — changes cannot be saved." })}</div>}
-      {doc === null && loadError && (
+      {doc === null && loadError && movedLookup?.kind === "choose" && (
+        /* Several files carry this note's content, or the only one was
+           written at another time (issue 110, E9): the screen does not guess
+           — the reader picks, and it follows that one. */
+        <EmptyState
+          action={
+            <div role="group" aria-label={t("editor.movedFileAskTitle")} className="m-moved-choice">
+              {movedLookup.candidates.map((candidate) => (
+                <Button key={candidate} data-testid="note-moved-candidate" onClick={() => followMoved(candidate)} variant="tonal">
+                  {candidate}
+                </Button>
+              ))}
+              <Button data-testid="note-missing-back" onClick={onBack} variant="ghost">
+                {t("common.back")}
+              </Button>
+            </div>
+          }
+          icon={<FolderInput size={ICON.touch} />}
+          title={t("editor.movedFileAskTitle")}
+        >
+          {t(movedChoiceBodyKey(movedLookup.candidates.length))}
+        </EmptyState>
+      )}
+      {doc === null && loadError && (movedLookup?.kind === "settled" || !canLookForMoved) && (
         /* A note that is gone leaves nothing to do ON this screen — so the one
            action is off it. The tab bar could do it, but a pushed note covers
            the bar's own root and the reader would be guessing (N7). */
@@ -978,7 +1053,9 @@ export function NoteScreen({
           {t("mobile.noteMissing")}
         </EmptyState>
       )}
-      {!editing && workspaceCanWrite && !managedIndex && (
+      {/* Nothing to edit when the load failed: the pencil only switched the
+          bar into editing, with no text under it. */}
+      {!editing && workspaceCanWrite && !managedIndex && !loadFailed && (
         <Fab
           aria-label={t("mobile.editNote")}
           className={`m-fab-float m-note-pencil${chromeAway ? " is-away" : ""}`}

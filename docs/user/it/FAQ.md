@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-09-03
+Ultimo aggiornamento: 2026-09-24
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -91,6 +91,14 @@ Normalmente Plainva si accorge da solo quando un altro programma modifica qualco
 Plainva mostra quindi un breve resoconto: quanti file erano nuovi, modificati o rimossi — e **quali voci sono state saltate**. Una cartella saltata è il motivo più comune per cui un file non "arriva" mai: Plainva non è riuscito a leggerla (permessi mancanti, unità di rete disconnessa) oppure fa riferimento a se stessa in modo circolare. Nei vault online, il resoconto indica anche che è stata richiesta una sincronizzazione completa con il cloud.
 
 Inoltre, Plainva riconcilia automaticamente ogni volta che torni alla finestra da un altro programma (al massimo ogni 30 secondi; il cloud al massimo ogni 5 minuti). Se un file resta invisibile anche dopo, usa **Ricostruisci l'indice da zero** in Impostazioni → Vault → Manutenzione.
+
+### Ho spostato un file fuori da Plainva
+
+Plainva lo segue. L'albero dei file mostra il file nella nuova posizione, anche se l'hai spostato nel Finder, in Esplora file o in un altro programma. Se apri la nota nella vecchia posizione (per esempio in una scheda che la mostrava), Plainva la cerca: quando esattamente un file altrove ha lo stesso contenuto e la stessa data di modifica, la scheda lo segue e un breve messaggio indica la nuova cartella. Se non è certo, per esempio perché lo stesso contenuto si trova in più punti, **Spostato?** chiede quale sia e scegli il file giusto. Se Plainva non ne trova nessuno, la scheda resta su **Questo file non esiste più** e Plainva rimuove da solo la voce obsoleta dall'indice.
+
+Sul telefono nulla osserva la cartella mentre lavori. Plainva rilegge invece il vault ogni volta che **torni nell'app** (al massimo una volta al minuto) e ogni volta che **trascini verso il basso** un elenco, per ogni vault, compreso quello dentro l'app che su iOS mostra l'app File. Lì una nota spostata segue il suo file allo stesso modo; se Plainva non la trova, compare **Impossibile trovare questa nota.**
+
+Plainva ignora i file di sistema: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (icone delle cartelle), `.Spotlight-V100`, `.Trashes`, `.fseventsd` e i file AppleDouble che macOS mette accanto a ogni file su unità di rete e chiavette USB (`._Nota.md`). Non compaiono nell'albero dei file e non vengono né caricati né scaricati. Una copia che una versione precedente ha già caricato resta intatta nel cloud. Una tua nota il cui nome inizia per caso con `._` resta visibile: Plainva riconosce i file AppleDouble dal contenuto, non dal nome.
 
 ### Perché non vedo animazioni?
 

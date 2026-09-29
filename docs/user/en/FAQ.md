@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-09-03
+Last reviewed: 2026-09-24
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -91,6 +91,14 @@ Normally Plainva notices by itself when another program changes something in you
 Plainva then shows a short report: how many files were new, changed or removed — and **which entries were skipped**. A skipped folder is the most common reason a file never "arrives": Plainva could not read it (missing permissions, a disconnected network drive) or it links back to itself in a circle. On online vaults the report also states that a full cloud sync was requested.
 
 Plainva additionally reconciles automatically whenever you return to the window from another program (at most every 30 seconds; the cloud at most every 5 minutes). If a file stays invisible even then, use **Rebuild the index from scratch** under Settings → Vault → Maintenance.
+
+### I moved a file outside Plainva
+
+Plainva follows it. The file tree shows the file at its new place, even when you moved it in Finder, Explorer or another program. If you open the note at its old place — say, in a tab that showed it before — Plainva looks for it: when exactly one file elsewhere has the same content and the same modification time, the tab follows it and a short message names the new folder. When that is not clear-cut, for example because the same content exists in several places, **Moved?** asks and you pick the right file. When Plainva finds none, the tab stays at **This file no longer exists**, and Plainva removes the outdated index entry by itself.
+
+On the phone nothing watches the folder while you work. Instead, Plainva reads the vault again whenever you **return to the app** (at most once a minute) and whenever you **pull down** a list — for every vault, including the one inside the app, which the Files app shows on iOS. A moved note follows its file there the same way; if Plainva cannot find it, **This note could not be found.** appears.
+
+Plainva skips system files: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (folder icons), `.Spotlight-V100`, `.Trashes`, `.fseventsd`, and the AppleDouble files macOS puts next to every file on network drives and USB sticks (`._Note.md`). They do not appear in the file tree and are neither uploaded nor downloaded. A copy an earlier version already uploaded stays in the cloud untouched. A note of your own whose name merely starts with `._` stays visible — Plainva recognises AppleDouble files by their content, not by their name.
 
 ### Why don't I see any animations?
 

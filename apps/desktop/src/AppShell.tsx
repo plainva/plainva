@@ -1628,6 +1628,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === path)}
                           onToggleBookmark={() => toggleBookmark(path)}
                           onDelete={() => handleDeleteFile(path)}
+                          onCloseTab={() => trackClose(i, pane.activeIndex)}
                           onRenamed={renameTabPrefix}
                           onSplit={splitEditor}
                           activeSplitDirection={activeSplitDirection}

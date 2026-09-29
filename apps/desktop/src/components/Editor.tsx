@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
-import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, MessageSquare, PenLine } from "lucide-react";
+import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, FolderInput, MessageSquare, PenLine } from "lucide-react";
 import { printElement } from "../services/printView";
 
 import { EditorView } from '@codemirror/view';
@@ -12,6 +12,7 @@ import { TableContextMenu, type TableMenuAction, type TableAlignValue } from "./
 import { Button, buildMarkdownTable, deleteColumn, deleteRow, ICON, insertColumn, insertRow, parseMarkdownTable, planPaste, planTableInsertion, serializeTable, setColumnAlign,
   CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot,
   commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, errorText, importAttachment, useStableHandler,
+  healMissingNote, movedChoiceBodyKey, movedFolderLabel, vaultDisplayName,
   type AnchorFrameHint, type AnchorHighlight, reconcileParkedSuggestion, parkedSuggestionBlocks, suggestionBase } from "@plainva/ui";
 import { MarkdownReader } from "./MarkdownReader";
 import { registerTabDocument, type TransferredDocument } from "../services/tabTransfer";
@@ -101,6 +102,12 @@ export const Editor: React.FC<{
   isBookmarked?: boolean;
   onToggleBookmark?: () => void;
   onDelete?: () => void;
+  /**
+   * Closes this tab — and only that (issue 110). The states that show no note
+   * (missing, "Moved?", not text) offer it; they used to wire their "Close tab"
+   * button to `onDelete`, which asked "Really delete …?" instead.
+   */
+  onCloseTab?: () => void;
   /** Tab retarget after the ⋮-menu rename (wired to the layout's renameTabPrefix). */
   onRenamed?: (oldPath: string, newPath: string) => void;
   onSplit?: (direction: SplitDirection) => void;
@@ -118,7 +125,7 @@ export const Editor: React.FC<{
    * the comment column's switch has nothing to open yet.
    */
   newEntry?: boolean;
-}> = ({ activePath, onOpenPath, onNavigateBack, onNavigateForward, canGoBack, canGoForward, isBookmarked, onToggleBookmark, onDelete, onRenamed, onSplit, activeSplitDirection, isActivePane = true, peek = false, docChannel, newEntry = false }) => {
+}> = ({ activePath, onOpenPath, onNavigateBack, onNavigateForward, canGoBack, canGoForward, isBookmarked, onToggleBookmark, onDelete, onCloseTab, onRenamed, onSplit, activeSplitDirection, isActivePane = true, peek = false, docChannel, newEntry = false }) => {
   const vaultContext = useVault();
   // Broadcast editor commands (slash menu, template insert) reach the editor
   // the person is working in — not every mounted one (editorCommandTarget).
@@ -691,6 +698,13 @@ export const Editor: React.FC<{
   // transient toast is too easy to miss for a "your text lives elsewhere now").
   /** Set when the file could not be read — rendered as a state, not as text. */
   const [loadError, setLoadError] = useState<string | null>(null);
+  /**
+   * What became of a file that could not be read (issue 110, E9): `checking`
+   * while it is looked for, `ambiguous` with the files that carry its content
+   * when none of them is certain, `settled` once the missing state is the
+   * answer. A certain match never lands here — the tab follows it instead.
+   */
+  const [missingLookup, setMissingLookup] = useState<{ kind: "checking" } | { kind: "ambiguous"; candidates: string[] } | { kind: "settled" } | null>(null);
   /**
    * A file whose NAME says text and whose bytes say otherwise (C15, S13). The
    * extension is a claim: a rotated `.log` or a dump called `.csv` decodes to a
@@ -1992,6 +2006,62 @@ export const Editor: React.FC<{
     return () => { isMounted = false; };
   }, [vaultAdapter, activePath, vaultPath, saveState]);
 
+  // A file that could not be read is looked for before the missing state is
+  // shown (issue 110, E9) — moved outside Plainva, it sits somewhere else
+  // with the same content. One match at the same modification time (a move
+  // keeps it): the tab follows and says where. Anything less certain: the
+  // card asks. None: the missing state, and the index row is already gone
+  // (resolveMissingFile removes it once the file is PROVEN missing).
+  const followMovedFile = useStableHandler((from: string, to: string) => {
+    // Every surface that shows an editor can navigate; one that could not
+    // would be left "looking" forever, so it settles on the missing state.
+    if (!onRenamed && !onOpenPath) {
+      setMissingLookup({ kind: "settled" });
+      return;
+    }
+    toast.info(t("editor.movedFileFollowed", {
+      defaultValue: "Moved outside Plainva. The tab now shows the file in {{folder}}.",
+      folder: movedFolderLabel(to, vaultDisplayName(vaultPath ?? "")),
+    }));
+    // A surface without tab retargeting (the peek window, an auxiliary
+    // window's pane) opens the file where it lives now instead.
+    if (onRenamed) onRenamed(from, to);
+    else onOpenPath?.(to, false);
+  });
+  /** A failed load can be looked into: the lookup below runs for it. */
+  const canLookForMissing = !!(activePath && vaultAdapter && indexer && queryService?.db);
+  useEffect(() => {
+    if (!loadError || !activePath || !vaultAdapter || !indexer || !queryService?.db) {
+      setMissingLookup(null);
+      return;
+    }
+    let stale = false;
+    const path = activePath;
+    setMissingLookup({ kind: "checking" });
+    void healMissingNote(path, { exists: (p) => vaultAdapter.exists(p), db: queryService.db, indexer }, vaultPath ?? "")
+      .then((outcome) => {
+        // Every answer but "present" changed the index (the stale row went,
+        // the new place came in), and the tree hears of it even when this
+        // editor has moved on meanwhile. Structural: a move made in another
+        // app may have created or emptied folders, which the tree lists from
+        // the disk.
+        if (outcome.kind !== "present") triggerFileTreeUpdate();
+        if (stale) return;
+        if (outcome.kind === "moved") {
+          followMovedFile(path, outcome.to);
+          return;
+        }
+        setMissingLookup(outcome.kind === "ambiguous" ? { kind: "ambiguous", candidates: outcome.candidates } : { kind: "settled" });
+      })
+      .catch((e) => {
+        console.warn("[Editor] looking for a missing file failed", e);
+        if (!stale) setMissingLookup({ kind: "settled" });
+      });
+    return () => { stale = true; };
+    // The lookup belongs to one failed load of one path.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadError, activePath]);
+
   // Listen for external updates
   useEffect(() => {
     // Adopt externally produced text WITHOUT replacing the whole document
@@ -3255,40 +3325,58 @@ export const Editor: React.FC<{
               <Button variant="primary" onClick={() => { void handleMenuOpenInDefaultApp(); }}>
                 {t("editor.openInDefaultApp")}
               </Button>
-              {onDelete && (
-                <Button variant="secondary" onClick={onDelete}>
+              {onCloseTab && (
+                <Button variant="secondary" onClick={onCloseTab}>
                   {t("editor.missingFileCloseTab")}
                 </Button>
               )}
             </div>
           </div>
+        ) : loadError && canLookForMissing && (missingLookup === null || missingLookup.kind === "checking") ? (
+          // Looking for the file first (issue 110, E9): a moved note must not
+          // flash "no longer exists" before the tab follows it — not even for
+          // the one frame between the failed load and the lookup's start.
+          <div style={{ padding: "2rem", color: "var(--text-faint)" }}>{t("editor.loadingFile")}</div>
+        ) : loadError && missingLookup?.kind === "ambiguous" ? (
+          // Several files carry this note's content, or the only one was
+          // written at another time (issue 110, E9): the tab does not guess —
+          // the reader picks, and the tab follows that one.
+          <div data-testid="editor-moved-choice" style={{ padding: "2rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)", textAlign: "center" }}>
+            <FolderInput size={ICON.empty} style={{ color: "var(--text-faint)" }} />
+            <strong style={{ fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("editor.movedFileAskTitle")}</strong>
+            <code style={{ fontSize: "var(--text-sm)" }}>{activePath}</code>
+            <p style={{ margin: 0, fontSize: "var(--text-md)", maxWidth: "42ch" }}>{t(movedChoiceBodyKey(missingLookup.candidates.length))}</p>
+            <div role="group" aria-label={t("editor.movedFileAskTitle")} style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)", alignItems: "stretch" }}>
+              {missingLookup.candidates.map((candidate) => (
+                <Button key={candidate} variant="secondary" data-testid="editor-moved-candidate" onClick={() => { if (activePath) followMovedFile(activePath, candidate); }}>
+                  {candidate}
+                </Button>
+              ))}
+            </div>
+            {onCloseTab && (
+              <Button variant="ghost" onClick={onCloseTab}>
+                {t("editor.missingFileCloseTab")}
+              </Button>
+            )}
+          </div>
         ) : loadError ? (
           // Issue #34: phantom rows in a stale index (typically after a deletion
           // made outside Plainva) used to open an editor whose CONTENT was the
-          // error message. The index entry is dropped right here, so the row
-          // that led here disappears instead of luring the next click.
+          // error message. It is a state now. The row that led here is already
+          // gone when this shows: the lookup above removes it without a click
+          // once the file is proven missing (issue 110, E9). Before that, a
+          // "Remove from index" button did it, and only when clicked.
           <div data-testid="editor-missing-file" style={{ padding: "2rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-2)", textAlign: "center" }}>
             <FileX size={ICON.empty} style={{ color: "var(--text-faint)" }} />
             <strong style={{ fontSize: "var(--text-md)", color: "var(--text-main)" }}>{t("editor.missingFileTitle")}</strong>
             <code style={{ fontSize: "var(--text-sm)" }}>{activePath}</code>
             <p style={{ margin: 0, fontSize: "var(--text-md)", maxWidth: "42ch" }}>{t("editor.missingFileBody")}</p>
             <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", justifyContent: "center" }}>
-              {onDelete && (
-                <Button variant="primary" onClick={onDelete}>
+              {onCloseTab && (
+                <Button variant="primary" onClick={onCloseTab}>
                   {t("editor.missingFileCloseTab")}
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  if (!indexer || !activePath) return;
-                  void applyIndexChanges(indexer, { removed: [activePath] })
-                    .then(() => triggerFileTreeUpdate([activePath]))
-                    .catch(() => {});
-                }}
-              >
-                {t("editor.missingFileRefresh")}
-              </Button>
             </div>
           </div>
         ) : (

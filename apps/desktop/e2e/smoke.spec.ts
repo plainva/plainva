@@ -389,6 +389,155 @@ test('a vanished file shows a state, not an error string that gets saved', async
   expect(await page.evaluate(() => '/test-vault/Vanished.md' in (window as any).mockFs)).toBe(false);
 });
 
+test('the missing state closes its tab instead of asking to delete the file', async ({ page }) => {
+  // Its "Close tab" button was wired to the delete flow: it asked "Really
+  // delete File …?" about a file that no longer existed (found with issue 110).
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Vanished.md'] = '# Vanished\n\nStill here.\n';
+  });
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('Vanished', { exact: true })).toBeVisible({ timeout: 10000 });
+  await tree.getByText('Vanished', { exact: true }).click();
+  await expect(page.getByText('Still here.')).toBeVisible();
+  await page.evaluate(() => { delete (window as any).mockFs['/test-vault/Vanished.md']; });
+  await page.getByText('Welcome', { exact: true }).click();
+  await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
+  await tree.getByText('Vanished', { exact: true }).click();
+
+  const missing = page.getByTestId('editor-missing-file');
+  await expect(missing).toBeVisible();
+  await missing.getByRole('button', { name: 'Close tab' }).click();
+  await expect(missing).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText(/Really delete/)).toHaveCount(0);
+});
+
+// Issue 110 (E9): a note moved outside Plainva sat two folders further while
+// its tab said "This file no longer exists". The tab now looks for the file
+// by the content hash the index stored: a single match written at the same
+// time (a move keeps it) is followed, anything less certain is offered. The
+// index answers are scripted here; the decision itself is covered against
+// real SQLite in the core (missing-file.test.ts).
+const STAMP = 1_727_000_000_000;
+async function scriptMovedFileLookup(page: import('@playwright/test').Page, candidates: Array<{ path: string; mtime: number }>) {
+  await page.evaluate(({ stamp, found }) => {
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      const q = String(args?.query || '');
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT sha256, mtime_local FROM files WHERE path = ?')) {
+        return [{ sha256: 'hash-of-link-50', mtime_local: stamp }];
+      }
+      if (cmd === 'plugin:sql|select' && q.startsWith('SELECT path, mtime_local FROM files WHERE sha256 = ?')) {
+        return args.values?.[0] === 'hash-of-link-50' ? found.map((c: { path: string; mtime: number }) => ({ path: c.path, mtime_local: c.mtime })) : [];
+      }
+      return orig(cmd, args, options);
+    };
+  }, { stamp: STAMP, found: candidates });
+}
+
+test('a note moved outside Plainva: the tab follows it and says where (issue 110)', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/4 blog': { isDir: true },
+      '/test-vault/4 blog/taken': { isDir: true },
+      '/test-vault/4 blog/link-50.md': '# The Markdown Link no. 50\n\nNine editors that stood out.\n',
+    });
+  });
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('4 blog', { exact: true })).toBeVisible({ timeout: 10000 });
+  await tree.getByText('4 blog', { exact: true }).click();
+  await tree.getByText('link-50', { exact: true }).click();
+  await expect(page.getByText('Nine editors that stood out.')).toBeVisible();
+
+  // Moved in Finder; the watcher lost the old side, the tree row is stale.
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/4 blog/taken/link-50.md'] = fs['/test-vault/4 blog/link-50.md'];
+    delete fs['/test-vault/4 blog/link-50.md'];
+  });
+  await scriptMovedFileLookup(page, [{ path: '4 blog/taken/link-50.md', mtime: STAMP }]);
+  await page.getByText('Welcome', { exact: true }).click();
+  await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
+  await tree.getByText('link-50', { exact: true }).first().click();
+
+  await expect(page.getByText(/Moved outside Plainva\. The tab now shows the file in 4 blog\/taken\//)).toBeVisible();
+  await expect(page.getByText('Nine editors that stood out.')).toBeVisible();
+  await expect(page.getByTestId('editor-missing-file')).toHaveCount(0);
+  await expect(page.getByTestId('editor-moved-choice')).toHaveCount(0);
+  // Nothing was written back to the old place.
+  expect(await page.evaluate(() => '/test-vault/4 blog/link-50.md' in (window as any).mockFs)).toBe(false);
+});
+
+test('a note whose content exists twice asks "Moved?" instead of guessing (issue 110)', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/4 blog': { isDir: true },
+      '/test-vault/4 blog/taken': { isDir: true },
+      '/test-vault/4 blog/drafts': { isDir: true },
+      '/test-vault/4 blog/link-50.md': '# The Markdown Link no. 50\n\nNine editors that stood out.\n',
+    });
+  });
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('4 blog', { exact: true })).toBeVisible({ timeout: 10000 });
+  await tree.getByText('4 blog', { exact: true }).click();
+  await page.evaluate(() => {
+    const fs = (window as any).mockFs;
+    const text = fs['/test-vault/4 blog/link-50.md'];
+    fs['/test-vault/4 blog/taken/link-50.md'] = text;
+    fs['/test-vault/4 blog/drafts/copy.md'] = text;
+    delete fs['/test-vault/4 blog/link-50.md'];
+  });
+  await scriptMovedFileLookup(page, [
+    { path: '4 blog/drafts/copy.md', mtime: STAMP - 86_400_000 },
+    { path: '4 blog/taken/link-50.md', mtime: STAMP },
+  ]);
+  await tree.getByText('link-50', { exact: true }).first().click();
+
+  const choice = page.getByTestId('editor-moved-choice');
+  await expect(choice).toBeVisible();
+  await expect(choice).toContainText('Moved?');
+  await expect(choice).toContainText('The same content exists in several places');
+  await expect(choice.getByTestId('editor-moved-candidate')).toHaveCount(2);
+  await choice.getByRole('button', { name: '4 blog/taken/link-50.md' }).click();
+  await expect(page.getByText('Nine editors that stood out.')).toBeVisible();
+  await expect(page.getByTestId('editor-moved-choice')).toHaveCount(0);
+});
+
+test('a single look-alike written at another time is offered, never followed (issue 110)', async ({ page }) => {
+  // Two untouched notes from one template carry the same content; deleting
+  // one outside Plainva is not a move. The tab must not open the other and
+  // call it "moved".
+  await page.addInitScript(() => {
+    Object.assign((window as any).mockFs, {
+      '/test-vault/4 blog': { isDir: true },
+      '/test-vault/4 blog/link-50.md': '# The Markdown Link no. 50\n\nNine editors that stood out.\n',
+      '/test-vault/4 blog/link-50-draft.md': '# The Markdown Link no. 50\n\nNine editors that stood out.\n',
+    });
+  });
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('4 blog', { exact: true })).toBeVisible({ timeout: 10000 });
+  await tree.getByText('4 blog', { exact: true }).click();
+  await page.evaluate(() => { delete (window as any).mockFs['/test-vault/4 blog/link-50.md']; });
+  await scriptMovedFileLookup(page, [{ path: '4 blog/link-50-draft.md', mtime: STAMP + 3_600_000 }]);
+  await tree.getByText('link-50', { exact: true }).first().click();
+
+  const choice = page.getByTestId('editor-moved-choice');
+  await expect(choice).toBeVisible();
+  await expect(choice).toContainText('A file with the same content exists elsewhere — is it this one?');
+  await expect(choice.getByTestId('editor-moved-candidate')).toHaveText(['4 blog/link-50-draft.md']);
+  await expect(page.getByText(/Moved outside Plainva/)).toHaveCount(0);
+  await expect(page.locator('.cm-content')).toHaveCount(0);
+  // Not this one: the tab closes, nothing is deleted or followed.
+  await choice.getByRole('button', { name: 'Close tab' }).click();
+  await expect(choice).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await page.evaluate(() => '/test-vault/4 blog/link-50-draft.md' in (window as any).mockFs)).toBe(true);
+});
+
 test('Lists: nested items get a stepped hanging indent in the editor', async ({ page }) => {
   // #2: verifies the listIndent decoration applies with the expected padding
   // (top level one step in from body, nested one step deeper) in live mode.

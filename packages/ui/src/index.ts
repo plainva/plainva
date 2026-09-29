@@ -164,6 +164,7 @@ export * from "./lib/folderTemplates";
 export * from "./lib/newNoteContent";
 export * from "./lib/fileStem";
 export * from "./lib/vaultRefresh";
+export * from "./lib/movedNote";
 export * from "./lib/markdownToPlainText";
 export * from "./lib/noteCardModel";
 export * from "./lib/noteCardTint";
