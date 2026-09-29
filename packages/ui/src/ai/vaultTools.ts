@@ -1,26 +1,36 @@
 import {
   gateDecision,
   isCloudRecipient,
+  outlineOf,
+  sectionOf,
   VaultQueryService,
   withholdDeniedLinks,
+  withholdPlaces,
+  withoutSensitiveProperties,
   type EffectivePolicy,
   type GateRun,
   type ToolExecutor,
   type ToolManifest,
   type ToolOutcome,
 } from "@plainva/core";
-import { buildPlanner, type PlannerRow } from "../lib/taskPlanner";
-import { frontmatterBlockOf, stripFrontmatter } from "../services/docMeta";
+import { parseBaseConfig } from "../base/baseFormat";
+import { combineFilters, migrateFiltersToPerView } from "../base/filterExpr";
+import { backlinkContexts, contextChain, groupBacklinks, type BacklinkOccurrence } from "../lib/backlinks";
+import { addDaysToKey, buildPlanner, type PlannerRow } from "../lib/taskPlanner";
+import { stripFrontmatter } from "../services/docMeta";
+import { notePropertiesOf, type SituationEventInput } from "./aiSituation";
 
 /**
- * The vault tools of the first chat package (ADR 0018), one implementation
- * for both shells: search, read, outline, tasks and app navigation.
+ * The vault tools of the chat (ADR 0018), one implementation for both shells:
+ * search, read, outline, databases, tasks, links, recent notes, appointments
+ * and app navigation. All of them read; none of them changes anything.
  *
  * Every result passes the hard gate first. A note the policy keeps from this
  * recipient is answered exactly like a note that does not exist — so not even
  * its existence leaks — and links to it inside allowed text are withheld.
- * Paths are checked before any adapter sees them: no `..`, no absolute path,
- * no backslash, and never Plainva's own folders.
+ * Place stamps never leave on their own (plan §7), and mood properties stay
+ * behind. Paths are checked before any adapter sees them: no `..`, no
+ * absolute path, no backslash, and never Plainva's own folders.
  */
 
 /** A navigation command: it may show something, never change data (risk class `ui`). */
@@ -36,17 +46,43 @@ export interface VaultToolDeps {
   readNote(path: string): Promise<string | null>;
   resolveLink(target: string, fromPath: string): Promise<string | null>;
   policyOf(path: string, text?: string): Promise<EffectivePolicy>;
+  /** Checkbox tasks and the task database, as planner rows. */
   taskRows(): Promise<PlannerRow[]>;
   todayKey(): string;
   commands(): AiNavigationCommand[];
+  /** Links into a note, one row per occurrence (the index). */
+  backlinks?(path: string): Promise<BacklinkOccurrence[]>;
+  /** Notes linked to and from a note, with how often. */
+  neighbors?(path: string, limit: number): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
+  /** Opened on this device, newest first. */
+  recentlyOpened?(): Promise<{ path: string; openedAt: number }[]>;
+  /** Changed lately (file time), newest first. */
+  recentlyChanged?(limit: number): Promise<{ path: string; title: string; mtime: number }[]>;
+  /** Appointments between two instants, from the connected calendars. */
+  events?(from: Date, to: Date): Promise<SituationEventInput[]>;
+  /** Rows of a database query (`queryDatabaseFiles`). */
+  queryDatabase?(config: unknown): Promise<unknown[]>;
+  /** The property the vault rates its days in; it stays behind like the usual mood names. */
+  moodKey?(): Promise<string | null>;
 }
 
-/** The tools a conversation carries in this version; its list never changes afterwards. */
-export const CHAT_TOOL_NAMES = ["search_vault", "read_note", "get_outline", "get_tasks", "run_command"] as const;
+/** The tools a new conversation carries; a conversation's own list never changes afterwards. */
+export const CHAT_TOOL_NAMES = [
+  "search_vault",
+  "read_note",
+  "get_outline",
+  "query_base",
+  "get_tasks",
+  "get_backlinks",
+  "graph_neighborhood",
+  "get_recent",
+  "get_calendar",
+  "run_command",
+] as const;
 
 const NOT_FOUND = "No note is available at this path.";
 /** Search snippets carry sentinel characters around the matches; the model gets plain text. */
-const unmark = (snippet: string) => snippet.split(VaultQueryService.SNIPPET_MARK_START).join("").split(VaultQueryService.SNIPPET_MARK_END).join("");
+export const unmarkSnippet = (snippet: string) => snippet.split(VaultQueryService.SNIPPET_MARK_START).join("").split(VaultQueryService.SNIPPET_MARK_END).join("");
 
 /** A vault-relative path the model may name; anything else is refused up front. */
 export function safeRelPath(path: string): string | null {
@@ -59,52 +95,9 @@ export function safeRelPath(path: string): string | null {
   return p;
 }
 
-export interface OutlineHeading {
-  level: number;
-  text: string;
-  /** The section handle: the heading chain, "Costs > 2026". */
-  chain: string;
-  line: number;
-}
-
-/** The ATX headings of a body, outside fenced code. */
-export function outlineOf(body: string): OutlineHeading[] {
-  const out: OutlineHeading[] = [];
-  const stack: { level: number; text: string }[] = [];
-  let fence: string | null = null;
-  body.split("\n").forEach((line, index) => {
-    const f = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
-    if (f) {
-      if (!fence) fence = f[1]![0]!;
-      else if (f[1]![0] === fence) fence = null;
-      return;
-    }
-    if (fence) return;
-    const m = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/.exec(line);
-    if (!m) return;
-    const level = m[1]!.length;
-    while (stack.length && stack[stack.length - 1]!.level >= level) stack.pop();
-    stack.push({ level, text: m[2]! });
-    out.push({ level, text: m[2]!, chain: stack.map((s) => s.text).join(" > "), line: index });
-  });
-  return out;
-}
-
-/** One section by its handle (the heading chain, or a unique heading text). */
-export function sectionOf(body: string, handle: string): string | null {
-  const headings = outlineOf(body);
-  const wanted = handle.trim().toLowerCase();
-  let found = headings.findIndex((h) => h.chain.toLowerCase() === wanted);
-  if (found < 0) {
-    const byText = headings.filter((h) => h.text.toLowerCase() === wanted);
-    if (byText.length !== 1) return null;
-    found = headings.indexOf(byText[0]!);
-  }
-  const head = headings[found]!;
-  const end = headings.slice(found + 1).find((h) => h.level <= head.level);
-  const lines = body.split("\n");
-  return lines.slice(head.line, end ? end.line : lines.length).join("\n");
-}
+// The section helpers moved into core (one definition for the tools and the
+// context package); re-exported so existing callers keep their import.
+export { outlineOf, sectionOf, type OutlineHeading } from "@plainva/core";
 
 function offsetOf(cursor: unknown): number {
   return typeof cursor === "string" ? Math.max(0, Number.parseInt(cursor, 10) || 0) : 0;
@@ -112,6 +105,32 @@ function offsetOf(cursor: unknown): number {
 
 const BOX: Record<PlannerRow["state"], string> = { open: "[ ]", progress: "[/]", done: "[x]", cancelled: "[-]" };
 const PRIORITY = ["", "low", "medium", "high"];
+const titleOf = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.(md|base)$/i, "");
+const pad = (n: number) => String(n).padStart(2, "0");
+const dayOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const clockOf = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const stampOf = (ms: number) => `${dayOf(new Date(ms))} ${clockOf(new Date(ms))}`;
+/** Appointments per call at most: a month, like the manifest says. */
+const CALENDAR_MAX_DAYS = 31;
+
+const VALUE_MAX = 400;
+
+/** A property value as one line of text. */
+function valueText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.map(valueText).filter(Boolean).join(", ");
+  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
+  // A property is a value, not a document: long ones are cut (read_note has the note).
+  return text.length > VALUE_MAX ? `${text.slice(0, VALUE_MAX)}…` : text;
+}
+
+/** A local day key (`YYYY-MM-DD`) as the start of that day. */
+function dayStart(key: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return dayOf(d) === key ? d : null;
+}
 
 export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): ToolExecutor {
   const cloud = isCloudRecipient(run.recipient);
@@ -124,8 +143,11 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): Tool
     }
     return ok;
   };
-  const withhold = async (text: string, fromPath: string): Promise<string> =>
-    cloud ? (await withholdDeniedLinks(text, fromPath, deps.resolveLink, (path) => allowed(path))).text : text;
+  /** What any vault text passes: place stamps withheld for everyone, links to denied notes for a cloud. */
+  const withhold = async (text: string, fromPath: string): Promise<string> => {
+    const places = withholdPlaces(text).text;
+    return cloud ? (await withholdDeniedLinks(places, fromPath, deps.resolveLink, (path) => allowed(path))).text : places;
+  };
   const readAllowed = async (raw: unknown): Promise<{ path: string; text: string } | null> => {
     const path = typeof raw === "string" ? safeRelPath(raw) : null;
     if (!path) return null;
@@ -133,7 +155,19 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): Tool
     if (text === null || !(await allowed(path, text))) return null;
     return { path, text };
   };
+  let mood: Promise<string | null> | null = null;
+  /** Properties as `- key: value` lines, without the plainva namespace and the mood. */
+  const propertyLines = async (props: Record<string, unknown>, fromPath: string): Promise<string[]> => {
+    mood ??= deps.moodKey ? deps.moodKey().catch(() => null) : Promise.resolve(null);
+    const kept = withoutSensitiveProperties(props, await mood).properties;
+    const lines = Object.entries(kept)
+      .map(([key, value]) => [key, valueText(value)] as const)
+      .filter(([, value]) => value !== "")
+      .map(([key, value]) => `- ${key}: ${value}`);
+    return lines.length ? (await withhold(lines.join("\n"), fromPath)).split("\n") : [];
+  };
   const result = (tool: string, content: string): ToolOutcome => ({ content, origin: { kind: "tool", tool } });
+  const unavailable = (tool: ToolManifest): ToolOutcome => ({ content: `The tool ${tool.name} is not available here.`, isError: true });
 
   return {
     async execute(tool: ToolManifest, args: unknown): Promise<ToolOutcome> {
@@ -147,7 +181,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): Tool
           const lines: string[] = [];
           for (const hit of hits) {
             if (!(await allowed(hit.path))) continue;
-            const snippet = hit.snippet ? (await withhold(unmark(hit.snippet), hit.path)).replace(/\s+/g, " ").trim() : "";
+            const snippet = hit.snippet ? (await withhold(unmarkSnippet(hit.snippet), hit.path)).replace(/\s+/g, " ").trim() : "";
             lines.push(`- [[${hit.title}]] (${hit.path})${snippet ? ` — ${snippet}` : ""}`);
           }
           const more = hits.length === limit ? `\n\nMore results: call search_vault again with cursor "${offset + limit}".` : "";
@@ -172,12 +206,50 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): Tool
         case "get_outline": {
           const note = await readAllowed(a.path);
           if (!note) return { content: NOT_FOUND, isError: true };
-          const block = frontmatterBlockOf(note.text);
           const headings = outlineOf(stripFrontmatter(note.text)).map((h) => `${"  ".repeat(h.level - 1)}- ${h.text}  (section: "${h.chain}")`);
-          const props = block ? `Properties:\n${await withhold(block.trim(), note.path)}\n\n` : "";
+          const props = await propertyLines(notePropertiesOf(note.text, 64), note.path);
+          const properties = props.length ? `Properties:\n${props.join("\n")}\n\n` : "";
           // A heading can link too ("## See [[Salaries]]"): it goes through the same gate as the text.
           const sections = headings.length ? await withhold(`Sections:\n${headings.join("\n")}`, note.path) : "No headings.";
-          return result(tool.name, `${note.path}\n\n${props}${sections}`);
+          return result(tool.name, `${note.path}\n\n${properties}${sections}`);
+        }
+        case "query_base": {
+          if (!deps.queryDatabase) return unavailable(tool);
+          const path = typeof a.base === "string" ? safeRelPath(a.base) : null;
+          const raw = path && /\.base$/i.test(path) ? await deps.readNote(path) : null;
+          if (!path || raw === null || !(await allowed(path, raw))) return { content: "No database is available at this path.", isError: true };
+          let config: { views?: { name?: string; order?: string[]; filters?: unknown }[]; filters?: unknown };
+          try {
+            config = migrateFiltersToPerView(parseBaseConfig(raw));
+          } catch {
+            return { content: "This database file could not be read.", isError: true };
+          }
+          const views = Array.isArray(config.views) ? config.views : [];
+          const wanted = typeof a.view === "string" ? a.view.trim().toLowerCase() : "";
+          const view = wanted ? views.find((v) => (v.name ?? "").toLowerCase() === wanted) : views[0];
+          if (wanted && !view) return { content: `No view "${String(a.view)}". Views: ${views.map((v) => v.name ?? "").filter(Boolean).join(", ") || "none"}.`, isError: true };
+          // What the view shows: the sources AND the view's own filters, like the database views do.
+          const merged = { ...config, filters: combineFilters(config.filters, view?.filters), views: view ? [view] : [] };
+          const rows = (await deps.queryDatabase(merged)) as Record<string, unknown>[];
+          const columns = (view?.order ?? []).filter((c) => !c.startsWith("file.") && !c.startsWith("formula.")).map((c) => c.replace(/^note\./, ""));
+          const limit = Number(a.limit) || 20;
+          const offset = offsetOf(a.cursor);
+          const lines: string[] = [];
+          let passed = 0;
+          for (const row of rows) {
+            const rowPath = String(row["file.path"] ?? "");
+            if (!rowPath || !(await allowed(rowPath))) continue;
+            passed += 1;
+            if (passed <= offset) continue;
+            if (lines.length === limit) break;
+            const props: Record<string, unknown> = {};
+            for (const key of columns.length ? columns : Object.keys(row).filter((k) => !k.startsWith("file."))) if (key in row) props[key] = row[key];
+            const cells = await propertyLines(props, rowPath);
+            lines.push(`- [[${String(row["file.name"] ?? titleOf(rowPath))}]] (${rowPath})${cells.length ? `: ${cells.map((c) => c.slice(2)).join("; ")}` : ""}`);
+          }
+          const head = `${path}, view "${view?.name ?? "—"}"${views.length > 1 ? ` (views: ${views.map((v) => v.name ?? "").filter(Boolean).join(", ")})` : ""}`;
+          const more = lines.length === limit ? `\n\nMore rows: call query_base again with cursor "${offset + limit}".` : "";
+          return result(tool.name, `${head}\n\n${lines.length ? lines.join("\n") : "No rows."}${more}`);
         }
         case "get_tasks": {
           const range = typeof a.range === "string" ? a.range : "today";
@@ -197,11 +269,105 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun): Tool
           const lines: string[] = [];
           for (const r of page) {
             const meta = [r.due ? `due ${r.due}` : "", r.priority ? `priority ${PRIORITY[r.priority]}` : ""].filter(Boolean).join(", ");
-            const where = r.source === "note" ? ` — in [[${r.noteTitle ?? r.path.replace(/\.md$/i, "")}]]` : "";
+            const where = r.source === "note" ? ` — in [[${r.noteTitle ?? titleOf(r.path)}]]` : ` — [[${titleOf(r.path)}]] in the task database`;
             lines.push(`- ${BOX[r.state]} ${await withhold(r.title, r.path)}${meta ? ` (${meta})` : ""}${where}`);
           }
           const more = offset + limit < listed.length ? `\n\nMore: call get_tasks again with cursor "${offset + limit}".` : "";
           return result(tool.name, lines.length ? `${lines.join("\n")}${more}` : "No tasks in this list.");
+        }
+        case "get_backlinks": {
+          if (!deps.backlinks) return unavailable(tool);
+          const note = await readAllowed(a.path);
+          if (!note) return { content: NOT_FOUND, isError: true };
+          const limit = Number(a.limit) || 20;
+          const offset = offsetOf(a.cursor);
+          const lines: string[] = [];
+          let passed = 0;
+          for (const group of groupBacklinks(await deps.backlinks(note.path))) {
+            if (group.source_path === note.path) continue;
+            const source = await readAllowed(group.source_path);
+            if (!source) continue;
+            passed += 1;
+            if (passed <= offset) continue;
+            if (lines.length === limit) break;
+            const places = backlinkContexts(source.text, group.lines.slice(0, 3)).map((ctx) => {
+              const chain = contextChain(ctx);
+              return `  - line ${ctx.line}${chain ? ` (${chain})` : ""}: ${ctx.lineText}`;
+            });
+            const head = `- [[${group.title ?? titleOf(group.source_path)}]] (${group.source_path})${group.count > 1 ? `, ${group.count} links` : ""}`;
+            lines.push(await withhold([head, ...places].join("\n"), source.path));
+          }
+          const more = lines.length === limit ? `\n\nMore: call get_backlinks again with cursor "${offset + limit}".` : "";
+          return result(tool.name, lines.length ? `Notes linking to ${note.path}:\n${lines.join("\n")}${more}` : `No note links to ${note.path}.`);
+        }
+        case "graph_neighborhood": {
+          if (!deps.neighbors) return unavailable(tool);
+          const note = await readAllowed(a.path);
+          if (!note) return { content: NOT_FOUND, isError: true };
+          const limit = Number(a.limit) || 30;
+          const seen = new Set([note.path]);
+          const lines: string[] = [];
+          const first: { path: string; title: string }[] = [];
+          for (const n of await deps.neighbors(note.path, limit)) {
+            if (seen.has(n.path) || !(await allowed(n.path))) continue;
+            seen.add(n.path);
+            first.push(n);
+            const how = [n.outgoing ? `linked from here${n.outgoing > 1 ? ` ×${n.outgoing}` : ""}` : "", n.incoming ? `links here${n.incoming > 1 ? ` ×${n.incoming}` : ""}` : ""].filter(Boolean).join(", ");
+            lines.push(`- [[${n.title || titleOf(n.path)}]] (${n.path}) — ${how}`);
+            if (lines.length >= limit) break;
+          }
+          if (Number(a.depth) === 2) {
+            for (const via of first.slice(0, 8)) {
+              if (lines.length >= limit) break;
+              for (const n of await deps.neighbors(via.path, 10)) {
+                if (lines.length >= limit) break;
+                if (seen.has(n.path) || !(await allowed(n.path))) continue;
+                seen.add(n.path);
+                lines.push(`- [[${n.title || titleOf(n.path)}]] (${n.path}) — two steps, via [[${via.title || titleOf(via.path)}]]`);
+              }
+            }
+          }
+          return result(tool.name, lines.length ? `Linked with ${note.path}:\n${lines.join("\n")}` : `${note.path} has no links to other notes.`);
+        }
+        case "get_recent": {
+          const kind = a.kind === "edited" ? "edited" : "opened";
+          const limit = Number(a.limit) || 10;
+          const lines: string[] = [];
+          if (kind === "opened") {
+            if (!deps.recentlyOpened) return unavailable(tool);
+            for (const r of await deps.recentlyOpened()) {
+              if (lines.length === limit) break;
+              if (!/\.md$/i.test(r.path) || !safeRelPath(r.path) || !(await allowed(r.path))) continue;
+              lines.push(`- [[${titleOf(r.path)}]] (${r.path}) — opened ${stampOf(r.openedAt)}`);
+            }
+          } else {
+            if (!deps.recentlyChanged) return unavailable(tool);
+            for (const r of await deps.recentlyChanged(limit * 2)) {
+              if (lines.length === limit) break;
+              if (!safeRelPath(r.path) || !(await allowed(r.path))) continue;
+              lines.push(`- [[${r.title || titleOf(r.path)}]] (${r.path}) — changed ${stampOf(r.mtime)}`);
+            }
+          }
+          return result(tool.name, lines.length ? lines.join("\n") : kind === "opened" ? "Nothing opened on this device yet." : "No notes changed lately.");
+        }
+        case "get_calendar": {
+          if (!deps.events) return unavailable(tool);
+          const from = dayStart(String(a.from ?? ""));
+          const to = dayStart(String(a.to ?? ""));
+          if (!from || !to || to < from) return { content: "Give from and to as days (YYYY-MM-DD), to not before from.", isError: true };
+          const end = dayStart(addDaysToKey(dayOf(to), 1))!;
+          if ((end.getTime() - from.getTime()) / 86_400_000 > CALENDAR_MAX_DAYS + 0.5) return { content: `At most ${CALENDAR_MAX_DAYS} days per call.`, isError: true };
+          const limit = Number(a.limit) || 50;
+          const events = (await deps.events(from, end)).filter((e) => e.start < end && (e.end ?? e.start) >= from).sort((x, y) => x.start.getTime() - y.start.getTime());
+          const lines: string[] = [];
+          for (const e of events.slice(0, limit)) {
+            const when = e.allDay ? `${dayOf(e.start)}, all day` : `${dayOf(e.start)} ${clockOf(e.start)}${e.end ? `–${dayOf(e.end) === dayOf(e.start) ? clockOf(e.end) : `${dayOf(e.end)} ${clockOf(e.end)}`}` : ""}`;
+            lines.push(`- ${when}: ${e.title || "(no title)"}`);
+          }
+          // Appointment titles are the user's words like a note's: the same text rules apply.
+          const listed = lines.length ? await withhold(lines.join("\n"), "") : "";
+          const more = events.length > limit ? `\n\n${events.length - limit} more; ask for a shorter range.` : "";
+          return result(tool.name, listed ? `${listed}${more}` : "No appointments in this range.");
         }
         case "run_command": {
           const commands = deps.commands();

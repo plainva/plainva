@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-09-24
+Stand: 2026-09-29
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, und kann Notizen und Ansichten für Dich öffnen — es ändert nichts. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -34,12 +34,40 @@ Vier Profile — **Schnell**, **Ausgewogen**, **Stark** und **Lokal** — sind D
 
 - **Desktop:** der KI-Knopf in der Aktionsleiste, **Strg+J** (⌘J unter macOS) oder **KI fragen** in der Befehlspalette öffnet den Begleiter — ein kleines Fenster über Deiner Arbeit. **Als Tab öffnen** holt dasselbe Gespräch in den KI-Tab, wo Deine Gespräche aufgelistet sind.
 - **Telefon:** **KI fragen** im ⋮-Menü einer Notiz öffnet das KI-Blatt über dieser Notiz. Der Bereich **KI** (im Bereiche-Blatt oder in der Navigationsleiste, wenn Du ihn dort hinlegst) zeigt das Gespräch im Vollbild; **Gespräche** listet die früheren.
+- **Neben der Notiz:** am Desktop ist dasselbe Gespräch die letzte Sektion der rechten Seitenleiste, **KI**. Am Telefon oder Tablet ist es der Reiter **KI** im Kontext der Notiz — neben **Eigenschaften** und **Backlinks** —, den ein Tablet neben der Notiz zeigt.
 
-Die Notiz, die Du offen hast, geht automatisch mit; nimm sie mit ihrem ✕ aus dem Kontext, wenn Du willst. **Notiz anheften …** fügt weitere Notizen hinzu. Der Assistent kann auch selbst nachsehen: er durchsucht den Vault, liest Notizen und ihre Abschnitte, listet Aufgaben und öffnet Notizen und Ansichten. Ändern, anlegen oder löschen kann er nichts.
+Die Notiz, die Du offen hast, geht automatisch mit; nimm sie mit ihrem ✕ aus dem Kontext, wenn Du willst. **Notiz anheften …** fügt weitere Notizen hinzu. Der Assistent kann auch selbst nachsehen: er durchsucht den Vault, liest Notizen und ihre Abschnitte, Datenbanken, Backlinks und verlinkte Notizen, listet Aufgaben, Termine und die zuletzt geöffneten oder geänderten Notizen und öffnet Notizen und Ansichten. Ändern, anlegen oder löschen kann er nichts.
 
 Jedes Gespräch beginnt mit der Zeile „Antworten schreibt eine KI — ⟨Modell⟩ über ⟨Anbieter⟩“. Unter jeder Antwort steht, was wohin gesendet wurde: wie viele Notizen, ungefähr wie viele Token und — wo der Anbieter Preise veröffentlicht — die ungefähren Kosten. **Stopp** beendet eine Antwort jederzeit.
 
 Ein Link in einer Antwort öffnet sich erst, nachdem Du seine Adresse bestätigt hast, und Bilder in Antworten werden nie geladen.
+
+## Was mitgeht
+
+Zu jeder Frage stellt Plainva zusammen, was wichtig sein kann — auf diesem Gerät, bevor etwas gesendet wird:
+
+- **Wo Du gerade bist:** Datum und Uhrzeit, die offene Notiz oder Datenbank und Deine Auswahl darin, Deine offenen Tabs, in der kommenden Woche fällige Aufgaben, die nächsten Termine und die heutige Tagesnotiz.
+- **Notizen, die wichtig sein können:** gefunden über Deine Worte, die Links der offenen Notiz und was Du zuletzt geöffnet oder geändert hast. Zuerst entscheiden Deine Datenschutzregeln; bewertet werden überhaupt nur die Notizen, die sie erlauben. Einige gehen als Abschnitte mit — nicht als ganze Notizen —, andere nur mit Titel und Suchauszug oder allein mit ihrem Namen; mehr davon liest der Assistent, wenn er es braucht.
+
+Eine Notiz, die das Gespräch schon trägt und die sich seitdem nicht geändert hat, wird genannt, nicht noch einmal gesendet. Ortsangaben aus Deinem Journal und Stimmungswerte werden nie von selbst gesendet.
+
+## Bevor etwas gesendet wird
+
+Die erste Anfrage einer Sitzung zeigt eine Übersicht: wohin sie geht (Anbieter und Modell), welche Notizen und welcher Teil davon, was außerdem mitgeht (Deine Auswahl, Termine, Aufgaben), was zurückgehalten wurde und ungefähr wie viele Token. **Senden** sendet; **Abbrechen** sendet nichts und gibt Dir Deine Worte ins Eingabefeld zurück; das − neben einer Notiz lässt sie weg. Innerhalb dessen, was Du freigegeben hast, gehen die nächsten Anfragen ohne Rückfrage. Die Übersicht kommt wieder, sobald der Umfang wächst: ein anderes Modell oder ein anderer Anbieter, eine neue Art von Daten, Notizen aus einem weiteren Ordner, neue Werkzeuge oder eine deutlich größere Anfrage. Ein Modell auf diesem Gerät fragt nie.
+
+Wenn Du die Übersicht vor jeder Anfrage sehen willst, schalte **Vor jeder Anfrage fragen** ein — in der Übersicht selbst oder unter **Einstellungen → KI & Automatisierung** bei **Senden**.
+
+Die Zeile unter jeder Antwort öffnet die Übersicht dessen, was mit ihr ging. Nennt eine Antwort keine der gesendeten Notizen, sagt ein Hinweis über dieser Zeile das; prüfe die Antwort dann an den Notizen.
+
+## Kontext einsehen
+
+Das Auge unter dem Eingabefeld, **Kontext einsehen**, zeigt, was die nächste Anfrage mitnähme — bevor sie geht, für das gerade gewählte Modell. Zu jeder Notiz: warum sie gewählt wurde (gerade offen, angeheftet, passt zu Deinen Worten, verlinkt, bald fällig …), welcher Teil mitgeht und ungefähr wie viele Token. Jede Notiz kannst Du
+
+- aus der nächsten Anfrage weglassen (**Wieder aufnehmen** holt sie zurück),
+- ans Gespräch heften,
+- dauerhaft auf diesem Gerät behalten: das schreibt die Regel `cloud: deny` in die Notiz (siehe unten).
+
+Notizen, die Deine Regeln zurückhalten, stehen ebenfalls da, damit Du weißt, was fehlt; sie werden nie bewertet und nie gesendet. **Mit diesem Kontext senden** sendet, was Du geschrieben hast. In einem breiten KI-Tab bleibt die Ansicht als Spalte neben dem Gespräch offen.
 
 ## Datenschutzregeln
 

@@ -4,9 +4,8 @@ import {
   allProviders,
   appendAiLedgerEntry,
   appendTurn,
-  assembleContext,
   assistantSystemPrompt,
-  contextChanged,
+  buildContextPackage,
   conversationMatches,
   conversationSummaryOf,
   conversationTitleFrom,
@@ -14,20 +13,28 @@ import {
   expiredConversations,
   fetchProviderJson,
   initialModelChoice,
+  manifestOf,
   modelListSpec,
   parseModelList,
   providerById,
   readAiAppSettings,
   runAgent,
+  scopeGrowth,
+  sentStamps,
   startConversation,
   usageCostUsd,
+  widenScope,
   type AiAppSettings,
+  type ApprovedScope,
+  type Candidate,
   type AiEgress,
   type ContextNote,
+  type ContextPackage,
   type ContextPolicyHost,
   type ConversationRecord,
   type ConversationRepository,
   type ConversationSummary,
+  type EgressManifest,
   type EgressRecipient,
   type LedgerEntry,
   type ModelChoice,
@@ -36,6 +43,8 @@ import {
   type ProviderInfo,
   type RunMeta,
   type RunStop,
+  type ScopeGrowth,
+  type SituationInput,
   type ToolExecutor,
 } from "@plainva/core";
 
@@ -75,9 +84,23 @@ export interface AiVaultHost {
   /** The note open right now, if any. */
   activeNote(): Promise<Omit<ContextNote, "pinned"> | null>;
   readNote(path: string): Promise<Omit<ContextNote, "pinned"> | null>;
+  /** Where the user is right now (plan §7): the open note, tabs, due tasks, appointments. */
+  situation(): Promise<SituationInput>;
+  /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
+  candidates(question: string, activePath: string | null): Promise<Candidate[][]>;
   policy: ContextPolicyHost;
   /** The tools of a run for this recipient; null when this vault offers none. */
   tools(recipient: EgressRecipient): { names: readonly string[]; executor: ToolExecutor } | null;
+  /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
+  keepOnDevice?(path: string): Promise<void>;
+}
+
+/** What the next message would carry, built like a send and sent nowhere (plan §13.3, "View context"). */
+export interface ContextPreview {
+  manifest: EgressManifest;
+  pack: ContextPackage;
+  /** Distinct notes the sources proposed for this question, before the gate. */
+  candidates: number;
 }
 
 export interface ProviderTest {
@@ -95,7 +118,7 @@ export interface LiveRun {
   steps: number;
 }
 
-export type AiDress = "window" | "tab" | "sheet" | "screen";
+export type AiDress = "window" | "tab" | "dock" | "sheet" | "screen";
 
 export interface AiState {
   loaded: boolean;
@@ -111,15 +134,25 @@ export interface AiState {
   draftChoice: ModelChoice | null;
   /** The open note stays out of the next message. */
   excludeActive: boolean;
+  /** Notes the user left out of the next message in "View context". */
+  leaveOutNext: string[];
   live: LiveRun | null;
   /** The last run's end, when it ended in a way the reader must see. */
   notice: { conversationId: string; stop: RunStop } | null;
   dress: AiDress | null;
   /** A vault is attached (AI v1 runs only where a vault is open). */
   hasVault: boolean;
+  /**
+   * The send overview waiting for the user's answer (plan §13.3): shown before
+   * the first request of the session and whenever the scope grows.
+   */
+  consent: { manifest: EgressManifest; growth: ScopeGrowth[] } | null;
 }
 
 type Listener = () => void;
+
+/** How the send overview was answered: send, send nothing, or build it again without one note. */
+type ConsentAnswer = "send" | "cancel" | { leaveOut: string };
 
 const sortSummaries = (list: ConversationSummary[]) => [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
@@ -130,6 +163,9 @@ export class AiSession {
   private abort: AbortController | null = null;
   /** Set synchronously on send: two quick presses never start two runs. */
   private sending = false;
+  /** What the user approved in this app session (E25); a server on this computer needs none. */
+  private scope: ApprovedScope | null = null;
+  private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
 
   constructor(private readonly host: AiSessionHost) {
     this.state = {
@@ -142,10 +178,12 @@ export class AiSession {
       draftPins: [],
       draftChoice: null,
       excludeActive: false,
+      leaveOutNext: [],
       live: null,
       notice: null,
       dress: null,
       hasVault: false,
+      consent: null,
     };
   }
 
@@ -283,6 +321,7 @@ export class AiSession {
 
   async attachVault(vault: AiVaultHost | null): Promise<void> {
     this.stop();
+    this.answerConsent(false);
     this.vault = vault;
     this.set({ summaries: [], active: null, live: null, excludeActive: false, draftPins: [], draftChoice: null, notice: null, hasVault: Boolean(vault) });
     if (!vault) return;
@@ -359,6 +398,78 @@ export class AiSession {
     this.set({ excludeActive: exclude });
   }
 
+  /** Leaves a note out of the next message, or takes it back in ("View context"). */
+  toggleLeaveOut(path: string): void {
+    const list = this.state.leaveOutNext;
+    this.set({ leaveOutNext: list.includes(path) ? list.filter((p) => p !== path) : [...list, path] });
+  }
+
+  /** Keeps a note on this device for good: its own rule, written into the note by the user's hand. */
+  async keepOnDevice(path: string): Promise<boolean> {
+    const vault = this.vault;
+    if (!vault?.keepOnDevice) return false;
+    try {
+      await vault.keepOnDevice(path);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * The context the next message would carry (plan §13.3, "View context"):
+   * the same situation, candidates, gate and package a send builds — for the
+   * model chosen now — and nothing leaves the device.
+   */
+  async previewContext(question: string): Promise<ContextPreview | null> {
+    const vault = this.vault;
+    const choice = this.choice();
+    if (!vault || !choice || !this.state.settings.enabled) return null;
+    const provider = providerById(choice.providerId, this.state.settings.custom);
+    if (!provider) return null;
+    const record = this.state.active;
+    const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : []);
+    const built = await context.build(new Set(this.state.leaveOutNext));
+    if (this.vault !== vault) return null;
+    const proposed = new Set(context.candidates.flat().map((c) => c.path));
+    return { ...built, candidates: proposed.size };
+  }
+
+  /**
+   * One message's context, the one way the send, the overview and the lens
+   * build it (plan §7–§9): the situation and the notes that may matter,
+   * through the hard gate before anything is ranked; `build` puts it
+   * together without the notes left out.
+   */
+  private async contextOf(
+    message: string,
+    vault: AiVaultHost,
+    choice: ModelChoice,
+    provider: ProviderInfo,
+    pins: readonly string[],
+    turns: ConversationRecord["conversation"]["turns"],
+  ) {
+    const recipient: EgressRecipient =
+      provider.kind === "local" ? { kind: "local", provider: provider.id, model: choice.model } : { kind: "cloud", provider: provider.id, model: choice.model };
+    const tools = vault.tools(recipient);
+    const situation = await vault.situation().catch(() => this.bareSituation());
+    const seen = this.state.excludeActive ? { ...situation, active: null } : situation;
+    const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null).catch(() => [] as Candidate[][]);
+    const build = async (leaveOut: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
+      const pack = await buildContextPackage(
+        { question: message, recipient, situation: seen, candidates, pins: pins.filter((p) => !leaveOut.has(p)), alreadySent: sentStamps(turns), leaveOut },
+        { policyOf: vault.policy.policyOf, resolveLink: vault.policy.resolveLink, readNote: (path) => vault.readNote(path) },
+      );
+      const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: provider.kind === "local" }, choice.model, {
+        tools: tools?.names ?? [],
+        questionChars: message.length,
+        ...(this.priceOf(choice) ? { priceUsdPerMillionInput: this.priceOf(choice)!.input } : {}),
+      });
+      return { pack, manifest };
+    };
+    return { seen, candidates, build };
+  }
+
   async pin(path: string): Promise<void> {
     const active = this.state.active;
     if (!active) {
@@ -399,6 +510,49 @@ export class AiSession {
 
   stop(): void {
     this.abort?.abort();
+    this.answerConsent(false);
+  }
+
+  /** The user's answer to the send overview: send within the shown scope, or send nothing. */
+  answerConsent(approved: boolean): void {
+    this.settleConsent(approved ? "send" : "cancel");
+  }
+
+  /** Leaves one note out of the waiting request; the overview is built again without it. */
+  leaveOutOfConsent(path: string): void {
+    this.settleConsent({ leaveOut: path });
+  }
+
+  private settleConsent(answer: ConsentAnswer): void {
+    const settle = this.consentAnswer;
+    this.consentAnswer = null;
+    if (this.state.consent) this.set({ consent: null });
+    settle?.(answer);
+  }
+
+  private askConsent(manifest: EgressManifest, growth: ScopeGrowth[]): Promise<ConsentAnswer> {
+    this.settleConsent("cancel");
+    return new Promise((resolve) => {
+      this.consentAnswer = resolve;
+      this.set({ consent: { manifest, growth } });
+    });
+  }
+
+  /** The situation when the shell cannot tell one: the time and the app's today. */
+  private bareSituation(): SituationInput {
+    const now = this.host.now();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return {
+      now: `${this.host.today()} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      weekday: now.toLocaleDateString("en-US", { weekday: "long" }),
+      calendarDay: this.host.today(),
+      journalDay: this.host.today(),
+      active: null,
+      tabs: [],
+      tasks: [],
+      events: [],
+      dailyNote: null,
+    };
   }
 
   dismissNotice(): void {
@@ -426,7 +580,7 @@ export class AiSession {
     }
   }
 
-  private async runMessage(message: string, vault: AiVaultHost, choice: ModelChoice): Promise<RunStop> {
+  private async runMessage(message: string, vault: AiVaultHost, choice: ModelChoice): Promise<RunStop | null> {
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
@@ -455,35 +609,43 @@ export class AiSession {
       };
     })();
 
-    // The context of this message: the open note and the pinned ones, through the hard gate.
-    const notes: ContextNote[] = [];
-    if (!this.state.excludeActive) {
-      const open = await vault.activeNote().catch(() => null);
-      if (open) notes.push({ ...open, pinned: false });
+    // The context of this message: what "View context" showed, without the notes left out there.
+    const { seen, build } = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns);
+    const leaveOut = new Set<string>(this.state.leaveOutNext);
+    let { pack, manifest } = await build(leaveOut);
+    // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the strict.
+    // Once the user reviews the overview, it stays until they send or cancel:
+    // leaving a note out never sends on its own.
+    let reviewing = false;
+    for (;;) {
+      const growth = scopeGrowth(manifest, this.scope);
+      if (!reviewing && growth.length === 0 && !(this.state.settings.confirmEveryRequest && !manifest.local)) break;
+      const answer = await this.askConsent(manifest, growth);
+      if (this.vault !== vault || answer === "cancel") return null;
+      if (answer === "send") break;
+      reviewing = true;
+      leaveOut.add(answer.leaveOut);
+      ({ pack, manifest } = await build(leaveOut));
     }
-    for (const path of record.pins) {
-      if (notes.some((n) => n.path === path)) continue;
-      const pinned = await vault.readNote(path).catch(() => null);
-      if (pinned) notes.push({ ...pinned, pinned: true });
-    }
-    const context = await assembleContext(notes, recipient, vault.policy);
-    const parts = [...(context.part && contextChanged(record.conversation, context.part) ? [context.part] : []), { type: "text" as const, text: message }];
+    if (!manifest.local) this.scope = widenScope(this.scope, manifest);
+    const parts = [pack.part, { type: "text" as const, text: message }];
     const userTurn = record.conversation.turns.length;
     record = { ...record, conversation: appendTurn(record.conversation, { role: "user", parts, at: now }), updatedAt: now };
 
     const controller = new AbortController();
     this.abort = controller;
     const toolLog: LedgerEntry["tools"] = [];
-    this.set({ active: record, draftPins: [], draftChoice: null, excludeActive: false, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
+    this.set({ active: record, draftPins: [], draftChoice: null, excludeActive: false, leaveOutNext: [], notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
 
-    const sent = context.refs.some((r) => r.sent);
+    // Rule of Two (§13.4): vault text is private and untrusted at once.
+    const carriesVault = pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active);
     const result = await runAgent({
       conversation: record.conversation,
       egress: this.host.egress,
       endpoint: provider.endpoint,
       model: choice.model,
       executor: tools?.executor ?? { execute: async () => ({ content: "This conversation has no tools.", isError: true }) },
-      context: { privateContext: sent, untrustedContext: sent },
+      context: { privateContext: carriesVault, untrustedContext: carriesVault },
       signal: controller.signal,
       cache: true,
       newRequestId: () => `ai-${this.host.newId()}`,
@@ -512,13 +674,14 @@ export class AiSession {
       userTurn,
       providerId: choice.providerId,
       model: choice.model,
-      sent: context.refs.filter((r) => r.sent).map((r) => r.path),
-      kept: context.refs.filter((r) => !r.sent).map((r) => r.path),
+      sent: pack.refs.map((r) => r.path),
+      kept: pack.excluded.map((e) => e.path),
       usage,
       steps: result.usage.steps,
       stop: result.stop.kind,
       ...(result.stop.kind === "failed" ? { failure: result.stop.failure.kind } : {}),
       ...(costUsd !== undefined ? { costUsd } : {}),
+      manifest,
     };
     record = {
       ...record,

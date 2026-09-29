@@ -87,6 +87,39 @@ describe("VaultQueryService", () => {
     expect(q.params as any[]).toEqual(["projekt", "projekt/%", 50]);
   });
 
+  it("finds AI context candidates with ANY term, the score turned so higher is better", async () => {
+    db.mockedResults.push([{ path: "Offer.md", title: "Offer", score: 7.5, snippet: "the offer", mtime_local: 1_700_000_000 }]);
+    const hits = await queryService.searchCandidates(["offer", "müller", "…"], 20);
+    expect(hits).toEqual([{ path: "Offer.md", title: "Offer", score: 7.5, snippet: "the offer", mtime: 1_700_000_000_000 }]);
+    // OR, quoted and prefix-starred: a question in a sentence still finds notes.
+    expect((db.queries[0].params as any[])[0]).toBe('"offer"* OR "müller"*');
+    expect(db.queries[0].query).toContain("-bm25(fts_notes, 1.0, 4.0) AS score");
+    expect(db.queries[0].query).toContain("is_deleted");
+    expect(await queryService.searchCandidates(["…"])).toEqual([]);
+    expect(db.queries).toHaveLength(1);
+  });
+
+  it("lists notes linked with one note, both ways, the busiest first", async () => {
+    // getBacklinks: links, then the resolver corpus
+    db.mockedResults.push([{ source_path: "A.md", source_title: "A", target_path: "Hub" }, { source_path: "B.md", source_title: "B", target_path: "Hub" }]);
+    db.mockedResults.push([{ path: "A.md" }, { path: "B.md" }, { path: "Hub.md" }, { path: "C.md" }]);
+    // outgoing links of Hub, then the corpus again, then the titles
+    db.mockedResults.push([{ target_path: "B" }, { target_path: "C" }, { target_path: "Nowhere" }]);
+    db.mockedResults.push([{ path: "A.md" }, { path: "B.md" }, { path: "Hub.md" }, { path: "C.md" }]);
+    db.mockedResults.push([{ path: "A.md", title: "A" }, { path: "B.md", title: "B" }, { path: "C.md", title: "C" }]);
+    expect(await queryService.getLinkNeighbors("Hub.md")).toEqual([
+      { path: "B.md", title: "B", incoming: 1, outgoing: 1 },
+      { path: "A.md", title: "A", incoming: 1, outgoing: 0 },
+      { path: "C.md", title: "C", incoming: 0, outgoing: 1 },
+    ]);
+  });
+
+  it("lists recently changed notes only, in milliseconds", async () => {
+    db.mockedResults.push([{ path: "N.md", title: "N", mtime_local: 1_758_000_000_000 }]);
+    expect(await queryService.getRecentlyChangedNotes(5)).toEqual([{ path: "N.md", title: "N", mtime: 1_758_000_000_000 }]);
+    expect(db.queries[0].query).toContain("LIKE '%.md'");
+  });
+
   it("finds backlinks", async () => {
     // 1st query: links
     db.mockedResults.push([{ source_path: "hello.md", target_path: "world" }]);

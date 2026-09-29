@@ -1,19 +1,26 @@
 import {
   DEFAULT_AI_POLICY,
+  EDITED_HALF_LIFE_MS,
   effectivePolicy,
   ENCRYPTED_WORKSPACE_AI_POLICY,
   notePolicyFrom,
+  OPENED_HALF_LIFE_MS,
   parsePolicyFile,
+  questionTerms,
   readFrontmatterPath,
+  recencySignal,
+  setFrontmatterPath,
+  type Candidate,
   type ContextNote,
   type ContextPolicyHost,
   type EffectivePolicy,
   type EgressRecipient,
   type ParsedPolicyFile,
+  type SituationInput,
 } from "@plainva/core";
 import type { AiVaultHost } from "./aiSession";
 import { createAiVaultStores, type AiFileStore } from "./aiStores";
-import { CHAT_TOOL_NAMES, createVaultToolExecutor, type VaultToolDeps } from "./vaultTools";
+import { CHAT_TOOL_NAMES, createVaultToolExecutor, unmarkSnippet, type VaultToolDeps } from "./vaultTools";
 
 /**
  * The vault side of the AI session, built the same way in both shells: the
@@ -85,8 +92,57 @@ export interface AiVaultHostInput {
   /** The note open in the shell right now — its saved text. */
   activeNote(): Promise<Omit<ContextNote, "pinned"> | null>;
   readNote(path: string): Promise<Omit<ContextNote, "pinned"> | null>;
+  /** Where the user is: gathered by the shell, gated and written by the context package. */
+  situation(): Promise<SituationInput>;
+  /** The vault's candidate sources; null in a shell without an index. */
+  retrieval: CandidateRetrieval | null;
   /** The tools' access to the vault; null when this shell offers no tools. */
   toolDeps: Omit<VaultToolDeps, "policyOf" | "resolveLink"> | null;
+  /** Writes a note's own "never to the cloud" rule — the user's action in "View context". */
+  keepOnDevice?(path: string): Promise<void>;
+}
+
+/** A note's text with its own rule "never to the cloud" (the plainva namespace, ADR 0017). */
+export function withCloudDenied(text: string): string {
+  return setFrontmatterPath(text, ["plainva", "ai", "cloud"], "deny");
+}
+
+/** Where candidates come from (plan §8.1): the index, and what this device opened. */
+export interface CandidateRetrieval {
+  searchCandidates(terms: readonly string[], limit: number): Promise<{ path: string; title: string; score: number; snippet: string | null }[]>;
+  linkNeighbors(path: string, limit: number): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]>;
+  recentlyChanged(limit: number): Promise<{ path: string; title: string; mtime: number }[]>;
+  /** Opened on this device, newest first (`.plainva/recents.json`). */
+  recentlyOpened(): Promise<{ path: string; openedAt: number }[]>;
+  now(): number;
+}
+
+const noteTitle = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+
+/**
+ * The candidate lists for a question: full-text hits (any term, relative to
+ * the best hit), the open note's link neighbours, and what changed or was
+ * opened lately. Nothing here is gated or ranked — the package does both,
+ * the gate first.
+ */
+export async function gatherCandidates(retrieval: CandidateRetrieval, question: string, activePath: string | null): Promise<Candidate[][]> {
+  const now = retrieval.now();
+  const terms = questionTerms(question);
+  const [hits, neighbors, changed, opened] = await Promise.all([
+    terms.length ? retrieval.searchCandidates(terms, 30).catch(() => []) : Promise.resolve([]),
+    activePath ? retrieval.linkNeighbors(activePath, 20).catch(() => []) : Promise.resolve([]),
+    retrieval.recentlyChanged(20).catch(() => []),
+    retrieval.recentlyOpened().catch(() => []),
+  ]);
+  const best = Math.max(...hits.map((h) => h.score), 0) || 1;
+  return [
+    hits.map((h) => ({ path: h.path, title: h.title || noteTitle(h.path), signals: { lexical: Math.max(0, h.score) / best }, ...(h.snippet ? { snippet: unmarkSnippet(h.snippet) } : {}) })),
+    neighbors.map((n) => ({ path: n.path, title: n.title || noteTitle(n.path), signals: { graph: Math.min(1, 0.6 + 0.15 * (n.incoming + n.outgoing - 1)) } })),
+    changed.map((c) => ({ path: c.path, title: c.title || noteTitle(c.path), signals: { edited: recencySignal(now - c.mtime, EDITED_HALF_LIFE_MS) } })),
+    opened
+      .filter((o) => /\.md$/i.test(o.path))
+      .map((o) => ({ path: o.path, title: noteTitle(o.path), signals: { opened: recencySignal(now - o.openedAt, OPENED_HALF_LIFE_MS) } })),
+  ];
 }
 
 export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
@@ -95,10 +151,20 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...stores,
     activeNote: input.activeNote,
     readNote: input.readNote,
+    situation: input.situation,
+    candidates: (question, activePath) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath) : Promise.resolve([])),
     policy: input.policy,
+    ...(input.keepOnDevice ? { keepOnDevice: input.keepOnDevice } : {}),
     tools(recipient: EgressRecipient) {
       if (!input.toolDeps) return null;
-      const deps: VaultToolDeps = { ...input.toolDeps, policyOf: input.policy.policyOf, resolveLink: input.policy.resolveLink };
+      const retrieval = input.retrieval;
+      const deps: VaultToolDeps = {
+        // The index sources the context package ranks with serve the tools too.
+        ...(retrieval ? { neighbors: retrieval.linkNeighbors, recentlyOpened: retrieval.recentlyOpened, recentlyChanged: retrieval.recentlyChanged } : {}),
+        ...input.toolDeps,
+        policyOf: input.policy.policyOf,
+        resolveLink: input.policy.resolveLink,
+      };
       return { names: CHAT_TOOL_NAMES, executor: createVaultToolExecutor(deps, { recipient, webTools: false }) };
     },
   };

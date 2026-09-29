@@ -64,7 +64,7 @@ export const LEFT_SECTION_IDS = ["recents", "bookmarks"] as const;
 /** `journal` follows `calendar`: it is the calendar's day written out, and it
  *  used to hang INSIDE the calendar section with no head of its own, so it
  *  could neither be collapsed nor hidden (finding 2026-09-22). */
-export const RIGHT_SECTION_IDS = ["calendar", "journal", "outline", "graph", "databases", "backlinks", "properties"] as const;
+export const RIGHT_SECTION_IDS = ["calendar", "journal", "outline", "graph", "databases", "backlinks", "properties", "ai"] as const;
 /**
  * The phone's navigation bar (redesign E2). It carries WORK surfaces only —
  * tags, bookmarks and databases moved into the navigator in S9, because they
@@ -169,6 +169,7 @@ export const BAR_DEFS: BarDef[] = [
       { id: "databases", labelKey: "rightPanel.databases", icon: Database },
       { id: "backlinks", labelKey: "rightPanel.backlinks", icon: LinkIcon },
       { id: "properties", labelKey: "rightPanel.properties", icon: SlidersHorizontal },
+      { id: "ai", labelKey: "ai.title", icon: Sparkles },
     ],
   },
   {
@@ -368,7 +369,8 @@ export async function migrateLegacyBarLayouts(vaultPath: string | null): Promise
     (await adoptNewAreas(store, vaultPath, "ribbon", { newFolder: "new", newBase: "newFolder", comments: "mail", journal: "comments", ai: "palette" })) ||
     touched;
   touched =
-    (await adoptNewAreas(store, vaultPath, "rightSections", { journal: "calendar" })) ||
+    // The AI dock (plan KI-Harness §19.1, dress B) closes the column; it shows only while the AI is on.
+    (await adoptNewAreas(store, vaultPath, "rightSections", { journal: "calendar", ai: "properties" })) ||
     touched;
 
   if (touched) {

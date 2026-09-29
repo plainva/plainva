@@ -8,10 +8,17 @@ import {
   calendarDay,
   createAiVaultHost,
   createVaultPolicy,
+  dailyNotePathFor,
+  databaseTaskRows,
   flushPendingSave,
   getPlatformServices,
+  journalToday,
   noteDisplayName,
+  parseRecentsFile,
   plannerRowsFromTasks,
+  situationEvents,
+  situationFrom,
+  withCloudDenied,
   type AiFileStore,
   type AiNavigationCommand,
   type AreaOrder,
@@ -21,6 +28,8 @@ import { atomicWriteText } from "../../platform/atomicFile";
 import { mConfirm } from "../mobileDialogs";
 import { createMobileAiEgress } from "../../platform/aiNet";
 import { vaultOps, type MobileVault } from "../vaultService";
+import { readEditorSelection } from "../editorSelection";
+import { getMobileSettings } from "../mobileSettings";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -115,6 +124,11 @@ export function currentMobileAiPolicy(): VaultPolicyHost | null {
 let sheetNote: string | null = null;
 const SHEET_EVENT = "plainva-ai-sheet";
 
+/** Makes a note the AI's open note without opening the sheet (the AI segment of the note's context). */
+export function focusAiNote(path: string | null): void {
+  sheetNote = path;
+}
+
 /** Opens the KI sheet over a note (the note's ⋮ menu, the palette). */
 export function openAiSheet(path: string | null): void {
   sheetNote = path;
@@ -150,6 +164,8 @@ export function aiEnabled(): boolean {
 
 export interface MobileAiNavigation {
   openNote: (path: string) => void;
+  /** The AI settings screen (the conversation's "set up" leads there). */
+  openSettings?: () => void;
   /** Named areas the assistant may open; absent ones are not offered. */
   areas: Partial<Record<"tasks" | "calendar" | "journal" | "graph" | "comments" | "mail", () => void>>;
 }
@@ -228,23 +244,83 @@ export function useMobileAi(vault: MobileVault | null) {
       });
       return list;
     };
+    /** Checkbox tasks and the task database, as every task view reads them. */
+    const taskRows = async () => {
+      const db = getMobileSettings().taskDatabase.trim();
+      const [dbRows, notes] = await Promise.all([
+        db ? read(db).then((text) => databaseTaskRows(text, (config) => query.queryDatabaseFiles(config))) : Promise.resolve([]),
+        query
+          .listTasks()
+          .then((tasks) => plannerRowsFromTasks(tasks.filter((task) => !task.excluded)))
+          .catch(() => []),
+      ]);
+      return [...dbRows, ...notes];
+    };
+    // Loaded late: the PIM service is a large module the AI need not start with.
+    const events = (from: Date, to: Date) =>
+      import("../pim/pimService")
+        .then(({ listPimEvents }) => listPimEvents(from.getTime(), to.getTime()))
+        .then(situationEvents)
+        .catch(() => []);
+    const moodKey = async () => getMobileSettings().journalMoodProperty.trim() || null;
     const host = createAiVaultHost({
       files: mobileAiFiles,
       vaultKey: aiVaultKey(vault.vaultId),
       policy: vaultPolicy,
       activeNote: async () => (sheetNote ? note(sheetNote) : null),
       readNote: note,
+      async keepOnDevice(path) {
+        // The editor's pending keystrokes land first; the save is the conflict-aware chain, synced like any edit.
+        await flushPendingSave(path);
+        const text = await read(path);
+        if (text === null) throw new Error(`No note at ${path}`);
+        await vaultOps.save(vault, path, withCloudDenied(text));
+      },
+      // The phone's situation: the note the sheet opened over (one editor at a
+      // time, no tabs), due tasks, the next appointments, today's daily note.
+      async situation() {
+        const now = new Date();
+        const path = sheetNote;
+        const text = path ? ((await note(path))?.text ?? null) : null;
+        const settings = getMobileSettings();
+        const dailyPath = dailyNotePathFor(journalToday(now), { folder: settings.dailyFolder, format: settings.dailyFormat });
+        const [tasks, upcoming, dailyExists] = await Promise.all([taskRows(), events(now, new Date(now.getTime() + 2 * 86_400_000)), vault.files.exists(dailyPath).catch(() => false)]);
+        return situationFrom({
+          now,
+          active: path ? { path, kind: "note", text } : null,
+          selection: path ? readEditorSelection() : null,
+          taskRows: tasks,
+          events: upcoming,
+          dailyNotePath: dailyExists ? dailyPath : null,
+          moodKey: await moodKey(),
+        });
+      },
+      retrieval: {
+        searchCandidates: (terms, limit) => query.searchCandidates(terms, limit),
+        linkNeighbors: (path, limit) => query.getLinkNeighbors(path, limit),
+        recentlyChanged: (limit) => query.getRecentlyChangedNotes(limit),
+        async recentlyOpened() {
+          try {
+            return parseRecentsFile(await vault.adapter.readTextFile(".plainva/recents.json"));
+          } catch {
+            return [];
+          }
+        },
+        now: () => Date.now(),
+      },
       toolDeps: {
         async search(q, limit, offset) {
           const hits = await query.searchFullText(q, limit, offset);
           return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null }));
         },
         readNote: read,
-        async taskRows() {
-          return plannerRowsFromTasks((await query.listTasks()).filter((task) => !task.excluded));
-        },
+        taskRows,
         todayKey: () => calendarDay(),
         commands,
+        backlinks: (path) => query.getBacklinks(path),
+        queryDatabase: (config) => query.queryDatabaseFiles(config),
+        events,
+        moodKey,
       },
     });
     currentPolicy = vaultPolicy;
@@ -267,6 +343,22 @@ export function useMobileAi(vault: MobileVault | null) {
 export function MobileAiNavigation({ navRef, nav }: { navRef: { current: MobileAiNavigation }; nav: MobileAiNavigation }) {
   useEffect(() => {
     navRef.current = nav;
+    latestNav = nav;
   });
   return null;
+}
+
+/** The shell's navigation as last rendered, for surfaces outside App (the note's context). */
+let latestNav: MobileAiNavigation | null = null;
+
+/** Opens the AI settings screen from any surface. */
+export function openAiSettings(): void {
+  latestNav?.openSettings?.();
+}
+
+/** True while the AI is switched on, re-rendering when that changes. */
+export function useMobileAiEnabled(): boolean {
+  const s = getMobileAiSession();
+  const state = useSyncExternalStore(s.subscribe, s.getState);
+  return Boolean(state?.loaded && state.settings.enabled);
 }

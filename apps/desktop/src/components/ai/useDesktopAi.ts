@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import i18n from "@plainva/ui/i18n";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
-import { getPlatformServices, noteDisplayName, useStableHandler, type AiNavigationCommand, type AiSession, type AiState } from "@plainva/ui";
+import { getPlatformServices, noteDisplayName, situationEvents, useStableHandler, type AiNavigationCommand, type AiSession, type AiState } from "@plainva/ui";
+import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
 import { AI_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
@@ -18,6 +19,8 @@ export interface DesktopAiInput {
   queryService: VaultQueryService | null;
   encrypted: boolean;
   activePath: string | null;
+  /** The panes of this window: their open tabs are part of the situation (plan §7). */
+  layout: { panes: readonly { tabs: readonly { history: readonly string[]; historyIndex: number }[] }[] };
   openView: (path: string) => void;
   openNote: (path: string) => void;
   /** Named navigation targets of the shell; absent ones are not offered. */
@@ -49,6 +52,12 @@ export function useDesktopAi(input: DesktopAiInput) {
   const latest = useRef(input);
   useLayoutEffect(() => {
     latest.current = input;
+  });
+  // Appointments come from the PIM cache of the open vault, when it has one.
+  const { pimRuntime } = useVault();
+  const pim = useRef(pimRuntime);
+  useLayoutEffect(() => {
+    pim.current = pimRuntime;
   });
 
   const commands = useStableHandler((): AiNavigationCommand[] => {
@@ -90,6 +99,12 @@ export function useDesktopAi(input: DesktopAiInput) {
         const path = latest.current.activePath;
         return path && !isVirtualPath(path) && /\.md$/i.test(path) ? path : null;
       },
+      documentPath: () => {
+        const path = latest.current.activePath;
+        return path && !isVirtualPath(path) && /\.(md|base)$/i.test(path) ? path : null;
+      },
+      openPaths: () => latest.current.layout.panes.flatMap((pane) => pane.tabs.map((tab) => tab.history[tab.historyIndex]).filter((p): p is string => Boolean(p))),
+      events: async (from, to) => situationEvents((await pim.current?.cache.listEvents(from.getTime(), to.getTime())) ?? []),
       commands,
     });
     void session.attachVault(host);

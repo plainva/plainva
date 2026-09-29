@@ -131,6 +131,30 @@ describe("provider specifics", () => {
     expect(JSON.stringify(buildRequest(byId("anthropic"), { model: "m", conversation: fromAnthropic, tools, maxOutputTokens: 100 }).body)).toContain('"signature":"sig"');
   });
 
+  it("a conversation moves to another provider whole: every turn, every call with its result", () => {
+    // Started on Anthropic, continued on each other dialect (plan §6: the user picks the model, per message if they like).
+    const fromAnthropic = conversationFor("anthropic")[4]!;
+    const words = ["When is the Northwind deadline?", "deadline 2026-11-14", "The deadline is 2026-11-14", "And the budget?"];
+    const openai = buildRequest(byId("openai"), { model: "m", conversation: fromAnthropic, tools, maxOutputTokens: 100 });
+    const items = openai.body!.input as Array<Record<string, unknown>>;
+    expect(items.filter((i) => i.type === "function_call").map((i) => [i.call_id, i.name])).toEqual([["call_1", "search_vault"]]);
+    expect(items.filter((i) => i.type === "function_call_output").map((i) => i.call_id)).toEqual(["call_1"]);
+    const chat = buildRequest(byId("openrouter"), { model: "m", conversation: fromAnthropic, tools, maxOutputTokens: 100 }).body!.messages as Array<Record<string, unknown>>;
+    expect(chat.map((m) => m.role)).toEqual(["system", "user", "assistant", "tool", "assistant", "user"]);
+    expect((chat[2]!.tool_calls as Array<{ id: string }>)[0]!.id).toBe("call_1");
+    expect(chat[3]!.tool_call_id).toBe("call_1");
+    const gemini = buildRequest(byId("gemini"), { model: "m", conversation: fromAnthropic, tools, maxOutputTokens: 100 }).body!.contents as Array<{ role: string; parts: Record<string, unknown>[] }>;
+    expect(gemini.map((m) => m.role)).toEqual(["user", "model", "user", "model", "user"]);
+    expect(Object.keys(gemini[1]!.parts[0]!)).toContain("functionCall");
+    expect(Object.keys(gemini[2]!.parts[0]!)).toContain("functionResponse");
+    for (const body of [openai.body, { messages: chat }, { contents: gemini }]) {
+      const text = JSON.stringify(body);
+      for (const word of words) expect(text).toContain(word);
+      // Anthropic's thinking stays with Anthropic.
+      expect(text).not.toContain('"signature"');
+    }
+  });
+
   it("returns Gemini's thought signature with its call, unchanged", () => {
     const spec = buildRequest(byId("gemini"), { model: "m", conversation: conversationFor("gemini")[1]!, tools, maxOutputTokens: 100 });
     expect(JSON.stringify(spec.body)).toContain('"functionCall":{"name":"search_vault","args":{"query":"Northwind deadline"}},"thoughtSignature":"ts1"');

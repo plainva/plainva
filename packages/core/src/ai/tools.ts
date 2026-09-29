@@ -184,7 +184,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
   },
   {
     name: "get_calendar",
-    description: "Lists appointments in a date range (at most 31 days) from the connected calendars, with title, time, location and calendar.",
+    description: "Lists appointments in a date range (at most 31 days) from the connected calendars: day, time and title.",
     risk: "read",
     input: z.object({
       from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("First day, YYYY-MM-DD"),

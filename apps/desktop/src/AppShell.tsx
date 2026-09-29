@@ -535,6 +535,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     queryService,
     encrypted: workspaceSecurityStatus !== null,
     activePath,
+    layout,
     openView,
     openNote: (path) => openInFocusedPane(path),
     navigation: {
@@ -1732,6 +1733,21 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           loadMarkedDates={loadMarkedDates}
           activeDailyDate={activeDailyDate}
           refreshToken={fileTreeVersion}
+          ai={
+            ai.enabled
+              ? {
+                  activeNote: ai.activeNote,
+                  onNewConversation: () => void ai.session?.newConversation(),
+                  onOpenNote: ai.openNoteTarget,
+                  onOpenUrl: ai.openUrl,
+                  onOpenSettings: () => capabilities.openSettings(),
+                  onPickNote: () => {
+                    setAiPinPick(true);
+                    setShowQuickSwitcher(true);
+                  },
+                }
+              : null
+          }
         />
       </aside>
       )}

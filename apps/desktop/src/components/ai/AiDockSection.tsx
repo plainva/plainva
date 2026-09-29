@@ -1,0 +1,25 @@
+import { AiConversation } from "@plainva/ui";
+
+export interface AiDockProps {
+  activeNote: { path: string; title: string } | null;
+  onNewConversation: () => void;
+  onOpenNote: (target: string) => void;
+  onOpenUrl: (url: string) => void;
+  onOpenSettings: () => void;
+  onPickNote?: () => void;
+}
+
+/**
+ * The dock (plan KI-Harness §19.1, dress B): the conversation as the last
+ * section of the right sidebar, beside the note it is about. The same one
+ * conversation the companion and the AI tab show — docking changes the dress,
+ * never the conversation. A 250-px column: the thread keeps a bounded height,
+ * so the section scrolls inside and the sidebar around it stays put.
+ */
+export function AiDockSection({ activeNote, onOpenNote, onOpenUrl, onOpenSettings, onPickNote }: AiDockProps) {
+  return (
+    <div className="pv-ai-dock" data-testid="ai-dock">
+      <AiConversation dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+    </div>
+  );
+}

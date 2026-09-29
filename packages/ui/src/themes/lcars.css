@@ -887,3 +887,22 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+/* The send overview is a console readout: square, a panel bar on the left,
+   the heading in caps; the approval burns in the second panel colour. */
+[data-theme-name="lcars"] .pv-ai-overview {
+  border: 0;
+  border-left: 6px solid var(--lcars-1);
+  border-radius: 0;
+}
+[data-theme-name="lcars"] .pv-ai-overview--asking { border-left-color: var(--lcars-2); }
+[data-theme-name="lcars"] .pv-ai-overview-head,
+[data-theme-name="lcars"] .pv-ai-lens-head h4 {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+/* "View context": each source a console row with a panel-colour edge. */
+[data-theme-name="lcars"] .pv-ai-lens-row {
+  border-left: 3px solid var(--lcars-1);
+  border-radius: 0;
+}
+[data-theme-name="lcars"] .pv-ai-lens-row--quiet { border-left-color: var(--lcars-2); }

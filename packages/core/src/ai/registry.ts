@@ -164,6 +164,11 @@ export interface AiAppSettings {
   historyDays: number;
   /** Prices the user entered, US dollars per million tokens, by `provider/model`. */
   prices: Record<string, { input: number; output: number }>;
+  /**
+   * Show the send overview before every request, not only when the approved
+   * scope grows (plan §13.3, for the strict ones).
+   */
+  confirmEveryRequest: boolean;
 }
 
 export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
@@ -174,6 +179,7 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   custom: [],
   historyDays: 90,
   prices: {},
+  confirmEveryRequest: false,
 };
 
 /** Reads stored settings defensively: a damaged value falls back field by field. */
@@ -219,6 +225,7 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
     custom,
     historyDays,
     prices,
+    confirmEveryRequest: typeof value.confirmEveryRequest === "boolean" ? value.confirmEveryRequest : defaults.confirmEveryRequest,
   };
 }
 

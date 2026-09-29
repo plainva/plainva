@@ -196,6 +196,18 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
         </GroupCard>
         <p className="m-hint">{t("ai.settings.profilesHint")}</p>
 
+        <SectionLabel>{t("ai.settings.sending")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              wrap
+              title={t("ai.settings.confirmEvery")}
+              subtitle={t("ai.settings.confirmEveryDesc")}
+              end={<Switch checked={settings.confirmEveryRequest} label={t("ai.settings.confirmEvery")} onChange={(on) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: on }))} />}
+            />
+          </RowList>
+        </GroupCard>
+
         <SectionLabel>{t("ai.settings.history")}</SectionLabel>
         <GroupCard>
           <RowList>

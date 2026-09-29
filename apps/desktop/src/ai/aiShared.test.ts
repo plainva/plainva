@@ -153,10 +153,12 @@ describe("the settings model", () => {
     draftPins: [],
     draftChoice: null,
     excludeActive: false,
+    leaveOutNext: [],
     live: null,
     notice: null,
     dress: null,
     hasVault: true,
+    consent: null,
     ...patch,
   });
 

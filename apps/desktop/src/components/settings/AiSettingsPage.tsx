@@ -135,6 +135,17 @@ function AiSettingsBody({ session }: { session: AiSession }) {
         <SettingCardNote>{t("ai.settings.profilesHint")}</SettingCardNote>
       </SettingCard>
 
+      <SettingCard label={t("ai.settings.sending")}>
+        <SettingRow label={t("ai.settings.confirmEvery")} desc={t("ai.settings.confirmEveryDesc")}>
+          <Switch
+            checked={settings.confirmEveryRequest}
+            label={t("ai.settings.confirmEvery")}
+            onChange={(on) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: on }))}
+            data-testid="ai-confirm-every"
+          />
+        </SettingRow>
+      </SettingCard>
+
       <SettingCard label={t("ai.settings.history")}>
         <SettingRow label={t("ai.settings.historyKeep")} desc={t("ai.settings.historyDesc")}>
           <Select

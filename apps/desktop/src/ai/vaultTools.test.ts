@@ -86,7 +86,7 @@ describe("vault tools behind the hard gate", () => {
     const overdue = await run("get_tasks", { range: "overdue", limit: 25 });
     expect(overdue.content).toContain("Send offer");
     const inbox = await run("get_tasks", { range: "inbox", limit: 25 });
-    expect(inbox.content).toBe("- [ ] Plan week");
+    expect(inbox.content).toBe("- [ ] Plan week — [[Plan]] in the task database");
   });
 
   it("navigates only through the listed commands", async () => {
@@ -128,5 +128,124 @@ describe("vault tools behind the hard gate", () => {
     expect(outlineOf("# A\n```\n# not\n```\n## B").map((h) => h.chain)).toEqual(["A", "A > B"]);
     expect(sectionOf("# A\n## B\nx\n## C", "b")).toBe("## B\nx");
     expect(sectionOf("# A\n## B\n# D\n## B", "B")).toBeNull();
+  });
+});
+describe("the read tools of the context package (P1b)", () => {
+  const vault: Record<string, string> = {
+    ...files,
+    "Journal/2026-09-28.md":
+      "---\nmood: 4\nweather: sun\nplainva:\n  ai:\n    cloud: allow\n---\n# Monday\n\n## Walk\n\n- 14:03 by the river\n📍 52.5200, 13.4050\n- see [[Projects/Offer]] and [[Private/Client]]",
+    "Projects/Board.base":
+      'filters:\n  and:\n    - file.inFolder("Projects")\nviews:\n  - type: table\n    name: Open\n    filters:\n      and:\n        - status != "done"\n    order:\n      - file.name\n      - status\n      - client\n      - mood\n  - type: table\n    name: All\n',
+  };
+  const d = (overrides: Partial<VaultToolDeps> = {}) =>
+    deps({
+      async readNote(path) {
+        return vault[path] ?? null;
+      },
+      async resolveLink(target) {
+        return vault[`${target}.md`] !== undefined ? `${target}.md` : null;
+      },
+      ...overrides,
+    });
+
+  it("backlinks name the place of each link and leave denied sources out", async () => {
+    const backlinks = d({
+      async backlinks() {
+        return [
+          { source_path: "Private/Client.md", source_title: "Client", line_number: 3 },
+          { source_path: "Journal/2026-09-28.md", source_title: "Monday", line_number: 15 },
+        ];
+      },
+    });
+    const out = await run("get_backlinks", { path: "Projects/Offer.md", limit: 20 }, cloud, backlinks);
+    expect(out.content).toContain("- [[Monday]] (Journal/2026-09-28.md)");
+    expect(out.content).toContain("line 15 (Monday › Walk): see [[Projects/Offer]] and ⟦withheld note⟧");
+    expect(out.content).not.toContain("Client");
+    // The target itself passes the gate: backlinks of a denied note do not exist.
+    const denied = await run("get_backlinks", { path: "Private/Client.md", limit: 20 }, cloud, backlinks);
+    const missing = await run("get_backlinks", { path: "Nowhere.md", limit: 20 }, cloud, backlinks);
+    expect(denied).toEqual(missing);
+  });
+
+  it("the neighbourhood skips denied notes, at one and two steps", async () => {
+    const graph: Record<string, { path: string; title: string; incoming: number; outgoing: number }[]> = {
+      "Projects/Offer.md": [
+        { path: "Private/Client.md", title: "Client", incoming: 0, outgoing: 1 },
+        { path: "Journal/2026-09-28.md", title: "Monday", incoming: 1, outgoing: 0 },
+      ],
+      "Journal/2026-09-28.md": [{ path: "Areas/Walks.md", title: "Walks", incoming: 0, outgoing: 1 }],
+    };
+    const n = d({ neighbors: async (path) => graph[path] ?? [] });
+    const one = await run("graph_neighborhood", { path: "Projects/Offer.md", depth: 1, limit: 30 }, cloud, n);
+    expect(one.content).toBe("Linked with Projects/Offer.md:\n- [[Monday]] (Journal/2026-09-28.md) — links here");
+    const two = await run("graph_neighborhood", { path: "Projects/Offer.md", depth: 2, limit: 30 }, cloud, n);
+    expect(two.content).toContain("- [[Walks]] (Areas/Walks.md) — two steps, via [[Monday]]");
+    expect(two.content).not.toContain("Client");
+  });
+
+  it("recent notes pass the gate; only notes, never Plainva's own files", async () => {
+    const at = new Date(2026, 8, 28, 9, 5).getTime();
+    const r = d({
+      recentlyOpened: async () => [
+        { path: "Private/Client.md", openedAt: at },
+        { path: "plainva://ai", openedAt: at },
+        { path: "Projects/Board.base", openedAt: at },
+        { path: "Projects/Offer.md", openedAt: at },
+      ],
+      recentlyChanged: async () => [{ path: "Journal/2026-09-28.md", title: "Monday", mtime: at }],
+    });
+    expect((await run("get_recent", { kind: "opened", limit: 10 }, cloud, r)).content).toBe("- [[Offer]] (Projects/Offer.md) — opened 2026-09-28 09:05");
+    expect((await run("get_recent", { kind: "edited", limit: 10 }, cloud, r)).content).toBe("- [[Monday]] (Journal/2026-09-28.md) — changed 2026-09-28 09:05");
+  });
+
+  it("place stamps never leave, mood and the plainva namespace stay behind", async () => {
+    const note = await run("read_note", { path: "Journal/2026-09-28.md", maxChars: 8000 }, { kind: "local", provider: "ollama", model: "m" }, d());
+    expect(note.content).toContain("📍 ⟦place withheld⟧");
+    expect(note.content).not.toContain("52.5200");
+    const outline = await run("get_outline", { path: "Journal/2026-09-28.md" }, cloud, d({ moodKey: async () => "weather" }));
+    expect(outline.content).not.toMatch(/mood|weather|plainva/);
+    expect(outline.content).toContain('- Walk  (section: "Monday > Walk")');
+  });
+
+  it("a database answers with the rows of one view: its filters merged, denied rows and mood left out", async () => {
+    const seen: unknown[] = [];
+    const q = d({
+      async queryDatabase(config) {
+        seen.push(config);
+        return [
+          { "file.name": "Offer", "file.path": "Projects/Offer.md", status: "draft", client: "[[Private/Client]]", mood: 5 },
+          { "file.name": "Client", "file.path": "Private/Client.md", status: "open" },
+        ];
+      },
+    });
+    const out = await run("query_base", { base: "Projects/Board.base", limit: 20 }, cloud, q);
+    expect(out.content).toBe('Projects/Board.base, view "Open" (views: Open, All)\n\n- [[Offer]] (Projects/Offer.md): status: draft; client: ⟦withheld note⟧');
+    const merged = seen[0] as { filters: unknown; views: { name: string }[] };
+    expect(merged.views.map((v) => v.name)).toEqual(["Open"]);
+    expect(JSON.stringify(merged.filters)).toContain("done");
+    expect(JSON.stringify(merged.filters)).toContain("file.inFolder");
+    const unknown = await run("query_base", { base: "Projects/Board.base", view: "Later", limit: 20 }, cloud, q);
+    expect(unknown).toEqual({ content: 'No view "Later". Views: Open, All.', isError: true });
+    expect((await run("query_base", { base: "Projects/Offer.md", limit: 20 }, cloud, q)).isError).toBe(true);
+  });
+
+  it("appointments: a month at most, in the order of the day", async () => {
+    const c = d({
+      events: async () => [
+        { title: "Dentist", start: new Date(2026, 8, 29, 14, 0), end: new Date(2026, 8, 29, 15, 0), allDay: false },
+        { title: "Holiday", start: new Date(2026, 8, 29), end: null, allDay: true },
+        { title: "Later", start: new Date(2026, 9, 9, 9, 0), end: new Date(2026, 9, 9, 10, 0), allDay: false },
+      ],
+    });
+    const day = await run("get_calendar", { from: "2026-09-29", to: "2026-09-29", limit: 50 }, cloud, c);
+    expect(day.content).toBe("- 2026-09-29, all day: Holiday\n- 2026-09-29 14:00–15:00: Dentist");
+    expect((await run("get_calendar", { from: "2026-09-01", to: "2026-10-15", limit: 50 }, cloud, c)).isError).toBe(true);
+    expect((await run("get_calendar", { from: "2026-09-30", to: "2026-09-29", limit: 50 }, cloud, c)).isError).toBe(true);
+  });
+
+  it("a shell without an index source says the tool is not there", async () => {
+    const out = await run("get_backlinks", { path: "Projects/Offer.md", limit: 20 }, cloud, d());
+    expect(out).toEqual({ content: "The tool get_backlinks is not available here.", isError: true });
   });
 });

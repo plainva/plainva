@@ -1,4 +1,5 @@
 import type { Conversation } from "./conversation.js";
+import type { EgressManifest } from "./context/manifest.js";
 
 /**
  * Conversation history and the run ledger (§16 of the plan).
@@ -33,6 +34,8 @@ export interface RunMeta {
   /** The failure's kind when it failed; the provider's own words are not stored. */
   failure?: string;
   costUsd?: number;
+  /** The send overview of this run: what went where, by path and section — never content. */
+  manifest?: EgressManifest;
 }
 
 export interface ConversationRecord {
@@ -138,8 +141,37 @@ function readRun(raw: unknown): RunMeta[] {
       stop: r.stop,
       ...(typeof r.failure === "string" ? { failure: r.failure } : {}),
       ...(typeof r.costUsd === "number" && Number.isFinite(r.costUsd) && r.costUsd >= 0 ? { costUsd: r.costUsd } : {}),
+      ...(readManifest(r.manifest) ? { manifest: readManifest(r.manifest)! } : {}),
     },
   ];
+}
+
+/** A stored send overview, read defensively: anything malformed drops the overview, never the run. */
+function readManifest(raw: unknown): EgressManifest | null {
+  if (!raw || typeof raw !== "object") return null;
+  const m = raw as Partial<EgressManifest>;
+  if (typeof m.providerId !== "string" || typeof m.model !== "string" || !Array.isArray(m.sources)) return null;
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : []);
+  const withheld = (m.withheld ?? {}) as Partial<EgressManifest["withheld"]>;
+  return {
+    providerId: m.providerId,
+    providerLabel: typeof m.providerLabel === "string" ? m.providerLabel : m.providerId,
+    model: m.model,
+    local: m.local === true,
+    sources: m.sources.flatMap((s) =>
+      s && typeof s === "object" && typeof s.path === "string" && typeof s.title === "string" && (s.tier === "evidence" || s.tier === "card" || s.tier === "map")
+        ? [{ path: s.path, title: s.title, tier: s.tier, ...(typeof s.section === "string" ? { section: s.section } : {}), chars: count(s.chars), ...(s.unchanged ? { unchanged: true } : {}), reasons: strings(s.reasons) as EgressManifest["sources"][number]["reasons"] }]
+        : [],
+    ),
+    dataClasses: strings(m.dataClasses) as EgressManifest["dataClasses"],
+    folders: strings(m.folders),
+    withheld: { notes: count(withheld.notes), links: count(withheld.links), places: count(withheld.places), moodProperties: count(withheld.moodProperties) },
+    excluded: Array.isArray(m.excluded) ? m.excluded.flatMap((e) => (e && typeof e.path === "string" && (e.reason === "cloud-denied" || e.reason === "web-denied") ? [{ path: e.path, reason: e.reason }] : [])) : [],
+    estimatedTokens: count(m.estimatedTokens),
+    ...(typeof m.estimatedCostUsd === "number" && m.estimatedCostUsd >= 0 ? { estimatedCostUsd: m.estimatedCostUsd } : {}),
+    tools: strings(m.tools),
+    web: m.web === true,
+  };
 }
 
 export function conversationSummaryOf(record: ConversationRecord): ConversationSummary {

@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-09-29
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used and can open notes and views for you — it does not change anything. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -34,12 +34,40 @@ Four profiles — **Fast**, **Balanced**, **Strong** and **Local** — are your 
 
 - **Desktop:** the AI button in the action bar, **Ctrl+J** (⌘J on macOS) or **Ask AI** in the command palette opens the companion — a small window over your work. **Open as tab** moves the same conversation into the AI tab, where your conversations are listed.
 - **Phone:** **Ask AI** in a note's ⋮ menu opens the AI sheet over that note. The **AI** area (in the areas sheet, or in the navigation bar if you put it there) shows the conversation full screen; **Conversations** lists the earlier ones.
+- **Beside the note:** on the desktop the same conversation is the last section of the right sidebar, **AI**. On a phone or tablet it is the **AI** tab of the note's context — next to **Properties** and **Backlinks** — which a tablet shows beside the note.
 
-The note you have open goes along automatically; remove it from the context with its ✕ if you want to. **Pin a note…** adds further notes. The assistant can also look things up itself: it searches the vault, reads notes and their sections, lists tasks and opens notes and views. It cannot change, create or delete anything.
+The note you have open goes along automatically; remove it from the context with its ✕ if you want to. **Pin a note…** adds further notes. The assistant can also look things up itself: it searches the vault, reads notes and their sections, databases, backlinks and linked notes, lists tasks, appointments and the notes opened or changed lately, and opens notes and views. It cannot change, create or delete anything.
 
 Every conversation starts with the line "Answers are written by an AI — ⟨model⟩ via ⟨provider⟩". Under each answer a line says what was sent where: how many notes, roughly how many tokens and — where the provider publishes prices — the approximate cost. **Stop** ends an answer at any time.
 
 A link in an answer opens only after you confirmed its address, and images in answers are never loaded.
+
+## What goes along
+
+With every question Plainva puts together what may matter — on this device, before anything is sent:
+
+- **Where you are:** the date and time, the note or database you have open and your selection in it, your open tabs, tasks due in the coming week, the next appointments and today's daily note.
+- **Notes that may matter:** found through your words, the links of the open note and what you opened or changed lately. Your privacy rules decide first; only the notes they allow are ranked at all. A few go as sections — not as whole notes —, others only with their title and a search excerpt or just their name; the assistant reads more of them when it needs to.
+
+A note this conversation already carries and that has not changed since is named, not sent again. Place stamps from your journal and mood values are never sent on their own.
+
+## Before anything is sent
+
+The first request of a session shows an overview: where it goes (provider and model), which notes and which part of each, what else goes along (your selection, appointments, tasks), what was kept back and roughly how many tokens. **Send** sends it; **Cancel** sends nothing and gives your words back to the input; the − next to a note leaves it out. Within what you approved, the next requests go without asking. The overview comes back whenever the scope grows: another model or provider, a new kind of data, notes from another folder, new tools, or a much larger request. A model on this device never asks.
+
+If you want to see the overview before every request, switch on **Ask before every request** — in the overview itself or in **Settings → AI & automation** under **Sending**.
+
+The line under each answer opens the overview of what went with it. If an answer cites none of the notes that were sent, a notice above that line says so; check the answer against the notes.
+
+## View context
+
+The eye below the input, **View context**, shows what the next request would carry — before it goes, for the model chosen now. For every note: why it was chosen (open now, pinned, matches your words, linked, due soon …), which part goes and roughly how many tokens. For each note you can
+
+- leave it out of the next request (**Take back** brings it back),
+- pin it to the conversation,
+- keep it on this device for good: that writes the rule `cloud: deny` into the note (see below).
+
+Notes your rules keep back are listed as well, so that you know what is missing; they are never scored and never sent. **Send with this context** sends what you typed. In a wide AI tab the view stays open as a column beside the conversation.
 
 ## Privacy rules
 

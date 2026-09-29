@@ -5,7 +5,7 @@ import { normalizeDatabaseMetadata } from "./databaseMetadata.js";
 import { getPlainvaMeta, PLAINVA_NAMESPACE_KEY } from "../metadata.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { escapeLikePrefix } from "./VaultIndexer.js";
-import { isEmptySearchQuery, parseSearchQuery, SNIPPET_MARK_END, SNIPPET_MARK_START, type ParsedSearchQuery } from "./ftsQuery.js";
+import { ftsPhrase, isEmptySearchQuery, parseSearchQuery, SNIPPET_MARK_END, SNIPPET_MARK_START, type ParsedSearchQuery } from "./ftsQuery.js";
 import { formatTaskProgress, scanTasks, taskProgressOf, type ScannedTask } from "./taskScan.js";
 
 /** Whether any view of the config renders `file.tasks`: a board (its cards
@@ -141,6 +141,12 @@ export interface VaultFindResult {
   matchCount: number;
   /** Up to `limitPerNote` matches with line context, for the preview. */
   matches: TextMatch[];
+}
+
+/** The index stores the file time as the adapter reports it; older rows may be seconds. */
+function epochMs(value: unknown): number {
+  const n = Number(value) || 0;
+  return n > 0 && n < 100_000_000_000 ? n * 1000 : n;
 }
 
 export class VaultQueryService {
@@ -290,6 +296,81 @@ export class VaultQueryService {
       LIMIT ?
     `;
     return await this.db.query(sql, [limit]);
+  }
+
+  /**
+   * Candidates for the AI's context package (plan KI-Harness §8.1): notes
+   * matching ANY of the terms, best first, with their BM25 score (sign turned,
+   * so higher is better) and an excerpt. The search box joins its terms with
+   * AND, which is right for a query someone types and wrong for a question in
+   * a sentence — that would find nothing.
+   */
+  async searchCandidates(terms: readonly string[], limit = 30): Promise<{ path: string; title: string; score: number; snippet: string | null; mtime: number }[]> {
+    const usable = terms.filter((term) => /[\p{L}\p{N}]/u.test(term)).slice(0, 12);
+    if (usable.length === 0) return [];
+    const match = usable.map((term) => `${ftsPhrase(term)}*`).join(" OR ");
+    const rows = await this.db.query<{ path: string; title: string; score: number; snippet: string | null; mtime_local: number }>(
+      `SELECT f.path AS path, f.title AS title, f.mtime_local AS mtime_local,
+         -bm25(fts_notes, 1.0, 4.0) AS score,
+         snippet(fts_notes, 0, char(1), char(2), '…', 16) AS snippet
+       FROM fts_notes fn JOIN files f ON f.path = fn.path
+       WHERE fts_notes MATCH ? AND (f.is_deleted IS NULL OR f.is_deleted = 0)
+       ORDER BY bm25(fts_notes, 1.0, 4.0), f.path ASC
+       LIMIT ?`,
+      [match, limit],
+    );
+    return rows.map((row) => ({ path: row.path, title: row.title, score: Number(row.score) || 0, snippet: row.snippet ?? null, mtime: epochMs(row.mtime_local) }));
+  }
+
+  /** Notes by their last change on disk, newest first (a sync counts as a change). */
+  async getRecentlyChangedNotes(limit = 20): Promise<{ path: string; title: string; mtime: number }[]> {
+    const rows = await this.db.query<{ path: string; title: string; mtime_local: number }>(
+      `SELECT path, title, mtime_local FROM files
+       WHERE path LIKE '%.md' AND (is_deleted IS NULL OR is_deleted = 0)
+       ORDER BY mtime_local DESC LIMIT ?`,
+      [limit],
+    );
+    return rows.map((row) => ({ path: row.path, title: row.title, mtime: epochMs(row.mtime_local) }));
+  }
+
+  /**
+   * The notes linked with one note, both ways — who links here and where it
+   * links, resolved as the graph resolves them. One entry per note with both
+   * counts, the busiest first. The graph source of the AI's context package.
+   */
+  async getLinkNeighbors(path: string, limit = 30): Promise<{ path: string; title: string; incoming: number; outgoing: number }[]> {
+    const counts = new Map<string, { incoming: number; outgoing: number }>();
+    const bump = (other: string, key: "incoming" | "outgoing") => {
+      if (other === path) return;
+      const entry = counts.get(other) ?? { incoming: 0, outgoing: 0 };
+      entry[key] += 1;
+      counts.set(other, entry);
+    };
+    for (const link of await this.getBacklinks(path)) bump(link.source_path, "incoming");
+    const outgoing = await this.db.query<{ target_path: string }>(
+      `SELECT l.target_path AS target_path FROM links l JOIN files f ON f.id = l.source_id WHERE f.path = ?`,
+      [path],
+    );
+    if (outgoing.length) {
+      const corpusRows = await this.db.query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment' OR path LIKE '%.base'`);
+      const { buildLinkTargetIndex, resolveLinkTargetIndexed } = await import("./LinkResolver.js");
+      const corpus = buildLinkTargetIndex(corpusRows.map((row) => row.path));
+      for (const row of outgoing) {
+        const resolved = resolveLinkTargetIndexed(path, row.target_path, corpus);
+        if (resolved && /\.md$/i.test(resolved)) bump(resolved, "outgoing");
+      }
+    }
+    const ranked = [...counts.entries()].sort((a, b) => b[1].incoming + b[1].outgoing - (a[1].incoming + a[1].outgoing) || a[0].localeCompare(b[0])).slice(0, limit);
+    const titles = new Map<string, string>();
+    for (let i = 0; i < ranked.length; i += 400) {
+      const chunk = ranked.slice(i, i + 400).map(([p]) => p);
+      const rows = await this.db.query<{ path: string; title: string }>(
+        `SELECT path, title FROM files WHERE path IN (${chunk.map(() => "?").join(",")})`,
+        chunk,
+      );
+      for (const row of rows) titles.set(row.path, row.title);
+    }
+    return ranked.map(([other, c]) => ({ path: other, title: titles.get(other) ?? other.replace(/^.*\//, "").replace(/\.md$/i, ""), incoming: c.incoming, outgoing: c.outgoing }));
   }
 
   /**

@@ -24,6 +24,10 @@ const TOOL_LINES: Record<string, string> = {
   get_outline: "get_outline lists a note's sections and properties",
   get_tasks: "get_tasks lists tasks",
   query_base: "query_base reads a database",
+  get_backlinks: "get_backlinks lists the notes that link to a note",
+  graph_neighborhood: "graph_neighborhood shows the notes linked with a note",
+  get_recent: "get_recent lists the notes opened or changed lately",
+  get_calendar: "get_calendar lists appointments",
   run_command: "run_command opens notes and views in the app (an unknown id returns the list of commands)",
 };
 

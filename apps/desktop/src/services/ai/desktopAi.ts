@@ -10,16 +10,27 @@ import {
   calendarDay,
   createAiVaultHost,
   createVaultPolicy,
+  databaseTaskRows,
   flushPendingSave,
   getPlatformServices,
+  journalToday,
   noteDisplayName,
+  parseRecentsFile,
   plannerRowsFromTasks,
+  situationFrom,
+  withCloudDenied,
   type AiFileStore,
   type AiNavigationCommand,
   type AiVaultHost,
+  type SituationEventInput,
   type VaultPolicyHost,
 } from "@plainva/ui";
 import { checkedReadTextFile } from "../../adapters/checkedFilesystem";
+import { journalMoodPropertyKey } from "../../contexts/VaultContext";
+import { buildDailyNotePath, readDailyNoteConfig } from "../dailyNotes";
+import { readEditorSelection } from "../editorSelection";
+import { getSettingsStore } from "../settingsStore";
+import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
 import { createDesktopAiEgress } from "./desktopAiEgress";
 
@@ -124,6 +135,12 @@ export interface DesktopVaultInput {
   encrypted: () => boolean;
   /** The path open in the focused pane, if it is a note. */
   activePath: () => string | null;
+  /** The document open in the focused pane — a note or a database. */
+  documentPath: () => string | null;
+  /** Every path open in a tab of this window. */
+  openPaths: () => string[];
+  /** Appointments between two instants (the PIM cache); empty without one. */
+  events: (from: Date, to: Date) => Promise<SituationEventInput[]>;
   /** Navigation the assistant may trigger: views and notes, nothing that changes data. */
   commands: () => AiNavigationCommand[];
 }
@@ -156,6 +173,26 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     encrypted: input.encrypted,
   });
   currentPolicy = policy;
+  /** Checkbox tasks and the task database, as every task view reads them. */
+  const taskRows = async () => {
+    const [db, notes] = await Promise.all([
+      getTaskDatabasePath(input.vaultPath)
+        .then(async (dbPath) => databaseTaskRows(dbPath ? await read(dbPath) : null, (config) => input.query.queryDatabaseFiles(config)))
+        .catch(() => []),
+      input.query
+        .listTasks()
+        .then((tasks) => plannerRowsFromTasks(tasks.filter((task) => !task.excluded)))
+        .catch(() => []),
+    ]);
+    return [...db, ...notes];
+  };
+  const moodKey = async (): Promise<string | null> => {
+    try {
+      return ((await (await getSettingsStore()).get<string>(journalMoodPropertyKey(input.vaultPath))) ?? "").trim() || null;
+    } catch {
+      return null;
+    }
+  };
   const host = createAiVaultHost({
     files: desktopAiFiles,
     vaultKey: aiVaultKey(input.vaultPath),
@@ -165,17 +202,57 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       return path ? note(path) : null;
     },
     readNote: note,
+    async keepOnDevice(path) {
+      // The editor's pending keystrokes land first, so the rule is written into the live text.
+      await flushPendingSave(path);
+      const text = await read(path);
+      if (text === null) throw new Error(`No note at ${path}`);
+      await input.adapter.writeTextFile(path, withCloudDenied(text));
+    },
+    async situation() {
+      const now = new Date();
+      const path = input.documentPath();
+      const kind = path && /\.base$/i.test(path) ? "base" : "note";
+      const text = path && kind === "note" ? ((await note(path))?.text ?? null) : null;
+      const [tasks, events, mood, dailyNotePath] = await Promise.all([
+        taskRows(),
+        input.events(now, new Date(now.getTime() + 2 * 86_400_000)).catch(() => []),
+        moodKey(),
+        readDailyNoteConfig(input.vaultPath)
+          .then(async (config) => {
+            const { fullPath } = buildDailyNotePath(journalToday(now), config.format, config.folder);
+            return (await input.adapter.exists(fullPath)) ? fullPath : null;
+          })
+          .catch(() => null),
+      ]);
+      return situationFrom({ now, active: path ? { path, kind, text } : null, selection: path ? readEditorSelection() : null, tabs: input.openPaths(), taskRows: tasks, events, dailyNotePath, moodKey: mood });
+    },
+    retrieval: {
+      searchCandidates: (terms, limit) => input.query.searchCandidates(terms, limit),
+      linkNeighbors: (path, limit) => input.query.getLinkNeighbors(path, limit),
+      recentlyChanged: (limit) => input.query.getRecentlyChangedNotes(limit),
+      async recentlyOpened() {
+        try {
+          return parseRecentsFile(await input.adapter.readTextFile(".plainva/recents.json"));
+        } catch {
+          return [];
+        }
+      },
+      now: () => Date.now(),
+    },
     toolDeps: {
       async search(query, limit, offset) {
         const hits = await input.query.searchFullText(query, limit, offset);
         return hits.map((hit) => ({ path: hit.path, title: hit.title || noteDisplayName(hit.path), snippet: hit.snippet ?? null }));
       },
       readNote: read,
-      async taskRows() {
-        return plannerRowsFromTasks((await input.query.listTasks()).filter((task) => !task.excluded));
-      },
+      taskRows,
       todayKey: () => calendarDay(),
       commands: input.commands,
+      backlinks: (path) => input.query.getBacklinks(path),
+      queryDatabase: (config) => input.query.queryDatabaseFiles(config),
+      events: (from, to) => input.events(from, to),
+      moodKey,
     },
   });
   return { host, policy };

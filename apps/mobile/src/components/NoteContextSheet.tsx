@@ -45,10 +45,12 @@ import { AddPropertySheet } from "./AddPropertySheet";
 import { RowActionSheet } from "./RowActionSheet";
 import { useLongPress } from "../lib/useLongPress";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
+import { NoteAiSegment } from "./NoteAiSegment";
+import { useMobileAiEnabled } from "../services/ai/mobileAi";
 import { ContextGraph } from "./ContextGraph";
 import { VersionsPanel } from "./VersionsPanel";
 
-export type ContextTab = "props" | "backlinks" | "outline" | "databases" | "graph" | "history";
+export type ContextTab = "props" | "backlinks" | "outline" | "databases" | "graph" | "history" | "ai";
 
 /** OKF system fields stay read-only everywhere (desktop parity). */
 const LOCKED = new Set(["type", "okf_version"]);
@@ -115,6 +117,8 @@ export function NoteContextSheet({
 }) {
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<ContextTab>(initialTab);
+  // The AI segment is the desktop dock's counterpart (plan KI-Harness §19.1): beside the note on a tablet, over it on a phone.
+  const aiOn = useMobileAiEnabled();
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
   const [backlinks, setBacklinks] = useState<Array<GroupedBacklink & { places: BacklinkContext[] }>>([]);
   // The reader's order (finding 2026-09-19): the list had none — the query
@@ -325,6 +329,7 @@ export function NoteContextSheet({
               { value: "databases", label: t("rightPanel.databases") },
               { value: "graph", label: t("rightPanel.graph") },
               { value: "history", label: t("mobile.segHistory") },
+              ...(aiOn ? [{ value: "ai", label: t("ai.title") }] : []),
             ]}
             value={tab}
             onChange={(v) => setTab(v as ContextTab)}
@@ -560,6 +565,8 @@ export function NoteContextSheet({
           )}
 
           {tab === "graph" && <ContextGraph onOpenNote={onOpenNote} path={path} vault={vault} />}
+
+          {tab === "ai" && aiOn && <NoteAiSegment onOpenNote={onOpenNote} path={path} vault={vault} />}
 
           {tab === "history" && (
             <VersionsPanel onDone={onClose} onRestored={onRestored} path={path} vault={vault} />

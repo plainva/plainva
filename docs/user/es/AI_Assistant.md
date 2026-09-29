@@ -1,6 +1,6 @@
 # Asistente de IA (Beta)
 
-Última actualización: 2026-09-24
+Última actualización: 2026-09-29
 
 Plainva puede responder preguntas sobre tus notas con un modelo de IA de tu elección. Lee tu vault, cita las notas que usó y puede abrir notas y vistas por ti — no cambia nada. El asistente es **experimental** y está desactivado hasta que lo actives, por separado en cada dispositivo.
 
@@ -34,12 +34,40 @@ Cuatro perfiles — **Rápido**, **Equilibrado**, **Potente** y **Local** — so
 
 - **Escritorio:** el botón de IA en la barra de acciones, **Ctrl+J** (⌘J en macOS) o **Preguntar a la IA** en la paleta de comandos abre el compañero — una pequeña ventana sobre tu trabajo. **Abrir como pestaña** lleva esa misma conversación a la pestaña de IA, donde están listadas tus conversaciones.
 - **Teléfono:** **Preguntar a la IA** en el menú ⋮ de una nota abre la hoja de IA sobre esa nota. El área **IA** (en la hoja de áreas, o en la barra de navegación si la colocas ahí) muestra la conversación a pantalla completa; **Conversaciones** enumera las anteriores.
+- **Junto a la nota:** en el escritorio, la misma conversación es la última sección de la barra lateral derecha, **IA**. En un teléfono o una tableta es la pestaña **IA** del contexto de la nota —junto a **Propiedades** y **Retroenlaces**—, que una tableta muestra al lado de la nota.
 
-La nota que tienes abierta se incluye automáticamente; quítala del contexto con su ✕ si quieres. **Fijar una nota…** añade más notas. El asistente también puede buscar por su cuenta: busca en el vault, lee notas y sus secciones, enumera tareas y abre notas y vistas. No puede cambiar, crear ni eliminar nada.
+La nota que tienes abierta se incluye automáticamente; quítala del contexto con su ✕ si quieres. **Fijar una nota…** añade más notas. El asistente también puede buscar por su cuenta: busca en el vault, lee notas y sus secciones, bases de datos, retroenlaces y notas enlazadas, enumera tareas, citas y las notas abiertas o cambiadas hace poco, y abre notas y vistas. No puede cambiar, crear ni eliminar nada.
 
 Cada conversación empieza con la línea «Las respuestas las escribe una IA — ⟨modelo⟩ a través de ⟨proveedor⟩». Debajo de cada respuesta, una línea indica qué se envió adónde: cuántas notas, aproximadamente cuántos tokens y — donde el proveedor publica precios — el coste aproximado. **Detener** termina una respuesta en cualquier momento.
 
 Un enlace en una respuesta se abre solo después de que confirmes su dirección, y las imágenes en las respuestas nunca se cargan.
+
+## Lo que va con cada pregunta
+
+Con cada pregunta, Plainva reúne lo que puede importar —en este dispositivo, antes de enviar nada—:
+
+- **Dónde estás:** la fecha y la hora, la nota o la base de datos que tienes abierta y tu selección en ella, tus pestañas abiertas, las tareas que vencen en la próxima semana, las próximas citas y la nota diaria de hoy.
+- **Notas que pueden importar:** encontradas a partir de tus palabras, de los enlaces de la nota abierta y de lo que abriste o cambiaste hace poco. Primero deciden tus reglas de privacidad; solo se evalúan las notas que ellas permiten. Unas pocas van como secciones —no como notas completas—, otras solo con su título y un extracto de la búsqueda o solo con su nombre; el asistente lee más de ellas cuando lo necesita.
+
+Una nota que la conversación ya lleva y que no ha cambiado desde entonces se nombra, no se envía de nuevo. Los lugares de tu diario y los valores de ánimo nunca se envían por sí solos.
+
+## Antes de enviar nada
+
+La primera solicitud de una sesión muestra un resumen: adónde va (proveedor y modelo), qué notas y qué parte de cada una, qué más va (tu selección, citas, tareas), qué se retuvo y aproximadamente cuántos tokens. **Enviar** lo envía; **Cancelar** no envía nada y te devuelve tus palabras al campo de entrada; el − junto a una nota la deja fuera. Dentro de lo que aprobaste, las siguientes solicitudes van sin preguntar. El resumen vuelve cada vez que el alcance crece: otro modelo u otro proveedor, un tipo de datos nuevo, notas de otra carpeta, herramientas nuevas o una solicitud mucho mayor. Un modelo en este dispositivo nunca pregunta.
+
+Si quieres ver el resumen antes de cada solicitud, activa **Preguntar antes de cada solicitud**, en el propio resumen o en **Configuración → IA y automatización**, en **Envío**.
+
+La línea bajo cada respuesta abre el resumen de lo que se envió con ella. Si una respuesta no cita ninguna de las notas enviadas, un aviso encima de esa línea lo dice; compruébala entonces con las notas.
+
+## Ver contexto
+
+El ojo bajo el campo de entrada, **Ver contexto**, muestra lo que llevaría la próxima solicitud, antes de que salga, para el modelo elegido ahora. Para cada nota: por qué se eligió (abierta ahora, fijada, coincide con tus palabras, enlazada, vence pronto…), qué parte va y aproximadamente cuántos tokens. Cada nota puedes
+
+- dejarla fuera de la próxima solicitud (**Volver a incluir** la recupera),
+- fijarla a la conversación,
+- mantenerla en este dispositivo para siempre: eso escribe la regla `cloud: deny` en la nota (ver más abajo).
+
+Las notas que tus reglas retienen también aparecen, para que sepas qué falta; nunca se evalúan ni se envían. **Enviar con este contexto** envía lo que escribiste. En una pestaña de IA ancha, la vista queda abierta como una columna junto a la conversación.
 
 ## Reglas de privacidad
 

@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-09-24
+Dernière mise à jour : 2026-09-29
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie et peut ouvrir des notes et des vues pour vous — il ne change rien. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -34,12 +34,40 @@ Quatre profils — **Rapide**, **Équilibré**, **Puissant** et **Local** — so
 
 - **Ordinateur :** le bouton IA dans la barre d'actions, **Ctrl+J** (⌘J sous macOS) ou **Demander à l'IA** dans la palette de commandes ouvre le compagnon — une petite fenêtre au-dessus de votre travail. **Ouvrir en onglet** déplace la même conversation dans l'onglet IA, où vos conversations sont listées.
 - **Téléphone :** **Demander à l'IA** dans le menu ⋮ d'une note ouvre la feuille IA au-dessus de cette note. La rubrique **IA** (dans « Rubriques », ou dans la barre de navigation si vous l'y placez) affiche la conversation en plein écran ; **Conversations** liste les précédentes.
+- **À côté de la note :** sur l'ordinateur, la même conversation est la dernière section de la barre latérale droite, **IA**. Sur un téléphone ou une tablette, c'est l'onglet **IA** du contexte de la note — à côté de **Propriétés** et **Backlinks** —, qu'une tablette affiche à côté de la note.
 
-La note que vous avez ouverte est jointe automatiquement ; retirez-la du contexte avec son ✕ si vous le souhaitez. **Épingler une note…** ajoute d'autres notes. L'assistant peut aussi chercher par lui-même : il parcourt le vault, lit des notes et leurs sections, liste des tâches et ouvre des notes et des vues. Il ne peut rien modifier, créer ou supprimer.
+La note que vous avez ouverte est jointe automatiquement ; retirez-la du contexte avec son ✕ si vous le souhaitez. **Épingler une note…** ajoute d'autres notes. L'assistant peut aussi chercher par lui-même : il parcourt le vault, lit des notes et leurs sections, des bases de données, des backlinks et des notes liées, liste des tâches, des rendez-vous et les notes ouvertes ou modifiées récemment, et ouvre des notes et des vues. Il ne peut rien modifier, créer ou supprimer.
 
 Chaque conversation commence par la ligne « Les réponses sont rédigées par une IA — ⟨modèle⟩ via ⟨fournisseur⟩ ». Sous chaque réponse, une ligne indique ce qui a été envoyé où : combien de notes, environ combien de jetons et — là où le fournisseur publie ses prix — le coût approximatif. **Arrêter** met fin à une réponse à tout moment.
 
 Un lien dans une réponse ne s'ouvre qu'après confirmation de son adresse, et les images dans les réponses ne sont jamais chargées.
+
+## Ce qui part avec une question
+
+À chaque question, Plainva rassemble ce qui peut compter — sur cet appareil, avant tout envoi :
+
+- **Où vous en êtes :** la date et l'heure, la note ou la base ouverte et votre sélection, vos onglets ouverts, les tâches à échéance dans la semaine, les prochains rendez-vous et la note du jour.
+- **Les notes qui peuvent compter :** trouvées à partir de vos mots, des liens de la note ouverte et de ce que vous avez ouvert ou modifié récemment. Vos règles de confidentialité décident d'abord ; seules les notes qu'elles autorisent sont évaluées. Quelques-unes partent sous forme de sections — pas de notes entières —, d'autres seulement avec leur titre et un extrait de recherche, ou leur seul nom ; l'assistant en lit davantage s'il en a besoin.
+
+Une note que la conversation contient déjà et qui n'a pas changé depuis est nommée, pas renvoyée. Les lieux de votre journal et les valeurs d'humeur ne partent jamais d'eux-mêmes.
+
+## Avant tout envoi
+
+La première requête d'une session affiche un aperçu : où elle part (fournisseur et modèle), quelles notes et quelle partie de chacune, ce qui part en plus (votre sélection, des rendez-vous, des tâches), ce qui a été retenu et environ combien de jetons. **Envoyer** l'envoie ; **Annuler** n'envoie rien et vous rend vos mots dans le champ de saisie ; le − à côté d'une note la retire. Dans les limites de ce que vous avez approuvé, les requêtes suivantes partent sans question. L'aperçu revient dès que la portée s'élargit : un autre modèle ou fournisseur, un nouveau type de données, des notes d'un autre dossier, de nouveaux outils ou une requête bien plus grande. Un modèle sur cet appareil ne demande jamais rien.
+
+Pour voir l'aperçu avant chaque requête, activez **Demander avant chaque requête** — dans l'aperçu lui-même ou dans **Paramètres → IA & automatisation**, sous **Envoi**.
+
+La ligne sous chaque réponse ouvre l'aperçu de ce qui est parti avec elle. Si une réponse ne cite aucune des notes envoyées, un avis au-dessus de cette ligne le signale ; vérifiez alors la réponse à partir des notes.
+
+## Voir le contexte
+
+L'œil sous le champ de saisie, **Voir le contexte**, montre ce que la prochaine requête emporterait — avant son départ, pour le modèle choisi maintenant. Pour chaque note : pourquoi elle a été choisie (ouverte maintenant, épinglée, correspond à vos mots, liée, échéance proche…), quelle partie part et environ combien de jetons. Chaque note peut être
+
+- retirée de la prochaine requête (**Réintégrer** la remet),
+- épinglée à la conversation,
+- gardée sur cet appareil pour de bon : cela écrit la règle `cloud: deny` dans la note (voir plus bas).
+
+Les notes que vos règles retiennent sont aussi listées, pour que vous sachiez ce qui manque ; elles ne sont jamais évaluées ni envoyées. **Envoyer avec ce contexte** envoie ce que vous avez tapé. Dans un onglet IA large, la vue reste ouverte en colonne à côté de la conversation.
 
 ## Règles de confidentialité
 

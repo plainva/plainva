@@ -4773,3 +4773,6 @@ textarea {
 .m-ai-sheet .pv-ai { flex: 1; min-height: 0; }
 .m-ai-page { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .m-ai-page .pv-ai { flex: 1; min-height: 0; }
+/* The AI segment of the note's context: bounded, so its thread scrolls inside the sheet or the docked column. */
+.m-ai-segment { display: flex; flex-direction: column; height: 56vh; }
+.m-ai-segment > .pv-ai { flex: 1; min-height: 0; }

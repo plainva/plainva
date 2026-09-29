@@ -94,6 +94,22 @@ function vaultHost(active: string | null) {
     async readNote(path) {
       return note(path);
     },
+    async situation() {
+      return {
+        now: "2026-09-24 10:00",
+        weekday: "Thursday",
+        calendarDay: "2026-09-24",
+        journalDay: "2026-09-24",
+        active: active ? { path: active, title: active.replace(/\.md$/, ""), kind: "note" as const } : null,
+        tabs: [],
+        tasks: [],
+        events: [],
+        dailyNote: null,
+      };
+    },
+    async candidates() {
+      return [];
+    },
     policy: {
       async policyOf(path, text) {
         const t = text ?? files[path] ?? "";
@@ -108,7 +124,19 @@ function vaultHost(active: string | null) {
   return { host, saved, ledger: () => ledger };
 }
 
-function session(script: EgressChunk[][]) {
+/** Resolves when the send overview asks for an answer. */
+function consentAsked(s: AiSession): Promise<void> {
+  return new Promise((resolve) => {
+    const off = s.subscribe(() => {
+      if (s.getState().consent) {
+        off();
+        resolve();
+      }
+    });
+  });
+}
+
+function session(script: EgressChunk[][], options: { approve?: boolean } = {}) {
   const fake = fakeEgress(script);
   let ids = 0;
   let stored: unknown = { ...DEFAULT_AI_APP_SETTINGS, enabled: true, profiles: { balanced: { providerId: "anthropic", model: "m-1" } } };
@@ -126,6 +154,12 @@ function session(script: EgressChunk[][]) {
     now: () => new Date("2026-09-24T10:00:00Z"),
     newId: () => `id${++ids}`,
   });
+  // Most tests approve the send overview as it comes; the consent test answers itself.
+  if (options.approve !== false) {
+    s.subscribe(() => {
+      if (s.getState().consent) s.answerConsent(true);
+    });
+  }
   return { s, fake, stored: () => stored };
 }
 
@@ -144,9 +178,10 @@ describe("the AI session", () => {
     const state = s.getState();
     expect(state.live).toBeNull();
     expect(state.active!.conversation.turns.map((t) => t.role)).toEqual(["user", "assistant"]);
-    expect(state.active!.runs).toEqual([
-      { userTurn: 0, providerId: "anthropic", model: "m-1", sent: ["Offer.md"], kept: [], usage: { inputTokens: 50, outputTokens: 7, cacheReadTokens: 0, cacheWriteTokens: 0 }, steps: 1, stop: "answered" },
-    ]);
+    expect(state.active!.runs).toHaveLength(1);
+    // The linked note was kept back: its title is withheld in the sent text.
+    expect(state.active!.runs[0]).toMatchObject({ userTurn: 0, providerId: "anthropic", model: "m-1", sent: ["Offer.md"], kept: ["Salaries.md"], usage: { inputTokens: 50, outputTokens: 7, cacheReadTokens: 0, cacheWriteTokens: 0 }, steps: 1, stop: "answered" });
+    expect(state.active!.runs[0]!.manifest).toMatchObject({ providerId: "anthropic", model: "m-1", sources: [{ path: "Offer.md", tier: "evidence" }], excluded: [{ path: "Salaries.md", reason: "cloud-denied" }] });
     expect(state.summaries.map((x) => x.title)).toEqual(["Where is the offer?"]);
     expect(vault.saved.get("id1")!.runs).toHaveLength(1);
     expect(vault.ledger()).toHaveLength(1);
@@ -169,10 +204,79 @@ describe("the AI session", () => {
     await s.pin("Plan.md");
     await s.send("First");
     await s.send("Second");
+    expect(JSON.stringify(fake.sent[0]!.body)).toContain('origin=\\"vault:Plan.md\\"');
     const second = fake.sent[1]!.body!.messages as Array<{ role: string; content: Array<{ text?: string }> }>;
     const lastUser = second[second.length - 1]!;
-    expect(lastUser.content.map((c: { text?: string }) => c.text)).toEqual(["Second"]);
-    expect(JSON.stringify(fake.sent[0]!.body)).toContain('origin=\\"vault:Plan.md\\"');
+    const texts = lastUser.content.map((c: { text?: string }) => c.text ?? "");
+    expect(texts[texts.length - 1]).toBe("Second");
+    // The situation goes again; the notes it already sent are named, not repeated.
+    expect(texts[0]).toContain("unchanged since it was sent earlier");
+    expect(texts[0]).not.toContain("Rates as in");
+  });
+
+  it("asks with the send overview first and whenever the scope grows; a declined overview sends nothing", async () => {
+    const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")], { approve: false });
+    await s.load();
+    await s.attachVault(vaultHost("Offer.md").host);
+
+    let asked = consentAsked(s);
+    const declined = s.send("First");
+    await asked;
+    expect(s.getState().consent!.growth).toEqual([{ kind: "first" }]);
+    expect(s.getState().consent!.manifest.sources.map((x) => x.path)).toEqual(["Offer.md"]);
+    s.answerConsent(false);
+    expect(await declined).toBeNull();
+    expect(fake.sent).toHaveLength(0);
+    expect(s.getState().active).toBeNull();
+
+    asked = consentAsked(s);
+    const approved = s.send("First");
+    await asked;
+    s.answerConsent(true);
+    expect(await approved).toEqual({ kind: "answered" });
+
+    // Within the approved scope: no question.
+    expect(await s.send("Again")).toEqual({ kind: "answered" });
+    expect(s.getState().consent).toBeNull();
+
+    // Another model is a new recipient: the overview comes back.
+    await s.setChoice({ providerId: "anthropic", model: "m-2" });
+    asked = consentAsked(s);
+    const grown = s.send("Third");
+    await asked;
+    expect(s.getState().consent!.growth).toEqual([{ kind: "recipient", recipient: "anthropic/m-2" }]);
+    s.stop();
+    expect(await grown).toBeNull();
+    expect(fake.sent).toHaveLength(2);
+  });
+
+  it("View context builds the next request without sending; a note left out there stays out of that request only", async () => {
+    const { s, fake } = session([answer("One."), answer("Two.")]);
+    await s.load();
+    const vault = vaultHost("Offer.md");
+    const written: string[] = [];
+    vault.host.keepOnDevice = async (path) => {
+      written.push(path);
+    };
+    await s.attachVault(vault.host);
+    await s.pin("Plan.md");
+
+    const preview = (await s.previewContext("Where is the offer?"))!;
+    expect(fake.sent).toHaveLength(0);
+    expect(preview.pack.refs.map((r) => r.path).sort()).toEqual(["Offer.md", "Plan.md"]);
+    expect(preview.manifest.excluded.map((e) => e.path)).toEqual(["Salaries.md"]);
+
+    s.toggleLeaveOut("Plan.md");
+    expect((await s.previewContext("Where is the offer?"))!.pack.refs.map((r) => r.path)).toEqual(["Offer.md"]);
+    await s.send("Where is the offer?");
+    expect(JSON.stringify(fake.sent[0]!.body)).not.toContain("vault:Plan.md");
+    // Left out for one request: the next one carries the pinned note again.
+    expect(s.getState().leaveOutNext).toEqual([]);
+    await s.send("And now?");
+    expect(JSON.stringify(fake.sent[1]!.body)).toContain('origin=\\"vault:Plan.md\\"');
+
+    expect(await s.keepOnDevice("Offer.md")).toBe(true);
+    expect(written).toEqual(["Offer.md"]);
   });
 
   it("shows a failure as a notice and keeps the question", async () => {
