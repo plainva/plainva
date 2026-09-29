@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
+import { ChoiceMark } from "../../components/ChoiceMark";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Copy, Folder, Hash, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
-import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
+import { mActions, mConfirm, mPrompt, mSelect, mTargets } from "../../services/mobileDialogs";
 import { getMobileSettings } from "../../services/mobileSettings";
 import { listPimAccounts, pimTaskListRuntime } from "../../services/pim/pimService";
 import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import { ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
-import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, taskListPickerOptions, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
+import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, resolveTaskListTarget, taskListPickerOptions, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -148,6 +149,7 @@ export function BaseConfigSheet({
           { value: "", label: t("database.noTemplate") },
           ...templates.map((tp) => ({ value: tp.path, label: tp.title })),
         ],
+        value: newItemTemplate,
       });
       if (picked === null) return;
       onMutate((cfg) => {
@@ -176,8 +178,13 @@ export function BaseConfigSheet({
       const labels = new Map(
         (await listPimAccounts()).map((a) => [a.id, a.label?.trim() || a.provider] as const)
       );
+      // The ring sits on the list in force (E20), resolved by the SAME rule the
+      // creation path and the desktop's row ask: a stored key whose list is
+      // gone marks "stays a note", which is exactly what would happen.
+      const inForce = resolveTaskListTarget(config, usable);
       const picked = await mSelect({
         title: t("tasks.alsoCreateIn"),
+        value: inForce ? `${inForce.accountId} ${inForce.listId}` : "",
         options: [
           { value: "", label: t("tasks.noProviderList") },
           ...taskListPickerOptions(
@@ -259,7 +266,8 @@ export function BaseConfigSheet({
       const rows = vault.queryService ? await vault.queryService.getAllTags() : [];
       const tags = rows.map((r: { tag: string }) => r.tag);
       if (tags.length === 0) return;
-      const picked = await mSelect({
+      // The tag a new source clause will name: the target of "add" (E20).
+      const picked = await mTargets({
         title: t("database.tag"),
         options: tags.map((tag: string) => ({ value: tag, label: `#${tag}` })),
       });
@@ -344,7 +352,7 @@ export function BaseConfigSheet({
 
   const addGroup = () => {
     void (async () => {
-      const col = await mSelect({
+      const col = await mTargets({
         title: t("database.filterGroup"),
         options: filterFields.map((field) => ({ value: field.column, label: field.label })),
       });
@@ -445,7 +453,9 @@ export function BaseConfigSheet({
         toast.error(t("properties.renameInvalid"));
         return;
       }
-      const type = await mSelect({
+      // A step of "new property": nothing is in force yet, so nothing is
+      // preselected (E20) — the list is what to create.
+      const type = await mActions({
         title: t("properties.chooseType"),
         options: NEW_PROPERTY_TYPES.map((tp) => ({ value: tp, label: t(`properties.type_${tp}`) })),
       });
@@ -615,27 +625,40 @@ export function BaseConfigSheet({
         </>
         )}
 
-        {/* Views — mobile-only view management (desktop: view tab strip) */}
+        {/* Views — mobile-only view management (desktop: view tab strip).
+            A view is a place to go, not a value (E20): the one on screen is
+            the row's `current` state, the others carry no mark. It was a ring
+            list, and no ring stood outside this sheet's own file. */}
         {activeArea === "views" && (
         <>
-        {views.map((v, i) => (
-          <div className="m-row m-row--split" key={`${v.name ?? ""}-${i}`}>
-            <button className="m-row-main" onClick={() => onSelectView(i)}>
-              <span>{v.name || viewTypeLabel(v.type ?? "table")}</span>
-              <span className={`m-slotmark${i === viewIndex ? " is-on" : ""}`} />
-            </button>
-            <IconButton label={t("block.moveUp")} disabled={i === 0} onClick={() => moveView(i, -1)}>
-              <ArrowUp size={ICON.head} />
-            </IconButton>
-            <IconButton
-              label={t("block.moveDown")}
-              disabled={i === views.length - 1}
-              onClick={() => moveView(i, 1)}
-            >
-              <ArrowDown size={ICON.head} />
-            </IconButton>
-          </div>
-        ))}
+        <GroupCard>
+          <RowList>
+            {views.map((v, i) => (
+              <Row
+                controls
+                current={i === viewIndex}
+                data-testid="cfg-view-row"
+                key={`${v.name ?? ""}-${i}`}
+                title={v.name || viewTypeLabel(v.type ?? "table")}
+                onClick={() => onSelectView(i)}
+                end={
+                  <>
+                    <IconButton label={t("block.moveUp")} disabled={i === 0} onClick={() => moveView(i, -1)}>
+                      <ArrowUp size={ICON.head} />
+                    </IconButton>
+                    <IconButton
+                      label={t("block.moveDown")}
+                      disabled={i === views.length - 1}
+                      onClick={() => moveView(i, 1)}
+                    >
+                      <ArrowDown size={ICON.head} />
+                    </IconButton>
+                  </>
+                }
+              />
+            ))}
+          </RowList>
+        </GroupCard>
         <button className="m-row" onClick={addView}>
           <Plus size={ICON.head} />
           <span>{t("database.addView")}</span>
@@ -965,7 +988,7 @@ export function BaseConfigSheet({
               onClick={() => setOrder(shown.filter((x) => x !== c))}
             >
               <span>{columnLabel(c)}</span>
-              <span className="m-slotmark is-on" />
+              <ChoiceMark multiple on />
             </button>
             <IconButton
               label={t("properties.editColumn", { column: columnLabel(c) })}
@@ -1004,7 +1027,7 @@ export function BaseConfigSheet({
           <div className="m-row m-row--split" key={c}>
             <button className="m-row-main" onClick={() => setOrder([...shown, c])}>
               <span>{columnLabel(c)}</span>
-              <span className="m-slotmark" />
+              <ChoiceMark multiple on={false} />
             </button>
             <IconButton
               label={t("properties.editColumn", { column: columnLabel(c) })}

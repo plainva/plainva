@@ -4,7 +4,7 @@ import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph 
 import { appendWikiLink, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink } from "@plainva/ui";
 import { buildVaultMapScene, Chip, toast, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, Button, GroupCard, ICON, IconButton, Row, RowList, SearchField, Switch } from "@plainva/ui";
 import { AlertTriangle, ChevronRight, Clock, Crosshair, FileText, Flame, ImageDown, Maximize2, Minus, MousePointerSquareDashed, PinOff, Plus, SlidersHorizontal, Trash2, Link2, Waypoints } from "lucide-react";
-import { mConfirm, mSelect } from "../services/mobileDialogs";
+import { mActions, mConfirm, mSelect } from "../services/mobileDialogs";
 import { type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
@@ -390,7 +390,8 @@ export function GraphScreen({
     const options = await loadRelationCatalog(vault.files, service)
       .then((catalog) => findRelationOptions(catalog, source, target))
       .catch(() => [] as RelationOption[]);
-    const picked = await mSelect({
+    // How to connect the two: actions, nothing preselected (E20).
+    const picked = await mActions({
       title: t("graph.connectTitle", { source: titleOf(source), target: titleOf(target) }),
       options: [
         { value: "", label: t("graph.connectAsText") },
@@ -492,7 +493,9 @@ export function GraphScreen({
 
   const askFocus = (id: string) => {
     void (async () => {
-      const depth = await mSelect({
+      // The second step of "focus": how far to look — an action, not a
+      // setting in force (E20).
+      const depth = await mActions({
         title: t("graph.focusDepth"),
         options: [1, 2, 3].map((d) => ({ value: String(d), label: t("graph.focusActive", { depth: d }) })),
       });

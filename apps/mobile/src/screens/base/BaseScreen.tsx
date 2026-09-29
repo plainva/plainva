@@ -67,7 +67,7 @@ import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
 import { confirmDeleteFile, confirmDeleteFiles } from "../../lib/deleteFile";
-import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
+import { mConfirm, mPrompt, mSelect, mTargets } from "../../services/mobileDialogs";
 import { getWindowClass, subscribeWindowClass } from "../../services/windowClass";
 import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
 import {
@@ -105,6 +105,7 @@ import {
 import { createPimEvent, listPimAccounts, listPimCalendars } from "../../services/pim/pimService";
 import { buildEntryPeek } from "./entryPeek";
 import { EntryPeekSheet } from "./EntryPeekSheet";
+import { ChoiceMark } from "../../components/ChoiceMark";
 
 type Row = Record<string, any>;
 
@@ -706,7 +707,8 @@ export function BaseScreen({
     }
 
     const picked = rows.filter((r) => rowSel.selection.has(rowPath(r)));
-    const col = await mSelect({
+    // The column is the TARGET of the bulk edit, not a value (E20).
+    const col = await mTargets({
       title: t("database.bulkSetTitle", { count: paths.length }),
       options: settable.map((c) => {
         // "currently mixed" is worth saying: it is the difference between
@@ -908,7 +910,7 @@ export function BaseScreen({
       const options = calendarPickerOptions(writable, labels, accounts.length > 1);
       const calendarKey = options.length === 1
         ? options[0]!.value
-        : await mSelect({ title: t("pim.scheduleEntry"), options });
+        : await mTargets({ title: t("pim.scheduleEntry"), options });
       if (!calendarKey) return;
       try {
         const res = await createEntryEvent({
@@ -1135,7 +1137,7 @@ export function BaseScreen({
             <tr data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
               {rowSel.active && (
                 <td className="m-selcell" onClick={() => rowSel.toggle(rowPath(r))}>
-                  <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />
+                  <ChoiceMark multiple on={rowSel.selection.has(rowPath(r))} />
                 </td>
               )}
               <td onClick={() => openOrSelect(rowPath(r))} style={n.depth > 0 ? { paddingLeft: `calc(var(--pad-cell) + ${n.depth} * var(--space-4))` } : undefined}>
@@ -1173,7 +1175,7 @@ export function BaseScreen({
       {rows!.map((r) => (
         <div className="m-row m-row--split" data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
           <button className="m-row-main" onClick={() => openOrSelect(rowPath(r))}>
-            {rowSel.active && <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />}
+            {rowSel.active && <ChoiceMark multiple on={rowSel.selection.has(rowPath(r))} />}
             <span>{rowTitle(r)}</span>
           </button>
           {orderedColumns[0] && (
@@ -1195,7 +1197,7 @@ export function BaseScreen({
             <img alt="" className="pv-card pv-card--flat m-basecard-cover" src={coverUrls[rowPath(r)]} />
           )}
           <button className="pv-card pv-card--flat m-basecard-title" onClick={() => openOrSelect(rowPath(r))}>
-            {rowSel.active && <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />}
+            {rowSel.active && <ChoiceMark multiple on={rowSel.selection.has(rowPath(r))} />}
             {rowTitle(r)}
           </button>
           {propLine(r, orderedColumns, 3)}
@@ -1872,6 +1874,7 @@ export function BaseScreen({
                 const picked = await mSelect({
                   title: t("database.scaleWeek"),
                   options: scaleSlots.overflow.map((o) => ({ value: o.value, label: o.label })),
+                  value: tlWindow.scale,
                 });
                 if (picked !== null) {
                   setTlWindow(() => windowAround(days[Math.floor(days.length / 3)] ?? todayKey, picked as TimelineWindow["scale"]));
@@ -2055,12 +2058,15 @@ export function BaseScreen({
               return;
             }
             void (async () => {
-              const picked = await mSelect({
+              // The views beyond the strip are PLACES (E20): no ring, the
+              // one on screen is marked as current. Every ring here was empty.
+              const picked = await mTargets({
                 title: t("database.views"),
                 options: viewSlots.overflow.map(({ view, index }) => ({
                   value: String(index),
                   label: view.name || view.type || String(index + 1),
                 })),
+                current: String(viewIndex),
               });
               if (picked !== null) setViewIndex(Number(picked));
             })();

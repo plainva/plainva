@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, CheckSquare, ChevronDown, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
+import { Ban, CheckSquare, ChevronDown, Folder, FolderInput, Mail, MailOpen, MessagesSquare, Paperclip, PenLine, Search, Settings, Star, Trash2, X } from "lucide-react";
 import { firstAngleValue } from "@plainva/core";
 import { Banner, Button, EmptyState, Fab, ICON, IconButton, mailRowActions, plainvaProducer, SearchField, toast, useStableHandler } from "@plainva/ui";
 import { addSnooze, filterSnoozed, parseSnoozeState, pruneSnoozes, SNOOZE_PRESETS, snoozeUntil, type SnoozeEntry, type SnoozePreset, mailErrorText } from "@plainva/ui/mail";
@@ -53,12 +53,13 @@ import { rememberedMailPlace, rememberMailPlace, resolveMailAccount, resolveMail
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
 import { bulkTargets, toggleSelected } from "./mail/mailBulk";
-import { mConfirm, mSelect } from "../services/mobileDialogs";
+import { mActions, mConfirm, mTargets } from "../services/mobileDialogs";
 import { useLongPress } from "../lib/useLongPress";
 import { SheetGrip } from "../components/SheetGrip";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import type { MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
+import { ChoiceMark } from "../components/ChoiceMark";
 
 const PAGE = 30;
 
@@ -473,6 +474,21 @@ export function MailListScreen({
     () => sortMailFolders(folders.map((f) => f.name), folders[0]?.delimiter),
     [folders],
   );
+  /**
+   * Where a mail can move to, as target rows (E20): every folder, the inbox
+   * with its own sign. One list for a single mail and for a selection; the
+   * folder the mail lies in is passed as `here` and stays in it, unselectable.
+   */
+  const inboxBox = useMemo(() => pickInboxFolder(folders), [folders]);
+  const moveTargets = useMemo(
+    () =>
+      folderNames.map((n) => ({
+        value: n,
+        label: mailFolderLabel(n, folders[0]?.delimiter),
+        icon: n === inboxBox ? <Mail size={ICON.head} /> : <Folder size={ICON.head} />,
+      })),
+    [folderNames, folders, inboxBox],
+  );
 
   // ---- Selection mode (G3a) ------------------------------------------------
   // Long-press opens it, tapping then selects further. The desktop does this
@@ -825,9 +841,12 @@ export function MailListScreen({
     const account = accountById(accountId);
     const { box, uid } = originOf(m);
     if (!vault || !account || !box) return;
-    const target = await mSelect({
+    // Where the mail goes (E20): the targets of the move. Its own folder stays
+    // in the list as "here", unselectable, so the list reads complete.
+    const target = await mTargets({
       title: t("mail.moveTo"),
-      options: folderNames.filter((n) => n !== box).map((n) => ({ value: n, label: mailFolderLabel(n, folders[0]?.delimiter) })),
+      options: moveTargets,
+      here: box,
     });
     if (!target) return;
     try {
@@ -875,7 +894,7 @@ export function MailListScreen({
    */
   const swipeSnooze = async (m: MailEnvelope) => {
     if (!account) return;
-    const chosenPreset = (await mSelect({
+    const chosenPreset = (await mActions({
       title: t("mail.snooze"),
       options: SNOOZE_PRESETS.map((p) => ({ value: p, label: t(`mail.snooze_${p}`) })),
     })) as SnoozePreset | null;
@@ -908,9 +927,10 @@ export function MailListScreen({
   const bulkMove = async () => {
     const account = accountById(accountId);
     if (!vault || !account || !mailbox) return;
-    const target = await mSelect({
+    const target = await mTargets({
       title: t("mail.moveTo"),
-      options: folderNames.filter((n) => n !== mailbox).map((n) => ({ value: n, label: mailFolderLabel(n, folders[0]?.delimiter) })),
+      options: moveTargets,
+      here: mailbox,
     });
     if (!target) return;
     void runOnSelection(
@@ -1280,7 +1300,7 @@ export function MailListScreen({
                             </span>
                             {latest.preview && <span className="m-mailrow-preview">{latest.preview}</span>}
                           </span>
-                          {selection && <span className={`m-slotmark${selection.has(sid) ? " is-on" : ""}`} />}
+                          {selection && <ChoiceMark multiple on={selection.has(sid)} />}
                         </button>
                       </SwipeRow>
                     </li>
@@ -1371,7 +1391,7 @@ export function MailListScreen({
                               </span>
                               {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
                             </span>
-                            {selection && <span className={`m-slotmark${selection.has(mid) ? " is-on" : ""}`} />}
+                            {selection && <ChoiceMark multiple on={selection.has(mid)} />}
                           </button>
                         </SwipeRow>
                         );
@@ -1423,7 +1443,7 @@ export function MailListScreen({
                     </span>
                     {m.preview && <span className="m-mailrow-preview">{m.preview}</span>}
                   </span>
-                  {selection && <span className={`m-slotmark${selection.has(m.id) ? " is-on" : ""}`} />}
+                  {selection && <ChoiceMark multiple on={selection.has(m.id)} />}
                 </button>
               </SwipeRow>
             </li>

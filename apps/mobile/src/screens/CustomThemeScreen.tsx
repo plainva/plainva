@@ -32,7 +32,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SwatchSheet } from "../components/SwatchSheet";
-import { mSelect } from "../services/mobileDialogs";
+import { mSelect, mTargets } from "../services/mobileDialogs";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mobilePersonalDesignForEditor } from "../services/personalDesign";
 
@@ -89,7 +89,8 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
   };
   const adoptFrom = () => {
     const themes = AVAILABLE_THEMES.filter((d) => !d.unlock);
-    void mSelect({
+    // The theme to take colours FROM: the target of an action (E20).
+    void mTargets({
       title: t("settings.customThemeAdoptFrom"),
       options: themes.map((d) => ({ value: d.id, label: t(`themes.names.${d.id}`, { defaultValue: d.label }) })),
     }).then((id) => {

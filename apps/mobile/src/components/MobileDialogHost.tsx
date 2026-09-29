@@ -1,5 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./SheetGrip";
+import { ChoiceMark, useChoiceBeat } from "./ChoiceMark";
 import { useTranslation } from "react-i18next";
 import { Button, type CascadeGroup, type CascadeSelection, Checkbox, Chip, type DeletionPlan, effectiveGroupChecked, GroupCard, groupId, initialSelection, Row, RowList, SearchField, selectedPaths, Switch, TextInput, ScrollEdge} from "@plainva/ui";
 import {
@@ -37,6 +38,13 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
   const [text, setText] = useState(dialog.kind === "prompt" ? (dialog.initial ?? "") : "");
   const [filter, setFilter] = useState("");
   const [checked, setChecked] = useState(dialog.kind === "prompt" ? (dialog.checkbox?.initial ?? false) : false);
+  // A single choice shows its new mark, THEN closes (E21). Called before the
+  // kind branches below, which return early.
+  const beat = useChoiceBeat<string>((value) => {
+    if (dialog.kind !== "select") return;
+    dialog.resolve(value);
+    dismissMobileDialog(dialog);
+  });
 
   const cancel = () => {
     if (dialog.kind === "prompt") dialog.resolve({ value: "", cancelled: true, checked: false });
@@ -127,7 +135,7 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
           </div>
         )}
 
-        {dialog.kind === "select" && dialog.search && (
+        {(dialog.kind === "select" || dialog.kind === "target") && dialog.search && (
           <SearchField
             clearLabel={t("sidebar.clearSearch")}
             onValueChange={setFilter}
@@ -152,7 +160,58 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
                   key={opt.value}
                   className={opt.danger ? "m-danger" : undefined}
                   data-sheet-sep={opt.danger && !all[i - 1]?.danger ? "" : undefined}
-                  icon={<span className={`m-slotmark${dialog.value === opt.value ? " is-on" : ""}`} />}
+                  icon={<ChoiceMark on={(beat.picked ? beat.picked.value : dialog.value) === opt.value} />}
+                  title={opt.label}
+                  subtitle={opt.desc}
+                  onClick={() => beat.pick(opt.value)}
+                />
+              ))}
+            </RowList>
+          </GroupCard>
+        )}
+        {/* A place to go, or the target of an action (E20): no mark at all.
+            The place shown now is the row's `current` state — the tint, the
+            weight and the check come from the shared Row, so no sheet can spell
+            it differently. Where the object already lies stays in the list,
+            says so, and cannot be picked. The sheet closes on the tap: nothing
+            was set that one would need to see. */}
+        {dialog.kind === "target" && (
+          <GroupCard>
+            <RowList>
+              {filterOptions(dialog.options, dialog.search ? filter : "").map((opt) => {
+                const here = dialog.here !== undefined && opt.value === dialog.here;
+                return (
+                  <Row
+                    key={opt.value}
+                    current={!here && dialog.current === opt.value}
+                    disabled={here}
+                    data-target-here={here ? "" : undefined}
+                    icon={opt.icon}
+                    title={opt.label}
+                    subtitle={opt.desc}
+                    end={here ? t("common.here") : undefined}
+                    onClick={() => {
+                      if (here) return;
+                      dialog.resolve(opt.value);
+                      dismissMobileDialog(dialog);
+                    }}
+                  />
+                );
+              })}
+            </RowList>
+          </GroupCard>
+        )}
+        {/* Something to do (E20): plain rows, nothing preselected, nothing
+            tinted. The destructive entry is separated as in every sheet (S21). */}
+        {dialog.kind === "actions" && (
+          <GroupCard>
+            <RowList>
+              {dialog.options.map((opt, i, all) => (
+                <Row
+                  key={opt.value}
+                  className={opt.danger ? "m-danger" : undefined}
+                  data-sheet-sep={opt.danger && !all[i - 1]?.danger ? "" : undefined}
+                  icon={opt.icon}
                   title={opt.label}
                   subtitle={opt.desc}
                   onClick={() => {
@@ -216,7 +275,7 @@ function MultiSelectSheet({
             {dialog.options.map((opt) => (
               <Row
                 key={opt.value}
-                icon={<span className={`m-slotmark${values.includes(opt.value) ? " is-on" : ""}`} />}
+                icon={<ChoiceMark multiple on={values.includes(opt.value)} />}
                 title={opt.label}
                 subtitle={opt.desc}
                 onClick={() => toggle(opt.value)}
@@ -235,7 +294,7 @@ function MultiSelectSheet({
               dismissMobileDialog(dialog);
             }}
           >
-            {t("common.ok")}
+            {t("common.done")}
           </Button>
         </div>
       </div>

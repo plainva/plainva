@@ -79,8 +79,8 @@ test("the phone's search field reaches the sort button", async ({ page, context 
  * Search hits came by relevance and nothing else; backlinks came in whatever
  * order the link table held them, because the statement had no ORDER BY. This
  * runs against the real SQLite index: three notes that all match and all link
- * to one hub, sorted through the sheet and through the chips, and the choice
- * survives a reload.
+ * to one hub, sorted through the one sort sheet (E21: it holds until Done, and
+ * the backlinks use it instead of chips), and the choice survives a reload.
  */
 test("search hits and backlinks follow the chosen order, and the choice is remembered", async ({ page, context }) => {
   const sql = await installSqlBridge(context);
@@ -121,12 +121,21 @@ test("search hits and backlinks follow the chosen order, and the choice is remem
 
     await openSearch();
     await page.getByTestId("search-sort").click();
+    const sortSheet = page.getByTestId("search-sort-sheet");
     await page.getByTestId("search-sort-sheet-title").click();
-    expect(await titles()).toEqual(["Alpha", "Mango", "Zebra"]);
-    // The active key again flips the direction — the file tree's rule.
-    await page.getByTestId("search-sort").click();
+    // The sheet holds until Done (E21): the direction is decided while
+    // looking at it. It used to close on every tap, so turning the direction
+    // around meant opening the sheet a second time.
+    await expect(sortSheet).toBeVisible();
     await expect(page.getByTestId("search-sort-sheet-title")).toContainText("Ascending");
+    await expect(page.getByTestId("search-sort-sheet-hint")).toBeVisible();
+    await expect.poll(titles).toEqual(["Alpha", "Mango", "Zebra"]);
+    // The active key again flips the direction — the file tree's rule.
     await page.getByTestId("search-sort-sheet-title").click();
+    await expect(page.getByTestId("search-sort-sheet-title")).toContainText("Descending");
+    await expect(sortSheet).toBeVisible();
+    await page.getByTestId("search-sort-sheet-done").click();
+    await expect(sortSheet).toHaveCount(0);
     expect(await titles()).toEqual(["Zebra", "Mango", "Alpha"]);
 
     // Remembered on this device.
@@ -145,12 +154,24 @@ test("search hits and backlinks follow the chosen order, and the choice is remem
     await page.getByTestId("note-context").click();
     await page.getByRole("radio", { name: /Backlinks/ }).click();
     const rows = page.getByTestId("backlink-row");
+    const order = async () => (await rows.allTextContents()).map((text) => text.replace(/×\d+/, "").trim());
     await expect(rows).toHaveCount(3);
-    expect((await rows.allTextContents()).map((text) => text.replace(/×\d+/, "").trim())).toEqual(["Alpha", "Mango", "Zebra"]);
-    const chips = page.getByTestId("backlinks-sort");
-    await chips.getByText(/^Title/).click();
-    expect((await rows.allTextContents()).map((text) => text.replace(/×\d+/, "").trim())).toEqual(["Zebra", "Mango", "Alpha"]);
-    await chips.getByText(/^Number of links/).click();
-    expect((await rows.allTextContents())[0]).toContain("Alpha");
+    expect(await order()).toEqual(["Alpha", "Mango", "Zebra"]);
+    // The same sort sheet as the search hits (E21) — it was a row of chips,
+    // a fourth spelling of the same choice. The button names the order in force.
+    const sortButton = page.getByTestId("backlinks-sort");
+    await expect(sortButton).toHaveText(/Title/);
+    await sortButton.click();
+    const backlinkSheet = page.getByTestId("backlinks-sort-sheet");
+    await expect(backlinkSheet).toBeVisible();
+    await expect(backlinkSheet.locator(".m-slotmark.is-on")).toHaveCount(1);
+    await page.getByTestId("backlinks-sort-sheet-title").click();
+    await expect.poll(order).toEqual(["Zebra", "Mango", "Alpha"]);
+    await page.getByTestId("backlinks-sort-sheet-count").click();
+    await expect.poll(async () => (await order())[0]).toBe("Alpha");
+    await expect(backlinkSheet).toBeVisible();
+    await page.getByTestId("backlinks-sort-sheet-done").click();
+    await expect(backlinkSheet).toHaveCount(0);
+    await expect(sortButton).toHaveText(/Number of links/);
   } finally { sql.close(); }
 });

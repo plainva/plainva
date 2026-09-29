@@ -146,7 +146,9 @@
     "redo": "Ripeti",
     "remove": "Rimuovi",
     "yes": "Sì",
-    "no": "No"
+    "no": "No",
+    "done": "Fine",
+    "here": "qui"
   },
   "import": {
     "contextAction": "Importa da un'altra app...",
@@ -2362,6 +2364,7 @@
     "sortLinkCount": "Numero di collegamenti",
     "sortAsc": "Crescente",
     "sortDesc": "Decrescente",
+    "sortFlipHint": "Tocca di nuovo la riga scelta per invertire la direzione.",
     "filter": "Cerca in questa cartella",
     "noMatches": "Niente qui corrisponde a «{{q}}»."
   },
@@ -2620,6 +2623,7 @@
     "settingInboxFolder": "Cartella Inbox",
     "settingTemplateFolder": "Cartella dei modelli",
     "areas": "Aree",
+    "areasOutside": "fuori dalla barra",
     "settingSaveFailed": "Impossibile salvare l’impostazione.",
     "navBar": "Barra di navigazione",
     "navBarArrange": "Personalizza la barra di navigazione…",

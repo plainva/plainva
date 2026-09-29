@@ -146,7 +146,9 @@
     "redo": "Rehacer",
     "remove": "Quitar",
     "yes": "Sí",
-    "no": "No"
+    "no": "No",
+    "done": "Listo",
+    "here": "aquí"
   },
   "import": {
     "contextAction": "Importar de otra aplicación...",
@@ -2362,6 +2364,7 @@
     "sortLinkCount": "Número de enlaces",
     "sortAsc": "Ascendente",
     "sortDesc": "Descendente",
+    "sortFlipHint": "Toca de nuevo la fila elegida para invertir el sentido.",
     "filter": "Buscar en esta carpeta",
     "noMatches": "Nada aquí coincide con «{{q}}»."
   },
@@ -2620,6 +2623,7 @@
     "settingInboxFolder": "Carpeta de entrada",
     "settingTemplateFolder": "Carpeta de plantillas",
     "areas": "Áreas",
+    "areasOutside": "fuera de la barra",
     "settingSaveFailed": "No se pudo guardar el ajuste.",
     "navBar": "Barra de navegación",
     "navBarArrange": "Personalizar la barra de navegación…",

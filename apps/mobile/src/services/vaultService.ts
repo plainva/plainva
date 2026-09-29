@@ -31,7 +31,7 @@ import {
   type VaultFileInfo,
   PimCacheRepository,
 } from "@plainva/core";
-import { mSelect } from "./mobileDialogs";
+import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, type VaultFolderAccess } from "../platform/vaultFolder";
@@ -353,17 +353,22 @@ export type VaultPlace = "local" | "online" | "folder";
  * folder that already exists on the device, kept by another app. Native only —
  * the web dev server has no picker. Lives here rather than in App.tsx because
  * of that file's line budget, and because the choice is vault logic.
+ *
+ * The first step of a flow that forks, so an ACTION list (E20, the borderline
+ * case of the 24.09. plan): nothing is in force before the answer, and each
+ * row starts a different way — the desktop's start screen shows the same
+ * answers as cards to click, none preselected. The recommended way stands
+ * first. A preselected ring claimed a setting that did not exist yet.
  */
 export async function chooseVaultPlace(): Promise<VaultPlace | null> {
   const t = i18n.t.bind(i18n);
-  const where = await mSelect({
+  const where = await mActions({
     title: t("mobile.vaultCreate"),
     options: [
       { value: "local", label: t("mobile.vaultLocal"), desc: t("mobile.vaultCreateLocalDesc") },
       { value: "online", label: t("mobile.vaultCreateOnline"), desc: t("mobile.vaultCreateOnlineDesc") },
       ...(isVaultFolderSupported() ? [{ value: "folder", label: t("mobile.vaultCreateFolder"), desc: t("mobile.vaultCreateFolderDesc") }] : []),
     ],
-    value: "local",
   });
   return where as VaultPlace | null;
 }

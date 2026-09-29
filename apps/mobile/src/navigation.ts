@@ -414,3 +414,24 @@ export const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   comments: { kind: "comments", path: "" },
   journal: { kind: "journal", path: "" },
 };
+
+/**
+ * The area on screen, as the areas sheet marks it (finding 2026-09-24, E20).
+ *
+ * An area outside the bar is PUSHED onto the tab it was opened from, so
+ * `activeTab` still names that tab while the graph or the journal fills the
+ * screen. The sheet is a list of places, and its current row has to be where
+ * the person is: the nearest area screen from the top (overlay first, a note
+ * opened from the graph is still "in the graph"), else the tab itself.
+ */
+export function currentArea(state: NavState): TabScreenId {
+  const layers = [...state.stacks[state.activeTab], ...state.overlay];
+  const areas = Object.keys(SCREEN_ENTRY) as TabScreenId[];
+  for (let i = layers.length - 1; i >= 0; i -= 1) {
+    const { kind, path } = layers[i]!;
+    if (path) continue;
+    const area = areas.find((id) => SCREEN_ENTRY[id].kind === kind);
+    if (area) return area;
+  }
+  return state.activeTab;
+}

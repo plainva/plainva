@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { tagColorAttrs, tagSegments } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, Plus } from "lucide-react";
+import { ArrowUpDown, Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, Plus } from "lucide-react";
 import {
   appendVerification,
   errorText,
@@ -24,7 +24,7 @@ import {
   setPendingSearchJump,
   type BacklinkContext,
   BACKLINK_SORT_KEYS,
-  Chip,
+  Button,
   backlinkTitle,
   listSortLabelKey,
   nextBacklinkSort,
@@ -45,6 +45,7 @@ import { AddPropertySheet } from "./AddPropertySheet";
 import { RowActionSheet } from "./RowActionSheet";
 import { useLongPress } from "../lib/useLongPress";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
+import { SortSheet } from "./SortSheet";
 import { ContextGraph } from "./ContextGraph";
 import { VersionsPanel } from "./VersionsPanel";
 
@@ -129,6 +130,9 @@ export function NoteContextSheet({
     });
   };
   const orderedBacklinks = useMemo(() => sortBacklinks(backlinks, backlinkSort), [backlinks, backlinkSort]);
+  // The order is chosen in the one sort sheet (E21), like search hits and the
+  // folder view; it was a row of chips, a fourth spelling of the same choice.
+  const [backlinkSortOpen, setBacklinkSortOpen] = useState(false);
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [adding, setAdding] = useState(false);
   const [governing, setGoverning] = useState<Awaited<ReturnType<typeof resolveGoverningBaseOf>>>(null);
@@ -470,17 +474,21 @@ export function NoteContextSheet({
               <p className="m-hint">{t("mobile.noBacklinks")}</p>
             ) : (
               <>
-              {/* One row is already in order; the chips earn their place from
-                  two on. The active chip again flips the direction — the file
-                  tree's rule, and the desktop panel's. */}
+              {/* One row is already in order; the control earns its place from
+                  two on. It names the active order and opens the sort sheet —
+                  the desktop panel's button and menu, in the phone's form. */}
               {orderedBacklinks.length > 1 && (
-                <div className="m-chiprow" role="group" aria-label={t("browse.sortBy")} data-testid="backlinks-sort">
-                  {BACKLINK_SORT_KEYS.map((key) => (
-                    <Chip key={key} selected={backlinkSort.key === key} onClick={() => chooseBacklinkSort(key)}>
-                      {t(listSortLabelKey(key))}
-                      {backlinkSort.key === key ? (backlinkSort.dir === "asc" ? " ↑" : " ↓") : ""}
-                    </Chip>
-                  ))}
+                <div className="m-btnrow">
+                  <Button
+                    variant="ghost"
+                    icon={<ArrowUpDown size={ICON.meta} />}
+                    aria-haspopup="dialog"
+                    data-tip={t("browse.sortBy")}
+                    data-testid="backlinks-sort"
+                    onClick={() => setBacklinkSortOpen(true)}
+                  >
+                    {t(listSortLabelKey(backlinkSort.key))}
+                  </Button>
                 </div>
               )}
               {orderedBacklinks.map((b) => (
@@ -596,6 +604,18 @@ export function NoteContextSheet({
           rows={[]}
           target={edit}
           vault={vault}
+        />
+      )}
+      {backlinkSortOpen && (
+        <SortSheet
+          testId="backlinks-sort-sheet"
+          title={t("browse.sortBy")}
+          options={BACKLINK_SORT_KEYS.map((key) => ({ key, label: t(listSortLabelKey(key)) }))}
+          active={backlinkSort.key}
+          direction={t(backlinkSort.dir === "asc" ? "browse.sortAsc" : "browse.sortDesc")}
+          ascending={backlinkSort.dir === "asc"}
+          onChoose={chooseBacklinkSort}
+          onClose={() => setBacklinkSortOpen(false)}
         />
       )}
       {propSheet && (

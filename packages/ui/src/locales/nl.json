@@ -144,7 +144,9 @@
     "redo": "Opnieuw",
     "remove": "Verwijderen",
     "yes": "Ja",
-    "no": "Nee"
+    "no": "Nee",
+    "done": "Klaar",
+    "here": "hier"
   },
   "import": {
     "contextAction": "Importeren uit een andere app...",
@@ -2351,6 +2353,7 @@
     "sortLinkCount": "Aantal links",
     "sortAsc": "Oplopend",
     "sortDesc": "Aflopend",
+    "sortFlipHint": "Tik nogmaals op de gekozen rij om de richting om te draaien.",
     "filter": "In deze map zoeken",
     "noMatches": "Niets hier komt overeen met ‘{{q}}’."
   },
@@ -2605,6 +2608,7 @@
     "settingInboxFolder": "Inbox-map",
     "settingTemplateFolder": "Sjablonenmap",
     "areas": "Onderdelen",
+    "areasOutside": "buiten de balk",
     "settingSaveFailed": "De instelling kon niet worden opgeslagen.",
     "navBar": "Navigatiebalk",
     "navBarArrange": "Navigatiebalk aanpassen…",

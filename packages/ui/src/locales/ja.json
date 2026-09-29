@@ -142,7 +142,9 @@
     "redo": "やり直す",
     "remove": "削除",
     "yes": "はい",
-    "no": "いいえ"
+    "no": "いいえ",
+    "done": "完了",
+    "here": "ここ"
   },
   "import": {
     "contextAction": "他のアプリからインポート...",
@@ -2340,6 +2342,7 @@
     "sortLinkCount": "リンクの数",
     "sortAsc": "昇順",
     "sortDesc": "降順",
+    "sortFlipHint": "選んだ行をもう一度タップすると、並び順が逆になります。",
     "filter": "このフォルダー内を検索",
     "noMatches": "「{{q}}」に一致するものはありません。"
   },
@@ -2590,6 +2593,7 @@
     "settingInboxFolder": "インボックスフォルダー",
     "settingTemplateFolder": "テンプレートフォルダー",
     "areas": "エリア",
+    "areasOutside": "バーの外",
     "settingSaveFailed": "設定を保存できませんでした。",
     "navBar": "ナビゲーションバー",
     "navBarArrange": "ナビゲーションバーを並べ替え…",

@@ -146,7 +146,9 @@
     "redo": "Rétablir",
     "remove": "Retirer",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "done": "Terminé",
+    "here": "ici"
   },
   "import": {
     "contextAction": "Importer depuis une autre application…",
@@ -2362,6 +2364,7 @@
     "sortLinkCount": "Nombre de liens",
     "sortAsc": "Croissant",
     "sortDesc": "Décroissant",
+    "sortFlipHint": "Touchez à nouveau la ligne choisie pour inverser le sens.",
     "filter": "Rechercher dans ce dossier",
     "noMatches": "Rien ici ne correspond à « {{q}} »."
   },
@@ -2620,6 +2623,7 @@
     "settingInboxFolder": "Dossier de la boîte de réception",
     "settingTemplateFolder": "Dossier des modèles",
     "areas": "Rubriques",
+    "areasOutside": "hors de la barre",
     "settingSaveFailed": "Le réglage n’a pas pu être enregistré.",
     "navBar": "Barre de navigation",
     "navBarArrange": "Personnaliser la barre de navigation…",

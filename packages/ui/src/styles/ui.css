@@ -1736,6 +1736,26 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+/* A target list's current row (E20, finding 2026-09-24): where you ARE, not a
+   value you set — so no ring and no slot, but the selection idiom of the whole
+   app: the accent-container PAIR, weight 600, and a check on the trailing edge.
+   Icon and second line inherit the pair instead of keeping their muted greys,
+   which would sit on the tint at the wrong contrast (under Win95 the container
+   is full navy). */
+.pv-grouprow--current {
+  background: var(--accent-container);
+  color: var(--on-accent-container);
+  font-weight: 600;
+}
+.pv-grouprow--current .pv-grouprow-icon,
+.pv-grouprow--current .pv-grouprow-sub {
+  color: inherit;
+}
+.pv-grouprow-check {
+  flex: none;
+  display: grid;
+  place-items: center;
+}
 /* Chevron, value or switch. */
 .pv-grouprow-end {
   /* Shrinkable, and it gives way FIRST: when a settings row's value is longer

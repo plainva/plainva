@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
 import { parseRRule, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
-import { mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
+import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
   createPimEvent,
   deletePimEvent,
@@ -112,7 +112,8 @@ export function useEventEditor({
     // Deleting an occurrence still asks first — there the tap IS the change.
     let subject = e;
     if (e.seriesMaster) {
-      const scope = await mSelect({
+      // Two things one can do with a series (E20): no ring, nothing preselected.
+      const scope = await mActions({
         title: t("pim.seriesTitle"),
         message: t("pim.seriesDeleteMsg", { title: e.title }),
         options: [
@@ -251,7 +252,7 @@ export function useEventEditor({
         setSheet(null);
         return;
       }
-      const scope = await mSelect({
+      const scope = await mActions({
         title: t("pim.seriesTitle"),
         message: `${t("pim.seriesSaveMsg", { title: target.title })}\n${changes.map((c) => eventChangeLabel(c, t)).join("\n")}`,
         options: [

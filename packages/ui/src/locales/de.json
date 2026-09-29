@@ -144,7 +144,9 @@
     "redo": "Wiederholen",
     "remove": "Entfernen",
     "yes": "Ja",
-    "no": "Nein"
+    "no": "Nein",
+    "done": "Fertig",
+    "here": "hier"
   },
   "import": {
     "contextAction": "Aus anderer App importieren...",
@@ -2351,6 +2353,7 @@
     "sortLinkCount": "Anzahl der Verweise",
     "sortAsc": "Aufsteigend",
     "sortDesc": "Absteigend",
+    "sortFlipHint": "Noch einmal auf die gewählte Zeile tippen dreht die Richtung um.",
     "filter": "In diesem Ordner suchen",
     "noMatches": "Hier passt nichts zu „{{q}}“."
   },
@@ -2605,6 +2608,7 @@
     "settingInboxFolder": "Inbox-Ordner",
     "settingTemplateFolder": "Vorlagen-Ordner",
     "areas": "Bereiche",
+    "areasOutside": "außerhalb der Leiste",
     "settingSaveFailed": "Die Einstellung konnte nicht gespeichert werden.",
     "navBar": "Navigationsleiste",
     "navBarArrange": "Navigationsleiste anpassen…",

@@ -25,7 +25,7 @@ import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
-import { mSelect } from "../services/mobileDialogs";
+import { mSelect, mTargets } from "../services/mobileDialogs";
 import { setTaskDone } from "../services/taskCompletionAction";
 import { getPimCache, pimForegroundSync, pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
@@ -455,7 +455,8 @@ export function TasksScreen({
       toast.info(t("sidebar.noDatabases"));
       return;
     }
-    const picked = await mSelect({
+    // The database the task moves into: the target of an action (E20).
+    const picked = await mTargets({
       title: t("tasks.promoteTo"),
       options: bases.map((b) => ({ value: b.path, label: b.path === taskDb ? `${b.title} ★` : b.title })),
     });

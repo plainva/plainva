@@ -31,6 +31,7 @@ import { refreshVaultAction, usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { AppBar } from "../components/AppBar";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
+import { ChoiceMark } from "../components/ChoiceMark";
 
 /**
  * Folder browser (extracted from App.tsx in R2). As a tab root (no onBack)
@@ -233,7 +234,7 @@ export function BrowseScreen({
         onPointerDown={() => press.start({ path: n.path, title: n.title })}
         onPointerLeave={press.clear}
         onPointerUp={press.clear}
-        end={selected ? <span className={`m-slotmark${selected.has(n.path) ? " is-on" : ""}`} /> : undefined}
+        end={selected ? <ChoiceMark multiple on={selected.has(n.path)} /> : undefined}
         icon={conflict
           ? <AlertTriangle className="m-warn" size={ICON.ui} />
           : docIcons.get(n.path)
@@ -532,7 +533,7 @@ export function BrowseScreen({
             onPointerLeave={basePress.clear}
             onPointerUp={basePress.clear}
             end={selected
-              ? <span className={`m-slotmark${selected.has(b.path) ? " is-on" : ""}`} />
+              ? <ChoiceMark multiple on={selected.has(b.path)} />
               : <ChevronRight className="m-chevron" size={ICON.ui} />}
             icon={<Database className="m-accent" size={ICON.ui} />}
             title={b.title}

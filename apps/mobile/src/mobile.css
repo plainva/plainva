@@ -1298,6 +1298,18 @@ textarea {
   background: var(--accent-color);
   box-shadow: inset 0 0 0 3px var(--surface);
 }
+/* Several at once: the same mark, square, with a check inside (E21). Round is
+   one, square is several — read before the first tap. Only `ChoiceMark`
+   renders either. */
+.m-slotmark--box {
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  color: var(--accent-on);
+}
+.m-slotmark--box.is-on {
+  box-shadow: none;
+}
 
 /* M4 touch UX */
 /* C2: the keyboard bar rides the shared .pv-docked-toolbar primitive (surface,
@@ -3688,6 +3700,8 @@ textarea {
 .m-navrow:not([data-tab-visible]) .m-accent { opacity: 0.55; }
 /* The direction a sort runs in, beside the chosen key. */
 .m-sortdir { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-muted); }
+/* What the second tap does, in a line under the sort card (E21). */
+.m-sortsheet-hint { margin: var(--space-2) var(--space-2) 0; }
 .m-row.is-dragging,
 .m-navrow.is-dragging {
   opacity: 0.55;
@@ -3907,13 +3921,22 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The way to the setting: accent, in the regular weight — the current area is
+   the one bold row in the sheet (E20, both mockups). */
 .m-areas-arrange {
   color: var(--accent-color);
-  font-weight: 650;
 }
-.m-row--current {
-  background: var(--accent-container);
-  color: var(--on-accent-container);
+.m-areas-arrange .pv-grouprow-icon {
+  color: inherit;
+}
+/* A divider with a name, between two runs of rows in one sheet (E20): the
+   section label itself (SectionLabel, one rule for how a heading looks) with
+   the hairline carried to the edge, so it reads as "the list goes on, past a
+   boundary" rather than as a new heading. */
+.m-sheet-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border-color);
 }
 
 /* Navigation-bar setting (plan P5): count stepper + live bar preview. */
@@ -4556,7 +4579,7 @@ textarea {
   padding-left: var(--space-2) !important;
   padding-right: 0 !important;
 }
-.m-selcell .m-slotmark { display: inline-block; }
+.m-selcell .m-slotmark { display: inline-grid; }
 
 /* The two spellings of one name, listed under the banner that explains them
    (finding 2026-08-21). Word-break because a vault path is one long token and

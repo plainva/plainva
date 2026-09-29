@@ -144,7 +144,9 @@
     "redo": "Redo",
     "remove": "Remove",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "done": "Done",
+    "here": "here"
   },
   "import": {
     "contextAction": "Import from another app...",
@@ -2351,6 +2353,7 @@
     "sortLinkCount": "Number of links",
     "sortAsc": "Ascending",
     "sortDesc": "Descending",
+    "sortFlipHint": "Tap the chosen row again to reverse the direction.",
     "filter": "Search in this folder",
     "noMatches": "Nothing here matches “{{q}}”."
   },
@@ -2605,6 +2608,7 @@
     "settingInboxFolder": "Inbox folder",
     "settingTemplateFolder": "Template folder",
     "areas": "Areas",
+    "areasOutside": "outside the bar",
     "settingSaveFailed": "The setting could not be saved.",
     "navBar": "Navigation bar",
     "navBarArrange": "Customize the navigation bar…",

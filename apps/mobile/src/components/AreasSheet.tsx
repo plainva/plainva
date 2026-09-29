@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { ArrowRight } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import { GroupCard, ICON, Row, RowList, SectionLabel, visibleAreas, type AreaOrder } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { TAB_POOL, type TabScreenId } from "../navigation";
@@ -18,6 +18,12 @@ import { TAB_POOL, type TabScreenId } from "../navigation";
  * rest, in the order they were put in. It used to list the factory pool, so
  * the same eight areas had two orders — the one in the bar and the one here
  * (finding 2026-09-22).
+ *
+ * It is a list of PLACES, not a choice (finding 2026-09-24, E20): tapping a row
+ * goes there. So no row wears a ring — the ring list read as a setting with
+ * four empty answers under "not in the bar" — and the area on screen is the
+ * row's `current` state: tinted, bold, a check, `aria-current`. The 22.09.
+ * plan had filed this sheet as a choice card; its mockup had it right.
  */
 export function AreasSheet({
   active,
@@ -47,11 +53,10 @@ export function AreasSheet({
           return (
             <Row
               key={id}
-              className={id === active ? "m-row--current" : undefined}
+              current={id === active}
               data-testid={`areas-${id}`}
-              icon={<Icon className="m-accent" size={ICON.head} />}
+              icon={<Icon size={ICON.head} />}
               title={t(def.labelKey)}
-              end={<span className={`m-slotmark${id === active ? " is-on" : ""}`} />}
               onClick={() => onPick(id)}
             />
           );
@@ -64,24 +69,26 @@ export function AreasSheet({
     <div className="m-sheet-backdrop m-sheet-backdrop--dialog" onClick={onClose}>
       <div className="pv-sheet m-sheet" data-testid="areas-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
-        <SectionLabel>{t("mobile.areas")}</SectionLabel>
+        {/* The sheet's own title, then a divider between the bar's areas and
+            the rest. The second heading used to say "reachable via Areas"
+            INSIDE "Areas". */}
+        <p className="m-sheet-title">{t("mobile.areas")}</p>
         {group(inBar)}
         {outside.length > 0 && (
           <>
-            <SectionLabel>{t("mobile.navBarOutside")}</SectionLabel>
+            <SectionLabel className="m-sheet-divider">{t("mobile.areasOutside")}</SectionLabel>
             {group(outside)}
           </>
         )}
-        <GroupCard>
-          <RowList>
-            <Row
-              title={t("mobile.navBarArrange")}
-              end={<ArrowRight size={ICON.head} />}
-              onClick={onArrange}
-              data-testid="areas-arrange"
-            />
-          </RowList>
-        </GroupCard>
+        <RowList>
+          <Row
+            className="m-areas-arrange"
+            icon={<SlidersHorizontal size={ICON.head} />}
+            title={t("mobile.navBarArrange")}
+            onClick={onArrange}
+            data-testid="areas-arrange"
+          />
+        </RowList>
       </div>
     </div>
   );

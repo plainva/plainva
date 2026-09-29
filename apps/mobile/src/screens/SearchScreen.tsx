@@ -76,13 +76,16 @@ export function SearchScreen({
   // otherwise, remembered per device - the same memory the desktop reads.
   const [sort, setSort] = useState<SearchSort>(() => readStoredSearchSort());
   const [sortSheet, setSortSheet] = useState(false);
+  // The sheet stays open until Done (E21): a second tap on the active key
+  // turns the direction around, and that is decided while looking at it. This
+  // closed on every tap — against SortSheet's own contract — so the direction
+  // could only be flipped by reopening the sheet.
   const chooseSort = (key: SearchSortKey) => {
     setSort((current) => {
       const next = nextSearchSort(current, key);
       writeStoredSearchSort(next);
       return next;
     });
-    setSortSheet(false);
   };
   const searchPage = useSearchPages(vault.queryService, vault.searchAvailable && parsed.mode === "find" ? parsed.term : "", revision, 40, sort);
   const results = searchPage.hits;

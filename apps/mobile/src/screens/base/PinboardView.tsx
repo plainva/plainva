@@ -5,7 +5,7 @@ import type { NoteCardData } from "@plainva/core";
 import { mimeTypeForPath, readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
 import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
-import { mMultiSelect, mSelect } from "../../services/mobileDialogs";
+import { mActions, mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { vaultOps, type MobileVault } from "../../services/vaultService";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
@@ -353,7 +353,11 @@ export function PinboardView({
       { value: "", label: t("pinboard.noColor", { defaultValue: "Keine Farbe" }) },
       ...Object.entries(PALETTE_SWATCH).filter(([n]) => n !== "gray").map(([name]) => ({ value: name, label: name })),
     ];
-    const picked = await mSelect({ title: t("pinboard.color", { defaultValue: "Farbe" }), options });
+    // The ring sits on the card's colour (E20); a colour from outside the
+    // palette matches no row and marks none.
+    const own = cards.get(path)?.parsed.color ?? null;
+    const value = own ? Object.entries(PALETTE_SWATCH).find(([, hex]) => hex.toLowerCase() === own.toLowerCase())?.[0] : "";
+    const picked = await mSelect({ title: t("pinboard.color", { defaultValue: "Farbe" }), options, value });
     if (picked === null) return;
     try {
       const fresh = await vault.files.readTextFile(path);
@@ -366,7 +370,7 @@ export function PinboardView({
     } catch (e: any) {
       toast.error(String(e?.message ?? e));
     }
-  }, [vault, t, afterCardWrite]);
+  }, [vault, t, afterCardWrite, cards]);
 
   const editLabels = useCallback(async (path: string) => {
     const current = labelsByPath.get(path) ?? [];
@@ -435,7 +439,8 @@ export function PinboardView({
 
   const openActions = useCallback(async (path: string) => {
     const isPinned = sections.pinned.includes(path);
-    const picked = await mSelect({
+    // What one can do with this card (E20): actions, nothing preselected.
+    const picked = await mActions({
       title: noteDisplayName(path.split("/").pop() ?? path),
       options: [
         { value: "pin", label: isPinned ? t("pinboard.unpin", { defaultValue: "Lösen" }) : t("pinboard.pin", { defaultValue: "Anpinnen" }) },

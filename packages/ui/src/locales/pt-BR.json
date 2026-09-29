@@ -146,7 +146,9 @@
     "redo": "Refazer",
     "remove": "Remover",
     "yes": "Sim",
-    "no": "Não"
+    "no": "Não",
+    "done": "Concluído",
+    "here": "aqui"
   },
   "import": {
     "contextAction": "Importar de outro aplicativo...",
@@ -2362,6 +2364,7 @@
     "sortLinkCount": "Número de links",
     "sortAsc": "Crescente",
     "sortDesc": "Decrescente",
+    "sortFlipHint": "Toque de novo na linha escolhida para inverter a direção.",
     "filter": "Pesquisar nesta pasta",
     "noMatches": "Nada aqui corresponde a “{{q}}”."
   },
@@ -2620,6 +2623,7 @@
     "settingInboxFolder": "Pasta de entrada",
     "settingTemplateFolder": "Pasta de modelos",
     "areas": "Seções",
+    "areasOutside": "fora da barra",
     "settingSaveFailed": "Não foi possível salvar a configuração.",
     "navBar": "Barra de navegação",
     "navBarArrange": "Personalizar a barra de navegação…",

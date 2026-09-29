@@ -148,7 +148,9 @@
     "redo": "Ponów",
     "remove": "Usuń",
     "yes": "Tak",
-    "no": "Nie"
+    "no": "Nie",
+    "done": "Gotowe",
+    "here": "tutaj"
   },
   "import": {
     "contextAction": "Importuj z innej aplikacji...",
@@ -2373,6 +2375,7 @@
     "sortLinkCount": "Liczba odnośników",
     "sortAsc": "Rosnąco",
     "sortDesc": "Malejąco",
+    "sortFlipHint": "Stuknij ponownie wybrany wiersz, aby odwrócić kierunek.",
     "filter": "Szukaj w tym folderze",
     "noMatches": "Nic tutaj nie pasuje do „{{q}}”."
   },
@@ -2635,6 +2638,7 @@
     "settingInboxFolder": "Folder skrzynki",
     "settingTemplateFolder": "Folder szablonów",
     "areas": "Obszary",
+    "areasOutside": "poza paskiem",
     "settingSaveFailed": "Nie udało się zapisać ustawienia.",
     "navBar": "Pasek nawigacji",
     "navBarArrange": "Dostosuj pasek nawigacji…",

@@ -142,7 +142,9 @@
     "redo": "重做",
     "remove": "移除",
     "yes": "是",
-    "no": "否"
+    "no": "否",
+    "done": "完成",
+    "here": "当前位置"
   },
   "import": {
     "contextAction": "从其他应用导入…",
@@ -2340,6 +2342,7 @@
     "sortLinkCount": "链接数量",
     "sortAsc": "升序",
     "sortDesc": "降序",
+    "sortFlipHint": "再次点按所选行即可反转排序方向。",
     "filter": "在此文件夹中搜索",
     "noMatches": "这里没有与“{{q}}”匹配的内容。"
   },
@@ -2590,6 +2593,7 @@
     "settingInboxFolder": "收件箱文件夹",
     "settingTemplateFolder": "模板文件夹",
     "areas": "区域",
+    "areasOutside": "导航栏之外",
     "settingSaveFailed": "无法保存该设置。",
     "navBar": "导航栏",
     "navBarArrange": "自定义导航栏…",

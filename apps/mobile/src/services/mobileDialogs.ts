@@ -6,12 +6,19 @@
  * deletion guards joined on 2026-09-20: the native two-button dialog could not
  * name its safe branch ("Keep and upload again"), and naming it is the point.
  */
+import type { ReactNode } from "react";
 
 export interface MobileSelectOption {
   value: string;
   label: string;
   /** Optional secondary line under the label (place/mode choices, 2026-07-13). */
   desc?: string;
+  /**
+   * Leading icon of a target or an action row ("Insert": camera, library,
+   * file; a mail folder). A choice ignores it: its leading slot is the mark,
+   * and a second sign there would compete with it (E20).
+   */
+  icon?: ReactNode;
   /** Destructive: rendered in the error pair and separated from the harmless
    * entries (S21). Without it a "delete" reads exactly like a "colour". */
   danger?: boolean;
@@ -52,6 +59,21 @@ export type MobileDialog =
       value?: string;
       /** Placeholder of a filter field above the list; absent = no field. */
       search?: string;
+      resolve: (v: string | null) => void;
+    })
+  | (BaseRequest & {
+      kind: "target";
+      options: MobileSelectOption[];
+      /** The place shown now: tinted, weight 600, a check — see `mTargets`. */
+      current?: string;
+      /** Where the object already IS: listed as "here" and not selectable. */
+      here?: string;
+      search?: string;
+      resolve: (v: string | null) => void;
+    })
+  | (BaseRequest & {
+      kind: "actions";
+      options: MobileSelectOption[];
       resolve: (v: string | null) => void;
     })
   | (BaseRequest & {
@@ -137,7 +159,16 @@ export function mConfirm(opts: {
 }
 
 /**
- * One choice from a list.
+ * One choice from a list — a VALUE with a state, such as a language, a sort
+ * key or a calendar (the first of three list kinds, E20).
+ *
+ * The ring marks `value`, the value in force; a tap moves the ring and the
+ * sheet closes after a visible beat (E21). A call without `value` is a list of
+ * empty rings — which reads as a setting nobody has answered — so it is either
+ * a choice that truly has no single current value (a bulk edit over rows that
+ * disagree) or it is one of the other two kinds: `mTargets` for a place to go
+ * or the target of an action, `mActions` for something to do. The guard in
+ * `choiceSurfaces.test.tsx` holds every call without `value` to a reason.
  *
  * `search` turns the list into a searchable one (N9.6): a picker over a
  * handful of options is a list, a picker over every node of a vault is a
@@ -153,6 +184,51 @@ export function mSelect(opts: {
 }): Promise<string | null> {
   return new Promise((resolve) => {
     queue = [...queue, { kind: "select", id: nextId++, ...opts, resolve }];
+    emit();
+  });
+}
+
+/**
+ * A place to go, or the target of an action (the second list kind, E20):
+ * the views of a database, the folder a mail moves to, the database a task is
+ * promoted into.
+ *
+ * No row carries a mark. `current` is the place shown now — tinted, weight
+ * 600, a check on the trailing edge — and tapping it simply closes the sheet
+ * on the same place. `here` is where the object already lies (the mail's own
+ * folder): it stays in the list so the list reads complete, says "here", and
+ * cannot be chosen. Nothing is preselected; the sheet closes on the tap.
+ */
+export function mTargets(opts: {
+  title: string;
+  message?: string;
+  options: MobileSelectOption[];
+  current?: string;
+  here?: string;
+  search?: string;
+}): Promise<string | null> {
+  return new Promise((resolve) => {
+    queue = [...queue, { kind: "target", id: nextId++, ...opts, resolve }];
+    emit();
+  });
+}
+
+/**
+ * Something to DO (the third list kind, E20): insert a photo, open an image,
+ * delete this occurrence or the whole series, the first step of a flow that
+ * forks ("a vault on this device" / "online").
+ *
+ * Plain rows, nothing preselected, no tint — an action has no state, and a
+ * preselected camera in "Insert" claimed one. The recommended entry stands
+ * FIRST instead; a destructive one is separated as everywhere else (S21).
+ */
+export function mActions(opts: {
+  title: string;
+  message?: string;
+  options: MobileSelectOption[];
+}): Promise<string | null> {
+  return new Promise((resolve) => {
+    queue = [...queue, { kind: "actions", id: nextId++, ...opts, resolve }];
     emit();
   });
 }

@@ -3,7 +3,7 @@ import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Pencil, Trash2, X } from "lucide-react";
 import { baseStemOf, Button, Chip, chipPaletteIndex, type CuratedOption, ICON, IconButton, isValidNewPropertyName, isValidReverseColumnName, mergeObservedOptions, PALETTE_NAMES, parseBaseConfig, type PropertyType, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
-import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
+import { mActions, mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { deleteBaseProperty, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
 import { vaultOps } from "../../services/vaultService";
 import type { MobileVault } from "../../services/vaultService";
@@ -99,6 +99,7 @@ export function PropertyEditSheet({
           { value: "", label: t("properties.colorAuto") },
           ...PALETTE_NAMES.map((n) => ({ value: n, label: t(`properties.color_${n}`) })),
         ],
+        value: options[idx]?.color ?? "",
       });
       if (picked === null) return;
       const next = options.map((o) => ({ ...o }));
@@ -214,6 +215,7 @@ export function PropertyEditSheet({
             label: b.path === basePath ? t("properties.relationSelf") : b.title,
           })),
         ],
+        value: relationBase,
       });
       if (picked === null) return;
       writeRelation({ relationBase: picked || undefined, relationLimit: schema.relationLimit }, false);
@@ -228,6 +230,7 @@ export function PropertyEditSheet({
           { value: "", label: t("properties.relationLimitMany") },
           { value: "one", label: t("properties.relationLimitOne") },
         ],
+        value: schema.relationLimit === "one" ? "one" : "",
       });
       if (picked === null) return;
       writeRelation(
@@ -239,7 +242,7 @@ export function PropertyEditSheet({
 
   const remove = () => {
     void (async () => {
-      const mode = await mSelect({
+      const mode = await mActions({
         title: t("properties.deleteProperty"),
         message: t("properties.deletePropertyConfirm", { column: columnLabel(column) }),
         options: [
