@@ -427,10 +427,10 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-evt": "calendar event states: the fill/hatch/outline is derived from --evt-color (the calendar's own colour, i.e. DATA) plus --bg-primary/--text-main/--accent-on, which both themes already override — there is no theme-specific surface to restyle",
   "pv-filterrow": "layout only — a wrapping row of .pv-chip, which the themes restyle",
   "pv-resulthead": "text row above the hits — the label is --text-muted and the ✕ is a themed .pv-iconbtn",
-  "pv-basesearch": "layout only — a .pv-searchfield plus the hit counter beside it; both are themed",
-  "pv-capturerow": "dashed placeholder row in --text-muted on the page ground; both themes override those tokens",
+  "pv-basesearch": "layout only — a .pv-searchfield plus the hit counter beside it; both are themed. The row under the head paints --bg-secondary and --border-color, which both themes override",
   "pv-evtdesc": "event description text (plan Befunde 24.09., E25): running text on --text-muted and link chips on --border-color/--bg-primary/--accent-color, all tokens both themes already override",
   "pv-evtjoin": "layout only — aligns the Join button; the button is a .pv-btn, which both themes restyle",
+  "pv-pinentry": "layout only — the pinboard entry window's title field, editor host and line of inherited chips inside .pv-modal; the modal, the field tokens, the Chip primitive and the editor carry every theme",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {

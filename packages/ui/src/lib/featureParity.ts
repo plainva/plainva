@@ -337,6 +337,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
+    id: "embedded-pinboard-new-entry",
+    title: "\"New entry\" from a pinboard embedded in a note",
+    area: "database",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Both shells make a pinboard entry the same way - a title and the full editor, the same " +
+      "file (plan Befunde 2026-09-24, E14/E17). An EMBEDDED board is a different surface on " +
+      "each: the desktop draws the whole board inside the note, head and \"Entry\" included; " +
+      "the phone draws an embedded database as a few rows that lead to the database itself, " +
+      "because a masonry of cards inside a note on a 360 px screen is unreadable. So on the " +
+      "phone a new entry is made one tap further, on the board's own page, with its FAB.",
+    verified: "2026-09-29",
+  },
+  {
     id: "tag-colors-table-cell",
     title: "Coloured tags in a database table cell",
     area: "database",

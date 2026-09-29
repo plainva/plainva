@@ -24,7 +24,6 @@ import {
 } from "@plainva/ui";
 import {
   baseStemOf,
-  buildCaptureContent,
   buildNewItemContent,
   collectPrefillValues,
   getTemplateFolder,
@@ -32,7 +31,7 @@ import {
   nextItemName,
   relationPrefill,
 } from "../services/newItemFlow";
-import { captureFileName, captureTimestampName } from "@plainva/ui";
+import { planPinboardEntry, pinboardLabelProperty, viewPrefill, type PinboardDraft, type PinboardEntryFiles, type PinboardEntryResult } from "@plainva/ui";
 import { addTemplateForAssignment, removeTemplateForAssignment } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -54,6 +53,7 @@ import { SplitButton, type SplitDirection } from "./SplitButton";
 import { ColumnSchemaEditor, DeletePropertyDialog } from "./ColumnSchemaEditor";
 import { FILE_DAY } from "@plainva/ui";
 import { BasePeekModal } from "./BasePeekModal";
+import { PinboardEntryModal } from "./base/PinboardEntryModal";
 import { ensureViews as ensureViewsShared, defaultViewName, viewLabel, columnLabel, EXTENDED_TYPES } from "./base/baseViewerShared";
 import { getLastActiveView, setLastActiveView, resolveViewIndex, viewStateName, getExpandedSubItems, setExpandedSubItems, getCollapsedLanes, setCollapsedLanes } from "../services/baseViewState";
 import { applyNewItemFolder, stripPropertyFilters, combineFilters, migrateFiltersToPerView } from "@plainva/ui";
@@ -244,9 +244,10 @@ export function BaseViewer({
 
   // Views, Filters, Sorts UI
   const [currentViewType, setCurrentViewType] = useState<string>(() => snapshot?.config?.views?.[snapshot.viewIndex]?.type ?? "table");
-  // On a pinboard "+ New item" opens the capture card instead of minting a
-  // `{Base}_{n}` note (feedback round 2026-09-01, M2/E6) — same rule as the phone.
-  const [captureSignal, setCaptureSignal] = useState(0);
+  // On a pinboard "Entry" opens the "New entry" window — a title and the real
+  // editor — instead of minting a `{Base}_{n}` note (plan Befunde 2026-09-24,
+  // E14). The draft behind the window is a real file from the first moment.
+  const [entryDraft, setEntryDraft] = useState<PinboardDraft | null>(null);
 
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   // Color picker for the database icon (P7): anchored under the header icon.
@@ -683,6 +684,7 @@ export function BaseViewer({
   // survived the session keeps the row open, or nobody would see the filter
   // that is narrowing the rows.
   const [searchOpen, setSearchOpen] = useState(() => baseSearchText.trim() !== "");
+  const searchToggleRef = useRef<HTMLButtonElement>(null);
 
   // Selecting several rows (plan Mehrfachauswahl, P3). The reset key is the
   // file AND the view: switching views is switching what "these rows" means,
@@ -957,11 +959,54 @@ export function BaseViewer({
   const [newItemBusy, setNewItemBusy] = useState(false);
   // pendingTemplate: undefined = only change the setting (no item afterwards);
   // string|null = create an item with that template (null = without) once the
-  // folder is confirmed.
+  // folder is confirmed. `pendingEntry`: what waits is a pinboard entry.
   const [folderDialog, setFolderDialog] = useState<null | {
     mode: "setup" | "choice";
     pendingTemplate: string | null | undefined;
+    pendingEntry?: boolean;
   }>(null);
+
+  /**
+   * What a new item inherits from the VIEW it is created in (plan Befunde
+   * 2026-09-24, E16): the view's `==` rules, typed by the column, and its tag
+   * rules. The desktop used to read `config.filters.and` alone — which, since
+   * property filters moved into the views, holds nothing but the sources, so
+   * an entry made in a filtered view vanished from it the moment it existed.
+   * The legacy global rules still count for a config nobody migrated.
+   */
+  const viewInheritance = (cfg: any) => {
+    const fromView = viewPrefill(cfg, activeViewIndex, cells.getColumnInput);
+    return { props: { ...collectPrefillValues(cfg, cells.getColumnInput), ...fromView.props }, tags: fromView.tags };
+  };
+
+  /** Punkt 4: an item made inside an auto-scoped embed links DOWN to the host note. */
+  const scopePrefills = async (): Promise<Record<string, unknown>> => {
+    const scopeRel = activeScopeRelation;
+    if (scopeRel && hostPath && queryService && scopeRel.direction === "down") {
+      const allPaths = (await queryService.listNotes()).map((n) => n.path);
+      return relationPrefill(hostPath, allPaths, scopeRel);
+    }
+    return {};
+  };
+
+  /**
+   * Upward scope: the owning link lives on the host — link it to the new
+   * target, appending for unlimited and setting an empty limit-one slot; a
+   * full limit-one slot is left untouched (no silent reassign).
+   */
+  const linkHostTo = async (path: string): Promise<boolean> => {
+    const scopeRel = activeScopeRelation;
+    if (!(scopeRel && scopeRel.direction === "up" && scopeRel.hostProperty && hostPath && queryService && vaultAdapter)) return false;
+    const props = await queryService.getFileProperties(hostPath);
+    const existing = props[scopeRel.hostProperty];
+    const hasValue = Array.isArray(existing) ? existing.length > 0 : existing != null && existing !== "";
+    if (scopeRel.limitOne && hasValue) {
+      toast.info(t("database.embedLinkSkipped", { defaultValue: "Nicht verknüpft — bereits zugeordnet.", host: hostTitle }));
+      return false;
+    }
+    await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne);
+    return true;
+  };
 
   const doCreateItem = async (cfg: any, folder: string, inheritTags: string[], template: string | null) => {
     if (!vaultAdapter || !vaultPath) return;
@@ -980,14 +1025,10 @@ export function BaseViewer({
           console.warn("[BaseViewer] reading the template failed — creating without it", template, e);
         }
       }
-      let prefills = collectPrefillValues(cfg, cells.getColumnInput);
-      // Punkt 4: a new item created inside an auto-scoped embed inherits the
-      // host link so it immediately belongs to the scoped view.
-      const scopeRel = activeScopeRelation;
-      if (scopeRel && hostPath && queryService && scopeRel.direction === "down") {
-        const allPaths = (await queryService.listNotes()).map((n) => n.path);
-        prefills = { ...prefills, ...relationPrefill(hostPath, allPaths, scopeRel) };
-      }
+      const inherited = viewInheritance(cfg);
+      const tags = [...inheritTags];
+      for (const tag of inherited.tags) if (!tags.includes(tag)) tags.push(tag);
+      const prefills = { ...inherited.props, ...(await scopePrefills()) };
       // A template with questions asks them once, here, before the file is
       // written (plan Vorlagen-Engine P3 / decision E3). A template WITHOUT
       // questions never opens a dialog — "+ entry" stays a single click.
@@ -1011,26 +1052,14 @@ export function BaseViewer({
         templateText,
         noteType: await getConfiguredNoteType(vaultPath),
         title: name,
-        inheritTags,
+        inheritTags: tags,
         prefills,
       });
       await vaultAdapter.writeTextFile(path, content);
       // The caret offset is measured in the template body; the written file
       // carries the OKF frontmatter in front of it.
       parkTemplateCaret(path, caretInBody, content.length - (templateText?.length ?? 0));
-      // Upward scope: the owning link lives on the host — link it to the new
-      // target, appending for unlimited and setting an empty limit-one slot;
-      // a full limit-one slot is left untouched (no silent reassign).
-      if (scopeRel && scopeRel.direction === "up" && scopeRel.hostProperty && hostPath && queryService) {
-        const props = await queryService.getFileProperties(hostPath);
-        const existing = props[scopeRel.hostProperty];
-        const hasValue = Array.isArray(existing) ? existing.length > 0 : existing != null && existing !== "";
-        if (scopeRel.limitOne && hasValue) {
-          toast.info(t("database.embedLinkSkipped", { defaultValue: "Nicht verknüpft — bereits zugeordnet.", host: hostTitle }));
-        } else {
-          await writeRelationLink(vaultAdapter, queryService, hostPath, path, scopeRel.hostProperty, scopeRel.limitOne);
-        }
-      }
+      await linkHostTo(path);
       // Reindex the new note (and the host note if its relation was written) —
       // no full-vault scan per new entry (Issue #9).
       if (indexer) applyIndexChanges(indexer, { added: hostPath ? [path, hostPath] : [path] }).then(() => {
@@ -1059,59 +1088,112 @@ export function BaseViewer({
     await doCreateItem(dbConfig, target.folder, target.inheritTags, template);
   };
 
-  // Quick capture (plan Pinboard P4): Enter in the board's capture field
-  // creates a Keep-style sticky note via the title popup (2026-07-17): a typed
-  // TITLE becomes the file name AND the H1; without one the file gets a
-  // timestamp name and the note has no H1 — the text is the body either way
-  // (no template). The new card floats on top via ctime (§3); no peek opens —
-  // capture stays in the flow.
-  const quickCapture = async (input: { title: string; text: string; labels?: string[]; labelProp?: string | null }): Promise<boolean> => {
-    if (!dbConfig || !vaultAdapter || !vaultPath || newItemBusy) return false;
-    const title = input.title.trim();
-    const text = input.text;
-    if (!title && !text.trim()) return false;
-    const target = resolveNewItemTarget(dbConfig);
-    if (!target.folder) {
-      setFolderDialog({ mode: target.pending === "choice" ? "choice" : "setup", pendingTemplate: undefined });
-      return false;
-    }
+  // --- A new pinboard entry (plan Befunde 2026-09-24, E14–E16) ---------------
+  // One shared core (`planPinboardEntry`/`finalizePinboardEntry`) for both
+  // shells; this shell supplies its normal file paths: the adapter chain for
+  // writes, the link-safe rename (a move on every other device), the trash.
+  const entryFiles = useMemo<PinboardEntryFiles | null>(() => {
+    if (!vaultAdapter) return null;
+    return {
+      exists: (p) => vaultAdapter.exists(p),
+      read: (p) => vaultAdapter.readTextFile(p),
+      write: (p, text) => vaultAdapter.writeTextFile(p, text),
+      rename: async (p, stem) => {
+        const result = await renameToName({ adapter: vaultAdapter, queryService: queryService ?? null, oldPath: p, newName: stem, isFolder: false });
+        if (!result.ok) throw new Error(result.reason);
+        if (indexer) await reindexAfterRename(indexer, { oldPath: p, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths });
+        notifyFileOps([{ type: "move", from: p, to: result.newPath }]);
+        if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
+        return result.newPath;
+      },
+      remove: async (p) => {
+        // The person's own draft, with nothing typed into it (or a confirmed
+        // discard): into the trash like every other delete, never silently gone.
+        await vaultAdapter.deleteItem(p, false, { confirmed: true });
+        if (indexer) await applyIndexChanges(indexer, { removed: [p] }).catch(() => {});
+        notifyFileOps([{ type: "delete", path: p }]);
+      },
+    };
+  }, [vaultAdapter, queryService, indexer, t]);
+
+  /**
+   * Opens "New entry": the draft is written into the target folder NOW (an
+   * editor needs a file — images land beside the note), with the template's
+   * body (its questions first), the board's active labels and the view's
+   * filters. Without a decided folder the folder question comes first, on
+   * this shell and on the phone alike.
+   */
+  const openPinboardEntry = async (template: string | null, cfg: any = dbConfig, answeredFolder?: string) => {
+    if (!cfg || !vaultAdapter || !vaultPath || !entryFiles || newItemBusy || entryDraft) return;
     setNewItemBusy(true);
     try {
-      const dir = trimEndChars(target.folder, "/");
-      const withDir = (n: string) => (dir ? dir + "/" : "") + n + ".md";
-      const stem = (title ? captureFileName(title, 80) : null) ?? captureTimestampName(new Date());
-      let name = stem;
-      for (let n = 2; await vaultAdapter.exists(withDir(name)).catch(() => false); n++) {
-        name = `${stem} ${n}`;
-      }
-      const path = withDir(name);
-      // Inherit the pinboard's active label filter into the new note: in tags
-      // mode the labels merge into `tags:`, in property mode they pre-fill the
-      // multiselect property the board filters on.
-      const labels = input.labels ?? [];
-      const inheritTags = input.labelProp ? target.inheritTags : [...target.inheritTags, ...labels];
-      const prefills = input.labelProp && labels.length > 0 ? { [input.labelProp]: labels } : {};
-      const content = buildCaptureContent({
-        text,
-        title,
+      const view = cfg?.views?.[activeViewIndex] ?? {};
+      const viewKey = `${cacheKey}#${viewStateName(cfg?.views?.[activeViewIndex], activeViewIndex)}`;
+      const plan = await planPinboardEntry(entryFiles, {
+        config: cfg,
+        viewIndex: activeViewIndex,
+        activeLabels: cache?.session(viewKey).labels ?? [],
+        labelProperty: pinboardLabelProperty(view),
+        folder: answeredFolder,
         noteType: await getConfiguredNoteType(vaultPath),
-        inheritTags,
-        prefills,
+        now: new Date(),
+        extraPrefills: await scopePrefills(),
+        getInput: cells.getColumnInput,
+        template: template
+          ? async ({ title, folder }) => {
+              let raw: string;
+              try {
+                raw = await vaultAdapter.readTextFile(template);
+              } catch (e) {
+                console.warn("[BaseViewer] reading the template failed — the entry starts empty", template, e);
+                return undefined;
+              }
+              const answered = await applyTemplateInteractive(
+                raw,
+                { title, now: new Date(), folder, vaultName: vaultPath.split(/[/\\]/).filter(Boolean).pop() ?? "" },
+                t("database.templateAnswersTitle", { defaultValue: "Angaben für die Vorlage" }),
+              );
+              return answered ? { text: answered.text, caret: answered.cursor } : null;
+            }
+          : undefined,
       });
-      await vaultAdapter.writeTextFile(path, content);
-      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => {});
-      triggerFileTreeUpdate();
-      notifyFileOps([{ type: "create", path }]);
-      window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
-      setRefreshTick((n) => n + 1);
-      return true;
+      if (plan.status === "ask-folder") {
+        setFolderDialog({ mode: plan.mode, pendingTemplate: template, pendingEntry: true });
+        return;
+      }
+      if (plan.status !== "ready") return; // the template's questions were cancelled
+      const draft = plan.draft;
+      if (indexer) await applyIndexChanges(indexer, { added: [draft.path] }).catch(() => {});
+      notifyFileOps([{ type: "create", path: draft.path }]);
+      setEntryDraft(draft);
     } catch (e) {
-      console.error("[BaseViewer] quick capture failed", e);
-      toast.error(String((e as { message?: string })?.message ?? e));
-      return false;
+      console.error("[BaseViewer] opening a new pinboard entry failed", e);
+      toast.error(errorText(e));
     } finally {
       setNewItemBusy(false);
     }
+  };
+
+  /** The entry window closed: refresh, link the host, say so when the name was taken. */
+  const onPinboardEntryDone = (result: PinboardEntryResult) => {
+    setEntryDraft(null);
+    const path = result.outcome === "kept" ? result.path : null;
+    void (async () => {
+      let hostLinked = false;
+      if (path) {
+        try {
+          hostLinked = await linkHostTo(path);
+        } catch (e) {
+          console.error("[BaseViewer] linking the new entry to its host failed", e);
+        }
+      }
+      if (indexer && path) await applyIndexChanges(indexer, { added: hostLinked && hostPath ? [path, hostPath] : [path] }).catch(() => {});
+      if (path) window.dispatchEvent(new CustomEvent("plainva-note-saved", { detail: { path } }));
+      triggerFileTreeUpdate();
+      // Detached-root embeds don't see the fileTreeVersion bump — refresh locally.
+      setRefreshTick((n) => n + 1);
+    })();
+    if (result.renameFailed) toast.warning(t("pinboard.entryRenameFailed"));
   };
 
   const confirmFolderDialog = async (folder: string) => {
@@ -1135,6 +1217,10 @@ export function BaseViewer({
     const nc = applyNewItemFolder(dbConfig, clean, dlg.mode);
     if (!nc) return;
     await saveConfig(nc);
+    if (dlg.pendingEntry && dlg.pendingTemplate !== undefined) {
+      await openPinboardEntry(dlg.pendingTemplate, nc, clean);
+      return;
+    }
     if (dlg.pendingTemplate !== undefined) {
       await doCreateItem(nc, clean, resolveNewItemTarget(nc).inheritTags, dlg.pendingTemplate);
     }
@@ -2200,6 +2286,11 @@ export function BaseViewer({
       .filter(([, col]) => col && typeof col === "object" && predicate(col))
       .map(([key]) => key);
 
+  // The draft behind an open "New entry" window is a real file and joins the
+  // rows at once; its card stays hidden until the window has closed (E15).
+  const shownData = entryDraft ? scopedData.filter((row) => row["file.path"] !== entryDraft.path) : scopedData;
+  const defaultTemplate = typeof dbConfig?.newItemTemplate === "string" && dbConfig.newItemTemplate ? dbConfig.newItemTemplate : null;
+
   const renderViewContent = () => {
     // The empty view offers the one action this surface can keep (S18, the
     // desktop half of the mobile empty-state duty). Five views each carried
@@ -2207,12 +2298,15 @@ export function BaseViewer({
     // a database with no entries rendered a blank canvas. The table keeps its
     // own in-table row on purpose: the header line IS the schema, and reading
     // the columns is worth more there than a button that sits two rows above.
-    if (scopedData.length === 0 && currentViewType !== "table" && currentViewType !== "graph") {
+    // On a pinboard the same button opens "New entry" (plan Befunde
+    // 2026-09-24, E14): an empty board used to show this state INSTEAD of the
+    // board, and the board's own capture was out of reach.
+    if (shownData.length === 0 && currentViewType !== "table" && currentViewType !== "graph") {
       return (
         <EmptyState
           icon={<Database size={ICON.empty} />}
           action={
-            <Button variant="primary" onClick={() => { void createNewItem(null); }} data-testid="base-empty-new">
+            <Button variant="primary" onClick={() => { if (currentViewType === "pinboard") void openPinboardEntry(defaultTemplate); else void createNewItem(null); }} data-testid="base-empty-new">
               {t("database.newItem", "Eintrag")}
             </Button>
           }
@@ -2227,8 +2321,7 @@ export function BaseViewer({
         <BasePinboardView
           key={`${cacheKey}#${viewStateName(dbConfig?.views?.[activeViewIndex], activeViewIndex)}`}
           viewKey={`${cacheKey}#${viewStateName(dbConfig?.views?.[activeViewIndex], activeViewIndex)}`}
-          captureSignal={captureSignal}
-          dbData={scopedData}
+          dbData={shownData}
           dbConfig={dbConfig}
           activeView={dbConfig?.views?.[activeViewIndex] ?? {}}
           visibleColumns={visibleColumns}
@@ -2236,7 +2329,6 @@ export function BaseViewer({
           onPatchView={patchActiveView}
           onOpenNote={requestOpen}
           onOpenInSplit={onOpenInSplit}
-          onQuickCapture={quickCapture}
           embedded={embedded}
         />
       );
@@ -2383,11 +2475,14 @@ export function BaseViewer({
           busy={newItemBusy}
           basePath={activePath}
           currentFolder={dbConfig ? resolveNewItemTarget(dbConfig).folder : null}
-          defaultTemplate={typeof dbConfig?.newItemTemplate === "string" && dbConfig.newItemTemplate ? dbConfig.newItemTemplate : null}
+          defaultTemplate={defaultTemplate}
           loadTemplates={loadTemplatesForMenu}
           onToggleAssign={toggleTemplateAssignment}
           onCreate={(tpl) => {
-            if (currentViewType === "pinboard" && !tpl) setCaptureSignal((n) => n + 1);
+            // A pinboard opens "New entry" for EVERY choice — the default
+            // template and one picked from the menu alike (E14/E16); the other
+            // views keep "Entry -> peek".
+            if (currentViewType === "pinboard") void openPinboardEntry(tpl);
             else void createNewItem(tpl);
           }}
           onSetDefaultTemplate={setDefaultTemplate}
@@ -2427,6 +2522,7 @@ export function BaseViewer({
             opens a row underneath. Closing it clears the query — a filter
             nobody can see is how a list comes to look broken. */}
         <IconButton
+          ref={searchToggleRef}
           label={t("database.searchToggle")}
           active={searchOpen}
           onClick={() => { setSearchOpen((open) => { if (open) setBaseSearchText(""); return !open; }); }}
@@ -2494,7 +2590,16 @@ export function BaseViewer({
       </div>
       {searchOpen && (
         <div className="pv-basesearch-row" data-testid="base-search">
-          <BaseSearchField value={baseSearchText} onChange={setBaseSearchText} busy={baseSearch.busy} autoFocus placeholder={t("database.searchPlaceholder")}>
+          <BaseSearchField
+            value={baseSearchText}
+            onChange={setBaseSearchText}
+            busy={baseSearch.busy}
+            autoFocus
+            placeholder={t("database.searchPlaceholder")}
+            // The second Escape closes the row and hands the focus back to
+            // the magnifier that opened it (E18).
+            onEscapeWhenEmpty={() => { setSearchOpen(false); searchToggleRef.current?.focus(); }}
+          >
             {baseSearchText.trim() !== "" && (
               <span className="pv-basesearch-count" data-testid="base-search-count">
                 {t("database.searchCount", { n: scopedData.length, total: scopeRows.length })}
@@ -2624,6 +2729,15 @@ export function BaseViewer({
           onOpenSplit={onOpenInSplit ? (p) => { onOpenInSplit(p); setPeekPath(null); } : undefined}
           onRename={(p) => void renameEntry(p)}
           onDelete={(p) => void deleteEntry(p)}
+        />
+      )}
+      {entryDraft && entryFiles && (
+        <PinboardEntryModal
+          key={entryDraft.path}
+          draft={entryDraft}
+          files={entryFiles}
+          vaultPath={vaultPath}
+          onDone={onPinboardEntryDone}
         />
       )}
       {scheduleTarget && (

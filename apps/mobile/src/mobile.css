@@ -819,26 +819,6 @@ textarea {
 }
 
 
-/* Keep-style capture popup (2026-07-17): design-language field look — token
-   border, chip radius, accent focus — instead of naked borderless inputs. */
-.m-capture-popup input,
-.m-capture-popup textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  color: var(--text-main);
-  padding: 10px 12px;
-  font-size: var(--text-ui);
-  font-family: inherit;
-  outline: none;
-}
-.m-capture-popup input:focus,
-.m-capture-popup textarea:focus {
-  border-color: var(--accent-color);
-}
-
 .m-field {
   display: flex;
   flex-direction: column;
@@ -1047,46 +1027,29 @@ textarea {
   --m-pin-gap: 10px;
   --m-pin-clamp: 260px;
   --m-pin-skeleton: 40px;
-  --m-pin-captureheight: 72px;
 }
-.m-pin-capture {
-  display: block;
-  width: 100%;
-  margin: var(--space-1) 0 var(--space-3);
-  padding: var(--space-3) var(--m-edge);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-pill);
-  background: var(--bg-secondary);
-  color: var(--text-muted);
-  font-size: var(--text-ui);
-  text-align: left;
+/* The pinboard's "New entry" page (plan Befunde 2026-09-24, E17): the note
+   page's layout (.m-page--note — the editor fills, the formatting bar docks,
+   the text keeps the one 12px inset) with a title field on top and the
+   inherited chips under it. The chips sit ABOVE the text: below it they would
+   end up under the docked formatting bar. The title field's look — frameless,
+   set like a heading, its focus a line under it — is the desktop window's
+   (.pv-pinentry-title, ui.css); the phone only brings its own 12px inset. */
+.m-pinentry-title {
+  padding: var(--space-2) var(--space-3) var(--space-1);
 }
-/* The class was referenced and never defined — the look came from the inline
-   style beside it, which is why nothing looked wrong. */
-.m-capture-popup {
+.m-pinentry-chips {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-2);
+}
+.m-pinentry-editor {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  margin: var(--space-1) 0 var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  box-shadow: var(--shadow-2);
-}
-/* The capture card's two fields: a title that reads like one, and a body that
-   starts three lines tall and does not offer its own resize grip on a phone. */
-.m-pin-capture-title {
-  font-weight: 600;
-}
-.m-pin-capture-text {
-  min-height: var(--m-pin-captureheight);
-  resize: none;
-}
-.m-pin-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
 }
 /* The scrolling itself comes from the ScrollEdge wrapper (it owns overflow-x
    so it can say when there is more); this keeps the row's own metric. */

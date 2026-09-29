@@ -597,6 +597,8 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   font-weight: 600;
   color: var(--text-main);
 }
+/* A quiet line of context after the title ("lands in Zettel/"), before the X. */
+.pv-modal-note { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); color: var(--text-faint); }
 .pv-modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-4); }
 /* Edge-to-edge body for pane layouts (version diff, pickers). */
 .pv-modal-body--flush { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -3826,27 +3828,52 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-emptypane-recent > b { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); font-weight: 600; }
 .pv-emptypane-recent > button { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-main); font: inherit; font-size: var(--text-md); text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-emptypane-keys { display: block; margin-top: var(--space-3); font-size: var(--text-sm); color: var(--text-faint); }
-.pv-basesearch-row { display: flex; align-items: center; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-color-light); }
-/* The way to a new note where the pinboard's own search field used to sit.
-   It opens the SAME capture the head's "New" opens — one surface, two doors. */
-.pv-capturerow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  max-width: 560px;
-  min-height: var(--control-lg);
-  margin-bottom: var(--space-3);
-  padding: var(--space-1) var(--space-3);
-  border: 1px dashed var(--border-color);
-  border-radius: var(--radius-md);
+/* The field GROWS with the row (plan Befunde 2026-09-24, E18): at least 16rem,
+   at most 40rem, and the hit counter stands at the row's end — not glued to
+   the field. Without a width of its own the input fell back to the browser's
+   20 characters (about 155px), and the placeholder was cut in a window of
+   1700px. The row carries the ground of the mockup. The phone's field
+   (.m-basesearch) already takes its line and is not touched here. */
+.pv-basesearch-row { display: flex; align-items: center; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); }
+.pv-basesearch-row > .pv-basesearch { flex: 1; gap: var(--space-3); }
+.pv-basesearch-row .pv-searchfield { flex: 1 1 22rem; min-width: min(16rem, 100%); max-width: 40rem; }
+.pv-basesearch-row .pv-basesearch-count { margin-left: auto; }
+/* Pinboard "New entry" (plan Befunde 2026-09-24, E14): a title and the real
+   editor in a large modal. The body is a column of three bands — the title
+   field, the editor (it scrolls itself, CodeMirror owns the scroller) and the
+   line of inherited values — so the modal body does not scroll or pad. */
+.pv-pinentry { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+/* The title is a TextInput without the field frame: it reads as the note's
+   heading. Its focus stays visible as a line under it. The phone's "New entry"
+   page uses the same class and only brings its own inset (.m-pinentry-title). */
+.pv-pinentry-title {
+  flex: none;
+  box-sizing: border-box;
+  height: auto;
+  padding: var(--space-4) var(--space-5) var(--space-2);
+  border: 0;
+  border-radius: 0;
   background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  font-size: var(--text-headline);
+  font-weight: 700;
 }
-.pv-capturerow:hover { background: var(--state-hover); color: var(--text-main); }
+.pv-pinentry-title::placeholder { font-weight: 600; }
+.pv-pinentry-title:focus,
+.pv-pinentry-title:focus-visible { box-shadow: inset 0 -2px 0 var(--accent-color); }
+.pv-pinentry-editor { flex: 1; display: flex; flex-direction: column; min-height: 14rem; height: 42vh; }
+.pv-pinentry-loading { padding: var(--space-4) var(--space-5); color: var(--text-muted); }
+.pv-pinentry-meta {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  border-top: 1px solid var(--border-color-light);
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+.pv-pinentry-hints { flex: 1; min-width: 0; font-size: var(--text-sm); color: var(--text-muted); }
 
 .pv-property-text { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; }
 .pv-property-text > input { flex: 1; min-width: 0; }

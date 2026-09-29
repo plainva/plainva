@@ -154,6 +154,37 @@ export async function buildNewNoteFromTemplate(opts: {
   return { content: ensureOkf(body, opts.type), caret: null };
 }
 
+/**
+ * One named template, resolved with its questions for a note titled `title`
+ * in `folder` — the pinboard entry's default template (plan Befunde
+ * 2026-09-24, E16). `undefined`: no such file, the entry starts empty;
+ * `null`: the questions were cancelled, and nothing is created.
+ */
+export async function answerTemplateFile(opts: {
+  read: (path: string) => Promise<string>;
+  exists: (path: string) => Promise<boolean>;
+  vaultName: string;
+  folder: string;
+  title: string;
+  template: string;
+}): Promise<InteractiveTemplateResult | null | undefined> {
+  const path = templatePathOf(opts.template);
+  if (!path || !(await opts.exists(path).catch(() => false))) return undefined;
+  const ms = getMobileSettings();
+  const now = new Date();
+  return applyTemplateInteractive(await opts.read(path), {
+    title: opts.title,
+    now,
+    folder: opts.folder,
+    vaultName: opts.vaultName,
+    dailyPath: (offset) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() + offset);
+      return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
+    },
+  });
+}
+
 /** Prepends the OKF header unless the text already carries frontmatter. */
 function ensureOkf(text: string, type: string): string {
   if (/^---\r?\n/.test(text)) return text;

@@ -7,6 +7,8 @@ import type { MobileVault } from "./services/vaultService";
 import type { NavEntry, NavKind, NavState, TabScreenId } from "./navigation";
 import type { AppCommand, AreaOrder } from "@plainva/ui";
 import { BaseScreen } from "./screens/base/BaseScreen";
+import { PinboardEntryScreen } from "./screens/base/PinboardEntryScreen";
+import { serializePinboardEntryRef } from "./screens/base/pinboardEntryRef";
 import { BookmarksScreen } from "./BookmarksScreen";
 import { BrowseScreen } from "./screens/BrowseScreen";
 import { NavigatorScreen } from "./screens/NavigatorScreen";
@@ -292,11 +294,15 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       initialConfigOpen={e.configOpen}
       key={e.path}
       onBack={c.pop}
+      onNewPinboardEntry={(entry) => c.push({ kind: "pinentry", path: serializePinboardEntryRef(entry) })}
       onOpenNote={c.openNote}
       path={e.path}
       vault={c.vault}
     />
   ),
+  // A pinboard's "New entry" (plan Befunde 2026-09-24, E17). Keyed on the
+  // draft: a second entry is a second page, never the first one reused.
+  pinentry: (e, c) => <PinboardEntryScreen entry={e.path} key={e.path} onBack={c.pop} vault={c.vault} />,
   note: (e, c) => (
     <NoteScreen
       key={e.path}

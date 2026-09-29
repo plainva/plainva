@@ -88,7 +88,7 @@ export const NAV_KINDS = [
   "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "comments", "journal", "cleanup", "tags", "bookmarks",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme",
   "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
-  "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration",
+  "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration", "pinentry",
 ] as const;
 
 export type NavKind =
@@ -132,7 +132,8 @@ export type NavKind =
   | "importwizard"
   | "okfconversion"
   | "okfmigration"
-  | "imageviewer";
+  | "imageviewer"
+  | "pinentry";
 
 /** The list above must name exactly the union — in both directions. */
 const _navKindsCoverUnion = NAV_KINDS satisfies readonly NavKind[];
@@ -253,8 +254,14 @@ export function reservesFabStrip(top?: NavEntry, activeTab?: TabScreenId): boole
  *
  * `cloudconnect` is deliberately absent: it only picks a provider, and leaving
  * it loses nothing. The credentials are entered on the `sync` surface.
+ *
+ * `pinentry` (plan Befunde 2026-09-24, E17) is the pinboard's "New entry"
+ * page. It holds unfinished input — the typed title lives in the page until
+ * the entry ends — so the bar hides and a restored session does not reopen
+ * it. It needs no leave guard: every way out, the bar included, ends the
+ * entry the way closing does, and closing keeps what was typed.
  */
-export const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard", "okfconversion", "okfmigration"]);
+export const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard", "okfconversion", "okfmigration", "pinentry"]);
 
 /**
  * Surfaces that hide the bar for the OTHER reason: nothing is lost by leaving

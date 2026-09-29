@@ -100,3 +100,18 @@ Use these UI terms in the guide and tour. A summary belongs to the whole visible
 | ja | 集計 | 集計なし | ヘッダーの色 | タグ · ノート全体 |
 
 Tour lessons live beside the template modules as `tourLessons.<code>.json`; all ten languages share the builder and creation boundary.
+
+A pinboard's **New entry** (window on the desktop, page on the phone) builds on the database's **Entry**: the same noun, never a second word for it. **Inherited** names the values the entry takes over from the board's active labels and the view's filters. **Discard** throws away what was written into THIS entry — keep it apart from **Delete**, which removes an existing note.
+
+| Language | New entry | Inherited | Discard |
+|---|---|---|---|
+| en | New entry | Inherited | Discard |
+| de | Neuer Eintrag | Übernommen | Verwerfen |
+| fr | Nouvelle entrée | Hérité | Abandonner |
+| es | Nueva entrada | Heredado | Descartar |
+| pt-BR | Nova entrada | Herdado | Descartar |
+| it | Nuova voce | Ereditato | Scarta |
+| nl | Nieuw item | Overgenomen | Weggooien |
+| pl | Nowy wpis | Przejęte | Odrzuć |
+| zh-CN | 新建条目 | 沿用 | 丢弃 |
+| ja | 新しいエントリー | 引き継ぎ | 破棄 |

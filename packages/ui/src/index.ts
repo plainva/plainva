@@ -252,6 +252,8 @@ export * from "./base/filterExpr";
 export * from "./base/newItemNaming";
 export * from "./base/newItemFolder";
 export * from "./base/pinboardModel";
+export * from "./base/pinboardEntry";
+export * from "./base/newItemPrefill";
 export * from "./base/pinboardSweep";
 export * from "./base/propertyModel";
 export * from "./base/calendarRange";

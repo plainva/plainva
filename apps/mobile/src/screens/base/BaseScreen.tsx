@@ -38,10 +38,12 @@ import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
 import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
+import { errorText, pinboardLabelProperty } from "@plainva/ui";
 import {
   commitCellValue,
   createBaseItem,
   loadBase,
+  planMobilePinboardEntry,
   queryView,
   saveBaseConfig,
   type LoadedBase,
@@ -52,6 +54,7 @@ import type { WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
+import type { PinboardEntryRef } from "./pinboardEntryRef";
 import { CardChecklist } from "./CardChecklist";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
 import { PropertyEditSheet } from "./PropertyEditSheet";
@@ -139,12 +142,19 @@ export function BaseScreen({
   path,
   onBack,
   onOpenNote,
+  onNewPinboardEntry,
   initialConfigOpen,
 }: {
   vault: MobileVault;
   path: string;
   onBack: () => void;
   onOpenNote: (path: string) => void;
+  /**
+   * Opens the "New entry" page for a draft the pinboard just created (plan
+   * Befunde 2026-09-24, E17) — a page of its own, not a sheet: the keyboard
+   * and the formatting bar need the room.
+   */
+  onNewPinboardEntry: (entry: PinboardEntryRef) => void;
   /** Fresh databases open with the configure sheet up (E3 mini wizard). */
   initialConfigOpen?: boolean;
 }) {
@@ -793,28 +803,46 @@ export function BaseScreen({
     }
   }, [rowSel, vault, config, viewIndex, requery, t]);
 
-  // On a pinboard the FAB opens the capture card instead of minting a
-  // `{Base}_{n}` note (feedback round 2026-09-01, M2/E6): the board's own
-  // entry asks for a title and makes it file name + H1; the FAB used to bypass
-  // exactly that, which read as "the pinboard does not ask for a name".
-  const [captureSignal, setCaptureSignal] = useState(0);
+  // On a pinboard the FAB opens the "New entry" page — a title and the real
+  // editor (plan Befunde 2026-09-24, E14/E17) — instead of minting a
+  // `{Base}_{n}` note. The draft is created first, in the board's folder, with
+  // the board's ACTIVE labels and the view's filters: the phone used to drop
+  // the labels, and a note captured under a label filter vanished at once.
+  const newPinboardEntry = async () => {
+    if (!config) return;
+    const viewKey = `${path}#${viewStateName(view, viewIndex)}`;
+    const opts = { viewIndex, activeLabels: cache.session(viewKey).labels, labelProperty: pinboardLabelProperty(view) };
+    try {
+      let plan = await planMobilePinboardEntry(vault, config, opts);
+      if (plan.status === "ask-folder") {
+        // No folder decided, or several sources: the one question, then on.
+        const asked = await askStorageFolder();
+        if (!asked) return;
+        plan = await planMobilePinboardEntry(vault, asked.config, { ...opts, folder: asked.folder });
+      }
+      if (plan.status === "ready") onNewPinboardEntry({ draft: plan.draft, base: path });
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  };
   const newItem = () => {
     if (!config) return;
     if (effectiveRender === "pinboard") {
-      setCaptureSignal((n) => n + 1);
+      void newPinboardEntry();
       return;
     }
-    void createBaseItem(vault, path, config, allRows?.length ?? 0, viewIndex).then(async (p) => {
-      if (p) {
-        onOpenNote(p);
-        return;
+    void (async () => {
+      let made = await createBaseItem(vault, path, config, allRows?.length ?? 0, viewIndex);
+      if (made.status === "ask-folder") {
+        // No folder decided, or several: ask the one question, then carry on
+        // (P2). Cancelled template questions end here — they are not a folder
+        // question.
+        const asked = await askStorageFolder();
+        if (!asked) return;
+        made = await createBaseItem(vault, path, asked.config, allRows?.length ?? 0, viewIndex, asked.folder);
       }
-      // No folder to store into: ask the one question, then carry on (P2).
-      const asked = await askStorageFolder();
-      if (!asked) return;
-      const created = await createBaseItem(vault, path, asked.config, allRows?.length ?? 0, viewIndex, asked.folder);
-      if (created) onOpenNote(created);
-    });
+      if (made.status === "created") onOpenNote(made.path);
+    })().catch((e) => toast.error(errorText(e)));
   };
 
   // Pinboard view options (plan Pinboard P6): patch the active view
@@ -1981,7 +2009,7 @@ export function BaseScreen({
 
       {searchOpen && (
         <div className="m-basesearch" data-testid="base-search">
-          <BaseSearchField value={searchText} onChange={setSearchText} busy={baseSearch.busy} placeholder={t("database.searchPlaceholder")} autoFocus>
+          <BaseSearchField value={searchText} onChange={setSearchText} busy={baseSearch.busy} placeholder={t("database.searchPlaceholder")} autoFocus onEscapeWhenEmpty={() => setSearchOpen(false)}>
             {searchText.trim() !== "" && (
               <span className="m-badge-muted" data-testid="base-search-count">{t("database.searchCount", { n: rows?.length ?? 0, total: allRows?.length ?? 0 })}</span>
             )}
@@ -2055,12 +2083,15 @@ export function BaseScreen({
         >
           {t("mobile.needsIndex")}
         </EmptyState>
-      ) : effectiveRender === "pinboard" ? (
-        // Before the empty check: the capture field must show on an empty board.
+      ) : effectiveRender === "pinboard" && (allRows?.length ?? 0) > 0 ? (
+        // Before the empty check: a board whose search matches nothing says so
+        // itself, under its chip bar. A board with no entries at all takes the
+        // empty state below, whose action opens "New entry" like the FAB — the
+        // desktop's empty board does the same (plan Befunde 2026-09-24, E14);
+        // the capture row that used to stand there is gone.
         <PinboardView
           key={`${path}#${viewStateName(view, viewIndex)}`}
           viewKey={`${path}#${viewStateName(view, viewIndex)}`}
-          captureSignal={captureSignal}
           vault={vault}
           config={config}
           view={view}
@@ -2074,8 +2105,6 @@ export function BaseScreen({
           onOpenNote={onOpenNote}
           onMutated={() => requery(config, viewIndex)}
           onPatchView={patchActiveView}
-          askStorageFolder={askStorageFolder}
-          viewIndex={viewIndex}
         />
       ) : rows.length === 0 ? (
         /* The one action a database view can offer is the row it is missing —

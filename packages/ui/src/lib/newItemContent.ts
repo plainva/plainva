@@ -36,26 +36,12 @@ export function buildNewItemContent(opts: {
 }
 
 /**
- * Quick-capture content (pinboard, ＋ button): the typed text IS the body —
- * deliberately no template, because a sticky note is just text and placeholders
- * like {{cursor}} make no sense there. A typed TITLE becomes the H1; without
- * one there is no H1 at all (the file gets a timestamp name instead).
+ * OKF defaults, inherited tags and pre-fills on top of a body — the shared
+ * tail of every "new item" builder. Exported for the pinboard entry
+ * (`planPinboardEntry`), whose body is either empty or a template the shell
+ * has already resolved with its questions.
  */
-export function buildCaptureContent(opts: {
-  text: string;
-  title?: string | null;
-  noteType: string;
-  inheritTags: string[];
-  /** Extra frontmatter to pre-fill; only written where the key is unset. */
-  prefills?: Record<string, unknown>;
-}): string {
-  const body = opts.text.trimEnd();
-  const title = (opts.title ?? "").trim();
-  const base = title ? `# ${title}\n` + (body ? `\n${body}\n` : "") : body ? body + "\n" : "";
-  return finalizeItemContent(base, opts.noteType, opts.inheritTags, opts.prefills ?? {});
-}
-
-function finalizeItemContent(
+export function finalizeItemContent(
   base: string,
   noteType: string,
   inheritTags: string[],

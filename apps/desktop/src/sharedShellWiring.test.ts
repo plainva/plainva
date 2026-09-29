@@ -13,6 +13,11 @@ const contracts = [
   ["PublicationFeedback", "components/workspace/WorkspaceCommentsColumn.tsx", "components/CommentsSheet.tsx"],
   ["useCustomThemePair", "components/settings/CustomThemeEditor.tsx", "screens/CustomThemeScreen.tsx"],
   ["usePersonalDesignSync", "components/SettingsModal.tsx", "screens/CustomThemeScreen.tsx"],
+  // The pinboard's "New entry" (plan Befunde 2026-09-24, E16): ONE core for
+  // the draft and its end; the two capture paths it replaced had drifted apart.
+  ["planPinboardEntry", "components/BaseViewer.tsx", "services/baseOps.ts"],
+  ["finalizePinboardEntry", "components/base/PinboardEntryModal.tsx", "services/baseOps.ts"],
+  ["discardPinboardEntry", "components/base/PinboardEntryModal.tsx", "services/baseOps.ts"],
 ] as const;
 
 function usesFeature(source: string, name: string): boolean {

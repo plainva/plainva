@@ -74,6 +74,7 @@ import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../serv
 import { mergeEditorText, containsTextChanges } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
+import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
 
 /**
@@ -110,8 +111,27 @@ export const Editor: React.FC<{
   /** Scoped live-document channel (a floating peek passes its own so its inline
    * Properties bind to the peek note, not the main pane). Defaults to the global. */
   docChannel?: DocChannel;
-}> = ({ activePath, onOpenPath, onNavigateBack, onNavigateForward, canGoBack, canGoForward, isBookmarked, onToggleBookmark, onDelete, onRenamed, onSplit, activeSplitDirection, isActivePane = true, peek = false, docChannel }) => {
+  /**
+   * The editor of a new pinboard entry (plan Befunde 2026-09-24, E14). The
+   * window around it names the destination and carries the title, so the
+   * database context line would only repeat the draft's timestamp name, and
+   * the comment column's switch has nothing to open yet.
+   */
+  newEntry?: boolean;
+}> = ({ activePath, onOpenPath, onNavigateBack, onNavigateForward, canGoBack, canGoForward, isBookmarked, onToggleBookmark, onDelete, onRenamed, onSplit, activeSplitDirection, isActivePane = true, peek = false, docChannel, newEntry = false }) => {
   const vaultContext = useVault();
+  // Broadcast editor commands (slash menu, template insert) reach the editor
+  // the person is working in — not every mounted one (editorCommandTarget).
+  const [commandId] = useState(() => editorCommandTarget.newId());
+  const isActivePaneRef = useRef(isActivePane);
+  useEffect(() => editorCommandTarget.mount(commandId), [commandId]);
+  useEffect(() => {
+    isActivePaneRef.current = isActivePane;
+    // Activating a pane is choosing where to work, the same as a click into
+    // its text: the later of the two wins.
+    if (isActivePane) editorCommandTarget.focus(commandId);
+  }, [isActivePane, commandId]);
+  const isCommandTarget = useCallback(() => editorCommandTarget.is(commandId, isActivePaneRef.current), [commandId]);
   // Live-document channel this editor publishes to. A scoped channel (peek) drives
   // its own inline Properties; only the editor that owns the GLOBAL channel touches
   // the shared sidebar/status-bar selection stats.
@@ -1111,9 +1131,10 @@ export const Editor: React.FC<{
   };
 
   // Slash commands `/icon` + `/header color` fire window events; anchor the
-  // picker at the caret (fallback: top-left of the pane).
+  // picker at the caret (fallback: top-left of the pane). The editor the
+  // person works in answers (editorCommandTarget) — a pinboard entry window
+  // is not the active pane, and the pane behind it must not take its `/icon`.
   useEffect(() => {
-    if (!isActivePane) return;
     const anchorAtCursor = (): { x: number; y: number } => {
       const view = sessionRef.current?.view;
       if (view) {
@@ -1123,9 +1144,9 @@ export const Editor: React.FC<{
       const rect = readScrollRef.current?.getBoundingClientRect();
       return { x: (rect?.left ?? 100) + 32, y: (rect?.top ?? 100) + 48 };
     };
-    const onOpenIcon = () => setIconPicker(anchorAtCursor());
-    const onOpenColor = () => setColorPicker(anchorAtCursor());
-    const onOpenEmoji = () => setEmojiTextPicker(anchorAtCursor());
+    const onOpenIcon = () => { if (isCommandTarget()) setIconPicker(anchorAtCursor()); };
+    const onOpenColor = () => { if (isCommandTarget()) setColorPicker(anchorAtCursor()); };
+    const onOpenEmoji = () => { if (isCommandTarget()) setEmojiTextPicker(anchorAtCursor()); };
     window.addEventListener("plainva-open-icon-picker", onOpenIcon);
     window.addEventListener("plainva-open-header-color", onOpenColor);
     window.addEventListener("plainva-open-emoji-picker", onOpenEmoji);
@@ -1134,7 +1155,7 @@ export const Editor: React.FC<{
       window.removeEventListener("plainva-open-header-color", onOpenColor);
       window.removeEventListener("plainva-open-emoji-picker", onOpenEmoji);
     };
-  }, [isActivePane]);
+  }, [isCommandTarget]);
 
   const emojiPickerLabels: EmojiPickerLabels = {
     searchPlaceholder: t("emojiPicker.search"),
@@ -1173,6 +1194,9 @@ export const Editor: React.FC<{
 
   useEffect(() => {
     const handleInsertText = (e: Event) => {
+      // One editor takes the text (editorCommandTarget): with a pinboard entry
+      // open over an embedded board, the host note took the template too.
+      if (!isCommandTarget()) return;
       const customEvent = e as CustomEvent<{ text: string; cursorOffset?: number }>;
       const view = sessionRef.current?.view;
       if (view) {
@@ -1193,11 +1217,12 @@ export const Editor: React.FC<{
     };
     window.addEventListener("plainva-insert-text", handleInsertText);
     return () => window.removeEventListener("plainva-insert-text", handleInsertText);
-  }, []);
+  }, [isCommandTarget]);
 
   // Open the graphical table size picker at the caret (triggered by /table).
   useEffect(() => {
     const openPicker = () => {
+      if (!isCommandTarget()) return;
       const view = sessionRef.current?.view;
       if (!view) return;
       const pos = view.state.selection.main.head;
@@ -1206,7 +1231,7 @@ export const Editor: React.FC<{
     };
     window.addEventListener("plainva-open-table-picker", openPicker);
     return () => window.removeEventListener("plainva-open-table-picker", openPicker);
-  }, []);
+  }, [isCommandTarget]);
 
   // Jump to a heading (outline click, #10). Only the active pane responds so a
   // split doesn't scroll both editors; live/source scroll the CodeMirror view,
@@ -1381,15 +1406,15 @@ export const Editor: React.FC<{
 
   // Open the .base picker (/ menu) or create one directly (@ / slash "new base").
   useEffect(() => {
-    const openPicker = (e: Event) => setBasePicker({ pos: (e as CustomEvent).detail?.pos ?? 0 });
-    const createBase = (e: Event) => createAndEmbedBase((e as CustomEvent).detail?.pos ?? 0);
+    const openPicker = (e: Event) => { if (isCommandTarget()) setBasePicker({ pos: (e as CustomEvent).detail?.pos ?? 0 }); };
+    const createBase = (e: Event) => { if (isCommandTarget()) createAndEmbedBase((e as CustomEvent).detail?.pos ?? 0); };
     window.addEventListener("plainva-open-base-picker", openPicker);
     window.addEventListener("plainva-create-inline-base", createBase);
     return () => {
       window.removeEventListener("plainva-open-base-picker", openPicker);
       window.removeEventListener("plainva-create-inline-base", createBase);
     };
-  }, [createAndEmbedBase]);
+  }, [createAndEmbedBase, isCommandTarget]);
 
   // Wrap the current selection with Markdown markers (selection toolbar, #5).
   // Selection toolbar (#5). Inline formats TOGGLE: applying again removes the
@@ -1578,11 +1603,10 @@ export const Editor: React.FC<{
   // effect above) because `attachFile` is declared down here: a const is not
   // hoisted, and reading it earlier is a runtime error, not a lint nicety.
   useEffect(() => {
-    if (!isActivePane) return;
-    const onAttachFile = () => { void attachFile(); };
+    const onAttachFile = () => { if (isCommandTarget()) void attachFile(); };
     window.addEventListener("plainva-attach-file", onAttachFile);
     return () => window.removeEventListener("plainva-attach-file", onAttachFile);
-  }, [isActivePane, attachFile]);
+  }, [isCommandTarget, attachFile]);
 
   const handlePaste = (event: ClipboardEvent, view: EditorView): boolean => {
     const cd = event.clipboardData;
@@ -2843,10 +2867,12 @@ export const Editor: React.FC<{
   }
 
   return (
-    <div ref={editorRootRef} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, position: "relative" }}>
+    <div ref={editorRootRef} onFocusCapture={() => editorCommandTarget.focus(commandId)} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, position: "relative" }}>
       {/* The peek hides the toolbar, so the column's switch floats over the
-          note's top right until the column is open - which has its own X. */}
-      {peek && commentsAccessible && !commentColumnOpen && (
+          note's top right until the column is open - which has its own X.
+          A new pinboard entry has nothing to comment on yet, and the phone's
+          entry page offers no comments either. */}
+      {peek && !newEntry && commentsAccessible && !commentColumnOpen && (
         <IconButton
           label={t("comments.commentColumnShow")}
           onClick={toggleCommentColumn}
@@ -3192,12 +3218,12 @@ export const Editor: React.FC<{
               </div>
             )}
             <DocumentHeaderRead meta={docMeta} fullWidth={editorWidth === 'full'} badge={trustBadge} badgeTexts={badgeTexts} />
-            <NoteDatabaseBar
+            {!newEntry && <NoteDatabaseBar
               context={dbContext}
               title={activePath ? noteDisplayName(activePath) : ""}
               fullWidth={editorWidth === 'full'}
               onOpenPath={(p) => onOpenPath?.(p, false)}
-            />
+            />}
             <div className={managedIndex ? "pv-index-doc" : undefined}>
               <MarkdownReader
                 content={content}
@@ -3271,12 +3297,12 @@ export const Editor: React.FC<{
           // The database context line sits ABOVE it as a plain React sibling —
           // the editor container itself must stay untouched by React.
           <>
-            <NoteDatabaseBar
+            {!newEntry && <NoteDatabaseBar
               context={dbContext}
               title={activePath ? noteDisplayName(activePath) : ""}
               fullWidth={editorWidth === 'full'}
               onOpenPath={(p) => onOpenPath?.(p, false)}
-            />
+            />}
           <div
             ref={editorContainerRef}
             // Readable line length (#1): center the text column when narrow.

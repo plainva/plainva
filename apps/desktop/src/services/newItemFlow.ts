@@ -77,7 +77,7 @@ export function relationPrefill(
 // The content builders moved to @plainva/ui (S23) so the phone assembles a
 // new note exactly the same way; re-exported here so every import path keeps
 // working.
-export { buildNewItemContent, buildCaptureContent } from "@plainva/ui";
+export { buildNewItemContent } from "@plainva/ui";
 
 /** Per-vault configured template folder (same setting the editor's template
  * picker reads; fallback "Templates"). */

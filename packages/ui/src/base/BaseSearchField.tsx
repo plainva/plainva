@@ -52,7 +52,20 @@ export function useBaseSearch(source: SearchSource | null | undefined, paths: st
  *
  * `placeholder` names what is searched; the default says "this database".
  */
-export function BaseSearchField({ value, onChange, busy, children, placeholder, autoFocus }: { value: string; onChange: (value: string) => void; busy?: boolean; children?: ReactNode; placeholder?: string; autoFocus?: boolean }) {
+export function BaseSearchField({ value, onChange, busy, children, placeholder, autoFocus, onEscapeWhenEmpty }: {
+  value: string;
+  onChange: (value: string) => void;
+  busy?: boolean;
+  children?: ReactNode;
+  placeholder?: string;
+  autoFocus?: boolean;
+  /**
+   * The second Escape — on an already empty field — closes the surface that
+   * holds it (plan Befunde 2026-09-24, E18). `SearchField` has always had the
+   * contract; this wrapper did not pass it on, so the database's row stayed.
+   */
+  onEscapeWhenEmpty?: () => void;
+}) {
   const { t } = useTranslation();
   const label = placeholder ?? t("database.searchPlaceholder");
   return <div className="pv-basesearch" role="search">
@@ -64,6 +77,7 @@ export function BaseSearchField({ value, onChange, busy, children, placeholder, 
       placeholder={label}
       aria-busy={busy}
       autoFocus={autoFocus}
+      onEscapeWhenEmpty={onEscapeWhenEmpty}
       data-pinboard-search="true"
     />
     {children}
