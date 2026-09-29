@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { CODE_ROOTS, REPO, shippedSources, sourceTexts } from "./test-sourceTree";
+import { CODE_ROOTS, REPO, shippedSources, sourceFile, sourceMap, sourceTexts } from "./test-sourceTree";
 
 /**
  * The shared source reader of the scan guards (test-sourceTree.ts) takes a
@@ -34,12 +34,19 @@ describe("the scan guards' shared source reader", () => {
       "src/a/c.tsx": "c",
       "src/a.test.ts": "test",
       "src/style.css": "css",
+      "src/data.json": "{}",
+      "src/page.md": "# page",
       "src/node_modules/x.ts": "installed",
       "src/.hidden/y.ts": "dot folder",
     });
+    const rels = (kind: Parameters<typeof sourceTexts>[1]) => sourceTexts(["src"], kind, base, join(base, ".snapshots")).map((f) => f.rel);
     expect(read(base).map((f) => f.rel)).toEqual(["src/a/c.tsx", "src/b.ts"]);
-    expect(sourceTexts(["src"], "tests", base, join(base, ".snapshots")).map((f) => f.rel)).toEqual(["src/a.test.ts"]);
-    expect(sourceTexts(["src"], "text", base, join(base, ".snapshots")).map((f) => f.rel)).toEqual(["src/a.test.ts", "src/a/c.tsx", "src/b.ts", "src/style.css"]);
+    expect(rels("tests")).toEqual(["src/a.test.ts"]);
+    expect(rels("code")).toEqual(["src/a.test.ts", "src/a/c.tsx", "src/b.ts"]);
+    expect(rels("text")).toEqual(["src/a.test.ts", "src/a/c.tsx", "src/b.ts", "src/data.json", "src/style.css"]);
+    expect(rels("css")).toEqual(["src/style.css"]);
+    expect(rels("json")).toEqual(["src/data.json"]);
+    expect(rels("markdown")).toEqual(["src/page.md"]);
   });
 
   it("writes a snapshot and serves an unchanged tree from it", () => {
@@ -74,6 +81,16 @@ describe("the scan guards' shared source reader", () => {
     for (const file of readdirSync(join(base, ".snapshots"))) writeFileSync(join(base, ".snapshots", file), "{ half a snapsh");
     writeFileSync(join(base, "src/b.ts"), "b");
     expect(texts(base)).toEqual({ "src/a.ts": "a", "src/b.ts": "b" });
+  });
+
+  it("hands out one file by path, from a scanned tree or from disk, and throws for a missing one", () => {
+    const rel = "apps/desktop/src/test-sourceTree.ts";
+    const onDisk = readFileSync(join(REPO, rel), "utf8");
+    expect(sourceMap(["apps/desktop/src"], "shipped").get(rel)).toBe(onDisk);
+    expect(sourceFile(rel)).toBe(onDisk);
+    // Not in any scanned tree: read from disk, then kept.
+    expect(sourceFile("pnpm-workspace.yaml")).toBe(readFileSync(join(REPO, "pnpm-workspace.yaml"), "utf8"));
+    expect(() => sourceFile("apps/desktop/src/no-such-file.ts")).toThrow();
   });
 
   it("finds the repository's own code roots", () => {
