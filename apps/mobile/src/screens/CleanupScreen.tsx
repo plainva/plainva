@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText, Link2, Plus, Trash2 } from "lucide-react";
-import { GraphService, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
+import { brokenLinkNoteTitle, GraphService, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
 import {
   applyMentionLink,
   Button,
@@ -130,7 +130,7 @@ export function CleanupScreen({
       const folder = item.sourcePath.includes("/")
         ? item.sourcePath.substring(0, item.sourcePath.lastIndexOf("/"))
         : "";
-      const title = item.targetRaw.split(/[/\\]/).pop()!.replace(/#.*$/, "");
+      const title = brokenLinkNoteTitle(item.targetRaw);
       const path = await createConnectedNote(vault.files, service, {
         folder,
         title,

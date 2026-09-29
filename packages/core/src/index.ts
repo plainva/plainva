@@ -119,4 +119,9 @@ export { foldPathNormalization } from "./sync/pathIdentity.js";
 
 export { projectCommentRecords } from "./comments/commentProjection.js";
 export * from "./textScan.js";
+export * from "./markdownListItem.js";
+export * from "./markdownBlockLine.js";
+export * from "./mailText.js";
+export * from "./vault/filterComparison.js";
+export * from "./linkScan.js";
 export { htmlToPlainText } from "./pim/htmlToMarkdown.js";

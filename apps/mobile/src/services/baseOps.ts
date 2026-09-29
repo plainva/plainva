@@ -434,7 +434,7 @@ export async function captureBaseItem(
     name = `${stem} ${n}`;
   }
   const path = `${folder}/${name}.md`;
-  const body = text.replace(/\s+$/, "");
+  const body = text.trimEnd();
   const noteBody = title ? `# ${title}\n` + (body ? `\n${body}\n` : "") : body ? `${body}\n` : "";
   let content = `---\ntype: ${getMobileSettings().defaultNoteType}\n---\n\n${noteBody}`;
   const prefill = newItemPrefill(config, opts.viewIndex ?? 0);

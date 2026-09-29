@@ -1,5 +1,6 @@
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
+import { bracketLinks } from "@plainva/core";
 import { getPlatformServices } from "../platform/services";
 import { safeHref } from "../lib/safeUrl";
 import { toast } from "../services/toastStore";
@@ -51,23 +52,23 @@ function collect(view: EditorView): LinkMatch[] {
     // `[text](url)` — the text may not contain `]`, or the match would span a
     // preceding `[...]` (a footnote marker, say) into the real link and style
     // everything between as one link. Same trap as issue #11 in the note editor.
-    const md = /\[([^\]\n]*?)\]\(([^)\n]*?)\)/g;
-    let m: RegExpExecArray | null;
-    while ((m = md.exec(text)) !== null) {
-      const start = from + m.index;
-      const end = start + m[0].length;
+    // The note editor's grammar exactly, `/\[([^\]\n]*?)\]\(([^)\n]*?)\)/g`,
+    // read in one pass (plan Befunde 24.09., E6).
+    for (const link of bracketLinks(text, { labelStops: "\n", destinationStops: "\n", destinationMin: 0 })) {
+      const start = from + link.index;
+      const end = start + link.raw.length;
       if (start > 0 && view.state.sliceDoc(start - 1, start) === "!") {
         occupied.push({ start, end });
         continue; // image embed
       }
-      const target = externalTarget(m[2] ?? "");
+      const target = externalTarget(link.destination);
       if (!target) {
         // An unsupported scheme stays plain text — and stays occupied, so the
         // bare-URL pass cannot decorate a fragment of it.
         occupied.push({ start, end });
         continue;
       }
-      const textEnd = start + 1 + (m[1] ?? "").length;
+      const textEnd = start + 1 + link.label.length;
       matches.push({
         start,
         end,
@@ -81,6 +82,7 @@ function collect(view: EditorView): LinkMatch[] {
 
     // Bare URLs, as long as they do not sit inside a link already matched above.
     const bare = /(https?:\/\/[^\s)]+)/g;
+    let m: RegExpExecArray | null;
     while ((m = bare.exec(text)) !== null) {
       const start = from + m.index;
       const end = start + m[0].length;

@@ -1,5 +1,7 @@
 import { parseDavListing } from "../sync/xmlListing.js";
 import { pimRequestError } from "./requestError.js";
+import { splitAtWordTags, tagAttributeWords, wordTagContent } from "./davTagScan.js";
+import { trimEndChars } from "../textScan.js";
 import ICAL from "ical.js";
 import { recurrenceToRRule } from "./recurrence.js";
 import type { FetchFn, WebDavCredentials } from "../sync/WebDavSyncTarget.js";
@@ -111,7 +113,7 @@ export class CalDavPimTarget implements IPimTarget {
       if (!hasEvents && !hasTasks) continue;
       out.push({
         id: this.resolve(e.href),
-        name: e.displayName || decodeURIComponent(e.href.replace(/\/+$/, "").split("/").pop() ?? e.href),
+        name: e.displayName || decodeURIComponent(trimEndChars(e.href, "/").split("/").pop() ?? e.href),
         color: e.color,
         supportsTasks: hasTasks,
         supportsEvents: hasEvents,
@@ -1037,21 +1039,23 @@ export function parseCalDavMultistatus(xml: string): CalDavEntry[] {
  * pattern only matched double quotes, so a server writing name='VTODO' left the
  * set empty — which reads as "no component set" and turns a reminder list into
  * a calendar. Quoting style and attribute order no longer matter here.
+ *
+ * The three tag patterns this used to run are read by linear scans now
+ * (davTagScan): as patterns, a server answer with a long run of "<" cost
+ * quadratic time. What they match is unchanged.
  */
 function componentNamesPerResponse(xml: string): Map<string, string[]> {
   const out = new Map<string, string[]>();
-  for (const block of xml.split(/<[^>]*\bresponse\b[^>]*>/i)) {
-    const hrefMatch = block.match(/<[^>]*\bhref\b[^>]*>([\s\S]*?)<\/[^>]*\bhref\b[^>]*>/i);
-    if (!hrefMatch) continue;
+  for (const block of splitAtWordTags(xml, "response")) {
+    const href = wordTagContent(block, "href");
+    if (href === undefined) continue;
     const names = new Set<string>();
-    for (const m of block.matchAll(/<[^>]*\bcomp\b[^>]*\sname\s*=\s*["']?([A-Za-z]+)/gi)) {
-      names.add(m[1].toUpperCase());
-    }
+    for (const name of tagAttributeWords(block, "comp", "name")) names.add(name.toUpperCase());
     // A block without a component set stays absent from the map: "not stated"
     // must not collapse into "stated as empty" (RFC 4791: absent = all types).
     // The key is entity-decoded so it matches the href the XML parser produced
     // (a collection path containing "&" would otherwise never line up).
-    if (names.size > 0) out.set(decodeXmlEntities(hrefMatch[1].trim()), [...names]);
+    if (names.size > 0) out.set(decodeXmlEntities(href.trim()), [...names]);
   }
   return out;
 }

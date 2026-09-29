@@ -40,7 +40,7 @@ const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceMo
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { useDesktopAi } from "./components/ai/useDesktopAi";
-import { requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
+import { commentLockState, requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
 import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
 import { CascadeDeleteHost } from "./components/CascadeDeleteHost";
@@ -102,7 +102,7 @@ const recentsModule = () => import("./services/recents");
 export function AppShell({ capabilities, children }: { capabilities: ShellCapabilities; children?: React.ReactNode }) {
   const { t } = useTranslation();
   const drag = useActiveDrag();
-  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, workspaceSecurityStatus, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId, discardLocalFork } = useVault();
+  const { vaultPath, selectVault, syncWorker, vaultAdapter, indexer, triggerFileTreeUpdate, fileTreeVersion, queryService, pimRuntime, refreshVault, rebuildIndex, listWorkspaceComments, listWorkspaceMembers, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, getCommentSelfId, getCommentStoreState, workspaceSecurityStatus, discardLocalFork } = useVault();
   // Identity of this window, not a capability: it is a fact about where the
   // code runs (null in the central window), and every per-window store keys off
   // it — panes, tabs, expanded folders (plan § 5.5).
@@ -362,6 +362,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   useTabTransferTarget(vaultPath, vaultAdapter, layoutReady, !windowLabel, adoptTransferredTab);
   const tabTransfer = useTabTransferSource(vaultPath, windowLabel ?? null, layout, selectTab, closeTab);
 
+  // The workspace phase is a value, not a reader: a lock or an unlock changes it
+  // and registers the answers anew, so a cycle never asks a stale phase.
+  const workspacePhase = workspaceSecurityStatus?.phase ?? null;
+
   /**
    * Remark notifications (Stufe F, F2).
    *
@@ -373,8 +377,19 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   useEffect(() => {
     if (!vaultPath) return;
     let disposer: (() => void) | undefined;
+    let released = false;
     void import("./services/commentNotifier").then(({ setCommentNotifierDeps, startCommentNotifier }) => {
+      if (released) return;
       setCommentNotifierDeps({
+        vaultPath,
+        // Locked: the cycle reads nothing, writes nothing and says nothing
+        // (plan Befunde 24.09., E7). The store knows whether it can read
+        // (a locked workspace, a sealed older history); the phase knows a
+        // workspace that is not active yet or any more.
+        lockState: async () => commentLockState(
+          await getCommentStoreState().catch(() => null),
+          workspacePhase !== null && workspacePhase !== "active",
+        ),
         listNotes: async () => {
           // Two sources, one list. A guest remark is reported on every level
           // (§4), so it travels as its own entry with `source: "publication"`
@@ -412,10 +427,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       disposer = startCommentNotifier();
     });
     return () => {
+      released = true;
       disposer?.();
-      void import("./services/commentNotifier").then(({ setCommentNotifierDeps }) => setCommentNotifierDeps(null));
+      // Only this vault's answers: the next vault's shell may have registered already.
+      void import("./services/commentNotifier").then(({ releaseCommentNotifierDeps }) => releaseCommentNotifierDeps(vaultPath));
     };
-  }, [vaultPath, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, openTab]);
+  }, [vaultPath, workspacePhase, getCommentStoreState, listAllWorkspaceComments, listAllPublicationComments, listOwnedPaths, listWorkspaceMembers, getCommentSelfId, openTab]);
 
   // Apply either the global note preference or a contextless temporary close.
   const activeTabKind = tabKindOf(activePath);

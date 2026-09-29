@@ -20,6 +20,8 @@
  * different.
  */
 
+import { nameBeforeAngle } from "@plainva/core";
+
 /**
  * Every message id in a header value, in the order written. Accepts both forms
  * (`<a@b> <c@d>` and the already-stripped `a@b c@d`) and drops anything that is
@@ -339,10 +341,14 @@ export interface ThreadRow<T extends ThreadableEnvelope> {
   mailboxes: string[];
 }
 
-/** Display name of a sender, or the bare address when there is no name. */
+/**
+ * Display name of a sender, or the bare address when there is no name.
+ * Linear reading of `/^\s*"?([^"<]+?)"?\s*</` — cubic as a pattern on a run of
+ * blanks in a header a stranger wrote. Unlike the reader's `fromName`, the
+ * address need not close or end the value.
+ */
 function senderName(from: string): string {
-  const named = /^\s*"?([^"<]+?)"?\s*</.exec(from);
-  return (named?.[1] ?? from).trim();
+  return (nameBeforeAngle(from) ?? from).trim();
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   readTaskNoteIdentity,
   taskNoteMatches,
   availableTaskNotePath,
+  trimEndChars,
 } from "@plainva/core";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
@@ -503,7 +504,7 @@ async function readDbShape(opts: TaskSyncOptions): Promise<DbShape | null> {
   if (!target.folder) return null;
   const dueKey = findColumnKey(config, (c) => c.input === "date" || c.input === "datetime");
   return {
-    folder: target.folder.replace(/\/+$/, ""),
+    folder: trimEndChars(target.folder, "/"),
     inheritTags: target.inheritTags ?? [],
     templatePath: typeof config.newItemTemplate === "string" ? config.newItemTemplate : null,
     dueKey,

@@ -5,6 +5,7 @@ import { ImportWriter } from '../ImportWriter.js';
 import { DEFAULT_IMPORT_LABELS, type ImportOptions, type ImportPlan, type ImportSource, type UnpackedFile } from '../ImportTypes.js';
 import { dirOf, encodeTarget, relativeFrom } from '../notionFileLinks.js';
 import { checkArchiveAbort, JEX_LIMITS, safeTarPath } from '../tarArchive.js';
+import { trimEndChars } from '../../textScan.js';
 
 const idPattern = /^[a-f0-9]{32}$/i;
 const invalid = (): never => { throw new Error('import.jexInvalid'); };
@@ -18,7 +19,7 @@ function parseItem(file: UnpackedFile): Item {
   if (file.isText === false) return invalid();
   // Joplin separates the final property block from title/body with a blank
   // line. Parse from the end so a body containing "id:" is ordinary writing.
-  const raw = file.content.replace(/\r\n/g, '\n').replace(/\n+$/, '');
+  const raw = trimEndChars(file.content.replace(/\r\n/g, '\n'), '\n');
   const split = raw.lastIndexOf('\n\n');
   const header = split < 0 ? '' : raw.slice(0, split);
   const props: Record<string, string> = Object.create(null);
@@ -37,7 +38,7 @@ function name(title: string, fallback: string): string {
   const clean = title.normalize('NFC').replace(/[\x00-\x1f\x7f<>:"/\\|?*]/g, '_').trim();
   let result = '', bytes = 0;
   for (const char of clean) { bytes += new TextEncoder().encode(char).length; if (bytes > 160) break; result += char; }
-  result = result.replace(/[ .]+$/, '');
+  result = trimEndChars(result, ' .');
   if (!result || result === '.' || result === '..') result = fallback;
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(result)) result = `_${result}`;
   return result;

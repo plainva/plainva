@@ -306,3 +306,43 @@ describe("{{clipboard}} and {{selection}}", () => {
     expect(r.unresolved).toEqual(["{{selection}}", "{{clipboard}}"]);
   });
 });
+
+describe("resolveTemplate — the meeting-note tokens (plan Befunde 24.09., E24)", () => {
+  const event = {
+    start: new Date(2026, 6, 29, 9, 0),
+    end: new Date(2026, 6, 29, 10, 30),
+    allDay: false,
+    location: "Raum 5",
+    attendees: ["Ada", "Grace"],
+    organizer: "Ada",
+    link: "https://meet.example.org/x",
+    description: "Line one\n\n**Line two**",
+  };
+
+  it("stays visible outside a meeting note, like any unknown token", () => {
+    expect(head("{{start}} {{end}} {{location}} {{attendees}} {{organizer}} {{link}} {{description}}")).toBe(
+      "{{start}} {{end}} {{location}} {{attendees}} {{organizer}} {{link}} {{description}}"
+    );
+  });
+
+  it("fills from the event, with a format and a day offset on the two times", () => {
+    expect(head("{{start}}|{{end:HH:mm}}|{{start+1:DD.MM.}}", { event })).toBe("2026-07-29 09:00|10:30|30.07.");
+    expect(head("{{location}}|{{organizer}}|{{link}}", { event })).toBe("Raum 5|Ada|https://meet.example.org/x");
+    expect(head("{{attendees}}", { event })).toBe("Ada, Grace");
+    expect(head("{{attendees:list}}", { event })).toBe("- Ada\n- Grace");
+    expect(head("{{description}}", { event })).toBe("Line one\n\n**Line two**");
+  });
+
+  it("writes an all-day event's times as dates", () => {
+    expect(head("{{start}}–{{end}}", { event: { ...event, allDay: true } })).toBe("2026-07-29–2026-07-29");
+  });
+
+  it("keeps a shape the token does not have visible, and honours the escape", () => {
+    expect(head("{{location+1}}", { event })).toBe("{{location+1}}");
+    expect(head("\\{{start}}", { event })).toBe("{{start}}");
+  });
+
+  it("leaves `{{title}}` to the note's title — the event's, for a meeting note", () => {
+    expect(head("{{title}}", { event, title: "Planung" })).toBe("Planung");
+  });
+});

@@ -1,3 +1,4 @@
+import { trimChars } from "../textScan.js";
 /**
  * Stable per-connection fingerprint (settings-sync plan §3.5). Every combination
  * of sync provider + remote root gets an independent E2E manifest and an
@@ -8,7 +9,7 @@
 
 /** Normalizes a remote root path/label for a stable fingerprint. */
 function normalizeRoot(remoteRoot: string): string {
-  return remoteRoot.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+  return trimChars(remoteRoot.trim(), "/").toLowerCase();
 }
 
 /** Builds the connection fingerprint `<provider>:<normalized-root>`. */

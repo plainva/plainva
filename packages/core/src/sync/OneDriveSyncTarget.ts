@@ -6,6 +6,7 @@ import { mimeTypeForPath } from "./fileType.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { refreshOneDriveAccessToken } from "./OneDriveAuth.js";
+import { trimChars } from "../textScan.js";
 
 /**
  * OneDrive credentials. Public client (no secret, ADR-0006-style loopback + PKCE);
@@ -208,7 +209,7 @@ export class OneDriveSyncTarget implements ISyncTarget {
    * `drivePath` splits the stored name into segments.
    */
   public async listFolders(path: string): Promise<string[]> {
-    const clean = path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const clean = trimChars(path.replace(/\\/g, "/"), "/");
     const encoded = clean
       .split("/")
       .filter((s) => s.length > 0)

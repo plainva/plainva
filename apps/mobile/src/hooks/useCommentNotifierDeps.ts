@@ -1,10 +1,13 @@
 import { useEffect } from "react";
-import { requestCommentJump } from "@plainva/ui";
+import { commentLockState, requestCommentJump } from "@plainva/ui";
 import {
   listAllMobileComments,
   listMobileCommentAuthors,
   mobileCommentSelfId,
+  mobileCommentStoreState,
 } from "../services/mobileComments";
+import { isMobileWorkspaceLocked } from "../services/mobileWorkspaceLock";
+import type { MobileCommentNotifierDeps } from "../services/commentNotifier";
 import type { MobileVault } from "../services/vaultService";
 import type { CommentNotificationNote } from "@plainva/ui";
 import type { WorkspaceCommentRecord } from "@plainva/core";
@@ -31,9 +34,23 @@ export function useCommentNotifierDeps(
   useEffect(() => {
     if (!vault) return;
     let cancelled = false;
+    let registered: MobileCommentNotifierDeps | null = null;
     void import("../services/commentNotifier").then((m) => {
       if (cancelled) return;
-      m.setMobileCommentNotifierDeps({
+      registered = {
+        vaultId: vault.vaultId,
+        // Locked: the cycle reads nothing, writes nothing and says nothing
+        // (plan Befunde 24.09., E7). The store knows whether it can read; the
+        // workspace status knows a phase that is not active or keys that are
+        // not in memory - also while the runtime is still loading after the
+        // app came back, which is when the phone used to prune its ledger.
+        lockState: async () => {
+          const [store, workspaceLocked] = await Promise.all([
+            mobileCommentStoreState(vault).catch(() => null),
+            isMobileWorkspaceLocked(vault.vaultId),
+          ]);
+          return commentLockState(store, workspaceLocked);
+        },
         listNotes: async () => {
           // Two sources, one list. A guest remark reaches the owner on EVERY
           // level (§4) - that argument is about the person, not about which
@@ -63,14 +80,17 @@ export function useCommentNotifierDeps(
           navigate({ kind: "note", path });
         },
         openOverview: () => navigate({ kind: "comments", path: "" }),
-      });
+      };
+      m.setMobileCommentNotifierDeps(registered);
       // A tap that arrived while the app was closed parked its intent before
       // this ran; now there is somebody to act on it.
       m.applyIntent();
     });
     return () => {
       cancelled = true;
-      void import("../services/commentNotifier").then((m) => m.setMobileCommentNotifierDeps(null));
+      // Only these answers: the next vault's hook may have registered already.
+      const own = registered;
+      if (own) void import("../services/commentNotifier").then((m) => m.releaseMobileCommentNotifierDeps(own));
     };
   }, [vault, navigate]);
 }

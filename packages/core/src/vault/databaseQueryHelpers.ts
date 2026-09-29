@@ -18,6 +18,7 @@
  */
 
 import { databaseFilterValue, normalizeDatabaseFilterValue } from "./databaseMetadata.js";
+import { readFilterComparison } from "./filterComparison.js";
 
 export type DatabaseRow = Record<string, any>;
 
@@ -103,12 +104,13 @@ export function buildPropertyPredicate(filter: string): ((row: DatabaseRow) => b
     return negated ? (row) => !hit(row) : hit;
   }
 
-  // Order matters: >= and <= must match before > and <.
-  const cmpMatch = filter.match(new RegExp(`^(.+?)\\s*(==|!=|>=|<=|>|<)\\s*${QUOTED}$`));
+  // Order matters: >= and <= must match before > and <. The shared reader
+  // (plan Befunde 24.09., E6) keeps that order, in one pass.
+  const cmpMatch = readFilterComparison(filter);
   if (cmpMatch) {
-    const col = cmpMatch[1].trim();
-    const op = cmpMatch[2];
-    const val = normalizeDatabaseFilterValue(col, unescapeValue(cmpMatch[3]));
+    const col = cmpMatch.column.trim();
+    const op = cmpMatch.op;
+    const val = normalizeDatabaseFilterValue(col, unescapeValue(cmpMatch.value));
     // Empty comparisons are the is-empty operators (P11): `col == ""` matches
     // unset/null/empty-list values too — the old string-equality never could.
     if (val === "" && op === "==") return (row) => isEmptyValue(rowValue(row, col));

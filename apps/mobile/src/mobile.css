@@ -4546,12 +4546,14 @@ textarea {
   gap: var(--space-1);
   flex-wrap: wrap;
 }
+/* The description is the shared EventDescription (plan Befunde 24.09., E25),
+   which draws its own box; the sheet only insets it like its other rows. */
 .m-evtpeek-desc {
-  margin: 0;
-  padding: 0 var(--space-4) var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  overflow-wrap: anywhere;
+  margin: 0 var(--space-4) var(--space-3);
+}
+/* "Join · Teams" under the time, inset like the rows around it. */
+.m-evtpeek-join {
+  margin: 0 var(--space-4) var(--space-3);
 }
 
 /* The table's selection column: just enough width for the slot mark, and it

@@ -84,7 +84,7 @@ export function JournalCaptureDialog({
           writeBinaryFile: (p, bytes) => vaultAdapter.writeBinaryFile(p, bytes),
         },
       );
-      setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")}\n${insert}` : insert));
+      setValue((v) => (v.trim() ? `${v.trimEnd()}\n${insert}` : insert));
     } catch (error) {
       toast.error(errorText(error));
     }
@@ -96,7 +96,7 @@ export function JournalCaptureDialog({
    * X7): plain Markdown the person can edit into a real name or delete.
    */
   const onPlace = (line: string) => {
-    setValue((v) => (v.trim() ? `${v.replace(/\s+$/, "")}\n${line}` : line));
+    setValue((v) => (v.trim() ? `${v.trimEnd()}\n${line}` : line));
   };
 
   // A bitmap from the clipboard goes the way every attachment goes: into the

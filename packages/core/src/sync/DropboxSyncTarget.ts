@@ -5,6 +5,7 @@ import type { FetchFn } from "./WebDavSyncTarget.js";
 import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { refreshDropboxAccessToken } from "./DropboxAuth.js";
+import { trimEndChars } from "../textScan.js";
 
 /**
  * Dropbox credentials. Public client (PKCE, no secret); Full-Dropbox access — an
@@ -120,7 +121,7 @@ export class DropboxSyncTarget implements ISyncTarget {
   private get rootPath(): string {
     let root = (this.creds.rootPath || DEFAULT_ROOT).replace(/\\/g, "/").trim();
     if (!root.startsWith("/")) root = `/${root}`;
-    return root.replace(/\/+$/, "") || DEFAULT_ROOT;
+    return trimEndChars(root, "/") || DEFAULT_ROOT;
   }
 
   private dropboxPath(relPath: string): string {
@@ -240,7 +241,7 @@ export class DropboxSyncTarget implements ISyncTarget {
    * picker chooses that setting). Non-recursive list_folder + continue.
    */
   public async listFolders(path: string): Promise<string[]> {
-    const clean = path.replace(/\\/g, "/").replace(/\/+$/g, "");
+    const clean = trimEndChars(path.replace(/\\/g, "/"), "/");
     // Dropbox addresses the root as "" (an empty path), never "/".
     const dbxPath = !clean || clean === "/" ? "" : clean.startsWith("/") ? clean : `/${clean}`;
     const names: string[] = [];
@@ -268,7 +269,7 @@ export class DropboxSyncTarget implements ISyncTarget {
    * (path/conflict = already exists) is success.
    */
   public async createFolder(path: string): Promise<void> {
-    const clean = path.replace(/\\/g, "/").replace(/\/+$/g, "");
+    const clean = trimEndChars(path.replace(/\\/g, "/"), "/");
     const dbxPath = !clean || clean === "/" ? "" : clean.startsWith("/") ? clean : `/${clean}`;
     if (!dbxPath) return; // the Dropbox root always exists
     const res = await this.rpc("files/create_folder_v2", { path: dbxPath, autorename: false });

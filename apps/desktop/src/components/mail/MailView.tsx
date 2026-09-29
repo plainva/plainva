@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Archive, Ban, BellOff, Clock, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
 import { Banner, Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, type MailRowCaps } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { firstAngleValue, nameBeforeAngle, trimChars } from "@plainva/core";
 import "./mail.css";
 import { useVault, mailFolderKey, DEFAULT_MAIL_FOLDER, mailRemoteImagesKey, taskDatabaseKey } from "../../contexts/VaultContext";
 import { mailSnoozedKey } from "../../services/settingsProfile";
@@ -71,14 +72,14 @@ function avatarVar(seed: string): string {
 
 /** "Name <addr>" -> the display name (or the whole string when unnamed). */
 function fromName(from: string): string {
-  const m = from.match(/^\s*"?([^"<]+?)"?\s*<[^>]*>\s*$/);
-  return (m ? m[1] : from).trim() || from;
+  // Linear reading of `/^\s*"?([^"<]+?)"?\s*<[^>]*>\s*$/`: a sender header is
+  // written by a stranger, and that pattern was cubic on a run of blanks.
+  return (nameBeforeAngle(from, true) ?? from).trim() || from;
 }
 
 /** "Name <addr>" -> just the address (or the whole string when bare). */
 function fromAddr(from: string): string {
-  const m = from.match(/<([^>]+)>/);
-  return (m ? m[1] : from).trim();
+  return (firstAngleValue(from) ?? from).trim();
 }
 
 function avatarInitial(name: string): string {
@@ -1468,7 +1469,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
           const raw = await fetchRawMessage(vaultPath, account, mailbox, message.id);
           const emlPath = await saveEmlFile(vaultAdapter, message, raw, folder);
           const content = await vaultAdapter.readTextFile(res.path);
-          await vaultAdapter.writeTextFile(res.path, content.replace(/\s*$/, "\n\n") + `[[${emlPath}]]\n`);
+          await vaultAdapter.writeTextFile(res.path, `${content.trimEnd()}\n\n[[${emlPath}]]\n`);
           touched.push(emlPath);
         }
         if (res.created) {
@@ -1541,7 +1542,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     if (!vaultAdapter || !message) return;
     try {
       const folder = await mailFolder();
-      const dir = folder.replace(/^\/+|\/+$/g, "");
+      const dir = trimChars(folder, "/");
       const prefix = dir ? dir + "/" : "";
       const dayKey = mailDayKey({ dateTs: Date.now() });
       const stem = mailNoteStem(dayKey, `Re ${message.subject.trim().replace(/^(re|aw|antw):\s*/i, "") || "E-Mail"}`);

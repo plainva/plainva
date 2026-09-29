@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, FilePlus2, MapPin, Pencil, Repeat, Trash2, Users, CopyPlus } from "lucide-react";
 import {
+  EventDescription,
+  EventJoinButton,
   ICON,
   acceptedCount,
   describeRecurrence,
@@ -48,6 +50,7 @@ export function EventPeekSheet({
   onMeetingNote,
   onRespond,
   onBlock,
+  onOpenUrl,
 }: {
   event: PimEventRow;
   /** The loaded rows — the next occurrence is read from them. */
@@ -65,6 +68,12 @@ export function EventPeekSheet({
   onRespond?: (response: "accepted" | "declined" | "tentative") => void;
   /** Mirror this event into other calendars (C33); absent when no other writable calendar exists. */
   onBlock?: () => void;
+  /**
+   * Opens an http(s) address in the system browser — a link in the
+   * description and the Join button (plan Befunde 24.09., E25). The
+   * description used to be raw Markdown in a paragraph: nothing to tap.
+   */
+  onOpenUrl: (url: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const attendees = useMemo(() => peekAttendees(event), [event]);
@@ -103,6 +112,8 @@ export function EventPeekSheet({
             {calendarName ? <span className="m-evtpeek-cal">{calendarName}</span> : null}
           </span>
         </div>
+
+        <EventJoinButton meetingUrl={event.meetingUrl} onOpenUrl={onOpenUrl} className="m-evtpeek-join" size="md" />
 
         {isSeries(event) ? (
           <p className="m-evtpeek-chips" data-testid="event-peek-series">
@@ -153,7 +164,9 @@ export function EventPeekSheet({
           </>
         ) : null}
 
-        {event.description ? <p className="m-evtpeek-desc">{event.description}</p> : null}
+        {event.description ? (
+          <EventDescription text={event.description} onOpenUrl={onOpenUrl} className="m-evtpeek-desc" data-testid="event-peek-body" />
+        ) : null}
 
         {onRespond ? (
           <p className="m-evtpeek-chips" data-testid="event-peek-rsvp">

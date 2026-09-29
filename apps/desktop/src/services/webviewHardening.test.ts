@@ -31,6 +31,40 @@ function press(init: KeyboardEventInit): { reachedApp: boolean; prevented: boole
   return { reachedApp, prevented: ev.defaultPrevented };
 }
 
+/**
+ * The one row whose keys the hardening consumes on purpose: F5 and Ctrl/Cmd+R
+ * would reload the webview and drop every open tab, so the hardening performs
+ * the row's action itself and dispatches it on window (VaultContext listens).
+ */
+const PERFORMED_BY_HARDENING: Record<string, string> = { "refresh.action": "plainva-refresh-vault" };
+
+/**
+ * Whether a documented key does what its row says: the app's listener sees the
+ * press un-prevented, or the hardening consumed it and dispatched that row's
+ * own action instead. Under any other row a consumed key stays swallowed, and
+ * an action dispatched for it means the key was turned into someone else's.
+ */
+function reachesApp(descKey: string, init: KeyboardEventInit): boolean {
+  const performed: string[] = [];
+  const record = (e: Event) => { performed.push(e.type); };
+  const actions = Object.values(PERFORMED_BY_HARDENING);
+  for (const type of actions) window.addEventListener(type, record);
+  const { reachedApp, prevented } = press(init);
+  for (const type of actions) window.removeEventListener(type, record);
+  const own = PERFORMED_BY_HARDENING[descKey];
+  if (performed.some((type) => type !== own)) return false;
+  return (reachedApp && !prevented) || performed.length > 0;
+}
+
+/** The devtools keys a release build swallows, with Ctrl and with Cmd. */
+const DEVTOOLS_PRESSES: KeyboardEventInit[] = [
+  { key: "F12" },
+  { key: "I", ctrlKey: true, shiftKey: true },
+  { key: "I", metaKey: true, shiftKey: true },
+  { key: "C", ctrlKey: true, shiftKey: true },
+  { key: "C", metaKey: true, shiftKey: true },
+];
+
 const MODIFIER_TOKENS = new Set(["Mod", "Ctrl", "Alt", "Shift"]);
 /** `KeyboardEvent.key` for the catalog's display tokens; the others are spelled alike. */
 const KEY_OF_TOKEN: Record<string, string> = {
@@ -43,8 +77,8 @@ const KEY_OF_TOKEN: Record<string, string> = {
  * deliver it: "Mod" once as Ctrl (Windows, Linux) and once as Cmd (macOS). A
  * combo of several plain keys (`[[`, the four arrows) is pressed key by key.
  */
-function catalogPresses(): { label: string; init: KeyboardEventInit }[] {
-  const presses: { label: string; init: KeyboardEventInit }[] = [];
+function catalogPresses(): { label: string; descKey: string; init: KeyboardEventInit }[] {
+  const presses: { label: string; descKey: string; init: KeyboardEventInit }[] = [];
   for (const category of SHORTCUT_CATEGORIES) {
     for (const row of category.keyboard) {
       for (const combo of row.keys) {
@@ -59,6 +93,7 @@ function catalogPresses(): { label: string; init: KeyboardEventInit }[] {
           for (const mod of mods) {
             presses.push({
               label: `${row.descKey}: ${combo.join("+")}${mod.metaKey ? " (Cmd)" : ""}`,
+              descKey: row.descKey,
               init: { key, shiftKey, altKey, ...mod },
             });
           }
@@ -114,29 +149,35 @@ describe("webviewHardening in a release build", () => {
   });
 
   it("still swallows the devtools keys", () => {
-    const devtools: KeyboardEventInit[] = [
-      { key: "F12" },
-      { key: "I", ctrlKey: true, shiftKey: true },
-      { key: "I", metaKey: true, shiftKey: true },
-      { key: "C", ctrlKey: true, shiftKey: true },
-      { key: "C", metaKey: true, shiftKey: true },
-    ];
-    for (const init of devtools) {
+    for (const init of DEVTOOLS_PRESSES) {
       expect(press(init), JSON.stringify(init)).toEqual({ reachedApp: false, prevented: true });
     }
   });
 
   it("swallows no key the shortcuts window (F1) documents", () => {
     const presses = catalogPresses();
-    // Not vacuous: the catalog is read, down to the key this guard exists for.
-    expect(presses.map((p) => p.label)).toContain("journal.newEntry: Mod+Shift+J (Cmd)");
+    // Not vacuous: the catalog is read, down to the keys this guard exists for —
+    // the journal entry's, and the reload keys the hardening performs itself.
+    const labels = presses.map((p) => p.label);
+    expect(labels).toContain("journal.newEntry: Mod+Shift+J (Cmd)");
+    expect(labels).toContain("refresh.action: F5");
+    expect(labels).toContain("refresh.action: Mod+R (Cmd)");
     const swallowed = presses
-      .filter(({ init }) => {
-        const { reachedApp, prevented } = press(init);
-        return !reachedApp || prevented;
-      })
+      .filter(({ descKey, init }) => !reachesApp(descKey, init))
       .map(({ label }) => label);
     expect(swallowed).toEqual([]);
+  });
+
+  it("lets a consumed key count as reaching the app only for the row whose action the hardening dispatches", () => {
+    // The vault refresh: consumed, and performed by the hardening itself.
+    expect(reachesApp("refresh.action", { key: "F5" })).toBe(true);
+    expect(reachesApp("refresh.action", { key: "r", metaKey: true })).toBe(true);
+    // The same press documented for anything else would be a swallowed key.
+    expect(reachesApp("shortcuts.toggleRightSidebar", { key: "r", ctrlKey: true })).toBe(false);
+    // And no devtools key passes, not even under the refresh row.
+    for (const init of DEVTOOLS_PRESSES) {
+      expect(reachesApp("refresh.action", init), JSON.stringify(init)).toBe(false);
+    }
   });
 });
 

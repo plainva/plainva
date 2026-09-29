@@ -3,6 +3,7 @@ import {
   type IVaultAdapter,
 
   type VaultQueryService,
+  trimEndChars,
 } from "@plainva/core";
 import {
   buildDeletionPlan,
@@ -208,7 +209,7 @@ export async function executeDeletionPlan(opts: {
     if (!pathSet.has(basePath)) continue;
     try {
       const config: any = parseBaseConfig(await adapter.readTextFile(basePath));
-      const folder = config?.newItemFolder ? normSlash(String(config.newItemFolder)).replace(/\/+$/, "") : "";
+      const folder = config?.newItemFolder ? trimEndChars(normSlash(String(config.newItemFolder)), "/") : "";
       if (folder) storageFolders.set(basePath, folder);
     } catch {
       /* unreadable base — nothing to offer */

@@ -1,5 +1,6 @@
 import { EditorView, type KeyBinding } from "@codemirror/view";
 import { completionStatus } from "@codemirror/autocomplete";
+import { EDITOR_LIST_ITEM, readMarkdownListItem } from "@plainva/core";
 
 // Markdown list auto-continuation (#10): Enter continues the current list item,
 // Tab / Shift-Tab indent it. All decision logic is pure and unit-tested below;
@@ -20,17 +21,18 @@ export interface ListInfo {
   content: string;
 }
 
-/** Parse a single line into list metadata, or null if it is not a list item. */
+/**
+ * Parse a single line into list metadata, or null if it is not a list item.
+ * The line is read by the shared list reader in the editor's grammar: any
+ * whitespace separates, a number may be as long as it likes, and only a
+ * bullet item carries a task box (plan Befunde 24.09., E6).
+ */
 export function parseListLine(text: string): ListInfo | null {
-  const um = text.match(/^(\s*)([-*+])\s+(\[([ xX/-])\]\s+)?(.*)$/);
-  if (um) {
-    return { indent: um[1], marker: um[2], ordered: false, task: !!um[3], checked: /[xX]/.test(um[4] || ""), content: um[5] };
-  }
-  const om = text.match(/^(\s*)(\d+)([.)])\s+(.*)$/);
-  if (om) {
-    return { indent: om[1], marker: om[2] + om[3], ordered: true, num: parseInt(om[2], 10), task: false, checked: false, content: om[4] };
-  }
-  return null;
+  const item = readMarkdownListItem(text, EDITOR_LIST_ITEM);
+  if (!item) return null;
+  const { indent, marker, text: content } = item;
+  if (item.ordered) return { indent, marker, ordered: true, num: parseInt(marker, 10), task: false, checked: false, content };
+  return { indent, marker, ordered: false, task: item.box !== null, checked: item.box === "x" || item.box === "X", content };
 }
 
 export interface ContinueResult {

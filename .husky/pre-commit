@@ -1,1 +1,7 @@
-npm test
+# Unit tests of the packages this commit touches, and of every package that
+# depends on them (`...[HEAD]` includes staged and unstaged changes). The full
+# matrix runs in CI on every push, and main only accepts commits whose CI is
+# green (branch protection, 2026-09-28) — so a commit no longer pays for the
+# packages it cannot affect.
+# Suites run one after another, for the same reason as in pre-push.
+pnpm turbo run test --filter="...[HEAD]" --concurrency=1

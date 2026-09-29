@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
-import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskBoxState, type TaskRecord } from "@plainva/core";
+import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
 import { errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
 import { useVault, templateFolderKey, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -547,7 +547,7 @@ export function TasksView({ onOpenPath }: Props) {
   // Not-yet-excluded notes under the template folder — the "hide templates"
   // bulk action targets exactly these (and the button hides once none remain).
   const templateNotePaths = useMemo(() => {
-    const base = templateFolder.replace(/\/+$/, "");
+    const base = trimEndChars(templateFolder, "/");
     if (!base) return [] as string[];
     const prefix = base + "/";
     const s = new Set<string>();

@@ -20,6 +20,7 @@ import { evaluateWorkspaceAccess } from "./authorization.js";
 import { protocolAssert, WorkspaceProtocolError } from "./errors.js";
 import type { PersonalWorkspaceRuntime } from "./personal.js";
 import type { WorkspaceObjectStore } from "./objectStore.js";
+import { trimEndChars } from "../textScan.js";
 
 const PAIRING_PREFIX = "PVPAIR1.";
 const MAX_PAIRING_TOKEN_BYTES = 16 * 1024;
@@ -73,7 +74,7 @@ function requestSigningBytes(payload: WorkspacePairingRequestPayload): Uint8Arra
 }
 
 function tokenBase64(bytes: Uint8Array): string {
-  return toBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  return trimEndChars(toBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_"), "=");
 }
 
 function tokenFromBase64(value: string): Uint8Array {

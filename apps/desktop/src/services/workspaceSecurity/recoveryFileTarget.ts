@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 /**
  * Is this a place the recovery file may go?
  *
@@ -12,7 +13,7 @@
 
 /** Case-insensitive, separator-agnostic, no trailing separator. */
 function normalize(path: string): string {
-  return path.replace(/[\\/]+/g, "/").replace(/\/+$/, "").toLowerCase();
+  return trimEndChars(path.replace(/[\\/]+/g, "/"), "/").toLowerCase();
 }
 
 export function isInsideVault(target: string, vaultPath: string): boolean {

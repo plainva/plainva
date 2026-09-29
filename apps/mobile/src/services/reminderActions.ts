@@ -14,6 +14,18 @@ import { getMobileVault } from "./vaultService";
  * how to open things. This is the piece in between.
  */
 
+/**
+ * The day a meeting note is named after — the rule of `eventStartDayKey`: an
+ * all-day event's civil date, else the LOCAL day of its start. This used
+ * `toISOString`, the UTC day: a meeting at 00:30 got the previous day's note,
+ * and a second one beside the note the desktop and the preview write.
+ */
+function meetingDayKey(event: { allDay?: boolean; start?: { date?: string } }, startTs: number): string {
+  if (event.allDay && event.start?.date) return event.start.date;
+  const d = new Date(startTs);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** The appointment a tapped reminder points at — enough to find it in the cache. */
 export interface CalendarFocus {
   uid: string;
@@ -84,8 +96,8 @@ export async function runReminderIntent(intent: ReminderIntent, host: ReminderAc
       return;
     }
     try {
-      const { path } = await openMeetingNoteFor(event, new Date(intent.startTs).toISOString().slice(0, 10));
-      host.openNote(path);
+      const res = await openMeetingNoteFor(event, meetingDayKey(event, intent.startTs));
+      if (res) host.openNote(res.path); // null: the template's questions were cancelled
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }

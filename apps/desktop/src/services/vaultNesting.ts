@@ -20,6 +20,7 @@
  * window, and the restore at start, which would otherwise be the way around it.
  */
 import i18n from "@plainva/ui/i18n";
+import { trimEndChars } from "@plainva/core";
 
 /** Windows compares paths case-insensitively; POSIX does not. */
 function isWindowsPath(path: string): boolean {
@@ -28,7 +29,7 @@ function isWindowsPath(path: string): boolean {
 
 /** Trailing separators and `\` vs `/` are spelling, not identity. */
 function normalize(path: string): string {
-  const unified = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  const unified = trimEndChars(path.replace(/\\/g, "/"), "/");
   return isWindowsPath(path) ? unified.toLowerCase() : unified;
 }
 

@@ -7,7 +7,7 @@
 // "empty"/"notEmpty" are UI aliases for `col == ""` / `col != ""` (the stored
 // string stays plain Obsidian syntax) — relation filters use them (P11).
 
-import { DATABASE_METADATA, normalizeDatabaseFilterValue, parseDatabaseSourceFilter } from "@plainva/core";
+import { DATABASE_METADATA, normalizeDatabaseFilterValue, parseDatabaseSourceFilter, readFilterComparison } from "@plainva/core";
 
 export type FilterOp = "==" | "!=" | "contains" | "notContains" | ">" | "<" | ">=" | "<=" | "empty" | "notEmpty";
 
@@ -47,14 +47,16 @@ export function parsePropertyFilter(filter: unknown): PropertyFilterRule | null 
   const contains = filter.match(new RegExp(`^contains\\((.+?),\\s*${QUOTED}\\)$`));
   if (contains) return { column: contains[1].trim(), op: "contains", value: unescapeValue(contains[2]) };
 
-  const cmp = filter.match(new RegExp(`^(.+?)\\s*(==|!=|>=|<=|>|<)\\s*${QUOTED}$`));
+  // The core's reader (plan Befunde 24.09., E6): the evaluation reads the
+  // same grammar, in one pass.
+  const cmp = readFilterComparison(filter);
   if (cmp) {
-    const column = cmp[1].trim();
-    const value = unescapeValue(cmp[3]);
+    const column = cmp.column.trim();
+    const value = unescapeValue(cmp.value);
     // Empty comparisons surface as the dedicated is-empty operators in the UI.
-    if (value === "" && cmp[2] === "==") return { column, op: "empty", value: "" };
-    if (value === "" && cmp[2] === "!=") return { column, op: "notEmpty", value: "" };
-    return { column, op: cmp[2] as FilterOp, value };
+    if (value === "" && cmp.op === "==") return { column, op: "empty", value: "" };
+    if (value === "" && cmp.op === "!=") return { column, op: "notEmpty", value: "" };
+    return { column, op: cmp.op, value };
   }
 
   return null;

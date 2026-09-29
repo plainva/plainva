@@ -84,6 +84,9 @@ describe("profile field catalog", () => {
       "mailFolder",
       "mailRemoteImages",
       "meetingFolder",
+      // Plan Befunde 24.09., E24: the meeting-note template travels with its
+      // folder - two devices must give the same meeting the same note.
+      "meetingNoteTemplate",
       "syncIntervalSeconds",
       "taskDatabase",
       "templateFolder",
@@ -106,7 +109,7 @@ describe("profile field catalog", () => {
   it("declares a vault-relative path as its own kind, so an absolute one can be refused", () => {
     // An absolute path from another machine must never travel; the importer
     // relies on this kind to tell it apart from ordinary text.
-    for (const logical of ["dailyNotesFolder", "templateFolder", "mailFolder", "dailyNoteTemplate"]) {
+    for (const logical of ["dailyNotesFolder", "templateFolder", "mailFolder", "dailyNoteTemplate", "meetingNoteTemplate"]) {
       expect(PROFILE_FIELDS.find((f) => f.logical === logical)?.kind, logical).toBe("vaultPath");
     }
   });

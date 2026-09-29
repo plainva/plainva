@@ -18,6 +18,8 @@ import {
 } from "@plainva/core";
 import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
 import { getMobileVault, type MobileVault } from "../vaultService";
+import { getActiveVaultEntry } from "../vaultRegistry";
+import { applyTemplateInteractive } from "../templateInteractive";
 import { getMobileSettings } from "../mobileSettings";
 import { getPimCredentials, savePimCredentials, clearPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import { buildPimAuthProvider } from "./pimAuth";
@@ -32,6 +34,7 @@ import { noteAccountRemovedLocally } from "../mobileSettingsSync";
 import {
   accountToAdoptInto,
   adoptAccountInto,
+  buildDailyNotePath,
   calendarPickerOptions,
   createCalendarEvent,
   deleteCalendarEvent,
@@ -40,6 +43,7 @@ import {
   type VerifiedProviderProfile,
   parseMicrosoftMe,
   resolveOrCreateMeetingNote,
+  setPendingTemplateCaret,
   splitCalendarKey,
   updateCalendarEvent,
   verifiedProviderIdentityOf,
@@ -644,14 +648,20 @@ export async function pimSeriesMaster(event: PimEventRow): Promise<PimEventRow |
  * reconciles against. So the resolution runs through the shared builder rather
  * than a phone-local one — same folder rule, same name, same anchor, whichever
  * device happens to be in hand when the meeting starts.
+ *
+ * The same holds for its template (plan Befunde 24.09., E24): the setting, the
+ * folder and type rules and the order between them are decided by the shared
+ * builder. A person tapped, so the template's questions are asked; `null`
+ * means they were cancelled and nothing was written.
  */
 export async function openMeetingNoteFor(
   event: PimEventRow,
   dayKey: string,
-): Promise<{ path: string; created: boolean }> {
+): Promise<{ path: string; created: boolean } | null> {
   const vault = await getMobileVault();
   const settings = getMobileSettings();
-  return resolveOrCreateMeetingNote({
+  const now = new Date();
+  const res = await resolveOrCreateMeetingNote({
     adapter: {
       readTextFile: (p) => vault.files.readTextFile(p),
       writeTextFile: (p, c) => vault.files.writeTextFile(p, c),
@@ -662,7 +672,28 @@ export async function openMeetingNoteFor(
     dayKey,
     folder: settings.meetingFolder.trim() || "Meetings",
     noteType: "Meeting",
+    templates: {
+      template: settings.meetingTemplate.trim(),
+      folderRules: settings.folderTemplates,
+      typeRules: settings.typeTemplates,
+      templateFolder: settings.templateFolder || "Templates",
+    },
+    resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx),
+    templateContext: {
+      vaultName: (await getActiveVaultEntry()).name || "Plainva",
+      // `{{daily}}` in a meeting note is the daily note of the MEETING's day.
+      dailyPath: (offset) => {
+        const d = new Date(`${dayKey}T12:00:00`);
+        d.setDate(d.getDate() + offset);
+        return buildDailyNotePath(d, settings.dailyFormat, settings.dailyFolder).fullPath.replace(/\.md$/i, "");
+      },
+    },
+    now,
   });
+  if (!res) return null;
+  // `{{cursor}}` of the template: the editor picks it up when the note opens.
+  if (res.cursor !== undefined) setPendingTemplateCaret({ path: res.path, offset: res.cursor });
+  return { path: res.path, created: res.created };
 }
 
 export async function deletePimEvent(event: PimEventRow): Promise<void> {

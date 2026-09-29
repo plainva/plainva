@@ -1,3 +1,4 @@
+import { trimEndChars } from "@plainva/core";
 import type { MailboxInfo, RawImapEnvelope, RawImapEnvelopePage, RawImapMessage } from "../types";
 import type { AppendDraftArgs, ImapCreds } from "../transport";
 import { LineSocket } from "./socket";
@@ -53,7 +54,7 @@ export function encodeImapUtf7(name: string): string {
     }
     let bin = "";
     for (const b of bytes) bin += String.fromCharCode(b);
-    out += "&" + btoa(bin).replace(/=+$/, "").replace(/\//g, ",") + "-";
+    out += "&" + trimEndChars(btoa(bin), "=").replace(/\//g, ",") + "-";
     buf = "";
   };
   for (const ch of name) {
@@ -70,6 +71,47 @@ export function encodeImapUtf7(name: string): string {
   }
   flush();
   return out;
+}
+
+/** What `.` does not match and `$` without `m` cannot pass. */
+const LINE_TERMINATORS = "\n\r\u2028\u2029";
+const SPACE = /\s/;
+
+/**
+ * The rest of a response line after blanks: `\s*(.*)$` (`least` 0) or
+ * `\s+(.+)$` (`least` 1) from `from`. Those patterns tried every split of the
+ * blank run again when the line did not end there — quadratic in the run of a
+ * line a server writes (plan Befunde 24.09., E6). The greedy blanks give one
+ * back only where `.+` would otherwise be empty.
+ */
+function lineRest(line: string, from: number, least: 0 | 1): string | undefined {
+  let end = from;
+  while (end < line.length && SPACE.test(line[end])) end++;
+  const start = Math.min(end, line.length - least);
+  if (start - from < least) return undefined;
+  for (let i = start; i < line.length; i++) if (LINE_TERMINATORS.includes(line[i])) return undefined;
+  return line.slice(start);
+}
+
+/** Up to the delimiter the LIST pattern has one way to match; the name is `lineRest`'s. */
+const LIST_HEAD = /^\*\s+LIST\s+\(([^)]*)\)\s+(NIL|"[^"]*")/i;
+
+/**
+ * An untagged LIST response as flags, delimiter token and mailbox name — the
+ * groups of `/^\*\s+LIST\s+\(([^)]*)\)\s+(NIL|"[^"]*")\s+(.+)$/i`.
+ */
+export function imapListFields(line: string): [flags: string, delimiter: string, name: string] | undefined {
+  const head = LIST_HEAD.exec(line);
+  const name = head ? lineRest(line, head[0].length, 1) : undefined;
+  return head && name !== undefined ? [head[1], head[2], name] : undefined;
+}
+
+const SEARCH_HEAD = /^\*\s+SEARCH/i;
+
+/** The UID list of an untagged SEARCH response — the group of `/^\*\s+SEARCH\s*(.*)$/i`. */
+export function imapSearchText(line: string): string | undefined {
+  const head = SEARCH_HEAD.exec(line);
+  return head ? lineRest(line, head[0].length, 0) : undefined;
 }
 
 /** Quotes a string for an IMAP command argument. */
@@ -206,12 +248,12 @@ export class ImapConnection {
     const out: MailboxInfo[] = [];
     for (const line of res.lines) {
       // * LIST (\HasNoChildren) "/" "INBOX"
-      const m = /^\*\s+LIST\s+\(([^)]*)\)\s+(NIL|"[^"]*")\s+(.+)$/i.exec(line.replace(LITERAL_MARK_RE, ""));
+      const m = imapListFields(line.replace(LITERAL_MARK_RE, ""));
       if (!m) continue;
-      const flags = m[1].toLowerCase();
+      const flags = m[0].toLowerCase();
       if (flags.includes("\\noselect")) continue;
-      const delimiter = m[2] === "NIL" ? undefined : m[2].slice(1, -1);
-      let rawName = m[3].trim();
+      const delimiter = m[1] === "NIL" ? undefined : m[1].slice(1, -1);
+      let rawName = m[2].trim();
       if (rawName.startsWith('"') && rawName.endsWith('"')) rawName = rawName.slice(1, -1);
       const name = decodeImapUtf7(rawName);
       out.push({ name, delimiter, role: classifyFolderRole(name, delimiter) ?? undefined });
@@ -245,9 +287,9 @@ export class ImapConnection {
     const res = await this.command(`UID SEARCH ${criteria}`);
     if (!res.ok) throw new Error("The mail server could not complete the search");
     for (const line of res.lines) {
-      const m = /^\*\s+SEARCH\s*(.*)$/i.exec(line);
-      if (m) {
-        return m[1]
+      const uids = imapSearchText(line);
+      if (uids !== undefined) {
+        return uids
           .split(/\s+/)
           .filter(Boolean)
           .map(Number)

@@ -1,3 +1,5 @@
+import { replaceDelimited } from "../textScan.js";
+
 /**
  * A failed write against a calendar or task provider, with its reason kept (K9).
  *
@@ -45,8 +47,9 @@ export function parsePimErrorBody(body: string): { code: string | null; message:
   } catch {
     // Not JSON: a CalDAV server's plain-text or HTML answer. Its first line
     // is usually the sentence that matters; markup is stripped so the toast
-    // does not show tags.
-    const line = firstLine(text.replace(/<[^>]+>/g, " "));
+    // does not show tags. Linear, unlike `/<[^>]+>/g` on a long run of "<";
+    // an empty "<>" stays, as it did under that pattern.
+    const line = firstLine(replaceDelimited(text, "<", ">", (raw, inner) => (inner ? " " : raw)));
     return { code: null, message: line ? line.replace(/\s+/g, " ").trim() : null };
   }
 }

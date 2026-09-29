@@ -1,4 +1,4 @@
-import { scanTasks, wikiTargetForPath } from "@plainva/core";
+import { scanTasks, trimEndChars, wikiTargetForPath } from "@plainva/core";
 import { TASK_LINE_RE, FENCE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
@@ -62,7 +62,9 @@ export function taskFileStem(title: string): string | null {
     }
   }
   if (depth > 0 && openAt > 0) trimmed = trimmed.slice(0, openAt);
-  trimmed = trimmed.replace(/\.+$/, "").trim();
+  // Trailing dots by hand (plan Befunde 24.09., E6): `/\.+$/` retried a long
+  // run of them from each of its characters.
+  trimmed = trimEndChars(trimmed, ".").trim();
   return trimmed.length > 0 ? trimmed : null;
 }
 
@@ -154,7 +156,7 @@ interface BaseConfigShape {
 
 /** First free `<stem>.md`, `<stem> 2.md`, … below `folder`. */
 async function freePath(adapter: TaskPromotionAdapter, folder: string, stem: string): Promise<string> {
-  const dir = folder.replace(/\/+$/, "");
+  const dir = trimEndChars(folder, "/");
   const prefix = dir ? dir + "/" : "";
   let name = stem;
   for (let n = 2; await adapter.exists(prefix + name + ".md"); n++) name = `${stem} ${n}`;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, ListChecks, MapPin, Plus, RefreshCw, Repeat, Square, Users } from "lucide-react";
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
@@ -7,7 +8,7 @@ import { listMailAccounts } from "@plainva/ui/mail";
 import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import type { EventChange } from "@plainva/ui";
-import { useVault, meetingFolderKey, DEFAULT_MEETING_FOLDER, defaultCalendarKey } from "../../contexts/VaultContext";
+import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
 import { useDailyNoteAction } from "../../hooks/useDailyNoteAction";
@@ -18,7 +19,7 @@ import { toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { usePageWheel } from "./pageWheel";
-import { calendarDay, consumePendingNew } from "@plainva/ui";
+import { calendarDay, consumePendingNew, setPendingTemplateCaret } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -31,7 +32,6 @@ import {
   eventDisplayTitle,
   eventFormFromEvent,
   eventFormToDraft,
-  eventStartDayKey,
   eventDayKeys,
   formatTimeRange,
   buildBlockDraft,
@@ -39,7 +39,7 @@ import {
   linkCalendarBlocks,
   type EventFormValues,
 } from "../../services/pim/calendarModel";
-import { resolveOrCreateMeetingNote } from "../../services/pim/meetingNote";
+import { openMeetingNoteInVault } from "../../services/pim/meetingNoteOpen";
 import { BasePeekModal } from "../BasePeekModal";
 import { EventEditModal } from "./EventEditModal";
 import { EventContextMenu } from "./EventContextMenu";
@@ -1086,15 +1086,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     async (e: PimEventRow) => {
       if (!vaultAdapter || !vaultPath) return;
       try {
-        const store = await getSettingsStore();
-        const configured = ((await store.get<string>(meetingFolderKey(vaultPath))) ?? "").trim();
-        const res = await resolveOrCreateMeetingNote({
-          adapter: vaultAdapter,
-          event: e,
-          dayKey: eventStartDayKey(e),
-          folder: configured || DEFAULT_MEETING_FOLDER,
-          noteType: "Meeting",
-        });
+        // Folder, template and rules are read by the vault-bound service; the
+        // note itself comes from the builder the phone shares (E24).
+        const res = await openMeetingNoteInVault(vaultPath, vaultAdapter, e);
+        if (!res) return; // the template's questions were cancelled — nothing was written
+        if (res.cursor !== undefined) setPendingTemplateCaret({ path: res.path, offset: res.cursor });
         if (res.created) {
           if (indexer) await applyIndexChanges(indexer, { added: [res.path] }).catch(() => undefined);
           triggerFileTreeUpdate([res.path]);
@@ -1106,6 +1102,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       }
     },
     [vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, onOpenPath, t]
+  );
+
+  /** A link in an event's description, or its Join button (E25): the system
+   *  browser opens exactly the address the event carries. */
+  const openEventUrl = useCallback(
+    (url: string) => {
+      openUrl(url).catch((err) => toast.error(t("dialogs.openWebLinkErrorMsg", { error: err })));
+    },
+    [t]
   );
 
   const viewMonth = viewDate.getMonth();
@@ -2116,6 +2121,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               : undefined
           }
           onBlock={writableAnyCount > 1 ? () => { setPeekEvent(null); setBlockEvent(peekEvent); } : undefined}
+          onOpenUrl={openEventUrl}
         />
       )}
       {ctxMenu && (

@@ -55,6 +55,23 @@ export interface BrokenLinkInfo {
   propertyKey: string | null;
 }
 
+/**
+ * The title of the note that fixes a broken link — what the cleanup views of
+ * both shells create: the target's last path segment, cut at its `#` anchor.
+ *
+ * The cut is `/#.*$/` by hand (plan Befunde 24.09., E6), which retried a long
+ * run of `#` from each of them when a line break followed. It keeps that
+ * reading: the cut falls at the first `#` after the last line break, and a
+ * `#` before a line break stays.
+ */
+export function brokenLinkNoteTitle(targetRaw: string): string {
+  const name = targetRaw.split(/[/\\]/).pop()!;
+  let lastBreak = name.length - 1;
+  while (lastBreak >= 0 && !"\n\r\u2028\u2029".includes(name[lastBreak])) lastBreak--;
+  const anchor = name.indexOf("#", lastBreak + 1);
+  return anchor < 0 ? name : name.slice(0, anchor);
+}
+
 export interface VaultGraph {
   nodes: Map<string, GraphNodeInfo>;
   edges: GraphEdgeInfo[];

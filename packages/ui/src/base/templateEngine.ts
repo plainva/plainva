@@ -54,6 +54,70 @@ export interface TemplateContext {
   /** Label for the clipboard question when the template names none. The shell
    *  passes the translated word; the engine itself carries no i18n. */
   clipboardLabel?: string;
+  /**
+   * The calendar event a meeting note is created FOR (plan Befunde 24.09.,
+   * E24) — the source of `{{start}}`, `{{end}}`, `{{location}}`,
+   * `{{attendees}}`, `{{organizer}}`, `{{link}}` and `{{description}}`.
+   * Absent everywhere else, where those names are what any unknown token is:
+   * visible text, so a template shared between a meeting and a plain note
+   * shows what it did not fill instead of silently dropping it.
+   */
+  event?: TemplateEvent;
+}
+
+/**
+ * What a meeting-note template can read from its event. Plain values, not the
+ * provider row: the engine stays free of the PIM model, and the conversion
+ * (inclusive end of an all-day event, the organizer out of the attendee list)
+ * happens once, next to the meeting note (`meetingTemplateEvent`).
+ */
+export interface TemplateEvent {
+  start: Date;
+  /** The LAST moment of the event — for an all-day event its last day, not the
+   *  exclusive end iCal and the providers store. */
+  end: Date;
+  allDay: boolean;
+  location?: string;
+  attendees?: readonly string[];
+  organizer?: string;
+  /** Join link of the online meeting (`meetingUrl`). */
+  link?: string;
+  /** The description as Markdown — what the providers deliver after
+   *  `htmlToMarkdown`; plain text passes unchanged. */
+  description?: string;
+}
+
+/** The tokens only a meeting note can fill (E24). */
+const EVENT_TOKENS = new Set(["start", "end", "location", "attendees", "organizer", "link", "description"]);
+
+/**
+ * One event token. `{{start}}`/`{{end}}` take a Moment format and a day offset
+ * like `{{date}}` does; `{{attendees:list}}` writes one bullet per person
+ * instead of a comma-separated line. Returns null for a shape the token does
+ * not have (an offset on a text field) — that stays visible, like a typo.
+ */
+function resolveEventToken(name: string, offset: number, arg: string | null, ev: TemplateEvent): string | null {
+  if (name === "start" || name === "end") {
+    const at = name === "start" ? ev.start : ev.end;
+    return formatMomentLocalized(offset ? addDays(at, offset) : at, arg || (ev.allDay ? "YYYY-MM-DD" : "YYYY-MM-DD HH:mm"));
+  }
+  if (offset) return null;
+  switch (name) {
+    case "attendees": {
+      const people = ev.attendees ?? [];
+      return arg?.trim().toLowerCase() === "list" ? people.map((p) => `- ${p}`).join("\n") : people.join(", ");
+    }
+    case "location":
+      return ev.location ?? "";
+    case "organizer":
+      return ev.organizer ?? "";
+    case "link":
+      return ev.link ?? "";
+    case "description":
+      return ev.description ?? "";
+    default:
+      return null;
+  }
 }
 
 export type TemplateMode = "interactive" | "headless";
@@ -307,6 +371,12 @@ export function resolveTemplate(
       }
       default:
         break;
+    }
+
+    if (EVENT_TOKENS.has(name)) {
+      // Outside a meeting note these are unknown tokens and stay put.
+      if (!ctx.event) return raw;
+      return resolveEventToken(name, offset, argument, ctx.event) ?? raw;
     }
 
     if (DEFERRED.has(name)) return raw;

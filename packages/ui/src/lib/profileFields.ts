@@ -93,6 +93,7 @@ export const PROFILE_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze
   extendedDatabases: true,
   commentAnchors: true,
   meetingFolder: "Meetings",
+  meetingNoteTemplate: "",
   calendarOverlays: Object.freeze([]),
   mailFolder: "Mail",
   mailRemoteImages: false,
@@ -240,6 +241,10 @@ export const PROFILE_FIELDS: readonly ProfileFieldDef[] = [
   // anchoring; off falls back to the quote, which still resolves but drifts.
   { logical: "commentAnchors", scope: "vault", kind: "boolean", area: "content", desktop: "store", mobile: "commentAnchors" },
   { logical: "meetingFolder", scope: "vault", kind: "vaultPath", area: "calendar", desktop: "store", mobile: "meetingFolder" },
+  // Which template a meeting note starts from (plan Befunde 24.09., E24). A
+  // VAULT field like its folder: two devices with different templates would
+  // give the same meeting a different note depending on which one was in hand.
+  { logical: "meetingNoteTemplate", scope: "vault", kind: "vaultPath", area: "calendar", desktop: "store", mobile: "meetingTemplate" },
   // Which database views the calendar shows (S18). A vault field on purpose:
   // the calendar of one vault should look the same on both machines, and a
   // per-device list would quietly give the phone a different calendar.

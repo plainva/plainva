@@ -19,7 +19,7 @@ import {
 import i18n from "@plainva/ui/i18n";
 import { clearWidgetActions, clearWidgetSnapshot, readWidgetActions, readWidgetSnapshot, widgetsAvailable, writeWidgetSnapshot } from "../platform/widgetBridge";
 import { getMobileSettings } from "./mobileSettings";
-import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
+import { isMobileWorkspaceLocked } from "./mobileWorkspaceLock";
 import { listPimEvents } from "./pim/pimService";
 import { getActiveVaultEntry } from "./vaultRegistry";
 
@@ -79,25 +79,6 @@ function labels(): WidgetLabels {
     newTask: i18n.t("widget.newTask"),
     newJournal: i18n.t("widget.newJournal"),
   };
-}
-
-/**
- * Is the active vault a sealed workspace this device cannot open?
- *
- * The same two questions `ShareInbox` asks: a phase other than `active`, or an
- * active phase whose runtime is not in memory because the vault was locked.
- * Either way the snapshot goes out empty — not full-and-hidden.
- */
-async function isLocked(vaultId: string): Promise<boolean> {
-  try {
-    const status = await getMobileWorkspaceStatus(vaultId);
-    if (!status) return false;
-    if (status.phase !== "active") return true;
-    return !(await loadMobileWorkspaceRuntime(vaultId));
-  } catch {
-    // An unanswerable question about a lock is answered with the lock.
-    return true;
-  }
 }
 
 /**
@@ -194,7 +175,8 @@ async function writeOnce(): Promise<void> {
     const vaultName = entry.name || "Plainva";
     const settings = getMobileSettings();
     const now = new Date();
-    const locked = await isLocked(entry.id);
+    // A sealed workspace goes out empty — not full-and-hidden.
+    const locked = await isMobileWorkspaceLocked(entry.id);
     const [tasks, events] = locked
       ? [[], []]
       : await Promise.all([taskRows(), settings.widgetShowEvents ? eventRows(now) : Promise.resolve([])]);

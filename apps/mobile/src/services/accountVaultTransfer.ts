@@ -1,4 +1,4 @@
-import { sameStoredValue } from "@plainva/core";
+import { sameStoredValue, trimEndChars } from "@plainva/core";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
 import { assertConnectionIdentity, getPlatformServices, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
@@ -20,8 +20,8 @@ import { noteSaver, openPreparedVaultDatabase, switchVault, type MobileVault } f
 /** Destination identity excludes tokens and local labels. */
 export function fileDestinationKey(p: MobileSyncProvider, identity?: VerifiedProviderIdentity): string | null {
   if (p.provider === "drive" || p.provider === "onedrive") return identity ? JSON.stringify([p.provider, verifiedProviderIdentityKey(identity), p.creds.rootFolderName || "Plainva"]) : null;
-  if (p.provider === "webdav") return JSON.stringify([p.provider, p.creds.url.replace(/\/+$/, ""), p.creds.user]);
-  if (p.provider === "s3") return JSON.stringify([p.provider, p.creds.endpoint.replace(/\/+$/, ""), p.creds.bucket, p.creds.prefix || "", p.creds.accessKeyId]);
+  if (p.provider === "webdav") return JSON.stringify([p.provider, trimEndChars(p.creds.url, "/"), p.creds.user]);
+  if (p.provider === "s3") return JSON.stringify([p.provider, trimEndChars(p.creds.endpoint, "/"), p.creds.bucket, p.creds.prefix || "", p.creds.accessKeyId]);
   if (p.provider === "dropbox") return identity ? JSON.stringify([p.provider, verifiedProviderIdentityKey(identity), p.creds.rootPath || "/"]) : null;
   return null;
 }

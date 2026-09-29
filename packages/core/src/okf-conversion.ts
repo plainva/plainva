@@ -4,6 +4,7 @@ import {
   renameFrontmatterKey,
   FrontmatterSurgicalError,
 } from "./frontmatter-surgical.js";
+import { trimEndChars } from "./textScan.js";
 
 /**
  * OKF conformance scan + conversion (OKF SPEC v0.1 §9; the three hard rules
@@ -50,7 +51,7 @@ export function isExcludedFromOkfScan(path: string, excludeFolders: string[] = [
   if (segments[segments.length - 1]?.startsWith(".")) return true;
   const normalized = path.replace(/\\/g, "/");
   return excludeFolders.some((folder) => {
-    const f = folder.replace(/\\/g, "/").replace(/\/+$/, "");
+    const f = trimEndChars(folder.replace(/\\/g, "/"), "/");
     return f !== "" && (normalized === f || normalized.startsWith(`${f}/`));
   });
 }

@@ -11,9 +11,17 @@ import {
 } from '../ImportTypes.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { MarkdownFamilyImporter } from './markdownFamily.js';
+import { bracketLinks, type BracketLinkGrammar } from '../../linkScan.js';
 
 /** Hosts a Roam export legitimately points at for the user's own uploads. */
 const ROAM_FILE_HOSTS = ['firebasestorage.googleapis.com', 'roamresearch.com'];
+
+/**
+ * `[label](https://…)` and `![alt](https://…)`: `/!?\[[^\]]*\]\((https:\/\/[^\s)]+)\)/g`,
+ * read in one pass (plan Befunde 24.09., E6) — the pattern looked for `]`
+ * again from every `[`, quadratic on a long run of `[` in an export.
+ */
+const WEB_LINK: BracketLinkGrammar = { bang: true, destinationPrefix: 'https://', destinationStopsAtSpace: true, destinationMin: 1 };
 
 const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 
@@ -189,8 +197,8 @@ export class RoamImporter implements ImportSource {
     if (!fetchFn) return { text, taken: 0, lost: 0 };
 
     const urls = new Set<string>();
-    for (const match of text.matchAll(/!?\[[^\]]*\]\((https:\/\/[^\s)]+)\)/g)) {
-      const url = match[1];
+    for (const match of bracketLinks(text, WEB_LINK)) {
+      const url = match.destination;
       if (ROAM_FILE_HOSTS.some((host) => url.includes(host))) urls.add(url);
     }
     if (urls.size === 0) return { text, taken: 0, lost: 0 };

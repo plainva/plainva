@@ -61,9 +61,77 @@ export function findInlineTags(text: string): InlineTag[] {
   return collect(text, new RegExp(`(^|\\s)#([${NAME_CHARS}]+)`, "gu"));
 }
 
-/** Replaces every hit with filler of the same length, so the offsets stay. */
-function blank(line: string, pattern: RegExp): string {
-  return line.replace(pattern, (hit) => FILLER.repeat(hit.length));
+/** For every index: the first index at or after it whose character `stops`, or the length. */
+function nextStops(line: string, stops: (code: number) => boolean): Int32Array {
+  const next = new Int32Array(line.length + 1);
+  next[line.length] = line.length;
+  for (let i = line.length - 1; i >= 0; i--) next[i] = stops(line.charCodeAt(i)) ? i : next[i + 1];
+  return next;
+}
+
+/**
+ * Blanks what `matchAt` recognises, leftmost first and never overlapping — a
+ * global replace done by hand. `matchAt` answers in constant time from tables
+ * built once per line, so the pass stays linear however the line is made
+ * (plan Befunde 24.09., E6: the patterns this replaces retried the rest of the
+ * line from every `[[`, `](`, `<!--` and `<a`).
+ */
+function blankWhere(line: string, matchAt: (at: number) => number): string {
+  let out = "", from = 0;
+  for (let at = 0; at < line.length;) {
+    const end = matchAt(at);
+    if (end < 0) { at++; continue; }
+    out += line.slice(from, at) + FILLER.repeat(end - at);
+    from = at = end;
+  }
+  return out + line.slice(from);
+}
+
+/** `[[…]]` and `![[…]]` on one line: wiki links and embeds (an alias is no text node). */
+function blankWikiLinks(line: string): string {
+  if (!line.includes("[[")) return line;
+  const stop = nextStops(line, (c) => c === 93 /* ] */ || c === 10);
+  return blankWhere(line, (at) => {
+    const open = line[at] === "!" ? at + 1 : at;
+    if (line[open] !== "[" || line[open + 1] !== "[") return -1;
+    const close = stop[open + 2];
+    return line[close] === "]" && line[close + 1] === "]" ? close + 2 : -1;
+  });
+}
+
+/** The destination of a Markdown link: `](…)`. */
+function blankLinkDestinations(line: string): string {
+  if (!line.includes("](")) return line;
+  const stop = nextStops(line, (c) => c === 41 /* ) */ || c === 10);
+  return blankWhere(line, (at) => {
+    if (line[at] !== "]" || line[at + 1] !== "(") return -1;
+    const close = stop[at + 2];
+    return line[close] === ")" ? close + 1 : -1;
+  });
+}
+
+const isAsciiLetter = (c: number) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+
+/** HTML comments that close on this line, and HTML tags: `<!--…-->`, `<a …>`, `</a>`. */
+function blankHtml(line: string): string {
+  if (!line.includes("<")) return line;
+  // A comment may not run over a line break (what `.` does not match).
+  const lineBreak = nextStops(line, (c) => c === 10 || c === 13 || c === 0x2028 || c === 0x2029);
+  const tagEnd = nextStops(line, (c) => c === 62 /* > */ || c === 10);
+  const commentEnd = new Int32Array(line.length + 1);
+  commentEnd[line.length] = line.length;
+  for (let i = line.length - 1; i >= 0; i--) commentEnd[i] = line.startsWith("-->", i) ? i : commentEnd[i + 1];
+  return blankWhere(line, (at) => {
+    if (line[at] !== "<") return -1;
+    if (line.startsWith("<!--", at)) {
+      const close = commentEnd[at + 4];
+      return close < line.length && lineBreak[at + 4] >= close ? close + 3 : -1;
+    }
+    const name = line[at + 1] === "/" ? at + 2 : at + 1;
+    if (!isAsciiLetter(line.charCodeAt(name))) return -1;
+    const close = tagEnd[name + 1];
+    return line[close] === ">" ? close + 1 : -1;
+  });
 }
 
 /** Blanks inline code: a run of N backticks up to the next run of exactly N. */
@@ -106,9 +174,9 @@ function blankCodeSpans(line: string): string {
 export function findInlineTagsInLine(line: string): InlineTag[] {
   if (!line.includes("#")) return [];
   let masked = blankCodeSpans(line);
-  masked = blank(masked, /!?\[\[[^\]\n]*\]\]/g);
-  masked = blank(masked, /\]\([^)\n]*\)/g);
-  masked = blank(masked, /<!--.*?-->|<\/?[A-Za-z][^>\n]*>/g);
+  masked = blankWikiLinks(masked);
+  masked = blankLinkDestinations(masked);
+  masked = blankHtml(masked);
   return collect(masked, new RegExp(`(^|\\s[*~=]{0,3}|^[*~=]{1,3})#([${NAME_CHARS}]+)`, "gu"));
 }
 

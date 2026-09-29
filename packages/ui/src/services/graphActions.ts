@@ -1,5 +1,5 @@
 import { flushPendingSave } from "../platform/services";
-import { resolveLinkTarget, wikiTargetForPath, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { nextWhere, resolveLinkTarget, wikiTargetForPath, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 
 /**
@@ -47,7 +47,40 @@ export async function appendWikiLink(
   return link;
 }
 
-const WIKI_LINK_RE = /\[\[([^\]|#]+)(#[^\]|]*)?(\|([^\]]*))?\]\]/g;
+/**
+ * `text.replace(/\[\[([^\]|#]+)(#[^\]|]*)?(\|([^\]]*))?\]\]/g, …)` in one pass
+ * (plan Befunde 24.09., E6); `replace` receives the whole link, group 1 and
+ * group 4 (undefined without a `|`). The pattern looked for its closing
+ * brackets again from every `[[`, quadratic on a long run of `[`. Each part
+ * ends at the first character it may not hold, so no start is read twice.
+ */
+function replaceWikiLinks(text: string, replace: (full: string, target: string, alias: string | undefined) => string): string {
+  const n = text.length;
+  const targetEnd = nextWhere(n, (i) => text[i] === "]" || text[i] === "|" || text[i] === "#");
+  const anchorEnd = nextWhere(n, (i) => text[i] === "]" || text[i] === "|");
+  const aliasEnd = nextWhere(n, (i) => text[i] === "]");
+  const pieces: string[] = [];
+  let cursor = 0;
+  for (let at = text.indexOf("[["); at >= 0; ) {
+    const from = at + 2;
+    const target = targetEnd(from);
+    let end = target;
+    if (text[end] === "#") end = anchorEnd(end + 1);
+    let alias: string | undefined;
+    if (text[end] === "|") {
+      const stop = aliasEnd(end + 1);
+      alias = text.slice(end + 1, stop);
+      end = stop;
+    }
+    if (target > from && text[end] === "]" && text[end + 1] === "]") {
+      pieces.push(text.slice(cursor, at), replace(text.slice(at, end + 2), text.slice(from, target), alias));
+      cursor = end + 2;
+      at = text.indexOf("[[", cursor);
+    } else at = text.indexOf("[[", at + 1);
+  }
+  pieces.push(text.slice(cursor));
+  return pieces.join("");
+}
 
 /**
  * Removes every body wiki link in `sourcePath` that RESOLVES to `targetPath`
@@ -66,7 +99,7 @@ export async function removeLinksTo(
   await flushPendingSave(sourcePath);
   const current = await adapter.readTextFile(sourcePath);
   let removed = 0;
-  const next = current.replace(WIKI_LINK_RE, (full, target: string, _anchor, _aliasGroup, alias?: string) => {
+  const next = replaceWikiLinks(current, (full, target, alias) => {
     const resolved = resolveLinkTarget(sourcePath, target.trim(), allPaths);
     if (resolved !== targetPath) return full;
     removed++;

@@ -1,18 +1,20 @@
 import { LocalNotifications } from "@capacitor/local-notifications";
 import {
   buildCommentOverview,
-  commentBaseline,
   commentNotificationText,
-  planCommentNotifications,
+  drawCommentNotificationBaseline,
   requestCommentJump,
   requestCommentOverviewFocus,
+  runCommentNotificationCycle,
   toast,
+  type CommentLockState,
+  type CommentNotificationCycle,
   type CommentNotificationLevel,
   type CommentNotificationNote,
   type CommentNotificationPlan,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { getMobileSettings, updateMobileSettings } from "./mobileSettings";
+import { applyVaultSettings, getVaultSettings } from "./mobileSettings";
 
 /**
  * Telling you on the phone that somebody wrote something (Stufe F, F3).
@@ -35,12 +37,25 @@ const ACTION_COMMENT = "plainva-comment";
  *  than stacking a second unread badge for the same thing. */
 const NOTIFICATION_ID = 774_001;
 
-/** How the shell hands over what only it can read. */
+/**
+ * How the shell hands over what only it can read — for the vault it has open.
+ *
+ * The answers carry the vault's id, and the cycle reads and writes that vault's
+ * settings and ledger by the id rather than "whichever vault is active": a
+ * cycle that was still running when the phone switched vaults would otherwise
+ * have written one vault's remarks into the other's ledger (plan Befunde
+ * 24.09., E7).
+ */
 export interface MobileCommentNotifierDeps {
+  vaultId: string;
+  /**
+   * Can the vault's remarks be read in full right now? Locked: the cycle reads
+   * nothing, writes nothing and says nothing (E7, `runCommentNotificationCycle`).
+   */
+  lockState(): Promise<CommentLockState>;
   listNotes(): Promise<CommentNotificationNote[]>;
   listNames(): Promise<ReadonlyMap<string, string>>;
   identity(): Promise<{ memberId: string | null; deviceId: string | null }>;
-  isLocked?(): boolean;
   /** Opens the note with the sheet open and the card highlighted (§6). */
   openComment(target: { path: string; commentId: string }): void;
   openOverview(): void;
@@ -49,8 +64,17 @@ export interface MobileCommentNotifierDeps {
 let deps: MobileCommentNotifierDeps | null = null;
 let initialised = false;
 
-export function setMobileCommentNotifierDeps(next: MobileCommentNotifierDeps | null): void {
+export function setMobileCommentNotifierDeps(next: MobileCommentNotifierDeps): void {
   deps = next;
+}
+
+/**
+ * Unregisters these answers — only these: on a vault switch the old hook's
+ * cleanup and the new hook's registration race, and the old one must not take
+ * the new one's answers with it.
+ */
+export function releaseMobileCommentNotifierDeps(released: MobileCommentNotifierDeps): void {
+  if (deps === released) deps = null;
 }
 
 /**
@@ -152,54 +176,49 @@ export function applyIntent(): void {
   }
 }
 
-/** Marks everything present as seen (FB3), for the moment of switching on. */
+/** The shared cycle, wired to this vault's own settings record. */
+function cycleFor(current: MobileCommentNotifierDeps): CommentNotificationCycle {
+  const vaultId = current.vaultId;
+  return {
+    // A question about a lock that cannot be answered is answered with the lock.
+    lockState: () => current.lockState().catch((): CommentLockState => "locked"),
+    settings: async () => {
+      const settings = await getVaultSettings(vaultId);
+      return {
+        enabled: settings.commentNotifyEnabled,
+        level: settings.commentNotifyLevel as CommentNotificationLevel,
+        preview: settings.commentNotifyPreview,
+        mutedPaths: settings.commentNotifyMuted,
+      };
+    },
+    listNotes: () => current.listNotes(),
+    readSeen: async () => new Set((await getVaultSettings(vaultId)).commentNotifySeen),
+    writeSeen: (ids) => applyVaultSettings(vaultId, { commentNotifySeen: ids }),
+    names: () => current.listNames(),
+    identity: () => current.identity(),
+    announce: (plan, { preview, names }) => announce(plan, preview, names),
+  };
+}
+
+/** Marks everything present as seen (FB3), for the moment of switching on. A locked vault draws none. */
 export async function drawMobileCommentBaseline(): Promise<void> {
   const current = deps;
   if (!current) return;
-  const notes = await current.listNotes();
-  await updateMobileSettings({ commentNotifySeen: commentBaseline(notes) });
+  await drawCommentNotificationBaseline(cycleFor(current));
 }
 
 /**
  * One cycle for the open vault. Returns the plan, for the test.
  *
  * Called after a sideband cycle and on every return to the foreground - the two
- * moments a phone has.
+ * moments a phone has. On the way back the workspace runtime may still be
+ * loading; the shared cycle then does nothing at all instead of pruning the
+ * ledger to an empty list.
  */
 export async function runMobileCommentNotifications(): Promise<CommentNotificationPlan | null> {
   const current = deps;
   if (!current) return null;
-  const settings = getMobileSettings();
-  const notes = await current.listNotes();
-  const present = commentBaseline(notes);
-
-  // Off: keep the ledger current anyway, so switching it ON draws the baseline
-  // at THAT moment instead of releasing everything that arrived while it was off.
-  if (!settings.commentNotifyEnabled) {
-    await updateMobileSettings({ commentNotifySeen: present });
-    return null;
-  }
-
-  const [names, identity] = await Promise.all([current.listNames(), current.identity()]);
-  const presentSet = new Set(present);
-  const plan = planCommentNotifications({
-    notes,
-    seen: new Set(settings.commentNotifySeen),
-    selfMemberId: identity.memberId,
-    selfDeviceId: identity.deviceId,
-    names,
-    level: settings.commentNotifyLevel as CommentNotificationLevel,
-    mutedPaths: new Set(settings.commentNotifyMuted),
-  });
-
-  // Pruned to what still exists, so the ledger stays bounded by the vault
-  // rather than by everything it ever held.
-  const seen = new Set([...settings.commentNotifySeen, ...plan.seen].filter((id) => presentSet.has(id)));
-  await updateMobileSettings({ commentNotifySeen: [...seen] });
-  if (plan.kind === "none") return plan;
-
-  await announce(plan, settings.commentNotifyPreview && !(current.isLocked?.() ?? false), names);
-  return plan;
+  return runCommentNotificationCycle(cycleFor(current));
 }
 
 async function announce(
@@ -210,8 +229,8 @@ async function announce(
   if (plan.kind === "none") return;
   // One rule for what a lock screen may show, shared with the desktop: two
   // copies would drift, and the drift would only ever surface on somebody's
-  // lock screen. A locked vault suppresses the preview regardless of the
-  // setting - the caller has already ANDed that in.
+  // lock screen. A locked vault never gets here: the cycle asked the lock
+  // right before this call.
   const text = commentNotificationText({ plan, preview, names, t: i18n.t.bind(i18n) });
   if (!text) return;
   const { title, body } = text;

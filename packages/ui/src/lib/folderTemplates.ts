@@ -112,6 +112,32 @@ export function resolveTypeTemplate(
 }
 
 /**
+ * Vault-relative path of a template named by a rule or a setting.
+ *
+ * A name may be the file alone ("Projekt.md") or its full vault path; the
+ * settings surfaces offer the templates folder, so the bare name is the normal
+ * case and the full path is what a hand-typed or hand-edited value carries. A
+ * missing extension is completed — Plainva templates are markdown files, so
+ * "Projekt" can only mean one thing. `""` names no template.
+ *
+ * One definition for both shells: the desktop and the phone each had a copy.
+ */
+export function templateFilePath(name: string, templateFolder: string): string {
+  const trimmed = trimLeadingSeparators(name.trim());
+  if (!trimmed) return "";
+  const named = /\.[a-z0-9]+$/i.test(trimmed) ? trimmed : `${trimmed}.md`;
+  if (named.includes("/")) return named;
+  const folder = trimEndChars(templateFolder || "Templates", "/\\");
+  return folder ? `${folder}/${named}` : named;
+}
+
+function trimLeadingSeparators(text: string): string {
+  let start = 0;
+  while (start < text.length && (text[start] === "/" || text[start] === "\\")) start++;
+  return text.slice(start);
+}
+
+/**
  * What a new note in `folderPath` of type `type` starts from.
  *
  * Folder beats type: where a note lies is the more deliberate statement — a

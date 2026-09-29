@@ -1,6 +1,6 @@
 # Skróty klawiszowe
 
-Stan na: 2026-09-24
+Stan na: 2026-09-28
 
 `F1` (lub **Paleta poleceń → Pokaż skróty klawiszowe**) w każdej chwili otwiera okno skrótów. Grupuje ono każdy skrót i gest myszy w obszary, między którymi przełącza się za pomocą chipów u góry, ma pole wyszukiwania obejmujące wszystkie obszary i automatycznie wykrywa platformę: pokazuje `Ctrl`/`Alt` w Windows i Linux oraz `⌘`/`⌥` w macOS. W tabelach poniżej `Ctrl` oznacza więc `⌘` w macOS, a `Alt` — `⌥`.
 
@@ -47,7 +47,7 @@ W drzewie plików: **kliknięcie** wybiera i otwiera, `Ctrl`+klik przełącza za
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Następna / poprzednia karta (`Ctrl` we wszystkich systemach) |
 | `Ctrl+1` … `Ctrl+8` | Przejdź do karty 1–8 |
 | `Ctrl+9` | Przejdź do ostatniej karty |
-| `F5` | Wczytuje vault ponownie (**nie** przeładowuje aplikacji) |
+| `F5` / `Ctrl+R` | Wczytuje vault ponownie (**nie** przeładowuje aplikacji) |
 
 Tryb skupienia (oba panele boczne ukryte) jest dostępny w palecie poleceń. Przypinanie karty, jej odświeżanie oraz grupę zamykania (**Zamknij pozostałe / po lewej / po prawej / wszystkie**) znajdziesz w **menu pod prawym przyciskiem myszy** karty.
 
@@ -129,7 +129,7 @@ Mysz: **przewijanie kółkiem** zmienia powiększenie; **przeciąganie środkowy
 - **Karty:** przeciąganie zmienia ich kolejność, przenosi je między panelami, a przeciągnięcie do krawędzi dzieli widok; **kliknięcie prawym przyciskiem** otwiera menu karty (**Przypnij**, **Odśwież**, **Otwórz w podziale**, grupa zamykania). **Przypięta** karta przesuwa się na początek i przetrwa każde masowe zamknięcie.
 - **Pasek akcji (skrajnie po lewej):** przytrzymaj przycisk chwilę i przeciągnij, aby zmienić jego kolejność (górna i dolna grupa pozostają oddzielne); `Esc` anuluje.
 - **Linki:** kliknięcie linku wewnętrznego lub linku Markdown otwiera go (`Ctrl`+klik w nowej karcie).
-- **Kliknięcie prawym przyciskiem** na zaznaczeniu lub polu otwiera własne menu kontekstowe Plainva: kopiuj / wytnij / wklej. `F5` i `Ctrl+R` **nie** odświeżają (utraciłyby karty i niezapisane bufory) — zamiast tego wczytują ponownie **vault**.
+- **Kliknięcie prawym przyciskiem** na zaznaczeniu lub polu otwiera własne menu kontekstowe Plainva: kopiuj / wytnij / wklej.
 - **Okno podglądu:** przeciąganie nagłówka przesuwa je, uchwyt w rogu zmienia rozmiar; `◀ ▶` ma własną historię.
 - **Kalendarz:** kliknięcie tytułu w karcie kalendarza lub nazwy miesiąca na pasku bocznym (albo `Tab` i `Enter`) otwiera wybór daty — strzałki poruszają się po siatce, `PgUp/PgDn` przewijają miesiące, `Enter` przechodzi, `Esc` zamyka; kliknięcie dnia otwiera jego notatkę dzienną.
 - **Edytor obrazów:** rysowanie myszą (pisak/strzałka/prostokąt/tekst/kadrowanie); powiększenie za pomocą przycisków.

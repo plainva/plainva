@@ -8,6 +8,7 @@ import {
   folderTemplatesKey,
 } from "../../contexts/VaultContext";
 import type { VaultTemplateDefinition } from "@plainva/ui";
+import { trimEndChars } from "@plainva/core";
 
 /**
  * Vault structure templates for the "Create New Vault" chooser (Gesamtplan
@@ -38,7 +39,7 @@ export async function isVaultFolderEmpty(absolutePath: string): Promise<boolean>
   try {
     const store = await getSettingsStore();
     const known = [...(await store.get<string[]>("recentVaults") ?? []), ...(await store.get<string[]>("initializedVaultPaths") ?? [])];
-    const normalize = (path: string) => path.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+    const normalize = (path: string) => trimEndChars(path.replace(/\\/g, "/"), "/").toLowerCase();
     if (known.some(path => normalize(path) === normalize(absolutePath))) return false;
     const entries = await readDir(absolutePath);
     return entries.every((e) => OS_JUNK_NAMES.has((e.name ?? "").toLowerCase()));
