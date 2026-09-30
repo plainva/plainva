@@ -31,7 +31,7 @@ From a checkout (or git worktree) of the branch:
 pnpm --filter desktop tauri:labs
 ```
 
-Vite serves the Labs build on port 1450 (`dev:labs`); the dev build keeps 1440, and 1420 stays free for the pre-push E2E. Release, dev build and Labs run at the same time. Only one of them can use the fixed Dropbox loopback port 41953 or the global quick capture shortcut at a time.
+The script first builds the MCP helper `plainva-mcp` next to the app (`tauri dev` builds the app alone, and without the helper no AI app on this computer can connect). Vite serves the Labs build on port 1450 (`dev:labs`); the dev build keeps 1440, and 1420 stays free for the pre-push E2E. Release, dev build and Labs run at the same time. Only one of them can use the fixed Dropbox loopback port 41953 or the global quick capture shortcut at a time.
 
 ## Guards on main
 
