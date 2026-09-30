@@ -87,6 +87,13 @@ function defaultStorage(): DraftLedgerStorage | null {
 const openHere = new Map<string, () => void>();
 
 const openKey = (vaultKey: string, path: string) => `${vaultKey}\n${path}`;
+
+/** Lets go of this window's hold on a draft, if it has one. The key carries a
+ * vault and a note path, so what comes back is checked before it is called. */
+function releaseOpen(k: string): void {
+  const release = openHere.get(k);
+  if (typeof release === "function") release();
+}
 const lockName = (vaultKey: string, path: string) => `plainva-pinboard-draft:${vaultKey}:${path}`;
 
 interface LockManagerLike {
@@ -222,7 +229,7 @@ export function pinboardDraftLedger(vaultKey: string, storage: DraftLedgerStorag
         /* a storage that refuses (quota, blocked) only costs the clean-up after a crash */
       }
       const k = openKey(vaultKey, path);
-      openHere.get(k)?.();
+      releaseOpen(k);
       openHere.set(k, holdLock(lockName(vaultKey, path)));
     },
     forget(path) {
@@ -232,7 +239,7 @@ export function pinboardDraftLedger(vaultKey: string, storage: DraftLedgerStorag
         /* nothing more to do */
       }
       const k = openKey(vaultKey, path);
-      openHere.get(k)?.();
+      releaseOpen(k);
       openHere.delete(k);
     },
     list: () => readEntries(storage, vaultKey),

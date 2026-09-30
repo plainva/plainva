@@ -7,6 +7,7 @@ import {
   type IVaultAdapter,
   type VaultFileInfo,
 } from "../../src/vault/IVaultAdapter.js";
+import { trimEndChars } from "../../src/textScan.js";
 
 /**
  * A vault held in memory that answers like LocalVaultAdapter does on disk:
@@ -43,7 +44,7 @@ export class MemoryVaultAdapter implements IVaultAdapter {
     }
     const normal = posix.normalize(vaultPath.replace(/\\/g, "/"));
     if (normal === ".." || normal.startsWith("../")) throw new VaultPermissionDeniedError(vaultPath);
-    return normal === "." ? "" : normal.replace(/\/+$/, "");
+    return normal === "." ? "" : trimEndChars(normal, "/");
   }
 
   private parentOf(key: string): string {
