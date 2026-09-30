@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { AI_AUDIO_PROFILE, AI_PROFILE_IDS, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
 import {
+  AI_FEEDBACK_URL,
   Button,
   configuredProviders,
   getPlatformServices,
@@ -81,6 +82,11 @@ function AiSettingsBody({ session }: { session: AiSession }) {
       <SettingCard label={t("ai.settings.betaTitle")}>
         <SettingRow label={t("ai.settings.betaSwitch")} desc={t("ai.settings.betaDesc")}>
           <Switch checked={settings.enabled} label={t("ai.settings.betaSwitch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, enabled: on }))} data-testid="ai-beta-switch" />
+        </SettingRow>
+        <SettingRow label={t("ai.settings.feedback")} desc={t("ai.settings.feedbackDesc")}>
+          <Button size="sm" variant="secondary" icon={<ExternalLink size={ICON.ui} />} onClick={() => void getPlatformServices().openExternal(AI_FEEDBACK_URL)} data-testid="ai-feedback">
+            {t("ai.settings.feedbackOpen")}
+          </Button>
         </SettingRow>
         <SettingCardNote>{t("ai.settings.experimental")}</SettingCardNote>
       </SettingCard>

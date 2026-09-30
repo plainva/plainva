@@ -114,3 +114,5 @@ Conversations stay on this device, per vault — never in the vault and never sy
 - On the desktop the AI runs in the main window only.
 - On the phone an answer comes only while the app is open.
 - The assistant changes nothing itself: it proposes changes to a selected passage and transcripts of voice notes, as suggestions you accept or decline.
+
+Feedback on the beta goes to the project's discussions on GitHub: **Feedback on the AI (Beta)** in the settings starts one.

@@ -1,8 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { AI_AUDIO_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
 import {
+  AI_FEEDBACK_URL,
   addableProviders,
   configuredProviders,
   getPlatformServices,
@@ -150,6 +151,13 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
               title={t("ai.settings.betaSwitch")}
               subtitle={t("ai.settings.betaDesc")}
               end={<Switch checked={settings.enabled} label={t("ai.settings.betaSwitch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, enabled: on }))} />}
+            />
+            <Row
+              icon={<ExternalLink size={ICON.ui} />}
+              title={t("ai.settings.feedback")}
+              subtitle={t("ai.settings.feedbackDesc")}
+              onClick={() => void getPlatformServices().openExternal(AI_FEEDBACK_URL)}
+              data-testid="ai-feedback"
             />
           </RowList>
         </GroupCard>

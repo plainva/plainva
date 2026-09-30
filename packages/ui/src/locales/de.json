@@ -137,7 +137,10 @@
       "sending": "Senden",
       "confirmEvery": "Vor jeder Anfrage fragen",
       "confirmEveryDesc": "Zeigt vor jeder Nachricht, was hinausgeht, nicht nur beim ersten Mal und wenn es mehr wird. Für ein Modell auf diesem Gerät wird nie gefragt.",
-      "audioHint": "Transkribiert Sprachnotizen. Braucht einen Anbieter mit Audio-Weg — OpenAI, Gemini oder einen kompatiblen Server."
+      "audioHint": "Transkribiert Sprachnotizen. Braucht einen Anbieter mit Audio-Weg — OpenAI, Gemini oder einen kompatiblen Server.",
+      "feedback": "Rückmeldung zur KI (Beta)",
+      "feedbackDesc": "Sag uns, was funktioniert und was nicht — in den Diskussionen des Projekts auf GitHub.",
+      "feedbackOpen": "Diskussionen öffnen"
     },
     "add": {
       "title": "Anbieter hinzufügen",

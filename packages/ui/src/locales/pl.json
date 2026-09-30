@@ -145,7 +145,10 @@
       "sending": "Wysyłanie",
       "confirmEvery": "Pytaj przed każdym zapytaniem",
       "confirmEveryDesc": "Pokazuje przed każdą wiadomością, co wychodzi, nie tylko za pierwszym razem i gdy zakres rośnie. Dla modelu na tym urządzeniu nigdy nie pyta.",
-      "audioHint": "Transkrybuje notatki głosowe. Wymaga dostawcy z obsługą audio: OpenAI, Gemini lub zgodnego serwera."
+      "audioHint": "Transkrybuje notatki głosowe. Wymaga dostawcy z obsługą audio: OpenAI, Gemini lub zgodnego serwera.",
+      "feedback": "Opinie o AI (beta)",
+      "feedbackDesc": "Napisz, co działa, a co nie — w dyskusjach projektu na GitHubie.",
+      "feedbackOpen": "Otwórz dyskusje"
     },
     "add": {
       "title": "Dodaj dostawcę",

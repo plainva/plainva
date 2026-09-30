@@ -133,7 +133,10 @@
       "sending": "发送",
       "confirmEvery": "每次请求前询问",
       "confirmEveryDesc": "每条消息发送前都显示将要发出的内容，而不仅是第一次或范围扩大时。此设备上的模型从不询问。",
-      "audioHint": "将语音笔记转写为文字。需要支持音频的服务商：OpenAI、Gemini或兼容的服务器。"
+      "audioHint": "将语音笔记转写为文字。需要支持音频的服务商：OpenAI、Gemini或兼容的服务器。",
+      "feedback": "AI（测试版）反馈",
+      "feedbackDesc": "在GitHub上的项目讨论区告诉我们哪些好用、哪些不好用。",
+      "feedbackOpen": "打开讨论区"
     },
     "add": {
       "title": "添加服务商",

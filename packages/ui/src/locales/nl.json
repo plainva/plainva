@@ -137,7 +137,10 @@
       "sending": "Verzenden",
       "confirmEvery": "Vragen vóór elk verzoek",
       "confirmEveryDesc": "Toont vóór elk bericht wat er naar buiten gaat, niet alleen de eerste keer en wanneer het groeit. Voor een model op dit apparaat wordt nooit gevraagd.",
-      "audioHint": "Zet spraaknotities om in tekst. Vereist een provider met een audioroute: OpenAI, Gemini of een compatibele server."
+      "audioHint": "Zet spraaknotities om in tekst. Vereist een provider met een audioroute: OpenAI, Gemini of een compatibele server.",
+      "feedback": "Feedback over de AI (bèta)",
+      "feedbackDesc": "Vertel ons wat werkt en wat niet — in de discussies van het project op GitHub.",
+      "feedbackOpen": "Discussies openen"
     },
     "add": {
       "title": "Provider toevoegen",

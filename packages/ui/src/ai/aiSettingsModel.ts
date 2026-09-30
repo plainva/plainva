@@ -10,6 +10,9 @@ import type { AiState, ProviderTest } from "./aiSession";
 
 type T = (key: string, options?: Record<string, unknown>) => string;
 
+/** Where feedback on the AI beta goes (plan KI-Harness P1.5): a new discussion, titled so it can be found. */
+export const AI_FEEDBACK_URL = "https://github.com/plainva/plainva/discussions/new?category=general&title=AI%20beta%3A%20";
+
 /**
  * The defaults of this build. A Labs build exists to test what is being
  * built (plan KI-Harness §21a.5), so it starts with the AI switched on; every

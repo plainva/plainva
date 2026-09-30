@@ -141,7 +141,10 @@
       "sending": "Envio",
       "confirmEvery": "Perguntar antes de cada solicitação",
       "confirmEveryDesc": "Mostra o que sai antes de cada mensagem, não só na primeira vez e quando aumenta. Para um modelo neste dispositivo nunca pergunta.",
-      "audioHint": "Transcreve notas de voz. Precisa de um provedor com rota de áudio: OpenAI, Gemini ou um servidor compatível."
+      "audioHint": "Transcreve notas de voz. Precisa de um provedor com rota de áudio: OpenAI, Gemini ou um servidor compatível.",
+      "feedback": "Feedback sobre a IA (beta)",
+      "feedbackDesc": "Conte o que funciona e o que não funciona — nas discussões do projeto no GitHub.",
+      "feedbackOpen": "Abrir discussões"
     },
     "add": {
       "title": "Adicionar provedor",

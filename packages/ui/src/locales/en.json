@@ -137,7 +137,10 @@
       "sending": "Sending",
       "confirmEvery": "Ask before every request",
       "confirmEveryDesc": "Shows what goes out before every message, not only the first time and when it grows. Nothing is asked for a model on this device.",
-      "audioHint": "Transcribes voice notes. It needs a provider with an audio route — OpenAI, Gemini or a compatible server."
+      "audioHint": "Transcribes voice notes. It needs a provider with an audio route — OpenAI, Gemini or a compatible server.",
+      "feedback": "Feedback on the AI (Beta)",
+      "feedbackDesc": "Tell us what works and what does not — in the project's discussions on GitHub.",
+      "feedbackOpen": "Open discussions"
     },
     "add": {
       "title": "Add provider",

@@ -141,7 +141,10 @@
       "sending": "Invio",
       "confirmEvery": "Chiedi prima di ogni richiesta",
       "confirmEveryDesc": "Mostra cosa esce prima di ogni messaggio, non solo la prima volta e quando si amplia. Per un modello su questo dispositivo non chiede mai.",
-      "audioHint": "Trascrive le note vocali. Serve un provider con una via audio: OpenAI, Gemini o un server compatibile."
+      "audioHint": "Trascrive le note vocali. Serve un provider con una via audio: OpenAI, Gemini o un server compatibile.",
+      "feedback": "Feedback sull'IA (beta)",
+      "feedbackDesc": "Dicci cosa funziona e cosa no, nelle discussioni del progetto su GitHub.",
+      "feedbackOpen": "Apri discussioni"
     },
     "add": {
       "title": "Aggiungi provider",

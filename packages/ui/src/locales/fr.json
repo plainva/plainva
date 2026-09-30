@@ -141,7 +141,10 @@
       "sending": "Envoi",
       "confirmEvery": "Demander avant chaque requête",
       "confirmEveryDesc": "Montre ce qui part avant chaque message, pas seulement la première fois et quand cela s'élargit. Aucune question pour un modèle sur cet appareil.",
-      "audioHint": "Transcrit les notes vocales. Nécessite un fournisseur avec une voie audio : OpenAI, Gemini ou un serveur compatible."
+      "audioHint": "Transcrit les notes vocales. Nécessite un fournisseur avec une voie audio : OpenAI, Gemini ou un serveur compatible.",
+      "feedback": "Retour sur l'IA (bêta)",
+      "feedbackDesc": "Dites-nous ce qui fonctionne et ce qui ne fonctionne pas — dans les discussions du projet sur GitHub.",
+      "feedbackOpen": "Ouvrir les discussions"
     },
     "add": {
       "title": "Ajouter un fournisseur",
