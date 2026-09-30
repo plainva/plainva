@@ -1,6 +1,6 @@
 # Graaf
 
-Laatst bijgewerkt: 2026-08-04
+Laatst bijgewerkt: 2026-09-30
 
 De **Graaf** van Plainva is een werkinstrument, geen poster: hij laat zien waar je bent, wat er verbonden is, wat er ontbreekt — en je kunt er rechtstreeks op inspelen. Er is ÉÉN graaf-engine met drie gezichten.
 
@@ -39,6 +39,8 @@ Werken op de kaart:
 ## Opruimen
 
 De knop **Opruimen** opent een werklijst met drie tabbladen: **Wezen** (notities zonder verbindingen), **Kapotte links** (doelen die niet bestaan — **Notitie maken** maakt ze aan) en **Vermeldingen** (**Vault scannen** vindt plekken waar een notitie wordt genoemd maar niet gelinkt; **Koppelen** maakt van de vermelding een wiki-link). De voettekst van de kaart toont het aantal wezen — erop klikken opent het paneel.
+
+In schriften zonder spaties telt een titel overal in de tekst als vermelding — er zijn geen woordgrenzen — en twee tekens zoals 会議 zijn genoeg.
 
 ## Graaf als databaseweergave
 

@@ -10,6 +10,7 @@ import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js"
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
 import { encodeIndexedProperty } from "./indexedProperty.js";
+import { segmentedIndexText } from "./spacelessText.js";
 
 /**
  * Minimal write sink. The cold full-scan (indexVaultFull) records its pure-write
@@ -450,10 +451,11 @@ export class VaultIndexer {
         [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, indexedSyncState]
       );
 
-      // Insert into fts_notes
+      // Insert into fts_notes — with the character-pair form of text written
+      // without spaces (empty for other scripts), see spacelessText.ts.
       await writer.execute(
-        `INSERT INTO fts_notes (content, title, path) VALUES (?, ?, ?)`,
-        [content, title, fileInfo.path]
+        `INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES (?, ?, ?, ?, ?)`,
+        [content, title, fileInfo.path, segmentedIndexText(content), segmentedIndexText(String(title ?? ""))]
       );
 
       // Update sync state ONLY if this is a newly discovered file (an orphaned

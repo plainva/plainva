@@ -1,6 +1,6 @@
 # Busca
 
-Última revisão: 2026-09-24
+Última revisão: 2026-09-30
 
 O Plainva oferece três formas de buscar: busca de texto completo em todo o vault, o alternador rápido para abrir arquivos, e localizar e substituir dentro de uma nota.
 
@@ -10,13 +10,15 @@ O campo no topo da barra lateral pesquisa títulos e conteúdo em todo o vault. 
 
 A busca reage enquanto você digita: prefixos de palavra já encontram resultados ("Proj" encontra "Projeto plano") — sem precisar de Enter. O **X** à direita do campo limpa a busca atual (ou pressione `Esc`); a barra lateral volta então a mostrar a árvore de arquivos normal.
 
+Em chinês, japonês, tailandês e outras escritas sem espaços entre as palavras, a busca encontra um termo em qualquer ponto do texto: `議事録` encontra "今日は会議の議事録を書いた", `搜索` encontra "全文搜索". Palavras latinas no meio desse texto também são encontradas ("Plainva" em "…でPlainvaを使った").
+
 A pesquisa lista cada ocorrência com um trecho, o caminho dos títulos e o número da linha. Abrir uma linha seleciona exatamente essa ocorrência; várias correspondências na mesma nota aparecem separadas. A contagem inclui apenas os resultados já carregados. Você pode carregar mais ocorrências. As setas mudam a seleção e Enter a abre. Carregamento, resultados vazios e erros são indicados; uma nova consulta descarta respostas antigas. Se uma edição impedir a identificação inequívoca da ocorrência, uma mensagem explica isso. As mesmas ocorrências estão disponíveis no alternador rápido e na pesquisa móvel. Ao voltar à pesquisa no celular, a consulta, os resultados carregados e a posição da lista são restaurados. Os resultados vêm por **Relevância**, a menos que você escolha **Última alteração**, **Título** ou **Caminho** com o botão de ordenação ao lado do campo de busca (no telefone: na barra da tela de busca); carregar mais mantém a ordem escolhida. No telefone, a folha de ordenação fica aberta até você tocar em **Concluído**: tocar de novo na ordem escolhida inverte a direção.
 
 O campo de busca também se aplica às outras visualizações da barra lateral: em **Tags** ele filtra a lista de tags, em **Favoritos** filtra os favoritos.
 
 ### Operadores de busca
 
-- `"frase exata"` — aspas correspondem exatamente à sequência de palavras. Isso também funciona como busca por palavra inteira para um único termo: `"plano"` encontra "plano" mas não "planejamento".
+- `"frase exata"` — aspas correspondem exatamente à sequência de palavras. Isso também funciona como busca por palavra inteira para um único termo: `"plano"` encontra "plano" mas não "planejamento". Nas escritas sem espaços, as aspas não mudam nada: esse texto não tem limites de palavra.
 - `-termo` — exclui notas que contenham o termo (também funciona com frases: `-"versão antiga"`).
 - `path:pasta` — apenas arquivos cujo caminho contenha o texto (ex.: `path:Projetos`; com espaços: `path:"Minha Pasta"`).
 - `tag:nome` — apenas notas com essa tag, incluindo tags aninhadas: `tag:projeto` também encontra `#projeto/interno`. `tag:#projeto` também funciona.

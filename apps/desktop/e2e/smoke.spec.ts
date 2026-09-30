@@ -2,6 +2,7 @@
 import { test, expect, type Locator } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { DatabaseSync } from 'node:sqlite';
+import { segmentedIndexText } from '../../../packages/core/src/vault/spacelessText';
 
 test.beforeEach(async ({ page }) => {
   page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -2221,6 +2222,41 @@ test('Search occurrences: real SQLite pages, heading context and exact reader ju
     await page.getByRole('button', { name: /Weitere Fundstellen laden|Load more occurrences/ }).click();
     await expect(rows).toHaveCount(55);
     await expect(page.getByRole('button', { name: /Weitere Fundstellen laden|Load more occurrences/ })).toHaveCount(0);
+  } finally { sql.close(); }
+});
+
+// Scripts written without spaces (finding 2026-09-30): FTS5 took a whole
+// Japanese sentence for one word, so a word in its middle was never found.
+// The same page as above, on real SQLite with the pair columns the indexer
+// writes: the search finds the word, the reader selects exactly it.
+test('Search finds a Japanese word in the middle of a sentence and jumps to it', async ({ page }) => {
+  const text = '# 議事録\n\n今日は会議の議事録を書いた。来週の打ち合わせも。\n';
+  const sql = new DatabaseSync(':memory:');
+  sql.exec('CREATE TABLE files (id TEXT, path TEXT, title TEXT, mtime_local INTEGER, size_bytes INTEGER); CREATE VIRTUAL TABLE fts_notes USING fts5(content,title,path UNINDEXED,seg_content,seg_title)');
+  sql.prepare('INSERT INTO files VALUES (?,?,?,?,?)').run('minutes', 'Minutes.md', 'Minutes', 1, text.length);
+  sql.prepare('INSERT INTO fts_notes VALUES (?,?,?,?,?)').run(text, 'Minutes', 'Minutes.md', segmentedIndexText(text), '');
+  await page.exposeFunction('__occurrenceQuery', (query: string, params: unknown[]) => sql.prepare(query).all(...params as never[]));
+  await page.addInitScript((text) => {
+    (window as any).mockFs['/test-vault/Minutes.md'] = text;
+    const previous = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:sql|select' && String(args.query).includes('fts_notes MATCH')) return (window as any).__occurrenceQuery(args.query, args.values ?? []);
+      return previous(cmd, args, options);
+    };
+  }, text);
+  try {
+    await page.goto('/');
+    await page.getByText('Minutes', { exact: true }).first().click();
+    await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+    const field = page.locator('aside[aria-label="Left Sidebar"] input').first();
+    await field.fill('打ち合わせ');
+    const rows = page.locator('[data-search-occurrence]');
+    await expect(rows).toHaveCount(1);
+    await rows.first().focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('打ち合わせ');
+    await field.fill('議');
+    await expect(rows).toHaveCount(3);
   } finally { sql.close(); }
 });
 

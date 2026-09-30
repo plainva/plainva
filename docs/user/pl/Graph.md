@@ -1,6 +1,6 @@
 # Graf
 
-Stan na: 2026-08-04
+Stan na: 2026-09-30
 
 Graf Plainva to narzędzie do pracy, nie plakat: pokazuje, gdzie jesteś, co jest połączone, czego brakuje — i możesz działać na tym bezpośrednio. Istnieje JEDEN silnik grafu w trzech odsłonach.
 
@@ -39,6 +39,8 @@ Praca na mapie:
 ## Porządkowanie
 
 Przycisk **Porządki** otwiera listę roboczą z trzema kartami: **Sieroty** (notatki bez połączeń), **Uszkodzone linki** (cele, które nie istnieją — **Utwórz notatkę** je tworzy) i **Wzmianki** (**Skanuj sejf** znajduje miejsca, gdzie notatka jest wymieniona, ale nie połączona; **Połącz** zamienia wystąpienie w link wiki). Stopka mapy pokazuje liczbę sierot — kliknięcie jej otwiera panel.
+
+W pismach bez spacji tytuł liczy się jako wzmianka w dowolnym miejscu tekstu — nie ma tam granic słów — i wystarczą dwa znaki, jak 会議.
 
 ## Graf jako widok bazy danych
 

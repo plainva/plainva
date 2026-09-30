@@ -1,5 +1,21 @@
 import { IDatabaseAdapter } from "./IDatabaseAdapter.js";
 import { migratePathIdentity } from "./pathIdentityMigration.js";
+import { runStatementsAtomic } from "./batch.js";
+import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
+
+/**
+ * The full-text table. `content` doubles as the note text for other readers
+ * (tasks overview, graph); `seg_content`/`seg_title` hold the character-pair
+ * form of text written without spaces (vault/spacelessText.ts, format 5).
+ * `content`, `title` and `path` stay in front — inserts that name only those
+ * keep working, and so does an older app on a newer index.
+ */
+const FTS_NOTES_COLUMNS = `content,
+      title,
+      path UNINDEXED,
+      seg_content,
+      seg_title,
+      tokenize = 'unicode61 remove_diacritics 1'`;
 
 /**
  * Initializes the database schema as defined in Master_Projektplan.md §5.2
@@ -261,10 +277,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
 
     // FTS5 Virtual Table for full-text search
     `CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes USING fts5(
-      content,
-      title,
-      path UNINDEXED,
-      tokenize = 'unicode61 remove_diacritics 1'
+      ${FTS_NOTES_COLUMNS}
     );`,
 
     // PIM object cache (Gesamtplan PIM-Ausbau 2026-07-17): calendars/tasks
@@ -597,7 +610,12 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
  */
 // Version 4 stores YAML null separately from literal strings and rebuilds
 // only the derived index. Note bytes and sync ancestry remain untouched.
-const INDEX_FORMAT_VERSION = 4;
+//
+// Version 5 gives the full-text table two columns for scripts written without
+// spaces (Gesamtplan Volltextsuche CJK, 2026-09-30). It is the first step that
+// re-parses nothing: the table is copied into its new shape, so search never
+// stands empty, and only notes holding such text get the new columns filled.
+const INDEX_FORMAT_VERSION = 5;
 
 async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   let stored: number;
@@ -612,11 +630,80 @@ async function migrateIndexFormat(db: IDatabaseAdapter): Promise<void> {
   }
   if (stored >= INDEX_FORMAT_VERSION) return;
 
-  // Backfill BEFORE the mtime reset below — ctime derives from mtime_local.
-  await db.execute(`UPDATE files SET ctime = mtime_local WHERE ctime IS NULL`);
-  await db.execute(`UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'`);
+  await upgradeFullTextTable(db);
+  if (stored >= 4) {
+    await fillSegmentedColumns(db);
+  } else {
+    // Below 4 every note is re-parsed, which fills the new columns as well.
+    // Backfill BEFORE the mtime reset — ctime derives from mtime_local.
+    await db.execute(`UPDATE files SET ctime = mtime_local WHERE ctime IS NULL`);
+    await db.execute(`UPDATE files SET mtime_local = 0 WHERE path LIKE '%.md'`);
+  }
   await db.execute(
     `INSERT OR REPLACE INTO meta (key, value) VALUES ('index_format_version', ?)`,
     [String(INDEX_FORMAT_VERSION)]
   );
+}
+
+const rowValue = (row: unknown, key: string): unknown =>
+  (row as Record<string, unknown> | null)?.[key] ?? (row as Record<string, unknown> | null)?.[key.toUpperCase()];
+
+/**
+ * Brings `fts_notes` into its version-5 shape: copy into `fts_notes_next`,
+ * drop, rename — search keeps its rows throughout. Every step can run again.
+ * A run interrupted between drop and rename leaves the copy behind, and
+ * initializeSchema recreates an empty `fts_notes` in the new shape meanwhile;
+ * the copy then takes its place.
+ */
+async function upgradeFullTextTable(db: IDatabaseAdapter): Promise<void> {
+  const columns = new Set(
+    (await db.query(`PRAGMA table_info(fts_notes)`)).map((row) => String(rowValue(row, "name") ?? ""))
+  );
+  const copy = await db.queryOne(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fts_notes_next'`);
+  if (columns.has("seg_content")) {
+    if (!copy) return;
+    const count = Number(rowValue(await db.queryOne(`SELECT count(*) AS n FROM fts_notes`), "n") ?? 0);
+    await runStatementsAtomic(
+      db,
+      count === 0
+        ? [{ sql: `DROP TABLE fts_notes` }, { sql: `ALTER TABLE fts_notes_next RENAME TO fts_notes` }]
+        : [{ sql: `DROP TABLE fts_notes_next` }]
+    );
+    return;
+  }
+  await runStatementsAtomic(db, [
+    { sql: `DROP TABLE IF EXISTS fts_notes_next` },
+    { sql: `CREATE VIRTUAL TABLE fts_notes_next USING fts5(${FTS_NOTES_COLUMNS})` },
+    { sql: `INSERT INTO fts_notes_next (content, title, path) SELECT content, title, path FROM fts_notes` },
+    { sql: `DROP TABLE fts_notes` },
+    { sql: `ALTER TABLE fts_notes_next RENAME TO fts_notes` },
+  ]);
+}
+
+/**
+ * Fills the pair columns from the text already in the index, 200 notes at a
+ * time; SQL's GLOB picks the candidates, the segmenter decides. Nothing is
+ * read from disk or re-parsed.
+ */
+async function fillSegmentedColumns(db: IDatabaseAdapter): Promise<void> {
+  let after = 0;
+  for (;;) {
+    const rows = await db.query(
+      `SELECT rowid AS id, content, title FROM fts_notes
+       WHERE rowid > ? AND (content GLOB ? OR title GLOB ?)
+       ORDER BY rowid LIMIT 200`,
+      [after, SPACELESS_GLOB, SPACELESS_GLOB]
+    );
+    if (!rows.length) return;
+    const updates: { sql: string; params: unknown[] }[] = [];
+    for (const row of rows) {
+      const segContent = segmentedIndexText(String(rowValue(row, "content") ?? ""));
+      const segTitle = segmentedIndexText(String(rowValue(row, "title") ?? ""));
+      if (segContent || segTitle) {
+        updates.push({ sql: `UPDATE fts_notes SET seg_content = ?, seg_title = ? WHERE rowid = ?`, params: [segContent, segTitle, rowValue(row, "id")] });
+      }
+    }
+    await runStatementsAtomic(db, updates);
+    after = Number(rowValue(rows[rows.length - 1], "id"));
+  }
 }

@@ -1,6 +1,6 @@
 # Grafo
 
-Última actualización: 2026-08-04
+Última actualización: 2026-09-30
 
 El grafo de Plainva es una herramienta de trabajo, no un póster: te muestra dónde estás, qué está conectado, qué falta — y puedes actuar directamente sobre ello. Hay UN único motor de grafo con tres caras.
 
@@ -39,6 +39,8 @@ Trabajando en el mapa:
 ## Limpieza
 
 El botón **Limpiar** abre una lista de trabajo con tres pestañas: **Huérfanas** (notas sin conexiones), **Enlaces rotos** (destinos que no existen — **Crear nota** los crea) y **Menciones** (**Escanear el vault** encuentra lugares donde se nombra una nota pero no se enlaza; **Enlazar** convierte la aparición en un enlace wiki). El pie de página del mapa muestra el número de huérfanas — al hacer clic se abre el panel.
+
+En las escrituras sin espacios, un título cuenta como mencionado en cualquier parte del texto —no hay límites de palabra— y basta con dos caracteres como 会議.
 
 ## Grafo como vista de base de datos
 

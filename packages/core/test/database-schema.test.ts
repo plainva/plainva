@@ -66,17 +66,34 @@ describe("Database Schema", () => {
     expect(reset).toContain(`LIKE '%.md'`);
     const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta"));
     expect(stamp).toBeDefined();
-    expect(stamp!.params).toEqual(["4"]);
+    expect(stamp!.params).toEqual(["5"]);
   });
 
   it("skips the reindex when the stored index format is current", async () => {
-    db.mockedOneResults.push({ value: "4" });
+    db.mockedOneResults.push({ value: "5" });
     await initializeSchema(db);
 
     const queries = db.queries.map(q => q.query);
     expect(queries.some(q => q.includes("UPDATE files SET mtime_local = 0"))).toBe(false);
     // Only the index-format stamp; the path-identity migration keeps its own.
     expect(queries.some(q => q.includes("INSERT OR REPLACE INTO meta") && q.includes("index_format_version"))).toBe(false);
+    expect(queries.some(q => q.includes("fts_notes_next"))).toBe(false);
+  });
+
+  // Version 5 (Gesamtplan Volltextsuche CJK): the full-text table gains its
+  // pair columns by a copy — no note is queued for re-reading.
+  it("gives a version-4 index the pair columns without a full reindex", async () => {
+    db.mockedOneResults.push({ value: "4" });
+    await initializeSchema(db);
+
+    const queries = db.queries.map(q => q.query);
+    const copy = queries.findIndex(q => q.includes("INSERT INTO fts_notes_next (content, title, path) SELECT content, title, path FROM fts_notes"));
+    const swap = queries.findIndex(q => q.includes("ALTER TABLE fts_notes_next RENAME TO fts_notes"));
+    expect(copy).toBeGreaterThan(-1);
+    expect(swap).toBeGreaterThan(copy);
+    expect(queries.some(q => q.includes("UPDATE files SET mtime_local = 0"))).toBe(false);
+    const stamp = db.queries.find(q => q.query.includes("INSERT OR REPLACE INTO meta") && q.query.includes("index_format_version"));
+    expect(stamp!.params).toEqual(["5"]);
   });
 
   it("can execute insert and select on sync_state", async () => {

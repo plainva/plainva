@@ -1,6 +1,6 @@
 # Ricerca
 
-Ultimo aggiornamento: 2026-09-24
+Ultimo aggiornamento: 2026-09-30
 
 Plainva offre tre modi per cercare: ricerca full-text in tutto il vault, il selettore rapido per aprire i file e trova e sostituisci all'interno di una nota.
 
@@ -10,13 +10,15 @@ Il campo in alto nella barra laterale cerca titoli e contenuti nell’intero vau
 
 La ricerca reagisce mentre digiti: i prefissi delle parole trovano già corrispondenza ("Proget" trova "Progetto piano") — non serve premere Invio. La **X** a destra del campo cancella la ricerca corrente (oppure premi `Esc`); la barra laterale mostra quindi di nuovo il normale albero dei file.
 
+In cinese, giapponese, thai e nelle altre scritture senza spazi tra le parole, la ricerca trova un termine in qualsiasi punto del testo: `議事録` trova "今日は会議の議事録を書いた", `搜索` trova "全文搜索". Anche le parole latine all'interno di questo testo vengono trovate ("Plainva" in "…でPlainvaを使った").
+
 La ricerca elenca le singole occorrenze con un estratto, il percorso delle intestazioni e il numero di riga. Aprendo una riga viene selezionata proprio quell’occorrenza; più corrispondenze nella stessa nota compaiono separatamente. Il conteggio comprende solo i risultati già caricati. Puoi caricare altre occorrenze. Le frecce cambiano la selezione e Invio la apre. Caricamento, risultati vuoti ed errori sono indicati; una nuova ricerca scarta le vecchie risposte. Se una modifica impedisce di identificare un’occorrenza senza ambiguità, compare un avviso. Le stesse occorrenze sono disponibili nel selettore rapido e nella ricerca mobile. Tornando alla ricerca sul telefono vengono ripristinati la query, i risultati caricati e la posizione della lista. I risultati arrivano per **Pertinenza**, a meno che tu non scelga **Ultima modifica**, **Titolo** o **Percorso** con il pulsante di ordinamento accanto al campo di ricerca (sul telefono: nella barra della ricerca); caricandone altri l'ordine scelto resta. Sul telefono il foglio di ordinamento resta aperto finché non tocchi **Fine**: toccare di nuovo l'ordine scelto ne inverte la direzione.
 
 Il campo di ricerca si applica anche alle altre viste della barra laterale: in **Tag** filtra l'elenco dei tag, in **Segnalibri** i segnalibri.
 
 ### Operatori di ricerca
 
-- `"frase esatta"` — le virgolette fanno corrispondere esattamente la sequenza di parole. Questo funge anche da ricerca per parola intera per un singolo termine: `"piano"` trova "piano" ma non "pianificazione".
+- `"frase esatta"` — le virgolette fanno corrispondere esattamente la sequenza di parole. Questo funge anche da ricerca per parola intera per un singolo termine: `"piano"` trova "piano" ma non "pianificazione". Nelle scritture senza spazi le virgolette non cambiano nulla: quel testo non ha confini di parola.
 - `-termine` — esclude le note che contengono il termine (funziona anche con le frasi: `-"vecchia versione"`).
 - `path:cartella` — solo i file il cui percorso contiene il testo (es. `path:Progetti`; con spazi: `path:"La mia cartella"`).
 - `tag:nome` — solo le note che portano quel tag, inclusi i tag annidati: `tag:progetto` trova anche `#progetto/interno`. Funziona anche `tag:#progetto`.

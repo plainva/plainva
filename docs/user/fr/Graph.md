@@ -1,6 +1,6 @@
 # Graphe
 
-Dernière mise à jour : 2026-08-04
+Dernière mise à jour : 2026-09-30
 
 Le graphe de Plainva est un outil de travail, pas une affiche : il vous montre où vous en êtes, ce qui est connecté, ce qui manque — et vous pouvez agir directement dessus. Il y a UN seul moteur de graphe avec trois visages.
 
@@ -39,6 +39,8 @@ Travailler sur la carte :
 ## Nettoyage
 
 Le bouton **Nettoyer** ouvre une liste de travail avec trois onglets : **Orphelines** (notes sans connexions), **Liens cassés** (cibles qui n'existent pas — **Créer la note** les crée) et **Mentions** (**Analyser le coffre** trouve les endroits où une note est nommée mais non liée ; **Lier** transforme l'occurrence en lien wiki). Le pied de page de la carte affiche le nombre d'orphelines — cliquer dessus ouvre le panneau.
+
+Dans les écritures sans espaces, un titre compte comme mentionné partout dans le texte — il n'y a pas de limites de mots — et deux caractères comme 会議 suffisent.
 
 ## Le graphe comme vue de base de données
 

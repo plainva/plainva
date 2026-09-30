@@ -21,7 +21,7 @@ describe("VaultQueryService", () => {
     // The raw input never reaches MATCH — it is quoted and prefix-starred.
     expect((db.queries[0].params as any[])[0]).toBe('"importan"*');
     // Title hits outrank body hits; snippet/highlight use char(1)/char(2).
-    expect(db.queries[0].query).toContain("bm25(fts_notes, 1.0, 4.0)");
+    expect(db.queries[0].query).toContain("bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0)");
     expect(db.queries[0].query).toContain("snippet(fts_notes, 0, char(1), char(2)");
     expect(db.queries[0].query).toContain("highlight(fts_notes, 1, char(1), char(2)) AS titleHighlighted");
     // Default limit is a bound parameter.
@@ -394,8 +394,8 @@ describe("VaultQueryService", () => {
       await queryService.searchFullText("task", 10, 0, false, order);
       return /ORDER BY (.+)/.exec(db.queries[0].query)![1].trim();
     };
-    expect(await orderOf()).toBe("bm25(fts_notes, 1.0, 4.0), f.path ASC");
-    expect(await orderOf({ key: "relevance", dir: "asc" })).toBe("bm25(fts_notes, 1.0, 4.0), f.path ASC");
+    expect(await orderOf()).toBe("bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0), f.path ASC");
+    expect(await orderOf({ key: "relevance", dir: "asc" })).toBe("bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0), f.path ASC");
     expect(await orderOf({ key: "modified", dir: "desc" })).toBe("f.mtime_local DESC, f.path ASC");
     expect(await orderOf({ key: "modified", dir: "asc" })).toBe("f.mtime_local ASC, f.path ASC");
     expect(await orderOf({ key: "title", dir: "asc" })).toBe("f.title COLLATE NOCASE ASC, f.path ASC");
