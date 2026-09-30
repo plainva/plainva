@@ -1,5 +1,5 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
-import { isTextFile, type VaultQueryService } from "@plainva/core";
+import { isTextFile, toPathIdentity, type VaultQueryService } from "@plainva/core";
 import { errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
@@ -164,7 +164,8 @@ export async function renameToName(opts: {
   carryHeading?: boolean;
 }): Promise<RenameToNameResult> {
   const { adapter, queryService, oldPath, isFolder } = opts;
-  const name = opts.newName.trim();
+  // A typed name is created in NFC on both shells (ADR 0016, P6e).
+  const name = toPathIdentity(opts.newName.trim());
   if (!name) return { ok: false, reason: "invalid-name" };
   if (name === renameInitialName(oldPath, isFolder)) return { ok: false, reason: "unchanged" };
   if (name.includes("/") || name.includes("\\")) return { ok: false, reason: "invalid-name" };

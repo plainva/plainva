@@ -114,6 +114,7 @@ export * from "./pim/DevicePimTarget.js";
 export * from "./pim/PimWorker.js";
 export * from "./import/index.js";
 export { foldPathForCollision, foldPathNormalization, toPathIdentity, isTwinSpelling, hasSpellingVariants } from "./sync/pathIdentity.js";
+export { PathSpellings, withStoredSpelling, isNotFoundError, type SpellingSource, type SpellingListingCache } from "./sync/pathSpellings.js";
 
 export { projectCommentRecords } from "./comments/commentProjection.js";
 export * from "./textScan.js";

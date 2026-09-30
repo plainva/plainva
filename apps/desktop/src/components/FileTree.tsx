@@ -5,7 +5,7 @@ import { requestCascadeDelete } from "../services/cascadeDelete";
 import { EmptyState, ICON, toast, errorText, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isInternalPath, VaultQueryService, type SearchOccurrence } from "@plainva/core";
+import { isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database, SearchX,
@@ -744,7 +744,8 @@ export const FileTree: React.FC<{
       return;
     }
     
-    const name = newItemName.trim();
+    // A typed name is created in NFC on both shells (ADR 0016, P6e).
+    const name = toPathIdentity(newItemName.trim());
     if (name.includes("/") || name.includes("\\")) {
       setNewItemError(t("dialogs.invalidNameMsg"));
       return;

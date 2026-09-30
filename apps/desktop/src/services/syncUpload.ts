@@ -39,8 +39,14 @@ function rootIdFor(rootPath: string): Promise<string> {
  * the native hash — and that hash then replaces the one the engine would
  * otherwise compute by reading the whole file into memory.
  */
-export function createContentRefResolver(rootPath: string): ContentRefResolver {
-  return async (filePath: string, minBytes: number): Promise<SyncContentRef | null> => {
+export function createContentRefResolver(
+  rootPath: string,
+  /** The vault adapter: the engine names a file by its identity, the native
+   *  side needs the spelling it is stored under (ADR 0016). */
+  spelling?: { realPath?(path: string): Promise<string> },
+): ContentRefResolver {
+  return async (identity: string, minBytes: number): Promise<SyncContentRef | null> => {
+    const filePath = spelling?.realPath ? await spelling.realPath(identity).catch(() => identity) : identity;
     try {
       const absolute = await normalize(await join(rootPath, filePath));
       const info = await stat(absolute);

@@ -2,7 +2,7 @@ import { SyncQueue } from "./SyncQueue.js";
 import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
-import { findCollidingPath, foldPathForCollision, type NameCollision } from "./pathIdentity.js";
+import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { isTextFile } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
@@ -72,19 +72,23 @@ export class SyncEngine {
   }
 
   /**
-   * The local spelling of `path` when it differs from `path` only in Unicode
-   * normalization or letter case — or null when there is no such twin (issue
-   * #112). Walks the path one segment at a time through the local listings,
-   * so a twin anywhere in the chain counts: `Neutralita\u0308t/a.md` is the twin
-   * of `Neutralität/a.md`. An exact segment is followed; a missing one without a
-   * twin ends the walk. `listings` caches each folder for one pass.
+   * Where `path` stands on this device (issue #112, ADR 0016): `present` when
+   * the adapter lists exactly this identity, `{ twin }` when it lists a name
+   * that differs only in letter case or — for a twin spelling — Unicode
+   * normalization, `absent` otherwise. Walks the path one segment at a time
+   * through the local listings, so a twin anywhere in the chain counts: an
+   * exact segment is followed; a missing one without a twin ends the walk.
+   * `listings` caches each folder for one pass.
+   *
+   * The adapter lists identities, so a folder stored decomposed on disk is
+   * `present` under its composed identity — it is the same folder.
    *
    * A listing that fails for any reason other than a missing folder throws:
    * "could not look" must not be read as "no twin" in front of a DELETE.
    */
-  private async findLocalTwin(path: string, listings: Map<string, Promise<VaultFileInfo[] | null>>): Promise<string | null> {
+  private async localPresence(path: string, listings: Map<string, Promise<VaultFileInfo[] | null>>): Promise<"present" | "absent" | { twin: string }> {
     // An adapter without listings (test doubles) cannot hold a twin we could see.
-    if (typeof this.vault.listDir !== "function") return null;
+    if (typeof this.vault.listDir !== "function") return "absent";
     const segments = path.replace(/\\/g, "/").split("/").filter((s) => s.length > 0);
     let dir = "";
     for (let i = 0; i < segments.length; i++) {
@@ -98,7 +102,7 @@ export class SyncEngine {
         listings.set(folder, listing);
       }
       const entries = await listing;
-      if (!entries) return null;
+      if (!entries) return "absent";
       const names = entries.map((e) => e.name ?? e.path.slice(e.path.lastIndexOf("/") + 1));
       const segment = segments[i]!;
       if (names.includes(segment)) {
@@ -106,10 +110,10 @@ export class SyncEngine {
         continue;
       }
       const twin = findCollidingPath(segment, names);
-      if (!twin) return null;
-      return [...(dir ? [dir] : []), twin, ...segments.slice(i + 1)].join("/");
+      if (!twin) return "absent";
+      return { twin: [...(dir ? [dir] : []), twin, ...segments.slice(i + 1)].join("/") };
     }
-    return null;
+    return segments.length > 0 ? "present" : "absent";
   }
 
   /**
@@ -143,6 +147,12 @@ export class SyncEngine {
       const spellings = index.value.get(foldPathForCollision(prefix));
       if (!spellings) return null;
       if (spellings.has(prefix)) continue;
+      // The same name in the other normalization form is the same folder since
+      // ADR 0016: the target finds the spelling the remote holds and writes
+      // into it. Only letter case still makes a second folder on a
+      // case-sensitive server.
+      const nfc = foldPathNormalization(prefix);
+      if ([...spellings].some((s) => foldPathNormalization(s) === nfc)) continue;
       const twin = [...spellings].sort()[0]!;
       return [twin, ...segments.slice(i)].join("/");
     }
@@ -218,17 +228,60 @@ export class SyncEngine {
           consecutiveFailures = 0;
           continue;
         }
+        // A twin spelling (ADR 0016): a second name that looks like its
+        // composed form and stands next to it. It is never synced — the pair
+        // is reported every pass until one of the two is renamed. A queued
+        // DELETE of one goes nowhere: this device never put a twin on the
+        // remote, and what the remote holds under that spelling is not ours
+        // to remove. A spelling that is no twin (a row from before the
+        // identity was NFC, a caller's decomposed input) is the composed
+        // identity and syncs as such.
+        const twinPath = [op.file_path, op.new_path].find((p): p is string => !!p && isTwinSpelling(p));
+        if (twinPath) {
+          if (op.operation === "delete") {
+            console.warn(`[SyncEngine] dropping deletion of the twin spelling ${op.file_path}: never synced under that name`);
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          if ((await this.localPresence(twinPath, localListings)) === "present") {
+            console.warn(`[SyncEngine] not pushing ${op.operation} of the twin spelling ${twinPath}`);
+            const pair = { path: twinPath, twin: toPathIdentity(twinPath) };
+            if (opts?.collisions && !opts.collisions.some((c) => c.path === pair.path && c.twin === pair.twin)) {
+              opts.collisions.push(pair);
+            }
+            continue;
+          }
+          op = {
+            ...op,
+            file_path: toPathIdentity(op.file_path),
+            ...(op.new_path ? { new_path: toPathIdentity(op.new_path) } : {}),
+          };
+        }
         // The twin lock on the push side (issue #112). A DELETE whose path has
-        // a twin here that differs only in accent spelling or letter case is
-        // the SAME file for Drive, OneDrive, Dropbox, Windows and macOS — and
-        // on WebDAV the one copy the server still holds under the old
-        // spelling. The pull side has refused to mirror such a deletion since
-        // 2026-08-21; pushing it removed the remote file instead. It stays
-        // queued without spending a retry and is reported every pass until one
-        // of the two names changes.
+        // a twin here that differs only in letter case is the SAME file for
+        // Drive, OneDrive, Dropbox, Windows and macOS — and on a case-sensitive
+        // server the one copy it still holds under the old spelling. The pull
+        // side has refused to mirror such a deletion since 2026-08-21; pushing
+        // it removed the remote file instead. It stays queued without spending
+        // a retry and is reported every pass until one of the two names
+        // changes.
+        //
+        // A DELETE of a path that is right here under the very same identity
+        // is stale: the file was recreated, or the deletion was read from a
+        // listing that saw another spelling (issue #112 before ADR 0016). It is
+        // dropped, never pushed: the remote copy is the one this file syncs
+        // with, and a recreated file queues its own upload.
         if (op.operation === "delete") {
-          const twin = await this.findLocalTwin(op.file_path, localListings);
-          if (twin) {
+          const presence = await this.localPresence(op.file_path, localListings);
+          if (presence === "present") {
+            console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: it exists on this device`);
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          if (presence !== "absent") {
+            const twin = presence.twin;
             console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: this device has ${twin} (capitalization/accents)`);
             if (opts?.collisions && !opts.collisions.some((c) => c.path === op.file_path && c.twin === twin)) {
               opts.collisions.push({ path: op.file_path, twin });
@@ -241,10 +294,10 @@ export class SyncEngine {
         // server's copy composed. A byte-exact WebDAV server (HiDrive) takes
         // the MKCOL as a second, identical-looking folder, and a desktop
         // client syncing the same folder renames it to "Name(1)", "Name(2)"…
-        // Held and reported like a twin DELETE. Writes into such a folder
-        // are not held here: resolving the remote spelling before PUT is the
-        // path-identity change (plan O3), and holding them would stop every
-        // edit in an accented folder on servers that normalize names.
+        // Held and reported like a twin DELETE — since ADR 0016 only for a
+        // letter-case twin: a folder the remote holds in the other
+        // normalization form is the same folder, and the target writes into
+        // the spelling the remote already has (as it does for every PUT).
         if (op.operation === "mkdir") {
           const twin = await this.findRemoteFolderTwin(op.file_path, remoteFolders);
           if (twin) {

@@ -30,6 +30,7 @@ import {
   type PersonalWorkspaceRuntime,
   type VaultFileInfo,
   PimCacheRepository,
+  toPathIdentity,
 } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -893,7 +894,8 @@ export const vaultOps = {
     // we just renamed away, and the sync queue then pushes that ghost.
     await flushBeforeMove(v, oldPath, false);
     const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
-    const newPath = `${dir}${newTitle}.md`;
+    // A name typed here is created in NFC, like the desktop (ADR 0016, P6e).
+    const newPath = `${dir}${toPathIdentity(newTitle)}.md`;
     if (newPath === oldPath) return { newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     let changedPaths: string[] = [];
     let report = { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
@@ -952,7 +954,9 @@ export const vaultOps = {
 
   /* ---- P3: full file/folder operations (all through the sync chain) ---- */
 
-  async createFolder(v: MobileVault, path: string): Promise<void> {
+  async createFolder(v: MobileVault, typed: string): Promise<void> {
+    // A name typed here is created in NFC, like the desktop (ADR 0016, P6e).
+    const path = toPathIdentity(typed);
     await v.files.createDir(path);
     notifyFileOps([{ type: "create", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
@@ -961,7 +965,7 @@ export const vaultOps = {
   /** Folder renames/deletes re-run the full index (children change paths). */
   async renameFolder(v: MobileVault, oldPath: string, newName: string): Promise<void> {
     const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
-    return vaultOps.moveFolder(v, oldPath, `${dir}${newName}`);
+    return vaultOps.moveFolder(v, oldPath, `${dir}${toPathIdentity(newName)}`);
   },
 
   async moveFolder(v: MobileVault, oldPath: string, newPath: string): Promise<void> {

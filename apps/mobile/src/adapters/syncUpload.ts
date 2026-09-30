@@ -27,9 +27,15 @@ function sandboxPath(ref: SyncContentRef): string {
  * Answers "can this file be streamed?" for the sync engine: null below the
  * threshold, on the web dev server, or when the file cannot be measured.
  */
-export function createContentRefResolver(vaultRoot: string): ContentRefResolver {
-  return async (filePath: string, minBytes: number): Promise<SyncContentRef | null> => {
+export function createContentRefResolver(
+  vaultRoot: string,
+  /** The vault adapter: the engine names a file by its identity, the native
+   *  side needs the spelling it is stored under (ADR 0016). */
+  spelling?: { realPath?(path: string): Promise<string> },
+): ContentRefResolver {
+  return async (identity: string, minBytes: number): Promise<SyncContentRef | null> => {
     if (!Capacitor.isNativePlatform()) return null;
+    const filePath = spelling?.realPath ? await spelling.realPath(identity).catch(() => identity) : identity;
     try {
       const full = vaultRoot ? `${vaultRoot}/${filePath}` : filePath;
       // The cheap check first; only a file worth streaming pays for the hash.

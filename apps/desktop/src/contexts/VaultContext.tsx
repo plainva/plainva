@@ -1428,7 +1428,7 @@ export const VaultProvider: React.FC<{
               target,
               vaultAdapter,
               syncRepo,
-              createContentRefResolver(path),
+              createContentRefResolver(path, tauriVaultAdapter),
             );
             // Profile-sync sideband (opt-in): transports .plainva/sync/settings.json
             // through the same target, outside the file queue/merge path. null when

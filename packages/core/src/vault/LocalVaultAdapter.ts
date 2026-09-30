@@ -8,6 +8,7 @@ import {
   VaultFileExistsError,
   VaultError,
 } from "./IVaultAdapter.js";
+import { PathSpellings, withStoredSpelling, type SpellingSource } from "../sync/pathSpellings.js";
 
 /**
  * A local file system implementation of IVaultAdapter.
@@ -15,12 +16,55 @@ import {
  */
 export class LocalVaultAdapter implements IVaultAdapter {
   /**
+   * Path identity vs. stored spelling (ADR 0016): callers name files by their
+   * NFC identity, the disk keeps whatever form a file was created in.
+   */
+  private readonly spellings = new PathSpellings();
+  private readonly spellingSource: SpellingSource = {
+    exists: async (raw) => {
+      try {
+        await fs.access(this.resolvePath(raw));
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    listNames: async (raw) => {
+      try {
+        return await fs.readdir(this.resolvePath(raw));
+      } catch (err: any) {
+        if (err?.code === "ENOENT" || err?.code === "ENOTDIR") return null;
+        throw err;
+      }
+    },
+  };
+
+  /**
    * @param basePath The absolute path to the root of the vault.
    */
   constructor(private readonly basePath: string) {
     if (!path.isAbsolute(basePath)) {
       throw new Error("LocalVaultAdapter requires an absolute base path.");
     }
+  }
+
+  /** The spelling `vaultPath` is stored under on this disk (ADR 0016). */
+  async realPath(vaultPath: string): Promise<string> {
+    return this.spellings.resolve(vaultPath, this.spellingSource);
+  }
+
+  private stored<T>(vaultPath: string, io: (raw: string) => Promise<T>): Promise<T> {
+    return withStoredSpelling(this.spellings, vaultPath, this.spellingSource, io);
+  }
+
+  /** Listing entries named by identity, the requested folder being `anchor`. */
+  private identities(entries: VaultFileInfo[], anchor: { raw: string; identity: string }): VaultFileInfo[] {
+    const ids = this.spellings.observe(entries.map((e) => e.path), anchor);
+    return entries.map((e) => {
+      const id = ids.get(e.path);
+      if (id === undefined || id === e.path) return e;
+      return { ...e, path: id, name: id.slice(id.lastIndexOf("/") + 1) };
+    });
   }
 
   /**
@@ -83,26 +127,30 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async readTextFile(vaultPath: string): Promise<string> {
-    const absolutePath = this.resolvePath(vaultPath);
-    try {
-      return await fs.readFile(absolutePath, "utf-8");
-    } catch (err) {
-      return this.handleError(err, vaultPath);
-    }
+    return this.stored(vaultPath, async (raw) => {
+      const absolutePath = this.resolvePath(raw);
+      try {
+        return await fs.readFile(absolutePath, "utf-8");
+      } catch (err) {
+        return this.handleError(err, vaultPath);
+      }
+    });
   }
 
   async readBinaryFile(vaultPath: string): Promise<Uint8Array> {
-    const absolutePath = this.resolvePath(vaultPath);
-    try {
-      const buffer = await fs.readFile(absolutePath);
-      return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-    } catch (err) {
-      return this.handleError(err, vaultPath);
-    }
+    return this.stored(vaultPath, async (raw) => {
+      const absolutePath = this.resolvePath(raw);
+      try {
+        const buffer = await fs.readFile(absolutePath);
+        return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      } catch (err) {
+        return this.handleError(err, vaultPath);
+      }
+    });
   }
 
   async writeTextFile(vaultPath: string, content: string): Promise<void> {
-    const absolutePath = this.resolvePath(vaultPath);
+    const absolutePath = this.resolvePath(await this.realPath(vaultPath));
     try {
       await fs.mkdir(path.dirname(absolutePath), { recursive: true });
       await fs.writeFile(absolutePath, content, "utf-8");
@@ -112,7 +160,7 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async writeBinaryFile(vaultPath: string, content: Uint8Array): Promise<void> {
-    const absolutePath = this.resolvePath(vaultPath);
+    const absolutePath = this.resolvePath(await this.realPath(vaultPath));
     try {
       await fs.mkdir(path.dirname(absolutePath), { recursive: true });
       await fs.writeFile(absolutePath, content);
@@ -122,7 +170,8 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async deleteItem(vaultPath: string, recursive: boolean = false): Promise<void> {
-    const absolutePath = this.resolvePath(vaultPath);
+    const absolutePath = this.resolvePath(await this.realPath(vaultPath));
+    this.spellings.forget(vaultPath);
     try {
       const stats = await fs.stat(absolutePath);
       if (stats.isDirectory()) {
@@ -140,8 +189,10 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async renameItem(oldVaultPath: string, newVaultPath: string): Promise<void> {
-    const absoluteOld = this.resolvePath(oldVaultPath);
-    const absoluteNew = this.resolvePath(newVaultPath);
+    const absoluteOld = this.resolvePath(await this.realPath(oldVaultPath));
+    const absoluteNew = this.resolvePath(await this.realPath(newVaultPath));
+    this.spellings.forget(oldVaultPath);
+    this.spellings.forget(newVaultPath);
     
     try {
       // Create parent directories for the target if they don't exist
@@ -168,7 +219,7 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async exists(vaultPath: string): Promise<boolean> {
-    const absolutePath = this.resolvePath(vaultPath);
+    const absolutePath = this.resolvePath(await this.realPath(vaultPath));
     try {
       await fs.access(absolutePath);
       return true;
@@ -179,12 +230,14 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async getFileInfo(vaultPath: string): Promise<VaultFileInfo> {
-    const absolutePath = this.resolvePath(vaultPath);
+    const raw = await this.realPath(vaultPath);
+    const absolutePath = this.resolvePath(raw);
     try {
       const stats = await fs.stat(absolutePath);
+      const identity = this.spellings.identityOfStored(raw);
       return {
-        path: vaultPath,
-        name: path.basename(absolutePath),
+        path: identity,
+        name: identity.slice(identity.lastIndexOf("/") + 1),
         isDirectory: stats.isDirectory(),
         size: stats.isDirectory() ? 0 : stats.size,
         mtime: stats.mtimeMs,
@@ -196,7 +249,13 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async listDir(vaultPath: string = "", recursive: boolean = false): Promise<VaultFileInfo[]> {
-    const absolutePath = this.resolvePath(vaultPath);
+    const raw = vaultPath ? await this.realPath(vaultPath) : "";
+    const found = await this.listDirStored(raw, recursive, vaultPath);
+    return this.identities(found, { raw, identity: raw ? this.spellings.identityOfStored(raw) : "" });
+  }
+
+  private async listDirStored(rawPath: string, recursive: boolean, vaultPath: string): Promise<VaultFileInfo[]> {
+    const absolutePath = this.resolvePath(rawPath);
     const results: VaultFileInfo[] = [];
 
     async function walk(currentAbsPath: string, adapter: LocalVaultAdapter) {
@@ -246,6 +305,10 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async listDirForBackup(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]> {
+    return this.identities(await this.listDirForBackupStored(excludeDirNames), { raw: "", identity: "" });
+  }
+
+  private async listDirForBackupStored(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]> {
     const result: VaultFileInfo[] = [];
     const walk = async (directory: string): Promise<void> => {
       const absolute = this.resolvePath(directory);
@@ -255,7 +318,8 @@ export class LocalVaultAdapter implements IVaultAdapter {
           if (entry.isSymbolicLink()) continue;
           if (entry.isDirectory() && excludeDirNames.includes(entry.name)) continue;
           const rel = directory ? directory + "/" + entry.name : entry.name;
-          const info = await this.getFileInfo(rel);
+          // Stored spelling here; the caller turns the whole inventory into identities.
+          const info: VaultFileInfo = { ...(await this.getFileInfo(rel)), path: rel, name: entry.name };
           result.push(info);
           if (info.isDirectory) await walk(rel);
         }
@@ -268,7 +332,7 @@ export class LocalVaultAdapter implements IVaultAdapter {
   }
 
   async createDir(vaultPath: string): Promise<void> {
-    const absolutePath = this.resolvePath(vaultPath);
+    const absolutePath = this.resolvePath(await this.realPath(vaultPath));
     try {
       await fs.mkdir(absolutePath, { recursive: true });
     } catch (err) {
@@ -288,7 +352,10 @@ export class LocalVaultAdapter implements IVaultAdapter {
         try {
           for await (const event of watcher) {
             if (event.filename) {
-              const vaultPath = event.filename.split(path.sep).join(path.posix.sep);
+              const stored = event.filename.split(path.sep).join(path.posix.sep);
+              const vaultPath = this.spellings.identityOfStored(stored);
+              // Whatever changed there, a remembered spelling may be stale now.
+              this.spellings.forget(vaultPath);
               callback([{ path: vaultPath, type: "any" }]);
             }
           }

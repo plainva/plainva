@@ -1,5 +1,5 @@
 import { checkedPathExists, checkedReadTextFile, checkedReadDirectory, type CheckedDirEntry } from "./checkedFilesystem";
-import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath, trimEndChars } from "@plainva/core";
+import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath, trimEndChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
 import { readFile, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { Channel, invoke } from "@tauri-apps/api/core";
@@ -93,6 +93,30 @@ export function bytesToBase64(bytes: Uint8Array): string {
 export class TauriVaultAdapter implements IVaultAdapter {
   constructor(public readonly rootPath: string) {}
 
+  /**
+   * Path identity vs. stored spelling (ADR 0016): the app names every file by
+   * its NFC identity; the disk keeps the form it was created in (Finder and
+   * iOS decompose accents). Resolved here, before every native call, and
+   * never renamed. Paths without accents never pay for it.
+   */
+  private readonly spellings = new PathSpellings();
+  private readonly spellingSource: SpellingSource = {
+    exists: async (raw) => checkedPathExists(await this.rootId(), raw),
+    listNames: async (raw) => {
+      const entries = await checkedReadDirectory(await this.rootId(), raw);
+      return entries ? entries.map((e) => e.name) : null;
+    },
+  };
+
+  /** The spelling `path` is stored under on this disk (ADR 0016). */
+  async realPath(path: string): Promise<string> {
+    return this.spellings.resolve(path, this.spellingSource);
+  }
+
+  private stored<T>(path: string, io: (raw: string) => Promise<T>): Promise<T> {
+    return withStoredSpelling(this.spellings, path, this.spellingSource, io);
+  }
+
   /** Cached normalize(rootPath): the vault root never changes, but getAbsolutePath
    *  used to re-normalize it via IPC on EVERY read/write/exists/stat call (WP5). */
   private normalizedRootPromise: Promise<string> | null = null;
@@ -137,9 +161,11 @@ export class TauriVaultAdapter implements IVaultAdapter {
 
   async readTextFile(path: string): Promise<string> {
     await this.getAbsolutePath(path);
-    const text = await checkedReadTextFile(await this.rootId(), path);
-    if (text === null) throw new VaultFileNotFoundError(path);
-    return text;
+    return this.stored(path, async (raw) => {
+      const text = await checkedReadTextFile(await this.rootId(), raw);
+      if (text === null) throw new VaultFileNotFoundError(path);
+      return text;
+    });
   }
 
   // Writes go through the native atomic command (hardening P2): exclusive
@@ -150,22 +176,23 @@ export class TauriVaultAdapter implements IVaultAdapter {
   async writeTextFile(path: string, content: string): Promise<void> {
     await invoke("write_file_atomic", {
       rootId: await this.rootId(),
-      relPath: path,
+      relPath: await this.realPath(path),
       contents: content,
       encoding: "utf8",
     });
   }
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
-    const absPath = await this.getAbsolutePath(path);
-    if (!(await this.exists(path))) throw new VaultFileNotFoundError(path);
+    const raw = await this.realPath(path);
+    const absPath = await this.getAbsolutePath(raw);
+    if (!(await checkedPathExists(await this.rootId(), raw))) throw new VaultFileNotFoundError(path);
     return readFile(absPath);
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
     await invoke("write_file_atomic", {
       rootId: await this.rootId(),
-      relPath: path,
+      relPath: await this.realPath(path),
       contents: bytesToBase64(content),
       encoding: "base64",
     });
@@ -181,7 +208,7 @@ export class TauriVaultAdapter implements IVaultAdapter {
     if (times.modifiedMs === undefined && times.createdMs === undefined) return;
     await invoke("set_file_times", {
       rootId: await this.rootId(),
-      relPath: path,
+      relPath: await this.realPath(path),
       modifiedMs: times.modifiedMs ?? times.createdMs,
       createdMs: times.createdMs ?? null,
     });
@@ -190,13 +217,15 @@ export class TauriVaultAdapter implements IVaultAdapter {
 
 
   async deleteItem(path: string, recursive: boolean = false): Promise<void> {
-    const absPath = await this.getAbsolutePath(path);
+    const raw = await this.realPath(path);
+    this.spellings.forget(path);
+    const absPath = await this.getAbsolutePath(raw);
     // Idempotent: a target that is already gone (e.g. a folder the sync removed
     // remotely, or an external deletion) is a successful delete — same contract
     // as every remote sync target ("not found = success"). Throwing here left a
     // phantom tree row that could never be cleared. The caller still runs its
     // index/tree cleanup on this success path.
-    if (!(await this.exists(path))) return;
+    if (!(await checkedPathExists(await this.rootId(), raw))) return;
 
     // Internal housekeeping (backup rotation, pruning) must not flood the OS
     // trash — hard-delete everything under .plainva; user content keeps
@@ -233,25 +262,32 @@ export class TauriVaultAdapter implements IVaultAdapter {
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
-    const oldAbs = await this.getAbsolutePath(oldPath);
-    const newAbs = await this.getAbsolutePath(newPath);
-    if (!(await this.exists(oldPath))) throw new VaultFileNotFoundError(oldPath);
-    if (await this.exists(newPath)) throw new VaultFileExistsError(newPath);
+    const oldRaw = await this.realPath(oldPath);
+    const newRaw = await this.realPath(newPath);
+    const oldAbs = await this.getAbsolutePath(oldRaw);
+    const newAbs = await this.getAbsolutePath(newRaw);
+    const rootId = await this.rootId();
+    if (!(await checkedPathExists(rootId, oldRaw))) throw new VaultFileNotFoundError(oldPath);
+    if (await checkedPathExists(rootId, newRaw)) throw new VaultFileExistsError(newPath);
+    this.spellings.forget(oldPath);
+    this.spellings.forget(newPath);
     await rename(oldAbs, newAbs);
   }
 
   async exists(path: string): Promise<boolean> {
     await this.getAbsolutePath(path);
-    return checkedPathExists(await this.rootId(), path);
+    return checkedPathExists(await this.rootId(), await this.realPath(path));
   }
 
   async getFileInfo(path: string): Promise<VaultFileInfo> {
-    const absPath = await this.getAbsolutePath(path);
-    if (!(await this.exists(path))) throw new VaultFileNotFoundError(path);
+    const raw = await this.realPath(path);
+    const absPath = await this.getAbsolutePath(raw);
+    if (!(await checkedPathExists(await this.rootId(), raw))) throw new VaultFileNotFoundError(path);
     const entryStat = await stat(absPath);
+    const identity = this.spellings.identityOfStored(raw);
     return {
-      name: path.split(/[/\\]/).pop() || "",
-      path,
+      name: identity.split(/[/\\]/).pop() || "",
+      path: identity,
       isDirectory: entryStat.isDirectory,
       mtime: entryStat.mtime?.getTime() || Date.now(),
       ctime: entryStat.birthtime?.getTime() || undefined,
@@ -421,21 +457,29 @@ export class TauriVaultAdapter implements IVaultAdapter {
   }
 
   async listDirReport(path: string = "", recursive: boolean = false, options?: { signal?: AbortSignal }): Promise<VaultListing> {
-    const absPath = await this.getAbsolutePath(path);
+    const raw = path ? await this.realPath(path) : "";
+    const absPath = await this.getAbsolutePath(raw);
     const skipped: VaultWalkSkip[] = [];
     // The internal-path filter hides `.plainva`, `.git`, … from a walk over the
     // VAULT. It must not fire when the caller deliberately walks INSIDE such a
     // folder — the version history lists `.plainva/backups/...` and would come
     // back empty. Asking for an internal path is an explicit request for it.
-    const files = await this._listDirInternal(
-      path, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY), skipped, 0,
+    const found = await this._listDirInternal(
+      raw, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY), skipped, 0,
       isInternalPath(path), options?.signal
     );
-    return { files, skipped };
+    // Stored spellings become identities (ADR 0016), the walk's skip list too.
+    const anchor = { raw, identity: raw ? this.spellings.identityOfStored(raw) : "" };
+    const ids = this.spellings.observe([...found.map((f) => f.path), ...skipped.map((s) => s.path)], anchor);
+    const files = found.map((f) => {
+      const id = ids.get(f.path);
+      return id === undefined || id === f.path ? f : { ...f, path: id, name: id.slice(id.lastIndexOf("/") + 1) };
+    });
+    return { files, skipped: skipped.map((s) => ({ ...s, path: ids.get(s.path) ?? (s.path === raw ? path : this.spellings.identityOfStored(s.path)) })) };
   }
 
   async createDir(path: string): Promise<void> {
-    const absPath = await this.getAbsolutePath(path);
+    const absPath = await this.getAbsolutePath(await this.realPath(path));
     await mkdir(absPath, { recursive: true });
   }
 
@@ -454,7 +498,19 @@ export class TauriVaultAdapter implements IVaultAdapter {
       let roots = [this.rootPath];
       const channel = new Channel<NativeWatchChange[]>();
       channel.onmessage = (batch) => {
-        const { events, errors } = mapNativeWatchBatch(Array.isArray(batch) ? batch : [], roots);
+        const mapped = mapNativeWatchBatch(Array.isArray(batch) ? batch : [], roots);
+        const errors = mapped.errors;
+        // Stored spellings become identities (ADR 0016); a remembered spelling
+        // under a changed path may be stale now.
+        const events = mapped.events.map((event) => {
+          if (event.path === WATCH_RESCAN_MARKER) {
+            this.spellings.clear();
+            return event;
+          }
+          const identity = this.spellings.identityOfStored(event.path);
+          this.spellings.forget(identity);
+          return identity === event.path ? event : { ...event, path: identity };
+        });
         for (const message of errors) {
           // Never swallowed: an error can mean lost events. The rescan the
           // batch carries repairs the index; the diagnostics keep the reason.

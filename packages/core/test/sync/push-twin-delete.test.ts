@@ -63,10 +63,13 @@ describe("a remote DELETE with a local twin is not pushed (issue #112)", () => {
       "SELECT file_path, operation, retry_count FROM offline_queue ORDER BY id"
     )).map((r) => `${r.operation} ${r.file_path} #${r.retry_count}`);
 
-  it("holds a DELETE whose folder exists here in the other accent spelling, and reports the pair", async () => {
+  it("drops a DELETE whose folder exists here in the other accent spelling: it is the same file (ADR 0016)", async () => {
     // The #112 chain: the disk holds the folder decomposed (macOS, iOS), the
-    // sync row composed. The index sees the decomposed file as new and the
-    // composed one as gone — and queued a DELETE of the one the server holds.
+    // sync row composed. Before the identity was NFC the index saw the
+    // decomposed file as new and the composed one as gone and queued a DELETE
+    // of the one the server holds; O2 held it. Since ADR 0016 the adapter
+    // lists the folder under its composed identity: the file is right here,
+    // so such a DELETE is stale and never goes out.
     await mkdir(join(root, NFD));
     await writeFile(join(root, NFD, "Notiz.md"), "body");
     await queue.queueDelete(`${NFC}/Notiz.md`);
@@ -75,9 +78,8 @@ describe("a remote DELETE with a local twin is not pushed (issue #112)", () => {
     await new SyncEngine(queue, target, vault).processQueue(undefined, undefined, { collisions });
 
     expect(pushed).toEqual([]);
-    expect(collisions).toEqual([{ path: `${NFC}/Notiz.md`, twin: `${NFD}/Notiz.md` }]);
-    // Still queued, and no retry spent: a held op is a decision, not a failure.
-    expect(await pending()).toEqual([`delete ${NFC}/Notiz.md #0`]);
+    expect(collisions).toEqual([]);
+    expect(await pending()).toEqual([]);
   });
 
   it("holds a DELETE whose file name exists here in other letter case", async () => {
@@ -130,9 +132,9 @@ describe("a remote DELETE with a local twin is not pushed (issue #112)", () => {
   });
 
   it("reaches the collision card through the worker, next to the pull side's", async () => {
-    await mkdir(join(root, NFD));
-    await writeFile(join(root, NFD, "Notiz.md"), "body");
-    await queue.queueDelete(`${NFC}/Notiz.md`);
+    await mkdir(join(root, "Notes"));
+    await writeFile(join(root, "Notes", "Idea.md"), "body");
+    await queue.queueDelete("Notes/idea.md");
     const engine = new SyncEngine(queue, target, vault);
     const stateRepo = {
       getAllStates: vi.fn().mockResolvedValue(new Map()),
@@ -147,7 +149,7 @@ describe("a remote DELETE with a local twin is not pushed (issue #112)", () => {
     await worker.runCycle();
 
     expect(pushed).toEqual([]);
-    expect(reported.at(-1)).toEqual([{ path: `${NFC}/Notiz.md`, twin: `${NFD}/Notiz.md` }]);
+    expect(reported.at(-1)).toEqual([{ path: "Notes/idea.md", twin: "Notes/Idea.md" }]);
     worker.stop();
   });
 
@@ -166,14 +168,17 @@ describe("a remote DELETE with a local twin is not pushed (issue #112)", () => {
       await repo.updateRemoteState("Notes/Idea.md", "etag-2", null, 1);
     });
 
-    it("holds an MKCOL of the decomposed name and reports the pair", async () => {
+    it("creates a folder queued in the decomposed spelling under the composed identity (ADR 0016)", async () => {
+      // O2 held this MKCOL. Since the identity is NFC it is the same folder:
+      // it goes out under the identity, and the target writes into whatever
+      // spelling the remote holds (spelling-resolution tests).
       await queue.queueMkdir(`${NFD}/Neu`);
       const collisions: NameCollision[] = [];
       await new SyncEngine(queue, target, vault, repo).processQueue(undefined, undefined, { collisions });
 
-      expect(created).toEqual([]);
-      expect(collisions).toEqual([{ path: `${NFD}/Neu`, twin: `${NFC}/Neu` }]);
-      expect(await pending()).toEqual([`mkdir ${NFD}/Neu #0`]);
+      expect(created).toEqual([`${NFC}/Neu`]);
+      expect(collisions).toEqual([]);
+      expect(await pending()).toEqual([]);
     });
 
     it("holds a folder that differs only in letter case", async () => {
