@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-09-24
+Última actualización: 2026-09-30
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -92,7 +92,7 @@ También puedes alternar entre **Ancho de lectura** y **Ancho completo**.
 - **Crear:** clic derecho en una carpeta → **Nueva nota aquí**, **Nueva carpeta** o **Nueva base de datos (.base)**. El gran botón **Nuevo** crea dentro de la carpeta seleccionada actualmente (o la carpeta padre de un archivo seleccionado).
 - **Seleccionar:** un clic selecciona, `Ctrl`+clic añade o quita elementos individualmente, `Shift`+clic selecciona un rango, el clic central abre en una nueva pestaña.
 - **Menú contextual:** incluye **Renombrar** (actualiza los enlaces en todo el vault), **Duplicar**, **Abrir en panel dividido (derecha)** / **Abrir en panel dividido (abajo)**, **Añadir marcador**, **Copiar ruta**, **Mostrar en el administrador de archivos**, **Eliminar**.
-- **Mover a…** en el menú contextual mueve una nota, una carpeta o toda la selección múltiple a la carpeta que elijas: el mismo camino que arrastrar y soltar, pero sin arrastrar; las pestañas abiertas, las referencias del tablero y el índice lo siguen.
+- **Mover a…** en el menú contextual mueve una nota, una carpeta o toda la selección múltiple a la carpeta que elijas: el mismo camino que arrastrar y soltar, pero sin arrastrar; las pestañas abiertas, las referencias del tablero y el índice lo siguen. El texto sin guardar de una nota que se mueve o renombra se guarda primero; si eso falla, nada se mueve, Plainva explica por qué y tu texto sigue abierto. Si el traslado funcionó pero falló un paso posterior, el mensaje dice que el elemento ya está en su nuevo lugar e indica qué salió mal.
 - **Las mismas acciones en las secciones encima del árbol:** hacer clic derecho en una entrada de **Abiertos recientemente** o **Marcadores** abre el mismo menú — sin las entradas de carpeta, y con **Quitar de la lista** añadido (eso solo quita la entrada de la lista, nunca el archivo). Renombrar ahí se hace mediante un diálogo en lugar de un campo en la fila. Las vistas de calendario y tareas también pueden estar en **Abiertos recientemente**; se pueden abrir y quitar de la lista, pero no renombrar ni eliminar — son vistas, no archivos.
 - **Selección múltiple:** eliminar pregunta una sola vez por todos los elementos, duplicar y mover por arrastre funcionan sobre toda la selección. Los elementos eliminados van a la papelera del sistema operativo.
 - Las notas nuevas empiezan automáticamente con un `# Encabezado` derivado del nombre del archivo.

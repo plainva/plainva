@@ -1,6 +1,6 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
 import { isTextFile, type VaultQueryService } from "@plainva/core";
-import { retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
+import { errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
 
@@ -20,7 +20,20 @@ export interface FileActionAdapter extends RenameAdapter {
 }
 
 export type RenameToNameResult =
-  | { ok: true; newPath: string; renamedLinks: number; changedFiles: number; linkUpdateFailed: boolean; changedPaths: string[] }
+  | {
+      ok: true;
+      newPath: string;
+      renamedLinks: number;
+      changedFiles: number;
+      linkUpdateFailed: boolean;
+      changedPaths: string[];
+      /**
+       * The item IS at its new name, but a step after the rename failed
+       * (issue 113, V4): the caller reports "renamed, but …" instead of
+       * "rename failed", and open tabs follow.
+       */
+      followUpError?: string;
+    }
   | { ok: false; reason: "unchanged" | "invalid-name" | "already-exists" };
 
 /** File name (no folder) the rename UIs prefill: `.md` is hidden for notes,
@@ -180,8 +193,16 @@ export async function renameToName(opts: {
   const isBaseRename =
     !isFolder && oldPath.toLowerCase().endsWith(".base") && newPath.toLowerCase().endsWith(".base");
   if (queryService && ((wasNote && newPath.toLowerCase().endsWith(".md")) || isBaseRename)) {
-    const result = await renameFileWithLinkUpdates({ adapter, queryService, oldPath, newPath });
-    await retargetDesktopBookmarks(adapter, oldPath, newPath);
+    let result: Awaited<ReturnType<typeof renameFileWithLinkUpdates>>;
+    try {
+      result = await renameFileWithLinkUpdates({ adapter, queryService, oldPath, newPath });
+    } catch (e) {
+      // Moved on disk, then something failed: the rename happened (V4).
+      if (!(await landedAtDestination(adapter, oldPath, newPath))) throw e;
+      console.error("[fileActions] rename landed, a later step failed", e);
+      return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: true, changedPaths: [], followUpError: errorText(e) };
+    }
+    const followUpError = await followUp(() => retargetDesktopBookmarks(adapter, oldPath, newPath));
     let { renamedLinks, changedFiles, linkUpdateFailed } = result;
     const changedPaths = [...result.changedPaths];
     if (isBaseRename && opts.templateFolder) {
@@ -202,10 +223,17 @@ export async function renameToName(opts: {
         linkUpdateFailed = true;
       }
     }
-    return { ok: true, newPath, renamedLinks, changedFiles, linkUpdateFailed, changedPaths };
+    return { ok: true, newPath, renamedLinks, changedFiles, linkUpdateFailed, changedPaths, ...(followUpError ? { followUpError } : {}) };
   }
-  await adapter.renameItem(oldPath, newPath);
-  await retargetDesktopBookmarks(adapter, oldPath, newPath);
+  let followUpError: string | undefined;
+  try {
+    await adapter.renameItem(oldPath, newPath);
+  } catch (e) {
+    if (!(await landedAtDestination(adapter, oldPath, newPath))) throw e;
+    console.error("[fileActions] rename landed, a later step failed", e);
+    followUpError = errorText(e);
+  }
+  followUpError ??= await followUp(() => retargetDesktopBookmarks(adapter, oldPath, newPath));
   // Folder renames change every descendant path: retarget pinboard
   // arrangements (they store vault-relative paths, plan Pinboard P5).
   // Attachments sweep as an exact move — a no-op unless a board lists them.
@@ -219,7 +247,18 @@ export async function renameToName(opts: {
   } catch (e) {
     console.warn("[fileActions] pinboard sweep after rename failed", e);
   }
-  return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths };
+  return { ok: true, newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false, changedPaths, ...(followUpError ? { followUpError } : {}) };
+}
+
+/** Runs a step that follows a completed move; its failure is reported, not thrown (V4). */
+async function followUp(step: () => Promise<unknown>): Promise<string | undefined> {
+  try {
+    await step();
+    return undefined;
+  } catch (e) {
+    console.error("[fileActions] a step after the move failed", e);
+    return errorText(e);
+  }
 }
 
 /** Minimal indexer surface the incremental-reindex helpers need (VaultIndexer satisfies it). */
@@ -227,6 +266,8 @@ export interface RenameReindexer {
   indexVaultFull(): Promise<unknown>;
   indexPath(path: string): Promise<unknown>;
   removePathFromIndex(path: string): Promise<void>;
+  /** Re-keys the rows of a path the app moved itself; reports no deletion (issue 113). */
+  relocatePathInIndex(from: string, to: string): Promise<void>;
 }
 
 /**
@@ -239,17 +280,32 @@ export interface RenameReindexer {
  * (e.g. creating an empty folder needs no index work — the tree refresh alone
  * lists it). Sync semantics are identical to the full scan: removePathFromIndex
  * fires onLocalFileDeleted, a freshly indexed path fires onNewLocalFile.
+ *
+ * `moved` is what the app moved or renamed itself: the index follows it as a
+ * rename (relocatePathInIndex) and re-reads the destination. Passing the old
+ * path as `removed` instead told the sync layer it had been DELETED — a
+ * queued remote DELETE for a path whose MOVE was already queued (issue 113).
+ * Moves are relocated before a full scan too, so the scan finds every row at
+ * its new place and has nothing to report as vanished.
  */
 export async function applyIndexChanges(
   indexer: RenameReindexer,
-  changes: { removed?: string[]; added?: string[]; needsFullScan?: boolean }
+  changes: {
+    removed?: string[];
+    added?: string[];
+    moved?: ReadonlyArray<{ from: string; to: string }>;
+    needsFullScan?: boolean;
+  }
 ): Promise<void> {
+  for (const { from, to } of changes.moved ?? []) await indexer.relocatePathInIndex(from, to);
   if (changes.needsFullScan) {
     await indexer.indexVaultFull();
     return;
   }
   for (const path of changes.removed ?? []) await indexer.removePathFromIndex(path);
-  for (const path of new Set(changes.added ?? [])) await indexer.indexPath(path);
+  for (const path of new Set([...(changes.moved ?? []).map((m) => m.to), ...(changes.added ?? [])])) {
+    await indexer.indexPath(path);
+  }
 }
 
 /**
@@ -264,8 +320,8 @@ export async function reindexAfterRename(
 ): Promise<void> {
   await applyIndexChanges(indexer, {
     needsFullScan: opts.isFolder,
-    removed: opts.isFolder ? [] : [opts.oldPath],
-    added: opts.isFolder ? [] : [opts.newPath, ...opts.changedPaths],
+    moved: [{ from: opts.oldPath, to: opts.newPath }],
+    added: opts.isFolder ? [] : opts.changedPaths,
   });
 }
 
@@ -319,6 +375,13 @@ export async function promptRenameFile(path: string, ctx: PromptRenameContext): 
   if (next == null) return;
   try {
     await ctx.flush?.(path);
+  } catch (err) {
+    // Nothing moves while its unsaved text cannot land (issue 113, V3).
+    console.error("[fileActions] rename refused: the pending save failed", err);
+    ctx.toast.error(ctx.t("dialogs.moveBlockedUnsaved", { name: moveItemName(path), error: errorText(err) }));
+    return;
+  }
+  try {
     const result = await renameToName({
       adapter: ctx.adapter,
       queryService: ctx.queryService,
@@ -333,11 +396,16 @@ export async function promptRenameFile(path: string, ctx: PromptRenameContext): 
       return;
     }
     ctx.onRenamed?.(path, result.newPath);
+    let followUpError = result.followUpError;
     if (ctx.indexer) {
-      await reindexAfterRename(ctx.indexer, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths });
+      followUpError ??= await followUp(() =>
+        reindexAfterRename(ctx.indexer!, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths }));
     }
     ctx.refresh?.();
-    if (result.linkUpdateFailed) {
+    if (followUpError) {
+      // Renamed all the same (V4): name what failed, not the rename.
+      ctx.toast.warning(ctx.t("dialogs.movedWithFollowUpError", { name: moveItemName(result.newPath), error: followUpError }));
+    } else if (result.linkUpdateFailed) {
       ctx.toast.warning(ctx.t("dialogs.renameLinksFailed"));
     } else if (result.changedFiles > 0) {
       ctx.toast.success(ctx.t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
@@ -373,6 +441,12 @@ export interface MoveItemsResult {
   moved: MoveOp[];
   /** Names that stayed where they were: the target exists, or the adapter refused. */
   errors: string[];
+  /**
+   * Moved — the item IS at its destination and counts among `moved` — but a
+   * step after the move failed (issue 113, V4). Said as "moved, but …",
+   * never as a failed move.
+   */
+  followUpErrors: Array<{ name: string; error: string }>;
   /** Pinboard .base files rewritten because they referenced a moved path. */
   sweptBases: string[];
 }
@@ -396,6 +470,7 @@ export function movableInto(sources: readonly string[], target: string): string[
 export async function moveItems(deps: MoveItemsDeps, sources: readonly string[], target: string): Promise<MoveItemsResult> {
   const moved: MoveOp[] = [];
   const errors: string[] = [];
+  const followUpErrors: MoveItemsResult["followUpErrors"] = [];
   for (const from of movableInto(sources, target)) {
     const name = from.split(/[/\\]/).pop();
     if (!name) continue;
@@ -406,13 +481,23 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
         continue;
       }
       await deps.adapter.renameItem(from, to);
-      await retargetDesktopBookmarks(deps.adapter, from, to);
-      deps.onMoved?.(from, to);
-      moved.push({ type: "move", from, to, isFolder: deps.isFolder(from) });
     } catch (err) {
-      console.error("[fileActions] move failed", from, err);
-      errors.push(name);
+      // The disk rename and the queued MOVE are two steps: when the second
+      // fails the item has moved all the same (V4). Only an item still at its
+      // source is a failed move.
+      if (!(await landedAtDestination(deps.adapter, from, to))) {
+        console.error("[fileActions] move failed", from, err);
+        errors.push(name);
+        continue;
+      }
+      console.error("[fileActions] move landed, a later step failed", from, err);
+      followUpErrors.push({ name, error: errorText(err) });
     }
+    const bookmarkError = await followUp(() => retargetDesktopBookmarks(deps.adapter, from, to));
+    if (bookmarkError) followUpErrors.push({ name, error: bookmarkError });
+    // The tab follows whatever failed after the move: the file IS there now.
+    deps.onMoved?.(from, to);
+    moved.push({ type: "move", from, to, isFolder: deps.isFolder(from) });
   }
   let sweptBases: string[] = [];
   if (moved.length > 0) {
@@ -429,12 +514,13 @@ export async function moveItems(deps: MoveItemsDeps, sources: readonly string[],
       // A moved folder changes many descendant paths → full scan; moved files
       // just relocate.
       const anyFolder = moved.some((o) => o.isFolder);
-      await applyIndexChanges(deps.indexer, {
+      const indexError = await followUp(() => applyIndexChanges(deps.indexer!, {
         needsFullScan: anyFolder,
-        removed: anyFolder ? [] : moved.map((o) => o.from),
-        added: anyFolder ? [] : [...moved.map((o) => o.to), ...sweptBases],
-      });
+        moved: moved.map((o) => ({ from: o.from, to: o.to })),
+        added: anyFolder ? [] : sweptBases,
+      }));
+      if (indexError) followUpErrors.push({ name: moved.map((o) => o.to.split("/").pop()).join(", "), error: indexError });
     }
   }
-  return { moved, errors, sweptBases };
+  return { moved, errors, followUpErrors, sweptBases };
 }

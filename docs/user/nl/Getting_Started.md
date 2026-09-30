@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-24
+Laatst bijgewerkt: 2026-09-30
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -92,7 +92,7 @@ Je kunt ook wisselen tussen **Leesbare breedte** en **Volledige breedte**.
 - **Aanmaken:** rechtsklik op een map → **Nieuwe notitie hier**, **Nieuwe map** of **Nieuwe database (.base)**. De grote **Nieuw**-knop maakt aan in de op dat moment geselecteerde map (of de bovenliggende map van een geselecteerd bestand).
 - **Selecteren:** klik selecteert, `Ctrl`+klik voegt individueel toe/verwijdert, `Shift`+klik selecteert een bereik, middelklik opent in een nieuw tabblad.
 - **Contextmenu:** bevat onder meer **Hernoemen** (werkt links vault-breed bij), **Dupliceren**, **In split openen (rechts)** / **In split openen (onder)**, **Bladwijzer toevoegen**, **Pad kopiëren**, **Tonen in bestandsbeheer**, **Verwijderen**.
-- **Verplaatsen naar…** in het contextmenu verplaatst een notitie, een map of de hele meervoudige selectie naar een map naar keuze — dezelfde weg als slepen, alleen zonder slepen: open tabbladen, prikbordverwijzingen en de index gaan mee.
+- **Verplaatsen naar…** in het contextmenu verplaatst een notitie, een map of de hele meervoudige selectie naar een map naar keuze — dezelfde weg als slepen, alleen zonder slepen: open tabbladen, prikbordverwijzingen en de index gaan mee. Niet-opgeslagen tekst in een notitie die wordt verplaatst of hernoemd, wordt eerst opgeslagen; lukt dat niet, dan verplaatst er niets, zegt Plainva waarom en blijft je tekst open. Is het verplaatsen zelf gelukt maar een latere stap niet, dan zegt de melding dat het item op zijn nieuwe plek staat en wat er misging.
 - **Dezelfde acties in de secties boven de boom:** rechtsklikken op een item in **Onlangs geopend** of **Bladwijzers** opent hetzelfde menu — zonder de mapvermeldingen, met wel **Uit de lijst verwijderen** erbij (dat haalt alleen het item uit de lijst, nooit het bestand). Hernoemen verloopt daar via een dialoogvenster in plaats van een invoerveld in de rij. Ook de agenda- en takenweergave kunnen in **Onlangs geopend** staan; ze kunnen worden geopend en uit de lijst verwijderd, maar niet hernoemd of verwijderd — het zijn weergaven, geen bestanden.
 - **Meervoudige selectie:** verwijderen vraagt één keer bevestiging voor alle items, dupliceren en verplaatsen door slepen werken op de hele selectie. Verwijderde items belanden in de prullenbak van het besturingssysteem.
 - Nieuwe notities beginnen automatisch met een `# Kop` afgeleid van de bestandsnaam.

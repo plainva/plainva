@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-24
+Ultimo aggiornamento: 2026-09-30
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -92,7 +92,7 @@ Puoi anche alternare tra **Larghezza leggibile** e **Larghezza piena**.
 - **Creazione:** clic destro su una cartella → **Nuova nota qui**, **Nuova cartella** o **Nuovo database (.base)**. Il grande pulsante **Nuovo** crea all'interno della cartella attualmente selezionata (o della cartella genitore di un file selezionato).
 - **Selezione:** un clic seleziona, `Ctrl`+clic aggiunge/rimuove singolarmente, `Shift`+clic seleziona un intervallo, il clic centrale apre in una nuova scheda.
 - **Menu contestuale:** include **Rinomina** (aggiorna i link in tutto il vault), **Duplica**, **Apri nella vista divisa (destra)** / **Apri nella vista divisa (in basso)**, **Aggiungi segnalibro**, **Copia percorso**, **Mostra in Esplora file**, **Elimina**.
-- **Sposta in…** nel menu contestuale sposta una nota, una cartella o l’intera selezione multipla in una cartella a tua scelta: la stessa strada del trascinamento, ma senza trascinare; schede aperte, riferimenti della bacheca e indice seguono.
+- **Sposta in…** nel menu contestuale sposta una nota, una cartella o l’intera selezione multipla in una cartella a tua scelta: la stessa strada del trascinamento, ma senza trascinare; schede aperte, riferimenti della bacheca e indice seguono. Il testo non salvato di una nota che viene spostata o rinominata viene salvato prima; se non ci riesce, non si sposta nulla, Plainva spiega il motivo e il tuo testo resta aperto. Se lo spostamento in sé è riuscito ma un passaggio successivo no, il messaggio dice che l'elemento è nella nuova posizione e indica cosa non ha funzionato.
 - **Le stesse azioni nelle sezioni sopra l'albero:** un clic destro su una voce in **Aperti di recente** o **Segnalibri** apre lo stesso menu — senza le voci per le cartelle, ma con in più **Rimuovi dall'elenco** (questo rimuove solo la voce dall'elenco, mai il file). Qui rinominare avviene tramite una finestra di dialogo anziché nel campo della riga. Anche le viste calendario e attività possono comparire in **Aperti di recente**; possono essere aperte e rimosse dall'elenco, ma non rinominate né eliminate — sono viste, non file.
 - **Selezione multipla:** eliminare chiede conferma una sola volta per tutti gli elementi, duplicare e spostare trascinando funzionano sull'intera selezione. Gli elementi eliminati finiscono nel cestino del sistema operativo.
 - Le nuove note iniziano automaticamente con un `# Titolo` derivato dal nome del file.

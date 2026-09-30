@@ -47,8 +47,8 @@ export function TaskNamesNotice({
     moveTaskNotePath: async (from, to) => {
       if (pimRuntime) await pimRuntime.cache.moveTaskNotePath(from, to);
     },
-    reindex: async (removed, added) => {
-      if (indexer) await applyIndexChanges(indexer, { removed, added });
+    reindex: async (moved, added) => {
+      if (indexer) await applyIndexChanges(indexer, { moved, added });
     },
     onChanged,
     onError: (e) => {

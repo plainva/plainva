@@ -1453,6 +1453,8 @@
     "openWebLinkErrorMsg": "Impossible d'ouvrir le lien web : {{error}}",
     "deleteFailedMsg": "Échec de la suppression : {{error}}",
     "renameLinksFailed": "Renommé — mais les liens n'ont pas pu être vérifiés et mis à jour. Des références à l'ancien nom peuvent subsister.",
+    "moveBlockedUnsaved": "« {{name}} » reste où il est : ses modifications non enregistrées n'ont pas pu être enregistrées d'abord, et votre texte est toujours ouvert. Raison : {{error}}",
+    "movedWithFollowUpError": "« {{name}} » est à son nouvel emplacement, mais une étape après le déplacement a échoué. Raison : {{error}}",
     "trashUnavailableMsg": "Corbeille indisponible — « {{name}} » a été supprimé définitivement (un instantané de version existe).",
     "deleteStillThereMsg": "« {{name}} » n'a pas pu être supprimé et est toujours présent. Raison : {{error}}"
   },

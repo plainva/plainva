@@ -28,6 +28,7 @@ export interface IndexerApi {
   indexFile(fileInfo: VaultFileInfo): Promise<boolean>;
   indexPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "needs-full-scan">;
   removePathFromIndex(path: string): Promise<void>;
+  relocatePathInIndex(from: string, to: string): Promise<void>;
   indexVaultFull(): Promise<IndexScanReport>;
   /** Reconciles one folder against the disk, removing what vanished (issue 110). */
   reconcileFolder(folder: string, opts?: { recursive?: boolean }): Promise<FolderReconcileReport>;
@@ -53,6 +54,9 @@ export function createRemoteIndexer(): IndexerApi {
     },
     async removePathFromIndex() {
       /* the owner de-indexed it as part of the delegated delete */
+    },
+    async relocatePathInIndex() {
+      /* the owner relocated it as part of the delegated rename */
     },
     async indexVaultFull() {
       return EMPTY_REPORT;

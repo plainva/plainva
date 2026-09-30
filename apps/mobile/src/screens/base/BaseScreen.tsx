@@ -49,7 +49,7 @@ import {
   saveBaseConfig,
   type LoadedBase,
 } from "../../services/baseOps";
-import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../../services/vaultService";
+import { reloadActiveMobileVault, reportMoveFailure, vaultOps, type MobileVault } from "../../services/vaultService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments } from "../../services/mobileComments";
@@ -722,7 +722,7 @@ export function BaseScreen({
         setPeekPath((cur) => (cur === p ? newPath : cur));
         requery(config, viewIndex);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        reportMoveFailure(e);
       }
     },
     [vault, config, viewIndex, requery, t],

@@ -1453,6 +1453,8 @@
     "openWebLinkErrorMsg": "Impossibile aprire il link web: {{error}}",
     "deleteFailedMsg": "Eliminazione non riuscita: {{error}}",
     "renameLinksFailed": "Rinominato — ma i link non sono stati verificati e aggiornati. Potrebbero rimanere riferimenti al vecchio nome.",
+    "moveBlockedUnsaved": "«{{name}}» resta dov'è: non è stato possibile salvare prima le modifiche non salvate, e il tuo testo è ancora aperto. Motivo: {{error}}",
+    "movedWithFollowUpError": "«{{name}}» è nella nuova posizione, ma un passaggio dopo lo spostamento non è riuscito. Motivo: {{error}}",
     "trashUnavailableMsg": "Cestino non disponibile — \"{{name}}\" è stato eliminato definitivamente (esiste uno snapshot di versione).",
     "deleteStillThereMsg": "Impossibile eliminare «{{name}}»: è ancora presente. Motivo: {{error}}"
   },

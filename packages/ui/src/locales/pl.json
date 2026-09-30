@@ -1459,6 +1459,8 @@
     "openWebLinkErrorMsg": "Nie udało się otworzyć linku internetowego: {{error}}",
     "deleteFailedMsg": "Usuwanie nie powiodło się: {{error}}",
     "renameLinksFailed": "Zmieniono nazwę — ale nie udało się sprawdzić i zaktualizować linków. Odwołania do starej nazwy mogą pozostać.",
+    "moveBlockedUnsaved": "„{{name}}” zostaje na miejscu: nie udało się najpierw zapisać niezapisanych zmian, a Twój tekst jest nadal otwarty. Powód: {{error}}",
+    "movedWithFollowUpError": "„{{name}}” jest już w nowym miejscu, ale krok po przeniesieniu się nie powiódł. Powód: {{error}}",
     "trashUnavailableMsg": "Kosz niedostępny — '{{name}}' został trwale usunięty (istnieje migawka wersji).",
     "deleteStillThereMsg": "Nie udało się usunąć „{{name}}” — element nadal istnieje. Powód: {{error}}"
   },

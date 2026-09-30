@@ -15,7 +15,11 @@ vi.mock("@capacitor/filesystem", () => ({
     deleteFile: vi.fn(async ({ path }: { path: string }) => {
       store.delete(path);
     }),
-    readdir: vi.fn(async () => ({ files: [] })),
+    readdir: vi.fn(async ({ path }: { path: string }) => ({
+      files: [...store.keys()]
+        .filter((k) => k.startsWith(`${path}/`) && !k.slice(path.length + 1).includes("/"))
+        .map((k) => ({ name: k.slice(path.length + 1), type: "file", mtime: Date.now() })),
+    })),
   },
 }));
 
@@ -24,7 +28,7 @@ vi.mock("@capacitor/core", () => ({
   registerPlugin: () => ({}),
 }));
 
-import { clearDraft, flushDrafts, readDraft, writeDraft } from "./draftJournal";
+import { clearDraft, flushDrafts, readDraft, relocateDrafts, relocatedPath, writeDraft } from "./draftJournal";
 
 const vault = { vaultId: "local" } as any;
 
@@ -207,5 +211,22 @@ describe("ordered journal recovery", () => {
     clearDraft(vault, path, 3);
     await new Promise((r) => setTimeout(r, 10));
     expect((await readDraft(vault, path))?.text).toBe("keep this");
+  });
+});
+
+describe("drafts follow an in-app move (issue 113)", () => {
+  beforeEach(() => store.clear());
+
+  it("maps a note and everything under a moved folder, nothing else", () => {
+    expect(relocatedPath("A/n.md", { from: "A/n.md", to: "B/n.md" })).toBe("B/n.md");
+    expect(relocatedPath("A/sub/n.md", { from: "A", to: "X/A" })).toBe("X/A/sub/n.md");
+    expect(relocatedPath("AB/n.md", { from: "A", to: "X/A" })).toBeNull();
+  });
+
+  it("moves the entry, including a snapshot still buffered, to the new path", async () => {
+    writeDraft(vault, "Inbox/Note.md", "unsaved", 3);
+    await relocateDrafts(vault, [{ from: "Inbox", to: "Archive/Inbox" }]);
+    expect(await readDraft(vault, "Inbox/Note.md")).toBeNull();
+    expect(await readDraft(vault, "Archive/Inbox/Note.md")).toMatchObject({ text: "unsaved", revision: 3 });
   });
 });

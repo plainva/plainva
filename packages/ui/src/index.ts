@@ -134,6 +134,7 @@ export * from "./lib/wikiResolver";
 export * from "./lib/conflictFiles";
 export * from "./lib/editableField";
 export * from "./lib/errorText";
+export * from "./lib/moveOutcome";
 export * from "./lib/connectionErrorText";
 export * from "./lib/workspaceSyncFailureText";
 export * from "./lib/foreignLegacyComments";

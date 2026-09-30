@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-09-24
+Última revisão: 2026-09-30
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -92,7 +92,7 @@ Você também pode alternar entre **Largura de leitura** e **Largura total**.
 - **Criar:** clique com o botão direito em uma pasta → **Nova nota aqui**, **Nova pasta** ou **Novo banco de dados (.base)**. O grande botão **Novo** cria dentro da pasta selecionada no momento (ou na pasta pai de um arquivo selecionado).
 - **Selecionar:** clicar seleciona, `Ctrl`+clique adiciona/remove individualmente, `Shift`+clique seleciona um intervalo, clique com o botão do meio abre em uma nova aba.
 - **Menu de contexto:** inclui **Renomear** (atualiza os links em todo o vault), **Duplicar**, **Abrir na divisão (direita)** / **Abrir na divisão (abaixo)**, **Adicionar aos favoritos**, **Copiar caminho**, **Mostrar no gerenciador de arquivos**, **Excluir**.
-- **Mover para…** no menu de contexto move uma nota, uma pasta ou toda a seleção múltipla para a pasta que você escolher — o mesmo caminho do arrastar e soltar, só que sem arrastar: abas abertas, referências do quadro e o índice acompanham.
+- **Mover para…** no menu de contexto move uma nota, uma pasta ou toda a seleção múltipla para a pasta que você escolher — o mesmo caminho do arrastar e soltar, só que sem arrastar: abas abertas, referências do quadro e o índice acompanham. O texto não salvo de uma nota que está sendo movida ou renomeada é salvo primeiro; se isso falhar, nada é movido, o Plainva diz o motivo e seu texto continua aberto. Se a movimentação em si funcionou, mas uma etapa posterior falhou, a mensagem diz que o item já está no novo local e informa o que deu errado.
 - **As mesmas ações nas seções acima da árvore:** clicar com o botão direito em uma entrada de **Abertos recentemente** ou **Favoritos** abre o mesmo menu — sem as entradas de pasta, e com **Remover da lista** adicionado (isso remove apenas o item da lista, nunca o arquivo). Ali, renomear passa por um diálogo em vez de um campo na linha. As visualizações de calendário e tarefas também podem estar em **Abertos recentemente**; podem ser abertas e removidas da lista, mas não renomeadas nem excluídas — são visualizações, não arquivos.
 - **Seleção múltipla:** excluir pergunta uma vez para todos os itens, duplicar e mover por arrastar funcionam para toda a seleção. Os itens excluídos vão para a lixeira do sistema operacional.
 - Novas notas começam automaticamente com um `# Título` derivado do nome do arquivo.

@@ -1,6 +1,7 @@
 import { afterTaskSyncResume, clearPinboardCache } from "@plainva/ui";
 import { projectPublicationFeedbackForOwner, sameStoredValue } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
+import { relocateDrafts } from "../services/draftJournal";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
@@ -3087,12 +3088,17 @@ export const VaultProvider: React.FC<{
   const recordCommentMovesRef = useRef(recordCommentMoves);
   recordCommentMovesRef.current = recordCommentMoves;
   useEffect(() => {
-    if (!state.vaultPath) return;
+    const vaultPath = state.vaultPath;
+    if (!vaultPath) return;
     const onOps = (event: Event) => {
       const ops = ((event as CustomEvent<{ ops?: FileOp[] }>).detail?.ops ?? []);
       const moves: CommentPathMove[] = [];
       for (const op of ops) if (op.type === "move") moves.push({ from: op.from, to: op.to, folder: op.isFolder === true });
       if (moves.length === 0) return;
+      // The draft journal follows the same reports (issue 113, V3): an entry
+      // left under the old path would never be offered again. A client
+      // window hands the moves to the owner inside relocateDrafts.
+      void relocateDrafts(vaultPath, moves);
       void recordCommentMovesRef.current(moves).catch((error) => {
         console.error("[VaultContext] comment moves not recorded", error);
         toast.warning(i18n.t("comments.commentMoveFailed"));

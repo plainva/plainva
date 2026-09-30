@@ -38,7 +38,7 @@ import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
 import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
-import { getLastPersistedText, noteSaver, rememberPersistedText, vaultOps, type MobileVault } from "../services/vaultService";
+import { getLastPersistedText, noteSaver, rememberPersistedText, reportMoveFailure, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
@@ -760,9 +760,14 @@ export function NoteScreen({
       });
       const trimmed = value?.trim();
       if (cancelled || !trimmed || trimmed === title) return;
-      const dir = path.includes("/") ? `${path.slice(0, path.lastIndexOf("/"))}/` : "";
-      await vaultOps.rename(vault, path, trimmed);
-      onRenamed(`${dir}${trimmed}.md`);
+      let newPath: string;
+      try {
+        newPath = await vaultOps.rename(vault, path, trimmed);
+      } catch (e) {
+        reportMoveFailure(e);
+        return;
+      }
+      onRenamed(newPath);
     })();
   };
 
@@ -1521,7 +1526,7 @@ export function NoteScreen({
           onPick={(folder) => {
             void vaultOps.moveNote(vault, path, folder).then((newPath) => {
               if (newPath !== path) onRenamed(newPath);
-            });
+            }, reportMoveFailure);
           }}
           title={t("mobile.moveTitle")}
           vault={vault}

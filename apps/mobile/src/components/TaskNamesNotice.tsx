@@ -28,9 +28,11 @@ export function TaskNamesNotice({ vault, reloadKey, onChanged }: { vault: Mobile
     moveTaskNotePath: async (from, to) => {
       await getPimCache()?.moveTaskNotePath(from, to);
     },
-    reindex: async (removed, added) => {
-      for (const path of removed) await vault.indexer?.removePathFromIndex(path).catch(() => undefined);
-      await vault.reindexPaths(added);
+    reindex: async (moved, added) => {
+      // The index follows the rename; it does not report the old name as
+      // deleted (a queued remote DELETE, issue 113).
+      for (const { from, to } of moved) await vault.indexer?.relocatePathInIndex(from, to).catch(() => undefined);
+      await vault.reindexPaths([...moved.map((m) => m.to), ...added]);
     },
     onChanged: () => {
       onChanged();

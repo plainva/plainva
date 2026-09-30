@@ -207,7 +207,7 @@ describe("running it", () => {
     const resumed = await resumeTaskNameCleanup(next);
     expect(resumed.renamed.map((r) => r.to).sort()).toEqual(["Aufgaben/A.md", "Aufgaben/B.md"]);
     expect(v.files.get("Projekt.md")).toBe("Siehe [[A]]\n");
-    expect(next.reindex).toHaveBeenCalledWith([a], ["Aufgaben/A.md", "Projekt.md"]);
+    expect(next.reindex).toHaveBeenCalledWith([{ from: a, to: "Aufgaben/A.md" }], ["Projekt.md"]);
     expect(storage.data.size).toBe(0);
     // Resuming twice changes nothing.
     expect((await resumeTaskNameCleanup(next)).renamed).toEqual([]);

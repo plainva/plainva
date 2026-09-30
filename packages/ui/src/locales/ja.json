@@ -1441,6 +1441,8 @@
     "openWebLinkErrorMsg": "Webリンクを開けませんでした: {{error}}",
     "deleteFailedMsg": "削除に失敗しました: {{error}}",
     "renameLinksFailed": "名前を変更しましたが、リンクの確認と更新ができませんでした。古い名前への参照が残っている可能性があります。",
+    "moveBlockedUnsaved": "「{{name}}」は移動していません。未保存の変更を先に保存できなかったためです。テキストは開いたままです。理由: {{error}}",
+    "movedWithFollowUpError": "「{{name}}」は新しい場所に移動しましたが、移動後の処理が失敗しました。理由: {{error}}",
     "trashUnavailableMsg": "ごみ箱が利用できないため、「{{name}}」は完全に削除されました（バージョンスナップショットがあります）。",
     "deleteStillThereMsg": "「{{name}}」を削除できませんでした。まだ残っています。理由: {{error}}"
   },

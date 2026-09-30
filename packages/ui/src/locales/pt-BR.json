@@ -1453,6 +1453,8 @@
     "openWebLinkErrorMsg": "Não foi possível abrir o link da web: {{error}}",
     "deleteFailedMsg": "Falha ao excluir: {{error}}",
     "renameLinksFailed": "Renomeado — mas os links não puderam ser verificados e atualizados. Referências ao nome antigo podem permanecer.",
+    "moveBlockedUnsaved": "“{{name}}” continua onde está: as alterações não salvas não puderam ser salvas antes, e seu texto continua aberto. Motivo: {{error}}",
+    "movedWithFollowUpError": "“{{name}}” já está no novo local, mas uma etapa após a movimentação falhou. Motivo: {{error}}",
     "trashUnavailableMsg": "Lixeira indisponível — '{{name}}' foi excluído permanentemente (existe um snapshot de versão).",
     "deleteStillThereMsg": "Não foi possível excluir “{{name}}”, que continua lá. Motivo: {{error}}"
   },

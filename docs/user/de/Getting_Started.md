@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -92,7 +92,7 @@ Zusätzlich kannst Du zwischen **Lesbare Breite** und **Volle Breite** umschalte
 - **Anlegen:** Rechtsklick auf einen Ordner → **Neue Notiz hier**, **Neuer Ordner hier** oder **Neue Datenbank (.base)**. Der große **Neu**-Knopf legt im gerade ausgewählten Ordner an (bzw. im Elternordner der ausgewählten Datei).
 - **Auswählen:** Klick wählt aus, `Strg`+Klick fügt einzeln hinzu/entfernt, `Umschalt`+Klick wählt einen Bereich, Mittelklick öffnet in einem neuen Tab.
 - **Kontextmenü:** u. a. **Umbenennen** (aktualisiert Links vault-weit), **Duplizieren**, **Im Split öffnen (rechts)** / **Im Split öffnen (unten)**, **Lesezeichen hinzufügen**, **Pfad kopieren**, **Im Dateimanager zeigen**, **Löschen**.
-- **Verschieben nach…** im Kontextmenü verschiebt eine Notiz, einen Ordner oder die ganze Mehrfachauswahl in einen Ordner Deiner Wahl — derselbe Weg wie Drag & Drop, nur ohne Drag: offene Tabs, Pinnwand-Verweise und der Index ziehen mit.
+- **Verschieben nach…** im Kontextmenü verschiebt eine Notiz, einen Ordner oder die ganze Mehrfachauswahl in einen Ordner Deiner Wahl — derselbe Weg wie Drag & Drop, nur ohne Drag: offene Tabs, Pinnwand-Verweise und der Index ziehen mit. Ungesicherter Text in einer Notiz, die verschoben oder umbenannt wird, wird zuerst gespeichert; gelingt das nicht, bleibt alles, wo es ist, Plainva sagt warum, und Dein Text bleibt geöffnet. Hat das Verschieben selbst geklappt, aber ein späterer Schritt nicht, sagt die Meldung, dass es am neuen Ort liegt, und nennt, was schiefging.
 - **Dieselben Aktionen in den Abschnitten über dem Baum:** Ein Rechtsklick auf einen Eintrag in **Zuletzt geöffnet** oder **Lesezeichen** öffnet dasselbe Menü — ohne die Ordner-Einträge, dafür mit **Aus der Liste entfernen** (das nimmt nur den Eintrag aus der Liste, nie die Datei). Umbenannt wird dort über einen Abfrage-Dialog statt im Feld der Zeile. Die Kalender- und Aufgabenübersicht kann ebenfalls in **Zuletzt geöffnet** stehen; sie lässt sich öffnen und aus der Liste nehmen, aber nicht umbenennen oder löschen — sie ist eine Ansicht, keine Datei.
 - **Mehrfachauswahl:** Löschen mit einer Bestätigung, Duplizieren und Verschieben per Drag funktionieren für alle ausgewählten Elemente zusammen. Gelöschtes landet im Papierkorb des Betriebssystems.
 - Neue Notizen starten automatisch mit einer `# Überschrift` aus dem Dateinamen.

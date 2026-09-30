@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-09-24
+Dernière mise à jour : 2026-09-30
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -92,7 +92,7 @@ Vous pouvez aussi basculer entre **Largeur de lecture** et **Pleine largeur**.
 - **Créer :** clic droit sur un dossier → **Nouvelle note ici**, **Nouveau dossier** ou **Nouvelle base de données (.base)**. Le grand bouton **Nouveau** crée dans le dossier actuellement sélectionné (ou le dossier parent d'un fichier sélectionné).
 - **Sélectionner :** un clic sélectionne, `Ctrl`+clic ajoute/retire individuellement, `Shift`+clic sélectionne une plage, un clic central ouvre dans un nouvel onglet.
 - **Menu contextuel :** comprend **Renommer** (met à jour les liens dans tout le vault), **Dupliquer**, **Ouvrir dans la vue scindée (droite)** / **Ouvrir dans la vue scindée (bas)**, **Ajouter un signet**, **Copier le chemin**, **Afficher dans le gestionnaire de fichiers**, **Supprimer**.
-- **Déplacer vers…** dans le menu contextuel déplace une note, un dossier ou toute la sélection multiple vers le dossier de votre choix — le même chemin que le glisser-déposer, sans le glisser : les onglets ouverts, les références du tableau et l’index suivent.
+- **Déplacer vers…** dans le menu contextuel déplace une note, un dossier ou toute la sélection multiple vers le dossier de votre choix — le même chemin que le glisser-déposer, sans le glisser : les onglets ouverts, les références du tableau et l’index suivent. Le texte non enregistré d'une note déplacée ou renommée est d'abord enregistré ; si cela échoue, rien n'est déplacé, Plainva indique pourquoi et votre texte reste ouvert. Si le déplacement lui-même a réussi mais qu'une étape ultérieure a échoué, le message indique que l'élément est à son nouvel emplacement et précise ce qui n'a pas fonctionné.
 - **Les mêmes actions dans les sections au-dessus de l'arborescence :** un clic droit sur une entrée dans **Ouverts récemment** ou **Signets** ouvre le même menu — sans les entrées de dossier, et avec **Retirer de la liste** en plus (cela retire seulement l'entrée de la liste, jamais le fichier). Renommer s'y fait via une boîte de dialogue plutôt que dans le champ de la ligne. Les vues calendrier et tâches peuvent elles aussi apparaître dans **Ouverts récemment** ; elles peuvent être ouvertes et retirées de la liste, mais pas renommées ni supprimées — ce sont des vues, pas des fichiers.
 - **Sélection multiple :** la suppression ne demande qu'une seule confirmation pour tous les éléments, la duplication et le déplacement par glisser-déposer fonctionnent sur toute la sélection. Les éléments supprimés vont dans la corbeille du système d'exploitation.
 - Les nouvelles notes commencent automatiquement par un `# Titre` dérivé du nom du fichier.

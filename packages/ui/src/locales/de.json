@@ -1447,6 +1447,8 @@
     "openWebLinkErrorMsg": "Konnte den Web-Link nicht öffnen: {{error}}",
     "deleteFailedMsg": "Löschen fehlgeschlagen: {{error}}",
     "renameLinksFailed": "Umbenannt — aber Links konnten nicht geprüft und aktualisiert werden. Verweise auf den alten Namen bleiben eventuell bestehen.",
+    "moveBlockedUnsaved": "„{{name}}“ bleibt, wo es ist: Die ungesicherten Änderungen ließen sich vorher nicht speichern, Dein Text ist weiter geöffnet. Grund: {{error}}",
+    "movedWithFollowUpError": "„{{name}}“ liegt jetzt am neuen Ort, aber ein Schritt nach dem Verschieben ist fehlgeschlagen. Grund: {{error}}",
     "trashUnavailableMsg": "Papierkorb nicht verfügbar — '{{name}}' wurde endgültig gelöscht (Versions-Snapshot vorhanden).",
     "deleteStillThereMsg": "„{{name}}“ konnte nicht gelöscht werden und ist noch vorhanden. Grund: {{error}}"
   },

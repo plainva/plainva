@@ -1447,6 +1447,8 @@
     "openWebLinkErrorMsg": "Could not open web link: {{error}}",
     "deleteFailedMsg": "Delete failed: {{error}}",
     "renameLinksFailed": "Renamed — but links could not be checked and updated. References to the old name may remain.",
+    "moveBlockedUnsaved": "'{{name}}' stays where it is: its unsaved changes could not be saved first, and your text is still open. Reason: {{error}}",
+    "movedWithFollowUpError": "'{{name}}' is at its new place, but a step after the move failed. Reason: {{error}}",
     "trashUnavailableMsg": "Trash unavailable — '{{name}}' was deleted permanently (a version snapshot exists).",
     "deleteStillThereMsg": "'{{name}}' could not be deleted and is still there. Reason: {{error}}"
   },

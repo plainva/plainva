@@ -1441,6 +1441,8 @@
     "openWebLinkErrorMsg": "无法打开网页链接：{{error}}",
     "deleteFailedMsg": "删除失败：{{error}}",
     "renameLinksFailed": "已重命名——但无法检查并更新链接。指向旧名称的引用可能仍然存在。",
+    "moveBlockedUnsaved": "“{{name}}”保持原位：未保存的更改无法先行保存，你的文本仍处于打开状态。原因：{{error}}",
+    "movedWithFollowUpError": "“{{name}}”已位于新位置，但移动之后的某个步骤失败了。原因：{{error}}",
     "trashUnavailableMsg": "回收站不可用——“{{name}}”已被永久删除（存在版本快照）。",
     "deleteStillThereMsg": "无法删除“{{name}}”，它仍然存在。原因：{{error}}"
   },

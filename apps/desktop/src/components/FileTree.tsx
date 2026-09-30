@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
-import { EmptyState, ICON, toast, errorText, useSearchPages, Button } from "@plainva/ui";
+import { EmptyState, ICON, toast, errorText, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 import { isInternalPath, VaultQueryService, type SearchOccurrence } from "@plainva/core";
@@ -812,10 +812,22 @@ export const FileTree: React.FC<{
    * a later save would find its file gone and refuse to write it back there
    * (issue 110), which left the text only in the draft journal. The editor's
    * menu rename always flushed; the tree's rename and move did not.
+   *
+   * A flush that FAILS stops the move (issue 113, V3): it used to be
+   * swallowed, and the note moved without its latest text. Every flush is
+   * awaited first, so nothing is still writing when the refusal is reported.
    */
   const flushOpenEdits = async (paths: readonly string[]) => {
     const pending = [...dirtyStore.get()].filter((p) => paths.some((s) => p === s || p.startsWith(`${s}/`)));
-    await Promise.allSettled(pending.map((p) => requestSaveFlush(p, vaultPath ?? undefined)));
+    const results = await Promise.allSettled(pending.map((p) =>
+      requestSaveFlush(p, vaultPath ?? undefined).catch((reason: unknown) => { throw new MoveBlockedError(p, reason); })));
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failed) throw failed.reason;
+  };
+
+  /** "Stays where it is: its unsaved changes could not be saved first." */
+  const reportMoveBlocked = (err: MoveBlockedError) => {
+    toast.error(t("dialogs.moveBlockedUnsaved", { name: moveItemName(err.path), error: errorText(err.reason) }));
   };
 
   const handleRenameSubmit = useStableHandler(async (e?: React.FormEvent) => {
@@ -854,17 +866,26 @@ export const FileTree: React.FC<{
       onRenameTabPrefix?.(oldPath, result.newPath);
       // Targeted reindex (Issue #9): a full-vault scan on every rename was the
       // visible lag before the sidebar updated.
-      await reindexAfterRename(indexer, { oldPath, newPath: result.newPath, isFolder, changedPaths: result.changedPaths });
+      let followUpError = result.followUpError;
+      try {
+        await reindexAfterRename(indexer, { oldPath, newPath: result.newPath, isFolder, changedPaths: result.changedPaths });
+      } catch (err) {
+        followUpError ??= errorText(err);
+      }
       triggerFileTreeUpdate();
-      if (result.linkUpdateFailed) {
+      notifyFileOps([{ type: "move", from: oldPath, to: result.newPath, isFolder }]);
+      if (followUpError) {
+        // Renamed all the same (V4): say what failed, not that the rename did.
+        toast.warning(t("dialogs.movedWithFollowUpError", { name: moveItemName(result.newPath), error: followUpError }));
+      } else if (result.linkUpdateFailed) {
         toast.warning(t("dialogs.renameLinksFailed"));
       } else if (result.changedFiles > 0) {
         toast.success(t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
       }
-      notifyFileOps([{ type: "move", from: oldPath, to: result.newPath, isFolder }]);
     } catch (err: any) {
       console.error("Fehler beim Umbenennen", err);
-      toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
+      if (err instanceof MoveBlockedError) reportMoveBlocked(err);
+      else toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
       setRenamingItemParams(null);
     }
   });
@@ -1068,8 +1089,14 @@ export const FileTree: React.FC<{
       if (sources.length > 0) toast.info(t("fileTree.moveNoop"));
       return;
     }
-    await flushOpenEdits(candidates);
-    const { moved, errors } = await moveItems(
+    try {
+      await flushOpenEdits(candidates);
+    } catch (err) {
+      if (err instanceof MoveBlockedError) reportMoveBlocked(err);
+      else toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
+      return;
+    }
+    const { moved, errors, followUpErrors } = await moveItems(
       {
         adapter: vaultAdapter,
         queryService,
@@ -1086,6 +1113,9 @@ export const FileTree: React.FC<{
     }
     if (errors.length > 0) {
       toast.error(t("dialogs.bulkErrorsMsg", { count: errors.length, names: errors.join(", ") }));
+    }
+    for (const { name, error } of followUpErrors) {
+      toast.warning(t("dialogs.movedWithFollowUpError", { name, error }));
     }
   });
 

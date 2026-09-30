@@ -20,7 +20,7 @@ import {
   noteWindowVault,
 } from "./windowManager";
 import { holdersOf, setHolderVault } from "./vaultRuntimes";
-import { clearDraft, recordDraft } from "./draftJournal";
+import { clearDraft, recordDraft, relocateDrafts } from "./draftJournal";
 import { syncStatusStore } from "./syncStatusStore";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { withPendingWrite } from "./pendingWrites";
@@ -314,7 +314,7 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     await bus.handle("rename", async ({ from, to }) => {
       await deps.vaultAdapter.renameItem(from, to);
       await retargetDesktopBookmarks(deps.vaultAdapter, from, to);
-      if (deps.indexer) await applyIndexChanges(deps.indexer, { removed: [from], added: [to] });
+      if (deps.indexer) await applyIndexChanges(deps.indexer, { moved: [{ from, to }] });
       deps.refresh();
     }, { vaultPath: deps.vaultPath }),
   );
@@ -709,6 +709,12 @@ export async function installOwnerAppBus(): Promise<() => void> {
   offs.push(
     await bus.handle("draft-clear", async ({ vaultPath, notePath, upToRevision, sessionId }) => {
       await clearDraft(vaultPath, notePath, upToRevision ?? Infinity, sessionId);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("draft-relocate", async ({ vaultPath, moves }) => {
+      await relocateDrafts(vaultPath, moves);
     }),
   );
 

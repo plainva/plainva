@@ -52,7 +52,7 @@ import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
-import { writeDraft, clearDraft } from "./draftJournal";
+import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { listMailAccounts } from "@plainva/ui/mail";
 import {
@@ -86,7 +86,7 @@ import {
   type VaultTemplateDefinition,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { rememberLastOpen, splitLinkAnchor } from "@plainva/ui";
+import { rememberLastOpen, splitLinkAnchor, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 
@@ -765,6 +765,50 @@ export interface NoteRenameReport {
   renamedLinks: number;
   changedFiles: number;
   linkUpdateFailed: boolean;
+  /** Renamed — the note IS at `newPath` — but a step after the rename failed (V4). */
+  followUpError?: string;
+}
+
+/**
+ * Unsaved text lands before a path moves, or nothing moves (issue 113, V3 —
+ * the desktop tree's rule). The coordinator's explicit flush rejects when the
+ * write fails; the refusal is said once, here, and the caller stops on the
+ * {@link MoveBlockedError}.
+ */
+async function flushBeforeMove(v: MobileVault, path: string, whole: boolean): Promise<void> {
+  try {
+    if (whole) await noteSaver.flushAll(v);
+    else await noteSaver.flush(path, v);
+  } catch (reason) {
+    toast.error(i18n.t("dialogs.moveBlockedUnsaved", { name: moveItemName(path), error: errorText(reason) }));
+    throw new MoveBlockedError(path, reason);
+  }
+}
+
+/**
+ * The move itself: the disk rename and the queued MOVE are two steps. When a
+ * later one fails, the item has moved all the same (V4) — the error is kept
+ * for an honest "moved, but …" and the follow-ups still run.
+ */
+async function moveStep(v: MobileVault, from: string, to: string, step: () => Promise<void>): Promise<string | undefined> {
+  try {
+    await step();
+    return undefined;
+  } catch (e) {
+    if (!(await landedAtDestination(v.files, from, to))) throw e;
+    console.error("[vaultOps] the move landed, a later step failed", e);
+    return errorText(e);
+  }
+}
+
+function reportFollowUp(to: string, error: string | undefined): void {
+  if (error) toast.warning(i18n.t("dialogs.movedWithFollowUpError", { name: moveItemName(to), error }));
+}
+
+/** Callers of a move: the refusal was already said; everything else is a failed move. */
+export function reportMoveFailure(error: unknown): void {
+  if (error instanceof MoveBlockedError) return;
+  toast.error(i18n.t("dialogs.renameErrorMsg", { error: errorText(error) }));
 }
 
 export const vaultOps = {
@@ -832,7 +876,8 @@ export const vaultOps = {
    * see every touched referencing note. */
   async rename(v: MobileVault, oldPath: string, newTitle: string): Promise<string> {
     const result = await vaultOps.renameReport(v, oldPath, newTitle);
-    if (result.linkUpdateFailed) toast.warning(i18n.t("dialogs.renameLinksFailed"));
+    if (result.followUpError) reportFollowUp(result.newPath, result.followUpError);
+    else if (result.linkUpdateFailed) toast.warning(i18n.t("dialogs.renameLinksFailed"));
     else if (result.changedFiles > 0)
       toast.success(i18n.t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
     return result.newPath;
@@ -846,26 +891,31 @@ export const vaultOps = {
     // S2: land the editor's pending text BEFORE the path moves. A queued save
     // that settles afterwards writes to the OLD path — which recreates the file
     // we just renamed away, and the sync queue then pushes that ghost.
-    await noteSaver.flush(oldPath, v);
+    await flushBeforeMove(v, oldPath, false);
     const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
     const newPath = `${dir}${newTitle}.md`;
     if (newPath === oldPath) return { newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     let changedPaths: string[] = [];
     let report = { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
-    if (v.queryService) {
-      const result = await renameFileWithLinkUpdates({
-        adapter: v.files,
-        queryService: v.queryService,
-        oldPath,
-        newPath,
-      });
-      changedPaths = result.changedPaths;
-      report = { renamedLinks: result.renamedLinks, changedFiles: result.changedFiles, linkUpdateFailed: result.linkUpdateFailed };
-    } else {
-      await v.files.renameItem(oldPath, newPath);
-    }
+    const queryService = v.queryService;
+    const followUpError = await moveStep(v, oldPath, newPath, async () => {
+      if (queryService) {
+        const result = await renameFileWithLinkUpdates({
+          adapter: v.files,
+          queryService,
+          oldPath,
+          newPath,
+        });
+        changedPaths = result.changedPaths;
+        report = { renamedLinks: result.renamedLinks, changedFiles: result.changedFiles, linkUpdateFailed: result.linkUpdateFailed };
+      } else {
+        await v.files.renameItem(oldPath, newPath);
+      }
+    });
     if (v.indexer) {
-      await v.indexer.removePathFromIndex(oldPath).catch(() => {});
+      // The index follows the rename (issue 113): reporting the old name as
+      // deleted queued a remote DELETE next to the queued MOVE.
+      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
       for (const p of [newPath, ...changedPaths]) {
         try {
           await v.indexer.indexFile(await v.adapter.getFileInfo(p));
@@ -875,9 +925,10 @@ export const vaultOps = {
       }
     }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
     notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
-    return { newPath, ...report };
+    return { newPath, ...report, ...(followUpError ? { followUpError } : {}) };
   },
 
   /** Deletes a note; with sync active the deletion reaches the cloud too. */
@@ -919,15 +970,22 @@ export const vaultOps = {
     // S2, whole-queue variant: every note UNDER the folder changes path, and
     // we do not know which of them the editor holds — so everything pending
     // lands first. With nothing pending this costs nothing.
-    await noteSaver.flushAll(v);
-    await v.files.renameItem(oldPath, newPath);
+    await flushBeforeMove(v, oldPath, true);
+    const followUpError = await moveStep(v, oldPath, newPath, () => v.files.renameItem(oldPath, newPath));
     // Pinboard arrangements store vault-relative paths (plan Pinboard P5):
     // rewrite them by prefix so cards under the folder keep position and pin.
     await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [], [{ from: oldPath, to: newPath }]).catch(() => {});
-    if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
+    if (v.indexer) {
+      // Rows follow first, so the full pass finds every note at its new place
+      // and reports nothing as vanished (issue 113).
+      await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
+      await v.indexer.indexVaultFull().catch(() => {});
+    }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
     notifyFileOps([{ type: "move", from: oldPath, to: newPath, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    reportFollowUp(newPath, followUpError);
   },
 
   async removeFolder(v: MobileVault, path: string, confirmation?: DeletionConfirmation): Promise<void> {
@@ -943,15 +1001,16 @@ export const vaultOps = {
   async moveNote(v: MobileVault, path: string, targetFolder: string): Promise<string> {
     // S2: identical to rename — the path moves, a late save would write to the
     // old one and leave a ghost the sync queue then pushes.
-    await noteSaver.flush(path, v);
+    await flushBeforeMove(v, path, false);
     const name = path.split("/").pop()!;
     const newPath = targetFolder ? `${targetFolder}/${name}` : name;
     if (newPath === path) return path;
-    await v.files.renameItem(path, newPath);
+    const followUpError = await moveStep(v, path, newPath, () => v.files.renameItem(path, newPath));
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
     const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);
     if (v.indexer) {
-      await v.indexer.removePathFromIndex(path).catch(() => {});
+      // Follows the move as a rename, never as a deletion (issue 113).
+      await v.indexer.relocatePathInIndex(path, newPath).catch(() => {});
       for (const p of [newPath, ...sweptBases]) {
         try {
           await v.indexer.indexFile(await v.adapter.getFileInfo(p));
@@ -961,8 +1020,10 @@ export const vaultOps = {
       }
     }
     await renameBookmarksOnDisk(v.adapter, path, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
+    await relocateDrafts(v, [{ from: path, to: newPath }]);
     notifyFileOps([{ type: "move", from: path, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
+    reportFollowUp(newPath, followUpError);
     return newPath;
   },
 
