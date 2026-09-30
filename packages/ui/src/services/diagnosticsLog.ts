@@ -60,25 +60,31 @@ export interface DiagnosticsAppInfo {
   conflicts?: readonly import("@plainva/core").ConflictDiagnostic[];
 }
 
+/**
+ * The export is a technical document for the (English) issue tracker, not UI
+ * text: its headings stay English whatever the app language, like the error
+ * lines it collects. Reporters paste it into issues as is (#105 carried a
+ * German export under an English UI).
+ */
 export function formatDiagnosticsExport(info: DiagnosticsAppInfo): string {
   const lines = [
-    "# Plainva Diagnose-Export",
+    "# Plainva diagnostics export",
     "",
     `- App: ${info.appVersion}`,
     `- Build: ${formatBuildLine() || "-"}`,
     `- Tauri: ${info.tauriVersion}`,
     `- WebView: ${info.webView ?? "-"}`,
     `- OS: ${info.os}`,
-    `- Sprache: ${info.language}`,
-    `- Exportiert: ${new Date().toISOString()}`,
+    `- Language: ${info.language}`,
+    `- Exported: ${new Date().toISOString()}`,
     "",
-    "Hinweis: Enthält KEINE Notizinhalte; Fehlermeldungen können Vault-relative Dateipfade enthalten.",
+    "Note: contains NO note content; error messages may contain vault-relative file paths.",
     "",
-    "## Ereignisse (neueste zuletzt)",
+    "## Events (newest last)",
     "",
   ];
   if (entries.length === 0) {
-    lines.push("(keine aufgezeichneten Fehler in dieser Sitzung)");
+    lines.push("(no errors recorded in this session)");
   }
   for (const e of entries) {
     lines.push(`- ${new Date(e.ts).toISOString()} [${e.source}] ${e.message}`);
@@ -87,7 +93,7 @@ export function formatDiagnosticsExport(info: DiagnosticsAppInfo): string {
     // An explicit projection keeps note text and extra local metadata out.
     const conflicts = info.conflicts.map(({ at, pathHash, adapter, writer, diskHash, expectedLocalHash, baseSource, wasWrittenByUs, normalizationOnly, differentLineEndings, differentBom, differentFinalNewline }) =>
       ({ at, pathHash, adapter, writer, diskHash, expectedLocalHash, baseSource, wasWrittenByUs, normalizationOnly, differentLineEndings, differentBom, differentFinalNewline }));
-    lines.push("", "## Lokale Konfliktdiagnose (ohne Dateinamen oder Notizinhalte)", "", "```json", redactDiagnosticText(JSON.stringify(conflicts, null, 2)), "```");
+    lines.push("", "## Local conflict diagnostics (no file names or note content)", "", "```json", redactDiagnosticText(JSON.stringify(conflicts, null, 2)), "```");
   }
   return lines.join("\n") + "\n";
 }

@@ -1,6 +1,6 @@
 # Sync Setup
 
-Last updated: 2026-09-20
+Last updated: 2026-09-30
 
 Plainva optionally syncs each vault with a storage of your choice — straight from the app, with no Plainva-run service in between: your data travels exclusively between your computer and your own account/server. This page walks through the setup per provider.
 
@@ -12,7 +12,7 @@ When a text conflict cannot be merged automatically, one local working copy stay
 
 In the comparison, **Compare preserved revisions** shows the saved starting version when available. If the working copy changes outside this editing session, that other version is also preserved and can be compared there. Adopting, keeping both and discarding check the current files again; reload a comparison that is out of date. Resolve the conflict before moving or deleting the affected file or its folder. Older conflict copies remain listed separately.
 
-The diagnostics export also includes recent conflict events: storage type, writer, hash comparison and differences in line endings, BOM or final newline. These conflict records contain no note content or file names.
+The diagnostics export also includes recent conflict events: storage type, writer, hash comparison and differences in line endings, BOM or final newline. These conflict records contain no note content or file names. The export is always in English, whatever the app language, so you can paste it into an issue on GitHub as it is.
 
 ## Basics
 

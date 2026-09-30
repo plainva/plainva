@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji
 
-Stan na: 2026-09-20
+Stan na: 2026-09-30
 
 Plainva opcjonalnie synchronizuje każdy vault z wybranym przez Ciebie magazynem — bezpośrednio z aplikacji, bez żadnej usługi pośredniczącej prowadzonej przez Plainva: Twoje dane przemieszczają się wyłącznie między Twoim komputerem a Twoim własnym kontem/serwerem. Ta strona prowadzi przez konfigurację dla każdego dostawcy.
 
@@ -12,7 +12,7 @@ Gdy konfliktu tekstu nie można scalić automatycznie, dla każdego oryginału p
 
 W widoku porównania **Porównaj zachowane wersje** pokazuje zapisaną wersję początkową, jeśli jest dostępna. Jeśli kopia robocza zmieni się poza tą sesją, druga wersja również zostanie zachowana i będzie można ją porównać. Przyjęcie, zachowanie obu i odrzucenie ponownie sprawdzają bieżące pliki; nieaktualne porównanie trzeba wczytać ponownie. Rozwiąż konflikt przed przeniesieniem lub usunięciem pliku albo jego folderu. Starsze kopie konfliktowe nadal są wymieniane osobno.
 
-Eksport diagnostyczny zawiera także ostatnie konflikty: typ pamięci, komponent zapisujący, porównanie skrótów oraz różnice zakończeń wierszy, BOM i końcowego znaku nowego wiersza. Te rekordy nie zawierają treści notatek ani nazw plików.
+Eksport diagnostyczny zawiera także ostatnie konflikty: typ pamięci, komponent zapisujący, porównanie skrótów oraz różnice zakończeń wierszy, BOM i końcowego znaku nowego wiersza. Te rekordy nie zawierają treści notatek ani nazw plików. Eksport jest zawsze po angielsku, niezależnie od języka aplikacji, aby można go było wkleić bez zmian do zgłoszenia na GitHubie.
 
 ## Podstawy
 

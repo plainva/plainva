@@ -1,6 +1,6 @@
 # Configurer la synchronisation
 
-Dernière mise à jour : 2026-09-20
+Dernière mise à jour : 2026-09-30
 
 Plainva synchronise facultativement chaque vault avec un stockage de votre choix — directement depuis l'application, sans aucun service intermédiaire géré par Plainva : vos données circulent exclusivement entre votre ordinateur et votre propre compte/serveur. Cette page vous guide dans la configuration selon le fournisseur.
 
@@ -12,7 +12,7 @@ Lorsqu’un conflit de texte ne peut pas être fusionné automatiquement, une se
 
 Dans la comparaison, **Comparer les versions conservées** affiche la version initiale enregistrée, si elle existe. Si la copie de travail est modifiée en dehors de cette session, cette autre version est aussi conservée et peut y être comparée. L’adoption, la conservation des deux versions et l’abandon vérifient à nouveau les fichiers ; rechargez une comparaison devenue obsolète. Résolvez le conflit avant de déplacer ou supprimer le fichier concerné ou son dossier. Les anciennes copies en conflit restent listées séparément.
 
-L’export de diagnostic inclut aussi les conflits récents : type de stockage, origine de l’écriture, comparaison des empreintes et différences de fins de ligne, de BOM ou de saut de ligne final. Ces données ne contiennent ni texte des notes ni noms de fichiers.
+L’export de diagnostic inclut aussi les conflits récents : type de stockage, origine de l’écriture, comparaison des empreintes et différences de fins de ligne, de BOM ou de saut de ligne final. Ces données ne contiennent ni texte des notes ni noms de fichiers. L’export est toujours en anglais, quelle que soit la langue de l’app, pour que vous puissiez le coller tel quel dans un ticket sur GitHub.
 
 ## Notions de base
 
