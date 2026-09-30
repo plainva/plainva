@@ -23,15 +23,22 @@ const calloutThemeRules = Object.fromEntries(
 const GUIDE = "linear-gradient(var(--border-color), var(--border-color))";
 /** Measured: how far right of k * INDENT_EM the middle of a bullet sits. */
 const GUIDE_OFFSET_EM = 0.05;
+// A right-to-left line (issue 111) puts its bullets on the right, so its
+// guides are measured from the right edge - the same offsets, mirrored.
+const guideOffsets = (n: number, edge: "" | "right ") =>
+  Array.from({ length: n }, (_, k) => `${edge}calc(${(k + 1) * INDENT_EM + GUIDE_OFFSET_EM}em - 0.5px)${edge ? " top 0" : " 0"}`).join(", ");
 const indentGuideRules = Object.fromEntries(
-  Array.from({ length: MAX_LIST_GUIDES }, (_, i) => i + 1).map((n) => [
-    `.cm-list-guides-${n}`,
-    {
-      backgroundImage: Array.from({ length: n }, () => GUIDE).join(", "),
-      backgroundSize: "1px 100%",
-      backgroundRepeat: "no-repeat",
-      backgroundPosition: Array.from({ length: n }, (_, k) => `calc(${(k + 1) * INDENT_EM + GUIDE_OFFSET_EM}em - 0.5px) 0`).join(", "),
-    },
+  Array.from({ length: MAX_LIST_GUIDES }, (_, i) => i + 1).flatMap((n) => [
+    [
+      `.cm-list-guides-${n}`,
+      {
+        backgroundImage: Array.from({ length: n }, () => GUIDE).join(", "),
+        backgroundSize: "1px 100%",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: guideOffsets(n, ""),
+      },
+    ],
+    [`.cm-list-guides-${n}[dir="rtl"]`, { backgroundPosition: guideOffsets(n, "right ") }],
   ]),
 );
 
@@ -100,19 +107,20 @@ export const editorTheme = EditorView.theme({
     fontWeight: "normal !important",
     color: "var(--text-faint) !important",
   },
+  // Logical sides throughout the note's text (issue 111): the bar, the
+  // bullet gap and the box gap follow the direction of their line. For a
+  // left-to-right line each one is exactly the physical side it was.
   ".cm-blockquote-line": {
-    borderLeft: "4px solid var(--quote-border)",
-    paddingLeft: "10px",
+    borderInlineStart: "4px solid var(--quote-border)",
+    paddingInlineStart: "10px",
   },
   // A callout is ONE card built from its lines (finding 2026-09-19): sides and
   // tint on every line, the top and its corners on the first, the bottom on the
   // last. Padding, never margin - CodeMirror measures lines, and a margin is a
   // gap its height map does not know. Colors come from callouts.ts (top of file).
   ".cm-callout": {
-    borderLeft: "1px solid",
-    borderRight: "1px solid",
-    paddingLeft: "var(--space-3)",
-    paddingRight: "var(--space-3)",
+    borderInline: "1px solid",
+    paddingInline: "var(--space-3)",
   },
   ".cm-callout--first": {
     borderTop: "1px solid",
@@ -144,7 +152,7 @@ export const editorTheme = EditorView.theme({
     display: "inline-flex",
     alignItems: "center",
     verticalAlign: "text-bottom",
-    marginRight: "6px",
+    marginInlineEnd: "6px",
   },
   ".cm-callout-icon svg": {
     width: "1.1em",
@@ -271,7 +279,7 @@ export const editorTheme = EditorView.theme({
   ".cm-md-bullet": {
     color: "var(--text-main)",
     fontWeight: "bold",
-    marginRight: "4px",
+    marginInlineEnd: "4px",
   },
   // A bullet with nested lines behind it is the fold control (T8c): the
   // pointer says so, and a folded item shows the bullet in the accent so the
@@ -283,7 +291,7 @@ export const editorTheme = EditorView.theme({
     color: "var(--accent-color)",
   },
   ".cm-md-task": {
-    marginRight: "6px",
+    marginInlineEnd: "6px",
     verticalAlign: "middle",
     cursor: "pointer",
   },

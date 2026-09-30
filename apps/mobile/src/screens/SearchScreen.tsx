@@ -164,14 +164,18 @@ export function SearchScreen({
         <FileText size={ICON.head} />
       )}
       <span>
+        {/* Isolated (issue 111): a right-to-left name orders its own
+            characters and keeps its place in the unmirrored row. */}
         <span className="m-result-title">
-          {r.titleHighlighted?.includes(mark)
-            ? renderSnippetNodes(r.titleHighlighted)
-            : r.path.split("/").pop()!.replace(/\.md$/i, "")}
+          <bdi>
+            {r.titleHighlighted?.includes(mark)
+              ? renderSnippetNodes(r.titleHighlighted)
+              : r.path.split("/").pop()!.replace(/\.md$/i, "")}
+          </bdi>
         </span>
         {r.occurrence && <span className="m-result-snippet">{r.occurrence.headings.join(" › ")} · {t("searchResults.line", { line: r.occurrence.line })}</span>}
         {r.snippet ? (
-          <span className="m-result-snippet">{renderSnippetNodes(r.snippet)}</span>
+          <span className="m-result-snippet"><bdi>{renderSnippetNodes(r.snippet)}</bdi></span>
         ) : null}
       </span>
     </button>
@@ -311,8 +315,8 @@ export function SearchScreen({
                 <FileText size={ICON.head} />
               )}
               <span>
-                <span className="m-result-title">{n.title}</span>
-                <span className="m-result-snippet">{n.path}</span>
+                <span className="m-result-title"><bdi>{n.title}</bdi></span>
+                <span className="m-result-snippet"><bdi>{n.path}</bdi></span>
               </span>
             </button>
           ))}

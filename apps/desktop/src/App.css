@@ -609,10 +609,12 @@ option {
    nested under it sits outside this box (MarkdownReader's li).
    Indent guides: from the second level on, a hairline under the parent's
    bullet, as the live editor draws it. The nested list moves left by the
-   bullet's offset and pays it back in padding, so its text stays where it was. */
+   bullet's offset and pays it back in padding, so its text stays where it was.
+   Every side here is logical (issue 111): a right-to-left list keeps its
+   guide and indent on the right, where its bullets are. */
 .markdown-reader .pv-reader-task-done { color: var(--text-muted); text-decoration: line-through; }
 .markdown-reader li > ul,
-.markdown-reader li > ol { margin-left: -0.75em !important; padding-left: 2.25em !important; border-left: 1px solid var(--border-color); }
+.markdown-reader li > ol { margin-inline-start: -0.75em !important; padding-inline-start: 2.25em !important; border-inline-start: 1px solid var(--border-color); }
 /* The card's text sits close under its title and close to its edge: the
    paragraph margins of running text belong between paragraphs, not around a card. */
 .markdown-reader .pv-reader-callout p:first-child { margin-top: 0 !important; }
@@ -624,7 +626,7 @@ option {
 
 .markdown-reader section[data-footnotes] { margin-top: 2rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.85em; color: var(--text-muted); }
 .markdown-reader section[data-footnotes] h2 { display: none; } /* implicit "Footnotes" heading */
-.markdown-reader section[data-footnotes] ol { padding-left: 1.4em; margin: 0.4em 0; }
+.markdown-reader section[data-footnotes] ol { padding-inline-start: 1.4em; margin: 0.4em 0; }
 .markdown-reader section[data-footnotes] li { margin: 0.25em 0; }
 .markdown-reader sup a[data-footnote-ref] { text-decoration: none; font-weight: 600; padding: 0 2px; }
 .markdown-reader a[data-footnote-backref] { text-decoration: none; }

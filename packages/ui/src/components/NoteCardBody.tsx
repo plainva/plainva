@@ -49,6 +49,14 @@ export interface NoteCardBodyProps {
 }
 
 const blockText: React.CSSProperties = { margin: 0, fontSize: "var(--text-sm)", lineHeight: 1.45, overflowWrap: "anywhere" };
+
+/*
+ * Right-to-left text (issue 111, plan Teil R, R4): every text block of a
+ * card is a paragraph of its own and runs the way its first strong character
+ * says (`dir="auto"` - a card shows rendered text, no Markdown syntax is left
+ * to mislead the browser). Indents, gaps and the quote bar sit on the
+ * block's start side, so a right-to-left task keeps its box on the right.
+ */
 const placeholderStyle: React.CSSProperties = {
   display: "inline-block",
   fontSize: "var(--text-xs)",
@@ -67,13 +75,13 @@ export function NoteCardBody({ blocks, onToggleTask, renderImage, renderAudio, l
         switch (b.kind) {
           case "heading": {
             const size = b.depth === 1 ? "1.02rem" : b.depth === 2 ? "0.95rem" : "0.88rem";
-            return <div key={key} style={{ ...blockText, fontWeight: 600, fontSize: size }}>{renderInlineNodes(b.inline)}</div>;
+            return <div key={key} dir="auto" style={{ ...blockText, fontWeight: 600, fontSize: size }}>{renderInlineNodes(b.inline)}</div>;
           }
           case "para":
-            return <p key={key} style={blockText}>{renderInlineNodes(b.inline)}</p>;
+            return <p key={key} dir="auto" style={blockText}>{renderInlineNodes(b.inline)}</p>;
           case "task":
             return (
-              <div key={key} style={{ ...blockText, display: "flex", alignItems: "flex-start", gap: 6, paddingLeft: b.indent * 14 }}>
+              <div key={key} dir="auto" style={{ ...blockText, display: "flex", alignItems: "flex-start", gap: 6, paddingInlineStart: b.indent * 14 }}>
                 <input
                   type="checkbox"
                   checked={b.closed}
@@ -91,14 +99,14 @@ export function NoteCardBody({ blocks, onToggleTask, renderImage, renderAudio, l
             );
           case "bullet":
             return (
-              <div key={key} style={{ ...blockText, display: "flex", alignItems: "flex-start", gap: 6, paddingLeft: b.indent * 14 }}>
+              <div key={key} dir="auto" style={{ ...blockText, display: "flex", alignItems: "flex-start", gap: 6, paddingInlineStart: b.indent * 14 }}>
                 <span aria-hidden="true" style={{ color: "var(--text-muted)", flexShrink: 0 }}>{b.ordered ? "·" : "•"}</span>
                 <span>{renderInlineNodes(b.inline)}</span>
               </div>
             );
           case "quote":
             return (
-              <div key={key} style={{ ...blockText, borderLeft: "2px solid var(--border-color)", paddingLeft: 8, color: "var(--text-muted)" }}>
+              <div key={key} dir="auto" style={{ ...blockText, borderInlineStart: "2px solid var(--border-color)", paddingInlineStart: 8, color: "var(--text-muted)" }}>
                 {renderInlineNodes(b.inline)}
               </div>
             );

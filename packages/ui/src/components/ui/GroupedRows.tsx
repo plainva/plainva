@@ -199,7 +199,10 @@ export function Row({
     <>
       {icon !== undefined && icon !== null && <span className="pv-grouprow-icon">{icon}</span>}
       <span className="pv-grouprow-text">
-        <span className="pv-grouprow-title">{title}</span>
+        {/* A name may be written right to left (issue 111). The interface is
+            not mirrored, so the name keeps its place in the row; <bdi> only
+            puts its own characters in the right order. */}
+        <span className="pv-grouprow-title"><bdi>{title}</bdi></span>
         {subtitle !== undefined && subtitle !== null && subtitle !== "" && (
           <span className="pv-grouprow-sub">{subtitle}</span>
         )}

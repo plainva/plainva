@@ -99,7 +99,9 @@ function EntryText({ text, links }: { text: string; links?: InlineLinkHandlers }
     // The shared renderer builds DOM (no innerHTML); React owns only the span.
     ref.current?.replaceChildren(renderInlineMarkdown(text, links ?? {}));
   }, [text, links]);
-  return <span ref={ref} className="pv-journal-text" />;
+  // Note text beside the time (issue 111): `dir="auto"` isolates it like a
+  // <bdi> - a right-to-left entry orders its own characters and keeps its place.
+  return <span ref={ref} className="pv-journal-text" dir="auto" />;
 }
 
 function EntryImage({ raw, notePath, loadImage }: { raw: string; notePath: string; loadImage: (path: string) => Promise<Blob> }) {

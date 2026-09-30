@@ -48,7 +48,7 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { Banner, decideDirtyExternalUpdate, toast } from "@plainva/ui";
+import { Banner, decideDirtyExternalUpdate, textDirectionOf, toast } from "@plainva/ui";
 import { clearConflict, getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { syncSoon } from "./services/syncService";
@@ -503,7 +503,11 @@ export function EditorHost({
                 const path0 = resolved;
                 const head = document.createElement("span");
                 head.className = "m-embed-title";
+                // Note text in a card (issue 111): each block runs the way its
+                // first strong character says, by the editor's rule. Set before
+                // the text lands; the body follows once it is read.
                 head.textContent = path0.split("/").pop()!.replace(/\.(md|base)$/i, "");
+                head.dir = textDirectionOf(head.textContent);
                 card.appendChild(head);
                 if (!/\.base$/i.test(path0)) {
                   try {
@@ -521,6 +525,7 @@ export function EditorHost({
                       if (stale) return;
                       const prose = markdownToPlainText(preview);
                       body.textContent = fragment.kind === "note" ? prose.slice(0, 280) : prose;
+                      body.dir = textDirectionOf(body.textContent);
                       if (fragment.kind !== "note") body.classList.add("m-embed-body--fragment");
                     } else {
                       card.classList.add("is-missing");
@@ -543,6 +548,7 @@ export function EditorHost({
                       const line = document.createElement("button");
                       line.className = "m-embed-row";
                       line.textContent = r.title;
+                      line.dir = textDirectionOf(r.title);
                       line.addEventListener("click", (ev) => {
                         ev.stopPropagation();
                         onOpenNote(r.path);

@@ -204,7 +204,9 @@ const TreeNodeView: React.FC<{
           </form>
         ) : (
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {displayName}
+            {/* Isolated (issue 111): a right-to-left name orders its own
+                characters and stays where the (unmirrored) row puts it. */}
+            <bdi>{displayName}</bdi>
           </span>
         )}
         {pending && <PendingDot />}
@@ -261,7 +263,7 @@ const TreeNodeView: React.FC<{
           </form>
         ) : (
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
-            {node.name}
+            <bdi>{node.name}</bdi>
           </span>
         )}
       </div>
@@ -1314,19 +1316,19 @@ export const FileTree: React.FC<{
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {titleContent}
+                  <bdi>{titleContent}</bdi>
                 </span>
                 {pending && <PendingDot />}
               </div>
               {folder && (
                 <div style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {folder}
+                  <bdi>{folder}</bdi>
                 </div>
               )}
               {file.occurrence && <div className="pv-search-context">{file.occurrence.headings.join(" › ")} · {t("searchResults.line", { line: file.occurrence.line })}</div>}
               {file.snippet && hasSnippetMark(file.snippet) && (
                 <div className="pv-search-snippet" style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-                  {renderSnippetNodes(file.snippet)}
+                  <bdi>{renderSnippetNodes(file.snippet)}</bdi>
                 </div>
               )}
             </div>

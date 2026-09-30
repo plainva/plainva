@@ -3008,6 +3008,13 @@ textarea {
   font-weight: 650;
   font-size: var(--text-ui);
 }
+/* Right-to-left note text in a card (issue 111): title and body span the
+   card and start on its right edge. Left-to-right cards stay as they are. */
+.m-embed-title[dir="rtl"],
+.m-embed-body[dir="rtl"] {
+  align-self: stretch;
+  text-align: start;
+}
 .m-embed-body {
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -3027,7 +3034,7 @@ textarea {
 .m-embed-row {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   padding: 2px 0;
   font-size: var(--text-sm);
   color: var(--text-main);

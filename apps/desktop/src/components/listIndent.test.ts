@@ -29,24 +29,24 @@ describe("listIndentStyle", () => {
   });
 
   it("falls back to an em hanging indent before the first measurement, half a step in from body", () => {
-    expect(listIndentStyle(1, true)).toBe("padding-left:2.25em;text-indent:-1em;");
-    expect(listIndentStyle(2, true)).toBe("padding-left:3.75em;text-indent:-1em;");
+    expect(listIndentStyle(1, true)).toBe("padding-inline-start:2.25em;text-indent:-1em;");
+    expect(listIndentStyle(2, true)).toBe("padding-inline-start:3.75em;text-indent:-1em;");
   });
 
   it("gives continuation lines only the block padding", () => {
-    expect(listIndentStyle(1, false)).toBe("padding-left:2.25em;");
-    expect(listIndentStyle(3, false)).toBe("padding-left:5.25em;");
+    expect(listIndentStyle(1, false)).toBe("padding-inline-start:2.25em;");
+    expect(listIndentStyle(3, false)).toBe("padding-inline-start:5.25em;");
   });
 
   it("uses the MEASURED prefix as the hanging indent and never lets it leave the line box", () => {
     // The marker line pulls its first row back by exactly its rendered prefix...
-    expect(listIndentStyle(1, true, { own: 21.3, item: 21.3 })).toBe("padding-left:max(2.25em,25.5px);text-indent:-21.5px;");
+    expect(listIndentStyle(1, true, { own: 21.3, item: 21.3 })).toBe("padding-inline-start:max(2.25em,25.5px);text-indent:-21.5px;");
     // ...a continuation line is padded to the same edge and hangs by its OWN
     // leading whitespace, so its text lands under the item text...
-    expect(listIndentStyle(1, false, { own: 9, item: 21.3 })).toBe("padding-left:max(2.25em,25.5px);text-indent:-9px;");
-    expect(listIndentStyle(1, false, { own: 0, item: 21.3 })).toBe("padding-left:max(2.25em,25.5px);");
+    expect(listIndentStyle(1, false, { own: 9, item: 21.3 })).toBe("padding-inline-start:max(2.25em,25.5px);text-indent:-9px;");
+    expect(listIndentStyle(1, false, { own: 0, item: 21.3 })).toBe("padding-inline-start:max(2.25em,25.5px);");
     // ...and a wide prefix (two tabs + `10.`) still gets a gutter in front of it.
-    expect(listIndentStyle(3, true, { own: 120, item: 120 })).toBe("padding-left:max(5.25em,124px);text-indent:-120px;");
+    expect(listIndentStyle(3, true, { own: 120, item: 120 })).toBe("padding-inline-start:max(5.25em,124px);text-indent:-120px;");
   });
 });
 
