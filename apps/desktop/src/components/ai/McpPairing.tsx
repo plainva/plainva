@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { PlugZap } from "lucide-react";
 import { Button, Checkbox, ICON, Modal } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
-import { mcpAnswerPairing, topLevelFolders, type McpPairRequest } from "../../services/ai/mcpBridge";
+import { listenQuietly, mcpAnswerPairing, topLevelFolders, type McpPairRequest } from "../../services/ai/mcpBridge";
 
 /**
  * The pairing question (plan KI-Harness §17.3): an AI app on this computer
@@ -19,23 +19,14 @@ export function McpPairing() {
   const [folders, setFolders] = useState<string[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
 
-  useEffect(() => {
-    let unlisten: (() => void) | null = null;
-    let stopped = false;
-    void import("@tauri-apps/api/event").then(({ listen }) =>
-      listen<McpPairRequest>("mcp-pair", (event) => {
+  useEffect(
+    () =>
+      listenQuietly<McpPairRequest>("mcp-pair", (payload) => {
         setChosen([]);
-        setRequest(event.payload);
-      }).then((stop) => {
-        if (stopped) stop();
-        else unlisten = stop;
+        setRequest(payload);
       }),
-    );
-    return () => {
-      stopped = true;
-      unlisten?.();
-    };
-  }, []);
+    [],
+  );
 
   useEffect(() => {
     if (!request || !queryService) return;

@@ -3,8 +3,16 @@ import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolsFor, type Egress
 import { createVaultToolExecutor, type AiVaultHost, type ToolScope, type VaultToolDeps } from "@plainva/ui";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+// The event plugin as the E2E browser has it: registering works, stopping rejects.
+const events = vi.hoisted(() => ({ handlers: [] as Array<(event: { payload: unknown }) => void> }));
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(async (_name: string, handler: (event: { payload: unknown }) => void) => {
+    events.handlers.push(handler);
+    return () => Promise.reject(new TypeError("Cannot read properties of undefined (reading 'unregisterListener')"));
+  }),
+}));
 
-const { insideFolders, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
+const { insideFolders, listenQuietly, mcpToolSpecs, runMcpCall, topLevelFolders, claudeCodeCommand, mcpClientConfig, vaultName } = await import("../services/ai/mcpBridge");
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "# Offer\n\nRates as in [[Finance/Salaries]] and [[Projects/Plan]].",
@@ -108,5 +116,23 @@ describe("the MCP bridge", () => {
     expect(JSON.parse(mcpClientConfig("/Applications/Plainva.app/Contents/MacOS/plainva-mcp", "com.plainva.desktop"))).toEqual({
       mcpServers: { plainva: { command: "/Applications/Plainva.app/Contents/MacOS/plainva-mcp", args: ["--app", "com.plainva.desktop"] } },
     });
+  });
+});
+
+/** CI 2026-09-29: Tauri's unlisten rejected in the E2E browser, and five runs saw a page error. */
+describe("a native event listener", () => {
+  it("hands over the payload and stops quietly where the event plugin is missing", async () => {
+    const seen: unknown[] = [];
+    const stop = listenQuietly<string>("mcp-pair", (payload) => seen.push(payload));
+    await vi.waitFor(() => expect(events.handlers).toHaveLength(1));
+    events.handlers[0]!({ payload: "hello" });
+    expect(seen).toEqual(["hello"]);
+    expect(() => stop()).not.toThrow();
+    // Stopped before it was even registered: it is stopped the moment it is.
+    const early = listenQuietly("mcp-call", () => undefined);
+    expect(() => early()).not.toThrow();
+    await vi.waitFor(() => expect(events.handlers).toHaveLength(2));
+    // A rejection left unhandled would fail this run.
+    await new Promise((resolve) => setTimeout(resolve, 10));
   });
 });

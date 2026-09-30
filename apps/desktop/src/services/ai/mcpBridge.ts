@@ -89,22 +89,41 @@ export async function runMcpCall(host: AiVaultHost | null, request: McpCallReque
   }
 }
 
-/** Answers forwarded calls in the main window; returns the stop function. */
-export function listenForMcpCalls(host: () => AiVaultHost | null): () => void {
-  let unlisten: (() => void) | null = null;
+/**
+ * One event from the native side, with a stop that cannot throw — the way the
+ * tray listeners in `background.ts` do it. Tauri's `unlisten` reaches into the
+ * event plugin's internals and rejects where they are missing (the browser
+ * the E2E suite runs in, a window that is closing); a rejection there is a
+ * page error, and five E2E runs saw exactly that (CI, 2026-09-29).
+ */
+export function listenQuietly<T>(event: string, handler: (payload: T) => void): () => void {
+  let stop: (() => void) | null = null;
   let stopped = false;
-  void import("@tauri-apps/api/event").then(({ listen }) =>
-    listen<McpCallRequest>("mcp-call", (event) => {
-      void runMcpCall(host(), event.payload).then((answer) => invoke("mcp_call_answer", { requestId: event.payload.requestId, answer }));
-    }).then((stop) => {
-      if (stopped) stop();
-      else unlisten = stop;
-    }),
-  );
+  const quiet = (unlisten: () => void) => {
+    try {
+      void Promise.resolve(unlisten() as unknown).catch(() => undefined);
+    } catch {
+      // A listener that is already gone is not a problem.
+    }
+  };
+  void import("@tauri-apps/api/event")
+    .then(({ listen }) => listen<T>(event, (e) => handler(e.payload)))
+    .then((unlisten) => {
+      if (stopped) quiet(unlisten);
+      else stop = () => quiet(unlisten);
+    })
+    .catch(() => undefined);
   return () => {
     stopped = true;
-    unlisten?.();
+    stop?.();
   };
+}
+
+/** Answers forwarded calls in the main window; returns the stop function. */
+export function listenForMcpCalls(host: () => AiVaultHost | null): () => void {
+  return listenQuietly<McpCallRequest>("mcp-call", (payload) => {
+    void runMcpCall(host(), payload).then((answer) => invoke("mcp_call_answer", { requestId: payload.requestId, answer }));
+  });
 }
 
 /** The vault's name: the last part of its folder path. */
