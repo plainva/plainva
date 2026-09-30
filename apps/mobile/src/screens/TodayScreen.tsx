@@ -93,8 +93,9 @@ export function TodayScreen({
    */
   const newEventStart = () => dayWindow(selectedIso).start + 9 * 60 * 60_000;
   // "New term" from the FAB or the palette (Design-Runde E4): the shell opened
-  // this tab and parked the request; the editor opens for the selected day.
-  useEffect(() => consumePendingNew("event", () => editor.openCreate(dayWindow(selectedIso).start + 9 * 60 * 60_000)), [editor, selectedIso]);
+  // this tab and parked the request; the editor opens for the selected day —
+  // once it knows the writable calendars, or it would find none (E28).
+  useEffect(() => consumePendingNew("event", () => editor.openCreate(dayWindow(selectedIso).start + 9 * 60 * 60_000), editor.ready), [editor, selectedIso]);
   const ptrRef = useRef<HTMLDivElement>(null);
   const ptrIndicator = usePullToRefresh(ptrRef);
 

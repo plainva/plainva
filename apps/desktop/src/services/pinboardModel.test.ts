@@ -14,7 +14,6 @@ import {
   retargetPinboardPaths,
   spliceIntoSequence,
 } from "@plainva/ui";
-import { buildCaptureContent } from "./newItemFlow";
 
 const row = (path: string, ctime: number | null, mtime = 0) => ({ path, ctime, mtime });
 
@@ -139,29 +138,6 @@ describe("filterCardPaths (P4 chip filter)", () => {
   });
   it("matches tag labels hierarchically (privat also matches privat/haus)", () => {
     expect(filterCardPaths(["a.md", "b.md"], labels, ["privat"])).toEqual(["a.md"]);
-  });
-});
-
-describe("buildCaptureContent (P4 quick capture)", () => {
-  it("keeps the typed text as the body — no auto-H1, OKF frontmatter added", () => {
-    const c = buildCaptureContent({ text: "Milch kaufen\n- [ ] Brot", noteType: "Note", inheritTags: [] });
-    expect(c).toMatch(/^---\n/); // OKF frontmatter
-    expect(c).toContain("type: Note");
-    expect(c).toContain("Milch kaufen\n- [ ] Brot");
-    expect(c).not.toContain("# Milch"); // deliberately no heading
-  });
-  it("merges inherited source tags into the frontmatter", () => {
-    const c = buildCaptureContent({ text: "Text", noteType: "Note", inheritTags: ["zettel"] });
-    expect(c).toContain("zettel");
-  });
-  it("a typed title becomes the H1 above the body (title popup 2026-07-17)", () => {
-    const c = buildCaptureContent({ title: "Einkauf", text: "Milch kaufen", noteType: "Note", inheritTags: [] });
-    expect(c).toContain("# Einkauf\n\nMilch kaufen");
-  });
-  it("a title without text yields just the H1", () => {
-    const c = buildCaptureContent({ title: "Nur Titel", text: "", noteType: "Note", inheritTags: [] });
-    expect(c).toContain("# Nur Titel");
-    expect(c.trimEnd().endsWith("# Nur Titel")).toBe(true);
   });
 });
 

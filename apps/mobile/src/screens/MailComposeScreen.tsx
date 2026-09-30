@@ -39,7 +39,7 @@ if (typeof document !== "undefined") {
 }
 import type { MailAccountConfig, MailAttachment } from "@plainva/ui/mail";
 import { appendDraft, bytesToBase64, guessAttachmentMime, listMailboxesFor, resolveDraftsMailbox, sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
-import { mSelect } from "../services/mobileDialogs";
+import { mSelect, mTargets } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
@@ -114,7 +114,8 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
       toast.info(t("templatePicker.noTemplates"));
       return;
     }
-    const picked = await mSelect({
+    // The template to insert: the target of an action (E20).
+    const picked = await mTargets({
       title: t("mail.insertTemplate"),
       options: items.map((i) => ({ value: i.path, label: i.title })),
       search: t("templatePicker.placeholder"),

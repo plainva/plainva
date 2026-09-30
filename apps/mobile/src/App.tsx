@@ -23,6 +23,7 @@ import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVau
 import { startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
+import { usePinboardDraftSweep } from "./services/usePinboardDraftSweep";
 import { startPim, stopPim } from "./services/pim/pimService";
 import { onAppBackground, onAppForeground } from "./services/appLifecycle";
 import { recordProcessExitsOnBoot } from "./services/processExits";
@@ -36,7 +37,7 @@ import { cancelConnect, finishConnect, listPendingConnectFolders as oauthListFol
 import { routeAppUrl } from "./services/appUrlRoutes";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
-import { mPrompt, mSelect } from "./services/mobileDialogs";
+import { mActions, mPrompt } from "./services/mobileDialogs";
 import { askBeforeLeaving } from "./services/leaveQuestion";
 import { createNavActions, restoreSession } from "./services/navActions";
 import { bindConflictStore } from "./services/conflictState";
@@ -60,7 +61,7 @@ import { StartupSheets } from "./components/StartupSheets";
 import { markReleaseDialogSeen, pendingReleaseDialog, type ReleaseDialog } from "./services/mobileWhatsNew";
 import {
   activeFolderPath,
-  backStep,
+  backStep, currentArea,
   ensureVisibleTab,
   hidesTabBar,
   initialNavState,
@@ -206,6 +207,7 @@ export default function App() {
   }, [vault]);
 
   useBackupSchedule(vault, vaultName);
+  usePinboardDraftSweep(vault); // what a crash left of a pinboard entry (E15)
   useIndexAutoUpdate(vault, vaultName);
   useNavPersistence(vault, nav); // the session outlives the app (P6)
   const connectionRun = useConnectionRun();
@@ -484,25 +486,23 @@ export default function App() {
       // Cloud branch (2026-07-13): existing vault vs. a NEW vault in the cloud
       // (order: place -> template -> connection, matching the desktop splash).
       void (async () => {
-        const choice = await mSelect({
+        const choice = await mActions({ // first step of a fork (E20): nothing preselected
           title: t("mobile.onboardingCloud"),
           options: [
             { value: "existing", label: t("mobile.onboardingCloudExisting"), desc: t("mobile.onboardingCloudExistingDesc") },
             { value: "new", label: t("mobile.onboardingCloudNew"), desc: t("mobile.onboardingCloudNewDesc") },
           ],
-          value: "existing",
         });
         if (choice === "existing") {
           push({ kind: "sync", path: "" });
         } else if (choice === "new") {
           const defs = getVaultTemplates(i18n.language);
-          const pick = await mSelect({
+          const pick = await mActions({
             title: t("mobile.templatePick"),
             options: [
               { value: "", label: t("splash.emptyVault") },
               ...defs.map((d) => ({ value: d.id, label: d.name })),
             ],
-            value: "",
           });
           if (pick === null) return;
           push({ kind: "sync", path: "", createTemplateId: pick });
@@ -516,13 +516,12 @@ export default function App() {
     void (async () => {
       if (!vault.claimTemplateCreation()) return;
       const defs = getVaultTemplates(i18n.language);
-      const pick = await mSelect({
+      const pick = await mActions({
         title: t("mobile.templatePick"),
         options: [
           { value: "", label: t("splash.emptyVault") },
           ...defs.map((d) => ({ value: d.id, label: d.name })),
         ],
-        value: "",
       });
       const def = defs.find((d) => d.id === pick) ?? null;
       await scaffoldVaultTemplate({
@@ -547,13 +546,12 @@ export default function App() {
       if (where === null) return;
       if (where === "folder") { await createVaultInPickedFolder(); return; }
       const defs = getVaultTemplates(i18n.language);
-      const pick = await mSelect({
+      const pick = await mActions({
         title: t("mobile.templatePick"),
         options: [
           { value: "", label: t("splash.emptyVault") },
           ...defs.map((d) => ({ value: d.id, label: d.name })),
         ],
-        value: "",
       });
       if (pick === null) return;
       if (where === "online") {
@@ -732,7 +730,7 @@ export default function App() {
 
       {areasOpen && (
         <AreasSheet
-          active={nav.activeTab}
+          active={currentArea(nav)}
           order={withoutAiArea(barLayout, ai.enabled)}
           onArrange={() => {
             setAreasOpen(false);

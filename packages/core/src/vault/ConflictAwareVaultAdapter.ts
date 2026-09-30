@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
@@ -66,6 +66,14 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
         return { stored: await this.inner.readTextFile(session.workingCopyPath), session };
       }
       const disk = await this.inner.exists(path) ? await this.inner.readTextFile(path) : null;
+      if (disk === null && baseText !== null) {
+        // The editor loaded this file — it holds a base — and the file is
+        // gone: moved or deleted under the open note (issue #110). Writing now
+        // would recreate it at its old place, a duplicate of a moved note or
+        // a deletion undone, and sync would carry either on. The editor keeps
+        // the text (and its journal) and decides where it goes.
+        throw new VaultFileNotFoundError(path);
+      }
       let candidate = text;
       if (baseText !== null && disk !== null && disk !== baseText && disk !== text) {
         const merged = mergeEditorText(baseText, text, disk);

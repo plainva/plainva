@@ -8,10 +8,15 @@ import { join } from "node:path";
  *
  * The Playwright suites drive a MOCKED `__TAURI_INTERNALS__` and prove UI logic,
  * not the native app (the gap that let the macOS print bug, issue #6, ship). This
- * runs the BUILT Tauri binary through `@wdio/tauri-service` (embedded driver —
- * Windows/Linux/macOS). It is NOT exercised in the CI-mocked test harness (there
- * is no native build there); its first green run is a maintainer / CI-runner step
- * (`pnpm --filter desktop test:native`, or the native-smoke workflow).
+ * runs the BUILT Tauri binary through `@wdio/tauri-service` with the EXTERNAL
+ * driver: a cargo-installed `tauri-driver` in front of WebKitWebDriver (Linux) or
+ * the Edge WebDriver (Windows). The service's default, the embedded driver, needs
+ * `tauri-plugin-wdio-webdriver` compiled into the app — the first run of the
+ * native-smoke workflow (2026-09-29) failed on exactly that; putting a WebDriver
+ * server into the binary is a decision of its own (see WebDriver_Smoke.md), so
+ * macOS stays uncovered here. It is NOT exercised in the CI-mocked test harness
+ * (there is no native build there): `pnpm --filter desktop test:native`, or the
+ * native-smoke workflow.
  */
 
 const APP_ID = "com.plainva.desktop";
@@ -29,10 +34,17 @@ const application =
 // on launch — WebDriver cannot drive the native "open folder" dialog.
 let vaultDir = "";
 
-function appConfigDir(): string {
+/**
+ * Where the app's settings store lives: tauri-plugin-store resolves a relative
+ * store path against `BaseDirectory::AppData` (the app DATA dir, not the config
+ * dir). On Windows and macOS the two are the same folder; on Linux they are not
+ * (`~/.local/share/<id>` vs `~/.config/<id>`) — the first real run seeded the
+ * config dir there, and the app never saw the vault.
+ */
+function appDataDir(): string {
   if (isWin) return join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), APP_ID);
   if (process.platform === "darwin") return join(homedir(), "Library", "Application Support", APP_ID);
-  return join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), APP_ID);
+  return join(process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"), APP_ID);
 }
 
 export const config: WebdriverIO.Config = {
@@ -44,7 +56,13 @@ export const config: WebdriverIO.Config = {
       "tauri:options": { application },
     } as WebdriverIO.Capabilities,
   ],
-  services: ["@wdio/tauri-service"],
+  // `external` + `autoInstallTauriDriver`: the service installs tauri-driver with
+  // cargo when it is missing (the workflow sets up the Rust toolchain) and manages
+  // the Edge WebDriver on Windows; Linux needs `webkit2gtk-driver` (installed there).
+  // The driver logs at debug level: the first runs failed before any test step
+  // (on Windows "session not created: DevToolsActivePort file doesn't exist"),
+  // and only the driver's own output says why.
+  services: [["@wdio/tauri-service", { driverProvider: "external", autoInstallTauriDriver: true, logLevel: "debug" }]],
   framework: "mocha",
   reporters: ["spec"],
   mochaOpts: { timeout: 180_000 },
@@ -52,10 +70,10 @@ export const config: WebdriverIO.Config = {
 
   onPrepare() {
     vaultDir = mkdtempSync(join(tmpdir(), "plainva-smoke-vault-"));
-    const cfgDir = appConfigDir();
-    mkdirSync(cfgDir, { recursive: true });
+    const dataDir = appDataDir();
+    mkdirSync(dataDir, { recursive: true });
     writeFileSync(
-      join(cfgDir, STORE_FILE),
+      join(dataDir, STORE_FILE),
       JSON.stringify({ lastVaultPath: vaultDir.split("\\").join("/"), autoOpenLastVault: true }),
       "utf8"
     );

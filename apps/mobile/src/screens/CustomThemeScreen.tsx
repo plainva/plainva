@@ -4,6 +4,7 @@ import {
   AVAILABLE_THEMES,
   Banner,
   Button,
+  CustomThemePreviewBanner,
   GroupCard,
   Row,
   RowList,
@@ -31,7 +32,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SwatchSheet } from "../components/SwatchSheet";
-import { mSelect } from "../services/mobileDialogs";
+import { mSelect, mTargets } from "../services/mobileDialogs";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mobilePersonalDesignForEditor } from "../services/personalDesign";
 
@@ -39,7 +40,9 @@ import { mobilePersonalDesignForEditor } from "../services/personalDesign";
  * "Mein Design" on the phone (plan 2026-09-04, A2): the screen the pencil on
  * the theme card opens. Preview first; every row opens its own sheet or
  * picker and shows what is chosen — the same few choices, the same
- * derivation and the same corrections as the desktop page.
+ * derivation and the same corrections as the desktop page. While the screen
+ * is open, the whole app wears the mood being edited; leaving it (unmount)
+ * brings the stored look back (plan Befunde 2026-09-24, E22).
  */
 export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation();
@@ -86,7 +89,8 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
   };
   const adoptFrom = () => {
     const themes = AVAILABLE_THEMES.filter((d) => !d.unlock);
-    void mSelect({
+    // The theme to take colours FROM: the target of an action (E20).
+    void mTargets({
       title: t("settings.customThemeAdoptFrom"),
       options: themes.map((d) => ({ value: d.id, label: t(`themes.names.${d.id}`, { defaultValue: d.label }) })),
     }).then((id) => {
@@ -134,6 +138,7 @@ export function CustomThemeScreen({ onBack }: { onBack: () => void }) {
             <Row title={t("settings.customThemeText")} subtitle={t("settings.customThemeTextHint")} end={<span>{dot(colors.textMain)} {dot(colors.textMuted)} {dot(colors.textFaint)}</span>} />
           </RowList>
         </GroupCard>
+        <CustomThemePreviewBanner mood={pair.mode} stored={pair.stored} mobile />
         {lastCorrection && (
           <Banner kind="warning" rounded>
             {lastCorrection.field === "accent"

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { createHash } from 'node:crypto';
 import { test, expect, type Page } from '@playwright/test';
 
 // E2E of the `.base` database viewer (plan Base-Erweiterungen W7): table with
@@ -55,6 +56,21 @@ test.beforeEach(async ({ page }) => {
       '    order:',
       '      - file.name',
       '      - note.status',
+      '',
+    ].join('\n');
+    // Eight views over the same rows (plan Befunde 2026-09-24, E18): the
+    // search row must look the same whether a database has two views or eight.
+    const eightViewsYaml = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Projekte"',
+      'views:',
+      ...[1, 2, 3, 4, 5, 6, 7, 8].flatMap((n) => [
+        '  - type: table',
+        `    name: Ansicht ${n}`,
+        '    order:',
+        '      - file.name',
+      ]),
       '',
     ].join('\n');
     // The calendar entry must fall into the CURRENT month (the view opens on
@@ -307,6 +323,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/Board.base': boardYaml,
       '/test-vault/LaneBoard.base': laneBoardYaml,
       '/test-vault/MultiView.base': multiViewYaml,
+      '/test-vault/EightViews.base': eightViewsYaml,
       '/test-vault/Cal.base': calYaml,
       '/test-vault/Zeit.base': tlYaml,
       '/test-vault/Kundenkartei.base': kundenYaml,
@@ -392,6 +409,14 @@ test.beforeEach(async ({ page }) => {
             return Object.keys(fs)
               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
               .map(p => ({ path: p.replace('/test-vault/', ''), title: p.replace('/test-vault/', ''), mode: 'note' }));
+          }
+          // `[[` completion (editorTriggers): notes by title or path, attachments after.
+          if (query.includes('AS is_attachment FROM files')) {
+            const term = String(values[0] ?? '').replace(/%/g, '').toLowerCase();
+            return dbFiles
+              .filter(f => f.title.toLowerCase().includes(term) || f.path.toLowerCase().includes(term))
+              .slice(0, 12)
+              .map(f => ({ path: f.path, title: f.title, is_attachment: 0 }));
           }
           if (query.includes('SELECT DISTINCT path FROM files')) {
             // getAllFolders derives the folder list from these paths (wizard dropdowns).
@@ -598,6 +623,13 @@ test.beforeEach(async ({ page }) => {
             row.path = relTo;
             row.title = relTo.split('/').pop()!.replace(/\.md$/i, '');
           }
+          return null;
+        }
+        if (cmd === 'move_to_trash') {
+          const p = String(args.path).replace(/\/$/, '');
+          delete fs[p];
+          const at = dbFiles.findIndex(f => f.path === p.replace('/test-vault/', ''));
+          if (at >= 0) dbFiles.splice(at, 1);
           return null;
         }
         if (cmd === 'plugin:fs|watch') return 1;
@@ -1046,6 +1078,75 @@ test('Base: the header search narrows the board by name and by what it groups by
   await expect(page.getByTestId('base-search')).toHaveCount(0);
   await expect(cards).toHaveCount(total);
 });
+
+/**
+ * The field GROWS with its row (plan Befunde 2026-09-24, E18). The row had the
+ * right place and no width: the input fell back to the browser's 20
+ * characters, about 155px, and cut its own placeholder in a 1700px window.
+ * Measured on the FIELD, not the row, with two views and with eight — the row
+ * must not care how many views sit above it.
+ */
+for (const [base, views] of [['MultiView', 2], ['EightViews', 8]] as const) {
+  test(`Base: the search field grows with its row, the counter ends the row, a second Escape closes it (${views} views)`, async ({ page }) => {
+    await page.goto('/');
+    await openBase(page, base);
+    await expect(page.locator('table').getByText('Alpha')).toBeVisible({ timeout: 10000 });
+
+    await page.getByTestId('base-search-toggle').click();
+    const row = page.getByTestId('base-search');
+    const field = row.locator('.pv-searchfield');
+    const input = row.locator('input');
+    await expect(input).toBeFocused();
+
+    const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+    const fieldBox = (await field.boundingBox())!;
+    const rowBox = (await row.boundingBox())!;
+    expect(fieldBox.width, 'at least 16rem').toBeGreaterThanOrEqual(16 * rem - 1);
+    expect(fieldBox.width, 'at most 40rem').toBeLessThanOrEqual(40 * rem + 1);
+    // Room to spare in this window: it takes all 40rem rather than a sliver.
+    expect(fieldBox.width).toBeGreaterThan(Math.min(40 * rem, rowBox.width * 0.5) - 1);
+    // The placeholder is readable in full.
+    expect(
+      await input.evaluate((el: HTMLInputElement) => {
+        const ctx = document.createElement('canvas').getContext('2d')!;
+        const cs = getComputedStyle(el);
+        ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        return ctx.measureText(el.placeholder).width <= el.clientWidth;
+      }),
+    ).toBe(true);
+
+    // The row carries the mockup's ground and line.
+    const colors = await row.evaluate((el) => {
+      const probe = document.createElement('div');
+      probe.style.background = 'var(--bg-secondary)';
+      probe.style.borderColor = 'var(--border-color)';
+      document.body.appendChild(probe);
+      const want = { bg: getComputedStyle(probe).backgroundColor, line: getComputedStyle(probe).borderTopColor };
+      probe.remove();
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, line: cs.borderBottomColor, want };
+    });
+    expect(colors.bg).toBe(colors.want.bg);
+    expect(colors.line).toBe(colors.want.line);
+
+    // The counter stands at the END of the row, not glued to the field.
+    await input.fill('a');
+    const count = page.getByTestId('base-search-count');
+    await expect(count).toBeVisible();
+    const countBox = (await count.boundingBox())!;
+    const padRight = parseFloat(await row.evaluate((el) => getComputedStyle(el).paddingRight));
+    expect(Math.abs(countBox.x + countBox.width - (rowBox.x + rowBox.width - padRight))).toBeLessThan(2);
+    expect(countBox.x).toBeGreaterThan(fieldBox.x + fieldBox.width);
+
+    // Escape clears first, the second one closes the row and returns the focus.
+    await input.press('Escape');
+    await expect(input).toHaveValue('');
+    await expect(row).toBeVisible();
+    await input.press('Escape');
+    await expect(row).toHaveCount(0);
+    await expect(page.getByTestId('base-search-toggle')).toBeFocused();
+  });
+}
 
 test('Base board: swimlanes — a row per lane value, a drop on a cell writes column and lane (issue #83)', async ({ page }) => {
   await page.goto('/');
@@ -2056,7 +2157,7 @@ test('pinboard: renaming a note in the tree retargets its pinned arrangement in 
   await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Idee Neu.md'] !== undefined);
 });
 
-test('pinboard: chip bar filters by tags (AND, session-local) and quick capture creates a note', async ({ page }) => {
+test('pinboard: chip bar filters by tags (AND, session-local)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Pinnwand');
   const cards = page.locator('[data-pinboard-card]');
@@ -2072,51 +2173,300 @@ test('pinboard: chip bar filters by tags (AND, session-local) and quick capture 
   expect(baseText).not.toContain('ideen');
   await page.locator('[data-pinboard-chip="ideen"]').click();
   await expect(cards).toHaveCount(3);
+});
 
-  // Quick capture via the Keep-style title popup (2026-07-17): a typed title
-  // becomes the file name AND the H1; the text is the body. Since 2026-09-22
-  // the row in the content opens the SAME popup that "New" opens — one
-  // surface, two doors, where the pinboard's own search field used to sit.
-  await page.getByTestId('pinboard-capture-row').click();
-  await expect(page.locator('[data-pinboard-capture-title]')).toBeVisible();
+// --- Pinboard "New entry" (plan Befunde 2026-09-24, E14–E16) ---------------
+// "Entry" on a pinboard opens a window with a title and the REAL editor. The
+// draft is a file from the first moment (in the base's folder, timestamp
+// name); the window only ends it: Save keeps, closing keeps what was typed and
+// takes back an empty draft, Discard asks.
+
+const TIMESTAMP_DRAFT = /^\/test-vault\/Zettel\/\d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2}( \d+)?\.md$/;
+const zettelDrafts = (page: Page) =>
+  page.evaluate((re) => Object.keys((window as any).mockFs).filter((p) => new RegExp(re).test(p)), TIMESTAMP_DRAFT.source);
+
+test('pinboard: "Entry" opens New entry with the real editor — completion, slash menu, live view — and the title becomes file name and heading', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  // The capture card and its "+" row are gone (E14).
+  await expect(page.getByTestId('pinboard-capture-row')).toHaveCount(0);
+
+  await page.getByTestId('base-new-entry').click();
+  const dlg = page.getByTestId('pinboard-entry');
+  await expect(dlg).toBeVisible();
+  await expect(dlg).toContainText('Zettel/');
+  // The draft exists before a word is typed — its card stays hidden behind the window.
+  await expect.poll(() => zettelDrafts(page)).toHaveLength(1);
+  const [draft] = await zettelDrafts(page);
+  await expect(cards).toHaveCount(3);
+  await expect(dlg.getByTestId('pinboard-entry-title')).toBeFocused();
+
+  // Title, then Enter moves on into the text — the real editor.
+  await dlg.getByTestId('pinboard-entry-title').fill('Einkauf Samstag');
+  await dlg.getByTestId('pinboard-entry-title').press('Enter');
+  const content = dlg.locator('.cm-content');
+  await expect(content).toBeFocused();
+  await page.keyboard.type('**Olivenöl** für ');
+  // `[[` completes against the vault, as in every note.
+  await page.keyboard.type('[[Ide');
+  const completion = page.locator('.cm-tooltip-autocomplete');
+  await expect(completion).toBeVisible();
+  const firstOption = completion.locator('li[role="option"]').first();
+  await expect(firstOption).toContainText('Idee');
+  // A click, not Enter: the menu ignores keys for its first 75 ms (CodeMirror's
+  // interactionDelay), and a click also proves the menu is reachable above the
+  // window's overlay.
+  await firstOption.click();
+  await page.keyboard.press('Enter');
+  // The slash menu opens inside the window too.
+  await page.keyboard.type('/');
+  await expect(completion).toBeVisible();
   await page.keyboard.press('Escape');
-  await page.getByTestId('base-new-entry').click();
-  await page.locator('[data-pinboard-capture-title]').fill('Schnell notiert');
-  await page.locator('[data-pinboard-capture-text]').fill('und mehr Text');
-  await page.locator('[data-pinboard-capture-save]').click();
-  await expect(cards).toHaveCount(4);
-  await expect
-    .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert.md']))
-    .toContain('und mehr Text');
-  const captured = await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Schnell notiert.md']);
-  expect(captured).toContain('type:');
-  expect(captured).toContain('# Schnell notiert');
+  // The Escape closed the menu, not the window.
+  await expect(dlg).toBeVisible();
+  await page.keyboard.press('Backspace');
+  await page.keyboard.type('- [ ] Rosmarin');
+  // The selection bar works inside the window as well.
+  await page.keyboard.press('Control+Shift+ArrowLeft');
+  const selBar = dlg.locator('.pv-seltoolbar');
+  await expect(selBar).toBeVisible();
+  await selBar.getByRole('button', { name: /^(Bold|Fett)$/ }).click();
+  await expect(content.locator('.cm-line', { hasText: 'Rosmarin' })).toContainText('**Rosmarin**');
+  // Live view: the line the caret left renders its bold; its markers are hidden.
+  const boldLine = content.locator('.cm-line', { hasText: 'Olivenöl' });
+  await expect(boldLine).toContainText('Olivenöl für');
+  await expect(boldLine).not.toContainText('**');
 
-  // WITHOUT a title the file gets a timestamp name ("YYYY-MM-DD HH.mm.ss")
-  // and the note has no H1 — the text is the whole body.
+  // Ctrl+Enter saves — it does not toggle the task line the caret is on.
+  await page.keyboard.press('Control+Enter');
+  await expect(dlg).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf Samstag.md']))
+    .toContain('**Olivenöl** für [[Idee');
+  const saved = await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Einkauf Samstag.md']);
+  expect(saved).toContain('type:');
+  expect(saved).toContain('# Einkauf Samstag\n');
+  expect(saved.match(/# Einkauf Samstag/g)).toHaveLength(1);
+  expect(saved).toContain('[[Idee]]');
+  expect(saved).toContain('- [ ] **Rosmarin**');
+  // The draft travelled as a rename, it did not stay behind.
+  expect(await page.evaluate((p) => (window as any).mockFs[p], draft)).toBeUndefined();
+  await expect(cards).toHaveCount(4);
+});
+
+test('pinboard: New entry — an empty window leaves nothing, no title keeps the timestamp name, Discard asks and removes', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  const dlg = page.getByTestId('pinboard-entry');
+
+  // Escape on an EMPTY window takes the own draft back — nothing is created.
   await page.getByTestId('base-new-entry').click();
-  await page.locator('[data-pinboard-capture-text]').fill('Nur Body ohne Titel');
-  await page.locator('[data-pinboard-capture-save]').click();
+  await expect(dlg).toBeVisible();
+  await expect.poll(() => zettelDrafts(page)).toHaveLength(1);
+  await page.keyboard.press('Escape');
+  await expect(dlg).toHaveCount(0);
+  await expect.poll(() => zettelDrafts(page)).toHaveLength(0);
+  await expect(cards).toHaveCount(3);
+
+  // Without a title the file keeps its timestamp name and gets no heading.
+  await page.getByTestId('base-new-entry').click();
+  await expect(dlg).toBeVisible();
+  await dlg.locator('.cm-content').click();
+  await page.keyboard.type('Nur Body ohne Titel');
+  await dlg.getByTestId('pinboard-entry-save').click();
+  await expect(dlg).toHaveCount(0);
+  await expect.poll(() => zettelDrafts(page)).toHaveLength(1);
+  const [kept] = await zettelDrafts(page);
+  await expect.poll(() => page.evaluate((p) => (window as any).mockFs[p], kept)).toContain('Nur Body ohne Titel');
+  expect(await page.evaluate((p) => (window as any).mockFs[p], kept)).not.toContain('# ');
+  await expect(cards).toHaveCount(4);
+
+  // Closing a window with text keeps the text (Escape never discards content).
+  await page.getByTestId('base-new-entry').click();
+  await expect(dlg).toBeVisible();
+  await dlg.locator('.cm-content').click();
+  await page.keyboard.type('Bleibt stehen');
+  await page.keyboard.press('Escape');
+  await expect(dlg).toHaveCount(0);
+  await expect.poll(async () => (await zettelDrafts(page)).length).toBe(2);
   await expect(cards).toHaveCount(5);
-  const timestampFile = await expect
-    .poll(async () =>
-      await page.evaluate(() =>
-        Object.keys((window as any).mockFs).find((p) =>
-          /^\/test-vault\/Zettel\/\d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2}\.md$/.test(p),
-        ),
-      ),
-    )
-    .toBeTruthy()
-    .then(async () =>
-      page.evaluate(() =>
-        Object.keys((window as any).mockFs).find((p) =>
-          /^\/test-vault\/Zettel\/\d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2}\.md$/.test(p),
-        ),
-      ),
-    );
-  const tsContent = await page.evaluate((p) => (window as any).mockFs[p as string], timestampFile);
-  expect(tsContent).toContain('Nur Body ohne Titel');
-  expect(tsContent).not.toContain('# ');
+
+  // Discard with content asks — and only a confirmed Discard removes it.
+  await page.getByTestId('base-new-entry').click();
+  await expect(dlg).toBeVisible();
+  await dlg.locator('.cm-content').click();
+  await page.keyboard.type('Weg damit');
+  await expect.poll(async () => (await zettelDrafts(page)).length).toBe(3);
+  await dlg.getByTestId('pinboard-entry-discard').click();
+  const confirm = page.getByRole('dialog', { name: /Eintrag verwerfen|Discard this entry/ });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: /^(Abbrechen|Cancel)$/ }).click();
+  await expect(dlg).toBeVisible();
+  await dlg.getByTestId('pinboard-entry-discard').click();
+  await confirm.getByRole('button', { name: /^(Verwerfen|Discard)$/ }).click();
+  await expect(dlg).toHaveCount(0);
+  await expect.poll(async () => (await zettelDrafts(page)).length).toBe(2);
+  await expect(cards).toHaveCount(5);
+});
+
+test('pinboard: Enter in the title before the editor has loaded still moves on to the text', async ({ page }) => {
+  // The editor is loaded lazily. Hold its module back so the Enter certainly
+  // comes first — it used to be lost, and the focus stayed in the title.
+  await page.route(/\/(src\/components\/Editor\.tsx|assets\/Editor-[^/]*\.js)(\?|$)/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  await expect(page.locator('[data-pinboard-card]')).toHaveCount(3);
+  await page.getByTestId('base-new-entry').click();
+  const dlg = page.getByTestId('pinboard-entry');
+  await expect(dlg).toBeVisible();
+  await expect(dlg.locator('.cm-content')).toHaveCount(0);
+  await dlg.getByTestId('pinboard-entry-title').fill('Vorab');
+  await dlg.getByTestId('pinboard-entry-title').press('Enter');
+  await expect(dlg.locator('.cm-content')).toBeFocused({ timeout: 15000 });
+  await page.keyboard.type('Danach im Text');
+  await dlg.getByTestId('pinboard-entry-save').click();
+  await expect(dlg).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Vorab.md']))
+    .toContain('Danach im Text');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Vorab.md'])).toContain('# Vorab\n');
+});
+
+test('pinboard: New entry takes over the ACTIVE label as a removable chip', async ({ page }) => {
+  await page.goto('/');
+  await openBase(page, 'Pinnwand');
+  const cards = page.locator('[data-pinboard-card]');
+  await expect(cards).toHaveCount(3);
+  await page.locator('[data-pinboard-chip="einkauf"]').click();
+  await expect(cards).toHaveCount(2);
+
+  const dlg = page.getByTestId('pinboard-entry');
+  await page.getByTestId('base-new-entry').click();
+  await expect(dlg).toBeVisible();
+  await expect(dlg.getByTestId('pinboard-entry-chip')).toHaveText(['#einkauf']);
+  await dlg.getByTestId('pinboard-entry-title').fill('Milch');
+  await dlg.getByTestId('pinboard-entry-save').click();
+  await expect(dlg).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Milch.md']))
+    .toMatch(/tags:\n\s+- einkauf/);
+
+  // A chip taken off before saving does not reach the note.
+  await page.getByTestId('base-new-entry').click();
+  await expect(dlg).toBeVisible();
+  await dlg.getByTestId('pinboard-entry-chip').getByRole('button').click();
+  await expect(dlg.getByTestId('pinboard-entry-chip')).toHaveCount(0);
+  await dlg.getByTestId('pinboard-entry-title').fill('Ohne Label');
+  await dlg.getByTestId('pinboard-entry-save').click();
+  await expect(dlg).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Ohne Label.md'])).toContain('# Ohne Label');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Ohne Label.md'])).not.toContain('einkauf');
+});
+
+test('pinboard: a slash command in New entry reaches the entry, not the note behind it', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Pinnwand-Notiz.md'] = '# Pinnwand-Notiz\n\nHost text\n\n![[Pinnwand.base]]\n';
+  });
+  await page.goto('/');
+  // The host note is open in an editor underneath.
+  await page.getByTestId('file-tree').getByText('Pinnwand-Notiz', { exact: true }).click();
+  const embed = page.locator('.cm-note-embed').filter({ has: page.locator('[data-pinboard-card]') });
+  await expect(embed.locator('[data-pinboard-card]')).toHaveCount(3, { timeout: 15000 });
+
+  // "Entry" inside the EMBEDDED board opens the same window (it used to do nothing).
+  await embed.getByTestId('base-new-entry').click();
+  const dlg = page.getByTestId('pinboard-entry');
+  await expect(dlg).toBeVisible();
+  await dlg.getByTestId('pinboard-entry-title').fill('Aus der Notiz');
+  await dlg.getByTestId('pinboard-entry-title').press('Enter');
+  await page.keyboard.type('/icon');
+  await page.locator('.cm-tooltip-autocomplete li', { hasText: /Dokument-Icon|Document icon/ }).first().click();
+  // The picker opens over the entry and takes the keyboard.
+  const picker = page.getByTestId('emoji-picker');
+  await expect(picker).toBeVisible();
+  await expect(picker.getByTestId('picker-search')).toBeFocused();
+  await page.keyboard.type('rocket');
+  await picker.locator('button[aria-label="rocket"]').first().click();
+  await expect.poll(async () => {
+    const drafts = await zettelDrafts(page);
+    return drafts.length === 1 ? page.evaluate((p) => (window as any).mockFs[p], drafts[0]) : '';
+  }).toContain('icon:');
+  // The host note did not get the icon.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand-Notiz.md'])).not.toContain('icon:');
+
+  await dlg.locator('.cm-content').click();
+  await page.keyboard.type('Aus dem Editor');
+  await dlg.getByTestId('pinboard-entry-save').click();
+  await expect(dlg).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Aus der Notiz.md'])).toContain('# Aus der Notiz');
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/Aus der Notiz.md'])).toContain('Aus dem Editor');
+  const host = await page.evaluate(() => (window as any).mockFs['/test-vault/Pinnwand-Notiz.md']);
+  expect(host).not.toContain('icon:');
+  expect(host).not.toContain('Aus dem Editor');
+});
+
+test('pinboard: an EMPTY pinboard offers New entry in its empty state', async ({ page }) => {
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Leer'] = { isDir: true };
+    fs['/test-vault/LeerePinnwand.base'] = [
+      'filters:',
+      '  and:',
+      '    - file.folder == "Leer"',
+      'views:',
+      '  - type: table',
+      '    name: Pinnwand',
+      '    plainva:',
+      '      render: pinboard',
+      '',
+    ].join('\n');
+  });
+  await page.goto('/');
+  await openBase(page, 'LeerePinnwand');
+  const empty = page.getByTestId('base-empty-new');
+  await expect(empty).toBeVisible();
+  await empty.click();
+  const dlg = page.getByTestId('pinboard-entry');
+  await expect(dlg).toBeVisible();
+  await expect(dlg).toContainText('Leer/');
+  await dlg.getByTestId('pinboard-entry-title').fill('Erster Zettel');
+  await dlg.getByTestId('pinboard-entry-save').click();
+  await expect(dlg).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Leer/Erster Zettel.md'])).toContain('# Erster Zettel');
+});
+
+test('pinboard: what an app that went away left of an entry is finished at the next start — unchanged goes, changed stays (E15)', async ({ page }) => {
+  // The state an app leaves when it is closed or killed with two entries open:
+  // both drafts on record, one untouched, one typed into before the end.
+  const written = '---\ntype: Note\ntags:\n  - zettel\n---\n';
+  const sha256 = createHash('sha256').update(written).digest('hex');
+  await page.addInitScript(({ written, sha256 }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Zettel/2026-09-23 18.00.00.md'] = written;
+    fs['/test-vault/Zettel/2026-09-23 18.05.00.md'] = written + 'Kaffee\n';
+    fs['/test-vault/Zettel/2026-09-23 18.10.00.md'] = written;
+    for (const path of ['Zettel/2026-09-23 18.00.00.md', 'Zettel/2026-09-23 18.05.00.md', 'Zettel/Weg.md']) {
+      localStorage.setItem(`plainva-pinboard-draft:/test-vault:${path}`, JSON.stringify({ path, sha256, at: 1 }));
+    }
+  }, { written, sha256 });
+  await page.goto('/');
+  await expect(page.getByTestId('file-tree')).toBeVisible({ timeout: 15000 });
+  // The untouched draft went the way closing its window would have taken it.
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/2026-09-23 18.00.00.md'])).toBeUndefined();
+  // What was typed into stays; a file nobody put on record is never touched,
+  // even with the same bytes; and the record is empty afterwards.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/2026-09-23 18.05.00.md'])).toContain('Kaffee');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Zettel/2026-09-23 18.10.00.md'])).toBe(written);
+  await expect
+    .poll(() => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('plainva-pinboard-draft:'))))
+    .toEqual([]);
 });
 
 

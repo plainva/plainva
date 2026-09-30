@@ -97,7 +97,8 @@ export function EventEditSheet({
 
   const pickCalendar = () => {
     void (async () => {
-      const picked = await mSelect({ title: t("pim.eventCalendar"), options: calendars });
+      // A value with a state: the ring sits on the event's calendar (E20).
+      const picked = await mSelect({ title: t("pim.eventCalendar"), options: calendars, value: form.calendarKey });
       if (picked !== null) set({ calendarKey: picked });
     })();
   };

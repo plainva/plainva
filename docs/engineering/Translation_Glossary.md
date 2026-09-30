@@ -83,6 +83,23 @@ The skill titles are UI strings (`ai.skills.*`); the MCP prompt names (`daily-or
 | zh-CN | AI | 悬浮窗 | 技能 | Plainva AI · ⟨模型⟩ |
 | ja | AI | コンパニオン | スキル | Plainva AI · ⟨モデル⟩ |
 
+## Daily note and journal (zh-CN)
+
+The daily note (one note per day, named by the vault's date format) and the
+journal (time-stamped lines under a heading of that note) are two things, and
+zh-CN names them apart:
+
+| Term | zh-CN |
+|---|---|
+| Daily note | 日记 (Obsidian's term) |
+| Journal | 日志 |
+| Journal entry | 日志条目 |
+
+日记 is used everywhere — UI, user guide, vault templates and tour lessons; 每日笔记
+is retired (decision 2026-09-24). 日志 also names technical logs such as the
+deletion log. `apps/desktop/src/translationTerms.test.ts` fails when a retired
+variant comes back or a daily-note string loses 日记.
+
 ## Process Rules
 
 - New UI strings are ALWAYS added to all files under `packages/ui/src/locales/`
@@ -119,3 +136,18 @@ Use these UI terms in the guide and tour. A summary belongs to the whole visible
 | ja | 集計 | 集計なし | ヘッダーの色 | タグ · ノート全体 |
 
 Tour lessons live beside the template modules as `tourLessons.<code>.json`; all ten languages share the builder and creation boundary.
+
+A pinboard's **New entry** (window on the desktop, page on the phone) builds on the database's **Entry**: the same noun, never a second word for it. **Inherited** names the values the entry takes over from the board's active labels and the view's filters. **Discard** throws away what was written into THIS entry — keep it apart from **Delete**, which removes an existing note.
+
+| Language | New entry | Inherited | Discard |
+|---|---|---|---|
+| en | New entry | Inherited | Discard |
+| de | Neuer Eintrag | Übernommen | Verwerfen |
+| fr | Nouvelle entrée | Hérité | Abandonner |
+| es | Nueva entrada | Heredado | Descartar |
+| pt-BR | Nova entrada | Herdado | Descartar |
+| it | Nuova voce | Ereditato | Scarta |
+| nl | Nieuw item | Overgenomen | Weggooien |
+| pl | Nowy wpis | Przejęte | Odrzuć |
+| zh-CN | 新建条目 | 沿用 | 丢弃 |
+| ja | 新しいエントリー | 引き継ぎ | 破棄 |

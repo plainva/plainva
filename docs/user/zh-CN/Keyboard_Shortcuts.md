@@ -24,7 +24,7 @@
 |---|---|
 | `Ctrl+N` | 在所选文件夹中新建笔记 |
 | `Ctrl+Shift+D` | 打开今天的日记 |
-| `Ctrl+Shift+J` | 将一条日志条目写入今天的每日笔记 |
+| `Ctrl+Shift+J` | 将一条日志条目写入今天的日记 |
 | `Ctrl+Alt+J` | 全局快速记录——系统级，可选（参见[日志](Journal.md)） |
 | `F2` | 重命名当前笔记 |
 | `Ctrl+Alt+Left` / `Ctrl+Alt+Right` | 后退 / 前进（导航历史） |

@@ -36,7 +36,7 @@ import { OkfMigrationModal } from "./OkfMigrationModal";
 import { OkfInfoModal } from "./OkfInfoModal";
 import { IndexMdModal } from "./IndexMdModal";
 import { ThemePref, getStoredThemePref, setStoredThemePref, setStoredThemeName, getStoredCustomThemeDesign, setStoredCustomTheme } from "../services/theme";
-import { defaultCustomThemeDesign, usePersonalDesignSync, type CustomThemeDesign } from "@plainva/ui";
+import { defaultCustomThemeDesign, setCustomThemePreview, usePersonalDesignSync, type CustomThemeDesign } from "@plainva/ui";
 import { desktopPersonalDesignForEditor } from "../services/personalDesign";
 import { useTranslation } from "react-i18next";
 import { changeAppLanguage } from "@plainva/ui/i18n";
@@ -141,9 +141,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   const refreshCustomTheme = useCallback(() => { void getStoredCustomThemeDesign().then(setCustomThemeSpec); }, []);
   const loadDesignSync = useMemo(() => vaultPath ? () => desktopPersonalDesignForEditor(vaultPath) : null, [vaultPath]);
   const designSync = usePersonalDesignSync(loadDesignSync, refreshCustomTheme);
+  // Until the stored design is here, the page holds a placeholder: the live
+  // preview (E22) must not paint a proposal made from it.
+  const [customThemeLoaded, setCustomThemeLoaded] = useState(false);
   useEffect(() => {
-    void getStoredCustomThemeDesign().then(setCustomThemeSpec);
+    void getStoredCustomThemeDesign().then(design => { setCustomThemeSpec(design); setCustomThemeLoaded(true); });
   }, []);
+  // Closing the settings ends any preview of "My theme" and paints the stored
+  // look again — whatever the page underneath did or did not get to clean up.
+  useEffect(() => () => setCustomThemePreview(null), []);
   const [intervalSec, setIntervalSec] = useState(String(defaultSyncIntervalSeconds()));
   const [showCompatibilityWarning, setShowCompatibilityWarning] = useState(true);
   // In-vault folder picker for the daily-notes and template folders (2026-07-11):
@@ -835,6 +841,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onChange={async (spec) => { await designSync.save(spec, () => setStoredCustomTheme(spec)); setCustomThemeSpec(spec); }}
                       designSync={designSync}
                       onBack={() => setAppPage("appearance")}
+                      active={inAppWorld && appPage === "customTheme" && customThemeLoaded}
                     />
                   </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "editor"}>

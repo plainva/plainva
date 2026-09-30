@@ -6,7 +6,7 @@ import {
   planAutoRefresh,
   runVaultRefresh,
   type RefreshSyncWorker,
-} from "./vaultRefresh";
+} from "@plainva/ui";
 
 const report = (over: Partial<IndexScanReport> = {}): IndexScanReport => ({
   added: 0,

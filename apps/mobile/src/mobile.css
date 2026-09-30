@@ -257,7 +257,9 @@ textarea {
 }
 
 /* The title block: heading plus one line of context. Both truncate — a wrapped
-   title would change the bar's height on the way into a screen. */
+   title would change the bar's height on the way into a screen. It is also the
+   holder of a control that stands in for the title (the search page's field):
+   the column stretches it to the full share of the row (E19). */
 .m-appbar-ttl {
   flex: 1;
   min-width: 0;
@@ -819,26 +821,6 @@ textarea {
 }
 
 
-/* Keep-style capture popup (2026-07-17): design-language field look — token
-   border, chip radius, accent focus — instead of naked borderless inputs. */
-.m-capture-popup input,
-.m-capture-popup textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  color: var(--text-main);
-  padding: 10px 12px;
-  font-size: var(--text-ui);
-  font-family: inherit;
-  outline: none;
-}
-.m-capture-popup input:focus,
-.m-capture-popup textarea:focus {
-  border-color: var(--accent-color);
-}
-
 .m-field {
   display: flex;
   flex-direction: column;
@@ -921,6 +903,20 @@ textarea {
   border-radius: var(--radius-lg);
   background: var(--surface-container);
   padding: var(--space-6) var(--space-4);
+}
+/* "Moved?" (issue 110, E9): the files that carry a missing note's content,
+   one full-width choice each — a path wraps rather than being cut off, since
+   the folder is the part that tells them apart. */
+.m-moved-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+}
+.m-moved-choice .pv-btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .m-row:disabled {
   opacity: 1;
@@ -1047,46 +1043,29 @@ textarea {
   --m-pin-gap: 10px;
   --m-pin-clamp: 260px;
   --m-pin-skeleton: 40px;
-  --m-pin-captureheight: 72px;
 }
-.m-pin-capture {
-  display: block;
-  width: 100%;
-  margin: var(--space-1) 0 var(--space-3);
-  padding: var(--space-3) var(--m-edge);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-pill);
-  background: var(--bg-secondary);
-  color: var(--text-muted);
-  font-size: var(--text-ui);
-  text-align: left;
+/* The pinboard's "New entry" page (plan Befunde 2026-09-24, E17): the note
+   page's layout (.m-page--note — the editor fills, the formatting bar docks,
+   the text keeps the one 12px inset) with a title field on top and the
+   inherited chips under it. The chips sit ABOVE the text: below it they would
+   end up under the docked formatting bar. The title field's look — frameless,
+   set like a heading, its focus a line under it — is the desktop window's
+   (.pv-pinentry-title, ui.css); the phone only brings its own 12px inset. */
+.m-pinentry-title {
+  padding: var(--space-2) var(--space-3) var(--space-1);
 }
-/* The class was referenced and never defined — the look came from the inline
-   style beside it, which is why nothing looked wrong. */
-.m-capture-popup {
+.m-pinentry-chips {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-2);
+}
+.m-pinentry-editor {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  margin: var(--space-1) 0 var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  box-shadow: var(--shadow-2);
-}
-/* The capture card's two fields: a title that reads like one, and a body that
-   starts three lines tall and does not offer its own resize grip on a phone. */
-.m-pin-capture-title {
-  font-weight: 600;
-}
-.m-pin-capture-text {
-  min-height: var(--m-pin-captureheight);
-  resize: none;
-}
-.m-pin-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
 }
 /* The scrolling itself comes from the ScrollEdge wrapper (it owns overflow-x
    so it can say when there is more); this keeps the row's own metric. */
@@ -1318,6 +1297,18 @@ textarea {
   border-color: var(--accent-color);
   background: var(--accent-color);
   box-shadow: inset 0 0 0 3px var(--surface);
+}
+/* Several at once: the same mark, square, with a check inside (E21). Round is
+   one, square is several — read before the first tap. Only `ChoiceMark`
+   renders either. */
+.m-slotmark--box {
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  color: var(--accent-on);
+}
+.m-slotmark--box.is-on {
+  box-shadow: none;
 }
 
 /* M4 touch UX */
@@ -2141,6 +2132,16 @@ textarea {
   margin: 0 0 var(--space-3);
 }
 .m-dupes-notice .pv-banner {
+  flex-wrap: wrap;
+}
+
+/* Task notes with an id in their name (plan Befunde 2026-09-24, E12): the
+   shared notice and its list of renames. Same place and rhythm as the
+   duplicates notice above; the page carries the side inset. */
+.m-names-notice {
+  margin: 0 0 var(--space-3);
+}
+.m-names-notice .pv-banner {
   flex-wrap: wrap;
 }
 
@@ -3699,6 +3700,8 @@ textarea {
 .m-navrow:not([data-tab-visible]) .m-accent { opacity: 0.55; }
 /* The direction a sort runs in, beside the chosen key. */
 .m-sortdir { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-muted); }
+/* What the second tap does, in a line under the sort card (E21). */
+.m-sortsheet-hint { margin: var(--space-2) var(--space-2) 0; }
 .m-row.is-dragging,
 .m-navrow.is-dragging {
   opacity: 0.55;
@@ -3918,13 +3921,22 @@ textarea {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The way to the setting: accent, in the regular weight — the current area is
+   the one bold row in the sheet (E20, both mockups). */
 .m-areas-arrange {
   color: var(--accent-color);
-  font-weight: 650;
 }
-.m-row--current {
-  background: var(--accent-container);
-  color: var(--on-accent-container);
+.m-areas-arrange .pv-grouprow-icon {
+  color: inherit;
+}
+/* A divider with a name, between two runs of rows in one sheet (E20): the
+   section label itself (SectionLabel, one rule for how a heading looks) with
+   the hairline carried to the edge, so it reads as "the list goes on, past a
+   boundary" rather than as a new heading. */
+.m-sheet-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border-color);
 }
 
 /* Navigation-bar setting (plan P5): count stepper + live bar preview. */
@@ -4567,7 +4579,7 @@ textarea {
   padding-left: var(--space-2) !important;
   padding-right: 0 !important;
 }
-.m-selcell .m-slotmark { display: inline-block; }
+.m-selcell .m-slotmark { display: inline-grid; }
 
 /* The two spellings of one name, listed under the banner that explains them
    (finding 2026-08-21). Word-break because a vault path is one long token and

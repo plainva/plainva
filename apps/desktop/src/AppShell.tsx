@@ -69,8 +69,8 @@ import { toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
 import { Button } from "@plainva/ui";
 import { CommandPalette } from "./components/CommandPalette";
-import { buildAppCommands, newEntries, newHandlersOf, requestNew } from "@plainva/ui";
-import { toggleLightDark, isModePinned, DEFAULT_THEME_NAME } from "./services/theme";
+import { appliedTheme, buildAppCommands, newEntries, newHandlersOf, requestNew } from "@plainva/ui";
+import { toggleLightDark } from "./services/theme";
 import { Plus, ChevronsDownUp, ChevronsUpDown, FileText, FolderTree, RefreshCw, ArrowUpDown, X } from "lucide-react";
 import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type FolderSort, type FolderSortKey,
   SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey } from "@plainva/ui";
@@ -1599,7 +1599,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                       </Suspense>
                     ) : path === TASKS_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
-                        <TasksView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} />
+                        <TasksView onOpenPath={(p, newTab) => openTab(i, p, newTab ?? false)} onRenamed={isOwnerWindow() ? renameTabPrefix : undefined} />
                       </Suspense>
                     ) : path === CALENDAR_TAB_PATH ? (
                       <Suspense fallback={<div style={{ padding: "2rem", color: "var(--text-muted)" }}>{t("splash.initializing", "Lade...")}</div>}>
@@ -1641,6 +1641,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === path)}
                           onToggleBookmark={() => toggleBookmark(path)}
                           onDelete={() => handleDeleteFile(path)}
+                          onCloseTab={() => trackClose(i, pane.activeIndex)}
+                          onRenamed={renameTabPrefix}
                           onSplit={splitEditor}
                           activeSplitDirection={activeSplitDirection}
                         />
@@ -1658,6 +1660,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                         isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === path)}
                         onToggleBookmark={() => toggleBookmark(path)}
                         onDelete={() => handleDeleteFile(path)}
+                        onCloseTab={() => trackClose(i, pane.activeIndex)}
+                        onRenamed={renameTabPrefix}
                         onSplit={splitEditor}
                         activeSplitDirection={activeSplitDirection}
                         isActivePane={isActivePane}
@@ -1675,6 +1679,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           isBookmarked={bookmarks.some((b) => b.type === "file" && b.path === path)}
                           onToggleBookmark={() => toggleBookmark(path)}
                           onDelete={() => handleDeleteFile(path)}
+                          onCloseTab={() => trackClose(i, pane.activeIndex)}
                           onRenamed={renameTabPrefix}
                           onSplit={splitEditor}
                           activeSplitDirection={activeSplitDirection}
@@ -1847,7 +1852,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             reopenClosedTab,
             openImport: () => capabilities.openImport(),
             toggleTheme: () => { void toggleLightDark(); },
-            themeTogglePinned: () => isModePinned(document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME),
+            // The stored theme, not <html> — "My theme" may be previewing a mood (E22).
+            themeTogglePinned: () => appliedTheme().pinned,
             openSettings: () => capabilities.openSettings(),
             openShortcuts: () => setShowShortcuts(true),
             openFindReplace: () => setShowFindReplace(true),

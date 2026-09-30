@@ -3,6 +3,7 @@ import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { isTextFile } from "./fileType.js";
+import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
 async function sha256Bytes(bytes: Uint8Array): Promise<string> {
   const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", bytes as BufferSource);
@@ -50,6 +51,24 @@ export class SyncEngine {
     /** Optional; without it every write takes the buffer path, as before. */
     private readonly resolveContentRef?: ContentRefResolver
   ) {}
+
+  /**
+   * A queued operation on operating-system bookkeeping (E10). Fixed names by
+   * path; an AppleDouble sidecar only for a DELETE, where the bytes are gone
+   * and the path-only rule applies: `._x` counts while `x` is still here or
+   * still known to sync. Writes of `._*` are decided by their header instead.
+   */
+  private async isSystemJunkOperation(op: { operation: string; file_path: string; new_path?: string | null }): Promise<boolean> {
+    if (op.operation === "rename") return !!op.new_path && isSystemJunkPath(op.new_path) && isSystemJunkPath(op.file_path);
+    if (isSystemJunkPath(op.file_path)) return true;
+    if (op.operation !== "delete") return false;
+    const slash = op.file_path.lastIndexOf("/");
+    const name = op.file_path.slice(slash + 1);
+    if (!isAppleDoubleName(name)) return false;
+    const companion = `${op.file_path.slice(0, slash + 1)}${name.slice(2)}`;
+    if (await this.vault.exists(companion).catch(() => false)) return true;
+    return !!(this.stateRepo && (await this.stateRepo.getSyncState(companion).catch(() => null)));
+  }
 
   public async processQueue(
     isAborted?: () => boolean,
@@ -100,6 +119,15 @@ export class SyncEngine {
         // completes the op as a no-op — folders then materialize with their
         // first file, the old behavior. No sync_state is involved: folder
         // existence is not tracked, only files are.
+        // Operating-system bookkeeping never travels (issue #110, E10). A
+        // queued upload, folder or remote delete of `.DS_Store` & co. — left
+        // over from before the rule, or written by an import — is dropped here.
+        // A copy an older version uploaded stays in the cloud untouched.
+        if (await this.isSystemJunkOperation(op)) {
+          await this.queue.markSynced(op.id, op.file_path, op.file_path);
+          consecutiveFailures = 0;
+          continue;
+        }
         if (op.operation === "mkdir") {
           if (this.target.createFolder) await this.target.createFolder(op.file_path);
           await this.queue.markSynced(op.id, op.file_path, op.file_path);
@@ -127,6 +155,13 @@ export class SyncEngine {
                 op.content = undefined;
               } else {
                 op.content = await this.vault.readBinaryFile(op.file_path);
+                // An AppleDouble sidecar (E10): with the bytes at hand, the
+                // header decides — a user's own `._notes.md` still uploads.
+                if (isAppleDoubleName(op.file_path.slice(op.file_path.lastIndexOf("/") + 1)) && hasAppleDoubleHeader(op.content)) {
+                  await this.queue.markSynced(op.id, op.file_path, op.file_path);
+                  consecutiveFailures = 0;
+                  continue;
+                }
               }
               const currentSha = ref ? ref.sha256 : await sha256Bytes(op.content!);
               pushedSha = currentSha;

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
 import { NEW_ITEM_ORDER, ROW_ACTION_IDS } from "@plainva/ui";
+import { sourceFile, sourceTexts } from "./test-sourceTree";
 
 /**
  * The interaction grammar the phone got in its redesign, made binding for the
@@ -22,20 +21,23 @@ import { NEW_ITEM_ORDER, ROW_ACTION_IDS } from "@plainva/ui";
  * surface that copies a pattern instead of reading the list fails here, not
  * on a device weeks later.
  */
-const DESKTOP = join(__dirname);
-const MOBILE = join(__dirname, "..", "..", "mobile", "src");
-const UI = join(__dirname, "..", "..", "..", "packages", "ui", "src");
+const DESKTOP = "apps/desktop/src";
+const MOBILE = "apps/mobile/src";
+const UI = "packages/ui/src";
 
-const read = (base: string, rel: string) => readFileSync(join(base, rel), "utf8");
+// Each file is read once, however many checks look at it, and the desktop's
+// components come from the scan guards' shared snapshot (test-sourceTree.ts):
+// three checks used to walk and read all of them again (Befunde 2026-09-24, Z2).
+const read = (base: string, rel: string) => sourceFile(`${base}/${rel}`);
 const stripComments = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1");
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.tsx$/.test(name) && !/\.test\.tsx$/.test(name)) out.push(p);
-  }
-  return out;
+let surfaces: Array<{ rel: string; src: string }> | undefined;
+/** Every shipped .tsx of the desktop, relative to its src, comments stripped. */
+function desktopSurfaces(): Array<{ rel: string; src: string }> {
+  surfaces ??= sourceTexts([DESKTOP], "shipped")
+    .filter((f) => f.rel.endsWith(".tsx"))
+    .map((f) => ({ rel: f.rel.slice(DESKTOP.length + 1), src: stripComments(f.text) }));
+  return surfaces;
 }
 
 describe("one action list per row kind (E2)", () => {
@@ -172,7 +174,6 @@ describe("every desktop list that can be empty says so (E3)", () => {
 });
 
 describe("modal, menu and bar grammar (E5)", () => {
-  const files = walk(join(DESKTOP, "components")).concat(walk(DESKTOP).filter((p) => !p.includes("components")));
 
   /**
    * Surfaces that carry `role="dialog"` or an overlay of their own without
@@ -193,10 +194,8 @@ describe("modal, menu and bar grammar (E5)", () => {
 
   it("no modal without Modal: a dialog outside the primitive is an anchored surface with a reason", () => {
     const offenders: string[] = [];
-    for (const p of files) {
-      const rel = p.slice(DESKTOP.length + 1).replace(/\\/g, "/");
+    for (const { rel, src } of desktopSurfaces()) {
       if (rel.startsWith("components/ui/")) continue;
-      const src = stripComments(readFileSync(p, "utf8"));
       const own = /role="dialog"/.test(src) || /className="pv-overlay"|className="pv-palette-overlay/.test(src);
       if (own && !(rel in anchoredDialogs)) offenders.push(rel);
     }
@@ -212,9 +211,7 @@ describe("modal, menu and bar grammar (E5)", () => {
 
   it("no menu without MenuSurface: nobody draws role=\"menu\" by hand", () => {
     const offenders: string[] = [];
-    for (const p of files) {
-      const rel = p.slice(DESKTOP.length + 1).replace(/\\/g, "/");
-      const src = stripComments(readFileSync(p, "utf8"));
+    for (const { rel, src } of desktopSurfaces()) {
       if (/role="menu"/.test(src)) offenders.push(rel);
     }
     expect(offenders).toEqual([]);
@@ -227,9 +224,7 @@ describe("modal, menu and bar grammar (E5)", () => {
     // (directly or through one of the menu components) or only forwards the
     // gesture to a parent that does. What it may not do is build a menu.
     const menuBearers = /MenuSurface|FileContextMenu|TabContextMenu|TableContextMenu|EventContextMenu|GraphMapMenus|DropdownMenu|BlockMenu|ContextMenuHost/;
-    for (const p of files) {
-      const rel = p.slice(DESKTOP.length + 1).replace(/\\/g, "/");
-      const src = stripComments(readFileSync(p, "utf8"));
+    for (const { rel, src } of desktopSurfaces()) {
       if (!/onContextMenu=/.test(src)) continue;
       const bearsMenu = menuBearers.test(src);
       // A no-op handler (`() => {}`) is a prop of a tab strip that owns no menu in that window.

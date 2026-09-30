@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Plus, Tags, Trash2 } from "lucide-react";
+import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
@@ -123,9 +123,7 @@ export function BasePinboardView({
   onPatchView,
   onOpenNote,
   onOpenInSplit,
-  onQuickCapture,
   embedded,
-  captureSignal,
   viewKey = "default",
 }: {
   dbData: any[];
@@ -140,12 +138,12 @@ export function BasePinboardView({
   onPatchView: (patch: Record<string, unknown>) => void;
   onOpenNote: (path: string, ev?: { ctrlKey?: boolean; metaKey?: boolean }) => void;
   onOpenInSplit?: (path: string) => void;
-  /** Quick capture (P4/title popup): resolves true when the note was created. */
-  onQuickCapture?: (input: { title: string; text: string; labels?: string[]; labelProp?: string | null }) => Promise<boolean>;
-  /** Embedded boards are read-mostly (D5): no drag reorder, no capture. */
+  /**
+   * Embedded boards are read-mostly (D5): no drag reorder. A new entry is made
+   * through the viewer's "New entry" window, embedded or not (plan Befunde
+   * 2026-09-24, E14) — the board itself has no capture of its own any more.
+   */
   embedded?: boolean;
-  /** Bumped by the viewer's "+ New item": open the capture card (M2). */
-  captureSignal?: number;
   viewKey?: string;
 }) {
   const { t } = useTranslation();
@@ -509,37 +507,6 @@ export function BasePinboardView({
   // ── Context menu ──
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
 
-  // ── Quick capture (P4; Keep-style title popup 2026-07-17) ──
-  const [captureOpen, setCaptureOpen] = useState(false);
-  useEffect(() => {
-    if (captureSignal) setCaptureOpen(true);
-  }, [captureSignal]);
-  const [captureTitle, setCaptureTitle] = useState("");
-  const [captureText, setCaptureText] = useState("");
-  const [captureBusy, setCaptureBusy] = useState(false);
-  const captureTextRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const submitCapture = () => {
-    if (captureBusy || !onQuickCapture) return;
-    const title = captureTitle.trim();
-    const text = captureText;
-    // Nothing typed — closing an empty popup is a no-op, not an error.
-    if (!title && !text.trim()) {
-      setCaptureOpen(false);
-      return;
-    }
-    setCaptureBusy(true);
-    void onQuickCapture({ title, text, labels: selectedLabels, labelProp })
-      .then((ok) => {
-        if (ok) {
-          setCaptureTitle("");
-          setCaptureText("");
-          setCaptureOpen(false);
-        }
-      })
-      .finally(() => setCaptureBusy(false));
-  };
-
   // ── Enabled view properties on the cards (maintainer 2026-07-17) ──
   const propCols = useMemo(() => {
     if (!visibleColumns || !cells) return [] as string[];
@@ -717,7 +684,6 @@ export function BasePinboardView({
 
   const menuVm = menu ? cards.get(menu.path) : null;
   const menuPinned = menu ? sections.pinned.includes(menu.path) : false;
-  const boardWidth = Math.min(containerWidth, columnCount * (CARD_WIDTH + GAP) - GAP);
 
   return (
     <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "1rem" }} data-tip={hasSort && !embedded ? t("pinboard.sortActive", { defaultValue: "Sortierregel aktiv — manuelles Anordnen ist deaktiviert." }) : undefined}>
@@ -725,92 +691,6 @@ export function BasePinboardView({
       {embedded && <BaseSearchField value={searchText} onChange={setSearchText} busy={search.busy} placeholder={t("pinboard.searchPlaceholder")} />}
       {search.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={search.retry}>{t("pinboard.retry")}</Button></div>}
       {!!searchText.trim() && !search.busy && !search.failed && visibleSections.pinned.length + visibleSections.unpinned.length === 0 && <p role="status">{t("pinboard.noMatches")}</p>}
-      {/* The row that used to be a search field is the way to a new note again
-          (finding 2026-09-22). It opens the SAME capture the head's "New"
-          opens — one surface, two doors, not two implementations. */}
-      {!embedded && onQuickCapture && !captureOpen && (
-        <button
-          type="button"
-          className="pv-capturerow"
-          onClick={() => setCaptureOpen(true)}
-          data-testid="pinboard-capture-row"
-        >
-          <Plus size={ICON.ui} aria-hidden />
-          <span>{t("pinboard.captureRow")}</span>
-        </button>
-      )}
-      {!embedded && onQuickCapture && captureOpen && (
-        <div
-          data-pinboard-capture-popup="true"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              e.stopPropagation();
-              setCaptureOpen(false); // keep the draft in state — nothing is lost
-            }
-            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submitCapture();
-          }}
-          style={{
-            width: boardWidth > 0 ? boardWidth : "100%",
-            maxWidth: 560,
-            margin: "0 0 12px",
-            border: "1px solid var(--border-color)",
-            borderRadius: "var(--radius-md)",
-            background: "var(--bg-secondary)",
-            boxShadow: "var(--shadow-2)",
-            padding: "var(--space-3)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-3)",
-          }}
-        >
-          <input
-            type="text"
-            className="pv-field"
-            value={captureTitle}
-            data-pinboard-capture-title="true"
-            autoFocus
-            placeholder={t("pinboard.captureTitle", { defaultValue: "Titel" })}
-            aria-label={t("pinboard.captureTitle", { defaultValue: "Titel" })}
-            onChange={(e) => setCaptureTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault();
-                captureTextRef.current?.focus();
-              }
-            }}
-            style={{ fontWeight: 600 }}
-          />
-          <textarea
-            ref={captureTextRef}
-            className="pv-field pv-field--area"
-            value={captureText}
-            data-pinboard-capture-text="true"
-            rows={3}
-            placeholder={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
-            aria-label={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
-            onChange={(e) => setCaptureText(e.target.value)}
-            style={{ minHeight: 72 }}
-          />
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-            <button
-              type="button"
-              className="pv-btn"
-              onClick={() => setCaptureOpen(false)}
-            >
-              {t("common.close", { defaultValue: "Schließen" })}
-            </button>
-            <button
-              type="button"
-              className="pv-btn pv-btn--primary"
-              data-pinboard-capture-save="true"
-              disabled={captureBusy || (!captureTitle.trim() && !captureText.trim())}
-              onClick={submitCapture}
-            >
-              {t("common.save", { defaultValue: "Speichern" })}
-            </button>
-          </div>
-        </div>
-      )}
       {/* Label chip bar (P4): session-local AND filter; the arrangement always
           splices into the full sequence, so hidden cards keep their spots. */}
       {chipEntries.length > 0 && (

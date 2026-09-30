@@ -50,7 +50,6 @@
     "fs:allow-remove",
     "fs:allow-rename",
     "fs:allow-stat",
-    "fs:allow-watch",
     { "identifier": "fs:allow-open", "allow": [{ "path": "$TEMP/plainva-import/**" }] },
     "fs:allow-read",
     "fs:allow-seek",
@@ -92,10 +91,6 @@
     },
     {
       "identifier": "fs:allow-stat",
-      "allow": [{ "path": "**" }, { "path": "/*/**" }, { "path": "**/.*" }, { "path": "**/.*/**" }, { "path": "/*/**/.*" }, { "path": "/*/**/.*/**" }]
-    },
-    {
-      "identifier": "fs:allow-watch",
       "allow": [{ "path": "**" }, { "path": "/*/**" }, { "path": "**/.*" }, { "path": "**/.*/**" }, { "path": "/*/**/.*" }, { "path": "/*/**/.*/**" }]
     },
     "updater:default",

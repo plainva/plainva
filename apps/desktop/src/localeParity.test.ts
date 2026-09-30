@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { APP_LANGUAGES, DEFAULT_LANGUAGE, getLatestWhatsNew } from "@plainva/ui";
+import { sourceMap, sourceTexts, type SourceText } from "./test-sourceTree";
 
 // Locale parity guard (plan Base-Erweiterungen W1/P8; generalized for N languages
 // in plan Sprachen 2026-07-04): every i18n key used in the source must exist in
@@ -17,8 +15,7 @@ import { APP_LANGUAGES, DEFAULT_LANGUAGE, getLatestWhatsNew } from "@plainva/ui"
 // least the categories reported by Intl.PluralRules must be present (supersets
 // are allowed, so files stay valid across ICU versions).
 
-const SRC = dirname(fileURLToPath(import.meta.url));
-const LOCALES_DIR = join(SRC, "../../../packages/ui/src/locales");
+const LOCALES_DIR = "packages/ui/src/locales";
 // t() usage lives in the desktop app, the shared UI package AND the phone.
 // The phone was missing here until S43, and it cost exactly what you would
 // expect: 1054 keys nobody checked, fifteen of which did not exist and rendered
@@ -26,31 +23,43 @@ const LOCALES_DIR = join(SRC, "../../../packages/ui/src/locales");
 // accessible names of the editor toolbar, which is what a screen reader speaks.
 // The locale files are shared, so the guard has to cover every shell that reads
 // them.
-const SCAN_ROOTS = [SRC, join(SRC, "../../../packages/ui/src"), join(SRC, "../../mobile/src")];
+const SCAN_ROOTS = ["apps/desktop/src", "packages/ui/src", "apps/mobile/src"];
 // Reachability needs one root more than t() usage does: core declares i18n key
 // prefixes as DATA (an import source's `guideKey`), so a key can be perfectly
 // alive without any shell naming it.
-const KEY_LITERAL_ROOTS = [...SCAN_ROOTS, join(SRC, "../../../packages/core/src")];
+const KEY_LITERAL_ROOTS = [...SCAN_ROOTS, "packages/core/src"];
 
 const PLURAL_SUFFIXES = ["zero", "one", "two", "few", "many", "other"] as const;
 const PLURAL_RE = new RegExp(`_(${PLURAL_SUFFIXES.join("|")})$`);
 
+// Both directions of the check and both describes below read the same trees
+// and the same ten bundles; each is read once (Befunde 2026-09-24, Z2).
+const bundles = sourceMap([LOCALES_DIR], "json");
+const parsedLocales = new Map<string, Record<string, unknown>>();
+
 function localeFiles(): string[] {
-  return readdirSync(LOCALES_DIR).filter((f) => f.endsWith(".json")).sort();
+  return [...bundles.keys()]
+    .map((rel) => rel.slice(LOCALES_DIR.length + 1))
+    .filter((name) => !name.includes("/"))
+    .sort();
 }
 
 function loadLocale(file: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(join(LOCALES_DIR, file), "utf8"));
+  let parsed = parsedLocales.get(file);
+  if (!parsed) {
+    const text = bundles.get(`${LOCALES_DIR}/${file}`);
+    if (text === undefined) throw new Error(`no locale bundle ${LOCALES_DIR}/${file}`);
+    parsed = JSON.parse(text) as Record<string, unknown>;
+    parsedLocales.set(file, parsed);
+  }
+  return parsed;
 }
 
-function collectSourceFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) { collectSourceFiles(full, out); continue; }
-    if (!/\.(ts|tsx)$/.test(entry) || /\.(test|spec)\.(ts|tsx)$/.test(entry)) continue;
-    out.push(full);
-  }
-  return out;
+let shipped: readonly SourceText[] | undefined;
+/** The shipped sources under the given roots, from one read of all four. */
+function sourcesUnder(roots: readonly string[]): string[] {
+  shipped ??= sourceTexts(KEY_LITERAL_ROOTS, "shipped");
+  return shipped.filter((f) => roots.some((root) => f.rel.startsWith(`${root}/`))).map((f) => f.text);
 }
 
 // Literal keys only ("ns.key…"); template-literal keys (dynamic view names) are
@@ -58,11 +67,8 @@ function collectSourceFiles(dir: string, out: string[] = []): string[] {
 function collectUsedKeys(): Set<string> {
   const keys = new Set<string>();
   const re = /\bt\(\s*["']([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)+)["']/g;
-  for (const root of SCAN_ROOTS) {
-    for (const file of collectSourceFiles(root)) {
-      const text = readFileSync(file, "utf8");
-      for (const m of text.matchAll(re)) keys.add(m[1]);
-    }
+  for (const text of sourcesUnder(SCAN_ROOTS)) {
+    for (const m of text.matchAll(re)) keys.add(m[1]);
   }
   return keys;
 }
@@ -219,13 +225,12 @@ describe("locale parity", () => {
   // languages, that every future translation pass would have carried. A key
   // reached only at runtime (t(`ns.${id}`)) counts as used; everything else has
   // to appear literally somewhere, or it is not a string the app can show.
-  // 20 s, not the 5 s default: this one walks BOTH source trees and every
-  // locale, which takes ~4 s alone and past 6 s when the four packages' suites
-  // run at once — so under `turbo run test` it failed for the clock rather
-  // than for a key (N9.4).
-  it("no locale key is unreachable", { timeout: 20_000 }, () => {
-    const sources = KEY_LITERAL_ROOTS.flatMap((r) => collectSourceFiles(r)).map((f) => readFileSync(f, "utf8"));
-    const text = sources.join("\n");
+  // It reads all four source trees. They come from the shared snapshot
+  // (test-sourceTree.ts), read once for this file: opening their ~1 300 files
+  // one by one, right after the check above had opened most of them, ran this
+  // test past its 20 s limit in loaded hooks (Befunde 2026-09-24, Z2).
+  it("no locale key is unreachable", () => {
+    const text = sourcesUnder(KEY_LITERAL_ROOTS).join("\n");
     const { prefixes, suffixes } = dynamicKeyShapes(text);
     expect(prefixes.length).toBeGreaterThan(10); // sanity: the scan sees the runtime families
     expect(suffixes.length).toBeGreaterThan(0);
@@ -420,8 +425,7 @@ describe("verbatim English carry-over (D8)", () => {
     );
   };
 
-  const readLocale = (lang: string): Record<string, unknown> =>
-    JSON.parse(readFileSync(join(LOCALES_DIR, `${lang}.json`), "utf8"));
+  const readLocale = (lang: string): Record<string, unknown> => loadLocale(`${lang}.json`);
 
   const others = APP_LANGUAGES.map((l) => l.code).filter((code) => code !== DEFAULT_LANGUAGE);
 

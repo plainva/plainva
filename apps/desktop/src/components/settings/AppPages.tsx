@@ -12,13 +12,14 @@ import {
 import { ThemePickerCards } from "../ThemePickerCards";
 import { CustomThemeEditor } from "./CustomThemeEditor";
 import { CustomThemeSync, type CustomThemeSyncProps } from "@plainva/ui";
-import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, isPimTraceEnabled, setPimTraceEnabled, Switch, type CustomThemeDesign } from "@plainva/ui";
+import { CUSTOM_THEME_ID, FONT_SLOT_FAMILIES, FontField, fontKindsForSlot, Switch, type CustomThemeDesign } from "@plainva/ui";
 import type { JournalCheckResult } from "@plainva/core";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { QuickCaptureSettings } from "./QuickCaptureSettings";
 import { WindowSettings } from "./WindowSettings";
 import { Select } from "../Select";
 import { getThemeDef, isModePinned, type ThemePref } from "../../services/theme";
+import { pinnedModeHintKey } from "@plainva/ui";
 import type { Density } from "../../services/density";
 import type { WeekStartSetting } from "@plainva/ui";
 import { MIN_CONTENT_FONT_SIZE, MAX_CONTENT_FONT_SIZE, type AppFontSettings, type ContentFontFamily, type FontChoice, type FontSlot } from "../../services/appFonts";
@@ -127,7 +128,7 @@ export const AppearancePage: React.FC<AppearancePageProps> = (p) => {
         </SettingRow>
         <SettingRow
           label={t("settings.themeMode", { defaultValue: "Modus" })}
-          desc={isModePinned(p.themeName) ? t("titlebar.themePinned", { defaultValue: "Modus vom Theme festgelegt" }) : undefined}
+          desc={pinnedModeHintKey(p.themeName) ? t(pinnedModeHintKey(p.themeName)!) : undefined}
         >
           <div style={{ width: "100%" }}>
             {isModePinned(p.themeName) ? (
@@ -416,7 +417,6 @@ export interface AboutPageProps {
 
 export const AboutPage: React.FC<AboutPageProps> = (p) => {
   const { t } = useTranslation();
-  const [pimTrace, setPimTrace] = React.useState(isPimTraceEnabled);
   const [journalBusy, setJournalBusy] = React.useState(false);
   const [journalNote, setJournalNote] = React.useState<string | null>(null);
   const checkDeletionLog = async () => {
@@ -451,12 +451,6 @@ export const AboutPage: React.FC<AboutPageProps> = (p) => {
       </SettingCard>
 
       <SettingCard label={t("settings.groupDiagnostics", { defaultValue: "Diagnose" })}>
-        {/* The task trace (finding 2026-09-19): off by default, and meant to be
-            switched off again - it answers one question with the provider's own
-            rows and adds them to the diagnostics export above. */}
-        <SettingRow label={t("settings.pimTrace")} desc={t("settings.pimTraceDesc")}>
-          <Switch checked={pimTrace} label={t("settings.pimTrace")} onChange={(next) => { setPimTraceEnabled(next); setPimTrace(next); }} />
-        </SettingRow>
         {/* The deletion log travels to every device and explains absences there
             without a question — so a wrong entry is worth a way to find it
             (finding 2026-09-20). The result replaces the hint. */}
@@ -524,9 +518,12 @@ export interface CustomThemePageProps {
   onChange: (spec: CustomThemeDesign) => void | Promise<void>;
   onBack: () => void;
   designSync: CustomThemeSyncProps;
+  /** The page is the one shown (and its stored design has loaded): only then
+   * does the app wear the mood being edited (E22). */
+  active: boolean;
 }
 
-export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange, onBack, designSync }) => {
+export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange, onBack, designSync, active }) => {
   const { t } = useTranslation();
   return (
     <div data-testid="custom-theme-page">
@@ -536,7 +533,7 @@ export const CustomThemePage: React.FC<CustomThemePageProps> = ({ spec, onChange
         </Button>
       </div>
       <SettingsPageHead title={t("themes.names.custom")} desc={t("settings.customThemePageDesc")} />
-      <CustomThemeEditor spec={spec} onChange={onChange} />
+      <CustomThemeEditor spec={spec} onChange={onChange} active={active} />
       <CustomThemeSync {...designSync} />
     </div>
   );

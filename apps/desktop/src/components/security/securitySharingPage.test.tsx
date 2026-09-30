@@ -1,8 +1,16 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import "@plainva/ui/i18n";
+// Imported statically: the page's module graph loads while the file is
+// collected, where no test's or hook's time limit applies. It used to come in
+// through a beforeAll hook, cheap only because the test setup had already
+// loaded all of @plainva/ui for every file; the setup no longer does
+// (Befunde 2026-09-24, Z2), and a hook would now pay for the package under the
+// 10-second hook limit. The first test used to pay for it under its own limit
+// before that, 940 ms idle and past 5 s under load, and died mid-`act()`.
+import { SecuritySharingPage } from "./SecuritySharingPage";
 
 /**
  * What the security centre does when a button is pressed (plan P6).
@@ -80,29 +88,7 @@ vi.mock("../../contexts/VaultContext", () => ({
 let container: HTMLDivElement;
 let root: Root;
 
-/*
- * Load the page once, outside anybody's assertion budget.
- *
- * The render helpers below `import()` the page, so the FIRST test in this file
- * used to pay for compiling its whole module graph. Measured on an idle
- * machine: 940ms for that test against 11-85ms for the other five. Inside the
- * 5s per-test budget that looks harmless - until the full suite runs sixteen
- * files at once, the 940ms stretches past five seconds, and the test dies
- * mid-`act()`. React is then left half-flushed and the four tests after it fail
- * on controls that never rendered, which reads like five broken assertions
- * instead of one slow import.
- *
- * The import is setup, not the thing under test, so it belongs in a hook: the
- * helpers still `import()` and simply hit the module cache. Keep it here even
- * if it looks redundant - the page keeps growing, and this is what stops that
- * growth from landing on whichever test happens to be first.
- */
-beforeAll(async () => {
-  await import("./SecuritySharingPage");
-});
-
 async function renderMembersArea(): Promise<void> {
-  const { SecuritySharingPage } = await import("./SecuritySharingPage");
   await act(async () => {
     root.render(
       <SecuritySharingPage
@@ -121,7 +107,6 @@ async function renderMembersArea(): Promise<void> {
 /** The device row lives on the overview, not inside an admin area. */
 async function renderOverview(keyStorage: "native" | "passphrase"): Promise<void> {
   vaultValues.workspaceSecurityStatus = { phase: "active", workspaceId: "ws-1", fingerprint: "ab:cd", deviceName: "Laptop", keyStorage };
-  const { SecuritySharingPage } = await import("./SecuritySharingPage");
   await act(async () => {
     root.render(
       <SecuritySharingPage
@@ -303,7 +288,6 @@ async function renderPublicationsArea(records: unknown[], people: unknown[]): Pr
   vaultValues.listSlicePublications = vi.fn(async () => records);
   vaultValues.listPublicationRecipients = vi.fn(async () => people);
   vaultValues.listPublicationPendingCounts = vi.fn(async () => ({}));
-  const { SecuritySharingPage } = await import("./SecuritySharingPage");
   await act(async () => {
     root.render(
       <SecuritySharingPage

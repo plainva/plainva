@@ -17,6 +17,11 @@ export interface ModalProps {
   /** Optional leading header icon (sweep 2026-07-19) — lets wizard-style and
    * easter-egg dialogs keep their identity without hand-rolled headers. */
   icon?: ReactNode;
+  /**
+   * One quiet line of context after the title, before the X — where the
+   * thing being made will land ("lands in Zettel/"). Not a second heading.
+   */
+  headerNote?: ReactNode;
   size?: ModalSize;
   children: ReactNode;
   /** Right-aligned action row; omit for plain content dialogs. */
@@ -48,6 +53,7 @@ export function Modal({
   onClose,
   title,
   icon,
+  headerNote,
   size = "sm",
   children,
   footer,
@@ -112,6 +118,7 @@ export function Modal({
         <div className="pv-modal-header">
           {icon ? <span className="pv-modal-hicon">{icon}</span> : null}
           <h2 className="pv-modal-heading">{title}</h2>
+          {headerNote ? <span className="pv-modal-note">{headerNote}</span> : null}
           {!hideClose && (
             <IconButton label={t("common.close", { defaultValue: "Schließen" })} onClick={onClose}>
               <X size={15} />

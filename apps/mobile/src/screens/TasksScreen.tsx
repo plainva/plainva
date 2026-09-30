@@ -19,12 +19,13 @@ import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
 import { RepeatTaskSheet } from "../components/RepeatTaskSheet";
 import { TaskDuplicatesSheet } from "../components/TaskDuplicatesSheet";
+import { TaskNamesNotice } from "../components/TaskNamesNotice";
 import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
-import { mSelect } from "../services/mobileDialogs";
+import { mSelect, mTargets } from "../services/mobileDialogs";
 import { setTaskDone } from "../services/taskCompletionAction";
 import { getPimCache, pimForegroundSync, pimSyncNow, pimTargetForCalendarKey, writablePimCalendarOptions } from "../services/pim/pimService";
 import { syncSoon } from "../services/syncService";
@@ -144,7 +145,14 @@ export function TasksScreen({
   const setTasks = useCallback((change: (prev: TaskRecord[]) => TaskRecord[]) => setTaskList((prev) => keptListMap(prev, change)), []);
   const { status, text, folder, tag, dueOnly, showHidden, list, setStatus, setText, setFolder, setTag, setDueOnly, setShowHidden, setList, resetFilters } = useTaskViewState(vault.vaultId);
   const [tick, setTick] = useState(0);
-  const [taskDb, setTaskDb] = useState("");
+  // Known from the first render on (plan Befunde 2026-09-24, E28). "New task"
+  // from the ＋ menu on another tab, the palette, the launcher shortcut and the
+  // journal's handover open this tab with the request already parked, and the
+  // first effect serves it: an empty first value read as "this vault has no
+  // task database" there, and the request was taken and dropped — the tab
+  // opened without its sheet, and the journal's typed text was lost. The effect
+  // below keeps the value current when the vault or its settings change.
+  const [taskDb, setTaskDb] = useState(() => getMobileSettings().taskDatabase.trim());
   const [dbRows, setDbRows] = useState<TaskDbRow[] | null>(null);
   const [dbCompletion, setDbCompletion] = useState<TaskCompletionModel | null>(null);
   /** The database's date column — where a generated occurrence writes its
@@ -454,7 +462,8 @@ export function TasksScreen({
       toast.info(t("sidebar.noDatabases"));
       return;
     }
-    const picked = await mSelect({
+    // The database the task moves into: the target of an action (E20).
+    const picked = await mTargets({
       title: t("tasks.promoteTo"),
       options: bases.map((b) => ({ value: b.path, label: b.path === taskDb ? `${b.title} ★` : b.title })),
     });
@@ -903,6 +912,8 @@ export function TasksScreen({
           <Chip onClick={() => void hideAllTemplates()}>{t("tasks.hideTemplates")}</Chip>
         )}
       </div>
+
+      <TaskNamesNotice vault={vault} reloadKey={`${bump}:${tick}`} onChanged={() => setTick((x) => x + 1)} />
 
       {dupes.visible && (
         <div className="m-dupes-notice">

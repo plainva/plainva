@@ -50,12 +50,21 @@ function flushesFirst(body: string, flush: RegExp): boolean {
 describe("vaultOps: pending saves land before a path changes", () => {
   const source = read("vaultService.ts");
 
-  it.each(["rename", "moveNote", "duplicateNote", "remove"])(
+  it.each(["renameReport", "moveNote", "duplicateNote", "remove"])(
     "%s flushes that note before touching the file",
     (name) => {
       expect(flushesFirst(methodBody(source, name), /noteSaver\.flush\(/)).toBe(true);
     },
   );
+
+  it("note renaming delegates to the guarded renameReport before any file access", () => {
+    // `rename` tells the person (toasts); `renameReport` does the work and
+    // reports — what a batch rename needs (plan Befunde 2026-09-24, E12). The
+    // flush lives in the one that does the work, guarded above.
+    const body = methodBody(source, "rename");
+    expect(body).toMatch(/await vaultOps\.renameReport\(v, oldPath, newTitle\)/);
+    expect(body).not.toMatch(/v\.files\.|renameFileWithLinkUpdates\(/);
+  });
 
   it.each(["moveFolder", "removeFolder"])(
     "%s flushes the whole queue — the affected child paths are unknown",

@@ -109,25 +109,26 @@ describe("the OKF declaration", () => {
 });
 
 describe("task note names", () => {
-  const task = { uid: "u", list: "l", provider: "p", identity: "i" };
   const anchored = (body: string) => `---\nplainva:\n  pim:\n    kind: task\n    uid: u\n    list: l\n    provider: p\n    identity: i\n---\n${body}`;
   const adapter = { exists: async () => false, readTextFile: async () => "" };
 
   it("drops trailing dots and blanks from the stem", () => {
-    expect(taskNotePath("", "Buy milk. . ", task)).toMatch(/^Buy milk — [0-9a-f]{16}\.md$/);
-    expect(taskNotePath("", " . . ", task)).toMatch(/^Task — [0-9a-f]{16}\.md$/);
+    expect(taskNotePath("", "Buy milk. . ")).toBe("Buy milk.md");
+    expect(taskNotePath("", " . . ")).toBe("Task.md");
   });
 
   it("names a displaced task after its first `#` heading", async () => {
-    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored("#   Title  \nx"))).toMatch(/^Tasks\/Title — [0-9a-f]{16}\.md$/);
-    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored("x\n#\n\nTitle"))).toMatch(/^Tasks\/Title — [0-9a-f]{16}\.md$/);
-    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored("#Title\n"))).toMatch(/^Tasks\/Old — [0-9a-f]{16}\.md$/);
+    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored("#   Title  \nx"))).toBe("Tasks/Title.md");
+    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored("x\n#\n\nTitle"))).toBe("Tasks/Title.md");
+    // No heading: the file's own name, and the next number of it (E11).
+    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored("#Title\n"))).toBe("Tasks/Old 2.md");
   });
 
   it("runs in one pass over a long run", async () => {
-    within(1_000, () => expect(taskNotePath("", `${". ".repeat(N / 2)}x`, task)).toMatch(/ — [0-9a-f]{16}\.md$/));
+    // Cut at 80 characters, the cut's own trailing dots and blanks go too.
+    within(1_000, () => expect(taskNotePath("", `${". ".repeat(N / 2)}x`)).toBe("Task.md"));
     const start = performance.now();
-    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored(`#${"\n".repeat(N)}`))).toMatch(/^Tasks\/Old — /);
+    expect(await displacedTaskPath(adapter, "Tasks/Old.md", anchored(`#${"\n".repeat(N)}`))).toBe("Tasks/Old 2.md");
     expect(performance.now() - start).toBeLessThan(1_000);
   });
 });

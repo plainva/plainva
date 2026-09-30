@@ -2,11 +2,20 @@ import { parentOf } from "../components/fileTreeModel";
 
 export type IndexPathOutcome = "indexed" | "removed" | "unchanged" | "needs-full-scan";
 
+/** What a flat folder reconcile reports back (VaultIndexer.reconcileFolder). */
+export interface FolderReconcileLike {
+  indexed: string[];
+  removed: string[];
+  foldersRemoved: boolean;
+}
+
 /** The slice of VaultIndexer this queue drives (kept minimal for testability). */
 export interface IncrementalIndexerLike {
   indexPath(path: string): Promise<IndexPathOutcome>;
   /** Resolves with the scan report; the queue only cares that it finished. */
   indexVaultFull(): Promise<unknown>;
+  /** Flat reconcile of one folder after a rename/removal (issue 110, E8). */
+  reconcileFolder?(folder: string, opts: { recursive: boolean }): Promise<FolderReconcileLike>;
 }
 
 export interface IndexBatchResult {
@@ -16,11 +25,19 @@ export interface IndexBatchResult {
   anyChange: boolean;
   /** The batch's paths for fileTreeVersionPaths; null after a full scan. */
   paths: string[] | null;
+  /** A folder reconcile found a subfolder gone — the folder list changed too. */
+  structureChanged?: boolean;
 }
 
 export interface IncrementalIndexQueue {
-  /** Adds paths to the pending set and starts a run if idle. Never throws. */
-  enqueue(paths: string[]): void;
+  /**
+   * Adds paths to the pending set and starts a run if idle. Never throws.
+   * `moved` names the paths that came from a rename or removal event: once
+   * such a path turns out to have changed the index, its PARENT folder is
+   * reconciled flat as well (issue 110) — the other side of a move may never
+   * have been reported.
+   */
+  enqueue(paths: string[], opts?: { moved?: string[] }): void;
   /** Resolves once all work pending at call time has drained (test hook). */
   whenIdle(): Promise<void>;
   /** Discards future work; an already-running index operation may finish. */
@@ -40,13 +57,19 @@ const segmentCount = (p: string) => p.replace(/\\/g, "/").split("/").length;
  *
  * Batch classification mirrors the former VaultContext.applyIncrementalIndex:
  * more than `maxIncremental` paths, a directory path ("needs-full-scan") or an
- * indexPath error fall back to `indexVaultFull()`. Two additions:
+ * indexPath error fall back to `indexVaultFull()`. Additions:
  *  - paths are indexed parents-first, so a deleted folder's own event is
  *    classified BEFORE its child deletions remove the rows the folder check
  *    (VaultIndexer.indexPath child-prefix query) relies on;
  *  - a "removed" file whose parent folder ALSO vanished from disk escalates to
  *    a full scan — the folder was deleted externally, and only the full scan
- *    purges the remaining stale child rows and refreshes the disk-folder list.
+ *    purges the remaining stale child rows and refreshes the disk-folder list;
+ *  - a moved path (rename/removal event) that changed the index has its parent
+ *    folder reconciled flat (issue 110, E8). macOS reports the two sides of a
+ *    move without pairing them, and a side can go missing; the parent check
+ *    removes a row whose file vanished even when nobody named it. A path whose
+ *    event changed nothing — the app's own atomic save, already indexed — costs
+ *    no folder listing.
  */
 export function createIncrementalIndexQueue(opts: {
   indexer: IncrementalIndexerLike;
@@ -59,14 +82,18 @@ export function createIncrementalIndexQueue(opts: {
 }): IncrementalIndexQueue {
   const maxIncremental = opts.maxIncremental ?? 50;
   const pending = new Set<string>();
+  const pendingMoved = new Set<string>();
   let running = false;
   let stopped = false;
   const idleWaiters: Array<() => void> = [];
 
-  const runBatch = async (batch: string[]): Promise<IndexBatchResult> => {
+  const runBatch = async (batch: string[], moved: ReadonlySet<string>): Promise<IndexBatchResult> => {
     let fullScan = batch.length > maxIncremental;
     let anyChange = false;
+    let structureChanged = false;
     const removed: string[] = [];
+    const extraPaths: string[] = [];
+    const parents = new Set<string>();
     if (!fullScan) {
       const sorted = [...batch].sort((a, b) => segmentCount(a) - segmentCount(b));
       for (const p of sorted) {
@@ -77,7 +104,10 @@ export function createIncrementalIndexQueue(opts: {
             break;
           }
           if (result === "removed") removed.push(p);
-          if (result === "indexed" || result === "removed") anyChange = true;
+          if (result === "indexed" || result === "removed") {
+            anyChange = true;
+            if (moved.has(p)) parents.add(parentOf(p));
+          }
         } catch (e) {
           console.warn("[incrementalIndexQueue] incremental index failed for", p, e);
           fullScan = true;
@@ -99,13 +129,30 @@ export function createIncrementalIndexQueue(opts: {
         }
       }
     }
+    if (!fullScan && parents.size > 0 && opts.indexer.reconcileFolder) {
+      for (const folder of parents) {
+        try {
+          const r = await opts.indexer.reconcileFolder(folder, { recursive: false });
+          if (r.indexed.length > 0 || r.removed.length > 0) {
+            anyChange = true;
+            extraPaths.push(...r.indexed, ...r.removed);
+          }
+          if (r.foldersRemoved) structureChanged = true;
+        } catch (e) {
+          console.warn("[incrementalIndexQueue] folder reconcile failed for", folder, e);
+          fullScan = true;
+          break;
+        }
+      }
+    }
     if (fullScan) {
       await opts.indexer
         .indexVaultFull()
         .catch((e) => console.error("[incrementalIndexQueue] full scan failed", e));
       return { fullScan: true, anyChange: true, paths: null };
     }
-    return { fullScan: false, anyChange, paths: batch };
+    const paths = extraPaths.length > 0 ? [...new Set([...batch, ...extraPaths])] : batch;
+    return { fullScan: false, anyChange, paths, ...(structureChanged ? { structureChanged } : {}) };
   };
 
   const drain = async () => {
@@ -113,8 +160,10 @@ export function createIncrementalIndexQueue(opts: {
     try {
       while (pending.size > 0) {
         const batch = Array.from(pending);
+        const moved = new Set(pendingMoved);
         pending.clear();
-        const result = await runBatch(batch);
+        pendingMoved.clear();
+        const result = await runBatch(batch, moved);
         try {
           if (!stopped) opts.onBatchDone(result);
         } catch (e) {
@@ -128,15 +177,19 @@ export function createIncrementalIndexQueue(opts: {
   };
 
   return {
-    enqueue(paths: string[]) {
+    enqueue(paths: string[], enqueueOpts?: { moved?: string[] }) {
       if (stopped) return;
       for (const p of paths) pending.add(p);
+      for (const p of enqueueOpts?.moved ?? []) {
+        pending.add(p);
+        pendingMoved.add(p);
+      }
       if (!running && pending.size > 0) void drain();
     },
     whenIdle() {
       if (!running && pending.size === 0) return Promise.resolve();
       return new Promise((resolve) => idleWaiters.push(resolve));
     },
-    stop() { stopped = true; pending.clear(); },
+    stop() { stopped = true; pending.clear(); pendingMoved.clear(); },
   };
 }

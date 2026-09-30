@@ -2,6 +2,7 @@ import { useEffect, useMemo, useSyncExternalStore, type SetStateAction } from "r
 import type { TaskStatusFilter } from "./taskList";
 import { isTaskViewList, type TaskViewList } from "./taskPlanner";
 import { taskDuplicatesSeenKey } from "./taskDuplicatesSeen";
+import { taskNamesHiddenKey, taskNamesJournalKey } from "./taskNameCleanupStore";
 
 export interface TaskViewState {
   status: TaskStatusFilter; text: string; folder: string; tag: string; dueOnly: boolean; showHidden: boolean;
@@ -80,6 +81,9 @@ export function forgetTaskViewState(vault: string, storage: TaskViewStorage | nu
   // Everything the tasks view remembers about a vault goes with it — the
   // put-away duplicates notice included.
   try { storage?.removeItem(taskDuplicatesSeenKey(vault)); } catch { /* unavailable */ }
+  // …and the hidden task-name clean-up with its journal (E12).
+  try { storage?.removeItem(taskNamesHiddenKey(vault)); } catch { /* unavailable */ }
+  try { storage?.removeItem(taskNamesJournalKey(vault)); } catch { /* unavailable */ }
 }
 
 export function useTaskViewState(vault: string | null) {

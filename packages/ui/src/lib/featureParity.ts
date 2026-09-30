@@ -381,6 +381,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
+    id: "embedded-pinboard-new-entry",
+    title: "\"New entry\" from a pinboard embedded in a note",
+    area: "database",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "Both shells make a pinboard entry the same way - a title and the full editor, the same " +
+      "file (plan Befunde 2026-09-24, E14/E17). An EMBEDDED board is a different surface on " +
+      "each: the desktop draws the whole board inside the note, head and \"Entry\" included; " +
+      "the phone draws an embedded database as a few rows that lead to the database itself, " +
+      "because a masonry of cards inside a note on a 360 px screen is unreadable. So on the " +
+      "phone a new entry is made one tap further, on the board's own page, with its FAB.",
+    verified: "2026-09-29",
+  },
+  {
     id: "tag-colors-table-cell",
     title: "Coloured tags in a database table cell",
     area: "database",
@@ -581,6 +597,25 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "bottom bar switches between the main screens rather than between open notes. " +
       "With no strip there is no tab to close and no closed tab to bring back, so " +
       "the phone's palette has no close-tab and no reopen-tab.",
+    verified: "2026-09-24",
+  },
+  {
+    id: "external-change-watcher",
+    title: "Notice files changed or moved outside Plainva while the app is open",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "No file watcher on the phone: neither Android nor iOS gives an app a " +
+      "reliable one for its own container or a picked folder, and a backgrounded " +
+      "app runs no code to receive events anyway. The phone re-reads the vault " +
+      "instead - every vault, on every return to the app (at most once a minute) " +
+      "and on every pull-to-refresh, both through the core's reconcile that also " +
+      "removes what vanished (issue 110, E9). A note, a database or an image " +
+      "that went missing follows its file the same way on both shells. What " +
+      "differs is only the moment: the desktop within a second, the phone when " +
+      "it comes back to the front.",
     verified: "2026-09-24",
   },
   {

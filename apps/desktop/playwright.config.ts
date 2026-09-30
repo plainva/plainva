@@ -22,8 +22,15 @@ export default defineConfig({
   // the measurement instead of the 5 s default; the production config is
   // untouched, its files are static.
   expect: { timeout: process.env.E2E_BASE_URL ? 5_000 : 10_000 },
+  // Each config writes into its own folder: Playwright empties its output
+  // folder when a run starts, and in CI the production smoke runs right after
+  // this suite — sharing `test-results/` erased the traces of every test that
+  // had needed a retry before CI could upload them (E27, Befunde 2026-09-24).
+  outputDir: 'test-results/e2e',
   use: {
     baseURL,
+    // A retried test leaves its trace; a failed or retried CI run uploads the
+    // traces as the `playwright-*` artifact (.github/workflows/ci.yml).
     trace: 'on-first-retry',
   },
   projects: [

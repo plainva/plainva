@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-09-20
+Ultimo aggiornamento: 2026-09-24
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -131,6 +131,15 @@ Le attività del provider vengono associate in base all’identità. Le diverse 
 Questi file appartengono ad attività diverse. Le attività ricorrenti con lo stesso titolo possono essere istanze distinte. Entrambi i contenuti vengono conservati separatamente.
 
 **Conserva come attività separate** — Questo file resta invariato: File attuale  La copia in conflitto viene conservata come file separato: copia di conflitto
+
+<!-- task-names-2026-09-24 -->
+## Come si chiamano le attività del provider
+
+Un'attività che Plainva rispecchia da una lista di attività del tuo provider prende il nome dal suo titolo: «Chiamare il dentista» diventa `Chiamare il dentista.md` nella cartella del tuo database delle attività. Se il nome è già occupato — da una tua nota o da una seconda attività con lo stesso titolo —, la nuova attività riceve il numero libero successivo, come qualsiasi altra nota: `Spesa 2.md`, `Spesa 3.md`.
+
+Quale attività si trovi in quale file non lo dice il nome, ma la marcatura nel frontmatter (`plainva.pim`, vedi [File Format Reference](File_Format_Reference.md)). Per questo Plainva riusa un nome esistente solo se il file contiene la stessa attività, e crea le nuove attività nello stesso ordine su ogni dispositivo: così due dispositivi assegnano gli stessi numeri. Se il titolo cambia presso il provider, Plainva aggiorna l'intestazione della nota ma non rinomina il file, quindi i collegamenti alla nota continuano a funzionare. Puoi rinominarla o spostarla tu in qualsiasi momento; la marcatura mantiene il collegamento.
+
+**Pulire i nomi con identificativo.** Tra il 12 e il 24 settembre 2026 Plainva aggiungeva un identificativo al nome delle nuove note di attività (`Chiamare il dentista — 3f9a1c0b7d2e4a61.md`). Se il tuo vault ha ancora nomi di questo tipo, la vista delle attività — sul desktop e sul telefono — mostra una volta un avviso con l'elenco vecchio → nuovo e il numero di collegamenti aggiornati insieme. **Pulisci i nomi…** chiede ancora una conferma e poi rinomina le note in base al titolo, numerando quelle con lo stesso titolo come sopra; i collegamenti vengono aggiornati. **Nascondi** mette da parte l'avviso finché non compaiono altri nomi di questo tipo. Plainva riconosce solo i nomi che ha assegnato da sé: l'identificativo deve corrispondere alla marcatura dello stesso file. Nulla viene mai rinominato da solo. Gli altri tuoi dispositivi ricevono le rinomine come uno spostamento quando hanno la stessa versione; una versione precedente vi vede invece note eliminate e note nuove, e a volte chiede se eliminarle, a volte tiene il vecchio nome accanto al nuovo: meglio aggiornare prima quei dispositivi. Sul desktop l'avviso compare nella finestra principale.
 
 <!-- tasks-jex-2026-09-14 -->
 ## Metadati Tasks e ripetizione

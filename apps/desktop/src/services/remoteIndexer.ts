@@ -1,4 +1,4 @@
-import type { VaultFileInfo, IndexScanReport } from "@plainva/core";
+import type { VaultFileInfo, IndexScanReport, FolderReconcileReport } from "@plainva/core";
 
 /**
  * The indexer an auxiliary window gets (multi-window P1).
@@ -29,6 +29,8 @@ export interface IndexerApi {
   indexPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "needs-full-scan">;
   removePathFromIndex(path: string): Promise<void>;
   indexVaultFull(): Promise<IndexScanReport>;
+  /** Reconciles one folder against the disk, removing what vanished (issue 110). */
+  reconcileFolder(folder: string, opts?: { recursive?: boolean }): Promise<FolderReconcileReport>;
   whenIdle?(): Promise<void>;
 }
 
@@ -54,6 +56,10 @@ export function createRemoteIndexer(): IndexerApi {
     },
     async indexVaultFull() {
       return EMPTY_REPORT;
+    },
+    async reconcileFolder() {
+      // The owner's watcher and refresh reconcile; this window follows its broadcast.
+      return { indexed: [], removed: [], skipped: [], foldersRemoved: false };
     },
   };
 }

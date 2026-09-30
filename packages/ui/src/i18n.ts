@@ -74,4 +74,11 @@ export async function loadAllLanguages(): Promise<void> {
   );
 }
 
+/**
+ * Test-only seam, offered here beside `loadAllLanguages` so a test setup can pin
+ * the date locale without the package barrel — importing that would load all of
+ * @plainva/ui in front of every single test file (Befunde 2026-09-24, Z2).
+ */
+export { setDateLocaleForTests } from './lib/dateLocale';
+
 export default i18n;

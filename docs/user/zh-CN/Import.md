@@ -1,6 +1,6 @@
 # 从其他应用导入
 
-更新日期：2026-09-17
+更新日期：2026-09-24
 
 Plainva 可将其他应用的笔记导入新仓库，或当前仓库内一个新命名的子文件夹。其余内容保持不变；之后可以移动或删除导入文件夹。
 
@@ -72,7 +72,7 @@ Plainva 可将其他应用的笔记导入新仓库，或当前仓库内一个新
 | **Workflowy / Dynalist** | OPML 导出 | 每个顶层条目一篇笔记，其子项作为嵌套列表 |
 | **Trilium** | 子树导出 | 笔记树及其附件；HTML 笔记会转换为 Markdown |
 | **Roam Research** | JSON 导出 | 页面成为笔记，大纲成为嵌套列表；块引用会变成它们所指向的文本 |
-| **Reflect** | Markdown 导出 | 笔记及其 wiki 链接和每日笔记 |
+| **Reflect** | Markdown 导出 | 笔记及其 wiki 链接和日记 |
 | **TiddlyWiki** | JSON 导出 | 条目作为笔记导入，带标签和日期；WikiText 保持原样 |
 | **Tana** | 一段 Tana Paste 文本 | 每个顶层节点成为一篇笔记，其子节点保持为列表项 |
 | **RemNote** | Markdown 导出 | 文档及其嵌套的 rem |

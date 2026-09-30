@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
 import { parseRRule, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
-import { mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
+import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
   createPimEvent,
   deletePimEvent,
@@ -52,12 +52,24 @@ export function useEventEditor({
 } = {}) {
   const { t } = useTranslation();
   const [calendars, setCalendars] = useState<Array<{ value: string; label: string }>>([]);
+  /**
+   * Whether that list has been read yet (plan Befunde 2026-09-24, E28). A
+   * "New event" that opened the host screen waits for it: judged against the
+   * empty first value it answered "no writable calendar" although there was
+   * one. A read that fails counts as read — with nothing in it.
+   */
+  const [calendarsRead, setCalendarsRead] = useState(false);
   const [sheet, setSheet] = useState<{ event: PimEventRow | null; startTs: number; endTs: number } | null>(null);
   /** The event whose PREVIEW is open (S4) — a tap opens this, not the form. */
   const [peek, setPeek] = useState<PimEventRow | null>(null);
 
   useEffect(() => {
-    void writablePimCalendarOptions().then(setCalendars);
+    void writablePimCalendarOptions()
+      .catch(() => [])
+      .then((list) => {
+        setCalendars(list);
+        setCalendarsRead(true);
+      });
   }, [bump]);
 
   /**
@@ -112,7 +124,8 @@ export function useEventEditor({
     // Deleting an occurrence still asks first — there the tap IS the change.
     let subject = e;
     if (e.seriesMaster) {
-      const scope = await mSelect({
+      // Two things one can do with a series (E20): no ring, nothing preselected.
+      const scope = await mActions({
         title: t("pim.seriesTitle"),
         message: t("pim.seriesDeleteMsg", { title: e.title }),
         options: [
@@ -251,7 +264,7 @@ export function useEventEditor({
         setSheet(null);
         return;
       }
-      const scope = await mSelect({
+      const scope = await mActions({
         title: t("pim.seriesTitle"),
         message: `${t("pim.seriesSaveMsg", { title: target.title })}\n${changes.map((c) => eventChangeLabel(c, t)).join("\n")}`,
         options: [
@@ -332,5 +345,5 @@ export function useEventEditor({
     </>
   );
 
-  return { openEvent, openCreate, element, writableCount: calendars.length };
+  return { openEvent, openCreate, element, writableCount: calendars.length, ready: calendarsRead };
 }

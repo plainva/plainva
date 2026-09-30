@@ -1,14 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { describe, it, expect } from "vitest";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// Walks the whole source tree from disk: about half a second on its own, but past
-// the 5 s unit-test default under the full suite's parallel load — six of these
-// guards timed out at once and passed in isolation (2026-08-24). A default meant
-// for unit tests is the wrong yardstick for a check whose runtime grows with the
-// repo; 30 s still catches a hang.
-vi.setConfig({ testTimeout: 30_000 });
+import { REPO, sourceFile, sourceTexts, type SourceText } from "./test-sourceTree";
 
 /**
  * Design-language guards (design sweep 2026-07-19, part D "enforcement").
@@ -42,47 +35,47 @@ vi.setConfig({ testTimeout: 30_000 });
  * missing selector.
  */
 
-const SRC = fileURLToPath(new URL(".", import.meta.url));
-const REPO = join(SRC, "../../..");
-
+// Repository-relative; every file is read once for all checks below, the code
+// trees from the scan guards' shared snapshot (test-sourceTree.ts). Each check
+// used to walk and read the trees itself — three times ~770 files per run,
+// which is what took these guards past the unit-test limit under load
+// (2026-08-24; Befunde 2026-09-24, Z2).
 const STYLE_FILES = {
-  ui: join(REPO, "packages/ui/src/styles/ui.css"),
-  tokens: join(REPO, "packages/ui/src/styles/tokens.css"),
-  baseColors: join(REPO, "packages/ui/src/styles/base-colors.css"),
-  appCss: join(SRC, "App.css"),
-  mailCss: join(SRC, "components/mail/mail.css"),
-  baseCss: join(SRC, "components/base/base.css"),
-  mobileCss: join(REPO, "apps/mobile/src/mobile.css"),
+  ui: "packages/ui/src/styles/ui.css",
+  tokens: "packages/ui/src/styles/tokens.css",
+  baseColors: "packages/ui/src/styles/base-colors.css",
+  appCss: "apps/desktop/src/App.css",
+  mailCss: "apps/desktop/src/components/mail/mail.css",
+  baseCss: "apps/desktop/src/components/base/base.css",
+  mobileCss: "apps/mobile/src/mobile.css",
 };
-const THEME_DIR = join(REPO, "packages/ui/src/themes");
+const THEME_DIR = "packages/ui/src/themes";
+/** Every file of the theme folder, as the folder lists it. */
+const themeFiles = () => readdirSync(join(REPO, THEME_DIR)).map((name) => `${THEME_DIR}/${name}`);
 
 const CODE_ROOTS = [
-  join(SRC, "components"),
-  join(SRC, "services"),
-  join(REPO, "packages/ui/src/components"),
-  join(REPO, "packages/ui/src/base"),
-  join(REPO, "packages/ui/src/ai"),
-  join(REPO, "apps/mobile/src"),
+  "apps/desktop/src/components",
+  "apps/desktop/src/services",
+  "packages/ui/src/components",
+  "packages/ui/src/base",
+  "packages/ui/src/ai",
+  "apps/mobile/src",
 ];
-const CODE_FILES = [join(SRC, "App.tsx"), join(SRC, "main.tsx")];
+const CODE_FILES = ["apps/desktop/src/App.tsx", "apps/desktop/src/main.tsx"];
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    if (statSync(p).isDirectory()) {
-      if (name === "node_modules" || name === "android" || name === "ios" || name === "dist") continue;
-      walk(p, out);
-    } else if (/\.tsx?$/.test(name) && !/\.test\./.test(name)) {
-      out.push(p);
-    }
-  }
-  return out;
+let code: readonly SourceText[] | undefined;
+/** The shipped TypeScript under CODE_ROOTS, plus CODE_FILES. */
+function codeSources(): readonly SourceText[] {
+  code ??= sourceTexts(["apps/desktop/src", "packages/ui/src", "apps/mobile/src"], "shipped").filter(
+    (f) => CODE_FILES.includes(f.rel) || CODE_ROOTS.some((root) => f.rel.startsWith(`${root}/`)),
+  );
+  return code;
 }
 
 function allStylesheets(): string[] {
-  const files = Object.values(STYLE_FILES).map((p) => readFileSync(p, "utf8"));
-  for (const name of readdirSync(THEME_DIR)) {
-    if (name.endsWith(".css")) files.push(readFileSync(join(THEME_DIR, name), "utf8"));
+  const files = Object.values(STYLE_FILES).map((rel) => sourceFile(rel));
+  for (const rel of themeFiles()) {
+    if (rel.endsWith(".css")) files.push(sourceFile(rel));
   }
   return files;
 }
@@ -95,9 +88,7 @@ function definedClasses(): Set<string> {
   // CSS-in-TS style sources (embedded <style> blocks, CM themes) also define
   // classes; the selector DOT distinguishes a definition from a className
   // reference, so scanning all code files is safe.
-  const files = [...CODE_FILES];
-  for (const root of CODE_ROOTS) walk(root, files);
-  for (const f of files) sources.push(readFileSync(f, "utf8"));
+  for (const f of codeSources()) sources.push(f.text);
   for (const css of sources) {
     for (const m of css.matchAll(/\.([A-Za-z][\w-]*)/g)) defined.add(m[1]);
   }
@@ -119,10 +110,7 @@ const CLASS_EXEMPT = new Set([
 
 function referencedClasses(): Map<string, string> {
   const refs = new Map<string, string>(); // class -> first referencing file
-  const files = [...CODE_FILES];
-  for (const root of CODE_ROOTS) walk(root, files);
-  for (const file of files) {
-    const src = readFileSync(file, "utf8");
+  for (const { rel: file, text: src } of codeSources()) {
     // className="..." / className={"..."} / classList.add("...") / cx("...")
     for (const m of src.matchAll(/(?:className|overlayClassName|bodyClassName)\s*[=:]\s*[{]?\s*["'`]([^"'`]+)["'`]/g)) {
       for (const cls of m[1].split(/\s+/)) {
@@ -172,10 +160,10 @@ describe("css duplicates (app-layer stylesheets define each selector once)", () 
     // so a repeated selector is only a conflict WITHIN one bundle. ui.css is
     // part of both bundles.
     const appLayer: Array<[string, string, string]> = [
-      ["ui.css", "both", readFileSync(STYLE_FILES.ui, "utf8")],
-      ["App.css", "desktop", readFileSync(STYLE_FILES.appCss, "utf8")],
-      ["mail.css", "desktop", readFileSync(STYLE_FILES.mailCss, "utf8")],
-      ["mobile.css", "mobile", readFileSync(STYLE_FILES.mobileCss, "utf8")],
+      ["ui.css", "both", sourceFile(STYLE_FILES.ui)],
+      ["App.css", "desktop", sourceFile(STYLE_FILES.appCss)],
+      ["mail.css", "desktop", sourceFile(STYLE_FILES.mailCss)],
+      ["mobile.css", "mobile", sourceFile(STYLE_FILES.mobileCss)],
     ];
     const seen = new Map<string, { file: string; bundle: string }>();
     const dupes: string[] = [];
@@ -226,11 +214,11 @@ describe("css duplicates (app-layer stylesheets define each selector once)", () 
 /** Every app-layer stylesheet, with the shell that loads it. */
 function appLayerCss(): Array<[string, string]> {
   return [
-    ["ui.css", readFileSync(STYLE_FILES.ui, "utf8")],
-    ["App.css", readFileSync(STYLE_FILES.appCss, "utf8")],
-    ["mail.css", readFileSync(STYLE_FILES.mailCss, "utf8")],
-    ["base.css", readFileSync(STYLE_FILES.baseCss, "utf8")],
-    ["mobile.css", readFileSync(STYLE_FILES.mobileCss, "utf8")],
+    ["ui.css", sourceFile(STYLE_FILES.ui)],
+    ["App.css", sourceFile(STYLE_FILES.appCss)],
+    ["mail.css", sourceFile(STYLE_FILES.mailCss)],
+    ["base.css", sourceFile(STYLE_FILES.baseCss)],
+    ["mobile.css", sourceFile(STYLE_FILES.mobileCss)],
   ];
 }
 
@@ -272,21 +260,20 @@ describe("declared variables (no stylesheet reads a token nothing defines)", () 
     // family: --font-mono (the recovery code, a string a human copies group by
     // group, stood in the proportional UI face) and two invented callout names.
     const declared = new Set<string>();
-    const themeFiles = readdirSync(THEME_DIR).map((f) => join(THEME_DIR, f));
     for (const f of [
       STYLE_FILES.ui, STYLE_FILES.tokens, STYLE_FILES.baseColors,
       STYLE_FILES.appCss, STYLE_FILES.mailCss, STYLE_FILES.baseCss, STYLE_FILES.mobileCss,
-      ...themeFiles,
+      ...themeFiles(),
     ]) {
-      for (const m of readFileSync(f, "utf8").matchAll(/(?:^|[;{])\s*(--[a-z0-9-]+)\s*:/gm)) {
+      for (const m of sourceFile(f).matchAll(/(?:^|[;{])\s*(--[a-z0-9-]+)\s*:/gm)) {
         declared.add(m[1]);
       }
     }
     // Custom properties set from code as inline style (peek geometry, a
     // calendar's own colour) are declarations too — just not in a stylesheet.
-    for (const file of [...CODE_ROOTS.flatMap((d) => walk(d)), ...CODE_FILES]) {
+    for (const { text } of codeSources()) {
       // `["--evt-color" as string]: …` is the same declaration with a cast.
-      for (const m of readFileSync(file, "utf8").matchAll(/["'](--[a-z0-9-]+)["'](?:\s+as\s+\w+)?\s*\]?\s*:/g)) {
+      for (const m of text.matchAll(/["'](--[a-z0-9-]+)["'](?:\s+as\s+\w+)?\s*\]?\s*:/g)) {
         declared.add(m[1]);
       }
     }
@@ -313,7 +300,7 @@ describe("touch targets (nothing tappable falls under the app's own minimum)", (
     const MIN = 44;
     const INTERACTIVE = /(^|[\s>+~])(button|a|\[role="(button|tab|switch|checkbox|radio|option|menuitem)"\])(?![\w-])/;
     const bad: string[] = [];
-    for (const [sel, body] of blocks(readFileSync(STYLE_FILES.mobileCss, "utf8"))) {
+    for (const [sel, body] of blocks(sourceFile(STYLE_FILES.mobileCss))) {
       if (!INTERACTIVE.test(sel)) continue;
       for (const d of body.matchAll(/(^|[;{])\s*(min-height|height)\s*:\s*([0-9.]+)px/g)) {
         if (Number(d[3]) < MIN) bad.push(`${sel}: ${d[2]} ${d[3]}px (minimum ${MIN})`);
@@ -335,7 +322,7 @@ describe("theme reach (every mobile surface can be re-themed)", () => {
     const PAINT = /(^|[;{])\s*(background|background-color|color|border|border-[a-z]+|box-shadow)\s*:([^;]*)/g;
     const LITERAL = /#[0-9a-fA-F]{3,8}\b|\brgba?\(/;
     const offenders: string[] = [];
-    for (const [sel, body] of blocks(readFileSync(STYLE_FILES.mobileCss, "utf8"))) {
+    for (const [sel, body] of blocks(sourceFile(STYLE_FILES.mobileCss))) {
       if (!/^\.m-/.test(sel)) continue;
       for (const d of body.matchAll(PAINT)) {
         if (LITERAL.test(d[3])) offenders.push(`${sel}: ${d[2]}:${d[3].trim()}`);
@@ -428,17 +415,17 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-evt": "calendar event states: the fill/hatch/outline is derived from --evt-color (the calendar's own colour, i.e. DATA) plus --bg-primary/--text-main/--accent-on, which both themes already override — there is no theme-specific surface to restyle",
   "pv-filterrow": "layout only — a wrapping row of .pv-chip, which the themes restyle",
   "pv-resulthead": "text row above the hits — the label is --text-muted and the ✕ is a themed .pv-iconbtn",
-  "pv-basesearch": "layout only — a .pv-searchfield plus the hit counter beside it; both are themed",
-  "pv-capturerow": "dashed placeholder row in --text-muted on the page ground; both themes override those tokens",
+  "pv-basesearch": "layout only — a .pv-searchfield plus the hit counter beside it; both are themed. The row under the head paints --bg-secondary and --border-color, which both themes override",
   "pv-evtdesc": "event description text (plan Befunde 24.09., E25): running text on --text-muted and link chips on --border-color/--bg-primary/--accent-color, all tokens both themes already override",
   "pv-evtjoin": "layout only — aligns the Join button; the button is a .pv-btn, which both themes restyle",
+  "pv-pinentry": "layout only — the pinboard entry window's title field, editor host and line of inherited chips inside .pv-modal; the modal, the field tokens, the Chip primitive and the editor carry every theme",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {
   it("each top-level pv surface is themed by both easter eggs or exempted", () => {
-    const ui = readFileSync(STYLE_FILES.ui, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    const lcars = readFileSync(join(THEME_DIR, "lcars.css"), "utf8");
-    const win95 = readFileSync(join(THEME_DIR, "win95.css"), "utf8");
+    const ui = sourceFile(STYLE_FILES.ui).replace(/\/\*[\s\S]*?\*\//g, "");
+    const lcars = sourceFile(`${THEME_DIR}/lcars.css`);
+    const win95 = sourceFile(`${THEME_DIR}/win95.css`);
     // Top-level surface = a class selector starting a block at nesting depth
     // 0 whose FIRST class is a simple `pv-name` (modifiers/sub-elements like
     // pv-btn--sm or pv-modal-header belong to their parent surface).
@@ -459,7 +446,7 @@ describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {
   });
 
   it("keeps the exemption list honest (no stale entries)", () => {
-    const ui = readFileSync(STYLE_FILES.ui, "utf8");
+    const ui = sourceFile(STYLE_FILES.ui);
     const stale = Object.keys(THEME_EXEMPT).filter((s) => !ui.includes(`.${s}`));
     expect(stale, `remove stale THEME_EXEMPT entries: ${stale.join(", ")}`).toEqual([]);
   });

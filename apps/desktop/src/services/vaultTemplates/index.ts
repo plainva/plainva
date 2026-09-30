@@ -1,5 +1,6 @@
 import { getSettingsStore } from "../settingsStore";
 import { readDir } from "@tauri-apps/plugin-fs";
+import { isSystemJunkName } from "@plainva/core";
 import {
   dailyNotesFolderKey,
   templateFolderKey,
@@ -31,9 +32,6 @@ export type { ScaffoldAdapter } from "@plainva/ui";
 export type { VaultTemplateBase, VaultTemplateDefinition, VaultTemplateId, VaultTemplateNote } from "@plainva/ui";
 
 
-/** OS junk that must not count as "the folder already has content". */
-const OS_JUNK_NAMES = new Set([".ds_store", "thumbs.db", "desktop.ini"]);
-
 /** Emptiness check before scaffolding (absolute path — the vault is not open yet). */
 export async function isVaultFolderEmpty(absolutePath: string): Promise<boolean> {
   try {
@@ -42,7 +40,9 @@ export async function isVaultFolderEmpty(absolutePath: string): Promise<boolean>
     const normalize = (path: string) => trimEndChars(path.replace(/\\/g, "/"), "/").toLowerCase();
     if (known.some(path => normalize(path) === normalize(absolutePath))) return false;
     const entries = await readDir(absolutePath);
-    return entries.every((e) => OS_JUNK_NAMES.has((e.name ?? "").toLowerCase()));
+    // OS junk does not count as "the folder already has content" (the core's
+    // one list, E10).
+    return entries.every((e) => isSystemJunkName(e.name ?? ""));
   } catch {
     // An unreadable destination is not evidence of an empty folder.
     return false;

@@ -1,7 +1,7 @@
 import { getSettingsStore } from "./settingsStore";
 import { notifyAppearanceChanged } from "./appearanceSync";
 import { recoverPersonalDesign } from "@plainva/ui";
-import { applyResolved, defaultCustomThemeDesign, parseCustomThemeDesign, customThemeSpecForMode, withCustomThemeMood, setCustomTheme, themesWithCustom, type CustomThemeSpec, type CustomThemeDesign } from "@plainva/ui";
+import { applyResolved, appliedTheme, defaultCustomThemeDesign, parseCustomThemeDesign, customThemeSpecForMode, withCustomThemeMood, setCustomTheme, themesWithCustom, type CustomThemeSpec, type CustomThemeDesign } from "@plainva/ui";
 
 // The theme registry and resolvers live in @plainva/ui (mobile M3E package D2)
 // so both shells share ONE catalog. This module keeps the desktop persistence
@@ -227,8 +227,10 @@ export async function deactivateEasterEggTheme(themeId: string): Promise<void> {
  * button in that case.
  */
 export async function toggleLightDark(): Promise<ThemeMode> {
-  const current = (document.documentElement.getAttribute("data-theme") as ThemeMode | null) ?? "light";
-  const name = document.documentElement.getAttribute("data-theme-name") || DEFAULT_THEME_NAME;
+  // The stored look, not the DOM: while "My theme" previews a mood, <html>
+  // wears the preview (plan Befunde 2026-09-24, E22), and the toggle must
+  // flip what is stored.
+  const { mode: current, name } = appliedTheme();
   if (isModePinned(name)) return current;
   const next: ThemeMode = current === "dark" ? "light" : "dark";
   await setStoredThemePref(next);

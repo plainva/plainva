@@ -234,7 +234,13 @@ describe("mobile saves through the actual adapter and lifecycle chain", () => {
     expect(h.drafts.size).toBe(0);
   });
 
-  it("updates one actual conflict copy when typing continues during its first write and 100 subsequent saves", async () => {
+  // Twenty further saves on real files. Every save after the first takes the
+  // same path — one conflict session, one copy, one remembered write per
+  // path — so a hundred proved nothing that twenty do not, and under a loaded
+  // commit hook the hundred ran past 20 s (Befunde 2026-09-24, Z2; the core's
+  // conflict-session test and the desktop's editorSaveRecovery carry the same).
+  const SAVES = 20;
+  it(`updates one actual conflict copy when typing continues during its first write and ${SAVES} subsequent saves`, async () => {
     const a = await makeVault();
     await a.raw.writeTextFile("Note.md", "foreign");
     await a.repo.updateLocalHashAndBaseText("Note.md", createHash("sha256").update("base").digest("hex"), "base");
@@ -263,12 +269,12 @@ describe("mobile saves through the actual adapter and lifecycle chain", () => {
     expect(h.conflicts.every((c) => c.vaultId === a.vault.vaultId)).toBe(true);
     expect(h.drafts.size).toBe(0);
     expect(h.noteSaver.hasPending()).toBe(false);
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < SAVES; i++) {
       h.noteSaver.schedule(a.vault, "Note.md", `continued ${i}`);
       await h.noteSaver.flushAll();
     }
     expect(new Set(h.conflicts.map(c => c.copy)).size).toBe(1);
-    expect(await a.raw.readTextFile(h.conflicts[0].copy)).toBe("continued 99");
+    expect(await a.raw.readTextFile(h.conflicts[0].copy)).toBe(`continued ${SAVES - 1}`);
     expect(await a.raw.readTextFile("Note.md")).toBe("foreign");
   });
 

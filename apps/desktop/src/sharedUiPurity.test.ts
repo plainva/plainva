@@ -1,14 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve, dirname, sep } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// Walks the whole source tree from disk: about half a second on its own, but past
-// the 5 s unit-test default under the full suite's parallel load — six of these
-// guards timed out at once and passed in isolation (2026-08-24). A default meant
-// for unit tests is the wrong yardstick for a check whose runtime grows with the
-// repo; 30 s still catches a hang.
-vi.setConfig({ testTimeout: 30_000 });
+import { describe, it, expect } from "vitest";
+import { join, resolve, dirname, sep } from "node:path";
+import { REPO, sourceTexts } from "./test-sourceTree";
 
 /**
  * Shared-UI purity guard (ADR 0011).
@@ -21,25 +13,22 @@ vi.setConfig({ testTimeout: 30_000 });
  * couple the shared layer to desktop-only modules).
  */
 
-const SRC = fileURLToPath(new URL(".", import.meta.url));
-const UI_SRC = resolve(SRC, "../../../packages/ui/src");
+const UI_ROOT = "packages/ui/src";
+const UI_SRC = resolve(REPO, UI_ROOT);
 
 const FORBIDDEN = [/^@tauri-apps(\/|$)/, /^@capacitor(\/|$)/];
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.tsx?$/.test(name)) out.push(p);
-  }
-  return out;
-}
 
 // Static import/export-from specifiers plus dynamic import() calls.
 const SPECIFIER = /(?:from\s*|import\s*\(\s*|^\s*import\s+)["']([^"']+)["']/gm;
 
 describe("shared UI purity (packages/ui)", () => {
-  const files = walk(UI_SRC);
+  // Every .ts/.tsx of the package, tests included, read through the scan
+  // guards' shared snapshot; `rel` is package-relative as the messages had it.
+  const files = sourceTexts([UI_ROOT], "code").map(({ rel, text }) => ({
+    rel: rel.slice(UI_ROOT.length + 1),
+    abs: join(REPO, rel),
+    text,
+  }));
 
   it("scans a non-empty package (guard must not rot into a no-op)", () => {
     expect(files.length).toBeGreaterThan(0);
@@ -47,15 +36,13 @@ describe("shared UI purity (packages/ui)", () => {
 
   it("never imports shell APIs and never escapes the package", () => {
     const violations: string[] = [];
-    for (const file of files) {
-      const rel = relative(UI_SRC, file).replace(/\\/g, "/");
-      const source = readFileSync(file, "utf8");
+    for (const { rel, abs, text: source } of files) {
       for (const match of source.matchAll(SPECIFIER)) {
         const spec = match[1];
         if (FORBIDDEN.some((re) => re.test(spec))) {
           violations.push(`${rel}: forbidden shell import "${spec}"`);
         } else if (spec.startsWith(".")) {
-          const target = resolve(dirname(file), spec);
+          const target = resolve(dirname(abs), spec);
           if (target !== UI_SRC && !target.startsWith(UI_SRC + sep)) {
             violations.push(`${rel}: relative import escapes the package: "${spec}"`);
           }
@@ -76,9 +63,8 @@ describe("shared UI purity (packages/ui)", () => {
    */
   it("never imports from its own barrel", () => {
     const violations: string[] = [];
-    for (const file of files) {
-      const rel = relative(UI_SRC, file).replace(/\\/g, "/");
-      for (const match of readFileSync(file, "utf8").matchAll(SPECIFIER)) {
+    for (const { rel, text } of files) {
+      for (const match of text.matchAll(SPECIFIER)) {
         if (/^@plainva\/ui(\/|$)/.test(match[1])) {
           violations.push(
             `${rel}: imports its own barrel ("${match[1]}") — import the defining module instead`

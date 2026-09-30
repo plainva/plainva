@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   activeFolderPath,
   backStep,
+  currentArea,
   ensureVisibleTab,
   initialNavState,
   navTop,
@@ -12,6 +13,7 @@ import {
   pushCapturedNote,
   pushEntry,
   replaceTop,
+  SCREEN_ENTRY,
   reservesFabStrip,
   showsCaptureFab,
   TAB_POOL,
@@ -343,5 +345,32 @@ describe("replaceTop: a chooser hands over to what it chose (#47)", () => {
     s = replaceTop(s, { kind: "settings", path: "" });
     expect(navTop(s)).toEqual({ kind: "settings", path: "" });
     expect(s.stacks.notes.map((e) => e.path)).toEqual(["A"]);
+  });
+});
+
+describe("the area on screen, as the areas sheet marks it (E20)", () => {
+  it("is the tab, until an area outside the bar is pushed onto it", () => {
+    let s = initialNavState("notes");
+    expect(currentArea(s)).toBe("notes");
+    // Picking the graph from the sheet pushes it onto the notes tab: the tab
+    // stays "notes", the screen is the graph — and the sheet must say graph.
+    s = pushEntry(s, SCREEN_ENTRY.graph);
+    expect(s.activeTab).toBe("notes");
+    expect(currentArea(s)).toBe("graph");
+    // A note opened from there is still "in the graph".
+    s = pushEntry(s, { kind: "note", path: "A.md" });
+    expect(currentArea(s)).toBe("graph");
+    s = popTop(popTop(s));
+    expect(currentArea(s)).toBe("notes");
+    // A folder below the root is still the notes area, not a place of its own.
+    s = pushEntry(s, { kind: "folder", path: "Projects" });
+    expect(currentArea(s)).toBe("notes");
+  });
+
+  it("looks through a global screen on top to the area below it", () => {
+    let s = tapTab(initialNavState("notes"), "tasks");
+    s = pushEntry(s, SCREEN_ENTRY.journal);
+    s = pushEntry(s, { kind: "settings", path: "" });
+    expect(currentArea(s)).toBe("journal");
   });
 });

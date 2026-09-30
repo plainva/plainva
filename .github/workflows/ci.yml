@@ -105,6 +105,33 @@ jobs:
       - name: Mobile production build smoke
         run: xvfb-run pnpm --filter mobile run smoke:prod
 
+      # A test that failed once and passed on its retry used to leave nothing
+      # behind but a line in the log (E27, Befunde 2026-09-24). Every Playwright
+      # config above records a trace on the first retry of a test
+      # (`trace: "on-first-retry"`), each run into its own folder under
+      # test-results/, so a trace exists exactly when a run failed or had to
+      # retry — and then the results of all three runs go up as one artifact,
+      # kept for a week. Open a trace with `npx playwright show-trace <trace.zip>`.
+      # A green run without a retry uploads nothing.
+      - name: Look for Playwright traces
+        id: traces
+        if: always()
+        run: |
+          if find apps/desktop/test-results apps/mobile/test-results -name trace.zip 2>/dev/null | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload Playwright traces
+        if: failure() || steps.traces.outputs.found == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-checks-${{ github.run_attempt }}
+          path: |
+            apps/desktop/test-results/
+            apps/mobile/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   webkit:
     name: WebKit editor regression
     runs-on: ubuntu-latest
@@ -120,6 +147,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter desktop exec playwright install --with-deps webkit
       - run: pnpm --filter desktop exec playwright test --config playwright.webkit.config.ts
+      # The same rule as in the Checks job (E27). This config keeps the trace of
+      # every failed attempt, so a trace exists exactly when a test failed or
+      # needed its retry.
+      - name: Look for Playwright traces
+        id: traces
+        if: always()
+        run: |
+          if find apps/desktop/test-results -name trace.zip 2>/dev/null | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload Playwright traces
+        if: failure() || steps.traces.outputs.found == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-webkit-${{ github.run_attempt }}
+          path: apps/desktop/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   rust:
     name: Rust checks

@@ -1,14 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { defaultImportRegistry } from '@plainva/core';
+import { sourceTexts } from './test-sourceTree';
 
-const LOCALES_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../../packages/ui/src/locales');
+const LOCALES_DIR = 'packages/ui/src/locales';
+// Read and parsed once, from the scan guards' shared snapshot — the check below
+// asks for every bundle once per API source.
+let bundles: ReadonlyArray<readonly [string, any]> | undefined;
 const everyLocale = () =>
-  readdirSync(LOCALES_DIR)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => [f.slice(0, -'.json'.length), JSON.parse(readFileSync(join(LOCALES_DIR, f), 'utf8'))] as const);
+  (bundles ??= sourceTexts([LOCALES_DIR], 'json')
+    .map(({ rel, text }) => [rel.slice(LOCALES_DIR.length + 1), text] as const)
+    .filter(([name]) => !name.includes('/'))
+    .map(([name, text]) => [name.slice(0, -'.json'.length), JSON.parse(text)] as const));
 
 /**
  * The wizard reads what a source needs off the adapter, not off its id.

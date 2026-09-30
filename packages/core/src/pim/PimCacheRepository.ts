@@ -622,6 +622,16 @@ export class PimCacheRepository {
     );
   }
 
+  /**
+   * A task note moved (plan Befunde 2026-09-24, E12 — the clean-up of names
+   * with an id renames in bulk): every task bound to `from` is bound to `to`.
+   * Idempotent; a path nothing is bound to changes nothing.
+   */
+  async moveTaskNotePath(from: string, to: string): Promise<void> {
+    if (from === to) return;
+    await this.db.execute(`UPDATE pim_task_state SET note_path = ? WHERE note_path = ?`, [to, from]);
+  }
+
   async deleteTaskState(accountId: string, listId: string, uid: string): Promise<void> {
     await this.db.execute(`DELETE FROM pim_task_state WHERE account_id = ? AND list_id = ? AND uid = ?`, [accountId, listId, uid]);
   }

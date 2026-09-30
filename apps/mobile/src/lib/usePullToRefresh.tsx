@@ -5,8 +5,9 @@ import { getSyncStatus, subscribeSyncStatus, syncNow } from "../services/syncSer
 /**
  * Pull-to-refresh on the list screens (R3.8, decision E6): an overscroll at
  * the top of the page pulls a Material-style indicator; past the threshold
- * the release triggers a sync (full listing) + re-query. The editor stays
- * intentionally free of it (gesture conflicts with text selection).
+ * the release re-reads the vault on this device, triggers a sync (full
+ * listing) and re-queries. The editor stays intentionally free of it
+ * (gesture conflicts with text selection).
  */
 
 /** Dampened pull distance (px) from a raw downward finger travel. */
@@ -34,8 +35,24 @@ function waitForSyncSettled(timeoutMs: number): Promise<void> {
   });
 }
 
-/** Shared refresh action: sync (when configured) + notify every list. */
-export async function refreshVaultAction(): Promise<void> {
+/**
+ * Shared refresh action: re-read the local vault, sync (when configured),
+ * notify every list. The local half is new (issue 110, E8): the pull used to
+ * only sync, so a note moved in the iOS Files app stayed at its old place
+ * however often the list was pulled. `rereadLocal: false` when the caller
+ * has just re-read the part it shows (the folder browser).
+ */
+export async function refreshVaultAction(opts: { rereadLocal?: boolean } = {}): Promise<void> {
+  if (opts.rereadLocal !== false) {
+    try {
+      // Loaded on use, like the lifecycle hooks do: the gesture module stays
+      // free of the vault runtime's native plugins.
+      const { rereadVault } = await import("../services/vaultService");
+      await rereadVault();
+    } catch {
+      /* a failed read must not wedge the indicator; the sync still runs */
+    }
+  }
   if (getSyncStatus().status !== "off") {
     try {
       syncNow();

@@ -64,7 +64,7 @@ export function AuxPane({ path, onCloseTab, isActivePane, onOpenPath, onOpenInSp
         // native egress answers no other window. Said, not silently drawn as a note.
         <EmptyState>{t("ai.empty.mainWindowOnly")}</EmptyState>
       ) : path.endsWith(".base") ? (
-        <BaseViewer key={path} activePath={path} onOpenPath={(p) => onOpenPath(p)} />
+        <BaseViewer key={path} activePath={path} onOpenPath={(p) => onOpenPath(p)} onCloseTab={onCloseTab} />
       ) : (
         <Editor
           key={path}

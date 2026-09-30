@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROFILE_FIELDS, travellingAreas, type ProfileFieldArea } from "@plainva/ui";
+import { sourceFile } from "./test-sourceTree";
 
 /**
  * Documentation drift guard (sync-transparency plan P1, step S13).
@@ -25,8 +26,11 @@ function languages(): string[] {
   return readdirSync(DOCS_USER).filter((e) => statSync(join(DOCS_USER, e)).isDirectory()).sort();
 }
 
+/** A language's Sync_Setup page, read once however often the checks look. */
+const syncPage = (lang: string) => sourceFile(`docs/user/${lang}/Sync_Setup.md`);
+
 function documentedAreas(lang: string): string[] {
-  const page = readFileSync(join(DOCS_USER, lang, "Sync_Setup.md"), "utf8");
+  const page = syncPage(lang);
   const match = MARKER.exec(page);
   if (!match) return [];
   return match[1].split(/\s+/).filter(Boolean);
@@ -50,7 +54,7 @@ describe("settings-sync documentation", () => {
 
   it("lists one table row per area, so the marker cannot drift from the prose", () => {
     for (const lang of languages()) {
-      const page = readFileSync(join(DOCS_USER, lang, "Sync_Setup.md"), "utf8");
+      const page = syncPage(lang);
       const after = page.slice(page.search(MARKER));
       const rows = after.split("\n").filter((l) => l.startsWith("| ") && !l.startsWith("| ---"));
       // header row + one row per area

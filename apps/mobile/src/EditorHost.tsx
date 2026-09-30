@@ -29,8 +29,10 @@ import {
   Pencil,
   Sparkles,
   TextSelect,
+  Image as ImageIcon,
+  Paperclip,
 } from "lucide-react";
-import { noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
@@ -51,7 +53,7 @@ import { Banner, decideDirtyExternalUpdate, toast } from "@plainva/ui";
 import { clearConflict, getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { syncSoon } from "./services/syncService";
-import { mConfirm, mSelect } from "./services/mobileDialogs";
+import { mActions, mConfirm } from "./services/mobileDialogs";
 import { applyTemplateInteractive } from "./services/templateInteractive";
 import { setEditorRangeReader, setEditorSelectionReader } from "./services/editorSelection";
 import { getMobileSettings } from "./services/mobileSettings";
@@ -88,6 +90,7 @@ export function EditorHost({
   onSuggestionApply,
   onSuggestionDecline,
   onReaderBlockedChange,
+  onVanished,
 }: {
   vault: MobileVault;
   path: string;
@@ -133,12 +136,22 @@ export function EditorHost({
   onSuggestionApply?: (commentId: string) => void;
   onSuggestionDecline?: (commentId: string) => void;
   onReaderBlockedChange?: (blocked: boolean) => void;
+  /**
+   * The file under this editor is gone — moved or deleted outside Plainva, or
+   * by sync, while the note was open (issue 110, E9). The screen looks for it.
+   */
+  onVanished?: () => void;
 }) {
   const { t } = useTranslation();
+  // A pinboard draft this editor shows is never taken for what a crash left
+  // behind (plan Befunde 2026-09-24, E15): the clean-up asks every editor.
+  useEffect(() => answerEditorPathProbe(() => ({ vaultKey: vault.vaultId, path })), [vault.vaultId, path]);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<EditorSession | null>(null);
   const highlightsRef = useRef<readonly AnchorHighlight[]>([]);
   const editableRef = useRef(editable);
+  const onVanishedRef = useRef(onVanished);
+  useEffect(() => { onVanishedRef.current = onVanished; }, [onVanished]);
   /** True while the view holds the suggestion mode's copy (V5): no saving. */
   const suggestingRef = useRef(false);
   // Block-handle menu (R1.2): the grip tap dispatches a window event (shared
@@ -450,7 +463,8 @@ export function EditorHost({
         // A long press on the picture stays native (including iOS Live Text).
         // The explicit action has its own menu, also usable with a mouse.
         if (!fromAction) return false;
-        void mSelect({ title: t("contextMenu.openImage"), options: [{ value: "open", label: t("contextMenu.openImage") }] }).then((choice) => {
+        // An action, not a one-row choice list with an empty ring (E20).
+        void mActions({ title: t("contextMenu.openImage"), options: [{ value: "open", label: t("contextMenu.openImage") }] }).then((choice) => {
           if (choice === "open") onOpenNote(absolutePath.replace(/^\/+/, ""));
         });
         return true;
@@ -699,7 +713,10 @@ export function EditorHost({
       try {
         disk = await vaultOps.readEditor(vault, path);
       } catch {
-        return; // deleted/renamed under us; the tree refresh handles that
+        // Gone from under us (issue 110, E9): the screen looks for the file —
+        // the text in this editor stays until it knows where it goes.
+        if (!(await vault.adapter.exists(path).catch(() => true))) onVanishedRef.current?.();
+        return;
       }
       if (sessionRef.current !== s) return;
       const draft = s.view.state.doc.toString();
@@ -1331,14 +1348,15 @@ export function EditorHost({
     const insertAt = sessionRef.current?.view.state.selection.main.head;
     if (insertAt === undefined) return;
     void (async () => {
-      const source = await mSelect({
+      // Three things one can do (E20): nothing preselected — the camera used
+      // to wear a filled ring, as if it were a setting already in force.
+      const source = await mActions({
         title: t("mobile.insertSource", { defaultValue: "Insert" }),
         options: [
-          { value: "camera", label: t("mobile.takePhoto", { defaultValue: "Take photo" }) },
-          { value: "gallery", label: t("mobile.choosePhoto", { defaultValue: "Choose from library" }) },
-          { value: "file", label: t("mobile.pickFile", { defaultValue: "File from device…" }) },
+          { value: "camera", label: t("mobile.takePhoto", { defaultValue: "Take photo" }), icon: <CameraIcon size={ICON.head} /> },
+          { value: "gallery", label: t("mobile.choosePhoto", { defaultValue: "Choose from library" }), icon: <ImageIcon size={ICON.head} /> },
+          { value: "file", label: t("mobile.pickFile", { defaultValue: "File from device…" }), icon: <Paperclip size={ICON.head} /> },
         ],
-        value: "camera",
       });
       if (!source) return;
       if (source === "file") {

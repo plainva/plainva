@@ -74,7 +74,11 @@ export function AppBar({
   onSearch?: () => void;
   /** Object actions, right of search. `⋮` belongs here — settings never do. */
   actions?: ReactNode;
-  /** Replaces the plain heading (a surface whose title is itself a control). */
+  /**
+   * Replaces the plain heading (a surface whose title is itself a control).
+   * It lands in the same flexible holder the heading has, so it spans the row
+   * up to the actions; to be narrower, the caller limits it.
+   */
   titleAs?: ReactNode;
   className?: string;
   /** Names the surface for the screenshot baseline's `requires` proof (5.7): a surface that renders this bar shows its subject. */
@@ -128,14 +132,22 @@ export function AppBar({
             </IconButton>
           )
         )}
-        {titleAs ?? (
-          <div className="m-appbar-ttl">
-            <h1>{title}</h1>
-            {subtitle !== undefined && subtitle !== null && subtitle !== "" && (
-              <p className="m-appbar-sub">{subtitle}</p>
-            )}
-          </div>
-        )}
+        {/* The title slot is the bar's ONE flexible holder, whatever sits in
+            it (finding 2026-09-24, E19). A control used to be rendered in
+            place of the holder instead of inside it, so it got no share of
+            the row and stayed as wide as its own content — the search field
+            ended at 60 % of the bar once a sort button stood beside it. A
+            control here takes the row; a caller that wants less limits it. */}
+        <div className="m-appbar-ttl">
+          {titleAs ?? (
+            <>
+              <h1>{title}</h1>
+              {subtitle !== undefined && subtitle !== null && subtitle !== "" && (
+                <p className="m-appbar-sub">{subtitle}</p>
+              )}
+            </>
+          )}
+        </div>
         <span className="m-headactions">
           {onSearch && (
             <IconButton label={t("sidebar.search")} data-testid="appbar-search" onClick={onSearch}>

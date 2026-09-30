@@ -228,16 +228,89 @@ export function isModePinned(themeName: ThemeName): boolean {
   return !!def && def.modes.length === 1;
 }
 
+/** Why the mode choice is locked, as the i18n key of the sentence both shells
+ * show under it — or null while the choice is free. A personal design with
+ * one adopted mood says where the other one comes from (plan Befunde
+ * 2026-09-24, E22). */
+export function pinnedModeHintKey(themeName: ThemeName): string | null {
+  if (!isModePinned(themeName)) return null;
+  return themeName === CUSTOM_THEME_ID ? "settings.customThemeModePinned" : "titlebar.themePinned";
+}
+
 function systemPrefersDark(): boolean {
   return typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-/** Resolves the effective mode: single-mode themes pin it, otherwise the
- * preference (or the OS scheme for "system") decides. */
-export function resolveThemeMode(pref: ThemePref, themeName: ThemeName): ThemeMode {
+/** The mode the stored settings resolve to, ignoring any preview. */
+function resolveStoredMode(pref: ThemePref, themeName: ThemeName): ThemeMode {
   const def = getThemeDef(themeName);
   if (def && def.modes.length === 1) return def.modes[0];
   return pref === "system" ? (systemPrefersDark() ? "dark" : "light") : pref;
+}
+
+/**
+ * The live preview of "My theme" (plan Befunde 2026-09-24, E22): while its
+ * page is open, the whole app wears the mood being edited — a proposal that
+ * is not adopted yet included — whatever Mode, System or a one-mood pin say.
+ * It is never stored: the preview lives in this module only, so a restart
+ * after a crash mid-preview paints the stored settings like any other start,
+ * and leaving the page (`setCustomThemePreview(null)`) paints them again at
+ * once. The "Mode" setting is not touched by either.
+ */
+export interface CustomThemePreview {
+  mode: ThemeMode;
+  spec: CustomThemeSpec;
+}
+
+let preview: CustomThemePreview | null = null;
+
+/** What the stored settings show — the look the app returns to once a
+ * preview ends. Replaced only when one of its fields changes, so it can serve
+ * as a `useSyncExternalStore` snapshot. */
+export interface AppliedTheme {
+  pref: ThemePref;
+  name: ThemeName;
+  variant?: string;
+  /** The resolved mode of the stored settings (pinning included). */
+  mode: ThemeMode;
+  /** Whether the stored theme pins its mode. */
+  pinned: boolean;
+}
+
+let applied: AppliedTheme | null = null;
+const appliedListeners = new Set<() => void>();
+
+/** The stored look, as last applied (before any apply: System + the default theme). */
+export function appliedTheme(): AppliedTheme {
+  applied ??= { pref: "system", name: DEFAULT_THEME_NAME, mode: resolveStoredMode("system", DEFAULT_THEME_NAME), pinned: false };
+  return applied;
+}
+
+/** Called after every paint of the theme axes — a stored apply or a preview.
+ * Returns the unsubscribe function. */
+export function onThemeApplied(listener: () => void): () => void {
+  appliedListeners.add(listener);
+  return () => { appliedListeners.delete(listener); };
+}
+
+export function getCustomThemePreview(): CustomThemePreview | null {
+  return preview;
+}
+
+/** Starts, moves or (with null) ends the preview; each call repaints at once. */
+export function setCustomThemePreview(next: CustomThemePreview | null): void {
+  if (!next && !preview) return;
+  preview = next ? { mode: next.mode, spec: { ...next.spec, mode: next.mode } } : null;
+  const last = appliedTheme();
+  applyResolved(last.pref, last.name, last.variant);
+}
+
+/** Resolves the effective mode: single-mode themes pin it, otherwise the
+ * preference (or the OS scheme for "system") decides. While "My theme" is
+ * previewed, its preview mood wins over both. */
+export function resolveThemeMode(pref: ThemePref, themeName: ThemeName): ThemeMode {
+  if (preview && themeName === CUSTOM_THEME_ID) return preview.mode;
+  return resolveStoredMode(pref, themeName);
 }
 
 /** Back-compat resolver without pinning (kept for callers that only care about
@@ -246,21 +319,33 @@ export function resolveTheme(pref: ThemePref): ThemeMode {
   return pref === "system" ? (systemPrefersDark() ? "dark" : "light") : pref;
 }
 
-/** Writes all three theme axes onto <html>. No-op without a DOM (unit tests). */
+function rememberApplied(pref: ThemePref, name: ThemeName, variant: string | undefined): void {
+  const next: AppliedTheme = { pref, name, variant, mode: resolveStoredMode(pref, name), pinned: isModePinned(name) };
+  if (applied && applied.pref === next.pref && applied.name === next.name && applied.variant === next.variant && applied.mode === next.mode && applied.pinned === next.pinned) return;
+  applied = next;
+}
+
+/** Writes all three theme axes onto <html>. No-op without a DOM (unit tests).
+ * The arguments are the stored settings and are remembered as such; while a
+ * preview of "My theme" runs, the preview is what gets painted. */
 export function applyResolved(pref: ThemePref, name: ThemeName, variant?: string): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const themeName = name || DEFAULT_THEME_NAME;
+  const storedName = name || DEFAULT_THEME_NAME;
+  rememberApplied(pref, storedName, variant);
+  const themeName = preview ? CUSTOM_THEME_ID : storedName;
   root.setAttribute("data-theme-name", themeName);
   root.setAttribute("data-theme", resolveThemeMode(pref, themeName));
-  const def = getThemeDef(themeName);
+  const def = preview ? undefined : getThemeDef(themeName);
   const v = variant ?? def?.defaultVariant;
   if (def?.variants?.length && v) root.setAttribute("data-theme-variant", v);
   else root.removeAttribute("data-theme-variant");
   // The custom theme's tokens live inline on <html>; any other theme must
   // find them gone, or a bundled theme would wear the custom colours.
-  if (themeName === CUSTOM_THEME_ID && customSpec) applyCustomTheme(customThemeSpecForMode(customSpec, resolveThemeMode(pref, themeName)));
+  if (preview) applyCustomTheme(preview.spec);
+  else if (themeName === CUSTOM_THEME_ID && customSpec) applyCustomTheme(customThemeSpecForMode(customSpec, resolveThemeMode(pref, themeName)));
   else clearCustomTheme();
+  for (const listener of [...appliedListeners]) listener();
 }
 
 /** Sets `data-theme` on the document root so the CSS variables switch. Pinned

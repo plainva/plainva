@@ -3,8 +3,12 @@
 // keys. This loads every bundle eagerly — never part of the production build.
 // (localStorage repair for Node >= 25 lives in test-localstorage.ts, which
 // runs BEFORE this file — import hoisting would defeat an inline shim here.)
-import { i18nReady, loadAllLanguages } from "@plainva/ui/i18n";
-import { setDateLocaleForTests } from "@plainva/ui";
+//
+// Only the i18n entry, never the package barrel: this file runs in front of
+// every one of ~500 test files, and `@plainva/ui` loads the whole package —
+// 3 s per file warm, 16 s cold, two thirds of the suite's time (Befunde
+// 2026-09-24, Z2). A test that needs the package imports it itself.
+import { i18nReady, loadAllLanguages, setDateLocaleForTests } from "@plainva/ui/i18n";
 
 await loadAllLanguages();
 

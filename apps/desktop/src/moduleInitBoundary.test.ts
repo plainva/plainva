@@ -1,15 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import ts from "typescript";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// Walks the whole source tree from disk: about half a second on its own, but past
-// the 5 s unit-test default under the full suite's parallel load — six of these
-// guards timed out at once and passed in isolation (2026-08-24). A default meant
-// for unit tests is the wrong yardstick for a check whose runtime grows with the
-// repo; 30 s still catches a hang.
-vi.setConfig({ testTimeout: 30_000 });
+import { shippedSources } from "./test-sourceTree";
 
 /**
  * C20: work that runs while a MODULE is loading and reaches across a package
@@ -53,8 +44,6 @@ vi.setConfig({ testTimeout: 30_000 });
  * is never acceptable and needs no budget.
  */
 
-const SRC = dirname(fileURLToPath(import.meta.url));
-const REPO = join(SRC, "../../..");
 const ROOTS = ["apps/desktop/src", "apps/mobile/src", "packages/ui/src", "packages/core/src"];
 
 /** Per file: how many cross-boundary module-init sites are tolerated today. */
@@ -72,15 +61,6 @@ interface Finding {
   kind: "call" | "read";
   name: string;
   line: number;
-}
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    const p = join(dir, entry);
-    if (statSync(p).isDirectory()) walk(p, out);
-    else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) out.push(p);
-  }
-  return out;
 }
 
 /** Value bindings this file imports from ANOTHER package. Types are erased at
@@ -166,12 +146,8 @@ function scan(file: string, text: string): Finding[] {
 
 function scanAll(): Finding[] {
   const all: Finding[] = [];
-  for (const root of ROOTS) {
-    for (const file of walk(join(REPO, root))) {
-      const rel = relative(REPO, file).replace(/\\/g, "/");
-      all.push(...scan(rel, readFileSync(file, "utf8")));
-    }
-  }
+  // Read through the scan guards' shared snapshot (test-sourceTree.ts).
+  for (const { rel, text } of shippedSources(ROOTS)) all.push(...scan(rel, text));
   return all;
 }
 

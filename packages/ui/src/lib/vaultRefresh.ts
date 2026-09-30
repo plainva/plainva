@@ -3,7 +3,10 @@ import type { IndexScanReport } from "@plainva/core";
 /**
  * "Read the vault again" (plan P1). One mechanism behind four manual entry
  * points (F5, the file-tree button, the folder context menu, the command
- * palette) and two automatic ones (window focus, interval safety net).
+ * palette) and two automatic ones (window focus, interval safety net) — and,
+ * since issue 110 (E9), the phone's return to the app, which re-reads EVERY
+ * vault (it used to be only a vault in an external folder). Lives in the
+ * shared package so both shells throttle and report the same way.
  *
  * Two halves, because a vault can live in two places:
  *  - LOCAL: reconcile the index against the disk (`indexVaultFull`) and report
@@ -95,6 +98,18 @@ export interface AutoRefreshLimits {
 
 export const AUTO_REFRESH_LIMITS: AutoRefreshLimits = {
   localMs: 30_000,
+  cloudMs: 300_000,
+};
+
+/**
+ * The phone coming back to the front (E9). Nothing watches a vault while the
+ * app is away, and on iOS the app's own vault is visible in the Files app —
+ * a note moved there stayed at its old place until the next start. The disk
+ * is re-read at most once a minute; the cloud half is not asked for here,
+ * because the foreground sync already runs on every return.
+ */
+export const RESUME_REFRESH_LIMITS: AutoRefreshLimits = {
+  localMs: 60_000,
   cloudMs: 300_000,
 };
 

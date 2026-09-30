@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { sourceMap } from "./test-sourceTree";
 
 /**
  * The user guide exists in ten languages with identical file names, and
@@ -110,8 +111,23 @@ const languages = readdirSync(userDocs, { withFileTypes: true })
 
 const pages = readdirSync(resolve(userDocs, "en")).filter((f) => f.endsWith(".md"));
 
-const structureOf = (lang: string, page: string) =>
-  pageStructure(readFileSync(resolve(userDocs, lang, page), "utf8"));
+// Every page of every language, from the scan guards' shared snapshot
+// (test-sourceTree.ts), each parsed once: the checks below look at a page two
+// or three times, and they used to read it from disk each time — some 500
+// reads per run (Befunde 2026-09-24, Z2).
+const guide = sourceMap(["docs/user"], "markdown");
+const parsed = new Map<string, Block[]>();
+const structureOf = (lang: string, page: string): Block[] => {
+  const rel = `docs/user/${lang}/${page}`;
+  let blocks = parsed.get(rel);
+  if (!blocks) {
+    const text = guide.get(rel);
+    if (text === undefined) throw new Error(`${rel} does not exist`);
+    blocks = pageStructure(text);
+    parsed.set(rel, blocks);
+  }
+  return blocks;
+};
 
 function majoritySignature(page: string): string {
   const votes = new Map<string, number>();

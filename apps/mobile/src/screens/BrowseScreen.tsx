@@ -21,7 +21,7 @@ import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, 
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
-import { vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
+import { rereadVault, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { SwipeRow } from "../components/SwipeRow";
 import { SwipeHint } from "../components/SwipeHint";
@@ -31,6 +31,7 @@ import { refreshVaultAction, usePullToRefresh } from "../lib/usePullToRefresh";
 import { relTimeAt } from "../lib/relTime";
 import { AppBar } from "../components/AppBar";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
+import { ChoiceMark } from "../components/ChoiceMark";
 
 /**
  * Folder browser (extracted from App.tsx in R2). As a tab root (no onBack)
@@ -144,8 +145,11 @@ export function BrowseScreen({
   // one thing the gesture was for came last.
   const [refreshTick, setRefreshTick] = useState(0);
   const ptrIndicator = usePullToRefresh(ptrRef, async () => {
+    // This folder is read into the index first — including what vanished from
+    // it (issue 110, E8) — then the listing, then the sync behind it.
+    await rereadVault(folder).catch(() => {});
     setRefreshTick((n) => n + 1);
-    void refreshVaultAction();
+    void refreshVaultAction({ rereadLocal: false });
   });
   useEffect(() => {
     let stale = false;
@@ -230,7 +234,7 @@ export function BrowseScreen({
         onPointerDown={() => press.start({ path: n.path, title: n.title })}
         onPointerLeave={press.clear}
         onPointerUp={press.clear}
-        end={selected ? <span className={`m-slotmark${selected.has(n.path) ? " is-on" : ""}`} /> : undefined}
+        end={selected ? <ChoiceMark multiple on={selected.has(n.path)} /> : undefined}
         icon={conflict
           ? <AlertTriangle className="m-warn" size={ICON.ui} />
           : docIcons.get(n.path)
@@ -529,7 +533,7 @@ export function BrowseScreen({
             onPointerLeave={basePress.clear}
             onPointerUp={basePress.clear}
             end={selected
-              ? <span className={`m-slotmark${selected.has(b.path) ? " is-on" : ""}`} />
+              ? <ChoiceMark multiple on={selected.has(b.path)} />
               : <ChevronRight className="m-chevron" size={ICON.ui} />}
             icon={<Database className="m-accent" size={ICON.ui} />}
             title={b.title}

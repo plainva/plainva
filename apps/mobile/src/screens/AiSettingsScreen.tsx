@@ -20,7 +20,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { getMobileAiSession } from "../services/ai/mobileAi";
-import { mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
+import { mActions, mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
 
 /**
  * Settings → AI & automation on the phone (plan KI-Harness §19.1), APP world:
@@ -65,7 +65,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
 
   const providerActions = async (provider: ProviderInfo) => {
     const hasKey = Boolean(state.keys[provider.id]);
-    const choice = await mSelect({
+    const choice = await mActions({
       title: provider.label,
       options: [
         { value: "test", label: t("ai.settings.test") },
@@ -91,7 +91,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
       ...[...groups.cloud, ...groups.gateways].map((p) => ({ value: p.id, label: p.label, desc: p.hints.map((h) => t(h)).join(" ") })),
       { value: "__custom", label: t("ai.add.custom"), desc: t("ai.add.customDesc") },
     ];
-    const picked = await mSelect({ title: t("ai.add.title"), message: t("ai.add.lead"), options });
+    const picked = await mActions({ title: t("ai.add.title"), message: t("ai.add.lead"), options });
     if (!picked) return;
     if (picked === "__custom") {
       const address = await mPrompt({ title: t("ai.add.custom"), message: t("ai.add.customUrlHint"), placeholder: "https://…/v1" });

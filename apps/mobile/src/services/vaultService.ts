@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver } from "@plainva/ui";
+import { clearPinboardCache, dailyDayResolver, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
@@ -22,6 +22,7 @@ import {
   OwnDeletionRegister,
   VaultIndexer,
   VaultQueryService,
+  isSystemJunkFile,
   type IDatabaseAdapter,
   type IVaultAdapter,
   type DeletionConfirmation,
@@ -30,7 +31,7 @@ import {
   type VaultFileInfo,
   PimCacheRepository,
 } from "@plainva/core";
-import { mSelect } from "./mobileDialogs";
+import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
 import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, type VaultFolderAccess } from "../platform/vaultFolder";
@@ -355,17 +356,22 @@ export type VaultPlace = "local" | "online" | "folder";
  * folder that already exists on the device, kept by another app. Native only —
  * the web dev server has no picker. Lives here rather than in App.tsx because
  * of that file's line budget, and because the choice is vault logic.
+ *
+ * The first step of a flow that forks, so an ACTION list (E20, the borderline
+ * case of the 24.09. plan): nothing is in force before the answer, and each
+ * row starts a different way — the desktop's start screen shows the same
+ * answers as cards to click, none preselected. The recommended way stands
+ * first. A preselected ring claimed a setting that did not exist yet.
  */
 export async function chooseVaultPlace(): Promise<VaultPlace | null> {
   const t = i18n.t.bind(i18n);
-  const where = await mSelect({
+  const where = await mActions({
     title: t("mobile.vaultCreate"),
     options: [
       { value: "local", label: t("mobile.vaultLocal"), desc: t("mobile.vaultCreateLocalDesc") },
       { value: "online", label: t("mobile.vaultCreateOnline"), desc: t("mobile.vaultCreateOnlineDesc") },
       ...(isVaultFolderSupported() ? [{ value: "folder", label: t("mobile.vaultCreateFolder"), desc: t("mobile.vaultCreateFolderDesc") }] : []),
     ],
-    value: "local",
   });
   return where as VaultPlace | null;
 }
@@ -399,16 +405,41 @@ export async function createExternalVault(ref: ExternalFolderRef, name: string):
 }
 
 /**
- * Foreign changes, stage 1 (P5): on return to the app an external vault is
- * rescanned by modification times. Nothing watches the folder while the app
- * is away — neither platform gives a reliable watcher for a foreign folder —
- * so the rescan is the honest answer, not the lazy one.
+ * Foreign changes on return to the app (P5, widened by issue 110, E9).
+ *
+ * Nothing watches a vault while the app is away — neither platform gives a
+ * reliable watcher for it — so the rescan is the honest answer, not the lazy
+ * one. It used to run for a vault in an EXTERNAL folder only; but the app's
+ * own vault is visible in the iOS Files app, and a note moved there stayed at
+ * its old place until the next start. Every vault is re-read now, through the
+ * same throttle and refresh the desktop's window focus uses (shared in
+ * packages/ui): at most once a minute, disk only — the foreground sync that
+ * runs beside it on every return is the cloud half.
  */
-export async function rescanExternalVaultOnResume(): Promise<void> {
+const resumeMarks = new Map<string, AutoRefreshMarks>();
+
+export async function rereadVaultOnResume(now: number = Date.now()): Promise<boolean> {
   const v = bootPromise ? await bootPromise.catch(() => null) : null;
-  if (!v || !v.external || !v.indexer) return;
-  await v.indexer.indexVaultFull().catch(() => {});
+  if (!v || !v.indexer) return false;
+  const marks = resumeMarks.get(v.vaultId) ?? { local: 0, cloud: 0 };
+  if (!planAutoRefresh(now, marks, RESUME_REFRESH_LIMITS).local) return false;
+  resumeMarks.set(v.vaultId, { ...marks, local: now });
+  await runVaultRefresh({ indexer: v.indexer, syncWorker: null, skipCloud: true }).catch(() => {});
   window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  return true;
+}
+
+/**
+ * Pull-to-refresh reads the vault on THIS device again (issue 110, E8/E9) —
+ * it used to only sync. With a folder, just that folder (the browser's pull,
+ * fast on a large vault); without one, the whole vault. Either way through the
+ * core's reconcile, which also removes what vanished.
+ */
+export async function rereadVault(folder?: string): Promise<void> {
+  const v = bootPromise ? await bootPromise.catch(() => null) : null;
+  if (!v || !v.indexer) return;
+  if (folder === undefined) await v.indexer.indexVaultFull();
+  else await v.indexer.reconcileFolder(folder);
 }
 
 /**
@@ -594,6 +625,10 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         void enqueueLocal(path);
       },
       onLocalFileDeleted: (path) => {
+        // A note screen that shows this file learns that it vanished (issue
+        // 110, E9) — moved or deleted outside Plainva while open, found by the
+        // re-read on return or the pull. The editor looks for it.
+        if (!isInternal(path)) window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: entry.id } }));
         // The worker mirrored a remote deletion (finding 2026-09-20): nothing is
         // left to delete remotely, and queueing it is how a wrongly mirrored
         // file went back up as a remote deletion. Asked first, so the mark is
@@ -727,9 +762,24 @@ const noteTitle = (path: string) => path.split("/").pop()!.replace(/\.md$/i, "")
 /** Reports a newly created note to the managed-overview updater (P6). */
 const reportCreated = (path: string) => notifyFileOps([{ type: "create", path }]);
 
+/** What one note rename did — `vaultOps.renameReport` hands it back instead of telling the person. */
+export interface NoteRenameReport {
+  newPath: string;
+  renamedLinks: number;
+  changedFiles: number;
+  linkUpdateFailed: boolean;
+}
+
 export const vaultOps = {
   async listFolder(v: MobileVault, folder: string): Promise<FolderListing> {
-    const entries = await v.files.listDir(folder);
+    // Operating-system bookkeeping is not content (issue 110, E10): the one
+    // list from the core, and an AppleDouble `._Note.md` by its header — a
+    // note of the user's that merely starts with `._` stays listed.
+    const listed = await v.files.listDir(folder);
+    const junk = await Promise.all(
+      listed.map((e) => (e.isDirectory ? false : isSystemJunkFile(e.path, (p) => v.adapter.readBinaryFile(p)))),
+    );
+    const entries = listed.filter((_, i) => !junk[i]);
     // Note counts per subfolder (mockup 1 "24 Notizen").
     //
     // S21: this counted ONE level with a directory listing, so a folder holding
@@ -784,14 +834,27 @@ export const vaultOps = {
    * [[links]] silently); rewrites run through v.files, so backups + sync queue
    * see every touched referencing note. */
   async rename(v: MobileVault, oldPath: string, newTitle: string): Promise<string> {
+    const result = await vaultOps.renameReport(v, oldPath, newTitle);
+    if (result.linkUpdateFailed) toast.warning(i18n.t("dialogs.renameLinksFailed"));
+    else if (result.changedFiles > 0)
+      toast.success(i18n.t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
+    return result.newPath;
+  },
+
+  /**
+   * The rename itself, reporting instead of telling — what a batch needs (the
+   * clean-up of task-note names, E12): one message at the end, not one per note.
+   */
+  async renameReport(v: MobileVault, oldPath: string, newTitle: string): Promise<NoteRenameReport> {
     // S2: land the editor's pending text BEFORE the path moves. A queued save
     // that settles afterwards writes to the OLD path — which recreates the file
     // we just renamed away, and the sync queue then pushes that ghost.
     await noteSaver.flush(oldPath, v);
     const dir = oldPath.includes("/") ? oldPath.slice(0, oldPath.lastIndexOf("/") + 1) : "";
     const newPath = `${dir}${newTitle}.md`;
-    if (newPath === oldPath) return oldPath;
+    if (newPath === oldPath) return { newPath, renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     let changedPaths: string[] = [];
+    let report = { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: false };
     if (v.queryService) {
       const result = await renameFileWithLinkUpdates({
         adapter: v.files,
@@ -800,9 +863,7 @@ export const vaultOps = {
         newPath,
       });
       changedPaths = result.changedPaths;
-      if (result.linkUpdateFailed) toast.warning(i18n.t("dialogs.renameLinksFailed"));
-      else if (result.changedFiles > 0)
-        toast.success(i18n.t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
+      report = { renamedLinks: result.renamedLinks, changedFiles: result.changedFiles, linkUpdateFailed: result.linkUpdateFailed };
     } else {
       await v.files.renameItem(oldPath, newPath);
     }
@@ -819,7 +880,7 @@ export const vaultOps = {
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     notifyFileOps([{ type: "move", from: oldPath, to: newPath }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
-    return newPath;
+    return { newPath, ...report };
   },
 
   /** Deletes a note; with sync active the deletion reaches the cloud too. */
@@ -1286,8 +1347,17 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
   // S5: a conflict is not a transient failure. The adapter has already written
   // the user's text to a `.CONFLICT` sibling; retrying writes another one every
   // backoff round, and none of them is anywhere on screen.
-  isTerminal: (err) => err instanceof ConflictError,
+  // Nor is a note whose file vanished under the editor (issue 110, E9): the
+  // adapter refuses to recreate it at its old place, and retrying cannot
+  // change that. The text stays in the editor and the draft journal; the note
+  // screen looks for the file and asks where the text goes.
+  // (Asked by the error code: a vanished file is the adapter's FILE_NOT_FOUND.)
+  isTerminal: (err) => err instanceof ConflictError || (err as { code?: string } | null)?.code === "FILE_NOT_FOUND",
   onError: (path, err, attempt, vault) => {
+    if ((err as { code?: string } | null)?.code === "FILE_NOT_FOUND") {
+      window.dispatchEvent(new CustomEvent("m-external-update", { detail: { path, vaultId: vault.vaultId } }));
+      return;
+    }
     console.error(`[noteSaver] save failed for ${path} (attempt ${attempt})`, err);
     if (err instanceof ConflictError) {
       // An end state, shown as a banner at the note itself — not a toast that

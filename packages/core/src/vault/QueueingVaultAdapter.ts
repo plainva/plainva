@@ -1,14 +1,17 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo } from "./IVaultAdapter.js";
 import { SyncQueue } from "../sync/SyncQueue.js";
+import { isSystemJunkPath } from "./systemJunk.js";
 
 /**
  * Device-local paths that must never be enqueued for push: `.plainva/` (the SQLite index,
  * graph pins, bookmarks) and `.CONFLICT-<ts>` copies (local conflict snapshots the user
  * resolves locally). The push targets already refuse `.CONFLICT`, but keeping them out of
  * the queue entirely avoids no-op queue rows and matches the pull side (`isLocalOnlyPath`).
+ * Operating-system bookkeeping (`.DS_Store`, …; issue #110, E10) never travels either —
+ * an import may copy it into the vault, and deleting it here deletes nothing remotely.
  */
 function isLocalOnly(path: string): boolean {
-  return path.startsWith(".plainva") || path.includes(".CONFLICT");
+  return path.startsWith(".plainva") || path.includes(".CONFLICT") || isSystemJunkPath(path);
 }
 
 export class QueueingVaultAdapter implements IVaultAdapter {

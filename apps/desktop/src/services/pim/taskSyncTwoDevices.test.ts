@@ -6,6 +6,7 @@ import {
   initializeSchema,
   type IDatabaseAdapter,
   type IPimTarget,
+  type PimAccountRow,
   type PimTask,
   PimConflictError,
 } from "@plainva/core";
@@ -166,7 +167,42 @@ describe("independent file views", () => {
     const ra = await runTaskSync(optsFor(A, a, null)), rb = await runTaskSync(optsFor(B, b, null));
     expect(new Set(ra.createdNotes).size).toBe(2);
     expect([...ra.createdNotes].sort()).toEqual([...rb.createdNotes].sort());
+    // Title names (E11): the SAME task gets the same number on both devices,
+    // so the file sync never meets two different tasks at one path.
+    expect([...ra.createdNotes].sort()).toEqual(["Aufgaben/Daily task 2.md", "Aufgaben/Daily task.md"]);
+    for (const path of ra.createdNotes) expect(/uid: (\S+)/.exec(a.files.get(path)!)?.[1]).toBe(/uid: (\S+)/.exec(b.files.get(path)!)?.[1]);
     expect((await runTaskSync(optsFor(A, a, null))).createdNotes).toEqual([]);
+  });
+
+  it("numbers same-titled tasks alike on two devices whose accounts come in a different order", async () => {
+    // Account order follows the LOCAL label, which each device sets itself.
+    const setup = async (accounts: Array<{ id: string; provider: PimAccountRow["provider"]; label: string; uid: string }>) => {
+      const db = new NodeSqliteAdapter();
+      await initializeSchema(db);
+      const cache = new PimCacheRepository(db);
+      for (const acc of accounts) {
+        await cache.upsertAccount({ id: acc.id, provider: acc.provider, label: acc.label, config: {}, enabled: true });
+        await cache.replaceTaskLists(acc.id, [{ id: "l1", name: "Aufgaben" }]);
+        await cache.setTaskListSelected(acc.id, "l1", true);
+        await cache.replaceTasks(acc.id, "l1", [rt({ uid: acc.uid, title: "Einkaufen" })]);
+      }
+      return { db, cache, accountId: accounts[0]!.id };
+    };
+    const A = await setup([
+      { id: "a-g", provider: "google", label: "Arbeit", uid: "task-google" },
+      { id: "a-c", provider: "caldav", label: "Privat", uid: "task-caldav" },
+    ]);
+    const B = await setup([
+      { id: "b-g", provider: "google", label: "Zuhause", uid: "task-google" },
+      { id: "b-c", provider: "caldav", label: "Büro", uid: "task-caldav" },
+    ]);
+    const a = sharedVault({ "Aufgaben.base": TASK_DB }), b = sharedVault({ "Aufgaben.base": TASK_DB });
+    await runTaskSync(optsFor(A, a, null));
+    await runTaskSync(optsFor(B, b, null));
+    const uidAt = (v: ReturnType<typeof sharedVault>, p: string) => /uid: (\S+)/.exec(v.files.get(p) ?? "")?.[1];
+    expect(uidAt(a, "Aufgaben/Einkaufen.md")).toBe(uidAt(b, "Aufgaben/Einkaufen.md"));
+    expect(uidAt(a, "Aufgaben/Einkaufen 2.md")).toBe(uidAt(b, "Aufgaben/Einkaufen 2.md"));
+    expect(uidAt(a, "Aufgaben/Einkaufen.md")).toBeTruthy();
   });
 
   it("never writes another task's fields through a stale cached path or anchor index", async () => {
@@ -313,5 +349,52 @@ describe("two reconcilers on one vault", () => {
     const again = await runTaskSync(optsFor(B, vault, target));
     expect(again.createdNotes).toEqual([]);
     expect(noteIn(vault)).toEqual([]);
+  });
+});
+
+describe("the clean-up of names with an id (E12), seen from the other device", () => {
+  const legacyPath = "Aufgaben/Einkaufen — 0123456789abcdef.md";
+  const cleanPath = "Aufgaben/Einkaufen.md";
+  const anchored = ["---", "plainva:", "  pim:", "    kind: task", "    uid: u1", "    list: l1", "    provider: caldav", "status: Offen", "---", "# Einkaufen", ""].join("\n");
+
+  /** Both devices know the task under its old name; A renames it, and A's stored path follows. */
+  async function renamedOnA() {
+    const A = await device("device-a");
+    const B = await device("device-b");
+    const task = rt({ uid: "u1", title: "Einkaufen", etag: '"e1"' });
+    await A.cache.replaceTasks(A.accountId, "l1", [task]);
+    await B.cache.replaceTasks(B.accountId, "l1", [task]);
+    const vault = sharedVault({ "Aufgaben.base": TASK_DB, [legacyPath]: anchored });
+    expect((await runTaskSync(optsFor(A, vault, null))).adoptedNotes).toEqual([legacyPath]);
+    expect((await runTaskSync(optsFor(B, vault, null))).adoptedNotes).toEqual([legacyPath]);
+    // B's index still describes the vault as it was before the move arrived.
+    const staleAnchors = anchorsOf(vault.files) as TaskSyncOptions["anchorsByUid"];
+    vault.files.set(cleanPath, vault.files.get(legacyPath)!);
+    vault.files.delete(legacyPath);
+    await A.cache.moveTaskNotePath(legacyPath, cleanPath);
+    return { A, B, vault, staleAnchors };
+  }
+
+  it("the renaming device keeps its task bound to the new name", async () => {
+    const { A, vault } = await renamedOnA();
+    const res = await runTaskSync(optsFor(A, vault, null));
+    expect(res.createdNotes).toEqual([]);
+    expect((await A.cache.getTaskStates(A.accountId, "l1"))[0].notePath).toBe(cleanPath);
+  });
+
+  it("a device whose index lags behind the move waits instead of burying the task", async () => {
+    // B's stored path is gone and its index still names the old path. That
+    // is a move not yet indexed, not a deletion: a tombstone here would stop
+    // B from ever mirroring this task again.
+    const { B, vault, staleAnchors } = await renamedOnA();
+    const lagging = await runTaskSync({ ...optsFor(B, vault, null), anchorsByUid: staleAnchors });
+    expect(lagging.createdNotes).toEqual([]);
+    expect((await B.cache.getTaskStates(B.accountId, "l1"))[0].notePath).toBe(legacyPath);
+
+    // Once the index has caught up, B follows the note to its new name.
+    const caughtUp = await runTaskSync(optsFor(B, vault, null));
+    expect(caughtUp.createdNotes).toEqual([]);
+    expect((await B.cache.getTaskStates(B.accountId, "l1"))[0].notePath).toBe(cleanPath);
+    expect([...vault.files.keys()].filter((p) => p.endsWith(".md"))).toEqual([cleanPath]);
   });
 });

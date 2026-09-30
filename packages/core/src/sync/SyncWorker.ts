@@ -14,6 +14,7 @@ import { classifySyncError, syncErrorMessage, SyncRootMissingError, type SyncErr
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
+import { isAppleDoubleCompanion, isSystemJunkPath } from "../vault/systemJunk.js";
 
 // Re-exported so every existing import keeps working: the rule moved out
 // (N1/S2) because the PIM worker asks the same question, not because callers
@@ -149,7 +150,10 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
  * the live local index and corrupts it ("database disk image is malformed").
  */
 export function isLocalOnlyPath(path: string): boolean {
-  return path.startsWith(".plainva") || path.includes(".CONFLICT");
+  // Operating-system bookkeeping (`.DS_Store`, `Thumbs.db`, …; issue #110,
+  // E10) is neither downloaded nor mirrored as a deletion. A copy an older
+  // version uploaded stays in the cloud: excluding a name deletes nothing.
+  return path.startsWith(".plainva") || path.includes(".CONFLICT") || isSystemJunkPath(path);
 }
 
 /**
@@ -266,6 +270,13 @@ const MASS_DELETE_SHARE = 0.2;
  * requests, and only in a cycle that is about to mirror deletions.
  */
 const PROBE_SAMPLE = 20;
+
+/**
+ * At most this many names a listing brings for the first time are hashed to
+ * recognise a move by content (E12). Beyond it — a whole new tree arriving —
+ * a missing file is treated as before: probed, and at worst asked about.
+ */
+const MOVE_CONTENT_SCAN_LIMIT = 500;
 
 /**
  * A journal entry is only taken back automatically once it is this old. The
@@ -1156,6 +1167,73 @@ export class SyncWorker {
   }
 
   /**
+   * Which of the files a full listing no longer carries MOVED rather than
+   * vanished (plan Befunde 2026-09-24, E12), as old path -> new path.
+   *
+   * By id first: a provider id names one file, so a missing path whose recorded
+   * id the listing carries under another name has moved (Drive keeps the id
+   * through a rename). By content for stores without ids: a name the listing
+   * brings for the FIRST time, whose bytes here — downloaded this cycle — are
+   * exactly what the missing path held at the last agreement. Only new names
+   * count: a short listing of a vault full of identical notes must still read
+   * as a short listing, and it brings no new names. Each new name explains at
+   * most one missing path.
+   *
+   * `byId` tells the two apart: an id listed under a new name is the
+   * provider's own statement, a content match is still an inference from the
+   * listing — the caller asks the provider about the old name before it goes.
+   */
+  private async recognizeRemoteMoves(
+    missing: ReadonlyArray<{ path: string; state: SyncState }>,
+    remotePaths: ReadonlySet<string>,
+    idMap: ReadonlyMap<string, string> | undefined,
+    stateMap: ReadonlyMap<string, SyncState>,
+  ): Promise<Map<string, { to: string; byId: boolean }>> {
+    const moves = new Map<string, { to: string; byId: boolean }>();
+    if (missing.length === 0) return moves;
+    const claimed = new Set<string>();
+    if (idMap && idMap.size > 0) {
+      const pathById = new Map<string, string>();
+      for (const [path, id] of idMap) if (!isLocalOnlyPath(path)) pathById.set(id, path);
+      for (const { path, state } of missing) {
+        const to = state.remote_id ? pathById.get(state.remote_id) : undefined;
+        if (!to || to === path || claimed.has(to)) continue;
+        moves.set(path, { to, byId: true });
+        claimed.add(to);
+      }
+    }
+    const byBase = new Map<string, string[]>();
+    const extensions = new Set<string>();
+    const extOf = (p: string) => (p.includes(".") ? p.slice(p.lastIndexOf(".")).toLowerCase() : "");
+    for (const { path, state } of missing) {
+      if (moves.has(path) || !state.base_sha256) continue;
+      const list = byBase.get(state.base_sha256);
+      if (list) list.push(path);
+      else byBase.set(state.base_sha256, [path]);
+      extensions.add(extOf(path));
+    }
+    if (byBase.size === 0) return moves;
+    const fresh: string[] = [];
+    for (const path of remotePaths) {
+      if (stateMap.has(path) || claimed.has(path) || isLocalOnlyPath(path) || !extensions.has(extOf(path))) continue;
+      fresh.push(path);
+    }
+    if (fresh.length === 0 || fresh.length > MOVE_CONTENT_SCAN_LIMIT) return moves;
+    for (const to of fresh) {
+      let hash: string;
+      try {
+        if (!(await this.vault.exists(to))) continue;
+        hash = isTextFile(to) ? await sha256Hash(await this.vault.readTextFile(to)) : await sha256Bytes(await this.vault.readBinaryFile(to));
+      } catch {
+        continue;
+      }
+      const from = byBase.get(hash)?.shift();
+      if (from) moves.set(from, { to, byId: false });
+    }
+    return moves;
+  }
+
+  /**
    * Asks the target for ONE file, by the id this device recorded for it
    * (finding 2026-09-20). "unknown" covers a target that cannot be asked, an
    * id-based provider without an id for the path, and a probe that failed:
@@ -1312,7 +1390,8 @@ export class SyncWorker {
         changedPaths.push(copyPath);
         await this.queue.queueWrite(copyPath);
         // The old canonical path remains attached to the remote task. Its
-        // existing links survive; the displaced task gets a stable filename.
+        // existing links survive; the displaced task takes the next free number
+        // of its title ("Title 2"), decided by the anchors found there.
         // A crash before here leaves the source; after here its copy is queued.
         if (await this.vault.readTextFile(path) !== localContent) throw new Error("task_source_changed");
         mergedContent = remoteContent;
@@ -1551,19 +1630,24 @@ export class SyncWorker {
       // path is reconciled at most once per cycle, so the snapshot cannot go
       // stale within the loop.
       const stateMap = await this.stateRepo.getAllStates();
+      // AppleDouble sidecars (`._Note.md`, E10). The header cannot be read
+      // without downloading the file, so the path-only rule decides here: `._x`
+      // stays out while `x` is in the listing or known locally.
+      const excludedFromSync = (path: string): boolean =>
+        isLocalOnlyPath(path) || isAppleDoubleCompanion(path, (p) => remotePaths.has(p) || stateMap.has(p));
 
       // 2. Reconcile each remote file against local state. Device-local paths
       // (.plainva/*, .CONFLICT copies — e.g. an index DB a desktop client independently
       // mirrored onto the same remote) are never reconciled and must not inflate the
       // progress count either: "Sync x/y" should reflect real vault files, not thousands
       // of mirrored backup snapshots. Count only the reconcilable entries.
-      const pullTotal = [...pullResult.etagMap.keys()].filter((p) => !isLocalOnlyPath(p)).length;
+      const pullTotal = [...pullResult.etagMap.keys()].filter((p) => !excludedFromSync(p)).length;
       // Overlap the network downloads for the files this cycle will actually
       // reconcile (P3.3): everything AFTER the download — merge, writes,
       // sync_state, the failure counters — stays strictly sequential below.
       const reconcileOrder: string[] = [];
       for (const [path, remoteEtag] of pullResult.etagMap.entries()) {
-        if (isLocalOnlyPath(path)) continue;
+        if (excludedFromSync(path)) continue;
         // No speculative download for a file with a queued delete/rename —
         // reconcile skips those (live-checked below), so downloading would be
         // wasted bandwidth at best and a resurrection vector at worst.
@@ -1596,7 +1680,8 @@ export class SyncWorker {
 
         // Never pull device-local state (.plainva/*, .CONFLICT copies): downloading a
         // remote index DB over the live local one corrupts it. See isLocalOnlyPath.
-        if (isLocalOnlyPath(path)) continue;
+        // Nor operating-system bookkeeping (E10).
+        if (excludedFromSync(path)) continue;
         this.emitProgress("pull", ++pullIdx, pullTotal);
 
         const state = stateMap.get(path) ?? null;
@@ -1683,6 +1768,7 @@ export class SyncWorker {
         // per-file safety (never delete a locally-modified file).
         for (const path of pullResult.deleted ?? []) {
           if (!alive()) break;
+          if (excludedFromSync(path)) continue;
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).
@@ -1703,7 +1789,7 @@ export class SyncWorker {
         const emptyListing = remotePaths.size === 0;
         const confirmed: Array<{ path: string; state: SyncState }> = [];
         for (const [path, state] of stateMap) {
-          if (isLocalOnlyPath(path)) continue;
+          if (excludedFromSync(path)) continue;
           if (state.remote_etag) confirmed.push({ path, state });
         }
         // A path the listing does not carry while the remote DOES hold a twin that
@@ -1724,6 +1810,42 @@ export class SyncWorker {
           missing.push(candidate);
         }
 
+        // A rename made on another device (plan Befunde 2026-09-24, E12): the
+        // listing no longer carries the old name, but it carries the file under
+        // a new one. That is a MOVE, not a deletion — not counted by the guard
+        // below, which exists for listings that LOSE files. The old copy goes
+        // only once the new one is here, and only without unsynced edits (the
+        // same rule as a mirrored deletion).
+        //
+        // A move by id is not probed: the listing itself names the file's new
+        // place (and Drive would answer "present" — the id is alive). A move by
+        // content is an inference, so the invariant of plan A1 holds for it:
+        // the provider is asked about the old name first. Still there means a
+        // copy was made elsewhere and the listing lost the original — it goes
+        // back among the missing files and meets the probes like any other.
+        const moves = await this.recognizeRemoteMoves(missing, remotePaths, pullResult.idMap, stateMap);
+        const movedButPresent: string[] = [];
+        if (moves.size > 0) {
+          const moved = missing.filter((m) => moves.has(m.path));
+          for (let i = missing.length - 1; i >= 0; i--) if (moves.has(missing[i]!.path)) missing.splice(i, 1);
+          const canVerify = Boolean(this.target.probeExists);
+          for (const candidate of moved) {
+            if (!alive()) break;
+            const { to, byId } = moves.get(candidate.path)!;
+            await guardPullStep(candidate.path, async () => {
+              if (!(await this.vault.exists(to))) return;
+              const outcome = await this.mirrorRemoteDeletion(
+                candidate.path, stateMap, changedPaths, nameCollisions, !byId && canVerify
+              );
+              if (outcome === "stillRemote") {
+                missing.push(candidate);
+                movedButPresent.push(candidate.path);
+              }
+              else if (outcome === "keptLocalEdits") deletionReport.keptLocalEdits.push(candidate.path);
+            });
+          }
+        }
+
         // Numbers first (plan A0): whatever happens below, this listing leaves its
         // counters behind — never a name.
         this.reportListing(pullResult.listing, pullMs, remotePaths.size, confirmed.length, missing.map((m) => m.path));
@@ -1734,9 +1856,9 @@ export class SyncWorker {
         // only definitive answer an id-based provider can give). One that is
         // alive settles it: the listing is wrong, nothing is deleted, nobody asked.
         const canProbe = Boolean(this.target.probeExists);
-        const verdicts = new Map<string, RemotePresence>();
+        const verdicts = new Map<string, RemotePresence>(movedButPresent.map((p) => [p, "present"]));
         if (canProbe) {
-          for (const candidate of pickProbeSample(missing, PROBE_SAMPLE)) {
+          for (const candidate of pickProbeSample(missing.filter((m) => !verdicts.has(m.path)), PROBE_SAMPLE)) {
             if (!alive()) break;
             verdicts.set(candidate.path, await this.probePresence(candidate.path, candidate.state));
           }

@@ -150,6 +150,8 @@ describe("SyncWorker", () => {
     expect(files.size).toBe(2);
     expect(files.get(original)).toBe(remote);
     const displaced = [...files.keys()].find(p => p !== original)!;
+    // Named like any other second note of that title (E11), not by an id.
+    expect(displaced).toBe("Tasks/Daily task 2.md");
     expect(files.get(displaced)).toBe(local);
     expect(displaced).not.toContain(".CONFLICT");
     expect(queue.queueWrite).toHaveBeenCalledWith(displaced);

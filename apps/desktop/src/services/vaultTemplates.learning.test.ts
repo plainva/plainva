@@ -1,20 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
 import { APP_LANGUAGES, getVaultTemplates, scaffoldVaultTemplate, parseBaseConfig, serializeBaseConfig, promoteTask } from "@plainva/ui";
 import { VaultIndexer, VaultQueryService, upsertFrontmatterKeys, computeColumnSummaries, SimplenoteImporter, BackupVaultAdapter, VersionHistoryService, scanTasks } from "@plainva/core";
-import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
+import { MemoryVaultAdapter } from "../../../../packages/core/test/helpers/memoryVault";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { tourLessons } from "../../../../packages/ui/src/vaultTemplates/tourLearning";
 
+// The tour is built, indexed, queried, edited, imported into and versioned for
+// every language — in a memory vault that answers like the disk
+// (memory-vault.test.ts in the core). What this checks is the tour's content
+// and the real calculations over it, not how a disk stores files; on disk the
+// ten languages wrote and read the whole tour ten times over, and under a
+// loaded commit hook each language ran past 30 s (Befunde 2026-09-24, Z2).
 describe("new tour learning material", () => {
   for (const { code } of APP_LANGUAGES) {
     it(`${code}: lessons, links, dates and real project calculations`, async () => {
       const def = getVaultTemplates(code).find(d => d.id === "plainva")!;
       const l = tourLessons(code);
-      const dir = await mkdtemp(join(tmpdir(), "plainva-tour-test-"));
-      const adapter = new LocalVaultAdapter(dir);
+      const dir = "/tour";
+      const adapter = new MemoryVaultAdapter();
       const db = await realSqlite();
       try {
         await adapter.initialize();
@@ -124,8 +127,7 @@ describe("new tour learning material", () => {
         expect(await adapter.readTextFile(def.notes[0].path)).toBe(before);
       } finally {
         await db.close();
-        if (dirname(resolve(dir)) === resolve(tmpdir())) await rm(dir, { recursive: true, force: true });
       }
-    }, 30_000);
+    });
   }
 });

@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseWindowParams } from "./windowContext";
 import { CAPTURE_WINDOW_LABEL } from "./quickCapture";
+import { sourceTexts } from "../test-sourceTree";
 
 /**
  * The quick-capture window of the global shortcut (plan Journal, J7).
@@ -20,8 +18,22 @@ import { CAPTURE_WINDOW_LABEL } from "./quickCapture";
  *    text. No filesystem, no SQL, no HTTP, no dialogs, no window creation — and
  *    the system-wide shortcut itself can be touched by the central window only.
  */
-const CAPS = join(dirname(fileURLToPath(import.meta.url)), "../../src-tauri/capabilities");
-const read = (file: string) => JSON.parse(readFileSync(join(CAPS, file), "utf8")) as { windows: string[]; permissions: Array<string | { identifier: string }> };
+const CAPS = "apps/desktop/src-tauri/capabilities";
+type Capability = { windows: string[]; permissions: Array<string | { identifier: string }> };
+let parsed: Map<string, Capability> | undefined;
+/** Every capability file of the folder, by name, read and parsed once. */
+const capabilities = (): Map<string, Capability> =>
+  (parsed ??= new Map(
+    sourceTexts([CAPS], "json")
+      .map(({ rel, text }) => [rel.slice(CAPS.length + 1), text] as const)
+      .filter(([name]) => !name.includes("/"))
+      .map(([name, text]): [string, Capability] => [name, JSON.parse(text)]),
+  ));
+const read = (file: string): Capability => {
+  const cap = capabilities().get(file);
+  if (!cap) throw new Error(`${CAPS}/${file} does not exist`);
+  return cap;
+};
 const ids = (cap: { permissions: Array<string | { identifier: string }> }) => cap.permissions.map((p) => (typeof p === "string" ? p : p.identifier));
 const matches = (pattern: string, label: string) => (pattern.endsWith("*") ? label.startsWith(pattern.slice(0, -1)) : pattern === label);
 
@@ -32,7 +44,7 @@ describe("quick-capture window", () => {
   });
 
   it("is covered by exactly one capability, by label", () => {
-    const covering = readdirSync(CAPS).filter((file) => file.endsWith(".json")).filter((file) => read(file).windows.some((w) => matches(w, CAPTURE_WINDOW_LABEL)));
+    const covering = [...capabilities().keys()].filter((file) => read(file).windows.some((w) => matches(w, CAPTURE_WINDOW_LABEL)));
     expect(covering).toEqual(["capture-window.json"]);
   });
 
@@ -47,7 +59,7 @@ describe("quick-capture window", () => {
   });
 
   it("leaves the system-wide shortcut to the central window", () => {
-    for (const file of readdirSync(CAPS).filter((name) => name.endsWith(".json"))) {
+    for (const file of capabilities().keys()) {
       const cap = read(file);
       if (!ids(cap).some((id) => id.startsWith("global-shortcut:"))) continue;
       expect(cap.windows, `${file} grants global-shortcut permissions`).toEqual(["main"]);

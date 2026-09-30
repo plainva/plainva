@@ -1,14 +1,13 @@
+import { Capacitor } from "@capacitor/core";
 import {
   deleteFrontmatterPath,
-  extractFrontmatter,
-  parseMarkdownAst,
   renameFrontmatterKey,
-  updateFrontmatterString,
 } from "@plainva/core";
 import { buildMobilePlanDeps } from "./cascadeDelete";
 import { getMobileSettings } from "./mobileSettings";
 import {
   applyRelationWrite,
+  assertFileStillThere,
   baseStemOf,
   buildContextScopeRelation,
   computeContextScope,
@@ -17,10 +16,14 @@ import {
   getContextFilters,
   loadBaseInfos,
   buildSourceClause,
-  buildUIFilterModel,
-  captureFileName,
-  captureTimestampName,
   combineFilters,
+  discardPinboardEntry,
+  finalizeItemContent,
+  finalizePinboardEntry,
+  notifyFileOps,
+  pinboardDraftLedger,
+  planPinboardEntry,
+  sweepPinboardDrafts,
   deletePropertyFromConfig,
   migrateFiltersToPerView,
   nextItemName,
@@ -30,11 +33,19 @@ import {
   resolveNewItemTarget,
   serializeBaseConfig,
   setPendingTemplateCaret,
+  viewPrefill,
   writeNoteProperty,
+  type PinboardDraft,
+  type PinboardDraftLedger,
+  type PinboardDraftSweep,
+  type PinboardEntryChip,
+  type PinboardEntryFiles,
+  type PinboardEntryPlan,
+  type PinboardEntryResult,
 } from "@plainva/ui";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
 import { syncSoon } from "./syncService";
-import { buildNewNoteFromTemplate } from "./templateInteractive";
+import { answerTemplateFile, buildNewNoteFromTemplate } from "./templateInteractive";
 import { getActiveVaultEntry } from "./vaultRegistry";
 
 /**
@@ -67,9 +78,18 @@ export async function queryView(v: MobileVault, config: any, viewIndex: number):
   return v.queryService.queryDatabaseFiles(merged);
 }
 
-/** Serializes and writes the config through the sync chain, then re-indexes. */
-export async function saveBaseConfig(v: MobileVault, path: string, config: any): Promise<void> {
+/**
+ * Serializes and writes the config through the sync chain, then re-indexes.
+ *
+ * Only over the file that is there (issue 110, E9): a database moved or
+ * deleted outside Plainva while it was open must not come back at its old
+ * place — a duplicate of the moved file, or a deletion undone, which sync
+ * would carry on. The write throws `VaultFileNotFoundError` then, and the
+ * screen looks for the file. `recreate` is the reader's own "Save here again".
+ */
+export async function saveBaseConfig(v: MobileVault, path: string, config: any, { recreate = false }: { recreate?: boolean } = {}): Promise<void> {
   const text = serializeBaseConfig(config);
+  if (!recreate) await assertFileStillThere(v.files, path);
   await v.files.writeTextFile(path, text);
   if (v.indexer) {
     try {
@@ -323,29 +343,30 @@ export async function deleteBaseProperty(
 }
 
 /**
- * Frontmatter prefill for a fresh base item (desktop parity): the simple
- * `==` rules of the active view when the top logic is ALL.
+ * Frontmatter prefill for a fresh base item: what the active view filters on,
+ * read by the SHARED rule both shells use (`viewPrefill`, plan Befunde
+ * 2026-09-24, E16) — `==` rules typed by the column, `contains` on a list.
  */
 export function newItemPrefill(config: any, viewIndex: number): Record<string, unknown> {
-  const prefill: Record<string, unknown> = {};
-  const views = Array.isArray(config?.views) ? config.views : [];
-  const active = views[viewIndex] ?? views[0];
-  if (!active) return prefill;
-  const model = buildUIFilterModel(active);
-  if (model.topLogic !== "all") return prefill;
-  for (const e of model.entries) {
-    if (e.kind === "rule" && e.rule.op === "==" && e.rule.value !== "") {
-      prefill[e.rule.column.replace(/^note\./, "")] = e.rule.value;
-    }
-  }
-  return prefill;
+  return { ...viewPrefill(config, viewIndex).props };
 }
+
+/**
+ * What "Entry" made: the new note, the storage-folder question first (no
+ * folder decided, or several sources), or nothing because the template's
+ * questions were cancelled. Two different nulls used to be one: cancelling
+ * the questions sent the person into the folder question.
+ */
+export type BaseItemResult = { status: "created"; path: string } | { status: "ask-folder" } | { status: "cancelled" };
 
 /**
  * Creates a new item for the base ({stem}_{n} naming, OKF frontmatter,
  * inherited tags from tag sources; E3: the base's newItemTemplate seeds the
- * body and simple == filters of the active view prefill the frontmatter).
- * Returns the new note's path, or null when the base has no folder source.
+ * body). What the item inherits is assembled exactly as on the desktop
+ * (`finalizeItemContent`, plan Befunde 2026-09-24, E16): the view's filters
+ * pre-fill only keys the template leaves unset, and the source and view tags
+ * join the template's tags instead of replacing them — the phone used to
+ * overwrite both.
  */
 export async function createBaseItem(
   v: MobileVault,
@@ -355,10 +376,13 @@ export async function createBaseItem(
   viewIndex = 0,
   /** The folder just answered in the storage-folder question (P2), when the config has not caught up yet. */
   folderOverride?: string,
-): Promise<string | null> {
+): Promise<BaseItemResult> {
   const target = resolveNewItemTarget(config);
-  const folder = folderOverride ?? target.folder ?? target.folderSources[0];
-  if (!folder) return null;
+  // Several folder sources are a QUESTION (plan Befunde 2026-09-24, E16): the
+  // phone used to take the first one without saying so. The storage-folder
+  // question knows both cases.
+  const folder = folderOverride ?? target.folder;
+  if (!folder) return { status: "ask-folder" };
   const stem = baseStemOf(basePath);
   const name = await nextItemName(stem, rowCount, (n) => v.files.exists(`${folder}/${n}.md`));
   const path = `${folder}/${name}.md`;
@@ -379,20 +403,13 @@ export async function createBaseItem(
     explicitTemplate: tplPath,
     fallbackBody: `# ${name}\n`,
   });
-  if (!built) return null;
-  let content = built.content;
+  if (!built) return { status: "cancelled" };
 
-  // Frontmatter prefill: inherited tags + the active view's == filters.
-  const prefill = newItemPrefill(config, viewIndex);
-  if (target.inheritTags.length > 0) prefill.tags = target.inheritTags;
-  if (Object.keys(prefill).length > 0) {
-    const fmResult = extractFrontmatter(parseMarkdownAst(content));
-    const props: Record<string, unknown> = {
-      ...((fmResult.success && fmResult.data ? fmResult.data : {}) as Record<string, unknown>),
-      ...prefill,
-    };
-    content = updateFrontmatterString(content, props);
-  }
+  // Inherited tags + what the active view filters on, by the shared rule.
+  const inherited = viewPrefill(config, viewIndex);
+  const tags = [...target.inheritTags];
+  for (const tag of inherited.tags) if (!tags.includes(tag)) tags.push(tag);
+  const content = finalizeItemContent(built.content, type, tags, inherited.props);
 
   await vaultOps.save(v, path, content);
   // `{{cursor}}` was measured before the prefill rewrote the frontmatter, so
@@ -401,55 +418,125 @@ export async function createBaseItem(
     setPendingTemplateCaret({ path, offset: built.caret + (content.length - built.content.length) });
   }
   syncSoon();
-  return path;
+  return { status: "created", path };
 }
 
 /**
- * Quick capture for the pinboard view (plan Pinboard P4/P6; title popup
- * 2026-07-17): the typed text IS the body — deliberately no template. A typed
- * TITLE becomes the file name and the H1; without one the file gets a
- * timestamp name and the note has no H1. OKF frontmatter + inherited source
- * tags still apply — and, like `createBaseItem`, the active view's simple
- * `==` rules (Build-91 feedback, P2: a capture under a filtered view used to
- * be written and hidden at once). Returns null when the base has no folder
- * source; the caller then asks the storage-folder question and retries.
+ * A new pinboard entry on the phone (plan Befunde 2026-09-24, E14–E17): the
+ * SHARED core (`planPinboardEntry` / `finalizePinboardEntry`) over this shell's
+ * normal file paths — the conflict-aware save, the link-safe rename (a move on
+ * every other device), the ordinary delete. It replaces `captureBaseItem`,
+ * which had drifted from the desktop: its own frontmatter literal, no default
+ * template, the ACTIVE labels dropped (a note captured under a label filter
+ * vanished from the board it was captured on) and, with several folder
+ * sources, silently the first one.
  */
-export async function captureBaseItem(
+export function pinboardEntryFiles(v: MobileVault): PinboardEntryFiles {
+  return {
+    exists: (p) => v.files.exists(p),
+    // The editor's pending keystrokes land before anything is decided.
+    read: async (p) => {
+      await noteSaver.flush(p, v);
+      return vaultOps.read(v, p);
+    },
+    write: (p, text) => vaultOps.save(v, p, text),
+    rename: (p, stem) => vaultOps.rename(v, p, stem),
+    // The person's own draft with nothing in it, a confirmed discard, or what
+    // an app that went away during an entry left behind unchanged.
+    remove: (p) => vaultOps.remove(v, p, { confirmed: true }),
+    // The file's bytes, exactly, on a phone. The web build's Filesystem keeps a
+    // text file as the text it was given and hands that back even when bytes
+    // are asked for, so there the text IS the file.
+    readBytes: async (p) =>
+      Capacitor.isNativePlatform() ? v.files.readBinaryFile(p) : new TextEncoder().encode(await v.files.readTextFile(p)),
+  };
+}
+
+/**
+ * This device's record of the drafts it created and has not ended (plan
+ * Befunde 2026-09-24, E15) — per vault, in the device's own storage.
+ */
+export function mobileDraftLedger(v: MobileVault): PinboardDraftLedger {
+  return pinboardDraftLedger(v.vaultId);
+}
+
+/**
+ * What an app that was closed or killed during a pinboard entry left behind,
+ * finished when the vault is opened (`usePinboardDraftSweep`): an empty draft
+ * goes the way closing its page would have taken it, anything that changed
+ * since stays. The same rule the next entry's plan applies first.
+ */
+export async function sweepMobilePinboardDrafts(v: MobileVault): Promise<PinboardDraftSweep> {
+  const swept = await sweepPinboardDrafts(pinboardEntryFiles(v), mobileDraftLedger(v));
+  if (swept.removed.length > 0) syncSoon();
+  return swept;
+}
+
+/**
+ * Creates the draft of a new entry in the board's folder. `ask-folder` means
+ * the storage-folder question comes first (none decided, or several sources);
+ * the caller asks and calls again with the answer.
+ */
+export async function planMobilePinboardEntry(
   v: MobileVault,
   config: any,
-  input: { title: string; text: string },
-  opts: { viewIndex?: number; folder?: string } = {},
-): Promise<string | null> {
-  const target = resolveNewItemTarget(config);
-  const folder = opts.folder ?? target.folder ?? target.folderSources[0];
-  if (!folder) return null;
-  // Title popup semantics (2026-07-17, desktop parity): a typed title becomes
-  // the file name AND the H1; without one the file gets a timestamp name and
-  // the note has no H1.
-  const title = input.title.trim();
-  const text = input.text;
-  const stem = (title ? captureFileName(title, 80) : null) ?? captureTimestampName(new Date());
-  let name = stem;
-  for (let n = 2; await v.files.exists(`${folder}/${name}.md`); n++) {
-    name = `${stem} ${n}`;
+  opts: { viewIndex: number; activeLabels: readonly string[]; labelProperty: string | null; folder?: string },
+): Promise<PinboardEntryPlan> {
+  const template = typeof config?.newItemTemplate === "string" ? config.newItemTemplate.trim() : "";
+  const plan = await planPinboardEntry(pinboardEntryFiles(v), {
+    config,
+    viewIndex: opts.viewIndex,
+    activeLabels: opts.activeLabels,
+    labelProperty: opts.labelProperty,
+    folder: opts.folder,
+    noteType: getMobileSettings().defaultNoteType,
+    now: new Date(),
+    ledger: mobileDraftLedger(v),
+    // The base's default template fills the body; its questions come first.
+    template: template
+      ? async ({ title, folder }) => {
+          const answered = await answerTemplateFile({
+            read: (p) => vaultOps.read(v, p),
+            exists: (p) => v.files.exists(p),
+            vaultName: (await getActiveVaultEntry()).name || "Plainva",
+            folder,
+            title,
+            template,
+          });
+          return answered === undefined ? undefined : answered === null ? null : { text: answered.text, caret: answered.cursor };
+        }
+      : undefined,
+  });
+  if (plan.status === "ready") {
+    notifyFileOps([{ type: "create", path: plan.draft.path }]);
+    if (plan.draft.caret !== null) setPendingTemplateCaret({ path: plan.draft.path, offset: plan.draft.caret });
+    syncSoon();
   }
-  const path = `${folder}/${name}.md`;
-  const body = text.trimEnd();
-  const noteBody = title ? `# ${title}\n` + (body ? `\n${body}\n` : "") : body ? `${body}\n` : "";
-  let content = `---\ntype: ${getMobileSettings().defaultNoteType}\n---\n\n${noteBody}`;
-  const prefill = newItemPrefill(config, opts.viewIndex ?? 0);
-  if (target.inheritTags.length > 0) prefill.tags = target.inheritTags;
-  if (Object.keys(prefill).length > 0) {
-    const fmResult = extractFrontmatter(parseMarkdownAst(content));
-    const props: Record<string, unknown> = {
-      ...((fmResult.success && fmResult.data ? fmResult.data : {}) as Record<string, unknown>),
-      ...prefill,
-    };
-    content = updateFrontmatterString(content, props);
-  }
-  await vaultOps.save(v, path, content);
+  return plan;
+}
+
+/** Ends an entry — see `finalizePinboardEntry`. Pending keystrokes land first. */
+export async function finalizeMobilePinboardEntry(
+  v: MobileVault,
+  draft: PinboardDraft,
+  opts: { title: string; removedChips: readonly PinboardEntryChip[]; intent: "save" | "close" },
+): Promise<PinboardEntryResult> {
+  await noteSaver.flush(draft.path, v);
+  const result = await finalizePinboardEntry(pinboardEntryFiles(v), { draft, ...opts, ledger: mobileDraftLedger(v) });
   syncSoon();
-  return path;
+  return result;
+}
+
+/** "Discard": an empty entry goes without a question, one with content after `confirm`. */
+export async function discardMobilePinboardEntry(
+  v: MobileVault,
+  draft: PinboardDraft,
+  opts: { title: string; confirm: () => Promise<boolean> },
+): Promise<"removed" | "kept"> {
+  await noteSaver.flush(draft.path, v);
+  const outcome = await discardPinboardEntry(pinboardEntryFiles(v), { draft, ...opts, ledger: mobileDraftLedger(v) });
+  if (outcome === "removed") syncSoon();
+  return outcome;
 }
 
 /**

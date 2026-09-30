@@ -20,6 +20,7 @@ mod mail_sieve;
 mod sync_upload;
 mod tray;
 mod unzip;
+mod vault_watch;
 
 mod secure_store;
 mod session;
@@ -368,6 +369,7 @@ pub fn run() {
             cancel: Mutex::new(None),
         })
         .manage(atomic_write::WriteRoots::default())
+        .manage(vault_watch::VaultWatchers::default())
         .manage(tray::TrayState::default())
         .manage(ai_egress::AiEgress::default())
         .manage(mcp::McpState::default())
@@ -427,6 +429,8 @@ pub fn run() {
             checked_fs::checked_path_exists,
             checked_fs::checked_read_text_file,
             checked_fs::checked_read_dir,
+            vault_watch::vault_watch_start,
+            vault_watch::vault_watch_stop,
             atomic_write::set_file_times,
             sync_upload::sync_upload_file,
             sync_upload::sync_file_sha256,

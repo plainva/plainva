@@ -20,6 +20,12 @@ import { sweepPinboardRefs } from "../base/pinboardSweep";
  * bare raws stay bare unless the new basename collides with another file in
  * the vault — then they become path-qualified to stay unambiguous (relevant
  * once several `index.md` files exist).
+ *
+ * Two halves, so a batch can keep what a rename WILL do in a journal and do it
+ * again after an interruption (plan Befunde 2026-09-24, E12): `planLinkUpdates`
+ * reads the index while it still points at the old name, `applyLinkUpdates`
+ * rewrites the referencing files — idempotently, because a link that already
+ * points at the new name is not found again.
  */
 
 export interface RenameAdapter {
@@ -45,43 +51,48 @@ export interface RenameResult {
   changedPaths: string[];
 }
 
-export async function renameFileWithLinkUpdates(opts: {
-  adapter: RenameAdapter;
-  queryService: VaultQueryService;
+/** What planning needs from the index. */
+export type LinkUpdateQuery = Pick<VaultQueryService, "getBacklinks" | "db">;
+
+/**
+ * The link rewrites one rename implies — plain data (a journal can hold it).
+ * Per referencing file: the raw body targets with their new target, and the
+ * frontmatter relation links by key.
+ */
+export interface LinkUpdatePlan {
   oldPath: string;
   newPath: string;
-}): Promise<RenameResult> {
-  const { adapter, queryService, oldPath, newPath } = opts;
+  sources: Array<{
+    path: string;
+    body: Array<{ raw: string; target: string }>;
+    frontmatter: FrontmatterLinkRename[];
+  }>;
+}
 
-  // Collect referencing links BEFORE the rename — the index still points at
-  // oldPath. A failure here must not block the rename itself, but it MUST be
-  // reported: renaming without link updates silently breaks vault-wide links.
+/**
+ * Collect referencing links BEFORE the rename — the index still points at
+ * oldPath. A failure here must not block the rename itself, but it MUST be
+ * reported (`failed`): renaming without link updates silently breaks
+ * vault-wide links.
+ */
+export async function planLinkUpdates(
+  queryService: LinkUpdateQuery,
+  oldPath: string,
+  newPath: string
+): Promise<{ plan: LinkUpdatePlan; failed: boolean }> {
   let backlinks: { source_path: string; target_path: string; property_key?: string | null }[] = [];
   let allPaths: string[] = [];
-  let linkUpdateFailed = false;
+  let failed = false;
   try {
     backlinks = await queryService.getBacklinks(oldPath);
     const rows = await queryService.db.query<{ path: string }>(`SELECT path FROM files`);
     allPaths = rows.map((r) => r.path);
   } catch (e) {
     console.warn("[renameNote] collecting backlinks failed — renaming without link updates", e);
-    linkUpdateFailed = true;
+    failed = true;
   }
-
-  await adapter.renameItem(oldPath, newPath);
-
-  // Pinboard arrangements carry vault-relative PATHS (plan Pinboard P5):
-  // retarget them in every affected `.base` so the card keeps its position and
-  // pin. Shared here so desktop and mobile renames sweep alike (the
-  // templateFor lesson); failures never block the rename.
-  let sweptBases: string[] = [];
-  try {
-    sweptBases = await sweepPinboardRefs({ adapter, queryService }, [{ from: oldPath, to: newPath }]);
-  } catch (e) {
-    console.warn("[renameNote] pinboard sweep failed", e);
-  }
-
-  if (backlinks.length === 0) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed, changedPaths: sweptBases };
+  const plan: LinkUpdatePlan = { oldPath, newPath, sources: [] };
+  if (backlinks.length === 0) return { plan, failed };
 
   const newBasename = newPath.split(/[/\\]/).pop()!;
   const isNote = newBasename.toLowerCase().endsWith(".md");
@@ -124,53 +135,96 @@ export async function renameFileWithLinkUpdates(opts: {
       entry.bodyRaws.add(link.target_path);
     }
   }
+  for (const [path, entry] of bySource) {
+    const frontmatter: FrontmatterLinkRename[] = [];
+    for (const [key, raws] of entry.fmRenames) {
+      for (const raw of raws) frontmatter.push({ key, oldTarget: raw, newTarget: newTargetFor(raw) });
+    }
+    plan.sources.push({ path, body: [...entry.bodyRaws].map((raw) => ({ raw, target: newTargetFor(raw) })), frontmatter });
+  }
+  return { plan, failed };
+}
 
+/** Rewrites the referencing files of a plan. Safe to run twice. */
+export async function applyLinkUpdates(
+  adapter: Pick<RenameAdapter, "readTextFile" | "writeTextFile">,
+  plan: LinkUpdatePlan
+): Promise<{ renamedLinks: number; changedFiles: number; changedPaths: string[]; failed: boolean }> {
   let renamedLinks = 0;
   let changedFiles = 0;
+  let failed = false;
   const changedPaths: string[] = [];
-  for (const [source, entry] of bySource) {
+  for (const source of plan.sources) {
     try {
-      let text = await adapter.readTextFile(source);
+      let text = await adapter.readTextFile(source.path);
 
       let bodyCount = 0;
-      if (entry.bodyRaws.size > 0) {
+      if (source.body.length > 0) {
         // preserveObsidianSyntax keeps wikilinks/embeds as retargetable nodes
         // and guarantees they serialize back byte-identically.
         const ast = parseMarkdownAst(text, { preserveObsidianSyntax: true });
-        for (const raw of entry.bodyRaws) {
-          bodyCount += renameVaultLink(ast, raw, newTargetFor(raw));
-        }
+        for (const { raw, target } of source.body) bodyCount += renameVaultLink(ast, raw, target);
         if (bodyCount > 0) text = serializeMarkdownAst(ast);
       }
 
       let fmCount = 0;
-      if (entry.fmRenames.size > 0) {
+      if (source.frontmatter.length > 0) {
         try {
-          const fmRenameList: FrontmatterLinkRename[] = [];
-          for (const [key, raws] of entry.fmRenames) {
-            for (const raw of raws) fmRenameList.push({ key, oldTarget: raw, newTarget: newTargetFor(raw) });
-          }
-          const res = renameFrontmatterWikiLinks(text, fmRenameList);
+          const res = renameFrontmatterWikiLinks(text, source.frontmatter);
           text = res.content;
           fmCount = res.renamed;
         } catch (e) {
           // Never lose the body-side fix over unparseable frontmatter.
-          console.warn(`[renameNote] frontmatter link update in ${source} failed`, e);
+          console.warn(`[renameNote] frontmatter link update in ${source.path} failed`, e);
         }
       }
 
       if (bodyCount + fmCount > 0) {
-        await adapter.writeTextFile(source, text);
+        await adapter.writeTextFile(source.path, text);
         renamedLinks += bodyCount + fmCount;
         changedFiles++;
-        changedPaths.push(source);
+        changedPaths.push(source.path);
       }
     } catch (e) {
-      console.warn(`[renameNote] updating links in ${source} failed`, e);
-      linkUpdateFailed = true;
+      console.warn(`[renameNote] updating links in ${source.path} failed`, e);
+      failed = true;
     }
   }
+  return { renamedLinks, changedFiles, changedPaths, failed };
+}
 
+export async function renameFileWithLinkUpdates(opts: {
+  adapter: RenameAdapter;
+  queryService: VaultQueryService;
+  oldPath: string;
+  newPath: string;
+}): Promise<RenameResult> {
+  const { adapter, queryService, oldPath, newPath } = opts;
+
+  const { plan, failed: planFailed } = await planLinkUpdates(queryService, oldPath, newPath);
+
+  await adapter.renameItem(oldPath, newPath);
+
+  // Pinboard arrangements carry vault-relative PATHS (plan Pinboard P5):
+  // retarget them in every affected `.base` so the card keeps its position and
+  // pin. Shared here so desktop and mobile renames sweep alike (the
+  // templateFor lesson); failures never block the rename.
+  let sweptBases: string[] = [];
+  try {
+    sweptBases = await sweepPinboardRefs({ adapter, queryService }, [{ from: oldPath, to: newPath }]);
+  } catch (e) {
+    console.warn("[renameNote] pinboard sweep failed", e);
+  }
+
+  if (plan.sources.length === 0) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: planFailed, changedPaths: sweptBases };
+
+  const applied = await applyLinkUpdates(adapter, plan);
+  const changedPaths = [...applied.changedPaths];
   for (const p of sweptBases) if (!changedPaths.includes(p)) changedPaths.push(p);
-  return { renamedLinks, changedFiles, linkUpdateFailed, changedPaths };
+  return {
+    renamedLinks: applied.renamedLinks,
+    changedFiles: applied.changedFiles,
+    linkUpdateFailed: planFailed || applied.failed,
+    changedPaths,
+  };
 }

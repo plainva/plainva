@@ -29,6 +29,7 @@ import {
   MoreHorizontal,
   CheckSquare,
   MessageSquare,
+  FileX,
   X, Search } from "lucide-react";
 import { listPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
@@ -38,20 +39,25 @@ import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
 import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
+import { errorText, isFileNotFound, pinboardLabelProperty, useStableHandler } from "@plainva/ui";
 import {
   commitCellValue,
   createBaseItem,
   loadBase,
+  planMobilePinboardEntry,
   queryView,
   saveBaseConfig,
   type LoadedBase,
 } from "../../services/baseOps";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../../services/vaultService";
+import { MissingFileState } from "../../components/MissingFileState";
+import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments } from "../../services/mobileComments";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
 import { PinboardView } from "./PinboardView";
+import type { PinboardEntryRef } from "./pinboardEntryRef";
 import { CardChecklist } from "./CardChecklist";
 import { CellEditSheet, type CellEditTarget } from "./CellEditSheet";
 import { PropertyEditSheet } from "./PropertyEditSheet";
@@ -64,7 +70,7 @@ import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { RowActionSheet } from "../../components/RowActionSheet";
 import { confirmDeleteFile, confirmDeleteFiles } from "../../lib/deleteFile";
-import { mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
+import { mConfirm, mPrompt, mSelect, mTargets } from "../../services/mobileDialogs";
 import { getWindowClass, subscribeWindowClass } from "../../services/windowClass";
 import { calendarPickerOptions, createEntryEvent, parseDueValue, writableCalendarsOf } from "@plainva/ui";
 import {
@@ -102,6 +108,7 @@ import {
 import { createPimEvent, listPimAccounts, listPimCalendars } from "../../services/pim/pimService";
 import { buildEntryPeek } from "./entryPeek";
 import { EntryPeekSheet } from "./EntryPeekSheet";
+import { ChoiceMark } from "../../components/ChoiceMark";
 
 type Row = Record<string, any>;
 
@@ -139,12 +146,22 @@ export function BaseScreen({
   path,
   onBack,
   onOpenNote,
+  onNewPinboardEntry,
   initialConfigOpen,
+  onRenamed,
 }: {
   vault: MobileVault;
   path: string;
   onBack: () => void;
+  /** The screen follows its database when it was moved outside Plainva (issue 110). */
+  onRenamed?: (to: string) => void;
   onOpenNote: (path: string) => void;
+  /**
+   * Opens the "New entry" page for a draft the pinboard just created (plan
+   * Befunde 2026-09-24, E17) — a page of its own, not a sheet: the keyboard
+   * and the formatting bar need the room.
+   */
+  onNewPinboardEntry: (entry: PinboardEntryRef) => void;
   /** Fresh databases open with the configure sheet up (E3 mini wizard). */
   initialConfigOpen?: boolean;
 }) {
@@ -155,6 +172,31 @@ export function BaseScreen({
   const [loaded, setLoaded] = useState<LoadedBase | null>(() => snapshot?.loaded ?? null);
   const [viewIndex, setViewIndex] = useState(() => snapshot?.viewIndex ?? 0);
   const [allRows, setRows] = useState<Row[] | null>(() => snapshot?.rows ?? null);
+  // The database file moved or vanished outside Plainva (issue 110, E9): the
+  // screen looks for it by the content hash the index stored and follows a
+  // proven move — with bookmarks and pinboard places — or asks "Moved?", or
+  // shows the missing state. A config change that found its file gone waits
+  // here and goes with the file once it is found; it never recreates the
+  // file at its old place unless the reader says so. `loadFailed` without a
+  // lookup: the file is there but could not be read — the screen used to
+  // show an empty database then, whose next change would have overwritten it.
+  const [pendingConfig, setPendingConfig] = useState<any | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const missing = useOpenFileLookup(vault, path, {
+    onRenamed,
+    carry: async (to) => {
+      if (pendingConfig === null) return true;
+      try {
+        await saveBaseConfig(vault, to, pendingConfig);
+        return true;
+      } catch (e) {
+        console.error("[BaseScreen] carrying the database change to the moved file failed", e);
+        toast.error(t("editor.saveFailed"));
+        return false;
+      }
+    },
+  });
+  const { look: lookForFile, remember: rememberFile } = missing;
   // The search of the database (finding 2026-09-19). Only the pinboard had one,
   // although nothing about it was the pinboard's. It narrows the rows at the
   // SOURCE — everything below reads `rows` — so table, list, cards, board,
@@ -317,17 +359,23 @@ export function BaseScreen({
     setLoaded(snapshot?.loaded ?? null);
     setRows(snapshot?.rows ?? null);
     setViewIndex(snapshot?.viewIndex ?? 0);
+    setLoadFailed(false);
     void loadBase(vault, path)
       .then((l) => {
         if (stale) return;
         setLoaded(l);
+        rememberFile();
         // The view this database was last left on (P6, Build-91 feedback) —
         // by name, the desktop's rule; a restored session lands on the
         // pinboard, not on view 0.
         setViewIndex(resolveViewIndex(l.config?.views, getLastActiveView(vault.vaultId, path)));
       })
       .catch(() => {
-        if (!stale) setLoaded({ config: { columns: {}, views: [] }, stem: title });
+        if (stale) return;
+        // Moved or deleted outside Plainva? Looked for (issue 110, E9). Never
+        // an empty stand-in: its next change would write it over the file.
+        setLoadFailed(true);
+        lookForFile();
       });
     return () => {
       stale = true;
@@ -362,13 +410,49 @@ export function BaseScreen({
     return () => window.removeEventListener("m-vault-changed", onChanged);
   }, [config, viewIndex, requery]);
 
+  /**
+   * Writes the config of this database — never to a place its file has left
+   * (issue 110, E9): the change then waits and goes with the file once found.
+   */
+  const persistConfig = useStableHandler(async (next: any): Promise<void> => {
+    try {
+      await saveBaseConfig(vault, path, next);
+      setPendingConfig(null);
+      rememberFile();
+    } catch (e) {
+      if (isFileNotFound(e)) {
+        setPendingConfig(next);
+        lookForFile();
+        return;
+      }
+      toast.warning(t("mobile.saveRetry"));
+    }
+  });
+  /** "Save here again": the reader brings the database back where it was, with the waiting change. */
+  const restoreHere = useStableHandler(async (): Promise<void> => {
+    if (pendingConfig === null) return;
+    try {
+      await saveBaseConfig(vault, path, pendingConfig, { recreate: true });
+    } catch (e) {
+      console.error("[BaseScreen] saving the database back failed", e);
+      toast.error(t("editor.saveFailed"));
+      return;
+    }
+    setLoaded({ config: pendingConfig, stem: title });
+    setPendingConfig(null);
+    setLoadFailed(false);
+    missing.clear();
+    rememberFile();
+    window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  });
+
   /** Clone-mutate-save-requery — the single write path for config changes. */
   const mutateConfig = (mutate: (cfg: any) => void) => {
     if (!loaded) return;
     const next = JSON.parse(JSON.stringify(loaded.config));
     mutate(next);
     setLoaded({ ...loaded, config: next });
-    void saveBaseConfig(vault, path, next).catch(() => toast.warning(t("mobile.saveRetry")));
+    void persistConfig(next);
   };
 
   /**
@@ -411,9 +495,9 @@ export function BaseScreen({
       }
     }
     setLoaded({ ...loaded, config: next });
-    await saveBaseConfig(vault, path, next).catch(() => toast.warning(t("mobile.saveRetry")));
+    await persistConfig(next);
     return { config: next, folder };
-  }, [loaded, path, vault, t]);
+  }, [loaded, path, vault, t, persistConfig]);
 
   const columnsPool = useMemo(() => {
     const set = new Set<string>(Object.keys(config?.columns ?? {}).filter((key) => key !== "plainva"));
@@ -696,7 +780,8 @@ export function BaseScreen({
     }
 
     const picked = rows.filter((r) => rowSel.selection.has(rowPath(r)));
-    const col = await mSelect({
+    // The column is the TARGET of the bulk edit, not a value (E20).
+    const col = await mTargets({
       title: t("database.bulkSetTitle", { count: paths.length }),
       options: settable.map((c) => {
         // "currently mixed" is worth saying: it is the difference between
@@ -793,28 +878,46 @@ export function BaseScreen({
     }
   }, [rowSel, vault, config, viewIndex, requery, t]);
 
-  // On a pinboard the FAB opens the capture card instead of minting a
-  // `{Base}_{n}` note (feedback round 2026-09-01, M2/E6): the board's own
-  // entry asks for a title and makes it file name + H1; the FAB used to bypass
-  // exactly that, which read as "the pinboard does not ask for a name".
-  const [captureSignal, setCaptureSignal] = useState(0);
+  // On a pinboard the FAB opens the "New entry" page — a title and the real
+  // editor (plan Befunde 2026-09-24, E14/E17) — instead of minting a
+  // `{Base}_{n}` note. The draft is created first, in the board's folder, with
+  // the board's ACTIVE labels and the view's filters: the phone used to drop
+  // the labels, and a note captured under a label filter vanished at once.
+  const newPinboardEntry = async () => {
+    if (!config) return;
+    const viewKey = `${path}#${viewStateName(view, viewIndex)}`;
+    const opts = { viewIndex, activeLabels: cache.session(viewKey).labels, labelProperty: pinboardLabelProperty(view) };
+    try {
+      let plan = await planMobilePinboardEntry(vault, config, opts);
+      if (plan.status === "ask-folder") {
+        // No folder decided, or several sources: the one question, then on.
+        const asked = await askStorageFolder();
+        if (!asked) return;
+        plan = await planMobilePinboardEntry(vault, asked.config, { ...opts, folder: asked.folder });
+      }
+      if (plan.status === "ready") onNewPinboardEntry({ draft: plan.draft, base: path });
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  };
   const newItem = () => {
     if (!config) return;
     if (effectiveRender === "pinboard") {
-      setCaptureSignal((n) => n + 1);
+      void newPinboardEntry();
       return;
     }
-    void createBaseItem(vault, path, config, allRows?.length ?? 0, viewIndex).then(async (p) => {
-      if (p) {
-        onOpenNote(p);
-        return;
+    void (async () => {
+      let made = await createBaseItem(vault, path, config, allRows?.length ?? 0, viewIndex);
+      if (made.status === "ask-folder") {
+        // No folder decided, or several: ask the one question, then carry on
+        // (P2). Cancelled template questions end here — they are not a folder
+        // question.
+        const asked = await askStorageFolder();
+        if (!asked) return;
+        made = await createBaseItem(vault, path, asked.config, allRows?.length ?? 0, viewIndex, asked.folder);
       }
-      // No folder to store into: ask the one question, then carry on (P2).
-      const asked = await askStorageFolder();
-      if (!asked) return;
-      const created = await createBaseItem(vault, path, asked.config, allRows?.length ?? 0, viewIndex, asked.folder);
-      if (created) onOpenNote(created);
-    });
+      if (made.status === "created") onOpenNote(made.path);
+    })().catch((e) => toast.error(errorText(e)));
   };
 
   // Pinboard view options (plan Pinboard P6): patch the active view
@@ -831,9 +934,9 @@ export function BaseScreen({
         else v[k] = val;
       }
       setLoaded({ config: next, stem: loaded.stem });
-      void saveBaseConfig(vault, path, next);
+      void persistConfig(next);
     },
-    [config, loaded, viewIndex, vault, path],
+    [config, loaded, viewIndex, persistConfig],
   );
 
   /**
@@ -880,7 +983,7 @@ export function BaseScreen({
       const options = calendarPickerOptions(writable, labels, accounts.length > 1);
       const calendarKey = options.length === 1
         ? options[0]!.value
-        : await mSelect({ title: t("pim.scheduleEntry"), options });
+        : await mTargets({ title: t("pim.scheduleEntry"), options });
       if (!calendarKey) return;
       try {
         const res = await createEntryEvent({
@@ -1107,7 +1210,7 @@ export function BaseScreen({
             <tr data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
               {rowSel.active && (
                 <td className="m-selcell" onClick={() => rowSel.toggle(rowPath(r))}>
-                  <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />
+                  <ChoiceMark multiple on={rowSel.selection.has(rowPath(r))} />
                 </td>
               )}
               <td onClick={() => openOrSelect(rowPath(r))} style={n.depth > 0 ? { paddingLeft: `calc(var(--pad-cell) + ${n.depth} * var(--space-4))` } : undefined}>
@@ -1145,7 +1248,7 @@ export function BaseScreen({
       {rows!.map((r) => (
         <div className="m-row m-row--split" data-row-path={rowPath(r)} data-row-title={rowTitle(r)} key={rowPath(r)}>
           <button className="m-row-main" onClick={() => openOrSelect(rowPath(r))}>
-            {rowSel.active && <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />}
+            {rowSel.active && <ChoiceMark multiple on={rowSel.selection.has(rowPath(r))} />}
             <span>{rowTitle(r)}</span>
           </button>
           {orderedColumns[0] && (
@@ -1167,7 +1270,7 @@ export function BaseScreen({
             <img alt="" className="pv-card pv-card--flat m-basecard-cover" src={coverUrls[rowPath(r)]} />
           )}
           <button className="pv-card pv-card--flat m-basecard-title" onClick={() => openOrSelect(rowPath(r))}>
-            {rowSel.active && <span className={`m-slotmark${rowSel.selection.has(rowPath(r)) ? " is-on" : ""}`} />}
+            {rowSel.active && <ChoiceMark multiple on={rowSel.selection.has(rowPath(r))} />}
             {rowTitle(r)}
           </button>
           {propLine(r, orderedColumns, 3)}
@@ -1844,6 +1947,7 @@ export function BaseScreen({
                 const picked = await mSelect({
                   title: t("database.scaleWeek"),
                   options: scaleSlots.overflow.map((o) => ({ value: o.value, label: o.label })),
+                  value: tlWindow.scale,
                 });
                 if (picked !== null) {
                   setTlWindow(() => windowAround(days[Math.floor(days.length / 3)] ?? todayKey, picked as TimelineWindow["scale"]));
@@ -1951,6 +2055,37 @@ export function BaseScreen({
     );
   };
 
+  if (missing.lookup || loadFailed) {
+    // The file is not where the screen says (issue 110, E9), or could not be
+    // read: nothing of the database is offered — no "+", no settings.
+    return (
+      <div className="m-page">
+        <AppBar onBack={onBack} title={title} />
+        {missing.lookup ? (
+          <MissingFileState
+            keepsChanges={pendingConfig !== null}
+            lookup={missing.lookup}
+            onBack={onBack}
+            onPick={missing.pick}
+            onRestore={pendingConfig !== null ? () => { void restoreHere(); } : undefined}
+            testIdPrefix="base"
+          />
+        ) : (
+          <EmptyState
+            action={
+              <Button data-testid="base-missing-back" onClick={onBack} variant="tonal">
+                {t("common.back")}
+              </Button>
+            }
+            icon={<FileX size={ICON.touch} />}
+          >
+            {t("database.failedLoad")}
+          </EmptyState>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={`m-page${effectiveRender === "graph" ? " m-page--basegraph" : ""}`} ref={ptrRef}>
       <Fab
@@ -1981,7 +2116,7 @@ export function BaseScreen({
 
       {searchOpen && (
         <div className="m-basesearch" data-testid="base-search">
-          <BaseSearchField value={searchText} onChange={setSearchText} busy={baseSearch.busy} placeholder={t("database.searchPlaceholder")} autoFocus>
+          <BaseSearchField value={searchText} onChange={setSearchText} busy={baseSearch.busy} placeholder={t("database.searchPlaceholder")} autoFocus onEscapeWhenEmpty={() => setSearchOpen(false)}>
             {searchText.trim() !== "" && (
               <span className="m-badge-muted" data-testid="base-search-count">{t("database.searchCount", { n: rows?.length ?? 0, total: allRows?.length ?? 0 })}</span>
             )}
@@ -2027,12 +2162,15 @@ export function BaseScreen({
               return;
             }
             void (async () => {
-              const picked = await mSelect({
+              // The views beyond the strip are PLACES (E20): no ring, the
+              // one on screen is marked as current. Every ring here was empty.
+              const picked = await mTargets({
                 title: t("database.views"),
                 options: viewSlots.overflow.map(({ view, index }) => ({
                   value: String(index),
                   label: view.name || view.type || String(index + 1),
                 })),
+                current: String(viewIndex),
               });
               if (picked !== null) setViewIndex(Number(picked));
             })();
@@ -2055,12 +2193,15 @@ export function BaseScreen({
         >
           {t("mobile.needsIndex")}
         </EmptyState>
-      ) : effectiveRender === "pinboard" ? (
-        // Before the empty check: the capture field must show on an empty board.
+      ) : effectiveRender === "pinboard" && (allRows?.length ?? 0) > 0 ? (
+        // Before the empty check: a board whose search matches nothing says so
+        // itself, under its chip bar. A board with no entries at all takes the
+        // empty state below, whose action opens "New entry" like the FAB — the
+        // desktop's empty board does the same (plan Befunde 2026-09-24, E14);
+        // the capture row that used to stand there is gone.
         <PinboardView
           key={`${path}#${viewStateName(view, viewIndex)}`}
           viewKey={`${path}#${viewStateName(view, viewIndex)}`}
-          captureSignal={captureSignal}
           vault={vault}
           config={config}
           view={view}
@@ -2074,8 +2215,6 @@ export function BaseScreen({
           onOpenNote={onOpenNote}
           onMutated={() => requery(config, viewIndex)}
           onPatchView={patchActiveView}
-          askStorageFolder={askStorageFolder}
-          viewIndex={viewIndex}
         />
       ) : rows.length === 0 ? (
         /* The one action a database view can offer is the row it is missing —

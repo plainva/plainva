@@ -19,6 +19,10 @@ import { act } from "react";
 // case switches the language itself, so the Intl names are asserted through
 // the same path the app takes.
 import i18n from "@plainva/ui/i18n";
+// The picker from its own module, loaded while the file is collected: through
+// the package barrel, the first test paid for all of @plainva/ui inside its
+// time limit (Befunde 2026-09-24, Z2).
+import { DateJumpPicker } from "../../../../packages/ui/src/components/ui/DateJumpPicker";
 
 async function mount(ui: React.ReactElement): Promise<{ host: HTMLDivElement; root: Root }> {
   const host = document.createElement("div");
@@ -44,7 +48,6 @@ const focused = (host: Element) => host.querySelector('.pv-datejump-day[tabindex
 
 describe("DateJumpPicker", () => {
   it("names weekdays and months in the app language and starts the week where the setting says", async () => {
-    const { DateJumpPicker } = await import("@plainva/ui");
     await i18n.changeLanguage("en");
     const m = await mount(<DateJumpPicker value="2026-09-10" weekStart={0} onPick={() => {}} />);
     expect(texts(m.host, ".pv-datejump-wd")[0]).toBe("Sun");
@@ -63,7 +66,6 @@ describe("DateJumpPicker", () => {
   });
 
   it("marks the selection, today, the band and the marked days", async () => {
-    const { DateJumpPicker } = await import("@plainva/ui");
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
     const m = await mount(
@@ -81,7 +83,6 @@ describe("DateJumpPicker", () => {
   });
 
   it("moves with the arrow keys across the month edge, pages months and years, and picks with Enter", async () => {
-    const { DateJumpPicker } = await import("@plainva/ui");
     const picked: string[] = [];
     const closed = vi.fn();
     const m = await mount(<DateJumpPicker value="2026-09-30" weekStart={1} onPick={(k) => picked.push(k)} onClose={closed} />);
@@ -107,7 +108,6 @@ describe("DateJumpPicker", () => {
   });
 
   it("without the day grid a month tile is the pick (the sidebar's variant)", async () => {
-    const { DateJumpPicker } = await import("@plainva/ui");
     const months: Array<[number, number]> = [];
     const m = await mount(
       <DateJumpPicker value="2026-09-10" weekStart={1} showDays={false} onPick={() => {}} onPickMonth={(y, mo) => months.push([y, mo])} testId="calendar-picker" />
@@ -124,7 +124,6 @@ describe("DateJumpPicker", () => {
   });
 
   it("offers week numbers only on a Monday-first grid, and a Today button only when asked", async () => {
-    const { DateJumpPicker } = await import("@plainva/ui");
     const today = vi.fn();
     const m = await mount(<DateJumpPicker value="2026-09-10" weekStart={1} showWeekNumbers onPick={() => {}} onToday={today} />);
     // Six rows of week numbers plus the header cell.
@@ -142,7 +141,6 @@ describe("DateJumpPicker", () => {
   });
 
   it("reloads visible-month marks, ignores late results, and refreshes after rename", async () => {
-    const { DateJumpPicker } = await import("@plainva/ui");
     const requests: Array<{ dates: Date[]; resolve: (days: Set<string>) => void }> = [];
     const load = (dates: Date[]) => new Promise<Set<string>>((resolve) => requests.push({ dates, resolve }));
     const picked = vi.fn();
@@ -175,7 +173,6 @@ describe("DateJumpPicker", () => {
   });
 
   it("does not offer creation as if a failed existence scan proved absence", async () => {
-    const { DateJumpPicker } = await import("@plainva/ui");
     const m = await mount(<DateJumpPicker value="2026-09-10" weekStart={1} onPick={() => {}} onOpenDailyNote={() => {}}
       loadMarkedDays={async () => { throw new Error("permission denied"); }} />);
     expect(m.host.querySelector('[role="status"]')?.textContent).toContain("could not be loaded");

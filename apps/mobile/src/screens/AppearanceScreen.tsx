@@ -6,14 +6,14 @@ import { FontSlotSheet } from "../components/FontSlotSheet";
 import { HailingSheet } from "../components/HailingSheet";
 import { FrequencyChips } from "../components/FrequencyChips";
 import { LCARS_VARIANTS } from "@plainva/ui";
+import { getThemeDef, pinnedModeHintKey } from "@plainva/ui";
 import { mSelect } from "../services/mobileDialogs";
 import {
-  getMobileSettings,
-  updateMobileSettings,
   type MotionPref,
   type ThemeMode,
 } from "../services/mobileSettings";
 import { AppBar } from "../components/AppBar";
+import { useSettingsState } from "../hooks/useSettingsState";
 
 /**
  * Appearance screen (M3E mockup 9): theme cards with three-stripe previews
@@ -26,7 +26,9 @@ export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => 
   const { t } = useTranslation();
   // Device-local, off by default (plan Journal-Erweiterungen, E6).
   const [placeStamp, setPlaceStamp] = useState(placeStampEnabled);
-  const [settings, setSettings] = useState(getMobileSettings());
+  // The one optimistic settings hook (E23): the size slider snapped back while
+  // its save was in flight.
+  const { settings, update, refresh } = useSettingsState();
   const [hailing, setHailing] = useState(false);
   const [fontSheet, setFontSheet] = useState<FontSlot | null>(null);
   /** What the row says: the custom name, or the words for a preset/theme. */
@@ -54,10 +56,7 @@ export function AppearanceScreen({ onBack, onEditCustomTheme }: { onBack: () => 
       .catch(() => {});
   }, []);
 
-  const update = (patch: Parameters<typeof updateMobileSettings>[0]) => {
-    void updateMobileSettings(patch).then(() => setSettings(getMobileSettings()));
-  };
-
+  const pinnedHint = pinnedModeHintKey(settings.themeName);
   const MODES: Array<[ThemeMode, string]> = [
     ["system", t("mobile.themeSystem")],
     ["light", t("mobile.themeLight")],
@@ -164,18 +163,23 @@ const MOTIONS: Array<[MotionPref, string]> = [
               })}
             </SectionLabel>
             <div className="m-freqrow">
-              <FrequencyChips onChanged={() => setSettings(getMobileSettings())} />
+              <FrequencyChips onChanged={refresh} />
             </div>
           </>
         )}
 
         <SectionLabel>{t("mobile.settingTheme")}</SectionLabel>
+        {/* A one-mode theme pins the mode: the choice shows the pinned mode and
+            says why, like the desktop's locked select — a tap on the other
+            mode used to do nothing without a word (plan Befunde 2026-09-24, E22). */}
         <Segmented
           ariaLabel={t("mobile.settingTheme")}
           options={MODES.map(([id, label]) => ({ value: id, label }))}
-          value={settings.themeMode}
+          value={pinnedHint ? (getThemeDef(settings.themeName)?.modes[0] ?? settings.themeMode) : settings.themeMode}
           onChange={(v) => update({ themeMode: v as (typeof MODES)[number][0] })}
+          disabled={!!pinnedHint}
         />
+        {pinnedHint && <p className="m-hint" data-testid="theme-mode-pinned">{t(pinnedHint)}</p>}
 
         {/* The heading carries the current value; a row underneath repeating the
             heading's own words was the second of the two slider rows this screen
@@ -311,7 +315,7 @@ const MOTIONS: Array<[MotionPref, string]> = [
 
       </div>
 
-      {hailing && <HailingSheet onChanged={() => setSettings(getMobileSettings())} onClose={() => setHailing(false)} />}
+      {hailing && <HailingSheet onChanged={refresh} onClose={() => setHailing(false)} />}
       {fontSheet && (
         <FontSlotSheet
           slot={fontSheet}

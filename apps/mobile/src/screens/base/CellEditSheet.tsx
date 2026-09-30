@@ -5,6 +5,7 @@ import { Check, ExternalLink, MessageSquare } from "lucide-react";
 import { type CuratedOption, dateTimeEditorValue, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
+import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
 
 /**
  * Typed cell editor (R4.3, desktop useBaseCells contract): the sheet renders
@@ -97,6 +98,9 @@ export function CellEditSheet({
   }, [vault, target.relationBase, isRelation]);
 
   const commitMulti = (next: string[]) => onCommit(next);
+  // One value from a list closes the sheet after the mark has moved (E21):
+  // a status picked here used to vanish with the sheet before it showed.
+  const beat = useChoiceBeat<string>((picked) => onCommit(picked));
 
   const selectedTargets = useMemo(() => {
     const set = new Set<string>();
@@ -110,7 +114,7 @@ export function CellEditSheet({
   const relationToggle = (title: string) => {
     const link = `[[${title}]]`;
     if (target.relationLimit === "one") {
-      onCommit(link);
+      beat.pick(link);
       return;
     }
     const current = toArray(value);
@@ -135,9 +139,9 @@ export function CellEditSheet({
         {isSelect && (
           <>
             {matches.map((o) => (
-              <button className="m-row" key={o.value} onClick={() => onCommit(o.value)}>
+              <button className="m-row" key={o.value} onClick={() => beat.pick(o.value)}>
                 <span>{o.label ?? o.value}</span>
-                {String(value ?? "") === o.value && <Check className="m-accent" size={ICON.head} />}
+                <ChoiceMark on={(beat.picked ? beat.picked.value : String(value ?? "")) === o.value} />
               </button>
             ))}
             <div className="m-sheet-inputrow">
@@ -173,7 +177,7 @@ export function CellEditSheet({
                   }
                 >
                   <span>{val}</span>
-                  <span className={`m-slotmark${on ? " is-on" : ""}`} />
+                  <ChoiceMark multiple on={on} />
                 </button>
               );
             })}
@@ -195,8 +199,9 @@ export function CellEditSheet({
                 <Check size={ICON.head} />
               </IconButton>
             </div>
+            {/* Several at once holds until Done (E21, the mockup case b). */}
             <button className="m-cell-commit" onClick={() => commitMulti(multi)}>
-              {t("common.ok")}
+              {t("common.done")}
             </button>
           </>
         )}
@@ -212,28 +217,28 @@ export function CellEditSheet({
               />
             </div>
             {filteredCandidates.slice(0, 60).map((c) => {
-              const on = selectedTargets.has(c.title.toLowerCase());
+              const on = beat.picked
+                ? beat.picked.value === `[[${c.title}]]`
+                : selectedTargets.has(c.title.toLowerCase());
               return (
                 <button className="m-row" key={c.path} onClick={() => relationToggle(c.title)}>
                   <span>{c.title}</span>
-                  {target.relationLimit === "one" ? (
-                    on && <Check className="m-accent" size={ICON.head} />
-                  ) : (
-                    <span className={`m-slotmark${on ? " is-on" : ""}`} />
-                  )}
+                  {/* One note is a ring, several are boxes — it was a tick
+                      for one and a ring for several. */}
+                  <ChoiceMark multiple={target.relationLimit !== "one"} on={on} />
                 </button>
               );
             })}
             {target.relationLimit !== "one" && (
               <button className="m-cell-commit" onClick={onClose}>
-                {t("common.ok")}
+                {t("common.done")}
               </button>
             )}
           </>
         )}
 
         {input === "checkbox" && <button className="m-row" onClick={() => onCommit(value !== true)}>
-          <span>{col}</span><span className={`m-slotmark${value === true ? " is-on" : ""}`} /></button>}
+          <span>{col}</span><ChoiceMark multiple on={value === true} /></button>}
         {/* A rating is pressed, not typed (plan Journal-Erweiterungen, E5): the
             marks are the editor, and the file keeps a plain number. */}
         {input === "rating" && (

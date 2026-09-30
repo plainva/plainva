@@ -19,7 +19,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { currentMobileAiPolicy } from "../services/ai/mobileAi";
-import { mSelect } from "../services/mobileDialogs";
+import { mActions, mSelect, mTargets } from "../services/mobileDialogs";
 import type { MobileVault } from "../services/vaultService";
 
 /**
@@ -69,7 +69,7 @@ export function AiPolicyScreen({ vault, onBack }: { vault: MobileVault; onBack: 
 
   const edit = async (folder: string, inherit: boolean) => {
     const rule = ruleOf(rules, folder);
-    const pick = await mSelect({
+    const pick = await mActions({
       title: folder || t("ai.policy.vaultDefault"),
       options: [
         { value: "cloud", label: t("ai.policy.cloud"), desc: word(rule?.cloud ?? (inherit ? "inherit" : "allow")) },
@@ -112,7 +112,7 @@ export function AiPolicyScreen({ vault, onBack }: { vault: MobileVault; onBack: 
                 icon={<Plus size={ICON.ui} />}
                 title={t("ai.policy.addFolder")}
                 onClick={() => {
-                  void mSelect({ title: t("ai.policy.folder"), options: free.map((f) => ({ value: f, label: f })), search: t("ai.policy.folder") }).then((folder) => {
+                  void mTargets({ title: t("ai.policy.folder"), options: free.map((f) => ({ value: f, label: f })), search: t("ai.policy.folder") }).then((folder) => {
                     if (folder) void save(withRuleValue(rules, folder, "cloud", "deny"));
                   });
                 }}

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, type LucideIcon } from "lucide-react";
 import { cx } from "./cx";
 import { ICON } from "../../lib/iconSizes";
 
@@ -13,6 +13,9 @@ export interface BannerProps {
   /** Rounded corners for free-standing placement (inline strips stay square). */
   rounded?: boolean;
   className?: string;
+  /** Replaces the tone's glyph where a notice names its own subject (the
+   * eye of a preview, plan Befunde 2026-09-24 E22); the tone stays. */
+  icon?: LucideIcon;
 }
 
 const ICONS = {
@@ -28,8 +31,8 @@ const ICONS = {
  * replaces three copy-pasted style objects in Editor.tsx. Status colors come
  * exclusively from the --info/warning/error/success token families.
  */
-export function Banner({ kind, children, actions, rounded, className }: BannerProps) {
-  const Ic = ICONS[kind];
+export function Banner({ kind, children, actions, rounded, className, icon }: BannerProps) {
+  const Ic = icon ?? ICONS[kind];
   return (
     <div role={kind === "error" ? "alert" : "status"} className={cx("pv-banner", `pv-banner--${kind}`, rounded && "pv-banner--rounded", className)}>
       <span className="pv-banner-ic"><Ic size={ICON.ui} /></span>

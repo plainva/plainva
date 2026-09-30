@@ -1,5 +1,7 @@
-import { IVaultAdapter, VaultFileInfo, VaultWalkSkip } from "./IVaultAdapter.js";
+import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName, isSystemJunkName } from "./systemJunk.js";
+import { trimChars } from "../textScan.js";
 import { runStatementsAtomic } from "../db/batch.js";
 import { escapeLikePrefix } from "../db/likeEscape.js";
 import { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
@@ -53,6 +55,11 @@ export function isInternalPath(path: string): boolean {
   const segments = path.replace(/\\/g, "/").split("/");
   return segments.some((s) => {
     if (INTERNAL_SEGMENTS.has(s)) return true;
+    // Operating-system bookkeeping (`.DS_Store`, `Thumbs.db`, `.Trashes`, …;
+    // issue #110, E10). AppleDouble `._*` is deliberately NOT decided here:
+    // this is a path-only rule, and a note may legitimately be called
+    // `._notes.md` — the indexer reads the header instead (systemJunk.ts).
+    if (isSystemJunkName(s)) return true;
     if (s.startsWith(".stfolder")) return true;
     // Tool caches name themselves: .mypy_cache, .pytest_cache, .ruff_cache,
     // .rumdl_cache (issue #70) — and the next linter will follow the same shape.
@@ -83,6 +90,21 @@ export interface IndexScanReport {
   skipped: VaultWalkSkip[];
   /** Wall-clock duration of the pass in milliseconds. */
   durationMs: number;
+}
+
+/** What `reconcileFolder` did (issue #110, E8). */
+export interface FolderReconcileReport {
+  /** Files (re)indexed because they were new or their mtime moved. */
+  indexed: string[];
+  /** Indexed files that are gone from disk (or became excluded) and left the index. */
+  removed: string[];
+  /** Entries the walk left out; nothing under them was removed. */
+  skipped: VaultWalkSkip[];
+  /**
+   * A subfolder that held indexed files is gone. The folder list the tree
+   * draws from the disk changed, which a file-only refresh does not redraw.
+   */
+  foldersRemoved: boolean;
 }
 
 export interface VaultIndexerOptions {
@@ -587,6 +609,14 @@ export class VaultIndexer {
         `SELECT id FROM files WHERE path = ?`,
         [path]
       );
+      if (known && (await this.isVanishedAppleDouble(path))) {
+        // An AppleDouble sidecar an older version indexed: the header can no
+        // longer be read, so the path-only rule decides (systemJunk.ts). It
+        // leaves the index without a word to the sync layer — the copy in the
+        // cloud stays where it is (E10).
+        await this.deleteIndexRows([path]);
+        return "removed";
+      }
       if (!known) {
         // No exact row: this may have been a FOLDER — folders never get files rows,
         // only their contained files do. If any indexed file still lives under the
@@ -605,6 +635,15 @@ export class VaultIndexer {
       return "removed";
     }
     if (info.isDirectory) return "needs-full-scan";
+
+    if (await this.isAppleDoubleOnDisk(info)) {
+      // macOS metadata, not a note (E10). A row an older version wrote goes,
+      // silently: nothing was deleted, the file only stopped counting.
+      const had = await this.dbAdapter.queryOne<{ id: string }>(`SELECT id FROM files WHERE path = ?`, [path]);
+      if (!had) return "unchanged";
+      await this.deleteIndexRows([path]);
+      return "removed";
+    }
 
     // Same mtime as indexed -> the event is an echo (our own save already
     // re-indexed the file, or a no-op touch): skip the re-parse.
@@ -637,11 +676,182 @@ export class VaultIndexer {
     // also reached too far in the other direction: after a rename, sha256 of the
     // OLD path is the id a row now sitting at the NEW path still carries, so
     // de-indexing the old path deleted a note that exists.
-    await this.dbAdapter.execute(`DELETE FROM files WHERE path = ?`, [path]);
-    await this.dbAdapter.execute(`DELETE FROM fts_notes WHERE path = ?`, [path]);
+    await this.deleteIndexRows([path]);
     // Same contract as the full scan: sync_state stays (the remote delete must
     // be pushed first); the host reacts via onLocalFileDeleted.
     this.options?.onLocalFileDeleted?.(path);
+  }
+
+  /**
+   * Removes index rows by PATH (never by id — see removePathFromIndex) without
+   * telling the sync layer anything. Callers decide whether the removal is a
+   * deletion the remote must learn about; this only forgets.
+   */
+  private async deleteIndexRows(paths: string[], writer: SqlWriter = this.dbAdapter): Promise<void> {
+    const CHUNK = 400;
+    for (let k = 0; k < paths.length; k += CHUNK) {
+      const slice = paths.slice(k, k + CHUNK);
+      const marks = slice.map(() => "?").join(", ");
+      // Cascades to links, tags, properties.
+      await writer.execute(`DELETE FROM files WHERE path IN (${marks})`, slice);
+      await writer.execute(`DELETE FROM fts_notes WHERE path IN (${marks})`, slice);
+    }
+  }
+
+  /**
+   * Header verdicts per path, valid while mtime and size stand still. A share
+   * where macOS left a sidecar beside every note would otherwise cost one read
+   * per sidecar on every full scan — and the focus refresh runs one every 30 s.
+   */
+  private readonly appleDoubleVerdicts = new Map<string, { mtime: number; size: number; junk: boolean }>();
+
+  /** An existing file whose name has the AppleDouble shape AND whose bytes carry the header. */
+  private async isAppleDoubleOnDisk(info: VaultFileInfo): Promise<boolean> {
+    if (info.isDirectory || !isAppleDoubleName(info.name)) return false;
+    const cached = this.appleDoubleVerdicts.get(info.path);
+    if (cached && cached.mtime === info.mtime && cached.size === info.size) return cached.junk;
+    let junk: boolean;
+    try {
+      junk = hasAppleDoubleHeader(await this.vaultAdapter.readBinaryFile(info.path));
+    } catch {
+      // Unreadable is not evidence: the file keeps counting as the user's.
+      return false;
+    }
+    this.appleDoubleVerdicts.set(info.path, { mtime: info.mtime, size: info.size, junk });
+    return junk;
+  }
+
+  /**
+   * A VANISHED AppleDouble-shaped path, where the header can no longer be
+   * read: junk when its companion (`._x` → `x`) is known to the index or still
+   * on disk — exactly when macOS writes one (systemJunk.ts, path-only rule).
+   */
+  private async isVanishedAppleDouble(path: string, known?: (p: string) => boolean): Promise<boolean> {
+    const slash = path.lastIndexOf("/");
+    if (!isAppleDoubleName(path.slice(slash + 1))) return false;
+    const companion = `${path.slice(0, slash + 1)}${path.slice(slash + 3)}`;
+    if (known) return isAppleDoubleCompanion(path, known);
+    const row = await this.dbAdapter.queryOne<{ id: string }>(`SELECT id FROM files WHERE path = ?`, [companion]);
+    if (row) return true;
+    return this.vaultAdapter.exists(companion).catch(() => false);
+  }
+
+  /**
+   * Reconciles ONE folder against the disk (issue #110, E8): new and changed
+   * files are indexed, and — unlike walking the folder and calling indexPath
+   * per entry, which only ever sees what IS there — rows whose file vanished
+   * leave the index. Serves the folder refresh (desktop), the watcher's parent
+   * check after a rename or removal, and the pull-to-refresh (phone).
+   *
+   * `recursive: false` looks at the folder's own files, plus the rows under
+   * any subfolder that is no longer on disk (a folder moved away outside
+   * Plainva); subfolders that still exist are left to their own events.
+   *
+   * The same safety rules as the full scan hold: an entry the walk could not
+   * read protects everything under it, an excluded path (internal, OS junk,
+   * AppleDouble) is forgotten without being reported, and only a genuinely
+   * vanished file reaches `onLocalFileDeleted`. A folder that is itself gone
+   * counts as empty only when the adapter says so (`exists` is false).
+   */
+  async reconcileFolder(folder: string, opts: { recursive?: boolean } = {}): Promise<FolderReconcileReport> {
+    const recursive = opts.recursive ?? true;
+    const root = trimChars(folder.replace(/\\/g, "/"), "/");
+    const report: FolderReconcileReport = { indexed: [], removed: [], skipped: [], foldersRemoved: false };
+    if (root && isInternalPath(root)) return report;
+
+    let listing: VaultListing;
+    try {
+      listing = this.vaultAdapter.listDirReport
+        ? await this.vaultAdapter.listDirReport(root, recursive)
+        : { files: await this.vaultAdapter.listDir(root, recursive), skipped: [] };
+    } catch {
+      listing = { files: [], skipped: [{ path: root, reason: "unreadable" }] };
+    }
+    let skipped = listing.skipped;
+    // The folder itself could not be listed. Proven absent → it is empty (its
+    // rows go); anything else → nothing here can be judged.
+    if (skipped.some((s) => s.path === root || (!s.path && !root))) {
+      const gone = root !== "" && (await this.vaultAdapter.exists(root).then((e) => !e, () => false));
+      if (!gone) {
+        report.skipped = skipped;
+        return report;
+      }
+      listing = { files: [], skipped: [] };
+      skipped = [];
+    }
+    report.skipped = skipped;
+
+    const inFolder = root ? `${root}/` : "";
+    const diskDirs = new Set(listing.files.filter((f) => f.isDirectory).map((f) => f.path));
+    const diskFiles = listing.files.filter((f) => !f.isDirectory && !isInternalPath(f.path));
+    const appleDouble = new Set<string>();
+    for (const f of diskFiles) {
+      if (await this.isAppleDoubleOnDisk(f)) appleDouble.add(f.path);
+    }
+    const onDisk = new Map(diskFiles.filter((f) => !appleDouble.has(f.path)).map((f) => [f.path, f]));
+
+    // The rows this pass answers for. Prefix matching is literal and
+    // case-sensitive (substr … COLLATE BINARY, as SyncQueue does): LIKE folds
+    // ASCII case, and on a case-sensitive disk "Notes" and "notes" are two
+    // folders — a sibling's rows must never look vanished here.
+    const underRoot = (extra = "") => root
+      ? { where: `substr(path, 1, length(?)) = ? COLLATE BINARY${extra}`, params: [inFolder, inFolder] as unknown[] }
+      : { where: `1 = 1${extra}`, params: [] as unknown[] };
+    const scoped = new Map<string, number>();
+    if (recursive) {
+      const q = underRoot();
+      for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number }>(
+        `SELECT path, mtime_local FROM files WHERE ${q.where}`, q.params)) scoped.set(r.path, Number(r.mtime_local));
+    } else {
+      // Own files: nothing after the folder's slash contains another slash.
+      const own = underRoot(` AND instr(substr(path, length(?) + 1), '/') = 0`);
+      for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number }>(
+        `SELECT path, mtime_local FROM files WHERE ${own.where}`, [...own.params, inFolder])) scoped.set(r.path, Number(r.mtime_local));
+      // Subfolders the index knows, by their first segment below the folder.
+      const deep = underRoot(` AND instr(substr(path, length(?) + 1), '/') > 0`);
+      const segments = await this.dbAdapter.query<{ seg: string }>(
+        `SELECT DISTINCT substr(substr(path, length(?) + 1), 1, instr(substr(path, length(?) + 1), '/') - 1) AS seg
+           FROM files WHERE ${deep.where}`,
+        [inFolder, inFolder, ...deep.params, inFolder]
+      );
+      for (const { seg } of segments) {
+        const sub = `${inFolder}${seg}`;
+        if (!seg || diskDirs.has(sub) || isInternalPath(sub)) continue;
+        if (skipped.some((s) => !s.path || s.path === sub || sub.startsWith(`${s.path}/`))) continue;
+        const prefix = `${sub}/`;
+        for (const r of await this.dbAdapter.query<{ path: string; mtime_local: number }>(
+          `SELECT path, mtime_local FROM files WHERE substr(path, 1, length(?)) = ? COLLATE BINARY`, [prefix, prefix]))
+          scoped.set(r.path, Number(r.mtime_local));
+        report.foldersRemoved = true;
+      }
+    }
+
+    const vanished: string[] = [];
+    const silent: string[] = [];
+    for (const path of scoped.keys()) {
+      if (onDisk.has(path)) continue;
+      if (skipped.some((s) => !s.path || s.path === path || path.startsWith(`${s.path}/`))) continue;
+      const excluded = isInternalPath(path) || appleDouble.has(path)
+        || (await this.isVanishedAppleDouble(path, (p) => scoped.has(p) || onDisk.has(p)));
+      (excluded ? silent : vanished).push(path);
+    }
+    const toIndex = [...onDisk.values()].filter((f) => scoped.get(f.path) !== f.mtime);
+
+    if (vanished.length === 0 && silent.length === 0 && toIndex.length === 0) return report;
+    this.pendingNewLocalFiles = [];
+    this.pendingExternalMods = [];
+    await this.dbAdapter.transaction(async () => {
+      await this.deleteIndexRows([...vanished, ...silent]);
+      for (const f of toIndex) {
+        if (f.name.endsWith(".md")) await this._indexFileInternal(f);
+        else await this._indexAttachmentInternal(f);
+      }
+    });
+    this.flushCallbacks();
+    for (const path of vanished) this.options?.onLocalFileDeleted?.(path);
+    report.indexed = toIndex.map((f) => f.path);
+    report.removed = [...vanished, ...silent];
+    return report;
   }
 
   /** Fires buffered new-file and external-modification callbacks (post-transaction). */
@@ -702,11 +912,20 @@ export class VaultIndexer {
     // used to reach the index — markdown was filtered nowhere, attachments were.
     // The adapter-side skip stays as what it is: an optimisation that avoids
     // descending into the folder at all.
-    const mdFiles = diskFiles.filter(f => !f.isDirectory && f.name.endsWith(".md") && !isInternalPath(f.path));
+    const candidates = diskFiles.filter(f => !f.isDirectory && !isInternalPath(f.path));
+    // AppleDouble sidecars (`._Note.md` on SMB/exFAT, E10): the header decides,
+    // read once per `._*` file — a user's own `._notes.md` stays a note.
+    const appleDouble = new Set<string>();
+    for (const f of candidates) {
+      if (await this.isAppleDoubleOnDisk(f)) appleDouble.add(f.path);
+    }
+    signal?.throwIfAborted();
+    const mdFiles = candidates.filter(f => f.name.endsWith(".md") && !appleDouble.has(f.path));
     // Non-markdown attachments (images, PDFs, …) are tracked for sync too, except
     // internal/VCS data. Conflict copies ARE indexed (kept visible); push targets skip them.
-    const attachmentFiles = diskFiles.filter(f => !f.isDirectory && !f.name.endsWith(".md") && !isInternalPath(f.path));
+    const attachmentFiles = candidates.filter(f => !f.name.endsWith(".md") && !appleDouble.has(f.path));
     const diskFilePaths = new Set([...mdFiles, ...attachmentFiles].map(f => f.path));
+    const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);
 
     const changed = (file: VaultFileInfo) => {
       const dbMtime = dbFileMap.get(file.path);
@@ -733,7 +952,11 @@ export class VaultIndexer {
         // remote contents until this path's subtree can actually be inspected.
         if (skipped.some(entry => !entry.path || dbPath === entry.path || dbPath.startsWith(`${entry.path}/`))) continue;
         filesToDelete.push(dbPath);
-        if (!isInternalPath(dbPath)) vanishedFromDisk.push(dbPath);
+        // An excluded path (internal, OS junk, an AppleDouble sidecar — present
+        // or vanished beside its companion) is forgotten, never reported.
+        if (isInternalPath(dbPath) || appleDouble.has(dbPath)) continue;
+        if (await this.isVanishedAppleDouble(dbPath, knownOrPresent)) continue;
+        vanishedFromDisk.push(dbPath);
       }
     }
 
@@ -789,18 +1012,16 @@ export class VaultIndexer {
       // from disk may need a remote delete pushed first (otherwise the next pull would
       // resurrect it). sync_state is cleaned only after the remote delete succeeds; the
       // deletion is surfaced via onLocalFileDeleted after this transaction commits.
+      //
+      // Keyed on the PATH (issue #110, E8). It used to delete by sha256(path),
+      // but a row moved inside Plainva keeps the id of its OLD path
+      // (SyncQueue.queueRename rewrites `path` in place) — once such a file was
+      // moved again outside Plainva, the delete matched nothing and the stale
+      // row survived every full scan: a file that no longer exists stayed in
+      // the tree for good. removePathFromIndex was moved to the path for the
+      // same reason (issue #34); the full scan had been left behind.
       if (filesToDelete.length > 0) {
-        const ids: string[] = [];
-        for (const path of filesToDelete) ids.push(await this.generateFileId(path));
-        const CHUNK = 400;
-        for (let k = 0; k < filesToDelete.length; k += CHUNK) {
-          const idSlice = ids.slice(k, k + CHUNK);
-          const pathSlice = filesToDelete.slice(k, k + CHUNK);
-          const marks = idSlice.map(() => "?").join(", ");
-          // Cascades to links, tags, properties
-          await sink.execute(`DELETE FROM files WHERE id IN (${marks})`, idSlice);
-          await sink.execute(`DELETE FROM fts_notes WHERE path IN (${marks})`, pathSlice);
-        }
+        await this.deleteIndexRows(filesToDelete, sink);
         await flushIfLarge();
       }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { sourceMap } from "./test-sourceTree";
 
 /**
  * The supported engine floor lives in eight different kinds of file (five on the
@@ -64,6 +65,16 @@ const desktopRoot = resolve(__dirname, "..");
 const repoRoot = resolve(desktopRoot, "../..");
 
 const read = (p: string) => readFileSync(p, "utf8");
+
+let guide: ReadonlyMap<string, string> | undefined;
+/** A page of the user guide, from the scan guards' shared snapshot (test-sourceTree.ts). */
+function guidePage(lang: string, page: string): string {
+  const rel = `docs/user/${lang}/${page}`;
+  guide ??= sourceMap(["docs/user"], "markdown");
+  const text = guide.get(rel);
+  if (text === undefined) throw new Error(`${rel} does not exist`);
+  return text;
+}
 
 describe("supported engine floor", () => {
   it("the bundle target names the floor", () => {
@@ -147,8 +158,8 @@ describe("supported engine floor", () => {
 
     const missing: string[] = [];
     for (const lang of languages) {
-      const page = read(resolve(userDocs, lang, "Getting_Started.md"));
-      const mobilePage = read(resolve(userDocs, lang, "Mobile_App.md"));
+      const page = guidePage(lang, "Getting_Started.md");
+      const mobilePage = guidePage(lang, "Mobile_App.md");
       // The phone floor belongs on the phone page: someone reading about the
       // mobile app is exactly the person who needs to know which devices it
       // runs on, and they will not find it under a desktop heading.

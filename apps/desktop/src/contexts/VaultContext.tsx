@@ -1,4 +1,4 @@
-import { clearPinboardCache } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache } from "@plainva/ui";
 import { projectPublicationFeedbackForOwner, sameStoredValue } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, ReactNode } from "react";
@@ -47,6 +47,7 @@ import { getWindowBus } from "../services/windowBus";
 import { broadcastIndexChanged, installOwnerBus, installSyncStatusMirror, type OwnerCommentDeps, type OwnerWorkspaceHistoryDeps } from "../services/ownerBus";
 import { createClientSyncWorker } from "../services/clientSyncWorker";
 import { createRemoteIndexer, type IndexerApi } from "../services/remoteIndexer";
+import { usePinboardDraftSweep } from "../services/usePinboardDraftSweep";
 import { createClientPimRuntime } from "../services/pim/remotePimTarget";
 import { fetch } from "@tauri-apps/plugin-http";
 import { microsoftAuthFetch } from "../services/authFetch";
@@ -55,7 +56,7 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
-import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "../services/vaultRefresh";
+import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
 import { WATCH_RESCAN_MARKER } from "../adapters/TauriVaultAdapter";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
 import { runEntryEventSync } from "../services/pim/entryEventSync";
@@ -952,6 +953,10 @@ export const VaultProvider: React.FC<{
           void enqueueLocalChange(path);
         },
         onLocalFileDeleted: (path) => {
+          // An editor that shows this file learns that it vanished (issue 110,
+          // E9) — moved or deleted outside Plainva while open. It looks for
+          // the file; the owner bridge carries the event to other windows.
+          if (!path.includes(".plainva")) window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));
           if (path.includes(".plainva") || path.includes(".CONFLICT")) return;
           if (workspaceMaterializedPaths.delete(path)) return;
           // The worker mirrored a remote deletion: its sync_state is already
@@ -1000,8 +1005,8 @@ export const VaultProvider: React.FC<{
       const indexQueue = createIncrementalIndexQueue({
         indexer,
         exists: (p) => tauriVaultAdapter.exists(p),
-        onBatchDone: ({ fullScan, anyChange, paths: batchPaths }) => {
-          if (fullScan) {
+        onBatchDone: ({ fullScan, anyChange, paths: batchPaths, structureChanged }) => {
+          if (fullScan || structureChanged) {
             setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
           } else if (anyChange) {
             setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: batchPaths }));
@@ -1069,6 +1074,8 @@ export const VaultProvider: React.FC<{
               onDeletionResolved: (intent, outcome) =>
                 resolveTaskDeletion(intent as TaskDeletionOrder, outcome),
             });
+            // Task notes are being renamed in bulk (E12): come back once that is done.
+            if (res.paused) afterTaskSyncResume(() => void runTaskSyncNow());
             const touched = [...res.createdNotes, ...res.changedNotes];
             if (touched.length > 0) indexQueue.enqueue(touched);
             for (const err of res.errors) console.warn("[VaultContext] task sync:", err);
@@ -1717,7 +1724,6 @@ export const VaultProvider: React.FC<{
     if (isClient || !state.vaultPath) return;
     return installSyncStatusMirror(state.vaultPath);
   }, [isClient, state.vaultPath]);
-
   // Client: the owner owns the index, so its broadcast is what makes the views
   // in this window refresh. Without it an auxiliary window would show whatever
   // the index held when it opened.
@@ -1938,6 +1944,9 @@ export const VaultProvider: React.FC<{
     // Paths accumulated across the debounce window: the timer only sees the
     // LAST event batch otherwise, and incremental indexing needs all of them.
     const pendingWatchPaths = new Set<string>();
+    // Paths named by a rename or removal: their parent folder is reconciled
+    // too, once they turn out to have changed the index (issue 110, E8).
+    const pendingMovedPaths = new Set<string>();
 
     const startWatching = async () => {
       if (!state.vaultAdapter?.watch) return;
@@ -1970,16 +1979,19 @@ export const VaultProvider: React.FC<{
               // "" is the vault root — indexPath classifies it as a directory and
               // the queue escalates to a full reconcile (P1d fail-safe).
               pendingWatchPaths.add(e.path === WATCH_RESCAN_MARKER ? "" : e.path);
+              if ((e.type === "rename" || e.type === "remove") && e.path !== WATCH_RESCAN_MARKER) pendingMovedPaths.add(e.path);
             }
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
               const batch = Array.from(pendingWatchPaths);
+              const moved = Array.from(pendingMovedPaths);
               pendingWatchPaths.clear();
+              pendingMovedPaths.clear();
               console.log("[VaultContext] vault watcher detected changes", batch);
               // Incremental per-path indexing (P2.5) — the former full scan
               // walked the ENTIRE vault over IPC after every save echo. The
               // shared queue serializes this with concurrent sync-pull batches.
-              indexQueue.enqueue(batch);
+              indexQueue.enqueue(batch, { moved });
             }, 1000);
           }
         });
@@ -2273,19 +2285,18 @@ export const VaultProvider: React.FC<{
     return run;
   };
 
-  /** Reconcile ONE folder subtree — the fast path when the vault has 20.000 files. */
+  /**
+   * Reconcile ONE folder subtree — the fast path when the vault has 20.000
+   * files. Through the core's reconcileFolder (issue 110, E8): walking the
+   * folder and indexing each entry only ever saw what IS there, so a file
+   * moved away outside Plainva stayed in the tree after "refresh folder".
+   */
   const refreshFolder = async (folderPath: string) => {
     const indexer = state.indexer;
-    const adapter = state.vaultAdapter;
-    if (!indexer || !adapter) return;
+    if (!indexer) return;
     try {
-      const entries = await adapter.listDir(folderPath, true);
-      let touched = 0;
-      for (const entry of entries) {
-        if (entry.isDirectory) continue;
-        const outcome = await indexer.indexPath(entry.path);
-        if (outcome === "indexed" || outcome === "removed") touched++;
-      }
+      const report = await indexer.reconcileFolder(folderPath);
+      const touched = report.indexed.length + report.removed.length;
       bumpTree();
       toast.success(
         i18n.t("refresh.folderDone", {
@@ -2374,6 +2385,18 @@ export const VaultProvider: React.FC<{
       setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
     }
   };
+
+  // What an app that was closed or killed during a pinboard entry left
+  // behind (plan Befunde 2026-09-24, E15), finished once per opened vault in
+  // the main window, which holds the adapter chain and the index.
+  usePinboardDraftSweep({
+    owner: !isClient,
+    ready: !state.isLoading,
+    vaultPath: state.vaultPath,
+    adapter: state.vaultAdapter,
+    indexer: state.indexer,
+    onRemoved: triggerFileTreeUpdate,
+  });
 
   // Kept current for the owner bus (C1). Written in an effect, never during
   // render, so the value the handler reads is the one the last render produced.

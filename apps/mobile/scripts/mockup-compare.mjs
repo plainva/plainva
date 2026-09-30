@@ -27,64 +27,91 @@
 
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "@playwright/test";
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 /**
- * The mockup lives in the private workspace repo, one level above the app.
- * Keeping the path here rather than copying the file means the comparison can
- * never run against a stale duplicate.
+ * The mockups live in the private workspace repo, one level above the app.
+ * Keeping the paths here rather than copying the files means the comparison
+ * can never run against a stale duplicate.
  */
-const MOCKUP = resolve(APP_DIR, "../../../docs/planning/mockups/Mobile_Neuentwurf_2026-08-02.html");
+const MOCKUP_DIR = resolve(APP_DIR, "../../../docs/planning/mockups");
 
 /**
- * Surface -> mockup section. A surface without an entry is reported as
+ * Every mockup a capture can be held against, oldest first. The redesign of
+ * 2026-08-02 drew every surface; later rounds redrew single surfaces, and
+ * where they did, THEIR drawing is the target — a capture is compared with the
+ * approved picture, never with the step before it (plan Befunde 2026-09-24,
+ * § 5: the areas sheet had been built against the wrong one).
+ *
+ * Two drawing styles exist: the redesign's `.stage` blocks with `.dev` frames
+ * and `.cap` captions, and the later rounds' phone figures, whose caption
+ * badge says "heute" for the state being replaced.
+ */
+const MOCKUPS = {
+  redesign: { file: "Mobile_Neuentwurf_2026-08-02.html", layout: "stage" },
+  interface0922: { file: "Bedienoberflaeche_2026-09-22.html", layout: "figure" },
+  findings0924: { file: "Befunde_2026-09-24.html", layout: "figure" },
+};
+
+const LAYOUTS = {
+  stage: { stage: ".stage", frame: ".dev", heading: ".cap h3", notes: ".cap p", before: null },
+  figure: { stage: "figure.fig--phone", frame: "figure.fig--phone .phone", heading: "figcaption .badge", notes: "figcaption", before: ".badge--now" },
+};
+
+/**
+ * Surface -> mockup sections. A plain string is a section of the redesign; a
+ * pair names a later mockup. A surface without an entry is reported as
  * UNMAPPED rather than skipped quietly: "no target picture" is a finding about
  * the mockup or about the surface, and both deserve to be seen.
  */
 const SURFACE_SECTIONS = {
-  onboarding: "s20",
-  home: "s5",
-  "home-folder": "s5",
-  attachments: "s5",
-  "empty-vault": "s5",
-  "quick-create": "s5",
-  "navigator-tags": "s5",
-  "note-read": "s7",
-  "note-edit": "s8",
-  "note-menu": "s8",
-  "note-context": "s9",
-  search: "s6",
-  "areas-sheet": "s3",
-  today: "s10",
-  tasks: "s11",
-  "tab-tasks": "s11",
-  "navigator-databases": "s12",
-  "import-wizard": "s13",
-  calendar: "s14",
-  mail: "s15",
-  graph: "s16",
-  "tab-graph": "s16",
-  settings: "s17",
-  "settings-appearance": "s17",
-  "settings-editor": "s17",
-  "settings-about": "s17",
-  "settings-behavior": "s17",
-  "settings-content": "s17",
-  "settings-backup": "s17",
-  "settings-navbar": "s17",
-  "settings-maintenance": "s17",
-  "settings-sync": "s18",
-  "settings-cloud-accounts": "s18",
-  "cloud-accounts": "s18",
-  "settings-pim": "s18",
-  "settings-mail": "s18",
-  vaults: "s18",
-  "vault-detail": "s18",
-  "vault-detail-cloud": "s18",
-  "settings-security": "s19",
+  onboarding: ["s20"],
+  home: ["s5"],
+  "home-folder": ["s5"],
+  attachments: ["s5"],
+  "empty-vault": ["s5"],
+  "quick-create": ["s5", ["interface0922", "s-areas"]],
+  "navigator-tags": ["s5"],
+  "note-read": ["s7"],
+  "note-edit": ["s8"],
+  "note-menu": ["s8"],
+  "note-context": ["s9", ["interface0922", "s-choice"]],
+  search: ["s6", ["interface0922", "s-choice"], ["findings0924", "s-msearch"]],
+  "areas-sheet": ["s3", ["interface0922", "s-areas"], ["findings0924", "s-lists"]],
+  today: ["s10"],
+  tasks: ["s11"],
+  "tab-tasks": ["s11"],
+  "navigator-databases": ["s12"],
+  "import-wizard": ["s13"],
+  calendar: ["s14"],
+  mail: ["s15", ["findings0924", "s-lists"]],
+  graph: ["s16"],
+  "tab-graph": ["s16"],
+  settings: ["s17"],
+  "settings-appearance": ["s17"],
+  "settings-editor": ["s17"],
+  "settings-about": ["s17"],
+  "settings-behavior": ["s17"],
+  "settings-content": ["s17"],
+  "settings-backup": ["s17"],
+  "settings-navbar": ["s17", ["interface0922", "s-areas"]],
+  "settings-maintenance": ["s17"],
+  "settings-sync": ["s18"],
+  "settings-cloud-accounts": ["s18"],
+  "cloud-accounts": ["s18"],
+  "settings-pim": ["s18"],
+  "settings-mail": ["s18"],
+  vaults: ["s18", ["findings0924", "s-lists"]],
+  "vault-detail": ["s18"],
+  "vault-detail-cloud": ["s18"],
+  "settings-security": ["s19"],
 };
+
+/** `["s6", ["findings0924", "s-msearch"]]` -> `["redesign:s6", "findings0924:s-msearch"]`. */
+const targetKeys = (surface) =>
+  (SURFACE_SECTIONS[surface] ?? []).map((t) => (typeof t === "string" ? `redesign:${t}` : `${t[0]}:${t[1]}`));
 
 function parseArgs(argv) {
   const out = { shots: "screenshots/baseline", theme: "light", out: "screenshots/compare" };
@@ -98,34 +125,45 @@ function parseArgs(argv) {
   return out;
 }
 
-/** Renders the mockup and cuts out every phone frame, section by section. */
-async function captureMockup(outDir) {
+/**
+ * Renders the mockups the captures need and cuts out every phone frame,
+ * section by section. Keyed `<mockup>:<section>`.
+ */
+async function captureMockups(outDir, needed) {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: 2 });
   const shots = {};
   try {
-    await page.goto(`file://${MOCKUP}`, { waitUntil: "networkidle" });
-    const sections = await page.$$eval("section[id]", (nodes) =>
-      nodes.map((n) => ({
-        id: n.id,
-        title: n.querySelector("h2")?.textContent?.trim() ?? n.id,
-        stages: [...n.querySelectorAll(".stage")].map((stage) => ({
-          heading: stage.querySelector(".cap h3")?.textContent?.trim() ?? "",
-          // The caption paragraphs carry the intent — including the "Vorher:"
-          // line, which states exactly what the target is meant to replace.
-          notes: [...stage.querySelectorAll(".cap p")].map((p) => p.textContent.trim()),
-          devices: stage.querySelectorAll(".dev").length,
-        })),
-      })),
-    );
+    for (const mockup of needed) {
+      const def = MOCKUPS[mockup];
+      const sel = LAYOUTS[def.layout];
+      await page.goto(pathToFileURL(join(MOCKUP_DIR, def.file)).href, { waitUntil: "networkidle" });
+      const sections = await page.$$eval(
+        "section[id]",
+        (nodes, sel) =>
+          nodes.map((n) => ({
+            id: n.id,
+            title: n.querySelector("h2")?.textContent?.trim() ?? n.id,
+            stages: [...n.querySelectorAll(sel.stage)].map((stage) => ({
+              heading: stage.querySelector(sel.heading)?.textContent?.trim() ?? "",
+              // The caption carries the intent — including the "Vorher:" line
+              // or the "heute" badge, which name what the target replaces.
+              before: sel.before ? !!stage.querySelector(sel.before) : false,
+              notes: [...stage.querySelectorAll(sel.notes)].map((p) => p.textContent.trim()),
+            })),
+          })),
+        sel,
+      );
 
-    for (const section of sections) {
-      const frames = await page.$$(`#${section.id} .dev`);
-      shots[section.id] = { ...section, images: [] };
-      for (let i = 0; i < frames.length; i += 1) {
-        const file = `${section.id}-${i}.png`;
-        await frames[i].screenshot({ path: join(outDir, "mockup", file) }).catch(() => {});
-        shots[section.id].images.push(file);
+      for (const section of sections) {
+        const frames = await page.$$(`#${section.id} ${sel.frame}`);
+        const key = `${mockup}:${section.id}`;
+        shots[key] = { ...section, mockup: def.file, images: [] };
+        for (let i = 0; i < frames.length; i += 1) {
+          const file = `${mockup}-${section.id}-${i}.png`;
+          await frames[i].screenshot({ path: join(outDir, "mockup", file) }).catch(() => {});
+          shots[key].images.push(file);
+        }
       }
     }
   } finally {
@@ -137,27 +175,31 @@ async function captureMockup(outDir) {
 const esc = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+function renderTarget(section) {
+  const imgs = section.images.map((f) => `<img src="mockup/${f}" alt="">`).join("");
+  const stages = section.stages
+    .map(
+      (s) =>
+        `<div class="stage"><h4>${esc(s.heading)}</h4>${s.notes
+          .map((n) => `<p class="${s.before || n.startsWith("Vorher:") ? "before" : ""}">${esc(n)}</p>`)
+          .join("")}</div>`,
+    )
+    .join("");
+  return `<div class="target"><h4 class="src">${esc(section.mockup)} · § ${esc(section.title)}</h4><div class="targets">${imgs}</div>${stages}</div>`;
+}
+
 function renderHtml(rows, theme, shotsRel) {
   const body = rows
     .map((r) => {
-      const target = r.section
-        ? r.section.stages
-            .map(
-              (s) =>
-                `<div class="stage"><h4>${esc(s.heading)}</h4>${s.notes
-                  .map((n) => `<p class="${n.startsWith("Vorher:") ? "before" : ""}">${esc(n)}</p>`)
-                  .join("")}</div>`,
-            )
-            .join("")
+      const target = r.sections.length
+        ? r.sections.map(renderTarget).join("")
         : `<p class="unmapped">Keine Mockup-Zuordnung — als ungeprüft führen.</p>`;
-      const targetImgs = r.section
-        ? r.section.images.map((f) => `<img src="mockup/${f}" alt="">`).join("")
-        : "";
+      const heading = r.sections.length ? `→ ${r.sections.map((s) => `§ ${s.title}`).join(" · ")}` : "→ ohne Zuordnung";
       return `<section>
-  <h2>${esc(r.surface)} <span class="sec">${esc(r.section ? `→ § ${r.section.title}` : "→ ohne Zuordnung")}</span></h2>
+  <h2>${esc(r.surface)} <span class="sec">${esc(heading)}</span></h2>
   <div class="cols">
     <div class="col"><h3>App</h3><img class="shot" src="${esc(r.shot)}" alt=""></div>
-    <div class="col"><h3>Mockup</h3><div class="targets">${targetImgs}</div>${target}</div>
+    <div class="col"><h3>Mockup</h3>${target}</div>
   </div>
   <div class="dev-note"><b>Abweichungen:</b> hier eintragen — „0 Diff" ist kein Ergebnis, das
   diese Gegenüberstellung erzeugen kann.</div>
@@ -182,6 +224,8 @@ function renderHtml(rows, theme, shotsRel) {
  .stage h4{margin:0 0 4px;font-size:14px}
  .stage p{margin:0 0 4px;color:#40514f;font-size:14px}
  .stage p.before{color:#8a4b3f}
+ .target+.target{border-top:1px solid #dde5e4;margin-top:14px;padding-top:10px}
+ .target h4.src{margin:0 0 8px;font-size:13px;color:#5c6b69;font-weight:600}
  .unmapped{color:#8a4b3f}
  .dev-note{margin-top:12px;padding:8px 10px;background:#f4f6f6;border-radius:8px;color:#5c6b69;font-size:14px}
 </style>
@@ -209,18 +253,19 @@ async function main() {
     .sort();
   if (captured.length === 0) throw new Error(`no PNGs in ${shotsDir}`);
 
-  process.stdout.write("rendering the mockup…\n");
-  const sections = await captureMockup(outDir);
+  const needed = [...new Set(captured.flatMap((surface) => targetKeys(surface).map((key) => key.split(":")[0])))];
+  process.stdout.write(`rendering ${needed.length} mockup(s)…\n`);
+  const sections = await captureMockups(outDir, needed);
 
   const rows = captured.map((surface) => ({
     surface,
     shot: relative(outDir, join(shotsDir, `${surface}.png`)),
-    section: sections[SURFACE_SECTIONS[surface]] ?? null,
+    sections: targetKeys(surface).map((key) => sections[key]).filter(Boolean),
   }));
 
   await writeFile(join(outDir, "compare.html"), renderHtml(rows, args.theme, args.shots), "utf8");
 
-  const unmapped = rows.filter((r) => !r.section).map((r) => r.surface);
+  const unmapped = rows.filter((r) => r.sections.length === 0).map((r) => r.surface);
   process.stdout.write(`${rows.length} surfaces -> ${join(outDir, "compare.html")}\n`);
   if (unmapped.length) {
     process.stdout.write(`without a mockup section (report as UNVERIFIED): ${unmapped.join(", ")}\n`);

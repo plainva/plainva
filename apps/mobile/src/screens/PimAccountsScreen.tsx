@@ -443,7 +443,8 @@ export function PimAccountsScreen({
       { value: "", label: t("pim.defaultCalendarFirst") },
       ...calendars.map((c) => ({ value: `${c.accountId} ${c.id}`, label: c.name })),
     ];
-    const picked = await mSelect({ title: t("pim.defaultCalendar"), options });
+    // A value with a state (E20): the ring sits on the calendar in force.
+    const picked = await mSelect({ title: t("pim.defaultCalendar"), options, value: defaultCalendar });
     if (picked === null) return;
     setDefaultCalendar(picked);
     await updateMobileSettings({ defaultCalendar: picked });
@@ -674,8 +675,8 @@ export function PimAccountsScreen({
           <RowList>
             <FolderField
               label={t("pim.meetingFolder")}
-              onBlur={() => void updateMobileSettings({ meetingFolder: meetingFolder.trim() })}
-              onChange={setMeetingFolder}
+              normalize={(v) => v.trim()}
+              onSave={(v) => { setMeetingFolder(v); void updateMobileSettings({ meetingFolder: v }); }}
               onPick={() => setPickMeetingFolder(true)}
               placeholder="Meetings"
               value={meetingFolder}

@@ -207,8 +207,11 @@ const SURFACES = [
   { id: "note-edit", requires: ".m-editor.is-docked", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-edit"]' }] },
   { id: "note-context", requires: "[data-testid=\"okf-trust-section\"]", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-context"]' }] },
   { id: "note-menu", requires: ".m-sheet-title", steps: [{ click: ".m-caro-card", nth: 0 }, { click: '[data-testid="note-menu"]' }] },
-  { id: "search", requires: "[data-testid=\"appbar-searchpage\"]", steps: [{ click: '[data-testid="appbar-search"]' }] },
-  { id: "areas-sheet", requires: "[data-testid=\"areas-sheet\"]", steps: [{ click: AREAS_SWITCH }] },
+  // The field in the title slot's flexible holder (E19): it used to render
+  // beside the holder and stayed as wide as its placeholder.
+  { id: "search", requires: "[data-testid=\"appbar-searchpage\"] .m-appbar-ttl .pv-searchfield", steps: [{ click: '[data-testid="appbar-search"]' }] },
+  // A list of places (E20): the area on screen is the current row, no ring.
+  { id: "areas-sheet", requires: "[data-testid=\"areas-sheet\"] [aria-current=\"page\"]", steps: [{ click: AREAS_SWITCH }] },
   { id: "quick-create", requires: ".m-fabmenu-items", steps: [{ click: '[data-testid="capture-fab"]' }] },
   { id: "today", requires: "[data-testid=\"pim-event\"]", steps: area("today") },
   // Tags and databases are navigator TABS since S9, not areas of their own —
@@ -550,14 +553,18 @@ const SURFACES = [
     steps: [{ click: '.m-page .pv-grouprow:has-text("Tagebuch")' }, { click: '.pv-grouprow:has-text("26.08.31")' }, { wait: 800 }],
   },
   {
-    // A tag-sourced database on the pinboard with its quick-add form open:
-    // the surface whose "Save" opened the configuration sheet in silence (P2).
+    // A tag-sourced database on the pinboard after its FAB: the new entry
+    // has nowhere to go yet, so the storage-folder question comes first —
+    // the surface whose quick-add once opened the configuration sheet in
+    // silence (P2). Since the "New entry" page (plan Befunde 2026-09-24, E17)
+    // the question comes before the draft exists, not after typing.
     id: "base-pinboard-tags",
-    requires: ".m-capture-popup",
+    requires: ".m-sheet-backdrop--dialog .m-sheet-inputrow",
     steps: [
       { click: '[data-testid="navigator-databases"]' },
       { click: '.m-page .pv-grouprow:has-text("Zettel")' },
-      { click: ".m-pin-capture" },
+      { click: ".m-fab-float" },
+      { wait: 400 },
     ],
   },
   {

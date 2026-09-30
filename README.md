@@ -105,6 +105,8 @@ pnpm --filter desktop test:e2e      # Playwright E2E (Vite dev server)
 pnpm --filter desktop smoke:prod    # production-build smoke (vite build + preview + boot check)
 ```
 
+When a Playwright test fails or needs a retry in CI, the run uploads the traces as the artifact `playwright-checks-<attempt>` (or `playwright-webkit-<attempt>`), kept for seven days; open one with `npx playwright show-trace <trace.zip>`.
+
 The repo is a pnpm/Turborepo monorepo: `apps/desktop` (Tauri v2 + React + CodeMirror 6), `packages/core` (vault logic: indexing, sync, merge — UI-free and heavily unit-tested), `docs/` (user guide, ADRs, engineering notes).
 
 The experimental [Core SDK](packages/core/README.md) can also be packed for use outside the monorepo, with separate browser, Node filesystem and optional SQLite entry points. Its README describes the public API, isolated consumer checks and publication procedure.

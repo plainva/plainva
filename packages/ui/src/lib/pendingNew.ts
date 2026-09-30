@@ -39,8 +39,18 @@ export function takePendingNew(id: NewItemId): boolean {
 /**
  * Subscribes a mounted surface: runs `handle` now if a request waits, and
  * again whenever a new one arrives. Returns the unsubscribe for the effect.
+ *
+ * `ready` says whether the surface can serve a request yet (plan Befunde
+ * 2026-09-24, E28). The surface a request OPENS mounts with the request
+ * already waiting, and what it needs to answer it may still be on its way —
+ * the phone's Today screen reads its writable calendars from the index. Until
+ * then the request stays parked; the surface passes `ready` in its effect's
+ * dependencies and takes the request the moment it can. Taken early, "New
+ * event" from the ＋ menu of another tab answered "no writable calendar"
+ * although there was one.
  */
-export function consumePendingNew(id: NewItemId, handle: (text: string) => void): () => void {
+export function consumePendingNew(id: NewItemId, handle: (text: string) => void, ready = true): () => void {
+  if (!ready) return () => {};
   const run = () => {
     const text = takePendingNewText(id);
     if (text !== null) handle(text);

@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { Check } from "lucide-react";
+import { ICON } from "../../lib/iconSizes";
 import { cx } from "./cx";
 
 /**
@@ -138,6 +140,7 @@ export function Row({
   indent,
   wrap,
   controls,
+  current,
   onClick,
   disabled,
   className,
@@ -174,6 +177,17 @@ export function Row({
    * answers events on the container itself.
    */
   controls?: boolean;
+  /**
+   * The row is WHERE THE USER IS in a list of targets (finding 2026-09-24,
+   * E20): the area on screen, the database view shown, the active vault.
+   *
+   * A target is not a value one sets, so it wears no ring and no slot — those
+   * belong to a choice. The current row is tinted with the accent-container
+   * pair, set in weight 600, carries a check on its trailing edge and
+   * `aria-current`; every other row of the list carries nothing. It was a ring
+   * list before, which read as a setting with four empty answers.
+   */
+  current?: boolean;
   onClick?: () => void;
   /** Only meaningful on a row that acts: a row that merely shows something
    * cannot be unavailable. Ignored on the static variant rather than faked
@@ -190,6 +204,11 @@ export function Row({
           <span className="pv-grouprow-sub">{subtitle}</span>
         )}
       </span>
+      {current && (
+        <span className="pv-grouprow-check">
+          <Check size={ICON.ui} />
+        </span>
+      )}
       {end !== undefined && end !== null && end !== "" && <span className="pv-grouprow-end">{end}</span>}
     </>
   );
@@ -198,9 +217,13 @@ export function Row({
     indent === 1 && "pv-grouprow--indent",
     indent === 2 && "pv-grouprow--indent2",
     wrap && "pv-grouprow--wrap",
+    current && "pv-grouprow--current",
     onClick && "pv-rowhover",
     className,
   );
+  // "page" is the target list's meaning — the place shown now. A caller with a
+  // narrower one (a step, a date) passes its own `aria-current` through `rest`.
+  const attrs = current && rest["aria-current"] === undefined ? { ...rest, "aria-current": "page" as const } : rest;
   // A row that does something is a button; one that only shows something is
   // not. Handing every row a button element would put a control in the
   // accessibility tree for text that cannot be acted on.
@@ -222,18 +245,18 @@ export function Row({
           e.preventDefault();
           if (!disabled) onClick();
         }}
-        {...rest}
+        {...attrs}
       >
         {body}
       </div>
     );
   }
   return onClick ? (
-    <button className={cls} disabled={disabled} onClick={onClick} type="button" {...rest}>
+    <button className={cls} disabled={disabled} onClick={onClick} type="button" {...attrs}>
       {body}
     </button>
   ) : (
-    <div className={cls} {...rest}>
+    <div className={cls} {...attrs}>
       {body}
     </div>
   );

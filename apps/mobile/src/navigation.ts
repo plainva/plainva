@@ -91,7 +91,7 @@ export const NAV_KINDS = [
   "mailaccounts", "mailrule", "pimaccounts", "tasks", "databases", "graphmap", "comments", "journal", "cleanup", "tags", "bookmarks",
   "search", "findreplace", "more", "areas", "settings", "settingsArea", "vaults", "appearance", "customtheme",
   "cloudaccounts", "cloudaccount", "cloudconnect", "sync", "vault", "syncchain", "syncdiag", "securitywizard",
-  "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration", "ai", "aihistory",
+  "importwizard", "imageviewer", "overviews", "okfconversion", "okfmigration", "pinentry", "ai", "aihistory",
 ] as const;
 
 export type NavKind =
@@ -136,6 +136,7 @@ export type NavKind =
   | "okfconversion"
   | "okfmigration"
   | "imageviewer"
+  | "pinentry"
   | "ai"
   | "aihistory";
 
@@ -260,8 +261,14 @@ export function reservesFabStrip(top?: NavEntry, activeTab?: TabScreenId): boole
  *
  * `cloudconnect` is deliberately absent: it only picks a provider, and leaving
  * it loses nothing. The credentials are entered on the `sync` surface.
+ *
+ * `pinentry` (plan Befunde 2026-09-24, E17) is the pinboard's "New entry"
+ * page. It holds unfinished input — the typed title lives in the page until
+ * the entry ends — so the bar hides and a restored session does not reopen
+ * it. It needs no leave guard: every way out, the bar included, ends the
+ * entry the way closing does, and closing keeps what was typed.
  */
-export const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard", "okfconversion", "okfmigration"]);
+export const INPUT_KINDS = new Set<NavKind>(["note", "mailcompose", "sync", "securitywizard", "importwizard", "okfconversion", "okfmigration", "pinentry"]);
 
 /**
  * Surfaces that hide the bar for the OTHER reason: nothing is lost by leaving
@@ -415,3 +422,24 @@ export const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   journal: { kind: "journal", path: "" },
   ai: { kind: "ai", path: "" },
 };
+
+/**
+ * The area on screen, as the areas sheet marks it (finding 2026-09-24, E20).
+ *
+ * An area outside the bar is PUSHED onto the tab it was opened from, so
+ * `activeTab` still names that tab while the graph or the journal fills the
+ * screen. The sheet is a list of places, and its current row has to be where
+ * the person is: the nearest area screen from the top (overlay first, a note
+ * opened from the graph is still "in the graph"), else the tab itself.
+ */
+export function currentArea(state: NavState): TabScreenId {
+  const layers = [...state.stacks[state.activeTab], ...state.overlay];
+  const areas = Object.keys(SCREEN_ENTRY) as TabScreenId[];
+  for (let i = layers.length - 1; i >= 0; i -= 1) {
+    const { kind, path } = layers[i]!;
+    if (path) continue;
+    const area = areas.find((id) => SCREEN_ENTRY[id].kind === kind);
+    if (area) return area;
+  }
+  return state.activeTab;
+}

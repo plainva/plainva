@@ -3,11 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { mimeTypeForPath, readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { Plus } from "lucide-react";
-import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue, TextArea, TextInput } from "@plainva/ui";
+import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
-import { mMultiSelect, mSelect } from "../../services/mobileDialogs";
-import { captureBaseItem } from "../../services/baseOps";
+import { mActions, mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { vaultOps, type MobileVault } from "../../services/vaultService";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
@@ -125,9 +123,6 @@ export function PinboardView({
   onOpenNote,
   onMutated,
   onPatchView,
-  askStorageFolder,
-  viewIndex = 0,
-  captureSignal,
   viewKey = "default",
 }: {
   vault: MobileVault;
@@ -146,20 +141,10 @@ export function PinboardView({
   /** Opens the phone's cell editor for one property of one row. */
   onEditProp?: (row: Record<string, any>, col: string) => void;
   onOpenNote: (path: string) => void;
-  /** Re-query after a card write (toggle/label/color/capture/delete). */
+  /** Re-query after a card write (toggle/label/color/delete). */
   onMutated: () => void;
   /** Patch the active view (pinboardOrder/pinboardPinned) and persist. */
   onPatchView: (patch: Record<string, unknown>) => void;
-  /**
-   * Capture without a folder source: ask the ONE question (where do new
-   * entries go?), persist the answer and hand back the updated config so the
-   * capture carries on — never the whole configuration sheet (P2).
-   */
-  askStorageFolder: () => Promise<{ config: any; folder: string } | null>;
-  /** Index of `view` in the config — the prefill reads that view's filters. */
-  viewIndex?: number;
-  /** Bumped by the screen's FAB: open the capture card (M2). */
-  captureSignal?: number;
   viewKey?: string;
 }) {
   const { t } = useTranslation();
@@ -368,7 +353,11 @@ export function PinboardView({
       { value: "", label: t("pinboard.noColor", { defaultValue: "Keine Farbe" }) },
       ...Object.entries(PALETTE_SWATCH).filter(([n]) => n !== "gray").map(([name]) => ({ value: name, label: name })),
     ];
-    const picked = await mSelect({ title: t("pinboard.color", { defaultValue: "Farbe" }), options });
+    // The ring sits on the card's colour (E20); a colour from outside the
+    // palette matches no row and marks none.
+    const own = cards.get(path)?.parsed.color ?? null;
+    const value = own ? Object.entries(PALETTE_SWATCH).find(([, hex]) => hex.toLowerCase() === own.toLowerCase())?.[0] : "";
+    const picked = await mSelect({ title: t("pinboard.color", { defaultValue: "Farbe" }), options, value });
     if (picked === null) return;
     try {
       const fresh = await vault.files.readTextFile(path);
@@ -381,7 +370,7 @@ export function PinboardView({
     } catch (e: any) {
       toast.error(String(e?.message ?? e));
     }
-  }, [vault, t, afterCardWrite]);
+  }, [vault, t, afterCardWrite, cards]);
 
   const editLabels = useCallback(async (path: string) => {
     const current = labelsByPath.get(path) ?? [];
@@ -450,7 +439,8 @@ export function PinboardView({
 
   const openActions = useCallback(async (path: string) => {
     const isPinned = sections.pinned.includes(path);
-    const picked = await mSelect({
+    // What one can do with this card (E20): actions, nothing preselected.
+    const picked = await mActions({
       title: noteDisplayName(path.split("/").pop() ?? path),
       options: [
         { value: "pin", label: isPinned ? t("pinboard.unpin", { defaultValue: "Lösen" }) : t("pinboard.pin", { defaultValue: "Anpinnen" }) },
@@ -590,45 +580,6 @@ export function PinboardView({
     };
   }, [sections, canDrag, slotAt, openActions, persistSections]);
 
-  // ── Quick capture (P4/P6; Keep-style title popup 2026-07-17) ──
-  const [captureOpen, setCaptureOpen] = useState(false);
-  useEffect(() => {
-    if (captureSignal) setCaptureOpen(true);
-  }, [captureSignal]);
-  const [captureTitle, setCaptureTitle] = useState("");
-  const [captureText, setCaptureText] = useState("");
-  const [captureBusy, setCaptureBusy] = useState(false);
-  const captureTextRef = useRef<HTMLTextAreaElement | null>(null);
-  const submitCapture = useCallback(async () => {
-    const title = captureTitle.trim();
-    const text = captureText;
-    if (captureBusy) return;
-    if (!title && !text.trim()) {
-      setCaptureOpen(false);
-      return;
-    }
-    setCaptureBusy(true);
-    try {
-      let created = await captureBaseItem(vault, config, { title, text }, { viewIndex });
-      if (!created) {
-        // No folder to store into: the one question, then the same capture
-        // again with the answer — the typed text stays until it is written.
-        const asked = await askStorageFolder();
-        if (asked) created = await captureBaseItem(vault, asked.config, { title, text }, { viewIndex, folder: asked.folder });
-      }
-      if (created) {
-        setCaptureTitle("");
-        setCaptureText("");
-        setCaptureOpen(false);
-        onMutated();
-      }
-    } catch (e: any) {
-      toast.error(String(e?.message ?? e));
-    } finally {
-      setCaptureBusy(false);
-    }
-  }, [captureTitle, captureText, captureBusy, vault, config, viewIndex, onMutated, askStorageFolder]);
-
   const cardLabels = useMemo(
     () => ({
       table: t("pinboard.phTable", { defaultValue: "Tabelle" }),
@@ -760,61 +711,6 @@ export function PinboardView({
       {previews.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={previews.retry}>{t("pinboard.retry")}</Button></div>}
       {search.failed && <div role="alert">{t("pinboard.loadFailed")} <Button variant="ghost" size="sm" onClick={search.retry}>{t("pinboard.retry")}</Button></div>}
       {!!searchText.trim() && !search.busy && !search.failed && visibleSections.pinned.length + visibleSections.unpinned.length === 0 && <p role="status">{t("pinboard.noMatches")}</p>}
-      {/* The row the search field used to occupy is the way to a new note
-          again (finding 2026-09-22) — the same capture the FAB opens. */}
-      {!captureOpen && (
-        <button type="button" className="pv-capturerow" onClick={() => setCaptureOpen(true)} data-testid="pinboard-capture-row">
-          <Plus size={ICON.head} aria-hidden />
-          <span>{t("pinboard.captureRow")}</span>
-        </button>
-      )}
-      {captureOpen && (
-        <div
-          data-pinboard-capture-popup="true"
-          className="m-capture-popup"
-        >
-          <TextInput
-            type="text"
-            value={captureTitle}
-            data-pinboard-capture-title="true"
-            autoFocus
-            enterKeyHint="next"
-            placeholder={t("pinboard.captureTitle", { defaultValue: "Titel" })}
-            aria-label={t("pinboard.captureTitle", { defaultValue: "Titel" })}
-            onChange={(e) => setCaptureTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                captureTextRef.current?.focus();
-              }
-            }}
-            className="m-pin-capture-title"
-          />
-          <TextArea
-            ref={captureTextRef}
-            value={captureText}
-            data-pinboard-capture-text="true"
-            rows={3}
-            placeholder={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
-            aria-label={t("pinboard.capturePlaceholder", { defaultValue: "Notiz schreiben…" })}
-            onChange={(e) => setCaptureText(e.target.value)}
-            className="m-pin-capture-text"
-          />
-          <div className="m-pin-actions">
-            <Button variant="ghost" onClick={() => setCaptureOpen(false)}>
-              {t("common.close", { defaultValue: "Schließen" })}
-            </Button>
-            <Button
-              variant="primary"
-              data-pinboard-capture-save="true"
-              disabled={captureBusy || (!captureTitle.trim() && !captureText.trim())}
-              onClick={() => void submitCapture()}
-            >
-              {t("common.save", { defaultValue: "Speichern" })}
-            </Button>
-          </div>
-        </div>
-      )}
       {chipEntries.length > 0 && (
         /* The row scrolls sideways, and until now it did not say so: the last
            chip was simply sliced by the screen edge, which reads as a broken

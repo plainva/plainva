@@ -13,6 +13,16 @@ const contracts = [
   ["PublicationFeedback", "components/workspace/WorkspaceCommentsColumn.tsx", "components/CommentsSheet.tsx"],
   ["useCustomThemePair", "components/settings/CustomThemeEditor.tsx", "screens/CustomThemeScreen.tsx"],
   ["usePersonalDesignSync", "components/SettingsModal.tsx", "screens/CustomThemeScreen.tsx"],
+  // The pinboard's "New entry" (plan Befunde 2026-09-24, E16): ONE core for
+  // the draft and its end; the two capture paths it replaced had drifted apart.
+  ["planPinboardEntry", "components/BaseViewer.tsx", "services/baseOps.ts"],
+  ["finalizePinboardEntry", "components/base/PinboardEntryModal.tsx", "services/baseOps.ts"],
+  ["discardPinboardEntry", "components/base/PinboardEntryModal.tsx", "services/baseOps.ts"],
+  // What a closed or killed app left of an entry (E15): one rule, one record
+  // of open drafts, and every editor of both shells answers "is this open?".
+  ["sweepPinboardDrafts", "services/pinboardDrafts.ts", "services/baseOps.ts"],
+  ["pinboardDraftLedger", "components/BaseViewer.tsx", "services/baseOps.ts"],
+  ["answerEditorPathProbe", "components/Editor.tsx", "EditorHost.tsx"],
 ] as const;
 
 function usesFeature(source: string, name: string): boolean {

@@ -31,6 +31,7 @@ import { archiveByteReader, type ExtractedArchive } from "../services/importArch
 import { createImportVault, suggestVaultName, type ImportTargetVault } from "../services/importTarget";
 import { getMobileSettings } from "../services/mobileSettings";
 import { switchVault, type MobileVault } from "../services/vaultService";
+import { ChoiceMark } from "../components/ChoiceMark";
 
 /**
  * The import wizard on the phone (S41, completed in P7).
@@ -351,7 +352,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
               {[...sources.map((s) => s.id), OBSIDIAN_ENTRY].map((id) => (
                 <Row
                   key={id}
-                  icon={<span className={`m-slotmark${id === sourceId ? " is-on" : ""}`} />}
+                  icon={<ChoiceMark on={id === sourceId} />}
                   /* The NAME is translated (import.sources.<id>); the adapter's
                      `description` is English only, and an English sentence under
                      a German name reads like a bug. The name carries the row. */

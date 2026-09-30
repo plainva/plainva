@@ -49,7 +49,41 @@ export interface ShareTargetPort {
   markImported(args: { id: string; fileId?: string; note?: boolean }): Promise<void>;
   finishShare(args: { id: string; discard?: boolean }): Promise<void>;
 }
-export const shareTarget = registerPlugin<ShareTargetPort>("ShareTarget");
+const nativeShareTarget = registerPlugin<ShareTargetPort>("ShareTarget");
+
+/**
+ * The inbox of a production-bundle test run (plan Befunde 2026-09-24, E28).
+ *
+ * A plain browser has no share extension, so the share sheet — and "Create as
+ * a task" in it — could never run against the bundle that ships; only its
+ * import pipeline had tests, with a port handed in by hand. The e2e-prod
+ * runner installs an inbox on `globalThis` before the bundle loads, the same
+ * way the fixture SQLite bridge reaches the index: the seam sits at the
+ * platform boundary, and it only exists when the runner installed it. On a
+ * device the native plugin always answers; on the web without the fixture
+ * nothing is pending.
+ */
+const FIXTURE_KEY = "__plainvaFixtureShareTarget";
+const PORT_METHODS = ["listPendingShares", "readFileChunk", "beginImport", "markImported", "finishShare"] as const;
+
+export function fixtureShareTarget(): ShareTargetPort | null {
+  if (Capacitor.isNativePlatform()) return null;
+  const candidate = (globalThis as Record<string, unknown>)[FIXTURE_KEY];
+  if (!candidate || typeof candidate !== "object") return null;
+  const port = candidate as Record<string, unknown>;
+  return PORT_METHODS.every((method) => typeof port[method] === "function") ? (candidate as ShareTargetPort) : null;
+}
+
+const activeShareTarget = (): ShareTargetPort => fixtureShareTarget() ?? nativeShareTarget;
+
+/** The port the app talks to: the native inbox, or — only while a test runner installed one — its fixture inbox. */
+export const shareTarget: ShareTargetPort = {
+  listPendingShares: () => activeShareTarget().listPendingShares(),
+  readFileChunk: (args) => activeShareTarget().readFileChunk(args),
+  beginImport: (args) => activeShareTarget().beginImport(args),
+  markImported: (args) => activeShareTarget().markImported(args),
+  finishShare: (args) => activeShareTarget().finishShare(args),
+};
 export const validShareId = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value);
 
 /** Native metadata is bounded and checked before allocating attachment buffers. */
@@ -71,7 +105,7 @@ export function validateShare(entry: PendingShare): PendingShare {
 }
 
 export async function listPendingShares(): Promise<PendingShare[]> {
-  if (!Capacitor.isNativePlatform()) return [];
+  if (!Capacitor.isNativePlatform() && !fixtureShareTarget()) return [];
   const { entries } = await shareTarget.listPendingShares();
   if (!Array.isArray(entries) || entries.length > 20) throw new Error("SHARE_INVALID");
   return entries.map(validateShare);

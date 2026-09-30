@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import { Button, GroupCard, ICON, Row, RowList, SectionLabel } from "@plainva/ui";
+import { Button, GroupCard, ICON, Row, RowList } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
+import { ChoiceMark } from "./ChoiceMark";
 
 /**
  * The "sort by" sheet, once (finding 2026-09-19).
@@ -19,6 +20,13 @@ import { SheetGrip } from "./SheetGrip";
  * the sheet stays open, because flipping the direction is a second decision.
  * It used to be a hand-built row with a tick — one of four spellings for
  * "chosen" on this phone.
+ *
+ * Every list that can be ordered opens THIS sheet (E21): the folder view, the
+ * search hits and the backlinks, which had a row of chips of their own. It
+ * holds until **Done** — the search page closed it on every tap, so the
+ * direction could only be turned by opening it again — and it says in a line
+ * under the card what the second tap does, as the 22.09. mockup (case c) has
+ * it. Its title is the sheet's own, like every other sheet's.
  */
 export interface SortSheetOption<K extends string> {
   key: K;
@@ -51,7 +59,7 @@ export function SortSheet<K extends string>({
     <div className="m-sheet-backdrop" onClick={onClose}>
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid={testId}>
         <SheetGrip onClose={onClose} />
-        <SectionLabel>{title}</SectionLabel>
+        <p className="m-sheet-title">{title}</p>
         <GroupCard>
           <RowList>
             {options.map((option) => {
@@ -61,7 +69,7 @@ export function SortSheet<K extends string>({
                   key={option.key}
                   data-testid={`${testId}-${option.key}`}
                   aria-pressed={on}
-                  icon={<span className={`m-slotmark${on ? " is-on" : ""}`} />}
+                  icon={<ChoiceMark on={on} />}
                   title={option.label}
                   end={on && direction ? (
                     <span className="m-sortdir">
@@ -76,9 +84,11 @@ export function SortSheet<K extends string>({
           </RowList>
         </GroupCard>
         {/* The sheet holds: tapping the active key again turns the direction
-            around, and that is a decision one makes while looking at it. */}
+            around, and that is a decision one makes while looking at it. The
+            line says so while a key with a direction is chosen. */}
+        {direction && <p className="m-hint m-sortsheet-hint" data-testid={`${testId}-hint`}>{t("browse.sortFlipHint")}</p>}
         <div className="m-btnrow">
-          <Button variant="primary" onClick={onClose} data-testid={`${testId}-done`}>{t("common.ok")}</Button>
+          <Button variant="primary" onClick={onClose} data-testid={`${testId}-done`}>{t("common.done")}</Button>
         </div>
       </div>
     </div>

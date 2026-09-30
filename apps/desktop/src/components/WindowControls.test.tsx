@@ -30,6 +30,16 @@ vi.mock("@tauri-apps/api/window", () => ({
   }),
 }));
 
+// The controls take only their icon size from @plainva/ui. Each test imports
+// them afresh (the platform flag is read at import time), so through the barrel
+// the first test paid for the whole package inside its time limit (Befunde
+// 2026-09-24, Z2). The mock hands in the one real module the controls use.
+vi.mock("@plainva/ui", async () => ({
+  ...(await vi.importActual<typeof import("../../../../packages/ui/src/lib/iconSizes")>(
+    "../../../../packages/ui/src/lib/iconSizes",
+  )),
+}));
+
 let host: HTMLDivElement;
 let root: Root;
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });

@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-09-03
+Última revisão: 2026-09-24
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -91,6 +91,16 @@ Normalmente o Plainva percebe sozinho quando outro programa altera algo na pasta
 O Plainva então mostra um breve relatório: quantos arquivos eram novos, alterados ou removidos — e **quais entradas foram ignoradas**. Uma pasta ignorada é o motivo mais comum de um arquivo nunca "chegar": o Plainva não conseguiu lê-la (permissões ausentes, unidade de rede desconectada) ou ela aponta em círculo para si mesma. Em vaults on-line, o relatório também informa que uma sincronização completa com a nuvem foi solicitada.
 
 Além disso, o Plainva concilia automaticamente sempre que você volta para a janela vindo de outro programa (no máximo a cada 30 segundos; a nuvem no máximo a cada 5 minutos). Se um arquivo continuar invisível mesmo assim, use **Reconstruir o índice do zero** em Configurações → Vault → Manutenção.
+
+### Movi um arquivo para fora do Plainva
+
+O Plainva o acompanha. A árvore de arquivos mostra o arquivo no novo lugar, mesmo que você o tenha movido no Finder, no Explorador ou em outro programa. Se a nota estiver aberta — ou se você a abrir no lugar antigo, por exemplo a partir de um favorito —, o Plainva a procura: quando exatamente um arquivo em outro lugar tem o mesmo conteúdo e a mesma data de modificação, a aba o acompanha, uma mensagem curta indica a nova pasta, e favoritos, lugares no mural e comentários da nota mudam junto. As alterações não salvas vão junto para o novo lugar. Se não for inequívoco, por exemplo porque o mesmo conteúdo existe em vários lugares, **Movido?** pergunta qual é, e você escolhe o arquivo certo. Se o Plainva não encontrar nenhum, a aba continua em **Este arquivo não existe mais**, e o Plainva remove sozinho a entrada desatualizada do índice. Se você tinha alterações não salvas, elas ficam guardadas, e **Salvar aqui de novo** recria o arquivo no lugar antigo — o Plainva nunca grava ali por conta própria. Enquanto a busca ainda percorre o vault inteiro, **Ainda procurando em outros lugares do vault…** avisa.
+
+O mesmo vale para uma aba aberta com um banco de dados (`.base`) ou uma imagem, e no telefone para as telas de banco de dados e de imagem: elas acompanham o arquivo movido, perguntam **Movido?** ou mostram **Este arquivo não existe mais**. Uma alteração em um banco de dados cujo arquivo faltava naquele momento vai junto para o novo lugar; se o Plainva não encontrar o arquivo, a alteração fica guardada até você escolher **Salvar aqui de novo**. Edições inacabadas de uma imagem vão junto para a aba no novo lugar e só são gravadas quando você escolhe **Salvar**. PDFs e outros arquivos que o Plainva entrega ao aplicativo do sistema não têm aba.
+
+No celular, nada observa a pasta enquanto você trabalha. Em vez disso, o Plainva lê o vault de novo sempre que você **volta ao app** (no máximo uma vez por minuto) e sempre que você **puxa uma lista para baixo** — para todo vault, inclusive o que fica dentro do app e que o app Arquivos mostra no iOS. Ali uma nota movida acompanha o arquivo da mesma forma, inclusive uma aberta; se o Plainva não a encontrar, aparece **Esta nota não foi encontrada.**
+
+O Plainva ignora arquivos do sistema: `.DS_Store`, `Thumbs.db`, `desktop.ini`, `Icon` (ícones de pasta), `.Spotlight-V100`, `.Trashes`, `.fseventsd` e os arquivos AppleDouble que o macOS coloca ao lado de cada arquivo em unidades de rede e pendrives (`._Nota.md`). Eles não aparecem na árvore de arquivos e não são enviados nem baixados. Uma cópia que uma versão anterior já enviou continua intacta na nuvem. Uma nota sua cujo nome apenas começa com `._` continua visível — o Plainva reconhece arquivos AppleDouble pelo conteúdo, não pelo nome.
 
 ### Por que não vejo nenhuma animação?
 

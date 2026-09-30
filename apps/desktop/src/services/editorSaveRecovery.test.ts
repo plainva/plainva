@@ -82,11 +82,17 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
 }
 
 describe("original desktop save completion", () => {
-  it("keeps one working copy through 100 actual editor saves and a new editor lifetime", async () => {
+  // Twenty saves on real files, a new editor lifetime after ten. Every save
+  // after the first takes the same path — one conflict session, one working
+  // copy, one remembered write per path — so a hundred proved nothing that
+  // twenty do not, and under a loaded commit hook the hundred ran past 20 s
+  // (Befunde 2026-09-24, Z2; the core's conflict-session test carries the same).
+  const SAVES = 20;
+  it(`keeps one working copy through ${SAVES} actual editor saves and a new editor lifetime`, async () => {
     let h = harness();
     await raw.writeTextFile("Note.md", "foreign\nmiddle\nend");
-    for (let i = 0; i < 100; i++) {
-      if (i === 50) {
+    for (let i = 0; i < SAVES; i++) {
+      if (i === SAVES / 2) {
         h.lifetime.deactivate();
         const session = await files.getConflictSession("Note.md");
         h = harness("Note.md", await files.readTextFile(session!.workingCopyPath));
@@ -96,7 +102,7 @@ describe("original desktop save completion", () => {
     }
     const sessions = await files.listConflictSessions();
     expect(sessions).toHaveLength(1);
-    expect(await raw.readTextFile(sessions[0].workingCopyPath)).toBe("local 99\nmiddle\nend");
+    expect(await raw.readTextFile(sessions[0].workingCopyPath)).toBe(`local ${SAVES - 1}\nmiddle\nend`);
     expect(await raw.readTextFile("Note.md")).toBe("foreign\nmiddle\nend");
     expect(h.ui.conflict).toHaveBeenLastCalledWith(expect.objectContaining({ working: true, conflictPath: sessions[0].workingCopyPath }));
     expect(h.journals.size).toBe(0);
