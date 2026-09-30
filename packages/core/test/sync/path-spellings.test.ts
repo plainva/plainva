@@ -18,6 +18,23 @@ import { LocalVaultAdapter } from "../../src/vault/LocalVaultAdapter.js";
 const NFC = "Neutralität".normalize("NFC");
 const NFD = NFC.normalize("NFD");
 
+// Whether this disk keeps the two spellings as two names. ext4 and NTFS do;
+// APFS folds them into one, so on the release workflow's macOS leg a real twin
+// cannot even be made (mkdir answers EEXIST) — there is nothing to keep apart.
+async function diskKeepsBothSpellings(): Promise<boolean> {
+  const probe = await mkdtemp(join(tmpdir(), "plainva-spelling-probe-"));
+  try {
+    await mkdir(join(probe, NFC));
+    await mkdir(join(probe, NFD));
+    return (await readdir(probe)).length === 2;
+  } catch {
+    return false;
+  } finally {
+    await rm(probe, { recursive: true, force: true });
+  }
+}
+const keepsBothSpellings = await diskKeepsBothSpellings();
+
 describe("path identity helpers", () => {
   it("tells which names can be spelled two ways at all", () => {
     expect(NFC).not.toBe(NFD);
@@ -130,7 +147,7 @@ describe("LocalVaultAdapter on a byte-exact disk", () => {
     expect(await vault.readTextFile(`${NFD}/typed.md`)).toBe("x");
   });
 
-  it("keeps a real twin a twin: both spellings on disk stay two files", async () => {
+  it.skipIf(!keepsBothSpellings)("keeps a real twin a twin: both spellings on disk stay two files", async () => {
     await mkdir(join(root, NFC));
     await mkdir(join(root, NFD));
     await writeFile(join(root, NFC, "a.md"), "composed");
