@@ -19,3 +19,4 @@ export * from "./searchMode.js";
 export * from "./hybridSearch.js";
 export * from "./providerEngine.js";
 export * from "./source.js";
+export * from "./benchmark.js";

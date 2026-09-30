@@ -60,4 +60,13 @@ public class LocalModelRulesTest {
     public void anEmptyCacheKeepsFixedSizesAndDropsThePast() {
         assertArrayEquals(new long[] { 3, 8, 0, 128 }, LocalModelRules.cacheShape(new long[] { -1, 8, -1, 128 }, 3));
     }
+
+    @Test
+    public void memoryComesFromTheKernelStatusInBytes() {
+        String status = "Name:\tplainva\nVmHWM:\t  2048 kB\nVmRSS:\t  1024 kB\n";
+        assertEquals(1024L * 1024L, LocalModelRules.statusBytes(status, "VmRSS:"));
+        assertEquals(2048L * 1024L, LocalModelRules.statusBytes(status, "VmHWM:"));
+        assertEquals(-1L, LocalModelRules.statusBytes(status, "VmSwap:"));
+        assertEquals(-1L, LocalModelRules.statusBytes("VmRSS:\tn/a\n", "VmRSS:"));
+    }
 }

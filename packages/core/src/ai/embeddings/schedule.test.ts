@@ -71,12 +71,13 @@ describe("EmbeddingScheduler", () => {
   });
 
   it("lets a note that changed a moment ago settle, then wakes for it", async () => {
-    const indexer = fakeIndexer([work("typing", NOW - 2_000), work("older", NOW - 60_000), work("skewed", NOW + 3_600_000)]);
+    // Changed a second ago: it waits the rest of the three seconds (plan P2a-6: found again within five).
+    const indexer = fakeIndexer([work("typing", NOW - 1_000), work("older", NOW - 60_000), work("skewed", NOW + 3_600_000)]);
     const { s, wakes } = scheduler(indexer);
     await s.kick();
     expect(indexer.calls.flat().sort()).toEqual(["older", "skewed"]);
     expect(s.status.deferred).toBe(1);
-    expect(wakes.map((w) => w.ms)).toEqual([3_000]);
+    expect(wakes.map((w) => w.ms)).toEqual([2_000]);
     indexer.notes[0]!.mtime = NOW - 10_000;
     wakes[0]!.run();
     await s.kick();

@@ -253,6 +253,25 @@ public class LocalModelPlugin extends Plugin {
         call.resolve(result);
     }
 
+    /** The app's memory now and at its peak (VmRSS, VmHWM), for the device check of search by meaning. */
+    @PluginMethod
+    public void memory(PluginCall call) {
+        StringBuilder status = new StringBuilder();
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader("/proc/self/status"))) {
+            String line;
+            while ((line = reader.readLine()) != null) status.append(line).append('\n');
+        } catch (java.io.IOException e) {
+            call.reject(e.getMessage());
+            return;
+        }
+        long resident = LocalModelRules.statusBytes(status.toString(), "VmRSS:");
+        long peak = LocalModelRules.statusBytes(status.toString(), "VmHWM:");
+        JSObject result = new JSObject();
+        result.put("resident", resident < 0 ? JSObject.NULL : resident);
+        result.put("peak", peak < 0 ? JSObject.NULL : peak);
+        call.resolve(result);
+    }
+
     @PluginMethod
     public void remove(PluginCall call) {
         String model = call.getString("model");

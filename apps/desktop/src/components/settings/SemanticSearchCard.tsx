@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, ExternalLink } from "lucide-react";
 import { AI_EMBEDDING_PROFILE, SEMANTIC_BY_PROVIDER, semanticSourceOf, type EmbeddingModelSpec } from "@plainva/core";
@@ -9,6 +9,8 @@ import {
   getPlatformServices,
   ICON,
   loadFacts,
+  measurementRows,
+  measurementText,
   Modal,
   packageInstalled,
   Radio,
@@ -21,6 +23,7 @@ import {
   SettingCard,
   SettingCardNote,
   SettingRow,
+  toast,
   useAiState,
   useLocalEmbeddings,
   type AiSession,
@@ -103,6 +106,15 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
     if (!ok) return;
     await controller.removeUnused();
     setUnused(await controller.unused());
+  };
+
+  const copyMeasurement = () => {
+    const report = state?.measurement;
+    if (!report) return;
+    void navigator.clipboard
+      .writeText(measurementText(t, report, i18n.language))
+      .then(() => toast.success(t("ai.semantic.resultsCopied")))
+      .catch(() => toast.error(t("connection.clipboardFailed")));
   };
 
   const hasUnused = Boolean(unused && (unused.packages.length || unused.spaces.length));
@@ -196,8 +208,30 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
               {t("ai.semantic.withdraw")}
             </Button>
           )}
+          <Button variant="ghost" size="sm" disabled={state?.measuring} onClick={() => void controller?.measure("desktop")} data-testid="semantic-measure">
+            {state?.measuring ? t("ai.semantic.measuring") : t("ai.semantic.measure")}
+          </Button>
         </SettingRow>
       )}
+      {engine?.kind === "ready" && state?.measurement && (
+        <SettingCardNote>
+          <div>{t("ai.semantic.measuredDesktop")}</div>
+          <dl className="pv-security-details" data-testid="semantic-measurement">
+            {measurementRows(t, state.measurement, i18n.language).map((row) => (
+              <Fragment key={row.key}>
+                <dt>{row.label}</dt>
+                <dd>
+                  {row.line} — {row.ok ? t("ai.semantic.budgetOk") : t("ai.semantic.budgetOver")}
+                </dd>
+              </Fragment>
+            ))}
+          </dl>
+          <Button variant="ghost" size="sm" onClick={copyMeasurement}>
+            {t("ai.semantic.copyResults")}
+          </Button>
+        </SettingCardNote>
+      )}
+      {state?.measureError && <Banner kind="warning">{t("ai.semantic.measureFailed", { reason: state.measureError })}</Banner>}
       {engine?.kind === "ready" && progress?.state === "failed" && (
         <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
       )}

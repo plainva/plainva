@@ -18,7 +18,7 @@ export interface EmbeddingPackageFile {
 export type EmbeddingPooling = "cls" | "last" | "mean";
 
 /** Why the catalog mentions a model: the default, the more precise one, or one with a caveat. */
-export type EmbeddingModelHint = "recommended" | "precise" | "slow-on-phones";
+export type EmbeddingModelHint = "recommended" | "precise" | "slow";
 
 /** The reference vector of one fixed text, for the device check (`golden.ts`). */
 export interface EmbeddingGolden {
@@ -115,7 +115,7 @@ export const EMBEDDING_MODELS: readonly EmbeddingModelSpec[] = [
     maxTokens: 512,
     queryPrefix: QWEN3_QUERY,
     referenceChunksPerSecond: 0.4,
-    hint: "slow-on-phones",
+    hint: "slow",
     golden: {
       text: GOLDEN_TEXT,
       head: [-0.0244, -0.07429, -0.01446, -0.07207, -0.00056, -0.00414, 0.03905, -0.0995, -0.04521, -0.06534, -0.0005, -0.13176, 0.02047, -0.01419, 0.01766, 0.06148],

@@ -419,7 +419,7 @@
       "off": "Off — search by words only",
       "hintRecommended": "Recommended. In Plainva's own test with questions in ten languages, 88 % found their note among the first five together with the words, against 62 % with words alone.",
       "hintPrecise": "More precise; takes about three times as long.",
-      "hintSlowOnPhones": "Very slow on phones and needs a lot of memory.",
+      "hintSlow": "Slow even on a laptop: the first run over 5,000 sections took about two hours on the reference laptop; much slower on phones. Needs a lot of memory.",
       "loadTitle": "Load {{model}}?",
       "size": "Size",
       "sizeParts": "{{total}} — model {{model}}, vocabulary {{vocabulary}}",
@@ -463,7 +463,22 @@
       "progressWithheld_one": "{{count}} note stays on this device by your rules",
       "progressWithheld_other": "{{count}} notes stay on this device by your rules",
       "unusedSpaces_one": "vectors of {{count}} other model",
-      "unusedSpaces_other": "vectors of {{count}} other models"
+      "unusedSpaces_other": "vectors of {{count}} other models",
+      "measure": "Measure this device",
+      "measuring": "Measuring…",
+      "measuredDesktop": "Measured on this computer, with sample text — never your notes:",
+      "measuredPhone": "Measured on this phone, with sample text — never your notes:",
+      "budgetFirstRun": "First run over {{sections}} sections",
+      "budgetChangedNote": "A changed note found again by meaning",
+      "budgetQuery": "A search by meaning over {{sections}} sections",
+      "budgetMemory": "The app's memory at its peak",
+      "budgetDownload": "Download",
+      "budgetLine": "{{value}} (budget {{budget}})",
+      "budgetOk": "within budget",
+      "budgetOver": "over budget",
+      "copyResults": "Copy results",
+      "resultsCopied": "Results copied.",
+      "measureFailed": "The measurement failed: {{reason}}"
     }
   },
   "settingsSync": {

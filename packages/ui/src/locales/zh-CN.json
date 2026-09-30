@@ -408,7 +408,7 @@
       "off": "关闭——仅按字词搜索",
       "hintRecommended": "推荐。在 Plainva 自己用十种语言问题做的测试中，结合字词时 88% 的问题在前五个结果中找到了对应笔记，仅用字词时为 62%。",
       "hintPrecise": "更精确；耗时约为三倍。",
-      "hintSlowOnPhones": "在手机上非常慢，需要大量内存。",
+      "hintSlow": "即使在笔记本电脑上也很慢：在参考笔记本上首次处理 5,000 个段落约需两小时；在手机上要慢得多。需要大量内存。",
       "loadTitle": "下载 {{model}}？",
       "size": "大小",
       "sizeParts": "{{total}}——模型 {{model}}，词表 {{vocabulary}}",
@@ -450,7 +450,22 @@
       "unusedConfirm": "移除此设备保存但未使用的内容：{{what}}？如果再次选择，含义搜索会重新计算。",
       "runFailed": "处理已停止：{{reason}}——下一次修改时会重新开始。",
       "progressWithheld_other": "根据你的规则，{{count}} 篇笔记留在此设备上",
-      "unusedSpaces_other": "其他 {{count}} 个模型的向量"
+      "unusedSpaces_other": "其他 {{count}} 个模型的向量",
+      "measure": "测量此设备",
+      "measuring": "正在测量…",
+      "measuredDesktop": "已在这台电脑上测量，使用示例文本——绝不使用你的笔记：",
+      "measuredPhone": "已在这部手机上测量，使用示例文本——绝不使用你的笔记：",
+      "budgetFirstRun": "对 {{sections}} 个段落的首次处理",
+      "budgetChangedNote": "修改后的笔记再次按含义被找到",
+      "budgetQuery": "在 {{sections}} 个段落中按含义搜索",
+      "budgetMemory": "应用内存峰值",
+      "budgetDownload": "下载",
+      "budgetLine": "{{value}}（预算 {{budget}}）",
+      "budgetOk": "在预算内",
+      "budgetOver": "超出预算",
+      "copyResults": "复制结果",
+      "resultsCopied": "结果已复制。",
+      "measureFailed": "测量失败：{{reason}}"
     }
   },
   "settingsSync": {

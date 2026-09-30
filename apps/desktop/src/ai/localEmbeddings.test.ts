@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { EmbeddingStore, embeddingModel, toBase64, type EmbeddingPackageFile, type SemanticSource } from "@plainva/core";
+import { EmbeddingStore, embeddingModel, embeddingPackageBytes, toBase64, type EmbeddingPackageFile, type SemanticSource } from "@plainva/core";
 import { LocalEmbeddings, type LocalModelBridge } from "@plainva/ui";
 import { until, vaultWith } from "./embeddingTestVault";
 
@@ -145,6 +145,23 @@ describe("search by meaning in a vault (LocalEmbeddings)", () => {
     expect((await controller.unused()).packages.map((unused) => unused.id)).toEqual(["granite-r2-97m", "granite-r2-311m", "qwen3-embedding-0.6b"]);
     await controller.update({ source: packaged, mode: "both" });
     expect((await controller.unused()).packages.map((unused) => unused.id)).not.toContain("granite-r2-97m");
+    await controller.close();
+  });
+
+  it("measures this device against the budgets of its class, with sample text only (plan P2a-6)", async () => {
+    const bridge = { ...fakeBridge(), memory: vi.fn(async () => ({ resident: 300e6, peak: 400e6 })) };
+    const controller = new LocalEmbeddings({ bridge, ...(await vaultWith({ "A.md": "Plainva probe" })) });
+    await controller.update({ source: packaged, mode: "both" });
+    expect(await until(() => controller.snapshot().progress.state === "idle" && controller.snapshot().progress.current === 1)).toBe(true);
+    const runs = bridge.run.mock.calls.length;
+    const report = await controller.measure("phone");
+    expect(report!.device).toBe("phone");
+    expect(report!.checks.map((check) => check.key)).toEqual(["firstRun", "changedNote", "query", "memory", "download"]);
+    expect(report!.measurement).toMatchObject({ peakMemoryBytes: 400e6, downloadBytes: embeddingPackageBytes(spec) });
+    expect(report!.checks.find((check) => check.key === "memory")!.ok).toBe(true);
+    expect(controller.snapshot()).toMatchObject({ measuring: false, measurement: { device: "phone" } });
+    // Sixteen sample sections and twenty questions went to the model; the note was not read again.
+    expect(bridge.run.mock.calls.length).toBe(runs + 16 + 20);
     await controller.close();
   });
 });

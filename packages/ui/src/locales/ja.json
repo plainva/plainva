@@ -408,7 +408,7 @@
       "off": "オフ（語句のみで検索）",
       "hintRecommended": "推奨。十言語の質問を使った Plainva 独自のテストでは、語句と組み合わせると 88% が上位 5 件以内に目的のノートを見つけました。語句のみでは 62% でした。",
       "hintPrecise": "より精確ですが、約 3 倍の時間がかかります。",
-      "hintSlowOnPhones": "スマートフォンでは非常に遅く、多くのメモリを必要とします。",
+      "hintSlow": "ノートPCでも遅いモデルです。基準のノートPCでは 5,000 セクションの初回処理に約 2 時間かかりました。スマートフォンではさらに時間がかかり、多くのメモリを必要とします。",
       "loadTitle": "{{model}} をダウンロードしますか？",
       "size": "サイズ",
       "sizeParts": "{{total}}（モデル {{model}}、語彙 {{vocabulary}}）",
@@ -450,7 +450,22 @@
       "unusedConfirm": "この端末に保存されているが使われていないもの（{{what}}）を削除しますか？ 再び選ぶと、意味の検索がもう一度計算します。",
       "runFailed": "処理が停止しました：{{reason}}。次の変更で再開します。",
       "progressWithheld_other": "ルールにより {{count}} 件のノートはこの端末に残ります",
-      "unusedSpaces_other": "ほかのモデル {{count}} 件のベクトル"
+      "unusedSpaces_other": "ほかのモデル {{count}} 件のベクトル",
+      "measure": "この端末を測定",
+      "measuring": "測定中…",
+      "measuredDesktop": "このコンピューターで測定しました（サンプルテキストを使用し、ノートは使いません）：",
+      "measuredPhone": "この電話で測定しました（サンプルテキストを使用し、ノートは使いません）：",
+      "budgetFirstRun": "{{sections}} セクションの初回処理",
+      "budgetChangedNote": "変更したノートを意味で再び見つけるまで",
+      "budgetQuery": "{{sections}} セクションに対する意味の検索",
+      "budgetMemory": "アプリのメモリ使用量のピーク",
+      "budgetDownload": "ダウンロード",
+      "budgetLine": "{{value}}（予算 {{budget}}）",
+      "budgetOk": "予算内",
+      "budgetOver": "予算超過",
+      "copyResults": "結果をコピー",
+      "resultsCopied": "結果をコピーしました。",
+      "measureFailed": "測定に失敗しました：{{reason}}"
     }
   },
   "settingsSync": {

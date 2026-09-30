@@ -430,7 +430,7 @@
       "off": "Désactivée — rechercher par mots uniquement",
       "hintRecommended": "Recommandé. Dans le test de Plainva avec des questions en dix langues, 88 % ont trouvé leur note parmi les cinq premières avec les mots, contre 62 % avec les mots seuls.",
       "hintPrecise": "Plus précis ; prend environ trois fois plus de temps.",
-      "hintSlowOnPhones": "Très lent sur téléphone et gourmand en mémoire.",
+      "hintSlow": "Lent même sur un portable : le premier passage sur 5 000 sections a pris environ deux heures sur l'ordinateur de référence ; bien plus lent sur téléphone. Gourmand en mémoire.",
       "loadTitle": "Télécharger {{model}} ?",
       "size": "Taille",
       "sizeParts": "{{total}} — modèle {{model}}, vocabulaire {{vocabulary}}",
@@ -476,7 +476,22 @@
       "progressWithheld_other": "{{count}} notes restent sur cet appareil selon vos règles",
       "unusedSpaces_one": "vecteurs de {{count}} autre modèle",
       "unusedSpaces_many": "vecteurs de {{count}} autres modèles",
-      "unusedSpaces_other": "vecteurs de {{count}} autres modèles"
+      "unusedSpaces_other": "vecteurs de {{count}} autres modèles",
+      "measure": "Mesurer cet appareil",
+      "measuring": "Mesure en cours…",
+      "measuredDesktop": "Mesuré sur cet ordinateur, avec un texte d'exemple — jamais avec vos notes :",
+      "measuredPhone": "Mesuré sur ce téléphone, avec un texte d'exemple — jamais avec vos notes :",
+      "budgetFirstRun": "Premier passage sur {{sections}} sections",
+      "budgetChangedNote": "Une note modifiée retrouvée par le sens",
+      "budgetQuery": "Une recherche par sens sur {{sections}} sections",
+      "budgetMemory": "Mémoire de l'app à son pic",
+      "budgetDownload": "Téléchargement",
+      "budgetLine": "{{value}} (budget {{budget}})",
+      "budgetOk": "dans le budget",
+      "budgetOver": "au-delà du budget",
+      "copyResults": "Copier les résultats",
+      "resultsCopied": "Résultats copiés.",
+      "measureFailed": "La mesure a échoué : {{reason}}"
     }
   },
   "settingsSync": {

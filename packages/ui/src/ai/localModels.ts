@@ -29,6 +29,8 @@ export interface LocalModelBridge {
   cancel(model: string): Promise<void>;
   /** Free space where packages are stored, in bytes. */
   freeSpace(): Promise<number>;
+  /** The app's memory now and at its peak, in bytes, where the system says (the device check, plan P2a-6). */
+  memory?(): Promise<{ resident: number | null; peak: number | null }>;
   remove(model: string): Promise<void>;
   /** A checked text file of a package (the tokenizer). */
   readText(model: string, name: string): Promise<string>;

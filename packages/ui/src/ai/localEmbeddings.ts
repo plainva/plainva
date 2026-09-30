@@ -1,5 +1,6 @@
 import {
   DEFAULT_SEARCH_MODE,
+  EMBEDDING_BUDGETS,
   EMBEDDING_MODELS,
   EMPTY_USAGE,
   EmbeddingIndexer,
@@ -8,21 +9,27 @@ import {
   HybridSearchService,
   ProviderEmbeddingError,
   appendAiLedgerEntry,
+  checkBudgets,
   createProviderEmbeddingEngine,
   embeddableNotes,
   embeddingEngineId,
+  embeddingPackageBytes,
   fetchProviderJson,
   gateDecision,
   goldenAgreement,
   isLocalTarget,
+  measureEngine,
   probeAgreement,
   providerEngineId,
   standingManifestOf,
   usageCostUsd,
   type AiEgress,
+  type BudgetCheck,
+  type DeviceClass,
   type EgressManifest,
   type EmbeddingAdmission,
   type EmbeddingEngine,
+  type EmbeddingMeasurement,
   type EmbeddingModelSpec,
   type EmbeddingProgress,
   type EmbeddingSpaceSummary,
@@ -114,6 +121,20 @@ export interface LocalEmbeddingsState {
   meaningFailure: ModelFailure | null;
   /** Why the last run stopped, when a provider said so (a key revoked, a quota used up). */
   runFailure: ModelFailure | null;
+  /** The device check is running (plan P2a-6). */
+  measuring: boolean;
+  /** Its last result, for the engine open now. */
+  measurement: MeasurementReport | null;
+  measureError: string | null;
+}
+
+/** The device check's result: what was measured, and each budget of the device's class. */
+export interface MeasurementReport {
+  device: DeviceClass;
+  measurement: EmbeddingMeasurement;
+  checks: BudgetCheck[];
+  /** When it was measured (ISO 8601). */
+  at: string;
 }
 
 /** What this device keeps for search by meaning but does not use now. */
@@ -164,6 +185,9 @@ export class LocalEmbeddings {
     downloadError: null,
     meaningFailure: null,
     runFailure: null,
+    measuring: false,
+    measurement: null,
+    measureError: null,
   };
   private readonly listeners = new Set<() => void>();
   private source: SemanticSource | null = null;
@@ -171,8 +195,8 @@ export class LocalEmbeddings {
   private indexer: EmbeddingIndexer | null = null;
   private scheduler: EmbeddingScheduler | null = null;
   private generation = 0;
-  /** Why embedding stands still: the reader paused it, or the app is in the background. Either holds it. */
-  private readonly pauses = new Set<"user" | "background">();
+  /** Why embedding stands still: the reader paused it, the app is in the background, or the device check runs. Any holds it. */
+  private readonly pauses = new Set<"user" | "background" | "measure">();
   /** The provider model computing now, and what it counted since the last ledger entry. */
   private target: ProviderTarget | null = null;
   private usage: { tokens: number; requests: number } | null = null;
@@ -498,6 +522,42 @@ export class LocalEmbeddings {
     if (!this.pauses.size) void this.scheduler?.resume();
   }
 
+  /**
+   * The device check (plan P2a-6): this device against the budgets of the
+   * embedding spike — with sample text, never the notes. Embedding waits
+   * until the step under way is done and while it measures, so the numbers
+   * are the engine's alone.
+   */
+  async measure(device: DeviceClass): Promise<MeasurementReport | null> {
+    const state = this.state.engine;
+    const engine = this.engine;
+    if (state.kind !== "ready" || !engine || this.state.measuring) return null;
+    const generation = this.generation;
+    this.set({ measuring: true, measureError: null });
+    this.pauses.add("measure");
+    this.scheduler?.pause();
+    try {
+      await this.scheduler?.idle();
+      const measured = await measureEngine(engine);
+      const memory = this.host.bridge.memory ? await this.host.bridge.memory().catch(() => null) : null;
+      const measurement: EmbeddingMeasurement = {
+        ...measured,
+        peakMemoryBytes: memory?.peak ?? null,
+        downloadBytes: state.source.kind === "package" ? embeddingPackageBytes(state.source.spec) : null,
+      };
+      const report: MeasurementReport = { device, measurement, checks: checkBudgets(measurement, EMBEDDING_BUDGETS[device]), at: new Date().toISOString() };
+      if (generation === this.generation) this.set({ measurement: report });
+      return report;
+    } catch (error) {
+      if (generation === this.generation) this.set({ measureError: errorText(error) });
+      return null;
+    } finally {
+      this.pauses.delete("measure");
+      this.set({ measuring: false });
+      if (!this.pauses.size) void this.scheduler?.resume();
+    }
+  }
+
   /** Downloads a package with progress; switching the setting to it is the caller's. */
   async install(spec: EmbeddingModelSpec): Promise<boolean> {
     this.set({ download: { model: spec.id, received: 0, total: 0, file: "" }, downloadError: null });
@@ -569,7 +629,7 @@ export class LocalEmbeddings {
     const recorded = this.record("answered");
     this.target = null;
     this.lastFailure = null;
-    this.set({ engine: { kind: "off" }, progress: IDLE_PROGRESS, meaningFailure: null, runFailure: null });
+    this.set({ engine: { kind: "off" }, progress: IDLE_PROGRESS, meaningFailure: null, runFailure: null, measurement: null, measureError: null });
     await Promise.all([engine?.dispose(), recorded]);
   }
 }

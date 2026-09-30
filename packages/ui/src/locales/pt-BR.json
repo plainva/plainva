@@ -430,7 +430,7 @@
       "off": "Desativada — pesquisar só por palavras",
       "hintRecommended": "Recomendado. No teste do próprio Plainva com perguntas em dez idiomas, 88 % encontraram a nota entre as cinco primeiras junto com as palavras, contra 62 % só com palavras.",
       "hintPrecise": "Mais preciso; leva cerca de três vezes mais.",
-      "hintSlowOnPhones": "Muito lento em celulares e precisa de muita memória.",
+      "hintSlow": "Lento até em um notebook: a primeira passagem por 5.000 seções levou cerca de duas horas no notebook de referência; muito mais lento em celulares. Precisa de muita memória.",
       "loadTitle": "Baixar {{model}}?",
       "size": "Tamanho",
       "sizeParts": "{{total}} — modelo {{model}}, vocabulário {{vocabulary}}",
@@ -476,7 +476,22 @@
       "progressWithheld_other": "{{count}} notas ficam neste dispositivo pelas suas regras",
       "unusedSpaces_one": "vetores de {{count}} outro modelo",
       "unusedSpaces_many": "vetores de {{count}} outros modelos",
-      "unusedSpaces_other": "vetores de {{count}} outros modelos"
+      "unusedSpaces_other": "vetores de {{count}} outros modelos",
+      "measure": "Medir este dispositivo",
+      "measuring": "Medindo…",
+      "measuredDesktop": "Medido neste computador, com texto de exemplo — nunca com suas notas:",
+      "measuredPhone": "Medido neste telefone, com texto de exemplo — nunca com suas notas:",
+      "budgetFirstRun": "Primeira passagem por {{sections}} seções",
+      "budgetChangedNote": "Uma nota alterada encontrada de novo pelo significado",
+      "budgetQuery": "Uma pesquisa por significado em {{sections}} seções",
+      "budgetMemory": "Memória do app no pico",
+      "budgetDownload": "Download",
+      "budgetLine": "{{value}} (orçamento {{budget}})",
+      "budgetOk": "dentro do orçamento",
+      "budgetOver": "acima do orçamento",
+      "copyResults": "Copiar resultados",
+      "resultsCopied": "Resultados copiados.",
+      "measureFailed": "A medição falhou: {{reason}}"
     }
   },
   "settingsSync": {

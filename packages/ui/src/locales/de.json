@@ -419,7 +419,7 @@
       "off": "Aus — nur nach Wörtern suchen",
       "hintRecommended": "Empfohlen. Im eigenen Test von Plainva mit Fragen in zehn Sprachen fanden 88 % zusammen mit den Wörtern ihre Notiz unter den ersten fünf, mit Wörtern allein 62 %.",
       "hintPrecise": "Genauer, braucht etwa dreimal so lange.",
-      "hintSlowOnPhones": "Am Telefon sehr langsam, braucht viel Speicher.",
+      "hintSlow": "Selbst am Laptop langsam: Der erste Durchlauf über 5.000 Abschnitte dauerte auf dem Referenz-Laptop etwa zwei Stunden; am Telefon viel länger. Braucht viel Speicher.",
       "loadTitle": "{{model}} laden?",
       "size": "Größe",
       "sizeParts": "{{total}} — Modell {{model}}, Wörterbuch {{vocabulary}}",
@@ -463,7 +463,22 @@
       "progressWithheld_one": "{{count}} Notiz bleibt nach Deinen Regeln auf diesem Gerät",
       "progressWithheld_other": "{{count}} Notizen bleiben nach Deinen Regeln auf diesem Gerät",
       "unusedSpaces_one": "Vektoren von {{count}} anderen Modell",
-      "unusedSpaces_other": "Vektoren von {{count}} anderen Modellen"
+      "unusedSpaces_other": "Vektoren von {{count}} anderen Modellen",
+      "measure": "Dieses Gerät messen",
+      "measuring": "Wird gemessen …",
+      "measuredDesktop": "Gemessen auf diesem Rechner, mit Beispieltext — nie mit Deinen Notizen:",
+      "measuredPhone": "Gemessen auf diesem Telefon, mit Beispieltext — nie mit Deinen Notizen:",
+      "budgetFirstRun": "Erster Durchlauf über {{sections}} Abschnitte",
+      "budgetChangedNote": "Eine geänderte Notiz wieder nach Bedeutung gefunden",
+      "budgetQuery": "Eine Suche nach Bedeutung über {{sections}} Abschnitte",
+      "budgetMemory": "Speicher der App auf ihrem Höhepunkt",
+      "budgetDownload": "Download",
+      "budgetLine": "{{value}} (Budget {{budget}})",
+      "budgetOk": "im Budget",
+      "budgetOver": "über dem Budget",
+      "copyResults": "Ergebnisse kopieren",
+      "resultsCopied": "Ergebnisse kopiert.",
+      "measureFailed": "Die Messung ist fehlgeschlagen: {{reason}}"
     }
   },
   "settingsSync": {

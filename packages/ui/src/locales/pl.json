@@ -441,7 +441,7 @@
       "off": "Wyłączone — szukaj tylko po słowach",
       "hintRecommended": "Zalecany. We własnym teście Plainva z pytaniami w dziesięciu językach 88 % znalazło swoją notatkę wśród pierwszych pięciu razem ze słowami, wobec 62 % przy samych słowach.",
       "hintPrecise": "Dokładniejszy; trwa około trzy razy dłużej.",
-      "hintSlowOnPhones": "Bardzo wolny na telefonach i wymaga dużo pamięci.",
+      "hintSlow": "Wolny nawet na laptopie: pierwsze przejście przez 5000 sekcji trwało na laptopie referencyjnym około dwóch godzin; na telefonach znacznie dłużej. Wymaga dużo pamięci.",
       "loadTitle": "Pobrać {{model}}?",
       "size": "Rozmiar",
       "sizeParts": "{{total}} — model {{model}}, słownik {{vocabulary}}",
@@ -489,7 +489,22 @@
       "unusedSpaces_one": "wektory {{count}} innego modelu",
       "unusedSpaces_few": "wektory {{count}} innych modeli",
       "unusedSpaces_many": "wektory {{count}} innych modeli",
-      "unusedSpaces_other": "wektory {{count}} innych modeli"
+      "unusedSpaces_other": "wektory {{count}} innych modeli",
+      "measure": "Zmierz to urządzenie",
+      "measuring": "Trwa pomiar…",
+      "measuredDesktop": "Zmierzono na tym komputerze, na przykładowym tekście — nigdy na Twoich notatkach:",
+      "measuredPhone": "Zmierzono na tym telefonie, na przykładowym tekście — nigdy na Twoich notatkach:",
+      "budgetFirstRun": "Pierwsze przejście przez {{sections}} sekcji",
+      "budgetChangedNote": "Zmieniona notatka ponownie znaleziona po znaczeniu",
+      "budgetQuery": "Wyszukiwanie po znaczeniu w {{sections}} sekcjach",
+      "budgetMemory": "Pamięć aplikacji w szczycie",
+      "budgetDownload": "Pobieranie",
+      "budgetLine": "{{value}} (budżet {{budget}})",
+      "budgetOk": "w budżecie",
+      "budgetOver": "ponad budżet",
+      "copyResults": "Kopiuj wyniki",
+      "resultsCopied": "Wyniki skopiowane.",
+      "measureFailed": "Pomiar się nie powiódł: {{reason}}"
     }
   },
   "settingsSync": {

@@ -430,7 +430,7 @@
       "off": "Desactivada — buscar solo por palabras",
       "hintRecommended": "Recomendado. En la prueba propia de Plainva con preguntas en diez idiomas, el 88 % encontró su nota entre las cinco primeras junto con las palabras, frente al 62 % solo con palabras.",
       "hintPrecise": "Más preciso; tarda unas tres veces más.",
-      "hintSlowOnPhones": "Muy lento en teléfonos y necesita mucha memoria.",
+      "hintSlow": "Lento incluso en un portátil: la primera pasada sobre 5.000 secciones tardó unas dos horas en el portátil de referencia; mucho más lento en teléfonos. Necesita mucha memoria.",
       "loadTitle": "¿Descargar {{model}}?",
       "size": "Tamaño",
       "sizeParts": "{{total}} — modelo {{model}}, vocabulario {{vocabulary}}",
@@ -476,7 +476,22 @@
       "progressWithheld_other": "{{count}} notas se quedan en este dispositivo por tus reglas",
       "unusedSpaces_one": "vectores de {{count}} modelo distinto",
       "unusedSpaces_many": "vectores de {{count}} modelos distintos",
-      "unusedSpaces_other": "vectores de {{count}} modelos distintos"
+      "unusedSpaces_other": "vectores de {{count}} modelos distintos",
+      "measure": "Medir este dispositivo",
+      "measuring": "Midiendo…",
+      "measuredDesktop": "Medido en este ordenador, con texto de ejemplo — nunca con tus notas:",
+      "measuredPhone": "Medido en este teléfono, con texto de ejemplo — nunca con tus notas:",
+      "budgetFirstRun": "Primera pasada sobre {{sections}} secciones",
+      "budgetChangedNote": "Una nota modificada encontrada de nuevo por significado",
+      "budgetQuery": "Una búsqueda por significado sobre {{sections}} secciones",
+      "budgetMemory": "Memoria de la app en su pico",
+      "budgetDownload": "Descarga",
+      "budgetLine": "{{value}} (presupuesto {{budget}})",
+      "budgetOk": "dentro del presupuesto",
+      "budgetOver": "por encima del presupuesto",
+      "copyResults": "Copiar resultados",
+      "resultsCopied": "Resultados copiados.",
+      "measureFailed": "La medición falló: {{reason}}"
     }
   },
   "settingsSync": {

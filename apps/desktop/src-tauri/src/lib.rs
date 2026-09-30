@@ -424,6 +424,7 @@ pub fn run() {
             model_store::model_remove,
             model_store::model_read_text,
             model_store::model_free_space,
+            model_store::model_memory,
             embedding::embedding_load,
             embedding::embedding_run,
             embedding::embedding_unload,

@@ -114,7 +114,7 @@ tauri-plugin-global-shortcut = "2"
 # The MCP endpoint's owner-only DACL, the helper's parent-process lookup, and the
 # free space a model package needs (model_store.rs).
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_Storage_FileSystem", "Win32_System_ProcessStatus"] }
 
 # The Unix socket's private folder (uid, the per-user temporary folder on macOS).
 [target.'cfg(unix)'.dependencies]

@@ -21,6 +21,7 @@ public class LocalModelPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "remove", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "freeSpace", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "memory", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readText", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "load", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "run", returnType: CAPPluginReturnPromise),
@@ -176,6 +177,22 @@ public class LocalModelPlugin: CAPPlugin, CAPBridgedPlugin {
         } catch {
             call.reject(error.localizedDescription)
         }
+    }
+
+    /// The app's memory now and at its peak (its physical footprint), for the device check of search by meaning.
+    @objc func memory(_ call: CAPPluginCall) {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else {
+            call.reject("task_info failed: \(result)")
+            return
+        }
+        call.resolve(["resident": Double(info.phys_footprint), "peak": Double(info.ledger_phys_footprint_peak)])
     }
 
     @objc func remove(_ call: CAPPluginCall) {

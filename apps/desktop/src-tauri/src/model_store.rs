@@ -220,6 +220,58 @@ fn free_space(dir: &Path) -> Result<u64, String> {
     Ok(u64::from(stat.f_bavail) * u64::from(stat.f_frsize))
 }
 
+/// The app's memory now and at its peak, in bytes, for the device check of
+/// search by meaning (plan KI-Harness P2a-6). `resident` is null where the
+/// system gives only the peak cheaply (macOS).
+#[derive(serde::Serialize)]
+pub struct ProcessMemory {
+    resident: Option<u64>,
+    peak: u64,
+}
+
+#[tauri::command]
+pub fn model_memory() -> Result<ProcessMemory, String> {
+    process_memory()
+}
+
+#[cfg(windows)]
+fn process_memory() -> Result<ProcessMemory, String> {
+    use windows_sys::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
+    use windows_sys::Win32::System::Threading::GetCurrentProcess;
+    let size = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+    // SAFETY: a zeroed counters struct is valid; the call fills it for this process's pseudo handle.
+    let mut counters: PROCESS_MEMORY_COUNTERS = unsafe { std::mem::zeroed() };
+    counters.cb = size;
+    if unsafe { GetProcessMemoryInfo(GetCurrentProcess(), &mut counters, size) } == 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    Ok(ProcessMemory { resident: Some(counters.WorkingSetSize as u64), peak: counters.PeakWorkingSetSize as u64 })
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn process_memory() -> Result<ProcessMemory, String> {
+    let status = std::fs::read_to_string("/proc/self/status").map_err(|e| e.to_string())?;
+    Ok(ProcessMemory { resident: status_bytes(&status, "VmRSS:"), peak: status_bytes(&status, "VmHWM:").unwrap_or(0) })
+}
+
+/// A "Vm…:  1234 kB" line of /proc/self/status, in bytes.
+#[cfg(any(test, all(unix, not(target_os = "macos"))))]
+fn status_bytes(status: &str, field: &str) -> Option<u64> {
+    let value = status.lines().find_map(|line| line.strip_prefix(field))?;
+    value.trim().trim_end_matches("kB").trim().parse::<u64>().ok().map(|kib| kib * 1024)
+}
+
+// getrusage gives the peak in bytes on macOS; the current footprint would need the Mach task API.
+#[cfg(target_os = "macos")]
+fn process_memory() -> Result<ProcessMemory, String> {
+    // SAFETY: getrusage fills the zeroed struct for this process.
+    let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
+    if unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) } != 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    Ok(ProcessMemory { resident: None, peak: u64::try_from(usage.ru_maxrss).unwrap_or(0) })
+}
+
 async fn hash_file(path: PathBuf) -> Result<(Sha256, u64), String> {
     tauri::async_runtime::spawn_blocking(move || -> Result<(Sha256, u64), String> {
         let mut hasher = Sha256::new();
@@ -342,6 +394,15 @@ async fn download(url: &reqwest::Url, target: &Path, file: &ModelFile, cancel: &
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_the_process_memory_of_this_system() {
+        let memory = process_memory().unwrap();
+        assert!(memory.peak > 0);
+        assert!(memory.resident.is_none_or(|resident| resident > 0));
+        assert_eq!(status_bytes("Name:\tx\nVmHWM:\t  2048 kB\nVmRSS:\t 1024 kB\n", "VmRSS:"), Some(1024 * 1024));
+        assert_eq!(status_bytes("VmRSS: n/a\n", "VmRSS:"), None);
+    }
 
     const REV: &str = "536a9f241cb3f02a9c5995a1e708c784bd274859";
 

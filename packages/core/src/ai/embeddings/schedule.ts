@@ -3,7 +3,8 @@
  * run at a time, newest notes first, a few notes per step. Told that the
  * index changed, it plans again after the current step. A note changed in the
  * last few seconds waits — it is probably still being typed, and every save
- * would embed it again; it follows a few seconds after the last one. The shells set the pace through `ready`: the desktop
+ * would embed it again; it follows three seconds after the last one, so a
+ * changed note is found again within the budget of five (plan P2a-6). The shells set the pace through `ready`: the desktop
  * steps when idle, the phone only in the foreground.
  *
  * A note that fails alone is skipped until its text changes, so one odd note
@@ -43,7 +44,7 @@ export interface EmbeddingSchedulerOptions {
 }
 
 const STEP_NOTES = 4;
-export const EMBEDDING_SETTLE_MS = 5_000;
+export const EMBEDDING_SETTLE_MS = 3_000;
 /** Notes failing one after another before the engine, not the notes, is blamed. */
 const FAILURES_IN_A_ROW = 3;
 
@@ -85,6 +86,11 @@ export class EmbeddingScheduler {
   resume(): Promise<void> {
     this.paused = false;
     return this.kick();
+  }
+
+  /** Resolves when no step is under way any more — after `pause`, once the running one has finished. */
+  idle(): Promise<void> {
+    return this.running ?? Promise.resolve();
   }
 
   /** Stops for good (vault closed, model removed); the step under way is abandoned. */

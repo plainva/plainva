@@ -1,6 +1,16 @@
-import { EMBEDDING_MODELS, embeddingPackageBytes, type EmbeddingModelSpec, type EmbeddingProgress, type ModelFailure, type SemanticSource } from "@plainva/core";
+import {
+  EMBEDDING_MODELS,
+  FIRST_RUN_SECTIONS,
+  QUERY_SECTIONS,
+  embeddingPackageBytes,
+  type BudgetKey,
+  type EmbeddingModelSpec,
+  type EmbeddingProgress,
+  type ModelFailure,
+  type SemanticSource,
+} from "@plainva/core";
 import { aiFailureText } from "./aiSettingsModel";
-import type { EngineState, UnusedEmbeddings } from "./localEmbeddings";
+import type { EngineState, MeasurementReport, UnusedEmbeddings } from "./localEmbeddings";
 
 /**
  * What the settings say about search by meaning (plan KI-Harness P2a-4/P2a-5,
@@ -93,7 +103,7 @@ export function semanticModelRows(t: T, locale: string): SemanticModelRow[] {
         ? t("ai.semantic.hintRecommended")
         : spec.hint === "precise"
           ? t("ai.semantic.hintPrecise")
-          : t("ai.semantic.hintSlowOnPhones"),
+          : t("ai.semantic.hintSlow"),
   }));
 }
 
@@ -135,4 +145,41 @@ export function loadFacts(t: T, spec: EmbeddingModelSpec, locale: string, vault:
     spaceShort: freeBytes !== null && freeBytes < total * 1.1 ? t("ai.semantic.spaceShort", { needed: formatBytes(total, locale) }) : null,
     duration: t("ai.semantic.durationLine", { sections: number.format(sections), time: formatDuration(minutes, locale) }),
   };
+}
+
+export interface MeasurementRow {
+  key: BudgetKey;
+  label: string;
+  /** "6 minutes (budget 30 minutes)" */
+  line: string;
+  ok: boolean;
+}
+
+/** The device check's result as rows: what was measured, the value, the budget, whether it holds. */
+export function measurementRows(t: T, report: MeasurementReport, locale: string): MeasurementRow[] {
+  const number = new Intl.NumberFormat(locale);
+  const seconds = (value: number) => new Intl.NumberFormat(locale, { style: "unit", unit: "second", unitDisplay: "long", maximumFractionDigits: 1 }).format(value);
+  const millis = (value: number) => new Intl.NumberFormat(locale, { style: "unit", unit: "millisecond", unitDisplay: "short", maximumFractionDigits: 0 }).format(value);
+  return report.checks.map((check) => {
+    const [label, value, budget] =
+      check.key === "firstRun"
+        ? [t("ai.semantic.budgetFirstRun", { sections: number.format(FIRST_RUN_SECTIONS) }), formatDuration(check.value, locale), formatDuration(check.budget, locale)]
+        : check.key === "changedNote"
+          ? [t("ai.semantic.budgetChangedNote"), seconds(check.value), seconds(check.budget)]
+          : check.key === "query"
+            ? [t("ai.semantic.budgetQuery", { sections: number.format(QUERY_SECTIONS) }), millis(check.value), millis(check.budget)]
+            : check.key === "memory"
+              ? [t("ai.semantic.budgetMemory"), formatBytes(check.value, locale), formatBytes(check.budget, locale)]
+              : [t("ai.semantic.budgetDownload"), formatBytes(check.value, locale), formatBytes(check.budget, locale)];
+    return { key: check.key, label, line: t("ai.semantic.budgetLine", { value, budget }), ok: check.ok };
+  });
+}
+
+/** The same as plain text, for the clipboard: the device and engine first, then one line per budget. */
+export function measurementText(t: T, report: MeasurementReport, locale: string): string {
+  const head = report.device === "desktop" ? t("ai.semantic.measuredDesktop") : t("ai.semantic.measuredPhone");
+  return [
+    `${head} ${report.measurement.engine} · ${report.at}`,
+    ...measurementRows(t, report, locale).map((row) => `${row.ok ? "✓" : "✗"} ${row.label}: ${row.line} — ${row.ok ? t("ai.semantic.budgetOk") : t("ai.semantic.budgetOver")}`),
+  ].join("\n");
 }

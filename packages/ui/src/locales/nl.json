@@ -419,7 +419,7 @@
       "off": "Uit — alleen op woorden zoeken",
       "hintRecommended": "Aanbevolen. In de eigen test van Plainva met vragen in tien talen vond 88 % samen met de woorden de notitie bij de eerste vijf, tegen 62 % met alleen woorden.",
       "hintPrecise": "Preciezer; duurt ongeveer drie keer zo lang.",
-      "hintSlowOnPhones": "Erg traag op telefoons en vraagt veel geheugen.",
+      "hintSlow": "Traag, zelfs op een laptop: de eerste doorloop over 5.000 secties duurde op de referentielaptop ongeveer twee uur; op telefoons veel langer. Vraagt veel geheugen.",
       "loadTitle": "{{model}} downloaden?",
       "size": "Grootte",
       "sizeParts": "{{total}} — model {{model}}, woordenlijst {{vocabulary}}",
@@ -463,7 +463,22 @@
       "progressWithheld_one": "{{count}} notitie blijft door je regels op dit apparaat",
       "progressWithheld_other": "{{count}} notities blijven door je regels op dit apparaat",
       "unusedSpaces_one": "vectoren van {{count}} ander model",
-      "unusedSpaces_other": "vectoren van {{count}} andere modellen"
+      "unusedSpaces_other": "vectoren van {{count}} andere modellen",
+      "measure": "Dit apparaat meten",
+      "measuring": "Bezig met meten…",
+      "measuredDesktop": "Gemeten op deze computer, met voorbeeldtekst — nooit met je notities:",
+      "measuredPhone": "Gemeten op deze telefoon, met voorbeeldtekst — nooit met je notities:",
+      "budgetFirstRun": "Eerste doorloop over {{sections}} secties",
+      "budgetChangedNote": "Een gewijzigde notitie opnieuw op betekenis gevonden",
+      "budgetQuery": "Een zoekopdracht op betekenis over {{sections}} secties",
+      "budgetMemory": "Geheugen van de app op zijn piek",
+      "budgetDownload": "Download",
+      "budgetLine": "{{value}} (budget {{budget}})",
+      "budgetOk": "binnen het budget",
+      "budgetOver": "boven het budget",
+      "copyResults": "Resultaten kopiëren",
+      "resultsCopied": "Resultaten gekopieerd.",
+      "measureFailed": "Het meten is mislukt: {{reason}}"
     }
   },
   "settingsSync": {

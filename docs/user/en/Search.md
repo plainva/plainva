@@ -33,6 +33,8 @@ Switch it on under **Settings → AI & automation → Semantic search** (the AI 
 
 Instead of a package you can choose **Own provider**: then the model of the profile **Embeddings** computes the vectors — any embedding model your provider offers, for example `text-embedding-3-small` at OpenAI, `gemini-embedding-001` at Gemini or `nomic-embed-text` in Ollama. With Ollama or LM Studio nothing leaves your computer. With a cloud, the overview shows once what goes there — every note your privacy rules let go, now and whenever it changes, and your search questions — and **Approve until withdrawn** starts it; **Withdraw approval** in the settings stops it. Notes your rules keep from the cloud stay out, and in an encrypted workspace only a package or a server on this computer computes. If another model answers under the same name — a new `ollama pull`, a server that moved — Plainva notices it before the next note and computes the vectors again instead of mixing two models. If the provider cannot be reached, search answers by words and says so. **Not in use on this device** lists packages and vectors of models you no longer use; **Remove** clears them away.
 
+**Measure this device** (beside **Pause** while a model computes) checks this device against the budgets Plainva holds itself to: the first run over 5,000 sections, a changed note found again, a search over 20,000 sections, the app's memory at its peak and the download. It measures with sample text, never with your notes, and embedding waits meanwhile; **Copy results** puts the numbers on the clipboard — for example for your feedback on the beta.
+
 While a model is active, the head of the search results offers **Words**, **Meaning** and **Both**:
 
 - **Words** is the full-text search described above.

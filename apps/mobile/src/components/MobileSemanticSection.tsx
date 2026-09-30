@@ -6,6 +6,8 @@ import {
   Banner,
   Button,
   GroupCard,
+  measurementRows,
+  measurementText,
   packageInstalled,
   Row,
   RowList,
@@ -16,6 +18,7 @@ import {
   semanticReadyLine,
   semanticRunFailureText,
   semanticUnusedLine,
+  toast,
   useLocalEmbeddings,
   type AiSession,
   type StandingApproval,
@@ -96,6 +99,14 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
     setUnused(await controller.unused());
   };
 
+  const copyMeasurement = () => {
+    const report = state?.measurement;
+    if (!report) return;
+    void navigator.clipboard
+      .writeText(measurementText(t, report, i18n.language))
+      .then(() => toast.success(t("ai.semantic.resultsCopied")))
+      .catch(() => toast.error(t("connection.clipboardFailed")));
+  };
   const megabytes = (bytes: number) => new Intl.NumberFormat(i18n.language).format(Math.round(bytes / 1e6));
   const readyPackage = engine?.kind === "ready" && engine.source.kind === "package" ? engine.source.spec : null;
   const hasUnused = Boolean(unused && (unused.packages.length || unused.spaces.length));
@@ -164,9 +175,29 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
             />
             {readyPackage && <Row title={t("ai.semantic.remove")} onClick={() => void remove(readyPackage)} />}
             {engine.source.kind === "provider" && approval && <Row title={t("ai.semantic.withdraw")} onClick={() => void withdraw()} data-testid="semantic-withdraw" />}
+            <Row
+              title={state?.measuring ? t("ai.semantic.measuring") : t("ai.semantic.measure")}
+              disabled={state?.measuring}
+              onClick={() => void controller?.measure("phone")}
+              data-testid="semantic-measure"
+            />
           </RowList>
         </GroupCard>
       )}
+      {engine?.kind === "ready" && state?.measurement && (
+        <>
+          <p className="m-hint">{t("ai.semantic.measuredPhone")}</p>
+          <GroupCard>
+            <RowList>
+              {measurementRows(t, state.measurement, i18n.language).map((row) => (
+                <Row key={row.key} wrap title={row.label} subtitle={`${row.line} — ${row.ok ? t("ai.semantic.budgetOk") : t("ai.semantic.budgetOver")}`} />
+              ))}
+              <Row title={t("ai.semantic.copyResults")} onClick={copyMeasurement} />
+            </RowList>
+          </GroupCard>
+        </>
+      )}
+      {state?.measureError && <Banner kind="warning">{t("ai.semantic.measureFailed", { reason: state.measureError })}</Banner>}
       {engine?.kind === "ready" && progress?.state === "failed" && (
         <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
       )}

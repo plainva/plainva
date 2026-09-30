@@ -15,6 +15,22 @@ final class LocalModelRules {
     static final String POOL_LAST = "last";
     static final String POOL_MEAN = "mean";
 
+    /** A "Vm…:  1234 kB" line of /proc/self/status in bytes, or -1 when the field is missing (the device check, plan P2a-6). */
+    static long statusBytes(String status, String field) {
+        if (status == null) return -1;
+        for (String line : status.split("\n")) {
+            if (!line.startsWith(field)) continue;
+            String value = line.substring(field.length()).trim();
+            if (value.endsWith("kB")) value = value.substring(0, value.length() - 2).trim();
+            try {
+                return Long.parseLong(value) * 1024L;
+            } catch (NumberFormatException e) {
+                return -1;
+            }
+        }
+        return -1;
+    }
+
     /** A catalog id: lower-case letters, digits, dots and dashes. */
     static boolean validModel(String model) {
         if (model == null || model.isEmpty() || model.length() > 64 || model.startsWith(".")) return false;
