@@ -148,7 +148,9 @@ describe("a folder created in Plainva lands inside the vault folder (issue #112)
   });
 
   it("WebDAV: every MKCOL stays below the vault URL", async () => {
-    const fetchFn = fetchMock(async () => res("", { status: 201 }));
+    // The spelling lookup (ADR 0016) asks the vault folder for an accented
+    // name first; the folder is not there yet.
+    const fetchFn = fetchMock(async (_url: string, init: any) => res("", { status: init.method === "PROPFIND" ? 404 : 201 }));
     const target = new WebDavSyncTarget(
       { url: "https://cloud.example.com/remote.php/webdav/Vault", user: "u", pass: "p" },
       fetchFn
@@ -156,7 +158,10 @@ describe("a folder created in Plainva lands inside the vault folder (issue #112)
 
     await pushMkdir(target);
 
-    expect(fetchFn.mock.calls.map((c: any) => [c[1].method, String(c[0])])).toEqual([
+    expect(fetchFn.mock.calls.filter((c: any) => c[1].method === "PROPFIND").map((c: any) => String(c[0]))).toEqual([
+      "https://cloud.example.com/remote.php/webdav/Vault/Projekte/",
+    ]);
+    expect(fetchFn.mock.calls.filter((c: any) => c[1].method !== "PROPFIND").map((c: any) => [c[1].method, String(c[0])])).toEqual([
       ["MKCOL", "https://cloud.example.com/remote.php/webdav/Vault/Projekte/"],
       ["MKCOL", "https://cloud.example.com/remote.php/webdav/Vault/Projekte/Neutralit%C3%A4t/"],
     ]);

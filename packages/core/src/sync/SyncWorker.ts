@@ -3,11 +3,12 @@ import { ISyncTarget, type ListingMetrics, type RemotePresence } from "./ISyncTa
 import type { OwnDeletionRegister } from "./ownDeletions.js";
 import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
 import { SyncQueue } from "./SyncQueue.js";
-import { IVaultAdapter } from "../vault/IVaultAdapter.js";
+import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";
 import { classifyTaskNotes, preserveDisplacedTask, taskNotesEquivalent } from "../pim/taskNoteIdentity.js";
 import { isTextFile } from "./fileType.js";
-import { findCollidingPath, type NameCollision } from "./pathIdentity.js";
+import { findCollidingPath, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
+import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, type SyncErrorKind } from "./errorKind.js";
@@ -588,9 +589,17 @@ export class SyncWorker {
     this.lastCycleActivityAt = Date.now();
   }
 
+  /**
+   * The target as the file sync sees it: paths are identities (ADR 0016) and
+   * are turned into the remote's own spelling at every call. The sidebands
+   * (settings, deletion journal) talk to the plain target — their paths are
+   * fixed `.plainva/…` names.
+   */
+  private readonly target: ISyncTarget;
+
   constructor(
     private readonly engine: SyncEngine,
-    private readonly target: ISyncTarget,
+    private readonly rawTarget: ISyncTarget,
     private readonly stateRepo: SyncStateRepository,
     /**
      * Raw vault adapter for the worker's own writes. This must NOT be the
@@ -605,6 +614,7 @@ export class SyncWorker {
     private readonly intervalMs: number = 60000,
     private readonly options: SyncWorkerOptions = {}
   ) {
+    this.target = withPathSpellings(rawTarget);
     this.settingsSyncRunner = options.settingsSync;
     this.deletionJournal = options.deletionJournal;
   }
@@ -1245,6 +1255,65 @@ export class SyncWorker {
     }
   }
 
+  /**
+   * Twin spellings (ADR 0016): a name the remote lists, or this device's sync
+   * state still carries, that is not NFC is a second spelling standing next
+   * to its composed form. It is not synced; it is reported on the "Two
+   * spellings, one file" card for as long as it exists somewhere. A sync row
+   * for a twin that neither the remote (by a full listing) nor this device
+   * holds any more is forgotten — nothing on disk or remote is touched. Such
+   * rows come from the identity migration, which keeps both rows of a pair
+   * rather than merge them.
+   */
+  private async reportTwinSpellings(
+    remotePaths: ReadonlySet<string>,
+    stateMap: Map<string, SyncState>,
+    fullListing: boolean,
+    collisions: NameCollision[],
+  ): Promise<void> {
+    const report = (path: string) => {
+      const pair = { path, twin: toPathIdentity(path) };
+      if (!collisions.some((c) => c.path === pair.path && c.twin === pair.twin)) collisions.push(pair);
+    };
+    for (const path of remotePaths) {
+      if (isTwinSpelling(path) && !isLocalOnlyPath(path)) report(path);
+    }
+    for (const path of [...stateMap.keys()]) {
+      if (!isTwinSpelling(path) || remotePaths.has(path) || isLocalOnlyPath(path)) continue;
+      let here: boolean;
+      try {
+        here = await this.holdsLocalIdentity(path);
+      } catch (e) {
+        console.warn(`[SyncWorker] could not look for the twin spelling ${path}; keeping its sync row`, e);
+        report(path);
+        continue;
+      }
+      if (here) {
+        report(path);
+      } else if (fullListing) {
+        console.warn(`[SyncWorker] forgetting the sync row of the twin spelling ${path}: gone here and on the remote`);
+        await this.stateRepo.deleteSyncState(path);
+        stateMap.delete(path);
+      } else {
+        report(path);
+      }
+    }
+  }
+
+  /** Whether this device's listing carries exactly the identity `path`. */
+  private async holdsLocalIdentity(path: string): Promise<boolean> {
+    const slash = path.lastIndexOf("/");
+    const parent = slash < 0 ? "" : path.slice(0, slash);
+    let entries: VaultFileInfo[];
+    try {
+      entries = await this.vault.listDir(parent, false);
+    } catch (e) {
+      if ((e as { name?: string } | null)?.name === "VaultFileNotFoundError") return false;
+      throw e;
+    }
+    return entries.some((entry) => entry.path === path);
+  }
+
   private async mirrorRemoteDeletionLocked(
     path: string,
     stateMap: Map<string, SyncState>,
@@ -1556,7 +1625,7 @@ export class SyncWorker {
       // before touching data. A FatalSyncProtocolError here ends the cycle in the
       // outer catch (error status + cursor reset) — never a pull, never a push.
       if (this.settingsSyncRunner?.guardBeforeCycle && alive()) {
-        await this.settingsSyncRunner.guardBeforeCycle(this.target, this.vault);
+        await this.settingsSyncRunner.guardBeforeCycle(this.rawTarget, this.vault);
       }
 
       // 0b. Deletion journal (P1): merge the remote journal BEFORE the pull, so
@@ -1567,7 +1636,7 @@ export class SyncWorker {
         // Local persistence must succeed before any confirmed row can retire.
         await this.recordQueuedDeletionIntents();
         try {
-          await this.deletionJournal.sync(this.target);
+          await this.deletionJournal.sync(this.rawTarget);
         } catch (e) {
           console.warn("[SyncWorker] deletion-journal sync failed; using the local journal only:", e);
         }
@@ -1623,6 +1692,10 @@ export class SyncWorker {
 
       for (const folder of pullResult.folders ?? []) {
         if (!folder || isLocalOnlyPath(folder)) continue;
+        // A twin spelling on the remote (ADR 0016) is reported below, not
+        // copied: on this device it would be the composed folder again, or a
+        // second one next to it.
+        if (isTwinSpelling(folder)) continue;
         if (awaitingDeletion(folder) || awaitingStructure(folder)) continue;
         try {
           if (!(await this.vault.exists(folder))) {
@@ -1642,8 +1715,10 @@ export class SyncWorker {
       // AppleDouble sidecars (`._Note.md`, E10). The header cannot be read
       // without downloading the file, so the path-only rule decides here: `._x`
       // stays out while `x` is in the listing or known locally.
+      // A twin spelling (ADR 0016) — a second name the remote or this device
+      // holds next to its composed form — is reported, never reconciled.
       const excludedFromSync = (path: string): boolean =>
-        isLocalOnlyPath(path) || isAppleDoubleCompanion(path, (p) => remotePaths.has(p) || stateMap.has(p));
+        isLocalOnlyPath(path) || isTwinSpelling(path) || isAppleDoubleCompanion(path, (p) => remotePaths.has(p) || stateMap.has(p));
 
       // 2. Reconcile each remote file against local state. Device-local paths
       // (.plainva/*, .CONFLICT copies — e.g. an index DB a desktop client independently
@@ -1769,6 +1844,7 @@ export class SyncWorker {
       // Paths the remote knows under a spelling that only differs in case/accents.
       // Deleting on that evidence destroyed user notes, so they are reported instead.
       const nameCollisions: NameCollision[] = [];
+      await this.reportTwinSpellings(remotePaths, stateMap, doFullListing, nameCollisions);
       if (alive() && !doFullListing) {
         // INCREMENTAL pull: the provider tells us EXACTLY which files were deleted/trashed
         // (pullResult.deleted). We must NOT infer deletions from "missing from etagMap"
@@ -2109,7 +2185,7 @@ export class SyncWorker {
       // settings hiccup never fails or slows the file sync.
       if (this.settingsSyncRunner && alive()) {
         try {
-          await this.settingsSyncRunner.run(this.target, this.vault);
+          await this.settingsSyncRunner.run(this.rawTarget, this.vault);
         } catch (e) {
           console.error("[SyncWorker] settings-sync sideband failed:", e);
         }

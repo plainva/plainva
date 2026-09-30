@@ -3,6 +3,7 @@ import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
+import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isTextFile } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
@@ -44,14 +45,19 @@ export class SyncEngine {
    */
   private readonly maxConsecutiveFailures = 3;
 
+  /** Paths are identities here; the proxy finds the remote's spelling (ADR 0016). */
+  private readonly target: ISyncTarget;
+
   constructor(
     private readonly queue: SyncQueue,
-    private readonly target: ISyncTarget,
+    target: ISyncTarget,
     private readonly vault: IVaultAdapter,
     private readonly stateRepo?: SyncStateRepository,
     /** Optional; without it every write takes the buffer path, as before. */
     private readonly resolveContentRef?: ContentRefResolver
-  ) {}
+  ) {
+    this.target = withPathSpellings(target);
+  }
 
   /**
    * A queued operation on operating-system bookkeeping (E10). Fixed names by

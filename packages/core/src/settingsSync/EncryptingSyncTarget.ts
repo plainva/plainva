@@ -17,7 +17,7 @@
  * `secrets.enc` carry their own AEAD layer (no double encryption).
  *
  * Optional provider methods (`remoteEtag`/`getStartCursor`/`listFolders`/
- * `createFolder`/`createVaultFolder`) are exposed only when the inner target has them, so the
+ * `createFolder`/`createVaultFolder`/`listVaultFolder`) are exposed only when the inner target has them, so the
  * worker's capability checks keep reflecting real abilities; token-refresh hooks
  * are forwarded.
  */
@@ -77,6 +77,8 @@ export class EncryptingSyncTarget implements ISyncTarget {
     // Folder names are never sealed; the sync's own folder creation (issue
     // #112) passes straight through like the picker's.
     if (inner.createVaultFolder) this.createVaultFolder = (p) => inner.createVaultFolder!(p);
+    // Names are not sealed, only content: the spelling lookup sees the real ones.
+    if (inner.listVaultFolder) this.listVaultFolder = (p) => inner.listVaultFolder!(p);
     // `acceptsContentRef` is deliberately NOT forwarded, even when the inner
     // target can stream: sealing needs the plaintext bytes in hand, so a
     // streamed handle would arrive here unencrypted. Large writes therefore
@@ -131,4 +133,5 @@ export class EncryptingSyncTarget implements ISyncTarget {
   listFolders?: (path: string) => Promise<string[]>;
   createFolder?: (path: string) => Promise<void>;
   createVaultFolder?: (path: string) => Promise<void>;
+  listVaultFolder?: (path: string) => Promise<string[] | null>;
 }
