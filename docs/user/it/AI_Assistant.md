@@ -1,8 +1,8 @@
 # Assistente IA (Beta)
 
-Ultimo aggiornamento: 2026-09-29
+Ultimo aggiornamento: 2026-09-30
 
-Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa e può aprire note e viste per te — non cambia nulla. L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
+Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa, apre note e viste per te e propone modifiche a un passaggio selezionato come proposte — non cambia mai una nota da solo. L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
 
 ## Attivare l'IA
 
@@ -69,6 +69,18 @@ L'occhio sotto il campo di testo, **Vedi contesto**, mostra ciò che porterebbe 
 
 Anche le note che le tue regole trattengono sono elencate, perché tu sappia cosa manca; non vengono mai valutate né inviate. **Invia con questo contesto** invia ciò che hai scritto. In una scheda IA ampia la vista resta aperta come colonna accanto alla conversazione.
 
+## Con una selezione
+
+Seleziona del testo in una nota e l'IA lavora solo su quel passaggio.
+
+- **Desktop:** mentre modifichi, **IA** nella barra di selezione offre **Come proposta** — **Riscrivi**, **Accorcia**, **Traduci…**, **Crea attività** — e **Nel compagno** — **Spiega** e **Domanda sulla selezione…** (**Ctrl+J**, ⌘J su macOS).
+- **Telefono:** **IA** nella barra sopra una selezione — in lettura come in modifica — apre il foglio IA.
+- **In ogni conversazione:** finché nella nota aperta c'è del testo selezionato, la riga **Con la selezione** sopra l'input offre le stesse azioni.
+
+Un'azione di proposta invia solo il passaggio selezionato — non il resto della nota, nessuna nota fissata, nessuno strumento — e chiede con lo stesso riepilogo di una domanda. La risposta torna nella nota come un giro di proposte, come quello di una persona: in **Proposte** accetti o rifiuti ogni modifica o l'intero giro, e nella nota non cambia nulla prima che tu lo faccia. La riga dell'autore del giro dice **Plainva IA · ⟨modello⟩**, così resta visibile quale passaggio ha scritto un'IA. **Crea attività** aggiunge le attività sotto il passaggio invece di sostituirlo. Ogni azione conserva la sua conversazione nella cronologia.
+
+Un passaggio di una nota che le tue regole tengono lontana dal cloud — o uno con link a note del genere o con indicazioni di luogo — non va a nessun modello cloud. In un workspace cifrato le azioni di proposta non sono ancora disponibili: le sue proposte non possono ancora indicare l'IA come autore.
+
 ## Regole sulla privacy
 
 Alcune note non devono mai raggiungere un provider cloud. Una regola può trovarsi nel frontmatter di una nota:
@@ -89,4 +101,4 @@ Le conversazioni restano su questo dispositivo, per vault — mai nel vault e ma
 
 - Sul desktop l'IA funziona solo nella finestra principale.
 - Sul telefono una risposta arriva solo mentre l'app è aperta.
-- L'assistente legge; proporre modifiche come suggerimenti arriverà in una versione successiva.
+- L'assistente non cambia nulla da solo: propone modifiche solo per un passaggio selezionato, come proposte che accetti o rifiuti.

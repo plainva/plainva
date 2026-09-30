@@ -63,7 +63,7 @@
       "offBody": "Schalte sie in den Einstellungen ein. Gesendet wird erst etwas, wenn Du fragst.",
       "offAction": "Einstellungen öffnen",
       "startTitle": "Frag etwas",
-      "startBody": "Zur offenen Notiz oder zu allem in Deinem Vault. Der Assistent liest, er ändert nichts.",
+      "startBody": "Zur offenen Notiz oder zu allem in Deinem Vault. Der Assistent ändert nichts selbst — für eine markierte Stelle schlägt er Änderungen als Vorschläge vor.",
       "mainWindowOnly": "Die KI läuft im Hauptfenster.",
       "noVault": "Öffne einen Vault, um zu Deinen Notizen zu fragen."
     },
@@ -197,6 +197,7 @@
     "openLink": "Öffnen",
     "openFullScreen": "Vollbild",
     "noCitation": "Diese Antwort nennt keine der gesendeten Notizen. Prüfe sie daran.",
+    "suggestionAuthor": "Plainva KI · {{model}}",
     "overview": {
       "title": "An {{provider}} senden?",
       "sentTitle": "Gesendet an {{provider}}",
@@ -215,6 +216,7 @@
       "evidenceWhole": "die ganze Notiz",
       "evidenceSection": "der Abschnitt „{{section}}“",
       "evidenceStart": "der Anfang",
+      "evidenceSelection": "die ausgewählte Stelle",
       "card": "Titel und ein Suchauszug",
       "handle": "nur der Name",
       "unchanged": "schon gesendet, unverändert",
@@ -277,6 +279,48 @@
       "sendWith": "Mit diesem Kontext senden",
       "never_one": "Nie an die Cloud: {{count}} Notiz",
       "never_other": "Nie an die Cloud: {{count}} Notizen"
+    },
+    "selection": {
+      "menu": "KI",
+      "with": "Mit der Auswahl",
+      "asSuggestion": "Als Vorschlag",
+      "inConversation": "Im Begleiter",
+      "translateTo": "Übersetzen in",
+      "proposed_one": "Die KI schlägt {{count}} Änderung vor — unter „Vorschläge“ übernehmen oder ablehnen.",
+      "proposed_other": "Die KI schlägt {{count}} Änderungen vor — unter „Vorschläge“ übernehmen oder ablehnen.",
+      "unchanged": "Die KI hat nichts zu ändern gefunden.",
+      "action": {
+        "rewrite": "Umschreiben",
+        "shorten": "Kürzen",
+        "translate": "Übersetzen …",
+        "tasks": "Aufgaben daraus",
+        "explain": "Erklären",
+        "ask": "Frage zur Auswahl …"
+      },
+      "title": {
+        "rewrite": "Umschreiben in {{note}}",
+        "shorten": "Kürzen in {{note}}",
+        "translate": "Übersetzung in {{note}}",
+        "tasks": "Aufgaben aus {{note}}"
+      },
+      "roundNote": {
+        "rewrite": "Die Auswahl, umgeschrieben.",
+        "shorten": "Die Auswahl, gekürzt.",
+        "translate": "Die Auswahl, übersetzt.",
+        "tasks": "Aufgaben aus der Auswahl."
+      },
+      "refused": {
+        "off": "Die KI ist aus.",
+        "no-model": "Wähle zuerst ein Modell.",
+        "busy": "Die KI antwortet noch — warte oder halte sie an.",
+        "empty": "Wähle zuerst Text aus.",
+        "too-long": "Die Auswahl ist dafür zu lang — wähle weniger aus oder frag im Gespräch.",
+        "denied": "Deine Regeln halten diese Notiz von diesem Modell fern.",
+        "withheld": "Die Auswahl enthält Links auf gesperrte Notizen oder Ortsangaben — sie wurde nicht gesendet.",
+        "encrypted": "In einem verschlüsselten Workspace noch nicht: seine Vorschläge können die KI nicht als Autor nennen.",
+        "changed": "Die Stelle hat sich geändert, während die KI schrieb — es wurde nichts vorgeschlagen.",
+        "failed": "Die KI konnte keinen Vorschlag machen."
+      }
     },
     "mcp": {
       "title": "KI-Apps auf diesem Rechner",

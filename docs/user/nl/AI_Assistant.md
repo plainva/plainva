@@ -1,8 +1,8 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-09-29
+Laatst bijgewerkt: 2026-09-30
 
-Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert en kan notities en weergaven voor je openen — het verandert niets. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
+Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen aan een geselecteerde passage voor als voorstellen — een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
 ## Inschakelen
 
@@ -69,6 +69,18 @@ Het oog onder het invoerveld, **Context bekijken**, toont wat het volgende verzo
 
 Notities die je regels achterhouden, staan er ook, zodat je weet wat er ontbreekt; ze worden nooit beoordeeld en nooit verzonden. **Met deze context verzenden** verzendt wat je hebt getypt. In een breed AI-tabblad blijft de weergave als kolom naast het gesprek open.
 
+## Met een selectie
+
+Selecteer tekst in een notitie, en de AI werkt alleen met die passage.
+
+- **Desktop:** tijdens het bewerken biedt **AI** in de selectiebalk **Als voorstel** — **Herschrijven**, **Inkorten**, **Vertalen…**, **Taken ervan maken** — en **In de begeleider** — **Uitleggen** en **Vraag over de selectie…** (**Ctrl+J**, ⌘J onder macOS).
+- **Telefoon:** **AI** in de balk boven een selectie — bij lezen en bij bewerken — opent het AI-blad.
+- **In elk gesprek:** zolang er in de geopende notitie tekst is geselecteerd, biedt de rij **Met de selectie** boven de invoer dezelfde acties.
+
+Een voorstelactie verzendt alleen de geselecteerde passage — niet de rest van de notitie, geen vastgezette notities, geen tools — en vraagt met hetzelfde overzicht als een vraag. Het antwoord komt als een ronde voorstellen in de notitie, net als die van een persoon: onder **Voorstellen** accepteer of wijs je elke wijziging of de hele ronde af, en daarvoor verandert er niets in de notitie. De auteursregel van de ronde luidt **Plainva AI · ⟨model⟩**, zodat zichtbaar blijft welke passage een AI schreef. **Taken ervan maken** zet de taken onder de passage in plaats van die te vervangen. Elke actie bewaart haar gesprek in de geschiedenis.
+
+Een passage uit een notitie die je regels bij de cloud weghouden — of een met links naar zulke notities of met plaatsgegevens — gaat naar geen enkel cloudmodel. In een versleutelde workspace zijn de voorstelacties nog niet beschikbaar: de voorstellen daarin kunnen de AI nog niet als auteur noemen.
+
 ## Privacyregels
 
 Sommige notities mogen nooit bij een cloudprovider terechtkomen. Een regel kan in de frontmatter van een notitie staan:
@@ -89,4 +101,4 @@ Gesprekken blijven op dit apparaat, per vault — nooit in de vault en nooit ges
 
 - Op de desktop werkt de AI alleen in het hoofdvenster.
 - Op de telefoon komt een antwoord alleen terwijl de app open staat.
-- De assistent leest; wijzigingen voorstellen als suggesties komt in een latere versie.
+- De assistent verandert zelf niets: hij stelt alleen wijzigingen voor aan een geselecteerde passage, als voorstellen die je accepteert of afwijst.

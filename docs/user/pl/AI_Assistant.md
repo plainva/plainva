@@ -1,8 +1,8 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-09-29
+Stan na: 2026-09-30
 
-Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, i może otwierać notatki oraz widoki — niczego nie zmienia. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
+Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany w zaznaczonym fragmencie jako propozycje — sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
 ## Włączanie
 
@@ -69,6 +69,18 @@ Oko pod polem wpisywania, **Pokaż kontekst**, pokazuje, co zabrałoby następne
 
 Notatki zatrzymywane przez Twoje reguły też są wymienione, żeby było wiadomo, czego brakuje; nigdy nie są oceniane ani wysyłane. **Wyślij z tym kontekstem** wysyła to, co wpisano. W szerokiej karcie AI widok zostaje otwarty jako kolumna obok rozmowy.
 
+## Z zaznaczeniem
+
+Zaznacz tekst w notatce, a AI zajmie się tylko tym fragmentem.
+
+- **Desktop:** podczas edycji **AI** na pasku zaznaczenia oferuje **Jako propozycja** — **Przepisz**, **Skróć**, **Przetłumacz…**, **Zrób z tego zadania** — oraz **W asystencie** — **Wyjaśnij** i **Pytanie o zaznaczenie…** (**Ctrl+J**, ⌘J w macOS).
+- **Telefon:** **AI** na pasku nad zaznaczeniem — podczas czytania i podczas edycji — otwiera arkusz AI.
+- **W każdej rozmowie:** dopóki w otwartej notatce zaznaczony jest tekst, wiersz **Z zaznaczeniem** nad polem wpisywania oferuje te same akcje.
+
+Akcja propozycji wysyła wyłącznie zaznaczony fragment — nie resztę notatki, nie przypięte notatki, bez narzędzi — i pyta z tym samym przeglądem co pytanie. Odpowiedź wraca do notatki jako runda propozycji, tak jak runda od człowieka: w sekcji **Propozycje** akceptujesz lub odrzucasz każdą zmianę albo całą rundę, a wcześniej w notatce nic się nie zmienia. Wiersz autora rundy brzmi **Plainva AI · ⟨model⟩**, dzięki czemu widać, który fragment napisała AI. **Zrób z tego zadania** dodaje zadania pod fragmentem, zamiast go zastępować. Każda akcja zachowuje swoją rozmowę w historii.
+
+Fragment notatki, którą Twoje reguły trzymają z dala od chmury — albo fragment z linkami do takich notatek lub z danymi o miejscach — nie trafia do żadnego modelu w chmurze. W zaszyfrowanym obszarze roboczym akcje propozycji nie są jeszcze dostępne: propozycje w nim nie mogą jeszcze wskazać AI jako autora.
+
 ## Zasady prywatności
 
 Niektóre notatki nigdy nie powinny trafić do dostawcy w chmurze. Reguła może znajdować się we frontmatterze notatki:
@@ -89,4 +101,4 @@ Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i n
 
 - Na komputerze AI działa tylko w głównym oknie.
 - Na telefonie odpowiedź pojawia się tylko, gdy aplikacja jest otwarta.
-- Asystent czyta; proponowanie zmian w formie sugestii pojawi się w kolejnej wersji.
+- Asystent sam niczego nie zmienia: proponuje zmiany tylko w zaznaczonym fragmencie, jako propozycje do zaakceptowania lub odrzucenia.

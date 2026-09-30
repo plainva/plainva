@@ -54,7 +54,9 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
     }
   };
   const form = (source: ManifestSource) =>
-    source.unchanged
+    source.selection
+      ? t("ai.overview.evidenceSelection")
+      : source.unchanged
       ? t("ai.overview.unchanged")
       : source.tier === "evidence"
         ? source.section === undefined

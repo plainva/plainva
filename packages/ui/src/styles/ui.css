@@ -4010,6 +4010,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   border-top: 1px solid var(--border-color-light);
 }
 .pv-ai-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+/* The selection actions (plan P1.5): one quiet row above the context chips while the editor has a selection. */
+.pv-ai-selchips { align-items: center; padding-bottom: var(--space-1); border-bottom: 1px dashed var(--border-color-light); }
+.pv-ai-selchips-label { font-size: var(--text-xs); color: var(--text-muted); }
 .pv-ai-inputrow { display: flex; align-items: flex-end; gap: var(--space-2); }
 .pv-ai-input { flex: 1; min-width: 0; max-height: 40vh; resize: none; }
 .pv-ai-foot { display: flex; justify-content: flex-end; min-width: 0; }

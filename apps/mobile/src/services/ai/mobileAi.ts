@@ -16,6 +16,7 @@ import {
   noteDisplayName,
   parseRecentsFile,
   plannerRowsFromTasks,
+  proposeSuggestionRound,
   situationEvents,
   situationFrom,
   withCloudDenied,
@@ -30,6 +31,7 @@ import { createMobileAiEgress } from "../../platform/aiNet";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
+import { mobileCommentOperations } from "../commentOperations";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -107,6 +109,7 @@ export function getMobileAiSession(): AiSession {
       today: () => calendarDay(),
       now: () => new Date(),
       newId: () => crypto.randomUUID(),
+      label: (key, vars) => i18n.t(key, vars),
     });
     void session.load();
   }
@@ -269,6 +272,10 @@ export function useMobileAi(vault: MobileVault | null) {
       policy: vaultPolicy,
       activeNote: async () => (sheetNote ? note(sheetNote) : null),
       readNote: note,
+      async propose(round) {
+        await proposeSuggestionRound(mobileCommentOperations(vault), round);
+      },
+      encrypted: () => vault.workspaceRuntime !== null,
       async keepOnDevice(path) {
         // The editor's pending keystrokes land first; the save is the conflict-aware chain, synced like any edit.
         await flushPendingSave(path);

@@ -65,7 +65,7 @@
       "offBody": "Activez-la dans les paramètres. Rien n'est envoyé nulle part tant que vous n'avez rien demandé.",
       "offAction": "Ouvrir les paramètres",
       "startTitle": "Posez une question",
-      "startBody": "Sur la note ouverte, ou sur tout ce qui se trouve dans votre vault. L'assistant lit, il ne change rien.",
+      "startBody": "Sur la note ouverte, ou sur tout ce qui se trouve dans votre vault. L'assistant ne modifie rien lui-même : pour un passage que vous sélectionnez, il propose des modifications sous forme de propositions.",
       "mainWindowOnly": "L'IA s'exécute dans la fenêtre principale.",
       "noVault": "Ouvrez un vault pour poser des questions sur vos notes."
     },
@@ -201,6 +201,7 @@
     "openLink": "Ouvrir",
     "openFullScreen": "Plein écran",
     "noCitation": "Cette réponse ne cite aucune des notes envoyées. Vérifiez-la à partir de celles-ci.",
+    "suggestionAuthor": "Plainva IA · {{model}}",
     "overview": {
       "title": "Envoyer à {{provider}} ?",
       "sentTitle": "Envoyé à {{provider}}",
@@ -219,6 +220,7 @@
       "evidenceWhole": "la note entière",
       "evidenceSection": "la section « {{section}} »",
       "evidenceStart": "le début",
+      "evidenceSelection": "le passage sélectionné",
       "card": "titre et extrait de recherche",
       "handle": "le nom seul",
       "unchanged": "déjà envoyé, inchangé",
@@ -286,6 +288,49 @@
       "never_one": "Jamais dans le cloud : {{count}} note",
       "never_many": "Jamais dans le cloud : {{count}} notes",
       "never_other": "Jamais dans le cloud : {{count}} notes"
+    },
+    "selection": {
+      "menu": "IA",
+      "with": "Avec la sélection",
+      "asSuggestion": "Comme proposition",
+      "inConversation": "Dans le compagnon",
+      "translateTo": "Traduire en",
+      "proposed_one": "L'IA propose {{count}} modification — acceptez-la ou refusez-la sous « Propositions ».",
+      "proposed_many": "L'IA propose {{count}} modifications — acceptez-les ou refusez-les sous « Propositions ».",
+      "proposed_other": "L'IA propose {{count}} modifications — acceptez-les ou refusez-les sous « Propositions ».",
+      "unchanged": "L'IA n'a rien trouvé à modifier.",
+      "action": {
+        "rewrite": "Réécrire",
+        "shorten": "Raccourcir",
+        "translate": "Traduire…",
+        "tasks": "En faire des tâches",
+        "explain": "Expliquer",
+        "ask": "Question sur la sélection…"
+      },
+      "title": {
+        "rewrite": "Réécriture dans {{note}}",
+        "shorten": "Raccourcir dans {{note}}",
+        "translate": "Traduction dans {{note}}",
+        "tasks": "Tâches de {{note}}"
+      },
+      "roundNote": {
+        "rewrite": "La sélection, réécrite.",
+        "shorten": "La sélection, raccourcie.",
+        "translate": "La sélection, traduite.",
+        "tasks": "Tâches tirées de la sélection."
+      },
+      "refused": {
+        "off": "L'IA est désactivée.",
+        "no-model": "Choisissez d'abord un modèle.",
+        "busy": "L'IA répond encore — attendez ou arrêtez-la.",
+        "empty": "Sélectionnez d'abord du texte.",
+        "too-long": "La sélection est trop longue pour cela — sélectionnez moins ou posez la question dans la conversation.",
+        "denied": "Vos règles tiennent cette note à l'écart de ce modèle.",
+        "withheld": "La sélection contient des liens vers des notes bloquées ou des indications de lieu — elle n'a pas été envoyée.",
+        "encrypted": "Pas encore dans un espace chiffré : ses propositions ne peuvent pas nommer l'IA comme auteur.",
+        "changed": "Le passage a changé pendant que l'IA écrivait — rien n'a été proposé.",
+        "failed": "L'IA n'a pas pu faire de proposition."
+      }
     },
     "mcp": {
       "title": "Apps d'IA sur cet ordinateur",

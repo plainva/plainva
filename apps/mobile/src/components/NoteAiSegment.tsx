@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { AiConversation, AiSessionContext, noteDisplayName } from "@plainva/ui";
 import { focusAiNote, getMobileAiSession, openAiLink, openAiNoteTarget, openAiSettings } from "../services/ai/mobileAi";
 import type { MobileVault } from "../services/vaultService";
+import { editorSelectionReader } from "../services/editorSelection";
 
 /**
  * The AI segment of the note's context (plan KI-Harness §19.1): the desktop
@@ -17,6 +18,7 @@ export function NoteAiSegment({ vault, path, onOpenNote }: { vault: MobileVault;
     <AiSessionContext.Provider value={getMobileAiSession()}>
       <div className="m-ai-segment" data-testid="ai-context-segment">
         <AiConversation
+          selection={editorSelectionReader}
           dress="sheet"
           activeNote={{ path, title: noteDisplayName(path) }}
           onOpenNote={(target) => openAiNoteTarget(vault, target, onOpenNote)}

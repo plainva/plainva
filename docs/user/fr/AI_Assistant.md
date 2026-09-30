@@ -1,8 +1,8 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-09-29
+Dernière mise à jour : 2026-09-30
 
-Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie et peut ouvrir des notes et des vues pour vous — il ne change rien. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
+Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications d'un passage sélectionné sous forme de propositions — il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
 ## Activer l'IA
 
@@ -69,6 +69,18 @@ L'œil sous le champ de saisie, **Voir le contexte**, montre ce que la prochaine
 
 Les notes que vos règles retiennent sont aussi listées, pour que vous sachiez ce qui manque ; elles ne sont jamais évaluées ni envoyées. **Envoyer avec ce contexte** envoie ce que vous avez tapé. Dans un onglet IA large, la vue reste ouverte en colonne à côté de la conversation.
 
+## Avec une sélection
+
+Sélectionnez du texte dans une note : l'IA travaille uniquement sur ce passage.
+
+- **Ordinateur :** pendant l'édition, **IA** dans la barre de sélection propose **Comme proposition** — **Réécrire**, **Raccourcir**, **Traduire…**, **En faire des tâches** — et **Dans le compagnon** — **Expliquer** et **Question sur la sélection…** (**Ctrl+J**, ⌘J sous macOS).
+- **Téléphone :** **IA** dans la barre au-dessus d'une sélection — en lecture comme en édition — ouvre la feuille IA.
+- **Dans chaque conversation :** tant que du texte est sélectionné dans la note ouverte, la ligne **Avec la sélection** au-dessus de la saisie propose les mêmes actions.
+
+Une action de proposition envoie uniquement le passage sélectionné — ni le reste de la note, ni les notes épinglées, ni les outils — et demande avec le même aperçu qu'une question. La réponse revient dans la note sous forme de série de propositions, comme celle d'une personne : sous **Propositions**, vous acceptez ou refusez chaque modification ou toute la série, et rien ne change dans la note avant. La ligne d'auteur de la série indique **Plainva IA · ⟨modèle⟩**, pour qu'on voie toujours quel passage une IA a écrit. **En faire des tâches** ajoute les tâches sous le passage au lieu de le remplacer. Chaque action garde sa conversation dans l'historique.
+
+Un passage d'une note que vos règles tiennent à l'écart du cloud — ou un passage avec des liens vers de telles notes ou avec des indications de lieu — ne part vers aucun modèle cloud. Dans un espace chiffré, les actions de proposition ne sont pas encore disponibles : ses propositions ne peuvent pas encore nommer l'IA comme auteur.
+
 ## Règles de confidentialité
 
 Certaines notes ne doivent jamais atteindre un fournisseur cloud. Une règle peut se trouver dans le frontmatter d'une note :
@@ -89,4 +101,4 @@ Les conversations restent sur cet appareil, par vault — jamais dans le vault e
 
 - Sur l'ordinateur, l'IA s'exécute uniquement dans la fenêtre principale.
 - Sur le téléphone, une réponse n'arrive que si l'application est ouverte.
-- L'assistant lit ; proposer des modifications sous forme de suggestions viendra dans une version ultérieure.
+- L'assistant ne modifie rien lui-même : il propose des modifications uniquement pour un passage sélectionné, sous forme de propositions que vous acceptez ou refusez.

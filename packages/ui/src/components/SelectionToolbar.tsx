@@ -18,6 +18,8 @@ export interface SelectionToolbarPosition {
 }
 interface Props extends SelectionToolbarPosition {
   onAction: (action: FormatAction) => void;
+  /** Further buttons after the format actions (the desktop's AI door, plan KI-Harness P1.5). */
+  extra?: React.ReactNode;
 }
 
 /** Both shells measure the real toolbar instead of assuming that its labels
@@ -84,7 +86,7 @@ export function SelectionToolbarSurface({ x, y, above, getAnchor, compactLabels 
  * applies to the range the user actually marked. On touch that matters more,
  * not less — a tap that drops the selection would format nothing.
  */
-export const SelectionToolbar: React.FC<Props> = ({ x, y, above, getAnchor, onAction }) => {
+export const SelectionToolbar: React.FC<Props> = ({ x, y, above, getAnchor, onAction, extra }) => {
   const { t } = useTranslation();
   const items: { a: FormatAction; icon: React.ReactNode; label: string }[] = [
     { a: "bold", icon: <Bold size={ICON.ui} />, label: t("editor.fmtBold", { defaultValue: "Fett" }) },
@@ -118,6 +120,7 @@ export const SelectionToolbar: React.FC<Props> = ({ x, y, above, getAnchor, onAc
           {it.icon}
         </button>
       ))}
+      {extra}
     </SelectionToolbarSurface>
   );
 };

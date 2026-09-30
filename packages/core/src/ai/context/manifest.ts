@@ -26,6 +26,8 @@ export interface ManifestSource {
   unchanged?: boolean;
   /** Why it was chosen, strongest first — the context view's "why". */
   reasons: CandidateSignal[];
+  /** Only the passage the user selected went (an action at a selection, plan P1.5). */
+  selection?: boolean;
 }
 
 export interface EgressManifest {

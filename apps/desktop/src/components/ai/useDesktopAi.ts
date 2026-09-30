@@ -4,7 +4,7 @@ import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
 import { getPlatformServices, noteDisplayName, situationEvents, useStableHandler, type AiNavigationCommand, type AiSession, type AiState, type AiVaultHost } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
-import { createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
+import { AI_OPEN_EVENT, createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { AI_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
 
@@ -54,8 +54,13 @@ export function useDesktopAi(input: DesktopAiInput) {
   useLayoutEffect(() => {
     latest.current = input;
   });
-  // Appointments come from the PIM cache of the open vault, when it has one.
-  const { pimRuntime } = useVault();
+  // Appointments come from the PIM cache of the open vault, when it has one;
+  // an AI suggestion round goes through its comment service (plan P1.5).
+  const { pimRuntime, commentOperations } = useVault();
+  const comments = useRef(commentOperations);
+  useLayoutEffect(() => {
+    comments.current = commentOperations;
+  });
   const pim = useRef(pimRuntime);
   useLayoutEffect(() => {
     pim.current = pimRuntime;
@@ -110,6 +115,7 @@ export function useDesktopAi(input: DesktopAiInput) {
       openPaths: () => latest.current.layout.panes.flatMap((pane) => pane.tabs.map((tab) => tab.history[tab.historyIndex]).filter((p): p is string => Boolean(p))),
       events: async (from, to) => situationEvents((await pim.current?.cache.listEvents(from.getTime(), to.getTime())) ?? []),
       commands,
+      commentOperations: () => comments.current,
     });
     hostRef.current = host;
     void session.attachVault(host);
@@ -140,6 +146,12 @@ export function useDesktopAi(input: DesktopAiInput) {
     setCompanionOpen(true);
   });
   const closeCompanion = useStableHandler(() => setCompanionOpen(false));
+  // The selection door opens the companion wherever it sits (plan P1.5).
+  useEffect(() => {
+    const open = () => openCompanion();
+    window.addEventListener(AI_OPEN_EVENT, open);
+    return () => window.removeEventListener(AI_OPEN_EVENT, open);
+  }, [openCompanion]);
   const toggleCompanion = useStableHandler(() => (companionOpen ? closeCompanion() : openCompanion()));
   const openAsTab = useStableHandler(() => {
     setCompanionOpen(false);

@@ -61,7 +61,7 @@
       "offBody": "在设置中开启它。在你提出问题之前，不会发送任何内容。",
       "offAction": "打开设置",
       "startTitle": "问些什么",
-      "startBody": "关于当前打开的笔记，或你仓库中的任何内容。助手只读取，不会更改任何内容。",
+      "startBody": "关于当前打开的笔记，或你仓库中的任何内容。助手不会自行更改任何内容——对于你选中的段落，它会以建议的形式提出修改。",
       "mainWindowOnly": "AI仅在主窗口中运行。",
       "noVault": "打开一个仓库来询问你的笔记。"
     },
@@ -193,6 +193,7 @@
     "openLink": "打开",
     "openFullScreen": "全屏",
     "noCitation": "这个回答没有引用任何已发送的笔记。请对照这些笔记核实。",
+    "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "发送到{{provider}}？",
       "sentTitle": "已发送至{{provider}}",
@@ -211,6 +212,7 @@
       "evidenceWhole": "整篇笔记",
       "evidenceSection": "章节“{{section}}”",
       "evidenceStart": "开头",
+      "evidenceSelection": "选中的段落",
       "card": "标题和搜索摘录",
       "handle": "仅名称",
       "unchanged": "已发送，未更改",
@@ -268,6 +270,47 @@
       "ruleDefault": "保险库的默认设置",
       "sendWith": "使用此上下文发送",
       "never_other": "从不发送到云端：{{count}}条笔记"
+    },
+    "selection": {
+      "menu": "AI",
+      "with": "对所选内容",
+      "asSuggestion": "作为建议",
+      "inConversation": "在悬浮窗中",
+      "translateTo": "翻译为",
+      "proposed_other": "AI提出了{{count}}处修改——请在“建议”中接受或拒绝。",
+      "unchanged": "AI没有发现需要修改的地方。",
+      "action": {
+        "rewrite": "改写",
+        "shorten": "缩短",
+        "translate": "翻译…",
+        "tasks": "生成任务",
+        "explain": "解释",
+        "ask": "就所选内容提问…"
+      },
+      "title": {
+        "rewrite": "改写：{{note}}",
+        "shorten": "缩短：{{note}}",
+        "translate": "翻译：{{note}}",
+        "tasks": "任务：{{note}}"
+      },
+      "roundNote": {
+        "rewrite": "所选内容已改写。",
+        "shorten": "所选内容已缩短。",
+        "translate": "所选内容已翻译。",
+        "tasks": "由所选内容生成的任务。"
+      },
+      "refused": {
+        "off": "AI已关闭。",
+        "no-model": "请先选择一个模型。",
+        "busy": "AI仍在回答——请等待或停止它。",
+        "empty": "请先选择一些文本。",
+        "too-long": "所选内容太长——请少选一些，或在对话中提问。",
+        "denied": "你的规则不允许将这条笔记发送给此模型。",
+        "withheld": "所选内容包含指向被屏蔽笔记的链接或位置信息——未发送。",
+        "encrypted": "加密工作区中暂不可用：其中的建议无法将AI标为作者。",
+        "changed": "AI撰写期间该段落已改变——未提出任何建议。",
+        "failed": "AI无法提出建议。"
+      }
     },
     "mcp": {
       "title": "此电脑上的AI应用",

@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
-import type { AiAppSettings, IVaultAdapter, VaultQueryService } from "@plainva/core";
+import type { AiAppSettings, CommentOperationService, IVaultAdapter, VaultQueryService } from "@plainva/core";
 import {
   aiDefaultSettings,
   AiSession,
@@ -17,6 +17,7 @@ import {
   noteDisplayName,
   parseRecentsFile,
   plannerRowsFromTasks,
+  proposeSuggestionRound,
   situationFrom,
   withCloudDenied,
   type AiFileStore,
@@ -42,6 +43,9 @@ import { createDesktopAiEgress } from "./desktopAiEgress";
  */
 
 const SETTINGS_KEY = "ai";
+
+/** Opens the companion from anywhere in the main window (the selection door, plan P1.5). */
+export const AI_OPEN_EVENT = "plainva-ai-open";
 
 let aiRootPromise: Promise<{ dir: string; rootId: string }> | null = null;
 
@@ -122,6 +126,7 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
       today: () => calendarDay(),
       now: () => new Date(),
       newId: () => crypto.randomUUID(),
+      label: (key, vars) => i18n.t(key, vars),
     });
     void session.load();
   }
@@ -143,6 +148,8 @@ export interface DesktopVaultInput {
   events: (from: Date, to: Date) => Promise<SituationEventInput[]>;
   /** Navigation the assistant may trigger: views and notes, nothing that changes data. */
   commands: () => AiNavigationCommand[];
+  /** The vault's comment service: where an AI suggestion round is written (plan P1.5). */
+  commentOperations: () => CommentOperationService | null;
 }
 
 let currentPolicy: VaultPolicyHost | null = null;
@@ -202,6 +209,12 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       return path ? note(path) : null;
     },
     readNote: note,
+    async propose(round) {
+      const service = input.commentOperations();
+      if (!service) throw new Error("comments are not available in this vault");
+      await proposeSuggestionRound(service, round);
+    },
+    encrypted: input.encrypted,
     async keepOnDevice(path) {
       // The editor's pending keystrokes land first, so the rule is written into the live text.
       await flushPendingSave(path);

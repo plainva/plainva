@@ -100,6 +100,10 @@ export interface AiVaultHostInput {
   toolDeps: Omit<VaultToolDeps, "policyOf" | "resolveLink"> | null;
   /** Writes a note's own "never to the cloud" rule — the user's action in "View context". */
   keepOnDevice?(path: string): Promise<void>;
+  /** Writes an AI suggestion round into a note's comments (plan P1.5); absent where the shell cannot. */
+  propose?: AiVaultHost["propose"];
+  /** True inside an encrypted workspace, whose sealed suggestions cannot carry an author yet (E32). */
+  encrypted?: AiVaultHost["encrypted"];
 }
 
 /** A note's text with its own rule "never to the cloud" (the plainva namespace, ADR 0017). */
@@ -155,6 +159,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     candidates: (question, activePath) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath) : Promise.resolve([])),
     policy: input.policy,
     ...(input.keepOnDevice ? { keepOnDevice: input.keepOnDevice } : {}),
+    ...(input.propose ? { propose: input.propose } : {}),
+    ...(input.encrypted ? { encrypted: input.encrypted } : {}),
     tools(recipient: EgressRecipient, scope?: ToolScope) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;

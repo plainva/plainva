@@ -1,5 +1,16 @@
 import type { ToolScope } from "./vaultTools";
 import {
+  PASSAGE_ONLY,
+  passageOf,
+  relocate,
+  SELECTION_MAX_CHARS,
+  selectionChunks,
+  selectionInstruction,
+  type AiSuggestAction,
+  type SuggestionAuthor,
+} from "./aiSelectionActions";
+import type { SuggestionChunk } from "../components/suggestMode";
+import {
   addUsage,
   aiMonthlyTotals,
   allProviders,
@@ -11,6 +22,13 @@ import {
   conversationSummaryOf,
   conversationTitleFrom,
   EMPTY_USAGE,
+  estimateTokens,
+  fenceUntrusted,
+  gateDecision,
+  isCloudRecipient,
+  payload,
+  withholdDeniedLinks,
+  withholdPlaces,
   expiredConversations,
   fetchProviderJson,
   initialModelChoice,
@@ -41,6 +59,8 @@ import {
   type ModelChoice,
   type ModelFailure,
   type ModelInfo,
+  type Part,
+  type TextPart,
   type ProviderInfo,
   type RunMeta,
   type RunStop,
@@ -77,6 +97,8 @@ export interface AiSessionHost {
   today(): string;
   now(): Date;
   newId(): string;
+  /** A text of the app in its language (conversation titles and round notes of the selection actions). */
+  label?(key: string, vars?: Record<string, string>): string;
 }
 
 export interface AiVaultHost {
@@ -94,7 +116,28 @@ export interface AiVaultHost {
   tools(recipient: EgressRecipient, scope?: ToolScope): { names: readonly string[]; executor: ToolExecutor } | null;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
   keepOnDevice?(path: string): Promise<void>;
+  /** Writes a suggestion round into a note's comments (plan P1.5); nothing enters the note until someone accepts. */
+  propose?(round: { path: string; base: string; chunks: readonly SuggestionChunk[]; note: string; author: SuggestionAuthor }): Promise<void>;
+  /** True inside an encrypted workspace: its sealed comments cannot carry an author yet (E32). */
+  encrypted?(): boolean;
 }
+
+/** An action at a selection (plan P1.5): the passage, where it stands, and what to do with it. */
+export interface SelectionRequest {
+  action: AiSuggestAction;
+  range: { path: string; from: number; to: number; text: string; doc: string };
+  /** For "translate": the target language's English name. */
+  language?: string;
+}
+
+export type SelectionOutcome =
+  | { kind: "proposed"; conversationId: string; changes: number }
+  | { kind: "unchanged"; conversationId: string }
+  | {
+      kind: "refused";
+      reason: "off" | "no-model" | "busy" | "empty" | "too-long" | "denied" | "withheld" | "encrypted" | "cancelled" | "changed" | "failed";
+      message?: string;
+    };
 
 /** What the next message would carry, built like a send and sent nowhere (plan §13.3, "View context"). */
 export interface ContextPreview {
@@ -151,6 +194,16 @@ export interface AiState {
 }
 
 type Listener = () => void;
+
+/** The text of the conversation's last answer. */
+function lastAnswerText(conversation: ConversationRecord["conversation"]): string {
+  for (let i = conversation.turns.length - 1; i >= 0; i--) {
+    const turn = conversation.turns[i]!;
+    if (turn.role !== "assistant") continue;
+    return turn.parts.map((part) => (part.type === "text" ? part.text : "")).join("");
+  }
+  return "";
+}
 
 /** How the send overview was answered: send, send nothing, or build it again without one note. */
 type ConsentAnswer = "send" | "cancel" | { leaveOut: string };
@@ -399,6 +452,132 @@ export class AiSession {
     this.set({ excludeActive: exclude });
   }
 
+  /**
+   * An action at a selection (plan P1.5, E33): the passage alone goes to the
+   * model — through the gate and the send overview like any message — in a
+   * conversation of its own, and the answer comes back as a suggestion round
+   * in the note, authored "Plainva AI · model". Nothing is written into the
+   * note until someone accepts; a passage whose links or place stamps may not
+   * go is refused rather than rewritten without them.
+   */
+  async proposeForSelection(request: SelectionRequest): Promise<SelectionOutcome> {
+    const vault = this.vault;
+    const choice = this.choice();
+    if (!this.state.settings.enabled || !vault || !vault.propose) return { kind: "refused", reason: "off" };
+    if (!choice) return { kind: "refused", reason: "no-model" };
+    if (this.state.live || this.sending) return { kind: "refused", reason: "busy" };
+    if (vault.encrypted?.()) return { kind: "refused", reason: "encrypted" };
+    const { range, action } = request;
+    if (!range.text.trim()) return { kind: "refused", reason: "empty" };
+    if (range.text.length > SELECTION_MAX_CHARS) return { kind: "refused", reason: "too-long" };
+    const provider = providerById(choice.providerId, this.state.settings.custom);
+    if (!provider) return { kind: "refused", reason: "no-model" };
+    const recipient: EgressRecipient =
+      provider.kind === "local" ? { kind: "local", provider: provider.id, model: choice.model } : { kind: "cloud", provider: provider.id, model: choice.model };
+    const run = { recipient, webTools: false };
+    // The note passes the gate with the text in the editor: an unsaved `cloud: deny` counts.
+    if (!gateDecision(await vault.policy.policyOf(range.path, range.doc), run).allowed) return { kind: "refused", reason: "denied" };
+    const places = withholdPlaces(range.text);
+    const links = isCloudRecipient(recipient)
+      ? await withholdDeniedLinks(range.text, range.path, vault.policy.resolveLink, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)
+      : { text: range.text };
+    if (places.withheld > 0 || links.text !== range.text) return { kind: "refused", reason: "withheld" };
+
+    this.sending = true;
+    try {
+      const title = range.path.slice(range.path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+      // Named `t`: the locale guard finds dynamic keys by their `t(` call (localeParity.test.ts).
+      const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+      const passage: TextPart = {
+        type: "text",
+        text: `The passage, from the note [[${title}]]:\n${fenceUntrusted(payload(range.text, { kind: "vault", path: range.path, section: "selection" }))}`,
+        context: [],
+      };
+      const instruction = `${selectionInstruction(action, request.language)}\n\n${PASSAGE_ONLY}`;
+      const pack: ContextPackage = {
+        part: passage,
+        refs: [{ path: range.path, title, tier: "evidence", reasons: ["active"], score: 1, chars: range.text.length }],
+        excluded: [],
+        redactions: { withheldLinks: 0, places: 0, moodProperties: 0 },
+        dataClasses: ["selection"],
+        estimatedTokens: estimateTokens(passage.text + instruction),
+      };
+      const price = this.priceOf(choice);
+      const folder = range.path.includes("/") ? range.path.slice(0, range.path.indexOf("/")) : "";
+      const manifest: EgressManifest = {
+        providerId: provider.id,
+        providerLabel: provider.label,
+        model: choice.model,
+        local: provider.kind === "local",
+        sources: [{ path: range.path, title, tier: "evidence", chars: range.text.length, reasons: ["active"], selection: true }],
+        dataClasses: ["selection"],
+        folders: [folder],
+        withheld: { notes: 0, links: 0, places: 0, moodProperties: 0 },
+        excluded: [],
+        estimatedTokens: pack.estimatedTokens,
+        ...(price ? { estimatedCostUsd: (pack.estimatedTokens / 1_000_000) * price.input } : {}),
+        tools: [],
+        web: false,
+      };
+      const growth = scopeGrowth(manifest, this.scope);
+      if (growth.length > 0 || (this.state.settings.confirmEveryRequest && !manifest.local)) {
+        const answer = await this.askConsent(manifest, growth);
+        if (this.vault !== vault || answer !== "send") return { kind: "refused", reason: "cancelled" };
+      }
+      if (!manifest.local) this.scope = widenScope(this.scope, manifest);
+
+      const now = this.host.now().toISOString();
+      const id = this.host.newId();
+      const record: ConversationRecord = {
+        version: 1,
+        id,
+        title: t(`ai.selection.title.${action}`, { note: title }),
+        createdAt: now,
+        updatedAt: now,
+        providerId: choice.providerId,
+        model: choice.model,
+        conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: [] }), []),
+        usage: EMPTY_USAGE,
+        runs: [],
+        pins: [],
+      };
+      const { stop, answer, record: saved } = await this.execute({
+        vault,
+        choice,
+        provider,
+        record,
+        pack,
+        manifest,
+        parts: [passage, { type: "text", text: instruction }],
+        executor: null,
+        carriesVault: true,
+        usedDrafts: false,
+      });
+      if (stop.kind !== "answered") return { kind: "refused", reason: stop.kind === "cancelled" ? "cancelled" : "failed" };
+      const text = passageOf(answer);
+      if (!text) return { kind: "refused", reason: "failed" };
+      // The editor may have moved on while the model wrote: the round is laid on the note as it is now.
+      const note = await vault.readNote(range.path);
+      const base = note?.text ?? range.doc;
+      const place = relocate(base, range.from, range.to, range.text);
+      if (!place) return { kind: "refused", reason: "changed" };
+      const chunks = selectionChunks(base, place.from, place.to, text, action === "tasks" ? "insert" : "replace");
+      if (!chunks.length) return { kind: "unchanged", conversationId: saved.id };
+      await vault.propose({
+        path: range.path,
+        base,
+        chunks,
+        note: t(`ai.selection.roundNote.${action}`, { model: choice.model }),
+        author: { id: `plainva-ai/${choice.model}`, displayName: t("ai.suggestionAuthor", { model: choice.model }) },
+      });
+      return { kind: "proposed", conversationId: saved.id, changes: chunks.length };
+    } catch (error) {
+      return { kind: "refused", reason: "failed", message: error instanceof Error ? error.message : String(error) };
+    } finally {
+      this.sending = false;
+    }
+  }
+
   /** Leaves a note out of the next message, or takes it back in ("View context"). */
   toggleLeaveOut(path: string): void {
     const list = this.state.leaveOutNext;
@@ -629,23 +808,59 @@ export class AiSession {
       ({ pack, manifest } = await build(leaveOut));
     }
     if (!manifest.local) this.scope = widenScope(this.scope, manifest);
-    const parts = [pack.part, { type: "text" as const, text: message }];
+    const { stop } = await this.execute({
+      vault,
+      choice,
+      provider,
+      record,
+      pack,
+      manifest,
+      parts: [pack.part, { type: "text" as const, text: message }],
+      executor: tools?.executor ?? null,
+      // Rule of Two (§13.4): vault text is private and untrusted at once.
+      carriesVault: pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active),
+      usedDrafts: true,
+    });
+    return stop;
+  }
+
+  /**
+   * One user turn to the model and back — streaming, stop, the run's record
+   * and the ledger — for a message typed in the composer and for an action at
+   * a selection alike. The context and its approval come in ready.
+   */
+  private async execute(input: {
+    vault: AiVaultHost;
+    choice: ModelChoice;
+    provider: ProviderInfo;
+    record: ConversationRecord;
+    pack: ContextPackage;
+    manifest: EgressManifest;
+    parts: Part[];
+    executor: ToolExecutor | null;
+    carriesVault: boolean;
+    usedDrafts: boolean;
+  }): Promise<{ stop: RunStop; record: ConversationRecord; answer: string }> {
+    const { vault, choice, provider, pack, manifest } = input;
+    const now = this.host.now().toISOString();
+    let record = input.record;
     const userTurn = record.conversation.turns.length;
-    record = { ...record, conversation: appendTurn(record.conversation, { role: "user", parts, at: now }), updatedAt: now };
+    record = { ...record, conversation: appendTurn(record.conversation, { role: "user", parts: input.parts, at: now }), updatedAt: now };
 
     const controller = new AbortController();
     this.abort = controller;
     const toolLog: LedgerEntry["tools"] = [];
-    this.set({ active: record, draftPins: [], draftChoice: null, excludeActive: false, leaveOutNext: [], notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
+    // A message typed in the composer used the drafts; an action at a selection leaves them for the next one.
+    const drafts = input.usedDrafts ? { draftPins: [], draftChoice: null, excludeActive: false, leaveOutNext: [] } : {};
+    this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
 
-    // Rule of Two (§13.4): vault text is private and untrusted at once.
-    const carriesVault = pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active);
+    const carriesVault = input.carriesVault;
     const result = await runAgent({
       conversation: record.conversation,
       egress: this.host.egress,
       endpoint: provider.endpoint,
       model: choice.model,
-      executor: tools?.executor ?? { execute: async () => ({ content: "This conversation has no tools.", isError: true }) },
+      executor: input.executor ?? { execute: async () => ({ content: "This conversation has no tools.", isError: true }) },
       context: { privateContext: carriesVault, untrustedContext: carriesVault },
       signal: controller.signal,
       cache: true,
@@ -711,7 +926,8 @@ export class AiSession {
     } catch {
       // The answer stays on screen even when app data cannot be written.
     }
-    if (this.vault !== vault) return result.stop;
+    const answer = lastAnswerText(result.conversation);
+    if (this.vault !== vault) return { stop: result.stop, record, answer };
     const shown = this.state.active?.id === record.id || !this.state.active;
     this.set({
       active: shown ? record : this.state.active,
@@ -719,7 +935,7 @@ export class AiSession {
       notice: result.stop.kind === "answered" ? null : { conversationId: record.id, stop: result.stop },
       summaries: sortSummaries([conversationSummaryOf(record), ...this.state.summaries.filter((s) => s.id !== record.id)]),
     });
-    return result.stop;
+    return { stop: result.stop, record, answer };
   }
 
   private priceOf(choice: ModelChoice): { input: number; output: number } | undefined {

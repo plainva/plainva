@@ -52,7 +52,7 @@ import { mobileCommentStore, listMobileComments, listMobileCommentAuthors, mobil
 import { mobileCommentOperations } from "../services/commentOperations";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
-import { aiEnabled, openAiSheet } from "../services/ai/mobileAi";
+import { aiEnabled, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAi";
 
 /** A property value as the anchor quote carries it (desktop parity). */
 function propertyValueText(value: unknown): string {
@@ -94,6 +94,8 @@ export function NoteScreen({
   onComposeMail?: (draft: { subject: string; body: string; attachments?: MailAttachment[] }) => void;
 }) {
   const { t, i18n } = useTranslation();
+  // "AI" in the reading selection, while the AI is on (plan KI-Harness P1.5).
+  const aiOn = useMobileAiEnabled();
   const title = path.split("/").pop()!.replace(/\.md$/i, "");
   /* Where this note lives (N5.1). The target picture pairs it with "vor 2 Std.";
      the modification time is not read on this screen, so the bar carries the
@@ -938,6 +940,7 @@ export function NoteScreen({
             setPendingRange({ ...req, anchor: buildCommentAnchor(source, placed.from, placed.to, mintAnchorMarkerId(source), req.display) });
             setPendingPropertyAnchor(null); setCommentsOpen(true);
           }}
+          onAskAi={aiOn ? () => openAiSheet(path) : undefined}
           onPassageSuggest={canSuggest && resolveOpenAction(path) !== "text" && !managedIndex && !suggesting ? () => {
             // Locked (N3): the verb leads to the explanation, not into a mode
             // whose send would fail a minute later.

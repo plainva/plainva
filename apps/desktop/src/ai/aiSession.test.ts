@@ -55,6 +55,7 @@ const files: Record<string, string> = {
   "Offer.md": "# Offer\n\nRates as in [[Salaries]].",
   "Salaries.md": "---\nplainva:\n  ai:\n    cloud: deny\n---\nsecret",
   "Plan.md": "# Plan",
+  "Contract.md": "# Contract\n\nThe contract runs until the end of the year and renews itself.\n\nRates follow.\n",
 };
 
 function vaultHost(active: string | null) {
@@ -153,6 +154,7 @@ function session(script: EgressChunk[][], options: { approve?: boolean } = {}) {
     today: () => "2026-09-24",
     now: () => new Date("2026-09-24T10:00:00Z"),
     newId: () => `id${++ids}`,
+    label: (key, vars) => (vars ? `${key} ${JSON.stringify(vars)}` : key),
   });
   // Most tests approve the send overview as it comes; the consent test answers itself.
   if (options.approve !== false) {
@@ -351,5 +353,126 @@ describe("the AI session", () => {
     // The question stays; the next message can go out.
     const turns = s.getState().active!.conversation.turns;
     expect(turns[turns.length - 1]!.role).toBe("user");
+  });
+});
+
+/** Plan KI-Harness P1.5 (E32, E33): an action at a selection comes back as a suggestion round. */
+describe("an AI action at a selection", () => {
+  const passage = "The contract runs until the end of the year and renews itself.";
+  const contract = files["Contract.md"]!;
+  const at = contract.indexOf(passage);
+  const range = { path: "Contract.md", from: at, to: at + passage.length, text: passage, doc: contract };
+  type Round = Parameters<NonNullable<AiVaultHost["propose"]>>[0];
+
+  function proposing(active: string | null = "Contract.md") {
+    const vault = vaultHost(active);
+    const rounds: Round[] = [];
+    vault.host.propose = async (round) => {
+      rounds.push(round);
+    };
+    return { vault, rounds };
+  }
+
+  it("sends the passage alone, without tools, and proposes the answer as a round authored by the model", async () => {
+    const { s, fake } = session([answer("```\nThe contract runs until the end of the year; then it renews itself.\n```")]);
+    await s.load();
+    const { vault, rounds } = proposing();
+    await s.attachVault(vault.host);
+    await s.pin("Plan.md");
+    const outcome = await s.proposeForSelection({ action: "rewrite", range });
+    expect(outcome).toMatchObject({ kind: "proposed", changes: rounds[0]?.chunks.length });
+    expect(fake.sent).toHaveLength(1);
+    const body = JSON.stringify(fake.sent[0]!.body);
+    expect(body).toContain(passage);
+    expect(body).toContain("Rewrite the passage");
+    // Only the passage: not the rest of the note, not the pinned note, no tools.
+    expect(body).not.toContain("Rates follow");
+    expect(body).not.toContain("Plan.md");
+    expect(fake.sent[0]!.body!.tools ?? []).toEqual([]);
+
+    expect(rounds).toHaveLength(1);
+    const round = rounds[0]!;
+    expect(round.path).toBe("Contract.md");
+    expect(round.base).toBe(contract);
+    expect(round.author).toEqual({ id: "plainva-ai/m-1", displayName: 'ai.suggestionAuthor {"model":"m-1"}' });
+    expect(round.note).toBe('ai.selection.roundNote.rewrite {"model":"m-1"}');
+    let accepted = round.base;
+    for (const chunk of [...round.chunks].sort((a, b) => b.fromA - a.fromA)) accepted = accepted.slice(0, chunk.fromA) + chunk.replacement + accepted.slice(chunk.toA);
+    expect(accepted).toBe(contract.replace(passage, "The contract runs until the end of the year; then it renews itself."));
+
+    // A conversation of its own, kept in the history; the send overview named the selection.
+    const saved = vault.saved.get(outcome.kind === "proposed" ? outcome.conversationId : "")!;
+    expect(saved.title).toBe('ai.selection.title.rewrite {"note":"Contract"}');
+    expect(saved.runs[0]!.manifest).toMatchObject({ dataClasses: ["selection"], sources: [{ path: "Contract.md", selection: true }], tools: [] });
+    // The pin waits for the next message typed in the composer.
+    expect(s.getState().draftPins).toEqual(["Plan.md"]);
+  });
+
+  it("puts tasks after the passage", async () => {
+    const { s } = session([answer("- [ ] Check the renewal date")]);
+    await s.load();
+    const { vault, rounds } = proposing();
+    await s.attachVault(vault.host);
+    expect(await s.proposeForSelection({ action: "tasks", range })).toMatchObject({ kind: "proposed", changes: 1 });
+    expect(rounds[0]!.chunks).toEqual([{ fromA: range.to, toA: range.to, replacement: "\n\n- [ ] Check the renewal date\n" }]);
+  });
+
+  it("says so when there is nothing to change, and when the passage moved on while the model wrote", async () => {
+    const { s } = session([answer(passage), answer("Shorter.")]);
+    await s.load();
+    const { vault, rounds } = proposing();
+    await s.attachVault(vault.host);
+    expect(await s.proposeForSelection({ action: "rewrite", range })).toMatchObject({ kind: "unchanged" });
+    vault.host.readNote = async (path) => ({ path, title: "Contract", text: "# Contract\n\nSomething else entirely.\n" });
+    expect(await s.proposeForSelection({ action: "shorten", range })).toEqual({ kind: "refused", reason: "changed" });
+    expect(rounds).toHaveLength(0);
+  });
+
+  it("refuses before anything goes out: encrypted workspace, a denied note, withheld links, an empty or oversized passage", async () => {
+    const { s, fake } = session([]);
+    await s.load();
+    const { vault, rounds } = proposing();
+    await s.attachVault(vault.host);
+
+    vault.host.encrypted = () => true;
+    expect(await s.proposeForSelection({ action: "rewrite", range })).toEqual({ kind: "refused", reason: "encrypted" });
+    vault.host.encrypted = () => false;
+
+    const secret = files["Salaries.md"]!;
+    const denied = { path: "Salaries.md", from: secret.indexOf("secret"), to: secret.length, text: "secret", doc: secret };
+    expect(await s.proposeForSelection({ action: "rewrite", range: denied })).toEqual({ kind: "refused", reason: "denied" });
+    // An unsaved "cloud: deny" in the editor counts.
+    const unsaved = { ...range, doc: `---\nplainva:\n  ai:\n    cloud: deny\n---\n${contract}` };
+    expect(await s.proposeForSelection({ action: "rewrite", range: unsaved })).toEqual({ kind: "refused", reason: "denied" });
+
+    const offer = files["Offer.md"]!;
+    const linked = { path: "Offer.md", from: offer.indexOf("Rates"), to: offer.length, text: "Rates as in [[Salaries]].", doc: offer };
+    expect(await s.proposeForSelection({ action: "rewrite", range: linked })).toEqual({ kind: "refused", reason: "withheld" });
+
+    expect(await s.proposeForSelection({ action: "rewrite", range: { ...range, text: "  " } })).toEqual({ kind: "refused", reason: "empty" });
+    expect(await s.proposeForSelection({ action: "rewrite", range: { ...range, text: "x".repeat(12_001) } })).toEqual({ kind: "refused", reason: "too-long" });
+
+    expect(fake.sent).toHaveLength(0);
+    expect(rounds).toHaveLength(0);
+  });
+
+  it("is off where the shell cannot take a round, and a declined send overview sends nothing", async () => {
+    const plain = session([]);
+    await plain.s.load();
+    await plain.s.attachVault(vaultHost("Contract.md").host);
+    expect(await plain.s.proposeForSelection({ action: "rewrite", range })).toEqual({ kind: "refused", reason: "off" });
+
+    const { s, fake } = session([answer("Shorter.")], { approve: false });
+    await s.load();
+    const { vault, rounds } = proposing();
+    await s.attachVault(vault.host);
+    const asked = consentAsked(s);
+    const pending = s.proposeForSelection({ action: "shorten", range });
+    await asked;
+    expect(s.getState().consent!.manifest.sources).toEqual([expect.objectContaining({ path: "Contract.md", selection: true })]);
+    s.answerConsent(false);
+    expect(await pending).toEqual({ kind: "refused", reason: "cancelled" });
+    expect(fake.sent).toHaveLength(0);
+    expect(rounds).toHaveLength(0);
   });
 });

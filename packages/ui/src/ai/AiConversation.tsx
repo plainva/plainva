@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, CircleAlert, Eye, FileText, LoaderCircle, Pin, Plus, Send, Sparkles, Square } from "lucide-react";
+import { Check, CircleAlert, Eye, FileText, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
 import { AI_PROFILE_IDS, providerById, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
@@ -13,6 +13,7 @@ import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
 import { AiAnswer } from "./AiAnswer";
 import { AiContextLens } from "./AiContextLens";
+import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAction, type SelectionReader } from "./aiSelectionActions";
 import { AiSendOverview } from "./AiSendOverview";
 import { aiFailureText } from "./aiSettingsModel";
 import type { AiDress } from "./aiSession";
@@ -40,6 +41,8 @@ export interface AiConversationProps {
   onOpenSettings: () => void;
   /** The shell's note picker; the chosen note is pinned to the conversation. */
   onPickNote?: () => void;
+  /** The editor's selection: while there is one, the selection actions are offered (plan P1.5). */
+  selection?: SelectionReader;
 }
 
 const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
@@ -54,7 +57,7 @@ const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
 /** Failures the settings can fix: the notice offers the way there. */
 const SETUP_FAILURES = new Set<ModelFailure["kind"]>(["no_key", "invalid_key", "not_found", "unknown_endpoint"]);
 
-export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpenSettings, onPickNote }: AiConversationProps) {
+export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpenSettings, onPickNote, selection }: AiConversationProps) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
@@ -77,6 +80,17 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
     return () => observer.disconnect();
   }, [rootEl, dress]);
   const side = dress === "tab" && wide;
+  // A selection in the editor offers the selection actions (plan P1.5). Polled, cheaply: the reader copies only the selected text.
+  const [hasSelection, setHasSelection] = useState(false);
+  useEffect(() => {
+    if (!selection) return;
+    const tick = () => setHasSelection(selection.has());
+    tick();
+    const timer = setInterval(tick, 1500);
+    return () => clearInterval(timer);
+  }, [selection]);
+  const [translateOpen, setTranslateOpen] = useState(false);
+  const translateAnchor = useRef<HTMLSpanElement>(null);
 
   const active = state?.active ?? null;
   const items = useMemo(() => (active ? transcriptOf(active) : []), [active]);
@@ -120,6 +134,22 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
   const showActive = Boolean(activeNote) && !pins.includes(activeNote!.path);
 
   const consent = state.consent;
+  /** A suggest action on the editor's selection: the answer lands in the note as a suggestion round. */
+  const suggest = (action: AiSuggestAction, language?: string) => {
+    const range = selection?.range();
+    if (!range) {
+      setHasSelection(false);
+      return;
+    }
+    void runSuggestAction(session, t, { action, range, ...(language ? { language } : {}) });
+  };
+  const languageName = (code: string) => {
+    try {
+      return new Intl.DisplayNames([i18n.language], { type: "language" }).of(code) ?? code;
+    } catch {
+      return code;
+    }
+  };
   const send = () => {
     const text = draft.trim();
     if (!text || running || consent || !state.hasVault) return;
@@ -311,6 +341,41 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
       )}
 
       <div className="pv-ai-composer">
+        {selection && hasSelection && !running && !consent && (
+          <div className="pv-ai-chips pv-ai-selchips" role="group" aria-label={t("ai.selection.with")} data-testid="ai-selection-actions">
+            <span className="pv-ai-selchips-label">{t("ai.selection.with")}</span>
+            <Chip size="sm" icon={<PenLine size={ICON.meta} />} onClick={() => suggest("rewrite")}>
+              {t("ai.selection.action.rewrite")}
+            </Chip>
+            <Chip size="sm" icon={<Scissors size={ICON.meta} />} onClick={() => suggest("shorten")}>
+              {t("ai.selection.action.shorten")}
+            </Chip>
+            <span ref={translateAnchor}>
+              <Chip size="sm" icon={<Languages size={ICON.meta} />} onClick={() => setTranslateOpen(true)}>
+                {t("ai.selection.action.translate")}
+              </Chip>
+            </span>
+            <Chip size="sm" icon={<ListTodo size={ICON.meta} />} onClick={() => suggest("tasks")}>
+              {t("ai.selection.action.tasks")}
+            </Chip>
+            <Chip size="sm" icon={<MessageCircleQuestion size={ICON.meta} />} onClick={() => void session.send(askMessage("explain")!)}>
+              {t("ai.selection.action.explain")}
+            </Chip>
+            <MenuSurface open={translateOpen} onClose={() => setTranslateOpen(false)} anchorRef={translateAnchor} ariaLabel={t("ai.selection.translateTo")}>
+              {AI_TRANSLATE_LANGUAGES.map((language) => (
+                <MenuItem
+                  key={language.code}
+                  onSelect={() => {
+                    setTranslateOpen(false);
+                    suggest("translate", language.name);
+                  }}
+                >
+                  {languageName(language.code)}
+                </MenuItem>
+              ))}
+            </MenuSurface>
+          </div>
+        )}
         <div className="pv-ai-chips" aria-label={t("ai.context")}>
           {activeNote && showActive && !state.excludeActive && (
             <Chip size="sm" icon={<FileText size={ICON.meta} />} onRemove={() => session.setExcludeActive(true)} removeLabel={t("ai.removeContext")}>

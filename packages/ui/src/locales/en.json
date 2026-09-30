@@ -63,7 +63,7 @@
       "offBody": "Switch it on in the settings. Nothing is sent anywhere until you ask something.",
       "offAction": "Open settings",
       "startTitle": "Ask something",
-      "startBody": "About the open note, or about anything in your vault. The assistant reads, it does not change anything.",
+      "startBody": "About the open note, or about anything in your vault. The assistant changes nothing itself — for a passage you select, it proposes changes as suggestions.",
       "mainWindowOnly": "The AI runs in the main window.",
       "noVault": "Open a vault to ask about your notes."
     },
@@ -197,6 +197,7 @@
     "openLink": "Open",
     "openFullScreen": "Full screen",
     "noCitation": "This answer cites none of the notes that were sent. Check it against them.",
+    "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "Send to {{provider}}?",
       "sentTitle": "Sent to {{provider}}",
@@ -215,6 +216,7 @@
       "evidenceWhole": "the whole note",
       "evidenceSection": "the section “{{section}}”",
       "evidenceStart": "the beginning",
+      "evidenceSelection": "the selected passage",
       "card": "title and a search excerpt",
       "handle": "name only",
       "unchanged": "already sent, unchanged",
@@ -277,6 +279,48 @@
       "sendWith": "Send with this context",
       "never_one": "Never to the cloud: {{count}} note",
       "never_other": "Never to the cloud: {{count}} notes"
+    },
+    "selection": {
+      "menu": "AI",
+      "with": "With the selection",
+      "asSuggestion": "As a suggestion",
+      "inConversation": "In the companion",
+      "translateTo": "Translate into",
+      "proposed_one": "The AI suggests {{count}} change — accept or decline it under “Suggestions”.",
+      "proposed_other": "The AI suggests {{count}} changes — accept or decline them under “Suggestions”.",
+      "unchanged": "The AI found nothing to change.",
+      "action": {
+        "rewrite": "Rewrite",
+        "shorten": "Shorten",
+        "translate": "Translate…",
+        "tasks": "Tasks from it",
+        "explain": "Explain",
+        "ask": "Ask about the selection…"
+      },
+      "title": {
+        "rewrite": "Rewrite in {{note}}",
+        "shorten": "Shorten in {{note}}",
+        "translate": "Translation in {{note}}",
+        "tasks": "Tasks from {{note}}"
+      },
+      "roundNote": {
+        "rewrite": "The selection, rewritten.",
+        "shorten": "The selection, shortened.",
+        "translate": "The selection, translated.",
+        "tasks": "Tasks from the selection."
+      },
+      "refused": {
+        "off": "The AI is off.",
+        "no-model": "Choose a model first.",
+        "busy": "The AI is still answering — wait for it or stop it.",
+        "empty": "Select some text first.",
+        "too-long": "The selection is too long for this — select less, or ask in the conversation.",
+        "denied": "Your rules keep this note from this model.",
+        "withheld": "The selection holds links to blocked notes or place stamps — it was not sent.",
+        "encrypted": "Not yet in an encrypted workspace: its suggestions cannot name the AI as their author.",
+        "changed": "The passage changed while the AI was writing — nothing was suggested.",
+        "failed": "The AI could not make a suggestion."
+      }
     },
     "mcp": {
       "title": "AI apps on this computer",

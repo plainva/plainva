@@ -1,8 +1,8 @@
 # Assistente de IA (Beta)
 
-Última revisão: 2026-09-29
+Última revisão: 2026-09-30
 
-O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou e pode abrir notas e visualizações para você — não muda nada. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
+O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações em um trecho selecionado como sugestões — nunca muda uma nota sozinho. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
 
 ## Ativando
 
@@ -69,6 +69,18 @@ O olho abaixo do campo de entrada, **Ver contexto**, mostra o que a próxima sol
 
 As notas que suas regras retêm também aparecem, para você saber o que falta; elas nunca são avaliadas nem enviadas. **Enviar com este contexto** envia o que você digitou. Numa aba de IA larga, a visualização fica aberta como uma coluna ao lado da conversa.
 
+## Com uma seleção
+
+Selecione um texto em uma nota, e a IA trabalha só com esse trecho.
+
+- **Desktop:** enquanto você edita, **IA** na barra de seleção oferece **Como sugestão** — **Reescrever**, **Encurtar**, **Traduzir…**, **Criar tarefas** — e **No assistente** — **Explicar** e **Perguntar sobre a seleção…** (**Ctrl+J**, ⌘J no macOS).
+- **Celular:** **IA** na barra acima de uma seleção — ao ler e ao editar — abre a folha de IA.
+- **Em cada conversa:** enquanto houver texto selecionado na nota aberta, a linha **Com a seleção** acima da entrada oferece as mesmas ações.
+
+Uma ação de sugestão envia apenas o trecho selecionado — não o resto da nota, nem notas fixadas, nem ferramentas — e pergunta com o mesmo resumo de uma pergunta. A resposta volta para a nota como uma rodada de sugestões, como a de uma pessoa: em **Sugestões** você aceita ou recusa cada alteração ou a rodada inteira, e nada muda na nota antes disso. A linha de autor da rodada diz **Plainva IA · ⟨modelo⟩**, para que fique visível qual trecho uma IA escreveu. **Criar tarefas** adiciona as tarefas abaixo do trecho em vez de substituí-lo. Cada ação mantém sua conversa no histórico.
+
+Um trecho de uma nota que suas regras mantêm longe da nuvem — ou um com links para essas notas ou com dados de local — não vai para nenhum modelo na nuvem. Em um workspace criptografado as ações de sugestão ainda não estão disponíveis: as sugestões nele ainda não podem indicar a IA como autora.
+
 ## Regras de privacidade
 
 Algumas notas nunca devem chegar a um provedor de nuvem. Uma regra pode ficar no frontmatter de uma nota:
@@ -89,4 +101,4 @@ As conversas ficam neste dispositivo, por vault — nunca no vault e nunca sincr
 
 - No desktop, a IA roda apenas na janela principal.
 - No celular, uma resposta só chega enquanto o Plainva estiver aberto.
-- O assistente lê; propor alterações como sugestões vem em uma versão posterior.
+- O assistente não muda nada sozinho: propõe alterações apenas para um trecho selecionado, como sugestões que você aceita ou recusa.

@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { PanelTop, Sparkles, SquarePen, X } from "lucide-react";
+import { editorSelectionReader } from "../../services/editorSelection";
 import { AiConversation, FloatingWindow, ICON, IconButton, useAiSession, useAiState } from "@plainva/ui";
 
 /**
@@ -53,7 +54,7 @@ export function AiCompanion({
         </>
       }
     >
-      <AiConversation dress="window" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+      <AiConversation selection={editorSelectionReader} dress="window" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
     </FloatingWindow>
   );
 }

@@ -1,3 +1,4 @@
+import { editorSelectionReader } from "../../services/editorSelection";
 import { AiConversation } from "@plainva/ui";
 
 export interface AiDockProps {
@@ -19,7 +20,7 @@ export interface AiDockProps {
 export function AiDockSection({ activeNote, onOpenNote, onOpenUrl, onOpenSettings, onPickNote }: AiDockProps) {
   return (
     <div className="pv-ai-dock" data-testid="ai-dock">
-      <AiConversation dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
     </div>
   );
 }

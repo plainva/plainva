@@ -1,8 +1,8 @@
 # Asistente de IA (Beta)
 
-Última actualización: 2026-09-29
+Última actualización: 2026-09-30
 
-Plainva puede responder preguntas sobre tus notas con un modelo de IA de tu elección. Lee tu vault, cita las notas que usó y puede abrir notas y vistas por ti — no cambia nada. El asistente es **experimental** y está desactivado hasta que lo actives, por separado en cada dispositivo.
+Plainva puede responder preguntas sobre tus notas con un modelo de IA de tu elección. Lee tu vault, cita las notas que usó, abre notas y vistas por ti y propone cambios en un fragmento seleccionado como sugerencias — nunca cambia una nota por sí mismo. El asistente es **experimental** y está desactivado hasta que lo actives, por separado en cada dispositivo.
 
 ## Activar la IA
 
@@ -69,6 +69,18 @@ El ojo bajo el campo de entrada, **Ver contexto**, muestra lo que llevaría la p
 
 Las notas que tus reglas retienen también aparecen, para que sepas qué falta; nunca se evalúan ni se envían. **Enviar con este contexto** envía lo que escribiste. En una pestaña de IA ancha, la vista queda abierta como una columna junto a la conversación.
 
+## Con una selección
+
+Selecciona texto en una nota y la IA trabaja solo con ese fragmento.
+
+- **Escritorio:** mientras editas, **IA** en la barra de selección ofrece **Como sugerencia** — **Reescribir**, **Acortar**, **Traducir…**, **Convertir en tareas** — y **En el compañero** — **Explicar** y **Preguntar sobre la selección…** (**Ctrl+J**, ⌘J en macOS).
+- **Teléfono:** **IA** en la barra sobre una selección — al leer como al editar — abre la hoja de IA.
+- **En cada conversación:** mientras haya texto seleccionado en la nota abierta, la fila **Con la selección** sobre la entrada ofrece las mismas acciones.
+
+Una acción de sugerencia envía solo el fragmento seleccionado — no el resto de la nota, ni notas fijadas, ni herramientas — y pregunta con el mismo resumen que una pregunta. La respuesta vuelve a la nota como una ronda de sugerencias, igual que la de una persona: en **Sugerencias** aceptas o rechazas cada cambio o la ronda entera, y nada cambia en la nota antes de que lo hagas. La línea de autor de la ronda dice **Plainva IA · ⟨modelo⟩**, para que siempre se vea qué fragmento escribió una IA. **Convertir en tareas** añade las tareas debajo del fragmento en lugar de reemplazarlo. Cada acción conserva su conversación en el historial.
+
+Un fragmento de una nota que tus reglas mantienen fuera de la nube — o uno con enlaces a esas notas o con datos de lugar — no va a ningún modelo en la nube. En un espacio cifrado las acciones de sugerencia aún no están disponibles: sus sugerencias todavía no pueden indicar a la IA como autora.
+
 ## Reglas de privacidad
 
 Algunas notas nunca deben llegar a un proveedor en la nube. Una regla puede ir en el frontmatter de una nota:
@@ -89,4 +101,4 @@ Las conversaciones se quedan en este dispositivo, por vault — nunca en el vaul
 
 - En el escritorio, la IA solo se ejecuta en la ventana principal.
 - En el teléfono, una respuesta solo llega mientras la aplicación está abierta.
-- El asistente lee; ofrecer cambios como sugerencias llegará en una versión posterior.
+- El asistente no cambia nada por sí mismo: propone cambios solo para un fragmento seleccionado, como sugerencias que aceptas o rechazas.

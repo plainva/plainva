@@ -1,8 +1,8 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-09-29
+Last reviewed: 2026-09-30
 
-Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used and can open notes and views for you — it does not change anything. The assistant is **experimental** and switched off until you switch it on, separately on every device.
+Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes to a passage you selected as suggestions — it never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
 ## Switching it on
 
@@ -69,6 +69,18 @@ The eye below the input, **View context**, shows what the next request would car
 
 Notes your rules keep back are listed as well, so that you know what is missing; they are never scored and never sent. **Send with this context** sends what you typed. In a wide AI tab the view stays open as a column beside the conversation.
 
+## With a selection
+
+Select text in a note, and the AI works on just that passage.
+
+- **Desktop:** while you edit, **AI** in the selection toolbar offers **As a suggestion** — **Rewrite**, **Shorten**, **Translate…**, **Tasks from it** — and **In the companion** — **Explain** and **Ask about the selection…** (**Ctrl+J**, ⌘J on macOS).
+- **Phone:** **AI** in the bar above a selection — when reading as when editing — opens the AI sheet.
+- **In every conversation:** as long as text is selected in the open note, the row **With the selection** above the input offers the same actions.
+
+A suggestion action sends the selected passage alone — not the rest of the note, no pinned notes, no tools — and asks with the same overview as a question. The answer comes back into the note as a round of suggestions, like one from a person: under **Suggestions** you accept or decline each change or the whole round, and nothing in the note changes before you do. The round's author line reads **Plainva AI · ⟨model⟩**, so it stays visible which passage an AI wrote. **Tasks from it** adds the tasks below the passage instead of replacing it. Each action keeps its conversation in the history.
+
+A passage from a note your rules keep from the cloud — or one with links to such notes or with place stamps — goes to no cloud model. In an encrypted workspace the suggestion actions are not available yet: its suggestions cannot name the AI as their author yet.
+
 ## Privacy rules
 
 Some notes should never reach a cloud provider. A rule can sit in a note's frontmatter:
@@ -89,4 +101,4 @@ Conversations stay on this device, per vault — never in the vault and never sy
 
 - On the desktop the AI runs in the main window only.
 - On the phone an answer comes only while the app is open.
-- The assistant reads; proposing changes as suggestions comes in a later version.
+- The assistant changes nothing itself: it proposes changes only to a selected passage, as suggestions you accept or decline.

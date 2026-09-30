@@ -1,8 +1,8 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-09-29
+Stand: 2026-09-30
 
-Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, und kann Notizen und Ansichten für Dich öffnen — es ändert nichts. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
+Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen an einer markierten Stelle als Vorschläge vor — eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
 ## Einschalten
 
@@ -69,6 +69,18 @@ Das Auge unter dem Eingabefeld, **Kontext einsehen**, zeigt, was die nächste An
 
 Notizen, die Deine Regeln zurückhalten, stehen ebenfalls da, damit Du weißt, was fehlt; sie werden nie bewertet und nie gesendet. **Mit diesem Kontext senden** sendet, was Du geschrieben hast. In einem breiten KI-Tab bleibt die Ansicht als Spalte neben dem Gespräch offen.
 
+## Mit einer Auswahl
+
+Markiere Text in einer Notiz, und die KI arbeitet nur mit dieser Stelle.
+
+- **Desktop:** beim Bearbeiten bietet **KI** in der Auswahlleiste **Als Vorschlag** — **Umschreiben**, **Kürzen**, **Übersetzen …**, **Aufgaben daraus** — und **Im Begleiter** — **Erklären** und **Frage zur Auswahl …** (**Strg+J**, ⌘J unter macOS).
+- **Telefon:** **KI** in der Leiste über einer Auswahl — beim Lesen wie beim Bearbeiten — öffnet das KI-Blatt.
+- **In jedem Gespräch:** solange in der offenen Notiz Text markiert ist, bietet die Zeile **Mit der Auswahl** über der Eingabe dieselben Aktionen.
+
+Eine Vorschlags-Aktion sendet nur die markierte Stelle — nicht den Rest der Notiz, keine angehefteten Notizen, keine Werkzeuge — und fragt mit derselben Übersicht wie eine Frage. Die Antwort kommt als Vorschlagsrunde in die Notiz, wie die eines Menschen: unter **Vorschläge** übernimmst oder lehnst Du jede Änderung einzeln oder die ganze Runde ab, und vorher ändert sich nichts in der Notiz. Die Autorzeile der Runde lautet **Plainva KI · ⟨Modell⟩**, damit sichtbar bleibt, welche Stelle eine KI geschrieben hat. **Aufgaben daraus** fügt die Aufgaben unter der Stelle ein, statt sie zu ersetzen. Jede Aktion behält ihr Gespräch im Verlauf.
+
+Eine Stelle aus einer Notiz, die Deine Regeln von der Cloud fernhalten — oder eine mit Links auf solche Notizen oder mit Ortsangaben —, geht an kein Cloud-Modell. In einem verschlüsselten Workspace gibt es die Vorschlags-Aktionen noch nicht: seine Vorschläge können die KI noch nicht als Autor nennen.
+
 ## Datenschutzregeln
 
 Manche Notizen sollen nie zu einem Cloud-Anbieter. Eine Regel kann im Frontmatter einer Notiz stehen:
@@ -89,4 +101,4 @@ Gespräche bleiben auf diesem Gerät, je Vault — nie im Vault und nie synchron
 
 - Am Desktop läuft die KI nur im Hauptfenster.
 - Am Telefon kommt eine Antwort nur, solange die App geöffnet ist.
-- Der Assistent liest; Änderungen als Vorschläge anbieten kommt in einer späteren Version.
+- Der Assistent ändert nichts selbst: Änderungen schlägt er nur für eine markierte Stelle vor, als Vorschläge, die Du übernimmst oder ablehnst.

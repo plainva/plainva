@@ -3,6 +3,7 @@ import { Maximize2, SquarePen } from "lucide-react";
 import { AiConversation, AiSessionContext, ICON, IconButton, noteDisplayName } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { getMobileAiSession, openAiLink } from "../services/ai/mobileAi";
+import { editorSelectionReader } from "../services/editorSelection";
 
 /**
  * The KI sheet (plan KI-Harness §19.1, dress A on the phone): the companion's
@@ -39,6 +40,7 @@ export function AiSheet({
             </IconButton>
           </div>
           <AiConversation
+            selection={editorSelectionReader}
             dress="sheet"
             activeNote={notePath ? { path: notePath, title: noteDisplayName(notePath) } : null}
             onOpenNote={onOpenNote}

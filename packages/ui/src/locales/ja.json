@@ -61,7 +61,7 @@
       "offBody": "設定でオンにしてください。質問するまで何も送信されません。",
       "offAction": "設定を開く",
       "startTitle": "質問する",
-      "startBody": "開いているノートについて、または保管庫の何についてでも。アシスタントは読むだけで、何も変更しません。",
+      "startBody": "開いているノートについて、または保管庫の何についてでも。アシスタントは自ら何も変更しません。選択した箇所には、変更を提案として示します。",
       "mainWindowOnly": "AIはメインウィンドウで動作します。",
       "noVault": "ノートについて質問するには、保管庫を開いてください。"
     },
@@ -193,6 +193,7 @@
     "openLink": "開く",
     "openFullScreen": "全画面",
     "noCitation": "この回答は送信したノートをどれも引用していません。ノートと照らし合わせて確認してください。",
+    "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "{{provider}}に送信しますか？",
       "sentTitle": "{{provider}}に送信済み",
@@ -211,6 +212,7 @@
       "evidenceWhole": "ノート全体",
       "evidenceSection": "セクション「{{section}}」",
       "evidenceStart": "冒頭",
+      "evidenceSelection": "選択した箇所",
       "card": "タイトルと検索の抜粋",
       "handle": "名前のみ",
       "unchanged": "送信済み・変更なし",
@@ -268,6 +270,47 @@
       "ruleDefault": "保管庫の既定",
       "sendWith": "このコンテキストで送信",
       "never_other": "クラウドには送らない: {{count}} 件のノート"
+    },
+    "selection": {
+      "menu": "AI",
+      "with": "選択範囲で",
+      "asSuggestion": "提案として",
+      "inConversation": "コンパニオンで",
+      "translateTo": "翻訳先",
+      "proposed_other": "AIが{{count}}件の変更を提案しました。「提案」で適用または却下してください。",
+      "unchanged": "AIは変更する箇所を見つけませんでした。",
+      "action": {
+        "rewrite": "書き直す",
+        "shorten": "短くする",
+        "translate": "翻訳…",
+        "tasks": "タスクにする",
+        "explain": "説明する",
+        "ask": "選択範囲について質問…"
+      },
+      "title": {
+        "rewrite": "{{note}}の書き直し",
+        "shorten": "{{note}}の短縮",
+        "translate": "{{note}}の翻訳",
+        "tasks": "{{note}}からのタスク"
+      },
+      "roundNote": {
+        "rewrite": "選択範囲を書き直しました。",
+        "shorten": "選択範囲を短くしました。",
+        "translate": "選択範囲を翻訳しました。",
+        "tasks": "選択範囲からのタスク。"
+      },
+      "refused": {
+        "off": "AIはオフです。",
+        "no-model": "先にモデルを選んでください。",
+        "busy": "AIはまだ回答中です。待つか停止してください。",
+        "empty": "先にテキストを選択してください。",
+        "too-long": "選択範囲が長すぎます。範囲を減らすか、会話で質問してください。",
+        "denied": "ルールにより、このノートはこのモデルに送れません。",
+        "withheld": "選択範囲にブロックされたノートへのリンクや位置情報が含まれているため、送信しませんでした。",
+        "encrypted": "暗号化ワークスペースではまだ使えません。そこでの提案はAIを作成者として示せません。",
+        "changed": "AIが書いている間に箇所が変わったため、何も提案しませんでした。",
+        "failed": "AIは提案を作成できませんでした。"
+      }
     },
     "mcp": {
       "title": "このコンピューターのAIアプリ",

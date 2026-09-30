@@ -63,7 +63,7 @@
       "offBody": "Zet hem aan in de instellingen. Er wordt pas iets verzonden zodra je iets vraagt.",
       "offAction": "Instellingen openen",
       "startTitle": "Vraag iets",
-      "startBody": "Over de geopende notitie, of over alles in je vault. De assistent leest, hij verandert niets.",
+      "startBody": "Over de geopende notitie, of over alles in je vault. De assistent verandert zelf niets — voor een passage die je selecteert, stelt hij wijzigingen voor als voorstellen.",
       "mainWindowOnly": "De AI werkt in het hoofdvenster.",
       "noVault": "Open een vault om vragen te stellen over je notities."
     },
@@ -197,6 +197,7 @@
     "openLink": "Openen",
     "openFullScreen": "Volledig scherm",
     "noCitation": "Dit antwoord noemt geen van de verzonden notities. Controleer het daaraan.",
+    "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "Verzenden naar {{provider}}?",
       "sentTitle": "Verzonden naar {{provider}}",
@@ -215,6 +216,7 @@
       "evidenceWhole": "de hele notitie",
       "evidenceSection": "de sectie “{{section}}”",
       "evidenceStart": "het begin",
+      "evidenceSelection": "de geselecteerde passage",
       "card": "titel en een zoekfragment",
       "handle": "alleen de naam",
       "unchanged": "al verzonden, ongewijzigd",
@@ -277,6 +279,48 @@
       "sendWith": "Met deze context verzenden",
       "never_one": "Nooit naar de cloud: {{count}} notitie",
       "never_other": "Nooit naar de cloud: {{count}} notities"
+    },
+    "selection": {
+      "menu": "AI",
+      "with": "Met de selectie",
+      "asSuggestion": "Als voorstel",
+      "inConversation": "In de begeleider",
+      "translateTo": "Vertalen naar",
+      "proposed_one": "De AI stelt {{count}} wijziging voor — accepteer die of wijs die af onder “Voorstellen”.",
+      "proposed_other": "De AI stelt {{count}} wijzigingen voor — accepteer ze of wijs ze af onder “Voorstellen”.",
+      "unchanged": "De AI vond niets om te wijzigen.",
+      "action": {
+        "rewrite": "Herschrijven",
+        "shorten": "Inkorten",
+        "translate": "Vertalen…",
+        "tasks": "Taken ervan maken",
+        "explain": "Uitleggen",
+        "ask": "Vraag over de selectie…"
+      },
+      "title": {
+        "rewrite": "Herschrijven in {{note}}",
+        "shorten": "Inkorten in {{note}}",
+        "translate": "Vertaling in {{note}}",
+        "tasks": "Taken uit {{note}}"
+      },
+      "roundNote": {
+        "rewrite": "De selectie, herschreven.",
+        "shorten": "De selectie, ingekort.",
+        "translate": "De selectie, vertaald.",
+        "tasks": "Taken uit de selectie."
+      },
+      "refused": {
+        "off": "De AI staat uit.",
+        "no-model": "Kies eerst een model.",
+        "busy": "De AI antwoordt nog — wacht of stop hem.",
+        "empty": "Selecteer eerst tekst.",
+        "too-long": "De selectie is hiervoor te lang — selecteer minder of vraag het in het gesprek.",
+        "denied": "Je regels houden deze notitie weg van dit model.",
+        "withheld": "De selectie bevat links naar geblokkeerde notities of plaatsgegevens — ze is niet verzonden.",
+        "encrypted": "Nog niet in een versleutelde workspace: de voorstellen daarin kunnen de AI niet als auteur noemen.",
+        "changed": "De passage is veranderd terwijl de AI schreef — er is niets voorgesteld.",
+        "failed": "De AI kon geen voorstel doen."
+      }
     },
     "mcp": {
       "title": "AI-apps op deze computer",

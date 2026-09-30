@@ -42,13 +42,14 @@ import { resolveGoverningBase } from "../services/baseSchema";
 import { useDocumentIcons } from "../hooks/useDocumentIcons";
 import { useWikiResolver } from "../hooks/useWikiResolver";
 import { activeDocument, type DocChannel } from "../services/activeDocument";
-import { setEditorSelectionReader } from "../services/editorSelection";
+import { setEditorRangeReader, setEditorSelectionReader } from "../services/editorSelection";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { toast } from "@plainva/ui";
 import { dirtyStore } from "../services/dirtyStore";
 import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { noteEmbedPlugin } from "./NoteEmbedPlugin";
+import { AiSelectionButton } from "./ai/AiSelectionButton";
 import { MenuSurface, MenuItem, MenuSeparator, MenuLabel } from "@plainva/ui";
 import { isOwnerWindow } from "../services/windowContext";
 import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/fileActions";
@@ -2198,8 +2199,18 @@ export const Editor: React.FC<{
         .map((r) => view.state.sliceDoc(r.from, r.to))
         .join("\n") || null;
     });
-    return () => setEditorSelectionReader(null);
-  }, [ownsGlobalStats, isActivePane]);
+    // The AI's selection door needs the place too (plan KI-Harness P1.5).
+    setEditorRangeReader(() => {
+      const view = sessionRef.current?.view;
+      if (!view || !activePath) return null;
+      const { from, to } = view.state.selection.main;
+      return { path: activePath, from, to, text: view.state.sliceDoc(from, to), doc: view.state.doc.toString() };
+    });
+    return () => {
+      setEditorSelectionReader(null);
+      setEditorRangeReader(null);
+    };
+  }, [ownsGlobalStats, isActivePane, activePath]);
 
   // One CodeMirror session per open file: created when the pane shows an
   // editor (live/source) with loaded content, destroyed on file switch / read
@@ -3408,7 +3419,7 @@ export const Editor: React.FC<{
       )}
 
       {viewMode !== 'read' && selToolbar && (
-        <SelectionToolbar {...selToolbar} onAction={applyFormat} />
+        <SelectionToolbar {...selToolbar} onAction={applyFormat} extra={<AiSelectionButton />} />
       )}
 
       {blockMenu && (

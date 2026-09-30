@@ -67,7 +67,7 @@
       "offBody": "Włącz ją w ustawieniach. Nic nie zostanie nigdzie wysłane, dopóki o coś nie zapytasz.",
       "offAction": "Otwórz ustawienia",
       "startTitle": "Zapytaj o coś",
-      "startBody": "O otwartą notatkę albo o cokolwiek w swoim vaulcie. Asystent czyta, niczego nie zmienia.",
+      "startBody": "O otwartą notatkę albo o cokolwiek w swoim vaulcie. Asystent sam niczego nie zmienia — dla zaznaczonego fragmentu proponuje zmiany jako propozycje.",
       "mainWindowOnly": "AI działa w głównym oknie.",
       "noVault": "Otwórz vault, aby pytać o swoje notatki."
     },
@@ -205,6 +205,7 @@
     "openLink": "Otwórz",
     "openFullScreen": "Pełny ekran",
     "noCitation": "Ta odpowiedź nie cytuje żadnej z wysłanych notatek. Sprawdź ją z nimi.",
+    "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "Wysłać do {{provider}}?",
       "sentTitle": "Wysłano do {{provider}}",
@@ -223,6 +224,7 @@
       "evidenceWhole": "cała notatka",
       "evidenceSection": "sekcja „{{section}}”",
       "evidenceStart": "początek",
+      "evidenceSelection": "zaznaczony fragment",
       "card": "tytuł i fragment wyszukiwania",
       "handle": "tylko nazwa",
       "unchanged": "już wysłane, bez zmian",
@@ -295,6 +297,50 @@
       "never_few": "Nigdy do chmury: {{count}} notatki",
       "never_many": "Nigdy do chmury: {{count}} notatek",
       "never_other": "Nigdy do chmury: {{count}} notatki"
+    },
+    "selection": {
+      "menu": "AI",
+      "with": "Z zaznaczeniem",
+      "asSuggestion": "Jako propozycja",
+      "inConversation": "W asystencie",
+      "translateTo": "Przetłumacz na",
+      "proposed_one": "AI proponuje {{count}} zmianę — zaakceptuj ją lub odrzuć w sekcji „Propozycje”.",
+      "proposed_few": "AI proponuje {{count}} zmiany — zaakceptuj je lub odrzuć w sekcji „Propozycje”.",
+      "proposed_many": "AI proponuje {{count}} zmian — zaakceptuj je lub odrzuć w sekcji „Propozycje”.",
+      "proposed_other": "AI proponuje {{count}} zmiany — zaakceptuj je lub odrzuć w sekcji „Propozycje”.",
+      "unchanged": "AI nie znalazła nic do zmiany.",
+      "action": {
+        "rewrite": "Przepisz",
+        "shorten": "Skróć",
+        "translate": "Przetłumacz…",
+        "tasks": "Zrób z tego zadania",
+        "explain": "Wyjaśnij",
+        "ask": "Pytanie o zaznaczenie…"
+      },
+      "title": {
+        "rewrite": "Przepisanie w {{note}}",
+        "shorten": "Skrócenie w {{note}}",
+        "translate": "Tłumaczenie w {{note}}",
+        "tasks": "Zadania z {{note}}"
+      },
+      "roundNote": {
+        "rewrite": "Zaznaczenie, przepisane.",
+        "shorten": "Zaznaczenie, skrócone.",
+        "translate": "Zaznaczenie, przetłumaczone.",
+        "tasks": "Zadania z zaznaczenia."
+      },
+      "refused": {
+        "off": "AI jest wyłączona.",
+        "no-model": "Najpierw wybierz model.",
+        "busy": "AI jeszcze odpowiada — poczekaj lub ją zatrzymaj.",
+        "empty": "Najpierw zaznacz tekst.",
+        "too-long": "Zaznaczenie jest na to za długie — zaznacz mniej albo zapytaj w rozmowie.",
+        "denied": "Twoje reguły trzymają tę notatkę z dala od tego modelu.",
+        "withheld": "Zaznaczenie zawiera linki do zablokowanych notatek lub dane o miejscach — nie zostało wysłane.",
+        "encrypted": "Jeszcze nie w zaszyfrowanym obszarze roboczym: propozycje w nim nie mogą wskazać AI jako autora.",
+        "changed": "Fragment zmienił się, gdy AI pisała — niczego nie zaproponowano.",
+        "failed": "AI nie mogła przygotować propozycji."
+      }
     },
     "mcp": {
       "title": "Aplikacje AI na tym komputerze",

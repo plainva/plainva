@@ -65,7 +65,7 @@
       "offBody": "Actívala en la configuración. No se envía nada a ningún sitio hasta que preguntes algo.",
       "offAction": "Abrir configuración",
       "startTitle": "Pregunta algo",
-      "startBody": "Sobre la nota abierta, o sobre cualquier cosa de tu vault. El asistente lee, no cambia nada.",
+      "startBody": "Sobre la nota abierta, o sobre cualquier cosa de tu vault. El asistente no cambia nada por sí mismo: para un fragmento que selecciones, propone cambios como sugerencias.",
       "mainWindowOnly": "La IA se ejecuta en la ventana principal.",
       "noVault": "Abre un vault para preguntar sobre tus notas."
     },
@@ -201,6 +201,7 @@
     "openLink": "Abrir",
     "openFullScreen": "Pantalla completa",
     "noCitation": "Esta respuesta no cita ninguna de las notas enviadas. Compruébala con ellas.",
+    "suggestionAuthor": "Plainva IA · {{model}}",
     "overview": {
       "title": "¿Enviar a {{provider}}?",
       "sentTitle": "Enviado a {{provider}}",
@@ -219,6 +220,7 @@
       "evidenceWhole": "la nota completa",
       "evidenceSection": "la sección «{{section}}»",
       "evidenceStart": "el comienzo",
+      "evidenceSelection": "el fragmento seleccionado",
       "card": "título y un extracto de la búsqueda",
       "handle": "solo el nombre",
       "unchanged": "ya enviado, sin cambios",
@@ -286,6 +288,49 @@
       "never_one": "Nunca a la nube: {{count}} nota",
       "never_many": "Nunca a la nube: {{count}} notas",
       "never_other": "Nunca a la nube: {{count}} notas"
+    },
+    "selection": {
+      "menu": "IA",
+      "with": "Con la selección",
+      "asSuggestion": "Como sugerencia",
+      "inConversation": "En el compañero",
+      "translateTo": "Traducir a",
+      "proposed_one": "La IA sugiere {{count}} cambio: acéptalo o recházalo en «Sugerencias».",
+      "proposed_many": "La IA sugiere {{count}} cambios: acéptalos o recházalos en «Sugerencias».",
+      "proposed_other": "La IA sugiere {{count}} cambios: acéptalos o recházalos en «Sugerencias».",
+      "unchanged": "La IA no encontró nada que cambiar.",
+      "action": {
+        "rewrite": "Reescribir",
+        "shorten": "Acortar",
+        "translate": "Traducir…",
+        "tasks": "Convertir en tareas",
+        "explain": "Explicar",
+        "ask": "Preguntar sobre la selección…"
+      },
+      "title": {
+        "rewrite": "Reescribir en {{note}}",
+        "shorten": "Acortar en {{note}}",
+        "translate": "Traducción en {{note}}",
+        "tasks": "Tareas de {{note}}"
+      },
+      "roundNote": {
+        "rewrite": "La selección, reescrita.",
+        "shorten": "La selección, acortada.",
+        "translate": "La selección, traducida.",
+        "tasks": "Tareas a partir de la selección."
+      },
+      "refused": {
+        "off": "La IA está desactivada.",
+        "no-model": "Elige primero un modelo.",
+        "busy": "La IA todavía está respondiendo: espera o detenla.",
+        "empty": "Selecciona primero algo de texto.",
+        "too-long": "La selección es demasiado larga para esto: selecciona menos o pregunta en la conversación.",
+        "denied": "Tus reglas mantienen esta nota lejos de este modelo.",
+        "withheld": "La selección contiene enlaces a notas bloqueadas o datos de lugar: no se ha enviado.",
+        "encrypted": "Aún no en un espacio cifrado: sus sugerencias no pueden indicar a la IA como autora.",
+        "changed": "El fragmento cambió mientras la IA escribía: no se sugirió nada.",
+        "failed": "La IA no pudo hacer una sugerencia."
+      }
     },
     "mcp": {
       "title": "Apps de IA en este ordenador",
