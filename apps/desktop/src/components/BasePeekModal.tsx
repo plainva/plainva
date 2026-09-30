@@ -53,7 +53,7 @@ export function BasePeekModal({
   onDelete?: (path: string) => void;
 }) {
   const { t } = useTranslation();
-  const { vaultPath } = useVault();
+  const { vaultPath, vaultAdapter } = useVault();
 
   // Own back/forward history, seeded from the initial `path`. A note link
   // clicked inside the peek pushes. The host also changes the `path` prop when a
@@ -90,7 +90,7 @@ export function BasePeekModal({
   // load error).
   const navigate = (p: string) => {
     if (opensExternally(p)) {
-      if (vaultPath) void openAttachmentExternally(vaultPath, p, t);
+      if (vaultPath) void openAttachmentExternally(vaultPath, p, t, vaultAdapter);
       return;
     }
     setHistory((h) => peekPush(h, p));

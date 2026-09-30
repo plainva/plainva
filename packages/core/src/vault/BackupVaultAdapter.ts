@@ -403,6 +403,11 @@ export class BackupVaultAdapter implements IVaultAdapter {
     return this.inner.exists(path);
   }
 
+  /** The spelling the path is stored under on disk (path identity, ADR 0016). */
+  async realPath(path: string): Promise<string> {
+    return this.inner.realPath ? this.inner.realPath(path) : path;
+  }
+
   async getFileInfo(path: string): Promise<VaultFileInfo> {
     return this.inner.getFileInfo(path);
   }
