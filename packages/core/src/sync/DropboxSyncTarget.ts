@@ -278,6 +278,19 @@ export class DropboxSyncTarget implements ISyncTarget {
     }
   }
 
+  /**
+   * Creates the folder at a VAULT-RELATIVE `path` inside the vault's root
+   * folder — the sync's own coordinate system (issue #112). Dropbox creates
+   * missing parents itself; a 409 (path/conflict = already exists) is success.
+   */
+  public async createVaultFolder(path: string): Promise<void> {
+    const rel = trimEndChars(path.replace(/\\/g, "/").replace(/^\/+/, ""), "/");
+    const res = await this.rpc("files/create_folder_v2", { path: this.dropboxPath(rel), autorename: false });
+    if (!res.ok && res.status !== 409) {
+      throw syncHttpError(`Dropbox folder create failed: ${res.status} ${res.statusText}`, res);
+    }
+  }
+
   /** Content endpoint (content.dropboxapi.com): args in the Dropbox-API-Arg header. */
   private async contentCall(
     path: string,

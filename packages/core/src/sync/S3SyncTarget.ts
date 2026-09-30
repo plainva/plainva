@@ -300,13 +300,25 @@ export class S3SyncTarget implements ISyncTarget {
     if (!res.ok) throw syncHttpError(`S3 folder create failed: ${res.status} ${res.statusText}`, res);
   }
 
+  /**
+   * "Creates" the folder at a VAULT-RELATIVE `path` under the configured
+   * prefix — the sync's own coordinate system (issue #112). The same zero-byte
+   * marker as `createFolder`, which `pull()` reports as an empty folder.
+   */
+  public async createVaultFolder(path: string): Promise<void> {
+    const clean = trimChars(path.replace(/\\/g, "/"), "/");
+    if (!clean) return; // the vault root is the prefix itself
+    const res = await this.signedFetch("PUT", encodeS3Key(`${this.keyFor(clean)}/`), { body: new Uint8Array() });
+    if (!res.ok) throw syncHttpError(`S3 folder create failed: ${res.status} ${res.statusText}`, res);
+  }
+
   // S3 has no incremental change token in the worker's model: always a full listing
   // (the optional `cursor` from the ISyncTarget contract is ignored, like WebDAV).
   public async pull(_cursor?: string): Promise<PullResult> {
     const rawPrefix = this.prefix ? `${this.prefix}/` : "";
     const etagMap = new Map<string, string>();
     // Empty-folder sync (2026-07-17): the zero-byte "key/" marker objects our
-    // createFolder writes ARE the empty folders — report them so the worker
+    // createFolder/createVaultFolder write ARE the empty folders — report them so the worker
     // can create them locally. S3 has no real directories, so folders without
     // a marker only materialize through their files (unchanged).
     const folders: string[] = [];

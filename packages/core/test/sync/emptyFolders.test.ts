@@ -6,7 +6,7 @@ import { QueueingVaultAdapter } from "../../src/vault/QueueingVaultAdapter.ts";
 import type { ISyncTarget, SyncOperation } from "../../src/sync/ISyncTarget.ts";
 
 // Empty-folder sync (maintainer request 2026-07-17): folders created in the
-// app reach the cloud right away (mkdir queue op -> ISyncTarget.createFolder),
+// app reach the cloud right away (mkdir queue op -> ISyncTarget.createVaultFolder),
 // and empty remote folders appear locally (PullResult.folders -> worker
 // createDir). Purely additive — folder deletions are never derived from the
 // folders list.
@@ -60,25 +60,30 @@ describe("QueueingVaultAdapter.createDir", () => {
 describe("SyncEngine mkdir push", () => {
   const mkdirOp: SyncOperation = { id: 1, file_path: "Neu/Leer", operation: "mkdir", retry_count: 0, next_retry_at: 0, queued_at: 0 };
 
-  it("creates the folder remotely via createFolder and completes the op", async () => {
+  it("creates the folder remotely via createVaultFolder and completes the op", async () => {
     const db = new MockDatabaseAdapter();
     const queue = new SyncQueue(db);
     const created: string[] = [];
+    const pickerCreated: string[] = [];
     const target: ISyncTarget = {
       push: async () => { throw new Error("push must not run for mkdir"); },
       pull: async () => ({ etagMap: new Map() }),
       download: async () => new Uint8Array(),
-      createFolder: async (p: string) => { created.push(p); },
+      createVaultFolder: async (p: string) => { created.push(p); },
+      // The picker's call counts from the account root (issue #112): the
+      // sync must never reach for it.
+      createFolder: async (p: string) => { pickerCreated.push(p); },
     };
     const engine = new SyncEngine(queue, target, { readBinaryFile: async () => new Uint8Array() } as any);
     db.mockedResults.push([mkdirOp]);
     db.mockedResults.push([]); // markSynced
     await engine.processQueue();
     expect(created).toEqual(["Neu/Leer"]);
+    expect(pickerCreated).toEqual([]);
     expect(db.queries.find((q) => q.query.includes("DELETE FROM offline_queue") || q.query.includes("UPDATE offline_queue"))).toBeDefined();
   });
 
-  it("a provider without createFolder completes the op as a no-op", async () => {
+  it("a provider without createVaultFolder completes the op as a no-op", async () => {
     const db = new MockDatabaseAdapter();
     const queue = new SyncQueue(db);
     const target: ISyncTarget = {
@@ -92,14 +97,14 @@ describe("SyncEngine mkdir push", () => {
     await expect(engine.processQueue()).resolves.toBeUndefined();
   });
 
-  it("a failing remote createFolder goes through the normal retry path", async () => {
+  it("a failing remote createVaultFolder goes through the normal retry path", async () => {
     const db = new MockDatabaseAdapter();
     const queue = new SyncQueue(db);
     const target: ISyncTarget = {
       push: async () => ({}),
       pull: async () => ({ etagMap: new Map() }),
       download: async () => new Uint8Array(),
-      createFolder: async () => { throw new Error("503"); },
+      createVaultFolder: async () => { throw new Error("503"); },
     };
     const engine = new SyncEngine(queue, target, { readBinaryFile: async () => new Uint8Array() } as any);
     db.mockedResults.push([mkdirOp]);

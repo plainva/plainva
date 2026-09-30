@@ -301,6 +301,16 @@ export class WebDavSyncTarget implements ISyncTarget {
   }
 
   /**
+   * Creates the folder chain for a VAULT-RELATIVE `path` (issue #112). On
+   * WebDAV the configured URL IS the vault folder, so both coordinate systems
+   * coincide and this is `createFolder`; it exists so the engine never has to
+   * know which provider it talks to.
+   */
+  public async createVaultFolder(path: string): Promise<void> {
+    await this.createFolder(path);
+  }
+
+  /**
    * False once the vault has synced files before: a folder that is gone is then
    * an error with a way out, never an empty remote (finding 2026-09-20).
    */

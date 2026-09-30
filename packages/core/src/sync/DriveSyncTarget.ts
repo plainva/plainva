@@ -437,6 +437,16 @@ export class DriveSyncTarget implements ISyncTarget {
     }
   }
 
+  /**
+   * Creates (or finds) the folder chain for a VAULT-RELATIVE `path` below the
+   * vault's root folder — the sync's own coordinate system (issue #112).
+   * Goes through the same resolver and id cache as every write, so a folder
+   * that already exists is found, not duplicated.
+   */
+  public async createVaultFolder(path: string): Promise<void> {
+    await this.resolveFolderId(path);
+  }
+
   /** Folder lookup by name under a parent — null when it does not exist. */
   private async findFolder(name: string, parentId: string): Promise<string | null> {
     const q = `name=${driveQueryString(name)} and ${driveQueryString(parentId)} in parents and mimeType='${FOLDER_MIME}' and trashed=false`;

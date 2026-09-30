@@ -114,11 +114,14 @@ export class SyncEngine {
       let pushedSha: string | null = null;
       try {
         // Empty-folder sync (2026-07-17): a queued mkdir creates the folder
-        // remotely via the optional createFolder every provider implements
+        // remotely via the optional createVaultFolder every provider implements
         // ("already exists" counts as success there). A provider without it
         // completes the op as a no-op — folders then materialize with their
         // first file, the old behavior. No sync_state is involved: folder
         // existence is not tracked, only files are.
+        // Vault-relative, never `createFolder`: that one is the pickers' call
+        // and counts from the ACCOUNT root, which made every folder created in
+        // Plainva appear a second time, empty, at the top of the cloud (#112).
         // Operating-system bookkeeping never travels (issue #110, E10). A
         // queued upload, folder or remote delete of `.DS_Store` & co. — left
         // over from before the rule, or written by an import — is dropped here.
@@ -129,7 +132,7 @@ export class SyncEngine {
           continue;
         }
         if (op.operation === "mkdir") {
-          if (this.target.createFolder) await this.target.createFolder(op.file_path);
+          if (this.target.createVaultFolder) await this.target.createVaultFolder(op.file_path);
           await this.queue.markSynced(op.id, op.file_path, op.file_path);
           consecutiveFailures = 0;
           continue;
@@ -244,12 +247,12 @@ export class SyncEngine {
             continue;
           }
           if (directory) {
-            if (!this.target.createFolder) throw new Error("Sync target cannot recover a missing rename source folder");
+            if (!this.target.createVaultFolder) throw new Error("Sync target cannot recover a missing rename source folder");
             // A partial walk must not masquerade as a complete recovery.
             const report = this.vault.listDirReport ? await this.vault.listDirReport(op.new_path, true) : null;
             if (report?.skipped.length) throw new Error("Cannot recover renamed folder: local entries could not be read");
             const entries = report?.files ?? await this.vault.listDir(op.new_path, true);
-            await this.target.createFolder(op.new_path);
+            await this.target.createVaultFolder(op.new_path);
             for (const entry of entries) {
               if (entry.path.startsWith(".plainva") || entry.path.includes(".CONFLICT")) continue;
               if (entry.isDirectory) await this.queue.queueMkdir(entry.path);

@@ -49,7 +49,7 @@ describe("durable rename replay with real SQLite and vault files", () => {
           }
         }
       },
-      async createFolder(path) { remote.set(path, "<directory>"); },
+      async createVaultFolder(path) { remote.set(path, "<directory>"); },
       async pull() { return { etagMap: new Map() }; },
       async download(path) { return new TextEncoder().encode(remote.get(path)); },
     };
