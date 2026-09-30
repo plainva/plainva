@@ -4,6 +4,7 @@ import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision
 import { fenceUntrusted, payload } from "../trust.js";
 import { chunkNote } from "../embeddings/chunks.js";
 import { mergeCandidates, rankCandidates, urgencySignal, type Candidate, type CandidateSignal, type RankedCandidate } from "./ranking.js";
+import { cardText, contextCard } from "./cards.js";
 import { firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
 import { withholdPlaces, withoutSensitiveProperties } from "./sensitive.js";
 import { questionTerms } from "./terms.js";
@@ -19,7 +20,9 @@ import { questionTerms } from "./terms.js";
  * - tier 3 evidence: a few sections of the best candidates, never a whole
  *   note unless the user pinned it (the open note gets a strong bonus, but is
  *   not sent in full automatically, §7);
- * - tier 1 cards: title, path and why, with the search excerpt;
+ * - tier 1 cards: title, path, section and why, with the section's context
+ *   card — its first sentence and every sentence that carries a number, a
+ *   date, a task, a negation or a link, verbatim (P2b-2, `cards.ts`);
  * - tier 2 work map: handles of further candidates, for `read_note`.
  *
  * Everything the vault wrote is fenced as data. A note the policy keeps from
@@ -172,6 +175,21 @@ function propertyLine(key: string, value: unknown): string {
   return `${key}: ${text.length > 200 ? `${text.slice(0, 200)}…` : text}`;
 }
 
+/** The section a card is cut from: where the question's words are, else where its meaning was, else the note's start. */
+function cardSource(text: string, title: string, candidate: RankedCandidate, terms: readonly string[]): { chain: string; text: string } {
+  const body = noteBody(text);
+  const line = firstLineWith(body, terms);
+  if (line >= 0) return sectionAt(body, line);
+  if (candidate.chunk) {
+    const chunk = chunkNote(title, text).find((c) => c.ordinal === candidate.chunk!.ordinal);
+    if (chunk && chunk.to > chunk.from) return { chain: chunk.chain, text: text.slice(chunk.from, chunk.to) };
+  }
+  const first = sectionAt(body, 0);
+  if (first.text.trim()) return first;
+  const heading = outlineOf(body)[0];
+  return heading ? sectionAt(body, heading.line) : first;
+}
+
 export async function buildContextPackage(input: ContextBuildInput, host: ContextBuildHost): Promise<ContextPackage> {
   const budget: ContextBudget = { ...DEFAULT_CONTEXT_BUDGET, ...input.budget };
   const run = { recipient: input.recipient, webTools: false };
@@ -318,15 +336,37 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   // Not what the text check denied, and not what the index still lists but the vault no longer has.
   const rest = ranked.filter((c) => !inEvidence.has(c.path) && !missing.has(c.path) && decisions.get(c.path)?.allowed !== false);
   const cards: string[] = [];
-  const carded = rest.filter((c) => !duplicates.has(c.path)).slice(0, budget.cards);
-  for (const candidate of carded) {
+  const carded = new Set<string>();
+  /** Card texts already chosen: two copies of a note make one card. */
+  const cardTexts = new Set<string>();
+  for (const candidate of rest) {
+    if (cards.length >= budget.cards) break;
+    if (duplicates.has(candidate.path)) continue;
+    const read = await host.readNote(candidate.path);
+    if (!read) {
+      missing.add(candidate.path);
+      continue;
+    }
+    // The gate on the text that would go, as for evidence (the editor may hold an unsaved rule).
+    if (!(await allowedText(candidate.path, read.text))) continue;
+    const title = read.title || candidate.title;
+    const found = cardSource(read.text, title, candidate, terms);
+    // Cleaned line by line before it is cut: a place stamp is a line of its own, and a card joins its lines.
+    const text = cardText(contextCard(await clean(found.text, candidate.path), found.chain)).replace(/\s+/g, " ").trim();
+    const same = contextStamp(text);
+    if (text && cardTexts.has(same)) {
+      duplicates.add(candidate.path);
+      continue;
+    }
+    cardTexts.add(same);
     const why = candidate.reasons.slice(0, 2).map((r) => REASON_WORDS[r]).join(", ");
-    const snippet = candidate.snippet ? (await clean(candidate.snippet, candidate.path)).replace(/\s+/g, " ").trim() : "";
-    cards.push(`- [[${candidate.title}]] (${candidate.path}) — ${why}${snippet ? `: ${snippet}` : ""}`);
-    refs.push({ path: candidate.path, title: candidate.title, tier: "card", reasons: candidate.reasons, score: candidate.score, chars: snippet.length });
+    cards.push(`- [[${title}]] (${candidate.path})${found.chain ? ` › ${found.chain}` : ""} — ${why}${text ? `: ${text}` : ""}`);
+    refs.push({ path: candidate.path, title, tier: "card", reasons: candidate.reasons, score: candidate.score, chars: text.length, section: found.chain });
+    carded.add(candidate.path);
   }
   const map: string[] = [];
-  for (const candidate of rest.filter((c) => !carded.includes(c)).slice(0, budget.map)) {
+  const mapped = rest.filter((c) => !carded.has(c.path) && !missing.has(c.path) && decisions.get(c.path)?.allowed !== false);
+  for (const candidate of mapped.slice(0, budget.map)) {
     map.push(`- [[${candidate.title}]] (${candidate.path})`);
     refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: 0 });
   }
@@ -376,7 +416,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
 
   const parts = [HEADER, fenceUntrusted(payload(lines.join("\n\n"), { kind: "app" }))];
   if (blocks.length) parts.push(`Notes:\n\n${blocks.join("\n\n")}`);
-  if (cards.length) parts.push(fenceUntrusted(payload(`Also relevant:\n${cards.join("\n")}`, { kind: "app" })));
+  if (cards.length) {
+    parts.push(fenceUntrusted(payload(`Also relevant — each with its first sentence and every sentence carrying numbers, dates, tasks, negations or links, verbatim:\n${cards.join("\n")}`, { kind: "app" })));
+  }
   if (map.length) parts.push(fenceUntrusted(payload(`Further notes that may matter:\n${map.join("\n")}`, { kind: "app" })));
   const text = parts.join("\n\n");
   return {
