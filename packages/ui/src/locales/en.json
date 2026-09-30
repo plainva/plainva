@@ -136,7 +136,8 @@
       "title": "AI & automation",
       "sending": "Sending",
       "confirmEvery": "Ask before every request",
-      "confirmEveryDesc": "Shows what goes out before every message, not only the first time and when it grows. Nothing is asked for a model on this device."
+      "confirmEveryDesc": "Shows what goes out before every message, not only the first time and when it grows. Nothing is asked for a model on this device.",
+      "audioHint": "Transcribes voice notes. It needs a provider with an audio route — OpenAI, Gemini or a compatible server."
     },
     "add": {
       "title": "Add provider",
@@ -171,7 +172,8 @@
       "fast": "Fast",
       "balanced": "Balanced",
       "strong": "Strong",
-      "local": "Local"
+      "local": "Local",
+      "audio": "Audio"
     },
     "policy": {
       "title": "Privacy rules (plainva.ai)",
@@ -226,7 +228,8 @@
         "selection": "your selection",
         "tasks": "tasks due",
         "calendar": "appointments",
-        "notes": "notes"
+        "notes": "notes",
+        "audio": "a recording"
       },
       "keptBack": "Kept back",
       "keptNotes_one": "{{count}} note your rules block",
@@ -243,7 +246,8 @@
       "estimateCost": "~{{tokens}} tokens, about {{cost}}",
       "send": "Send",
       "everyRequest": "Ask before every request",
-      "leaveOut": "Leave out {{note}}"
+      "leaveOut": "Leave out {{note}}",
+      "evidenceAudio": "the recording ({{size}})"
     },
     "lens": {
       "open": "View context",
@@ -377,6 +381,25 @@
       "pairAllow": "Allow",
       "pairDeny": "Deny",
       "pairNone": "Choose at least one folder to allow."
+    },
+    "transcribe": {
+      "action": "Transcribe",
+      "running": "Transcribing…",
+      "proposed": "The transcript waits under “Suggestions” — accept or decline it.",
+      "roundNote": "Transcript of {{name}}, verbatim.",
+      "title": "Transcript of {{name}}",
+      "refused": {
+        "off": "The AI is off.",
+        "no-model": "Choose a model for the profile “Audio” first — in the AI settings.",
+        "no-route": "{{provider}} cannot transcribe. Give the profile “Audio” a provider with an audio route, such as OpenAI or Gemini.",
+        "too-large": "The recording is too large to transcribe ({{size}}; at most {{max}}).",
+        "denied": "Your rules keep this note from this model.",
+        "encrypted": "Not yet in an encrypted workspace: its suggestions cannot name the AI as their author yet.",
+        "missing": "The recording could not be read.",
+        "changed": "The note changed while the transcript was made — nothing was suggested.",
+        "empty": "The provider returned no transcript.",
+        "failed": "The transcript could not be made: {{reason}}"
+      }
     }
   },
   "settingsSync": {

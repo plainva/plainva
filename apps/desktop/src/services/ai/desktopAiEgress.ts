@@ -11,7 +11,7 @@ const TERMINAL: ReadonlySet<EgressChunk["type"]> = new Set(["done", "cancelled",
 
 function wire(requestId: string, spec: HttpRequestSpec) {
   // `auth` stays behind: the egress decides where the key goes, not the web view.
-  return { requestId, endpointId: spec.endpointId, url: spec.url, method: spec.method, headers: spec.headers, body: spec.body ?? null };
+  return { requestId, endpointId: spec.endpointId, url: spec.url, method: spec.method, headers: spec.headers, body: spec.body ?? null, rawBody: spec.rawBody ?? null };
 }
 
 export function createDesktopAiEgress(confirmText: () => EndpointConfirmText): AiEgress {

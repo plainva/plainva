@@ -30,6 +30,8 @@ Se non hai ancora una chiave: un modello su questo computer (Ollama, LM Studio) 
 
 Quattro profili — **Veloce**, **Bilanciato**, **Potente** e **Locale** — sono la tua assegnazione di modelli. Scegli un provider e un modello per ciascuno, dalla lista del provider oppure digitando l'ID del modello esattamente come lo chiama il provider. **Predefinito per le nuove conversazioni** stabilisce con quale profilo inizia una nuova conversazione. Plainva non definisce nessun modello «il migliore».
 
+Un quinto posto, **Audio**, contiene il modello che trascrive le note vocali; non è mai quello predefinito per una conversazione.
+
 ## Chiedere
 
 - **Desktop:** il pulsante IA nella barra delle azioni, **Ctrl+J** (⌘J su macOS) oppure **Chiedi all'IA** nella palette dei comandi apre il compagno — una piccola finestra sopra il tuo lavoro. **Apri come scheda** sposta la stessa conversazione nella scheda IA, dove sono elencate le tue conversazioni.
@@ -85,6 +87,12 @@ Un passaggio di una nota che le tue regole tengono lontana dal cloud — o uno c
 
 Tre competenze avviano domande frequenti con un clic: **Orientamento del giorno** (cosa conta oggi: attività in scadenza, appuntamenti e ciò su cui hai lavorato di recente), **Riepilogo settimanale** (gli ultimi sette giorni e la settimana che arriva) e **Stato del progetto** (obiettivo, avanzamento, punti aperti e prossimo passo del progetto della nota aperta). Le trovi come chip in una conversazione vuota, sotto **Competenze** nella scheda IA — sul telefono in **Conversazioni** — e nella palette dei comandi. Una competenza invia la sua domanda come tuo messaggio: nella tua lingua, visibile nella conversazione come tutto ciò che scrivi, e attraverso lo stesso riepilogo. Poi l'assistente cerca con i suoi strumenti abituali.
 
+## Trascrivere una nota vocale
+
+Su ogni nota vocale — nell'editor, in modalità lettura, nel diario e sulle schede — **Trascrivi** trasforma la registrazione in testo. Va così com'è al modello del profilo **Audio**, attraverso lo stesso riepilogo di una domanda; una registrazione è un tipo di dati a sé, perciò il riepilogo chiede la prima volta. La trascrizione torna come proposta sotto la registrazione, con l'autore **Plainva IA · ⟨modello⟩**: accettala o rifiutala in **Proposte**.
+
+**Audio** richiede un provider con una via audio: OpenAI (per esempio `gpt-4o-transcribe` o `whisper-1`), Gemini o un tuo server compatibile — uno su questo computer tiene la registrazione sul dispositivo. Si possono trascrivere registrazioni fino a 11 MB. Una registrazione in una nota che le tue regole tengono lontana dal cloud non va a nessun modello cloud, e i workspace cifrati non lo offrono ancora.
+
 ## Regole sulla privacy
 
 Alcune note non devono mai raggiungere un provider cloud. Una regola può trovarsi nel frontmatter di una nota:
@@ -105,4 +113,4 @@ Le conversazioni restano su questo dispositivo, per vault — mai nel vault e ma
 
 - Sul desktop l'IA funziona solo nella finestra principale.
 - Sul telefono una risposta arriva solo mentre l'app è aperta.
-- L'assistente non cambia nulla da solo: propone modifiche solo per un passaggio selezionato, come proposte che accetti o rifiuti.
+- L'assistente non cambia nulla da solo: propone modifiche a un passaggio selezionato e trascrizioni di note vocali, come proposte che accetti o rifiuti.

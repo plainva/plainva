@@ -29,6 +29,12 @@ import {
   payload,
   withholdDeniedLinks,
   withholdPlaces,
+  TRANSCRIPTION_MAX_BYTES,
+  transcriptBlock,
+  transcriptionRequest,
+  transcriptionRoute,
+  transcriptionUsage,
+  transcriptOf,
   expiredConversations,
   fetchProviderJson,
   initialModelChoice,
@@ -51,6 +57,7 @@ import {
   type ContextPackage,
   type ContextPolicyHost,
   type ConversationRecord,
+  type ConversationUsage,
   type ConversationRepository,
   type ConversationSummary,
   type EgressManifest,
@@ -139,6 +146,26 @@ export type SelectionOutcome =
       message?: string;
     };
 
+/** A voice note to transcribe (plan P1.5, E28): the note it stands in, its target as written there, the file. */
+export interface TranscriptionRequest {
+  notePath: string;
+  /** The embed's target as the note has it: the transcript goes under the line that holds it. */
+  target: string;
+  audio: { path: string; name: string; mime: string; bytes: Uint8Array };
+}
+
+export type TranscriptionOutcome =
+  | { kind: "proposed"; model: string }
+  | {
+      kind: "refused";
+      reason: "off" | "no-model" | "no-route" | "too-large" | "busy" | "missing" | "denied" | "encrypted" | "cancelled" | "changed" | "empty" | "failed";
+      provider?: string;
+      model?: string;
+      size?: number;
+      failure?: ModelFailure;
+      message?: string;
+    };
+
 /** What the next message would carry, built like a send and sent nowhere (plan §13.3, "View context"). */
 export interface ContextPreview {
   manifest: EgressManifest;
@@ -217,6 +244,8 @@ export class AiSession {
   private abort: AbortController | null = null;
   /** Set synchronously on send: two quick presses never start two runs. */
   private sending = false;
+  /** Recordings being transcribed now: one run per file. */
+  private transcribing = new Set<string>();
   /** What the user approved in this app session (E25); a server on this computer needs none. */
   private scope: ApprovedScope | null = null;
   private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
@@ -575,6 +604,114 @@ export class AiSession {
       return { kind: "refused", reason: "failed", message: error instanceof Error ? error.message : String(error) };
     } finally {
       this.sending = false;
+    }
+  }
+
+  /**
+   * Transcribes a voice note (plan P1.5, §10.7, E28): the recording goes, in
+   * its own format, to the model of the profile "Audio" — through the gate
+   * (the note's rules and the recording's own) and the send overview with the
+   * data class "audio" — and the transcript comes back as a suggestion round
+   * under the recording, authored "Plainva AI · model". Nothing enters the
+   * note until someone accepts.
+   */
+  async transcribe(request: TranscriptionRequest): Promise<TranscriptionOutcome> {
+    type Refusal = Extract<TranscriptionOutcome, { kind: "refused" }>;
+    const refused = (reason: Refusal["reason"], extra: Omit<Refusal, "kind" | "reason"> = {}): TranscriptionOutcome => ({ kind: "refused", reason, ...extra });
+    const vault = this.vault;
+    if (!this.state.settings.enabled || !vault || !vault.propose) return refused("off");
+    if (vault.encrypted?.()) return refused("encrypted");
+    const choice = this.state.settings.profiles.audio ?? null;
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
+    if (!choice || !provider) return refused("no-model");
+    const route = transcriptionRoute(provider.endpoint);
+    if (!route) return refused("no-route", { provider: provider.label });
+    const { audio, notePath, target } = request;
+    if (audio.bytes.length > TRANSCRIPTION_MAX_BYTES) return refused("too-large", { size: audio.bytes.length });
+    if (this.transcribing.has(audio.path)) return refused("busy");
+    const recipient: EgressRecipient =
+      provider.kind === "local" ? { kind: "local", provider: provider.id, model: choice.model } : { kind: "cloud", provider: provider.id, model: choice.model };
+    const run = { recipient, webTools: false };
+    const note = await vault.readNote(notePath);
+    if (!note || !note.text.includes(target)) return refused("changed");
+    // The note's rules and the recording's own (its folder, the vault's rules) both decide.
+    if (!gateDecision(await vault.policy.policyOf(notePath, note.text), run).allowed) return refused("denied");
+    if (!gateDecision(await vault.policy.policyOf(audio.path), run).allowed) return refused("denied");
+
+    const folder = notePath.includes("/") ? notePath.slice(0, notePath.indexOf("/")) : "";
+    const manifest: EgressManifest = {
+      providerId: provider.id,
+      providerLabel: provider.label,
+      model: choice.model,
+      local: provider.kind === "local",
+      sources: [{ path: audio.path, title: audio.name, tier: "evidence", chars: 0, reasons: ["active"], audioBytes: audio.bytes.length }],
+      dataClasses: ["audio"],
+      folders: [folder],
+      withheld: { notes: 0, links: 0, places: 0, moodProperties: 0 },
+      excluded: [],
+      estimatedTokens: 0,
+      tools: [],
+      web: false,
+    };
+    const growth = scopeGrowth(manifest, this.scope);
+    if (growth.length > 0 || (this.state.settings.confirmEveryRequest && !manifest.local)) {
+      const answer = await this.askConsent(manifest, growth);
+      if (this.vault !== vault || answer !== "send") return refused("cancelled");
+    }
+    if (!manifest.local) this.scope = widenScope(this.scope, manifest);
+
+    this.transcribing.add(audio.path);
+    // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
+    const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+    try {
+      const spec = transcriptionRequest(provider.endpoint, route, choice.model, audio);
+      const answer = await fetchProviderJson(this.host.egress, spec, `ai-${this.host.newId()}`);
+      await this.recordTranscription(vault, choice, answer.ok ? transcriptionUsage(answer.json) : EMPTY_USAGE, answer.ok ? undefined : answer.failure.kind);
+      if (!answer.ok) return refused("failed", { failure: answer.failure, provider: provider.label, model: choice.model });
+      const transcript = transcriptOf(route, answer.json);
+      if (!transcript) return refused("empty");
+      // The note may have moved on meanwhile: the round is laid on it as it is now, under the one line with the recording.
+      const base = (await vault.readNote(notePath))?.text ?? "";
+      const at = base.indexOf(target);
+      if (at < 0 || base.indexOf(target, at + 1) >= 0) return refused("changed");
+      const lineEnd = base.indexOf("\n", at + target.length);
+      const end = lineEnd < 0 ? base.length : lineEnd;
+      await vault.propose({
+        path: notePath,
+        base,
+        chunks: [{ fromA: end, toA: end, replacement: transcriptBlock(transcript) }],
+        note: t("ai.transcribe.roundNote", { name: audio.name }),
+        author: { id: `plainva-ai/${choice.model}`, displayName: t("ai.suggestionAuthor", { model: choice.model }) },
+      });
+      return { kind: "proposed", model: choice.model };
+    } catch (error) {
+      return refused("failed", { message: error instanceof Error ? error.message : String(error), provider: provider.label, model: choice.model });
+    } finally {
+      this.transcribing.delete(audio.path);
+    }
+  }
+
+  /** A transcription in the run ledger: usage and cost count like any request's. */
+  private async recordTranscription(vault: AiVaultHost, choice: ModelChoice, usage: ConversationUsage, failure?: string): Promise<void> {
+    const costUsd = usageCostUsd(usage, this.priceOf(choice));
+    try {
+      const ledger = await vault.ledger.load();
+      await vault.ledger.save(
+        appendAiLedgerEntry(ledger, {
+          at: this.host.now().toISOString(),
+          conversationId: `transcript-${this.host.newId()}`,
+          providerId: choice.providerId,
+          model: choice.model,
+          stop: failure ? "failed" : "answered",
+          steps: 1,
+          tools: [],
+          usage,
+          ...(costUsd !== undefined ? { costUsd } : {}),
+          ...(failure ? { failure } : {}),
+        }),
+      );
+    } catch {
+      // The transcript still goes to the note when app data cannot be written.
     }
   }
 

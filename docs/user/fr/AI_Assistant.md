@@ -30,6 +30,8 @@ Si vous n'avez pas encore de clé : un modèle sur cet ordinateur (Ollama, LM St
 
 Quatre profils — **Rapide**, **Équilibré**, **Puissant** et **Local** — sont votre attribution de modèles. Choisissez un fournisseur et un modèle pour chacun, depuis la liste du fournisseur ou en saisissant l'identifiant du modèle exactement comme le fournisseur le nomme. **Par défaut pour les nouvelles conversations** décide avec quel profil commence une nouvelle conversation. Plainva ne désigne aucun modèle comme « le meilleur ».
 
+Un cinquième emplacement, **Audio**, contient le modèle qui transcrit les notes vocales ; il n'est jamais celui par défaut d'une conversation.
+
 ## Poser des questions
 
 - **Ordinateur :** le bouton IA dans la barre d'actions, **Ctrl+J** (⌘J sous macOS) ou **Demander à l'IA** dans la palette de commandes ouvre le compagnon — une petite fenêtre au-dessus de votre travail. **Ouvrir en onglet** déplace la même conversation dans l'onglet IA, où vos conversations sont listées.
@@ -85,6 +87,12 @@ Un passage d'une note que vos règles tiennent à l'écart du cloud — ou un pa
 
 Trois compétences lancent des questions courantes en un clic : **Orientation du jour** (ce qui compte aujourd'hui — tâches à échéance, rendez-vous et ce sur quoi vous avez travaillé récemment), **Bilan de la semaine** (les sept derniers jours et la semaine à venir) et **État du projet** (objectif, avancement, points ouverts et prochaine étape du projet de la note ouverte). Vous les trouvez sous forme de puces dans une conversation vide, sous **Compétences** dans l'onglet IA — sur le téléphone dans **Conversations** — et dans la palette de commandes. Une compétence envoie sa question comme votre message : dans votre langue, visible dans la conversation comme tout ce que vous tapez, et via le même aperçu. L'assistant cherche ensuite avec ses outils habituels.
 
+## Transcrire une note vocale
+
+Sur chaque note vocale — dans l'éditeur, en mode lecture, dans le journal et sur les cartes —, **Transcrire** transforme l'enregistrement en texte. Il part tel quel vers le modèle du profil **Audio**, via le même aperçu qu'une question ; un enregistrement est un type de données à part, l'aperçu demande donc la première fois. La transcription revient comme proposition sous l'enregistrement, avec l'auteur **Plainva IA · ⟨modèle⟩** — acceptez-la ou refusez-la sous **Propositions**.
+
+**Audio** nécessite un fournisseur avec une voie audio : OpenAI (par exemple `gpt-4o-transcribe` ou `whisper-1`), Gemini ou votre propre serveur compatible — un serveur sur cet ordinateur garde l'enregistrement sur l'appareil. Les enregistrements jusqu'à 11 Mo peuvent être transcrits. Un enregistrement dans une note que vos règles tiennent à l'écart du cloud ne part vers aucun modèle cloud, et les espaces chiffrés ne le proposent pas encore.
+
 ## Règles de confidentialité
 
 Certaines notes ne doivent jamais atteindre un fournisseur cloud. Une règle peut se trouver dans le frontmatter d'une note :
@@ -105,4 +113,4 @@ Les conversations restent sur cet appareil, par vault — jamais dans le vault e
 
 - Sur l'ordinateur, l'IA s'exécute uniquement dans la fenêtre principale.
 - Sur le téléphone, une réponse n'arrive que si l'application est ouverte.
-- L'assistant ne modifie rien lui-même : il propose des modifications uniquement pour un passage sélectionné, sous forme de propositions que vous acceptez ou refusez.
+- L'assistant ne modifie rien lui-même : il propose des modifications d'un passage sélectionné et des transcriptions de notes vocales, sous forme de propositions que vous acceptez ou refusez.

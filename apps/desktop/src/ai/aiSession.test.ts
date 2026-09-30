@@ -11,6 +11,7 @@ import {
   type LedgerEntry,
 } from "@plainva/core";
 import { AiSession, type AiVaultHost } from "@plainva/ui";
+import { TRANSCRIPTION_MAX_BYTES } from "@plainva/core";
 
 /** An Anthropic-shaped answer: text only. */
 function answer(text: string): EgressChunk[] {
@@ -56,6 +57,7 @@ const files: Record<string, string> = {
   "Salaries.md": "---\nplainva:\n  ai:\n    cloud: deny\n---\nsecret",
   "Plan.md": "# Plan",
   "Contract.md": "# Contract\n\nThe contract runs until the end of the year and renews itself.\n\nRates follow.\n",
+  "Journal/2026-09-24.md": "# Thursday\n\n- 08:12 ![[Voice 2026-09-24 0812.m4a]]\n- 09:30 Call back\n",
 };
 
 function vaultHost(active: string | null) {
@@ -474,5 +476,103 @@ describe("an AI action at a selection", () => {
     expect(await pending).toEqual({ kind: "refused", reason: "cancelled" });
     expect(fake.sent).toHaveLength(0);
     expect(rounds).toHaveLength(0);
+  });
+});
+
+/** Plan KI-Harness P1.5 (§10.7, E28): a voice note, transcribed as a suggestion under the recording. */
+describe("transcribing a voice note", () => {
+  const day = "Journal/2026-09-24.md";
+  const target = "Voice 2026-09-24 0812.m4a";
+  const recording = { path: `Attachments/${target}`, name: target, mime: "audio/mp4", bytes: new Uint8Array([1, 2, 3]) };
+  type Round = Parameters<NonNullable<AiVaultHost["propose"]>>[0];
+
+  /** A JSON answer that does not stream, as the transcription endpoint gives it. */
+  function json(body: unknown): EgressChunk[] {
+    return [{ type: "open", status: 200 }, { type: "data", text: JSON.stringify(body) }, { type: "done" }];
+  }
+
+  async function transcribing(script: EgressChunk[][], audio: { providerId: string; model: string } | null = { providerId: "openai", model: "gpt-4o-transcribe" }, options: { approve?: boolean } = {}) {
+    const made = session(script, options);
+    await made.s.load();
+    if (audio) await made.s.updateSettings((current) => ({ ...current, profiles: { ...current.profiles, audio } }));
+    const vault = vaultHost(day);
+    const rounds: Round[] = [];
+    vault.host.propose = async (round) => {
+      rounds.push(round);
+    };
+    await made.s.attachVault(vault.host);
+    return { ...made, vault, rounds };
+  }
+
+  it("sends the recording as it is and proposes the transcript under its line, authored by the model", async () => {
+    const { s, fake, vault, rounds } = await transcribing([json({ text: "Put community care on its own line.\nAsk Tom about ten episodes.", usage: { input_tokens: 80, output_tokens: 20 } })]);
+    const outcome = await s.transcribe({ notePath: day, target, audio: recording });
+    expect(outcome).toEqual({ kind: "proposed", model: "gpt-4o-transcribe" });
+
+    expect(fake.sent).toHaveLength(1);
+    const spec = fake.sent[0]!;
+    expect(spec.url).toBe("https://api.openai.com/v1/audio/transcriptions");
+    expect(spec.body).toBeUndefined();
+    expect(spec.rawBody!.contentType).toMatch(/^multipart\/form-data; boundary=/);
+    expect(atob(spec.rawBody!.base64)).toContain('name="file"; filename="Voice 2026-09-24 0812.m4a"');
+
+    const note = files[day]!;
+    const lineEnd = note.indexOf("\n", note.indexOf(target));
+    expect(rounds).toEqual([
+      {
+        path: day,
+        base: note,
+        chunks: [{ fromA: lineEnd, toA: lineEnd, replacement: "\n\n> Put community care on its own line.\n> Ask Tom about ten episodes.\n" }],
+        note: `ai.transcribe.roundNote {"name":"${target}"}`,
+        author: { id: "plainva-ai/gpt-4o-transcribe", displayName: 'ai.suggestionAuthor {"model":"gpt-4o-transcribe"}' },
+      },
+    ]);
+    // Counted like any request; no conversation of its own.
+    expect(vault.ledger()).toEqual([expect.objectContaining({ providerId: "openai", model: "gpt-4o-transcribe", stop: "answered", usage: expect.objectContaining({ inputTokens: 80, outputTokens: 20 }) })]);
+    expect(vault.saved.size).toBe(0);
+  });
+
+  it("asks with the send overview first, naming the recording and its data class; declined, nothing goes", async () => {
+    const { s, fake, rounds } = await transcribing([json({ text: "x" })], undefined, { approve: false });
+    const asked = consentAsked(s);
+    const pending = s.transcribe({ notePath: day, target, audio: recording });
+    await asked;
+    const consent = s.getState().consent!;
+    expect(consent.manifest).toMatchObject({ dataClasses: ["audio"], sources: [{ path: recording.path, audioBytes: 3 }] });
+    expect(consent.growth).toEqual([{ kind: "first" }]);
+    s.answerConsent(false);
+    expect(await pending).toEqual({ kind: "refused", reason: "cancelled" });
+    expect(fake.sent).toHaveLength(0);
+    expect(rounds).toHaveLength(0);
+  });
+
+  it("refuses before anything goes out: no Audio profile, no audio route, too large, encrypted, denied, a recording no longer in the note", async () => {
+    const none = await transcribing([], null);
+    expect(await none.s.transcribe({ notePath: day, target, audio: recording })).toEqual({ kind: "refused", reason: "no-model" });
+
+    const { s, fake, vault, rounds } = await transcribing([], { providerId: "anthropic", model: "m-1" });
+    expect(await s.transcribe({ notePath: day, target, audio: recording })).toEqual({ kind: "refused", reason: "no-route", provider: "Anthropic" });
+    await s.updateSettings((current) => ({ ...current, profiles: { ...current.profiles, audio: { providerId: "openai", model: "whisper-1" } } }));
+
+    const big = { ...recording, bytes: new Uint8Array(TRANSCRIPTION_MAX_BYTES + 1) };
+    expect(await s.transcribe({ notePath: day, target, audio: big })).toEqual({ kind: "refused", reason: "too-large", size: TRANSCRIPTION_MAX_BYTES + 1 });
+
+    vault.host.encrypted = () => true;
+    expect(await s.transcribe({ notePath: day, target, audio: recording })).toEqual({ kind: "refused", reason: "encrypted" });
+    vault.host.encrypted = () => false;
+
+    expect(await s.transcribe({ notePath: "Salaries.md", target: "secret", audio: recording })).toEqual({ kind: "refused", reason: "denied" });
+    expect(await s.transcribe({ notePath: day, target: "Gone.m4a", audio: recording })).toEqual({ kind: "refused", reason: "changed" });
+
+    expect(fake.sent).toHaveLength(0);
+    expect(rounds).toHaveLength(0);
+  });
+
+  it("says so when the provider refuses or hears nothing, and proposes nothing", async () => {
+    const { s, rounds, vault } = await transcribing([[{ type: "httpError", status: 401, body: "{}" }], json({ text: "  " })]);
+    expect(await s.transcribe({ notePath: day, target, audio: recording })).toMatchObject({ kind: "refused", reason: "failed", failure: { kind: "invalid_key", status: 401 }, provider: "OpenAI" });
+    expect(await s.transcribe({ notePath: day, target, audio: recording })).toEqual({ kind: "refused", reason: "empty" });
+    expect(rounds).toHaveLength(0);
+    expect(vault.ledger().map((entry) => entry.stop)).toEqual(["failed", "answered"]);
   });
 });

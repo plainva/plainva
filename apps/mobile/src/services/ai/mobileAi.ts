@@ -17,6 +17,9 @@ import {
   parseRecentsFile,
   plannerRowsFromTasks,
   proposeSuggestionRound,
+  createAudioTranscriber,
+  resolveAudioPath,
+  setAudioTranscriber,
   situationEvents,
   situationFrom,
   skillPrompt,
@@ -346,6 +349,18 @@ export function useMobileAi(vault: MobileVault | null) {
   }, [s, vault, navRef]);
 
   const enabled = Boolean(state?.loaded && state.settings.enabled);
+  // "Transcribe" at every voice note (plan P1.5): the door exists while the AI is on for the open vault.
+  useEffect(() => {
+    if (!enabled || !vault) return;
+    const query = vault.queryService;
+    setAudioTranscriber(
+      createAudioTranscriber(s, (key, vars) => i18n.t(key, vars), {
+        resolve: (place) => resolveAudioPath(place, (path) => vault.files.exists(path), query ? (name, near) => query.findByFileName(name, near) : undefined),
+        readBinary: (path) => vault.adapter.readBinaryFile(path),
+      }),
+    );
+    return () => setAudioTranscriber(null);
+  }, [s, enabled, vault]);
   const closeSheet = () => {
     sheetNote = null;
     setSheet(null);

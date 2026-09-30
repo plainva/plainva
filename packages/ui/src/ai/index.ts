@@ -19,3 +19,4 @@ export * from "./AiSendOverview";
 export * from "./AiContextLens";
 export * from "./aiSelectionActions";
 export * from "./aiSkills";
+export * from "./aiTranscribe";

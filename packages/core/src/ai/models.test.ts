@@ -15,7 +15,7 @@ describe("model list (connection test)", () => {
   });
 
   it("reads every provider's shape and never throws on a strange one", () => {
-    expect(parseModelList(endpoint("anthropic"), { data: [{ id: "m-a", display_name: "Model A" }] })).toEqual([{ id: "m-a", label: "Model A", contextTokens: undefined, price: undefined, chat: true }]);
+    expect(parseModelList(endpoint("anthropic"), { data: [{ id: "m-a", display_name: "Model A" }] })).toEqual([{ id: "m-a", label: "Model A", contextTokens: undefined, price: undefined, chat: true, transcribe: false }]);
     const gemini = parseModelList(endpoint("gemini"), {
       models: [
         { name: "models/m-g", displayName: "G", inputTokenLimit: 1000, outputTokenLimit: 100, supportedGenerationMethods: ["generateContent"] },
@@ -23,8 +23,8 @@ describe("model list (connection test)", () => {
       ],
     });
     expect(gemini).toEqual([
-      { id: "m-g", label: "G", contextTokens: 1000, outputTokens: 100, chat: true },
-      { id: "e-g", label: undefined, contextTokens: undefined, outputTokens: undefined, chat: false },
+      { id: "m-g", label: "G", contextTokens: 1000, outputTokens: 100, chat: true, transcribe: true },
+      { id: "e-g", label: undefined, contextTokens: undefined, outputTokens: undefined, chat: false, transcribe: false },
     ]);
     const router = parseModelList(endpoint("openrouter"), { data: [{ id: "vendor/model", name: "Vendor Model", context_length: 200000, pricing: { prompt: "0.000003", completion: "0.000015" } }] });
     expect(router[0]!.price).toEqual({ input: 3, output: 15 });

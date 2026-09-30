@@ -30,6 +30,8 @@ If you have no key yet: a model on this computer (Ollama, LM Studio) costs nothi
 
 Four profiles — **Fast**, **Balanced**, **Strong** and **Local** — are your assignment of models. Choose a provider and a model for each, from the provider's list or by typing the model id exactly as the provider names it. **Default for new conversations** decides which profile a new conversation starts with. Plainva names no model "the best".
 
+A fifth slot, **Audio**, holds the model that transcribes voice notes; it is never the default for a conversation.
+
 ## Asking
 
 - **Desktop:** the AI button in the action bar, **Ctrl+J** (⌘J on macOS) or **Ask AI** in the command palette opens the companion — a small window over your work. **Open as tab** moves the same conversation into the AI tab, where your conversations are listed.
@@ -85,6 +87,12 @@ A passage from a note your rules keep from the cloud — or one with links to su
 
 Three skills start common questions with one click: **Daily orientation** (what matters today — due tasks, appointments and what you worked on lately), **Weekly review** (the past seven days and the week ahead) and **Project status** (goal, progress, open points and the next step of the project in the open note). You find them as chips in an empty conversation, under **Skills** in the AI tab — on the phone in **Conversations** — and in the command palette. A skill sends its question as your message: in your language, visible in the conversation like anything you type, and through the same overview. The assistant then looks things up with its usual tools.
 
+## Transcribing a voice note
+
+At every voice note — in the editor, in reading mode, in the journal and on cards — **Transcribe** turns the recording into text. It goes as it is to the model of the profile **Audio**, through the same overview as a question; a recording is a kind of data of its own, so the overview asks the first time. The transcript comes back as a suggestion under the recording, authored **Plainva AI · ⟨model⟩** — accept or decline it under **Suggestions**.
+
+**Audio** needs a provider with an audio route: OpenAI (for example `gpt-4o-transcribe` or `whisper-1`), Gemini, or a compatible server of your own — one on this computer keeps the recording on the device. Recordings up to 11 MB can be transcribed. A recording in a note your rules keep from the cloud goes to no cloud model, and encrypted workspaces do not offer it yet.
+
 ## Privacy rules
 
 Some notes should never reach a cloud provider. A rule can sit in a note's frontmatter:
@@ -105,4 +113,4 @@ Conversations stay on this device, per vault — never in the vault and never sy
 
 - On the desktop the AI runs in the main window only.
 - On the phone an answer comes only while the app is open.
-- The assistant changes nothing itself: it proposes changes only to a selected passage, as suggestions you accept or decline.
+- The assistant changes nothing itself: it proposes changes to a selected passage and transcripts of voice notes, as suggestions you accept or decline.

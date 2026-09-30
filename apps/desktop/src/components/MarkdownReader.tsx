@@ -140,7 +140,7 @@ const VaultAudio: React.FC<{ path: string; notePath?: string; label: string }> =
   const candidates = imageCandidates(path, { notePath: notePath ?? '' });
   const { url, failed } = useVaultMedia(candidates[0] ?? path, candidates.slice(1), imageBasename(path));
   if (candidates.length === 0) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{label}</span>;
-  return <AudioEmbed url={failed ? null : url ?? undefined} label={label} />;
+  return <AudioEmbed url={failed ? null : url ?? undefined} label={label} {...(notePath ? { place: { notePath, target: path } } : {})} />;
 };
 
 const VaultImage: React.FC<{

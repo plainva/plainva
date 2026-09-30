@@ -65,7 +65,7 @@ function CardAudio({ vault, target, alt, notePath }: { vault: MobileVault; targe
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [vault, target, notePath]);
-  return <AudioEmbed url={url} label={alt || target} compact />;
+  return <AudioEmbed url={url} label={alt || target} compact place={{ notePath, target }} />;
 }
 
 function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; target: string; alt: string; notePath: string }) {

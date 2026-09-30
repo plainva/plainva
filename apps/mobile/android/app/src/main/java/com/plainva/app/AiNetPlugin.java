@@ -142,8 +142,10 @@ public class AiNetPlugin extends Plugin {
         // GET is the model list of the connection test; every model call is a POST.
         boolean get = "GET".equals(call.getString("method", "POST"));
         JSObject body = call.getObject("body");
+        // Instead of a JSON body: raw bytes, a recording to transcribe (AiNetRules).
+        JSObject raw = call.getObject("rawBody");
         JSObject headers = call.getObject("headers", new JSObject());
-        if (requestId == null || endpointId == null || urlText == null || (!get && body == null)) {
+        if (requestId == null || endpointId == null || urlText == null || (!get && body == null && raw == null)) {
             call.reject("requestId, endpointId, url and body required");
             return;
         }
@@ -158,7 +160,30 @@ public class AiNetPlugin extends Plugin {
             return;
         }
         byte[] payload = null;
-        if (!get) {
+        String rawType = null;
+        if (!get && raw != null && body == null) {
+            String type = raw.getString("contentType");
+            String encoded = raw.getString("base64");
+            if (encoded == null || !AiNetRules.rawBodyAllowed(url.encodedPath(), type)) {
+                call.resolve(failed("invalid_request", "raw bodies go only to a transcription endpoint"));
+                return;
+            }
+            try {
+                payload = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT);
+            } catch (IllegalArgumentException e) {
+                call.resolve(failed("invalid_request", "the body is not base64"));
+                return;
+            }
+            rawType = type;
+            if (payload.length > MAX_BODY_BYTES) {
+                call.resolve(failed("too_large", "request too large"));
+                return;
+            }
+        } else if (!get) {
+            if (raw != null) {
+                call.resolve(failed("invalid_request", "a model call needs exactly one body"));
+                return;
+            }
             if (endpoint.officialOpenAi && (url.encodedPath().endsWith("/responses") || url.encodedPath().endsWith("/chat/completions"))) {
                 body.put("store", false);
             }
@@ -184,13 +209,15 @@ public class AiNetPlugin extends Plugin {
 
         Request.Builder builder = new Request.Builder().url(url);
         if (payload == null) builder.get();
-        else builder.post(RequestBody.create(payload, MediaType.parse("application/json")));
+        else builder.post(RequestBody.create(payload, MediaType.parse(rawType != null ? rawType : "application/json")));
         Iterator<String> names = headers.keys();
         while (names.hasNext()) {
             String name = names.next();
             String value = headers.optString(name, null);
             String lower = name.toLowerCase(Locale.ROOT);
             if (value == null || value.contains("\r") || value.contains("\n")) continue;
+            // A raw body names its own type (the multipart boundary is in it).
+            if (rawType != null && "content-type".equals(lower)) continue;
             for (String allowed : ALLOWED_HEADERS) {
                 if (allowed.equals(lower)) builder.header(lower, value);
             }

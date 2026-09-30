@@ -136,7 +136,8 @@
       "title": "KI & Automatisierung",
       "sending": "Senden",
       "confirmEvery": "Vor jeder Anfrage fragen",
-      "confirmEveryDesc": "Zeigt vor jeder Nachricht, was hinausgeht, nicht nur beim ersten Mal und wenn es mehr wird. Für ein Modell auf diesem Gerät wird nie gefragt."
+      "confirmEveryDesc": "Zeigt vor jeder Nachricht, was hinausgeht, nicht nur beim ersten Mal und wenn es mehr wird. Für ein Modell auf diesem Gerät wird nie gefragt.",
+      "audioHint": "Transkribiert Sprachnotizen. Braucht einen Anbieter mit Audio-Weg — OpenAI, Gemini oder einen kompatiblen Server."
     },
     "add": {
       "title": "Anbieter hinzufügen",
@@ -171,7 +172,8 @@
       "fast": "Schnell",
       "balanced": "Ausgewogen",
       "strong": "Stark",
-      "local": "Lokal"
+      "local": "Lokal",
+      "audio": "Audio"
     },
     "policy": {
       "title": "Datenschutzregeln (plainva.ai)",
@@ -226,7 +228,8 @@
         "selection": "Deine Auswahl",
         "tasks": "fällige Aufgaben",
         "calendar": "Termine",
-        "notes": "Notizen"
+        "notes": "Notizen",
+        "audio": "eine Aufnahme"
       },
       "keptBack": "Zurückgehalten",
       "keptNotes_one": "{{count}} Notiz, die Deine Regeln sperren",
@@ -243,7 +246,8 @@
       "estimateCost": "~{{tokens}} Token, etwa {{cost}}",
       "send": "Senden",
       "everyRequest": "Vor jeder Anfrage fragen",
-      "leaveOut": "{{note}} weglassen"
+      "leaveOut": "{{note}} weglassen",
+      "evidenceAudio": "die Aufnahme ({{size}})"
     },
     "lens": {
       "open": "Kontext einsehen",
@@ -377,6 +381,25 @@
       "pairAllow": "Erlauben",
       "pairDeny": "Ablehnen",
       "pairNone": "Wähle mindestens einen Ordner, um zu erlauben."
+    },
+    "transcribe": {
+      "action": "Transkribieren",
+      "running": "Transkribiere …",
+      "proposed": "Das Transkript liegt unter „Vorschläge“ — übernehmen oder ablehnen.",
+      "roundNote": "Transkript von {{name}}, wörtlich.",
+      "title": "Transkript von {{name}}",
+      "refused": {
+        "off": "Die KI ist aus.",
+        "no-model": "Wähle zuerst ein Modell für das Profil „Audio“ — in den KI-Einstellungen.",
+        "no-route": "{{provider}} kann nicht transkribieren. Gib dem Profil „Audio“ einen Anbieter mit Audio-Weg, etwa OpenAI oder Gemini.",
+        "too-large": "Die Aufnahme ist zu groß zum Transkribieren ({{size}}; höchstens {{max}}).",
+        "denied": "Deine Regeln halten diese Notiz von diesem Modell fern.",
+        "encrypted": "In einem verschlüsselten Workspace noch nicht: seine Vorschläge können die KI noch nicht als Autor nennen.",
+        "missing": "Die Aufnahme ließ sich nicht lesen.",
+        "changed": "Die Notiz hat sich geändert, während das Transkript entstand — es wurde nichts vorgeschlagen.",
+        "empty": "Der Anbieter hat kein Transkript geliefert.",
+        "failed": "Das Transkript ließ sich nicht erstellen: {{reason}}"
+      }
     }
   },
   "settingsSync": {

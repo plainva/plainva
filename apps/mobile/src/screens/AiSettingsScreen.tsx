@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type ProviderInfo } from "@plainva/core";
+import { AI_AUDIO_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
 import {
   addableProviders,
   configuredProviders,
@@ -110,7 +110,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
     if (provider?.endpoint.needsKey) void enterKey(provider);
   };
 
-  const chooseModel = async (profile: AiProfileId) => {
+  const chooseModel = async (profile: AiProfileSlot) => {
     const providerId = await mSelect({
       title: t("ai.settings.modelTitle", { profile: t(`ai.profile.${profile}`) }),
       message: t("ai.settings.provider"),
@@ -119,7 +119,8 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
     });
     if (!providerId) return;
     const test = state.tests[providerId]?.state === "ok" ? state.tests[providerId] : await session.testProvider(providerId);
-    const models = (test.models ?? []).filter((m) => m.chat);
+    // The profile "Audio" lists what can transcribe; every other profile what can chat. Any id can still be typed.
+    const models = (test.models ?? []).filter((m) => (profile === AI_AUDIO_PROFILE ? Boolean(m.transcribe) : m.chat));
     let model: string | null = null;
     if (models.length) {
       model = await mSelect({
@@ -195,6 +196,19 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("ai.settings.profilesHint")}</p>
+        <GroupCard>
+          <RowList>
+            {/* Beside the chat profiles, never the default for a conversation (plan P1.5, E28). */}
+            <Row
+              title={t("ai.profile.audio")}
+              subtitle={settings.profiles.audio ? `${labelOf(settings.profiles.audio.providerId)} · ${settings.profiles.audio.model}` : t("ai.settings.profileEmpty")}
+              disabled={rows.length === 0}
+              onClick={() => void chooseModel(AI_AUDIO_PROFILE)}
+              data-testid="ai-profile-audio"
+            />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("ai.settings.audioHint")}</p>
 
         <SectionLabel>{t("ai.settings.sending")}</SectionLabel>
         <GroupCard>

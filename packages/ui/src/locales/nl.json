@@ -136,7 +136,8 @@
       "title": "AI & automatisering",
       "sending": "Verzenden",
       "confirmEvery": "Vragen vóór elk verzoek",
-      "confirmEveryDesc": "Toont vóór elk bericht wat er naar buiten gaat, niet alleen de eerste keer en wanneer het groeit. Voor een model op dit apparaat wordt nooit gevraagd."
+      "confirmEveryDesc": "Toont vóór elk bericht wat er naar buiten gaat, niet alleen de eerste keer en wanneer het groeit. Voor een model op dit apparaat wordt nooit gevraagd.",
+      "audioHint": "Zet spraaknotities om in tekst. Vereist een provider met een audioroute: OpenAI, Gemini of een compatibele server."
     },
     "add": {
       "title": "Provider toevoegen",
@@ -171,7 +172,8 @@
       "fast": "Snel",
       "balanced": "Gebalanceerd",
       "strong": "Sterk",
-      "local": "Lokaal"
+      "local": "Lokaal",
+      "audio": "Audio"
     },
     "policy": {
       "title": "Privacyregels (plainva.ai)",
@@ -226,7 +228,8 @@
         "selection": "je selectie",
         "tasks": "taken met deadline",
         "calendar": "afspraken",
-        "notes": "notities"
+        "notes": "notities",
+        "audio": "een opname"
       },
       "keptBack": "Achtergehouden",
       "keptNotes_one": "{{count}} notitie die je regels blokkeren",
@@ -243,7 +246,8 @@
       "estimateCost": "~{{tokens}} tokens, ongeveer {{cost}}",
       "send": "Verzenden",
       "everyRequest": "Vragen vóór elk verzoek",
-      "leaveOut": "{{note}} weglaten"
+      "leaveOut": "{{note}} weglaten",
+      "evidenceAudio": "de opname ({{size}})"
     },
     "lens": {
       "open": "Context bekijken",
@@ -377,6 +381,25 @@
       "pairAllow": "Toestaan",
       "pairDeny": "Weigeren",
       "pairNone": "Kies minstens één map om toe te staan."
+    },
+    "transcribe": {
+      "action": "Uitschrijven",
+      "running": "Bezig met uitschrijven…",
+      "proposed": "De transcriptie wacht onder “Voorstellen” — accepteer of wijs haar af.",
+      "roundNote": "Transcriptie van {{name}}, woordelijk.",
+      "title": "Transcriptie van {{name}}",
+      "refused": {
+        "off": "De AI staat uit.",
+        "no-model": "Kies eerst een model voor het profiel “Audio”, in de AI-instellingen.",
+        "no-route": "{{provider}} kan niet uitschrijven. Geef het profiel “Audio” een provider met een audioroute, zoals OpenAI of Gemini.",
+        "too-large": "De opname is te groot om uit te schrijven ({{size}}; hooguit {{max}}).",
+        "denied": "Je regels houden deze notitie weg van dit model.",
+        "encrypted": "Nog niet in een versleutelde workspace: de voorstellen daarin kunnen de AI nog niet als auteur noemen.",
+        "missing": "De opname kon niet worden gelezen.",
+        "changed": "De notitie is veranderd terwijl de transcriptie ontstond — er is niets voorgesteld.",
+        "empty": "De provider gaf geen transcriptie terug.",
+        "failed": "De transcriptie kon niet worden gemaakt: {{reason}}"
+      }
     }
   },
   "settingsSync": {

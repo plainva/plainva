@@ -30,6 +30,8 @@ Se você ainda não tem uma chave: um modelo neste computador (Ollama, LM Studio
 
 Quatro perfis — **Rápido**, **Equilibrado**, **Forte** e **Local** — são a sua atribuição de modelos. Escolha um provedor e um modelo para cada um, a partir da lista do provedor ou digitando o id do modelo exatamente como o provedor o chama. **Padrão para novas conversas** decide com qual perfil uma nova conversa começa. O Plainva não chama nenhum modelo de “o melhor”.
 
+Um quinto espaço, **Áudio**, guarda o modelo que transcreve as notas de voz; nunca é o padrão de uma conversa.
+
 ## Perguntando
 
 - **Desktop:** o botão de IA na barra de ações, **Ctrl+J** (⌘J no macOS) ou **Perguntar à IA** na paleta de comandos abre o assistente — uma pequena janela sobre o seu trabalho. **Abrir como aba** move a mesma conversa para a aba de IA, onde suas conversas estão listadas.
@@ -85,6 +87,12 @@ Um trecho de uma nota que suas regras mantêm longe da nuvem — ou um com links
 
 Três habilidades iniciam perguntas frequentes com um clique: **Orientação do dia** (o que importa hoje: tarefas com prazo, compromissos e o que você fez por último), **Revisão semanal** (os últimos sete dias e a semana que vem) e **Status do projeto** (objetivo, progresso, pontos em aberto e o próximo passo do projeto da nota aberta). Você as encontra como chips em uma conversa vazia, em **Habilidades** na aba de IA — no celular, em **Conversas** — e na paleta de comandos. Uma habilidade envia sua pergunta como sua mensagem: no seu idioma, visível na conversa como tudo o que você digita, e pelo mesmo resumo. Depois, o assistente pesquisa com suas ferramentas de sempre.
 
+## Transcrever uma nota de voz
+
+Em cada nota de voz — no editor, no modo de leitura, no diário e nos cartões — **Transcrever** transforma a gravação em texto. Ela vai como está para o modelo do perfil **Áudio**, pelo mesmo resumo de uma pergunta; uma gravação é um tipo de dado próprio, por isso o resumo pergunta na primeira vez. A transcrição volta como sugestão abaixo da gravação, com o autor **Plainva IA · ⟨modelo⟩** — aceite ou recuse em **Sugestões**.
+
+**Áudio** precisa de um provedor com rota de áudio: OpenAI (por exemplo `gpt-4o-transcribe` ou `whisper-1`), Gemini ou um servidor compatível seu — um servidor neste computador mantém a gravação no dispositivo. É possível transcrever gravações de até 11 MB. Uma gravação em uma nota que suas regras mantêm longe da nuvem não vai para nenhum modelo na nuvem, e os workspaces criptografados ainda não oferecem isso.
+
 ## Regras de privacidade
 
 Algumas notas nunca devem chegar a um provedor de nuvem. Uma regra pode ficar no frontmatter de uma nota:
@@ -105,4 +113,4 @@ As conversas ficam neste dispositivo, por vault — nunca no vault e nunca sincr
 
 - No desktop, a IA roda apenas na janela principal.
 - No celular, uma resposta só chega enquanto o Plainva estiver aberto.
-- O assistente não muda nada sozinho: propõe alterações apenas para um trecho selecionado, como sugestões que você aceita ou recusa.
+- O assistente não muda nada sozinho: propõe alterações em um trecho selecionado e transcrições de notas de voz, como sugestões que você aceita ou recusa.

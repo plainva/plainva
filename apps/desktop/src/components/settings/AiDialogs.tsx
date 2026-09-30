@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type ProviderInfo } from "@plainva/core";
+import { customEndpointId, normalizeBaseUrl, providerById, type ProviderInfo, AI_AUDIO_PROFILE, type AiProfileSlot } from "@plainva/core";
 import {
   addableProviders,
   Banner,
@@ -168,14 +168,16 @@ export function AiKeyDialog({ session, provider, onClose }: { session: AiSession
 }
 
 /** Choose a profile's model: from the provider's own list, or any id typed in. */
-export function AiModelDialog({ session, state, profile, onClose }: { session: AiSession; state: AiState; profile: AiProfileId; onClose: () => void }) {
+export function AiModelDialog({ session, state, profile, onClose }: { session: AiSession; state: AiState; profile: AiProfileSlot; onClose: () => void }) {
   const { t } = useTranslation();
   const current = state.settings.profiles[profile];
   const providers = useMemo(() => session.providers().filter((p) => state.settings.providers.includes(p.id) || p.custom || state.keys[p.id] || p.id === current?.providerId), [session, state, current]);
   const [providerId, setProviderId] = useState(current?.providerId ?? providers[0]?.id ?? "");
   const [model, setModel] = useState(current?.model ?? "");
   const test = state.tests[providerId];
-  const models = (test?.models ?? []).filter((m) => m.chat && (!model.trim() || m.id.toLowerCase().includes(model.trim().toLowerCase()) || (m.label ?? "").toLowerCase().includes(model.trim().toLowerCase())));
+  // The profile "Audio" lists what can transcribe; every other profile what can chat. Any id can still be typed.
+  const fits = (m: { chat: boolean; transcribe?: boolean }) => (profile === AI_AUDIO_PROFILE ? Boolean(m.transcribe) : m.chat);
+  const models = (test?.models ?? []).filter((m) => fits(m) && (!model.trim() || m.id.toLowerCase().includes(model.trim().toLowerCase()) || (m.label ?? "").toLowerCase().includes(model.trim().toLowerCase())));
   const save = () => {
     if (!providerId || !model.trim()) return;
     void session.updateSettings((s) => ({ ...s, profiles: { ...s.profiles, [profile]: { providerId, model: model.trim() } } })).then(onClose);

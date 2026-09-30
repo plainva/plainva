@@ -144,7 +144,8 @@
       "title": "AI & automatyzacja",
       "sending": "Wysyłanie",
       "confirmEvery": "Pytaj przed każdym zapytaniem",
-      "confirmEveryDesc": "Pokazuje przed każdą wiadomością, co wychodzi, nie tylko za pierwszym razem i gdy zakres rośnie. Dla modelu na tym urządzeniu nigdy nie pyta."
+      "confirmEveryDesc": "Pokazuje przed każdą wiadomością, co wychodzi, nie tylko za pierwszym razem i gdy zakres rośnie. Dla modelu na tym urządzeniu nigdy nie pyta.",
+      "audioHint": "Transkrybuje notatki głosowe. Wymaga dostawcy z obsługą audio: OpenAI, Gemini lub zgodnego serwera."
     },
     "add": {
       "title": "Dodaj dostawcę",
@@ -179,7 +180,8 @@
       "fast": "Szybki",
       "balanced": "Zrównoważony",
       "strong": "Silny",
-      "local": "Lokalny"
+      "local": "Lokalny",
+      "audio": "Audio"
     },
     "policy": {
       "title": "Zasady prywatności (plainva.ai)",
@@ -234,7 +236,8 @@
         "selection": "Twoje zaznaczenie",
         "tasks": "zadania z terminem",
         "calendar": "spotkania",
-        "notes": "notatki"
+        "notes": "notatki",
+        "audio": "nagranie"
       },
       "keptBack": "Zatrzymano",
       "keptNotes_one": "{{count}} notatka zablokowana przez Twoje reguły",
@@ -259,7 +262,8 @@
       "estimateCost": "~{{tokens}} tokenów, około {{cost}}",
       "send": "Wyślij",
       "everyRequest": "Pytaj przed każdym zapytaniem",
-      "leaveOut": "Pomiń {{note}}"
+      "leaveOut": "Pomiń {{note}}",
+      "evidenceAudio": "nagranie ({{size}})"
     },
     "lens": {
       "open": "Pokaż kontekst",
@@ -397,6 +401,25 @@
       "pairAllow": "Zezwól",
       "pairDeny": "Odmów",
       "pairNone": "Wybierz co najmniej jeden folder, aby zezwolić."
+    },
+    "transcribe": {
+      "action": "Transkrybuj",
+      "running": "Trwa transkrypcja…",
+      "proposed": "Transkrypcja czeka w sekcji „Propozycje” — zaakceptuj ją lub odrzuć.",
+      "roundNote": "Transkrypcja {{name}}, dosłowna.",
+      "title": "Transkrypcja {{name}}",
+      "refused": {
+        "off": "AI jest wyłączona.",
+        "no-model": "Najpierw wybierz model dla profilu „Audio” w ustawieniach AI.",
+        "no-route": "{{provider}} nie potrafi transkrybować. Przypisz profilowi „Audio” dostawcę z obsługą audio, np. OpenAI lub Gemini.",
+        "too-large": "Nagranie jest za duże do transkrypcji ({{size}}; najwyżej {{max}}).",
+        "denied": "Twoje reguły trzymają tę notatkę z dala od tego modelu.",
+        "encrypted": "Jeszcze nie w zaszyfrowanym obszarze roboczym: propozycje w nim nie mogą jeszcze wskazać AI jako autora.",
+        "missing": "Nie udało się odczytać nagrania.",
+        "changed": "Notatka zmieniła się w trakcie transkrypcji — niczego nie zaproponowano.",
+        "empty": "Dostawca nie zwrócił transkrypcji.",
+        "failed": "Nie udało się wykonać transkrypcji: {{reason}}"
+      }
     }
   },
   "settingsSync": {

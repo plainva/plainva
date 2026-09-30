@@ -26,7 +26,8 @@ import { questionTerms } from "./terms.js";
  * title, no path, no excerpt, no link anchor in a neighbour (§8.2).
  */
 
-export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar";
+/** `audio`: a recording, sent to be transcribed (plan P1.5, E28) — never part of a chat's context. */
+export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio";
 
 export interface SituationTask {
   title: string;

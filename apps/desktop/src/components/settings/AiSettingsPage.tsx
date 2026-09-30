@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoreHorizontal, Plus } from "lucide-react";
-import { AI_PROFILE_IDS, type AiProfileId, type ProviderInfo } from "@plainva/core";
+import { AI_AUDIO_PROFILE, AI_PROFILE_IDS, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
 import {
   Button,
   configuredProviders,
@@ -48,7 +48,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
   const state = useAiState();
   const [adding, setAdding] = useState(false);
   const [keyFor, setKeyFor] = useState<ProviderInfo | null>(null);
-  const [modelFor, setModelFor] = useState<AiProfileId | null>(null);
+  const [modelFor, setModelFor] = useState<AiProfileSlot | null>(null);
   const [menu, setMenu] = useState<{ provider: ProviderInfo; at: { x: number; y: number } } | null>(null);
   const [usage, setUsage] = useState<Awaited<ReturnType<AiSession["usage"]>>>([]);
   const number = new Intl.NumberFormat(i18n.language);
@@ -68,7 +68,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
   if (!state?.loaded) return null;
   const settings = state.settings;
   const rows = configuredProviders(state);
-  const profileLine = (id: AiProfileId) => {
+  const profileLine = (id: AiProfileSlot) => {
     const choice = settings.profiles[id];
     if (!choice) return t("ai.settings.profileEmpty");
     return `${session.providers().find((p) => p.id === choice.providerId)?.label ?? choice.providerId} · ${choice.model}`;
@@ -134,6 +134,13 @@ function AiSettingsBody({ session }: { session: AiSession }) {
           />
         </SettingRow>
         <SettingCardNote>{t("ai.settings.profilesHint")}</SettingCardNote>
+        {/* Beside the chat profiles, never the default for a conversation (plan P1.5, E28). */}
+        <SettingRow label={t("ai.profile.audio")} desc={profileLine(AI_AUDIO_PROFILE)}>
+          <Button size="sm" variant="secondary" disabled={rows.length === 0} onClick={() => setModelFor(AI_AUDIO_PROFILE)} data-testid="ai-profile-audio">
+            {t("ai.settings.change")}
+          </Button>
+        </SettingRow>
+        <SettingCardNote>{t("ai.settings.audioHint")}</SettingCardNote>
       </SettingCard>
 
       <SettingCard label={t("ai.settings.sending")}>

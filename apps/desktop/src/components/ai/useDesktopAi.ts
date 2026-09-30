@@ -2,7 +2,21 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
-import { getPlatformServices, noteDisplayName, situationEvents, skillPrompt, useStableHandler, type AiNavigationCommand, type AiSession, type AiSkillId, type AiState, type AiVaultHost } from "@plainva/ui";
+import {
+  createAudioTranscriber,
+  getPlatformServices,
+  noteDisplayName,
+  resolveAudioPath,
+  setAudioTranscriber,
+  situationEvents,
+  skillPrompt,
+  useStableHandler,
+  type AiNavigationCommand,
+  type AiSession,
+  type AiSkillId,
+  type AiState,
+  type AiVaultHost,
+} from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { AI_OPEN_EVENT, createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
@@ -139,6 +153,18 @@ export function useDesktopAi(input: DesktopAiInput) {
     void configureMcp(mcpOn, vault).catch(() => undefined);
     // The prompts speak the app's language: a switch registers them again.
   }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language]);
+
+  // "Transcribe" at every voice note (plan P1.5): the door exists while the AI is on for the open vault.
+  useEffect(() => {
+    if (!session || !enabled || !vaultAdapter) return;
+    setAudioTranscriber(
+      createAudioTranscriber(session, (key, vars) => i18n.t(key, vars), {
+        resolve: (place) => resolveAudioPath(place, (path) => vaultAdapter.exists(path), queryService ? (name, near) => queryService.findByFileName(name, near) : undefined),
+        readBinary: (path) => vaultAdapter.readBinaryFile(path),
+      }),
+    );
+    return () => setAudioTranscriber(null);
+  }, [session, enabled, vaultAdapter, queryService]);
 
   // Switching the AI off closes the companion; the conversation stays stored.
   useEffect(() => {

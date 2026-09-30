@@ -30,6 +30,8 @@ Si todavía no tienes una clave: un modelo en este ordenador (Ollama, LM Studio)
 
 Cuatro perfiles — **Rápido**, **Equilibrado**, **Potente** y **Local** — son tu asignación de modelos. Elige un proveedor y un modelo para cada uno, de la lista del proveedor o escribiendo el id del modelo exactamente como lo llama el proveedor. **Predeterminado para conversaciones nuevas** decide con qué perfil empieza una conversación nueva. Plainva no llama a ningún modelo «el mejor».
 
+Un quinto espacio, **Audio**, guarda el modelo que transcribe las notas de voz; nunca es el predeterminado para una conversación.
+
 ## Preguntar
 
 - **Escritorio:** el botón de IA en la barra de acciones, **Ctrl+J** (⌘J en macOS) o **Preguntar a la IA** en la paleta de comandos abre el compañero — una pequeña ventana sobre tu trabajo. **Abrir como pestaña** lleva esa misma conversación a la pestaña de IA, donde están listadas tus conversaciones.
@@ -85,6 +87,12 @@ Un fragmento de una nota que tus reglas mantienen fuera de la nube — o uno con
 
 Tres habilidades inician preguntas frecuentes con un clic: **Orientación del día** (lo que importa hoy: tareas pendientes, citas y en qué trabajaste últimamente), **Repaso semanal** (los últimos siete días y la semana que viene) y **Estado del proyecto** (objetivo, avances, puntos abiertos y el siguiente paso del proyecto de la nota abierta). Las encuentras como chips en una conversación vacía, en **Habilidades** en la pestaña de IA —en el teléfono, en **Conversaciones**— y en la paleta de comandos. Una habilidad envía su pregunta como tu mensaje: en tu idioma, visible en la conversación como todo lo que escribes, y a través del mismo resumen. Después, el asistente consulta lo necesario con sus herramientas habituales.
 
+## Transcribir una nota de voz
+
+En cada nota de voz —en el editor, en el modo de lectura, en el diario y en las tarjetas— **Transcribir** convierte la grabación en texto. Va tal cual al modelo del perfil **Audio**, a través del mismo resumen que una pregunta; una grabación es un tipo de datos propio, por eso el resumen pregunta la primera vez. La transcripción vuelve como sugerencia debajo de la grabación, con el autor **Plainva IA · ⟨modelo⟩**: acéptala o recházala en **Sugerencias**.
+
+**Audio** necesita un proveedor con ruta de audio: OpenAI (por ejemplo `gpt-4o-transcribe` o `whisper-1`), Gemini o un servidor compatible propio; uno en este equipo mantiene la grabación en el dispositivo. Se pueden transcribir grabaciones de hasta 11 MB. Una grabación en una nota que tus reglas mantienen fuera de la nube no va a ningún modelo en la nube, y los espacios cifrados aún no lo ofrecen.
+
 ## Reglas de privacidad
 
 Algunas notas nunca deben llegar a un proveedor en la nube. Una regla puede ir en el frontmatter de una nota:
@@ -105,4 +113,4 @@ Las conversaciones se quedan en este dispositivo, por vault — nunca en el vaul
 
 - En el escritorio, la IA solo se ejecuta en la ventana principal.
 - En el teléfono, una respuesta solo llega mientras la aplicación está abierta.
-- El asistente no cambia nada por sí mismo: propone cambios solo para un fragmento seleccionado, como sugerencias que aceptas o rechazas.
+- El asistente no cambia nada por sí mismo: propone cambios en un fragmento seleccionado y transcripciones de notas de voz, como sugerencias que aceptas o rechazas.

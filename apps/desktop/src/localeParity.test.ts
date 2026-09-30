@@ -311,6 +311,8 @@ describe("locale parity", () => {
 const VERBATIM_THRESHOLD = 6;
 
 const VERBATIM_ALLOWED = new Set<string>([
+  // The AI profile that transcribes (plan KI-Harness P1.5): "Audio" is the word in de, es, fr, it, nl and pl too.
+  "ai.profile.audio",
   // A product name (the MCP settings row of plan KI-Harness §17.3): the same in every language.
   "ai.mcp.package",
   // A running AI tool: the tool's own (translated) name and an ellipsis.

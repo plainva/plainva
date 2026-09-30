@@ -159,7 +159,7 @@ function EntrySound({ target, notePath, loadImage }: { target: string; notePath:
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [candidateKey, loadImage]);
-  return <AudioEmbed url={url} label={target.split("/").pop() ?? target} compact />;
+  return <AudioEmbed url={url} label={target.split("/").pop() ?? target} compact place={{ notePath, target }} />;
 }
 
 function EntryBody({ entry, notePath, links, loadImage }: { entry: JournalEntry; notePath: string; links?: InlineLinkHandlers; loadImage?: (path: string) => Promise<Blob> }) {

@@ -148,6 +148,14 @@ export function providerById(id: string, custom: readonly CustomEndpoint[]): Pro
 export type AiProfileId = "fast" | "balanced" | "strong" | "local";
 export const AI_PROFILE_IDS: readonly AiProfileId[] = ["fast", "balanced", "strong", "local"];
 
+/**
+ * The slot beside the four chat profiles (plan P1.5, E28): the model that
+ * transcribes voice notes. Never "Default for new conversations" — a chat
+ * does not start on a transcription model.
+ */
+export const AI_AUDIO_PROFILE = "audio";
+export type AiProfileSlot = AiProfileId | typeof AI_AUDIO_PROFILE;
+
 export interface ModelChoice {
   providerId: string;
   model: string;
@@ -158,7 +166,7 @@ export interface AiAppSettings {
   enabled: boolean;
   /** Built-in providers the user added to the list (custom servers are in `custom`). */
   providers: string[];
-  profiles: Partial<Record<AiProfileId, ModelChoice>>;
+  profiles: Partial<Record<AiProfileSlot, ModelChoice>>;
   defaultProfile: AiProfileId;
   custom: CustomEndpoint[];
   /** Days a conversation is kept after its last message; 0 keeps it. */
@@ -192,9 +200,9 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
 /** Reads stored settings defensively: a damaged value falls back field by field. */
 export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAULT_AI_APP_SETTINGS): AiAppSettings {
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const profiles: Partial<Record<AiProfileId, ModelChoice>> = {};
+  const profiles: Partial<Record<AiProfileSlot, ModelChoice>> = {};
   const rawProfiles = value.profiles && typeof value.profiles === "object" ? (value.profiles as Record<string, unknown>) : {};
-  for (const id of AI_PROFILE_IDS) {
+  for (const id of [...AI_PROFILE_IDS, AI_AUDIO_PROFILE] as const) {
     const choice = rawProfiles[id] as Partial<ModelChoice> | undefined;
     if (choice && typeof choice.providerId === "string" && typeof choice.model === "string" && choice.model.trim()) {
       profiles[id] = { providerId: choice.providerId, model: choice.model.trim() };

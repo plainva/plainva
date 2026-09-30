@@ -9,7 +9,15 @@ import type { AiEgress, EgressChunk, EndpointConfirmText, HttpRequestSpec } from
 
 interface AiNetNative {
   request(
-    options: { requestId: string; endpointId: string; url: string; method: "GET" | "POST"; headers: Record<string, string>; body?: Record<string, unknown> },
+    options: {
+      requestId: string;
+      endpointId: string;
+      url: string;
+      method: "GET" | "POST";
+      headers: Record<string, string>;
+      body?: Record<string, unknown>;
+      rawBody?: { base64: string; contentType: string };
+    },
     callback: (chunk: EgressChunk | null, error?: unknown) => void,
   ): Promise<string>;
   cancel(options: { requestId: string }): Promise<{ cancelled: boolean }>;
@@ -36,6 +44,7 @@ export function createMobileAiEgress(confirmText: () => EndpointConfirmText): Ai
           method: spec.method,
           headers: spec.headers,
           ...(spec.body ? { body: spec.body } : {}),
+          ...(spec.rawBody ? { rawBody: spec.rawBody } : {}),
         };
         void AiNet.request(options, (chunk, error) => {
           if (settled) return;

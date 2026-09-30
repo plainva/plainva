@@ -61,6 +61,15 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
     }
 
     /** Same origin and path prefix on the parsed URL — no string prefix games. */
+    /// A body of raw bytes — a recording to transcribe (plan KI-Harness P1.5) — only as multipart form
+    /// data and only for a transcription endpoint: a raw JSON body anywhere else would slip past the rule
+    /// that keeps OpenAI from storing requests. Mirrors `raw_body_allowed` (desktop) and `AiNetRules` (Android).
+    static func rawBodyAllowed(_ url: URL, _ contentType: String) -> Bool {
+        !contentType.contains("\r") && !contentType.contains("\n")
+            && contentType.lowercased().hasPrefix("multipart/form-data; boundary=")
+            && url.path.hasSuffix("/audio/transcriptions")
+    }
+
     static func urlAllowed(_ endpoint: Endpoint, _ url: URL) -> Bool {
         guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let base = URLComponents(url: endpoint.base, resolvingAgainstBaseURL: false) else { return false }
@@ -165,7 +174,18 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
             call.resolve(["type": "failed", "code": "url_not_allowed", "message": "request URL is not under the endpoint"]); return
         }
         var payload: Data? = nil
-        if !isGet {
+        var rawType: String? = nil
+        if !isGet, let raw = call.getObject("rawBody") {
+            guard call.getObject("body") == nil, let encoded = raw["base64"] as? String, let type = raw["contentType"] as? String,
+                  AiNetPlugin.rawBodyAllowed(url, type) else {
+                call.resolve(["type": "failed", "code": "invalid_request", "message": "raw bodies go only to a transcription endpoint"]); return
+            }
+            guard let data = Data(base64Encoded: encoded), data.count <= AiNetPlugin.maxBodyBytes else {
+                call.resolve(["type": "failed", "code": "too_large", "message": "request too large or not base64"]); return
+            }
+            payload = data
+            rawType = type
+        } else if !isGet {
             guard var body = call.getObject("body") else { call.reject("a model call needs a body"); return }
             if endpoint.officialOpenAi && (url.path.hasSuffix("/responses") || url.path.hasSuffix("/chat/completions")) {
                 body["store"] = false
@@ -188,8 +208,11 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         for (name, value) in (call.getObject("headers") ?? [:]) {
             guard let value = value as? String, !value.contains("\r"), !value.contains("\n") else { continue }
             let lower = name.lowercased()
+            // A raw body names its own type (the multipart boundary is in it).
+            if rawType != nil && lower == "content-type" { continue }
             if AiNetPlugin.allowedHeaders.contains(lower) { request.setValue(value, forHTTPHeaderField: lower) }
         }
+        if let rawType = rawType { request.setValue(rawType, forHTTPHeaderField: "content-type") }
         if let key = key {
             switch endpoint.auth {
             case "x-api-key": request.setValue(key, forHTTPHeaderField: "x-api-key")

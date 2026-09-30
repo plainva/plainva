@@ -16,6 +16,7 @@
 //!
 //! Only the central window may call it: AI v1 runs in the owner window.
 
+use base64::Engine as _;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -246,6 +247,25 @@ pub struct AiRequest {
     headers: HashMap<String, String>,
     #[serde(default)]
     body: Option<serde_json::Value>,
+    /// Raw bytes instead of `body` — a recording to transcribe (see `raw_body_allowed`).
+    #[serde(default)]
+    raw_body: Option<RawBody>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RawBody {
+    base64: String,
+    content_type: String,
+}
+
+/// A body of raw bytes (a recording to transcribe, plan KI-Harness P1.5): only
+/// multipart form data, and only to a transcription endpoint — a raw JSON body
+/// anywhere else would slip past `enforce_body_rules`.
+fn raw_body_allowed(url: &reqwest::Url, content_type: &str) -> bool {
+    !content_type.contains(['\r', '\n'])
+        && content_type.to_ascii_lowercase().starts_with("multipart/form-data; boundary=")
+        && url.path().ends_with("/audio/transcriptions")
 }
 
 #[derive(Clone, Serialize)]
@@ -308,9 +328,10 @@ pub async fn ai_http(
         Ok(url) => url,
         Err(message) => return fail("url_not_allowed", &message),
     };
-    let payload = match (request.method, request.body) {
-        (AiMethod::Get, _) => None,
-        (AiMethod::Post, Some(mut body)) => {
+    let raw_type = request.raw_body.as_ref().map(|raw| raw.content_type.clone());
+    let payload = match (request.method, request.body, request.raw_body) {
+        (AiMethod::Get, _, _) => None,
+        (AiMethod::Post, Some(mut body), None) => {
             enforce_body_rules(&endpoint, &url, &mut body);
             let bytes = serde_json::to_vec(&body).map_err(|e| e.to_string())?;
             if bytes.len() > MAX_BODY_BYTES {
@@ -318,7 +339,19 @@ pub async fn ai_http(
             }
             Some(bytes)
         }
-        (AiMethod::Post, None) => return fail("invalid_request", "a model call needs a body"),
+        (AiMethod::Post, None, Some(raw)) => {
+            if !raw_body_allowed(&url, &raw.content_type) {
+                return fail("invalid_request", "raw bodies go only to a transcription endpoint");
+            }
+            let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(raw.base64.as_bytes()) else {
+                return fail("invalid_request", "the body is not base64");
+            };
+            if bytes.len() > MAX_BODY_BYTES {
+                return fail("too_large", "request too large");
+            }
+            Some(bytes)
+        }
+        (AiMethod::Post, _, _) => return fail("invalid_request", "a model call needs exactly one body"),
     };
     let key = read_key(&app, &request.endpoint_id)?;
     if endpoint.needs_key && key.is_none() {
@@ -340,7 +373,14 @@ pub async fn ai_http(
         None => client.get(url),
     };
     for (name, value) in filtered_headers(&request.headers) {
+        // A raw body names its own type (the multipart boundary is in it).
+        if raw_type.is_some() && name == "content-type" {
+            continue;
+        }
         builder = builder.header(name, value);
+    }
+    if let Some(content_type) = raw_type {
+        builder = builder.header("content-type", content_type);
     }
     if let Some(key) = key.as_deref() {
         builder = match endpoint.auth {
@@ -553,6 +593,16 @@ mod tests {
         let mut headers = filtered_headers(&requested);
         headers.sort();
         assert_eq!(headers, vec![("content-type".to_string(), "application/json".to_string())]);
+    }
+
+    #[test]
+    fn raw_bodies_go_only_to_a_transcription_endpoint() {
+        let url = |path: &str| reqwest::Url::parse(&format!("https://api.openai.com/v1{path}")).unwrap();
+        assert!(raw_body_allowed(&url("/audio/transcriptions"), "multipart/form-data; boundary=----plainva123"));
+        assert!(!raw_body_allowed(&url("/chat/completions"), "multipart/form-data; boundary=x"));
+        assert!(!raw_body_allowed(&url("/responses"), "multipart/form-data; boundary=x"));
+        assert!(!raw_body_allowed(&url("/audio/transcriptions"), "application/json"));
+        assert!(!raw_body_allowed(&url("/audio/transcriptions"), "multipart/form-data; boundary=x\r\nx-api-key: stolen"));
     }
 
     #[test]

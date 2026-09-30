@@ -44,6 +44,13 @@ export interface HttpRequestSpec {
   /** The JSON body of a POST; a GET has none. */
   body?: Record<string, unknown>;
   /**
+   * Instead of `body`: raw bytes, base64 — a recording to transcribe (plan
+   * KI-Harness P1.5). Every egress accepts it only as multipart form data and
+   * only for a path ending in `/audio/transcriptions`, so it cannot carry a
+   * JSON body past the rules the egress enforces on those.
+   */
+  rawBody?: { base64: string; contentType: string };
+  /**
    * Where the key belongs, for the record and the conformance suite. The
    * native egress does not read it: it decides the key's place from the
    * endpoint itself, so the web view cannot redirect a key into a header of

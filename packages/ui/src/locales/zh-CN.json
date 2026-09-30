@@ -132,7 +132,8 @@
       "title": "AI与自动化",
       "sending": "发送",
       "confirmEvery": "每次请求前询问",
-      "confirmEveryDesc": "每条消息发送前都显示将要发出的内容，而不仅是第一次或范围扩大时。此设备上的模型从不询问。"
+      "confirmEveryDesc": "每条消息发送前都显示将要发出的内容，而不仅是第一次或范围扩大时。此设备上的模型从不询问。",
+      "audioHint": "将语音笔记转写为文字。需要支持音频的服务商：OpenAI、Gemini或兼容的服务器。"
     },
     "add": {
       "title": "添加服务商",
@@ -167,7 +168,8 @@
       "fast": "快速",
       "balanced": "均衡",
       "strong": "强大",
-      "local": "本地"
+      "local": "本地",
+      "audio": "音频"
     },
     "policy": {
       "title": "隐私规则（plainva.ai）",
@@ -222,7 +224,8 @@
         "selection": "你的选择",
         "tasks": "到期任务",
         "calendar": "日程",
-        "notes": "笔记"
+        "notes": "笔记",
+        "audio": "一段录音"
       },
       "keptBack": "未发送",
       "keptNotes_other": "{{count}}条被规则屏蔽的笔记",
@@ -235,7 +238,8 @@
       "estimateCost": "约{{tokens}}个Token，约{{cost}}",
       "send": "发送",
       "everyRequest": "每次请求前询问",
-      "leaveOut": "排除{{note}}"
+      "leaveOut": "排除{{note}}",
+      "evidenceAudio": "录音（{{size}}）"
     },
     "lens": {
       "open": "查看上下文",
@@ -367,6 +371,25 @@
       "pairAllow": "允许",
       "pairDeny": "拒绝",
       "pairNone": "请至少选择一个文件夹以允许。"
+    },
+    "transcribe": {
+      "action": "转写",
+      "running": "正在转写…",
+      "proposed": "转写稿已放在“建议”中——请接受或拒绝。",
+      "roundNote": "{{name}}的逐字转写。",
+      "title": "{{name}}的转写",
+      "refused": {
+        "off": "AI已关闭。",
+        "no-model": "请先在AI设置中为“音频”配置选择模型。",
+        "no-route": "{{provider}}无法转写。请为“音频”配置选择支持音频的服务商，例如OpenAI或Gemini。",
+        "too-large": "录音太大，无法转写（{{size}}；最多{{max}}）。",
+        "denied": "你的规则不允许将这条笔记发送给此模型。",
+        "encrypted": "加密工作区中暂不可用：其中的建议还无法将AI标为作者。",
+        "missing": "无法读取录音。",
+        "changed": "转写期间笔记已改变——未提出任何建议。",
+        "empty": "服务商没有返回转写稿。",
+        "failed": "无法完成转写：{{reason}}"
+      }
     }
   },
   "settingsSync": {

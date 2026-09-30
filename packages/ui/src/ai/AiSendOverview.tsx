@@ -7,6 +7,7 @@ import { IconButton } from "../components/ui/IconButton";
 import { Switch } from "../components/ui/Switch";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
+import { megabytes } from "./aiTranscribe";
 
 /**
  * The send overview (plan §13.3): what goes where, before it goes — and,
@@ -54,7 +55,9 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
     }
   };
   const form = (source: ManifestSource) =>
-    source.selection
+    source.audioBytes !== undefined
+      ? t("ai.overview.evidenceAudio", { size: megabytes(source.audioBytes) })
+      : source.selection
       ? t("ai.overview.evidenceSelection")
       : source.unchanged
       ? t("ai.overview.unchanged")

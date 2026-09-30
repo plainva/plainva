@@ -140,7 +140,8 @@
       "title": "IA e automação",
       "sending": "Envio",
       "confirmEvery": "Perguntar antes de cada solicitação",
-      "confirmEveryDesc": "Mostra o que sai antes de cada mensagem, não só na primeira vez e quando aumenta. Para um modelo neste dispositivo nunca pergunta."
+      "confirmEveryDesc": "Mostra o que sai antes de cada mensagem, não só na primeira vez e quando aumenta. Para um modelo neste dispositivo nunca pergunta.",
+      "audioHint": "Transcreve notas de voz. Precisa de um provedor com rota de áudio: OpenAI, Gemini ou um servidor compatível."
     },
     "add": {
       "title": "Adicionar provedor",
@@ -175,7 +176,8 @@
       "fast": "Rápido",
       "balanced": "Equilibrado",
       "strong": "Forte",
-      "local": "Local"
+      "local": "Local",
+      "audio": "Áudio"
     },
     "policy": {
       "title": "Regras de privacidade (plainva.ai)",
@@ -230,7 +232,8 @@
         "selection": "sua seleção",
         "tasks": "tarefas com prazo",
         "calendar": "compromissos",
-        "notes": "notas"
+        "notes": "notas",
+        "audio": "uma gravação"
       },
       "keptBack": "Retido",
       "keptNotes_one": "{{count}} nota bloqueada por suas regras",
@@ -251,7 +254,8 @@
       "estimateCost": "~{{tokens}} tokens, cerca de {{cost}}",
       "send": "Enviar",
       "everyRequest": "Perguntar antes de cada solicitação",
-      "leaveOut": "Deixar {{note}} de fora"
+      "leaveOut": "Deixar {{note}} de fora",
+      "evidenceAudio": "a gravação ({{size}})"
     },
     "lens": {
       "open": "Ver contexto",
@@ -387,6 +391,25 @@
       "pairAllow": "Permitir",
       "pairDeny": "Recusar",
       "pairNone": "Escolha pelo menos uma pasta para permitir."
+    },
+    "transcribe": {
+      "action": "Transcrever",
+      "running": "Transcrevendo…",
+      "proposed": "A transcrição aguarda em “Sugestões” — aceite ou recuse.",
+      "roundNote": "Transcrição de {{name}}, literal.",
+      "title": "Transcrição de {{name}}",
+      "refused": {
+        "off": "A IA está desativada.",
+        "no-model": "Escolha primeiro um modelo para o perfil “Áudio”, nas configurações de IA.",
+        "no-route": "{{provider}} não consegue transcrever. Atribua ao perfil “Áudio” um provedor com rota de áudio, como OpenAI ou Gemini.",
+        "too-large": "A gravação é grande demais para transcrever ({{size}}; no máximo {{max}}).",
+        "denied": "Suas regras mantêm esta nota longe deste modelo.",
+        "encrypted": "Ainda não em um workspace criptografado: as sugestões nele ainda não podem indicar a IA como autora.",
+        "missing": "Não foi possível ler a gravação.",
+        "changed": "A nota mudou durante a transcrição — nada foi sugerido.",
+        "empty": "O provedor não devolveu nenhuma transcrição.",
+        "failed": "Não foi possível fazer a transcrição: {{reason}}"
+      }
     }
   },
   "settingsSync": {

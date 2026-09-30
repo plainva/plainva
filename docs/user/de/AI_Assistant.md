@@ -30,6 +30,8 @@ Wenn Du noch keinen Schlüssel hast: ein Modell auf diesem Rechner (Ollama, LM S
 
 Vier Profile — **Schnell**, **Ausgewogen**, **Stark** und **Lokal** — sind Deine Zuordnung von Modellen. Wähle für jedes einen Anbieter und ein Modell, aus der Liste des Anbieters oder indem Du die Modellkennung genau so eingibst, wie der Anbieter sie nennt. **Standard für neue Gespräche** legt fest, mit welchem Profil ein neues Gespräch beginnt. Plainva erklärt kein Modell zum „besten“.
 
+Ein fünfter Platz, **Audio**, hält das Modell, das Sprachnotizen transkribiert; er ist nie der Standard für ein Gespräch.
+
 ## Fragen
 
 - **Desktop:** der KI-Knopf in der Aktionsleiste, **Strg+J** (⌘J unter macOS) oder **KI fragen** in der Befehlspalette öffnet den Begleiter — ein kleines Fenster über Deiner Arbeit. **Als Tab öffnen** holt dasselbe Gespräch in den KI-Tab, wo Deine Gespräche aufgelistet sind.
@@ -85,6 +87,12 @@ Eine Stelle aus einer Notiz, die Deine Regeln von der Cloud fernhalten — oder 
 
 Drei Skills starten häufige Fragen mit einem Klick: **Tagesorientierung** (was heute wichtig ist — fällige Aufgaben, Termine und woran Du zuletzt gearbeitet hast), **Wochenrückblick** (die letzten sieben Tage und die Woche, die kommt) und **Projektstatus** (Ziel, Fortschritt, offene Punkte und der nächste Schritt des Projekts in der offenen Notiz). Du findest sie als Chips in einem leeren Gespräch, unter **Skills** im KI-Tab — am Telefon in **Gespräche** — und in der Befehlspalette. Ein Skill sendet seine Frage als Deine Nachricht: in Deiner Sprache, im Gespräch sichtbar wie alles, was Du tippst, und über dieselbe Übersicht. Der Assistent sucht dann mit seinen üblichen Werkzeugen nach.
 
+## Eine Sprachnotiz transkribieren
+
+An jeder Sprachnotiz — im Editor, im Lesemodus, im Journal und auf Karten — macht **Transkribieren** aus der Aufnahme Text. Sie geht unverändert an das Modell des Profils **Audio**, über dieselbe Übersicht wie eine Frage; eine Aufnahme ist eine eigene Art von Daten, deshalb fragt die Übersicht beim ersten Mal. Das Transkript kommt als Vorschlag unter die Aufnahme, mit dem Autor **Plainva KI · ⟨Modell⟩** — unter **Vorschläge** übernimmst oder lehnst Du es ab.
+
+**Audio** braucht einen Anbieter mit Audio-Weg: OpenAI (etwa `gpt-4o-transcribe` oder `whisper-1`), Gemini oder einen eigenen kompatiblen Server — einer auf diesem Rechner behält die Aufnahme auf dem Gerät. Aufnahmen bis 11 MB lassen sich transkribieren. Eine Aufnahme in einer Notiz, die Deine Regeln von der Cloud fernhalten, geht an kein Cloud-Modell, und verschlüsselte Workspaces bieten es noch nicht an.
+
 ## Datenschutzregeln
 
 Manche Notizen sollen nie zu einem Cloud-Anbieter. Eine Regel kann im Frontmatter einer Notiz stehen:
@@ -105,4 +113,4 @@ Gespräche bleiben auf diesem Gerät, je Vault — nie im Vault und nie synchron
 
 - Am Desktop läuft die KI nur im Hauptfenster.
 - Am Telefon kommt eine Antwort nur, solange die App geöffnet ist.
-- Der Assistent ändert nichts selbst: Änderungen schlägt er nur für eine markierte Stelle vor, als Vorschläge, die Du übernimmst oder ablehnst.
+- Der Assistent ändert nichts selbst: Änderungen an einer markierten Stelle und Transkripte von Sprachnotizen schlägt er vor, als Vorschläge, die Du übernimmst oder ablehnst.

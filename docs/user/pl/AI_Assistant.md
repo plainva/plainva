@@ -30,6 +30,8 @@ Jeśli nie masz jeszcze klucza: model na tym komputerze (Ollama, LM Studio) nic 
 
 Cztery profile — **Szybki**, **Zrównoważony**, **Silny** i **Lokalny** — służą do przypisania modeli. Dla każdego wybierz dostawcę i model, z listy dostawcy albo wpisując identyfikator modelu dokładnie tak, jak nazywa go dostawca. **Domyślny dla nowych rozmów** decyduje, którym profilem zaczyna się nowa rozmowa. Plainva nie ogłasza żadnego modelu „najlepszym”.
 
+Piąte miejsce, **Audio**, zawiera model, który transkrybuje notatki głosowe; nigdy nie jest domyślne dla rozmowy.
+
 ## Zadawanie pytań
 
 - **Desktop:** przycisk AI na pasku akcji, **Ctrl+J** (⌘J w macOS) lub **Zapytaj AI** w palecie poleceń otwiera asystenta — małe okno nad bieżącą pracą. **Otwórz jako kartę** przenosi tę samą rozmowę do karty AI, gdzie wyświetlana jest lista rozmów.
@@ -85,6 +87,12 @@ Fragment notatki, którą Twoje reguły trzymają z dala od chmury — albo frag
 
 Trzy umiejętności uruchamiają częste pytania jednym kliknięciem: **Orientacja na dziś** (co jest dziś ważne: zadania z terminem, spotkania i ostatnio zmieniane notatki), **Przegląd tygodnia** (ostatnie siedem dni i nadchodzący tydzień) oraz **Stan projektu** (cel, postęp, otwarte punkty i następny krok projektu z otwartej notatki). Znajdują się jako chipy w pustej rozmowie, w sekcji **Umiejętności** na karcie AI — na telefonie w **Rozmowy** — oraz w palecie poleceń. Umiejętność wysyła swoje pytanie jako wiadomość użytkownika: w jego języku, widoczną w rozmowie jak wszystko, co zostało wpisane, i przez ten sam przegląd. Następnie asystent wyszukuje informacje swoimi zwykłymi narzędziami.
 
+## Transkrypcja notatki głosowej
+
+Przy każdej notatce głosowej — w edytorze, w trybie czytania, w dzienniku i na kartach — **Transkrybuj** zamienia nagranie w tekst. Trafia ono bez zmian do modelu profilu **Audio**, przez ten sam przegląd co pytanie; nagranie to osobny rodzaj danych, więc przegląd pyta za pierwszym razem. Transkrypcja wraca jako propozycja pod nagraniem, z autorem **Plainva AI · ⟨model⟩** — zaakceptuj ją lub odrzuć w sekcji **Propozycje**.
+
+**Audio** wymaga dostawcy z obsługą audio: OpenAI (na przykład `gpt-4o-transcribe` lub `whisper-1`), Gemini albo własnego zgodnego serwera — serwer na tym komputerze zatrzymuje nagranie na urządzeniu. Można transkrybować nagrania do 11 MB. Nagranie w notatce, którą Twoje reguły trzymają z dala od chmury, nie trafia do żadnego modelu w chmurze, a zaszyfrowane obszary robocze jeszcze tego nie oferują.
+
 ## Zasady prywatności
 
 Niektóre notatki nigdy nie powinny trafić do dostawcy w chmurze. Reguła może znajdować się we frontmatterze notatki:
@@ -105,4 +113,4 @@ Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i n
 
 - Na komputerze AI działa tylko w głównym oknie.
 - Na telefonie odpowiedź pojawia się tylko, gdy aplikacja jest otwarta.
-- Asystent sam niczego nie zmienia: proponuje zmiany tylko w zaznaczonym fragmencie, jako propozycje do zaakceptowania lub odrzucenia.
+- Asystent sam niczego nie zmienia: proponuje zmiany w zaznaczonym fragmencie i transkrypcje notatek głosowych, jako propozycje do zaakceptowania lub odrzucenia.

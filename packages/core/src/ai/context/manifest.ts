@@ -28,6 +28,8 @@ export interface ManifestSource {
   reasons: CandidateSignal[];
   /** Only the passage the user selected went (an action at a selection, plan P1.5). */
   selection?: boolean;
+  /** A recording that went to be transcribed, by its size in bytes (plan P1.5). */
+  audioBytes?: number;
 }
 
 export interface EgressManifest {

@@ -11,6 +11,7 @@ export * from "./preWriteLint.js";
 export * from "./tools.js";
 export * from "./conversation.js";
 export * from "./providers.js";
+export * from "./transcription.js";
 export * from "./streams.js";
 export * from "./ruleOfTwo.js";
 export * from "./egress.js";

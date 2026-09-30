@@ -30,6 +30,8 @@ Heb je nog geen sleutel: een model op deze computer (Ollama, LM Studio) kost nie
 
 Vier profielen — **Snel**, **Gebalanceerd**, **Sterk** en **Lokaal** — zijn jouw toewijzing van modellen. Kies voor elk een provider en een model, uit de lijst van de provider of door de model-ID precies zo in te typen als de provider die noemt. **Standaard voor nieuwe gesprekken** bepaalt met welk profiel een nieuw gesprek begint. Plainva noemt geen enkel model “het beste”.
 
+Een vijfde plek, **Audio**, bevat het model dat spraaknotities uitschrijft; het is nooit de standaard voor een gesprek.
+
 ## Vragen
 
 - **Desktop:** de AI-knop in de actiebalk, **Ctrl+J** (⌘J onder macOS) of **AI vragen** in het opdrachtenpalet opent de begeleider — een klein venster boven je werk. **Als tabblad openen** verplaatst hetzelfde gesprek naar het AI-tabblad, waar je gesprekken staan vermeld.
@@ -85,6 +87,12 @@ Een passage uit een notitie die je regels bij de cloud weghouden — of een met 
 
 Drie vaardigheden starten veelgestelde vragen met één klik: **Dagoriëntatie** (wat vandaag telt: taken die aflopen, afspraken en waar je laatst aan werkte), **Weekoverzicht** (de afgelopen zeven dagen en de week die komt) en **Projectstatus** (doel, voortgang, open punten en de volgende stap van het project in de geopende notitie). Je vindt ze als chips in een leeg gesprek, onder **Vaardigheden** in het AI-tabblad — op de telefoon in **Gesprekken** — en in het opdrachtenpalet. Een vaardigheid verzendt haar vraag als jouw bericht: in jouw taal, zichtbaar in het gesprek zoals alles wat je typt, en via hetzelfde overzicht. Daarna zoekt de assistent met zijn gewone tools.
 
+## Een spraaknotitie uitschrijven
+
+Bij elke spraaknotitie — in de editor, in de leesmodus, in het journaal en op kaarten — maakt **Uitschrijven** van de opname tekst. Die gaat ongewijzigd naar het model van het profiel **Audio**, via hetzelfde overzicht als een vraag; een opname is een eigen soort gegevens, dus het overzicht vraagt het de eerste keer. De transcriptie komt terug als voorstel onder de opname, met de auteur **Plainva AI · ⟨model⟩** — accepteer of wijs haar af onder **Voorstellen**.
+
+**Audio** vereist een provider met een audioroute: OpenAI (bijvoorbeeld `gpt-4o-transcribe` of `whisper-1`), Gemini of een eigen compatibele server — een server op deze computer houdt de opname op het apparaat. Opnamen tot 11 MB kunnen worden uitgeschreven. Een opname in een notitie die je regels bij de cloud weghouden, gaat naar geen enkel cloudmodel, en versleutelde workspaces bieden het nog niet aan.
+
 ## Privacyregels
 
 Sommige notities mogen nooit bij een cloudprovider terechtkomen. Een regel kan in de frontmatter van een notitie staan:
@@ -105,4 +113,4 @@ Gesprekken blijven op dit apparaat, per vault — nooit in de vault en nooit ges
 
 - Op de desktop werkt de AI alleen in het hoofdvenster.
 - Op de telefoon komt een antwoord alleen terwijl de app open staat.
-- De assistent verandert zelf niets: hij stelt alleen wijzigingen voor aan een geselecteerde passage, als voorstellen die je accepteert of afwijst.
+- De assistent verandert zelf niets: hij stelt wijzigingen aan een geselecteerde passage en transcripties van spraaknotities voor, als voorstellen die je accepteert of afwijst.

@@ -4,6 +4,7 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetTy
 import { imageMimeType } from "../services/imageFiles";
 import { findMediaEmbeds, imageBasename, imageCandidates, type ImageLookup } from "../lib/imageTarget";
 import { mountAudioPlayer } from "./audioPlayer";
+import type { AudioPlace } from "../ai/aiTranscribe";
 import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorHighlightChange, type AnchorFrame } from "./anchorHighlight";
 import { pickImageRegion } from "./anchorRegion";
 import i18n from "../i18n";
@@ -204,16 +205,18 @@ class AudioWidget extends WidgetType {
     readonly readBinary: ReadBinaryFn,
     readonly cache: ImageCache,
     readonly label: string,
+    /** Where the sound stands, for "Transcribe" (plan KI-Harness P1.5); none for a web address. */
+    readonly place: AudioPlace | null,
   ) { super(); }
 
   eq(other: AudioWidget) {
-    return this.key === other.key && this.label === other.label;
+    return this.key === other.key && this.label === other.label && this.place?.notePath === other.place?.notePath && this.place?.target === other.place?.target;
   }
 
   toDOM() {
     const container = document.createElement("span");
     container.className = "pv-image-embed";
-    const player = mountAudioPlayer(container, { label: this.label });
+    const player = mountAudioPlayer(container, { label: this.label, ...(this.place ? { place: this.place } : {}) });
     if (this.source.kind === "direct") {
       player.setUrl(this.source.url);
     } else {
@@ -321,7 +324,9 @@ export function imagePreviewPlugin(
           }
 
           if (embed.kind === "audio") {
-            const sound = new AudioWidget(source, source.kind === "direct" ? source.url : source.key, readBinary, this.imageCache, embed.alt || embed.target.split("/").pop() || embed.target);
+            const notePath = source.kind === "vault" ? lookup?.()?.notePath : undefined;
+            const place = notePath ? { notePath, target: embed.target } : null;
+            const sound = new AudioWidget(source, source.kind === "direct" ? source.url : source.key, readBinary, this.imageCache, embed.alt || embed.target.split("/").pop() || embed.target, place);
             builder.add(
               hideSyntax && !isFocused ? matchStart : matchEnd,
               matchEnd,

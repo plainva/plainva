@@ -22,6 +22,12 @@ export interface ModelInfo {
    * be typed in.
    */
   chat: boolean;
+  /**
+   * Hears audio: a transcription model (OpenAI and compatible lists name
+   * them), or any Gemini model that generates content. A sorting hint for the
+   * profile "Audio", like `chat`.
+   */
+  transcribe?: boolean;
 }
 
 export function modelListSpec(endpoint: ProviderEndpoint): HttpRequestSpec {
@@ -60,6 +66,9 @@ export function modelListSpec(endpoint: ProviderEndpoint): HttpRequestSpec {
 
 const NOT_CHAT = /(^|[/:-])(text-embedding|embedding|embed|tts|whisper|transcribe|dall-e|gpt-image|image|moderation|rerank|babbage|davinci)([-.:/]|$)/i;
 
+/** Transcription models by their id (whisper-1, gpt-4o-transcribe, whisper-large-v3 …). */
+const TRANSCRIBES = /(^|[/:-])(whisper|transcribe)([-.:/]|$)/i;
+
 function num(value: unknown): number | undefined {
   const n = typeof value === "string" ? Number(value) : value;
   return typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : undefined;
@@ -88,6 +97,7 @@ export function parseModelList(endpoint: ProviderEndpoint, json: unknown): Model
         contextTokens: num(m.inputTokenLimit),
         outputTokens: num(m.outputTokenLimit),
         chat: methods.includes("generateContent") || methods.includes("streamGenerateContent"),
+        transcribe: methods.includes("generateContent"),
       });
     }
   } else {
@@ -104,6 +114,7 @@ export function parseModelList(endpoint: ProviderEndpoint, json: unknown): Model
         contextTokens: num(m.context_length) ?? num(m.context_window),
         price: input !== undefined && output !== undefined ? { input: input * 1_000_000, output: output * 1_000_000 } : undefined,
         chat: modality ? /->.*text/.test(modality) && !NOT_CHAT.test(id) : !NOT_CHAT.test(id),
+        transcribe: TRANSCRIBES.test(id),
       });
     }
   }

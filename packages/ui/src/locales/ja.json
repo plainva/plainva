@@ -132,7 +132,8 @@
       "title": "AI・自動化",
       "sending": "送信",
       "confirmEvery": "リクエストごとに確認する",
-      "confirmEveryDesc": "最初の送信時や範囲が広がったときだけでなく、メッセージごとに送信内容を表示します。この端末上のモデルでは確認しません。"
+      "confirmEveryDesc": "最初の送信時や範囲が広がったときだけでなく、メッセージごとに送信内容を表示します。この端末上のモデルでは確認しません。",
+      "audioHint": "ボイスメモを文字起こしします。音声に対応したプロバイダー（OpenAI、Gemini、または互換サーバー）が必要です。"
     },
     "add": {
       "title": "プロバイダーを追加",
@@ -167,7 +168,8 @@
       "fast": "高速",
       "balanced": "バランス",
       "strong": "強力",
-      "local": "ローカル"
+      "local": "ローカル",
+      "audio": "音声"
     },
     "policy": {
       "title": "プライバシールール（plainva.ai）",
@@ -222,7 +224,8 @@
         "selection": "選択範囲",
         "tasks": "期限のあるタスク",
         "calendar": "予定",
-        "notes": "ノート"
+        "notes": "ノート",
+        "audio": "録音"
       },
       "keptBack": "送信しなかったもの",
       "keptNotes_other": "ルールでブロックされたノート {{count}} 件",
@@ -235,7 +238,8 @@
       "estimateCost": "約 {{tokens}} トークン、約 {{cost}}",
       "send": "送信",
       "everyRequest": "リクエストごとに確認する",
-      "leaveOut": "{{note}}を除外"
+      "leaveOut": "{{note}}を除外",
+      "evidenceAudio": "録音（{{size}}）"
     },
     "lens": {
       "open": "コンテキストを見る",
@@ -367,6 +371,25 @@
       "pairAllow": "許可",
       "pairDeny": "拒否",
       "pairNone": "許可するには少なくとも1つのフォルダーを選んでください。"
+    },
+    "transcribe": {
+      "action": "文字起こし",
+      "running": "文字起こし中…",
+      "proposed": "文字起こしが「提案」で待っています。適用または却下してください。",
+      "roundNote": "{{name}}の文字起こし（逐語）。",
+      "title": "{{name}}の文字起こし",
+      "refused": {
+        "off": "AIはオフです。",
+        "no-model": "先にAI設定でプロファイル「音声」のモデルを選んでください。",
+        "no-route": "{{provider}}は文字起こしできません。プロファイル「音声」に、OpenAIやGeminiなど音声に対応したプロバイダーを設定してください。",
+        "too-large": "録音が大きすぎて文字起こしできません（{{size}}、上限{{max}}）。",
+        "denied": "ルールにより、このノートはこのモデルに送れません。",
+        "encrypted": "暗号化ワークスペースではまだ使えません。そこでの提案は、まだAIを作成者として示せません。",
+        "missing": "録音を読み込めませんでした。",
+        "changed": "文字起こしの間にノートが変わったため、何も提案しませんでした。",
+        "empty": "プロバイダーから文字起こしが返ってきませんでした。",
+        "failed": "文字起こしできませんでした：{{reason}}"
+      }
     }
   },
   "settingsSync": {
