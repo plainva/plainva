@@ -245,6 +245,14 @@ public class LocalModelPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Free space where packages go, so the load sheet can say whether one fits. */
+    @PluginMethod
+    public void freeSpace(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("bytes", new android.os.StatFs(getContext().getNoBackupFilesDir().getPath()).getAvailableBytes());
+        call.resolve(result);
+    }
+
     @PluginMethod
     public void remove(PluginCall call) {
         String model = call.getString("model");

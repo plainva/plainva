@@ -10,6 +10,7 @@ interface LocalModelsNative {
   status(options: { model: string; files: { name: string; bytes: number; sha256: string }[] }): Promise<{ present: boolean[] }>;
   download(options: { model: string; name: string; url: string; bytes: number; sha256: string }): Promise<void>;
   cancel(options: { model: string }): Promise<void>;
+  freeSpace(): Promise<{ bytes: number }>;
   remove(options: { model: string }): Promise<void>;
   readText(options: { model: string; name: string }): Promise<{ text: string }>;
   load(options: { model: string }): Promise<{ handle: string }>;
@@ -35,6 +36,7 @@ export const mobileLocalModels: LocalModelBridge = {
     }
   },
   cancel: (model) => LocalModels.cancel({ model }),
+  freeSpace: async () => (await LocalModels.freeSpace()).bytes,
   remove: (model) => LocalModels.remove({ model }),
   readText: async (model, name) => (await LocalModels.readText({ model, name })).text,
   load: async (modelFile) => (await LocalModels.load({ model: modelFile })).handle,

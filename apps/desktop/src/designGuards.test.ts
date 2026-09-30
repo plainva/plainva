@@ -335,6 +335,11 @@ describe("theme reach (every mobile surface can be re-themed)", () => {
 /** The docking matrix: top-level pv surfaces in ui.css. A surface must be
  * restyled by BOTH easter-egg themes or carry a visible exemption. */
 const THEME_EXEMPT: Record<string, string> = {
+  "pv-semantic-mode": "layout only — a placement class on a Segmented the themes already restyle",
+  "pv-semantic-coverage": "layout only — --text-muted text, ghost Buttons and the .pv-security-progress track the themes restyle",
+  "pv-semantic-coverage-actions": "layout only — see pv-semantic-coverage",
+  "pv-semantic-note": "a text run in --text-muted; the themes override that token",
+  "pv-semantic-choices": "layout only — Radio rows (.pv-checkrow) the themes already restyle",
   "pv-rulelist": "layout only — every visible part is a .pv-field/Select/IconButton the themes already restyle",
   "pv-rule": "layout only — see pv-rulelist",
   "pv-rule-from": "layout only — see pv-rulelist",

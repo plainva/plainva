@@ -25,6 +25,22 @@ The search field also applies to the other sidebar views: in **Tags** it filters
 - Operators can be negated (`-path:Archive`, `-tag:done`) and combined freely with search terms: `plan tag:project -draft`.
 - Multiple terms are combined with AND. Special characters like `- ( ) : *` inside terms are harmless — Plainva treats the input literally.
 
+## Search by meaning
+
+With a local model, search also finds notes by what they mean — not only by their words, and across languages: a question in German finds an English note that says the same. The model runs on this device; your notes and the vectors computed from them never leave it.
+
+Switch it on under **Settings → AI & automation → Semantic search** (the AI must be on). Choose a model — **Granite Embedding Multilingual R2 (97M)** is the recommended one — and Plainva shows its size, source, license and an estimated duration before anything is downloaded. Every file comes from a fixed version on huggingface.co and is checked by its SHA-256; no sign-in is needed. Before the first note is embedded, Plainva checks that the model computes correctly on this device.
+
+While a model is active, the head of the search results offers **Words**, **Meaning** and **Both**:
+
+- **Words** is the full-text search described above.
+- **Meaning** lists the notes whose sections come closest to your question; opening a hit jumps to that section.
+- **Both** (the default) ranks the hits of words and meaning together.
+
+In **Meaning** and **Both** every note appears once, and a small label says what found it: **Words**, **Meaning** or **Words and meaning**. Search operators (`path:`, `tag:`, `-term`) limit the hits by meaning too. The choice applies to this device.
+
+Plainva embeds the notes in the background, the most recently changed first; a note you are editing follows a few seconds after you stop typing. Until then it is found by its words only — a hit by meaning never comes from the old text of a note. A line under the results shows how far this has come and offers **Pause**. On the phone, embedding runs only while Plainva is open. **Remove (with its vectors)** in the settings deletes the model and everything it computed.
+
 ## Quick switcher
 
 `Ctrl+O` or `Ctrl+K` opens the quick switcher: type, navigate with the arrow keys, open with `Enter`. Without input it shows the **Recent Files** list — the fastest way to jump between your current notes. Matches can also be opened directly in a new tab (the dialog's footer shows the keys).

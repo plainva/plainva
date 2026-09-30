@@ -25,6 +25,22 @@ Le champ de recherche s'applique aussi aux autres vues de la barre latérale : d
 - Les opérateurs peuvent être niés (`-path:Archives`, `-tag:fait`) et combinés librement avec des termes de recherche : `plan tag:projet -brouillon`.
 - Plusieurs termes sont combinés avec ET. Les caractères spéciaux comme `- ( ) : *` à l'intérieur des termes sont sans danger — Plainva traite la saisie littéralement.
 
+## Recherche par le sens
+
+Avec un modèle local, la recherche trouve aussi les notes d'après ce qu'elles signifient — pas seulement d'après leurs mots, et d'une langue à l'autre : une question en français trouve une note anglaise qui dit la même chose. Le modèle calcule sur cet appareil ; vos notes et les vecteurs calculés à partir d'elles ne le quittent jamais.
+
+Activez-la dans **Paramètres → IA & automatisation → Recherche sémantique** (l'IA doit être activée). Choisissez un modèle — **Granite Embedding Multilingual R2 (97M)** est recommandé — et Plainva affiche sa taille, sa source, sa licence et une durée estimée avant tout téléchargement. Chaque fichier provient d'une version fixe sur huggingface.co et est vérifié par son SHA-256 ; aucune connexion n'est nécessaire. Avant d'intégrer la première note, Plainva vérifie que le modèle calcule correctement sur cet appareil.
+
+Tant qu'un modèle est actif, l'en-tête des résultats propose **Mots**, **Sens** et **Les deux** :
+
+- **Mots** est la recherche en texte intégral décrite plus haut.
+- **Sens** liste les notes dont les sections se rapprochent le plus de votre question ; ouvrir un résultat mène à cette section.
+- **Les deux** (par défaut) classe ensemble les résultats des mots et du sens.
+
+Avec **Sens** et **Les deux**, chaque note apparaît une fois, et une petite étiquette indique ce qui l'a trouvée : **Mots**, **Sens** ou **Mots et sens**. Les opérateurs de recherche (`path:`, `tag:`, `-terme`) limitent aussi les résultats par le sens. Le choix s'applique à cet appareil.
+
+Plainva intègre les notes en arrière-plan, les plus récemment modifiées d'abord ; une note que vous modifiez suit quelques secondes après la fin de la saisie. D'ici là, elle n'est trouvée que par ses mots — un résultat par le sens ne provient jamais de l'ancien texte d'une note. Une ligne sous les résultats indique l'avancement et propose **Mettre en pause**. Sur téléphone, l'intégration ne s'effectue que lorsque Plainva est ouvert. **Retirer (avec ses vecteurs)** dans les paramètres supprime le modèle et tout ce qu'il a calculé.
+
 ## Sélecteur rapide
 
 `Ctrl+O` ou `Ctrl+K` ouvre le sélecteur rapide : tapez, naviguez avec les flèches, ouvrez avec `Entrée`. Sans saisie, il affiche la liste **Fichiers récents** — le moyen le plus rapide de passer d'une note actuelle à l'autre. Les résultats peuvent aussi être ouverts directement dans un nouvel onglet (le pied de page du dialogue montre les touches correspondantes).

@@ -25,6 +25,22 @@ Il campo di ricerca si applica anche alle altre viste della barra laterale: in *
 - Gli operatori possono essere negati (`-path:Archivio`, `-tag:fatto`) e combinati liberamente con i termini di ricerca: `piano tag:progetto -bozza`.
 - Più termini vengono combinati con AND. Caratteri speciali come `- ( ) : *` all'interno dei termini sono innocui — Plainva tratta l'input in modo letterale.
 
+## Ricerca per significato
+
+Con un modello locale, la ricerca trova le note anche in base a ciò che significano — non solo alle loro parole, e anche tra lingue diverse: una domanda in italiano trova una nota inglese che dice la stessa cosa. Il modello calcola su questo dispositivo; le tue note e i vettori calcolati da esse non lo lasciano mai.
+
+Attivala in **Impostazioni → IA e automazione → Ricerca semantica** (l'IA deve essere attiva). Scegli un modello — quello consigliato è **Granite Embedding Multilingual R2 (97M)** — e Plainva mostra dimensione, origine, licenza e una durata stimata prima di scaricare qualsiasi cosa. Ogni file proviene da una versione fissa su huggingface.co ed è verificato con il suo SHA-256; non serve alcun accesso. Prima di elaborare la prima nota, Plainva verifica che il modello calcoli correttamente su questo dispositivo.
+
+Finché un modello è attivo, l'intestazione dei risultati offre **Parole**, **Significato** ed **Entrambi**:
+
+- **Parole** è la ricerca full-text descritta sopra.
+- **Significato** elenca le note le cui sezioni si avvicinano di più alla tua domanda; aprire un risultato porta a quella sezione.
+- **Entrambi** (predefinito) ordena insieme i risultati di parole e significato.
+
+Con **Significato** ed **Entrambi** ogni nota compare una volta, e una piccola etichetta dice cosa l'ha trovata: **Parole**, **Significato** o **Parole e significato**. Gli operatori di ricerca (`path:`, `tag:`, `-termine`) limitano anche i risultati per significato. La scelta vale per questo dispositivo.
+
+Plainva elabora le note in background, prima quelle modificate più di recente; una nota che stai modificando segue pochi secondi dopo che smetti di scrivere. Fino ad allora viene trovata solo tramite le sue parole — un risultato per significato non proviene mai dal vecchio testo di una nota. Una riga sotto i risultati mostra l'avanzamento e offre **Metti in pausa**. Sul telefono l'elaborazione avviene solo mentre Plainva è aperto. **Rimuovi (con i suoi vettori)** nelle impostazioni elimina il modello e tutto ciò che ha calcolato.
+
 ## Selettore rapido
 
 `Ctrl+O` o `Ctrl+K` apre il selettore rapido: digita, naviga con i tasti freccia, apri con `Invio`. Senza alcun input mostra l'elenco **File recenti** — il modo più veloce per passare tra le tue note attuali. I risultati possono anche essere aperti direttamente in una nuova scheda (il piè di pagina del dialogo mostra i tasti).

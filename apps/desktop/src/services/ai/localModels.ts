@@ -20,6 +20,7 @@ export const desktopLocalModels: LocalModelBridge = {
   async cancel(model) {
     await invoke("model_download_cancel", { model });
   },
+  freeSpace: () => invoke<number>("model_free_space"),
   async remove(model) {
     await invoke("model_remove", { model });
   },

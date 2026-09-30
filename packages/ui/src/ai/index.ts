@@ -21,3 +21,6 @@ export * from "./aiSelectionActions";
 export * from "./aiSkills";
 export * from "./aiTranscribe";
 export * from "./localModels";
+export * from "./localEmbeddings";
+export * from "./SemanticSearch";
+export * from "./semanticSettingsModel";

@@ -25,6 +25,22 @@ O campo de busca também se aplica às outras visualizações da barra lateral: 
 - Os operadores podem ser negados (`-path:Arquivo`, `-tag:concluido`) e combinados livremente com termos de busca: `plano tag:projeto -rascunho`.
 - Vários termos são combinados com E. Caracteres especiais como `- ( ) : *` dentro dos termos são inofensivos — o Plainva trata a entrada literalmente.
 
+## Pesquisa por significado
+
+Com um modelo local, a pesquisa também encontra notas pelo que elas significam — não só pelas palavras, e entre idiomas: uma pergunta em português encontra uma nota em inglês que diz o mesmo. O modelo calcula neste dispositivo; suas notas e os vetores calculados a partir delas nunca saem dele.
+
+Ative em **Configurações → IA e automação → Pesquisa semântica** (a IA precisa estar ativada). Escolha um modelo — o recomendado é **Granite Embedding Multilingual R2 (97M)** — e o Plainva mostra o tamanho, a fonte, a licença e uma duração estimada antes de baixar qualquer coisa. Cada arquivo vem de uma versão fixa no huggingface.co e é verificado pelo SHA-256; não é preciso fazer login. Antes de processar a primeira nota, o Plainva verifica se o modelo calcula corretamente neste dispositivo.
+
+Enquanto um modelo está ativo, o cabeçalho dos resultados oferece **Palavras**, **Significado** e **Ambos**:
+
+- **Palavras** é a pesquisa de texto completo descrita acima.
+- **Significado** lista as notas cujas seções mais se aproximam da sua pergunta; abrir um resultado leva a essa seção.
+- **Ambos** (padrão) ordena juntos os resultados de palavras e significado.
+
+Em **Significado** e **Ambos** cada nota aparece uma vez, e um pequeno rótulo diz o que a encontrou: **Palavras**, **Significado** ou **Palavras e significado**. Os operadores de pesquisa (`path:`, `tag:`, `-termo`) também limitam os resultados por significado. A escolha vale para este dispositivo.
+
+O Plainva processa as notas em segundo plano, as alteradas mais recentemente primeiro; uma nota que você está editando entra alguns segundos depois que você para de digitar. Até lá, ela só é encontrada pelas palavras — um resultado por significado nunca vem do texto antigo de uma nota. Uma linha abaixo dos resultados mostra o progresso e oferece **Pausar**. No celular, o processamento só acontece enquanto o Plainva está aberto. **Remover (com os vetores)** nas configurações apaga o modelo e tudo o que ele calculou.
+
 ## Alternador rápido
 
 `Ctrl+O` ou `Ctrl+K` abre o alternador rápido: digite, navegue com as setas, abra com `Enter`. Sem digitação, ele mostra a lista de **Arquivos recentes** — a forma mais rápida de pular entre suas notas atuais. Os resultados também podem ser abertos diretamente em uma nova aba (o rodapé do diálogo mostra as teclas correspondentes).

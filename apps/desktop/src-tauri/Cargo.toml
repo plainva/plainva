@@ -111,9 +111,10 @@ tauri-plugin-single-instance = "2"
 # is registered until the user switches it on. Desktop only, like the crate.
 tauri-plugin-global-shortcut = "2"
 
-# The MCP endpoint's owner-only DACL, and the helper's parent-process lookup.
+# The MCP endpoint's owner-only DACL, the helper's parent-process lookup, and the
+# free space a model package needs (model_store.rs).
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_Storage_FileSystem"] }
 
 # The Unix socket's private folder (uid, the per-user temporary folder on macOS).
 [target.'cfg(unix)'.dependencies]

@@ -1,16 +1,18 @@
 import { trimChars } from "@plainva/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Clock, FilePlus, Search } from "lucide-react";
 import {
   useSearchPages, recallSearchSession, rememberSearchSession, Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
   rememberSearch, SearchField,
   setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge,
-  IconButton, SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey } from "@plainva/ui";
+  IconButton, SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey,
+  ActiveSearchModeSwitch, ActiveSemanticCoverage, FoundChip, meaningActive, useLocalEmbeddings } from "@plainva/ui";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
+import { getMobileAiSession } from "../services/ai/mobileAi";
 import { SortSheet } from "../components/SortSheet";
 import { appendOperator, OPERATOR_CHIPS, parseQuery } from "../lib/searchMode";
 
@@ -87,7 +89,17 @@ export function SearchScreen({
       return next;
     });
   };
-  const searchPage = useSearchPages(vault.queryService, vault.searchAvailable && parsed.mode === "find" ? parsed.term : "", revision, 40, sort);
+  // Search by meaning (plan KI-Harness P2a-4): while a local model is active the
+  // vault's hybrid search answers; a new mode is a new service, so the list
+  // starts over as for a new query.
+  const { controller: embeddings, state: embeddingState } = useLocalEmbeddings();
+  const meaningOn = meaningActive(embeddingState);
+  const searchMode = embeddingState?.mode;
+  const searchService = useMemo(
+    () => (embeddings && meaningOn ? { mode: searchMode, searchOccurrencesPage: embeddings.search.searchOccurrencesPage.bind(embeddings.search) } : vault.queryService),
+    [embeddings, meaningOn, searchMode, vault.queryService],
+  );
+  const searchPage = useSearchPages(searchService, vault.searchAvailable && parsed.mode === "find" ? parsed.term : "", revision, 40, sort);
   const results = searchPage.hits;
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -122,8 +134,9 @@ export function SearchScreen({
 
   const openResult = (r: SearchResult) => {
     keepContext();
-    // Park the jump BEFORE opening: the editor may not be mounted yet.
-    const term = jumpTermOf(parsed.term);
+    // Park the jump BEFORE opening: the editor may not be mounted yet. A hit
+    // found by meaning holds none of the query's words: its own first line is the term.
+    const term = r.found === "meaning" ? r.occurrence?.quote : jumpTermOf(parsed.term);
     if (term) setPendingSearchJump({ path: r.path, term, ...r.occurrence });
     void rememberSearch(vault.vaultId, parsed.term);
     onOpenNote(r.path);
@@ -171,7 +184,8 @@ export function SearchScreen({
             {r.titleHighlighted?.includes(mark)
               ? renderSnippetNodes(r.titleHighlighted)
               : r.path.split("/").pop()!.replace(/\.md$/i, "")}
-          </bdi>
+          </bdi>{" "}
+          <FoundChip found={r.found} />
         </span>
         {r.occurrence && <span className="m-result-snippet">{r.occurrence.headings.join(" › ")} · {t("searchResults.line", { line: r.occurrence.line })}</span>}
         {r.snippet ? (
@@ -302,6 +316,12 @@ export function SearchScreen({
         </EmptyState>
       ) : (
         <>
+          {meaningOn && (
+            <div className="pv-resulthead">
+              <span />
+              <ActiveSearchModeSwitch onChange={(mode) => void getMobileAiSession().updateSettings((s) => ({ ...s, searchMode: mode }))} />
+            </div>
+          )}
           {(nameMatches.length > 0 || bothGroups) && (
             <p className="m-sectionlabel">{t("sidebar.matchesName")}</p>
           )}
@@ -327,6 +347,7 @@ export function SearchScreen({
           {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
           {searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
           {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
+          <ActiveSemanticCoverage />
           {!searchPage.loading && !searchPage.failed && !results.length && <p role="status">{t("searchResults.empty")}</p>}
           {/* A search that finds nothing is still a way forward (desktop parity). */}
           {createName !== "" && (

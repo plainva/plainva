@@ -37,6 +37,7 @@ import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
 import { mobileCommentOperations } from "../commentOperations";
+import { useMobileEmbeddings } from "./mobileEmbeddings";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -207,6 +208,8 @@ export function useMobileAi(vault: MobileVault | null) {
   const state = useSyncExternalStore(s.subscribe, s.getState);
   const [sheet, setSheet] = useState<{ path: string | null } | null>(null);
   const [policy, setPolicy] = useState<VaultPolicyHost | null>(null);
+  // Search by meaning (plan KI-Harness P2a-4) follows the same per-device settings.
+  const embeddings = useMobileEmbeddings(vault, state.loaded ? state.settings : null);
 
   useEffect(() => {
     const onSheet = (event: Event) => setSheet({ path: (event as CustomEvent<{ path: string | null }>).detail?.path ?? null });
@@ -365,7 +368,7 @@ export function useMobileAi(vault: MobileVault | null) {
     sheetNote = null;
     setSheet(null);
   };
-  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef };
+  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef, embeddings };
 }
 
 /**

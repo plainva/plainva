@@ -3843,6 +3843,18 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-inline-box { margin: 0 var(--space-1) 0 0; vertical-align: middle; accent-color: var(--accent-color); }
 .pv-resulthead { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); font-size: var(--text-md); color: var(--text-muted); }
 .pv-resulthead > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Search by meaning (AI harness P2a-4, Design Language "Search by meaning"): layout only —
+   the visible parts are a Segmented, ghost Buttons, Chips and the security progress track. */
+.pv-semantic-mode { flex-shrink: 0; }
+.pv-semantic-coverage { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); color: var(--text-muted); }
+.pv-semantic-coverage > span:first-child { flex: 1 1 12rem; min-width: 0; }
+.pv-semantic-coverage-actions { display: inline-flex; gap: var(--space-1); }
+.pv-semantic-coverage > .pv-security-progress { flex-basis: 100%; margin: 0; }
+.pv-semantic-note { font-size: var(--text-sm); color: var(--text-muted); }
+.pv-semantic-choices { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); }
+.pv-semantic-choices .pv-checkrow { align-items: flex-start; }
+.pv-semantic-choices .pv-checkrow > span { display: flex; flex-direction: column; gap: var(--space-1); }
+.pv-semantic-choices .pv-checkrow > span > span { color: var(--text-muted); font-size: var(--text-sm); }
 /* The empty pane: one action, then what was open last, then the keys. */
 .pv-emptypane-recent { display: flex; flex-direction: column; gap: 2px; width: 100%; max-width: 18rem; margin-top: var(--space-3); text-align: left; }
 .pv-emptypane-recent > b { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); font-weight: 600; }

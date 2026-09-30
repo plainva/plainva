@@ -25,6 +25,22 @@ Pole wyszukiwania działa też w pozostałych widokach paska bocznego: w **Tagi*
 - Operatory można zanegować (`-path:Archiwum`, `-tag:zrobione`) i dowolnie łączyć z terminami wyszukiwania: `plan tag:projekt -szkic`.
 - Wiele terminów łączonych jest operatorem AND. Znaki specjalne takie jak `- ( ) : *` wewnątrz terminów są nieszkodliwe — Plainva traktuje wpis dosłownie.
 
+## Wyszukiwanie według znaczenia
+
+Z lokalnym modelem wyszukiwanie znajduje notatki także według tego, co znaczą — nie tylko według słów, i między językami: pytanie po polsku znajduje angielską notatkę, która mówi to samo. Model liczy na tym urządzeniu; notatki i obliczone z nich wektory nigdy go nie opuszczają.
+
+Włącz je w **Ustawienia → AI & automatyzacja → Wyszukiwanie semantyczne** (AI musi być włączone). Wybierz model — zalecany jest **Granite Embedding Multilingual R2 (97M)** — a Plainva pokaże rozmiar, źródło, licencję i szacowany czas, zanim cokolwiek zostanie pobrane. Każdy plik pochodzi z ustalonej wersji w huggingface.co i jest sprawdzany sumą SHA-256; logowanie nie jest potrzebne. Przed przetworzeniem pierwszej notatki Plainva sprawdza, czy model liczy poprawnie na tym urządzeniu.
+
+Gdy model jest aktywny, nagłówek wyników oferuje **Słowa**, **Znaczenie** i **Oba**:
+
+- **Słowa** to opisane wyżej wyszukiwanie pełnotekstowe.
+- **Znaczenie** pokazuje notatki, których sekcje są najbliższe pytaniu; otwarcie wyniku prowadzi do tej sekcji.
+- **Oba** (domyślnie) układa razem wyniki ze słów i znaczenia.
+
+Przy **Znaczenie** i **Oba** każda notatka pojawia się raz, a mała etykieta mówi, co ją znalazło: **Słowa**, **Znaczenie** albo **Słowa i znaczenie**. Operatory wyszukiwania (`path:`, `tag:`, `-termin`) ograniczają także wyniki według znaczenia. Wybór dotyczy tego urządzenia.
+
+Plainva przetwarza notatki w tle, najpierw ostatnio zmienione; edytowana notatka dochodzi kilka sekund po zakończeniu pisania. Do tego czasu znajduje się ją tylko po słowach — wynik według znaczenia nigdy nie pochodzi ze starego tekstu notatki. Wiersz pod wynikami pokazuje postęp i oferuje **Wstrzymaj**. Na telefonie przetwarzanie trwa tylko wtedy, gdy Plainva jest otwarta. **Usuń (z wektorami)** w ustawieniach usuwa model i wszystko, co obliczył.
+
 ## Szybkie przełączanie (Quick Switcher)
 
 `Ctrl+O` lub `Ctrl+K` otwiera szybkie przełączanie: wpisz tekst, nawiguj strzałkami, otwórz przez `Enter`. Bez wpisanego tekstu pokazuje listę **Ostatnie pliki** — najszybszy sposób na przeskakiwanie między aktualnymi notatkami. Wyniki można też otwierać bezpośrednio w nowej karcie (stopka okna dialogowego pokazuje odpowiednie klawisze).

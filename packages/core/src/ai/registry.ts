@@ -1,4 +1,6 @@
 import { BUILTIN_ENDPOINTS, type ProviderApi, type ProviderEndpoint } from "./providers.js";
+import { embeddingModel } from "./embeddings/catalog.js";
+import { DEFAULT_SEARCH_MODE, isSearchMode, type SearchMode } from "./embeddings/searchMode.js";
 
 /**
  * The provider registry (§11.2, stages A and B): who can be chosen, where a
@@ -183,6 +185,14 @@ export interface AiAppSettings {
    * (plan §17.3; desktop only). Off: nothing listens, not even locally.
    */
   mcpEnabled: boolean;
+  /**
+   * Search by meaning (plan P2a-4): the catalog model this device computes
+   * with, or null for none — search then stays with the words. Every device
+   * embeds for itself; the choice is not synced, the vectors never leave it.
+   */
+  semanticModel: string | null;
+  /** How search ranks while a model is active. */
+  searchMode: SearchMode;
 }
 
 export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
@@ -195,6 +205,8 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   prices: {},
   confirmEveryRequest: false,
   mcpEnabled: false,
+  semanticModel: null,
+  searchMode: DEFAULT_SEARCH_MODE,
 };
 
 /** Reads stored settings defensively: a damaged value falls back field by field. */
@@ -242,6 +254,8 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
     prices,
     confirmEveryRequest: typeof value.confirmEveryRequest === "boolean" ? value.confirmEveryRequest : defaults.confirmEveryRequest,
     mcpEnabled: typeof value.mcpEnabled === "boolean" ? value.mcpEnabled : defaults.mcpEnabled,
+    semanticModel: typeof value.semanticModel === "string" && embeddingModel(value.semanticModel) ? value.semanticModel : defaults.semanticModel,
+    searchMode: isSearchMode(value.searchMode) ? value.searchMode : defaults.searchMode,
   };
 }
 

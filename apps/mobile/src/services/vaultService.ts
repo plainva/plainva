@@ -168,6 +168,9 @@ function createIndexDatabase(dbName: string): IDatabaseAdapter {
 }
 
 /** Open an inactive connection's index while preparing its service bindings. */
+/** Sent after a saved note was indexed again (search by meaning listens). */
+export const NOTE_INDEXED_EVENT = "m-note-indexed";
+
 export async function openPreparedVaultDatabase(vaultId: string): Promise<IDatabaseAdapter> {
   if ((await getActiveVaultEntry()).id === vaultId) throw new Error("transfer_destination_active");
   const db = createIndexDatabase(`plainva-${vaultId}`);
@@ -1161,6 +1164,9 @@ export const vaultOps = {
       try {
         const info: VaultFileInfo = await v.adapter.getFileInfo(path);
         await v.indexer.indexFile(info);
+        // A save is the one index change that sends no m-vault-changed; search
+        // by meaning plans again on this (plan KI-Harness P2a-4).
+        window.dispatchEvent(new CustomEvent(NOTE_INDEXED_EVENT, { detail: { path } }));
       } catch {
         /* index lag is acceptable; the next full pass repairs it */
       }

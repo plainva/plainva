@@ -20,6 +20,7 @@ public class LocalModelPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "download", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "remove", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "freeSpace", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readText", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "load", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "run", returnType: CAPPluginReturnPromise),
@@ -165,6 +166,16 @@ public class LocalModelPlugin: CAPPlugin, CAPBridgedPlugin {
         lock.unlock()
         job?.cancel()
         call.resolve()
+    }
+
+    /// Free space where packages go, so the load sheet can say whether one fits.
+    @objc func freeSpace(_ call: CAPPluginCall) {
+        do {
+            let values = try modelsDir().resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            call.resolve(["bytes": values.volumeAvailableCapacityForImportantUsage ?? 0])
+        } catch {
+            call.reject(error.localizedDescription)
+        }
     }
 
     @objc func remove(_ call: CAPPluginCall) {

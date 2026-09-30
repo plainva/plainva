@@ -168,7 +168,7 @@ fn decode_i32(text: &str) -> Result<Vec<i64>, String> {
     if bytes.len() % 4 != 0 {
         return Err("ids are not whole Int32 values".into());
     }
-    Ok(bytes.chunks_exact(4).map(|b| i64::from(i32::from_le_bytes([b[0], b[1], b[2], b[3]]))).collect())
+    Ok(bytes.as_chunks::<4>().0.iter().map(|b| i64::from(i32::from_le_bytes(*b))).collect())
 }
 
 /// One input the batch does not bring itself, from the model's description.

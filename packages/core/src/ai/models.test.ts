@@ -76,4 +76,10 @@ describe("provider registry", () => {
     expect(initialModelChoice(DEFAULT_AI_APP_SETTINGS)).toBeNull();
     expect(AI_PROFILE_IDS).toEqual(["fast", "balanced", "strong", "local"]);
   });
+
+  it("keeps the search-by-meaning settings of a device only when they name a real model and mode", () => {
+    expect(DEFAULT_AI_APP_SETTINGS).toMatchObject({ semanticModel: null, searchMode: "both" });
+    expect(readAiAppSettings({ semanticModel: "granite-r2-97m", searchMode: "meaning" })).toMatchObject({ semanticModel: "granite-r2-97m", searchMode: "meaning" });
+    expect(readAiAppSettings({ semanticModel: "no-such-model", searchMode: "vibes" })).toMatchObject({ semanticModel: null, searchMode: "both" });
+  });
 });

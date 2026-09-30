@@ -28,6 +28,7 @@ import { getDesktopAiSession } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
 import { AiAddProviderDialog, AiKeyDialog, AiModelDialog } from "./AiDialogs";
 import { McpSettingsCard } from "./McpSettingsCard";
+import { SemanticSearchCard } from "./SemanticSearchCard";
 
 /**
  * Settings → AI & automation, APP world (plan KI-Harness §19.1): what holds
@@ -160,6 +161,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
         </SettingRow>
       </SettingCard>
 
+      {settings.enabled && <SemanticSearchCard session={session} />}
       {settings.enabled && <McpSettingsCard session={session} enabled={settings.mcpEnabled} />}
 
       <SettingCard label={t("ai.settings.history")}>

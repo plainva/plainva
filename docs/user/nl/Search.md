@@ -25,6 +25,22 @@ Het zoekveld werkt ook op de andere zijbalkweergaven: in **Tags** filtert het de
 - Operatoren kunnen ontkend worden (`-path:Archief`, `-tag:klaar`) en vrij gecombineerd worden met zoektermen: `plan tag:project -concept`.
 - Meerdere termen worden met EN gecombineerd. Speciale tekens zoals `- ( ) : *` binnen termen zijn onschadelijk — Plainva behandelt de invoer letterlijk.
 
+## Zoeken op betekenis
+
+Met een lokaal model vindt zoeken notities ook op wat ze betekenen — niet alleen op hun woorden, en over talen heen: een Nederlandse vraag vindt een Engelse notitie die hetzelfde zegt. Het model rekent op dit apparaat; je notities en de vectoren die eruit berekend zijn verlaten het nooit.
+
+Schakel het in onder **Instellingen → AI & automatisering → Semantisch zoeken** (AI moet aan staan). Kies een model — **Granite Embedding Multilingual R2 (97M)** wordt aanbevolen — en Plainva toont grootte, bron, licentie en een geschatte duur voordat er iets wordt gedownload. Elk bestand komt uit een vaste versie op huggingface.co en wordt gecontroleerd met zijn SHA-256; aanmelden is niet nodig. Voordat de eerste notitie wordt verwerkt, controleert Plainva of het model op dit apparaat goed rekent.
+
+Zolang een model actief is, biedt de kop van de zoekresultaten **Woorden**, **Betekenis** en **Beide**:
+
+- **Woorden** is de volledige-tekstzoekfunctie hierboven.
+- **Betekenis** toont de notities waarvan de secties het dichtst bij je vraag komen; een resultaat opent bij die sectie.
+- **Beide** (standaard) rangschikt de resultaten van woorden en betekenis samen.
+
+Bij **Betekenis** en **Beide** verschijnt elke notitie één keer, en een klein label zegt wat haar vond: **Woorden**, **Betekenis** of **Woorden en betekenis**. Zoekoperatoren (`path:`, `tag:`, `-term`) beperken ook de resultaten op betekenis. De keuze geldt voor dit apparaat.
+
+Plainva verwerkt de notities op de achtergrond, de laatst gewijzigde eerst; een notitie die je bewerkt volgt een paar seconden nadat je stopt met typen. Tot dan wordt ze alleen via haar woorden gevonden — een resultaat op betekenis komt nooit uit de oude tekst van een notitie. Een regel onder de resultaten toont hoe ver dat is en biedt **Pauzeren**. Op de telefoon wordt alleen verwerkt terwijl Plainva open is. **Verwijderen (met de vectoren)** in de instellingen verwijdert het model en alles wat het heeft berekend.
+
 ## Snelkiezer
 
 `Ctrl+O` of `Ctrl+K` opent de snelkiezer: typen, navigeren met de pijltoetsen, openen met `Enter`. Zonder invoer toont hij de lijst **Recente bestanden** — de snelste manier om tussen je huidige notities te springen. Treffers kun je ook direct in een nieuw tabblad openen (de voettekst van het dialoogvenster toont de bijbehorende toetsen).

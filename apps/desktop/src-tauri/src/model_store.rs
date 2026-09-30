@@ -183,6 +183,43 @@ pub fn model_download_cancel(state: State<'_, ModelDownloads>, model: String) ->
     Ok(())
 }
 
+/// Free space where packages go, so the load dialog can say whether one fits.
+#[tauri::command]
+pub fn model_free_space(app: AppHandle) -> Result<u64, String> {
+    let dir = models_dir(&app)?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    free_space(&dir)
+}
+
+#[cfg(windows)]
+fn free_space(dir: &Path) -> Result<u64, String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+    let wide: Vec<u16> = dir.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let mut available = 0u64;
+    // SAFETY: a NUL-terminated path; the two totals are optional and stay null.
+    let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut available, std::ptr::null_mut(), std::ptr::null_mut()) };
+    if ok == 0 {
+        Err(std::io::Error::last_os_error().to_string())
+    } else {
+        Ok(available)
+    }
+}
+
+// The field widths differ between Linux (u64) and macOS (u32 blocks): `from` is a no-op on one of them.
+#[cfg(unix)]
+#[allow(clippy::useless_conversion)]
+fn free_space(dir: &Path) -> Result<u64, String> {
+    use std::os::unix::ffi::OsStrExt;
+    let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).map_err(|e| e.to_string())?;
+    // SAFETY: statvfs fills the zeroed struct for a NUL-terminated path.
+    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statvfs(path.as_ptr(), &mut stat) } != 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    Ok(u64::from(stat.f_bavail) * u64::from(stat.f_frsize))
+}
+
 async fn hash_file(path: PathBuf) -> Result<(Sha256, u64), String> {
     tauri::async_runtime::spawn_blocking(move || -> Result<(Sha256, u64), String> {
         let mut hasher = Sha256::new();

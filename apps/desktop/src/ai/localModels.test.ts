@@ -34,6 +34,7 @@ function fakeBridge(present: boolean[] = [false, false, false]) {
       onProgress(file.bytes);
     },
     cancel: vi.fn(async () => undefined),
+    freeSpace: vi.fn(async () => 5e9),
     remove: vi.fn(async () => undefined),
     readText: async (_model, name) => (name === "tokenizer.json" ? TOKENIZER : JSON.stringify({ pad_token: "[PAD]" })),
     load: vi.fn(async (modelFile: string) => `h:${modelFile}`),

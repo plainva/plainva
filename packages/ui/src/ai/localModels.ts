@@ -27,6 +27,8 @@ export interface LocalModelBridge {
   /** Downloads one file into the package; resumes, checks size and SHA-256. */
   download(model: string, file: EmbeddingPackageFile, url: string, onProgress: (received: number) => void): Promise<void>;
   cancel(model: string): Promise<void>;
+  /** Free space where packages are stored, in bytes. */
+  freeSpace(): Promise<number>;
   remove(model: string): Promise<void>;
   /** A checked text file of a package (the tokenizer). */
   readText(model: string, name: string): Promise<string>;

@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
-import { EmptyState, ICON, toast, errorText, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
+import { ActiveSemanticCoverage, EmptyState, FoundChip, ICON, meaningActive, toast, errorText, useLocalEmbeddings, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence } from "@plainva/core";
+import { isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence, type SearchResult } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database, SearchX,
@@ -382,7 +382,7 @@ export const FileTree: React.FC<{
   // Performance telemetry removed to reduce console noise
   const { queryService, isLoading, fileTreeVersion, treeStructureVersion, syncWorker, vaultAdapter, vaultPath, indexer, triggerFileTreeUpdate, refreshVault, refreshFolder } = useVault();
   const docIcons = useDocumentIcons();
-  const [treeFiles, setFiles] = useState<{ path: string; title: string; mode?: string; isDir?: boolean; snippet?: string | null; titleHl?: string | null; occurrence?: SearchOccurrence }[]>([]);
+  const [treeFiles, setFiles] = useState<{ path: string; title: string; mode?: string; isDir?: boolean; snippet?: string | null; titleHl?: string | null; occurrence?: SearchOccurrence; found?: SearchResult["found"] }[]>([]);
   const [pendingPaths, setPendingPaths] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [newItemParams, setNewItemParams] = useState<{ type: "file" | "folder" | "base", parentPath: string, template?: string } | null>(null);
@@ -424,11 +424,21 @@ export const FileTree: React.FC<{
   // The sidebar owns the search box (plan Suche P3); the built-in fallback
   // field is gone — without an externalQuery the tree simply shows everything.
   const effectiveQuery = externalQuery ?? "";
-  const searchPage = useSearchPages(queryService, effectiveQuery, fileTreeVersion, 40, searchSort);
+  // Search by meaning (plan KI-Harness P2a-4): while a local model is active the
+  // vault's hybrid search answers, and a new mode is a new service, so the list
+  // starts over exactly as for a new query.
+  const { controller: embeddings, state: embeddingState } = useLocalEmbeddings();
+  const meaningOn = meaningActive(embeddingState);
+  const searchMode = embeddingState?.mode;
+  const searchService = useMemo(
+    () => (embeddings && meaningOn ? { mode: searchMode, searchOccurrencesPage: embeddings.search.searchOccurrencesPage.bind(embeddings.search) } : queryService),
+    [embeddings, meaningOn, searchMode, queryService],
+  );
+  const searchPage = useSearchPages(searchService, effectiveQuery, fileTreeVersion, 40, searchSort);
   // Derive search rows in the same render as the query. An effect mirror
   // briefly rendered every tree entry as a search hit before the first page.
   const files: typeof treeFiles = useMemo(() => effectiveQuery.trim()
-    ? searchPage.hits.map(r => ({ path: r.path, title: r.title || r.path, snippet: r.snippet ?? null, titleHl: r.titleHighlighted ?? null, occurrence: r.occurrence }))
+    ? searchPage.hits.map(r => ({ path: r.path, title: r.title || r.path, snippet: r.snippet ?? null, titleHl: r.titleHighlighted ?? null, occurrence: r.occurrence, found: r.found }))
     : treeFiles, [effectiveQuery, searchPage.hits, treeFiles]);
 
   // Folders are invisible to the SQL index (only file rows exist), so they
@@ -1252,8 +1262,10 @@ export const FileTree: React.FC<{
             // (plan Suche P5/O1). Ctrl/Shift only change the selection. The
             // jump is PARKED (the editor pane may not be mounted yet) and
             // mounted panes get poked via the event.
-            if (plainClick && searchJumpTerm) {
-              setPendingSearchJump({ path: file.path, term: searchJumpTerm, ...file.occurrence });
+            // A hit found by meaning holds none of the query's words: its own first line is the term.
+            const jumpTerm = file.found === "meaning" ? file.occurrence?.quote : searchJumpTerm;
+            if (plainClick && jumpTerm) {
+              setPendingSearchJump({ path: file.path, term: jumpTerm, ...file.occurrence });
               window.dispatchEvent(new CustomEvent("plainva-search-jump", { detail: { path: file.path } }));
             }
           }}
@@ -1304,6 +1316,7 @@ export const FileTree: React.FC<{
                   <bdi>{titleContent}</bdi>
                 </span>
                 {pending && <PendingDot />}
+                <FoundChip found={file.found} />
               </div>
               {folder && (
                 <div style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1311,7 +1324,7 @@ export const FileTree: React.FC<{
                 </div>
               )}
               {file.occurrence && <div className="pv-search-context">{file.occurrence.headings.join(" › ")} · {t("searchResults.line", { line: file.occurrence.line })}</div>}
-              {file.snippet && hasSnippetMark(file.snippet) && (
+              {file.snippet && (hasSnippetMark(file.snippet) || file.found === "meaning") && (
                 <div className="pv-search-snippet" style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                   <bdi>{renderSnippetNodes(file.snippet)}</bdi>
                 </div>
@@ -1341,6 +1354,7 @@ export const FileTree: React.FC<{
         {searchPage.loading && <p role="status">{t("searchResults.loading")}</p>}
         {searchPage.failed && <Button variant="ghost" onClick={searchPage.retry}>{t("searchResults.failed")}</Button>}
         {searchPage.hasMore && <Button variant="ghost" disabled={searchPage.loading} onClick={searchPage.loadMore}>{t("searchResults.more")}</Button>}
+        <ActiveSemanticCoverage />
       </div>
     );
   } else {

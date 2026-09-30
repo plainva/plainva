@@ -14,3 +14,5 @@ export * from "./search.js";
 export * from "./pipeline.js";
 export * from "./schedule.js";
 export * from "./golden.js";
+export * from "./searchMode.js";
+export * from "./hybridSearch.js";

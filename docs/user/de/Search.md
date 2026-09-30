@@ -25,6 +25,22 @@ Das Suchfeld wirkt auch auf die anderen Seitenleisten-Ansichten: In **Tags** fil
 - Operatoren lassen sich negieren (`-path:Archiv`, `-tag:erledigt`) und frei mit Suchbegriffen kombinieren: `plan tag:projekt -entwurf`.
 - Mehrere Begriffe verknüpft die Suche mit UND. Sonderzeichen wie `- ( ) : *` in Suchbegriffen sind unproblematisch — Plainva behandelt die Eingabe wörtlich.
 
+## Suche nach Bedeutung
+
+Mit einem lokalen Modell findet die Suche Notizen auch nach dem, was sie bedeuten — nicht nur nach ihren Wörtern, und über Sprachen hinweg: Eine deutsche Frage findet eine englische Notiz, die dasselbe sagt. Das Modell rechnet auf diesem Gerät; Deine Notizen und die daraus berechneten Vektoren verlassen es nie.
+
+Einschalten unter **Einstellungen → KI & Automatisierung → Semantische Suche** (die KI muss an sein). Wähle ein Modell — empfohlen ist **Granite Embedding Multilingual R2 (97M)** —, und Plainva zeigt Größe, Quelle, Lizenz und eine geschätzte Dauer, bevor irgendetwas geladen wird. Jede Datei kommt aus einer festen Version auf huggingface.co und wird per SHA-256 geprüft; eine Anmeldung ist nicht nötig. Bevor die erste Notiz eingebettet wird, prüft Plainva, ob das Modell auf diesem Gerät richtig rechnet.
+
+Solange ein Modell aktiv ist, bietet der Kopf der Suchergebnisse **Wörter**, **Bedeutung** und **Beides**:
+
+- **Wörter** ist die Volltextsuche wie oben beschrieben.
+- **Bedeutung** listet die Notizen, deren Abschnitte Deiner Frage am nächsten kommen; ein Treffer öffnet an diesem Abschnitt.
+- **Beides** (Standard) rankt die Treffer aus Wörtern und Bedeutung gemeinsam.
+
+Bei **Bedeutung** und **Beides** erscheint jede Notiz einmal, und eine kleine Marke sagt, was sie gefunden hat: **Wörter**, **Bedeutung** oder **Wörter und Bedeutung**. Suchoperatoren (`path:`, `tag:`, `-Begriff`) begrenzen auch die Treffer nach Bedeutung. Die Wahl gilt für dieses Gerät.
+
+Plainva bettet die Notizen im Hintergrund ein, die zuletzt geänderten zuerst; eine Notiz, die Du gerade bearbeitest, folgt wenige Sekunden, nachdem Du aufhörst zu tippen. Bis dahin wird sie nur über ihre Wörter gefunden — ein Treffer nach Bedeutung stammt nie aus dem alten Text einer Notiz. Eine Zeile unter den Ergebnissen zeigt, wie weit das ist, und bietet **Pausieren**. Am Telefon wird nur eingebettet, solange Plainva geöffnet ist. **Entfernen (mit den Vektoren)** in den Einstellungen löscht das Modell und alles, was es berechnet hat.
+
 ## Schnellwechsel (Quick Switcher)
 
 `Strg+O` oder `Strg+K` öffnet den Schnellwechsel: tippen, mit den Pfeiltasten navigieren, mit `Enter` öffnen. Ohne Eingabe zeigt er die **Kürzlich geöffnet**-Liste — der schnellste Weg, zwischen Deinen aktuellen Notizen zu springen. Treffer lassen sich auch direkt in einem neuen Tab öffnen (die Fußzeile des Dialogs zeigt die jeweiligen Tasten).

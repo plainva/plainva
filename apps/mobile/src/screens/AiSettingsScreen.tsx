@@ -19,6 +19,7 @@ import {
   type AiSession,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
+import { MobileSemanticSection } from "../components/MobileSemanticSection";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { mActions, mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
 
@@ -217,6 +218,8 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("ai.settings.audioHint")}</p>
+
+        {settings.enabled && <MobileSemanticSection session={session} />}
 
         <SectionLabel>{t("ai.settings.sending")}</SectionLabel>
         <GroupCard>

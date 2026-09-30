@@ -40,6 +40,8 @@ export interface SearchResult extends FileRecord {
   /** Title with SNIPPET_MARK sentinels when the match hit the title — the UI
    *  uses this both for highlighting and to group "file name" hits. */
   titleHighlighted?: string | null;
+  /** What found the hit when search by meaning takes part (plan KI-Harness P2a-4): the badge on the row. */
+  found?: "words" | "meaning" | "both";
 }
 
 /**
@@ -70,6 +72,37 @@ export interface SearchPageCursor {
   order?: string;
 }
 export interface SearchPage { hits: SearchResult[]; next: SearchPageCursor | null }
+
+/**
+ * The SQL of a query's operators on `files f`: excluded words, `path:` and
+ * `-path:`, `tag:` and `-tag:` (nested tags count). One definition for the
+ * full-text search and for the filter search by meaning goes through.
+ */
+function operatorClauses(parsed: ParsedSearchQuery): { where: string[]; params: unknown[] } {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (parsed.notMatch !== null) {
+    where.push(`f.path NOT IN (SELECT path FROM fts_notes WHERE fts_notes MATCH ?)`);
+    params.push(parsed.notMatch);
+  }
+  for (const p of parsed.paths) {
+    where.push(`instr(lower(f.path), ?) > 0`);
+    params.push(p);
+  }
+  for (const p of parsed.notPaths) {
+    where.push(`instr(lower(f.path), ?) = 0`);
+    params.push(p);
+  }
+  for (const tag of parsed.tags) {
+    where.push(`EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND (t.tag = ? OR t.tag LIKE ?))`);
+    params.push(tag, `${tag}/%`);
+  }
+  for (const tag of parsed.notTags) {
+    where.push(`NOT EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND (t.tag = ? OR t.tag LIKE ?))`);
+    params.push(tag, `${tag}/%`);
+  }
+  return { where, params };
+}
 
 /**
  * A note's provider-task anchor as the index knows it.
@@ -207,26 +240,9 @@ export class VaultQueryService {
       orderBy = `${column} ${order.dir === "asc" ? "ASC" : "DESC"}`;
     }
 
-    if (parsed.notMatch !== null) {
-      where.push(`f.path NOT IN (SELECT path FROM fts_notes WHERE fts_notes MATCH ?)`);
-      params.push(parsed.notMatch);
-    }
-    for (const p of parsed.paths) {
-      where.push(`instr(lower(f.path), ?) > 0`);
-      params.push(p);
-    }
-    for (const p of parsed.notPaths) {
-      where.push(`instr(lower(f.path), ?) = 0`);
-      params.push(p);
-    }
-    for (const tag of parsed.tags) {
-      where.push(`EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND (t.tag = ? OR t.tag LIKE ?))`);
-      params.push(tag, `${tag}/%`);
-    }
-    for (const tag of parsed.notTags) {
-      where.push(`NOT EXISTS (SELECT 1 FROM tags t WHERE t.file_id = f.id AND (t.tag = ? OR t.tag LIKE ?))`);
-      params.push(tag, `${tag}/%`);
-    }
+    const operators = operatorClauses(parsed);
+    where.push(...operators.where);
+    params.push(...operators.params);
 
     const sql = `
       SELECT ${select}${includeSource ? ", (SELECT content FROM fts_notes WHERE path = f.path LIMIT 1) AS sourceContent" : ""}
@@ -246,6 +262,49 @@ export class VaultQueryService {
       }
     }
     return rows;
+  }
+
+  /**
+   * Of `paths`, the notes the query's operators admit — `path:`, `tag:` and
+   * excluded words, whatever its other words. Search by meaning ranks by what
+   * the words mean and keeps the operators' limits this way (plan KI-Harness
+   * P2a-4).
+   */
+  async filterByOperators(query: string, paths: readonly string[]): Promise<Set<string>> {
+    const { where, params } = operatorClauses(parseSearchQuery(query));
+    if (!where.length || !paths.length) return new Set(paths);
+    const out = new Set<string>();
+    for (let i = 0; i < paths.length; i += 200) {
+      const group = paths.slice(i, i + 200);
+      const rows = await this.db.query<{ path: string }>(
+        `SELECT f.path AS path FROM files f WHERE f.path IN (${group.map(() => "?").join(", ")}) AND ${where.join(" AND ")}`,
+        [...group, ...params],
+      );
+      for (const row of rows) out.add(row.path);
+    }
+    return out;
+  }
+
+  /** The size of all notes together, in bytes: a vault's measure for estimates (search by meaning's load dialog). */
+  async noteBytes(): Promise<number> {
+    const row = await this.db.queryOne<{ bytes: number | null }>(
+      `SELECT SUM(size_bytes) AS bytes FROM files WHERE mode != 'attachment' AND path NOT LIKE '%.base'`,
+    );
+    return Number(row?.bytes ?? 0) || 0;
+  }
+
+  /** File records by path; a path the index does not know is left out. */
+  async fileRecords(paths: readonly string[]): Promise<Map<string, FileRecord>> {
+    const out = new Map<string, FileRecord>();
+    for (let i = 0; i < paths.length; i += 200) {
+      const group = paths.slice(i, i + 200);
+      const rows = await this.db.query<FileRecord>(
+        `SELECT id, path, title, mtime_local, size_bytes FROM files WHERE path IN (${group.map(() => "?").join(", ")})`,
+        group,
+      );
+      for (const row of rows) out.set(row.path, row);
+    }
+    return out;
   }
 
   /** At most sixteen notes and one display page per call; no invented total. */
