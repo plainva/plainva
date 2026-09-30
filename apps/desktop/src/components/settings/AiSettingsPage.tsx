@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
-import { AI_AUDIO_PROFILE, AI_PROFILE_IDS, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
+import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
 import {
   AI_FEEDBACK_URL,
   Button,
@@ -148,6 +148,13 @@ function AiSettingsBody({ session }: { session: AiSession }) {
           </Button>
         </SettingRow>
         <SettingCardNote>{t("ai.settings.audioHint")}</SettingCardNote>
+        {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
+        <SettingRow label={t("ai.profile.embedding")} desc={profileLine(AI_EMBEDDING_PROFILE)}>
+          <Button size="sm" variant="secondary" disabled={rows.length === 0} onClick={() => setModelFor(AI_EMBEDDING_PROFILE)} data-testid="ai-profile-embedding">
+            {t("ai.settings.change")}
+          </Button>
+        </SettingRow>
+        <SettingCardNote>{t("ai.settings.embeddingHint")}</SettingCardNote>
       </SettingCard>
 
       <SettingCard label={t("ai.settings.sending")}>
@@ -161,7 +168,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
         </SettingRow>
       </SettingCard>
 
-      {settings.enabled && <SemanticSearchCard session={session} />}
+      {settings.enabled && <SemanticSearchCard session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />}
       {settings.enabled && <McpSettingsCard session={session} enabled={settings.mcpEnabled} />}
 
       <SettingCard label={t("ai.settings.history")}>

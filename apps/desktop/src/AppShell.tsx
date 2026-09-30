@@ -570,8 +570,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   });
   // The global key handler binds these two, not the whole (per-render) object.
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
-  // Search by meaning (plan KI-Harness P2a-4): the vault's controller for the search and the settings.
-  const embeddings = useDesktopEmbeddings({ vaultAdapter, queryService });
+  // Search by meaning (plan KI-Harness P2a-4/5): the vault's controller for the search and the settings.
+  const embeddings = useDesktopEmbeddings({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
 
   /**
    * The communications window: mail beside the calendar (multi-window P4, E4).

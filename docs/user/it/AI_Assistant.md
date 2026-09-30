@@ -32,6 +32,8 @@ Quattro profili — **Veloce**, **Bilanciato**, **Potente** e **Locale** — son
 
 Un quinto posto, **Audio**, contiene il modello che trascrive le note vocali; non è mai quello predefinito per una conversazione.
 
+Un sesto posto, **Embedding**, contiene il modello con cui calcola la ricerca per significato quando scegli **Provider proprio** in **Ricerca semantica** — vedi [Ricerca](Search.md).
+
 ## Chiedere
 
 - **Desktop:** il pulsante IA nella barra delle azioni, **Ctrl+J** (⌘J su macOS) oppure **Chiedi all'IA** nella palette dei comandi apre il compagno — una piccola finestra sopra il tuo lavoro. **Apri come scheda** sposta la stessa conversazione nella scheda IA, dove sono elencate le tue conversazioni.

@@ -4,14 +4,15 @@ import type { EmbeddingProgress, SearchMode, SearchResult } from "@plainva/core"
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
 import { Segmented } from "../components/ui/Segmented";
+import { aiFailureText } from "./aiSettingsModel";
 import type { LocalEmbeddings, LocalEmbeddingsState } from "./localEmbeddings";
 
 /**
  * The three pieces search by meaning adds to the ONE search both shells
  * share (plan KI-Harness P2a-4, Design Language "Search by meaning"): the
  * mode switch in the head of the result list, the origin of a hit, and the
- * coverage line under the list. All three appear only while a local model
- * is active on this device.
+ * coverage line under the list. All three appear only while a model — a
+ * package or an own provider's — is active on this device.
  */
 
 /** The vault's search by meaning, for every surface of the window. */
@@ -74,12 +75,14 @@ export function SemanticCoverage({
   onSettings?: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const missing = progress.total - progress.current;
-  if (progress.total === 0 || missing <= 0) return null;
+  // Notes the rules keep from a cloud model are neither missing nor done: they are not counted.
+  const owed = progress.total - progress.withheld;
+  const missing = owed - progress.current;
+  if (owed <= 0 || missing <= 0) return null;
   const number = new Intl.NumberFormat(i18n.language);
-  const values = { done: number.format(progress.current), total: number.format(progress.total) };
+  const values = { done: number.format(progress.current), total: number.format(owed) };
   const paused = progress.state === "paused";
-  const share = Math.round((progress.current / progress.total) * 100);
+  const share = Math.round((progress.current / owed) * 100);
   return (
     <div className="pv-semantic-coverage" role="status">
       <span>{paused ? t("search.coveragePaused", values) : t("search.coverage", values)}</span>
@@ -107,9 +110,27 @@ export function ActiveSearchModeSwitch({ onChange }: { onChange: (mode: SearchMo
   return <SearchModeSwitch mode={state.mode} onChange={onChange} />;
 }
 
-/** The coverage line of the vault's search by meaning, with its pause; nothing once every note is embedded. */
+/**
+ * The coverage line of the vault's search by meaning, with its pause; nothing
+ * once every note is embedded. Above it, when meaning could not answer the
+ * last search (an own provider out of reach, a key refused), why the hits are
+ * by words.
+ */
 export function ActiveSemanticCoverage({ onSettings }: { onSettings?: () => void }) {
+  const { t } = useTranslation();
   const { controller, state } = useLocalEmbeddings();
-  if (!controller || !state || !meaningActive(state)) return null;
-  return <SemanticCoverage progress={state.progress} onPause={() => controller.pause()} onResume={() => controller.resume()} onSettings={onSettings} />;
+  if (!controller || !state || state.engine.kind !== "ready") return null;
+  const source = state.engine.source;
+  const target = source.kind === "provider" ? source.target : null;
+  const failure = state.meaningFailure;
+  return (
+    <>
+      {failure && (
+        <div className="pv-semantic-coverage" role="status" data-testid="semantic-unavailable">
+          <span>{t("search.meaningUnavailable", { reason: aiFailureText(t, failure, target?.provider.label ?? "", target?.model) })}</span>
+        </div>
+      )}
+      <SemanticCoverage progress={state.progress} onPause={() => controller.pause()} onResume={() => controller.resume()} onSettings={onSettings} />
+    </>
+  );
 }

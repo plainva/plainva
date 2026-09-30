@@ -272,6 +272,11 @@ export class AiSession {
 
   readonly getState = (): AiState => this.state;
 
+  /** The native egress, for search by meaning's own provider (plan P2a-5): the keys stay native. */
+  get egress(): AiEgress {
+    return this.host.egress;
+  }
+
   readonly subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
     return () => {

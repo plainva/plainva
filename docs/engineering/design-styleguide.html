@@ -1050,15 +1050,29 @@
 
   <section id="search-by-meaning">
     <h2>Search by meaning</h2>
-    <p class="sec-sub">AI harness P2a-4 (2026-09-30). Present only while a local model is active on this device. A mode switch in the head of the results (Words · Meaning · Both), the origin of a hit as a small muted chip where the list mixes words and meaning, and a coverage line under the list while the vectors are not complete. All parts are existing primitives; <code>.pv-semantic-*</code> is layout only.</p>
+    <p class="sec-sub">AI harness P2a-4 (2026-09-30). Present only while a model — a package or an own provider's — is active on this device. A mode switch in the head of the results (Words · Meaning · Both), the origin of a hit as a small muted chip where the list mixes words and meaning, and a coverage line under the list while the vectors are not complete. All parts are existing primitives; <code>.pv-semantic-*</code> is layout only.</p>
     <div class="card" style="max-width: 360px; display: grid; gap: var(--space-2)">
       <div class="pv-resulthead"><span>Hits for “split the shooting days”</span>
         <div class="pv-segmented pv-segmented--sm" role="radiogroup"><button class="pv-seg-item">Words</button><button class="pv-seg-item">Meaning</button><button class="pv-seg-item is-active">Both</button></div>
       </div>
       <div>Kick-off notes <span class="pv-chip pv-chip--sm pv-chip--muted">Meaning</span></div>
-      <div class="pv-semantic-coverage"><span>Meaning knows 4,180 of 4,812 notes — the rest follows in the background.</span><span class="pv-semantic-coverage-actions"><button class="btn ghost">Pause</button></span>
+      <div class="pv-semantic-coverage"><span>Meaning knows 4,180 of 4,812 notes — the rest follows in the background.</span><span class="pv-semantic-coverage-actions"><button class="pvbtn ghost">Pause</button></span>
         <div class="pv-security-progress"><div class="pv-security-progress-bar" style="width: 87%"></div></div>
       </div>
+    </div>
+    <p class="sec-sub">AI harness P2a-5 (2026-09-30): the own provider is one more row of the same single choice. A cloud model starts only after the send overview's standing approval — it counts the notes and names their folders instead of listing each note, adds the search questions as a kind of data, and its primary action is “Approve until withdrawn”. What the device keeps but no longer uses is one row with a ghost Remove.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <div><b>Own provider</b><br><span style="color: var(--text-muted)">OpenAI · text-embedding-3-small — Ollama and LM Studio compute on your computer; a cloud only after you approve what goes there.</span></div>
+      <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--space-3); display: grid; gap: var(--space-1)">
+        <b>Search by meaning with OpenAI?</b>
+        <span style="color: var(--text-muted)">Search by meaning computes with a cloud model: notes go there in the background, without asking each time — until you withdraw this approval in the settings.</span>
+        <span>Notes — All 4,700 notes your rules let go — now, and each again whenever it changes</span>
+        <span>Folders — / · Projects · Journal</span>
+        <span>Also goes — your search questions</span>
+        <span>Kept back — 112 notes your rules block</span>
+        <span style="display: flex; gap: var(--space-2); justify-content: flex-end"><button class="pvbtn ghost">Cancel</button><button class="pvbtn primary">Approve until withdrawn</button></span>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-2)"><span><b>Not in use on this device</b><br><span style="color: var(--text-muted)">Granite R2 large (323 MB) · vectors of 2 other models</span></span><button class="pvbtn ghost">Remove</button></div>
     </div>
   </section>
 

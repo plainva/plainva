@@ -5,9 +5,10 @@ import { EmbeddingScheduler, type EmbeddingProgress } from "./schedule.js";
 const NOW = 1_000_000;
 const work = (path: string, mtime = 0, sha256 = `sha-${path}`): EmbeddingWork => ({ path, title: path, sha256, mtime });
 
-/** An indexer over a list of notes: embedding a note makes it current, a listed path fails. */
-function fakeIndexer(notes: EmbeddingWork[], fail: Set<string> = new Set()) {
+/** An indexer over a list of notes: embedding a note makes it current, a listed path fails, a withheld one is kept out. */
+function fakeIndexer(notes: EmbeddingWork[], fail: Set<string> = new Set(), withhold: Set<string> = new Set()) {
   const done = new Set<string>();
+  const kept = new Set<string>();
   const calls: string[][] = [];
   let onEmbed: (() => void) | null = null;
   return {
@@ -19,15 +20,24 @@ function fakeIndexer(notes: EmbeddingWork[], fail: Set<string> = new Set()) {
       onEmbed = fn;
     },
     async plan(): Promise<EmbeddingPlan> {
-      const pending = notes.filter((note) => !done.has(`${note.path}@${note.sha256}`)).sort((a, b) => b.mtime - a.mtime);
-      return { pending, orphans: [], total: notes.length };
+      const pending = notes.filter((note) => !done.has(`${note.path}@${note.sha256}`) && !kept.has(note.path)).sort((a, b) => b.mtime - a.mtime);
+      return { pending, orphans: [], total: notes.length, withheld: kept.size };
     },
     async embed(works: readonly EmbeddingWork[]): Promise<Map<string, EmbeddingOutcome>> {
       calls.push(works.map((w) => w.path));
       onEmbed?.();
       if (works.some((w) => fail.has(w.path))) throw new Error(`cannot embed ${works.map((w) => w.path).join(", ")}`);
-      for (const w of works) done.add(`${w.path}@${w.sha256}`);
-      return new Map(works.map((w) => [w.path, "embedded" as const]));
+      const out = new Map<string, EmbeddingOutcome>();
+      for (const w of works) {
+        if (withhold.has(w.path)) {
+          kept.add(w.path);
+          out.set(w.path, "withheld");
+        } else {
+          done.add(`${w.path}@${w.sha256}`);
+          out.set(w.path, "embedded");
+        }
+      }
+      return out;
     },
     async forget() {},
   };
@@ -146,5 +156,14 @@ describe("EmbeddingScheduler", () => {
     indexer.fail.clear();
     await s.kick();
     expect(s.status).toMatchObject({ state: "idle", current: 4, deferred: 0 });
+  });
+  it("counts the notes the rules keep from a cloud as withheld — neither missing nor done", async () => {
+    const indexer = fakeIndexer([work("a.md"), work("b.md"), work("c.md")], new Set(), new Set(["b.md"]));
+    const { s } = scheduler(indexer);
+    await s.kick();
+    expect(s.status).toMatchObject({ state: "idle", total: 3, current: 2, withheld: 1 });
+    await s.kick();
+    expect(s.status).toMatchObject({ total: 3, current: 2, withheld: 1 });
+    expect(indexer.calls.flat().filter((path) => path === "b.md")).toHaveLength(1);
   });
 });

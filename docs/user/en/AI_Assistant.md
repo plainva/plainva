@@ -32,6 +32,8 @@ Four profiles — **Fast**, **Balanced**, **Strong** and **Local** — are your 
 
 A fifth slot, **Audio**, holds the model that transcribes voice notes; it is never the default for a conversation.
 
+A sixth slot, **Embeddings**, holds the model search by meaning computes with when you choose **Own provider** under **Semantic search** — see [Search](Search.md).
+
 ## Asking
 
 - **Desktop:** the AI button in the action bar, **Ctrl+J** (⌘J on macOS) or **Ask AI** in the command palette opens the companion — a small window over your work. **Open as tab** moves the same conversation into the AI tab, where your conversations are listed.

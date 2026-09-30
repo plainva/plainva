@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { modelListSpec, parseModelList } from "./models.js";
 import { BUILTIN_ENDPOINTS } from "./providers.js";
-import { AI_PROFILE_IDS, DEFAULT_AI_APP_SETTINGS, initialModelChoice, normalizeBaseUrl, readAiAppSettings, BUILTIN_PROVIDERS, allProviders, customEndpointId } from "./registry.js";
+import { AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, DEFAULT_AI_APP_SETTINGS, SEMANTIC_BY_PROVIDER, initialModelChoice, normalizeBaseUrl, readAiAppSettings, BUILTIN_PROVIDERS, allProviders, customEndpointId } from "./registry.js";
 
 const endpoint = (id: string) => BUILTIN_ENDPOINTS.find((e) => e.id === id)!;
 
@@ -15,7 +15,7 @@ describe("model list (connection test)", () => {
   });
 
   it("reads every provider's shape and never throws on a strange one", () => {
-    expect(parseModelList(endpoint("anthropic"), { data: [{ id: "m-a", display_name: "Model A" }] })).toEqual([{ id: "m-a", label: "Model A", contextTokens: undefined, price: undefined, chat: true, transcribe: false }]);
+    expect(parseModelList(endpoint("anthropic"), { data: [{ id: "m-a", display_name: "Model A" }] })).toEqual([{ id: "m-a", label: "Model A", contextTokens: undefined, price: undefined, chat: true, transcribe: false, embed: false }]);
     const gemini = parseModelList(endpoint("gemini"), {
       models: [
         { name: "models/m-g", displayName: "G", inputTokenLimit: 1000, outputTokenLimit: 100, supportedGenerationMethods: ["generateContent"] },
@@ -23,12 +23,15 @@ describe("model list (connection test)", () => {
       ],
     });
     expect(gemini).toEqual([
-      { id: "m-g", label: "G", contextTokens: 1000, outputTokens: 100, chat: true, transcribe: true },
-      { id: "e-g", label: undefined, contextTokens: undefined, outputTokens: undefined, chat: false, transcribe: false },
+      { id: "m-g", label: "G", contextTokens: 1000, outputTokens: 100, chat: true, transcribe: true, embed: false },
+      { id: "e-g", label: undefined, contextTokens: undefined, outputTokens: undefined, chat: false, transcribe: false, embed: true },
     ]);
     const router = parseModelList(endpoint("openrouter"), { data: [{ id: "vendor/model", name: "Vendor Model", context_length: 200000, pricing: { prompt: "0.000003", completion: "0.000015" } }] });
     expect(router[0]!.price).toEqual({ input: 3, output: 15 });
     expect(parseModelList(endpoint("openai"), { data: [{ id: "text-embedding-9" }, { id: "chat-9" }] }).map((m) => [m.id, m.chat])).toEqual([["text-embedding-9", false], ["chat-9", true]]);
+    // The profile "Embeddings" sorts by this; any id can still be typed in.
+    const local = parseModelList(endpoint("ollama"), { data: ["nomic-embed-text:latest", "bge-m3", "all-minilm:l6-v2", "embeddinggemma", "llama3.2:3b"].map((id) => ({ id })) });
+    expect(local.map((m) => [m.id, m.embed])).toEqual([["nomic-embed-text:latest", true], ["bge-m3", true], ["all-minilm:l6-v2", true], ["embeddinggemma", true], ["llama3.2:3b", false]]);
     for (const junk of [null, 1, "x", { data: "no" }, { data: [null, 3, { id: 5 }] }, { models: [{}] }]) {
       expect(parseModelList(endpoint("openai"), junk)).toEqual([]);
       expect(parseModelList(endpoint("gemini"), junk)).toEqual([]);
@@ -81,5 +84,9 @@ describe("provider registry", () => {
     expect(DEFAULT_AI_APP_SETTINGS).toMatchObject({ semanticModel: null, searchMode: "both" });
     expect(readAiAppSettings({ semanticModel: "granite-r2-97m", searchMode: "meaning" })).toMatchObject({ semanticModel: "granite-r2-97m", searchMode: "meaning" });
     expect(readAiAppSettings({ semanticModel: "no-such-model", searchMode: "vibes" })).toMatchObject({ semanticModel: null, searchMode: "both" });
+    // Plan P2a-5: the own provider — the profile "Embeddings" — is a choice of its own.
+    const own = readAiAppSettings({ semanticModel: SEMANTIC_BY_PROVIDER, profiles: { [AI_EMBEDDING_PROFILE]: { providerId: "ollama", model: " nomic-embed-text " } } });
+    expect(own.semanticModel).toBe("provider");
+    expect(own.profiles[AI_EMBEDDING_PROFILE]).toEqual({ providerId: "ollama", model: "nomic-embed-text" });
   });
 });

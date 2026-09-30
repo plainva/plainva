@@ -49,14 +49,21 @@ describe("search by meaning in the result list", () => {
   it("says how far the vectors are and offers the pause, until they are complete", () => {
     const pause = vi.fn();
     const resume = vi.fn();
-    const el = mount(<SemanticCoverage progress={{ state: "working", total: 5, current: 3, deferred: 0 }} onPause={pause} onResume={resume} />);
+    const el = mount(<SemanticCoverage progress={{ state: "working", total: 5, current: 3, deferred: 0, withheld: 0 }} onPause={pause} onResume={resume} />);
     expect(el.textContent).toContain("Meaning knows 3 of 5 notes");
     act(() => [...el.querySelectorAll("button")].find((b) => b.textContent === "Pause")!.click());
     expect(pause).toHaveBeenCalled();
-    act(() => root!.render(<SemanticCoverage progress={{ state: "paused", total: 5, current: 3, deferred: 0 }} onPause={pause} onResume={resume} />));
+    act(() => root!.render(<SemanticCoverage progress={{ state: "paused", total: 5, current: 3, deferred: 0, withheld: 0 }} onPause={pause} onResume={resume} />));
     act(() => [...host!.querySelectorAll("button")].find((b) => b.textContent === "Resume")!.click());
     expect(resume).toHaveBeenCalled();
-    act(() => root!.render(<SemanticCoverage progress={{ state: "idle", total: 5, current: 5, deferred: 0 }} onPause={pause} onResume={resume} />));
+    act(() => root!.render(<SemanticCoverage progress={{ state: "idle", total: 5, current: 5, deferred: 0, withheld: 0 }} onPause={pause} onResume={resume} />));
+    expect(host!.textContent).toBe("");
+  });
+
+  it("leaves the notes the rules keep from a cloud out of the count", () => {
+    const el = mount(<SemanticCoverage progress={{ state: "working", total: 5, current: 2, deferred: 0, withheld: 1 }} onPause={vi.fn()} onResume={vi.fn()} />);
+    expect(el.textContent).toContain("Meaning knows 2 of 4 notes");
+    act(() => root!.render(<SemanticCoverage progress={{ state: "idle", total: 5, current: 4, deferred: 0, withheld: 1 }} onPause={vi.fn()} onResume={vi.fn()} />));
     expect(host!.textContent).toBe("");
   });
 });

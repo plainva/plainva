@@ -1,13 +1,63 @@
-import { EMBEDDING_MODELS, embeddingPackageBytes, type EmbeddingModelSpec } from "@plainva/core";
+import { EMBEDDING_MODELS, embeddingPackageBytes, type EmbeddingModelSpec, type EmbeddingProgress, type ModelFailure, type SemanticSource } from "@plainva/core";
+import { aiFailureText } from "./aiSettingsModel";
+import type { EngineState, UnusedEmbeddings } from "./localEmbeddings";
 
 /**
- * What the settings say about search by meaning (plan KI-Harness P2a-4,
+ * What the settings say about search by meaning (plan KI-Harness P2a-4/P2a-5,
  * mockup chapter 10), derived once for both shells — the desktop card and the
- * phone's rows only draw it. Every catalog model is offered; the hints explain
- * what was measured, nothing is excluded.
+ * phone's rows only draw it. Every catalog model is offered, and any model of
+ * an own provider; the hints explain what was measured, nothing is excluded.
  */
 
 type T = (key: string, options?: Record<string, unknown>) => string;
+
+/** Why search by meaning does not compute, in words the reader can act on. */
+export function semanticFailureText(t: T, engine: Extract<EngineState, { kind: "failed" }>): string {
+  const target = engine.source.kind === "provider" ? engine.source.target : null;
+  const provider = target?.provider.label ?? "";
+  switch (engine.reason) {
+    case "check":
+      return t("ai.semantic.checkFailed");
+    case "runtime":
+      return t("ai.semantic.runtimeMissing");
+    case "load":
+      return t("ai.semantic.loadFailed", { reason: engine.detail });
+    case "no-model":
+      return t("ai.semantic.providerUnset");
+    case "no-route":
+      return t("ai.semantic.noRoute", { provider });
+    case "encrypted":
+      return t("ai.semantic.encrypted");
+    case "provider":
+      return engine.failure ? aiFailureText(t, engine.failure, provider, target?.model) : t("ai.semantic.loadFailed", { reason: engine.detail });
+  }
+}
+
+/** Why the last run stopped: the provider's word where it gave one, the error otherwise. */
+export function semanticRunFailureText(t: T, source: SemanticSource, failure: ModelFailure | null, detail: string): string {
+  const target = source.kind === "provider" ? source.target : null;
+  return failure ? aiFailureText(t, failure, target?.provider.label ?? "", target?.model) : t("ai.semantic.runFailed", { reason: detail });
+}
+
+/** Who computes while search by meaning is on. */
+export function semanticReadyLine(t: T, source: SemanticSource): string {
+  if (source.kind === "package") return t("ai.semantic.ready", { model: source.spec.name });
+  return t("ai.semantic.readyProvider", { provider: source.target?.provider.label ?? "", model: source.target?.model ?? "" });
+}
+
+/** How far the vectors are, and how many notes the rules keep from a cloud. */
+export function semanticProgressLine(t: T, progress: EmbeddingProgress, locale: string): string {
+  const number = new Intl.NumberFormat(locale);
+  const line = t("ai.semantic.progress", { done: number.format(progress.current), total: number.format(progress.total - progress.withheld) });
+  return progress.withheld ? `${line} · ${t("ai.semantic.progressWithheld", { count: progress.withheld })}` : line;
+}
+
+/** "Granite R2 large (323 MB) · vectors of 2 other models" */
+export function semanticUnusedLine(t: T, unused: UnusedEmbeddings, locale: string): string {
+  const parts = unused.packages.map((spec) => `${spec.name} (${formatBytes(embeddingPackageBytes(spec), locale)})`);
+  if (unused.spaces.length) parts.push(t("ai.semantic.unusedSpaces", { count: unused.spaces.length }));
+  return parts.join(" · ");
+}
 
 /** A text of one sections' worth, in bytes: the vault's size divided by it gives a reference count. */
 const BYTES_PER_SECTION = 1000;

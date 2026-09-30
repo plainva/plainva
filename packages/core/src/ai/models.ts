@@ -28,6 +28,12 @@ export interface ModelInfo {
    * profile "Audio", like `chat`.
    */
   transcribe?: boolean;
+  /**
+   * Computes embeddings: by its id in OpenAI-compatible lists (the families
+   * Ollama and LM Studio serve too), by its methods at Gemini. A sorting hint
+   * for the profile "Embeddings" (plan P2a-5).
+   */
+  embed?: boolean;
 }
 
 export function modelListSpec(endpoint: ProviderEndpoint): HttpRequestSpec {
@@ -66,6 +72,9 @@ export function modelListSpec(endpoint: ProviderEndpoint): HttpRequestSpec {
 
 const NOT_CHAT = /(^|[/:-])(text-embedding|embedding|embed|tts|whisper|transcribe|dall-e|gpt-image|image|moderation|rerank|babbage|davinci)([-.:/]|$)/i;
 
+/** Embedding models by their id (text-embedding-3-small, nomic-embed-text, bge-m3, all-minilm, e5 …). */
+const EMBEDS = /embed|(^|[/:-])(bge|e5|gte|minilm|all-minilm)([-.:/]|$)/i;
+
 /** Transcription models by their id (whisper-1, gpt-4o-transcribe, whisper-large-v3 …). */
 const TRANSCRIBES = /(^|[/:-])(whisper|transcribe)([-.:/]|$)/i;
 
@@ -98,6 +107,7 @@ export function parseModelList(endpoint: ProviderEndpoint, json: unknown): Model
         outputTokens: num(m.outputTokenLimit),
         chat: methods.includes("generateContent") || methods.includes("streamGenerateContent"),
         transcribe: methods.includes("generateContent"),
+        embed: methods.includes("embedContent") || methods.includes("batchEmbedContents"),
       });
     }
   } else {
@@ -115,6 +125,7 @@ export function parseModelList(endpoint: ProviderEndpoint, json: unknown): Model
         price: input !== undefined && output !== undefined ? { input: input * 1_000_000, output: output * 1_000_000 } : undefined,
         chat: modality ? /->.*text/.test(modality) && !NOT_CHAT.test(id) : !NOT_CHAT.test(id),
         transcribe: TRANSCRIBES.test(id),
+        embed: EMBEDS.test(id) || /->.*embedding/i.test(modality ?? ""),
       });
     }
   }

@@ -140,7 +140,8 @@
       "audioHint": "Zet spraaknotities om in tekst. Vereist een provider met een audioroute: OpenAI, Gemini of een compatibele server.",
       "feedback": "Feedback over de AI (bèta)",
       "feedbackDesc": "Vertel ons wat werkt en wat niet — in de discussies van het project op GitHub.",
-      "feedbackOpen": "Discussies openen"
+      "feedbackOpen": "Discussies openen",
+      "embeddingHint": "Het model waarmee zoeken op betekenis rekent als je onder Semantisch zoeken „Eigen provider” kiest. Elk model dat de provider voor embeddings aanbiedt, werkt."
     },
     "add": {
       "title": "Provider toevoegen",
@@ -176,7 +177,8 @@
       "balanced": "Gebalanceerd",
       "strong": "Sterk",
       "local": "Lokaal",
-      "audio": "Audio"
+      "audio": "Audio",
+      "embedding": "Embeddings"
     },
     "policy": {
       "title": "Privacyregels (plainva.ai)",
@@ -213,7 +215,8 @@
         "folder": "Notities uit een andere map: {{folder}}",
         "tools": "Nieuwe hulpmiddelen: {{tools}}",
         "web": "Het verzoek mag op het web zoeken.",
-        "size": "Veel meer dan eerder: ~{{tokens}} tokens"
+        "size": "Veel meer dan eerder: ~{{tokens}} tokens",
+        "standing": "Zoeken op betekenis rekent met een cloudmodel: notities gaan daar op de achtergrond naartoe, zonder telkens te vragen — tot je deze goedkeuring in de instellingen intrekt."
       },
       "goesTo": "Gaat naar",
       "notes": "Notities",
@@ -232,7 +235,8 @@
         "tasks": "taken met deadline",
         "calendar": "afspraken",
         "notes": "notities",
-        "audio": "een opname"
+        "audio": "een opname",
+        "searches": "je zoekvragen"
       },
       "keptBack": "Achtergehouden",
       "keptNotes_one": "{{count}} notitie die je regels blokkeren",
@@ -250,7 +254,12 @@
       "send": "Verzenden",
       "everyRequest": "Vragen vóór elk verzoek",
       "leaveOut": "{{note}} weglaten",
-      "evidenceAudio": "de opname ({{size}})"
+      "evidenceAudio": "de opname ({{size}})",
+      "standingTitle": "Zoeken op betekenis met {{provider}}?",
+      "approveStanding": "Blijvend goedkeuren",
+      "folders": "Mappen",
+      "standingNotes_one": "De {{count}} notitie die je regels doorlaten — nu, en opnieuw bij elke wijziging",
+      "standingNotes_other": "Alle {{count}} notities die je regels doorlaten — nu, en elk opnieuw bij elke wijziging"
     },
     "lens": {
       "open": "Context bekijken",
@@ -406,7 +415,7 @@
     },
     "semantic": {
       "title": "Semantisch zoeken",
-      "description": "Vindt notities op wat ze betekenen, niet alleen op hun woorden — ook over talen heen. Geldt voor dit apparaat: elk apparaat rekent zelf, en de vectoren verlaten het nooit.",
+      "description": "Vindt notities op wat ze betekenen, niet alleen op hun woorden — ook over talen heen. Geldt voor dit apparaat, en de vectoren blijven erop: een pakket berekent ze hier, een eigen provider op zijn server.",
       "off": "Uit — alleen op woorden zoeken",
       "hintRecommended": "Aanbevolen. In de eigen test van Plainva met vragen in tien talen vond 88 % samen met de woorden de notitie bij de eerste vijf, tegen 62 % met alleen woorden.",
       "hintPrecise": "Preciezer; duurt ongeveer drie keer zo lang.",
@@ -437,7 +446,24 @@
       "pause": "Pauzeren",
       "resume": "Hervatten",
       "remove": "Verwijderen (met de vectoren)",
-      "removeConfirm": "{{model}} en de vectoren die het berekende verwijderen? Zoeken op betekenis blijft uit tot je weer een model downloadt."
+      "removeConfirm": "{{model}} en de vectoren die het berekende verwijderen? Zoeken op betekenis blijft uit tot je weer een model downloadt.",
+      "provider": "Eigen provider",
+      "providerUnset": "Kies eerst het model van het profiel Embeddings.",
+      "providerHint": "Ollama en LM Studio rekenen op je computer; een cloud pas nadat je hebt goedgekeurd wat daarheen gaat.",
+      "chooseModel": "Model kiezen",
+      "noRoute": "{{provider}} biedt geen embeddings aan. Kies een andere provider voor het profiel Embeddings.",
+      "encrypted": "In een versleutelde workspace gaat niets naar een cloud: betekenis berekent dan alleen een pakket of een server op deze computer.",
+      "readyProvider": "Aan — {{provider}} · {{model}}",
+      "withdraw": "Goedkeuring intrekken",
+      "withdrawConfirm": "Notities en zoekvragen gaan niet meer naar {{provider}}. Zoeken op betekenis wacht tot je opnieuw goedkeurt.",
+      "unused": "Niet in gebruik op dit apparaat",
+      "unusedRemove": "Verwijderen",
+      "unusedConfirm": "Verwijderen wat dit apparaat bewaart maar niet gebruikt: {{what}}? Kies je het opnieuw, dan rekent zoeken op betekenis het opnieuw uit.",
+      "runFailed": "Het verwerken is gestopt: {{reason}} — het begint opnieuw bij de volgende wijziging.",
+      "progressWithheld_one": "{{count}} notitie blijft door je regels op dit apparaat",
+      "progressWithheld_other": "{{count}} notities blijven door je regels op dit apparaat",
+      "unusedSpaces_one": "vectoren van {{count}} ander model",
+      "unusedSpaces_other": "vectoren van {{count}} andere modellen"
     }
   },
   "settingsSync": {
@@ -2542,7 +2568,8 @@
     "coveragePaused": "Betekenis kent {{done}} van {{total}} notities — gepauzeerd.",
     "coveragePause": "Pauzeren",
     "coverageResume": "Hervatten",
-    "coverageSettings": "Instellingen"
+    "coverageSettings": "Instellingen",
+    "meaningUnavailable": "Betekenis is nu niet beschikbaar — deze resultaten komen van de woorden. {{reason}}"
   },
   "block": {
     "menuTitle": "Blokacties",

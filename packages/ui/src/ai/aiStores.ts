@@ -26,7 +26,41 @@ export interface AiFileStore {
   removeDir(relPath: string): Promise<void>;
 }
 
+/**
+ * A standing approval (plan KI-Harness P2a-5): notes and search questions may
+ * go to a cloud model for search by meaning until the reader withdraws it.
+ * Kept per vault on this device, in the app's data — never in the vault,
+ * never synced.
+ */
+export interface StandingApproval {
+  /** `providerId/model`. */
+  recipient: string;
+  purpose: "embeddings";
+  /** When it was given (ISO 8601). */
+  at: string;
+}
+
+export interface StandingApprovalStore {
+  load(): Promise<StandingApproval[]>;
+  save(approvals: StandingApproval[]): Promise<void>;
+}
+
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
+
+function readApprovals(raw: string | null): StandingApproval[] {
+  if (raw === null) return [];
+  try {
+    const value = JSON.parse(raw) as { version?: number; approvals?: unknown };
+    if (value.version !== 1 || !Array.isArray(value.approvals)) return [];
+    return value.approvals.filter(
+      (a): a is StandingApproval =>
+        Boolean(a) && typeof a === "object" && typeof (a as StandingApproval).recipient === "string" && (a as StandingApproval).purpose === "embeddings" && typeof (a as StandingApproval).at === "string",
+    );
+  } catch {
+    // A damaged file approves nothing: the overview asks again.
+    return [];
+  }
+}
 
 function readIndex(raw: string | null): ConversationSummary[] | null {
   if (raw === null) return [];
@@ -42,7 +76,7 @@ function readIndex(raw: string | null): ConversationSummary[] | null {
   }
 }
 
-export function createAiVaultStores(files: AiFileStore, vaultKey: string): { conversations: ConversationRepository; ledger: AiLedgerStore } {
+export function createAiVaultStores(files: AiFileStore, vaultKey: string): { conversations: ConversationRepository; ledger: AiLedgerStore; approvals: StandingApprovalStore } {
   if (!SAFE_ID.test(vaultKey)) throw new Error("invalid vault key");
   const dir = vaultKey;
   const indexPath = `${dir}/index.json`;
@@ -104,7 +138,12 @@ export function createAiVaultStores(files: AiFileStore, vaultKey: string): { con
     save: (entries) => files.write(`${dir}/ledger.json`, JSON.stringify({ version: 1, entries })),
   };
 
-  return { conversations, ledger };
+  const approvals: StandingApprovalStore = {
+    load: async () => readApprovals(await files.read(`${dir}/approvals.json`)),
+    save: (list) => files.write(`${dir}/approvals.json`, JSON.stringify({ version: 1, approvals: list })),
+  };
+
+  return { conversations, ledger, approvals };
 }
 
 /** A stable, file-name-safe handle for a vault (FNV-1a over its path or id). */

@@ -148,7 +148,8 @@
       "audioHint": "Transkrybuje notatki głosowe. Wymaga dostawcy z obsługą audio: OpenAI, Gemini lub zgodnego serwera.",
       "feedback": "Opinie o AI (beta)",
       "feedbackDesc": "Napisz, co działa, a co nie — w dyskusjach projektu na GitHubie.",
-      "feedbackOpen": "Otwórz dyskusje"
+      "feedbackOpen": "Otwórz dyskusje",
+      "embeddingHint": "Model, którym liczy wyszukiwanie po znaczeniu, gdy w Wyszukiwaniu semantycznym wybierzesz „Własny dostawca”. Działa każdy model, który dostawca oferuje do embeddingów."
     },
     "add": {
       "title": "Dodaj dostawcę",
@@ -184,7 +185,8 @@
       "balanced": "Zrównoważony",
       "strong": "Silny",
       "local": "Lokalny",
-      "audio": "Audio"
+      "audio": "Audio",
+      "embedding": "Embeddingi"
     },
     "policy": {
       "title": "Zasady prywatności (plainva.ai)",
@@ -221,7 +223,8 @@
         "folder": "Notatki z innego folderu: {{folder}}",
         "tools": "Nowe narzędzia: {{tools}}",
         "web": "Zapytanie może przeszukiwać sieć.",
-        "size": "Znacznie więcej niż wcześniej: ~{{tokens}} tokenów"
+        "size": "Znacznie więcej niż wcześniej: ~{{tokens}} tokenów",
+        "standing": "Wyszukiwanie po znaczeniu liczy modelem w chmurze: notatki trafiają tam w tle, bez pytania za każdym razem — dopóki nie wycofasz tej zgody w ustawieniach."
       },
       "goesTo": "Odbiorca",
       "notes": "Notatki",
@@ -240,7 +243,8 @@
         "tasks": "zadania z terminem",
         "calendar": "spotkania",
         "notes": "notatki",
-        "audio": "nagranie"
+        "audio": "nagranie",
+        "searches": "Twoje pytania wyszukiwania"
       },
       "keptBack": "Zatrzymano",
       "keptNotes_one": "{{count}} notatka zablokowana przez Twoje reguły",
@@ -266,7 +270,14 @@
       "send": "Wyślij",
       "everyRequest": "Pytaj przed każdym zapytaniem",
       "leaveOut": "Pomiń {{note}}",
-      "evidenceAudio": "nagranie ({{size}})"
+      "evidenceAudio": "nagranie ({{size}})",
+      "standingTitle": "Szukać po znaczeniu z {{provider}}?",
+      "approveStanding": "Zatwierdź na stałe",
+      "folders": "Foldery",
+      "standingNotes_one": "{{count}} notatka, którą przepuszczają Twoje reguły — teraz i ponownie przy każdej zmianie",
+      "standingNotes_few": "{{count}} notatki, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie",
+      "standingNotes_many": "{{count}} notatek, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie",
+      "standingNotes_other": "{{count}} notatki, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie"
     },
     "lens": {
       "open": "Pokaż kontekst",
@@ -426,7 +437,7 @@
     },
     "semantic": {
       "title": "Wyszukiwanie semantyczne",
-      "description": "Znajduje notatki według tego, co znaczą, a nie tylko według słów — także między językami. Dotyczy tego urządzenia: każde urządzenie liczy samo, a wektory nigdy go nie opuszczają.",
+      "description": "Znajduje notatki według tego, co znaczą, a nie tylko według słów — także między językami. Dotyczy tego urządzenia, a wektory na nim zostają: pakiet liczy je tutaj, własny dostawca na swoim serwerze.",
       "off": "Wyłączone — szukaj tylko po słowach",
       "hintRecommended": "Zalecany. We własnym teście Plainva z pytaniami w dziesięciu językach 88 % znalazło swoją notatkę wśród pierwszych pięciu razem ze słowami, wobec 62 % przy samych słowach.",
       "hintPrecise": "Dokładniejszy; trwa około trzy razy dłużej.",
@@ -457,7 +468,28 @@
       "pause": "Wstrzymaj",
       "resume": "Wznów",
       "remove": "Usuń (z wektorami)",
-      "removeConfirm": "Usunąć {{model}} i obliczone przez niego wektory? Wyszukiwanie według znaczenia pozostanie wyłączone do ponownego pobrania modelu."
+      "removeConfirm": "Usunąć {{model}} i obliczone przez niego wektory? Wyszukiwanie według znaczenia pozostanie wyłączone do ponownego pobrania modelu.",
+      "provider": "Własny dostawca",
+      "providerUnset": "Najpierw wybierz model profilu Embeddingi.",
+      "providerHint": "Ollama i LM Studio liczą na Twoim komputerze; chmura dopiero po zatwierdzeniu tego, co tam trafia.",
+      "chooseModel": "Wybierz model",
+      "noRoute": "{{provider}} nie oferuje embeddingów. Wybierz innego dostawcę dla profilu Embeddingi.",
+      "encrypted": "W zaszyfrowanym obszarze roboczym nic nie trafia do chmury: znaczenie liczy wtedy tylko pakiet albo serwer na tym komputerze.",
+      "readyProvider": "Włączone — {{provider}} · {{model}}",
+      "withdraw": "Wycofaj zgodę",
+      "withdrawConfirm": "Notatki i pytania wyszukiwania nie trafiają już do {{provider}}. Wyszukiwanie po znaczeniu czeka na ponowną zgodę.",
+      "unused": "Nieużywane na tym urządzeniu",
+      "unusedRemove": "Usuń",
+      "unusedConfirm": "Usunąć to, co to urządzenie przechowuje, ale nie używa: {{what}}? Jeśli wybierzesz to ponownie, wyszukiwanie po znaczeniu policzy to od nowa.",
+      "runFailed": "Przetwarzanie zatrzymało się: {{reason}} — ruszy ponownie przy następnej zmianie.",
+      "progressWithheld_one": "{{count}} notatka zostaje na tym urządzeniu zgodnie z Twoimi regułami",
+      "progressWithheld_few": "{{count}} notatki zostają na tym urządzeniu zgodnie z Twoimi regułami",
+      "progressWithheld_many": "{{count}} notatek zostaje na tym urządzeniu zgodnie z Twoimi regułami",
+      "progressWithheld_other": "{{count}} notatki zostają na tym urządzeniu zgodnie z Twoimi regułami",
+      "unusedSpaces_one": "wektory {{count}} innego modelu",
+      "unusedSpaces_few": "wektory {{count}} innych modeli",
+      "unusedSpaces_many": "wektory {{count}} innych modeli",
+      "unusedSpaces_other": "wektory {{count}} innych modeli"
     }
   },
   "settingsSync": {
@@ -2576,7 +2608,8 @@
     "coveragePaused": "Znaczenie zna {{done}} z {{total}} notatek — wstrzymano.",
     "coveragePause": "Wstrzymaj",
     "coverageResume": "Wznów",
-    "coverageSettings": "Ustawienia"
+    "coverageSettings": "Ustawienia",
+    "meaningUnavailable": "Znaczenie jest teraz niedostępne — te wyniki pochodzą ze słów. {{reason}}"
   },
   "block": {
     "menuTitle": "Akcje bloku",

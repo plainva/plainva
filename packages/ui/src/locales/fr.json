@@ -144,7 +144,8 @@
       "audioHint": "Transcrit les notes vocales. Nécessite un fournisseur avec une voie audio : OpenAI, Gemini ou un serveur compatible.",
       "feedback": "Retour sur l'IA (bêta)",
       "feedbackDesc": "Dites-nous ce qui fonctionne et ce qui ne fonctionne pas — dans les discussions du projet sur GitHub.",
-      "feedbackOpen": "Ouvrir les discussions"
+      "feedbackOpen": "Ouvrir les discussions",
+      "embeddingHint": "Le modèle avec lequel la recherche par sens calcule quand vous choisissez « Fournisseur personnel » sous Recherche sémantique. Tout modèle que le fournisseur propose pour les embeddings fonctionne."
     },
     "add": {
       "title": "Ajouter un fournisseur",
@@ -180,7 +181,8 @@
       "balanced": "Équilibré",
       "strong": "Puissant",
       "local": "Local",
-      "audio": "Audio"
+      "audio": "Audio",
+      "embedding": "Embeddings"
     },
     "policy": {
       "title": "Règles de confidentialité (plainva.ai)",
@@ -217,7 +219,8 @@
         "folder": "Des notes d'un autre dossier : {{folder}}",
         "tools": "De nouveaux outils : {{tools}}",
         "web": "La requête peut chercher sur le web.",
-        "size": "Bien plus qu'avant : ~{{tokens}} jetons"
+        "size": "Bien plus qu'avant : ~{{tokens}} jetons",
+        "standing": "La recherche par sens calcule avec un modèle cloud : les notes y partent en arrière-plan, sans demander à chaque fois — jusqu'à ce que vous retiriez cette approbation dans les paramètres."
       },
       "goesTo": "Destinataire",
       "notes": "Notes",
@@ -236,7 +239,8 @@
         "tasks": "tâches à échéance",
         "calendar": "rendez-vous",
         "notes": "notes",
-        "audio": "un enregistrement"
+        "audio": "un enregistrement",
+        "searches": "vos questions de recherche"
       },
       "keptBack": "Retenu",
       "keptNotes_one": "{{count}} note bloquée par vos règles",
@@ -258,7 +262,13 @@
       "send": "Envoyer",
       "everyRequest": "Demander avant chaque requête",
       "leaveOut": "Retirer {{note}}",
-      "evidenceAudio": "l'enregistrement ({{size}})"
+      "evidenceAudio": "l'enregistrement ({{size}})",
+      "standingTitle": "Rechercher par sens avec {{provider}} ?",
+      "approveStanding": "Approuver durablement",
+      "folders": "Dossiers",
+      "standingNotes_one": "La {{count}} note que vos règles laissent passer — maintenant, et de nouveau à chaque modification",
+      "standingNotes_many": "Les {{count}} notes que vos règles laissent passer — maintenant, et chacune de nouveau à chaque modification",
+      "standingNotes_other": "Les {{count}} notes que vos règles laissent passer — maintenant, et chacune de nouveau à chaque modification"
     },
     "lens": {
       "open": "Voir le contexte",
@@ -416,7 +426,7 @@
     },
     "semantic": {
       "title": "Recherche sémantique",
-      "description": "Trouve les notes d'après ce qu'elles signifient, pas seulement d'après leurs mots — y compris d'une langue à l'autre. S'applique à cet appareil : chaque appareil calcule pour lui-même, et les vecteurs ne le quittent jamais.",
+      "description": "Trouve les notes d'après ce qu'elles signifient, pas seulement d'après leurs mots — y compris d'une langue à l'autre. S'applique à cet appareil, et les vecteurs y restent : un paquet les calcule ici, un fournisseur personnel sur son serveur.",
       "off": "Désactivée — rechercher par mots uniquement",
       "hintRecommended": "Recommandé. Dans le test de Plainva avec des questions en dix langues, 88 % ont trouvé leur note parmi les cinq premières avec les mots, contre 62 % avec les mots seuls.",
       "hintPrecise": "Plus précis ; prend environ trois fois plus de temps.",
@@ -447,7 +457,26 @@
       "pause": "Mettre en pause",
       "resume": "Reprendre",
       "remove": "Retirer (avec ses vecteurs)",
-      "removeConfirm": "Retirer {{model}} et les vecteurs qu'il a calculés ? La recherche par le sens reste désactivée jusqu'à ce que vous téléchargiez de nouveau un modèle."
+      "removeConfirm": "Retirer {{model}} et les vecteurs qu'il a calculés ? La recherche par le sens reste désactivée jusqu'à ce que vous téléchargiez de nouveau un modèle.",
+      "provider": "Fournisseur personnel",
+      "providerUnset": "Choisissez d'abord le modèle du profil Embeddings.",
+      "providerHint": "Ollama et LM Studio calculent sur votre ordinateur ; un cloud seulement après que vous avez approuvé ce qui y part.",
+      "chooseModel": "Choisir un modèle",
+      "noRoute": "{{provider}} ne propose pas d'embeddings. Choisissez un autre fournisseur pour le profil Embeddings.",
+      "encrypted": "Dans un espace chiffré, rien ne part vers un cloud : seul un paquet ou un serveur sur cet ordinateur calcule le sens.",
+      "readyProvider": "Activée — {{provider}} · {{model}}",
+      "withdraw": "Retirer l'approbation",
+      "withdrawConfirm": "Les notes et les questions de recherche ne partent plus vers {{provider}}. La recherche par sens attend une nouvelle approbation.",
+      "unused": "Inutilisé sur cet appareil",
+      "unusedRemove": "Supprimer",
+      "unusedConfirm": "Supprimer ce que cet appareil garde sans l'utiliser : {{what}} ? Si vous le choisissez de nouveau, la recherche par sens le recalcule.",
+      "runFailed": "L'intégration s'est arrêtée : {{reason}} — elle reprend à la prochaine modification.",
+      "progressWithheld_one": "{{count}} note reste sur cet appareil selon vos règles",
+      "progressWithheld_many": "{{count}} notes restent sur cet appareil selon vos règles",
+      "progressWithheld_other": "{{count}} notes restent sur cet appareil selon vos règles",
+      "unusedSpaces_one": "vecteurs de {{count}} autre modèle",
+      "unusedSpaces_many": "vecteurs de {{count}} autres modèles",
+      "unusedSpaces_other": "vecteurs de {{count}} autres modèles"
     }
   },
   "settingsSync": {
@@ -2559,7 +2588,8 @@
     "coveragePaused": "Le sens connaît {{done}} notes sur {{total}} — en pause.",
     "coveragePause": "Mettre en pause",
     "coverageResume": "Reprendre",
-    "coverageSettings": "Paramètres"
+    "coverageSettings": "Paramètres",
+    "meaningUnavailable": "Le sens n'est pas disponible pour l'instant — ces résultats viennent des mots. {{reason}}"
   },
   "block": {
     "menuTitle": "Actions de bloc",

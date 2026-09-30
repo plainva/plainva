@@ -11,6 +11,12 @@
  * the one its vectors were cut from (`search`). Old vectors stay stored until
  * the note is embedded again, so an edit re-embeds only the chunks whose text
  * changed — reused by hash, across restarts.
+ *
+ * An engine that is a cloud (an own provider, plan P2a-5) gets an admission:
+ * the vault's privacy rules decide, note by note, before its text leaves the
+ * device (ADR 0018). A note they keep away is withheld — nothing of it goes,
+ * vectors from before the rule go too, and it waits until its text or the
+ * rules change.
  */
 import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
@@ -36,19 +42,42 @@ export interface EmbeddingPlan {
   orphans: string[];
   /** Notes in the index. */
   total: number;
+  /** Notes the privacy rules keep from this engine: neither missing nor done. */
+  withheld: number;
 }
 
 /**
  * What became of a note: embedded; changed on disk since the index read it
  * (the index re-reads it, and the next plan brings it back); or gone.
  */
-export type EmbeddingOutcome = "embedded" | "changed" | "gone";
+export type EmbeddingOutcome = "embedded" | "changed" | "gone" | "withheld";
+
+/** Whether a note may go to the engine: its own rule, its folder's, the vault's default (ADR 0018). */
+export interface EmbeddingAdmission {
+  /** Changes whenever a folder rule or the default changes — the only changes that can deny a note whose text did not. */
+  rulesKey(): Promise<string>;
+  /** Of these paths, the ones a folder rule or the default keeps away; the notes' own rules aside. */
+  deniedByRules(paths: readonly string[]): Promise<Set<string>>;
+  /** The whole decision for a note as it is now. */
+  admits(path: string, text: string): Promise<boolean>;
+}
 
 export interface EmbeddingIndexerOptions {
   db: IDatabaseAdapter;
   engine: EmbeddingEngine;
   /** A note's text as it is now, or null when it is gone. */
   readText(path: string): Promise<string | null>;
+  /** Asked before a note's text goes to the engine; absent for an engine on this device. */
+  admission?: EmbeddingAdmission;
+}
+
+/** The notes the pipeline owes vectors — everything indexed but attachments and databases. */
+const EMBEDDABLE = `f.mode != 'attachment' AND f.path NOT LIKE '%.base'`;
+
+/** The vault's notes with their size: what a standing approval covers. */
+export async function embeddableNotes(db: IDatabaseAdapter): Promise<{ path: string; bytes: number }[]> {
+  const rows = await db.query<{ path: string; bytes: number | null }>(`SELECT f.path AS path, f.size_bytes AS bytes FROM files f WHERE ${EMBEDDABLE}`);
+  return rows.map((row) => ({ path: row.path, bytes: Number(row.bytes) || 0 }));
 }
 
 /** New chunks per engine call, across notes: few calls, bounded memory. */
@@ -67,12 +96,18 @@ export class EmbeddingIndexer {
   private readonly db: IDatabaseAdapter;
   private readonly engine: EmbeddingEngine;
   private readonly readText: (path: string) => Promise<string | null>;
+  private readonly admission: EmbeddingAdmission | undefined;
   private index: Promise<VectorIndex> | null = null;
+  /** Notes the rules keep away, by the `files.sha256` they were judged at. */
+  private readonly withheld = new Map<string, string>();
+  /** The rules the withheld notes were judged by. */
+  private rulesKey: string | null = null;
 
   constructor(options: EmbeddingIndexerOptions) {
     this.db = options.db;
     this.engine = options.engine;
     this.readText = options.readText;
+    this.admission = options.admission;
     this.store = new EmbeddingStore(options.db);
   }
 
@@ -95,25 +130,58 @@ export class EmbeddingIndexer {
 
   async plan(): Promise<EmbeddingPlan> {
     // The store's tables must exist for the join; a read-only connection has none to plan for.
-    if (!(await this.store.writable())) return { pending: [], orphans: [], total: 0 };
+    if (!(await this.store.writable())) return { pending: [], orphans: [], total: 0, withheld: 0 };
     await this.store.registerEngine(this.engine.id, this.engine.dim);
     const rows = await this.db.query<{ path: string; title: string | null; sha256: string | null; mtime: number | null; embedded: string | null }>(
       `SELECT f.path AS path, f.title AS title, f.sha256 AS sha256, f.mtime_local AS mtime, n.sha256 AS embedded
          FROM files f
          LEFT JOIN ai_embedding_note n ON n.engine = ? AND n.path = f.path
-        WHERE f.mode != 'attachment' AND f.path NOT LIKE '%.base'`,
+        WHERE ${EMBEDDABLE}`,
       [this.engine.id],
     );
+    if (this.admission) await this.judgeAgain(rows);
     const known = new Set<string>();
     const pending: EmbeddingWork[] = [];
+    let withheld = 0;
     for (const row of rows) {
       known.add(row.path);
-      if (!row.sha256 || row.embedded === row.sha256) continue;
+      if (!row.sha256) continue;
+      if (this.withheld.get(row.path) === row.sha256) {
+        withheld++;
+        continue;
+      }
+      if (row.embedded === row.sha256) continue;
       pending.push({ path: row.path, title: String(row.title ?? ""), sha256: row.sha256, mtime: Number(row.mtime) || 0 });
     }
+    for (const path of [...this.withheld.keys()]) if (!known.has(path)) this.withheld.delete(path);
     pending.sort((a, b) => b.mtime - a.mtime || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
     const orphans = [...(await this.store.noteStates(this.engine.id)).keys()].filter((path) => !known.has(path));
-    return { pending, orphans, total: rows.length };
+    return { pending, orphans, total: rows.length, withheld };
+  }
+
+  /**
+   * A changed rule can deny a note whose text did not change. When the rules
+   * changed, the notes with vectors that a folder rule or the default now
+   * keeps away are read and judged whole (their own rule may still allow
+   * them); the denied ones lose their vectors and wait as withheld. Every
+   * other withheld note is judged again when its turn comes — a rule that
+   * opened releases it.
+   */
+  private async judgeAgain(rows: readonly { path: string; sha256: string | null; embedded: string | null }[]): Promise<void> {
+    const admission = this.admission!;
+    const key = await admission.rulesKey();
+    if (key === this.rulesKey) return;
+    this.rulesKey = key;
+    this.withheld.clear();
+    const embedded = rows.filter((row) => row.embedded !== null && row.sha256 !== null);
+    const suspects = await admission.deniedByRules(embedded.map((row) => row.path));
+    for (const row of embedded) {
+      if (!suspects.has(row.path)) continue;
+      const text = await this.readText(row.path);
+      if (text !== null && (await admission.admits(row.path, text))) continue;
+      await this.forget([row.path]);
+      this.withheld.set(row.path, row.sha256!);
+    }
   }
 
   /**
@@ -128,7 +196,12 @@ export class EmbeddingIndexer {
       const content = await this.readText(work.path);
       if (content === null) outcome.set(work.path, "gone");
       else if (sha256Hex(utf8Encode(content)) !== work.sha256) outcome.set(work.path, "changed");
-      else notes.push({ work, chunks: chunkNote(work.title, content) });
+      else if (this.admission && !(await this.admission.admits(work.path, content))) {
+        // Kept from this engine: nothing of it goes, and vectors from before the rule go as well.
+        await this.forget([work.path]);
+        this.withheld.set(work.path, work.sha256);
+        outcome.set(work.path, "withheld");
+      } else notes.push({ work, chunks: chunkNote(work.title, content) });
     }
     if (!notes.length) return outcome;
     const vectors: Map<string, QuantizedVector> = await this.store.vectorsByHash(

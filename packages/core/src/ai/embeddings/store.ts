@@ -10,7 +10,7 @@
  */
 import type { BatchStatement, IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { runStatementsAtomic } from "../../db/batch.js";
-import { decodeInt8, encodeInt8, type QuantizedVector } from "./vectors.js";
+import { decodeInt8, dequantizeInt8, encodeInt8, quantizeInt8, type QuantizedVector } from "./vectors.js";
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS ai_embedding_engine (
@@ -36,6 +36,12 @@ const SCHEMA = [
      PRIMARY KEY (engine, path, ordinal)
    )`,
   `CREATE INDEX IF NOT EXISTS idx_ai_embedding_hash ON ai_embedding (engine, hash)`,
+  // The fingerprint of an own provider's model (plan P2a-5): the vector of the probe text.
+  `CREATE TABLE IF NOT EXISTS ai_embedding_probe (
+     engine TEXT PRIMARY KEY,
+     scale REAL NOT NULL,
+     vec TEXT NOT NULL
+   )`,
 ];
 
 /** Rows per multi-row INSERT and paths per IN list: far below any SQLite variable limit. */
@@ -210,7 +216,21 @@ export class EmbeddingStore {
       { sql: `DELETE FROM ai_embedding WHERE engine = ?`, params: [engine] },
       { sql: `DELETE FROM ai_embedding_note WHERE engine = ?`, params: [engine] },
       { sql: `DELETE FROM ai_embedding_engine WHERE engine = ?`, params: [engine] },
+      { sql: `DELETE FROM ai_embedding_probe WHERE engine = ?`, params: [engine] },
     ]);
+  }
+
+  /** The fingerprint kept for an engine (a provider's probe vector); null when there is none of `dim` components. */
+  async probeOf(engine: string, dim: number): Promise<Float32Array | null> {
+    const [row] = await this.read<{ scale: number; vec: string }>(`SELECT scale, vec FROM ai_embedding_probe WHERE engine = ?`, [engine]);
+    const values = row ? decodeInt8(row.vec, dim) : null;
+    return row && values ? dequantizeInt8({ scale: Number(row.scale), values }) : null;
+  }
+
+  async setProbe(engine: string, vector: Float32Array): Promise<void> {
+    await this.requireWritable();
+    const { scale, values } = quantizeInt8(vector);
+    await this.db.execute(`INSERT OR REPLACE INTO ai_embedding_probe (engine, scale, vec) VALUES (?, ?, ?)`, [engine, scale, encodeInt8(values)]);
   }
 
   /**

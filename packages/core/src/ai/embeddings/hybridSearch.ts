@@ -13,7 +13,9 @@
  * Meaning and both list each note once, its best place first, and say what
  * found it (`found`). The query's operators — `path:`, `tag:`, excluded words
  * — limit the meaning hits exactly as they limit the words. A chosen order
- * other than relevance is the words' search: meaning is a ranking.
+ * other than relevance is the words' search: meaning is a ranking. When
+ * meaning cannot answer — an own provider offline, its key refused — the
+ * words still do, and the source hears why.
  */
 import type { SearchOrder, SearchPage, SearchPageCursor, SearchResult, VaultQueryService } from "../../vault/VaultQueryService.js";
 import { findSearchOccurrences } from "../../vault/searchOccurrences.js";
@@ -41,6 +43,8 @@ export interface HybridSearchSource {
   mode(): SearchMode;
   /** A note's text now: the excerpt of a meaning hit is cut from it. */
   readText(path: string): Promise<string | null>;
+  /** How the last ranking by meaning went. */
+  onMeaning?(outcome: { ok: true } | { ok: false; error: unknown }): void;
 }
 
 interface RankedNote {
@@ -77,16 +81,21 @@ export class HybridSearchService {
   ): Promise<SearchPage> {
     const indexer = this.source.meaning();
     const mode = this.activeMode();
-    if (!indexer || mode === "words" || (options.order && options.order.key !== "relevance") || !meaningText(query)) {
-      const page = await this.source.words.searchOccurrencesPage(query, options);
-      return mode === "words" ? page : { ...page, hits: page.hits.map((hit) => ({ ...hit, found: "words" as const })) };
-    }
+    if (!indexer || mode === "words" || (options.order && options.order.key !== "relevance") || !meaningText(query)) return this.wordsPage(query, options, mode);
     const limit = Math.min(100, Math.max(1, options.limit ?? 40));
     const orderId = `${mode}:${indexer.engineId}`;
     const cursor = options.cursor?.query === query && options.cursor.order === orderId ? options.cursor : null;
     const offset = cursor?.noteOffset ?? 0;
     // A first page ranks afresh (the index may have moved); later pages page through that ranking.
-    const notes = await this.ranked(query, mode, indexer, !cursor, options.signal);
+    let notes: RankedNote[];
+    try {
+      notes = await this.ranked(query, mode, indexer, !cursor, options.signal);
+      this.source.onMeaning?.({ ok: true });
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      this.source.onMeaning?.({ ok: false, error });
+      return this.wordsPage(query, options, mode);
+    }
     options.signal?.throwIfAborted();
     const slice = notes.slice(offset, offset + limit);
     const records = await this.source.words.fileRecords(slice.map((note) => note.path));
@@ -129,6 +138,12 @@ export class HybridSearchService {
     }
     const next = offset + limit < notes.length ? { query, order: orderId, noteOffset: offset + limit, from: 0 } : null;
     return { hits, next };
+  }
+
+  /** The words' own page; outside the words mode each hit says that words found it. */
+  private async wordsPage(query: string, options: Parameters<VaultQueryService["searchOccurrencesPage"]>[1], mode: SearchMode): Promise<SearchPage> {
+    const page = await this.source.words.searchOccurrencesPage(query, options);
+    return mode === "words" ? page : { ...page, hits: page.hits.map((hit) => ({ ...hit, found: "words" as const })) };
   }
 
   /** The note ranking of a query, kept for its later pages. */

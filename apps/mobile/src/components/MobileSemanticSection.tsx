@@ -1,7 +1,26 @@
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { embeddingModel, type EmbeddingModelSpec } from "@plainva/core";
-import { Banner, Button, GroupCard, packageInstalled, Row, RowList, SectionLabel, semanticModelRows, useLocalEmbeddings, type AiSession } from "@plainva/ui";
+import { AI_EMBEDDING_PROFILE, SEMANTIC_BY_PROVIDER, semanticSourceOf, type EmbeddingModelSpec } from "@plainva/core";
+import {
+  AiSendOverview,
+  Banner,
+  Button,
+  GroupCard,
+  packageInstalled,
+  Row,
+  RowList,
+  SectionLabel,
+  semanticFailureText,
+  semanticModelRows,
+  semanticProgressLine,
+  semanticReadyLine,
+  semanticRunFailureText,
+  semanticUnusedLine,
+  useLocalEmbeddings,
+  type AiSession,
+  type StandingApproval,
+  type UnusedEmbeddings,
+} from "@plainva/ui";
 import { ChoiceMark } from "./ChoiceMark";
 import { SemanticLoadSheet } from "./SemanticLoadSheet";
 import { mConfirm } from "../services/mobileDialogs";
@@ -9,17 +28,37 @@ import { mobileLocalModels } from "../services/ai/localModels";
 
 /**
  * Settings → AI & automation → "Semantic search" on the phone (plan
- * KI-Harness P2a-4): the desktop card's choice in rows — Off or one catalog
- * model, a single choice with the round mark — then the package's life:
- * loading with progress, the device check, pause and removal.
+ * KI-Harness P2a-4/P2a-5): the desktop card's choice in rows — Off, one
+ * catalog model or the own provider, a single choice with the round mark —
+ * then its life: loading with progress and the device check for a package,
+ * the send overview's standing approval for a cloud model, pause, removal,
+ * withdrawal, and clearing away what is no longer used.
  */
-export function MobileSemanticSection({ session }: { session: AiSession }) {
+export function MobileSemanticSection({ session, onChooseModel }: { session: AiSession; onChooseModel: () => void }) {
   const { t, i18n } = useTranslation();
   const settings = useSyncExternalStore(session.subscribe, session.getState).settings;
   const { controller, state } = useLocalEmbeddings();
   const [asking, setAsking] = useState<EmbeddingModelSpec | null>(null);
+  const [unused, setUnused] = useState<UnusedEmbeddings | null>(null);
+  const [approval, setApproval] = useState<StandingApproval | null>(null);
   const chosen = settings.semanticModel;
+  // Stable between renders: the effect below follows it.
+  const source = useMemo(() => semanticSourceOf(settings), [settings]);
+  const target = source?.kind === "provider" ? source.target : null;
   const rows = semanticModelRows(t, i18n.language);
+  const engine = state?.engine;
+  const download = state?.download ?? null;
+  const progress = state?.progress;
+
+  useEffect(() => {
+    let alive = true;
+    void controller?.unused().then((found) => alive && setUnused(found));
+    if (controller && target) void controller.approvalOf(target).then((found) => alive && setApproval(found));
+    else setApproval(null);
+    return () => {
+      alive = false;
+    };
+  }, [controller, engine, target]);
 
   const choose = async (spec: EmbeddingModelSpec | null) => {
     if (!spec) {
@@ -28,6 +67,10 @@ export function MobileSemanticSection({ session }: { session: AiSession }) {
     }
     if (await packageInstalled(mobileLocalModels, spec)) await session.updateSettings((s) => ({ ...s, semanticModel: spec.id }));
     else setAsking(spec);
+  };
+  const chooseProvider = async () => {
+    await session.updateSettings((s) => ({ ...s, semanticModel: SEMANTIC_BY_PROVIDER }));
+    if (!settings.profiles[AI_EMBEDDING_PROFILE]) onChooseModel();
   };
   const load = async (spec: EmbeddingModelSpec) => {
     setAsking(null);
@@ -39,12 +82,23 @@ export function MobileSemanticSection({ session }: { session: AiSession }) {
     if (chosen === spec.id) await session.updateSettings((s) => ({ ...s, semanticModel: null }));
     await controller.remove(spec);
   };
+  const withdraw = async () => {
+    if (!controller || !target) return;
+    const ok = await mConfirm({ title: t("ai.semantic.withdraw"), message: t("ai.semantic.withdrawConfirm", { provider: target.provider.label }), confirmLabel: t("ai.semantic.withdraw"), danger: true });
+    if (ok) await controller.withdraw(target);
+  };
+  const removeUnused = async () => {
+    if (!controller || !unused) return;
+    const what = semanticUnusedLine(t, unused, i18n.language);
+    const ok = await mConfirm({ title: t("ai.semantic.unused"), message: t("ai.semantic.unusedConfirm", { what }), confirmLabel: t("ai.semantic.unusedRemove"), danger: true });
+    if (!ok) return;
+    await controller.removeUnused();
+    setUnused(await controller.unused());
+  };
 
-  const engine = state?.engine;
-  const download = state?.download ?? null;
-  const progress = state?.progress;
-  const current = chosen ? embeddingModel(chosen) : undefined;
   const megabytes = (bytes: number) => new Intl.NumberFormat(i18n.language).format(Math.round(bytes / 1e6));
+  const readyPackage = engine?.kind === "ready" && engine.source.kind === "package" ? engine.source.spec : null;
+  const hasUnused = Boolean(unused && (unused.packages.length || unused.spaces.length));
 
   return (
     <>
@@ -65,6 +119,15 @@ export function MobileSemanticSection({ session }: { session: AiSession }) {
               data-testid={`semantic-model-${row.spec.id}`}
             />
           ))}
+          <Row
+            wrap
+            title={t("ai.semantic.provider")}
+            subtitle={`${target ? `${target.provider.label} · ${target.model}` : t("ai.semantic.providerUnset")} — ${t("ai.semantic.providerHint")}`}
+            end={<ChoiceMark on={chosen === SEMANTIC_BY_PROVIDER} />}
+            onClick={() => void chooseProvider()}
+            disabled={Boolean(download)}
+            data-testid="semantic-model-provider"
+          />
         </RowList>
       </GroupCard>
       {download && (
@@ -75,25 +138,43 @@ export function MobileSemanticSection({ session }: { session: AiSession }) {
           <div className="pv-security-progress" aria-hidden="true">
             <div className="pv-security-progress-bar" style={{ width: `${download.total ? (download.received / download.total) * 100 : 0}%` }} />
           </div>
-          <Button variant="ghost" onClick={() => void controller?.cancelInstall(embeddingModel(download.model)!)}>
+          <Button variant="ghost" onClick={() => void controller?.cancelInstall(rows.find((row) => row.spec.id === download.model)!.spec)}>
             {t("ai.semantic.cancel")}
           </Button>
         </>
       )}
       {state?.downloadError && <Banner kind="warning">{t("ai.semantic.loadFailed", { reason: state.downloadError })}</Banner>}
-      {engine?.kind === "checking" && <p className="m-hint">{t("ai.semantic.checking")}</p>}
-      {engine?.kind === "failed" && (
-        <Banner kind="warning">{engine.reason === "check" ? t("ai.semantic.checkFailed") : engine.reason === "runtime" ? t("ai.semantic.runtimeMissing") : t("ai.semantic.loadFailed", { reason: engine.detail })}</Banner>
+      {(engine?.kind === "checking" || engine?.kind === "opening") && <p className="m-hint">{t("ai.semantic.checking")}</p>}
+      {engine?.kind === "failed" && <Banner kind="warning">{semanticFailureText(t, engine)}</Banner>}
+      {engine?.kind === "failed" && (engine.reason === "no-model" || engine.reason === "no-route") && (
+        <Button variant="tonal" onClick={onChooseModel} data-testid="semantic-choose-model">
+          {t("ai.semantic.chooseModel")}
+        </Button>
       )}
-      {engine?.kind === "ready" && current && progress && (
+      {engine?.kind === "approval" && (
+        <AiSendOverview touch manifest={engine.manifest} onSend={() => void controller?.approve()} onCancel={() => void session.updateSettings((s) => ({ ...s, semanticModel: null }))} />
+      )}
+      {engine?.kind === "ready" && progress && (
         <GroupCard>
           <RowList>
-            <Row title={t("ai.semantic.ready", { model: current.name })} subtitle={t("ai.semantic.progress", { done: progress.current, total: progress.total })} wrap />
+            <Row title={semanticReadyLine(t, engine.source)} subtitle={semanticProgressLine(t, progress, i18n.language)} wrap />
             <Row
               title={progress.state === "paused" ? t("ai.semantic.resume") : t("ai.semantic.pause")}
               onClick={() => (progress.state === "paused" ? controller?.resume() : controller?.pause())}
             />
-            <Row title={t("ai.semantic.remove")} onClick={() => void remove(current)} />
+            {readyPackage && <Row title={t("ai.semantic.remove")} onClick={() => void remove(readyPackage)} />}
+            {engine.source.kind === "provider" && approval && <Row title={t("ai.semantic.withdraw")} onClick={() => void withdraw()} data-testid="semantic-withdraw" />}
+          </RowList>
+        </GroupCard>
+      )}
+      {engine?.kind === "ready" && progress?.state === "failed" && (
+        <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
+      )}
+      {hasUnused && unused && (
+        <GroupCard>
+          <RowList>
+            <Row wrap title={t("ai.semantic.unused")} subtitle={semanticUnusedLine(t, unused, i18n.language)} />
+            <Row title={t("ai.semantic.unusedRemove")} onClick={() => void removeUnused()} data-testid="semantic-remove-unused" />
           </RowList>
         </GroupCard>
       )}

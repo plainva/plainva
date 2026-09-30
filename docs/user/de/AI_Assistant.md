@@ -32,6 +32,8 @@ Vier Profile — **Schnell**, **Ausgewogen**, **Stark** und **Lokal** — sind D
 
 Ein fünfter Platz, **Audio**, hält das Modell, das Sprachnotizen transkribiert; er ist nie der Standard für ein Gespräch.
 
+Ein sechster Platz, **Einbettungen**, hält das Modell, mit dem die Suche nach Bedeutung rechnet, wenn Du unter **Semantische Suche** **Eigener Anbieter** wählst — siehe [Suche](Search.md).
+
 ## Fragen
 
 - **Desktop:** der KI-Knopf in der Aktionsleiste, **Strg+J** (⌘J unter macOS) oder **KI fragen** in der Befehlspalette öffnet den Begleiter — ein kleines Fenster über Deiner Arbeit. **Als Tab öffnen** holt dasselbe Gespräch in den KI-Tab, wo Deine Gespräche aufgelistet sind.

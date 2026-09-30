@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { customEndpointId, normalizeBaseUrl, providerById, type ProviderInfo, AI_AUDIO_PROFILE, type AiProfileSlot } from "@plainva/core";
+import { customEndpointId, normalizeBaseUrl, providerById, type ProviderInfo, AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, type AiProfileSlot } from "@plainva/core";
 import {
   addableProviders,
   Banner,
@@ -175,8 +175,9 @@ export function AiModelDialog({ session, state, profile, onClose }: { session: A
   const [providerId, setProviderId] = useState(current?.providerId ?? providers[0]?.id ?? "");
   const [model, setModel] = useState(current?.model ?? "");
   const test = state.tests[providerId];
-  // The profile "Audio" lists what can transcribe; every other profile what can chat. Any id can still be typed.
-  const fits = (m: { chat: boolean; transcribe?: boolean }) => (profile === AI_AUDIO_PROFILE ? Boolean(m.transcribe) : m.chat);
+  // "Audio" lists what can transcribe, "Embeddings" what embeds, every other profile what can chat. Any id can still be typed.
+  const fits = (m: { chat: boolean; transcribe?: boolean; embed?: boolean }) =>
+    profile === AI_AUDIO_PROFILE ? Boolean(m.transcribe) : profile === AI_EMBEDDING_PROFILE ? Boolean(m.embed) : m.chat;
   const models = (test?.models ?? []).filter((m) => fits(m) && (!model.trim() || m.id.toLowerCase().includes(model.trim().toLowerCase()) || (m.label ?? "").toLowerCase().includes(model.trim().toLowerCase())));
   const save = () => {
     if (!providerId || !model.trim()) return;

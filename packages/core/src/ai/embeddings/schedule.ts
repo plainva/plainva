@@ -20,6 +20,8 @@ export interface EmbeddingProgress {
   current: number;
   /** Notes waiting because they changed a moment ago or failed alone. */
   deferred: number;
+  /** Notes the privacy rules keep from this engine (a cloud): they count neither as missing nor as done. */
+  withheld: number;
   /** The note being embedded now. */
   working?: string;
   /** Why the run stopped, when it failed. */
@@ -50,7 +52,7 @@ function errorText(error: unknown): string {
 }
 
 export class EmbeddingScheduler {
-  private progress: EmbeddingProgress = { state: "idle", total: 0, current: 0, deferred: 0 };
+  private progress: EmbeddingProgress = { state: "idle", total: 0, current: 0, deferred: 0, withheld: 0 };
   private running: Promise<void> | null = null;
   private again = false;
   private paused = false;
@@ -135,8 +137,9 @@ export class EmbeddingScheduler {
           } else ripe.push(work);
         }
         if (settling !== Infinity) this.wakeAt(settling);
-        let current = plan.total - plan.pending.length;
-        this.emit({ state: "working", total: plan.total, current, deferred, error: undefined });
+        let current = plan.total - plan.pending.length - plan.withheld;
+        let withheld = plan.withheld;
+        this.emit({ state: "working", total: plan.total, current, deferred, withheld, error: undefined });
         for (let i = 0; i < ripe.length; i += step) {
           // A changed index means a new plan — but only after one step, so a busy index cannot starve the run.
           if (this.paused || signal.aborted || (i > 0 && this.again)) break;
@@ -147,8 +150,9 @@ export class EmbeddingScheduler {
           for (const outcome of (await this.embedStep(works, signal, streak)).values()) {
             if (outcome === "embedded") current++;
             else if (outcome === "failed") deferred++;
+            else if (outcome === "withheld") withheld++;
           }
-          this.emit({ current, deferred, working: undefined });
+          this.emit({ current, deferred, withheld, working: undefined });
         }
       }
       if (!signal.aborted) this.emit({ state: this.paused ? "paused" : "idle", working: undefined });

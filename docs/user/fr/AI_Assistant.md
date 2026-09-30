@@ -32,6 +32,8 @@ Quatre profils — **Rapide**, **Équilibré**, **Puissant** et **Local** — so
 
 Un cinquième emplacement, **Audio**, contient le modèle qui transcrit les notes vocales ; il n'est jamais celui par défaut d'une conversation.
 
+Un sixième emplacement, **Embeddings**, contient le modèle avec lequel la recherche par sens calcule quand vous choisissez **Fournisseur personnel** sous **Recherche sémantique** — voir [Recherche](Search.md).
+
 ## Poser des questions
 
 - **Ordinateur :** le bouton IA dans la barre d'actions, **Ctrl+J** (⌘J sous macOS) ou **Demander à l'IA** dans la palette de commandes ouvre le compagnon — une petite fenêtre au-dessus de votre travail. **Ouvrir en onglet** déplace la même conversation dans l'onglet IA, où vos conversations sont listées.

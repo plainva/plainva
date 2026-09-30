@@ -53,7 +53,7 @@ export interface EmbeddingModelSpec {
 }
 
 /** German and Japanese in one text: two scripts, both tokenizers' special cases. */
-const GOLDEN_TEXT = "Plainva findet Notizen nach Bedeutung. 会議の議事録。";
+export const GOLDEN_TEXT = "Plainva findet Notizen nach Bedeutung. 会議の議事録。";
 
 const QWEN3_QUERY = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:";
 

@@ -156,7 +156,17 @@ export const AI_PROFILE_IDS: readonly AiProfileId[] = ["fast", "balanced", "stro
  * does not start on a transcription model.
  */
 export const AI_AUDIO_PROFILE = "audio";
-export type AiProfileSlot = AiProfileId | typeof AI_AUDIO_PROFILE;
+
+/**
+ * The slot of search by meaning's own provider (plan P2a-5): the embedding
+ * model it computes with when the setting says so. Like "Audio", never a
+ * conversation's default.
+ */
+export const AI_EMBEDDING_PROFILE = "embedding";
+export type AiProfileSlot = AiProfileId | typeof AI_AUDIO_PROFILE | typeof AI_EMBEDDING_PROFILE;
+
+/** `semanticModel` naming the profile "Embeddings" instead of a catalog package. */
+export const SEMANTIC_BY_PROVIDER = "provider";
 
 export interface ModelChoice {
   providerId: string;
@@ -186,9 +196,11 @@ export interface AiAppSettings {
    */
   mcpEnabled: boolean;
   /**
-   * Search by meaning (plan P2a-4): the catalog model this device computes
-   * with, or null for none — search then stays with the words. Every device
-   * embeds for itself; the choice is not synced, the vectors never leave it.
+   * Search by meaning (plan P2a-4/5): the catalog package this device
+   * computes with, `SEMANTIC_BY_PROVIDER` for the model of the profile
+   * "Embeddings", or null for none — search then stays with the words. Every
+   * device embeds for itself; the choice is not synced, and the vectors never
+   * leave it.
    */
   semanticModel: string | null;
   /** How search ranks while a model is active. */
@@ -214,7 +226,7 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const profiles: Partial<Record<AiProfileSlot, ModelChoice>> = {};
   const rawProfiles = value.profiles && typeof value.profiles === "object" ? (value.profiles as Record<string, unknown>) : {};
-  for (const id of [...AI_PROFILE_IDS, AI_AUDIO_PROFILE] as const) {
+  for (const id of [...AI_PROFILE_IDS, AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE] as const) {
     const choice = rawProfiles[id] as Partial<ModelChoice> | undefined;
     if (choice && typeof choice.providerId === "string" && typeof choice.model === "string" && choice.model.trim()) {
       profiles[id] = { providerId: choice.providerId, model: choice.model.trim() };
@@ -254,7 +266,8 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
     prices,
     confirmEveryRequest: typeof value.confirmEveryRequest === "boolean" ? value.confirmEveryRequest : defaults.confirmEveryRequest,
     mcpEnabled: typeof value.mcpEnabled === "boolean" ? value.mcpEnabled : defaults.mcpEnabled,
-    semanticModel: typeof value.semanticModel === "string" && embeddingModel(value.semanticModel) ? value.semanticModel : defaults.semanticModel,
+    semanticModel:
+      typeof value.semanticModel === "string" && (value.semanticModel === SEMANTIC_BY_PROVIDER || embeddingModel(value.semanticModel)) ? value.semanticModel : defaults.semanticModel,
     searchMode: isSearchMode(value.searchMode) ? value.searchMode : defaults.searchMode,
   };
 }

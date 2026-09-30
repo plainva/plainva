@@ -27,7 +27,7 @@ import { questionTerms } from "./terms.js";
  */
 
 /** `audio`: a recording, sent to be transcribed (plan P1.5, E28) — never part of a chat's context. */
-export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio";
+export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio" | "searches";
 
 export interface SituationTask {
   title: string;

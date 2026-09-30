@@ -1,40 +1,10 @@
-import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it, vi } from "vitest";
-import {
-  EmbeddingStore,
-  embeddingModel,
-  initializeSchema,
-  resetEmbeddingStores,
-  sha256Hex,
-  toBase64,
-  VaultQueryService,
-  type EmbeddingPackageFile,
-  type IDatabaseAdapter,
-} from "@plainva/core";
+import { EmbeddingStore, embeddingModel, toBase64, type EmbeddingPackageFile, type SemanticSource } from "@plainva/core";
 import { LocalEmbeddings, type LocalModelBridge } from "@plainva/ui";
-
-/** The index database on real SQLite (node:sqlite), as the vault opens it. */
-class NodeSqliteAdapter implements IDatabaseAdapter {
-  private readonly db = new DatabaseSync(":memory:");
-  async execute(sql: string, params: unknown[] = []): Promise<void> {
-    this.db.prepare(sql).run(...(params as never[]));
-  }
-  async query<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-    return this.db.prepare(sql).all(...(params as never[])) as T[];
-  }
-  async queryOne<T>(sql: string, params: unknown[] = []): Promise<T | null> {
-    return ((await this.query<T>(sql, params))[0] as T) ?? null;
-  }
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return fn();
-  }
-  async initialize(): Promise<void> {}
-  async close(): Promise<void> {
-    this.db.close();
-  }
-}
+import { until, vaultWith } from "./embeddingTestVault";
 
 const spec = embeddingModel("granite-r2-97m")!;
+const packaged: SemanticSource = { kind: "package", key: spec.id, spec };
 
 const special = (id: number, content: string) => ({ id, content, single_word: false, lstrip: false, rstrip: false, normalized: false, special: true });
 const TOKENIZER = JSON.stringify({
@@ -95,29 +65,12 @@ function fakeBridge({ installed = true, loadError = null as string | null, shift
   return bridge;
 }
 
-async function vaultWith(notes: Record<string, string>) {
-  resetEmbeddingStores();
-  const db = new NodeSqliteAdapter();
-  await initializeSchema(db);
-  for (const [path, content] of Object.entries(notes)) {
-    await db.execute(`INSERT INTO files (id, path, title, sha256, mtime_local, mode) VALUES (?, ?, ?, ?, ?, 'obsidian')`, [path, path, path.replace(/\.md$/, ""), await sha256Hex(content), 1000]);
-    await db.execute(`INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES (?, ?, ?, '', '')`, [content, path.replace(/\.md$/, ""), path]);
-  }
-  return { db, query: new VaultQueryService(db), readText: async (path: string) => notes[path] ?? null };
-}
-
-/** Waits until the controller's engine reached a state (the opening runs asynchronously). */
-async function until(test: () => boolean) {
-  for (let i = 0; i < 200 && !test(); i++) await new Promise((resolve) => setTimeout(resolve, 5));
-  expect(test()).toBe(true);
-}
-
 describe("search by meaning in a vault (LocalEmbeddings)", () => {
   it("says a chosen model is missing, loads it, checks it and embeds the notes", async () => {
     const vault = await vaultWith({ "A.md": "Plainva probe" });
     const bridge = fakeBridge({ installed: false });
     const controller = new LocalEmbeddings({ bridge, ...vault });
-    await controller.update({ model: spec.id, mode: "both" });
+    await controller.update({ source: packaged, mode: "both" });
     expect(controller.snapshot().engine.kind).toBe("missing");
 
     const progress: number[] = [];
@@ -131,41 +84,41 @@ describe("search by meaning in a vault (LocalEmbeddings)", () => {
     expect(progress[progress.length - 1]).toBe(spec.model.bytes + spec.tokenizer.bytes + spec.tokenizerConfig.bytes);
 
     bridge.markInstalled();
-    await controller.update({ model: spec.id, mode: "both" });
-    expect(controller.snapshot().engine).toMatchObject({ kind: "ready", model: { id: spec.id }, check: { ok: true } });
-    await until(() => controller.snapshot().progress.current === 1 && controller.snapshot().progress.state === "idle");
+    await controller.update({ source: packaged, mode: "both" });
+    expect(controller.snapshot().engine).toMatchObject({ kind: "ready", source: { kind: "package", spec: { id: spec.id } }, check: { ok: true } });
+    expect(await until(() => controller.snapshot().progress.current === 1 && controller.snapshot().progress.state === "idle")).toBe(true);
     expect(bridge.load).toHaveBeenCalledWith(`${spec.id}/${spec.model.name}`);
     await controller.close();
   });
 
   it("keeps a model off that computes wrong on this device", async () => {
     const controller = new LocalEmbeddings({ bridge: fakeBridge({ shift: 3 }), ...(await vaultWith({})) });
-    await controller.update({ model: spec.id, mode: "both" });
+    await controller.update({ source: packaged, mode: "both" });
     expect(controller.snapshot().engine).toMatchObject({ kind: "failed", reason: "check" });
   });
 
   it("says when the build has no runtime", async () => {
     const controller = new LocalEmbeddings({ bridge: fakeBridge({ loadError: "runtime_missing: C:/app/onnxruntime.dll" }), ...(await vaultWith({})) });
-    await controller.update({ model: spec.id, mode: "both" });
+    await controller.update({ source: packaged, mode: "both" });
     expect(controller.snapshot().engine).toMatchObject({ kind: "failed", reason: "runtime" });
   });
 
   it("does not undo the reader's pause when the app returns to the foreground", async () => {
     const controller = new LocalEmbeddings({ bridge: fakeBridge(), ...(await vaultWith({ "A.md": "Plainva probe" })) });
-    await controller.update({ model: spec.id, mode: "both" });
-    await until(() => controller.snapshot().progress.state === "idle" && controller.snapshot().progress.total === 1);
+    await controller.update({ source: packaged, mode: "both" });
+    expect(await until(() => controller.snapshot().progress.state === "idle" && controller.snapshot().progress.total === 1)).toBe(true);
     controller.pause("user");
     controller.pause("background");
     controller.resume("background");
     expect(controller.snapshot().progress.state).toBe("paused");
     controller.resume("user");
-    await until(() => controller.snapshot().progress.state === "idle");
+    expect(await until(() => controller.snapshot().progress.state === "idle")).toBe(true);
     await controller.close();
   });
 
   it("follows the mode and answers by words while no model is ready", async () => {
     const controller = new LocalEmbeddings({ bridge: fakeBridge({ installed: false }), ...(await vaultWith({ "A.md": "Plainva probe" })) });
-    await controller.update({ model: null, mode: "meaning" });
+    await controller.update({ source: null, mode: "meaning" });
     expect(controller.snapshot().mode).toBe("meaning");
     expect(controller.search.activeMode()).toBe("words");
     const page = await controller.search.searchOccurrencesPage("probe");
@@ -176,13 +129,22 @@ describe("search by meaning in a vault (LocalEmbeddings)", () => {
     const vault = await vaultWith({ "A.md": "Plainva probe" });
     const bridge = fakeBridge();
     const controller = new LocalEmbeddings({ bridge, ...vault });
-    await controller.update({ model: spec.id, mode: "both" });
-    await until(() => controller.snapshot().progress.current === 1);
+    await controller.update({ source: packaged, mode: "both" });
+    expect(await until(() => controller.snapshot().progress.current === 1)).toBe(true);
     expect((await new EmbeddingStore(vault.db).spaces()).map((space) => space.notes)).toEqual([1]);
     await controller.remove(spec);
     expect(bridge.remove).toHaveBeenCalledWith(spec.id);
     expect(controller.snapshot().engine.kind).toBe("off");
     expect(await new EmbeddingStore(vault.db).spaces()).toEqual([]);
     expect(await controller.freeSpace()).toBe(5e9);
+  });
+
+  it("lists a package on this device that is not chosen as unused", async () => {
+    const controller = new LocalEmbeddings({ bridge: fakeBridge(), ...(await vaultWith({})) });
+    await controller.update({ source: null, mode: "both" });
+    expect((await controller.unused()).packages.map((unused) => unused.id)).toEqual(["granite-r2-97m", "granite-r2-311m", "qwen3-embedding-0.6b"]);
+    await controller.update({ source: packaged, mode: "both" });
+    expect((await controller.unused()).packages.map((unused) => unused.id)).not.toContain("granite-r2-97m");
+    await controller.close();
   });
 });

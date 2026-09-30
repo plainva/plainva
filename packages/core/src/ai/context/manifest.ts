@@ -51,6 +51,13 @@ export interface EgressManifest {
   /** The tools the model may call in this run; each call is listed with the answer. */
   tools: string[];
   web: boolean;
+  /**
+   * A standing approval instead of one request (plan P2a-5, search by
+   * meaning with a cloud model): the notes the rules let go — now and each
+   * again whenever it changes — and the search questions. `sources` stays
+   * empty; `notes` counts them.
+   */
+  standing?: { notes: number };
 }
 
 function topFolder(path: string): string {
@@ -90,6 +97,34 @@ export function manifestOf(
     ...(options.priceUsdPerMillionInput !== undefined ? { estimatedCostUsd: (estimatedTokens / 1_000_000) * options.priceUsdPerMillionInput } : {}),
     tools: [...options.tools],
     web: options.web ?? false,
+  };
+}
+
+/**
+ * The overview of a standing approval for search by meaning (plan P2a-5):
+ * `paths` are the notes the rules let go, `withheld` the ones they keep, and
+ * the estimate covers the whole vault once — later edits go as they happen.
+ */
+export function standingManifestOf(
+  recipient: { providerId: string; providerLabel: string; model: string; price?: { input: number; output: number } },
+  vault: { paths: readonly string[]; withheld: number; bytes: number },
+): EgressManifest {
+  const estimatedTokens = Math.ceil(vault.bytes / 3.5);
+  return {
+    providerId: recipient.providerId,
+    providerLabel: recipient.providerLabel,
+    model: recipient.model,
+    local: false,
+    sources: [],
+    dataClasses: ["notes", "searches"],
+    folders: [...new Set(vault.paths.map(topFolder))].sort(),
+    withheld: { notes: vault.withheld, links: 0, places: 0, moodProperties: 0 },
+    excluded: [],
+    estimatedTokens,
+    ...(recipient.price ? { estimatedCostUsd: (estimatedTokens / 1_000_000) * recipient.price.input } : {}),
+    tools: [],
+    web: false,
+    standing: { notes: vault.paths.length },
   };
 }
 

@@ -208,8 +208,8 @@ export function useMobileAi(vault: MobileVault | null) {
   const state = useSyncExternalStore(s.subscribe, s.getState);
   const [sheet, setSheet] = useState<{ path: string | null } | null>(null);
   const [policy, setPolicy] = useState<VaultPolicyHost | null>(null);
-  // Search by meaning (plan KI-Harness P2a-4) follows the same per-device settings.
-  const embeddings = useMobileEmbeddings(vault, state.loaded ? state.settings : null);
+  // Search by meaning (plan KI-Harness P2a-4/5) follows the same per-device settings; an own provider goes through this session's egress.
+  const embeddings = useMobileEmbeddings(vault, state.loaded ? state.settings : null, { session: s, files: mobileAiFiles });
 
   useEffect(() => {
     const onSheet = (event: Event) => setSheet({ path: (event as CustomEvent<{ path: string | null }>).detail?.path ?? null });

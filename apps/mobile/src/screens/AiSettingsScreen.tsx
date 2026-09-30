@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, Plus } from "lucide-react";
-import { AI_AUDIO_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
+import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
 import {
   AI_FEEDBACK_URL,
   addableProviders,
@@ -121,8 +121,8 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
     });
     if (!providerId) return;
     const test = state.tests[providerId]?.state === "ok" ? state.tests[providerId] : await session.testProvider(providerId);
-    // The profile "Audio" lists what can transcribe; every other profile what can chat. Any id can still be typed.
-    const models = (test.models ?? []).filter((m) => (profile === AI_AUDIO_PROFILE ? Boolean(m.transcribe) : m.chat));
+    // "Audio" lists what can transcribe, "Embeddings" what embeds, every other profile what can chat. Any id can still be typed.
+    const models = (test.models ?? []).filter((m) => (profile === AI_AUDIO_PROFILE ? Boolean(m.transcribe) : profile === AI_EMBEDDING_PROFILE ? Boolean(m.embed) : m.chat));
     let model: string | null = null;
     if (models.length) {
       model = await mSelect({
@@ -218,8 +218,21 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("ai.settings.audioHint")}</p>
+        <GroupCard>
+          <RowList>
+            {/* Search by meaning's own provider (plan P2a-5): beside the chat profiles as well. */}
+            <Row
+              title={t("ai.profile.embedding")}
+              subtitle={settings.profiles.embedding ? `${labelOf(settings.profiles.embedding.providerId)} · ${settings.profiles.embedding.model}` : t("ai.settings.profileEmpty")}
+              disabled={rows.length === 0}
+              onClick={() => void chooseModel(AI_EMBEDDING_PROFILE)}
+              data-testid="ai-profile-embedding"
+            />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("ai.settings.embeddingHint")}</p>
 
-        {settings.enabled && <MobileSemanticSection session={session} />}
+        {settings.enabled && <MobileSemanticSection session={session} onChooseModel={() => void chooseModel(AI_EMBEDDING_PROFILE)} />}
 
         <SectionLabel>{t("ai.settings.sending")}</SectionLabel>
         <GroupCard>

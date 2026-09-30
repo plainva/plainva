@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { EgressManifest } from "@plainva/core";
+import i18n from "@plainva/ui/i18n";
 import { AiSendOverview } from "@plainva/ui";
 
 let root: Root | null = null;
@@ -83,5 +84,31 @@ describe("AiSendOverview", () => {
     expect(container.querySelector('[data-testid="ai-consent-send"]')).toBeNull();
     expect(container.querySelectorAll(".pv-ai-overview-sources li")).toHaveLength(2);
     expect(container.querySelectorAll(".pv-ai-overview-sources button")).toHaveLength(0);
+  });
+  it("as the standing approval of search by meaning (plan P2a-5): a count and folders instead of each note, the questions as data", async () => {
+    await i18n.changeLanguage("en");
+    const onSend = vi.fn();
+    const standing: EgressManifest = {
+      ...manifest,
+      providerId: "openai",
+      providerLabel: "OpenAI",
+      model: "text-embedding-3-small",
+      sources: [],
+      dataClasses: ["notes", "searches"],
+      folders: ["", "Projects"],
+      tools: [],
+      standing: { notes: 4700 },
+    };
+    const container = mount(<AiSendOverview manifest={standing} onSend={onSend} onCancel={vi.fn()} />);
+    const view = container.querySelector('[data-testid="ai-consent"]')!;
+    expect(view.querySelector(".pv-ai-overview-head")!.textContent).toBe("Search by meaning with OpenAI?");
+    expect(view.textContent).toContain("All 4700 notes your rules let go");
+    expect(view.textContent).toContain("/ · Projects");
+    expect(view.textContent).toContain("your search questions");
+    expect(view.querySelectorAll(".pv-ai-overview-sources li")).toHaveLength(0);
+    const approve = view.querySelector('[data-testid="ai-consent-send"]') as HTMLButtonElement;
+    expect(approve.textContent).toBe("Approve until withdrawn");
+    act(() => approve.click());
+    expect(onSend).toHaveBeenCalledTimes(1);
   });
 });

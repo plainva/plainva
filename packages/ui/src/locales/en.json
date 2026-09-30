@@ -140,7 +140,8 @@
       "audioHint": "Transcribes voice notes. It needs a provider with an audio route — OpenAI, Gemini or a compatible server.",
       "feedback": "Feedback on the AI (Beta)",
       "feedbackDesc": "Tell us what works and what does not — in the project's discussions on GitHub.",
-      "feedbackOpen": "Open discussions"
+      "feedbackOpen": "Open discussions",
+      "embeddingHint": "The model search by meaning computes with when you choose “Own provider” under Semantic search. Any model the provider offers for embeddings works."
     },
     "add": {
       "title": "Add provider",
@@ -176,7 +177,8 @@
       "balanced": "Balanced",
       "strong": "Strong",
       "local": "Local",
-      "audio": "Audio"
+      "audio": "Audio",
+      "embedding": "Embeddings"
     },
     "policy": {
       "title": "Privacy rules (plainva.ai)",
@@ -213,7 +215,8 @@
         "folder": "Notes from another folder: {{folder}}",
         "tools": "New tools: {{tools}}",
         "web": "The request may search the web.",
-        "size": "Much more than before: ~{{tokens}} tokens"
+        "size": "Much more than before: ~{{tokens}} tokens",
+        "standing": "Search by meaning computes with a cloud model: notes go there in the background, without asking each time — until you withdraw this approval in the settings."
       },
       "goesTo": "Goes to",
       "notes": "Notes",
@@ -232,7 +235,8 @@
         "tasks": "tasks due",
         "calendar": "appointments",
         "notes": "notes",
-        "audio": "a recording"
+        "audio": "a recording",
+        "searches": "your search questions"
       },
       "keptBack": "Kept back",
       "keptNotes_one": "{{count}} note your rules block",
@@ -250,7 +254,12 @@
       "send": "Send",
       "everyRequest": "Ask before every request",
       "leaveOut": "Leave out {{note}}",
-      "evidenceAudio": "the recording ({{size}})"
+      "evidenceAudio": "the recording ({{size}})",
+      "standingTitle": "Search by meaning with {{provider}}?",
+      "approveStanding": "Approve until withdrawn",
+      "folders": "Folders",
+      "standingNotes_one": "The {{count}} note your rules let go — now, and again whenever it changes",
+      "standingNotes_other": "All {{count}} notes your rules let go — now, and each again whenever it changes"
     },
     "lens": {
       "open": "View context",
@@ -406,7 +415,7 @@
     },
     "semantic": {
       "title": "Semantic search",
-      "description": "Finds notes by what they mean, not only by their words — across languages too. Applies to this device: every device computes for itself, and the vectors never leave it.",
+      "description": "Finds notes by what they mean, not only by their words — across languages too. Applies to this device, and the vectors stay on it: a package computes them here, an own provider on its server.",
       "off": "Off — search by words only",
       "hintRecommended": "Recommended. In Plainva's own test with questions in ten languages, 88 % found their note among the first five together with the words, against 62 % with words alone.",
       "hintPrecise": "More precise; takes about three times as long.",
@@ -437,7 +446,24 @@
       "pause": "Pause",
       "resume": "Resume",
       "remove": "Remove (with its vectors)",
-      "removeConfirm": "Remove {{model}} and the vectors it computed? Search by meaning stays off until you load a model again."
+      "removeConfirm": "Remove {{model}} and the vectors it computed? Search by meaning stays off until you load a model again.",
+      "provider": "Own provider",
+      "providerUnset": "Choose the model of the profile Embeddings first.",
+      "providerHint": "Ollama and LM Studio compute on your computer; a cloud only after you approve what goes there.",
+      "chooseModel": "Choose model",
+      "noRoute": "{{provider}} offers no embeddings. Choose another provider for the profile Embeddings.",
+      "encrypted": "In an encrypted workspace nothing goes to a cloud: meaning is computed only by a package or by a server on this computer.",
+      "readyProvider": "On — {{provider}} · {{model}}",
+      "withdraw": "Withdraw approval",
+      "withdrawConfirm": "Notes and search questions stop going to {{provider}}. Search by meaning waits until you approve again.",
+      "unused": "Not in use on this device",
+      "unusedRemove": "Remove",
+      "unusedConfirm": "Remove what this device keeps but does not use: {{what}}? Search by meaning computes it again if you choose it again.",
+      "runFailed": "Embedding stopped: {{reason}} — it starts again with the next change.",
+      "progressWithheld_one": "{{count}} note stays on this device by your rules",
+      "progressWithheld_other": "{{count}} notes stay on this device by your rules",
+      "unusedSpaces_one": "vectors of {{count}} other model",
+      "unusedSpaces_other": "vectors of {{count}} other models"
     }
   },
   "settingsSync": {
@@ -2542,7 +2568,8 @@
     "coveragePaused": "Meaning knows {{done}} of {{total}} notes — paused.",
     "coveragePause": "Pause",
     "coverageResume": "Resume",
-    "coverageSettings": "Settings"
+    "coverageSettings": "Settings",
+    "meaningUnavailable": "Meaning is unavailable right now — these hits are by words. {{reason}}"
   },
   "block": {
     "menuTitle": "Block actions",

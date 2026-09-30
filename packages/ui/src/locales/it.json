@@ -144,7 +144,8 @@
       "audioHint": "Trascrive le note vocali. Serve un provider con una via audio: OpenAI, Gemini o un server compatibile.",
       "feedback": "Feedback sull'IA (beta)",
       "feedbackDesc": "Dicci cosa funziona e cosa no, nelle discussioni del progetto su GitHub.",
-      "feedbackOpen": "Apri discussioni"
+      "feedbackOpen": "Apri discussioni",
+      "embeddingHint": "Il modello con cui calcola la ricerca per significato quando scegli «Provider proprio» in Ricerca semantica. Funziona qualsiasi modello che il provider offre per gli embedding."
     },
     "add": {
       "title": "Aggiungi provider",
@@ -180,7 +181,8 @@
       "balanced": "Bilanciato",
       "strong": "Potente",
       "local": "Locale",
-      "audio": "Audio"
+      "audio": "Audio",
+      "embedding": "Embedding"
     },
     "policy": {
       "title": "Regole sulla privacy (plainva.ai)",
@@ -217,7 +219,8 @@
         "folder": "Note da un'altra cartella: {{folder}}",
         "tools": "Nuovi strumenti: {{tools}}",
         "web": "La richiesta può cercare sul web.",
-        "size": "Molto più di prima: ~{{tokens}} token"
+        "size": "Molto più di prima: ~{{tokens}} token",
+        "standing": "La ricerca per significato calcola con un modello cloud: le note vi arrivano in background, senza chiedere ogni volta, finché non revochi questa approvazione nelle impostazioni."
       },
       "goesTo": "Va a",
       "notes": "Note",
@@ -236,7 +239,8 @@
         "tasks": "attività in scadenza",
         "calendar": "appuntamenti",
         "notes": "note",
-        "audio": "una registrazione"
+        "audio": "una registrazione",
+        "searches": "le tue domande di ricerca"
       },
       "keptBack": "Trattenuto",
       "keptNotes_one": "{{count}} nota bloccata dalle tue regole",
@@ -258,7 +262,13 @@
       "send": "Invia",
       "everyRequest": "Chiedi prima di ogni richiesta",
       "leaveOut": "Escludi {{note}}",
-      "evidenceAudio": "la registrazione ({{size}})"
+      "evidenceAudio": "la registrazione ({{size}})",
+      "standingTitle": "Cercare per significato con {{provider}}?",
+      "approveStanding": "Approva in modo permanente",
+      "folders": "Cartelle",
+      "standingNotes_one": "La {{count}} nota che le tue regole lasciano passare — ora, e di nuovo a ogni modifica",
+      "standingNotes_many": "Le {{count}} note che le tue regole lasciano passare — ora, e ciascuna di nuovo a ogni modifica",
+      "standingNotes_other": "Le {{count}} note che le tue regole lasciano passare — ora, e ciascuna di nuovo a ogni modifica"
     },
     "lens": {
       "open": "Vedi contesto",
@@ -416,7 +426,7 @@
     },
     "semantic": {
       "title": "Ricerca semantica",
-      "description": "Trova le note in base a ciò che significano, non solo alle loro parole — anche tra lingue diverse. Vale per questo dispositivo: ogni dispositivo calcola da sé, e i vettori non lo lasciano mai.",
+      "description": "Trova le note in base a ciò che significano, non solo alle loro parole — anche tra lingue diverse. Vale per questo dispositivo, e i vettori vi restano: un pacchetto li calcola qui, un provider proprio sul suo server.",
       "off": "Disattivata — cerca solo per parole",
       "hintRecommended": "Consigliato. Nel test di Plainva con domande in dieci lingue, l'88 % ha trovato la propria nota tra le prime cinque insieme alle parole, contro il 62 % con le sole parole.",
       "hintPrecise": "Più preciso; impiega circa il triplo del tempo.",
@@ -447,7 +457,26 @@
       "pause": "Metti in pausa",
       "resume": "Riprendi",
       "remove": "Rimuovi (con i suoi vettori)",
-      "removeConfirm": "Rimuovere {{model}} e i vettori che ha calcolato? La ricerca per significato resta disattivata finché non scarichi di nuovo un modello."
+      "removeConfirm": "Rimuovere {{model}} e i vettori che ha calcolato? La ricerca per significato resta disattivata finché non scarichi di nuovo un modello.",
+      "provider": "Provider proprio",
+      "providerUnset": "Scegli prima il modello del profilo Embedding.",
+      "providerHint": "Ollama e LM Studio calcolano sul tuo computer; un cloud solo dopo che hai approvato ciò che vi arriva.",
+      "chooseModel": "Scegli modello",
+      "noRoute": "{{provider}} non offre embedding. Scegli un altro provider per il profilo Embedding.",
+      "encrypted": "In un workspace cifrato nulla va in un cloud: il significato lo calcola solo un pacchetto o un server su questo computer.",
+      "readyProvider": "Attiva — {{provider}} · {{model}}",
+      "withdraw": "Revoca l'approvazione",
+      "withdrawConfirm": "Note e domande di ricerca non vanno più a {{provider}}. La ricerca per significato attende finché non approvi di nuovo.",
+      "unused": "Non in uso su questo dispositivo",
+      "unusedRemove": "Rimuovi",
+      "unusedConfirm": "Rimuovere ciò che questo dispositivo conserva ma non usa: {{what}}? Se lo scegli di nuovo, la ricerca per significato lo ricalcola.",
+      "runFailed": "L'elaborazione si è fermata: {{reason}} — riparte alla prossima modifica.",
+      "progressWithheld_one": "{{count}} nota resta su questo dispositivo per le tue regole",
+      "progressWithheld_many": "{{count}} note restano su questo dispositivo per le tue regole",
+      "progressWithheld_other": "{{count}} note restano su questo dispositivo per le tue regole",
+      "unusedSpaces_one": "vettori di {{count}} altro modello",
+      "unusedSpaces_many": "vettori di {{count}} altri modelli",
+      "unusedSpaces_other": "vettori di {{count}} altri modelli"
     }
   },
   "settingsSync": {
@@ -2559,7 +2588,8 @@
     "coveragePaused": "Il significato conosce {{done}} note su {{total}} — in pausa.",
     "coveragePause": "Metti in pausa",
     "coverageResume": "Riprendi",
-    "coverageSettings": "Impostazioni"
+    "coverageSettings": "Impostazioni",
+    "meaningUnavailable": "Il significato non è disponibile ora — questi risultati vengono dalle parole. {{reason}}"
   },
   "block": {
     "menuTitle": "Azioni sul blocco",

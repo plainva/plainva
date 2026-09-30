@@ -14,7 +14,9 @@ import { megabytes } from "./aiTranscribe";
  * afterwards, what went. One view for both uses and both shells: with
  * `onSend` it is the scope approval waiting above the composer (E25), without
  * it the record a run line opens. Paths and sections only; the text itself is
- * the note's, and the note is one click away.
+ * the note's, and the note is one click away. A manifest with `standing` is
+ * the standing approval of search by meaning with a cloud model (plan
+ * P2a-5): it names how many notes go and from which folders, not each note.
  */
 export interface AiSendOverviewProps {
   manifest: EgressManifest;
@@ -82,14 +84,22 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
       ? t("ai.overview.estimateCost", { tokens: number.format(manifest.estimatedTokens), cost: money.format(manifest.estimatedCostUsd) })
       : t("ai.overview.estimate", { tokens: number.format(manifest.estimatedTokens) });
 
+  const standing = manifest.standing;
+  const title = standing
+    ? t("ai.overview.standingTitle", { provider: manifest.providerLabel })
+    : asking
+      ? t("ai.overview.title", { provider: manifest.providerLabel })
+      : t("ai.overview.sentTitle", { provider: manifest.providerLabel });
+
   return (
-    <section className={cx("pv-ai-overview", asking && "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={t("ai.overview.title", { provider: manifest.providerLabel })} data-testid={asking ? "ai-consent" : "ai-overview"}>
+    <section className={cx("pv-ai-overview", asking && "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid={asking ? "ai-consent" : "ai-overview"}>
       <h4 className="pv-ai-overview-head">
         <ShieldCheck size={ICON.ui} aria-hidden="true" />
-        <span>{asking ? t("ai.overview.title", { provider: manifest.providerLabel }) : t("ai.overview.sentTitle", { provider: manifest.providerLabel })}</span>
+        <span>{title}</span>
       </h4>
-      {growth.length > 0 && (
+      {(growth.length > 0 || standing) && (
         <ul className="pv-ai-overview-why">
+          {standing && <li>{t("ai.overview.why.standing")}</li>}
           {growth.map((g, i) => (
             <li key={i}>{why(g)}</li>
           ))}
@@ -102,7 +112,9 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         </dd>
         <dt>{t("ai.overview.notes")}</dt>
         <dd>
-          {manifest.sources.length === 0 ? (
+          {standing ? (
+            t("ai.overview.standingNotes", { count: standing.notes })
+          ) : manifest.sources.length === 0 ? (
             t("ai.overview.noNotes")
           ) : (
             <ul className="pv-ai-overview-sources">
@@ -126,6 +138,12 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             </ul>
           )}
         </dd>
+        {standing && manifest.folders.length > 0 && (
+          <>
+            <dt>{t("ai.overview.folders")}</dt>
+            <dd>{manifest.folders.map((folder) => folder || "/").join(" · ")}</dd>
+          </>
+        )}
         {classes.length > 0 && (
           <>
             <dt>{t("ai.overview.alsoGoes")}</dt>
@@ -159,7 +177,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             {t("common.cancel")}
           </Button>
           <Button variant="primary" onClick={onSend} data-testid="ai-consent-send">
-            {t("ai.overview.send")}
+            {standing ? t("ai.overview.approveStanding") : t("ai.overview.send")}
           </Button>
         </div>
       )}

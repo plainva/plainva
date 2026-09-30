@@ -140,7 +140,8 @@
       "audioHint": "Transkribiert Sprachnotizen. Braucht einen Anbieter mit Audio-Weg — OpenAI, Gemini oder einen kompatiblen Server.",
       "feedback": "Rückmeldung zur KI (Beta)",
       "feedbackDesc": "Sag uns, was funktioniert und was nicht — in den Diskussionen des Projekts auf GitHub.",
-      "feedbackOpen": "Diskussionen öffnen"
+      "feedbackOpen": "Diskussionen öffnen",
+      "embeddingHint": "Das Modell, mit dem die Suche nach Bedeutung rechnet, wenn Du unter Semantische Suche „Eigener Anbieter“ wählst. Jedes Modell, das der Anbieter für Einbettungen anbietet, funktioniert."
     },
     "add": {
       "title": "Anbieter hinzufügen",
@@ -176,7 +177,8 @@
       "balanced": "Ausgewogen",
       "strong": "Stark",
       "local": "Lokal",
-      "audio": "Audio"
+      "audio": "Audio",
+      "embedding": "Einbettungen"
     },
     "policy": {
       "title": "Datenschutzregeln (plainva.ai)",
@@ -213,7 +215,8 @@
         "folder": "Notizen aus einem weiteren Ordner: {{folder}}",
         "tools": "Neue Werkzeuge: {{tools}}",
         "web": "Die Anfrage darf im Web suchen.",
-        "size": "Deutlich mehr als bisher: ~{{tokens}} Token"
+        "size": "Deutlich mehr als bisher: ~{{tokens}} Token",
+        "standing": "Die Suche nach Bedeutung rechnet mit einem Cloud-Modell: Notizen gehen im Hintergrund dorthin, ohne jedes Mal zu fragen — bis Du diese Freigabe in den Einstellungen widerrufst."
       },
       "goesTo": "Geht an",
       "notes": "Notizen",
@@ -232,7 +235,8 @@
         "tasks": "fällige Aufgaben",
         "calendar": "Termine",
         "notes": "Notizen",
-        "audio": "eine Aufnahme"
+        "audio": "eine Aufnahme",
+        "searches": "Deine Suchfragen"
       },
       "keptBack": "Zurückgehalten",
       "keptNotes_one": "{{count}} Notiz, die Deine Regeln sperren",
@@ -250,7 +254,12 @@
       "send": "Senden",
       "everyRequest": "Vor jeder Anfrage fragen",
       "leaveOut": "{{note}} weglassen",
-      "evidenceAudio": "die Aufnahme ({{size}})"
+      "evidenceAudio": "die Aufnahme ({{size}})",
+      "standingTitle": "Suche nach Bedeutung mit {{provider}}?",
+      "approveStanding": "Dauerhaft freigeben",
+      "folders": "Ordner",
+      "standingNotes_one": "Die {{count}} Notiz, die Deine Regeln durchlassen — jetzt und bei jeder Änderung erneut",
+      "standingNotes_other": "Alle {{count}} Notizen, die Deine Regeln durchlassen — jetzt und jede bei jeder Änderung erneut"
     },
     "lens": {
       "open": "Kontext einsehen",
@@ -406,7 +415,7 @@
     },
     "semantic": {
       "title": "Semantische Suche",
-      "description": "Findet Notizen auch nach dem, was sie bedeuten, nicht nur nach ihren Wörtern — auch über Sprachen hinweg. Gilt für dieses Gerät: Jedes Gerät rechnet selbst, und die Vektoren verlassen es nie.",
+      "description": "Findet Notizen auch nach dem, was sie bedeuten, nicht nur nach ihren Wörtern — auch über Sprachen hinweg. Gilt für dieses Gerät, und die Vektoren bleiben auf ihm: Ein Paket berechnet sie hier, ein eigener Anbieter auf seinem Server.",
       "off": "Aus — nur nach Wörtern suchen",
       "hintRecommended": "Empfohlen. Im eigenen Test von Plainva mit Fragen in zehn Sprachen fanden 88 % zusammen mit den Wörtern ihre Notiz unter den ersten fünf, mit Wörtern allein 62 %.",
       "hintPrecise": "Genauer, braucht etwa dreimal so lange.",
@@ -437,7 +446,24 @@
       "pause": "Pausieren",
       "resume": "Fortsetzen",
       "remove": "Entfernen (mit den Vektoren)",
-      "removeConfirm": "{{model}} und die damit berechneten Vektoren entfernen? Die Suche nach Bedeutung bleibt aus, bis Du wieder ein Modell lädst."
+      "removeConfirm": "{{model}} und die damit berechneten Vektoren entfernen? Die Suche nach Bedeutung bleibt aus, bis Du wieder ein Modell lädst.",
+      "provider": "Eigener Anbieter",
+      "providerUnset": "Wähle zuerst das Modell des Profils Einbettungen.",
+      "providerHint": "Ollama und LM Studio rechnen auf Deinem Rechner; eine Cloud erst, nachdem Du freigegeben hast, was dorthin geht.",
+      "chooseModel": "Modell wählen",
+      "noRoute": "{{provider}} bietet keine Einbettungen an. Wähle für das Profil Einbettungen einen anderen Anbieter.",
+      "encrypted": "In einem verschlüsselten Workspace geht nichts in eine Cloud: Die Bedeutung berechnet dann nur ein Paket oder ein Server auf diesem Rechner.",
+      "readyProvider": "An — {{provider}} · {{model}}",
+      "withdraw": "Freigabe widerrufen",
+      "withdrawConfirm": "Notizen und Suchfragen gehen nicht mehr an {{provider}}. Die Suche nach Bedeutung wartet, bis Du wieder freigibst.",
+      "unused": "Auf diesem Gerät ungenutzt",
+      "unusedRemove": "Entfernen",
+      "unusedConfirm": "Entfernen, was dieses Gerät aufbewahrt, aber nicht nutzt: {{what}}? Wählst Du es wieder, berechnet die Suche nach Bedeutung es neu.",
+      "runFailed": "Das Einbetten hat angehalten: {{reason}} — es beginnt mit der nächsten Änderung neu.",
+      "progressWithheld_one": "{{count}} Notiz bleibt nach Deinen Regeln auf diesem Gerät",
+      "progressWithheld_other": "{{count}} Notizen bleiben nach Deinen Regeln auf diesem Gerät",
+      "unusedSpaces_one": "Vektoren von {{count}} anderen Modell",
+      "unusedSpaces_other": "Vektoren von {{count}} anderen Modellen"
     }
   },
   "settingsSync": {
@@ -2542,7 +2568,8 @@
     "coveragePaused": "Die Bedeutung kennt {{done}} von {{total}} Notizen — pausiert.",
     "coveragePause": "Pausieren",
     "coverageResume": "Fortsetzen",
-    "coverageSettings": "Einstellungen"
+    "coverageSettings": "Einstellungen",
+    "meaningUnavailable": "Die Bedeutung ist gerade nicht erreichbar — diese Treffer kommen aus den Wörtern. {{reason}}"
   },
   "block": {
     "menuTitle": "Block-Aktionen",

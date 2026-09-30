@@ -32,6 +32,8 @@ Cztery profile — **Szybki**, **Zrównoważony**, **Silny** i **Lokalny** — s
 
 Piąte miejsce, **Audio**, zawiera model, który transkrybuje notatki głosowe; nigdy nie jest domyślne dla rozmowy.
 
+Szóste miejsce, **Embeddingi**, zawiera model, którym liczy wyszukiwanie po znaczeniu, gdy w **Wyszukiwanie semantyczne** wybierzesz **Własny dostawca** — zobacz [Wyszukiwanie](Search.md).
+
 ## Zadawanie pytań
 
 - **Desktop:** przycisk AI na pasku akcji, **Ctrl+J** (⌘J w macOS) lub **Zapytaj AI** w palecie poleceń otwiera asystenta — małe okno nad bieżącą pracą. **Otwórz jako kartę** przenosi tę samą rozmowę do karty AI, gdzie wyświetlana jest lista rozmów.

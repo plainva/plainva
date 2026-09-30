@@ -32,6 +32,8 @@ Vier profielen — **Snel**, **Gebalanceerd**, **Sterk** en **Lokaal** — zijn 
 
 Een vijfde plek, **Audio**, bevat het model dat spraaknotities uitschrijft; het is nooit de standaard voor een gesprek.
 
+Een zesde plek, **Embeddings**, bevat het model waarmee zoeken op betekenis rekent als je onder **Semantisch zoeken** **Eigen provider** kiest — zie [Zoeken](Search.md).
+
 ## Vragen
 
 - **Desktop:** de AI-knop in de actiebalk, **Ctrl+J** (⌘J onder macOS) of **AI vragen** in het opdrachtenpalet opent de begeleider — een klein venster boven je werk. **Als tabblad openen** verplaatst hetzelfde gesprek naar het AI-tabblad, waar je gesprekken staan vermeld.

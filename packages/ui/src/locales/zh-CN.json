@@ -136,7 +136,8 @@
       "audioHint": "将语音笔记转写为文字。需要支持音频的服务商：OpenAI、Gemini或兼容的服务器。",
       "feedback": "AI（测试版）反馈",
       "feedbackDesc": "在GitHub上的项目讨论区告诉我们哪些好用、哪些不好用。",
-      "feedbackOpen": "打开讨论区"
+      "feedbackOpen": "打开讨论区",
+      "embeddingHint": "在“语义搜索”中选择“自有服务商”时，含义搜索所用的模型。服务商提供的任何嵌入模型都可以使用。"
     },
     "add": {
       "title": "添加服务商",
@@ -172,7 +173,8 @@
       "balanced": "均衡",
       "strong": "强大",
       "local": "本地",
-      "audio": "音频"
+      "audio": "音频",
+      "embedding": "嵌入"
     },
     "policy": {
       "title": "隐私规则（plainva.ai）",
@@ -209,7 +211,8 @@
         "folder": "来自其他文件夹的笔记：{{folder}}",
         "tools": "新的工具：{{tools}}",
         "web": "此请求可能会搜索网络。",
-        "size": "比之前多得多：约{{tokens}}个Token"
+        "size": "比之前多得多：约{{tokens}}个Token",
+        "standing": "含义搜索使用云端模型计算：笔记会在后台发送到那里，不再每次询问——直到你在设置中撤回此批准。"
       },
       "goesTo": "发送至",
       "notes": "笔记",
@@ -228,7 +231,8 @@
         "tasks": "到期任务",
         "calendar": "日程",
         "notes": "笔记",
-        "audio": "一段录音"
+        "audio": "一段录音",
+        "searches": "你的搜索问题"
       },
       "keptBack": "未发送",
       "keptNotes_other": "{{count}}条被规则屏蔽的笔记",
@@ -242,7 +246,11 @@
       "send": "发送",
       "everyRequest": "每次请求前询问",
       "leaveOut": "排除{{note}}",
-      "evidenceAudio": "录音（{{size}}）"
+      "evidenceAudio": "录音（{{size}}）",
+      "standingTitle": "使用{{provider}}按含义搜索？",
+      "approveStanding": "长期批准",
+      "folders": "文件夹",
+      "standingNotes_other": "你的规则允许的全部 {{count}} 篇笔记——现在发送，之后每次修改时再次发送"
     },
     "lens": {
       "open": "查看上下文",
@@ -396,7 +404,7 @@
     },
     "semantic": {
       "title": "语义搜索",
-      "description": "不仅按字词，也按含义查找笔记——包括跨语言。仅适用于此设备：每台设备自行计算，向量从不离开设备。",
+      "description": "不仅按字词，也按含义查找笔记——包括跨语言。仅适用于此设备，向量也留在此设备上：模型包在这里计算，自有服务商在其服务器上计算。",
       "off": "关闭——仅按字词搜索",
       "hintRecommended": "推荐。在 Plainva 自己用十种语言问题做的测试中，结合字词时 88% 的问题在前五个结果中找到了对应笔记，仅用字词时为 62%。",
       "hintPrecise": "更精确；耗时约为三倍。",
@@ -427,7 +435,22 @@
       "pause": "暂停",
       "resume": "继续",
       "remove": "移除（连同向量）",
-      "removeConfirm": "移除 {{model}} 及其计算的向量？在你再次下载模型之前，按含义搜索将保持关闭。"
+      "removeConfirm": "移除 {{model}} 及其计算的向量？在你再次下载模型之前，按含义搜索将保持关闭。",
+      "provider": "自有服务商",
+      "providerUnset": "请先为“嵌入”配置选择模型。",
+      "providerHint": "Ollama 和 LM Studio 在你的电脑上计算；云端只有在你批准发送的内容之后才会开始。",
+      "chooseModel": "选择模型",
+      "noRoute": "{{provider}}不提供嵌入。请为“嵌入”配置选择其他服务商。",
+      "encrypted": "在加密工作区中不会向任何云端发送内容：含义只由模型包或这台电脑上的服务器计算。",
+      "readyProvider": "已开启——{{provider}} · {{model}}",
+      "withdraw": "撤回批准",
+      "withdrawConfirm": "笔记和搜索问题将不再发送到{{provider}}。含义搜索会等待你再次批准。",
+      "unused": "此设备上未使用",
+      "unusedRemove": "移除",
+      "unusedConfirm": "移除此设备保存但未使用的内容：{{what}}？如果再次选择，含义搜索会重新计算。",
+      "runFailed": "处理已停止：{{reason}}——下一次修改时会重新开始。",
+      "progressWithheld_other": "根据你的规则，{{count}} 篇笔记留在此设备上",
+      "unusedSpaces_other": "其他 {{count}} 个模型的向量"
     }
   },
   "settingsSync": {
@@ -2525,7 +2548,8 @@
     "coveragePaused": "含义已覆盖 {{total}} 篇笔记中的 {{done}} 篇——已暂停。",
     "coveragePause": "暂停",
     "coverageResume": "继续",
-    "coverageSettings": "设置"
+    "coverageSettings": "设置",
+    "meaningUnavailable": "含义搜索暂时不可用——这些结果来自字词。{{reason}}"
   },
   "block": {
     "menuTitle": "块操作",

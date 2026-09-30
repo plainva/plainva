@@ -32,6 +32,8 @@ Quatro perfis — **Rápido**, **Equilibrado**, **Forte** e **Local** — são a
 
 Um quinto espaço, **Áudio**, guarda o modelo que transcreve as notas de voz; nunca é o padrão de uma conversa.
 
+Um sexto espaço, **Embeddings**, guarda o modelo com que a pesquisa por significado calcula quando você escolhe **Provedor próprio** em **Pesquisa semântica** — veja [Pesquisa](Search.md).
+
 ## Perguntando
 
 - **Desktop:** o botão de IA na barra de ações, **Ctrl+J** (⌘J no macOS) ou **Perguntar à IA** na paleta de comandos abre o assistente — uma pequena janela sobre o seu trabalho. **Abrir como aba** move a mesma conversa para a aba de IA, onde suas conversas estão listadas.
