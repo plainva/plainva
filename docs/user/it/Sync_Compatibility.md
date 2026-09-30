@@ -1,6 +1,6 @@
 # Compatibilità di sincronizzazione di Plainva
 
-Ultimo aggiornamento: 2026-09-20
+Ultimo aggiornamento: 2026-09-30
 
 Se un servizio WebDAV, CalDAV o S3 restituisce una pagina di accesso o un inventario incompleto, Plainva segnala un errore di sincronizzazione. La risposta non viene interpretata come una cartella o un elenco di calendari vuoto e non determina eliminazioni dedotte dal suo contenuto. Questo vale sia su desktop sia su mobile.
 
@@ -11,6 +11,10 @@ Le modifiche offline vengono conservate anche dopo più rinominazioni. Plainva c
 La conferma vale solo per l’eliminazione effettivamente eseguita. Rimane valida nei nuovi tentativi dopo errori di connessione o un riavvio; i nuovi file creati nella stessa posizione non la ereditano. La conferma aggiuntiva di un’eliminazione di massa sospesa e l’opzione di ripristino riguardano solo le operazioni mostrate. Le eliminazioni estese già in coda prima dell’aggiornamento potrebbero richiedere una nuova conferma.
 
 Le voci di diario che due dispositivi aggiungono alla stessa nota giornaliera prima di essersi sincronizzati non sono un conflitto: Plainva le unisce per orario e mantiene ogni riga di entrambi i dispositivi — anche quando entrambi i dispositivi hanno creato la nota del giorno in modo indipendente. Ogni altra modifica simultanea a una nota viene gestita come prima. Vedi [Diario](Journal.md).
+
+Una cartella che crei in Plainva viene creata nel cloud all'interno della cartella del vault. Fino alla versione 0.8.3, Plainva creava anche una cartella vuota con lo stesso nome al primo livello di Google Drive, OneDrive o Dropbox, oppure del bucket S3 quando il vault usa un prefisso. Plainva non rimuove queste copie da solo; dopo aver verificato che una di queste cartelle di primo livello è vuota e non fa parte della cartella del tuo vault, puoi eliminarla.
+
+Se una nota è stata eliminata su questo dispositivo mentre qui c'è ancora un file il cui nome differisce solo nella scrittura degli accenti o tra maiuscole e minuscole (per esempio `Neutralität` scritto in due forme Unicode), Plainva non la elimina nemmeno nel cloud: molti servizi considerano i due nomi lo stesso file. Plainva mostra la coppia sotto **Due grafie, un solo file** e non elimina nulla; rinomina uno dei due e la sincronizzazione prosegue normalmente. Lo stesso vale per una cartella che il cloud ha già nell'altra grafia: Plainva non la crea una seconda volta.
 
 Plainva sincronizza i vault tramite adattatori di sincronizzazione intercambiabili. Questa pagina mostra quali servizi puoi usare oggi — direttamente integrati, tramite il protocollo WebDAV, o tramite il client di sincronizzazione desktop del provider stesso.
 
@@ -48,6 +52,8 @@ L'adattatore WebDAV parla WebDAV standard, quindi dovrebbero funzionare anche i 
 Finché non arrivano le integrazioni native, puoi usare qualsiasi servizio il cui client desktop mantenga sincronizzata una cartella locale. Plainva tratta allora il vault come una cartella locale e rileva automaticamente le modifiche esterne.
 
 **Importante:** imposta la cartella del vault su "mantieni sempre su questo dispositivo" / "disponibile offline". I file segnaposto solo online (Files On-Demand, solo online, modalità streaming) possono interferire con l'indicizzazione e la sincronizzazione.
+
+**Una sola via per cartella:** per una cartella del vault usa o il client desktop del provider o la sincronizzazione di Plainva, mai entrambi contemporaneamente. Due strumenti di sincronizzazione nella stessa cartella caricano ogni modifica due volte e possono creare cartelle doppie — per esempio quando uno scrive le lettere accentate in una forma Unicode diversa dall'altro.
 
 - **OneDrive** (integrazione con Esplora file; disattiva Files On-Demand per la cartella del vault)
 - **Dropbox** (client desktop; evita "solo online" per la cartella del vault)

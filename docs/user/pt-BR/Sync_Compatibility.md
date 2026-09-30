@@ -1,6 +1,6 @@
 # Compatibilidade de Sincronização do Plainva
 
-Última revisão: 2026-09-20
+Última revisão: 2026-09-30
 
 Se um serviço WebDAV, CalDAV ou S3 retornar uma página de login ou um inventário incompleto, o Plainva informa um erro de sincronização. Essa resposta não é tratada como uma pasta ou lista de calendários vazia e não provoca exclusões deduzidas do seu conteúdo. Isso vale tanto no desktop quanto no celular.
 
@@ -11,6 +11,10 @@ As alterações offline são preservadas mesmo após várias renomeações. O Pl
 A confirmação vale apenas para a exclusão realizada. Ela é mantida nas novas tentativas após erros de conexão ou uma reinicialização; novos arquivos no mesmo local não a herdam. A confirmação adicional de uma exclusão em massa pausada e a opção de restaurar afetam apenas as tarefas exibidas. Exclusões grandes que já estavam na fila antes desta atualização podem precisar de uma nova confirmação.
 
 Entradas do diário que dois dispositivos anexam à mesma nota diária antes de terem sincronizado não são um conflito: o Plainva as mescla por horário e mantém cada linha dos dois dispositivos — mesmo quando os dois dispositivos criaram a nota do dia de forma independente. Toda outra alteração simultânea em uma nota é tratada como antes. Veja [Diário](Journal.md).
+
+Uma pasta que você cria no Plainva é criada na nuvem dentro da pasta do vault. Até a versão 0.8.3, o Plainva também criava uma pasta vazia com o mesmo nome no nível superior do Google Drive, OneDrive ou Dropbox, ou do bucket S3 quando o vault usa um prefixo. O Plainva não remove essas cópias por conta própria; depois de verificar que uma dessas pastas de nível superior está vazia e não faz parte da pasta do seu vault, você pode excluí-la.
+
+Se uma nota foi excluída neste dispositivo enquanto um arquivo cujo nome difere apenas na grafia dos acentos ou em maiúsculas e minúsculas ainda está aqui (por exemplo `Neutralität` escrito em duas formas Unicode), o Plainva também não a exclui na nuvem: muitos serviços tratam os dois nomes como o mesmo arquivo. O Plainva mostra o par em **Duas grafias, um arquivo** e não exclui nada; renomeie um dos dois e a sincronização continua normalmente. O mesmo vale para uma pasta que a nuvem já tem na outra grafia: o Plainva não a cria uma segunda vez.
 
 O Plainva sincroniza vaults por meio de adaptadores de sincronização intercambiáveis. Esta página mostra quais serviços você já pode usar hoje — diretamente integrados, via o protocolo WebDAV, ou via o próprio cliente de sincronização de desktop do provedor.
 
@@ -48,6 +52,8 @@ O adaptador WebDAV fala o WebDAV padrão, então os serviços a seguir devem fun
 Até que integrações nativas cheguem, você pode usar qualquer serviço cujo cliente de desktop mantenha uma pasta local sincronizada. O Plainva então trata o vault como uma pasta local e detecta alterações externas automaticamente.
 
 **Importante:** defina a pasta do vault como "sempre manter neste dispositivo" / "disponível offline". Arquivos de espaço reservado somente online (Files On-Demand, online-only, modo de streaming) podem interferir na indexação e na sincronização.
+
+**Um caminho por pasta:** para uma pasta de vault, use ou o cliente de desktop do provedor ou a sincronização própria do Plainva, nunca os dois ao mesmo tempo. Duas ferramentas de sincronização na mesma pasta enviam cada alteração duas vezes e podem criar pastas duplicadas — por exemplo, quando uma grava letras acentuadas em uma forma Unicode diferente da outra.
 
 - **OneDrive** (integração com o Explorer; desative o Files On-Demand para a pasta do vault)
 - **Dropbox** (cliente de desktop; evite "somente online" para a pasta do vault)

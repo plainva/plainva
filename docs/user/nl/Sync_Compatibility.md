@@ -1,6 +1,6 @@
 # Plainva Sync-compatibiliteit
 
-Laatst bijgewerkt: 2026-09-20
+Laatst bijgewerkt: 2026-09-30
 
 Als een WebDAV-, CalDAV- of S3-dienst een aanmeldpagina of een onvolledige inventaris terugstuurt, meldt Plainva een synchronisatiefout. Die reactie wordt niet als een lege map of kalenderlijst behandeld en leidt niet tot daaruit afgeleide verwijderingen. Dit geldt op desktop en mobiel.
 
@@ -11,6 +11,10 @@ Offline wijzigingen blijven behouden, ook na meerdere naamswijzigingen. Plainva 
 Een bevestiging geldt alleen voor de daadwerkelijk uitgevoerde verwijdering. Ze blijft behouden bij nieuwe pogingen na een verbindingsfout of herstart; nieuwe bestanden op dezelfde locatie nemen haar niet over. De extra bevestiging bij een gepauzeerde massaverwijdering en de herstelkeuze gelden alleen voor de getoonde taken. Grote verwijderingen die al vóór deze update in de wachtrij stonden, kunnen opnieuw om bevestiging vragen.
 
 Journaalitems die twee apparaten aan dezelfde dagnotitie toevoegen voordat ze zijn gesynchroniseerd, zijn geen conflict: Plainva voegt ze samen op tijdstip en behoudt elke regel van beide apparaten — ook wanneer beide apparaten de notitie van de dag onafhankelijk van elkaar hebben aangemaakt. Elke andere gelijktijdige wijziging aan een notitie wordt behandeld zoals voorheen. Zie [Journaal](Journal.md).
+
+Een map die je in Plainva aanmaakt, wordt in de cloud binnen de vault-map aangemaakt. Tot en met versie 0.8.3 maakte Plainva daarnaast een lege map met dezelfde naam aan op het hoogste niveau van Google Drive, OneDrive of Dropbox, of van de S3-bucket als de vault een prefix gebruikt. Plainva verwijdert deze kopieën niet zelf; als je hebt gecontroleerd dat zo'n map op het hoogste niveau leeg is en niet bij je vault-map hoort, kun je hem verwijderen.
+
+Is een notitie op dit apparaat verwijderd terwijl hier nog een bestand staat waarvan de naam alleen verschilt in de schrijfwijze van accenten of in hoofdletters en kleine letters (bijvoorbeeld `Neutralität` in twee Unicode-vormen), dan verwijdert Plainva haar ook in de cloud niet: veel diensten zien beide namen als hetzelfde bestand. Plainva toont het paar onder **Twee schrijfwijzen, één bestand** en verwijdert niets; hernoem een van de twee en de sync gaat gewoon verder. Hetzelfde geldt voor een map die de cloud al in de andere schrijfwijze heeft: Plainva maakt hem niet nog een keer aan.
 
 Plainva synchroniseert vaults via verwisselbare sync-adapters. Deze pagina toont welke diensten je vandaag al kunt gebruiken — rechtstreeks geïntegreerd, via het WebDAV-protocol, of via de eigen desktop-sync-client van de provider.
 
@@ -48,6 +52,8 @@ De WebDAV-adapter spreekt standaard WebDAV, dus de volgende diensten zouden onde
 Tot native integraties beschikbaar zijn, kun je elke dienst gebruiken waarvan de desktop-client een lokale map synchroon houdt. Plainva behandelt de vault dan als een lokale map en herkent externe wijzigingen automatisch.
 
 **Belangrijk:** stel de vault-map in op "altijd op dit apparaat behouden" / "offline beschikbaar". Online-only-placeholderbestanden (Files On-Demand, online-only, streamingmodus) kunnen indexering en sync verstoren.
+
+**Eén weg per map:** gebruik voor een vault-map óf de desktopclient van de provider óf de eigen sync van Plainva, nooit beide tegelijk. Twee synchronisatieprogramma's in dezelfde map uploaden elke wijziging twee keer en kunnen mappen dubbel aanmaken — bijvoorbeeld als het ene letters met accenten in een andere Unicode-vorm schrijft dan het andere.
 
 - **OneDrive** (Explorer-integratie; schakel Files On-Demand uit voor de vault-map)
 - **Dropbox** (desktop-client; vermijd "online-only" voor de vault-map)

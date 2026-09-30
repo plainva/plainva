@@ -1,6 +1,6 @@
 # Zgodność synchronizacji Plainva
 
-Stan na: 2026-09-20
+Stan na: 2026-09-30
 
 Jeśli usługa WebDAV, CalDAV lub S3 zwróci stronę logowania albo niepełną listę zasobów, Plainva zgłosi błąd synchronizacji. Nie potraktuje takiej odpowiedzi jako pustego folderu lub pustej listy kalendarzy i nie wywnioskuje z niej usunięć. Dotyczy to wersji komputerowej i mobilnej.
 
@@ -11,6 +11,10 @@ Zmiany wprowadzone offline są zachowywane również po wielokrotnej zmianie naz
 Potwierdzenie dotyczy tylko faktycznie wykonanej operacji usunięcia. Jest zachowywane przy ponowieniach po błędzie połączenia lub restarcie; nowe pliki w tej samej lokalizacji go nie dziedziczą. Dodatkowe potwierdzenie wstrzymanego masowego usuwania i opcja przywrócenia dotyczą tylko wyświetlonych zadań. Duże operacje usuwania oczekujące już przed aktualizacją mogą wymagać ponownego potwierdzenia.
 
 Wpisy dziennika, które dwa urządzenia dopisują do tej samej notatki dziennej, zanim się zsynchronizują, nie są konfliktem: Plainva scala je według godziny i zachowuje każdą linię obu urządzeń — również gdy oba urządzenia utworzyły notatkę dnia niezależnie od siebie. Każda inna jednoczesna zmiana notatki jest obsługiwana tak jak dotychczas. Zobacz [Dziennik](Journal.md).
+
+Folder utworzony w Plainva powstaje w chmurze wewnątrz folderu vaultu. Do wersji 0.8.3 włącznie Plainva tworzyła dodatkowo pusty folder o tej samej nazwie na najwyższym poziomie Google Drive, OneDrive lub Dropbox albo bucketu S3, jeśli vault używa prefiksu. Plainva nie usuwa tych kopii sama; gdy sprawdzisz, że taki folder na najwyższym poziomie jest pusty i nie należy do folderu Twojego vaultu, możesz go usunąć.
+
+Jeśli notatka została usunięta na tym urządzeniu, a nadal jest tu plik, którego nazwa różni się tylko zapisem znaków diakrytycznych lub wielkością liter (na przykład `Neutralität` zapisane w dwóch formach Unicode), Plainva nie usuwa jej także w chmurze: wiele usług traktuje obie nazwy jako ten sam plik. Plainva pokazuje tę parę w sekcji **Dwie pisownie, jeden plik** i niczego nie usuwa; zmień nazwę jednego z dwóch plików, a synchronizacja będzie działać dalej jak zwykle. To samo dotyczy folderu, który chmura ma już w drugiej pisowni: Plainva nie tworzy go po raz drugi.
 
 Plainva synchronizuje vaulty przez wymienne adaptery synchronizacji. Ta strona pokazuje, które usługi możesz już dziś wykorzystać — bezpośrednio zintegrowane, przez protokół WebDAV lub przez własnego klienta desktopowego danego dostawcy.
 
@@ -48,6 +52,8 @@ Adapter WebDAV obsługuje standardowy WebDAV, więc powinny działać m.in. nast
 Do czasu pojawienia się natywnych integracji możesz używać dowolnej usługi, której klient desktopowy utrzymuje synchronizację lokalnego folderu. Plainva traktuje wtedy vault jako folder lokalny i automatycznie wykrywa zmiany zewnętrzne.
 
 **Ważne:** Ustaw folder vaultu na „zawsze przechowuj na tym urządzeniu” / „dostępny offline”. Pliki zastępcze typu online-only (Files On-Demand, tryb online-only, tryb strumieniowania) mogą zakłócać indeksowanie i synchronizację.
+
+**Jedna droga na folder:** dla folderu vaultu używaj albo klienta desktopowego dostawcy, albo własnej synchronizacji Plainva, nigdy obu naraz. Dwa narzędzia synchronizujące w tym samym folderze wysyłają każdą zmianę dwukrotnie i mogą tworzyć foldery podwójnie — na przykład gdy jedno zapisuje litery z diakrytykami w innej formie Unicode niż drugie.
 
 - **OneDrive** (integracja z Eksploratorem; wyłącz Files On-Demand dla folderu vaultu)
 - **Dropbox** (klient desktopowy; unikaj trybu „online-only” dla folderu vaultu)

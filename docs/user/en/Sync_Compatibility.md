@@ -1,6 +1,6 @@
 # Plainva Sync Compatibility
 
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-30
 
 If a WebDAV, CalDAV or S3 service returns a sign-in page or an incomplete inventory, Plainva reports a sync error. It does not treat that response as an empty folder or calendar inventory or infer deletions from it. This applies on desktop and mobile.
 
@@ -11,6 +11,10 @@ Offline edits are preserved across repeated renames. Plainva completes related m
 A deletion confirmation applies only to the deletion actually performed. It survives retries after connection errors or a restart; new files created at the same location do not inherit it. The additional prompt for a paused mass deletion and its restore option affect only the tasks shown there. Large deletions already queued before this update may need confirmation once more.
 
 Journal entries that two devices append to the same daily note before they have synced are not a conflict: Plainva merges them by time and keeps every line of both devices — also when both devices created the day's note independently. Every other simultaneous change to a note is handled as before. See [Journal](Journal.md).
+
+A folder you create in Plainva is created inside the vault folder in the cloud. Up to version 0.8.3, Plainva also created an empty folder of the same name at the top level of Google Drive, OneDrive or Dropbox, or of the S3 bucket when the vault uses a prefix. Plainva does not remove these copies itself; once you have checked that such a top-level folder is empty and is not part of your vault folder, you can delete it.
+
+If a note was deleted on this device while a file whose name differs only in accent spelling or letter case is still here (for example `Neutralität` written in two Unicode forms), Plainva does not delete it in the cloud either: many services treat both names as the same file. Plainva lists the pair under **Two spellings, one file** and deletes nothing; rename one of the two and sync carries on as usual. The same holds for a folder the cloud already has in the other spelling: Plainva does not create it a second time.
 
 Plainva syncs vaults through interchangeable sync adapters. This page shows which services you can use today — directly integrated, via the WebDAV protocol, or via the provider's own desktop sync client.
 
@@ -48,6 +52,8 @@ The WebDAV adapter speaks standard WebDAV, so the following services should work
 Until native integrations arrive, you can use any service whose desktop client keeps a local folder in sync. Plainva then treats the vault as a local folder and detects external changes automatically.
 
 **Important:** Set the vault folder to "always keep on this device" / "available offline". Online-only placeholder files (Files On-Demand, online-only, streaming mode) can interfere with indexing and sync.
+
+**One route per folder:** Use either the provider's desktop client or Plainva's own sync for a vault folder, never both at the same time. Two sync tools in the same folder upload every change twice and can create folders twice — for example when one of them writes accented letters in a different Unicode form than the other.
 
 - **OneDrive** (Explorer integration; disable Files On-Demand for the vault folder)
 - **Dropbox** (desktop client; avoid "online-only" for the vault folder)
