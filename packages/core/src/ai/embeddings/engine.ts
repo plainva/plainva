@@ -35,8 +35,9 @@ export interface TokenBatch {
  * (desktop Rust `ort`, Android and iOS ONNX Runtime 1.30). `run` returns the
  * pooled vectors, `batch × dim`: `cls` takes the first token, `last` the last
  * unmasked one, `mean` the masked mean. The model's other inputs are the
- * runtime's business — position ids 0…seq-1 and token type ids 0 where a
- * model asks for them.
+ * runtime's business, filled from the model's own description: position ids
+ * 0…seq-1, token type ids 0, and an empty cache (past length 0) for decoder
+ * exports that take one — Qwen3 Embedding asks for `past_key_values.*`.
  */
 export interface OnnxEmbeddingRunner {
   /** Loads a model file; the handle names it in `run` and `unload`. */
