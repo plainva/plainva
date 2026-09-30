@@ -46,28 +46,6 @@ export interface OnnxEmbeddingRunner {
   unload(handle: string): Promise<void>;
 }
 
-/** Tokens per batch (`batch × seq`): padding costs time, so texts of like length run together. */
-const BATCH_TOKENS = 4096;
-const BATCH_TEXTS = 16;
-
-/** Texts in batches of like token length, as indices into `lengths`. */
-export function tokenBatches(lengths: readonly number[], batchTokens = BATCH_TOKENS, batchTexts = BATCH_TEXTS): number[][] {
-  const order = lengths.map((_, index) => index).sort((a, b) => lengths[a]! - lengths[b]! || a - b);
-  const batches: number[][] = [];
-  let current: number[] = [];
-  for (const index of order) {
-    // Sorted ascending, so the newest text is the longest: it sets the padded width.
-    const width = lengths[index]!;
-    if (current.length && ((current.length + 1) * width > batchTokens || current.length === batchTexts)) {
-      batches.push(current);
-      current = [];
-    }
-    current.push(index);
-  }
-  if (current.length) batches.push(current);
-  return batches;
-}
-
 export function padBatch(rows: readonly number[][], padId: number, pooling: EmbeddingPooling): TokenBatch {
   const seq = Math.max(1, ...rows.map((row) => row.length));
   const ids = new Int32Array(rows.length * seq).fill(padId);
@@ -87,7 +65,18 @@ export interface OnnxEngineOptions {
   modelPath: string;
 }
 
-/** A catalog package as an engine: tokenizer here, model in the native runtime. */
+/**
+ * A catalog package as an engine: tokenizer here, model in the native runtime.
+ *
+ * One text per run, never a padded batch (measured 2026-09-30, ONNX Runtime
+ * 1.30 on the reference laptop): the int8 models quantise their activations
+ * over the whole batch, so a neighbour or padding moves a vector — cosine to
+ * the text alone 0.985 for Granite 97M, 0.995 for 311M, 0.89–0.93 for Qwen3 —
+ * and a batch of eight was not even faster (13.2 against 13.9 chunks per
+ * second for Granite 97M, 3.9 against 4.3 for 311M). Alone, a text always
+ * gets the same vector: the chunk hash relies on it, and so does the device
+ * check against the catalog's reference.
+ */
 export async function createOnnxEmbeddingEngine({ spec, tokenizer, runner, modelPath }: OnnxEngineOptions): Promise<EmbeddingEngine> {
   const handle = await runner.load(modelPath);
   let disposed = false;
@@ -96,17 +85,13 @@ export async function createOnnxEmbeddingEngine({ spec, tokenizer, runner, model
     dim: spec.dim,
     async embed(texts, kind, signal) {
       if (disposed) throw new Error("embedding engine: disposed");
-      const rows = texts.map((text) => tokenizer.encode(kind === "query" ? `${spec.queryPrefix}${text}` : text));
-      const out = new Array<Float32Array>(texts.length);
-      for (const batch of tokenBatches(rows.map((row) => row.length))) {
+      const out: Float32Array[] = [];
+      for (const text of texts) {
         signal?.throwIfAborted();
-        const pooled = await runner.run(handle, padBatch(batch.map((index) => rows[index]!), tokenizer.padId, spec.pooling));
-        if (pooled.length !== batch.length * spec.dim) {
-          throw new Error(`embedding engine: ${pooled.length} values for ${batch.length} × ${spec.dim}`);
-        }
-        batch.forEach((index, r) => {
-          out[index] = l2Normalize(pooled.slice(r * spec.dim, (r + 1) * spec.dim));
-        });
+        const row = tokenizer.encode(kind === "query" ? `${spec.queryPrefix}${text}` : text);
+        const pooled = await runner.run(handle, padBatch([row], tokenizer.padId, spec.pooling));
+        if (pooled.length !== spec.dim) throw new Error(`embedding engine: ${pooled.length} values for ${spec.dim} dimensions`);
+        out.push(l2Normalize(pooled));
       }
       return out;
     },

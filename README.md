@@ -105,6 +105,8 @@ pnpm --filter desktop test:e2e      # Playwright E2E (Vite dev server)
 pnpm --filter desktop smoke:prod    # production-build smoke (vite build + preview + boot check)
 ```
 
+Search by meaning (optional local model packages) runs Microsoft's ONNX Runtime, which the app bundles but the repository does not hold: `node apps/desktop/scripts/fetch-onnxruntime.mjs` downloads the pinned release for your platform into `apps/desktop/src-tauri/resources/onnxruntime/` (the Labs build and the release workflow run it themselves). Without it the app builds and runs as before; only the local model packages are unavailable.
+
 When a Playwright test fails or needs a retry in CI, the run uploads the traces as the artifact `playwright-checks-<attempt>` (or `playwright-webkit-<attempt>`), kept for seven days; open one with `npx playwright show-trace <trace.zip>`.
 
 The repo is a pnpm/Turborepo monorepo: `apps/desktop` (Tauri v2 + React + CodeMirror 6), `packages/core` (vault logic: indexing, sync, merge — UI-free and heavily unit-tested), `docs/` (user guide, ADRs, engineering notes).

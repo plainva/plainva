@@ -177,6 +177,12 @@ jobs:
           appendFileSync(process.env.GITHUB_OUTPUT, `body<<PLAINVA_RELEASE_NOTES\n${body}\nPLAINVA_RELEASE_NOTES\n`);
           NODE
 
+      # The ONNX Runtime the app bundles for local embeddings (plan KI-Harness P2a-3,
+      # ADR 0021): Microsoft's release archives, pinned by size and SHA-256 in the script.
+      # macOS joins the arm64 library of 1.30 and the x86_64 one of 1.23.2 with lipo.
+      - name: Fetch ONNX Runtime
+        run: node apps/desktop/scripts/fetch-onnxruntime.mjs
+
       - name: Build Tauri App
         # Tag pushes allocate a draft; explicit Windows recovery only reuses
         # the draft and exact source validated by the prepare job.
@@ -229,8 +235,8 @@ jobs:
           # config path D:\a\plainva\plainva\src-tauri\... does not exist", which is
           # exactly that base directory — measured, not assumed.
           args: >-
-            ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin'
-            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json' || '') }}
+            ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin --config apps/desktop/src-tauri/tauri.onnxruntime.macos.conf.json'
+            || (matrix.platform == 'windows-latest' && '--config apps/desktop/src-tauri/tauri.signing.conf.json --config apps/desktop/src-tauri/tauri.onnxruntime.conf.json' || '--config apps/desktop/src-tauri/tauri.onnxruntime.conf.json') }}
 
       # Manual AppImage test build (see the workflow_dispatch input above). Uses
       # the same signing key as a release so `createUpdaterArtifacts` does not
@@ -240,7 +246,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm --filter desktop tauri build --bundles appimage
+        run: pnpm --filter desktop tauri build --bundles appimage --config src-tauri/tauri.onnxruntime.conf.json
 
       # Measure every AppImage we build (release or test): extract it, assert
       # the binary and AppRun are there, and list the infrastructure libraries

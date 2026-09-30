@@ -20,6 +20,14 @@ export type EmbeddingPooling = "cls" | "last" | "mean";
 /** Why the catalog mentions a model: the default, the more precise one, or one with a caveat. */
 export type EmbeddingModelHint = "recommended" | "precise" | "slow-on-phones";
 
+/** The reference vector of one fixed text, for the device check (`golden.ts`). */
+export interface EmbeddingGolden {
+  /** Embedded as a document: no query prefix. */
+  text: string;
+  /** The first components of its L2-normalised vector (onnxruntime-node 1.30, same tokenizer, 2026-09-30). */
+  head: number[];
+}
+
 export interface EmbeddingModelSpec {
   id: string;
   /** Product name as its publisher writes it; not translated. */
@@ -41,7 +49,11 @@ export interface EmbeddingModelSpec {
   /** Chunks per second on the spike's reference laptop (i7-1265U), native ONNX Runtime, sustained. */
   referenceChunksPerSecond: number;
   hint: EmbeddingModelHint;
+  golden: EmbeddingGolden;
 }
+
+/** German and Japanese in one text: two scripts, both tokenizers' special cases. */
+const GOLDEN_TEXT = "Plainva findet Notizen nach Bedeutung. 会議の議事録。";
 
 const QWEN3_QUERY = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:";
 
@@ -62,6 +74,10 @@ export const EMBEDDING_MODELS: readonly EmbeddingModelSpec[] = [
     queryPrefix: "",
     referenceChunksPerSecond: 6.7,
     hint: "recommended",
+    golden: {
+      text: GOLDEN_TEXT,
+      head: [-0.00263, 0.01011, 0.00384, 0.01564, -0.00016, 0.0084, -0.007, -0.03624, 0.01636, -0.00162, -0.01407, 0.00135, 0.03985, -0.03765, -0.0071, 0.01072],
+    },
   },
   {
     id: "granite-r2-311m",
@@ -79,6 +95,10 @@ export const EMBEDDING_MODELS: readonly EmbeddingModelSpec[] = [
     queryPrefix: "",
     referenceChunksPerSecond: 2.8,
     hint: "precise",
+    golden: {
+      text: GOLDEN_TEXT,
+      head: [0.00689, 0.00279, -0.00259, -0.02695, -0.00087, -0.0352, -0.00333, -0.00059, 0.00754, -0.03713, -0.01815, -0.04399, 0.18328, 0.01829, -0.02289, -0.01666],
+    },
   },
   {
     id: "qwen3-embedding-0.6b",
@@ -96,6 +116,10 @@ export const EMBEDDING_MODELS: readonly EmbeddingModelSpec[] = [
     queryPrefix: QWEN3_QUERY,
     referenceChunksPerSecond: 0.4,
     hint: "slow-on-phones",
+    golden: {
+      text: GOLDEN_TEXT,
+      head: [-0.0244, -0.07429, -0.01446, -0.07207, -0.00056, -0.00414, 0.03905, -0.0995, -0.04521, -0.06534, -0.0005, -0.13176, 0.02047, -0.01419, 0.01766, 0.06148],
+    },
   },
 ];
 

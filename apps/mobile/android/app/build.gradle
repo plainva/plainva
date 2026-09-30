@@ -84,6 +84,8 @@ dependencies {
     // HttpURLConnection-based CapacitorHttp cannot send.
     implementation "com.squareup.okhttp3:okhttp:4.12.0"
     implementation "com.google.android.gms:play-services-auth:22.0.0"
+    // Local embeddings (plan KI-Harness P2a-3, ADR 0021): Microsoft's ONNX Runtime.
+    implementation "com.microsoft.onnxruntime:onnxruntime-android:1.30.0"
     testImplementation "junit:junit:$junitVersion"
     // android.jar stubs org.json on the unit-test classpath: every call
     // returns a default and a parser test would pass on nothing. The real

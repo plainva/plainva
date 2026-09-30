@@ -62,7 +62,12 @@ walkdir = "2.5.0"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "blocking"] }
 # The AI egress (ai_egress.rs) races a streaming response against STOP and an
 # idle timeout. Tauri already runs on tokio; this only names the features it uses.
-tokio = { version = "1", features = ["macros", "sync", "time", "net", "io-util", "io-std", "rt"] }
+tokio = { version = "1", features = ["macros", "sync", "time", "net", "io-util", "io-std", "rt", "fs"] }
+# Local embeddings (plan KI-Harness P2a-3, ADR 0021): Microsoft's ONNX Runtime, loaded at
+# run time from the library the bundle carries (scripts/fetch-onnxruntime.mjs) - nothing is
+# downloaded or linked at build time. api-17, the oldest API the crate knows, keeps the Intel
+# Mac library (1.23.2, the last Microsoft built) loadable next to 1.30.
+ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "load-dynamic", "api-17"] }
 # Plainva as a read-only MCP server (plan KI-Harness §17.3): the protocol side
 # lives here, natively, so a malformed or hostile request never reaches the web
 # view. Server over any byte stream (a named pipe or a Unix socket), no HTTP.

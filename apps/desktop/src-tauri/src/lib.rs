@@ -12,11 +12,13 @@ mod atomic_write;
 mod checked_fs;
 mod backup;
 mod db_batch;
+mod embedding;
 mod linux_appimage;
 mod mail_imap;
 mod mail_pool;
 mod mail_smtp;
 mod mail_sieve;
+mod model_store;
 mod sync_upload;
 mod tray;
 mod unzip;
@@ -373,6 +375,8 @@ pub fn run() {
         .manage(tray::TrayState::default())
         .manage(ai_egress::AiEgress::default())
         .manage(mcp::McpState::default())
+        .manage(embedding::Embeddings::default())
+        .manage(model_store::ModelDownloads::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json, identifier
             // com.plainva.desktop.dev) and the Labs build of a feature branch
@@ -414,6 +418,14 @@ pub fn run() {
             mcp::mcp_set_folders,
             mcp::mcp_revoke,
             mcp::mcp_write_package,
+            model_store::model_status,
+            model_store::model_download,
+            model_store::model_download_cancel,
+            model_store::model_remove,
+            model_store::model_read_text,
+            embedding::embedding_load,
+            embedding::embedding_run,
+            embedding::embedding_unload,
             oauth_loopback_start,
             oauth_loopback_wait,
             oauth_loopback_cancel,

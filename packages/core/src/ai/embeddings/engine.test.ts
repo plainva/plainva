@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { embeddingEngineId, embeddingModel, type EmbeddingModelSpec } from "./catalog.js";
-import { createOnnxEmbeddingEngine, createTrigramEmbeddingEngine, padBatch, tokenBatches, type OnnxEmbeddingRunner, type TokenBatch } from "./engine.js";
+import { createOnnxEmbeddingEngine, createTrigramEmbeddingEngine, padBatch, type OnnxEmbeddingRunner, type TokenBatch } from "./engine.js";
 import type { EmbeddingTokenizer } from "./tokenizer.js";
 
 const spec: EmbeddingModelSpec = { ...embeddingModel("qwen3-embedding-0.6b")!, dim: 3, queryPrefix: "Q:" };
@@ -28,18 +28,6 @@ function fakeRunner() {
 }
 
 describe("token batches", () => {
-  it("puts texts of like length together within the token budget", () => {
-    const lengths = [100, 5, 400, 7, 6, 380];
-    const batches = tokenBatches(lengths, 800, 16);
-    expect(batches.flat().sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5]);
-    for (const batch of batches) expect(batch.length * Math.max(...batch.map((i) => lengths[i]!))).toBeLessThanOrEqual(800);
-    expect(batches[0]).toEqual([1, 4, 3, 0]);
-  });
-
-  it("caps the texts per batch", () => {
-    expect(tokenBatches(new Array(40).fill(3), 10_000, 16).map((batch) => batch.length)).toEqual([16, 16, 8]);
-  });
-
   it("pads on the right and masks the padding", () => {
     const batch = padBatch([[5, 6, 7], [8]], 9, "cls");
     expect(Array.from(batch.ids)).toEqual([5, 6, 7, 8, 9, 9]);
@@ -61,7 +49,9 @@ describe("createOnnxEmbeddingEngine", () => {
       return vector[0]! / vector[2]!;
     });
     expect(lengths.map(Math.round)).toEqual([6, 1, 3]);
-    expect(batches.every((batch) => batch.pooling === "last")).toBe(true);
+    // One text per run, never padded next to another (see createOnnxEmbeddingEngine).
+    expect(batches.map((batch) => [batch.batch, batch.seq])).toEqual([[1, 6], [1, 1], [1, 3]]);
+    expect(batches.every((batch) => batch.pooling === "last" && batch.mask.every((m) => m === 1))).toBe(true);
     const [question] = await engine.embed(["abc"], "query");
     expect(Math.round(question![0]! / question![2]!)).toBe(5); // "Q:abc"
     expect(Math.round(question![1]! / question![2]!)).toBe("Q".codePointAt(0));
@@ -74,7 +64,7 @@ describe("createOnnxEmbeddingEngine", () => {
     controller.abort();
     await expect(engine.embed(["a"], "document", controller.signal)).rejects.toThrow();
     const broken = await createOnnxEmbeddingEngine({ spec, tokenizer, runner: { ...runner, run: async () => new Float32Array(2) }, modelPath: "m" });
-    await expect(broken.embed(["a"], "document")).rejects.toThrow(/2 values for 1 × 3/);
+    await expect(broken.embed(["a"], "document")).rejects.toThrow(/2 values for 3 dimensions/);
   });
 
   it("unloads the model once", async () => {

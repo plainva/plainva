@@ -20,3 +20,4 @@ export * from "./AiContextLens";
 export * from "./aiSelectionActions";
 export * from "./aiSkills";
 export * from "./aiTranscribe";
+export * from "./localModels";

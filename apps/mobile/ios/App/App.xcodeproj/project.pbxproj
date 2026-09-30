@@ -26,6 +26,8 @@
 		7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0001000000000000000001 /* DevicePimPlugin.swift */; };
 		7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000001 /* WidgetBridgePlugin.swift */; };
 		8C0002000000000000000001 /* AiNetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C0001000000000000000001 /* AiNetPlugin.swift */; };
+		9D0002000000000000000001 /* LocalModelPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0001000000000000000001 /* LocalModelPlugin.swift */; };
+		9D0005000000000000000001 /* PlainvaOrt in Frameworks */ = {isa = PBXBuildFile; productRef = 9D0004000000000000000001 /* PlainvaOrt */; };
 		7F0002000000000000000002 /* WidgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000002 /* WidgetStore.swift */; };
 		7B1008010000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1009020000000000000001 /* ShareViewController.swift */; };
 		7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B1009040000000000000001 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -97,6 +99,7 @@
 		7D0001000000000000000001 /* DevicePimPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePimPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000001 /* WidgetBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridgePlugin.swift; sourceTree = "<group>"; };
 		8C0001000000000000000001 /* AiNetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiNetPlugin.swift; sourceTree = "<group>"; };
+		9D0001000000000000000001 /* LocalModelPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000002 /* WidgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/WidgetStore.swift; sourceTree = SOURCE_ROOT; };
 		7B0001000000000000000002 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		7B1009010000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -123,6 +126,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+				9D0005000000000000000001 /* PlainvaOrt in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -186,6 +190,7 @@
 				7D0001000000000000000001 /* DevicePimPlugin.swift */,
 				7F0001000000000000000001 /* WidgetBridgePlugin.swift */,
 				8C0001000000000000000001 /* AiNetPlugin.swift */,
+				9D0001000000000000000001 /* LocalModelPlugin.swift */,
 				7B0001000000000000000002 /* App.entitlements */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
@@ -241,6 +246,7 @@
 			name = App;
 			packageProductDependencies = (
 				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
+				9D0004000000000000000001 /* PlainvaOrt */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
@@ -315,6 +321,7 @@
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
+				9D0003000000000000000001 /* XCLocalSwiftPackageReference "LocalModels" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -376,6 +383,7 @@
 				7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */,
 				7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */,
 				8C0002000000000000000001 /* AiNetPlugin.swift in Sources */,
+				9D0002000000000000000001 /* LocalModelPlugin.swift in Sources */,
 				7F0002000000000000000002 /* WidgetStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -738,6 +746,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "CapApp-SPM";
 		};
+		9D0003000000000000000001 /* XCLocalSwiftPackageReference "LocalModels" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = LocalModels;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -745,6 +757,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;
 			productName = "CapApp-SPM";
+		};
+		9D0004000000000000000001 /* PlainvaOrt */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9D0003000000000000000001 /* XCLocalSwiftPackageReference "LocalModels" */;
+			productName = PlainvaOrt;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
