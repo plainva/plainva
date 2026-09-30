@@ -1,6 +1,6 @@
 # FAQ e risoluzione dei problemi
 
-Ultimo aggiornamento: 2026-09-24
+Ultimo aggiornamento: 2026-09-30
 
 Risposte alle domande più comuni — dalla compatibilità con Obsidian ai file in conflitto e ai backup.
 
@@ -47,6 +47,18 @@ Prima di ogni modifica, la procedura guidata salva il file in backup in `.plainv
 Le note giornaliere molto vecchie potrebbero aver ereditato un'impostazione dal loro modello che nasconde le loro attività. Cerca nel vault `"tasks: false"` — **con** le virgolette, altrimenti troverai anche note in cui entrambe le parole compaiono solo per caso. Nei risultati, la riga si trova nel frontmatter sotto un blocco `plainva:`; elimina lì `tasks: false` (e `templateFor:`, se presente) e la nota ricompare. Le note create di recente da un modello non lo ereditano più.
 
 ## Sincronizzazione
+
+### Una nota è sparita dopo averla spostata o rinominata
+
+Con la sincronizzazione WebDAV o S3, Plainva 0.8.3 rimuoveva una nota sincronizzata che spostavi o rinominavi nell'app: il primo ciclo di sincronizzazione successivo interpretava la nota nella nuova posizione come eliminata sul server e la rimuoveva qui, un attimo prima di inviare lo spostamento. Con Google Drive, Dropbox e OneDrive succedeva solo di tanto in tanto. In 0.8.3 il ciclo successivo eliminava poi la nota anche sul server. La versione successiva lo corregge sul desktop e sul telefono.
+
+Se è successo a te, la nota esiste ancora in fino a tre posti:
+
+- **Lo snapshot nel vault.** Prima di rimuovere un file, Plainva lo salva come `.plainva/backups/<cartella>/<nome>.md.<timestamp>.bak`, dove `<cartella>` è la cartella in cui hai spostato la nota. Sul desktop, clic destro sul nome del vault → **Ripristina i file eliminati…**; sul telefono **Impostazioni** → **Manutenzione** → **Ripristina i file eliminati**. L'elenco mostra la nota con il nuovo percorso e **Ripristina** la rimette lì. Il file `.bak` è testo semplice, quindi puoi aprirlo anche con qualsiasi file manager o editor di testo.
+- **Il cestino di sistema** (desktop): il file stesso è finito nel cestino del sistema operativo.
+- **Il cestino del tuo server**, se la nota è stata eliminata anche lì (in Nextcloud, per esempio, tra i file eliminati).
+
+Finché non hai la versione corretta, sposta e rinomina le note sincronizzate nel file manager invece che in Plainva, con la nota salvata e la sua scheda chiusa.
 
 ### Cos'è un file .CONFLICT?
 

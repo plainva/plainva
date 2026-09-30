@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-09-24
+Última revisão: 2026-09-30
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -47,6 +47,18 @@ Antes de qualquer alteração, o assistente faz backup do arquivo em `.plainva/b
 Notas diárias muito antigas podem ter herdado uma configuração do modelo delas que oculta suas tarefas. Pesquise no vault por `"tasks: false"` — **com** as aspas, ou você também encontrará notas em que as duas palavras aparecem apenas por coincidência. Nos resultados, a linha fica no frontmatter dentro de um bloco `plainva:`; exclua ali `tasks: false` (e `templateFor:`, se presente) e a nota volta a aparecer. Notas recém-criadas a partir de um modelo não herdam mais isso.
 
 ## Sincronização
+
+### Uma nota sumiu depois de movê-la ou renomeá-la
+
+Com a sincronização por WebDAV ou S3, o Plainva 0.8.3 removia uma nota sincronizada que você movia ou renomeava dentro do aplicativo: o primeiro ciclo de sincronização seguinte interpretava a nota no novo local como excluída no servidor e a removia aqui — um instante antes de enviar a movimentação. Com Google Drive, Dropbox e OneDrive isso acontecia só de vez em quando. No 0.8.3, o ciclo seguinte também excluía a nota no servidor. A próxima versão corrige isso no desktop e no celular.
+
+Se aconteceu com você, a nota ainda existe em até três lugares:
+
+- **O snapshot dentro do vault.** Antes de remover um arquivo, o Plainva o salva como `.plainva/backups/<pasta>/<nome>.md.<carimbo de data/hora>.bak`, onde `<pasta>` é a pasta *para onde* você moveu a nota. No desktop, clique com o botão direito no nome do vault → **Restaurar arquivos excluídos…**; no celular, **Configurações** → **Manutenção** → **Restaurar arquivos excluídos**. A lista mostra a nota com o novo caminho, e **Restaurar** a coloca de volta lá. O arquivo `.bak` é texto simples, então qualquer gerenciador de arquivos ou editor de texto também consegue abri-lo.
+- **A lixeira do sistema** (desktop): o próprio arquivo foi para a lixeira do seu sistema operacional.
+- **A lixeira do seu servidor**, se a nota também foi excluída lá (no Nextcloud, por exemplo, nos arquivos excluídos).
+
+Até ter a versão corrigida, mova e renomeie notas sincronizadas no gerenciador de arquivos em vez de no Plainva, com a nota salva e a aba fechada.
 
 ### O que é um arquivo .CONFLICT?
 

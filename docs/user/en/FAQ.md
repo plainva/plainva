@@ -1,6 +1,6 @@
 # FAQ & Troubleshooting
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-09-30
 
 Answers to the most common questions — from Obsidian compatibility to conflict files and backups.
 
@@ -47,6 +47,18 @@ Before any change, the wizard backs the file up to `.plainva/backups/okf-convers
 Very old daily notes may have inherited a setting from their template that hides their tasks. Search the vault for `"tasks: false"` — **with** the quotes, or you will also find notes where both words merely happen to occur. In the hits, the line sits in the frontmatter under a `plainva:` block; delete `tasks: false` there (and `templateFor:` if present) and the note comes back. Notes newly created from a template no longer inherit it.
 
 ## Sync
+
+### A note disappeared after I moved or renamed it
+
+With WebDAV or S3 sync, Plainva 0.8.3 removed a synced note that you moved or renamed inside the app: the first sync cycle afterwards read the note at its new place as deleted on the server and removed it here — a moment before it would have sent the move. With Google Drive, Dropbox and OneDrive this happened only now and then. In 0.8.3 the next cycle then deleted the note on the server as well. The following version fixes this on the desktop and on the phone.
+
+If it happened to you, the note still exists in up to three places:
+
+- **The snapshot inside the vault.** Before Plainva removes a file it saves it as `.plainva/backups/<folder>/<name>.md.<timestamp>.bak`, where `<folder>` is the folder you moved the note *to*. On the desktop, right-click the vault name → **Restore deleted files…**; on the phone **Settings** → **Maintenance** → **Restore deleted files**. The list shows the note under its new path, and **Restore** puts it back there. The `.bak` file is plain text, so any file manager or text editor can open it too.
+- **The system trash** (desktop): the file itself went to your operating system's trash.
+- **Your server's trash**, if the note was deleted there too (in Nextcloud, for example, under deleted files).
+
+Until you have the fixed version, move and rename synced notes in your file manager instead of in Plainva, with the note saved and its tab closed.
 
 ### What is a .CONFLICT file?
 

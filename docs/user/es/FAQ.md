@@ -1,6 +1,6 @@
 # FAQ y solución de problemas
 
-Última actualización: 2026-09-24
+Última actualización: 2026-09-30
 
 Respuestas a las preguntas más frecuentes — desde la compatibilidad con Obsidian hasta los archivos en conflicto y las copias de seguridad.
 
@@ -47,6 +47,18 @@ Antes de cualquier cambio, el asistente respalda el archivo en `.plainva/backups
 Las notas diarias muy antiguas pueden haber heredado un ajuste de su plantilla que oculta sus tareas. Busca en el vault `"tasks: false"` — **con** las comillas, o también encontrarás notas en las que ambas palabras aparecen juntas solo por casualidad. En los resultados, la línea está en el frontmatter bajo un bloque `plainva:`; elimina ahí `tasks: false` (y `templateFor:`, si está presente) y la nota vuelve a aparecer. Las notas recién creadas a partir de una plantilla ya no lo heredan.
 
 ## Sincronización
+
+### Una nota desapareció después de moverla o renombrarla
+
+Con la sincronización por WebDAV o S3, Plainva 0.8.3 eliminaba una nota sincronizada que movías o renombrabas dentro de la app: el primer ciclo de sincronización posterior interpretaba la nota en su nuevo lugar como eliminada en el servidor y la quitaba aquí, justo antes de enviar el movimiento. Con Google Drive, Dropbox y OneDrive ocurría solo de vez en cuando. En 0.8.3, el ciclo siguiente también la borraba en el servidor. La versión siguiente lo corrige en el escritorio y en el teléfono.
+
+Si te ocurrió, la nota sigue existiendo en hasta tres lugares:
+
+- **El snapshot dentro del vault.** Antes de quitar un archivo, Plainva lo guarda como `.plainva/backups/<carpeta>/<nombre>.md.<marca de tiempo>.bak`, donde `<carpeta>` es la carpeta a la que moviste la nota. En el escritorio, clic derecho en el nombre del vault → **Restaurar archivos eliminados…**; en el teléfono, **Configuración** → **Mantenimiento** → **Restaurar archivos eliminados**. La lista muestra la nota con su nueva ruta y **Restaurar** la devuelve allí. El archivo `.bak` es texto plano, así que también puedes abrirlo con cualquier gestor de archivos o editor de texto.
+- **La papelera del sistema** (escritorio): el propio archivo fue a la papelera de tu sistema operativo.
+- **La papelera de tu servidor**, si la nota también se borró allí (en Nextcloud, por ejemplo, en los archivos eliminados).
+
+Hasta que tengas la versión corregida, mueve y renombra las notas sincronizadas en tu gestor de archivos en lugar de en Plainva, con la nota guardada y su pestaña cerrada.
 
 ### ¿Qué es un archivo .CONFLICT?
 
