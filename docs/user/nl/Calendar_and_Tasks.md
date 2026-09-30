@@ -1,6 +1,6 @@
 # Agenda & externe taken
 
-Laatst bijgewerkt: 2026-09-24
+Laatst bijgewerkt: 2026-09-30
 
 Plainva kan je bestaande agenda- en takenaccounts verbinden — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Taken) en **Microsoft** (Outlook-agenda + To Do) — en in beide richtingen ermee werken. Je notities blijven het middelpunt: afspraken worden vergadernotities, en externe takenlijsten spiegelen zich als gewone notities in je [standaard takendatabase](Tasks.md).
 
@@ -104,7 +104,7 @@ Op de telefoon horen daar de **herinneringslijsten** van het apparaat (iOS) bij 
 
 ### Op de achtergrond doorlopen
 
-Omdat een herinnering op de computer alleen aankomt zolang Plainva draait, staan onder **Instellingen → Start & gedrag → Achtergrond** twee schakelaars — apart, want het zijn twee verschillende wensen, en allebei **standaard uit**:
+Omdat een herinnering op de computer alleen aankomt zolang Plainva draait, staan onder **Instellingen → Opstarten en gedrag → Achtergrond** twee schakelaars — apart, want het zijn twee verschillende wensen, en allebei **standaard uit**:
 
 - **Met het systeem starten** meldt Plainva aan bij het inloggen.
 - **Bij sluiten in het systeemvak doorlopen** zet een Plainva-pictogram in het systeemvak; het venster sluiten beëindigt de app dan niet meer, maar zet haar daar weg. Via het pictogram kom je terug met **Openen**, zie je de **volgende afspraak** en sluit je Plainva af met **Afsluiten**.

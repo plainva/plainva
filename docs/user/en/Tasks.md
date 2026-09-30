@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-09-24
+Last updated: 2026-09-30
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -17,13 +17,13 @@ It opens as a tab, like any note.
 
 ## On the phone
 
-The Tasks view exists on mobile too. You open it through the **▾** next to the title in the top bar, and you can place it in the navigation bar (**Settings** → **Navigation bar**).
+The Tasks view exists on mobile too. You open it through **Areas** in the navigation bar (or by pressing and holding the bar), and you can place it in the navigation bar itself (**Settings** → **Bars & areas**).
 
 It shows the same two sections as the desktop: the **task database** on top, the checkbox list under **From notes** below, with the **Open**/**Done**/**All** filters and the free-text search. Checking off, **Change status**, moving a checkbox **into the database**, **+ New task**, **Block time** and **Repeat** work as described above and write the same files: the same note with frontmatter, the same `[[wiki link]]` in the original line, the same rule under `plainva.repeat`.
 
 Which database your vault uses as its task database is set on the phone under **Settings** → **Content & structure**. The setting travels through [settings sync](Sync_Setup.md), so you only pick it once, on whichever device you like.
 
-The desktop bar's four filters appear on the phone as chips above the list: **Folder**, **Tag**, **With a due date only** and **Show hidden**. Chips rather than select fields, because a filter bar above an already narrow list costs more room than it earns — one tap opens the choice, a second clears it again.
+The desktop bar's four filters appear on the phone as chips above the list: **Folder**, **Tag**, **With due date** and **Show hidden**. Chips rather than select fields, because a filter bar above an already narrow list costs more room than it earns — one tap opens the choice, a second clears it again.
 
 ## Reading the list
 

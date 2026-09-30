@@ -50,7 +50,9 @@ Le note giornaliere molto vecchie potrebbero aver ereditato un'impostazione dal 
 
 ### Una nota è sparita dopo averla spostata o rinominata
 
-Con la sincronizzazione WebDAV o S3, Plainva 0.8.3 rimuoveva una nota sincronizzata che spostavi o rinominavi nell'app: il primo ciclo di sincronizzazione successivo interpretava la nota nella nuova posizione come eliminata sul server e la rimuoveva qui, un attimo prima di inviare lo spostamento. Con Google Drive, Dropbox e OneDrive succedeva solo di tanto in tanto. In 0.8.3 il ciclo successivo eliminava poi la nota anche sul server. La versione successiva lo corregge sul desktop e sul telefono.
+Con la sincronizzazione WebDAV o S3, Plainva 0.8.3 rimuoveva una nota sincronizzata che spostavi o rinominavi nell'app: il primo ciclo di sincronizzazione successivo interpretava la nota nella nuova posizione come eliminata sul server e la rimuoveva qui, un attimo prima di inviare lo spostamento. Con Google Drive, Dropbox e OneDrive succedeva solo di tanto in tanto. In 0.8.3 il ciclo successivo eliminava poi la nota anche sul server. Plainva 0.8.4 lo corregge sul desktop e sul telefono.
+
+**Aggiorna ogni dispositivo che lavora con lo stesso vault.** Un dispositivo ancora su 0.8.3 continua a eliminare le note sincronizzate spostate o rinominate su di esso e replica le eliminazioni senza chiedere.
 
 Se è successo a te, la nota esiste ancora in fino a tre posti:
 
@@ -58,7 +60,7 @@ Se è successo a te, la nota esiste ancora in fino a tre posti:
 - **Il cestino di sistema** (desktop): il file stesso è finito nel cestino del sistema operativo.
 - **Il cestino del tuo server**, se la nota è stata eliminata anche lì (in Nextcloud, per esempio, tra i file eliminati).
 
-Finché non hai la versione corretta, sposta e rinomina le note sincronizzate nel file manager invece che in Plainva, con la nota salvata e la sua scheda chiusa.
+Se con 0.8.3 hai spostato o rinominato altre note sincronizzate, vale la pena cercarle negli stessi posti.
 
 ### Cos'è un file .CONFLICT?
 
@@ -120,7 +122,7 @@ Plainva rispetta l'impostazione "riduci movimento" del tuo sistema. Se transizio
 
 ### Come cambio la lingua?
 
-**Impostazioni → App → Aspetto → Lingua** (attualmente tedesco e inglese).
+**Impostazioni → App → Aspetto → Lingua**; sul telefono **Impostazioni → Aspetto → Lingua**. Plainva parla dieci lingue: inglese, tedesco, spagnolo, francese, italiano, giapponese, olandese, polacco, portoghese (Brasile) e cinese semplificato.
 
 ### "Cerca aggiornamenti" non trova nulla
 

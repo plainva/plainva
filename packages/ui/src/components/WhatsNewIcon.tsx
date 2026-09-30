@@ -34,6 +34,10 @@ import {
   // The SQUARE, not MessageCircle: the circle already means "this cell carries
   // a comment" on a table cell, and one glyph with two meanings is one too many.
   MessageSquare,
+  // 0.8.4: the journal, voice notes, and text in every script.
+  NotebookPen,
+  Mic,
+  Languages,
 } from 'lucide-react';
 import type { WhatsNewIconName } from '../lib/whatsNew';
 
@@ -74,6 +78,9 @@ export const WhatsNewIcon: React.FC<{ name: WhatsNewIconName; size: number }> = 
     : name === 'code' ? FileCode
     : name === 'message' ? MessageSquare
     : name === 'palette' ? Palette
+    : name === 'journal' ? NotebookPen
+    : name === 'mic' ? Mic
+    : name === 'languages' ? Languages
     : Sparkles;
   return <Glyph size={size} />;
 };

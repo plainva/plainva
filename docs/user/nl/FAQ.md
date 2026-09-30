@@ -50,7 +50,9 @@ Zeer oude dagelijkse notities kunnen een instelling van hun sjabloon hebben geë
 
 ### Een notitie verdween na het verplaatsen of hernoemen
 
-Met synchronisatie via WebDAV of S3 verwijderde Plainva 0.8.3 een gesynchroniseerde notitie die je in de app verplaatste of hernoemde: de eerste synchronisatiecyclus daarna zag de notitie op haar nieuwe plek als verwijderd op de server en haalde haar hier weg — net voordat de verplaatsing zou zijn verstuurd. Met Google Drive, Dropbox en OneDrive gebeurde dat alleen af en toe. In 0.8.3 verwijderde de volgende cyclus de notitie daarna ook op de server. De volgende versie lost dit op, op de desktop en op de telefoon.
+Met synchronisatie via WebDAV of S3 verwijderde Plainva 0.8.3 een gesynchroniseerde notitie die je in de app verplaatste of hernoemde: de eerste synchronisatiecyclus daarna zag de notitie op haar nieuwe plek als verwijderd op de server en haalde haar hier weg — net voordat de verplaatsing zou zijn verstuurd. Met Google Drive, Dropbox en OneDrive gebeurde dat alleen af en toe. In 0.8.3 verwijderde de volgende cyclus de notitie daarna ook op de server. Plainva 0.8.4 lost dit op, op de desktop en op de telefoon.
+
+**Werk elk apparaat bij dat met dezelfde vault werkt.** Een apparaat dat nog op 0.8.3 draait, blijft gesynchroniseerde notities verwijderen die daar worden verplaatst of hernoemd, en neemt verwijderingen zonder te vragen over.
 
 Is het jou overkomen, dan bestaat de notitie nog op maximaal drie plekken:
 
@@ -58,7 +60,7 @@ Is het jou overkomen, dan bestaat de notitie nog op maximaal drie plekken:
 - **De prullenbak van het systeem** (desktop): het bestand zelf ging naar de prullenbak van je besturingssysteem.
 - **De prullenbak van je server**, als de notitie daar ook is verwijderd (in Nextcloud bijvoorbeeld bij de verwijderde bestanden).
 
-Tot je de gecorrigeerde versie hebt: verplaats en hernoem gesynchroniseerde notities in je bestandsbeheerder in plaats van in Plainva, met de notitie opgeslagen en het tabblad gesloten.
+Heb je met 0.8.3 nog andere gesynchroniseerde notities verplaatst of hernoemd, zoek die dan ook op deze plekken.
 
 ### Wat is een .CONFLICT-bestand?
 
@@ -120,7 +122,7 @@ Plainva respecteert de systeeminstelling "beweging verminderen". Als overgangen 
 
 ### Hoe verander ik de taal?
 
-**Instellingen → App → Weergave → Taal** (momenteel Duits en Engels).
+**Instellingen → App → Weergave → Taal**; op de telefoon **Instellingen → Weergave → Taal**. Plainva spreekt tien talen: Engels, Duits, Spaans, Frans, Italiaans, Japans, Nederlands, Pools, Portugees (Brazilië) en vereenvoudigd Chinees.
 
 ### "Controleren op updates" vindt niets
 

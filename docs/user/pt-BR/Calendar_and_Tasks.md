@@ -1,6 +1,6 @@
 # Calendário & tarefas externas
 
-Última revisão: 2026-09-24
+Última revisão: 2026-09-30
 
 O Plainva pode conectar suas contas de calendário e tarefas já existentes — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Agenda + Tarefas) e **Microsoft** (calendário do Outlook + To Do) — e trabalhar com elas em ambas as direções. Suas notas continuam sendo o centro: eventos podem virar notas de reunião, e listas de tarefas externas se espelham no seu [banco de tarefas padrão](Tasks.md) como notas comuns.
 
@@ -104,7 +104,7 @@ No celular isso inclui as **listas de lembretes** do dispositivo (iOS) assim que
 
 ### Continuar em segundo plano
 
-Como um lembrete no computador só chega enquanto o Plainva estiver em execução, em **Configurações → Início e comportamento → Segundo plano** há dois interruptores — separados, porque são dois desejos diferentes, e ambos **desligados por padrão**:
+Como um lembrete no computador só chega enquanto o Plainva estiver em execução, em **Configurações → Inicialização e comportamento → Segundo plano** há dois interruptores — separados, porque são dois desejos diferentes, e ambos **desligados por padrão**:
 
 - **Iniciar com o sistema** registra o Plainva no login.
 - **Continuar na área de notificação ao fechar** coloca um ícone do Plainva na área de notificação; fechar a janela deixa de encerrar o aplicativo e passa a guardá-lo ali. Pelo ícone você volta com **Abrir**, vê o **próximo compromisso** e encerra o Plainva com **Sair**.

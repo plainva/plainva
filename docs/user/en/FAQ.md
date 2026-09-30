@@ -50,7 +50,9 @@ Very old daily notes may have inherited a setting from their template that hides
 
 ### A note disappeared after I moved or renamed it
 
-With WebDAV or S3 sync, Plainva 0.8.3 removed a synced note that you moved or renamed inside the app: the first sync cycle afterwards read the note at its new place as deleted on the server and removed it here — a moment before it would have sent the move. With Google Drive, Dropbox and OneDrive this happened only now and then. In 0.8.3 the next cycle then deleted the note on the server as well. The following version fixes this on the desktop and on the phone.
+With WebDAV or S3 sync, Plainva 0.8.3 removed a synced note that you moved or renamed inside the app: the first sync cycle afterwards read the note at its new place as deleted on the server and removed it here — a moment before it would have sent the move. With Google Drive, Dropbox and OneDrive this happened only now and then. In 0.8.3 the next cycle then deleted the note on the server as well. Plainva 0.8.4 fixes this on the desktop and on the phone.
+
+**Update every device that works with the same vault.** A device still on 0.8.3 keeps deleting synced notes that are moved or renamed on it, and it mirrors deletions without asking.
 
 If it happened to you, the note still exists in up to three places:
 
@@ -58,7 +60,7 @@ If it happened to you, the note still exists in up to three places:
 - **The system trash** (desktop): the file itself went to your operating system's trash.
 - **Your server's trash**, if the note was deleted there too (in Nextcloud, for example, under deleted files).
 
-Until you have the fixed version, move and rename synced notes in your file manager instead of in Plainva, with the note saved and its tab closed.
+If you moved or renamed other synced notes with 0.8.3, it is worth looking for them in the same places.
 
 ### What is a .CONFLICT file?
 
@@ -120,7 +122,7 @@ Plainva honors your system's "reduce motion" setting. If transitions and effects
 
 ### How do I change the language?
 
-**Settings → App → Appearance → Language** (currently German and English).
+**Settings → App → Appearance → Language**; on the phone **Settings → Appearance → Language**. Plainva speaks ten languages: English, German, Spanish, French, Italian, Japanese, Dutch, Polish, Portuguese (Brazil) and Simplified Chinese.
 
 ### "Check for Updates" finds nothing
 

@@ -50,7 +50,9 @@ Les notes quotidiennes très anciennes peuvent avoir hérité d'un réglage de l
 
 ### Une note a disparu après l'avoir déplacée ou renommée
 
-Avec la synchronisation WebDAV ou S3, Plainva 0.8.3 supprimait une note synchronisée que vous déplaciez ou renommiez dans l'application : le premier cycle de synchronisation suivant considérait la note à son nouvel emplacement comme supprimée sur le serveur et la retirait ici — juste avant d'envoyer le déplacement. Avec Google Drive, Dropbox et OneDrive, cela n'arrivait que de temps en temps. Dans 0.8.3, le cycle suivant supprimait ensuite la note sur le serveur aussi. La version suivante corrige cela sur ordinateur et sur téléphone.
+Avec la synchronisation WebDAV ou S3, Plainva 0.8.3 supprimait une note synchronisée que vous déplaciez ou renommiez dans l'application : le premier cycle de synchronisation suivant considérait la note à son nouvel emplacement comme supprimée sur le serveur et la retirait ici — juste avant d'envoyer le déplacement. Avec Google Drive, Dropbox et OneDrive, cela n'arrivait que de temps en temps. Dans 0.8.3, le cycle suivant supprimait ensuite la note sur le serveur aussi. Plainva 0.8.4 corrige cela sur ordinateur et sur téléphone.
+
+**Mettez à jour chaque appareil qui travaille avec le même vault.** Un appareil encore en 0.8.3 continue de supprimer les notes synchronisées qui y sont déplacées ou renommées, et reproduit les suppressions sans demander.
 
 Si cela vous est arrivé, la note existe encore à trois endroits au plus :
 
@@ -58,7 +60,7 @@ Si cela vous est arrivé, la note existe encore à trois endroits au plus :
 - **La corbeille du système** (ordinateur) : le fichier lui-même est allé dans la corbeille de votre système d'exploitation.
 - **La corbeille de votre serveur**, si la note y a aussi été supprimée (dans Nextcloud, par exemple, sous les fichiers supprimés).
 
-En attendant la version corrigée, déplacez et renommez les notes synchronisées dans votre gestionnaire de fichiers plutôt que dans Plainva, note enregistrée et onglet fermé.
+Si vous avez déplacé ou renommé d'autres notes synchronisées avec 0.8.3, cherchez-les aussi à ces endroits.
 
 ### Qu'est-ce qu'un fichier .CONFLICT ?
 
@@ -120,7 +122,7 @@ Plainva respecte le réglage « réduire les animations » de votre système. Si
 
 ### Comment changer la langue ?
 
-**Paramètres → App → Apparence → Langue** (actuellement allemand et anglais).
+**Paramètres → App → Apparence → Langue** ; sur téléphone, **Paramètres → Apparence → Langue**. Plainva parle dix langues : anglais, allemand, espagnol, français, italien, japonais, néerlandais, polonais, portugais (Brésil) et chinois simplifié.
 
 ### « Rechercher des mises à jour » ne trouve rien
 

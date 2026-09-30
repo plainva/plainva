@@ -1,6 +1,6 @@
 # Tarefas
 
-Última revisão: 2026-09-24
+Última revisão: 2026-09-30
 
 A visualização de Tarefas reúne todas as caixas de seleção do seu vault em um só lugar: todos os itens de lista `- [ ]` e `- [x]` de todas as suas notas, agrupados pela nota a que pertencem. É a visualização "o que ainda preciso fazer?" sobre Markdown puro — sem plugin, sem arquivo especial.
 
@@ -17,7 +17,7 @@ Ela abre como uma aba, como qualquer nota.
 
 ## No telefone
 
-A visualização de Tarefas também existe no mobile. Você a abre pelo **▾** ao lado do título na barra superior, e pode colocá-la na barra de navegação (**Configurações** → **Barra de navegação**).
+A visualização de Tarefas também existe no mobile. Você a abre por **Seções** na barra de navegação (ou mantendo a barra pressionada), e pode colocá-la na própria barra de navegação (**Configurações** → **Barras e áreas**).
 
 Ela mostra as mesmas duas seções do desktop: o **Banco de tarefas** no topo, a lista de caixas de seleção em **Das notas** abaixo, com os filtros **Abertas**/**Concluídas**/**Todas** e a busca por texto livre. Marcar como concluída, **Alterar status**, mover uma caixa de seleção **para o banco de dados**, **+ Nova tarefa**, **Bloquear tempo** e **Repetição** funcionam como descrito acima e gravam os mesmos arquivos: a mesma nota com frontmatter, o mesmo `[[wiki link]]` na linha original, a mesma regra em `plainva.repeat`.
 

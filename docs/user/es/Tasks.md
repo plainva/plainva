@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-09-24
+Última actualización: 2026-09-30
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -17,7 +17,7 @@ Se abre como una pestaña, igual que cualquier nota.
 
 ## En el teléfono
 
-La vista Tareas también existe en el móvil. La abres mediante el **▾** junto al título en la barra superior, y puedes colocarla en la barra de navegación (**Ajustes** → **Barra de navegación**).
+La vista Tareas también existe en el móvil. La abres con **Áreas** en la barra de navegación (o manteniendo pulsada la barra), y puedes colocarla en la propia barra de navegación (**Ajustes** → **Barras y áreas**).
 
 Muestra las mismas dos secciones que en el escritorio: la **Base de datos de tareas** arriba, la lista de casillas bajo **Desde notas** abajo, con los filtros **Abiertas**/**Hechas**/**Todas** y la búsqueda en texto libre. Marcar, **Cambiar estado**, mover una casilla **a la base de datos**, **+ Nueva tarea**, **Bloquear tiempo** y la **Repetición** funcionan como se describe arriba y escriben los mismos archivos: la misma nota con frontmatter, el mismo `[[enlace interno]]` en la línea original, la misma regla bajo `plainva.repeat`.
 

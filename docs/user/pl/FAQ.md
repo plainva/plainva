@@ -50,7 +50,9 @@ Bardzo stare notatki dzienne mogły odziedziczyć po swoim szablonie ustawienie,
 
 ### Notatka zniknęła po przeniesieniu lub zmianie nazwy
 
-Przy synchronizacji przez WebDAV lub S3 Plainva 0.8.3 usuwała zsynchronizowaną notatkę, którą przeniesiono lub której nazwę zmieniono w aplikacji: pierwszy cykl synchronizacji po tej operacji uznawał notatkę w nowym miejscu za usuniętą na serwerze i usuwał ją tutaj — tuż przed wysłaniem przeniesienia. W przypadku Google Drive, Dropbox i OneDrive zdarzało się to tylko od czasu do czasu. W 0.8.3 kolejny cykl usuwał następnie notatkę także na serwerze. Następna wersja naprawia to na komputerze i na telefonie.
+Przy synchronizacji przez WebDAV lub S3 Plainva 0.8.3 usuwała zsynchronizowaną notatkę, którą przeniesiono lub której nazwę zmieniono w aplikacji: pierwszy cykl synchronizacji po tej operacji uznawał notatkę w nowym miejscu za usuniętą na serwerze i usuwał ją tutaj — tuż przed wysłaniem przeniesienia. W przypadku Google Drive, Dropbox i OneDrive zdarzało się to tylko od czasu do czasu. W 0.8.3 kolejny cykl usuwał następnie notatkę także na serwerze. Plainva 0.8.4 naprawia to na komputerze i na telefonie.
+
+**Zaktualizuj każde urządzenie, które pracuje z tym samym vaultem.** Urządzenie z wersją 0.8.3 nadal usuwa zsynchronizowane notatki, które są na nim przenoszone lub którym zmienia się nazwę, i powiela usunięcia bez pytania.
 
 Jeśli Cię to spotkało, notatka nadal istnieje w maksymalnie trzech miejscach:
 
@@ -58,7 +60,7 @@ Jeśli Cię to spotkało, notatka nadal istnieje w maksymalnie trzech miejscach:
 - **Kosz systemowy** (komputer): sam plik trafił do kosza systemu operacyjnego.
 - **Kosz Twojego serwera**, jeśli notatka została usunięta również tam (na przykład w Nextcloud wśród usuniętych plików).
 
-Dopóki nie masz poprawionej wersji, przenoś zsynchronizowane notatki i zmieniaj ich nazwy w menedżerze plików zamiast w Plainva — z zapisaną notatką i zamkniętą kartą.
+Jeśli w wersji 0.8.3 przeniesiono lub zmieniono nazwy innych zsynchronizowanych notatek, warto poszukać ich w tych samych miejscach.
 
 ### Czym jest plik .CONFLICT?
 
@@ -120,7 +122,7 @@ Plainva respektuje ustawienie systemowe „ogranicz ruch”. Jeśli brakuje prze
 
 ### Jak zmienić język?
 
-**Ustawienia → Aplikacja → Wygląd → Język** (obecnie niemiecki i angielski).
+**Ustawienia → Aplikacja → Wygląd → Język**; na telefonie **Ustawienia → Wygląd → Język**. Plainva mówi w dziesięciu językach: angielskim, niemieckim, hiszpańskim, francuskim, włoskim, japońskim, niderlandzkim, polskim, portugalskim (Brazylia) i chińskim uproszczonym.
 
 ### „Sprawdź aktualizacje” niczego nie znajduje
 

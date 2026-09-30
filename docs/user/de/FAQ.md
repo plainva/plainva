@@ -50,7 +50,9 @@ Sehr alte Tagesnotizen können eine Angabe aus ihrer Vorlage geerbt haben, die i
 
 ### Eine Notiz ist nach dem Verschieben oder Umbenennen verschwunden
 
-Mit Sync über WebDAV oder S3 hat Plainva 0.8.3 eine synchronisierte Notiz entfernt, die Du in der App verschoben oder umbenannt hast: Der erste Sync-Zyklus danach hielt die Notiz am neuen Ort für auf dem Server gelöscht und entfernte sie hier — einen Augenblick, bevor er das Verschieben hochgeschickt hätte. Mit Google Drive, Dropbox und OneDrive geschah das nur ab und zu. In 0.8.3 löschte der nächste Zyklus die Notiz dann auch auf dem Server. Die folgende Version behebt das am Desktop und am Telefon.
+Mit Sync über WebDAV oder S3 hat Plainva 0.8.3 eine synchronisierte Notiz entfernt, die Du in der App verschoben oder umbenannt hast: Der erste Sync-Zyklus danach hielt die Notiz am neuen Ort für auf dem Server gelöscht und entfernte sie hier — einen Augenblick, bevor er das Verschieben hochgeschickt hätte. Mit Google Drive, Dropbox und OneDrive geschah das nur ab und zu. In 0.8.3 löschte der nächste Zyklus die Notiz dann auch auf dem Server. Plainva 0.8.4 behebt das am Desktop und am Telefon.
+
+**Aktualisiere jedes Gerät, das mit demselben Vault arbeitet.** Ein Gerät mit 0.8.3 löscht weiterhin synchronisierte Notizen, die dort verschoben oder umbenannt werden, und spiegelt Löschungen ohne Rückfrage.
 
 Hat es Dich getroffen, liegt die Notiz noch an bis zu drei Orten:
 
@@ -58,7 +60,7 @@ Hat es Dich getroffen, liegt die Notiz noch an bis zu drei Orten:
 - **Der Papierkorb des Systems** (Desktop): Die Datei selbst liegt im Papierkorb Deines Betriebssystems.
 - **Der Papierkorb Deines Servers**, falls die Notiz auch dort gelöscht wurde (in Nextcloud etwa unter „Gelöschte Dateien“).
 
-Bis Du die korrigierte Version hast, verschiebe und benenne synchronisierte Notizen im Dateimanager um statt in Plainva, mit gespeicherter Notiz und geschlossenem Tab.
+Hast Du mit 0.8.3 weitere synchronisierte Notizen verschoben oder umbenannt, lohnt es sich, auch nach ihnen an diesen Orten zu sehen.
 
 ### Was ist eine .CONFLICT-Datei?
 
@@ -120,7 +122,7 @@ Plainva respektiert die System-Einstellung „Animationen reduzieren". Wenn Übe
 
 ### Wie ändere ich die Sprache?
 
-**Einstellungen → App → Erscheinungsbild → Sprache** (derzeit Deutsch und Englisch).
+**Einstellungen → App → Erscheinungsbild → Sprache**; am Telefon **Einstellungen → Erscheinungsbild → Sprache**. Plainva spricht zehn Sprachen: Deutsch, Englisch, Spanisch, Französisch, Italienisch, Japanisch, Niederländisch, Polnisch, Portugiesisch (Brasilien) und vereinfachtes Chinesisch.
 
 ### „Nach Updates suchen" findet nichts
 

@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-09-24
+Laatst bijgewerkt: 2026-09-30
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -17,7 +17,7 @@ De weergave opent als tab, net als elke notitie.
 
 ## Op de telefoon
 
-De Taken-weergave bestaat ook mobiel. Je opent deze via de **▾** naast de titel in de bovenbalk, en je kunt deze in de navigatiebalk plaatsen (**Instellingen** → **Navigatiebalk**).
+De Taken-weergave bestaat ook mobiel. Je opent deze via **Onderdelen** in de navigatiebalk (of door lang op de balk te drukken), en je kunt deze in de navigatiebalk zelf plaatsen (**Instellingen** → **Balken en gebieden**).
 
 De weergave toont dezelfde twee secties als op de desktop: bovenaan de **Takendatabase**, daaronder **Uit notities** de selectievakjeslijst, met de filters **Open**/**Klaar**/**Alle** en het vrijetekstveld. Afvinken, **Status wijzigen**, een selectievakje **naar de database verplaatsen**, **+ Nieuwe taak**, **Tijd blokkeren** en **Herhaling** werken zoals hierboven beschreven en schrijven dezelfde bestanden: dezelfde notitie met frontmatter, dezelfde `[[wiki-link]]` in de oorspronkelijke regel, dezelfde regel onder `plainva.repeat`.
 
