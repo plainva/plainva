@@ -371,7 +371,15 @@ export interface SyncWorkerOptions {
  * `stillRemote`: a direct probe found the file alive — the listing was wrong
  * about it, and nothing was touched (finding 2026-09-20).
  */
-export type MirrorDeletionOutcome = "deleted" | "gone" | "keptLocalEdits" | "collision" | "localOnly" | "stillRemote";
+export type MirrorDeletionOutcome =
+  | "deleted"
+  | "gone"
+  | "keptLocalEdits"
+  | "collision"
+  | "localOnly"
+  | "stillRemote"
+  /** A rename or delete of this path (or a folder above it) still waits in the queue. */
+  | "awaitingStructure";
 
 /** Per-cycle account of the deletions the worker mirrored — or deliberately did not. */
 export interface DeletionReport {
@@ -1273,6 +1281,20 @@ export class SyncWorker {
       return "collision";
     }
 
+    // No deletion is ever concluded from a listing for a path whose own rename
+    // or delete has not reached the remote yet (issue 113). queueRename moves
+    // the sync_state row — remote ETag and merge base included (#59) — to the
+    // DESTINATION, so until the MOVE is pushed that row reads "was up there,
+    // is missing now", and the provider honestly answers "absent". Deleting on
+    // that evidence removed every note moved or renamed in the app with WebDAV
+    // and S3, one cycle before the MOVE would have gone up. The listing is
+    // believed again once the queue no longer holds the operation. Checked here,
+    // under the path lock, because the caller's snapshot can predate a move.
+    if (await this.queue.hasPendingStructuralOp(path)) {
+      console.log(`[SyncWorker] not mirroring deletion of ${path}: its rename/delete is still queued`);
+      return "awaitingStructure";
+    }
+
     const state = await this.stateRepo.getSyncState(path);
     const localExists = await this.vault.exists(path);
     if (!localExists) {
@@ -1769,6 +1791,8 @@ export class SyncWorker {
         for (const path of pullResult.deleted ?? []) {
           if (!alive()) break;
           if (excludedFromSync(path)) continue;
+          // Our own queued rename/delete explains the absence (issue 113).
+          if (awaitingStructure(path)) continue;
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).
@@ -1790,6 +1814,12 @@ export class SyncWorker {
         const confirmed: Array<{ path: string; state: SyncState }> = [];
         for (const [path, state] of stateMap) {
           if (excludedFromSync(path)) continue;
+          // A path whose rename or delete still waits in this device's queue is
+          // not "confirmed" by the listing either way (issue 113): after an
+          // in-app move its sync row already sits at the destination, which the
+          // remote cannot list before the MOVE is pushed. It takes part again
+          // once the queue has carried the operation up.
+          if (awaitingStructure(path)) continue;
           if (state.remote_etag) confirmed.push({ path, state });
         }
         // A path the listing does not carry while the remote DOES hold a twin that
