@@ -43,7 +43,10 @@ import {
   importAccountMetadata,
   emptyDiagnostics,
   normalizeSyncDiagnostics,
-  noteSettingsSyncFailure,
+  logDiagnostic,
+  reportSyncStepFailure,
+  reportSyncStepSuccess,
+  type SyncStepReporter,
   type SettingsSyncFailure,
   recordLegacyClient,
   type LegacyClientDiagnosticReason,
@@ -816,17 +819,12 @@ class MobileSidebandRunner implements SettingsSyncRunner {
         // streak and remembers what was already said; the record it returns is
         // durable, so both survive a restart. Only a fatal failure — or the
         // third transient one in a row — is allowed to interrupt.
-        let failure: SettingsSyncFailure | null = null;
-        await updateDiagnostics(this.vaultId, (d) => {
-          const outcome = noteSettingsSyncFailure(d, new Date().toISOString(), error);
-          failure = outcome.failure;
-          return outcome.diagnostics;
-        });
         // The sync card renders the waiting state from the same record, so the
         // quiet case is visible without a toast.
-        if (failure && (failure as SettingsSyncFailure).announce) {
-          toast.error(i18n.t("settingsSync.profileFailed", { error: (failure as SettingsSyncFailure).message }));
-        }
+        await reportSyncStepFailure("settings", error, this.reporter(({ message }) => {
+          // Already redacted and classified by the shared decision.
+          toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
+        }));
         throw error;
       }
     }
@@ -840,7 +838,11 @@ class MobileSidebandRunner implements SettingsSyncRunner {
       } catch (error) {
         const reason = error instanceof SecretPolicyError ? "invalid-or-unreadable-bundle" : "sync-failed";
         await updateDiagnostics(this.vaultId, (d) => recordSecretsError(d, new Date().toISOString(), reason));
-        toast.error(i18n.t("settingsSync.secretsFailedSafe"));
+        // Said once per failure, not on every cycle (issue 113): the same decision
+        // as the profile, with its own record.
+        await reportSyncStepFailure("secrets", error, this.reporter(() => {
+          toast.error(i18n.t("settingsSync.secretsFailedSafe"));
+        }));
       }
       await this.runLegacyCleanupIfRequested(secrets, target, vault);
     }
@@ -851,9 +853,18 @@ class MobileSidebandRunner implements SettingsSyncRunner {
     if (comments) {
       try {
         await comments.run(target, vault);
-      } catch {
-        // Silent by design: the surface shows what it has, and a bundle it
-        // could not read is not something the user can act on mid-sync.
+        // Never mistaken for a comment failure: a diagnostics hiccup is not one.
+        await reportSyncStepSuccess("comments", this.reporter()).catch(() => undefined);
+      } catch (error) {
+        // No longer silent (issue 113): a remark that does not travel is something
+        // the person should know - once, not on every cycle, and not for a
+        // dropped request in a dead spot. The profile's decision with its own
+        // record; the sync diagnostics screen shows it. Unreadable comment
+        // files are content faults with their own notice (`onFaults`).
+        await reportSyncStepFailure("comments", error, this.reporter(({ message }) => {
+          // Already redacted and classified by the shared decision.
+          toast.error(i18n.t("settingsSync.commentsFailed", { error: message }));
+        }));
       }
       // Stufe F: one of the two moments a phone can notice that somebody wrote
       // something - there is no server to push it, and no timer runs in the
@@ -867,6 +878,15 @@ class MobileSidebandRunner implements SettingsSyncRunner {
         window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } }));
       }
     }
+  }
+
+  /** This vault's durable record and the shell's voice, lent to the shared decision. */
+  private reporter(announce: (failure: SettingsSyncFailure) => void = () => undefined): SyncStepReporter {
+    return {
+      load: () => loadSyncDiagnostics(this.vaultId),
+      update: (reduce) => updateDiagnostics(this.vaultId, reduce),
+      announce,
+    };
   }
 
   /** Carries the user's "every device is up to date" to the one place that can act. */
@@ -1030,6 +1050,9 @@ function sidebandSteps(vault: MobileVault, device: string, memberId: string | nu
           : undefined,
         // A file that could not be read is never overwritten; the shell says
         // so once, with the reason (N3).
+        // A content-free transport note for the diagnostics export (issue 113),
+        // e.g. a server whose 304 validators cannot be bound to our copy.
+        onDiagnostic: (line) => logDiagnostic("sync", line),
         onFaults: (faults) => window.dispatchEvent(new CustomEvent("plainva-comment-faults", { detail: { vaultId, faults } })),
       });
     },

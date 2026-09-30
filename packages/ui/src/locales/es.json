@@ -56,6 +56,7 @@
     "pullStarted": "Trayendo …",
     "secretsFailed": "Las credenciales no se sincronizaron: {{error}}",
     "commentsFailed": "Los comentarios no se sincronizaron: {{error}}",
+    "commentsDiagRetrying": "Comentarios: se reintentará — {{error}} ({{count}} de {{max}}) · última {{time}}",
     "secretsFailedSafe": "Las credenciales no se sincronizaron. El diagnóstico redactado contiene el motivo seguro del error.",
     "secretsWaiting_many": "{{count}} inicios de sesión esperan sus cuentas: este dispositivo aún no las conoce. Llegarán en la próxima sincronización.",
     "secretsWaiting_one": "Un inicio de sesión espera su cuenta: este dispositivo aún no la conoce. Llegará en la próxima sincronización.",

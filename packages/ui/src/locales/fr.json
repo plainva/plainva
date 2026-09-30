@@ -56,6 +56,7 @@
     "pullStarted": "Récupération …",
     "secretsFailed": "Les identifiants n’ont pas été synchronisés : {{error}}",
     "commentsFailed": "Les commentaires n'ont pas été synchronisés : {{error}}",
+    "commentsDiagRetrying": "Commentaires : nouvelle tentative — {{error}} ({{count}} sur {{max}}) · dernière {{time}}",
     "secretsFailedSafe": "Les identifiants n’ont pas été synchronisés. Le diagnostic expurgé contient le motif d’erreur sûr.",
     "secretsWaiting_many": "{{count}} connexions attendent leurs comptes — cet appareil ne les connaît pas encore. Ils arriveront à la prochaine synchronisation.",
     "secretsWaiting_one": "Une connexion attend son compte — cet appareil ne le connaît pas encore. Il arrivera à la prochaine synchronisation.",

@@ -1,6 +1,6 @@
 # Kommentare & Vorschläge
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Kommentare und Vorschläge gibt es in **jedem** Vault — mit oder ohne Sync, mit oder ohne Verschlüsselung. In einem verschlüsselten Workspace sind sie signierte Objekte (siehe [Sicherheit & Freigaben](Security_and_Sharing.md)); überall sonst tragen sie den Namen aus **Dein Name (Anmerkungen und Prüfungen)** in den Einstellungen. Ein Vorschlag ist ein Kommentar mit Ersatztext: Beide laufen durch denselben Speicher, dieselbe Spalte, dasselbe Blatt. Fehlt der Name, fragt Plainva beim ersten Kommentar einmal danach; ohne Antwort zeichnet das Gerät mit seiner eigenen Bezeichnung (etwa „Windows-Gerät 4f3a“). Deine eigenen Anmerkungen stehen als **Du** da.
 
@@ -43,6 +43,8 @@ Meldet eine gesammelte Benachrichtigung mehrere neue Anmerkungen, öffnet ihr Kl
 Ohne Workspace liegen die Anmerkungen im Vault unter `.plainva/sync/`, je Gerät in einer eigenen Datei `comments.<gerät>.json` — mit Sync-Passphrase versiegelt als `.enc`. Sie stehen nie in der Notiz, und keine Antwort landet in deren Versionsverlauf. Jedes Gerät schreibt nur seine eigene Datei und liest alle: Deshalb kollidiert nichts, wenn der Ordner über Dropbox, iCloud, Syncthing, ein Netzlaufwerk oder Git geteilt wird — die Dateien reisen wie jede andere mit, und in einem Git-Vault gehören sie in die Historie. Eine Plainva-Sync-Verbindung trägt sie zusätzlich selbst. Alle Geräte sollten dieselbe Plainva-Version haben: Eine ältere liest nur die frühere gemeinsame Datei `comments.json`, die weiterhin gelesen, aber nicht mehr geschrieben wird.
 
 Kommt die Datei eines anderen Geräts über einen fremden Sync an, siehst Du sie am Desktop, sobald der Ordner sich meldet, am Telefon beim nächsten Öffnen oder bei der Rückkehr in den Vordergrund.
+
+Lassen sich die Anmerkungen nicht zum Sync-Ziel bringen — der Server ist nicht erreichbar, verweigert die Kommentar-Dateien oder antwortet so, dass Plainva nichts damit anfangen kann —, synchronisieren Deine Notizen wie bisher weiter; nur die Anmerkungen warten. Eine kurze Unterbrechung wird einfach erneut versucht. Bleibt die Störung, sagt Plainva das **einmal**, nicht in jedem Sync-Durchgang, und dieselbe Störung meldet sich erst wieder, nachdem ein Durchgang gelungen ist. Den aktuellen Stand zeigen die Sync-Einstellungen unter **Was der Sync zuletzt getan hat**; ein Diagnose-Export aus **Über & Diagnose** enthält den technischen Grund, ohne Kommentartext.
 
 Hat der Vault eine Sync-Passphrase und ist sie auf diesem Gerät nicht eingegeben, sind die Anmerkungen **gesperrt**: Spalte, Blatt und Übersicht sagen das und bieten **Entsperren** an. Gelesen und geschrieben wird erst nach dem Entsperren — ein gesperrtes Gerät legt nie eine Klartextdatei neben die versiegelte.
 

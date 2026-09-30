@@ -1,6 +1,6 @@
 # Komentarze i propozycje
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Komentarze i propozycje istnieją w **każdym** sejfie — z synchronizacją lub bez, z szyfrowaniem lub bez. W szyfrowanym workspace są podpisanymi obiektami (zob. [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md)); wszędzie indziej noszą imię z pola **Twoje imię (uwagi i przeglądy)** w ustawieniach. Propozycja to komentarz z tekstem zastępczym: oba przechodzą przez ten sam magazyn, tę samą kolumnę, ten sam arkusz. Jeśli imienia brakuje, Plainva pyta o nie raz przy pierwszym komentarzu; bez odpowiedzi urządzenie podpisuje własną etykietą (np. „Urządzenie Windows 4f3a”). Twoje własne uwagi widnieją jako **Ty**.
 
@@ -43,6 +43,8 @@ Gdy zbiorcze powiadomienie zgłasza kilka nowych uwag, jego kliknięcie otwiera 
 Bez workspace uwagi leżą w sejfie pod `.plainva/sync/`, po jednym pliku na urządzenie, `comments.<urządzenie>.json` — zapieczętowanym jako `.enc`, gdy istnieje hasło synchronizacji. Nigdy nie są zapisywane w notatce, a żadna odpowiedź nie trafia do jej historii wersji. Każde urządzenie zapisuje tylko własny plik i czyta wszystkie: dlatego nic się nie zderza, gdy folder jest udostępniany przez Dropbox, iCloud, Syncthing, udział sieciowy lub Git — pliki wędrują jak każde inne, a w sejfie Git należą do historii. Połączenie synchronizacji Plainva także je przenosi. Wszystkie urządzenia powinny mieć tę samą wersję Plainva: starsza czyta tylko dawny wspólny plik `comments.json`, który nadal jest czytany, ale już nie zapisywany.
 
 Gdy plik innego urządzenia nadejdzie przez obcą synchronizację, komputer pokaże go, gdy tylko folder to zgłosi; telefon przy następnym otwarciu lub po powrocie na pierwszy plan.
+
+Jeśli uwag nie da się przenieść do celu synchronizacji — serwer jest nieosiągalny, odrzuca pliki komentarzy albo odpowiada w sposób, którego Plainva nie może użyć — notatki synchronizują się dalej jak dotąd; czekają tylko uwagi. Krótka przerwa jest po prostu ponawiana. Jeśli problem trwa, Plainva mówi o tym **raz**, a nie w każdym cyklu, i ten sam błąd nie jest ponownie zgłaszany, dopóki jakiś cykl się nie powiedzie. Bieżący stan widać w ustawieniach synchronizacji w sekcji **Co synchronizacja zrobiła ostatnio**; eksport diagnostyczny z **Informacje i diagnostyka** zawiera techniczną przyczynę, bez treści komentarzy.
 
 Jeśli sejf ma hasło synchronizacji, którego nie wpisano na tym urządzeniu, uwagi są **zablokowane**: kolumna, arkusz i przegląd mówią o tym i oferują **Odblokuj**. Do tego czasu nic nie jest czytane ani zapisywane — zablokowane urządzenie nigdy nie kładzie pliku jawnego obok zapieczętowanego.
 

@@ -205,6 +205,21 @@ export function SyncDiagnosticsScreen({
           ) : (
             <Banner kind="error" rounded>{t("settingsSync.diagError", { error: diag.lastError.message })}</Banner>
           ))}
+        {/* The comment step's own record (issue 113), the same rule as the desktop:
+            neutral while waited out, red once it is an answer. */}
+        {diag.lastCommentsError &&
+          (settingsSyncFailureIsWaiting(diag.lastCommentsError) ? (
+            <Banner kind="info" rounded>
+              {t("settingsSync.commentsDiagRetrying", {
+                error: diag.lastCommentsError.message,
+                count: diag.lastCommentsError.streak ?? 1,
+                max: SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
+                time: new Date(diag.lastCommentsError.at).toLocaleTimeString(),
+              })}
+            </Banner>
+          ) : (
+            <Banner kind="error" rounded>{t("settingsSync.commentsFailed", { error: diag.lastCommentsError.message })}</Banner>
+          ))}
         <p className="m-hint">{t("settingsSync.diagStays")}</p>
       </div>
       {/* Android's own record of why the app last ended (plan 2026-09-04, P1):

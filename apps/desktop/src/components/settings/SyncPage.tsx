@@ -644,6 +644,24 @@ export const SyncPage: React.FC<SyncPageProps> = (p) => {
                       {t("settingsSync.diagError", { error: diag.lastError.message })}
                     </Banner>
                   ))}
+                {/* The comment step's own record (issue 113), rendered by the same
+                    rule: neutral while it is waited out, red once it is an
+                    answer. Unreadable comment files are not here. */}
+                {diag.lastCommentsError &&
+                  (settingsSyncFailureIsWaiting(diag.lastCommentsError) ? (
+                    <Banner kind="info" data-testid="sync-diag-comments-retrying">
+                      {t("settingsSync.commentsDiagRetrying", {
+                        error: diag.lastCommentsError.message,
+                        count: diag.lastCommentsError.streak ?? 1,
+                        max: SETTINGS_SYNC_FAILURES_BEFORE_ERROR,
+                        time: new Date(diag.lastCommentsError.at).toLocaleTimeString(),
+                      })}
+                    </Banner>
+                  ) : (
+                    <Banner kind="error" data-testid="sync-diag-comments-error">
+                      {t("settingsSync.commentsFailed", { error: diag.lastCommentsError.message })}
+                    </Banner>
+                  ))}
                 <SettingCardNote>{t("settingsSync.diagStays")}</SettingCardNote>
               </>
             );

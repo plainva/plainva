@@ -1,6 +1,6 @@
 # Comments & Suggestions
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Comments and suggestions exist in **every** vault — with or without sync, with or without encryption. In an encrypted workspace they are signed objects (see [Security & Sharing](Security_and_Sharing.md)); everywhere else they carry the name from **Your name (remarks and reviews)** in the settings. A suggestion is a comment with a replacement text: both run through the same store, the same column, the same sheet. If the name is missing, Plainva asks for it once at the first comment; without an answer the device signs with its own label (such as “Windows device 4f3a”). Your own remarks read **You**.
 
@@ -43,6 +43,8 @@ When a gathered notification reports several new remarks, its click opens the ov
 Without a workspace the remarks live in the vault under `.plainva/sync/`, one file per device, `comments.<device>.json` — sealed as `.enc` once a sync passphrase exists. They are never written into the note, and no reply lands in its version history. Every device writes only its own file and reads all of them, which is why nothing collides when the folder is shared through Dropbox, iCloud, Syncthing, a network share or Git: the files travel like any other, and in a Git vault they belong in the history. A Plainva sync connection carries them as well. All devices should run the same Plainva version: an older one reads only the earlier shared file `comments.json`, which is still read but no longer written.
 
 When another device's file arrives through a foreign sync, the desktop shows it as soon as the folder reports it; the phone on the next open or on the return to the foreground.
+
+If the remarks cannot be carried to the sync target — the server is unreachable, refuses the comment files, or answers in a way Plainva cannot use — your notes keep syncing as before; only the remarks wait. A short interruption is simply retried. If it persists, Plainva says so **once**, not on every sync cycle, and the same failure is not announced again until a cycle has succeeded. The current state is shown in the sync settings under **What the sync last did**; a diagnostics export from **About & diagnostics** contains the technical reason, without any comment text.
 
 When the vault has a sync passphrase that has not been entered on this device, the remarks are **locked**: column, sheet and overview say so and offer **Unlock**. Nothing is read or written until then — a locked device never puts a plaintext file beside the sealed one.
 

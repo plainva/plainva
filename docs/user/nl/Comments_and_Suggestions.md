@@ -1,6 +1,6 @@
 # Opmerkingen en voorstellen
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchronisatie, met of zonder versleuteling. In een versleutelde workspace zijn het ondertekende objecten (zie [Beveiliging en delen](Security_and_Sharing.md)); overal elders dragen ze de naam uit **Je naam (opmerkingen en controles)** in de instellingen. Een voorstel is een opmerking met een vervangende tekst: beide lopen door dezelfde opslag, dezelfde kolom, hetzelfde blad. Ontbreekt de naam, dan vraagt Plainva er bij de eerste opmerking één keer naar; zonder antwoord ondertekent het apparaat met zijn eigen label (bijvoorbeeld „Windows-apparaat 4f3a”). Je eigen opmerkingen staan er als **Jij**.
 
@@ -43,6 +43,8 @@ Meldt een gebundelde melding meerdere nieuwe opmerkingen, dan opent een klik ero
 Zonder workspace staan de opmerkingen in de kluis onder `.plainva/sync/`, één bestand per apparaat, `comments.<apparaat>.json` — verzegeld als `.enc` zodra er een synchronisatie-wachtwoordzin is. Ze worden nooit in de notitie geschreven en geen antwoord belandt in haar versiegeschiedenis. Elk apparaat schrijft alleen zijn eigen bestand en leest ze allemaal; daarom botst er niets wanneer de map via Dropbox, iCloud, Syncthing, een netwerkshare of Git wordt gedeeld — de bestanden reizen mee als elk ander, en in een Git-kluis horen ze in de geschiedenis. Een Plainva-synchronisatieverbinding vervoert ze ook zelf. Alle apparaten horen dezelfde Plainva-versie te hebben: een oudere leest alleen het eerdere gedeelde bestand `comments.json`, dat nog wel gelezen maar niet meer geschreven wordt.
 
 Komt het bestand van een ander apparaat via een vreemde synchronisatie aan, dan toont de desktop het zodra de map het meldt; de telefoon bij het volgende openen of bij terugkeer naar de voorgrond.
+
+Kunnen de opmerkingen het synchronisatiedoel niet bereiken — de server is onbereikbaar, weigert de commentaarbestanden of antwoordt op een manier waar Plainva niets mee kan —, dan blijven je notities gewoon synchroniseren; alleen de opmerkingen wachten. Een korte onderbreking wordt eenvoudig opnieuw geprobeerd. Houdt de storing aan, dan meldt Plainva dat **één keer**, niet bij elke ronde, en dezelfde storing wordt pas opnieuw gemeld nadat een ronde is gelukt. De huidige stand staat in de synchronisatie-instellingen onder **Wat de synchronisatie het laatst deed**; een diagnose-export uit **Over & diagnose** bevat de technische reden, zonder commentaartekst.
 
 Heeft de kluis een synchronisatie-wachtwoordzin die op dit apparaat niet is ingevoerd, dan zijn de opmerkingen **vergrendeld**: kolom, blad en overzicht zeggen dat en bieden **Ontgrendelen** aan. Tot dan wordt niets gelezen of geschreven — een vergrendeld apparaat zet nooit een bestand in klare tekst naast het verzegelde.
 

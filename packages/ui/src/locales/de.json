@@ -56,6 +56,7 @@
     "pullStarted": "Wird übernommen …",
     "secretsFailed": "Anmeldegeheimnisse wurden nicht synchronisiert: {{error}}",
     "commentsFailed": "Kommentare wurden nicht synchronisiert: {{error}}",
+    "commentsDiagRetrying": "Kommentare: wird erneut versucht — {{error}} ({{count}} von {{max}}) · zuletzt {{time}}",
     "secretsFailedSafe": "Anmeldegeheimnisse wurden nicht synchronisiert. Die redigierte Diagnose enthält den sicheren Fehlergrund.",
     "secretsWaiting_one": "Eine Anmeldung wartet auf ihr Konto — dieses Gerät kennt das Konto noch nicht. Es kommt mit dem nächsten Abgleich.",
     "secretsWaiting_other": "{{count}} Anmeldungen warten auf ihre Konten — dieses Gerät kennt sie noch nicht. Sie kommen mit dem nächsten Abgleich.",

@@ -1,6 +1,6 @@
 # Commentaires et suggestions
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Les commentaires et les suggestions existent dans **chaque** coffre — avec ou sans synchronisation, avec ou sans chiffrement. Dans un espace chiffré ce sont des objets signés (voir [Sécurité et partage](Security_and_Sharing.md)) ; partout ailleurs ils portent le nom saisi sous **Votre nom (annotations et relectures)** dans les réglages. Une suggestion est un commentaire avec un texte de remplacement : les deux passent par le même stockage, la même colonne, la même feuille. Si le nom manque, Plainva le demande une fois au premier commentaire ; sans réponse, l’appareil signe avec sa propre étiquette (par exemple « Appareil Windows 4f3a »). Vos propres annotations s’affichent comme **Vous**.
 
@@ -43,6 +43,8 @@ Quand une notification groupée signale plusieurs remarques nouvelles, son clic 
 Sans espace de travail, les annotations vivent dans le coffre sous `.plainva/sync/`, un fichier par appareil, `comments.<appareil>.json` — scellé en `.enc` dès qu’une phrase secrète de synchronisation existe. Elles ne sont jamais écrites dans la note et aucune réponse n’atterrit dans son historique des versions. Chaque appareil n’écrit que son propre fichier et lit tous les autres : c’est pourquoi rien n’entre en collision quand le dossier est partagé par Dropbox, iCloud, Syncthing, un partage réseau ou Git — les fichiers voyagent comme les autres, et dans un coffre Git ils font partie de l’historique. Une connexion de synchronisation Plainva les transporte aussi. Tous les appareils devraient avoir la même version de Plainva : une version plus ancienne ne lit que l’ancien fichier commun `comments.json`, toujours lu mais plus jamais écrit.
 
 Quand le fichier d’un autre appareil arrive par une synchronisation tierce, le bureau l’affiche dès que le dossier le signale ; le téléphone à la prochaine ouverture ou au retour au premier plan.
+
+Si les annotations ne peuvent pas être transmises à la cible de synchronisation — serveur injoignable, fichiers de commentaires refusés ou réponse inexploitable pour Plainva —, vos notes continuent de se synchroniser comme avant ; seules les annotations attendent. Une courte interruption est simplement retentée. Si elle persiste, Plainva le signale **une fois**, pas à chaque cycle, et la même panne n’est plus annoncée tant qu’aucun cycle n’a réussi. L’état actuel figure dans les réglages de synchronisation sous **Ce que la synchronisation a fait en dernier** ; un export de diagnostic depuis **À propos et diagnostic** contient la raison technique, sans aucun texte de commentaire.
 
 Si le coffre a une phrase secrète de synchronisation qui n’a pas été saisie sur cet appareil, les annotations sont **verrouillées** : la colonne, la feuille et la vue d’ensemble le disent et proposent **Déverrouiller**. Rien n’est lu ni écrit avant — un appareil verrouillé ne pose jamais un fichier en clair à côté du fichier scellé.
 

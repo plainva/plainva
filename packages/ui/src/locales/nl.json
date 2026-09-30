@@ -56,6 +56,7 @@
     "pullStarted": "Overnemen …",
     "secretsFailed": "Aanmeldgegevens zijn niet gesynchroniseerd: {{error}}",
     "commentsFailed": "Opmerkingen zijn niet gesynchroniseerd: {{error}}",
+    "commentsDiagRetrying": "Opmerkingen: wordt opnieuw geprobeerd — {{error}} ({{count}} van {{max}}) · laatste {{time}}",
     "secretsFailedSafe": "Aanmeldgegevens zijn niet gesynchroniseerd. De geredigeerde diagnose bevat de veilige foutreden.",
     "secretsWaiting_one": "Eén aanmelding wacht op zijn account — dit apparaat kent dat account nog niet. Het komt mee met de volgende synchronisatie.",
     "secretsWaiting_other": "{{count}} aanmeldingen wachten op hun accounts — dit apparaat kent ze nog niet. Ze komen mee met de volgende synchronisatie.",

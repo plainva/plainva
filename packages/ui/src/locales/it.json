@@ -56,6 +56,7 @@
     "pullStarted": "Recupero …",
     "secretsFailed": "Le credenziali non sono state sincronizzate: {{error}}",
     "commentsFailed": "I commenti non sono stati sincronizzati: {{error}}",
+    "commentsDiagRetrying": "Commenti: nuovo tentativo — {{error}} ({{count}} di {{max}}) · ultimo {{time}}",
     "secretsFailedSafe": "Le credenziali non sono state sincronizzate. La diagnostica redatta contiene il motivo sicuro dell’errore.",
     "secretsWaiting_many": "{{count}} accessi sono in attesa dei loro account: questo dispositivo non li conosce ancora. Arriveranno con la prossima sincronizzazione.",
     "secretsWaiting_one": "Un accesso è in attesa del suo account: questo dispositivo non lo conosce ancora. Arriverà con la prossima sincronizzazione.",

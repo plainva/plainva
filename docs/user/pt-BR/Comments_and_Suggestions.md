@@ -1,6 +1,6 @@
 # Comentários e sugestões
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Comentários e sugestões existem em **todo** cofre — com ou sem sincronização, com ou sem criptografia. Em um workspace criptografado são objetos assinados (veja [Segurança e compartilhamento](Security_and_Sharing.md)); em todos os outros levam o nome de **Seu nome (anotações e revisões)** nas configurações. Uma sugestão é um comentário com um texto de substituição: ambos passam pelo mesmo armazenamento, pela mesma coluna, pela mesma folha. Se o nome faltar, o Plainva pergunta uma vez no primeiro comentário; sem resposta, o dispositivo assina com o próprio rótulo (por exemplo “Dispositivo Windows 4f3a”). Suas próprias anotações aparecem como **Você**.
 
@@ -43,6 +43,8 @@ Quando uma notificação agrupada relata várias anotações novas, seu clique a
 Sem workspace, as anotações ficam no cofre em `.plainva/sync/`, um arquivo por dispositivo, `comments.<dispositivo>.json` — selado como `.enc` quando existe uma frase-senha de sincronização. Nunca são gravadas na nota e nenhuma resposta vai para o histórico de versões dela. Cada dispositivo grava só o próprio arquivo e lê todos, por isso nada colide quando a pasta é compartilhada por Dropbox, iCloud, Syncthing, um compartilhamento de rede ou Git: os arquivos viajam como qualquer outro e, em um cofre Git, pertencem ao histórico. Uma conexão de sincronização do Plainva também os transporta. Todos os dispositivos devem ter a mesma versão do Plainva: uma mais antiga lê apenas o antigo arquivo compartilhado `comments.json`, que ainda é lido, mas não é mais gravado.
 
 Quando o arquivo de outro dispositivo chega por uma sincronização externa, o desktop o mostra assim que a pasta avisa; o celular na próxima abertura ou ao voltar ao primeiro plano.
+
+Se as anotações não puderem chegar ao destino de sincronização — o servidor está inacessível, recusa os arquivos de comentários ou responde de um jeito que o Plainva não consegue usar —, suas notas continuam sincronizando como antes; só as anotações esperam. Uma interrupção curta é simplesmente tentada de novo. Se ela persistir, o Plainva avisa **uma vez**, não a cada ciclo, e a mesma falha só é anunciada de novo depois que um ciclo tiver dado certo. O estado atual aparece nas configurações de sincronização, em **O que a sincronização fez por último**; uma exportação de diagnóstico em **Sobre e diagnóstico** traz o motivo técnico, sem nenhum texto de comentário.
 
 Se o cofre tem uma frase-senha de sincronização que não foi digitada neste dispositivo, as anotações estão **bloqueadas**: coluna, folha e visão geral dizem isso e oferecem **Desbloquear**. Até lá nada é lido ou gravado — um dispositivo bloqueado nunca coloca um arquivo em texto simples ao lado do selado.
 

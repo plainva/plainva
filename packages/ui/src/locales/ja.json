@@ -56,6 +56,7 @@
     "pullStarted": "取り込み中 …",
     "secretsFailed": "サインイン情報を同期できませんでした: {{error}}",
     "commentsFailed": "コメントを同期できませんでした: {{error}}",
+    "commentsDiagRetrying": "コメント: 再試行します — {{error}}（{{count}} / {{max}}）· 最終 {{time}}",
     "secretsFailedSafe": "サインイン情報を同期できませんでした。編集済み診断に安全なエラー理由があります。",
     "secretsWaiting_other": "{{count}} 件のサインインがアカウントを待っています。このデバイスはまだそのアカウントを認識していません。次回の同期で届きます。",
     "step1": "1 · 設定とアカウント",
