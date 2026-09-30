@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import i18n from "@plainva/ui/i18n";
 import {
@@ -210,6 +210,11 @@ export function useMobileAi(vault: MobileVault | null) {
   const [policy, setPolicy] = useState<VaultPolicyHost | null>(null);
   // Search by meaning (plan KI-Harness P2a-4/5) follows the same per-device settings; an own provider goes through this session's egress.
   const embeddings = useMobileEmbeddings(vault, state.loaded ? state.settings : null, { session: s, files: mobileAiFiles });
+  // The vault host is built once per vault; the context package reads the controller when a message is built.
+  const embeddingsRef = useRef(embeddings);
+  useLayoutEffect(() => {
+    embeddingsRef.current = embeddings;
+  });
 
   useEffect(() => {
     const onSheet = (event: Event) => setSheet({ path: (event as CustomEvent<{ path: string | null }>).detail?.path ?? null });
@@ -330,6 +335,8 @@ export function useMobileAi(vault: MobileVault | null) {
           }
         },
         now: () => Date.now(),
+        // Search by meaning of this vault (plan P2b): read when a message is built, never while rendering.
+        semanticCandidates: async (question, limit, options) => (await embeddingsRef.current?.semanticCandidates(question, limit, options)) ?? [],
       },
       toolDeps: {
         async search(q, limit, offset) {

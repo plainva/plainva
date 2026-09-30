@@ -65,7 +65,7 @@ Wiersz pod każdą odpowiedzią otwiera przegląd tego, co z nią poszło. Jeśl
 
 ## Pokaż kontekst
 
-Oko pod polem wpisywania, **Pokaż kontekst**, pokazuje, co zabrałoby następne zapytanie — zanim wyjdzie, dla wybranego teraz modelu. Przy każdej notatce: dlaczego została wybrana (otwarta teraz, przypięta, pasuje do Twoich słów, połączona, wkrótce termin …), która część idzie i w przybliżeniu ile tokenów. Każdą notatkę można
+Oko pod polem wpisywania, **Pokaż kontekst**, pokazuje, co zabrałoby następne zapytanie — zanim wyjdzie, dla wybranego teraz modelu. Przy każdej notatce: dlaczego została wybrana (otwarta teraz, przypięta, pasuje do Twoich słów, bliskie znaczeniowo, połączona, wkrótce termin …), która część idzie i w przybliżeniu ile tokenów. Każdą notatkę można
 
 - pominąć w następnym zapytaniu (**Przywróć** ją przywraca),
 - przypiąć do rozmowy,

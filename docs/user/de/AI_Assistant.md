@@ -65,7 +65,7 @@ Die Zeile unter jeder Antwort öffnet die Übersicht dessen, was mit ihr ging. N
 
 ## Kontext einsehen
 
-Das Auge unter dem Eingabefeld, **Kontext einsehen**, zeigt, was die nächste Anfrage mitnähme — bevor sie geht, für das gerade gewählte Modell. Zu jeder Notiz: warum sie gewählt wurde (gerade offen, angeheftet, passt zu Deinen Worten, verlinkt, bald fällig …), welcher Teil mitgeht und ungefähr wie viele Token. Jede Notiz kannst Du
+Das Auge unter dem Eingabefeld, **Kontext einsehen**, zeigt, was die nächste Anfrage mitnähme — bevor sie geht, für das gerade gewählte Modell. Zu jeder Notiz: warum sie gewählt wurde (gerade offen, angeheftet, passt zu Deinen Worten, ähnlich in der Bedeutung, verlinkt, bald fällig …), welcher Teil mitgeht und ungefähr wie viele Token. Jede Notiz kannst Du
 
 - aus der nächsten Anfrage weglassen (**Wieder aufnehmen** holt sie zurück),
 - ans Gespräch heften,

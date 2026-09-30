@@ -283,6 +283,7 @@
         "active": "ouverte maintenant",
         "pinned": "épinglée",
         "lexical": "correspond à vos mots",
+        "semantic": "proche par le sens",
         "graph": "liée",
         "opened": "ouverte récemment",
         "edited": "modifiée récemment",

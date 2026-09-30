@@ -2,6 +2,7 @@ import {
   DEFAULT_AI_POLICY,
   EDITED_HALF_LIFE_MS,
   effectivePolicy,
+  isCloudRecipient,
   ENCRYPTED_WORKSPACE_AI_POLICY,
   notePolicyFrom,
   OPENED_HALF_LIFE_MS,
@@ -119,6 +120,8 @@ export interface CandidateRetrieval {
   /** Opened on this device, newest first (`.plainva/recents.json`). */
   recentlyOpened(): Promise<{ path: string; openedAt: number }[]>;
   now(): number;
+  /** Notes close in meaning (plan P2b); absent while the vault has no search by meaning. */
+  semanticCandidates?(question: string, limit: number, options: { cloudQuestion: boolean }): Promise<{ path: string; ordinal: number; hash: string; score: number }[]>;
 }
 
 const noteTitle = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
@@ -129,14 +132,16 @@ const noteTitle = (path: string) => path.slice(path.lastIndexOf("/") + 1).replac
  * opened lately. Nothing here is gated or ranked — the package does both,
  * the gate first.
  */
-export async function gatherCandidates(retrieval: CandidateRetrieval, question: string, activePath: string | null): Promise<Candidate[][]> {
+export async function gatherCandidates(retrieval: CandidateRetrieval, question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]> {
   const now = retrieval.now();
   const terms = questionTerms(question);
-  const [hits, neighbors, changed, opened] = await Promise.all([
+  const cloudQuestion = recipient ? isCloudRecipient(recipient) : false;
+  const [hits, neighbors, changed, opened, meaning] = await Promise.all([
     terms.length ? retrieval.searchCandidates(terms, 30).catch(() => []) : Promise.resolve([]),
     activePath ? retrieval.linkNeighbors(activePath, 20).catch(() => []) : Promise.resolve([]),
     retrieval.recentlyChanged(20).catch(() => []),
     retrieval.recentlyOpened().catch(() => []),
+    retrieval.semanticCandidates ? retrieval.semanticCandidates(question, 20, { cloudQuestion }).catch(() => []) : Promise.resolve([]),
   ]);
   const best = Math.max(...hits.map((h) => h.score), 0) || 1;
   return [
@@ -146,6 +151,7 @@ export async function gatherCandidates(retrieval: CandidateRetrieval, question: 
     opened
       .filter((o) => /\.md$/i.test(o.path))
       .map((o) => ({ path: o.path, title: noteTitle(o.path), signals: { opened: recencySignal(now - o.openedAt, OPENED_HALF_LIFE_MS) } })),
+    meaning.map((m) => ({ path: m.path, title: noteTitle(m.path), signals: { semantic: m.score }, chunk: { ordinal: m.ordinal, hash: m.hash } })),
   ];
 }
 
@@ -156,7 +162,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     activeNote: input.activeNote,
     readNote: input.readNote,
     situation: input.situation,
-    candidates: (question, activePath) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath) : Promise.resolve([])),
+    candidates: (question, activePath, recipient) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient) : Promise.resolve([])),
     policy: input.policy,
     ...(input.keepOnDevice ? { keepOnDevice: input.keepOnDevice } : {}),
     ...(input.propose ? { propose: input.propose } : {}),

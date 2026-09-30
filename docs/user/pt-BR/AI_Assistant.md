@@ -65,7 +65,7 @@ A linha sob cada resposta abre o resumo do que foi com ela. Se uma resposta não
 
 ## Ver contexto
 
-O olho abaixo do campo de entrada, **Ver contexto**, mostra o que a próxima solicitação levaria — antes de sair, para o modelo escolhido agora. Para cada nota: por que foi escolhida (aberta agora, fixada, combina com suas palavras, vinculada, vence em breve …), qual parte vai e aproximadamente quantos tokens. Cada nota você pode
+O olho abaixo do campo de entrada, **Ver contexto**, mostra o que a próxima solicitação levaria — antes de sair, para o modelo escolhido agora. Para cada nota: por que foi escolhida (aberta agora, fixada, combina com suas palavras, próximo no significado, vinculada, vence em breve …), qual parte vai e aproximadamente quantos tokens. Cada nota você pode
 
 - deixar de fora da próxima solicitação (**Incluir de novo** a traz de volta),
 - fixar na conversa,

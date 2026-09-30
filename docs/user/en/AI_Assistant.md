@@ -65,7 +65,7 @@ The line under each answer opens the overview of what went with it. If an answer
 
 ## View context
 
-The eye below the input, **View context**, shows what the next request would carry — before it goes, for the model chosen now. For every note: why it was chosen (open now, pinned, matches your words, linked, due soon …), which part goes and roughly how many tokens. For each note you can
+The eye below the input, **View context**, shows what the next request would carry — before it goes, for the model chosen now. For every note: why it was chosen (open now, pinned, matches your words, close in meaning, linked, due soon …), which part goes and roughly how many tokens. For each note you can
 
 - leave it out of the next request (**Take back** brings it back),
 - pin it to the conversation,

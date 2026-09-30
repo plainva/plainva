@@ -117,7 +117,8 @@ export interface AiVaultHost {
   /** Where the user is right now (plan §7): the open note, tabs, due tasks, appointments. */
   situation(): Promise<SituationInput>;
   /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
-  candidates(question: string, activePath: string | null): Promise<Candidate[][]>;
+  /** The recipient decides whether a cloud embedding model may see the question (plan P2b). */
+  candidates(question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]>;
   policy: ContextPolicyHost;
   /** The tools of a run for this recipient, optionally narrowed (the MCP server's clients); null when this vault offers none. */
   tools(recipient: EgressRecipient, scope?: ToolScope): { names: readonly string[]; executor: ToolExecutor } | null;
@@ -776,7 +777,7 @@ export class AiSession {
     const tools = vault.tools(recipient);
     const situation = await vault.situation().catch(() => this.bareSituation());
     const seen = this.state.excludeActive ? { ...situation, active: null } : situation;
-    const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null).catch(() => [] as Candidate[][]);
+    const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
     const build = async (leaveOut: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
       const pack = await buildContextPackage(
         { question: message, recipient, situation: seen, candidates, pins: pins.filter((p) => !leaveOut.has(p)), alreadySent: sentStamps(turns), leaveOut },

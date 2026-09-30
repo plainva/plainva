@@ -2,6 +2,7 @@ import type { TextPart } from "../conversation.js";
 import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost } from "../chat.js";
 import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision, type GateExclusion } from "../egressGate.js";
 import { fenceUntrusted, payload } from "../trust.js";
+import { chunkNote } from "../embeddings/chunks.js";
 import { mergeCandidates, rankCandidates, urgencySignal, type Candidate, type CandidateSignal, type RankedCandidate } from "./ranking.js";
 import { firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
 import { withholdPlaces, withoutSensitiveProperties } from "./sensitive.js";
@@ -141,6 +142,7 @@ const REASON_WORDS: Record<CandidateSignal, string> = {
   active: "open now",
   pinned: "pinned",
   lexical: "matches the question",
+  semantic: "close in meaning to the question",
   graph: "linked with the open note",
   urgency: "has something due",
   edited: "changed recently",
@@ -234,7 +236,12 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const stamps: string[] = [];
   let evidenceChars = 0;
   const missing = new Set<string>();
-  const strong = (c: RankedCandidate) => (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0 || (c.signals.lexical ?? 0) >= 0.3;
+  const strong = (c: RankedCandidate) =>
+    (c.signals.active ?? 0) > 0 || (c.signals.pinned ?? 0) > 0 || (c.signals.lexical ?? 0) >= 0.3 || (c.signals.semantic ?? 0) >= 0.5;
+  /** Texts already chosen as evidence: the same section in two notes (a copy, a template) goes once (plan P2b). */
+  const chosenTexts = new Set<string>();
+  /** Found notes whose evidence would repeat a chosen text: named in the map, never sent a second time. */
+  const duplicates = new Set<string>();
   for (const candidate of ranked) {
     if (refs.filter((r) => r.tier === "evidence").length >= budget.evidence || evidenceChars >= budget.evidenceChars) break;
     if (!strong(candidate)) continue;
@@ -268,11 +275,27 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       }
     } else {
       const line = firstLineWith(body, terms);
-      const found = sectionAt(body, Math.max(line, 0));
-      section = found.chain;
-      text = clip(found.text, Math.min(budget.sectionChars, room)).text;
+      // Found by meaning and not by a word: the section the meaning came from, not the note's beginning.
+      const chunk = line < 0 && candidate.chunk ? chunkNote(read.title || candidate.title, read.text).find((c) => c.ordinal === candidate.chunk!.ordinal) : undefined;
+      if (chunk && chunk.to > chunk.from) {
+        section = chunk.chain;
+        text = clip(read.text.slice(chunk.from, chunk.to).trim(), Math.min(budget.sectionChars, room)).text;
+      } else {
+        const found = sectionAt(body, Math.max(line, 0));
+        section = found.chain;
+        text = clip(found.text, Math.min(budget.sectionChars, room)).text;
+      }
     }
     text = await clean(text, candidate.path);
+    // The same words, however the lines end: a copied section is one source.
+    const sameText = contextStamp(text.replace(/\s+/g, " ").trim());
+    // What the user put there (a pin, the open note) always goes; only what the search found gives way.
+    const chosen = (candidate.signals.pinned ?? 0) > 0 || (candidate.signals.active ?? 0) > 0;
+    if (!chosen && text.trim() && chosenTexts.has(sameText)) {
+      duplicates.add(candidate.path);
+      continue;
+    }
+    chosenTexts.add(sameText);
     const stamp = `${candidate.path}#${contextStamp(text)}`;
     const title = read.title || candidate.title;
     if (input.alreadySent?.has(stamp)) {
@@ -295,14 +318,15 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   // Not what the text check denied, and not what the index still lists but the vault no longer has.
   const rest = ranked.filter((c) => !inEvidence.has(c.path) && !missing.has(c.path) && decisions.get(c.path)?.allowed !== false);
   const cards: string[] = [];
-  for (const candidate of rest.slice(0, budget.cards)) {
+  const carded = rest.filter((c) => !duplicates.has(c.path)).slice(0, budget.cards);
+  for (const candidate of carded) {
     const why = candidate.reasons.slice(0, 2).map((r) => REASON_WORDS[r]).join(", ");
     const snippet = candidate.snippet ? (await clean(candidate.snippet, candidate.path)).replace(/\s+/g, " ").trim() : "";
     cards.push(`- [[${candidate.title}]] (${candidate.path}) — ${why}${snippet ? `: ${snippet}` : ""}`);
     refs.push({ path: candidate.path, title: candidate.title, tier: "card", reasons: candidate.reasons, score: candidate.score, chars: snippet.length });
   }
   const map: string[] = [];
-  for (const candidate of rest.slice(budget.cards, budget.cards + budget.map)) {
+  for (const candidate of rest.filter((c) => !carded.includes(c)).slice(0, budget.map)) {
     map.push(`- [[${candidate.title}]] (${candidate.path})`);
     refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: 0 });
   }

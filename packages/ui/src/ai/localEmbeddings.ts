@@ -20,6 +20,7 @@ import {
   isLocalTarget,
   measureEngine,
   probeAgreement,
+  prominence,
   providerEngineId,
   standingManifestOf,
   usageCostUsd,
@@ -135,6 +136,40 @@ export interface MeasurementReport {
   checks: BudgetCheck[];
   /** When it was measured (ISO 8601). */
   at: string;
+}
+
+/**
+ * A note close in meaning to a question, for the context package (plan P2b):
+ * its closest section and a signal from how far it stands out of the vault.
+ */
+export interface SemanticCandidate {
+  path: string;
+  ordinal: number;
+  hash: string;
+  /** 0.05–1; 0.5 and more is strong enough for evidence. */
+  score: number;
+}
+
+/**
+ * How far a hit must stand out of the vault's band for the question (robust
+ * deviations, `prominence`) to take part, and to be strong. Measured on the
+ * embedding spike's corpus (308 notes, 90 questions in ten languages,
+ * 01.10.): from 2 on, 80 % of the notes that answer take part and about 8
+ * notes per question; from 4 on, one to three notes per question, the ones
+ * worth sending as evidence. A cosine or its ratio to the best hit says
+ * nothing here: the default model puts every note of a vault between 0.7 and
+ * 0.9, and the best hit's ratio is 1 for any question.
+ */
+const CANDIDATE_PROMINENCE = 2;
+const STRONG_PROMINENCE = 4;
+/** Below this many notes a vault's band has no shape: meaning adds no candidates, the words still do. */
+const MIN_SPREAD_NOTES = 10;
+/** At or above this cosine two sections are one source. */
+const NEAR_DUPLICATE_COSINE = 0.95;
+
+/** The signal of a prominence: 0.5 at the strong line, 1 twice as far out, never below 0.05. */
+function prominenceSignal(lead: number): number {
+  return Math.min(1, Math.max(0.05, (0.5 * (lead - CANDIDATE_PROMINENCE)) / (STRONG_PROMINENCE - CANDIDATE_PROMINENCE)));
 }
 
 /** What this device keeps for search by meaning but does not use now. */
@@ -555,6 +590,30 @@ export class LocalEmbeddings {
       this.pauses.delete("measure");
       this.set({ measuring: false });
       if (!this.pauses.size) void this.scheduler?.resume();
+    }
+  }
+
+  /**
+   * Notes close in meaning to a question, for the context of a message (plan
+   * P2b): none while no engine is ready. A cloud embedding model gets the
+   * question only when the conversation goes to a cloud itself — a local
+   * conversation stays local. A hit counts by how far it stands out of the
+   * vault's band for this question; near-duplicates count once.
+   */
+  async semanticCandidates(question: string, limit: number, options: { cloudQuestion: boolean }): Promise<SemanticCandidate[]> {
+    const engine = this.state.engine;
+    const indexer = this.indexer;
+    if (engine.kind !== "ready" || !indexer || !question.trim() || limit <= 0) return [];
+    if (engine.source.kind === "provider" && engine.source.target && !isLocalTarget(engine.source.target) && !options.cloudQuestion) return [];
+    try {
+      const { hits, spread } = await indexer.rankedSearch(question, limit * 2);
+      if (spread.notes < MIN_SPREAD_NOTES) return [];
+      const prominent = hits.filter((hit) => prominence(hit.score, spread) >= CANDIDATE_PROMINENCE);
+      const kept = (await indexer.distinct(prominent, NEAR_DUPLICATE_COSINE)).slice(0, limit);
+      return kept.map((hit) => ({ path: hit.path, ordinal: hit.ordinal, hash: hit.hash, score: prominenceSignal(prominence(hit.score, spread)) }));
+    } catch {
+      // Meaning could not answer (a provider out of reach): the words still can.
+      return [];
     }
   }
 

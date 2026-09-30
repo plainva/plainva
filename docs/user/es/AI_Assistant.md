@@ -65,7 +65,7 @@ La línea bajo cada respuesta abre el resumen de lo que se envió con ella. Si u
 
 ## Ver contexto
 
-El ojo bajo el campo de entrada, **Ver contexto**, muestra lo que llevaría la próxima solicitud, antes de que salga, para el modelo elegido ahora. Para cada nota: por qué se eligió (abierta ahora, fijada, coincide con tus palabras, enlazada, vence pronto…), qué parte va y aproximadamente cuántos tokens. Cada nota puedes
+El ojo bajo el campo de entrada, **Ver contexto**, muestra lo que llevaría la próxima solicitud, antes de que salga, para el modelo elegido ahora. Para cada nota: por qué se eligió (abierta ahora, fijada, coincide con tus palabras, cercano en significado, enlazada, vence pronto…), qué parte va y aproximadamente cuántos tokens. Cada nota puedes
 
 - dejarla fuera de la próxima solicitud (**Volver a incluir** la recupera),
 - fijarla a la conversación,

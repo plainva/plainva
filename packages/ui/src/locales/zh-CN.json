@@ -265,6 +265,7 @@
         "active": "当前打开",
         "pinned": "已固定",
         "lexical": "与你的用词匹配",
+        "semantic": "含义相近",
         "graph": "有链接",
         "opened": "最近打开",
         "edited": "最近更改",

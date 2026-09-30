@@ -265,6 +265,7 @@
         "active": "開いている",
         "pinned": "ピン留め",
         "lexical": "言葉に一致",
+        "semantic": "意味が近い",
         "graph": "リンク",
         "opened": "最近開いた",
         "edited": "最近変更",

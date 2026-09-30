@@ -65,7 +65,7 @@ La riga sotto ogni risposta apre il riepilogo di ciò che è partito con essa. S
 
 ## Vedi contesto
 
-L'occhio sotto il campo di testo, **Vedi contesto**, mostra ciò che porterebbe la prossima richiesta — prima che parta, per il modello scelto ora. Per ogni nota: perché è stata scelta (aperta ora, fissata, corrisponde alle tue parole, collegata, in scadenza…), quale parte parte e all'incirca quanti token. Ogni nota puoi
+L'occhio sotto il campo di testo, **Vedi contesto**, mostra ciò che porterebbe la prossima richiesta — prima che parta, per il modello scelto ora. Per ogni nota: perché è stata scelta (aperta ora, fissata, corrisponde alle tue parole, vicino per significato, collegata, in scadenza…), quale parte parte e all'incirca quanti token. Ogni nota puoi
 
 - escluderla dalla prossima richiesta (**Reincludi** la riporta),
 - fissarla alla conversazione,

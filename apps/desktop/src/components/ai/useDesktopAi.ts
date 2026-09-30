@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { LocalEmbeddings } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
@@ -41,6 +42,8 @@ export interface DesktopAiInput {
   openNote: (path: string) => void;
   /** Named navigation targets of the shell; absent ones are not offered. */
   navigation: Partial<Record<"graph" | "tasks" | "calendar" | "journal" | "mail" | "comments" | "leftSidebar" | "rightSidebar", () => void>>;
+  /** The vault's search by meaning (plan P2b): the context package ranks with it. */
+  embeddings?: LocalEmbeddings | null;
 }
 
 const NAVIGATION_LABELS: Record<keyof DesktopAiInput["navigation"], [id: string, label: string]> = {
@@ -131,6 +134,7 @@ export function useDesktopAi(input: DesktopAiInput) {
       events: async (from, to) => situationEvents((await pim.current?.cache.listEvents(from.getTime(), to.getTime())) ?? []),
       commands,
       commentOperations: () => comments.current,
+      semantic: () => latest.current.embeddings ?? null,
     });
     hostRef.current = host;
     void session.attachVault(host);

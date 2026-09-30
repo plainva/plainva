@@ -65,7 +65,7 @@ De regel onder elk antwoord opent het overzicht van wat ermee meeging. Noemt een
 
 ## Context bekijken
 
-Het oog onder het invoerveld, **Context bekijken**, toont wat het volgende verzoek zou meenemen — voordat het gaat, voor het model dat nu is gekozen. Bij elke notitie: waarom ze is gekozen (nu open, vastgezet, past bij je woorden, gelinkt, binnenkort …), welk deel meegaat en ongeveer hoeveel tokens. Elke notitie kun je
+Het oog onder het invoerveld, **Context bekijken**, toont wat het volgende verzoek zou meenemen — voordat het gaat, voor het model dat nu is gekozen. Bij elke notitie: waarom ze is gekozen (nu open, vastgezet, past bij je woorden, verwant in betekenis, gelinkt, binnenkort …), welk deel meegaat en ongeveer hoeveel tokens. Elke notitie kun je
 
 - weglaten uit het volgende verzoek (**Weer opnemen** haalt haar terug),
 - aan het gesprek vastzetten,

@@ -22,7 +22,7 @@ import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
 import { chunkNote, type NoteChunk } from "./chunks.js";
 import type { EmbeddingEngine } from "./engine.js";
-import { VectorIndex, type SemanticHit } from "./search.js";
+import { scoreSpread, VectorIndex, type ScoreSpread, type SemanticHit } from "./search.js";
 import { EmbeddingStore, type StoredChunkVector } from "./store.js";
 import { quantizeInt8, type QuantizedVector } from "./vectors.js";
 
@@ -240,19 +240,42 @@ export class EmbeddingIndexer {
    * before they take a place (a folder filter, the privacy gate).
    */
   async search(question: string, limit: number, accept?: (path: string) => boolean, signal?: AbortSignal): Promise<SemanticHit[]> {
+    return (await this.rankedSearch(question, limit, accept, signal)).hits;
+  }
+
+  /** As `search`, with how the question's closeness spreads over the vault (plan P2b: a hit counts by how far it stands out). */
+  async rankedSearch(question: string, limit: number, accept?: (path: string) => boolean, signal?: AbortSignal): Promise<{ hits: SemanticHit[]; spread: ScoreSpread }> {
     const index = await this.vectorIndex();
-    if (!index.noteCount || limit <= 0) return [];
+    if (!index.noteCount || limit <= 0) return { hits: [], spread: scoreSpread([]) };
     const [query] = await this.engine.embed([question], "query", signal);
     const current: SemanticHit[] = [];
+    let spread = scoreSpread([]);
     // Stale notes are skipped, so ask for more than needed and widen once if a sync left many behind.
     for (const wanted of [limit * 2 + 8, index.noteCount]) {
       current.length = 0;
-      const hits = index.search(query!, wanted, accept);
-      const shas = await this.currentShas(hits.map((hit) => hit.path));
-      for (const hit of hits) if (shas.get(hit.path) === index.sha256Of(hit.path)) current.push(hit);
-      if (current.length >= limit || hits.length < wanted) break;
+      const ranked = index.rank(query!, wanted, accept);
+      spread = ranked.spread;
+      const shas = await this.currentShas(ranked.hits.map((hit) => hit.path));
+      for (const hit of ranked.hits) if (shas.get(hit.path) === index.sha256Of(hit.path)) current.push(hit);
+      if (current.length >= limit || ranked.hits.length < wanted) break;
     }
-    return current.slice(0, limit);
+    return { hits: current.slice(0, limit), spread };
+  }
+
+  /**
+   * Hits without near-duplicates, best first: a hit whose section is the
+   * same text as a better one's, or almost the same meaning (cosine at or
+   * above `threshold`), is left out — two copies of a paragraph make one
+   * source, not two (plan P2b).
+   */
+  async distinct(hits: readonly SemanticHit[], threshold: number): Promise<SemanticHit[]> {
+    const index = await this.vectorIndex();
+    const kept: SemanticHit[] = [];
+    for (const hit of hits) {
+      if (kept.some((other) => other.hash === hit.hash || (index.similarity(other, hit) ?? 0) >= threshold)) continue;
+      kept.push(hit);
+    }
+    return kept;
   }
 
   private async currentShas(paths: readonly string[]): Promise<Map<string, string>> {

@@ -14,6 +14,8 @@ export type CandidateSignal =
   | "pinned"
   /** Full-text match with the question, relative to the best match. */
   | "lexical"
+  /** Close in meaning to the question (search by meaning, plan P2b), relative to the best hit. */
+  | "semantic"
   /** Link proximity to the open note: linked either way, or shared neighbours. */
   | "graph"
   /** Opened recently on this device (decays). */
@@ -27,12 +29,14 @@ export type CandidateSignal =
   /** Open in a tab or pane. */
   | "tab";
 
-export const CANDIDATE_SIGNALS: readonly CandidateSignal[] = ["active", "pinned", "lexical", "graph", "opened", "edited", "urgency", "daily", "tab"];
+export const CANDIDATE_SIGNALS: readonly CandidateSignal[] = ["active", "pinned", "lexical", "semantic", "graph", "opened", "edited", "urgency", "daily", "tab"];
 
 export const DEFAULT_RANK_WEIGHTS: Readonly<Record<CandidateSignal, number>> = {
   active: 4,
   pinned: 3.5,
   lexical: 2.5,
+  // Below the words: meaning finds what the words miss, the words stay the sharper evidence (an eval hypothesis, P2b-7).
+  semantic: 2,
   graph: 1.2,
   urgency: 1,
   edited: 0.8,
@@ -47,6 +51,8 @@ export interface Candidate {
   signals: Partial<Record<CandidateSignal, number>>;
   /** A query-focused excerpt from the search index, markers removed. */
   snippet?: string;
+  /** The closest section of a note found by meaning (plan P2b): its evidence is that section. */
+  chunk?: { ordinal: number; hash: string };
 }
 
 export interface RankedCandidate extends Candidate {
@@ -94,6 +100,7 @@ export function mergeCandidates(lists: readonly (readonly Candidate[])[]): Candi
         known.signals[signal] = Math.max(known.signals[signal] ?? 0, value);
       }
       if (!known.snippet && candidate.snippet) known.snippet = candidate.snippet;
+      if (!known.chunk && candidate.chunk) known.chunk = candidate.chunk;
     }
   }
   return [...byPath.values()];

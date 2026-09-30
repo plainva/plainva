@@ -274,6 +274,7 @@
         "active": "gerade offen",
         "pinned": "angeheftet",
         "lexical": "passt zu Deinen Worten",
+        "semantic": "ähnlich in der Bedeutung",
         "graph": "verlinkt",
         "opened": "zuletzt geöffnet",
         "edited": "zuletzt geändert",

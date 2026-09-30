@@ -17,6 +17,42 @@ export interface SemanticHit {
   score: number;
 }
 
+/**
+ * How closeness to one question spreads over the notes (plan P2b): the median
+ * of the notes' best scores and a robust deviation. A model's cosines sit in a
+ * band of their own — the default model puts unrelated notes near 0.7 — so a
+ * hit counts by how far it stands out of that band, not by its cosine or its
+ * ratio to the best, which always crowns something. Median and MAD, because
+ * the few notes that do answer must not widen the band they are measured
+ * against.
+ */
+export interface ScoreSpread {
+  /** The notes the question was compared with. */
+  notes: number;
+  /** The median of their best scores. */
+  center: number;
+  /** 1.4826 × the median absolute deviation: the standard deviation a normal spread with it would have. */
+  scale: number;
+}
+
+const median = (sorted: Float64Array): number => {
+  const n = sorted.length;
+  return n % 2 ? sorted[(n - 1) / 2]! : (sorted[n / 2 - 1]! + sorted[n / 2]!) / 2;
+};
+
+export function scoreSpread(scores: ArrayLike<number>): ScoreSpread {
+  if (!scores.length) return { notes: 0, center: 0, scale: 0 };
+  const sorted = Float64Array.from(scores).sort();
+  const center = median(sorted);
+  const deviations = sorted.map((score) => Math.abs(score - center)).sort();
+  return { notes: sorted.length, center, scale: 1.4826 * median(deviations) };
+}
+
+/** How far a score stands out: robust deviations above the spread's center; 0 without a spread. */
+export function prominence(score: number, spread: ScoreSpread): number {
+  return spread.scale > 0 ? (score - spread.center) / spread.scale : 0;
+}
+
 interface Packed {
   paths: string[];
   ordinals: Int32Array;
@@ -53,6 +89,30 @@ export class VectorIndex {
 
   removeNote(path: string): void {
     if (this.notes.delete(path)) this.packed = null;
+  }
+
+  /**
+   * The cosine of two stored sections (int8, scaled back); null when either
+   * is not in the index. Near-duplicates are told apart by it (plan P2b).
+   */
+  similarity(a: { path: string; ordinal: number }, b: { path: string; ordinal: number }): number | null {
+    const first = this.notes.get(a.path)?.chunks.find((chunk) => chunk.ordinal === a.ordinal)?.vector;
+    const second = this.notes.get(b.path)?.chunks.find((chunk) => chunk.ordinal === b.ordinal)?.vector;
+    if (!first || !second || first.values.length !== second.values.length) return null;
+    let dot = 0;
+    let na = 0;
+    let nb = 0;
+    for (let i = 0; i < first.values.length; i++) {
+      dot += first.values[i]! * second.values[i]!;
+      na += first.values[i]! * first.values[i]!;
+      nb += second.values[i]! * second.values[i]!;
+    }
+    return na > 0 && nb > 0 ? dot / Math.sqrt(na * nb) : 0;
+  }
+
+  /** A note's stored sections, or undefined when it has none. */
+  chunksOf(path: string): readonly StoredChunkVector[] | undefined {
+    return this.notes.get(path)?.chunks;
   }
 
   /** The note text a note's vectors were cut from, or undefined when it has none. */
@@ -101,6 +161,11 @@ export class VectorIndex {
    * search is limited to, a note that no longer exists).
    */
   search(query: Float32Array, limit: number, accept: (path: string) => boolean = () => true): SemanticHit[] {
+    return this.rank(query, limit, accept).hits;
+  }
+
+  /** As `search`, with how the question's closeness spreads over every accepted note. */
+  rank(query: Float32Array, limit: number, accept: (path: string) => boolean = () => true): { hits: SemanticHit[]; spread: ScoreSpread } {
     if (query.length !== this.dim) throw new Error(`vector index: a ${query.length}-dimensional question for ${this.dim} dimensions`);
     const packed = this.pack();
     const best = new Map<string, { score: number; row: number }>();
@@ -117,10 +182,12 @@ export class VectorIndex {
       const current = best.get(path);
       if (!current || score > current.score) best.set(path, { score, row });
     }
-    return [...best.entries()]
+    const entries = [...best.entries()];
+    const hits = entries
       .sort((a, b) => b[1].score - a[1].score || (a[0] < b[0] ? -1 : 1))
       .slice(0, limit)
       .map(([path, { score, row }]) => ({ path, ordinal: packed.ordinals[row]!, hash: packed.hashes[row]!, score }));
+    return { hits, spread: scoreSpread(entries.map(([, { score }]) => score)) };
   }
 }
 

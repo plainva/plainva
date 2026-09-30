@@ -274,6 +274,7 @@
         "active": "nu open",
         "pinned": "vastgezet",
         "lexical": "past bij je woorden",
+        "semantic": "verwant in betekenis",
         "graph": "gelinkt",
         "opened": "onlangs geopend",
         "edited": "onlangs gewijzigd",

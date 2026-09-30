@@ -283,6 +283,7 @@
         "active": "aperta ora",
         "pinned": "fissata",
         "lexical": "corrisponde alle tue parole",
+        "semantic": "vicino per significato",
         "graph": "collegata",
         "opened": "aperta di recente",
         "edited": "modificata di recente",

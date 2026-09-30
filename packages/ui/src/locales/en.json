@@ -274,6 +274,7 @@
         "active": "open now",
         "pinned": "pinned",
         "lexical": "matches your words",
+        "semantic": "close in meaning",
         "graph": "linked",
         "opened": "opened lately",
         "edited": "changed lately",

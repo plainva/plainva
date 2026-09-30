@@ -65,7 +65,7 @@ La ligne sous chaque réponse ouvre l'aperçu de ce qui est parti avec elle. Si 
 
 ## Voir le contexte
 
-L'œil sous le champ de saisie, **Voir le contexte**, montre ce que la prochaine requête emporterait — avant son départ, pour le modèle choisi maintenant. Pour chaque note : pourquoi elle a été choisie (ouverte maintenant, épinglée, correspond à vos mots, liée, échéance proche…), quelle partie part et environ combien de jetons. Chaque note peut être
+L'œil sous le champ de saisie, **Voir le contexte**, montre ce que la prochaine requête emporterait — avant son départ, pour le modèle choisi maintenant. Pour chaque note : pourquoi elle a été choisie (ouverte maintenant, épinglée, correspond à vos mots, proche par le sens, liée, échéance proche…), quelle partie part et environ combien de jetons. Chaque note peut être
 
 - retirée de la prochaine requête (**Réintégrer** la remet),
 - épinglée à la conversation,

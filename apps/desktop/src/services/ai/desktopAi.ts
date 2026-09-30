@@ -3,6 +3,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
 import type { AiAppSettings, CommentOperationService, IVaultAdapter, VaultQueryService } from "@plainva/core";
+import type { LocalEmbeddings } from "@plainva/ui";
 import {
   aiDefaultSettings,
   AiSession,
@@ -150,6 +151,8 @@ export interface DesktopVaultInput {
   commands: () => AiNavigationCommand[];
   /** The vault's comment service: where an AI suggestion round is written (plan P1.5). */
   commentOperations: () => CommentOperationService | null;
+  /** The vault's search by meaning, for the context package (plan P2b); null while there is none. */
+  semantic?: () => LocalEmbeddings | null;
 }
 
 let currentPolicy: VaultPolicyHost | null = null;
@@ -252,6 +255,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
         }
       },
       now: () => Date.now(),
+      semanticCandidates: async (question, limit, options) => (await input.semantic?.()?.semanticCandidates(question, limit, options)) ?? [],
     },
     toolDeps: {
       async search(query, limit, offset) {

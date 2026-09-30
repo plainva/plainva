@@ -546,6 +546,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     })();
   });
 
+  // Search by meaning (plan KI-Harness P2a-4/5, P2b): the vault's controller for the search, the settings and the context package.
+  const embeddings = useDesktopEmbeddings({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
   // The AI harness (plan KI-Harness P1a): one session of the central window;
   // the companion, the AI tab and the palette all show and drive it.
   const ai = useDesktopAi({
@@ -567,11 +569,10 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       leftSidebar: () => setLeftCollapsed((c) => !c),
       rightSidebar: toggleRightSidebar,
     },
+    embeddings,
   });
   // The global key handler binds these two, not the whole (per-render) object.
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
-  // Search by meaning (plan KI-Harness P2a-4/5): the vault's controller for the search and the settings.
-  const embeddings = useDesktopEmbeddings({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
 
   /**
    * The communications window: mail beside the calendar (multi-window P4, E4).
