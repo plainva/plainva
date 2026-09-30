@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-09-20
+Ultimo aggiornamento: 2026-09-30
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -153,6 +153,15 @@ Una nota giornaliera può contenere anche un **diario**: brevi voci con un orari
   ````
 
 - **Note a piè di pagina**: `Testo[^1]` più `[^1]: La nota a piè di pagina.` alla fine — la modalità lettura renderizza il riferimento e l'apparato delle note a piè di pagina con segni di salto. Il modo più rapido è il comando slash **Nota a piè di pagina** (`/footnote`): inserisce il prossimo riferimento libero e salta direttamente alla definizione in fondo alla nota.
+
+## Testo da destra a sinistra
+
+Arabo, ebraico, persiano e le altre scritture da destra a sinistra vengono composti automaticamente da destra a sinistra — paragrafo per paragrafo, senza impostazioni da attivare. Ogni paragrafo, titolo, elemento di elenco, riga di citazione e cella di tabella segue la sua prima lettera dopo la sintassi Markdown: un paragrafo che inizia con una parola araba parte da destra, uno che inizia con una parola latina da sinistra, e una stessa nota può mescolare entrambi. Punti elenco, caselle di spunta, barra della citazione e rientro passano a destra insieme al testo; la `x` di `- [x]` non conta come parola, quindi un'attività completata resta a destra. Una riga senza lettere (un numero, un nuovo elemento di elenco vuoto) mantiene la direzione della riga sopra.
+
+- La stessa regola vale in **Anteprima dal vivo**, in **Sorgente Markdown** e in **Modalità lettura**, sul computer come sul telefono, e sulle schede della **Bacheca appunti** e del **Diario**.
+- I blocchi di codice, le formule e le proprietà in cima a una nota restano sempre da sinistra a destra.
+- L'interfaccia mantiene la sua lingua e il suo layout: i nomi nell'albero dei file, nei risultati di ricerca e negli elenchi restano al loro posto e mostrano soltanto i loro caratteri nell'ordine giusto.
+- Un paragrafo che inizia con una parola latina (il nome di un prodotto, per esempio) va da sinistra a destra. Inizialo con una parola della tua lingua e si gira.
 
 ## Stampa e salvataggio come PDF
 

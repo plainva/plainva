@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-09-20
+Última revisão: 2026-09-30
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -153,6 +153,15 @@ Uma nota diária também pode conter um **diário**: entradas curtas com hora (`
   ````
 
 - **Notas de rodapé**: `Texto[^1]` mais `[^1]: A nota de rodapé.` no final — o modo de leitura renderiza a referência e o aparato de notas de rodapé com marcas de salto. O jeito mais rápido é o comando de barra **Nota de rodapé** (`/footnote`) — ele insere a próxima referência livre e pula direto para a definição no final da nota.
+
+## Texto da direita para a esquerda
+
+Árabe, hebraico, persa e as demais escritas da direita para a esquerda são compostos automaticamente da direita para a esquerda — parágrafo por parágrafo, sem nenhuma configuração para ligar. Cada parágrafo, título, item de lista, linha de citação e célula de tabela segue a primeira letra depois da sintaxe Markdown: um parágrafo que começa com uma palavra árabe corre a partir da direita, um que começa com uma palavra latina a partir da esquerda, e uma mesma nota pode misturar os dois. Marcadores, caixas de seleção, a barra de citação e o recuo vão para a direita junto com o texto; o `x` de `- [x]` não conta como palavra, então uma tarefa concluída continua à direita. Uma linha sem letras (um número, um item de lista novo e vazio) mantém a direção da linha de cima.
+
+- A mesma regra vale na **Visualização ao vivo**, no **Código Markdown** e no **Modo de leitura**, no computador e no celular, e nos cartões do **Mural** e do **Diário**.
+- Blocos de código, fórmulas e as propriedades no topo de uma nota ficam sempre da esquerda para a direita.
+- A interface mantém seu idioma e seu layout: nomes na árvore de arquivos, nos resultados de busca e nas listas ficam no lugar e apenas mostram seus caracteres na ordem certa.
+- Um parágrafo que começa com uma palavra latina (o nome de um produto, por exemplo) corre da esquerda para a direita. Comece-o com uma palavra do seu idioma e ele vira.
 
 ## Imprimir e salvar como PDF
 

@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-09-20
+Last updated: 2026-09-30
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -153,6 +153,15 @@ A daily note can also hold a **journal**: short entries with a time (`- 14:05 Te
   ````
 
 - **Footnotes**: `Text[^1]` plus `[^1]: The footnote.` at the end — read mode renders the reference and the footnote apparatus with jump marks. The fastest way is the **Footnote** slash command (`/footnote`): it inserts the next free reference and jumps straight into the definition at the end of the note.
+
+## Right-to-left text
+
+Arabic, Hebrew, Persian and other right-to-left scripts are set from right to left automatically — paragraph by paragraph, with no setting to switch. Every paragraph, heading, list item, quote line and table cell follows its first letter after the Markdown syntax: a paragraph that starts with an Arabic word runs from the right, one that starts with a Latin word from the left, and one note can mix both. Bullets, checkboxes, the quote bar and the indent move to the right with the text; the `x` in `- [x]` does not count as a word, so a finished task stays on the right. A line without letters (a number, a new empty list item) keeps the direction of the line above it.
+
+- The same rule applies in **Live Preview**, **Markdown Source** and **Read Mode**, on the desktop and on the phone, and on the cards of the **Pinboard** and the **Journal**.
+- Code blocks, formulas and the properties at the top of a note always stay left to right.
+- The interface keeps its language and its layout: names in the file tree, in search results and in lists stay where they are and only show their characters in the right order.
+- A paragraph that begins with a Latin word (a product name, say) runs left to right. Start it with a word in your language and it turns.
 
 ## Printing and saving as PDF
 

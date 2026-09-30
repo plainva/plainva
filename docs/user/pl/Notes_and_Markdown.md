@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-09-20
+Stan na: 2026-09-30
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -153,6 +153,15 @@ Notatka dzienna może też nieść **dziennik**: krótkie wpisy z godziną (`- 1
   ````
 
 - **Przypisy**: `Tekst[^1]` plus `[^1]: Treść przypisu.` na końcu — tryb czytania renderuje odnośnik i aparat przypisów ze znacznikami skoku. Najszybciej idzie to przez polecenie slash **Przypis** (`/footnote`) — wstawia kolejny wolny odnośnik i przenosi od razu do definicji na końcu notatki.
+
+## Tekst od prawej do lewej
+
+Arabski, hebrajski, perski i inne pisma zapisywane od prawej do lewej Plainva składa automatycznie od prawej do lewej — akapit po akapicie, bez żadnego ustawienia. Każdy akapit, nagłówek, element listy, wiersz cytatu i komórka tabeli kieruje się pierwszą literą po składni Markdown: akapit zaczynający się od arabskiego słowa biegnie od prawej, akapit zaczynający się od słowa łacińskiego od lewej, a jedna notatka może łączyć oba. Punktory, pola wyboru, pasek cytatu i wcięcie przechodzą razem z tekstem na prawą stronę; `x` w `- [x]` nie liczy się jako słowo, więc ukończone zadanie zostaje po prawej. Wiersz bez liter (liczba, nowy pusty element listy) zachowuje kierunek wiersza powyżej.
+
+- Ta sama zasada obowiązuje w trybach **Podgląd na żywo**, **Źródło Markdown** i **Tryb czytania**, na komputerze i na telefonie, a także na kartach w widokach **Tablica korkowa** i **Dziennik**.
+- Bloki kodu, wzory i właściwości na początku notatki zawsze pozostają od lewej do prawej.
+- Interfejs zachowuje swój język i układ: nazwy w drzewie plików, w wynikach wyszukiwania i na listach zostają na swoim miejscu i tylko wyświetlają swoje znaki we właściwej kolejności.
+- Akapit zaczynający się od słowa łacińskiego (na przykład nazwy produktu) biegnie od lewej do prawej. Zacznij go słowem w swoim języku, a się odwróci.
 
 ## Drukowanie i zapisywanie jako PDF
 
