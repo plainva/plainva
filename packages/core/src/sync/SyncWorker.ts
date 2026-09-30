@@ -7,7 +7,7 @@ import { IVaultAdapter } from "../vault/IVaultAdapter.js";
 import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";
 import { classifyTaskNotes, preserveDisplacedTask, taskNotesEquivalent } from "../pim/taskNoteIdentity.js";
 import { isTextFile } from "./fileType.js";
-import { findCollidingPath } from "./pathIdentity.js";
+import { findCollidingPath, type NameCollision } from "./pathIdentity.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, type SyncErrorKind } from "./errorKind.js";
@@ -92,22 +92,9 @@ export interface JournalCheckResult {
 }
 
 
-/**
- * Two paths the remote cannot tell apart — reported, never resolved by the core.
- *
- * This used to leave here as one English sentence built with string
- * concatenation, which the shells rendered unchanged: German users got English,
- * and neither shell could offer an action because it had nothing but prose
- * (finding 2026-08-21). The core has no language; it has facts.
- *
- * `path` is the file this device knows, `twin` the spelling the remote lists.
- * Deliberately no size or date: the core holds neither for the twin, and a
- * number it would have to fetch is a number it should not promise.
- */
-export interface NameCollision {
-  path: string;
-  twin: string;
-}
+// Defined next to the collision helpers since the push side reports them too
+// (issue #112); re-exported so existing imports keep working.
+export type { NameCollision } from "./pathIdentity.js";
 
 export const TRANSIENT_FAILURES_BEFORE_ERROR = 3;
 
@@ -2113,7 +2100,8 @@ export class SyncWorker {
       await this.engine.processQueue(
         () => !alive(),
         (current, total) => this.emitProgress("push", current, total),
-        { skipDeletes: deletionsHeld !== null && allowedDeleteIds.size === 0, allowedDeleteIds }
+        // Held-back twin DELETEs join the pull side's collisions (issue #112).
+        { skipDeletes: deletionsHeld !== null && allowedDeleteIds.size === 0, allowedDeleteIds, collisions: nameCollisions }
       );
 
       // 4. Profile-sync sideband (opt-in): transport `.plainva/sync/settings.json`

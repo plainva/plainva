@@ -1,7 +1,8 @@
 import { SyncQueue } from "./SyncQueue.js";
 import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
-import { IVaultAdapter } from "../vault/IVaultAdapter.js";
+import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
+import { findCollidingPath, type NameCollision } from "./pathIdentity.js";
 import { isTextFile } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
@@ -70,6 +71,47 @@ export class SyncEngine {
     return !!(this.stateRepo && (await this.stateRepo.getSyncState(companion).catch(() => null)));
   }
 
+  /**
+   * The local spelling of `path` when it differs from `path` only in Unicode
+   * normalization or letter case — or null when there is no such twin (issue
+   * #112). Walks the path one segment at a time through the local listings,
+   * so a twin anywhere in the chain counts: `Neutralita\u0308t/a.md` is the twin
+   * of `Neutralität/a.md`. An exact segment is followed; a missing one without a
+   * twin ends the walk. `listings` caches each folder for one pass.
+   *
+   * A listing that fails for any reason other than a missing folder throws:
+   * "could not look" must not be read as "no twin" in front of a DELETE.
+   */
+  private async findLocalTwin(path: string, listings: Map<string, Promise<VaultFileInfo[] | null>>): Promise<string | null> {
+    // An adapter without listings (test doubles) cannot hold a twin we could see.
+    if (typeof this.vault.listDir !== "function") return null;
+    const segments = path.replace(/\\/g, "/").split("/").filter((s) => s.length > 0);
+    let dir = "";
+    for (let i = 0; i < segments.length; i++) {
+      let listing = listings.get(dir);
+      if (!listing) {
+        const folder = dir;
+        listing = this.vault.listDir(folder, false).catch((err: unknown) => {
+          if ((err as { name?: string } | null)?.name === "VaultFileNotFoundError") return null;
+          throw err;
+        });
+        listings.set(folder, listing);
+      }
+      const entries = await listing;
+      if (!entries) return null;
+      const names = entries.map((e) => e.name ?? e.path.slice(e.path.lastIndexOf("/") + 1));
+      const segment = segments[i]!;
+      if (names.includes(segment)) {
+        dir = dir ? `${dir}/${segment}` : segment;
+        continue;
+      }
+      const twin = findCollidingPath(segment, names);
+      if (!twin) return null;
+      return [...(dir ? [dir] : []), twin, ...segments.slice(i + 1)].join("/");
+    }
+    return null;
+  }
+
   public async processQueue(
     isAborted?: () => boolean,
     onProgress?: (current: number, total: number) => void,
@@ -83,6 +125,12 @@ export class SyncEngine {
       skipDeletes?: boolean;
       /** The worker's guard snapshot. Later arrivals wait for its next decision. */
       allowedDeleteIds?: ReadonlySet<number>;
+      /**
+       * Receives the queued DELETEs held back because this device has a twin
+       * of the path (issue #112) — the same facts, and so the same card, as the
+       * pull side's collisions. Without it they are still held, only unreported.
+       */
+      collisions?: NameCollision[];
     }
   ): Promise<void> {
     let pending = await this.queue.getPendingOperations();
@@ -97,6 +145,7 @@ export class SyncEngine {
     }
     let consecutiveFailures = 0;
     let pushIdx = 0;
+    const localListings = new Map<string, Promise<VaultFileInfo[] | null>>();
     for (let op of pending) {
       if (isAborted && isAborted()) break;
       // Progress ticks for the status bar (WP6); the desktop throttles rendering.
@@ -130,6 +179,24 @@ export class SyncEngine {
           await this.queue.markSynced(op.id, op.file_path, op.file_path);
           consecutiveFailures = 0;
           continue;
+        }
+        // The twin lock on the push side (issue #112). A DELETE whose path has
+        // a twin here that differs only in accent spelling or letter case is
+        // the SAME file for Drive, OneDrive, Dropbox, Windows and macOS — and
+        // on WebDAV the one copy the server still holds under the old
+        // spelling. The pull side has refused to mirror such a deletion since
+        // 2026-08-21; pushing it removed the remote file instead. It stays
+        // queued without spending a retry and is reported every pass until one
+        // of the two names changes.
+        if (op.operation === "delete") {
+          const twin = await this.findLocalTwin(op.file_path, localListings);
+          if (twin) {
+            console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: this device has ${twin} (capitalization/accents)`);
+            if (opts?.collisions && !opts.collisions.some((c) => c.path === op.file_path && c.twin === twin)) {
+              opts.collisions.push({ path: op.file_path, twin });
+            }
+            continue;
+          }
         }
         if (op.operation === "mkdir") {
           if (this.target.createVaultFolder) await this.target.createVaultFolder(op.file_path);

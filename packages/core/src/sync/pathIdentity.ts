@@ -59,3 +59,22 @@ export function findCollidingPath(path: string, candidates: Iterable<string>): s
 export function foldPathNormalization(path: string): string {
   return path.normalize("NFC");
 }
+
+/**
+ * Two paths the remote cannot tell apart — reported, never resolved by the core.
+ *
+ * This used to leave here as one English sentence built with string
+ * concatenation, which the shells rendered unchanged: German users got English,
+ * and neither shell could offer an action because it had nothing but prose
+ * (finding 2026-08-21). The core has no language; it has facts.
+ *
+ * `path` is the file this device knows, `twin` the other spelling: the one the
+ * remote lists (pull side), or the one on this device's disk when a queued
+ * remote DELETE of `path` was held back (push side, issue #112).
+ * Deliberately no size or date: the core holds neither for the twin, and a
+ * number it would have to fetch is a number it should not promise.
+ */
+export interface NameCollision {
+  path: string;
+  twin: string;
+}
