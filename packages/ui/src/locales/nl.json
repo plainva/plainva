@@ -322,6 +322,26 @@
         "failed": "De AI kon geen voorstel doen."
       }
     },
+    "skills": {
+      "title": "Vaardigheden",
+      "daily": {
+        "title": "Dagoriëntatie",
+        "description": "Wat vandaag telt: taken die aflopen, afspraken en waar je laatst aan werkte.",
+        "prompt": "Wat is vandaag belangrijk? Geef me een korte oriëntatie: wat vandaag en de komende twee dagen afloopt of gepland staat, waar ik laatst aan werkte en wat de belangrijkste volgende stap is. Gebruik mijn dagnotitie, mijn taken en mijn afspraken. Hooguit vijf punten, elk met zijn bron."
+      },
+      "weekly": {
+        "title": "Weekoverzicht",
+        "description": "De afgelopen zeven dagen en de week die komt.",
+        "prompt": "Kijk met me terug op mijn week: waar ik de afgelopen zeven dagen aan werkte (notities die ik maakte of wijzigde), welke taken ik afrondde en welke nog open of te laat zijn, en mijn afspraken in de komende week. Sluit af met drie suggesties voor volgende week. Noem de notities."
+      },
+      "project": {
+        "title": "Projectstatus",
+        "description": "Doel, voortgang, open punten en de volgende stap van een project.",
+        "prompt": "Hoe staat het project in de geopende notitie ervoor? Doel, wat klaar is, wat open is, wat het blokkeert en de volgende stap — elk punt met zijn bron. Gaat de geopende notitie niet over een project, vraag me dan welk project ik bedoel.",
+        "promptFor": "Hoe staat het project “{{project}}” ervoor? Doel, wat klaar is, wat open is, wat het blokkeert en de volgende stap — elk punt met zijn bron.",
+        "argument": "Het project: de naam van zijn notitie of map."
+      }
+    },
     "mcp": {
       "title": "AI-apps op deze computer",
       "switch": "AI-apps op deze computer deze kluis laten lezen",

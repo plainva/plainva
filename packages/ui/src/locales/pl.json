@@ -342,6 +342,26 @@
         "failed": "AI nie mogła przygotować propozycji."
       }
     },
+    "skills": {
+      "title": "Umiejętności",
+      "daily": {
+        "title": "Orientacja na dziś",
+        "description": "Co jest dziś ważne: zadania z terminem, spotkania i ostatnio zmieniane notatki.",
+        "prompt": "Co jest dziś ważne? Daj mi krótką orientację: co ma termin lub jest zaplanowane na dziś i na najbliższe dwa dni, które notatki ostatnio się zmieniały i jaki jest najważniejszy następny krok. Skorzystaj z mojej notatki dziennej, moich zadań i spotkań. Najwyżej pięć punktów, każdy ze źródłem."
+      },
+      "weekly": {
+        "title": "Przegląd tygodnia",
+        "description": "Ostatnie siedem dni i nadchodzący tydzień.",
+        "prompt": "Podsumuj mój tydzień: notatki utworzone lub zmienione w ostatnich siedmiu dniach, zadania ukończone oraz te, które są wciąż otwarte lub po terminie, a także moje spotkania w nadchodzącym tygodniu. Zakończ trzema propozycjami na kolejny tydzień. Podaj notatki jako źródła."
+      },
+      "project": {
+        "title": "Stan projektu",
+        "description": "Cel, postęp, otwarte punkty i następny krok projektu.",
+        "prompt": "Jaki jest stan projektu w otwartej notatce? Cel, co zostało zrobione, co jest otwarte, co go blokuje i następny krok — każdy punkt ze źródłem. Jeśli otwarta notatka nie dotyczy projektu, zapytaj, o który projekt chodzi.",
+        "promptFor": "Jaki jest stan projektu „{{project}}”? Cel, co zostało zrobione, co jest otwarte, co go blokuje i następny krok — każdy punkt ze źródłem.",
+        "argument": "Projekt: nazwa jego notatki lub folderu."
+      }
+    },
     "mcp": {
       "title": "Aplikacje AI na tym komputerze",
       "switch": "Pozwól aplikacjom AI na tym komputerze czytać ten sejf",

@@ -1,15 +1,17 @@
 //! One MCP connection after its client was admitted (plan KI-Harness §17.3):
 //! the tool list the web view registered, calls forwarded to the main window
-//! and checked again on the way back, one resource — the format contracts.
+//! and checked again on the way back, one resource — the format contracts —
+//! and the core skills as prompts (plan P1.5).
 //! Read-only: the list holds no tool that writes, and a name that is not on
 //! it is refused here, before anything reaches the web view.
 
 use std::sync::Arc;
 
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation, ListResourcesResult, ListToolsResult,
-    PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource, ResourceContents,
-    ServerCapabilities, ServerConfig, Tool, ToolAnnotations,
+    CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, GetPromptRequestParams, GetPromptResponse, GetPromptResult,
+    Implementation, ListPromptsResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams, Prompt, PromptArgument, PromptMessage,
+    ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource, ResourceContents, Role, ServerCapabilities,
+    ServerConfig, Tool, ToolAnnotations,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData as McpError, RoleServer, ServerHandler};
@@ -53,7 +55,7 @@ impl<R: Runtime> PlainvaMcp<R> {
 impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
     fn get_info(&self) -> ServerConfig {
         let server = Implementation::new("plainva", env!("CARGO_PKG_VERSION")).with_title("Plainva");
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().build())
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().enable_prompts().build())
             .with_server_info(server)
             .with_instructions(
                 "Read-only access to the user's Plainva vault: notes are Markdown files; cite a note as [[Title]]. \
@@ -124,6 +126,32 @@ impl<R: Runtime> ServerHandler for PlainvaMcp<R> {
         let text = paths::strip_local_urls(&answer.content);
         let result = if answer.is_error { CallToolResult::error(vec![ContentBlock::text(text)]) } else { CallToolResult::success(vec![ContentBlock::text(text)]) };
         Ok(result.into())
+    }
+
+    async fn list_prompts(&self, _request: Option<PaginatedRequestParams>, _context: RequestContext<RoleServer>) -> Result<ListPromptsResult, McpError> {
+        let prompts = self
+            .app
+            .state::<McpState>()
+            .prompts()
+            .into_iter()
+            .map(|spec| {
+                let arguments = spec.argument.map(|a| vec![PromptArgument::new(a.name).with_description(a.description).with_required(true)]);
+                Prompt::new(spec.name, Some(spec.description), arguments).with_title(spec.title)
+            })
+            .collect();
+        Ok(ListPromptsResult::with_all_items(prompts))
+    }
+
+    async fn get_prompt(&self, request: GetPromptRequestParams, _context: RequestContext<RoleServer>) -> Result<GetPromptResponse, McpError> {
+        let state = self.app.state::<McpState>();
+        if state.generation() != self.generation {
+            return Err(McpError::invalid_request("Plainva's settings or its open vault changed. Restart the connection.", None));
+        }
+        let Some(spec) = state.prompts().into_iter().find(|p| p.name == request.name) else {
+            return Err(McpError::invalid_params(format!("There is no prompt called {}.", request.name), None));
+        };
+        let text = spec.render(request.arguments.as_ref()).map_err(|message| McpError::invalid_params(message, None))?;
+        Ok(GetPromptResult::new(vec![PromptMessage::new_text(Role::User, text)]).with_description(spec.description).into())
     }
 
     async fn list_resources(&self, _request: Option<PaginatedRequestParams>, _context: RequestContext<RoleServer>) -> Result<ListResourcesResult, McpError> {

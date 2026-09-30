@@ -332,6 +332,26 @@
         "failed": "La IA no pudo hacer una sugerencia."
       }
     },
+    "skills": {
+      "title": "Habilidades",
+      "daily": {
+        "title": "Orientación del día",
+        "description": "Lo que importa hoy: tareas pendientes, citas y en qué trabajaste últimamente.",
+        "prompt": "¿Qué es importante hoy? Dame una orientación breve: qué vence o está previsto hoy y en los próximos dos días, en qué trabajé últimamente y cuál es el siguiente paso más importante. Usa mi nota diaria, mis tareas y mis citas. Como máximo cinco puntos, cada uno con su fuente."
+      },
+      "weekly": {
+        "title": "Repaso semanal",
+        "description": "Los últimos siete días y la semana que viene.",
+        "prompt": "Repasa mi semana: en qué trabajé en los últimos siete días (notas que creé o cambié), qué tareas completé y cuáles siguen abiertas o vencidas, y mis citas de la próxima semana. Termina con tres sugerencias para la semana siguiente. Cita las notas."
+      },
+      "project": {
+        "title": "Estado del proyecto",
+        "description": "Objetivo, avances, puntos abiertos y el siguiente paso de un proyecto.",
+        "prompt": "¿Cómo va el proyecto de la nota abierta? Objetivo, qué está hecho, qué está abierto, qué lo bloquea y el siguiente paso, cada punto con su fuente. Si la nota abierta no trata de un proyecto, pregúntame a qué proyecto me refiero.",
+        "promptFor": "¿Cómo va el proyecto «{{project}}»? Objetivo, qué está hecho, qué está abierto, qué lo bloquea y el siguiente paso, cada punto con su fuente.",
+        "argument": "El proyecto: el nombre de su nota o carpeta."
+      }
+    },
     "mcp": {
       "title": "Apps de IA en este ordenador",
       "switch": "Permitir que las apps de IA de este ordenador lean esta bóveda",

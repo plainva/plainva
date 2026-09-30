@@ -1,6 +1,6 @@
 # Translation Glossary
 
-Last reviewed: 2026-09-15. Reference for ALL translation work (locale JSONs, vault
+Last reviewed: 2026-09-30. Reference for ALL translation work (locale JSONs, vault
 templates, user guide). Every session that touches strings follows these
 conventions — this keeps subsequent translations consistent, even without
 native-speaker review.
@@ -63,6 +63,25 @@ Notes:
   register for its language. User-guide pages adopt UI terms VERBATIM (bolded)
   from `packages/ui/src/locales/<code>.json`; vault-template prose uses the
   same terms.
+
+## AI terms (KI harness)
+
+The assistant's words, fixed so that locales, the user guide and the suggestion author line agree.
+The skill titles are UI strings (`ai.skills.*`); the MCP prompt names (`daily-orientation`,
+`weekly-review`, `project-status`) are identifiers and never translated.
+
+| Language | AI | Companion | Skills | Suggestion author |
+|---|---|---|---|---|
+| en | AI | companion | Skills | Plainva AI · ⟨model⟩ |
+| de | KI | Begleiter | Skills | Plainva KI · ⟨Modell⟩ |
+| fr | IA | compagnon | Compétences | Plainva IA · ⟨modèle⟩ |
+| es | IA | compañero | Habilidades | Plainva IA · ⟨modelo⟩ |
+| pt-BR | IA | assistente | Habilidades | Plainva IA · ⟨modelo⟩ |
+| it | IA | compagno | Competenze | Plainva IA · ⟨modello⟩ |
+| nl | AI | begeleider | Vaardigheden | Plainva AI · ⟨model⟩ |
+| pl | AI | asystent | Umiejętności | Plainva AI · ⟨model⟩ |
+| zh-CN | AI | 悬浮窗 | 技能 | Plainva AI · ⟨模型⟩ |
+| ja | AI | コンパニオン | スキル | Plainva AI · ⟨モデル⟩ |
 
 ## Process Rules
 

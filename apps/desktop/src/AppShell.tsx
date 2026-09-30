@@ -1825,6 +1825,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             openComments: () => openView(COMMENTS_TAB_PATH),
             openJournal: () => openView(JOURNAL_TAB_PATH),
             openAi: ai.enabled ? ai.openCompanion : undefined,
+            runAiSkill: ai.enabled ? ai.runSkill : undefined,
             openCommsWindow: vaultPath ? openCommsWindow : undefined,
             // Dispatched rather than called, so a client window travels the
             // listener above instead of needing a capability it does not have.

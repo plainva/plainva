@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
-import { getPlatformServices, noteDisplayName, situationEvents, useStableHandler, type AiNavigationCommand, type AiSession, type AiState, type AiVaultHost } from "@plainva/ui";
+import { getPlatformServices, noteDisplayName, situationEvents, skillPrompt, useStableHandler, type AiNavigationCommand, type AiSession, type AiSkillId, type AiState, type AiVaultHost } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 import { AI_OPEN_EVENT, createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
@@ -130,11 +131,14 @@ export function useDesktopAi(input: DesktopAiInput) {
   // What the native side serves: on only with the AI and the device switch,
   // and always for the vault open now — a new vault closes older connections.
   const mcpOn = Boolean(enabled && state?.settings.mcpEnabled);
+  const { i18n: translator } = useTranslation();
+  const language = translator.language;
   useEffect(() => {
     if (!session || !state?.loaded) return;
     const vault = vaultPath && vaultAdapter && queryService ? { path: vaultPath, name: vaultName(vaultPath) } : null;
     void configureMcp(mcpOn, vault).catch(() => undefined);
-  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService]);
+    // The prompts speak the app's language: a switch registers them again.
+  }, [session, state?.loaded, mcpOn, vaultPath, vaultAdapter, queryService, language]);
 
   // Switching the AI off closes the companion; the conversation stays stored.
   useEffect(() => {
@@ -153,6 +157,13 @@ export function useDesktopAi(input: DesktopAiInput) {
     return () => window.removeEventListener(AI_OPEN_EVENT, open);
   }, [openCompanion]);
   const toggleCompanion = useStableHandler(() => (companionOpen ? closeCompanion() : openCompanion()));
+  // A core skill from the palette (plan P1.5): a new conversation in the companion.
+  const runSkill = useStableHandler((id: AiSkillId) => {
+    if (!session || session.getState().live) return openCompanion();
+    openCompanion();
+    session.newConversation();
+    void session.send(skillPrompt((key, vars) => i18n.t(key, vars), id));
+  });
   const openAsTab = useStableHandler(() => {
     setCompanionOpen(false);
     session?.present("tab");
@@ -178,5 +189,5 @@ export function useDesktopAi(input: DesktopAiInput) {
     [activePath],
   );
 
-  return { session, enabled, companionOpen, openCompanion, closeCompanion, toggleCompanion, openAsTab, openNoteTarget, openUrl, activeNote };
+  return { session, enabled, companionOpen, openCompanion, closeCompanion, toggleCompanion, runSkill, openAsTab, openNoteTarget, openUrl, activeNote };
 }

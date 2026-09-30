@@ -81,6 +81,10 @@ Una acción de sugerencia envía solo el fragmento seleccionado — no el resto 
 
 Un fragmento de una nota que tus reglas mantienen fuera de la nube — o uno con enlaces a esas notas o con datos de lugar — no va a ningún modelo en la nube. En un espacio cifrado las acciones de sugerencia aún no están disponibles: sus sugerencias todavía no pueden indicar a la IA como autora.
 
+## Habilidades
+
+Tres habilidades inician preguntas frecuentes con un clic: **Orientación del día** (lo que importa hoy: tareas pendientes, citas y en qué trabajaste últimamente), **Repaso semanal** (los últimos siete días y la semana que viene) y **Estado del proyecto** (objetivo, avances, puntos abiertos y el siguiente paso del proyecto de la nota abierta). Las encuentras como chips en una conversación vacía, en **Habilidades** en la pestaña de IA —en el teléfono, en **Conversaciones**— y en la paleta de comandos. Una habilidad envía su pregunta como tu mensaje: en tu idioma, visible en la conversación como todo lo que escribes, y a través del mismo resumen. Después, el asistente consulta lo necesario con sus herramientas habituales.
+
 ## Reglas de privacidad
 
 Algunas notas nunca deben llegar a un proveedor en la nube. Una regla puede ir en el frontmatter de una nota:

@@ -18,3 +18,4 @@ export * from "./aiSituation";
 export * from "./AiSendOverview";
 export * from "./AiContextLens";
 export * from "./aiSelectionActions";
+export * from "./aiSkills";

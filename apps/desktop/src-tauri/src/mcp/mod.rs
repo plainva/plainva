@@ -54,6 +54,47 @@ pub struct ToolSpec {
     pub path_args: Vec<String>,
 }
 
+/// A prompt as the web view registers it (the core skills of plan P1.5), in the app's language.
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptSpec {
+    pub name: String,
+    pub title: String,
+    pub description: String,
+    /// The message; `{{name}}` of the argument is replaced by its value.
+    pub text: String,
+    /// The one argument the prompt takes, if any; it is required.
+    #[serde(default)]
+    pub argument: Option<PromptArgumentSpec>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptArgumentSpec {
+    pub name: String,
+    pub description: String,
+}
+
+/// The longest argument a prompt takes in: a project's name, not a document.
+const PROMPT_ARGUMENT_MAX: usize = 200;
+
+impl PromptSpec {
+    /// The message with its argument filled in; an error names what is missing.
+    pub fn render(&self, arguments: Option<&serde_json::Map<String, serde_json::Value>>) -> Result<String, String> {
+        let Some(argument) = &self.argument else {
+            return Ok(self.text.clone());
+        };
+        let value = arguments
+            .and_then(|args| args.get(&argument.name))
+            .and_then(|value| value.as_str())
+            .map(|raw| raw.chars().map(|c| if c.is_control() { ' ' } else { c }).collect::<String>())
+            .map(|clean| clean.trim().chars().take(PROMPT_ARGUMENT_MAX).collect::<String>())
+            .filter(|clean| !clean.is_empty())
+            .ok_or_else(|| format!("The prompt {} needs the argument {}.", self.name, argument.name))?;
+        Ok(self.text.replace(&format!("{{{{{}}}}}", argument.name), &value))
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VaultBinding {
@@ -106,6 +147,7 @@ struct Inner {
     listener: Option<tauri::async_runtime::JoinHandle<()>>,
     vault: Option<VaultBinding>,
     tools: Vec<ToolSpec>,
+    prompts: Vec<PromptSpec>,
     calls: HashMap<String, oneshot::Sender<CallAnswer>>,
     pairing: Option<(String, oneshot::Sender<PairAnswer>)>,
     denied: HashMap<String, Instant>,
@@ -150,6 +192,10 @@ impl McpState {
 
     pub(crate) fn tools(&self) -> Vec<ToolSpec> {
         self.lock().tools.clone()
+    }
+
+    pub(crate) fn prompts(&self) -> Vec<PromptSpec> {
+        self.lock().prompts.clone()
     }
 
     fn next_id(&self, prefix: &str) -> String {
@@ -343,7 +389,7 @@ fn only_main(window: &tauri::Window) -> Result<(), String> {
     }
 }
 
-/// The main window's settings: on/off, the vault it serves, the tools.
+/// The main window's settings: on/off, the vault it serves, the tools and the prompts.
 #[tauri::command]
 pub fn mcp_configure(
     app: AppHandle,
@@ -352,12 +398,14 @@ pub fn mcp_configure(
     enabled: bool,
     vault: Option<VaultBinding>,
     tools: Vec<ToolSpec>,
+    prompts: Option<Vec<PromptSpec>>,
 ) -> Result<(), String> {
     only_main(&window)?;
     let mut inner = state.lock();
     let vault_changed = inner.vault != vault;
     inner.vault = vault;
     inner.tools = tools;
+    inner.prompts = prompts.unwrap_or_default();
     // Open connections belong to the vault they were admitted for: a switch closes them.
     if !enabled || vault_changed {
         if let Some(task) = inner.listener.take() {
@@ -542,6 +590,13 @@ mod tests {
             input_schema: serde_json::json!({ "type": "object", "properties": { "path": { "type": "string" } } }),
             path_args: vec!["path".into()],
         }];
+        inner.prompts = vec![PromptSpec {
+            name: "project-status".into(),
+            title: "Project status".into(),
+            description: "Where a project stands".into(),
+            text: "What is the status of the project “{{project}}”?".into(),
+            argument: Some(PromptArgumentSpec { name: "project".into(), description: "The project".into() }),
+        }];
         drop(inner);
         app
     }
@@ -611,6 +666,26 @@ mod tests {
         serde_json::from_str(&line(client).await).unwrap()
     }
 
+    #[test]
+    fn a_prompt_takes_its_argument_clean() {
+        let spec = PromptSpec {
+            name: "project-status".into(),
+            title: "Project status".into(),
+            description: "Where a project stands".into(),
+            text: "Status of {{project}}.".into(),
+            argument: Some(PromptArgumentSpec { name: "project".into(), description: "The project".into() }),
+        };
+        let args = |value: serde_json::Value| value.as_object().cloned();
+        assert_eq!(spec.render(args(serde_json::json!({ "project": "  Offer\n2026 " })).as_ref()).unwrap(), "Status of Offer 2026.");
+        assert!(spec.render(args(serde_json::json!({ "project": "   " })).as_ref()).is_err());
+        assert!(spec.render(args(serde_json::json!({ "project": 7 })).as_ref()).is_err());
+        assert!(spec.render(None).is_err());
+        let long = spec.render(args(serde_json::json!({ "project": "x".repeat(500) })).as_ref()).unwrap();
+        assert_eq!(long.chars().count(), "Status of .".chars().count() + PROMPT_ARGUMENT_MAX);
+        let plain = PromptSpec { argument: None, text: "Today?".into(), ..spec.clone() };
+        assert_eq!(plain.render(None).unwrap(), "Today?");
+    }
+
     #[tokio::test]
     async fn an_unpaired_client_gets_nothing() {
         let dir = tempfile::tempdir().unwrap();
@@ -662,6 +737,19 @@ mod tests {
         let tools: serde_json::Value = serde_json::from_str(&line(&mut client).await).unwrap();
         assert_eq!(tools["result"]["tools"][0]["name"], "read_note");
         assert_eq!(tools["result"]["tools"][0]["annotations"]["readOnlyHint"], true);
+
+        // The core skills as prompts: listed with their argument, filled in, refused without it.
+        assert!(init["result"]["capabilities"]["prompts"].is_object(), "{init}");
+        send(&mut client, serde_json::json!({ "jsonrpc": "2.0", "id": 20, "method": "prompts/list" })).await;
+        let prompts: serde_json::Value = serde_json::from_str(&line(&mut client).await).unwrap();
+        assert_eq!(prompts["result"]["prompts"][0]["name"], "project-status");
+        assert_eq!(prompts["result"]["prompts"][0]["arguments"][0]["required"], true);
+        send(&mut client, serde_json::json!({ "jsonrpc": "2.0", "id": 21, "method": "prompts/get", "params": { "name": "project-status", "arguments": { "project": "Offer 2026" } } })).await;
+        let prompt: serde_json::Value = serde_json::from_str(&line(&mut client).await).unwrap();
+        assert_eq!(prompt["result"]["messages"][0]["content"]["text"], "What is the status of the project “Offer 2026”?");
+        send(&mut client, serde_json::json!({ "jsonrpc": "2.0", "id": 22, "method": "prompts/get", "params": { "name": "project-status" } })).await;
+        let missing: serde_json::Value = serde_json::from_str(&line(&mut client).await).unwrap();
+        assert!(missing["error"]["message"].as_str().unwrap_or("").contains("needs the argument project"), "{missing}");
 
         let inside = call(&mut client, 3, "Projects/a.md").await;
         assert_eq!(inside["result"]["isError"], false);

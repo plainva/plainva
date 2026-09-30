@@ -332,6 +332,26 @@
         "failed": "L'IA n'a pas pu faire de proposition."
       }
     },
+    "skills": {
+      "title": "Compétences",
+      "daily": {
+        "title": "Orientation du jour",
+        "description": "Ce qui compte aujourd'hui : tâches à échéance, rendez-vous et ce sur quoi vous avez travaillé récemment.",
+        "prompt": "Qu'est-ce qui est important aujourd'hui ? Donnez-moi une orientation courte : ce qui arrive à échéance ou est prévu aujourd'hui et dans les deux prochains jours, ce sur quoi j'ai travaillé récemment et la prochaine étape la plus importante. Utilisez ma note quotidienne, mes tâches et mes rendez-vous. Au plus cinq points, chacun avec sa source."
+      },
+      "weekly": {
+        "title": "Bilan de la semaine",
+        "description": "Les sept derniers jours et la semaine à venir.",
+        "prompt": "Faites le bilan de ma semaine : ce sur quoi j'ai travaillé ces sept derniers jours (notes créées ou modifiées), les tâches que j'ai terminées et celles encore ouvertes ou en retard, et mes rendez-vous de la semaine à venir. Terminez par trois suggestions pour la semaine prochaine. Citez les notes."
+      },
+      "project": {
+        "title": "État du projet",
+        "description": "Objectif, avancement, points ouverts et prochaine étape d'un projet.",
+        "prompt": "Où en est le projet de la note ouverte ? Objectif, ce qui est fait, ce qui reste ouvert, ce qui bloque et la prochaine étape — chaque point avec sa source. Si la note ouverte ne porte pas sur un projet, demandez-moi de quel projet je parle.",
+        "promptFor": "Où en est le projet « {{project}} » ? Objectif, ce qui est fait, ce qui reste ouvert, ce qui bloque et la prochaine étape — chaque point avec sa source.",
+        "argument": "Le projet : le nom de sa note ou de son dossier."
+      }
+    },
     "mcp": {
       "title": "Apps d'IA sur cet ordinateur",
       "switch": "Laisser les apps d'IA de cet ordinateur lire ce coffre",

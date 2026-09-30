@@ -1,6 +1,6 @@
 # KI-Apps verbinden (Beta)
 
-Stand: 2026-09-29
+Stand: 2026-09-30
 
 KI-Apps auf Deinem Rechner — Claude Code, Claude Desktop, Cursor, VS Code und andere, die das Model Context Protocol (MCP) sprechen — können Deinen Vault über Plainva lesen: ihn durchsuchen, Notizen und ihre Abschnitte lesen, Gliederungen, Backlinks, Datenbanken, Aufgaben und zuletzt benutzte Notizen, und eine Notiz in Plainva öffnen. Ändern können sie nichts. Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
 
@@ -27,6 +27,8 @@ Die App bewahrt für das nächste Mal ein Geheimnis im Schlüsselbund des System
 Nur die Ordner, die Du erlaubt hast, und nur, was Deine Datenschutzregeln an ein Cloud-Modell gehen lassen: Notizen mit `cloud: deny` oder in einem Ordner mit dieser Regel gibt es für eine App nicht — weder ihren Text noch ihre Titel —, Links auf sie werden zurückgehalten, und Ortsangaben aus dem Journal gehen nie mit. Plainvas eigene Ordner (`.plainva`, `.agent`) und die Regeln selbst sind nie lesbar. Jeder Pfad in einer Anfrage und in einer Antwort wird zweimal geprüft: im App-Fenster und im nativen Teil von Plainva.
 
 Die Einstellungen listen die erlaubten Apps mit ihren Ordnern und die letzten Anfragen. **Entfernen** nimmt einer App die Erlaubnis in jedem Vault zurück.
+
+Neben den Werkzeugen bietet Plainva seine drei Skills als Prompts an, in der Sprache der App: `daily-orientation`, `weekly-review` und `project-status`, das nach dem Namen des Projekts fragt. Eine App, die Prompts unterstützt, führt sie unter ihren Befehlen.
 
 ## Grenzen
 

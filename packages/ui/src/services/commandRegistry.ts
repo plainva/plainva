@@ -5,6 +5,7 @@ import {
   Rows2, Save, Search, Settings, Sparkles, SquareArrowOutUpRight, Trash2, Type, Waypoints, X,
 } from "lucide-react";
 import { NEW_ITEM_ORDER, NEW_ITEMS, type NewHandlers, type NewItemId } from "../lib/newCatalog";
+import { AI_CORE_SKILLS, type AiSkillId } from "../ai/aiSkills";
 
 /**
  * Command registry (plan Designsprache 2026-07-05, P9/L11/E7). One central
@@ -65,6 +66,8 @@ export interface CommandDeps {
   newJournalEntry?: () => void;
   /** Asks the AI (Mod+J, plan KI-Harness §19.1); absent while the per-device switch is off. */
   openAi?: () => void;
+  /** Starts a core skill in a new conversation (plan KI-Harness P1.5). */
+  runAiSkill?: (id: AiSkillId) => void;
   openQuickSwitcher?: () => void;
   openTemplatePicker?: () => void;
   openGraph?: () => void;
@@ -151,6 +154,9 @@ export interface CommandDeps {
   rebuildIndex?: () => void;
 }
 
+/** German fallbacks of the skill commands, like every other `titleDefault`. */
+const SKILL_TITLE_DEFAULT: Record<AiSkillId, string> = { daily: "Tagesorientierung", weekly: "Wochenrückblick", project: "Projektstatus" };
+
 export function buildAppCommands(d: CommandDeps): AppCommand[] {
   const p = () => d.activePath?.() ?? null;
   const note = () => d.hasActiveNote?.() === true;
@@ -168,6 +174,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     need(d.openCalendar, (run) => ({ id: "open-calendar", group: "open", icon: Calendar, titleKey: "pim.openCalendar", titleDefault: "Kalender öffnen", run })),
     need(d.openJournal, (run) => ({ id: "open-journal", group: "open", icon: NotebookText, titleKey: "journal.open", titleDefault: "Journal öffnen", run })),
     need(d.openAi, (run) => ({ id: "ask-ai", group: "open", icon: Sparkles, titleKey: "ai.ask", titleDefault: "KI fragen", hint: "Mod+J", run })),
+    ...AI_CORE_SKILLS.map((skill) => need(d.runAiSkill, (run) => ({ id: `ai-skill-${skill.id}`, group: "open" as const, icon: skill.icon, titleKey: `ai.skills.${skill.id}.title`, titleDefault: SKILL_TITLE_DEFAULT[skill.id], run: () => run(skill.id) }))),
     need(d.openMail, (run) => ({ id: "open-mail", group: "open", icon: Mail, titleKey: "mail.openMail", titleDefault: "E-Mail öffnen", run })),
     need(d.openComments, (run) => ({ id: "open-comments", group: "open", icon: MessageSquare, titleKey: "comments.commentOverview", titleDefault: "Offene Kommentare", run })),
     need(d.openCommsWindow, (run) => ({ id: "open-comms-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openComms", titleDefault: "Kommunikations-Fenster öffnen", run })),

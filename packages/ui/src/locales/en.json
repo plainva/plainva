@@ -322,6 +322,26 @@
         "failed": "The AI could not make a suggestion."
       }
     },
+    "skills": {
+      "title": "Skills",
+      "daily": {
+        "title": "Daily orientation",
+        "description": "What matters today: due tasks, appointments and what you worked on lately.",
+        "prompt": "What matters today? Give me a short orientation: what is due or scheduled today and in the next two days, what I worked on lately and what the most important next step is. Use my daily note, my tasks and my appointments. At most five points, each with its source."
+      },
+      "weekly": {
+        "title": "Weekly review",
+        "description": "The past seven days and the week ahead.",
+        "prompt": "Review my week: what I worked on in the last seven days (notes I created or changed), which tasks I completed and which are still open or overdue, and my appointments in the coming week. End with three suggestions for next week. Cite the notes."
+      },
+      "project": {
+        "title": "Project status",
+        "description": "Goal, progress, open points and the next step of a project.",
+        "prompt": "What is the status of the project in the open note? Goal, what is done, what is open, what blocks it and the next step — each point with its source. If the open note is not about a project, ask me which project I mean.",
+        "promptFor": "What is the status of the project “{{project}}”? Goal, what is done, what is open, what blocks it and the next step — each point with its source.",
+        "argument": "The project: the name of its note or folder."
+      }
+    },
     "mcp": {
       "title": "AI apps on this computer",
       "switch": "Let AI apps on this computer read this vault",

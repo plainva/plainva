@@ -19,8 +19,10 @@ import {
   proposeSuggestionRound,
   situationEvents,
   situationFrom,
+  skillPrompt,
   withCloudDenied,
   type AiFileStore,
+  type AiSkillId,
   type AiNavigationCommand,
   type AreaOrder,
   type VaultPolicyHost,
@@ -130,6 +132,14 @@ const SHEET_EVENT = "plainva-ai-sheet";
 /** Makes a note the AI's open note without opening the sheet (the AI segment of the note's context). */
 export function focusAiNote(path: string | null): void {
   sheetNote = path;
+}
+
+/** Starts a core skill (plan P1.5) in a new conversation; the caller shows it. */
+export function runMobileAiSkill(id: AiSkillId): void {
+  const session = getMobileAiSession();
+  if (session.getState().live) return;
+  session.newConversation();
+  void session.send(skillPrompt((key, vars) => i18n.t(key, vars), id));
 }
 
 /** Opens the KI sheet over a note (the note's ⋮ menu, the palette). */

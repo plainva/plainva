@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { parseToolInput, toolByName, toolInputJsonSchema, toolsFor, type EgressRecipient } from "@plainva/core";
-import { aiVaultKey, type AiVaultHost } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
+import { aiVaultKey, mcpSkillPrompts, type AiVaultHost } from "@plainva/ui";
 
 /**
  * The main window's side of Plainva's MCP server (plan KI-Harness §17.3,
@@ -134,7 +135,13 @@ export function vaultName(path: string): string {
 
 /** Tells the native side what to serve: on or off, the open vault, the tools. */
 export function configureMcp(enabled: boolean, vault: { path: string; name: string } | null): Promise<void> {
-  return invoke("mcp_configure", { enabled, vault: vault ? { key: aiVaultKey(vault.path), name: vault.name, root: vault.path } : null, tools: mcpToolSpecs() });
+  return invoke("mcp_configure", {
+    enabled,
+    vault: vault ? { key: aiVaultKey(vault.path), name: vault.name, root: vault.path } : null,
+    tools: mcpToolSpecs(),
+    // The core skills as prompts (plan P1.5), in the app's language.
+    prompts: mcpSkillPrompts((key, vars) => i18n.t(key, vars)),
+  });
 }
 
 export interface McpPairRequest {

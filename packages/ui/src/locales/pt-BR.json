@@ -332,6 +332,26 @@
         "failed": "A IA não conseguiu fazer uma sugestão."
       }
     },
+    "skills": {
+      "title": "Habilidades",
+      "daily": {
+        "title": "Orientação do dia",
+        "description": "O que importa hoje: tarefas com prazo, compromissos e o que você fez por último.",
+        "prompt": "O que é importante hoje? Me dê uma orientação curta: o que vence ou está previsto para hoje e para os próximos dois dias, em que trabalhei por último e qual é o próximo passo mais importante. Use minha nota diária, minhas tarefas e meus compromissos. No máximo cinco pontos, cada um com sua fonte."
+      },
+      "weekly": {
+        "title": "Revisão semanal",
+        "description": "Os últimos sete dias e a semana que vem.",
+        "prompt": "Revise minha semana: em que trabalhei nos últimos sete dias (notas que criei ou alterei), quais tarefas concluí e quais ainda estão abertas ou atrasadas, e meus compromissos da próxima semana. Termine com três sugestões para a semana seguinte. Cite as notas."
+      },
+      "project": {
+        "title": "Status do projeto",
+        "description": "Objetivo, progresso, pontos em aberto e o próximo passo de um projeto.",
+        "prompt": "Qual é o status do projeto da nota aberta? Objetivo, o que está feito, o que está em aberto, o que o bloqueia e o próximo passo — cada ponto com sua fonte. Se a nota aberta não for sobre um projeto, pergunte qual projeto eu quero dizer.",
+        "promptFor": "Qual é o status do projeto “{{project}}”? Objetivo, o que está feito, o que está em aberto, o que o bloqueia e o próximo passo — cada ponto com sua fonte.",
+        "argument": "O projeto: o nome da nota ou pasta dele."
+      }
+    },
     "mcp": {
       "title": "Apps de IA neste computador",
       "switch": "Deixar apps de IA deste computador lerem este cofre",

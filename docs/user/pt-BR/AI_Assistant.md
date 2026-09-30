@@ -81,6 +81,10 @@ Uma ação de sugestão envia apenas o trecho selecionado — não o resto da no
 
 Um trecho de uma nota que suas regras mantêm longe da nuvem — ou um com links para essas notas ou com dados de local — não vai para nenhum modelo na nuvem. Em um workspace criptografado as ações de sugestão ainda não estão disponíveis: as sugestões nele ainda não podem indicar a IA como autora.
 
+## Habilidades
+
+Três habilidades iniciam perguntas frequentes com um clique: **Orientação do dia** (o que importa hoje: tarefas com prazo, compromissos e o que você fez por último), **Revisão semanal** (os últimos sete dias e a semana que vem) e **Status do projeto** (objetivo, progresso, pontos em aberto e o próximo passo do projeto da nota aberta). Você as encontra como chips em uma conversa vazia, em **Habilidades** na aba de IA — no celular, em **Conversas** — e na paleta de comandos. Uma habilidade envia sua pergunta como sua mensagem: no seu idioma, visível na conversa como tudo o que você digita, e pelo mesmo resumo. Depois, o assistente pesquisa com suas ferramentas de sempre.
+
 ## Regras de privacidade
 
 Algumas notas nunca devem chegar a um provedor de nuvem. Uma regra pode ficar no frontmatter de uma nota:

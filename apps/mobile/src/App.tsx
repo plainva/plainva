@@ -82,7 +82,7 @@ import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/wi
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
 import { AiSheet } from "./components/AiSheet";
-import { MobileAiNavigation, openAiNoteTarget, openAiSheet, useMobileAi, withoutAiArea } from "./services/ai/mobileAi";
+import { MobileAiNavigation, openAiNoteTarget, openAiSheet, runMobileAiSkill, useMobileAi, withoutAiArea } from "./services/ai/mobileAi";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -653,6 +653,12 @@ export default function App() {
     refreshVault: () => setBump((n) => n + 1),
     activeNote: () => activeNotePath(top),
     openAi: ai.enabled ? () => openAiSheet(activeNotePath(top) ?? null) : undefined,
+    runAiSkill: ai.enabled
+      ? (id) => {
+          openAiSheet(activeNotePath(top) ?? null);
+          runMobileAiSkill(id);
+        }
+      : undefined,
   });
 
   const routeCtx = {

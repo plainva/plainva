@@ -81,6 +81,10 @@ Akcja propozycji wysyła wyłącznie zaznaczony fragment — nie resztę notatki
 
 Fragment notatki, którą Twoje reguły trzymają z dala od chmury — albo fragment z linkami do takich notatek lub z danymi o miejscach — nie trafia do żadnego modelu w chmurze. W zaszyfrowanym obszarze roboczym akcje propozycji nie są jeszcze dostępne: propozycje w nim nie mogą jeszcze wskazać AI jako autora.
 
+## Umiejętności
+
+Trzy umiejętności uruchamiają częste pytania jednym kliknięciem: **Orientacja na dziś** (co jest dziś ważne: zadania z terminem, spotkania i ostatnio zmieniane notatki), **Przegląd tygodnia** (ostatnie siedem dni i nadchodzący tydzień) oraz **Stan projektu** (cel, postęp, otwarte punkty i następny krok projektu z otwartej notatki). Znajdują się jako chipy w pustej rozmowie, w sekcji **Umiejętności** na karcie AI — na telefonie w **Rozmowy** — oraz w palecie poleceń. Umiejętność wysyła swoje pytanie jako wiadomość użytkownika: w jego języku, widoczną w rozmowie jak wszystko, co zostało wpisane, i przez ten sam przegląd. Następnie asystent wyszukuje informacje swoimi zwykłymi narzędziami.
+
 ## Zasady prywatności
 
 Niektóre notatki nigdy nie powinny trafić do dostawcy w chmurze. Reguła może znajdować się we frontmatterze notatki:

@@ -2,6 +2,7 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare, MoreHorizontal, SquarePen } from "lucide-react";
 import {
+  AI_CORE_SKILLS,
   AiConversation,
   Button,
   conversationRowActions,
@@ -14,11 +15,14 @@ import {
   RowActionList,
   RowList,
   SearchField,
+  SectionLabel,
+  skillPrompt,
   useAiSession,
   useAiState,
   type ConversationRowCaps,
 } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
+import { editorSelectionReader } from "../../services/editorSelection";
 
 /**
  * The AI tab `plainva://ai` (plan KI-Harness §19.1, dress C): the same
@@ -117,9 +121,26 @@ export function AiTabView({
               ))}
             </RowList>
           )}
+          <SectionLabel>{t("ai.skills.title")}</SectionLabel>
+          <RowList className="pv-ai-historylist">
+            {AI_CORE_SKILLS.map((skill) => (
+              <Row
+                key={skill.id}
+                icon={<skill.icon size={ICON.ui} />}
+                title={t(`ai.skills.${skill.id}.title`)}
+                subtitle={t(`ai.skills.${skill.id}.description`)}
+                disabled={Boolean(state.live)}
+                onClick={() => {
+                  session.newConversation();
+                  void session.send(skillPrompt(t, skill.id));
+                }}
+                data-testid={`ai-tab-skill-${skill.id}`}
+              />
+            ))}
+          </RowList>
         </nav>
         <section className="pv-ai-tabmain">
-          <AiConversation dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+          <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
         </section>
       </div>
       {menu && (

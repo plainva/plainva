@@ -1,6 +1,6 @@
 # Łączenie aplikacji AI (beta)
 
-Stan na: 2026-09-29
+Stan na: 2026-09-30
 
 Aplikacje AI na Twoim komputerze — Claude Code, Claude Desktop, Cursor, VS Code i inne, które mówią protokołem Model Context Protocol (MCP) — mogą czytać Twój sejf przez Plainva: przeszukiwać go, czytać notatki i ich sekcje, konspekty, linki zwrotne, bazy danych, zadania i ostatnie notatki oraz otwierać notatkę w Plainva. Niczego nie mogą zmienić. To część eksperymentalnych funkcji AI i działa tylko na komputerze.
 
@@ -27,6 +27,8 @@ Aplikacja przechowuje sekret w pęku kluczy systemu na następny raz. Foldery pr
 Tylko foldery, na które zezwolono, i tylko to, co Twoje zasady prywatności puszczają do modelu w chmurze: notatki z `cloud: deny`, albo w folderze z taką regułą, dla aplikacji nie istnieją — ani ich tekst, ani tytuły —, linki do nich są zatrzymywane, a miejsca z dziennika nigdy nie wychodzą. Własne foldery Plainva (`.plainva`, `.agent`) i same reguły nigdy nie są czytelne. Każda ścieżka w zapytaniu i w odpowiedzi jest sprawdzana dwa razy: w oknie aplikacji i w natywnej części Plainva.
 
 Ustawienia pokazują dozwolone aplikacje z ich folderami i ostatnie zapytania. **Usuń** cofa zgodę aplikacji we wszystkich sejfach.
+
+Oprócz narzędzi Plainva udostępnia swoje trzy umiejętności jako prompty, w języku aplikacji: `daily-orientation`, `weekly-review` i `project-status`, który pyta o nazwę projektu. Aplikacja obsługująca prompty pokazuje je wśród swoich poleceń.
 
 ## Ograniczenia
 

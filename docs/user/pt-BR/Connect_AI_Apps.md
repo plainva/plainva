@@ -1,6 +1,6 @@
 # Conectar apps de IA (Beta)
 
-Última revisão: 2026-09-29
+Última revisão: 2026-09-30
 
 Apps de IA no seu computador — Claude Code, Claude Desktop, Cursor, VS Code e outros que falam o Model Context Protocol (MCP) — podem ler o seu cofre pelo Plainva: pesquisar nele, ler notas e suas seções, estruturas, backlinks, bancos de dados, tarefas e notas recentes, e abrir uma nota no Plainva. Eles não podem mudar nada. Isso faz parte das funções experimentais de IA e funciona só no desktop.
 
@@ -27,6 +27,8 @@ O app guarda um segredo no chaveiro do sistema para a próxima vez. As pastas va
 Só as pastas que você permitiu, e só o que suas regras de privacidade deixam ir para um modelo na nuvem: notas com `cloud: deny`, ou numa pasta com essa regra, não existem para um app — nem o texto nem os títulos —, links para elas são retidos, e lugares do diário nunca vão. As pastas do próprio Plainva (`.plainva`, `.agent`) e as próprias regras nunca podem ser lidas. Cada caminho de uma solicitação e de uma resposta é verificado duas vezes: na janela do app e na parte nativa do Plainva.
 
 As configurações listam os apps permitidos com suas pastas e as últimas solicitações. **Remover** retira a permissão de um app em todos os cofres.
+
+Além das ferramentas, o Plainva oferece suas três habilidades como prompts, no idioma do app: `daily-orientation`, `weekly-review` e `project-status`, que pede o nome do projeto. Um app que aceita prompts os lista entre seus comandos.
 
 ## Limites
 

@@ -332,6 +332,26 @@
         "failed": "L'IA non è riuscita a fare una proposta."
       }
     },
+    "skills": {
+      "title": "Competenze",
+      "daily": {
+        "title": "Orientamento del giorno",
+        "description": "Cosa conta oggi: attività in scadenza, appuntamenti e ciò su cui hai lavorato di recente.",
+        "prompt": "Cosa è importante oggi? Dammi un breve orientamento: cosa scade o è previsto oggi e nei prossimi due giorni, su cosa ho lavorato di recente e qual è il prossimo passo più importante. Usa la mia nota giornaliera, le mie attività e i miei appuntamenti. Al massimo cinque punti, ciascuno con la sua fonte."
+      },
+      "weekly": {
+        "title": "Riepilogo settimanale",
+        "description": "Gli ultimi sette giorni e la settimana che arriva.",
+        "prompt": "Ripercorri la mia settimana: su cosa ho lavorato negli ultimi sette giorni (note che ho creato o modificato), quali attività ho completato e quali sono ancora aperte o scadute, e i miei appuntamenti della prossima settimana. Chiudi con tre suggerimenti per la settimana successiva. Cita le note."
+      },
+      "project": {
+        "title": "Stato del progetto",
+        "description": "Obiettivo, avanzamento, punti aperti e prossimo passo di un progetto.",
+        "prompt": "A che punto è il progetto della nota aperta? Obiettivo, cosa è fatto, cosa è aperto, cosa lo blocca e il prossimo passo — ogni punto con la sua fonte. Se la nota aperta non riguarda un progetto, chiedimi a quale progetto mi riferisco.",
+        "promptFor": "A che punto è il progetto «{{project}}»? Obiettivo, cosa è fatto, cosa è aperto, cosa lo blocca e il prossimo passo — ogni punto con la sua fonte.",
+        "argument": "Il progetto: il nome della sua nota o cartella."
+      }
+    },
     "mcp": {
       "title": "App di IA su questo computer",
       "switch": "Consenti alle app di IA di questo computer di leggere questo vault",

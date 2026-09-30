@@ -322,6 +322,26 @@
         "failed": "Die KI konnte keinen Vorschlag machen."
       }
     },
+    "skills": {
+      "title": "Skills",
+      "daily": {
+        "title": "Tagesorientierung",
+        "description": "Was heute wichtig ist: fällige Aufgaben, Termine und woran Du zuletzt gearbeitet hast.",
+        "prompt": "Was ist heute wichtig? Gib mir eine kurze Orientierung: was heute und in den nächsten zwei Tagen fällig ist oder ansteht, woran ich zuletzt gearbeitet habe und was der wichtigste nächste Schritt ist. Nutze meine Tagesnotiz, meine Aufgaben und meine Termine. Höchstens fünf Punkte, jeder mit seiner Quelle."
+      },
+      "weekly": {
+        "title": "Wochenrückblick",
+        "description": "Die letzten sieben Tage und die Woche, die kommt.",
+        "prompt": "Blick mit mir auf meine Woche: woran ich in den letzten sieben Tagen gearbeitet habe (Notizen, die ich angelegt oder geändert habe), welche Aufgaben ich erledigt habe und welche noch offen oder überfällig sind, und meine Termine in der kommenden Woche. Schließ mit drei Vorschlägen für die nächste Woche. Nenne die Notizen."
+      },
+      "project": {
+        "title": "Projektstatus",
+        "description": "Ziel, Fortschritt, offene Punkte und der nächste Schritt eines Projekts.",
+        "prompt": "Wie steht das Projekt in der offenen Notiz? Ziel, was erledigt ist, was offen ist, was es blockiert und der nächste Schritt — jeder Punkt mit seiner Quelle. Wenn es in der offenen Notiz um kein Projekt geht, frag mich, welches Projekt ich meine.",
+        "promptFor": "Wie steht das Projekt „{{project}}“? Ziel, was erledigt ist, was offen ist, was es blockiert und der nächste Schritt — jeder Punkt mit seiner Quelle.",
+        "argument": "Das Projekt: der Name seiner Notiz oder seines Ordners."
+      }
+    },
     "mcp": {
       "title": "KI-Apps auf diesem Rechner",
       "switch": "KI-Apps auf diesem Rechner diesen Vault lesen lassen",

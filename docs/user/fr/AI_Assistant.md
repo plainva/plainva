@@ -81,6 +81,10 @@ Une action de proposition envoie uniquement le passage sélectionné — ni le r
 
 Un passage d'une note que vos règles tiennent à l'écart du cloud — ou un passage avec des liens vers de telles notes ou avec des indications de lieu — ne part vers aucun modèle cloud. Dans un espace chiffré, les actions de proposition ne sont pas encore disponibles : ses propositions ne peuvent pas encore nommer l'IA comme auteur.
 
+## Compétences
+
+Trois compétences lancent des questions courantes en un clic : **Orientation du jour** (ce qui compte aujourd'hui — tâches à échéance, rendez-vous et ce sur quoi vous avez travaillé récemment), **Bilan de la semaine** (les sept derniers jours et la semaine à venir) et **État du projet** (objectif, avancement, points ouverts et prochaine étape du projet de la note ouverte). Vous les trouvez sous forme de puces dans une conversation vide, sous **Compétences** dans l'onglet IA — sur le téléphone dans **Conversations** — et dans la palette de commandes. Une compétence envoie sa question comme votre message : dans votre langue, visible dans la conversation comme tout ce que vous tapez, et via le même aperçu. L'assistant cherche ensuite avec ses outils habituels.
+
 ## Règles de confidentialité
 
 Certaines notes ne doivent jamais atteindre un fournisseur cloud. Une règle peut se trouver dans le frontmatter d'une note :

@@ -81,6 +81,10 @@ Een voorstelactie verzendt alleen de geselecteerde passage — niet de rest van 
 
 Een passage uit een notitie die je regels bij de cloud weghouden — of een met links naar zulke notities of met plaatsgegevens — gaat naar geen enkel cloudmodel. In een versleutelde workspace zijn de voorstelacties nog niet beschikbaar: de voorstellen daarin kunnen de AI nog niet als auteur noemen.
 
+## Vaardigheden
+
+Drie vaardigheden starten veelgestelde vragen met één klik: **Dagoriëntatie** (wat vandaag telt: taken die aflopen, afspraken en waar je laatst aan werkte), **Weekoverzicht** (de afgelopen zeven dagen en de week die komt) en **Projectstatus** (doel, voortgang, open punten en de volgende stap van het project in de geopende notitie). Je vindt ze als chips in een leeg gesprek, onder **Vaardigheden** in het AI-tabblad — op de telefoon in **Gesprekken** — en in het opdrachtenpalet. Een vaardigheid verzendt haar vraag als jouw bericht: in jouw taal, zichtbaar in het gesprek zoals alles wat je typt, en via hetzelfde overzicht. Daarna zoekt de assistent met zijn gewone tools.
+
 ## Privacyregels
 
 Sommige notities mogen nooit bij een cloudprovider terechtkomen. Een regel kan in de frontmatter van een notitie staan:
