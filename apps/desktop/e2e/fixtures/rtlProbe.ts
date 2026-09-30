@@ -1,7 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView, drawSelection, keymap } from "@codemirror/view";
 import { defaultKeymap } from "@codemirror/commands";
-import { markdown } from "@codemirror/lang-markdown";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { listIndentPlugin } from "../../../../packages/ui/src/components/listIndent";
 import { markdownDecorationPlugin } from "../../../../packages/ui/src/components/LivePreviewPlugin";
 import { editorTheme, markdownTheme } from "../../../../packages/ui/src/components/MarkdownTheme";
@@ -36,7 +36,7 @@ function createProbe() {
       document.documentElement.dataset.themeName = "petrol";
       // The caret parks on the Latin line, so the Arabic task shows its box.
       view = new EditorView({ parent: host, state: EditorState.create({ doc: RTL_DOC, selection: { anchor: RTL_DOC.length }, extensions: [
-        markdown(), editorTheme, markdownTheme(), EditorView.lineWrapping, drawSelection(), keymap.of(defaultKeymap),
+        markdown({ base: markdownLanguage }), editorTheme, markdownTheme(), EditorView.lineWrapping, drawSelection(), keymap.of(defaultKeymap),
         listIndentPlugin({ hideLeadingWhitespace: live }), markdownDecorationPlugin(live), textDirectionExtension(),
       ] }) });
       return RTL_DOC;
