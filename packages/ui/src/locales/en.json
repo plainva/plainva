@@ -956,7 +956,7 @@
     "resetEncryptionAction": "Reset encryption",
     "encryptionErrorHint": "This connection was known to be encrypted, but the encryption data is missing from the cloud (for example because the encrypted vault was deleted). Sync stops to protect your data. If you removed the vault on purpose, reset the encryption for this connection.",
     "collisionTitle": "Two spellings, one file",
-    "collisionBody": "These names look the same but are stored differently (composed and decomposed accents). Google Drive, Windows and macOS cannot tell them apart. Plainva keeps syncing and deletes nothing — rename one of the two and it is one name again."
+    "collisionBody": "These names look the same but are stored differently: in letter case, or — both side by side in one folder — as composed and decomposed accents. Plainva syncs everything else, leaves the second spelling out and deletes nothing. Rename one of the two and it is one name again."
   },
   "sidebar": {
     "files": "Files",

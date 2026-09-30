@@ -956,7 +956,7 @@
     "resetEncryptionAction": "Versleuteling opnieuw instellen",
     "encryptionErrorHint": "Deze verbinding stond bekend als versleuteld, maar de versleutelingsgegevens ontbreken in de cloud (bijvoorbeeld omdat de versleutelde kluis is verwijderd). De synchronisatie stopt om je gegevens te beschermen. Heb je de kluis met opzet verwijderd, stel dan de versleuteling voor deze verbinding opnieuw in.",
     "collisionTitle": "Twee schrijfwijzen, één bestand",
-    "collisionBody": "Deze namen zien er hetzelfde uit maar zijn verschillend opgeslagen (samengestelde en ontlede accenten). Google Drive, Windows en macOS kunnen ze niet uit elkaar houden. Plainva blijft synchroniseren en verwijdert niets — hernoem er een en het is weer één naam."
+    "collisionBody": "Deze namen zien er hetzelfde uit maar zijn verschillend opgeslagen: in hoofdletters en kleine letters, of — allebei naast elkaar in dezelfde map — met samengestelde en ontlede accenten. Plainva synchroniseert al het andere, laat de tweede schrijfwijze buiten beschouwing en verwijdert niets — hernoem er een en het is weer één naam."
   },
   "sidebar": {
     "files": "Bestanden",

@@ -956,7 +956,7 @@
     "resetEncryptionAction": "Verschlüsselung zurücksetzen",
     "encryptionErrorHint": "Diese Verbindung galt als verschlüsselt, aber die Verschlüsselungsdaten fehlen in der Cloud (z. B. weil der verschlüsselte Vault gelöscht wurde). Zum Schutz stoppt der Sync. Wurde der Vault absichtlich entfernt, setze die Verschlüsselung für diese Verbindung zurück.",
     "collisionTitle": "Zwei Schreibweisen, eine Datei",
-    "collisionBody": "Diese Namen sehen gleich aus, sind aber unterschiedlich gespeichert (zusammengesetzte und zerlegte Umlaute). Google Drive, Windows und macOS können sie nicht auseinanderhalten. Plainva synchronisiert weiter und löscht nichts — benenne eine der beiden um, dann ist es wieder ein Name."
+    "collisionBody": "Diese Namen sehen gleich aus, sind aber unterschiedlich gespeichert: in Groß- und Kleinschreibung oder — beide nebeneinander im selben Ordner — als zusammengesetzte und zerlegte Umlaute. Plainva synchronisiert alles andere, lässt die zweite Schreibweise aus und löscht nichts. Benenne eine der beiden um, dann ist es wieder ein Name."
   },
   "sidebar": {
     "files": "Dateien",

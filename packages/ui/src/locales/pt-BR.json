@@ -958,7 +958,7 @@
     "resetEncryptionAction": "Redefinir criptografia",
     "encryptionErrorHint": "Esta conexão constava como criptografada, mas os dados de criptografia estão ausentes na nuvem (por exemplo, porque o vault criptografado foi excluído). A sincronização para para proteger seus dados. Se você removeu o vault de propósito, redefina a criptografia desta conexão.",
     "collisionTitle": "Duas grafias, um arquivo",
-    "collisionBody": "Estes nomes parecem iguais, mas são armazenados de formas diferentes (acentos compostos e decompostos). Google Drive, Windows e macOS não conseguem diferenciá-los. O Plainva continua sincronizando e não apaga nada — renomeie um dos dois e voltará a ser um só nome."
+    "collisionBody": "Estes nomes parecem iguais, mas são armazenados de formas diferentes: em maiúsculas e minúsculas ou — os dois lado a lado na mesma pasta — com acentos compostos e decompostos. O Plainva sincroniza todo o resto, deixa a segunda grafia de fora e não apaga nada — renomeie um dos dois e voltará a ser um só nome."
   },
   "sidebar": {
     "files": "Arquivos",

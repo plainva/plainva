@@ -960,7 +960,7 @@
     "resetEncryptionAction": "Zresetuj szyfrowanie",
     "encryptionErrorHint": "To połączenie było oznaczone jako zaszyfrowane, ale w chmurze brakuje danych szyfrowania (na przykład dlatego, że zaszyfrowany sejf został usunięty). Synchronizacja zatrzymuje się, aby chronić Twoje dane. Jeśli sejf usunięto celowo, zresetuj szyfrowanie tego połączenia.",
     "collisionTitle": "Dwie pisownie, jeden plik",
-    "collisionBody": "Te nazwy wyglądają tak samo, ale są zapisane inaczej (znaki złożone i rozłożone). Google Drive, Windows i macOS nie potrafią ich rozróżnić. Plainva nadal synchronizuje i niczego nie usuwa — zmień nazwę jednego z nich, a znów będzie to jedna nazwa."
+    "collisionBody": "Te nazwy wyglądają tak samo, ale są zapisane inaczej: wielkością liter albo — obie obok siebie w tym samym folderze — znakami złożonymi i rozłożonymi. Plainva synchronizuje wszystko inne, pomija drugą pisownię i niczego nie usuwa — zmień nazwę jednego z nich, a znów będzie to jedna nazwa."
   },
   "sidebar": {
     "files": "Pliki",
