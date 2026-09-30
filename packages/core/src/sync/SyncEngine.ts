@@ -2,7 +2,7 @@ import { SyncQueue } from "./SyncQueue.js";
 import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
-import { findCollidingPath, type NameCollision } from "./pathIdentity.js";
+import { findCollidingPath, foldPathForCollision, type NameCollision } from "./pathIdentity.js";
 import { isTextFile } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
@@ -112,6 +112,43 @@ export class SyncEngine {
     return null;
   }
 
+  /**
+   * The spelling under which the remote already holds a FOLDER that `path`
+   * would twin — same name up to Unicode normalization or letter case, other
+   * bytes — or null (issue #112). Evidence is the sync state: every folder
+   * that carries a file the remote confirmed. Walks the chain, so a twin at any
+   * level counts; an exact known folder is followed. `index` maps each folded
+   * known folder to its actual spellings and is built once per pass.
+   */
+  private async findRemoteFolderTwin(path: string, index: { value?: Map<string, Set<string>> }): Promise<string | null> {
+    if (!this.stateRepo) return null;
+    if (!index.value) {
+      const folders = new Map<string, Set<string>>();
+      for (const [known, state] of await this.stateRepo.getAllStates()) {
+        if (!state.remote_etag) continue;
+        const parts = known.split("/");
+        for (let i = 1; i < parts.length; i++) {
+          const folder = parts.slice(0, i).join("/");
+          const key = foldPathForCollision(folder);
+          const set = folders.get(key) ?? new Set<string>();
+          set.add(folder);
+          folders.set(key, set);
+        }
+      }
+      index.value = folders;
+    }
+    const segments = path.replace(/\\/g, "/").split("/").filter((s) => s.length > 0);
+    for (let i = 1; i <= segments.length; i++) {
+      const prefix = segments.slice(0, i).join("/");
+      const spellings = index.value.get(foldPathForCollision(prefix));
+      if (!spellings) return null;
+      if (spellings.has(prefix)) continue;
+      const twin = [...spellings].sort()[0]!;
+      return [twin, ...segments.slice(i)].join("/");
+    }
+    return null;
+  }
+
   public async processQueue(
     isAborted?: () => boolean,
     onProgress?: (current: number, total: number) => void,
@@ -146,6 +183,7 @@ export class SyncEngine {
     let consecutiveFailures = 0;
     let pushIdx = 0;
     const localListings = new Map<string, Promise<VaultFileInfo[] | null>>();
+    const remoteFolders: { value?: Map<string, Set<string>> } = {};
     for (let op of pending) {
       if (isAborted && isAborted()) break;
       // Progress ticks for the status bar (WP6); the desktop throttles rendering.
@@ -192,6 +230,25 @@ export class SyncEngine {
           const twin = await this.findLocalTwin(op.file_path, localListings);
           if (twin) {
             console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: this device has ${twin} (capitalization/accents)`);
+            if (opts?.collisions && !opts.collisions.some((c) => c.path === op.file_path && c.twin === twin)) {
+              opts.collisions.push({ path: op.file_path, twin });
+            }
+            continue;
+          }
+        }
+        // The same lock for a folder the remote already holds in the other
+        // spelling (issue #112): a Finder-made folder is decomposed, the
+        // server's copy composed. A byte-exact WebDAV server (HiDrive) takes
+        // the MKCOL as a second, identical-looking folder, and a desktop
+        // client syncing the same folder renames it to "Name(1)", "Name(2)"…
+        // Held and reported like a twin DELETE. Writes into such a folder
+        // are not held here: resolving the remote spelling before PUT is the
+        // path-identity change (plan O3), and holding them would stop every
+        // edit in an accented folder on servers that normalize names.
+        if (op.operation === "mkdir") {
+          const twin = await this.findRemoteFolderTwin(op.file_path, remoteFolders);
+          if (twin) {
+            console.warn(`[SyncEngine] not creating folder ${op.file_path}: the remote holds ${twin} (capitalization/accents)`);
             if (opts?.collisions && !opts.collisions.some((c) => c.path === op.file_path && c.twin === twin)) {
               opts.collisions.push({ path: op.file_path, twin });
             }

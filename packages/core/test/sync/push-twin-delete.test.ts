@@ -7,6 +7,7 @@ import { LocalVaultAdapter } from "../../src/vault/LocalVaultAdapter.js";
 import { SyncQueue } from "../../src/sync/SyncQueue.js";
 import { SyncEngine } from "../../src/sync/SyncEngine.js";
 import { SyncWorker } from "../../src/sync/SyncWorker.js";
+import { SyncStateRepository } from "../../src/vault/SyncStateRepository.js";
 import type { NameCollision } from "../../src/sync/pathIdentity.js";
 import type { ISyncTarget, SyncOperation } from "../../src/sync/ISyncTarget.js";
 
@@ -148,5 +149,56 @@ describe("a remote DELETE with a local twin is not pushed (issue #112)", () => {
     expect(pushed).toEqual([]);
     expect(reported.at(-1)).toEqual([{ path: `${NFC}/Notiz.md`, twin: `${NFD}/Notiz.md` }]);
     worker.stop();
+  });
+
+  describe("a folder the remote already holds in the other spelling is not created again", () => {
+    // The #112 reporter's evidence: HiDrive over WebDAV, a folder made in
+    // Finder (decomposed bytes), the server's copy composed. Every MKCOL of the
+    // decomposed name became a second folder, which the HiDrive desktop app
+    // syncing the same folder renamed to "Neutralität(1)", "(2)", …
+    let created: string[];
+    let repo: SyncStateRepository;
+    beforeEach(async () => {
+      created = [];
+      target.createVaultFolder = async (p: string) => { created.push(p); };
+      repo = new SyncStateRepository(db);
+      await repo.updateRemoteState(`${NFC}/Notiz.md`, "etag-1", null, 1);
+      await repo.updateRemoteState("Notes/Idea.md", "etag-2", null, 1);
+    });
+
+    it("holds an MKCOL of the decomposed name and reports the pair", async () => {
+      await queue.queueMkdir(`${NFD}/Neu`);
+      const collisions: NameCollision[] = [];
+      await new SyncEngine(queue, target, vault, repo).processQueue(undefined, undefined, { collisions });
+
+      expect(created).toEqual([]);
+      expect(collisions).toEqual([{ path: `${NFD}/Neu`, twin: `${NFC}/Neu` }]);
+      expect(await pending()).toEqual([`mkdir ${NFD}/Neu #0`]);
+    });
+
+    it("holds a folder that differs only in letter case", async () => {
+      await queue.queueMkdir("notes");
+      const collisions: NameCollision[] = [];
+      await new SyncEngine(queue, target, vault, repo).processQueue(undefined, undefined, { collisions });
+      expect(created).toEqual([]);
+      expect(collisions).toEqual([{ path: "notes", twin: "Notes" }]);
+    });
+
+    it("creates a folder inside the known spelling, and a genuinely new one", async () => {
+      await queue.queueMkdir(`${NFC}/Neu`);
+      await queue.queueMkdir("Elsewhere/Deep");
+      await new SyncEngine(queue, target, vault, repo).processQueue();
+      expect(created).toEqual([`${NFC}/Neu`, "Elsewhere/Deep"]);
+      expect(await pending()).toEqual([]);
+    });
+
+    it("ignores rows the remote never confirmed", async () => {
+      // A local-only row (no remote etag) says nothing about the server.
+      await repo.deleteSyncState("Notes/Idea.md");
+      await repo.updateLocalHash("Notes/Idea.md", "sha");
+      await queue.queueMkdir("notes");
+      await new SyncEngine(queue, target, vault, repo).processQueue();
+      expect(created).toEqual(["notes"]);
+    });
   });
 });
