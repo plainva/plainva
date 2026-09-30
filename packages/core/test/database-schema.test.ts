@@ -75,7 +75,8 @@ describe("Database Schema", () => {
 
     const queries = db.queries.map(q => q.query);
     expect(queries.some(q => q.includes("UPDATE files SET mtime_local = 0"))).toBe(false);
-    expect(queries.some(q => q.includes("INSERT OR REPLACE INTO meta"))).toBe(false);
+    // Only the index-format stamp; the path-identity migration keeps its own.
+    expect(queries.some(q => q.includes("INSERT OR REPLACE INTO meta") && q.includes("index_format_version"))).toBe(false);
   });
 
   it("can execute insert and select on sync_state", async () => {

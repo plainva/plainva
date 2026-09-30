@@ -101,6 +101,7 @@ export * from "./settingsSync/secretsBundle.js";
 export * from "./settingsSync/EncryptingSyncTarget.js";
 export * from "./db/IDatabaseAdapter.js";
 export * from "./db/Schema.js";
+export { migratePathIdentity, PATH_IDENTITY_VERSION, type PathIdentityReport } from "./db/pathIdentityMigration.js";
 export * from "./db/batch.js";
 export * from "./pim/types.js";
 export * from "./pim/requestError.js";
@@ -112,7 +113,7 @@ export * from "./pim/GraphPimTarget.js";
 export * from "./pim/DevicePimTarget.js";
 export * from "./pim/PimWorker.js";
 export * from "./import/index.js";
-export { foldPathForCollision, foldPathNormalization } from "./sync/pathIdentity.js";
+export { foldPathForCollision, foldPathNormalization, toPathIdentity, isTwinSpelling, hasSpellingVariants } from "./sync/pathIdentity.js";
 
 export { projectCommentRecords } from "./comments/commentProjection.js";
 export * from "./textScan.js";

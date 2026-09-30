@@ -1,4 +1,5 @@
 import { IDatabaseAdapter } from "./IDatabaseAdapter.js";
+import { migratePathIdentity } from "./pathIdentityMigration.js";
 
 /**
  * Initializes the database schema as defined in Master_Projektplan.md §5.2
@@ -577,6 +578,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_links_property ON links(property_key, target_path);`);
 
   await migrateIndexFormat(db);
+  // Paths are NFC identities since ADR 0016; re-keys what older versions stored.
+  await migratePathIdentity(db);
 }
 
 /**
