@@ -54,6 +54,7 @@
     "@hpke/chacha20poly1305": "^1.8.0",
     "@hpke/core": "^1.9.0",
     "@hpke/dhkem-x25519": "^1.8.0",
+    "@huggingface/tokenizers": "0.2.0",
     "@noble/ciphers": "^2.4.0",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",

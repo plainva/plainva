@@ -355,6 +355,9 @@ importers:
       '@hpke/dhkem-x25519':
         specifier: ^1.8.0
         version: 1.8.0
+      '@huggingface/tokenizers':
+        specifier: 0.2.0
+        version: 0.2.0
       '@noble/ciphers':
         specifier: ^2.4.0
         version: 2.4.0
@@ -1075,6 +1078,9 @@ packages:
   '@hpke/dhkem-x25519@1.8.0':
     resolution: {integrity: sha512-S1MWWkAfu+TFxySgv5+2P3O4Mx/jk7BsoplzQaA1s3sfUJVJ2UsZsSzSsMc+FXJumLXncoJFlO6mK6mDGspfmA==}
     engines: {node: '>=16.0.0'}
+
+  '@huggingface/tokenizers@0.2.0':
+    resolution: {integrity: sha512-LidMHe1FpcSYH4vcSjXooda34pC0M8m1gmDOv7SQi6Iv+ib1zX7J3sHBCC9/3FPCkn2k1b55FneVqMRxrr99pg==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -5806,6 +5812,8 @@ snapshots:
   '@hpke/dhkem-x25519@1.8.0':
     dependencies:
       '@hpke/common': 1.10.1
+
+  '@huggingface/tokenizers@0.2.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
