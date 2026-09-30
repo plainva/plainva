@@ -36,7 +36,9 @@ pub fn safe_rel_path(raw: &str) -> Option<String> {
             return None;
         }
     }
-    if HIDDEN_ROOTS.contains(&fold(parts[0]).as_str()) {
+    // Case-blind on every system: on Linux `.PLAINVA` is another folder, but it
+    // syncs onto `.plainva` the moment the vault reaches a Windows or Mac device.
+    if HIDDEN_ROOTS.contains(&fold(parts[0]).to_lowercase().as_str()) {
         return None;
     }
     Some(parts.join("/").nfc().collect())
