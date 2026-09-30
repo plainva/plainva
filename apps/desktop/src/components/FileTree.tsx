@@ -29,8 +29,7 @@ import { getTemplateFolder } from "../services/newItemFlow";
 import { generateIndexForFolder } from "../services/indexMd";
 import { opensExternally } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
-import { dirtyStore } from "../services/dirtyStore";
-import { requestSaveFlush } from "../services/saveFlush";
+import { flushUnsavedBeforeMove } from "../services/moveFlush";
 import { serializeBaseConfig } from "@plainva/ui";
 // Lazily loaded (P2.9 "wizards"): the creation wizard is a rarely-opened
 // surface and must not sit in the initial bundle.
@@ -809,23 +808,8 @@ export const FileTree: React.FC<{
     setContextMenu(null);
   };
 
-  /**
-   * Unsaved text of an open note under these paths lands before they move —
-   * a later save would find its file gone and refuse to write it back there
-   * (issue 110), which left the text only in the draft journal. The editor's
-   * menu rename always flushed; the tree's rename and move did not.
-   *
-   * A flush that FAILS stops the move (issue 113, V3): it used to be
-   * swallowed, and the note moved without its latest text. Every flush is
-   * awaited first, so nothing is still writing when the refusal is reported.
-   */
-  const flushOpenEdits = async (paths: readonly string[]) => {
-    const pending = [...dirtyStore.get()].filter((p) => paths.some((s) => p === s || p.startsWith(`${s}/`)));
-    const results = await Promise.allSettled(pending.map((p) =>
-      requestSaveFlush(p, vaultPath ?? undefined).catch((reason: unknown) => { throw new MoveBlockedError(p, reason); })));
-    const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
-    if (failed) throw failed.reason;
-  };
+  /** Unsaved text under these paths lands first, or nothing moves (services/moveFlush). */
+  const flushOpenEdits = (paths: readonly string[]) => flushUnsavedBeforeMove(paths, vaultPath ?? undefined);
 
   /** "Stays where it is: its unsaved changes could not be saved first." */
   const reportMoveBlocked = (err: MoveBlockedError) => {
