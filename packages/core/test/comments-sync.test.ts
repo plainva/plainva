@@ -182,3 +182,28 @@ describe("proposal rounds in the local bundle (V1)", () => {
     expect(() => assertCommentsBundleStructure(emptyInsert)).toThrow(/insertion has no text/);
   });
 });
+
+/**
+ * ADR 0016: a remark another device wrote against the decomposed spelling of
+ * a note (macOS and iOS before the identity was NFC) belongs to the note the
+ * index now names composed — and so does a move marker written that way.
+ */
+describe("comments by path identity", () => {
+  const NFC = "Neutralität/Plan.md".normalize("NFC");
+  const NFD = NFC.normalize("NFD");
+
+  it("finds a remark stored under the decomposed path", async () => {
+    expect(NFC).not.toBe(NFD);
+    const { localCommentsForPath } = await import("../src/index.js");
+    const b = bundle([rec({ path: NFD, body: "written on the Mac" })]);
+    expect(localCommentsForPath(b, NFC).map((c) => c.body)).toEqual(["written on the Mac"]);
+    expect(localCommentsForPath(b, NFD).map((c) => c.body)).toEqual(["written on the Mac"]);
+  });
+
+  it("follows a move marker written with the decomposed path", async () => {
+    const { localCommentsForPath } = await import("../src/index.js");
+    const b = bundle([rec({ path: NFC, body: "remark" })]);
+    b.moves = { m1: { moveId: "m1", from: NFD, to: "Archiv/Plan.md", folder: false, at: "2026-08-25T11:00:00Z", deviceId: "laptop" } };
+    expect(localCommentsForPath(b, "Archiv/Plan.md").map((c) => c.body)).toEqual(["remark"]);
+  });
+});

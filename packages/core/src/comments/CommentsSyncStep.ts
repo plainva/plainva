@@ -497,6 +497,12 @@ export interface CommentsSyncOptions {
   now?: () => string;
   /** Files that could not be read this cycle (N3); the shell shows them once. */
   onFaults?: (faults: CommentBundleFault[]) => void;
+  /**
+   * Content-free transport notes for the sync diagnostics log - today the one
+   * line the read cache writes when a server's 304 validators cannot be bound
+   * to our copy (#113). Never a comment's text, never an error to show.
+   */
+  onDiagnostic?: (line: string) => void;
 }
 
 function writeOp(path: string, content: Uint8Array) {
@@ -519,7 +525,7 @@ export class CommentsSyncStep {
       if (!vaultCaches) { vaultCaches = new WeakMap(); readCaches.set(target, vaultCaches); }
       let cache = vaultCaches.get(vault);
       if (!cache) { cache = new SidebandReadCache(); vaultCaches.set(vault, cache); }
-      const reads = cache.begin(target);
+      const reads = cache.begin(target, { onDiagnostic: this.options.onDiagnostic });
       try {
         await this.runCycle(target, vault, faults, reads.read);
         if (faults.length === 0) reads.commit();

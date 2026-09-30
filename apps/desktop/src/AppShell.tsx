@@ -349,7 +349,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     // opened" alone leaves the user with nothing to do.
     openExternally: (p) => {
       if (!vaultPath) return;
-      void openAttachmentExternally(vaultPath, p, t);
+      void openAttachmentExternally(vaultPath, p, t, vaultAdapter);
     },
     // Client windows ask the owner before drawing anything (multi-window C1);
     // the central window holds the registry and answers for itself.

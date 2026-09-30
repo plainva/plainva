@@ -1,4 +1,4 @@
-# ADR 0019: AI skills, memory and script skills
+# ADR 0020: AI skills, memory and script skills
 
 Status: Accepted
 
@@ -40,7 +40,7 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    device-locally in app data, not in the vault. Names are scoped by origin;
    a skill never silently replaces another. "Arrived or changed, not
    approved" is a visible list in the skills workshop. Memory **facts** stay
-   data (tier 3, ADR 0017).
+   data (tier 3, ADR 0018).
 3. **Memory is not policy.** Facts and preferences live in memory; security
    and permission rules are enforced by the policy engine. A memory note
    cannot unlock a capability.
@@ -67,7 +67,7 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    map 1:1 to the tool registry — no file system, SQL, shell, raw WASI sockets
    or preopens, no secrets in the guest. Each manifest sets fuel, an epoch
    deadline, maximum memory and the maximum data per host call. Read-only
-   scripts first; mutating ones through the approval chain of ADR 0018.
+   scripts first; mutating ones through the approval chain of ADR 0019.
    Signature and origin are checked before instantiation (the updater's
    Ed25519 infrastructure), followed by a static check and a dry run.
 7. **Chat history lives in app data, not in the vault** — per vault,
@@ -98,5 +98,5 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
 
 ## Links
 
-- ADR 0016, ADR 0017, ADR 0018, ADR 0021; the Agent Skills specification;
+- ADR 0017, ADR 0018, ADR 0019, ADR 0022; the Agent Skills specification;
   SEP-2640 (Skills over MCP).

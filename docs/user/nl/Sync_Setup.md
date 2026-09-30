@@ -1,6 +1,6 @@
 # Sync instellen
 
-Laatst bijgewerkt: 2026-09-20
+Laatst bijgewerkt: 2026-09-30
 
 Plainva synchroniseert elke vault optioneel met een opslag naar keuze — rechtstreeks vanuit de app, zonder tussenliggende dienst van Plainva: je gegevens gaan uitsluitend tussen je computer en je eigen account/server. Deze pagina loodst je door de installatie per provider.
 
@@ -12,7 +12,7 @@ Als een tekstconflict niet automatisch kan worden samengevoegd, blijft er per or
 
 In de vergelijking toont **Bewaarde versies vergelijken** de opgeslagen beginversie, indien beschikbaar. Als de werkkopie buiten deze sessie verandert, wordt ook die andere versie bewaard en kun je die daar vergelijken. Overnemen, beide bewaren en verwerpen controleren de huidige bestanden opnieuw; laad een verouderde vergelijking opnieuw. Los het conflict op voordat je het betrokken bestand of de map verplaatst of verwijdert. Oudere conflictkopieën blijven apart vermeld.
 
-De diagnose-export bevat ook recente conflicten: opslagtype, schrijvende component, hashvergelijking en verschillen in regeleinden, BOM of de laatste nieuwe regel. Deze conflictrecords bevatten geen notitietekst of bestandsnamen.
+De diagnose-export bevat ook recente conflicten: opslagtype, schrijvende component, hashvergelijking en verschillen in regeleinden, BOM of de laatste nieuwe regel. Deze conflictrecords bevatten geen notitietekst of bestandsnamen. De export is altijd in het Engels, ongeacht de taal van de app, zodat je hem ongewijzigd in een issue op GitHub kunt plakken.
 
 ## Basisprincipes
 

@@ -1,3 +1,4 @@
+import type { IVaultAdapter } from "@plainva/core";
 import { errorText, toast } from "@plainva/ui";
 
 /**
@@ -15,10 +16,15 @@ export async function openAttachmentExternally(
   vaultPath: string,
   relPath: string,
   t: (key: string, options?: Record<string, unknown>) => string,
+  adapter?: Pick<IVaultAdapter, "realPath"> | null,
 ): Promise<void> {
   try {
     const { openPath } = await import("@tauri-apps/plugin-opener");
-    await openPath(`${vaultPath}/${relPath}`);
+    // The path is an identity (NFC, ADR 0016); the file may be stored under
+    // another spelling, which a byte-exact file system (Linux, Windows) would
+    // not find. The adapter knows the stored one.
+    const stored = adapter?.realPath ? await adapter.realPath(relPath) : relPath;
+    await openPath(`${vaultPath}/${stored}`);
   } catch (e) {
     console.error("[openAttachment] handing the file to the system failed", e);
     // Naming the file AND the reason: "could not be opened" on its own leaves

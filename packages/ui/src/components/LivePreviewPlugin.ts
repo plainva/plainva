@@ -10,6 +10,8 @@ import { anchorFramesAt, anchorFramesSignature, decorateAnchorTarget, hasAnchorH
 import i18n from "../i18n";
 import { isAnchorMarkerText } from "./anchorMarkerHide";
 import { listDepthAt } from "./listIndent";
+import { editorLineDirection } from "./textDirectionExtension";
+import { textDirectionOf, type TextDirection } from "../lib/textDirection";
 import { onCompletedTap } from "./completedTap";
 import { scanTasks, setChecklistTaskDone } from "@plainva/core";
 import { minimalDocChange } from "../lib/textDiff";
@@ -272,8 +274,11 @@ export function activeLineSet(state: EditorState): Set<number> {
   return set;
 }
 
-function alignToCss(a: TableAlign): "left" | "center" | "right" {
-  return a === "center" ? "center" : a === "right" ? "right" : "left";
+// A column without an alignment starts where its cell's text starts (issue
+// issue 111): left in a left-to-right cell, right in a right-to-left one. `:---`
+// and `---:` stay what the author wrote.
+function alignToCss(a: TableAlign): "left" | "center" | "right" | "start" {
+  return a === "center" ? "center" : a === "right" ? "right" : a === "left" ? "left" : "start";
 }
 
 // Replace the table's source range [from, to] with a freshly serialized model.
@@ -307,9 +312,14 @@ class TableWidget extends WidgetType {
      * second. See anchorHighlight.
      */
     readonly frames: readonly AnchorFrame[] = [],
+    /**
+     * The table's direction (issue 111) - the one its source lines have in
+     * the editor, so the columns run the way the table's text does.
+     */
+    readonly dir: TextDirection = "ltr",
   ) { super(); }
   eq(other: TableWidget) {
-    return other.from === this.from && other.to === this.to
+    return other.from === this.from && other.to === this.to && other.dir === this.dir
       // The frames join the identity: without them CodeMirror keeps the DOM it
       // already built and a frame would never appear.
       && anchorFramesSignature(other.frames) === anchorFramesSignature(this.frames)
@@ -321,8 +331,12 @@ class TableWidget extends WidgetType {
     // The wrapper is not editable; cells open their own <input> on click. This
     // keeps CodeMirror from treating the table chrome as editable text.
     wrap.contentEditable = "false";
+    wrap.dir = this.dir;
     const table = document.createElement("table");
     table.className = "cm-md-table";
+    // Each cell is a block of its own: its first strong character decides,
+    // and a cell without one (a number, a date) runs with the table.
+    const cellDir = (raw: string) => textDirectionOf(raw, this.dir);
 
     // Cell DISPLAY renders the inline-markdown subset (bold, links, <br>, …);
     // editing keeps the raw markdown in the <input>.
@@ -339,6 +353,7 @@ class TableWidget extends WidgetType {
       input.type = "text";
       input.className = "cm-md-table-input";
       input.value = original;
+      input.dir = cellDir(original);
       input.style.textAlign = alignToCss(this.model.aligns[colIndex] ?? null);
       cell.textContent = "";
       cell.appendChild(input);
@@ -415,6 +430,7 @@ class TableWidget extends WidgetType {
     this.model.headers.forEach((h, i) => {
       const th = document.createElement("th");
       renderCell(th, h);
+      th.dir = cellDir(h);
       th.style.textAlign = alignToCss(this.model.aligns[i] ?? null);
       wireCell(th, "header", -1, i);
       headRow.appendChild(th);
@@ -431,6 +447,7 @@ class TableWidget extends WidgetType {
       row.forEach((cell, i) => {
         const td = document.createElement("td");
         renderCell(td, cell);
+        td.dir = cellDir(cell);
         td.style.textAlign = alignToCss(this.model.aligns[i] ?? null);
         wireCell(td, "body", r, i);
         tr.appendChild(td);
@@ -502,7 +519,7 @@ function buildTableDecorations(state: EditorState, isLive: boolean): DecorationS
         const to = state.doc.line(endLine).to;
         const model = parseMarkdownTable(state.sliceDoc(from, to));
         if (model) {
-          decos.push(Decoration.replace({ widget: new TableWidget(model, from, to, anchorFramesAt(state, from, to)), block: true }).range(from, to));
+          decos.push(Decoration.replace({ widget: new TableWidget(model, from, to, anchorFramesAt(state, from, to), editorLineDirection(state, startLine)), block: true }).range(from, to));
         }
         return false;
       },

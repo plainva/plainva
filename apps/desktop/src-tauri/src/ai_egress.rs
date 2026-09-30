@@ -1,4 +1,4 @@
-//! The native AI egress (ADR 0016).
+//! The native AI egress (ADR 0017).
 //!
 //! Every cloud call of the AI harness runs through `ai_http`. The web view
 //! builds the request SPECIFICATION (packages/core/src/ai/providers.ts) but
@@ -173,7 +173,7 @@ fn filtered_headers(requested: &HashMap<String, String>) -> Vec<(String, String)
         .collect()
 }
 
-/// Provider rules the egress enforces on the body (ADR 0017).
+/// Provider rules the egress enforces on the body (ADR 0018).
 fn enforce_body_rules(endpoint: &Endpoint, url: &reqwest::Url, body: &mut serde_json::Value) {
     if endpoint.official_openai && (url.path().ends_with("/responses") || url.path().ends_with("/chat/completions")) {
         if let Some(object) = body.as_object_mut() {

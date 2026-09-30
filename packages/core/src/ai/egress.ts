@@ -4,7 +4,7 @@ import { createSseParser, createStreamDecoder, type StreamEvent, type StopReason
 import { parseRetryAfterMs } from "../sync/httpRetry.js";
 
 /**
- * The shells' native AI egress, as the core sees it (ADR 0016): the desktop
+ * The shells' native AI egress, as the core sees it (ADR 0017): the desktop
  * implements it with the Rust commands `ai_http` / `ai_http_cancel`, the phone
  * with the `AiNet` plugin. Keys go in, never out.
  */

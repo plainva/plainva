@@ -1,7 +1,9 @@
 import { SyncQueue } from "./SyncQueue.js";
 import { ISyncTarget, SyncContentRef } from "./ISyncTarget.js";
 import { SyncStateRepository } from "../vault/SyncStateRepository.js";
-import { IVaultAdapter } from "../vault/IVaultAdapter.js";
+import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
+import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
+import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isTextFile } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
@@ -43,14 +45,19 @@ export class SyncEngine {
    */
   private readonly maxConsecutiveFailures = 3;
 
+  /** Paths are identities here; the proxy finds the remote's spelling (ADR 0016). */
+  private readonly target: ISyncTarget;
+
   constructor(
     private readonly queue: SyncQueue,
-    private readonly target: ISyncTarget,
+    target: ISyncTarget,
     private readonly vault: IVaultAdapter,
     private readonly stateRepo?: SyncStateRepository,
     /** Optional; without it every write takes the buffer path, as before. */
     private readonly resolveContentRef?: ContentRefResolver
-  ) {}
+  ) {
+    this.target = withPathSpellings(target);
+  }
 
   /**
    * A queued operation on operating-system bookkeeping (E10). Fixed names by
@@ -70,6 +77,94 @@ export class SyncEngine {
     return !!(this.stateRepo && (await this.stateRepo.getSyncState(companion).catch(() => null)));
   }
 
+  /**
+   * Where `path` stands on this device (issue #112, ADR 0016): `present` when
+   * the adapter lists exactly this identity, `{ twin }` when it lists a name
+   * that differs only in letter case or — for a twin spelling — Unicode
+   * normalization, `absent` otherwise. Walks the path one segment at a time
+   * through the local listings, so a twin anywhere in the chain counts: an
+   * exact segment is followed; a missing one without a twin ends the walk.
+   * `listings` caches each folder for one pass.
+   *
+   * The adapter lists identities, so a folder stored decomposed on disk is
+   * `present` under its composed identity — it is the same folder.
+   *
+   * A listing that fails for any reason other than a missing folder throws:
+   * "could not look" must not be read as "no twin" in front of a DELETE.
+   */
+  private async localPresence(path: string, listings: Map<string, Promise<VaultFileInfo[] | null>>): Promise<"present" | "absent" | { twin: string }> {
+    // An adapter without listings (test doubles) cannot hold a twin we could see.
+    if (typeof this.vault.listDir !== "function") return "absent";
+    const segments = path.replace(/\\/g, "/").split("/").filter((s) => s.length > 0);
+    let dir = "";
+    for (let i = 0; i < segments.length; i++) {
+      let listing = listings.get(dir);
+      if (!listing) {
+        const folder = dir;
+        listing = this.vault.listDir(folder, false).catch((err: unknown) => {
+          if ((err as { name?: string } | null)?.name === "VaultFileNotFoundError") return null;
+          throw err;
+        });
+        listings.set(folder, listing);
+      }
+      const entries = await listing;
+      if (!entries) return "absent";
+      const names = entries.map((e) => e.name ?? e.path.slice(e.path.lastIndexOf("/") + 1));
+      const segment = segments[i]!;
+      if (names.includes(segment)) {
+        dir = dir ? `${dir}/${segment}` : segment;
+        continue;
+      }
+      const twin = findCollidingPath(segment, names);
+      if (!twin) return "absent";
+      return { twin: [...(dir ? [dir] : []), twin, ...segments.slice(i + 1)].join("/") };
+    }
+    return segments.length > 0 ? "present" : "absent";
+  }
+
+  /**
+   * The spelling under which the remote already holds a FOLDER that `path`
+   * would twin — same name up to Unicode normalization or letter case, other
+   * bytes — or null (issue #112). Evidence is the sync state: every folder
+   * that carries a file the remote confirmed. Walks the chain, so a twin at any
+   * level counts; an exact known folder is followed. `index` maps each folded
+   * known folder to its actual spellings and is built once per pass.
+   */
+  private async findRemoteFolderTwin(path: string, index: { value?: Map<string, Set<string>> }): Promise<string | null> {
+    if (!this.stateRepo) return null;
+    if (!index.value) {
+      const folders = new Map<string, Set<string>>();
+      for (const [known, state] of await this.stateRepo.getAllStates()) {
+        if (!state.remote_etag) continue;
+        const parts = known.split("/");
+        for (let i = 1; i < parts.length; i++) {
+          const folder = parts.slice(0, i).join("/");
+          const key = foldPathForCollision(folder);
+          const set = folders.get(key) ?? new Set<string>();
+          set.add(folder);
+          folders.set(key, set);
+        }
+      }
+      index.value = folders;
+    }
+    const segments = path.replace(/\\/g, "/").split("/").filter((s) => s.length > 0);
+    for (let i = 1; i <= segments.length; i++) {
+      const prefix = segments.slice(0, i).join("/");
+      const spellings = index.value.get(foldPathForCollision(prefix));
+      if (!spellings) return null;
+      if (spellings.has(prefix)) continue;
+      // The same name in the other normalization form is the same folder since
+      // ADR 0016: the target finds the spelling the remote holds and writes
+      // into it. Only letter case still makes a second folder on a
+      // case-sensitive server.
+      const nfc = foldPathNormalization(prefix);
+      if ([...spellings].some((s) => foldPathNormalization(s) === nfc)) continue;
+      const twin = [...spellings].sort()[0]!;
+      return [twin, ...segments.slice(i)].join("/");
+    }
+    return null;
+  }
+
   public async processQueue(
     isAborted?: () => boolean,
     onProgress?: (current: number, total: number) => void,
@@ -83,6 +178,12 @@ export class SyncEngine {
       skipDeletes?: boolean;
       /** The worker's guard snapshot. Later arrivals wait for its next decision. */
       allowedDeleteIds?: ReadonlySet<number>;
+      /**
+       * Receives the queued DELETEs held back because this device has a twin
+       * of the path (issue #112) — the same facts, and so the same card, as the
+       * pull side's collisions. Without it they are still held, only unreported.
+       */
+      collisions?: NameCollision[];
     }
   ): Promise<void> {
     let pending = await this.queue.getPendingOperations();
@@ -97,6 +198,8 @@ export class SyncEngine {
     }
     let consecutiveFailures = 0;
     let pushIdx = 0;
+    const localListings = new Map<string, Promise<VaultFileInfo[] | null>>();
+    const remoteFolders: { value?: Map<string, Set<string>> } = {};
     for (let op of pending) {
       if (isAborted && isAborted()) break;
       // Progress ticks for the status bar (WP6); the desktop throttles rendering.
@@ -114,11 +217,14 @@ export class SyncEngine {
       let pushedSha: string | null = null;
       try {
         // Empty-folder sync (2026-07-17): a queued mkdir creates the folder
-        // remotely via the optional createFolder every provider implements
+        // remotely via the optional createVaultFolder every provider implements
         // ("already exists" counts as success there). A provider without it
         // completes the op as a no-op — folders then materialize with their
         // first file, the old behavior. No sync_state is involved: folder
         // existence is not tracked, only files are.
+        // Vault-relative, never `createFolder`: that one is the pickers' call
+        // and counts from the ACCOUNT root, which made every folder created in
+        // Plainva appear a second time, empty, at the top of the cloud (#112).
         // Operating-system bookkeeping never travels (issue #110, E10). A
         // queued upload, folder or remote delete of `.DS_Store` & co. — left
         // over from before the rule, or written by an import — is dropped here.
@@ -128,8 +234,88 @@ export class SyncEngine {
           consecutiveFailures = 0;
           continue;
         }
+        // A twin spelling (ADR 0016): a second name that looks like its
+        // composed form and stands next to it. It is never synced — the pair
+        // is reported every pass until one of the two is renamed. A queued
+        // DELETE of one goes nowhere: this device never put a twin on the
+        // remote, and what the remote holds under that spelling is not ours
+        // to remove. A spelling that is no twin (a row from before the
+        // identity was NFC, a caller's decomposed input) is the composed
+        // identity and syncs as such.
+        const twinPath = [op.file_path, op.new_path].find((p): p is string => !!p && isTwinSpelling(p));
+        if (twinPath) {
+          if (op.operation === "delete") {
+            console.warn(`[SyncEngine] dropping deletion of the twin spelling ${op.file_path}: never synced under that name`);
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          if ((await this.localPresence(twinPath, localListings)) === "present") {
+            console.warn(`[SyncEngine] not pushing ${op.operation} of the twin spelling ${twinPath}`);
+            const pair = { path: twinPath, twin: toPathIdentity(twinPath) };
+            if (opts?.collisions && !opts.collisions.some((c) => c.path === pair.path && c.twin === pair.twin)) {
+              opts.collisions.push(pair);
+            }
+            continue;
+          }
+          op = {
+            ...op,
+            file_path: toPathIdentity(op.file_path),
+            ...(op.new_path ? { new_path: toPathIdentity(op.new_path) } : {}),
+          };
+        }
+        // The twin lock on the push side (issue #112). A DELETE whose path has
+        // a twin here that differs only in letter case is the SAME file for
+        // Drive, OneDrive, Dropbox, Windows and macOS — and on a case-sensitive
+        // server the one copy it still holds under the old spelling. The pull
+        // side has refused to mirror such a deletion since 2026-08-21; pushing
+        // it removed the remote file instead. It stays queued without spending
+        // a retry and is reported every pass until one of the two names
+        // changes.
+        //
+        // A DELETE of a path that is right here under the very same identity
+        // is stale: the file was recreated, or the deletion was read from a
+        // listing that saw another spelling (issue #112 before ADR 0016). It is
+        // dropped, never pushed: the remote copy is the one this file syncs
+        // with, and a recreated file queues its own upload.
+        if (op.operation === "delete") {
+          const presence = await this.localPresence(op.file_path, localListings);
+          if (presence === "present") {
+            console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: it exists on this device`);
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
+          if (presence !== "absent") {
+            const twin = presence.twin;
+            console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: this device has ${twin} (capitalization/accents)`);
+            if (opts?.collisions && !opts.collisions.some((c) => c.path === op.file_path && c.twin === twin)) {
+              opts.collisions.push({ path: op.file_path, twin });
+            }
+            continue;
+          }
+        }
+        // The same lock for a folder the remote already holds in the other
+        // spelling (issue #112): a Finder-made folder is decomposed, the
+        // server's copy composed. A byte-exact WebDAV server (HiDrive) takes
+        // the MKCOL as a second, identical-looking folder, and a desktop
+        // client syncing the same folder renames it to "Name(1)", "Name(2)"…
+        // Held and reported like a twin DELETE — since ADR 0016 only for a
+        // letter-case twin: a folder the remote holds in the other
+        // normalization form is the same folder, and the target writes into
+        // the spelling the remote already has (as it does for every PUT).
         if (op.operation === "mkdir") {
-          if (this.target.createFolder) await this.target.createFolder(op.file_path);
+          const twin = await this.findRemoteFolderTwin(op.file_path, remoteFolders);
+          if (twin) {
+            console.warn(`[SyncEngine] not creating folder ${op.file_path}: the remote holds ${twin} (capitalization/accents)`);
+            if (opts?.collisions && !opts.collisions.some((c) => c.path === op.file_path && c.twin === twin)) {
+              opts.collisions.push({ path: op.file_path, twin });
+            }
+            continue;
+          }
+        }
+        if (op.operation === "mkdir") {
+          if (this.target.createVaultFolder) await this.target.createVaultFolder(op.file_path);
           await this.queue.markSynced(op.id, op.file_path, op.file_path);
           consecutiveFailures = 0;
           continue;
@@ -244,12 +430,12 @@ export class SyncEngine {
             continue;
           }
           if (directory) {
-            if (!this.target.createFolder) throw new Error("Sync target cannot recover a missing rename source folder");
+            if (!this.target.createVaultFolder) throw new Error("Sync target cannot recover a missing rename source folder");
             // A partial walk must not masquerade as a complete recovery.
             const report = this.vault.listDirReport ? await this.vault.listDirReport(op.new_path, true) : null;
             if (report?.skipped.length) throw new Error("Cannot recover renamed folder: local entries could not be read");
             const entries = report?.files ?? await this.vault.listDir(op.new_path, true);
-            await this.target.createFolder(op.new_path);
+            await this.target.createVaultFolder(op.new_path);
             for (const entry of entries) {
               if (entry.path.startsWith(".plainva") || entry.path.includes(".CONFLICT")) continue;
               if (entry.isDirectory) await this.queue.queueMkdir(entry.path);

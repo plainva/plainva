@@ -197,6 +197,76 @@ export async function clearDraft(
   });
 }
 
+/** Where `notePath` lives after `move`, or null when the move does not touch it. */
+export function relocatedPath(notePath: string, move: { from: string; to: string }): string | null {
+  if (notePath === move.from) return move.to;
+  if (notePath.startsWith(`${move.from}/`)) return move.to + notePath.slice(move.from.length);
+  return null;
+}
+
+/**
+ * Journal entries follow a move or rename made in the app (issue 113, V3).
+ * The journal is keyed by the note's path: an entry left under the old path
+ * is one no editor ever asks for again — the unsaved text of a note whose
+ * save failed would be offered nowhere once the note had moved. Entries of
+ * the same editor session keep the newer revision when the destination
+ * already has one. Best-effort like every journal operation.
+ */
+export async function relocateDrafts(
+  vaultPath: string,
+  moves: ReadonlyArray<{ from: string; to: string }>,
+): Promise<void> {
+  if (moves.length === 0) return;
+  if (!isOwnerWindow()) {
+    const bus = await getWindowBus();
+    await bus.request("draft-relocate", { vaultPath, moves: moves.map(({ from, to }) => ({ from, to })) }).catch(() => {});
+    return;
+  }
+  try {
+    const vaultDir = await join(await draftsDir(), pathHash(vaultPath));
+    if (!(await exists(vaultDir))) return;
+    for (const e of await readDir(vaultDir)) {
+      if (e.isDirectory || !e.name?.endsWith(".json")) continue;
+      const oldRel = `${pathHash(vaultPath)}/${e.name}`;
+      let entries: DraftEntry[];
+      try {
+        entries = decodeDrafts(await readTextFile(await join(vaultDir, e.name)));
+      } catch {
+        continue; // unreadable: left exactly where it is
+      }
+      const notePath = entries[0]?.notePath;
+      if (!notePath) continue;
+      const to = moves.map((m) => relocatedPath(notePath, m)).find((p): p is string => p !== null);
+      if (!to) continue;
+      const newRel = relFile(vaultPath, to);
+      if (newRel === oldRel) continue;
+      await serial(newRel, () => serial(oldRel, async () => {
+        const { rootId } = await draftsRoot();
+        // Read again inside the lane: a snapshot may have landed meanwhile.
+        const current = await checkedReadTextFile(rootId, oldRel);
+        if (current === null) return;
+        entries = decodeDrafts(current);
+        const existing = await checkedReadTextFile(rootId, newRel);
+        const merged = new Map<string, DraftEntry>();
+        for (const entry of existing === null ? [] : decodeDrafts(existing)) merged.set(sessionOf(entry), entry);
+        for (const entry of entries) {
+          const held = merged.get(sessionOf(entry));
+          if (!held || held.revision < entry.revision) merged.set(sessionOf(entry), { ...entry, notePath: to });
+        }
+        await invoke("write_file_atomic", {
+          rootId,
+          relPath: newRel,
+          contents: JSON.stringify({ version: 2, entries: [...merged.values()] }),
+          encoding: "utf8",
+        });
+        await remove(await join(vaultDir, e.name));
+      }));
+    }
+  } catch (err) {
+    console.warn("[draftJournal] drafts did not follow the move", err);
+  }
+}
+
 /** Removes entries older than the retention window (called on vault open). */
 export async function pruneDrafts(vaultPath: string): Promise<void> {
   try {

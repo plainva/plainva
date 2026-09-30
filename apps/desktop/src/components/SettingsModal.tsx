@@ -323,7 +323,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
     try {
       const { save } = await import("@tauri-apps/plugin-dialog");
       const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-      const target = await save({ defaultPath: "plainva-diagnose.md", filters: [{ name: "Markdown", extensions: ["md"] }] });
+      const target = await save({ defaultPath: `plainva-diagnostics-${new Date().toISOString().slice(0, 10)}.md`, filters: [{ name: "Markdown", extensions: ["md"] }] });
       if (!target) return;
       const text = formatDiagnosticsExport({
         appVersion: aboutInfo?.appVersion ?? "dev",

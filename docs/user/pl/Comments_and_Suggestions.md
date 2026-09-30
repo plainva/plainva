@@ -46,6 +46,8 @@ Bez workspace uwagi leżą w sejfie pod `.plainva/sync/`, po jednym pliku na urz
 
 Gdy plik innego urządzenia nadejdzie przez obcą synchronizację, komputer pokaże go, gdy tylko folder to zgłosi; telefon przy następnym otwarciu lub po powrocie na pierwszy plan.
 
+Jeśli uwag nie da się przenieść do celu synchronizacji — serwer jest nieosiągalny, odrzuca pliki komentarzy albo odpowiada w sposób, którego Plainva nie może użyć — notatki synchronizują się dalej jak dotąd; czekają tylko uwagi. Krótka przerwa jest po prostu ponawiana. Jeśli problem trwa, Plainva mówi o tym **raz**, a nie w każdym cyklu, i ten sam błąd nie jest ponownie zgłaszany, dopóki jakiś cykl się nie powiedzie. Bieżący stan widać w ustawieniach synchronizacji w sekcji **Co synchronizacja zrobiła ostatnio**; eksport diagnostyczny z **Informacje i diagnostyka** zawiera techniczną przyczynę, bez treści komentarzy.
+
 Jeśli sejf ma hasło synchronizacji, którego nie wpisano na tym urządzeniu, uwagi są **zablokowane**: kolumna, arkusz i przegląd mówią o tym i oferują **Odblokuj**. Do tego czasu nic nie jest czytane ani zapisywane — zablokowane urządzenie nigdy nie kładzie pliku jawnego obok zapieczętowanego.
 
 Gdy zmieniasz nazwę notatki lub ją przenosisz (także cały folder) w Plainva, jej uwagi podążają za nią. Plainva zapamiętuje przeniesienie również przed nadejściem pierwszego komentarza lub gdy starsza historia jest zablokowana. Po ponownym otwarciu lub odblokowaniu spóźnione komentarze mogą podążyć za zapisanymi zmianami ścieżek. Jeśli użyjesz starej nazwy dla nowej notatki, nowsze uwagi do tej notatki pozostaną przy niej.

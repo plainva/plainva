@@ -46,7 +46,7 @@ export const INDENT_BASE_STEPS = 0.5;
 export const MAX_LIST_GUIDES = 8;
 /** Fallback hanging indent until the first measurement lands. */
 const MARKER_INDENT_EM = 1;
-/** Breathing room between the line box's left edge and a measured prefix. */
+/** Breathing room between the line box's start edge and a measured prefix. */
 const PREFIX_GUTTER_PX = 4;
 const MARKER_RE = /^\s*([-*+]|\d+[.)])\s/;
 const TASK_BOX_RE = /^\[[ xX/-]\]\s?/;
@@ -85,6 +85,8 @@ export interface MeasuredListPrefix {
 
 /**
  * Inline style for a list line, or null when it isn't inside a list (depth <= 0).
+ * The padding is on the line's START side (issue 111): left for a
+ * left-to-right line, right for a right-to-left one; `text-indent` already is.
  *
  * With a measurement, the line pulls its first row back by exactly its own
  * prefix and pads to the item's text edge (at least the em step, so a wide
@@ -96,13 +98,13 @@ export function listIndentStyle(depth: number, isMarker: boolean, measured: Meas
   if (depth <= 0) return null;
   const padEm = listIndentPaddingEm(depth);
   if (measured === null) {
-    const pad = `padding-left:${padEm}em;`;
+    const pad = `padding-inline-start:${padEm}em;`;
     return isMarker ? `${pad}text-indent:-${MARKER_INDENT_EM}em;` : pad;
   }
   const half = (n: number) => Math.round(n * 2) / 2;
   const own = half(measured.own);
   const item = half(measured.item);
-  const pad = `padding-left:max(${padEm}em,${item + PREFIX_GUTTER_PX}px);`;
+  const pad = `padding-inline-start:max(${padEm}em,${item + PREFIX_GUTTER_PX}px);`;
   return own > 0 ? `${pad}text-indent:-${own}px;` : pad;
 }
 

@@ -46,6 +46,8 @@ Ohne Workspace liegen die Anmerkungen im Vault unter `.plainva/sync/`, je Gerät
 
 Kommt die Datei eines anderen Geräts über einen fremden Sync an, siehst Du sie am Desktop, sobald der Ordner sich meldet, am Telefon beim nächsten Öffnen oder bei der Rückkehr in den Vordergrund.
 
+Lassen sich die Anmerkungen nicht zum Sync-Ziel bringen — der Server ist nicht erreichbar, verweigert die Kommentar-Dateien oder antwortet so, dass Plainva nichts damit anfangen kann —, synchronisieren Deine Notizen wie bisher weiter; nur die Anmerkungen warten. Eine kurze Unterbrechung wird einfach erneut versucht. Bleibt die Störung, sagt Plainva das **einmal**, nicht in jedem Sync-Durchgang, und dieselbe Störung meldet sich erst wieder, nachdem ein Durchgang gelungen ist. Den aktuellen Stand zeigen die Sync-Einstellungen unter **Was der Sync zuletzt getan hat**; ein Diagnose-Export aus **Über & Diagnose** enthält den technischen Grund, ohne Kommentartext.
+
 Hat der Vault eine Sync-Passphrase und ist sie auf diesem Gerät nicht eingegeben, sind die Anmerkungen **gesperrt**: Spalte, Blatt und Übersicht sagen das und bieten **Entsperren** an. Gelesen und geschrieben wird erst nach dem Entsperren — ein gesperrtes Gerät legt nie eine Klartextdatei neben die versiegelte.
 
 Benennst Du in Plainva eine Notiz um oder verschiebst sie (auch einen ganzen Ordner), folgen ihre Anmerkungen. Plainva merkt sich die Verschiebung auch vor dem ersten Kommentar oder bei gesperrter älterer Historie. Nach dem erneuten Öffnen oder Entsperren können spät eintreffende Kommentare den gespeicherten Pfadwechseln folgen. Verwendest Du den alten Dateinamen für eine neue Notiz, bleiben neuere Anmerkungen zu dieser Notiz dort.

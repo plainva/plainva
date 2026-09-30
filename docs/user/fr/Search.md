@@ -1,6 +1,6 @@
 # Recherche
 
-Dernière mise à jour : 2026-09-24
+Dernière mise à jour : 2026-09-30
 
 Plainva propose trois façons de rechercher : la recherche en texte intégral dans tout le vault, le sélecteur rapide pour ouvrir des fichiers, et rechercher & remplacer dans une note.
 
@@ -10,13 +10,15 @@ Le champ en haut de la barre latérale recherche les titres et les contenus dans
 
 La recherche réagit au fur et à mesure que vous tapez : les préfixes de mots correspondent déjà ("Proj" trouve "Projet plan") — pas besoin d'appuyer sur Entrée. Le **X** à droite du champ efface la recherche en cours (ou appuyez sur `Esc`) ; la barre latérale réaffiche alors l'arborescence de fichiers normale.
 
+En chinois, en japonais, en thaï et dans d'autres écritures sans espaces entre les mots, la recherche trouve un terme n'importe où dans le texte : `議事録` trouve "今日は会議の議事録を書いた", `搜索` trouve "全文搜索". Les mots latins au milieu d'un tel texte sont trouvés aussi ("Plainva" dans "…でPlainvaを使った").
+
 La recherche affiche chaque occurrence avec un extrait, le chemin des titres et le numéro de ligne. Ouvrir une ligne sélectionne cette occurrence précise ; les correspondances d’une même note sont présentées séparément. Le compteur ne comprend que les résultats déjà chargés. Vous pouvez charger d’autres occurrences. Les flèches déplacent la sélection et Entrée l’ouvre. Le chargement, les résultats vides et les erreurs sont indiqués ; une nouvelle saisie écarte les anciennes réponses. Si une modification empêche de retrouver une occurrence sans ambiguïté, un message le signale. Ces occurrences sont aussi disponibles dans le sélecteur rapide et la recherche mobile. Sur le téléphone, revenir à la recherche restaure la requête, les résultats chargés et la position dans la liste. Les résultats arrivent par **Pertinence**, sauf si tu choisis **Dernière modification**, **Titre** ou **Chemin** avec le bouton de tri à côté du champ de recherche (sur le téléphone : dans la barre de la recherche) ; le chargement suivant conserve l'ordre choisi. Sur le téléphone, la feuille de tri reste ouverte jusqu'à ce que tu touches **Terminé** : toucher à nouveau l'ordre choisi inverse le sens.
 
 Le champ de recherche s'applique aussi aux autres vues de la barre latérale : dans **Tags**, il filtre la liste des tags, dans **Signets**, les signets.
 
 ### Opérateurs de recherche
 
-- `"phrase exacte"` — les guillemets font correspondre la séquence de mots exactement. Cela sert aussi de recherche de mot entier pour un seul mot : `"plan"` trouve "plan" mais pas "planification".
+- `"phrase exacte"` — les guillemets font correspondre la séquence de mots exactement. Cela sert aussi de recherche de mot entier pour un seul mot : `"plan"` trouve "plan" mais pas "planification". Dans les écritures sans espaces, les guillemets ne changent rien : un tel texte n'a pas de limites de mots.
 - `-terme` — exclut les notes contenant le terme (fonctionne aussi avec les phrases : `-"ancienne version"`).
 - `path:dossier` — uniquement les fichiers dont le chemin contient le texte (par ex. `path:Projets` ; avec des espaces : `path:"Mon Dossier"`).
 - `tag:nom` — uniquement les notes portant ce tag, y compris les tags imbriqués : `tag:projet` trouve aussi `#projet/interne`. `tag:#projet` fonctionne également.

@@ -151,8 +151,13 @@ export interface TaskNameCleanupRunner {
   renameNote(from: string, to: string): Promise<{ newPath: string; linkUpdateFailed: boolean }>;
   /** `pim_task_state.note_path` follows (`PimCacheRepository.moveTaskNotePath`); a no-op without PIM. */
   moveTaskNotePath(from: string, to: string): Promise<void>;
-  /** After a resumed rename: bring the index up to date. */
-  reindex(removed: string[], added: string[]): Promise<void>;
+  /**
+   * After a resumed rename: bring the index up to date. `moved` is a rename
+   * the app made — the index follows it, it does not report the old name as
+   * deleted (that queued a remote DELETE, issue 113); `added` are the notes
+   * whose links were rewritten.
+   */
+  reindex(moved: Array<{ from: string; to: string }>, added: string[]): Promise<void>;
 }
 
 export interface TaskNameCleanupResult {
@@ -289,7 +294,7 @@ async function resumeJournal(run: TaskNameCleanupRunner): Promise<TaskNameCleanu
           if (applied.failed) result.linkUpdateFailed = true;
         }
         await run.moveTaskNotePath(item.from, item.to);
-        await run.reindex([item.from], [item.to, ...changed]);
+        await run.reindex([{ from: item.from, to: item.to }], changed);
         result.renamed.push({ from: item.from, to: item.to });
       } else {
         result.skipped.push(item.from);

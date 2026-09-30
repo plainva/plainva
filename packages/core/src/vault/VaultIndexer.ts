@@ -10,6 +10,7 @@ import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js"
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
 import { encodeIndexedProperty } from "./indexedProperty.js";
+import { segmentedIndexText } from "./spacelessText.js";
 
 /**
  * Minimal write sink. The cold full-scan (indexVaultFull) records its pure-write
@@ -293,9 +294,17 @@ export class VaultIndexer {
     const sha256 = await sha256Hash(content);
     const existingFileState = lookups
       ? lookups.fileStateById.get(fileId) ?? null
-      : await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null; title?: string | null; mode?: string | null }>(
-          `SELECT sync_state, ctime, title, mode FROM files WHERE id = ?`,
-          [fileId]
+      : // By id, and failing that by PATH: an in-app move or rename keeps the
+        // row's id (SyncQueue.queueRename rewrites only `path`, and
+        // relocatePathInIndex does the same), so a row sitting at this path
+        // with an older id IS this file. Looked up by id alone it read as "no
+        // row" — the move then counted as a brand-new file: its merge base
+        // was overwritten with the current text and a spurious write queued
+        // (issue 113).
+        await this.dbAdapter.queryOne<{ sync_state: string | null; ctime?: number | null; title?: string | null; mode?: string | null }>(
+          `SELECT sync_state, ctime, title, mode FROM files WHERE id = ? OR path = ? COLLATE BINARY
+           ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1`,
+          [fileId, fileInfo.path, fileId]
         );
     const hasPendingQueueOp = lookups
       ? lookups.queuedPaths.has(fileInfo.path)
@@ -442,10 +451,11 @@ export class VaultIndexer {
         [fileId, fileInfo.path, title, sha256, fileInfo.mtime, ctime, fileInfo.size, mode, indexedSyncState]
       );
 
-      // Insert into fts_notes
+      // Insert into fts_notes — with the character-pair form of text written
+      // without spaces (empty for other scripts), see spacelessText.ts.
       await writer.execute(
-        `INSERT INTO fts_notes (content, title, path) VALUES (?, ?, ?)`,
-        [content, title, fileInfo.path]
+        `INSERT INTO fts_notes (content, title, path, seg_content, seg_title) VALUES (?, ?, ?, ?, ?)`,
+        [content, title, fileInfo.path, segmentedIndexText(content), segmentedIndexText(String(title ?? ""))]
       );
 
       // Update sync state ONLY if this is a newly discovered file (an orphaned
@@ -680,6 +690,45 @@ export class VaultIndexer {
     // Same contract as the full scan: sync_state stays (the remote delete must
     // be pushed first); the host reacts via onLocalFileDeleted.
     this.options?.onLocalFileDeleted?.(path);
+  }
+
+  /**
+   * Follows a move or rename the app made itself (issue 113): the index rows
+   * of `from` — and, for a folder, of everything under it — now describe
+   * `to`. Nothing is reported to the sync layer: the rename already queued
+   * its MOVE, and treating the old path as vanished (removePathFromIndex)
+   * queued a DELETE for it besides. Idempotent: rows a queued rename already
+   * re-keyed (SyncQueue.queueRename moves `files`, not the search index) are
+   * left where they are. A row that happens to sit at a destination path is
+   * the stale record of an earlier file there and gives way. The caller
+   * re-indexes the destination afterwards (indexPath or the full scan), which
+   * finds the row by its path and treats it as the known file it is.
+   */
+  async relocatePathInIndex(from: string, to: string): Promise<void> {
+    if (!from || !to || from === to) return;
+    const fromPrefix = from + "/";
+    const move = (p: string): string => (p === from ? to : to + p.substring(from.length));
+    await this.dbAdapter.transaction(async () => {
+      // Literal, case-sensitive prefix match — the same rule as queueRename.
+      const rows = await this.dbAdapter.query<{ path: string }>(
+        `SELECT path FROM files WHERE path = ? COLLATE BINARY OR substr(path, 1, length(?)) = ? COLLATE BINARY`,
+        [from, fromPrefix, fromPrefix]
+      );
+      const moving = new Set(rows.map((r) => r.path));
+      const stale = rows.map((r) => move(r.path)).filter((p) => !moving.has(p));
+      if (stale.length > 0) await this.deleteIndexRows(stale);
+      for (const { path } of rows) {
+        await this.dbAdapter.execute(`UPDATE files SET path = ?, mtime_local = 0 WHERE path = ?`, [move(path), path]);
+      }
+      const ftsRows = await this.dbAdapter.query<{ path: string }>(
+        `SELECT path FROM fts_notes WHERE path = ? OR substr(path, 1, length(?)) = ?`,
+        [from, fromPrefix, fromPrefix]
+      );
+      for (const { path } of ftsRows) {
+        await this.dbAdapter.execute(`DELETE FROM fts_notes WHERE path = ?`, [move(path)]);
+        await this.dbAdapter.execute(`UPDATE fts_notes SET path = ? WHERE path = ?`, [move(path), path]);
+      }
+    });
   }
 
   /**

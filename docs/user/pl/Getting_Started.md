@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-09-24
+Stan na: 2026-09-30
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -92,7 +92,7 @@ Dodatkowo można przełączać się między **Szerokością czytelną** a **Peł
 - **Tworzenie:** kliknij prawym przyciskiem na folder → **Nowa notatka tutaj**, **Nowy folder** lub **Nowa baza danych (.base)**. Duży przycisk **Nowy** tworzy element w aktualnie wybranym folderze (lub w folderze nadrzędnym wybranego pliku).
 - **Zaznaczanie:** kliknięcie zaznacza, `Ctrl`+klik dodaje/usuwa pojedynczo, `Shift`+klik zaznacza zakres, kliknięcie środkowym przyciskiem otwiera w nowej karcie.
 - **Menu kontekstowe:** m.in. **Zmień nazwę** (aktualizuje linki w całym vaulcie), **Duplikuj**, **Otwórz w podziale (po prawej)** / **Otwórz w podziale (na dole)**, **Dodaj zakładkę**, **Kopiuj ścieżkę**, **Pokaż w menedżerze plików**, **Usuń**.
-- **Przenieś do…** w menu kontekstowym przenosi notatkę, folder lub cały zaznaczony zestaw do wybranego folderu — ta sama droga co przeciąganie, tylko bez przeciągania: otwarte karty, odwołania tablicy i indeks podążają za tym.
+- **Przenieś do…** w menu kontekstowym przenosi notatkę, folder lub cały zaznaczony zestaw do wybranego folderu — ta sama droga co przeciąganie, tylko bez przeciągania: otwarte karty, odwołania tablicy i indeks podążają za tym. Niezapisany tekst w przenoszonej lub zmienianej notatce jest najpierw zapisywany; jeśli to się nie uda, nic nie zostaje przeniesione, Plainva wyjaśnia dlaczego, a Twój tekst pozostaje otwarty. Jeśli samo przeniesienie się udało, ale późniejszy krok nie, komunikat mówi, że element jest już w nowym miejscu, i podaje, co poszło nie tak.
 - **Te same czynności w sekcjach nad drzewem:** kliknięcie prawym przyciskiem na wpis w **Ostatnio otwarte** lub **Zakładki** otwiera to samo menu — bez pozycji dla folderów, ale z dodatkową opcją **Usuń z listy** (to usuwa wpis tylko z listy, nigdy plik). Zmiana nazwy odbywa się tam przez okno dialogowe zamiast pola w wierszu. W **Ostatnio otwarte** mogą też znajdować się widoki kalendarza i zadań; można je otwierać i usuwać z listy, ale nie można ich zmieniać nazwy ani usuwać — to widoki, a nie pliki.
 - **Zaznaczenie wielokrotne:** usuwanie z jednym potwierdzeniem, duplikowanie i przenoszenie przez przeciąganie działają na całym zaznaczeniu. Usunięte elementy trafiają do kosza systemu operacyjnego.
 - Nowe notatki automatycznie zaczynają się od `# Nagłówka` wyprowadzonego z nazwy pliku.
@@ -121,6 +121,7 @@ Najszybszą drogą do dzisiejszej notatki jest **dziennik**: `Ctrl+Shift+J` bier
 - **Kliknij prawym przyciskiem na kartę**, aby otworzyć jej menu: **Przypnij**, **Odśwież**, **Otwórz w podziale (po prawej)**, **Kopiuj ścieżkę**, **Pokaż w menedżerze plików** oraz grupę zamykania.
 - **Przypnij** utrzymuje kartę na miejscu: przesuwa się na początek paska, zamiast krzyżyka zamykania pokazuje pinezkę i przetrwa każde **Zamknij pozostałe** / **Zamknij po lewej** / **Zamknij po prawej** / **Zamknij wszystkie**. Aby ją zamknąć, najpierw **Odepnij**.
 - **Odśwież** odrzuca widok i wczytuje plik na nowo z dysku — przydatne, gdy zmienił go inny program. Jeśli karta ma niezapisane zmiany, Plainva odmawia odświeżenia, zamiast nadpisywać Twoją pracę.
+- **Wiele kart** nie przewija się już na boki: karty zwężają się, im więcej jest otwartych, aż do chwili, gdy mieszczą się jeszcze ikona, skrócony tytuł i przycisk zamykania. To, co się nie mieści, czeka za jednym przyciskiem, który pokazuje liczbę (**Jeszcze 3 kart**) — jedno kliknięcie wyświetla listę. Aktywna karta zawsze pozostaje widoczna, a Plainva nigdy sama nie zamyka karty.
 
 ## Kilka okien
 
@@ -160,7 +161,7 @@ Pasek akcji oferuje **Nowa notatka**, **Nowy folder** i **Nowa baza danych (.bas
 
 **Na miejscu:** naciśnij i przytrzymaj przycisk lub nagłówek sekcji i przeciągnij go w nowe miejsce — zwykłe kliknięcie nadal po prostu go uruchamia, a jeśli podczas przytrzymywania przewijasz, po prostu przewijasz (przeciąganie zostaje anulowane). `Esc` anuluje trwające przeciąganie. **Kliknięcie prawym przyciskiem** oferuje te same akcje bez przytrzymywania: **W górę**, **Ukryj** i **Dostosuj paski…**.
 
-**W jednym miejscu:** w **Ustawienia → Vault → Paski i obszary** wszystkie pięć pasków znajduje się jeden pod drugim — również pasek nawigacji telefonu, który dzięki temu ułożysz na dużym ekranie. Każdy to **jedna** lista z linią podziału: wszystko powyżej jest widoczne, wszystko poniżej jest ukryte. Tutaj przenosisz wpisy za pomocą uchwytu przeciągania — na tej stronie porządkuje się listę, a dokładnie do tego służy uchwyt. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, strona przewija się razem z tym, dzięki czemu wpis może przejść z samego dołu na sam szczyt w jednym ruchu.
+**W jednym miejscu:** w **Ustawienia → Vault → Paski i obszary** wszystkie pięć pasków znajduje się jeden pod drugim — również pasek nawigacji telefonu, który dzięki temu ułożysz na dużym ekranie. Każdy to **jedna** lista z linią podziału: wszystko powyżej jest widoczne, wszystko poniżej jest ukryte. Tutaj przenosisz wpisy za pomocą uchwytu przeciągania — na tej stronie porządkuje się listę, a dokładnie do tego służy uchwyt. Gdy przeciągniesz w stronę górnej lub dolnej krawędzi, strona przewija się razem z tym, dzięki czemu wpis może przejść z samego dołu na sam szczyt w jednym ruchu. **Rozmieść paski …**, przycisk z suwakami na końcu górnej grupy paska akcji, otwiera tę stronę bezpośrednio.
 
 Dwóch rzeczy celowo nie można ukryć: **Pomoc** i **Ustawienia** na dole paska akcji oraz karta **Pliki** lewego panelu. Wszystko inne możesz ukryć; ukryte akcje paska pozostają dostępne z **palety poleceń** (`Ctrl+P`). Sekcje prawego panelu, które nie mają nic do pokazania dla otwartej notatki, w ogóle się nie pojawiają.
 

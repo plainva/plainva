@@ -7,7 +7,7 @@ import { AiSession } from "@plainva/ui";
 
 /**
  * The key boundary of the AI egress, as a test (plan KI-Harness P1a gate,
- * ADR 0016): no provider key reaches the web view — not as a return value, not
+ * ADR 0017): no provider key reaches the web view — not as a return value, not
  * in an event, not in an error text — and none ends up in a log or a prompt.
  *
  * The key crosses the boundary exactly once, inward, when the user types it.

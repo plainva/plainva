@@ -1,6 +1,6 @@
 # Search
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-09-30
 
 Plainva offers three ways to search: full-text search across the whole vault, the quick switcher for opening files, and find & replace inside a note.
 
@@ -10,13 +10,15 @@ The field at the top of the sidebar searches titles and contents across the vaul
 
 Search reacts while you type: word prefixes already match ("Projec" finds "Project plan") — no Enter needed. The **X** at the right of the field clears the current search (or press `Esc`); the sidebar then shows the normal file tree again.
 
+In Chinese, Japanese, Thai and other scripts written without spaces between words, search finds a term anywhere in the text: `議事録` finds "今日は会議の議事録を書いた", `搜索` finds "全文搜索". Latin words inside such text are found too ("Plainva" in "…でPlainvaを使った").
+
 Search lists individual occurrences with a text excerpt, heading path and line number. Opening a row selects that exact occurrence; several matches in the same note appear separately. The displayed count includes only results already loaded. You can load more occurrences. Arrow keys move between occurrences and Enter opens the selection. Loading, empty results and errors are shown explicitly; new input discards obsolete answers. If an edited occurrence can no longer be identified uniquely, a message explains this. The same occurrences are available in the quick switcher and mobile search. Returning to search on the phone restores the query, loaded results and list position. Hits come by **Relevance** unless you pick **Last modified**, **Title** or **Path** with the sort button next to the search field (on the phone: in the bar of the search screen); loading more keeps the chosen order. On the phone the sort sheet stays open until you tap **Done**: tapping the chosen order again reverses its direction.
 
 The search field also applies to the other sidebar views: in **Tags** it filters the tag list, in **Bookmarks** the bookmarks.
 
 ### Search operators
 
-- `"exact phrase"` — quotes match the word sequence exactly. This doubles as a whole-word search for a single word: `"plan"` finds "plan" but not "planning".
+- `"exact phrase"` — quotes match the word sequence exactly. This doubles as a whole-word search for a single word: `"plan"` finds "plan" but not "planning". In scripts written without spaces, quotes change nothing — such text has no word boundaries.
 - `-term` — excludes notes containing the term (works with phrases too: `-"old version"`).
 - `path:folder` — only files whose path contains the text (e.g. `path:Projects`; with spaces: `path:"My Folder"`).
 - `tag:name` — only notes carrying that tag, including nested tags: `tag:project` also finds `#project/internal`. `tag:#project` works as well.

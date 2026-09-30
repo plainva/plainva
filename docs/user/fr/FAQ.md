@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-09-24
+Dernière mise à jour : 2026-09-30
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -47,6 +47,20 @@ Avant toute modification, l'assistant sauvegarde le fichier dans `.plainva/backu
 Les notes quotidiennes très anciennes peuvent avoir hérité d'un réglage de leur modèle qui masque leurs tâches. Recherchez `"tasks: false"` dans le vault — **avec** les guillemets, sinon vous trouverez aussi des notes où les deux mots apparaissent simplement par hasard. Dans les résultats, la ligne se trouve dans le frontmatter sous un bloc `plainva:` ; supprimez-y `tasks: false` (et `templateFor:` s'il est présent) et la note revient. Les notes nouvellement créées à partir d'un modèle n'en héritent plus.
 
 ## Synchronisation
+
+### Une note a disparu après l'avoir déplacée ou renommée
+
+Avec la synchronisation WebDAV ou S3, Plainva 0.8.3 supprimait une note synchronisée que vous déplaciez ou renommiez dans l'application : le premier cycle de synchronisation suivant considérait la note à son nouvel emplacement comme supprimée sur le serveur et la retirait ici — juste avant d'envoyer le déplacement. Avec Google Drive, Dropbox et OneDrive, cela n'arrivait que de temps en temps. Dans 0.8.3, le cycle suivant supprimait ensuite la note sur le serveur aussi. Plainva 0.8.4 corrige cela sur ordinateur et sur téléphone.
+
+**Mettez à jour chaque appareil qui travaille avec le même vault.** Un appareil encore en 0.8.3 continue de supprimer les notes synchronisées qui y sont déplacées ou renommées, et reproduit les suppressions sans demander.
+
+Si cela vous est arrivé, la note existe encore à trois endroits au plus :
+
+- **L'instantané dans le vault.** Avant de retirer un fichier, Plainva l'enregistre sous `.plainva/backups/<dossier>/<nom>.md.<horodatage>.bak`, où `<dossier>` est le dossier *vers lequel* vous avez déplacé la note. Sur ordinateur, clic droit sur le nom du vault → **Restaurer les fichiers supprimés…** ; sur téléphone, **Paramètres** → **Maintenance** → **Restaurer les fichiers supprimés**. La liste affiche la note sous son nouveau chemin, et **Restaurer** la remet à cet endroit. Le fichier `.bak` est du texte brut : n'importe quel gestionnaire de fichiers ou éditeur de texte peut aussi l'ouvrir.
+- **La corbeille du système** (ordinateur) : le fichier lui-même est allé dans la corbeille de votre système d'exploitation.
+- **La corbeille de votre serveur**, si la note y a aussi été supprimée (dans Nextcloud, par exemple, sous les fichiers supprimés).
+
+Si vous avez déplacé ou renommé d'autres notes synchronisées avec 0.8.3, cherchez-les aussi à ces endroits.
 
 ### Qu'est-ce qu'un fichier .CONFLICT ?
 
@@ -108,7 +122,7 @@ Plainva respecte le réglage « réduire les animations » de votre système. Si
 
 ### Comment changer la langue ?
 
-**Paramètres → App → Apparence → Langue** (actuellement allemand et anglais).
+**Paramètres → App → Apparence → Langue** ; sur téléphone, **Paramètres → Apparence → Langue**. Plainva parle dix langues : anglais, allemand, espagnol, français, italien, japonais, néerlandais, polonais, portugais (Brésil) et chinois simplifié.
 
 ### « Rechercher des mises à jour » ne trouve rien
 

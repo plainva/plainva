@@ -46,6 +46,8 @@ Sans espace de travail, les annotations vivent dans le coffre sous `.plainva/syn
 
 Quand le fichier d’un autre appareil arrive par une synchronisation tierce, le bureau l’affiche dès que le dossier le signale ; le téléphone à la prochaine ouverture ou au retour au premier plan.
 
+Si les annotations ne peuvent pas être transmises à la cible de synchronisation — serveur injoignable, fichiers de commentaires refusés ou réponse inexploitable pour Plainva —, vos notes continuent de se synchroniser comme avant ; seules les annotations attendent. Une courte interruption est simplement retentée. Si elle persiste, Plainva le signale **une fois**, pas à chaque cycle, et la même panne n’est plus annoncée tant qu’aucun cycle n’a réussi. L’état actuel figure dans les réglages de synchronisation sous **Ce que la synchronisation a fait en dernier** ; un export de diagnostic depuis **À propos et diagnostic** contient la raison technique, sans aucun texte de commentaire.
+
 Si le coffre a une phrase secrète de synchronisation qui n’a pas été saisie sur cet appareil, les annotations sont **verrouillées** : la colonne, la feuille et la vue d’ensemble le disent et proposent **Déverrouiller**. Rien n’est lu ni écrit avant — un appareil verrouillé ne pose jamais un fichier en clair à côté du fichier scellé.
 
 Quand vous renommez ou déplacez une note (ou un dossier entier) dans Plainva, ses annotations la suivent. Plainva mémorise le déplacement même avant le premier commentaire ou lorsque l’ancien historique est verrouillé. Après réouverture ou déverrouillage, les commentaires arrivés tardivement peuvent suivre les changements de chemin enregistrés. Si vous réutilisez l’ancien nom pour une nouvelle note, les annotations plus récentes de cette note y restent.

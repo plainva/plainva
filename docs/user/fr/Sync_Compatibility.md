@@ -1,6 +1,6 @@
 # Compatibilité de synchronisation de Plainva
 
-Dernière mise à jour : 2026-09-20
+Dernière mise à jour : 2026-09-30
 
 Si un service WebDAV, CalDAV ou S3 renvoie une page de connexion ou un inventaire incomplet, Plainva signale une erreur de synchronisation. Cette réponse n’est pas interprétée comme un dossier ou une liste de calendriers vide et n’entraîne aucune suppression déduite de son contenu. Cela s’applique sur ordinateur comme sur mobile.
 
@@ -11,6 +11,10 @@ Les modifications hors ligne sont conservées même après plusieurs changements
 Une confirmation ne vaut que pour la suppression effectuée. Elle est conservée lors des nouvelles tentatives après une erreur de connexion ou un redémarrage ; les nouveaux fichiers au même emplacement ne l’héritent pas. La confirmation supplémentaire d’une suppression massive suspendue et son option de restauration concernent uniquement les opérations affichées. Les suppressions importantes déjà en attente avant cette mise à jour peuvent demander une nouvelle confirmation.
 
 Les entrées de journal que deux appareils ajoutent à la même note quotidienne avant de s'être synchronisés ne sont pas un conflit : Plainva les fusionne par heure et conserve chaque ligne des deux appareils — même quand les deux appareils ont créé la note du jour indépendamment. Tout autre changement simultané sur une note est traité comme avant. Voir [Journal](Journal.md).
+
+Un dossier que vous créez dans Plainva est créé dans le cloud à l'intérieur du dossier du vault. Jusqu'à la version 0.8.3, Plainva créait en plus un dossier vide du même nom au premier niveau de Google Drive, OneDrive ou Dropbox, ou du bucket S3 lorsque le vault utilise un préfixe. Plainva ne supprime pas ces copies lui-même ; après avoir vérifié qu'un tel dossier de premier niveau est vide et ne fait pas partie du dossier de votre vault, vous pouvez le supprimer.
+
+Les lettres accentuées peuvent être enregistrées de deux façons : `ü` comme un seul caractère, ou comme `u` suivi d'un tréma combinant. macOS et iOS conservent le plus souvent la seconde forme (par exemple pour un dossier créé dans le Finder), beaucoup de serveurs et d'autres systèmes la première. Plainva traite les deux comme le même nom : il lit et écrit le fichier ou le dossier qui existe déjà, sous la forme dans laquelle cet appareil ou le cloud l'enregistre, et ne renomme rien. Les noms que vous créez dans Plainva sont enregistrés sous la première forme. Ce n'est que lorsqu'un dossier contient réellement les deux formes côte à côte, ou lorsque deux noms ne diffèrent que par la casse, que Plainva affiche la paire sous **Deux écritures, un seul fichier** : il laisse la seconde écriture en dehors de la synchronisation et ne supprime rien, ni ici ni dans le cloud. Renommez l'un des deux et la synchronisation reprend normalement.
 
 Plainva synchronise les vaults via des adaptateurs de synchronisation interchangeables. Cette page montre quels services vous pouvez utiliser aujourd'hui — directement intégrés, via le protocole WebDAV, ou via le propre client de synchronisation de bureau du fournisseur.
 
@@ -48,6 +52,8 @@ L'adaptateur WebDAV parle le WebDAV standard, donc les services suivants devraie
 En attendant l'arrivée des intégrations natives, vous pouvez utiliser n'importe quel service dont le client de bureau maintient un dossier local synchronisé. Plainva traite alors le vault comme un dossier local et détecte automatiquement les modifications externes.
 
 **Important :** réglez le dossier du vault sur « toujours conserver sur cet appareil » / « disponible hors ligne ». Les fichiers d'espace réservé en ligne uniquement (Files On-Demand, en ligne uniquement, mode streaming) peuvent perturber l'indexation et la synchronisation.
+
+**Une seule voie par dossier :** pour un dossier de vault, utilisez soit le client de bureau du fournisseur, soit la synchronisation propre de Plainva, jamais les deux à la fois. Deux outils de synchronisation dans le même dossier envoient chaque modification deux fois et peuvent créer des dossiers en double — par exemple quand l'un écrit les lettres accentuées sous une autre forme Unicode que l'autre.
 
 - **OneDrive** (intégration à l'Explorateur ; désactivez Files On-Demand pour le dossier du vault)
 - **Dropbox** (client de bureau ; évitez « en ligne uniquement » pour le dossier du vault)

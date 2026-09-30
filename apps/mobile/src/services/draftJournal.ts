@@ -159,6 +159,54 @@ async function readDraftFile(v: MobileVault, path: string): Promise<NoteDraft | 
   return null;
 }
 
+/** Where `path` lives after `move`, or null when the move does not touch it. */
+export function relocatedPath(path: string, move: { from: string; to: string }): string | null {
+  if (path === move.from) return move.to;
+  if (path.startsWith(`${move.from}/`)) return move.to + path.slice(move.from.length);
+  return null;
+}
+
+/**
+ * Journal entries follow a move or rename made in the app (issue 113, V3;
+ * the desktop's `relocateDrafts` does the same). The journal is keyed by the
+ * note's path, so an entry left under the old one would never be offered
+ * again. Snapshots still buffered in memory land first, under the path they
+ * were typed at, and then move with the rest. A newer entry already at the
+ * destination wins. Best-effort, like every journal operation.
+ */
+export async function relocateDrafts(v: MobileVault, moves: ReadonlyArray<{ from: string; to: string }>): Promise<void> {
+  if (moves.length === 0) return;
+  try {
+    await flushDrafts(v);
+    const dir = await Filesystem.readdir({ path: `drafts/${v.vaultId}`, directory: Directory.Data });
+    for (const f of dir.files) {
+      if (f.type !== "file" || !f.name.endsWith(".json")) continue;
+      const oldFile = `drafts/${v.vaultId}/${f.name}`;
+      let stored: NoteDraft;
+      try {
+        const res = await Filesystem.readFile({ path: oldFile, directory: Directory.Data, encoding: Encoding.UTF8 });
+        stored = JSON.parse(String(res.data)) as NoteDraft;
+      } catch {
+        continue; // unreadable: left exactly where it is
+      }
+      if (typeof stored?.path !== "string" || typeof stored.text !== "string") continue;
+      const to = moves.map((m) => relocatedPath(stored.path, m)).find((p): p is string => p !== null);
+      if (!to) continue;
+      const newFile = draftFile(v, to);
+      if (newFile === oldFile) continue;
+      await serial(newFile, () => serial(oldFile, async () => {
+        const held = await readDraftFile(v, to);
+        if (!held || held.ts < stored.ts) {
+          await atomicWriteText(newFile, JSON.stringify({ ...stored, path: to } satisfies NoteDraft));
+        }
+        await Filesystem.deleteFile({ path: oldFile, directory: Directory.Data });
+      }));
+    }
+  } catch {
+    /* no drafts folder yet, or the platform refused: nothing to carry */
+  }
+}
+
 const pruned = new Set<string>();
 
 /** Draft for this note, or null. Prunes stale drafts once per vault session. */

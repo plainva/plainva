@@ -1,6 +1,6 @@
 # Kalendarz i zewnętrzne zadania
 
-Stan na: 2026-09-24
+Stan na: 2026-09-30
 
 Plainva może połączyć Twoje istniejące konta kalendarza i zadań — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Kalendarz + Tasks) i **Microsoft** (kalendarz Outlook + To Do) — i pracować z nimi w obu kierunkach. Twoje notatki pozostają centrum: wydarzenia stają się notatkami ze spotkań, a zewnętrzne listy zadań odzwierciedlają się jako zwykłe notatki w Twojej [domyślnej bazie zadań](Tasks.md).
 
@@ -104,7 +104,7 @@ Na telefonie należą do nich **listy przypomnień** urządzenia (iOS), gdy tylk
 
 ### Działanie w tle
 
-Ponieważ przypomnienie na komputerze dociera tylko wtedy, gdy Plainva działa, w **Ustawieniach → Start i zachowanie → W tle** są dwa przełączniki — osobne, bo to dwa różne życzenia, i oba **domyślnie wyłączone**:
+Ponieważ przypomnienie na komputerze dociera tylko wtedy, gdy Plainva działa, w **Ustawieniach → Uruchamianie i zachowanie → W tle** są dwa przełączniki — osobne, bo to dwa różne życzenia, i oba **domyślnie wyłączone**:
 
 - **Uruchamiaj wraz z systemem** rejestruje Plainvę przy logowaniu.
 - **Po zamknięciu działaj dalej w obszarze powiadomień** umieszcza ikonę Plainvy w obszarze powiadomień; zamknięcie okna nie kończy już aplikacji, tylko ją tam odkłada. Przez ikonę wracasz przez **Otwórz**, widzisz **następne spotkanie** i kończysz Plainvę przez **Zakończ**.

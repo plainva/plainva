@@ -17,7 +17,14 @@
  * Excluded terms are kept OUT of the main MATCH expression (no FTS5 `NOT`
  * precedence pitfalls); the caller applies them as a `NOT IN (… MATCH ?)`
  * subquery instead.
+ *
+ * A term in a script written without spaces (Chinese, Japanese, Thai, …)
+ * becomes a phrase of character pairs in the segmented columns instead, which
+ * finds it anywhere inside a run (`spacelessText.ts`); quotes change nothing
+ * there, since such text has no word boundaries to hold on to.
  */
+
+import { hasSpacelessText, segmentedMatchExpression } from "./spacelessText.js";
 
 /** Sentinel markers used by snippet()/highlight() so the UI can render
  *  matches safely (split on markers -> <mark>), never via raw HTML. The SQL
@@ -63,9 +70,17 @@ export function ftsPhrase(text: string): string {
 }
 
 /** Quotes a term for FTS5; the optional `*` turns the last token of the
- *  quoted phrase into a prefix query. */
-function ftsTerm(text: string, prefix: boolean): string {
+ *  quoted phrase into a prefix query. A term with spaceless text goes to the
+ *  segmented columns; null when nothing of it would reach the index. */
+function ftsTerm(text: string, prefix: boolean): string | null {
+  if (hasSpacelessText(text)) return segmentedMatchExpression(text, prefix);
   return `${ftsPhrase(text)}${prefix ? "*" : ""}`;
+}
+
+/** The exact FTS5 condition for a whole text — a note title in the unlinked-
+ *  mention scan: a quoted phrase, or pairs where the text has spaceless runs. */
+export function ftsExactTerm(text: string): string | null {
+  return ftsTerm(text, false);
 }
 
 // One token per iteration: optional `-`, optional `path:`/`tag:` operator,
@@ -113,7 +128,9 @@ export function parseSearchQuery(input: string): ParsedSearchQuery {
     // and a trailing unclosed phrase match as prefixes so results appear
     // while the user is still typing.
     const prefix = !quoted || !closed;
-    (negated ? negatives : positives).push(ftsTerm(raw, prefix));
+    const expression = ftsTerm(raw, prefix);
+    if (!expression) continue;
+    (negated ? negatives : positives).push(expression);
     if (!negated) terms.push(raw);
   }
 

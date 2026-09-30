@@ -18,7 +18,7 @@ vi.mock("@tauri-apps/api/path", () => ({
   join: async (...parts: string[]) => parts.join("/"),
 }));
 vi.mock("@tauri-apps/plugin-fs", () => ({
-  exists: async (p: string) => files.has(p) || p === "APPDATA/drafts",
+  exists: async (p: string) => files.has(p) || p === "APPDATA/drafts" || [...files.keys()].some((k) => k.startsWith(`${p}/`)),
   mkdir: async () => {},
   readTextFile: async (p: string) => {
     const c = files.get(p);
@@ -26,11 +26,13 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
     return c;
   },
   remove: vi.fn(async (p: string) => { files.delete(p); }),
-  readDir: async () => [],
+  readDir: async (dir: string) =>
+    [...files.keys()].filter((k) => k.startsWith(`${dir}/`) && !k.slice(dir.length + 1).includes("/"))
+      .map((k) => ({ name: k.slice(dir.length + 1), isDirectory: false })),
   stat: async () => ({ mtime: new Date() }),
 }));
 
-import { clearDraft, pathHash, readDraft, recordDraft } from "./draftJournal";
+import { clearDraft, pathHash, readDraft, recordDraft, relocateDrafts, relocatedPath } from "./draftJournal";
 
 const VAULT = "C:/vaults/main";
 const NOTE = "Notes/A.md";
@@ -187,5 +189,30 @@ describe("ordered desktop draft writes", () => {
     release.resolve();
     await held;
     expect((await readDraft(VAULT, NOTE))?.text).toBe("vault A");
+  });
+});
+
+describe("drafts follow an in-app move (issue 113)", () => {
+  beforeEach(() => files.clear());
+
+  it("maps a note and everything under a moved folder, nothing else", () => {
+    expect(relocatedPath("A/n.md", { from: "A/n.md", to: "B/n.md" })).toBe("B/n.md");
+    expect(relocatedPath("A/sub/n.md", { from: "A", to: "X/A" })).toBe("X/A/sub/n.md");
+    expect(relocatedPath("AB/n.md", { from: "A", to: "X/A" })).toBeNull();
+  });
+
+  it("moves the journal entry to the new path, so the moved note still offers it", async () => {
+    await recordDraft(VAULT, NOTE, "unsaved", 4);
+    await relocateDrafts(VAULT, [{ from: "Notes", to: "Archive/Notes" }]);
+    expect(await readDraft(VAULT, NOTE)).toBeNull();
+    expect(await readDraft(VAULT, "Archive/Notes/A.md")).toMatchObject({ text: "unsaved", revision: 4, notePath: "Archive/Notes/A.md" });
+  });
+
+  it("keeps the newer revision when the destination already has an entry of the same session", async () => {
+    await recordDraft(VAULT, NOTE, "old place", 2, "s1");
+    await recordDraft(VAULT, "B/A.md", "new place", 5, "s1");
+    await relocateDrafts(VAULT, [{ from: NOTE, to: "B/A.md" }]);
+    expect((await readDraft(VAULT, "B/A.md"))?.text).toBe("new place");
+    expect(await readDraft(VAULT, NOTE)).toBeNull();
   });
 });

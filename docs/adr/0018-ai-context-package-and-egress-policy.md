@@ -1,4 +1,4 @@
-# ADR 0017: AI context package, egress policy and the send overview
+# ADR 0018: AI context package, egress policy and the send overview
 
 Status: Accepted
 
@@ -21,7 +21,7 @@ thinking blocks are involved).
    **privacy hard gate** → candidate generation (FTS5, graph and relations,
    properties and `.base`, recency, later embeddings) → ranker → compactor
    (metadata, gists, snippets, section handles) → context package and send
-   overview → chosen model through the native egress (ADR 0016).
+   overview → chosen model through the native egress (ADR 0017).
 2. **The hard gate runs before scoring.** `EgressPolicyEngine`
    (`packages/core/src/ai/policy/`) removes every candidate the effective
    policy forbids for the chosen recipient before ranking, compaction or
@@ -34,7 +34,7 @@ thinking blocks are involved).
    nearest rule wins, a note overrides its folder. Local models stay allowed
    separately. Defaults are app-global with a vault override; encrypted
    workspaces default to `cloud: deny`. A policy change by the AI is a
-   critical write (ADR 0018). The schema is part of the file format contract
+   critical write (ADR 0019). The schema is part of the file format contract
    (the [File Format Reference](../user/en/File_Format_Reference.md) of the user guide).
 4. **Sensitive data classes** — mood (`journalMoodProperty`, `rating`) and the
    place stamp lines (`📍 lat, lon`) — never enter a package automatically;
@@ -98,4 +98,4 @@ thinking blocks are involved).
 ## Links
 
 - ADR 0009 (`plainva:` namespace and OKF write path), ADR 0014 (encrypted
-  workspaces), ADR 0016, ADR 0018.
+  workspaces), ADR 0017, ADR 0019.

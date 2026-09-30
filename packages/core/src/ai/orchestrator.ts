@@ -11,7 +11,7 @@ import { fenceUntrusted, payload, type PayloadOrigin } from "./trust.js";
  * The orchestrator (§20): model call → tool calls → results → model call …
  * until the model answers, a guard stops the run, or the user presses STOP.
  *
- * Guards (ADR 0018): limits for steps, tool calls and output tokens with a
+ * Guards (ADR 0019): limits for steps, tool calls and output tokens with a
  * warning at 80 %; a loop guard for the same call repeated; a circuit breaker
  * after three failing tools in a row; the Rule of Two decides whether each
  * outside effect needs its own approval. Every turn is appended, never edited.

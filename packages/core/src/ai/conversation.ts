@@ -1,5 +1,5 @@
 /**
- * The conversation model (ADR 0017, §9.8 of the plan): append-only.
+ * The conversation model (ADR 0018, §9.8 of the plan): append-only.
  *
  * A conversation is a list of immutable turns. Nothing that was sent is ever
  * rewritten: providers cache by prefix, and some reject an edited history

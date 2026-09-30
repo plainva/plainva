@@ -344,6 +344,8 @@ describe("TooltipHost", () => {
     });
     const tip = document.querySelector(".pv-tooltip");
     expect(tip?.textContent).toBe("Hinweistext");
+    // Presentation only; the accessible name stays on the target.
+    expect(tip?.getAttribute("aria-hidden")).toBe("true");
 
     press("a");
     expect(document.querySelector(".pv-tooltip")).toBeNull();

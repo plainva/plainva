@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ftsExactTerm,
   isEmptySearchQuery,
   parseSearchQuery,
   SNIPPET_MARK_END,
@@ -83,7 +84,30 @@ describe("parseSearchQuery", () => {
 
   it("passes non-ASCII terms through untouched (FTS folds diacritics itself)", () => {
     expect(parseSearchQuery("Müller").match).toBe('"Müller"*');
-    expect(parseSearchQuery("日本語").match).toBe('"日本語"*');
+    expect(parseSearchQuery("회의록").match).toBe('"회의록"*');
+  });
+
+  /**
+   * Scripts written without spaces (finding 2026-09-30): a term becomes a pair
+   * phrase in the segmented columns, which finds it anywhere in a run — quotes
+   * change nothing there, and the raw term still drives the UI.
+   */
+  it("searches spaceless terms as pair phrases in the segmented columns", () => {
+    const q = parseSearchQuery("日本語 Plainva");
+    expect(q.match).toBe('{seg_content seg_title} : "日本 本語" AND "Plainva"*');
+    expect(q.terms).toEqual(["日本語", "Plainva"]);
+    expect(parseSearchQuery('"議事録"').match).toBe('{seg_content seg_title} : "議事 事録"');
+    expect(parseSearchQuery("会議 -議事録").notMatch).toBe('{seg_content seg_title} : "議事 事録"');
+  });
+
+  it("drops a spaceless chunk without a word, like any other", () => {
+    expect(parseSearchQuery("。、").match).toBeNull();
+  });
+
+  it("gives the mention scan an exact condition for every title", () => {
+    expect(ftsExactTerm("Projekt X")).toBe('"Projekt X"');
+    expect(ftsExactTerm("会議")).toBe('{seg_content seg_title} : "会議"');
+    expect(ftsExactTerm("。")).toBeNull();
   });
 
   it("exposes the char(1)/char(2) sentinels for snippet rendering", () => {

@@ -1,6 +1,6 @@
 # Compatibilidade de Sincronização do Plainva
 
-Última revisão: 2026-09-20
+Última revisão: 2026-09-30
 
 Se um serviço WebDAV, CalDAV ou S3 retornar uma página de login ou um inventário incompleto, o Plainva informa um erro de sincronização. Essa resposta não é tratada como uma pasta ou lista de calendários vazia e não provoca exclusões deduzidas do seu conteúdo. Isso vale tanto no desktop quanto no celular.
 
@@ -11,6 +11,10 @@ As alterações offline são preservadas mesmo após várias renomeações. O Pl
 A confirmação vale apenas para a exclusão realizada. Ela é mantida nas novas tentativas após erros de conexão ou uma reinicialização; novos arquivos no mesmo local não a herdam. A confirmação adicional de uma exclusão em massa pausada e a opção de restaurar afetam apenas as tarefas exibidas. Exclusões grandes que já estavam na fila antes desta atualização podem precisar de uma nova confirmação.
 
 Entradas do diário que dois dispositivos anexam à mesma nota diária antes de terem sincronizado não são um conflito: o Plainva as mescla por horário e mantém cada linha dos dois dispositivos — mesmo quando os dois dispositivos criaram a nota do dia de forma independente. Toda outra alteração simultânea em uma nota é tratada como antes. Veja [Diário](Journal.md).
+
+Uma pasta que você cria no Plainva é criada na nuvem dentro da pasta do vault. Até a versão 0.8.3, o Plainva também criava uma pasta vazia com o mesmo nome no nível superior do Google Drive, OneDrive ou Dropbox, ou do bucket S3 quando o vault usa um prefixo. O Plainva não remove essas cópias por conta própria; depois de verificar que uma dessas pastas de nível superior está vazia e não faz parte da pasta do seu vault, você pode excluí-la.
+
+Letras acentuadas podem ser armazenadas de duas formas: `ü` como um único caractere ou como `u` seguido de um trema combinante. O macOS e o iOS costumam manter a segunda forma (por exemplo, numa pasta criada no Finder); muitos servidores e outros sistemas, a primeira. O Plainva trata as duas como o mesmo nome: lê e grava o arquivo ou a pasta que já existe, na forma em que este dispositivo ou a nuvem o armazena, e não renomeia nada. Os nomes que você cria no Plainva são armazenados na primeira forma. Só quando uma pasta contém de fato as duas formas lado a lado, ou quando dois nomes diferem em maiúsculas e minúsculas, o Plainva mostra o par em **Duas grafias, um arquivo**: deixa a segunda grafia fora da sincronização e não apaga nada, nem aqui nem na nuvem. Renomeie um dos dois e a sincronização continua normalmente.
 
 O Plainva sincroniza vaults por meio de adaptadores de sincronização intercambiáveis. Esta página mostra quais serviços você já pode usar hoje — diretamente integrados, via o protocolo WebDAV, ou via o próprio cliente de sincronização de desktop do provedor.
 
@@ -48,6 +52,8 @@ O adaptador WebDAV fala o WebDAV padrão, então os serviços a seguir devem fun
 Até que integrações nativas cheguem, você pode usar qualquer serviço cujo cliente de desktop mantenha uma pasta local sincronizada. O Plainva então trata o vault como uma pasta local e detecta alterações externas automaticamente.
 
 **Importante:** defina a pasta do vault como "sempre manter neste dispositivo" / "disponível offline". Arquivos de espaço reservado somente online (Files On-Demand, online-only, modo de streaming) podem interferir na indexação e na sincronização.
+
+**Um caminho por pasta:** para uma pasta de vault, use ou o cliente de desktop do provedor ou a sincronização própria do Plainva, nunca os dois ao mesmo tempo. Duas ferramentas de sincronização na mesma pasta enviam cada alteração duas vezes e podem criar pastas duplicadas — por exemplo, quando uma grava letras acentuadas em uma forma Unicode diferente da outra.
 
 - **OneDrive** (integração com o Explorer; desative o Files On-Demand para a pasta do vault)
 - **Dropbox** (cliente de desktop; evite "somente online" para a pasta do vault)

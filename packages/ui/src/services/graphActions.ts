@@ -1,5 +1,5 @@
 import { flushPendingSave } from "../platform/services";
-import { nextWhere, resolveLinkTarget, wikiTargetForPath, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { nextWhere, resolveLinkTarget, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 
 /**
@@ -166,8 +166,9 @@ export function findFirstUnlinkedOccurrence(content: string, terms: string[]): I
   const cleaned = [...new Set(terms.map((t) => t.trim()).filter(Boolean))].sort((a, b) => b.length - a.length);
   let best: InlineOccurrence | null = null;
   for (const term of cleaned) {
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(`(?<![\\p{L}\\p{N}\\[])${escaped}(?![\\p{L}\\p{N}\\]])`, "giu");
+    // A word of its own (inside Japanese or Chinese text anywhere in a run),
+    // never the inside of brackets.
+    const re = new RegExp(`(?<!\\[)${wordBoundedPattern(term)}(?!\\])`, "giu");
     re.lastIndex = bodyStart;
     let m: RegExpExecArray | null;
     while ((m = re.exec(content)) !== null) {

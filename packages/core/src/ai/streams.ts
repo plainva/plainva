@@ -2,11 +2,11 @@ import type { ReasoningPart, ToolCallPart } from "./conversation.js";
 import type { ProviderApi } from "./providers.js";
 
 /**
- * Stream decoders (ADR 0016): the native egress hands over server-sent events
+ * Stream decoders (ADR 0017): the native egress hands over server-sent events
  * as they arrive; these turn each provider's dialect into one set of events.
  * Tool calls and reasoning are emitted COMPLETE (arguments parsed, signatures
  * attached), so the orchestrator appends them to the conversation as they
- * are — append-only (ADR 0017).
+ * are — append-only (ADR 0018).
  */
 
 export type StopReason = "end" | "tool_use" | "max_tokens" | "refusal" | "other";

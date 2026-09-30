@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-09-24
+Ultimo aggiornamento: 2026-09-30
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -17,7 +17,7 @@ Si apre come una scheda, come qualsiasi nota.
 
 ## Sul telefono
 
-La vista Attività esiste anche su mobile. La apri tramite il **▾** accanto al titolo nella barra superiore, e puoi collocarla nella barra di navigazione (**Impostazioni** → **Barra di navigazione**).
+La vista Attività esiste anche su mobile. La apri tramite **Aree** nella barra di navigazione (o tenendo premuta la barra), e puoi collocarla nella barra di navigazione stessa (**Impostazioni** → **Barre e aree**).
 
 Mostra le stesse due sezioni del desktop: in alto il **Database attività**, sotto l'elenco delle caselle di controllo in **Dalle note**, con i filtri **Aperte**/**Completate**/**Tutte** e la ricerca libera per testo. Spuntare, **Cambia stato**, spostare una casella di controllo **nel database**, **+ Nuova attività**, **Blocca tempo** e **Ripetizione** funzionano come descritto sopra e scrivono gli stessi file: la stessa nota con il frontmatter, lo stesso `[[wiki-link]]` nella riga originale, la stessa regola in `plainva.repeat`.
 

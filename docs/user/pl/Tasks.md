@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-09-24
+Stan na: 2026-09-30
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -17,7 +17,7 @@ Widok otwiera się jako karta, tak jak każda notatka.
 
 ## Na telefonie
 
-Widok Zadania działa też na telefonie. Otwierasz go przez **▾** obok tytułu na górnym pasku i możesz umieścić go w pasku nawigacji (**Ustawienia** → **Pasek nawigacji**).
+Widok Zadania działa też na telefonie. Otwierasz go przez **Obszary** na pasku nawigacji (albo przytrzymując pasek) i możesz umieścić go w samym pasku nawigacji (**Ustawienia** → **Paski i obszary**).
 
 Pokazuje te same dwie sekcje co na komputerze: na górze **Bazę zadań**, poniżej **Z notatek** — listę pól wyboru — z filtrami **Otwarte**/**Ukończone**/**Wszystkie** i wyszukiwaniem tekstowym. Odhaczanie, **Zmień status**, przenoszenie pola wyboru **do bazy**, **+ Nowe zadanie**, **Zablokuj czas** i **Powtarzanie** działają tak, jak opisano powyżej, i zapisują te same pliki: tę samą notatkę z frontmatterem, ten sam `[[link wiki]]` w oryginalnej linii, tę samą regułę pod `plainva.repeat`.
 

@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-09-20
+Dernière mise à jour : 2026-09-30
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -153,6 +153,15 @@ Une note quotidienne peut aussi contenir un **journal** : de courtes entrées av
   ````
 
 - **Notes de bas de page** : `Texte[^1]` plus `[^1] : La note de bas de page.` à la fin — le mode lecture rend la référence et l'appareil de notes avec des marques de saut. Le plus rapide est la commande slash **Note de bas de page** (`/footnote`) : elle insère la prochaine référence libre et saute directement dans la définition à la fin de la note.
+
+## Texte de droite à gauche
+
+L'arabe, l'hébreu, le persan et les autres écritures de droite à gauche sont composés automatiquement de droite à gauche — paragraphe par paragraphe, sans réglage à activer. Chaque paragraphe, titre, élément de liste, ligne de citation et cellule de tableau suit sa première lettre après la syntaxe Markdown : un paragraphe qui commence par un mot arabe part de la droite, un paragraphe qui commence par un mot latin part de la gauche, et une même note peut mélanger les deux. Puces, cases à cocher, barre de citation et retrait passent à droite avec le texte ; le `x` de `- [x]` ne compte pas comme un mot, une tâche terminée reste donc à droite. Une ligne sans lettre (un nombre, un nouvel élément de liste vide) garde la direction de la ligne au-dessus.
+
+- La même règle s'applique en **Aperçu en direct**, en **Source Markdown** et en **Mode lecture**, sur l'ordinateur comme sur le téléphone, ainsi que sur les cartes du **Tableau d'affichage** et du **Journal**.
+- Les blocs de code, les formules et les propriétés en tête de note restent toujours de gauche à droite.
+- L'interface garde sa langue et sa mise en page : les noms dans l'arborescence, dans les résultats de recherche et dans les listes restent à leur place et affichent seulement leurs caractères dans le bon ordre.
+- Un paragraphe qui commence par un mot latin (un nom de produit, par exemple) va de gauche à droite. Commencez-le par un mot de votre langue et il s'inverse.
 
 ## Imprimer et enregistrer en PDF
 

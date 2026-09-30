@@ -1,6 +1,6 @@
 /**
  * Trust tiers for everything the AI harness puts in front of a model
- * (ADR 0017, §5).
+ * (ADR 0018, §5).
  *
  * - tier 0: the app's own policy — immutable rules, enforced natively
  * - tier 1: approved by the user — policies, skills, memory rules, bound to

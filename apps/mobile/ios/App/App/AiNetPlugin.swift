@@ -4,7 +4,7 @@ import Security
 import UIKit
 
 /**
- * The native AI egress on iOS (ADR 0016) — twin of the desktop's `ai_http`
+ * The native AI egress on iOS (ADR 0017) — twin of the desktop's `ai_http`
  * and Android's AiNetPlugin. The WebView builds the request specification but
  * never holds a provider key:
  *

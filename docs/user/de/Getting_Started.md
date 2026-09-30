@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -92,7 +92,7 @@ Zusätzlich kannst Du zwischen **Lesbare Breite** und **Volle Breite** umschalte
 - **Anlegen:** Rechtsklick auf einen Ordner → **Neue Notiz hier**, **Neuer Ordner hier** oder **Neue Datenbank (.base)**. Der große **Neu**-Knopf legt im gerade ausgewählten Ordner an (bzw. im Elternordner der ausgewählten Datei).
 - **Auswählen:** Klick wählt aus, `Strg`+Klick fügt einzeln hinzu/entfernt, `Umschalt`+Klick wählt einen Bereich, Mittelklick öffnet in einem neuen Tab.
 - **Kontextmenü:** u. a. **Umbenennen** (aktualisiert Links vault-weit), **Duplizieren**, **Im Split öffnen (rechts)** / **Im Split öffnen (unten)**, **Lesezeichen hinzufügen**, **Pfad kopieren**, **Im Dateimanager zeigen**, **Löschen**.
-- **Verschieben nach…** im Kontextmenü verschiebt eine Notiz, einen Ordner oder die ganze Mehrfachauswahl in einen Ordner Deiner Wahl — derselbe Weg wie Drag & Drop, nur ohne Drag: offene Tabs, Pinnwand-Verweise und der Index ziehen mit.
+- **Verschieben nach…** im Kontextmenü verschiebt eine Notiz, einen Ordner oder die ganze Mehrfachauswahl in einen Ordner Deiner Wahl — derselbe Weg wie Drag & Drop, nur ohne Drag: offene Tabs, Pinnwand-Verweise und der Index ziehen mit. Ungesicherter Text in einer Notiz, die verschoben oder umbenannt wird, wird zuerst gespeichert; gelingt das nicht, bleibt alles, wo es ist, Plainva sagt warum, und Dein Text bleibt geöffnet. Hat das Verschieben selbst geklappt, aber ein späterer Schritt nicht, sagt die Meldung, dass es am neuen Ort liegt, und nennt, was schiefging.
 - **Dieselben Aktionen in den Abschnitten über dem Baum:** Ein Rechtsklick auf einen Eintrag in **Zuletzt geöffnet** oder **Lesezeichen** öffnet dasselbe Menü — ohne die Ordner-Einträge, dafür mit **Aus der Liste entfernen** (das nimmt nur den Eintrag aus der Liste, nie die Datei). Umbenannt wird dort über einen Abfrage-Dialog statt im Feld der Zeile. Die Kalender- und Aufgabenübersicht kann ebenfalls in **Zuletzt geöffnet** stehen; sie lässt sich öffnen und aus der Liste nehmen, aber nicht umbenennen oder löschen — sie ist eine Ansicht, keine Datei.
 - **Mehrfachauswahl:** Löschen mit einer Bestätigung, Duplizieren und Verschieben per Drag funktionieren für alle ausgewählten Elemente zusammen. Gelöschtes landet im Papierkorb des Betriebssystems.
 - Neue Notizen starten automatisch mit einer `# Überschrift` aus dem Dateinamen.
@@ -121,6 +121,7 @@ Der schnellste Weg in die heutige Notiz ist das **Journal**: `Strg+Umschalt+J` n
 - **Rechtsklick auf einen Tab** öffnet sein Menü: **Anheften**, **Neu laden**, **Im Split öffnen (rechts)**, **Pfad kopieren**, **Im Dateimanager zeigen** und die Schließen-Gruppe.
 - **Anheften** hält einen Tab fest: Er rückt an den Anfang der Leiste, zeigt statt des Schließen-Kreuzes eine Nadel und überlebt jedes **Andere schließen** / **Links schließen** / **Rechts schließen** / **Alle schließen**. Zum Schließen erst wieder **Lösen**.
 - **Neu laden** verwirft die Ansicht und liest die Datei frisch von der Platte — nützlich, wenn ein anderes Programm sie geändert hat. Hat der Tab ungespeicherte Änderungen, lehnt Plainva das Neuladen ab, statt Deine Arbeit zu überschreiben.
+- **Viele Tabs** scrollen nicht mehr seitwärts: Tabs werden schmaler, je mehr offen sind, bis gerade noch Symbol, gekürzter Titel und Schließen-Knopf passen. Was dann nicht mehr passt, wartet hinter einem Knopf, der die Anzahl zeigt (**3 weitere Tabs**) — ein Klick listet sie auf. Der aktive Tab bleibt immer sichtbar, und Plainva schließt nie von sich aus einen Tab.
 
 ## Mehrere Fenster
 
@@ -160,7 +161,7 @@ Die Aktionsleiste bietet **Neue Notiz**, **Neuer Ordner** und **Neue Datenbank (
 
 **Direkt an Ort und Stelle:** **Halte** einen Knopf oder eine Abschnitts-Überschrift gedrückt und ziehe ihn an seine neue Stelle — ein normaler Klick löst weiterhin nur aus, und wer beim Halten scrollt, scrollt (das Ziehen bricht dann ab). Mit `Esc` brichst Du ein laufendes Ziehen ab. Ein **Rechtsklick** bietet dieselben Aktionen ohne Halten: **Nach oben**, **Ausblenden** und **Leisten anpassen…**.
 
-**Zentral:** Unter **Einstellungen → Vault → Leisten & Bereiche** liegen alle fünf Leisten untereinander — auch die Navigationsleiste des Telefons, die Du damit am großen Bildschirm anordnen kannst. Jede ist **eine** Liste mit einer Trennlinie: Was darüber steht, ist sichtbar; was darunter steht, ist ausgeblendet. Verschoben wird hier mit dem Zieh-Griff — auf dieser Seite wird eine Liste geordnet, deshalb ist der Griff hier richtig. Ziehst Du an den oberen oder unteren Rand, scrollt die Seite mit, sodass ein Eintrag auch von ganz unten nach ganz oben in einer Bewegung wandert.
+**Zentral:** Unter **Einstellungen → Vault → Leisten & Bereiche** liegen alle fünf Leisten untereinander — auch die Navigationsleiste des Telefons, die Du damit am großen Bildschirm anordnen kannst. Jede ist **eine** Liste mit einer Trennlinie: Was darüber steht, ist sichtbar; was darunter steht, ist ausgeblendet. Verschoben wird hier mit dem Zieh-Griff — auf dieser Seite wird eine Liste geordnet, deshalb ist der Griff hier richtig. Ziehst Du an den oberen oder unteren Rand, scrollt die Seite mit, sodass ein Eintrag auch von ganz unten nach ganz oben in einer Bewegung wandert. **Leisten anpassen …**, der Knopf mit den Schiebereglern am Ende der oberen Gruppe der Aktionsleiste, öffnet diese Seite direkt.
 
 Zwei Dinge lassen sich bewusst nicht ausblenden: **Hilfe** und **Einstellungen** ganz unten in der Aktionsleiste, und der Reiter **Dateien** der linken Seitenleiste. Alles andere darfst Du ausblenden; ausgeblendete Aktionen der Aktionsleiste bleiben über die **Befehls-Palette** (`Strg+P`) erreichbar. Abschnitte der rechten Seitenleiste, die zur geöffneten Notiz nichts zu zeigen haben, erscheinen ohnehin gar nicht erst.
 

@@ -376,8 +376,9 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
   letter-spacing: 0.02em;
 }
 [data-theme-name="lcars"] .markdown-reader h1 {
-  border-left: 14px solid var(--lcars-2);
-  padding-left: 12px;
+  /* Logical sides: a right-to-left heading carries its bar on the right (issue 111). */
+  border-inline-start: 14px solid var(--lcars-2);
+  padding-inline-start: 12px;
 }
 
 /* Stage-2 decoration (plan Designsprache P10, E5): fields as black consoles

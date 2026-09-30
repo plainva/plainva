@@ -179,6 +179,15 @@ describe("findFirstUnlinkedOccurrence", () => {
     expect(findFirstUnlinkedOccurrence("Projekt Xtra only", ["Projekt X"])).toBeNull();
   });
 
+  // Scripts written without spaces (finding 2026-09-30): a title inside a
+  // Japanese sentence is a mention of its own — there is no word boundary to
+  // wait for. Latin next to such text keeps its boundary.
+  it("finds a spaceless title in the middle of a run", () => {
+    expect(findFirstUnlinkedOccurrence("今日は会議の議事録を書いた。", ["議事録"])).toEqual({ index: 6, matched: "議事録" });
+    expect(findFirstUnlinkedOccurrence("でPlainvaを使った", ["Plainva"])).toEqual({ index: 1, matched: "Plainva" });
+    expect(findFirstUnlinkedOccurrence("[[議事録]]を書いた", ["議事録"])).toBeNull();
+  });
+
   it("returns the earliest occurrence across terms; the longer phrase wins on a tie", () => {
     expect(findFirstUnlinkedOccurrence("see Project Plan here", ["Project", "Project Plan"])).toEqual({
       index: 4,

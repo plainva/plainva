@@ -1,6 +1,7 @@
 import type { DeletionConfirmation } from "../vault/IVaultAdapter.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { SyncOperation } from "./ISyncTarget.js";
+import { isTwinSpelling } from "./pathIdentity.js";
 
 function containsPath(parent: string, path: string): boolean {
   return path === parent || path.startsWith(parent + "/");
@@ -416,6 +417,8 @@ export class SyncQueue {
            AND (s.path IS NULL OR s.remote_etag IS NULL)`
       );
       for (const row of files) {
+        // A twin spelling (ADR 0016) is reported by the sync, never uploaded.
+        if (isTwinSpelling(row.path)) continue;
         const existing = await this.db.queryOne<{ id: number }>(
           `SELECT id FROM offline_queue WHERE file_path = ? LIMIT 1`,
           [row.path]

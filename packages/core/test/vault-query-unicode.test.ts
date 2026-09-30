@@ -46,6 +46,7 @@ class NodeSqliteAdapter implements IDatabaseAdapter {
 const FOLDER_NFC = "母/クレジットカード管理".normalize("NFC");
 const FOLDER_NFD = FOLDER_NFC.normalize("NFD");
 const NOTE_NFD = `${FOLDER_NFD}/Rechnung.md`;
+const NOTE_NFC = `${FOLDER_NFC}/Rechnung.md`;
 const FRONTMATTER = "---\ntype: Note\nokf_version: 0.1\n---\n\n# Rechnung\n";
 
 describe("queryDatabaseFiles: Unicode normalization of folder sources", () => {
@@ -60,7 +61,10 @@ describe("queryDatabaseFiles: Unicode normalization of folder sources", () => {
     const query = new VaultQueryService(db as never);
 
     try {
-      await vaultAdapter.writeTextFile(NOTE_NFD, FRONTMATTER);
+      // Written past the adapter, the way Finder or iCloud Drive leave it:
+      // the adapter itself creates new names composed (ADR 0016).
+      await fs.mkdir(path.join(tmpDir, FOLDER_NFD), { recursive: true });
+      await fs.writeFile(path.join(tmpDir, NOTE_NFD), FRONTMATTER);
       // A neighbour outside the source, so a too-broad fold would show up here.
       await vaultAdapter.writeTextFile("Andere/Fremd.md", FRONTMATTER);
       await indexer.indexVaultFull();
@@ -69,8 +73,17 @@ describe("queryDatabaseFiles: Unicode normalization of folder sources", () => {
       // the two forms happen to be equal, or because the file system folded
       // the name on write and we would be comparing NFC against NFC.
       expect(FOLDER_NFD).not.toBe(FOLDER_NFC);
+      expect(await fs.readdir(path.join(tmpDir, "母"))).toContain(FOLDER_NFD.split("/")[1]);
+      // Since ADR 0016 the index names the note by its identity, whatever the
+      // disk stores.
       const indexed = await db.query<{ path: string }>("SELECT path FROM files", []);
-      expect(indexed.map((r) => r.path)).toContain(NOTE_NFD);
+      expect(indexed.map((r) => r.path)).toContain(NOTE_NFC);
+      const identity = await query.queryDatabaseFiles({ filters: { and: [`file.folder == "${FOLDER_NFC}"`] }, views: [{}] });
+      expect(identity.map((r: any) => r["file.path"])).toEqual([NOTE_NFC]);
+
+      // The query side keeps folding: a row that still carries the decomposed
+      // spelling (a twin, or a database no migration has seen) matches too.
+      await db.execute("UPDATE files SET path = ? WHERE path = ?", [NOTE_NFD, NOTE_NFC]);
 
       const flat = await query.queryDatabaseFiles({
         filters: { and: [`file.folder == "${FOLDER_NFC}"`] },

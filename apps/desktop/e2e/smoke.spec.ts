@@ -2,6 +2,7 @@
 import { test, expect, type Locator } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { DatabaseSync } from 'node:sqlite';
+import { segmentedIndexText } from '../../../packages/core/src/vault/spacelessText';
 
 test.beforeEach(async ({ page }) => {
   page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -2224,6 +2225,41 @@ test('Search occurrences: real SQLite pages, heading context and exact reader ju
   } finally { sql.close(); }
 });
 
+// Scripts written without spaces (finding 2026-09-30): FTS5 took a whole
+// Japanese sentence for one word, so a word in its middle was never found.
+// The same page as above, on real SQLite with the pair columns the indexer
+// writes: the search finds the word, the reader selects exactly it.
+test('Search finds a Japanese word in the middle of a sentence and jumps to it', async ({ page }) => {
+  const text = '# 議事録\n\n今日は会議の議事録を書いた。来週の打ち合わせも。\n';
+  const sql = new DatabaseSync(':memory:');
+  sql.exec('CREATE TABLE files (id TEXT, path TEXT, title TEXT, mtime_local INTEGER, size_bytes INTEGER); CREATE VIRTUAL TABLE fts_notes USING fts5(content,title,path UNINDEXED,seg_content,seg_title)');
+  sql.prepare('INSERT INTO files VALUES (?,?,?,?,?)').run('minutes', 'Minutes.md', 'Minutes', 1, text.length);
+  sql.prepare('INSERT INTO fts_notes VALUES (?,?,?,?,?)').run(text, 'Minutes', 'Minutes.md', segmentedIndexText(text), '');
+  await page.exposeFunction('__occurrenceQuery', (query: string, params: unknown[]) => sql.prepare(query).all(...params as never[]));
+  await page.addInitScript((text) => {
+    (window as any).mockFs['/test-vault/Minutes.md'] = text;
+    const previous = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:sql|select' && String(args.query).includes('fts_notes MATCH')) return (window as any).__occurrenceQuery(args.query, args.values ?? []);
+      return previous(cmd, args, options);
+    };
+  }, text);
+  try {
+    await page.goto('/');
+    await page.getByText('Minutes', { exact: true }).first().click();
+    await page.locator('[data-tip="Lesemodus"], [data-tip="Read Mode"]').first().click();
+    const field = page.locator('aside[aria-label="Left Sidebar"] input').first();
+    await field.fill('打ち合わせ');
+    const rows = page.locator('[data-search-occurrence]');
+    await expect(rows).toHaveCount(1);
+    await rows.first().focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('打ち合わせ');
+    await field.fill('議');
+    await expect(rows).toHaveCount(3);
+  } finally { sql.close(); }
+});
+
 test('The search placeholder says what is being searched', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
@@ -3452,6 +3488,109 @@ test('Tree context menu: "Move to…" moves a note without a drag (Issue #77)', 
   // The tree shows it under its new folder once that folder is opened.
   await aside.getByText('Projekte', { exact: true }).click();
   await expect(aside.getByText('Ablage', { exact: true })).toBeVisible();
+});
+
+/**
+ * Drags a tree row onto a folder row with the HTML5 events the tree listens
+ * to, all inside one task — so a note typed into just before is still unsaved
+ * (the editor's autosave waits 1 s) when the drop asks for the flush. Returns
+ * the file's text on disk right before the drag, to prove exactly that.
+ */
+async function dragTreeRowOntoFolder(page: import('@playwright/test').Page, from: string, folder: string, absFrom: string) {
+  return await page.evaluate(({ from, folder, absFrom }) => {
+    const onDiskBefore = (window as any).mockFs[absFrom] as string;
+    const source = document.querySelector(`[data-tree-path="${from}"]`) as HTMLElement;
+    const target = document.querySelector(`[data-tree-path="${folder}"]`) as HTMLElement;
+    const dt = new DataTransfer();
+    const fire = (el: HTMLElement, type: string) =>
+      el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt }));
+    fire(source, 'dragstart');
+    fire(target, 'dragenter');
+    fire(target, 'dragover');
+    fire(target, 'drop');
+    fire(source, 'dragend');
+    return onDiskBefore;
+  }, { from, folder, absFrom });
+}
+
+test('Tree drag: an open note with unsaved typing moves with its text, the tab follows (issue 113, V3)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Projekte'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Entwurf.md'] = '# Entwurf\n\nErste Zeile.\n';
+  });
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('Entwurf', { exact: true })).toBeVisible({ timeout: 15000 });
+  await tree.getByText('Entwurf', { exact: true }).click();
+  const editor = page.locator('.cm-content');
+  await expect(editor.getByText('Erste Zeile.')).toBeVisible();
+
+  await editor.getByText('Erste Zeile.').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Noch nicht gesichert.');
+  const before = await dragTreeRowOntoFolder(page, 'Entwurf.md', 'Projekte', '/test-vault/Entwurf.md');
+  // The drop really met unsaved text: nothing of the typing was on disk yet.
+  expect(before).not.toContain('Noch nicht gesichert.');
+
+  // The file lands at the destination WITH the typed text; the old path is gone.
+  await expect
+    .poll(async () => await page.evaluate(() => ({
+      moved: (window as any).mockFs['/test-vault/Projekte/Entwurf.md'] ?? null,
+      old: '/test-vault/Entwurf.md' in (window as any).mockFs,
+    })), { timeout: 10000 })
+    .toEqual({ moved: '# Entwurf\n\nErste Zeile. Noch nicht gesichert.\n', old: false });
+
+  // The tab follows the file and keeps the text; no save failed on the way.
+  await expect(page.getByRole('tablist', { name: 'Open files' }).getByRole('tab', { selected: true })).toHaveAttribute('data-tip', 'Projekte/Entwurf.md');
+  await expect(editor).toContainText('Erste Zeile. Noch nicht gesichert.');
+  await expect(page.getByText('Save failed!')).toHaveCount(0);
+  await expect(page.getByText(/stays where it is/)).toHaveCount(0);
+  // A late autosave must not bring the note back at its old place.
+  await page.waitForTimeout(1500);
+  expect(await page.evaluate(() => '/test-vault/Entwurf.md' in (window as any).mockFs)).toBe(false);
+  await expect(page.getByText('Save failed!')).toHaveCount(0);
+});
+
+test('Tree drag: when the unsaved text cannot be saved first, nothing moves (issue 113, V3)', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).mockFs['/test-vault/Projekte'] = { isDir: true };
+    (window as any).mockFs['/test-vault/Entwurf.md'] = '# Entwurf\n\nErste Zeile.\n';
+    // Every write of this one note fails (a full disk, a locked file); the
+    // draft journal and everything else keep writing.
+    const internals = (window as any).__TAURI_INTERNALS__;
+    const invoke = internals.invoke;
+    internals.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'write_file_atomic' && (window as any).__E2E_FAIL_WRITE === String(args?.relPath)) {
+        throw new Error('disk full');
+      }
+      return invoke(cmd, args, options);
+    };
+  });
+  await page.goto('/');
+  const tree = page.getByTestId('file-tree');
+  await expect(tree.getByText('Entwurf', { exact: true })).toBeVisible({ timeout: 15000 });
+  await tree.getByText('Entwurf', { exact: true }).click();
+  const editor = page.locator('.cm-content');
+  await expect(editor.getByText('Erste Zeile.')).toBeVisible();
+
+  await page.evaluate(() => { (window as any).__E2E_FAIL_WRITE = 'Entwurf.md'; });
+  await editor.getByText('Erste Zeile.').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Noch nicht gesichert.');
+  await dragTreeRowOntoFolder(page, 'Entwurf.md', 'Projekte', '/test-vault/Entwurf.md');
+
+  // Refused, and it says why (dialogs.moveBlockedUnsaved).
+  await expect(page.getByText(/'Entwurf\.md' stays where it is: its unsaved changes could not be saved first/)).toBeVisible();
+  await expect(page.getByText(/stays where it is.*Reason: .*disk full/)).toBeVisible();
+  // The file stays at its source, nothing arrived at the destination.
+  const state = await page.evaluate(() => ({
+    source: (window as any).mockFs['/test-vault/Entwurf.md'] ?? null,
+    moved: '/test-vault/Projekte/Entwurf.md' in (window as any).mockFs,
+  }));
+  expect(state).toEqual({ source: '# Entwurf\n\nErste Zeile.\n', moved: false });
+  // The tab stays on it with the typed text still open.
+  await expect(page.getByRole('tablist', { name: 'Open files' }).getByRole('tab', { selected: true })).toHaveAttribute('data-tip', 'Entwurf.md');
+  await expect(editor).toContainText('Erste Zeile. Noch nicht gesichert.');
 });
 
 test('Vault find & replace: previews before and after, then writes only the selected notes (P6)', async ({ page }) => {

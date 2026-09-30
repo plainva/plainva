@@ -1,4 +1,4 @@
-//! Plainva as a read-only MCP server (plan KI-Harness §17.3, P1b; ADR 0021).
+//! Plainva as a read-only MCP server (plan KI-Harness §17.3, P1b; ADR 0022).
 //!
 //! Other AI tools on this computer — Claude Code, Claude Desktop, editors —
 //! start the small helper `plainva-mcp` as a stdio server; the helper connects

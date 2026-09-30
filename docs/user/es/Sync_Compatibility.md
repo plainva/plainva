@@ -1,6 +1,6 @@
 # Compatibilidad de sincronización de Plainva
 
-Última actualización: 2026-09-20
+Última actualización: 2026-09-30
 
 Si un servicio WebDAV, CalDAV o S3 devuelve una página de inicio de sesión o un inventario incompleto, Plainva muestra un error de sincronización. Esa respuesta no se interpreta como una carpeta o una lista de calendarios vacía ni se deducen eliminaciones de ella. Esto se aplica tanto en escritorio como en móvil.
 
@@ -11,6 +11,10 @@ Los cambios realizados sin conexión se conservan incluso tras varios cambios de
 La confirmación solo se aplica a la eliminación realizada. Se conserva al reintentar tras un error de conexión o un reinicio; los archivos nuevos creados en la misma ubicación no la heredan. La confirmación adicional de una eliminación masiva pausada y la opción de restaurar solo afectan a las tareas mostradas. Las eliminaciones grandes en cola desde antes de esta actualización pueden requerir una nueva confirmación.
 
 Las entradas de diario que dos dispositivos añaden a la misma nota diaria antes de haberse sincronizado no son un conflicto: Plainva las une por hora y conserva cada línea de ambos dispositivos — también cuando ambos dispositivos crearon la nota del día de forma independiente. Cualquier otro cambio simultáneo en una nota se trata como antes. Ver [Diario](Journal.md).
+
+Una carpeta que creas en Plainva se crea en la nube dentro de la carpeta del vault. Hasta la versión 0.8.3, Plainva creaba además una carpeta vacía con el mismo nombre en el nivel superior de Google Drive, OneDrive o Dropbox, o del bucket S3 cuando el vault usa un prefijo. Plainva no elimina estas copias por sí mismo; cuando hayas comprobado que una de esas carpetas de nivel superior está vacía y no forma parte de la carpeta de tu vault, puedes borrarla.
+
+Las letras con acento se pueden guardar de dos maneras: `ü` como un solo carácter o como `u` seguida de una diéresis combinable. macOS e iOS suelen conservar la segunda forma (por ejemplo, en una carpeta creada en el Finder); muchos servidores y otros sistemas, la primera. Plainva trata ambas como el mismo nombre: lee y escribe el archivo o la carpeta que ya existe, en la forma en que lo guarda este dispositivo o la nube, y no cambia el nombre de nada. Los nombres que creas en Plainva se guardan en la primera forma. Solo cuando una carpeta contiene de verdad las dos formas una junto a otra, o cuando dos nombres se diferencian en mayúsculas y minúsculas, Plainva muestra el par en **Dos grafías, un archivo**: deja la segunda grafía fuera de la sincronización y no borra nada, ni aquí ni en la nube. Cambia el nombre de uno de los dos y la sincronización continúa como siempre.
 
 Plainva sincroniza vaults mediante adaptadores de sincronización intercambiables. Esta página muestra qué servicios puedes usar hoy — integrados directamente, mediante el protocolo WebDAV, o mediante el propio cliente de escritorio de sincronización del proveedor.
 
@@ -48,6 +52,8 @@ El adaptador WebDAV habla el WebDAV estándar, así que los siguientes servicios
 Hasta que lleguen las integraciones nativas, puedes usar cualquier servicio cuyo cliente de escritorio mantenga sincronizada una carpeta local. Plainva entonces trata el vault como una carpeta local y detecta los cambios externos automáticamente.
 
 **Importante:** configura la carpeta del vault como "mantener siempre en este dispositivo" / "disponible sin conexión". Los archivos marcador de posición solo en línea (Files On-Demand, solo en línea, modo de transmisión) pueden interferir con la indexación y la sincronización.
+
+**Un solo camino por carpeta:** para una carpeta de vault, usa o bien el cliente de escritorio del proveedor o bien la sincronización propia de Plainva, nunca ambos a la vez. Dos herramientas de sincronización en la misma carpeta suben cada cambio dos veces y pueden crear carpetas duplicadas; por ejemplo, cuando una escribe las letras acentuadas en una forma Unicode distinta de la otra.
 
 - **OneDrive** (integración con el Explorador; desactiva Files On-Demand para la carpeta del vault)
 - **Dropbox** (cliente de escritorio; evita "solo en línea" para la carpeta del vault)

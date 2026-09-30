@@ -19,7 +19,7 @@ fn entry(app: &tauri::AppHandle, key: &str) -> Result<keyring::Entry, String> {
     keyring::Entry::new(&service, key).map_err(|e| e.to_string())
 }
 
-/// AI provider keys are write-only for the web view (ADR 0016): only the AI
+/// AI provider keys are write-only for the web view (ADR 0017): only the AI
 /// egress reads them, natively, to put them into a request. The generic
 /// commands below refuse their slots, so no script in the web view -- injected
 /// or not -- can read one back, overwrite it or probe it through them.

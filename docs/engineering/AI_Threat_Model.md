@@ -1,6 +1,6 @@
 # AI harness threat model
 
-Scope: the AI harness in both shells, Plainva's MCP server and client, skills and scripts (ADR 0016–0021). It complements the [encrypted workspace threat model](Encrypted_Workspace_Threat_Model.md). Every control named here has a test or an eval in CI, or a package that builds it; nothing is "later" without a trigger.
+Scope: the AI harness in both shells, Plainva's MCP server and client, skills and scripts (ADR 0017–0022). It complements the [encrypted workspace threat model](Encrypted_Workspace_Threat_Model.md). Every control named here has a test or an eval in CI, or a package that builds it; nothing is "later" without a trigger.
 
 ## What is protected
 
@@ -37,9 +37,9 @@ Scope: the AI harness in both shells, Plainva's MCP server and client, skills an
 | T10 | **Rug pull by an MCP server** (client side) | tool descriptions, prompts and instructions hashed and compared on every reload; any change blocks the server; descriptions capped at 2,048 characters | P4.5 gate |
 | T11 | **Silent change of recipient** | a failover never changes the provider or model the user approved; the egress policy applies before any choice | P1a |
 | T12 | **Sensitive classes** | mood and place lines never enter a package automatically; place lines redacted before egress | P1b |
-| T13 | **Encrypted workspaces** | cloud off by default; AI suggestions only once the sealed comment path carries the author | ADR 0016 |
+| T13 | **Encrypted workspaces** | cloud off by default; AI suggestions only once the sealed comment path carries the author | ADR 0017 |
 | T14 | **Unattended runs** | fail-closed; never all three Rule of Two properties; reduced budget; mandatory conversation note | P8 gate |
-| T15 | **Supply chain on the key path** | own thin provider adapters, no provider SDK, no telemetry (ADR 0016) | conformance suite |
+| T15 | **Supply chain on the key path** | own thin provider adapters, no provider SDK, no telemetry (ADR 0017) | conformance suite |
 
 ## Reviews made for P0
 

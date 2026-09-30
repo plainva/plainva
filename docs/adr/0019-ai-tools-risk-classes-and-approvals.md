@@ -1,4 +1,4 @@
-# ADR 0018: AI tools, risk classes and approvals
+# ADR 0019: AI tools, risk classes and approvals
 
 Status: Accepted
 
@@ -8,7 +8,7 @@ Date: 2026-09-24
 
 The harness acts through tools: it reads the vault, navigates the app and
 proposes changes. The same tools are exposed to other AI applications through
-Plainva's MCP server (ADR 0021) and, later, to sandboxed script skills.
+Plainva's MCP server (ADR 0022) and, later, to sandboxed script skills.
 Model tool selection degrades with large tool lists (Anthropic names 30–50
 tools as the point where selection gets worse and recommends tool search from
 about ten), and prompt-injected content must not be able to turn a read into
@@ -51,7 +51,7 @@ a write or an outside effect.
    (`search_vault`, `read_note`, `get_outline`, `query_base`, `get_tasks`,
    `ui.run_command`); everything else is found through the provider's tool
    search or Plainva's own `find_tools`. The tool list of a conversation does
-   not change while it runs (append-only, ADR 0017).
+   not change while it runs (append-only, ADR 0018).
 4. **Results are small and structured.** Paginated, token-lean results;
    section handles instead of full text; structured errors without internal
    paths or SQL; idempotency keys for repeatable writes; every call and result
@@ -85,7 +85,7 @@ a write or an outside effect.
    instead of waiting for a person; nothing is carried out unattended. A
    routine that would combine all three Rule-of-Two properties is rejected
    when it is saved, not when it runs. The same set is what a paired MCP or
-   ACP client receives (ADR 0021): one capability model for every run without
+   ACP client receives (ADR 0022): one capability model for every run without
    a person in front of it.
 
 ## Consequences
@@ -107,6 +107,6 @@ a write or an outside effect.
 
 ## Links
 
-- ADR 0016, ADR 0017, ADR 0021; `packages/ui/src/services/commandRegistry.ts`;
+- ADR 0017, ADR 0018, ADR 0022; `packages/ui/src/services/commandRegistry.ts`;
   `packages/core/src/comments/commentActions.ts`;
   `packages/core/src/okf-trust.ts`.

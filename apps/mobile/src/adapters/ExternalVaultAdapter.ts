@@ -1,4 +1,4 @@
-import { trimChars } from "@plainva/core";
+import { trimChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
 import { VaultFileExistsError, VaultFileNotFoundError, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import type { VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../platform/vaultFolder";
 import { isMissingFile } from "./fileErrors";
@@ -22,10 +22,13 @@ import { isMissingFile } from "./fileErrors";
  * reliable watcher for a foreign folder); P5 answers with a rescan on resume
  * and a timestamp check on open.
  */
-// NFC on the way in (Build-91 feedback, P3): a link written "Anhänge" meets a
-// folder the iOS Files app hands back decomposed; APFS looks both forms up
-// as the same name, the plugin's string comparison would not.
-const norm = (path: string): string => trimChars(path.replace(/\\/g, "/"), "/").normalize("NFC");
+// Identity in, stored spelling out (ADR 0016). This used to normalize every
+// path to NFC on the way in (Build-91 feedback, P3): a link written "Anhänge"
+// meets a folder the iOS Files app hands back decomposed. APFS looks both
+// forms up as the same name — but a byte-exact folder (Android, SAF) does not,
+// so a decomposed file there could not be opened at all. The spelling lookup
+// finds the stored form on either.
+const norm = (path: string): string => trimChars(path.replace(/\\/g, "/"), "/");
 
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -63,6 +66,40 @@ function toInfo(rel: string, e: VaultFolderEntry): VaultFileInfo {
 export class ExternalVaultAdapter implements IVaultAdapter {
   private access: VaultFolderAccess | null = null;
 
+  /** Path identity vs. stored spelling (ADR 0016). */
+  private readonly spellings = new PathSpellings();
+  private readonly spellingSource: SpellingSource = {
+    exists: async (raw) => (await this.statOrNull(raw)) !== null,
+    listNames: async (raw) => {
+      try {
+        const res = await this.plugin.list({ handle: this.handle, path: raw });
+        return res.entries.map((e) => e.name).filter((n): n is string => !!n);
+      } catch (error) {
+        if (isMissingFile(error)) return null;
+        throw error;
+      }
+    },
+  };
+
+  /** The spelling `path` is stored under in the picked folder (ADR 0016). */
+  async realPath(path: string): Promise<string> {
+    return this.spellings.resolve(norm(path), this.spellingSource);
+  }
+
+  private stored<T>(path: string, io: (raw: string) => Promise<T>): Promise<T> {
+    return withStoredSpelling(this.spellings, norm(path), this.spellingSource, io);
+  }
+
+  /** A walk's stored spellings as identities, below the folder stored as `raw`. */
+  private identities(entries: VaultFileInfo[], raw: string): VaultFileInfo[] {
+    const anchor = { raw, identity: raw ? this.spellings.identityOfStored(raw) : "" };
+    const ids = this.spellings.observe(entries.map((e) => e.path), anchor);
+    return entries.map((e) => {
+      const id = ids.get(e.path);
+      return id === undefined || id === e.path ? e : { ...e, path: id, name: id.split("/").pop() ?? id };
+    });
+  }
+
   constructor(
     private readonly plugin: VaultFolderNative,
     readonly handle: string,
@@ -93,74 +130,81 @@ export class ExternalVaultAdapter implements IVaultAdapter {
   }
 
   async readTextFile(path: string): Promise<string> {
-    const rel = norm(path);
-    try {
-      const res = await this.plugin.read({ handle: this.handle, path: rel });
-      return b64ToUtf8(res.dataBase64);
-    } catch (error) {
-      if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
-      throw error;
-    }
+    return this.stored(path, async (rel) => {
+      try {
+        const res = await this.plugin.read({ handle: this.handle, path: rel });
+        return b64ToUtf8(res.dataBase64);
+      } catch (error) {
+        if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
+        throw error;
+      }
+    });
   }
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
-    const rel = norm(path);
-    try {
-      const res = await this.plugin.read({ handle: this.handle, path: rel });
-      return b64ToBytes(res.dataBase64);
-    } catch (error) {
-      if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
-      throw error;
-    }
+    return this.stored(path, async (rel) => {
+      try {
+        const res = await this.plugin.read({ handle: this.handle, path: rel });
+        return b64ToBytes(res.dataBase64);
+      } catch (error) {
+        if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
+        throw error;
+      }
+    });
   }
 
   async writeTextFile(path: string, content: string): Promise<void> {
-    await this.plugin.write({ handle: this.handle, path: norm(path), dataBase64: utf8ToB64(content) });
+    await this.plugin.write({ handle: this.handle, path: await this.realPath(path), dataBase64: utf8ToB64(content) });
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
-    await this.plugin.write({ handle: this.handle, path: norm(path), dataBase64: bytesToB64(content) });
+    await this.plugin.write({ handle: this.handle, path: await this.realPath(path), dataBase64: bytesToB64(content) });
   }
 
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
-    const rel = norm(path);
+    const rel = await this.realPath(path);
+    this.spellings.forget(norm(path));
     const info = await this.statOrNull(rel);
     if (!info) throw new VaultFileNotFoundError(path);
     await this.plugin.delete({ handle: this.handle, path: rel, recursive: recursive ?? false });
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
-    const from = norm(oldPath);
-    const to = norm(newPath);
-    if (!(await this.exists(from))) throw new VaultFileNotFoundError(oldPath);
-    if (await this.exists(to)) throw new VaultFileExistsError(newPath);
+    const from = await this.realPath(oldPath);
+    const to = await this.realPath(newPath);
+    if (!(await this.statOrNull(from))) throw new VaultFileNotFoundError(oldPath);
+    if (await this.statOrNull(to)) throw new VaultFileExistsError(newPath);
+    this.spellings.forget(norm(oldPath));
+    this.spellings.forget(norm(newPath));
     await this.plugin.rename({ handle: this.handle, from, to });
   }
 
   async exists(path: string): Promise<boolean> {
-    return (await this.statOrNull(norm(path))) !== null;
+    return (await this.statOrNull(await this.realPath(path))) !== null;
   }
 
   async getFileInfo(path: string): Promise<VaultFileInfo> {
-    const info = await this.statOrNull(norm(path));
+    const info = await this.statOrNull(await this.realPath(path));
     if (!info) throw new VaultFileNotFoundError(path);
-    return info;
+    const identity = this.spellings.identityOfStored(info.path);
+    return identity === info.path ? info : { ...info, path: identity, name: identity.split("/").pop() ?? identity };
   }
 
   async listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
+    const raw = await this.realPath(path ?? "");
     const out: VaultFileInfo[] = [];
-    await this.walk(norm(path ?? ""), recursive ?? false, out, false, [], 0, options?.signal);
-    return out;
+    await this.walk(raw, recursive ?? false, out, false, [], 0, options?.signal);
+    return this.identities(out, raw);
   }
 
   async listDirForBackup(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]> {
     const out: VaultFileInfo[] = [];
     await this.walk("", true, out, true, excludeDirNames);
-    return out;
+    return this.identities(out, "");
   }
 
   async createDir(path: string): Promise<void> {
-    await this.plugin.mkdir({ handle: this.handle, path: norm(path) });
+    await this.plugin.mkdir({ handle: this.handle, path: await this.realPath(path) });
   }
 
   private async statOrNull(rel: string): Promise<VaultFileInfo | null> {

@@ -1,6 +1,6 @@
 # Calendrier & tâches externes
 
-Dernière mise à jour : 2026-09-24
+Dernière mise à jour : 2026-09-30
 
 Plainva peut connecter vos comptes de calendrier et de tâches existants — **CalDAV** (Nextcloud, Fastmail, mailbox.org …), **Google** (Calendrier + Tasks) et **Microsoft** (calendrier Outlook + To Do) — et travailler avec eux dans les deux sens. Vos notes restent le centre : les événements peuvent devenir des notes de réunion, et les listes de tâches externes se reflètent comme des notes ordinaires dans votre [base de tâches par défaut](Tasks.md).
 
@@ -104,7 +104,7 @@ Sur le téléphone, cela inclut les **listes de rappels** de l'appareil (iOS) d�
 
 ### Continuer en arrière-plan
 
-Comme un rappel sur l'ordinateur n'arrive que tant que Plainva fonctionne, **Paramètres → Démarrage & comportement → Arrière-plan** propose deux réglages — séparés, car ce sont deux souhaits différents, et tous deux **désactivés par défaut** :
+Comme un rappel sur l'ordinateur n'arrive que tant que Plainva fonctionne, **Paramètres → Démarrage et comportement → Arrière-plan** propose deux réglages — séparés, car ce sont deux souhaits différents, et tous deux **désactivés par défaut** :
 
 - **Démarrer avec le système** inscrit Plainva à l'ouverture de session.
 - **Continuer dans la zone de notification à la fermeture** place une icône Plainva dans la zone de notification ; fermer la fenêtre ne quitte alors plus l'application mais l'y range. L'icône vous ramène avec **Ouvrir**, montre le **prochain rendez-vous** et quitte Plainva avec **Quitter**.

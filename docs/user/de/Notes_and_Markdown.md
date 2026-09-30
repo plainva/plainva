@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-09-20
+Stand: 2026-09-30
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -153,6 +153,15 @@ Eine Tagesnotiz kann auch ein **Journal** tragen: kurze Einträge mit Uhrzeit (`
   ````
 
 - **Fußnoten**: `Text[^1]` und am Ende `[^1]: Die Fußnote.` — der Lesemodus rendert Verweis und Fußnotenapparat mit Sprungmarken. Am schnellsten geht es über den Slash-Befehl **Fußnote** (`/fußnote`): Er fügt den nächsten freien Verweis ein und springt direkt in die Definition am Notizende.
+
+## Text von rechts nach links
+
+Arabisch, Hebräisch, Persisch und andere Schriften, die von rechts nach links laufen, setzt Plainva automatisch von rechts nach links — Absatz für Absatz, ohne Einstellung. Jeder Absatz, jede Überschrift, jeder Listenpunkt, jede Zitatzeile und jede Tabellenzelle richtet sich nach dem ersten Buchstaben hinter der Markdown-Syntax: Ein Absatz, der mit einem arabischen Wort beginnt, läuft von rechts, einer mit einem lateinischen Wort von links, und eine Notiz darf beides mischen. Aufzählungspunkte, Kästchen, Zitatbalken und Einzug wandern mit dem Text nach rechts; das `x` in `- [x]` zählt nicht als Wort, eine erledigte Aufgabe bleibt also rechts. Eine Zeile ohne Buchstaben (eine Zahl, ein neuer leerer Listenpunkt) behält die Richtung der Zeile darüber.
+
+- Dieselbe Regel gilt in der **Live-Vorschau**, in **Markdown Source** und im **Lesemodus**, am Desktop wie am Telefon, und auf den Karten der **Pinnwand** und im **Journal**.
+- Codeblöcke, Formeln und die Eigenschaften am Kopf einer Notiz bleiben immer links-nach-rechts.
+- Die Oberfläche behält ihre Sprache und ihr Layout: Namen im Dateibaum, in Suchtreffern und in Listen bleiben an ihrem Platz und zeigen nur ihre Zeichen in der richtigen Reihenfolge.
+- Beginnt ein Absatz mit einem lateinischen Wort (etwa einem Produktnamen), läuft er von links nach rechts. Stell ein Wort Deiner Sprache an den Anfang, dann dreht er sich.
 
 ## Drucken und als PDF speichern
 

@@ -1,5 +1,5 @@
 //! `plainva-mcp` — the helper an AI tool starts to reach Plainva (plan
-//! KI-Harness §17.3, ADR 0021).
+//! KI-Harness §17.3, ADR 0022).
 //!
 //! An MCP client (Claude Code, Claude Desktop, an editor) runs this program as
 //! a stdio server. It connects to the running Plainva through a named pipe

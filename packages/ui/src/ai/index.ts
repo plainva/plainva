@@ -1,5 +1,5 @@
 /**
- * The AI harness surfaces shared by both shells (ADR 0016): the one
+ * The AI harness surfaces shared by both shells (ADR 0017): the one
  * conversation store, the answer renderer and the vault tools. Provider-free
  * and shell-free — the shells hand in the native egress and the stores.
  */

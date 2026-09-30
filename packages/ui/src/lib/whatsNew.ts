@@ -48,7 +48,10 @@ export type WhatsNewIconName =
   | "code"
   | "windows"
   | "message"
-  | "palette";
+  | "palette"
+  | "journal"
+  | "mic"
+  | "languages";
 
 export interface WhatsNewHighlight {
   icon: WhatsNewIconName;
@@ -79,6 +82,22 @@ export interface WhatsNewItem {
 export { getWhatsNewBlogUrl } from "./releaseBlog.mjs";
 
 export const WHATS_NEW_CATALOG: WhatsNewItem[] = [
+  {
+    version: "0.8.4",
+    releaseDate: "2026-09-30",
+    highlights: [
+      { icon: "journal" },
+      { icon: "tasks" },
+      { icon: "phone" },
+      { icon: "mic", experimental: true },
+      { icon: "database" },
+      { icon: "languages" },
+      { icon: "mail" },
+      { icon: "sync" },
+    ],
+    blogUrl: "https://plainva.com/blog/plainva-0-8-4",
+    blogLanguages: ["en", "de", "es", "fr", "it", "ja", "nl", "pl", "pt-BR", "zh-CN"],
+  },
   {
     version: "0.8.3",
     releaseDate: "2026-09-17",

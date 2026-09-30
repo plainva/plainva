@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-09-24
+Stan na: 2026-09-30
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -47,6 +47,20 @@ Przed każdą zmianą kreator tworzy kopię zapasową pliku w `.plainva/backups/
 Bardzo stare notatki dzienne mogły odziedziczyć po swoim szablonie ustawienie, które ukrywa ich zadania. Wyszukaj w vaulcie `"tasks: false"` — **z** cudzysłowami, w przeciwnym razie znajdziesz też notatki, w których oba słowa pojawiają się tylko przypadkowo. W wynikach ten wiersz znajduje się we frontmatter pod blokiem `plainva:`; usuń tam `tasks: false` (oraz `templateFor:`, jeśli występuje), a notatka wróci. Notatki nowo utworzone z szablonu już tego nie dziedziczą.
 
 ## Synchronizacja
+
+### Notatka zniknęła po przeniesieniu lub zmianie nazwy
+
+Przy synchronizacji przez WebDAV lub S3 Plainva 0.8.3 usuwała zsynchronizowaną notatkę, którą przeniesiono lub której nazwę zmieniono w aplikacji: pierwszy cykl synchronizacji po tej operacji uznawał notatkę w nowym miejscu za usuniętą na serwerze i usuwał ją tutaj — tuż przed wysłaniem przeniesienia. W przypadku Google Drive, Dropbox i OneDrive zdarzało się to tylko od czasu do czasu. W 0.8.3 kolejny cykl usuwał następnie notatkę także na serwerze. Plainva 0.8.4 naprawia to na komputerze i na telefonie.
+
+**Zaktualizuj każde urządzenie, które pracuje z tym samym vaultem.** Urządzenie z wersją 0.8.3 nadal usuwa zsynchronizowane notatki, które są na nim przenoszone lub którym zmienia się nazwę, i powiela usunięcia bez pytania.
+
+Jeśli Cię to spotkało, notatka nadal istnieje w maksymalnie trzech miejscach:
+
+- **Migawka w vaulcie.** Zanim Plainva usunie plik, zapisuje go jako `.plainva/backups/<folder>/<nazwa>.md.<znacznik czasu>.bak`, gdzie `<folder>` to folder, *do którego* przeniesiono notatkę. Na komputerze: kliknięcie prawym przyciskiem myszy na nazwę vaultu → **Przywróć usunięte pliki…**; na telefonie: **Ustawienia** → **Konserwacja** → **Przywróć usunięte pliki**. Lista pokazuje notatkę pod nową ścieżką, a **Przywróć** odkłada ją tam z powrotem. Plik `.bak` to zwykły tekst, więc można go też otworzyć w dowolnym menedżerze plików lub edytorze tekstu.
+- **Kosz systemowy** (komputer): sam plik trafił do kosza systemu operacyjnego.
+- **Kosz Twojego serwera**, jeśli notatka została usunięta również tam (na przykład w Nextcloud wśród usuniętych plików).
+
+Jeśli w wersji 0.8.3 przeniesiono lub zmieniono nazwy innych zsynchronizowanych notatek, warto poszukać ich w tych samych miejscach.
 
 ### Czym jest plik .CONFLICT?
 
@@ -108,7 +122,7 @@ Plainva respektuje ustawienie systemowe „ogranicz ruch”. Jeśli brakuje prze
 
 ### Jak zmienić język?
 
-**Ustawienia → Aplikacja → Wygląd → Język** (obecnie niemiecki i angielski).
+**Ustawienia → Aplikacja → Wygląd → Język**; na telefonie **Ustawienia → Wygląd → Język**. Plainva mówi w dziesięciu językach: angielskim, niemieckim, hiszpańskim, francuskim, włoskim, japońskim, niderlandzkim, polskim, portugalskim (Brazylia) i chińskim uproszczonym.
 
 ### „Sprawdź aktualizacje” niczego nie znajduje
 

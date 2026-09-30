@@ -1,4 +1,4 @@
-# ADR 0016: AI harness architecture and the native enforcement boundary
+# ADR 0017: AI harness architecture and the native enforcement boundary
 
 Status: Accepted
 
@@ -48,7 +48,7 @@ Three facts about the current app shape every decision below:
    (b) checks the recipient against the provider allowlist and the egress
    decision — no free URL, local servers only after the user added them;
    (c) streams (SSE) and aborts on STOP;
-   (d) enforces the provider rules (`store:false` and friends, ADR 0017).
+   (d) enforces the provider rules (`store:false` and friends, ADR 0018).
    Mobile streams from the first package on; there is no "streaming later".
 4. **Own thin provider adapters, no provider SDK.** Anthropic Messages,
    OpenAI (Responses and Chat Completions), Gemini `generateContent` and one
@@ -59,7 +59,7 @@ Three facts about the current app shape every decision below:
    `tool_choice`, `store:false`, no gateway model strings, no telemetry.
 5. **Tools are typed and enforced at the native boundary.** Every tool has a
    manifest in `packages/core/src/ai/tools` (the shared contract of harness and
-   MCP server, ADR 0018) and, where it touches files or secrets, a narrow
+   MCP server, ADR 0019) and, where it touches files or secrets, a narrow
    native counterpart shaped like `write_file_atomic(root_id, rel_path, …)`.
    The AI surface gets no new blanket scope. Native path checks resolve
    symlinks and Windows junctions before checking and reject NUL, `..` and
@@ -106,4 +106,4 @@ Three facts about the current app shape every decision below:
 
 - Plan (maintainer workspace): AI harness plan v5, §5, §6, §11, §12.
 - ADR 0007 (fs scope), ADR 0014 (encrypted workspace protocol),
-  ADR 0015 (installation-local OAuth), ADR 0017–0021.
+  ADR 0015 (installation-local OAuth), ADR 0018–0022.

@@ -28,6 +28,7 @@ import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
 import { listIndentPlugin } from "./listIndent";
+import { textDirectionExtension } from "./textDirectionExtension";
 import { markdownFolding } from "./foldingExtension";
 import { searchSetup } from "./searchSetup";
 import { blockHandles } from "./blockHandles";
@@ -505,6 +506,10 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // list item behind a marker keeps its bullet, indent and formatting.
     markdown({ base: markdownLanguage, codeLanguages, extensions: [anchorAwareHtmlBlock] }),
     EditorView.lineWrapping,
+    // Right-to-left text (issue 111): each line runs the way its block's
+    // first strong character says, read from the source behind the Markdown
+    // syntax. The interface keeps its direction; only the note's text turns.
+    textDirectionExtension(),
     // Markdown list auto-continuation (#10): Enter/Tab/Shift-Tab.
     Prec.high(keymap.of(listKeymap)),
     // Selection formatting shortcuts (bold/italic/strike/highlight/link/task).

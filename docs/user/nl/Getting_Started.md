@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-09-24
+Laatst bijgewerkt: 2026-09-30
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -92,7 +92,7 @@ Je kunt ook wisselen tussen **Leesbare breedte** en **Volledige breedte**.
 - **Aanmaken:** rechtsklik op een map → **Nieuwe notitie hier**, **Nieuwe map** of **Nieuwe database (.base)**. De grote **Nieuw**-knop maakt aan in de op dat moment geselecteerde map (of de bovenliggende map van een geselecteerd bestand).
 - **Selecteren:** klik selecteert, `Ctrl`+klik voegt individueel toe/verwijdert, `Shift`+klik selecteert een bereik, middelklik opent in een nieuw tabblad.
 - **Contextmenu:** bevat onder meer **Hernoemen** (werkt links vault-breed bij), **Dupliceren**, **In split openen (rechts)** / **In split openen (onder)**, **Bladwijzer toevoegen**, **Pad kopiëren**, **Tonen in bestandsbeheer**, **Verwijderen**.
-- **Verplaatsen naar…** in het contextmenu verplaatst een notitie, een map of de hele meervoudige selectie naar een map naar keuze — dezelfde weg als slepen, alleen zonder slepen: open tabbladen, prikbordverwijzingen en de index gaan mee.
+- **Verplaatsen naar…** in het contextmenu verplaatst een notitie, een map of de hele meervoudige selectie naar een map naar keuze — dezelfde weg als slepen, alleen zonder slepen: open tabbladen, prikbordverwijzingen en de index gaan mee. Niet-opgeslagen tekst in een notitie die wordt verplaatst of hernoemd, wordt eerst opgeslagen; lukt dat niet, dan verplaatst er niets, zegt Plainva waarom en blijft je tekst open. Is het verplaatsen zelf gelukt maar een latere stap niet, dan zegt de melding dat het item op zijn nieuwe plek staat en wat er misging.
 - **Dezelfde acties in de secties boven de boom:** rechtsklikken op een item in **Onlangs geopend** of **Bladwijzers** opent hetzelfde menu — zonder de mapvermeldingen, met wel **Uit de lijst verwijderen** erbij (dat haalt alleen het item uit de lijst, nooit het bestand). Hernoemen verloopt daar via een dialoogvenster in plaats van een invoerveld in de rij. Ook de agenda- en takenweergave kunnen in **Onlangs geopend** staan; ze kunnen worden geopend en uit de lijst verwijderd, maar niet hernoemd of verwijderd — het zijn weergaven, geen bestanden.
 - **Meervoudige selectie:** verwijderen vraagt één keer bevestiging voor alle items, dupliceren en verplaatsen door slepen werken op de hele selectie. Verwijderde items belanden in de prullenbak van het besturingssysteem.
 - Nieuwe notities beginnen automatisch met een `# Kop` afgeleid van de bestandsnaam.
@@ -121,6 +121,7 @@ De snelste weg naar de notitie van vandaag is het **journaal**: `Ctrl+Shift+J` n
 - **Rechtsklik op een tabblad** voor het menu: **Vastzetten**, **Vernieuwen**, **In split openen (rechts)**, **Pad kopiëren**, **Tonen in bestandsbeheer** en de sluitgroep.
 - **Vastzetten** houdt een tabblad op zijn plek: het verplaatst naar het begin van de balk, toont een pin in plaats van het sluitkruisje en overleeft elke **Andere sluiten** / **Links sluiten** / **Rechts sluiten** / **Alles sluiten**. Om het te sluiten, eerst **Losmaken**.
 - **Vernieuwen** verwerpt de weergave en leest het bestand opnieuw van de schijf — handig wanneer een ander programma het heeft gewijzigd. Heeft het tabblad niet-opgeslagen wijzigingen, dan weigert Plainva te vernieuwen in plaats van je werk te overschrijven.
+- **Veel tabbladen** scrollen niet meer opzij: tabbladen worden smaller naarmate er meer openstaan, tot er nog net een pictogram, een ingekorte titel en de sluitknop in passen. Wat dan niet meer past, wacht achter één knop die het aantal toont (**Nog 3 tabbladen**) — één klik toont de lijst. Het actieve tabblad blijft altijd in beeld, en Plainva sluit nooit uit zichzelf een tabblad.
 
 ## Meerdere vensters
 
@@ -160,7 +161,7 @@ De actiebalk biedt **Nieuwe notitie**, **Nieuwe map** en **Nieuwe database (.bas
 
 **Precies waar ze staan:** **houd** een knop of een sectiekop **ingedrukt** en sleep hem naar zijn nieuwe plek — een gewone klik activeert hem nog gewoon, en als je scrolt terwijl je vasthoudt, scrol je (het slepen wordt geannuleerd). `Esc` breekt een lopende sleepbeweging af. Een **rechtsklik** biedt dezelfde acties zonder vasthouden: **Omhoog**, **Verbergen** en **Balken aanpassen…**.
 
-**Op één plek:** onder **Instellingen → Vault → Balken en gebieden** staan alle vijf de balken onder elkaar — ook de navigatiebalk van de telefoon, die je zo op het grote scherm kunt indelen. Elke balk is **één** lijst met een scheidingslijn: alles erboven is zichtbaar, alles eronder is verborgen. Hier verplaats je items met de sleepgreep — op deze pagina wordt namelijk een lijst geordend, en daar is een greep precies voor bedoeld. Sleep je naar de boven- of onderrand, dan scrollt de pagina mee, zodat een item ook van helemaal onderaan naar helemaal bovenaan in één beweging kan reizen.
+**Op één plek:** onder **Instellingen → Vault → Balken en gebieden** staan alle vijf de balken onder elkaar — ook de navigatiebalk van de telefoon, die je zo op het grote scherm kunt indelen. Elke balk is **één** lijst met een scheidingslijn: alles erboven is zichtbaar, alles eronder is verborgen. Hier verplaats je items met de sleepgreep — op deze pagina wordt namelijk een lijst geordend, en daar is een greep precies voor bedoeld. Sleep je naar de boven- of onderrand, dan scrollt de pagina mee, zodat een item ook van helemaal onderaan naar helemaal bovenaan in één beweging kan reizen. **Balken indelen …**, de knop met de schuifregelaars aan het eind van de bovenste groep van de actiebalk, opent deze pagina direct.
 
 Twee dingen kunnen bewust niet worden verborgen: **Sneltoetsen tonen** en **Instellingen** onderaan de actiebalk, en het tabblad **Bestanden** van de linkerzijbalk. Al het overige mag je verbergen; verborgen acties van de balk blijven bereikbaar via het **opdrachtenpalet** (`Ctrl+P`). Secties van de rechterzijbalk die niets te tonen hebben voor de geopende notitie verschijnen sowieso nooit.
 

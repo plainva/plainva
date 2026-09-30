@@ -1,4 +1,4 @@
-# ADR 0020: Local inference, embeddings and platform models
+# ADR 0021: Local inference, embeddings and platform models
 
 Status: Accepted
 
@@ -83,4 +83,4 @@ the answer itself comes from a cloud provider (the recommended hybrid mode).
 
 ## Links
 
-- ADR 0016, ADR 0017; `packages/core/src/db/Schema.ts`; `db_batch.rs`.
+- ADR 0017, ADR 0018; `packages/core/src/db/Schema.ts`; `db_batch.rs`.

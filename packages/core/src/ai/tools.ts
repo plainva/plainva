@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Tool manifests — the one contract of the harness and Plainva's MCP server
- * (ADR 0018, ADR 0021). The harness registry and the server's `tools/list`
+ * (ADR 0019, ADR 0022). The harness registry and the server's `tools/list`
  * are generated from these entries; a tool without a manifest does not exist.
  *
  * Names follow the lowest common denominator of the provider APIs
@@ -15,7 +15,7 @@ export type ToolRiskClass = "read" | "ui" | "write" | "critical" | "external" | 
 
 /**
  * Data classes a result can carry. A run that starts using a class it did not
- * use before widens its scope, and the send overview appears again (ADR 0017).
+ * use before widens its scope, and the send overview appears again (ADR 0018).
  */
 export type ToolDataClass = "notes" | "structure" | "tasks" | "calendar" | "mail" | "web" | "commands";
 

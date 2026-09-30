@@ -6,7 +6,7 @@
 
 use unicode_normalization::UnicodeNormalization;
 
-/// Plainva's own state and the policy files: never an argument, never a result (ADR 0021).
+/// Plainva's own state and the policy files: never an argument, never a result (ADR 0022).
 const HIDDEN_ROOTS: [&str; 5] = [".plainva", ".agent", ".git", ".obsidian", ".trash"];
 
 /// A vault-relative path as a client may name it, in the one spelling this

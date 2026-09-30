@@ -3,11 +3,12 @@ import { ISyncTarget, type ListingMetrics, type RemotePresence } from "./ISyncTa
 import type { OwnDeletionRegister } from "./ownDeletions.js";
 import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js";
 import { SyncQueue } from "./SyncQueue.js";
-import { IVaultAdapter } from "../vault/IVaultAdapter.js";
+import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";
 import { classifyTaskNotes, preserveDisplacedTask, taskNotesEquivalent } from "../pim/taskNoteIdentity.js";
 import { isTextFile } from "./fileType.js";
-import { findCollidingPath } from "./pathIdentity.js";
+import { findCollidingPath, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
+import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isSealedBlob } from "../crypto/sealedBlob.js";
 import { FatalSyncProtocolError } from "../settingsSync/errors.js";
 import { classifySyncError, syncErrorMessage, SyncRootMissingError, type SyncErrorKind } from "./errorKind.js";
@@ -92,22 +93,9 @@ export interface JournalCheckResult {
 }
 
 
-/**
- * Two paths the remote cannot tell apart — reported, never resolved by the core.
- *
- * This used to leave here as one English sentence built with string
- * concatenation, which the shells rendered unchanged: German users got English,
- * and neither shell could offer an action because it had nothing but prose
- * (finding 2026-08-21). The core has no language; it has facts.
- *
- * `path` is the file this device knows, `twin` the spelling the remote lists.
- * Deliberately no size or date: the core holds neither for the twin, and a
- * number it would have to fetch is a number it should not promise.
- */
-export interface NameCollision {
-  path: string;
-  twin: string;
-}
+// Defined next to the collision helpers since the push side reports them too
+// (issue #112); re-exported so existing imports keep working.
+export type { NameCollision } from "./pathIdentity.js";
 
 export const TRANSIENT_FAILURES_BEFORE_ERROR = 3;
 
@@ -371,7 +359,15 @@ export interface SyncWorkerOptions {
  * `stillRemote`: a direct probe found the file alive — the listing was wrong
  * about it, and nothing was touched (finding 2026-09-20).
  */
-export type MirrorDeletionOutcome = "deleted" | "gone" | "keptLocalEdits" | "collision" | "localOnly" | "stillRemote";
+export type MirrorDeletionOutcome =
+  | "deleted"
+  | "gone"
+  | "keptLocalEdits"
+  | "collision"
+  | "localOnly"
+  | "stillRemote"
+  /** A rename or delete of this path (or a folder above it) still waits in the queue. */
+  | "awaitingStructure";
 
 /** Per-cycle account of the deletions the worker mirrored — or deliberately did not. */
 export interface DeletionReport {
@@ -593,9 +589,17 @@ export class SyncWorker {
     this.lastCycleActivityAt = Date.now();
   }
 
+  /**
+   * The target as the file sync sees it: paths are identities (ADR 0016) and
+   * are turned into the remote's own spelling at every call. The sidebands
+   * (settings, deletion journal) talk to the plain target — their paths are
+   * fixed `.plainva/…` names.
+   */
+  private readonly target: ISyncTarget;
+
   constructor(
     private readonly engine: SyncEngine,
-    private readonly target: ISyncTarget,
+    private readonly rawTarget: ISyncTarget,
     private readonly stateRepo: SyncStateRepository,
     /**
      * Raw vault adapter for the worker's own writes. This must NOT be the
@@ -610,6 +614,7 @@ export class SyncWorker {
     private readonly intervalMs: number = 60000,
     private readonly options: SyncWorkerOptions = {}
   ) {
+    this.target = withPathSpellings(rawTarget);
     this.settingsSyncRunner = options.settingsSync;
     this.deletionJournal = options.deletionJournal;
   }
@@ -1250,6 +1255,65 @@ export class SyncWorker {
     }
   }
 
+  /**
+   * Twin spellings (ADR 0016): a name the remote lists, or this device's sync
+   * state still carries, that is not NFC is a second spelling standing next
+   * to its composed form. It is not synced; it is reported on the "Two
+   * spellings, one file" card for as long as it exists somewhere. A sync row
+   * for a twin that neither the remote (by a full listing) nor this device
+   * holds any more is forgotten — nothing on disk or remote is touched. Such
+   * rows come from the identity migration, which keeps both rows of a pair
+   * rather than merge them.
+   */
+  private async reportTwinSpellings(
+    remotePaths: ReadonlySet<string>,
+    stateMap: Map<string, SyncState>,
+    fullListing: boolean,
+    collisions: NameCollision[],
+  ): Promise<void> {
+    const report = (path: string) => {
+      const pair = { path, twin: toPathIdentity(path) };
+      if (!collisions.some((c) => c.path === pair.path && c.twin === pair.twin)) collisions.push(pair);
+    };
+    for (const path of remotePaths) {
+      if (isTwinSpelling(path) && !isLocalOnlyPath(path)) report(path);
+    }
+    for (const path of [...stateMap.keys()]) {
+      if (!isTwinSpelling(path) || remotePaths.has(path) || isLocalOnlyPath(path)) continue;
+      let here: boolean;
+      try {
+        here = await this.holdsLocalIdentity(path);
+      } catch (e) {
+        console.warn(`[SyncWorker] could not look for the twin spelling ${path}; keeping its sync row`, e);
+        report(path);
+        continue;
+      }
+      if (here) {
+        report(path);
+      } else if (fullListing) {
+        console.warn(`[SyncWorker] forgetting the sync row of the twin spelling ${path}: gone here and on the remote`);
+        await this.stateRepo.deleteSyncState(path);
+        stateMap.delete(path);
+      } else {
+        report(path);
+      }
+    }
+  }
+
+  /** Whether this device's listing carries exactly the identity `path`. */
+  private async holdsLocalIdentity(path: string): Promise<boolean> {
+    const slash = path.lastIndexOf("/");
+    const parent = slash < 0 ? "" : path.slice(0, slash);
+    let entries: VaultFileInfo[];
+    try {
+      entries = await this.vault.listDir(parent, false);
+    } catch (e) {
+      if ((e as { name?: string } | null)?.name === "VaultFileNotFoundError") return false;
+      throw e;
+    }
+    return entries.some((entry) => entry.path === path);
+  }
+
   private async mirrorRemoteDeletionLocked(
     path: string,
     stateMap: Map<string, SyncState>,
@@ -1271,6 +1335,20 @@ export class SyncWorker {
         `[SyncWorker] not mirroring deletion of ${path}: collides with ${twin} (capitalization/accents)`
       );
       return "collision";
+    }
+
+    // No deletion is ever concluded from a listing for a path whose own rename
+    // or delete has not reached the remote yet (issue 113). queueRename moves
+    // the sync_state row — remote ETag and merge base included (#59) — to the
+    // DESTINATION, so until the MOVE is pushed that row reads "was up there,
+    // is missing now", and the provider honestly answers "absent". Deleting on
+    // that evidence removed every note moved or renamed in the app with WebDAV
+    // and S3, one cycle before the MOVE would have gone up. The listing is
+    // believed again once the queue no longer holds the operation. Checked here,
+    // under the path lock, because the caller's snapshot can predate a move.
+    if (await this.queue.hasPendingStructuralOp(path)) {
+      console.log(`[SyncWorker] not mirroring deletion of ${path}: its rename/delete is still queued`);
+      return "awaitingStructure";
     }
 
     const state = await this.stateRepo.getSyncState(path);
@@ -1547,7 +1625,7 @@ export class SyncWorker {
       // before touching data. A FatalSyncProtocolError here ends the cycle in the
       // outer catch (error status + cursor reset) — never a pull, never a push.
       if (this.settingsSyncRunner?.guardBeforeCycle && alive()) {
-        await this.settingsSyncRunner.guardBeforeCycle(this.target, this.vault);
+        await this.settingsSyncRunner.guardBeforeCycle(this.rawTarget, this.vault);
       }
 
       // 0b. Deletion journal (P1): merge the remote journal BEFORE the pull, so
@@ -1558,7 +1636,7 @@ export class SyncWorker {
         // Local persistence must succeed before any confirmed row can retire.
         await this.recordQueuedDeletionIntents();
         try {
-          await this.deletionJournal.sync(this.target);
+          await this.deletionJournal.sync(this.rawTarget);
         } catch (e) {
           console.warn("[SyncWorker] deletion-journal sync failed; using the local journal only:", e);
         }
@@ -1614,6 +1692,10 @@ export class SyncWorker {
 
       for (const folder of pullResult.folders ?? []) {
         if (!folder || isLocalOnlyPath(folder)) continue;
+        // A twin spelling on the remote (ADR 0016) is reported below, not
+        // copied: on this device it would be the composed folder again, or a
+        // second one next to it.
+        if (isTwinSpelling(folder)) continue;
         if (awaitingDeletion(folder) || awaitingStructure(folder)) continue;
         try {
           if (!(await this.vault.exists(folder))) {
@@ -1633,8 +1715,10 @@ export class SyncWorker {
       // AppleDouble sidecars (`._Note.md`, E10). The header cannot be read
       // without downloading the file, so the path-only rule decides here: `._x`
       // stays out while `x` is in the listing or known locally.
+      // A twin spelling (ADR 0016) — a second name the remote or this device
+      // holds next to its composed form — is reported, never reconciled.
       const excludedFromSync = (path: string): boolean =>
-        isLocalOnlyPath(path) || isAppleDoubleCompanion(path, (p) => remotePaths.has(p) || stateMap.has(p));
+        isLocalOnlyPath(path) || isTwinSpelling(path) || isAppleDoubleCompanion(path, (p) => remotePaths.has(p) || stateMap.has(p));
 
       // 2. Reconcile each remote file against local state. Device-local paths
       // (.plainva/*, .CONFLICT copies — e.g. an index DB a desktop client independently
@@ -1760,6 +1844,7 @@ export class SyncWorker {
       // Paths the remote knows under a spelling that only differs in case/accents.
       // Deleting on that evidence destroyed user notes, so they are reported instead.
       const nameCollisions: NameCollision[] = [];
+      await this.reportTwinSpellings(remotePaths, stateMap, doFullListing, nameCollisions);
       if (alive() && !doFullListing) {
         // INCREMENTAL pull: the provider tells us EXACTLY which files were deleted/trashed
         // (pullResult.deleted). We must NOT infer deletions from "missing from etagMap"
@@ -1769,6 +1854,8 @@ export class SyncWorker {
         for (const path of pullResult.deleted ?? []) {
           if (!alive()) break;
           if (excludedFromSync(path)) continue;
+          // Our own queued rename/delete explains the absence (issue 113).
+          if (awaitingStructure(path)) continue;
           // Guarded like reconcile: an explicit deleted[] entry is delivered exactly
           // once per cursor position, so a failed mirror must block cursor adoption
           // below (otherwise the deletion stays unmirrored until the next full listing).
@@ -1790,6 +1877,12 @@ export class SyncWorker {
         const confirmed: Array<{ path: string; state: SyncState }> = [];
         for (const [path, state] of stateMap) {
           if (excludedFromSync(path)) continue;
+          // A path whose rename or delete still waits in this device's queue is
+          // not "confirmed" by the listing either way (issue 113): after an
+          // in-app move its sync row already sits at the destination, which the
+          // remote cannot list before the MOVE is pushed. It takes part again
+          // once the queue has carried the operation up.
+          if (awaitingStructure(path)) continue;
           if (state.remote_etag) confirmed.push({ path, state });
         }
         // A path the listing does not carry while the remote DOES hold a twin that
@@ -2083,7 +2176,8 @@ export class SyncWorker {
       await this.engine.processQueue(
         () => !alive(),
         (current, total) => this.emitProgress("push", current, total),
-        { skipDeletes: deletionsHeld !== null && allowedDeleteIds.size === 0, allowedDeleteIds }
+        // Held-back twin DELETEs join the pull side's collisions (issue #112).
+        { skipDeletes: deletionsHeld !== null && allowedDeleteIds.size === 0, allowedDeleteIds, collisions: nameCollisions }
       );
 
       // 4. Profile-sync sideband (opt-in): transport `.plainva/sync/settings.json`
@@ -2091,7 +2185,7 @@ export class SyncWorker {
       // settings hiccup never fails or slows the file sync.
       if (this.settingsSyncRunner && alive()) {
         try {
-          await this.settingsSyncRunner.run(this.target, this.vault);
+          await this.settingsSyncRunner.run(this.rawTarget, this.vault);
         } catch (e) {
           console.error("[SyncWorker] settings-sync sideband failed:", e);
         }

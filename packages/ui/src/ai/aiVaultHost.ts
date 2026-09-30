@@ -25,7 +25,7 @@ import { CHAT_TOOL_NAMES, createVaultToolExecutor, unmarkSnippet, withoutBrokenL
 /**
  * The vault side of the AI session, built the same way in both shells: the
  * shells hand in how to read a note and what is open, this module decides
- * what the policy says about it (ADR 0017).
+ * what the policy says about it (ADR 0018).
  */
 
 /** Where folder rules live. Plainva writes no marker files into the user's folders. */
@@ -106,7 +106,7 @@ export interface AiVaultHostInput {
   encrypted?: AiVaultHost["encrypted"];
 }
 
-/** A note's text with its own rule "never to the cloud" (the plainva namespace, ADR 0017). */
+/** A note's text with its own rule "never to the cloud" (the plainva namespace, ADR 0018). */
 export function withCloudDenied(text: string): string {
   return setFrontmatterPath(text, ["plainva", "ai", "cloud"], "deny");
 }

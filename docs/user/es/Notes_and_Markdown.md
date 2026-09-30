@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-09-20
+Última actualización: 2026-09-30
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -153,6 +153,15 @@ Una nota diaria también puede llevar un **diario**: entradas breves con una hor
   ````
 
 - **Notas al pie**: `Texto[^1]` más `[^1]: La nota al pie.` al final — el modo lectura renderiza la referencia y el aparato de notas al pie con marcas de salto. La forma más rápida es el comando de barra oblicua **Nota al pie** (`/footnote`): inserta la siguiente referencia libre y salta directamente a la definición al final de la nota.
+
+## Texto de derecha a izquierda
+
+El árabe, el hebreo, el persa y las demás escrituras de derecha a izquierda se componen automáticamente de derecha a izquierda — párrafo a párrafo, sin ningún ajuste que activar. Cada párrafo, encabezado, elemento de lista, línea de cita y celda de tabla sigue a su primera letra después de la sintaxis Markdown: un párrafo que empieza con una palabra árabe va desde la derecha, uno que empieza con una palabra latina desde la izquierda, y una misma nota puede mezclar ambos. Viñetas, casillas, la barra de cita y la sangría pasan a la derecha con el texto; la `x` de `- [x]` no cuenta como palabra, así que una tarea terminada se queda a la derecha. Una línea sin letras (un número, un elemento de lista nuevo y vacío) conserva la dirección de la línea de arriba.
+
+- La misma regla se aplica en **Vista previa en vivo**, en **Código fuente Markdown** y en **Modo lectura**, en el escritorio y en el teléfono, y en las tarjetas del **Tablón** y del **Diario**.
+- Los bloques de código, las fórmulas y las propiedades al principio de una nota siempre van de izquierda a derecha.
+- La interfaz conserva su idioma y su disposición: los nombres en el árbol de archivos, en los resultados de búsqueda y en las listas se quedan en su sitio y solo muestran sus caracteres en el orden correcto.
+- Un párrafo que empieza con una palabra latina (el nombre de un producto, por ejemplo) va de izquierda a derecha. Empiézalo con una palabra de tu idioma y se da la vuelta.
 
 ## Imprimir y guardar como PDF
 

@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-24
+Ultimo aggiornamento: 2026-09-30
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -92,7 +92,7 @@ Puoi anche alternare tra **Larghezza leggibile** e **Larghezza piena**.
 - **Creazione:** clic destro su una cartella → **Nuova nota qui**, **Nuova cartella** o **Nuovo database (.base)**. Il grande pulsante **Nuovo** crea all'interno della cartella attualmente selezionata (o della cartella genitore di un file selezionato).
 - **Selezione:** un clic seleziona, `Ctrl`+clic aggiunge/rimuove singolarmente, `Shift`+clic seleziona un intervallo, il clic centrale apre in una nuova scheda.
 - **Menu contestuale:** include **Rinomina** (aggiorna i link in tutto il vault), **Duplica**, **Apri nella vista divisa (destra)** / **Apri nella vista divisa (in basso)**, **Aggiungi segnalibro**, **Copia percorso**, **Mostra in Esplora file**, **Elimina**.
-- **Sposta in…** nel menu contestuale sposta una nota, una cartella o l’intera selezione multipla in una cartella a tua scelta: la stessa strada del trascinamento, ma senza trascinare; schede aperte, riferimenti della bacheca e indice seguono.
+- **Sposta in…** nel menu contestuale sposta una nota, una cartella o l’intera selezione multipla in una cartella a tua scelta: la stessa strada del trascinamento, ma senza trascinare; schede aperte, riferimenti della bacheca e indice seguono. Il testo non salvato di una nota che viene spostata o rinominata viene salvato prima; se non ci riesce, non si sposta nulla, Plainva spiega il motivo e il tuo testo resta aperto. Se lo spostamento in sé è riuscito ma un passaggio successivo no, il messaggio dice che l'elemento è nella nuova posizione e indica cosa non ha funzionato.
 - **Le stesse azioni nelle sezioni sopra l'albero:** un clic destro su una voce in **Aperti di recente** o **Segnalibri** apre lo stesso menu — senza le voci per le cartelle, ma con in più **Rimuovi dall'elenco** (questo rimuove solo la voce dall'elenco, mai il file). Qui rinominare avviene tramite una finestra di dialogo anziché nel campo della riga. Anche le viste calendario e attività possono comparire in **Aperti di recente**; possono essere aperte e rimosse dall'elenco, ma non rinominate né eliminate — sono viste, non file.
 - **Selezione multipla:** eliminare chiede conferma una sola volta per tutti gli elementi, duplicare e spostare trascinando funzionano sull'intera selezione. Gli elementi eliminati finiscono nel cestino del sistema operativo.
 - Le nuove note iniziano automaticamente con un `# Titolo` derivato dal nome del file.
@@ -121,6 +121,7 @@ Le **Impostazioni** (icona a forma di ingranaggio in basso nella barra delle azi
 - **Clic destro su una scheda** per aprire il suo menu: **Blocca**, **Ricarica**, **Apri nella vista divisa (destra)**, **Copia percorso**, **Mostra in Esplora file** e il gruppo di chiusura.
 - **Blocca** tiene ferma una scheda: si sposta all'inizio della barra delle schede, mostra una puntina invece della croce di chiusura e sopravvive a ogni **Chiudi le altre** / **Chiudi a sinistra** / **Chiudi a destra** / **Chiudi tutto**. Per chiuderla, tocca prima **Sblocca**.
 - **Ricarica** scarta la vista attuale e rilegge il file dal disco — utile quando un altro programma lo ha modificato. Se la scheda ha modifiche non salvate, Plainva rifiuta di ricaricare piuttosto che sovrascrivere il tuo lavoro.
+- **Molte schede** non scorrono più di lato: le schede si restringono man mano che ne apri altre, fino al punto in cui ci stanno ancora l'icona, un titolo abbreviato e il pulsante di chiusura. Ciò che non ci sta più aspetta dietro un pulsante che ne indica il numero (**Altre 3 schede**): un clic le elenca. La scheda attiva resta sempre visibile, e Plainva non chiude mai una scheda da sé.
 
 ## Più finestre
 
@@ -160,7 +161,7 @@ La barra delle azioni offre **Nuova nota**, **Nuova cartella** e **Nuovo databas
 
 **Proprio dove si trovano:** **tieni premuto** su un pulsante o su un'intestazione di sezione e trascinalo nella sua nuova posizione — un semplice clic continua solo ad attivarlo, e se scorri mentre tieni premuto, scorri (il trascinamento viene annullato). `Esc` annulla un trascinamento in corso. Un **clic destro** offre le stesse azioni senza tenere premuto: **Sposta in alto**, **Nascondi** e **Personalizza le barre…**.
 
-**In un unico posto:** sotto **Impostazioni → Vault → Barre e aree** tutte e cinque le barre stanno una sotto l'altra — compresa la barra di navigazione del telefono, che puoi quindi organizzare sullo schermo grande. Ognuna è **un'unica** lista con una linea di separazione: tutto ciò che sta sopra è visibile, tutto ciò che sta sotto è nascosto. Qui sposti le voci con la maniglia di trascinamento — in questa pagina si sta ordinando proprio una lista, esattamente ciò a cui serve una maniglia. Trascinando fino al bordo superiore o inferiore, la pagina scorre di conseguenza, così una voce può spostarsi dal fondo fino in cima in un unico movimento.
+**In un unico posto:** sotto **Impostazioni → Vault → Barre e aree** tutte e cinque le barre stanno una sotto l'altra — compresa la barra di navigazione del telefono, che puoi quindi organizzare sullo schermo grande. Ognuna è **un'unica** lista con una linea di separazione: tutto ciò che sta sopra è visibile, tutto ciò che sta sotto è nascosto. Qui sposti le voci con la maniglia di trascinamento — in questa pagina si sta ordinando proprio una lista, esattamente ciò a cui serve una maniglia. Trascinando fino al bordo superiore o inferiore, la pagina scorre di conseguenza, così una voce può spostarsi dal fondo fino in cima in un unico movimento. **Disponi le barre …**, il pulsante con i cursori alla fine del gruppo superiore della barra delle azioni, apre direttamente questa pagina.
 
 Due cose non possono deliberatamente essere nascoste: **Mostra le scorciatoie da tastiera** e **Impostazioni** in fondo alla barra delle azioni, e la scheda **File** della barra laterale sinistra. Tutto il resto puoi nasconderlo a tuo piacimento; le azioni nascoste della barra restano raggiungibili dalla **palette dei comandi** (`Ctrl+P`). Le sezioni della barra laterale destra che non hanno nulla da mostrare per la nota aperta non compaiono mai.
 

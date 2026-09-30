@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-09-24
+Última actualización: 2026-09-30
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -92,7 +92,7 @@ También puedes alternar entre **Ancho de lectura** y **Ancho completo**.
 - **Crear:** clic derecho en una carpeta → **Nueva nota aquí**, **Nueva carpeta** o **Nueva base de datos (.base)**. El gran botón **Nuevo** crea dentro de la carpeta seleccionada actualmente (o la carpeta padre de un archivo seleccionado).
 - **Seleccionar:** un clic selecciona, `Ctrl`+clic añade o quita elementos individualmente, `Shift`+clic selecciona un rango, el clic central abre en una nueva pestaña.
 - **Menú contextual:** incluye **Renombrar** (actualiza los enlaces en todo el vault), **Duplicar**, **Abrir en panel dividido (derecha)** / **Abrir en panel dividido (abajo)**, **Añadir marcador**, **Copiar ruta**, **Mostrar en el administrador de archivos**, **Eliminar**.
-- **Mover a…** en el menú contextual mueve una nota, una carpeta o toda la selección múltiple a la carpeta que elijas: el mismo camino que arrastrar y soltar, pero sin arrastrar; las pestañas abiertas, las referencias del tablero y el índice lo siguen.
+- **Mover a…** en el menú contextual mueve una nota, una carpeta o toda la selección múltiple a la carpeta que elijas: el mismo camino que arrastrar y soltar, pero sin arrastrar; las pestañas abiertas, las referencias del tablero y el índice lo siguen. El texto sin guardar de una nota que se mueve o renombra se guarda primero; si eso falla, nada se mueve, Plainva explica por qué y tu texto sigue abierto. Si el traslado funcionó pero falló un paso posterior, el mensaje dice que el elemento ya está en su nuevo lugar e indica qué salió mal.
 - **Las mismas acciones en las secciones encima del árbol:** hacer clic derecho en una entrada de **Abiertos recientemente** o **Marcadores** abre el mismo menú — sin las entradas de carpeta, y con **Quitar de la lista** añadido (eso solo quita la entrada de la lista, nunca el archivo). Renombrar ahí se hace mediante un diálogo en lugar de un campo en la fila. Las vistas de calendario y tareas también pueden estar en **Abiertos recientemente**; se pueden abrir y quitar de la lista, pero no renombrar ni eliminar — son vistas, no archivos.
 - **Selección múltiple:** eliminar pregunta una sola vez por todos los elementos, duplicar y mover por arrastre funcionan sobre toda la selección. Los elementos eliminados van a la papelera del sistema operativo.
 - Las notas nuevas empiezan automáticamente con un `# Encabezado` derivado del nombre del archivo.
@@ -121,6 +121,7 @@ La forma más rápida de entrar en la nota de hoy es el **diario**: `Ctrl+Shift+
 - **Clic derecho en una pestaña** para abrir su menú: **Fijar**, **Recargar**, **Abrir en panel dividido (derecha)**, **Copiar ruta**, **Mostrar en el administrador de archivos** y el grupo de cierre.
 - **Fijar** mantiene una pestaña en su lugar: se mueve al principio de la barra de pestañas, muestra un pin en lugar de la cruz de cierre y sobrevive a cada **Cerrar las demás** / **Cerrar a la izquierda** / **Cerrar a la derecha** / **Cerrar todo**. Para cerrarla, primero elige **Dejar de fijar**.
 - **Recargar** descarta la vista actual y vuelve a leer el archivo desde el disco — útil cuando otro programa lo ha modificado. Si la pestaña tiene cambios sin guardar, Plainva se niega a recargar en lugar de sobrescribir tu trabajo.
+- **Muchas pestañas** ya no se desplazan de lado: las pestañas se estrechan a medida que se abren más, hasta el punto en que todavía caben el icono, un título abreviado y el botón de cerrar. Lo que ya no cabe espera tras un botón que indica cuántas son (**3 pestañas más**): un clic las lista. La pestaña activa siempre queda a la vista, y Plainva nunca cierra una pestaña por su cuenta.
 
 ## Varias ventanas
 
@@ -160,7 +161,7 @@ La barra de acciones ofrece **Nueva nota**, **Nueva carpeta** y **Nueva base de 
 
 **Justo donde están:** **mantén pulsado** un botón o un encabezado de sección y arrástralo a su nuevo lugar — un simple clic sigue solo activándolo, y si te desplazas mientras mantienes pulsado, te desplazas (el arrastre se cancela). `Esc` cancela un arrastre en curso. Un **clic derecho** ofrece las mismas acciones sin mantener pulsado: **Subir**, **Ocultar** y **Personalizar barras…**.
 
-**En un solo lugar:** en **Configuración → Vault → Barras y áreas** las cinco barras están una debajo de otra, incluida la barra de navegación del teléfono, que así puedes organizar en la pantalla grande. Cada una es **una única** lista con una línea divisoria: todo lo que está por encima es visible, todo lo que está por debajo está oculto. Aquí mueves las entradas con el asa de arrastre — en esta página se está organizando una lista, que es exactamente para lo que sirve un asa. Arrastrar hasta el borde superior o inferior hace que la página se desplace también, de modo que una entrada puede pasar de la parte más baja a la más alta en un solo movimiento.
+**En un solo lugar:** en **Configuración → Vault → Barras y áreas** las cinco barras están una debajo de otra, incluida la barra de navegación del teléfono, que así puedes organizar en la pantalla grande. Cada una es **una única** lista con una línea divisoria: todo lo que está por encima es visible, todo lo que está por debajo está oculto. Aquí mueves las entradas con el asa de arrastre — en esta página se está organizando una lista, que es exactamente para lo que sirve un asa. Arrastrar hasta el borde superior o inferior hace que la página se desplace también, de modo que una entrada puede pasar de la parte más baja a la más alta en un solo movimiento. **Organizar barras …**, el botón con los reguladores al final del grupo superior de la barra de acciones, abre esta página directamente.
 
 Dos cosas no se pueden ocultar a propósito: **Mostrar atajos de teclado** y **Configuración** en la parte inferior de la barra de acciones, y la pestaña **Archivos** de la barra lateral izquierda. Todo lo demás puedes ocultarlo; las acciones ocultas de la barra siguen siendo accesibles desde la **paleta de comandos** (`Ctrl+P`). Las secciones de la barra lateral derecha que no tienen nada que mostrar para la nota abierta nunca llegan a aparecer.
 

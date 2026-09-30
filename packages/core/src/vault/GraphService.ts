@@ -2,7 +2,8 @@ import { foldPathNormalization } from "../sync/pathIdentity.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed } from "./LinkResolver.js";
 import { isReservedOkfName } from "../okf-conversion.js";
-import { ftsPhrase } from "./ftsQuery.js";
+import { ftsExactTerm } from "./ftsQuery.js";
+import { isSpacelessChar, wordBoundedPattern } from "./spacelessText.js";
 
 /**
  * Read-model for the graph views (context graph, vault map, base graph view).
@@ -155,6 +156,12 @@ const HUB_NEIGHBOR_CAP = 50;
 const NEIGHBORHOOD_NODE_BUDGET = 400;
 /** Minimum title/alias length considered for mention scanning. */
 const MENTION_MIN_TERM_LENGTH = 3;
+
+/** Shorter titles would match everywhere — except in scripts written without
+ *  spaces, where two characters make a common word (会議, 東京). */
+function mentionTermLongEnough(term: string): boolean {
+  return term.length >= MENTION_MIN_TERM_LENGTH || (term.length >= 2 && Array.from(term).every(isSpacelessChar));
+}
 
 function folderOf(path: string): string {
   const idx = path.lastIndexOf("/");
@@ -624,17 +631,17 @@ export class GraphService {
         const list = Array.isArray(parsed) ? parsed : [parsed];
         aliasesByPath.set(
           p,
-          list.map((a) => String(a)).filter((a) => a.trim().length >= MENTION_MIN_TERM_LENGTH)
+          list.map((a) => String(a)).filter((a) => mentionTermLongEnough(a.trim()))
         );
       } catch {
-        if (raw.trim().length >= MENTION_MIN_TERM_LENGTH) aliasesByPath.set(p, [raw.trim()]);
+        if (mentionTermLongEnough(raw.trim())) aliasesByPath.set(p, [raw.trim()]);
       }
     }
 
     const termsFor = (node: GraphNodeInfo): string[] => {
       const terms: string[] = [];
       const title = node.title.trim();
-      if (title.length >= MENTION_MIN_TERM_LENGTH && /[\p{L}\p{N}]/u.test(title) && !/^\d+$/.test(title)) {
+      if (mentionTermLongEnough(title) && /[\p{L}\p{N}]/u.test(title) && !/^\d+$/.test(title)) {
         terms.push(title);
       }
       for (const alias of aliasesByPath.get(node.path) ?? []) terms.push(alias);
@@ -665,9 +672,11 @@ export class GraphService {
       const ownTerms = termsFor(centerNode);
       for (const term of ownTerms) {
         if (opts.signal?.aborted) return results;
+        const expression = ftsExactTerm(term);
+        if (!expression) continue;
         const rows = await this.db.query<{ path: string }>(
           `SELECT path FROM fts_notes WHERE fts_notes MATCH ?`,
-          [ftsPhrase(term)]
+          [expression]
         );
         for (const r of rows) {
           const p = String((r as any).path ?? (r as any).PATH ?? "");
@@ -687,10 +696,8 @@ export class GraphService {
           if (node.path === opts.forPath || !eligibleTarget(node)) continue;
           for (const term of termsFor(node)) {
             if (!lower.includes(term.toLowerCase())) continue;
-            const boundary = new RegExp(
-              `(?<![\\p{L}\\p{N}])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`,
-              "iu"
-            );
+            // A word of its own — inside Japanese or Chinese text anywhere in a run.
+            const boundary = new RegExp(wordBoundedPattern(term), "iu");
             if (boundary.test(content)) {
               push(opts.forPath, node.path, term);
               break;
@@ -712,9 +719,11 @@ export class GraphService {
       if (opts.signal?.aborted || results.length >= maxResults) break;
       const { node, term } = candidates[i];
       opts.onProgress?.(i + 1, candidates.length, term);
+      const expression = ftsExactTerm(term);
+      if (!expression) continue;
       const rows = await this.db.query<{ path: string }>(
         `SELECT path FROM fts_notes WHERE fts_notes MATCH ?`,
-        [ftsPhrase(term)]
+        [expression]
       );
       for (const r of rows) {
         const p = String((r as any).path ?? (r as any).PATH ?? "");

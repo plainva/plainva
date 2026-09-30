@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-09-20
+Laatst bijgewerkt: 2026-09-30
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -153,6 +153,15 @@ Een dagnotitie kan ook een **journaal** bevatten: korte items met een tijdstip (
   ````
 
 - **Voetnoten**: `Tekst[^1]` plus `[^1]: De voetnoot.` aan het einde — leesmodus rendert de verwijzing en het voetnotenapparaat met sprongmarkeringen. Het snelst gaat het via het slash-commando **Voetnoot** (`/footnote`): het voegt de eerstvolgende vrije verwijzing in en springt meteen naar de definitie aan het einde van de notitie.
+
+## Tekst van rechts naar links
+
+Arabisch, Hebreeuws, Perzisch en andere schriften die van rechts naar links lopen, zet Plainva automatisch van rechts naar links — alinea voor alinea, zonder instelling. Elke alinea, kop, lijstregel, citaatregel en tabelcel volgt de eerste letter na de Markdown-syntaxis: een alinea die met een Arabisch woord begint, loopt van rechts, een die met een Latijns woord begint van links, en één notitie mag beide mengen. Opsommingstekens, selectievakjes, de citaatbalk en de inspringing gaan met de tekst mee naar rechts; de `x` in `- [x]` telt niet als woord, dus een afgeronde taak blijft rechts. Een regel zonder letters (een getal, een nieuwe lege lijstregel) houdt de richting van de regel erboven.
+
+- Dezelfde regel geldt in **Live-voorbeeld**, in **Markdown-bron** en in **Leesmodus**, op de desktop en op de telefoon, en op de kaarten van het **Prikbord** en het **Journaal**.
+- Codeblokken, formules en de eigenschappen bovenaan een notitie blijven altijd van links naar rechts.
+- De interface houdt haar taal en haar indeling: namen in de bestandsboom, in zoekresultaten en in lijsten blijven op hun plek en tonen alleen hun tekens in de juiste volgorde.
+- Een alinea die met een Latijns woord begint (bijvoorbeeld een productnaam), loopt van links naar rechts. Begin haar met een woord in je eigen taal en ze draait om.
 
 ## Afdrukken en opslaan als PDF
 

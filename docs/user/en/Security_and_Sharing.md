@@ -8,7 +8,7 @@
 
 Create a Vault Slice with the four steps **Details → Content → Permissions → Review**. Publishing a slice to people outside the vault works on the desktop and on the phone: **Create publication** builds a separate encrypted workspace with its own keys in its own folder, **Invite recipient** lets somebody in, and **Withdraw access** or **Withdraw publication** takes it back — with one boundary: withdrawing does not retrieve what someone already copied, it only stops anything new from reaching them and makes the next key epoch unreadable for them. A sanitized publication additionally removes private frontmatter properties, neutralizes links to excluded notes, and omits excluded embeds; permissions at Google Drive, OneDrive, Nextcloud, Dropbox, WebDAV, or S3 are additional protection, never a replacement for the encrypted roles, and Plainva shows the advice for the provider you pick without changing any sharing setting for you. On the phone the same path runs through the slice’s row: **Publish a Vault Slice** creates it, after which it appears under **Publications** with mode, access, the number of objects, and its state — **Up to date**, how many changes are still pending, or **Refresh failed** with the reason. Tapping the row opens **Recipients** with **Invite recipient** and **Withdraw access**; a long press offers **Withdraw publication**. Public release remains blocked until the independent crypto review and real Android/iOS two-device evidence are recorded.
 
-Last reviewed: 2026-09-15
+Last reviewed: 2026-09-30
 
 Plainva can keep a vault as ordinary readable files on your device while storing its cloud copy as opaque encrypted objects. Open **Settings → your vault → Security & Sharing** after connecting a cloud account.
 
@@ -99,4 +99,4 @@ Camera and photo library are asked for as before: when you insert a photo and wh
 
 A home-screen widget is read by another program and seen by whoever is looking at the screen, so what Plainva writes for it is deliberately thin: a title, a day, a time, a priority and a position. Never the text of a note and never a path — a tapped row is resolved back to its note inside the app.
 
-A locked encrypted workspace writes an **empty** widget rather than one Plainva asks to hide the content of: a file that never held the titles cannot reveal them. Two switches under **Settings → Start & behaviour → Widgets** narrow it further, per device: turning **Show titles in the widget** off leaves only the counts, and **Show appointments in the widget** off leaves only the tasks.
+A locked encrypted workspace writes an **empty** widget rather than one Plainva asks to hide the content of: a file that never held the titles cannot reveal them. Two switches under **Settings → Startup & behavior → Widgets** narrow it further, per device: turning **Show titles in the widget** off leaves only the counts, and **Show appointments in the widget** off leaves only the tasks.

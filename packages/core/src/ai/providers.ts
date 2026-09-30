@@ -2,7 +2,7 @@ import type { Conversation, Part, Turn } from "./conversation.js";
 import { toolInputJsonSchema, type ToolManifest } from "./tools.js";
 
 /**
- * Provider request codecs (ADR 0016): own thin adapters, no provider SDK.
+ * Provider request codecs (ADR 0017): own thin adapters, no provider SDK.
  *
  * They turn a conversation into an HTTP request SPECIFICATION. The WebView
  * never holds a provider key, so the spec says where the key belongs

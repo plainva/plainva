@@ -5,6 +5,9 @@ import {
   type IVaultAdapter,
   type VaultFileInfo,
   trimChars,
+  PathSpellings,
+  withStoredSpelling,
+  type SpellingSource,
 } from "@plainva/core";
 import { atomicWriteBase64, atomicWriteText } from "../platform/atomicFile";
 import { isExistingDirectory, isMissingFile } from "./fileErrors";
@@ -38,6 +41,35 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   /** Sandbox root under Directory.Data; per-vault since the isolation rework. */
   constructor(private readonly root: string = "vault") {}
 
+  /**
+   * Path identity vs. stored spelling (ADR 0016): the app names every file by
+   * its NFC identity; iOS stores accents decomposed, and a folder synced down
+   * from a server keeps the server's form. Resolved before every plugin call,
+   * never renamed. Paths without accents never pay for it.
+   */
+  private readonly spellings = new PathSpellings();
+  private readonly spellingSource: SpellingSource = {
+    exists: async (raw) => (await this.statStored(raw)) !== null,
+    listNames: async (raw) => {
+      try {
+        const res = await Filesystem.readdir({ path: this.full(raw), directory: Directory.Data });
+        return res.files.map((f) => f.name).filter((n): n is string => !!n);
+      } catch (error) {
+        if (isMissingFile(error)) return null;
+        throw error;
+      }
+    },
+  };
+
+  /** The spelling `path` is stored under in the sandbox (ADR 0016). */
+  async realPath(path: string): Promise<string> {
+    return this.spellings.resolve(norm(path), this.spellingSource);
+  }
+
+  private stored<T>(path: string, io: (raw: string) => Promise<T>): Promise<T> {
+    return withStoredSpelling(this.spellings, norm(path), this.spellingSource, io);
+  }
+
   /** Sandbox folder of this vault, relative to Directory.Data. The streaming
    *  uploader needs it to name a file the native side can open itself. */
   get sandboxRoot(): string {
@@ -60,104 +92,127 @@ export class CapacitorVaultAdapter implements IVaultAdapter {
   async dispose(): Promise<void> {}
 
   async readTextFile(path: string): Promise<string> {
-    try {
-      const res = await Filesystem.readFile({
-        path: this.full(path),
-        directory: Directory.Data,
-        encoding: Encoding.UTF8,
-      });
-      return res.data as string;
-    } catch (error) {
-      if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
-      throw error;
-    }
+    return this.stored(path, async (raw) => {
+      try {
+        const res = await Filesystem.readFile({
+          path: this.full(raw),
+          directory: Directory.Data,
+          encoding: Encoding.UTF8,
+        });
+        return res.data as string;
+      } catch (error) {
+        if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
+        throw error;
+      }
+    });
   }
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
-    try {
-      const res = await Filesystem.readFile({ path: this.full(path), directory: Directory.Data });
-      if (res.data instanceof Blob) return new Uint8Array(await res.data.arrayBuffer());
-      return b64ToBytes(res.data as string);
-    } catch (error) {
-      if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
-      throw error;
-    }
+    return this.stored(path, async (raw) => {
+      try {
+        const res = await Filesystem.readFile({ path: this.full(raw), directory: Directory.Data });
+        if (res.data instanceof Blob) return new Uint8Array(await res.data.arrayBuffer());
+        return b64ToBytes(res.data as string);
+      } catch (error) {
+        if (isMissingFile(error)) throw new VaultFileNotFoundError(path);
+        throw error;
+      }
+    });
   }
 
   // Writes share the atomic adapter contract with the desktop (hardening
   // P2): exclusive temp in the target folder → fsync → rename. A process
   // kill or full storage can no longer leave a torn or zero-byte note.
   async writeTextFile(path: string, content: string): Promise<void> {
-    await atomicWriteText(this.full(path), content);
+    await atomicWriteText(this.full(await this.realPath(path)), content);
   }
 
   async writeBinaryFile(path: string, content: Uint8Array): Promise<void> {
-    await atomicWriteBase64(this.full(path), bytesToB64(content));
+    await atomicWriteBase64(this.full(await this.realPath(path)), bytesToB64(content));
   }
 
   async deleteItem(path: string, recursive?: boolean): Promise<void> {
-    const info = await this.statOrNull(path);
+    const raw = await this.realPath(path);
+    this.spellings.forget(norm(path));
+    const info = await this.statStored(raw);
     if (!info) throw new VaultFileNotFoundError(path);
     if (info.isDirectory) {
       await Filesystem.rmdir({
-        path: this.full(path),
+        path: this.full(raw),
         directory: Directory.Data,
         recursive: recursive ?? false,
       });
     } else {
-      await Filesystem.deleteFile({ path: this.full(path), directory: Directory.Data });
+      await Filesystem.deleteFile({ path: this.full(raw), directory: Directory.Data });
     }
   }
 
   async renameItem(oldPath: string, newPath: string): Promise<void> {
-    if (!(await this.exists(oldPath))) throw new VaultFileNotFoundError(oldPath);
-    if (await this.exists(newPath)) throw new VaultFileExistsError(newPath);
+    const oldRaw = await this.realPath(oldPath);
+    const newRaw = await this.realPath(newPath);
+    if (!(await this.statStored(oldRaw))) throw new VaultFileNotFoundError(oldPath);
+    if (await this.statStored(newRaw)) throw new VaultFileExistsError(newPath);
+    this.spellings.forget(norm(oldPath));
+    this.spellings.forget(norm(newPath));
     await Filesystem.rename({
-      from: this.full(oldPath),
-      to: this.full(newPath),
+      from: this.full(oldRaw),
+      to: this.full(newRaw),
       directory: Directory.Data,
       toDirectory: Directory.Data,
     });
   }
 
   async exists(path: string): Promise<boolean> {
-    return (await this.statOrNull(path)) !== null;
+    return (await this.statStored(await this.realPath(path))) !== null;
   }
 
   async getFileInfo(path: string): Promise<VaultFileInfo> {
-    const info = await this.statOrNull(path);
+    const info = await this.statStored(await this.realPath(path));
     if (!info) throw new VaultFileNotFoundError(path);
-    return info;
+    const identity = this.spellings.identityOfStored(info.path);
+    return identity === info.path ? info : { ...info, path: identity, name: identity.split("/").pop() ?? identity };
   }
 
   async listDir(path?: string, recursive?: boolean, options?: { signal?: AbortSignal }): Promise<VaultFileInfo[]> {
-    const rel = norm(path ?? "");
+    const raw = await this.realPath(path ?? "");
     const out: VaultFileInfo[] = [];
-    await this.walk(rel, recursive ?? false, out, false, [], 0, options?.signal);
-    return out;
+    await this.walk(raw, recursive ?? false, out, false, [], 0, options?.signal);
+    return this.identities(out, raw);
   }
 
   async listDirForBackup(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]> {
     const out: VaultFileInfo[] = [];
     await this.walk("", true, out, true, excludeDirNames);
-    return out;
+    return this.identities(out, "");
   }
 
   async listDirReport(path = "", recursive = false, options?: { signal?: AbortSignal }) {
+    const raw = await this.realPath(path);
     const files: VaultFileInfo[] = [];
-    await this.walk(norm(path), recursive, files, true, [], 0, options?.signal);
-    return { files, skipped: [] };
+    await this.walk(raw, recursive, files, true, [], 0, options?.signal);
+    return { files: this.identities(files, raw), skipped: [] };
+  }
+
+  /** A walk's stored spellings as identities, below the folder stored as `raw`. */
+  private identities(entries: VaultFileInfo[], raw: string): VaultFileInfo[] {
+    const anchor = { raw, identity: raw ? this.spellings.identityOfStored(raw) : "" };
+    const ids = this.spellings.observe(entries.map((e) => e.path), anchor);
+    return entries.map((e) => {
+      const id = ids.get(e.path);
+      return id === undefined || id === e.path ? e : { ...e, path: id, name: id.split("/").pop() ?? id };
+    });
   }
 
   async createDir(path: string): Promise<void> {
     try {
-      await Filesystem.mkdir({ path: this.full(path), directory: Directory.Data, recursive: true });
+      await Filesystem.mkdir({ path: this.full(await this.realPath(path)), directory: Directory.Data, recursive: true });
     } catch (error) {
       if (!isExistingDirectory(error)) throw error;
     }
   }
 
-  private async statOrNull(path: string): Promise<VaultFileInfo | null> {
+  /** stat() of a path given in its stored spelling. */
+  private async statStored(path: string): Promise<VaultFileInfo | null> {
     try {
       const st = await Filesystem.stat({ path: this.full(path), directory: Directory.Data });
       const rel = norm(path);

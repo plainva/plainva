@@ -92,8 +92,10 @@ export interface TaskDeletionKey {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+// Identities (ADR 0016): an entry another device wrote with a decomposed name
+// (macOS, iOS, older versions) explains the composed path this device knows.
 export function normalizeJournalPath(path: string): string {
-  return trimStartChars(trimEndChars(path.replace(/\\/g, "/").replace(/^\.\//, ""), "/"), "/");
+  return trimStartChars(trimEndChars(path.replace(/\\/g, "/").replace(/^\.\//, ""), "/"), "/").normalize("NFC");
 }
 
 function entryKey(e: DeletionJournalEntry): string {

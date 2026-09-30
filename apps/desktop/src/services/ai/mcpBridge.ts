@@ -5,7 +5,7 @@ import { aiVaultKey, mcpSkillPrompts, type AiVaultHost } from "@plainva/ui";
 
 /**
  * The main window's side of Plainva's MCP server (plan KI-Harness §17.3,
- * ADR 0021). The native side admits a client, checks the paths it names and
+ * ADR 0022). The native side admits a client, checks the paths it names and
  * hands each call here; this module runs it with the assistant's own tools —
  * the same hard gate, the `plainva.ai` rules as for any cloud recipient —
  * narrowed to the folders that client was given, and reports every path that

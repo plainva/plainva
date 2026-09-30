@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -47,6 +47,20 @@ Vor jeder Änderung sichert der Wizard die Datei nach `.plainva/backups/okf-conv
 Sehr alte Tagesnotizen können eine Angabe aus ihrer Vorlage geerbt haben, die ihre Aufgaben ausblendet. Suche im Vault nach `"tasks: false"` — **mit** Anführungszeichen, sonst findest Du auch Notizen, in denen beide Wörter nur zufällig vorkommen. In den Treffern steht die Zeile im Frontmatter unter einem `plainva:`-Block; lösche dort `tasks: false` (und, falls vorhanden, `templateFor:`), dann erscheint die Notiz wieder. Neu aus einer Vorlage erstellte Notizen erben das nicht mehr.
 
 ## Sync
+
+### Eine Notiz ist nach dem Verschieben oder Umbenennen verschwunden
+
+Mit Sync über WebDAV oder S3 hat Plainva 0.8.3 eine synchronisierte Notiz entfernt, die Du in der App verschoben oder umbenannt hast: Der erste Sync-Zyklus danach hielt die Notiz am neuen Ort für auf dem Server gelöscht und entfernte sie hier — einen Augenblick, bevor er das Verschieben hochgeschickt hätte. Mit Google Drive, Dropbox und OneDrive geschah das nur ab und zu. In 0.8.3 löschte der nächste Zyklus die Notiz dann auch auf dem Server. Plainva 0.8.4 behebt das am Desktop und am Telefon.
+
+**Aktualisiere jedes Gerät, das mit demselben Vault arbeitet.** Ein Gerät mit 0.8.3 löscht weiterhin synchronisierte Notizen, die dort verschoben oder umbenannt werden, und spiegelt Löschungen ohne Rückfrage.
+
+Hat es Dich getroffen, liegt die Notiz noch an bis zu drei Orten:
+
+- **Der Snapshot im Vault.** Bevor Plainva eine Datei entfernt, sichert es sie als `.plainva/backups/<Ordner>/<Name>.md.<Zeitstempel>.bak`; `<Ordner>` ist der Ordner, in den Du die Notiz verschoben hast. Am Desktop Rechtsklick auf den Vault-Namen → **Gelöschte Dateien wiederherstellen…**, am Telefon **Einstellungen** → **Wartung** → **Gelöschte Dateien wiederherstellen**. Die Liste zeigt die Notiz unter ihrem neuen Pfad, **Wiederherstellen** legt sie dort wieder ab. Die `.bak`-Datei ist reiner Text, Du kannst sie also auch in jedem Dateimanager oder Texteditor öffnen.
+- **Der Papierkorb des Systems** (Desktop): Die Datei selbst liegt im Papierkorb Deines Betriebssystems.
+- **Der Papierkorb Deines Servers**, falls die Notiz auch dort gelöscht wurde (in Nextcloud etwa unter „Gelöschte Dateien“).
+
+Hast Du mit 0.8.3 weitere synchronisierte Notizen verschoben oder umbenannt, lohnt es sich, auch nach ihnen an diesen Orten zu sehen.
 
 ### Was ist eine .CONFLICT-Datei?
 
@@ -108,7 +122,7 @@ Plainva respektiert die System-Einstellung „Animationen reduzieren". Wenn Übe
 
 ### Wie ändere ich die Sprache?
 
-**Einstellungen → App → Erscheinungsbild → Sprache** (derzeit Deutsch und Englisch).
+**Einstellungen → App → Erscheinungsbild → Sprache**; am Telefon **Einstellungen → Erscheinungsbild → Sprache**. Plainva spricht zehn Sprachen: Deutsch, Englisch, Spanisch, Französisch, Italienisch, Japanisch, Niederländisch, Polnisch, Portugiesisch (Brasilien) und vereinfachtes Chinesisch.
 
 ### „Nach Updates suchen" findet nichts
 

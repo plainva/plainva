@@ -50,10 +50,37 @@ function flushesFirst(body: string, flush: RegExp): boolean {
 describe("vaultOps: pending saves land before a path changes", () => {
   const source = read("vaultService.ts");
 
-  it.each(["renameReport", "moveNote", "duplicateNote", "remove"])(
+  it.each(["duplicateNote", "remove"])(
     "%s flushes that note before touching the file",
     (name) => {
       expect(flushesFirst(methodBody(source, name), /noteSaver\.flush\(/)).toBe(true);
+    },
+  );
+
+  it.each(["renameReport", "moveNote"])(
+    "%s lands that note's pending text through the refusing flush before touching the file",
+    (name) => {
+      expect(flushesFirst(methodBody(source, name), /await flushBeforeMove\(v, \w+, false\)/)).toBe(true);
+    },
+  );
+
+  it("a failed flush stops the move and says why (issue 113, V3)", () => {
+    // Swallowing the rejection moved the note without its newest text.
+    const start = source.indexOf("async function flushBeforeMove(");
+    const body = source.slice(start, source.indexOf("\n}\n", start));
+    expect(body).toMatch(/noteSaver\.flushAll\(v\)/);
+    expect(body).toMatch(/noteSaver\.flush\(path, v\)/);
+    expect(body).toMatch(/toast\.error\(i18n\.t\("dialogs\.moveBlockedUnsaved"/);
+    expect(body).toMatch(/throw new MoveBlockedError\(/);
+  });
+
+  it.each(["renameReport", "moveNote", "moveFolder"])(
+    "%s carries the draft journal to the new path before it reports the move",
+    (name) => {
+      const body = methodBody(source, name);
+      const relocate = body.search(/await relocateDrafts\(v, /);
+      expect(relocate, "the journal follows the path").toBeGreaterThan(-1);
+      expect(relocate).toBeLessThan(body.search(/notifyFileOps\(/));
     },
   );
 
@@ -66,12 +93,13 @@ describe("vaultOps: pending saves land before a path changes", () => {
     expect(body).not.toMatch(/v\.files\.|renameFileWithLinkUpdates\(/);
   });
 
-  it.each(["moveFolder", "removeFolder"])(
-    "%s flushes the whole queue — the affected child paths are unknown",
-    (name) => {
-      expect(flushesFirst(methodBody(source, name), /noteSaver\.flushAll\(/)).toBe(true);
-    },
-  );
+  it("removeFolder flushes the whole queue — the affected child paths are unknown", () => {
+    expect(flushesFirst(methodBody(source, "removeFolder"), /noteSaver\.flushAll\(/)).toBe(true);
+  });
+
+  it("moveFolder lands the whole queue through the refusing flush — the child paths are unknown", () => {
+    expect(flushesFirst(methodBody(source, "moveFolder"), /await flushBeforeMove\(v, oldPath, true\)/)).toBe(true);
+  });
 
   it("folder renaming delegates to the guarded folder move before any file access", () => {
     const body = methodBody(source, "renameFolder");

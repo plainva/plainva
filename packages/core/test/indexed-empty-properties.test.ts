@@ -47,7 +47,7 @@ describe("empty properties through the real derived index", () => {
     const repo = new SyncStateRepository(db), before = await repo.getSyncState("Notes/null.md");
     const write = vi.spyOn(files, "writeTextFile");
     await initializeSchema(db);
-    expect((await db.queryOne<{ value: string }>("SELECT value FROM meta WHERE key = 'index_format_version'"))?.value).toBe("4");
+    expect((await db.queryOne<{ value: string }>("SELECT value FROM meta WHERE key = 'index_format_version'"))?.value).toBe("5");
     await indexer.indexVaultFull();
     expect(await repo.getSyncState("Notes/null.md")).toEqual(before);
     expect(write).not.toHaveBeenCalled();

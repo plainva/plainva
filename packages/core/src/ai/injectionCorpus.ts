@@ -1,5 +1,5 @@
 /**
- * The security eval corpus (ADR 0018, §23.4 of the harness plan): texts a
+ * The security eval corpus (ADR 0019, §23.4 of the harness plan): texts a
  * model under prompt injection might write, or a vault, mail or calendar
  * might carry. It runs in CI against the pre-write linter and the tier-3
  * fence from the first package on — before any MCP or script code exists.

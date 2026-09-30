@@ -1,7 +1,7 @@
 import type { ToolManifest } from "./tools.js";
 
 /**
- * The Rule of Two as a run-time check (ADR 0018, after Meta's "Agents Rule of
+ * The Rule of Two as a run-time check (ADR 0019, after Meta's "Agents Rule of
  * Two", 2025-10-31). A run is classified by three properties:
  *
  * - A: it processes untrusted input (vault text, mail, calendar fields, web

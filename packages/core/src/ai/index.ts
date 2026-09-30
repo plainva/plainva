@@ -1,5 +1,5 @@
 /**
- * The AI harness core (ADR 0016–0021): platform-neutral logic — trust tiers,
+ * The AI harness core (ADR 0017–0022): platform-neutral logic — trust tiers,
  * the privacy policy and its hard gate, the pre-write linter, tool manifests,
  * append-only conversations and the provider request codecs. Transport, keys
  * and UI live in the shells and in packages/ui/src/ai.

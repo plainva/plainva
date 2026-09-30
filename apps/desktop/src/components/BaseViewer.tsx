@@ -39,7 +39,8 @@ import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
 import { detectEmbedScopeRelations, computeScopePaths, computeContextScope, buildContextScopeRelation, getContextFilters, buildEmbedScopeOptions, type EmbedScopeRelation } from "@plainva/ui";
 import { writeRelationLink } from "../services/graphRelationTargets";
-import { assertFileStillThere, isFileNotFound, toast } from "@plainva/ui";
+import { assertFileStillThere, isFileNotFound, moveItemName, toast } from "@plainva/ui";
+import { requestSaveFlush } from "../services/saveFlush";
 import { requestCascadeDelete } from "../services/cascadeDelete";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import { NewItemButton, NewItemFolderDialog } from "./base/NewItemButton";
@@ -354,6 +355,14 @@ export function BaseViewer({
       confirmLabel: t("common.confirm"),
     });
     if (next === null || next.trim() === current) return;
+    // The entry may be open with unsaved text: it lands first, or nothing
+    // moves (issue 113, V3).
+    try {
+      await requestSaveFlush(path, vaultPath ?? undefined);
+    } catch (e) {
+      toast.error(t("dialogs.moveBlockedUnsaved", { name: moveItemName(path), error: errorText(e) }));
+      return;
+    }
     const result = await renameToName({
       adapter: vaultAdapter,
       queryService: queryService ?? null,
@@ -366,11 +375,17 @@ export function BaseViewer({
       toast.error(result.reason === "already-exists" ? t("dialogs.alreadyExistsMsg") : t("dialogs.invalidNameMsg"));
       return;
     }
-    if (indexer) await reindexAfterRename(indexer, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths });
+    let followUpError = result.followUpError;
+    if (indexer) {
+      await reindexAfterRename(indexer, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths })
+        .catch((e) => { followUpError ??= errorText(e); });
+    }
     triggerFileTreeUpdate();
     if (peekPath === path) setPeekPath(result.newPath);
-    if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
-  }, [vaultAdapter, queryService, indexer, triggerFileTreeUpdate, peekPath, t]);
+    notifyFileOps([{ type: "move", from: path, to: result.newPath }]);
+    if (followUpError) toast.warning(t("dialogs.movedWithFollowUpError", { name: moveItemName(result.newPath), error: followUpError }));
+    else if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
+  }, [vaultAdapter, vaultPath, queryService, indexer, triggerFileTreeUpdate, peekPath, t]);
 
   /**
    * A note's colour, set from a board card (finding 2026-09-19). The same
@@ -1140,9 +1155,14 @@ export function BaseViewer({
       rename: async (p, stem) => {
         const result = await renameToName({ adapter: vaultAdapter, queryService: queryService ?? null, oldPath: p, newName: stem, isFolder: false });
         if (!result.ok) throw new Error(result.reason);
-        if (indexer) await reindexAfterRename(indexer, { oldPath: p, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths });
+        let followUpError = result.followUpError;
+        if (indexer) {
+          await reindexAfterRename(indexer, { oldPath: p, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths })
+            .catch((e) => { followUpError ??= errorText(e); });
+        }
         notifyFileOps([{ type: "move", from: p, to: result.newPath }]);
-        if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
+        if (followUpError) toast.warning(t("dialogs.movedWithFollowUpError", { name: moveItemName(result.newPath), error: followUpError }));
+        else if (result.linkUpdateFailed) toast.warning(t("dialogs.renameLinksFailed"));
         return result.newPath;
       },
     };

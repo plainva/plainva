@@ -1,7 +1,7 @@
 import type { AiPolicyDimension, EffectivePolicy, PolicySource } from "./policy.js";
 
 /**
- * The privacy hard gate (ADR 0017): it runs BEFORE candidate scoring,
+ * The privacy hard gate (ADR 0018): it runs BEFORE candidate scoring,
  * compaction and display, so a note the policy keeps away from a recipient
  * contributes nothing — no title, gist, file name, link anchor or embedding.
  * The native egress checks the recipient again; this gate decides what may

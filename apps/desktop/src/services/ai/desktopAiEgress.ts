@@ -2,7 +2,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type { AiEgress, EgressChunk, EndpointConfirmText, HttpRequestSpec } from "@plainva/core";
 
 /**
- * The desktop's native AI egress (ADR 0016): the Rust commands in
+ * The desktop's native AI egress (ADR 0017): the Rust commands in
  * `src-tauri/src/ai_egress.rs`. The key never comes back — there is no
  * command that returns it, and the egress scrubs it from every error text.
  */

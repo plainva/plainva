@@ -21,7 +21,7 @@ import { stripFrontmatter } from "../services/docMeta";
 import { notePropertiesOf, type SituationEventInput } from "./aiSituation";
 
 /**
- * The vault tools of the chat (ADR 0018), one implementation for both shells:
+ * The vault tools of the chat (ADR 0019), one implementation for both shells:
  * search, read, outline, databases, tasks, links, recent notes, appointments
  * and app navigation. All of them read; none of them changes anything.
  *
@@ -118,7 +118,7 @@ export function safeRelPath(path: string): string | null {
   if (!p || p.includes("\0") || p.includes("\\") || p.startsWith("/") || /^[a-z]:/i.test(p)) return null;
   const parts = p.split("/");
   if (parts.some((part) => part === "" || part === "." || part === "..")) return null;
-  // Plainva's own state and the policy files are never tool results (ADR 0021).
+  // Plainva's own state and the policy files are never tool results (ADR 0022).
   if ([".plainva", ".agent", ".git", ".obsidian", ".trash"].includes(parts[0]!.toLowerCase())) return null;
   return p;
 }

@@ -61,7 +61,10 @@ import {
   emptyDiagnostics,
   isMemberProfileField as isMemberProfileFieldShared,
   normalizeSyncDiagnostics,
-  noteSettingsSyncFailure,
+  logDiagnostic,
+  reportSyncStepFailure,
+  reportSyncStepSuccess,
+  type SyncStepReporter,
   type SettingsSyncFailure,
   clearLegacyClient,
   recordLegacyClient,
@@ -970,15 +973,10 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         // it gets the identical fix, from the same shared decision maker: a
         // dropped request waits, a revoked sign-in is red at once, and the
         // "already said" flag lives in the durable record.
-        let failure: SettingsSyncFailure | null = null;
-        await updateDiagnostics(this.vaultPath, (d) => {
-          const outcome = noteSettingsSyncFailure(d, new Date().toISOString(), error);
-          failure = outcome.failure;
-          return outcome.diagnostics;
-        });
-        if (failure && (failure as SettingsSyncFailure).announce) {
-          toast.error(i18n.t("settingsSync.profileFailed", { error: (failure as SettingsSyncFailure).message }));
-        }
+        await reportSyncStepFailure("settings", error, this.reporter(({ message }) => {
+          // Already redacted and classified by the shared decision.
+          toast.error(i18n.t("settingsSync.profileFailed", { error: message }));
+        }));
         throw error;
       }
     }
@@ -993,7 +991,11 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
       } catch (error) {
         const reason = error instanceof SecretPolicyError ? "invalid-or-unreadable-bundle" : "sync-failed";
         await updateDiagnostics(this.vaultPath, (d) => recordSecretsError(d, new Date().toISOString(), reason));
-        toast.error(i18n.t("settingsSync.secretsFailedSafe"));
+        // Said once per failure, not on every cycle (issue 113): the same decision
+        // as the profile, with its own record.
+        await reportSyncStepFailure("secrets", error, this.reporter(() => {
+          toast.error(i18n.t("settingsSync.secretsFailedSafe"));
+        }));
       }
       // Retired entries are removable, but only from a cycle: the cleanup needs
       // the sync target and the raw vault adapter, and only here do both exist.
@@ -1005,13 +1007,23 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
     // Comments are content, so a failure here must not take the profile or the
     // credentials down with it — but it must not be invisible either. The user
     // typed something for somebody else; if it did not travel, the honest answer
-    // is a message, not silence.
+    // is a message, not silence. It used to be a toast with the raw provider
+    // sentence on EVERY cycle (issue 113); now it is the profile's decision with its
+    // own record: a dropped request waits, a lasting failure is said once and
+    // shown on the sync page, and the next good cycle clears it. Unreadable
+    // comment files are not transport failures and keep their own notice
+    // (`onFaults`).
     const comments = await this.steps.comments(vault);
     if (comments) {
       try {
         await comments.run(target, vault);
+        // Never mistaken for a comment failure: a diagnostics hiccup is not one.
+        await reportSyncStepSuccess("comments", this.reporter()).catch(() => undefined);
       } catch (error) {
-        toast.error(i18n.t("settingsSync.commentsFailed", { error: error instanceof Error ? error.message : String(error) }));
+        await reportSyncStepFailure("comments", error, this.reporter(({ message }) => {
+          // Already redacted and classified by the shared decision.
+          toast.error(i18n.t("settingsSync.commentsFailed", { error: message }));
+        }));
       }
       // Stufe F: the one moment a device can learn that somebody wrote
       // something — there is no server to push it. Announced even when the step
@@ -1028,6 +1040,15 @@ class DesktopSidebandRunner implements SettingsSyncRunner {
         window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } }));
       }
     }
+  }
+
+  /** This vault's durable record and the shell's voice, lent to the shared decision. */
+  private reporter(announce: (failure: SettingsSyncFailure) => void = () => undefined): SyncStepReporter {
+    return {
+      load: () => loadSyncDiagnostics(this.vaultPath),
+      update: (reduce) => updateDiagnostics(this.vaultPath, reduce),
+      announce,
+    };
   }
 
   private async runLegacyCleanupIfRequested(
@@ -1248,6 +1269,9 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
         crypto: mk ? commentsCryptoFor(mk) : undefined,
         // A file that could not be read is never overwritten; the shell says
         // so once, with the reason (N3).
+        // A content-free transport note for the diagnostics export (issue 113),
+        // e.g. a server whose 304 validators cannot be bound to our copy.
+        onDiagnostic: (line) => logDiagnostic("sync", line),
         onFaults: (faults) => window.dispatchEvent(new CustomEvent("plainva-comment-faults", { detail: { vaultPath, faults } })),
       });
     },

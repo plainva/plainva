@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { VaultFileNotFoundError } from "@plainva/core";
-import { applyIndexChanges, carryMirroredHeading, duplicateFile, moveItems, movableInto, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
+import { applyIndexChanges, carryMirroredHeading, duplicateFile, moveItems, movableInto, promptRenameFile, reindexAfterRename, renameInitialName, renameToName, type FileActionAdapter, type RenameReindexer } from "./fileActions";
 
 /** In-memory adapter: text files as strings, binaries as Uint8Array. */
 function makeAdapter(initial: Record<string, string | Uint8Array>) {
@@ -191,11 +191,12 @@ describe("duplicateFile", () => {
 
 describe("reindexAfterRename", () => {
   function makeReindexer() {
-    const calls = { full: 0, indexed: [] as string[], removed: [] as string[] };
+    const calls = { full: 0, indexed: [] as string[], removed: [] as string[], relocated: [] as string[] };
     const indexer: RenameReindexer = {
       indexVaultFull: async () => void calls.full++,
       indexPath: async (p) => void calls.indexed.push(p),
       removePathFromIndex: async (p) => void calls.removed.push(p),
+      relocatePathInIndex: async (from, to) => void calls.relocated.push(`${from}>${to}`),
     };
     return { indexer, calls };
   }
@@ -209,7 +210,10 @@ describe("reindexAfterRename", () => {
       changedPaths: ["Ref.md", "Other.md"],
     });
     expect(calls.full).toBe(0);
-    expect(calls.removed).toEqual(["Old.md"]);
+    // Followed as a rename, never reported as a deletion: removing the old
+    // path queued a remote DELETE next to the MOVE (issue 113).
+    expect(calls.removed).toEqual([]);
+    expect(calls.relocated).toEqual(["Old.md>New.md"]);
     expect(calls.indexed).toEqual(["New.md", "Ref.md", "Other.md"]);
   });
 
@@ -234,17 +238,20 @@ describe("reindexAfterRename", () => {
     });
     expect(calls.full).toBe(1);
     expect(calls.removed).toEqual([]);
+    // The rows follow BEFORE the scan, so the scan has nothing to report as vanished.
+    expect(calls.relocated).toEqual(["Projects>Archive"]);
     expect(calls.indexed).toEqual([]);
   });
 });
 
 describe("applyIndexChanges", () => {
   function makeReindexer() {
-    const calls = { full: 0, indexed: [] as string[], removed: [] as string[] };
+    const calls = { full: 0, indexed: [] as string[], removed: [] as string[], relocated: [] as string[] };
     const indexer: RenameReindexer = {
       indexVaultFull: async () => void calls.full++,
       indexPath: async (p) => void calls.indexed.push(p),
       removePathFromIndex: async (p) => void calls.removed.push(p),
+      relocatePathInIndex: async (from, to) => void calls.relocated.push(`${from}>${to}`),
     };
     return { indexer, calls };
   }
@@ -335,11 +342,12 @@ describe("moveItems (Issue #77: drag & drop and \"Move to…\" share one path)",
   it("moves a note, tells the tabs, and relocates the index entry", async () => {
     const { adapter, files } = makeAdapter({ "Inbox/Note.md": "# N", "Projects/.keep": "" });
     const moved: string[] = [];
-    const index = { removed: [] as string[], added: [] as string[], full: 0 };
+    const index = { removed: [] as string[], relocated: [] as string[], added: [] as string[], full: 0 };
     const indexer: RenameReindexer = {
       indexVaultFull: async () => { index.full += 1; },
       indexPath: async (p) => { index.added.push(p); },
       removePathFromIndex: async (p) => { index.removed.push(p); },
+      relocatePathInIndex: async (from, to) => { index.relocated.push(`${from}>${to}`); },
     };
     const r = await moveItems(
       { adapter, queryService: null, indexer, isFolder, onMoved: (f, t) => moved.push(`${f}>${t}`) },
@@ -351,7 +359,7 @@ describe("moveItems (Issue #77: drag & drop and \"Move to…\" share one path)",
     expect(files.has("Projects/Note.md")).toBe(true);
     expect(files.has("Inbox/Note.md")).toBe(false);
     expect(moved).toEqual(["Inbox/Note.md>Projects/Note.md"]);
-    expect(index).toEqual({ removed: ["Inbox/Note.md"], added: ["Projects/Note.md"], full: 0 });
+    expect(index).toEqual({ removed: [], relocated: ["Inbox/Note.md>Projects/Note.md"], added: ["Projects/Note.md"], full: 0 });
   });
 
   it("moves to the vault root and rescans fully when a folder moves", async () => {
@@ -373,6 +381,7 @@ describe("moveItems (Issue #77: drag & drop and \"Move to…\" share one path)",
       indexVaultFull: async () => { index.full += 1; },
       indexPath: async (p) => { index.added.push(p); },
       removePathFromIndex: async () => {},
+      relocatePathInIndex: async () => {},
     };
     const r = await moveItems({ adapter, queryService: null, indexer, isFolder }, ["A/B"], "");
     expect(r.moved).toEqual([{ type: "move", from: "A/B", to: "B", isFolder: true }]);
@@ -388,5 +397,67 @@ describe("moveItems (Issue #77: drag & drop and \"Move to…\" share one path)",
     expect(r.errors).toEqual(["Note.md"]);
     expect(files.get("Projects/Note.md")).toBe("old");
     expect(files.get("Inbox/Note.md")).toBe("new");
+  });
+});
+
+describe("an honest report when a move half-succeeds (issue 113, V3/V4)", () => {
+  /** The disk rename happens, then the next step (the queued MOVE) throws. */
+  function landsThenThrows(initial: Record<string, string>) {
+    const made = makeAdapter(initial);
+    const move = made.adapter.renameItem;
+    made.adapter.renameItem = async (from, to) => {
+      await move(from, to);
+      throw new Error("queue unavailable");
+    };
+    return made;
+  }
+
+  it("counts a move whose later step failed as moved, lets the tab follow and names the failure", async () => {
+    const { adapter, files } = landsThenThrows({ "Inbox/Note.md": "# N" });
+    const followed: string[] = [];
+    const r = await moveItems(
+      { adapter, queryService: null, indexer: null, isFolder: () => false, onMoved: (f, t) => followed.push(`${f}>${t}`) },
+      ["Inbox/Note.md"],
+      "Projects",
+    );
+    expect(files.has("Projects/Note.md")).toBe(true);
+    expect(r.errors, "not reported as a failed move").toEqual([]);
+    expect(r.moved.map((m) => m.to)).toEqual(["Projects/Note.md"]);
+    expect(r.followUpErrors).toEqual([{ name: "Note.md", error: "queue unavailable" }]);
+    expect(followed).toEqual(["Inbox/Note.md>Projects/Note.md"]);
+  });
+
+  it("still reports a move that did not happen as failed", async () => {
+    const { adapter, files } = makeAdapter({ "Inbox/Note.md": "# N" });
+    adapter.renameItem = async () => { throw new Error("denied"); };
+    const r = await moveItems({ adapter, queryService: null, indexer: null, isFolder: () => false }, ["Inbox/Note.md"], "Projects");
+    expect(files.has("Inbox/Note.md")).toBe(true);
+    expect(r.errors).toEqual(["Note.md"]);
+    expect(r.moved).toEqual([]);
+    expect(r.followUpErrors).toEqual([]);
+  });
+
+  it("a rename that landed before its next step failed is a rename, with the failure attached", async () => {
+    const { adapter, files } = landsThenThrows({ "sub/Old.md": "# Old" });
+    const r = await renameToName({ adapter, queryService: null, oldPath: "sub/Old.md", newName: "New", isFolder: false });
+    expect(files.has("sub/New.md")).toBe(true);
+    expect(r).toMatchObject({ ok: true, newPath: "sub/New.md", followUpError: "queue unavailable" });
+  });
+
+  it("the menu rename refuses when the pending save cannot land, and says why", async () => {
+    const { adapter, files } = makeAdapter({ "Note.md": "# N" });
+    const errors: string[] = [];
+    await promptRenameFile("Note.md", {
+      adapter,
+      queryService: null,
+      indexer: null,
+      t: (key, opts) => `${key}:${JSON.stringify(opts ?? {})}`,
+      prompt: async () => "Renamed",
+      toast: { error: (m) => errors.push(m), warning: () => {}, success: () => {} },
+      flush: async () => { throw new Error("disk full"); },
+    });
+    expect(files.has("Note.md"), "nothing moved").toBe(true);
+    expect(files.has("Renamed.md")).toBe(false);
+    expect(errors).toEqual([`dialogs.moveBlockedUnsaved:${JSON.stringify({ name: "Note.md", error: "disk full" })}`]);
   });
 });

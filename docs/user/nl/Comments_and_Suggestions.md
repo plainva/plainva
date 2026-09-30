@@ -46,6 +46,8 @@ Zonder workspace staan de opmerkingen in de kluis onder `.plainva/sync/`, één 
 
 Komt het bestand van een ander apparaat via een vreemde synchronisatie aan, dan toont de desktop het zodra de map het meldt; de telefoon bij het volgende openen of bij terugkeer naar de voorgrond.
 
+Kunnen de opmerkingen het synchronisatiedoel niet bereiken — de server is onbereikbaar, weigert de commentaarbestanden of antwoordt op een manier waar Plainva niets mee kan —, dan blijven je notities gewoon synchroniseren; alleen de opmerkingen wachten. Een korte onderbreking wordt eenvoudig opnieuw geprobeerd. Houdt de storing aan, dan meldt Plainva dat **één keer**, niet bij elke ronde, en dezelfde storing wordt pas opnieuw gemeld nadat een ronde is gelukt. De huidige stand staat in de synchronisatie-instellingen onder **Wat de synchronisatie het laatst deed**; een diagnose-export uit **Over & diagnose** bevat de technische reden, zonder commentaartekst.
+
 Heeft de kluis een synchronisatie-wachtwoordzin die op dit apparaat niet is ingevoerd, dan zijn de opmerkingen **vergrendeld**: kolom, blad en overzicht zeggen dat en bieden **Ontgrendelen** aan. Tot dan wordt niets gelezen of geschreven — een vergrendeld apparaat zet nooit een bestand in klare tekst naast het verzegelde.
 
 Hernoem of verplaats je een notitie (of een hele map) in Plainva, dan gaan haar opmerkingen mee. Plainva onthoudt de verplaatsing ook voordat de eerste opmerking aankomt of terwijl de oudere geschiedenis vergrendeld is. Na opnieuw openen of ontgrendelen kunnen late opmerkingen de opgeslagen padwijzigingen volgen. Gebruik je de oude bestandsnaam voor een nieuwe notitie, dan blijven nieuwere opmerkingen bij die notitie.

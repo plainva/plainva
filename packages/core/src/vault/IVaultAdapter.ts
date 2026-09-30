@@ -159,6 +159,15 @@ export interface IVaultAdapter {
   listDirForBackup?(excludeDirNames: readonly string[]): Promise<VaultFileInfo[]>;
 
   /**
+   * The spelling `path` is stored under (ADR 0016). Callers name files by
+   * their NFC identity; the base adapters resolve it themselves before every
+   * operation. Only a native call that bypasses the adapter (a streamed
+   * upload reads the file by path) needs to ask. Optional: wrappers and test
+   * doubles address files by identity only.
+   */
+  realPath?(path: string): Promise<string>;
+
+  /**
    * Creates a directory and any necessary parent directories.
    * Does not throw if directory already exists.
    */

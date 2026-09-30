@@ -259,6 +259,15 @@ export class OneDriveSyncTarget implements ISyncTarget {
     }
   }
 
+  /**
+   * Creates the folder chain for a VAULT-RELATIVE `path` inside the vault's
+   * root folder — the sync's own coordinate system (issue #112). The same
+   * walk a write uses for its parent folders; 409 = already exists.
+   */
+  public async createVaultFolder(path: string): Promise<void> {
+    await this.ensureFolder(path.replace(/\\/g, "/"));
+  }
+
   private itemEtag(item: GraphItem): string {
     return item.cTag || item.eTag || item.lastModifiedDateTime || item.id;
   }

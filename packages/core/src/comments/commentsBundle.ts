@@ -19,6 +19,7 @@ import { isCommentDecisionProof, type CommentDecisionProof } from "./commentDeci
  */
 import { assertWorkspaceCommentAnchor, type WorkspaceCommentAnchor } from "../workspace/commentAnchor.js";
 import type { WorkspaceCommentRecord } from "../workspace/state.js";
+import { toPathIdentity } from "../sync/pathIdentity.js";
 
 /** Same ceiling the sealed path asserts, so both storage paths accept the same thing. */
 export const MAX_LOCAL_COMMENT_BODY_BYTES = 64 * 1024;
@@ -276,13 +277,18 @@ export function sortedCommentMoves(bundle: CommentsBundle | null): LocalMoveReco
   return Object.values(bundle?.moves ?? {}).sort((a, b) => (a.at === b.at ? a.moveId.localeCompare(b.moveId) : a.at.localeCompare(b.at)));
 }
 
+// Paths are compared as identities (ADR 0016): a remark or a move marker that
+// another device wrote with a decomposed name (macOS, iOS before the identity
+// was NFC) still belongs to the note.
 function moveApplies(move: LocalMoveRecord, path: string): boolean {
-  if (move.folder) return path === move.from || path.startsWith(move.from + "/");
-  return path === move.from;
+  const from = toPathIdentity(move.from);
+  if (move.folder) return path === from || path.startsWith(from + "/");
+  return path === from;
 }
 
 function applyMove(move: LocalMoveRecord, path: string): string {
-  return move.folder && path !== move.from ? move.to + path.slice(move.from.length) : move.to;
+  const to = toPathIdentity(move.to);
+  return move.folder && path !== toPathIdentity(move.from) ? to + path.slice(toPathIdentity(move.from).length) : to;
 }
 
 /**
@@ -309,7 +315,7 @@ function applyMove(move: LocalMoveRecord, path: string): string {
  * listed, under a path without a file (SD3).
  */
 export function resolveCommentPath(moves: readonly LocalMoveRecord[], path: string, createdAt: string, missing?: ReadonlySet<string>): string {
-  let current = path;
+  let current = toPathIdentity(path);
   let floor = createdAt;
   const used = new Set<string>();
   for (let step = 0; step <= moves.length; step += 1) {
@@ -399,7 +405,7 @@ export function localCommentsByPath(bundle: CommentsBundle | null, missing?: Rea
       if (!parent) break;
       root = parent;
     }
-    return moves.length === 0 ? root.path : resolveCommentPath(moves, root.path, root.createdAt, missing);
+    return moves.length === 0 ? toPathIdentity(root.path) : resolveCommentPath(moves, root.path, root.createdAt, missing);
   };
   const records = projectCommentRecords(all.map((record): WorkspaceCommentRecord => ({
     commentId: record.commentId, targetObjectId: placeOf(record), parentCommentId: record.parentCommentId,
@@ -424,7 +430,7 @@ export function localCommentsByPath(bundle: CommentsBundle | null, missing?: Rea
 }
 
 export function localCommentsForPath(bundle: CommentsBundle | null, path: string, missing?: ReadonlySet<string>): WorkspaceCommentRecord[] {
-  return localCommentsByPath(bundle, missing).get(path) ?? [];
+  return localCommentsByPath(bundle, missing).get(toPathIdentity(path)) ?? [];
 }
 
 /** deviceId -> what that device calls itself. Never a claim about anyone else. */

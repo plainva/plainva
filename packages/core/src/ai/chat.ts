@@ -6,7 +6,7 @@ import { fenceUntrusted, payload, UNTRUSTED_DATA_RULE } from "./trust.js";
 /**
  * The chat of the first package (plan §21, P1a): the system prompt, and the
  * minimal context — the note the user has open and the notes they pinned —
- * put through the hard gate before anything is assembled (ADR 0017).
+ * put through the hard gate before anything is assembled (ADR 0018).
  */
 
 export interface SystemPromptInput {

@@ -1,6 +1,6 @@
 # Configurar la sincronización
 
-Última actualización: 2026-09-20
+Última actualización: 2026-09-30
 
 Plainva sincroniza opcionalmente cada vault con un almacenamiento a tu elección — directamente desde la aplicación, sin ningún servicio gestionado por Plainva de por medio: tus datos viajan exclusivamente entre tu equipo y tu propia cuenta/servidor. Esta página recorre la configuración por proveedor.
 
@@ -12,7 +12,7 @@ Si un conflicto de texto no puede combinarse automáticamente, queda abierta una
 
 En la comparación, **Comparar versiones conservadas** muestra la versión inicial guardada, si existe. Si la copia de trabajo cambia fuera de esta sesión, la otra versión también se conserva y puede compararse allí. Adoptar, conservar ambas y descartar vuelven a comprobar los archivos; recarga la comparación si ha quedado desactualizada. Resuelve el conflicto antes de mover o eliminar el archivo afectado o su carpeta. Las copias en conflicto antiguas siguen apareciendo por separado.
 
-La exportación de diagnóstico incluye también conflictos recientes: tipo de almacenamiento, origen de la escritura, comparación de hashes y diferencias de finales de línea, BOM o salto de línea final. Estos registros no contienen texto de las notas ni nombres de archivos.
+La exportación de diagnóstico incluye también conflictos recientes: tipo de almacenamiento, origen de la escritura, comparación de hashes y diferencias de finales de línea, BOM o salto de línea final. Estos registros no contienen texto de las notas ni nombres de archivos. La exportación está siempre en inglés, sea cual sea el idioma de la app, para que puedas pegarla tal cual en una incidencia de GitHub.
 
 ## Fundamentos
 

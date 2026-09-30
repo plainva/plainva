@@ -107,6 +107,11 @@ export function TooltipHost() {
       ref={ref}
       className="pv-tooltip"
       role="presentation"
+      // Presentation only: the accessible name lives on the target's
+      // aria-label, so the tooltip is hidden from assistive technology.
+      // Without this, a hover that happens to be under way during an axe
+      // scan counted as page content outside any landmark (region rule).
+      aria-hidden="true"
       style={{
         left: pos?.left ?? -9999,
         top: pos?.top ?? -9999,

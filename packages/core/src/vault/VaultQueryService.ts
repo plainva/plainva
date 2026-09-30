@@ -18,7 +18,8 @@ import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./fi
 import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
-import { findSearchOccurrences, type SearchOccurrence } from "./searchOccurrences.js";
+import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
+import { hasSpacelessText, spacelessRetrievalTerms } from "./spacelessText.js";
 import { decodeIndexedProperty } from "./indexedProperty.js";
 
 export interface FileRecord {
@@ -188,8 +189,10 @@ export class VaultQueryService {
       from = `fts_notes fn JOIN files f ON f.path = fn.path`;
       where.push(`fts_notes MATCH ?`);
       params.push(parsed.match);
-      // Title hits outrank body hits (fts_notes column order: content, title).
-      orderBy = `bm25(fts_notes, 1.0, 4.0)`;
+      // Title hits outrank body hits (fts_notes column order: content, title,
+      // path, then the pair form of content and title for text written
+      // without spaces — weighed like the text it stands for).
+      orderBy = `bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0)`;
     } else {
       // Pure operator query (path:/tag:/-term only) — no FTS ranking source.
       select = `f.id, f.path, f.title, f.mtime_local, f.size_bytes,
@@ -234,7 +237,15 @@ export class VaultQueryService {
     `;
     params.push(limit);
     if (offset > 0) params.push(offset);
-    return await this.db.query(sql, params);
+    const rows: SearchResult[] = await this.db.query(sql, params);
+    // A match in the pair columns leaves FTS5's title highlight without a
+    // mark; the title is marked from the text itself then.
+    if (parsed.match !== null && parsed.terms.some(hasSpacelessText)) {
+      for (const row of rows) {
+        if (!row.titleHighlighted?.includes(SNIPPET_MARK_START)) row.titleHighlighted = markSearchMatches(row.title ?? "", query) ?? row.titleHighlighted;
+      }
+    }
+    return rows;
   }
 
   /** At most sixteen notes and one display page per call; no invented total. */
@@ -308,14 +319,21 @@ export class VaultQueryService {
   async searchCandidates(terms: readonly string[], limit = 30): Promise<{ path: string; title: string; score: number; snippet: string | null; mtime: number }[]> {
     const usable = terms.filter((term) => /[\p{L}\p{N}]/u.test(term)).slice(0, 12);
     if (usable.length === 0) return [];
-    const match = usable.map((term) => `${ftsPhrase(term)}*`).join(" OR ");
+    // Chinese, Japanese and Thai terms go to the pair columns as their pairs
+    // (spacelessText.ts); a whole run would only find the exact phrase.
+    const conditions = new Set<string>();
+    for (const term of usable) {
+      if (hasSpacelessText(term)) for (const condition of spacelessRetrievalTerms(term)) conditions.add(condition);
+      else conditions.add(`${ftsPhrase(term)}*`);
+    }
+    const match = [...conditions].slice(0, 48).join(" OR ");
     const rows = await this.db.query<{ path: string; title: string; score: number; snippet: string | null; mtime_local: number }>(
       `SELECT f.path AS path, f.title AS title, f.mtime_local AS mtime_local,
-         -bm25(fts_notes, 1.0, 4.0) AS score,
+         -bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0) AS score,
          snippet(fts_notes, 0, char(1), char(2), '…', 16) AS snippet
        FROM fts_notes fn JOIN files f ON f.path = fn.path
        WHERE fts_notes MATCH ? AND (f.is_deleted IS NULL OR f.is_deleted = 0)
-       ORDER BY bm25(fts_notes, 1.0, 4.0), f.path ASC
+       ORDER BY bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0), f.path ASC
        LIMIT ?`,
       [match, limit],
     );

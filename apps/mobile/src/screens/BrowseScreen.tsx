@@ -21,7 +21,7 @@ import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, 
 import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
-import { rereadVault, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
+import { reportMoveFailure, rereadVault, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
 import { useLongPress } from "../lib/useLongPress";
 import { SwipeRow } from "../components/SwipeRow";
 import { SwipeHint } from "../components/SwipeHint";
@@ -310,7 +310,7 @@ export function BrowseScreen({
       });
       const trimmed = value?.trim();
       if (cancelled || !trimmed || trimmed === target.title) return;
-      await vaultOps.renameFolder(vault, target.path, trimmed);
+      await vaultOps.renameFolder(vault, target.path, trimmed).catch(reportMoveFailure);
     })();
   };
 
@@ -423,7 +423,7 @@ export function BrowseScreen({
       });
       const trimmed = value?.trim();
       if (cancelled || !trimmed || trimmed === target.title) return;
-      await vaultOps.rename(vault, target.path, trimmed);
+      await vaultOps.rename(vault, target.path, trimmed).catch(reportMoveFailure);
     })();
   };
 
@@ -725,7 +725,7 @@ export function BrowseScreen({
             setMovePick(null);
             void (target.isFolder
               ? vaultOps.moveFolder(vault, target.path, dest ? `${dest}/${target.path.split("/").pop()}` : target.path.split("/").pop()!)
-              : vaultOps.moveNote(vault, target.path, dest)).catch((error) => toast.error(t("dialogs.renameErrorMsg", { error: String(error) })));
+              : vaultOps.moveNote(vault, target.path, dest)).catch(reportMoveFailure);
           }}
           onClose={() => setMovePick(null)}
         />

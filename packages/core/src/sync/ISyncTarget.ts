@@ -251,4 +251,27 @@ export interface ISyncTarget {
    * folder-marker object so the new prefix shows up in listings.
    */
   createFolder?(path: string): Promise<void>;
+  /**
+   * Optional folder creation for the SYNC (issue #112): creates the folder
+   * chain for a VAULT-RELATIVE `path` inside the configured vault folder /
+   * prefix — the coordinate system of `push`, `pull` and `download`, never the
+   * account root. Idempotent, like `createFolder`. The engine uses it for a
+   * queued `mkdir` and for recovering a renamed folder whose remote source is
+   * gone.
+   *
+   * Kept apart from `createFolder` on purpose: that one answers the pickers,
+   * whose job is to CHOOSE the vault folder and therefore browse from the
+   * account root. Using it for the sync created every folder made in Plainva a
+   * second time, empty, at the top of Google Drive, OneDrive, Dropbox and S3.
+   */
+  createVaultFolder?(path: string): Promise<void>;
+  /**
+   * Optional: the names directly inside the VAULT-RELATIVE folder `path`
+   * ("" = the vault folder), exactly as the remote stores them, or null when
+   * the folder does not exist. The path-identity layer (ADR 0016) asks it for
+   * a folder the cycle's listing did not show, to find a name the remote holds
+   * in the other Unicode normalization form before it writes next to it.
+   * Providers whose full listing is the only view leave it undefined.
+   */
+  listVaultFolder?(path: string): Promise<string[] | null>;
 }

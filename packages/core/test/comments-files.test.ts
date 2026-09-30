@@ -241,6 +241,33 @@ describe("CommentsSyncStep (one file per device)", () => {
     console.info("Sideband fixture transfer measurement", { first, unchanged: second });
   });
 
+  it("keeps syncing through a server whose 304 validators carry a compression suffix (#113)", async () => {
+    // Apache's mod_deflate appends `-gzip` to the ETag of a 304; the old cache
+    // threw "unbound validator" on every cycle from the second one on.
+    class GzipTarget extends FakeTarget {
+      conditional: Array<string | undefined> = [];
+      async downloadConditional(path: string, previous?: string) {
+        this.conditional.push(previous);
+        const bytes = this.remote.get(path) ?? null;
+        const etag = bytes ? `"${createHash("sha256").update(bytes).digest("hex").slice(0, 16)}"` : undefined;
+        if (etag && previous === etag) return { notModified: true as const, etag: `${etag.slice(0, -1)}-gzip"` };
+        return { notModified: false as const, bytes, etag };
+      }
+    }
+    const vault = new FakeVault(), target = new GzipTarget();
+    target.remote.set(PHONE, text(bundle([rec({ commentId: ID(2), authorDeviceId: "phone", body: "From the phone" })])));
+    target.remote.set(COMMENTS_DEVICES_PATH, new TextEncoder().encode(JSON.stringify({ format: "plainva-comment-devices", version: 1, devices: { phone: { updatedAt: NOW } } })));
+    const lines: string[] = [];
+    const run = () => new CommentsSyncStep({ deviceId: "laptop", now, downloadOnly: true, onDiagnostic: line => lines.push(line) }).run(target.as(), vault.as());
+    for (let cycle = 0; cycle < 3; cycle++) await run();
+    expect(Object.keys((await readAllComments(vault.as(), "laptop", undefined))!.comments)).toEqual([ID(2)]);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain("304 validator mismatch");
+    // After the first mismatch no request of this target carries a validator.
+    const afterMismatch = target.conditional.slice(target.conditional.findIndex(etag => etag !== undefined) + 1);
+    expect(afterMismatch.every(etag => etag === undefined)).toBe(true);
+  });
+
   it.each([false, true])("workspace receive-only mode preserves old sources and never publishes sideband text (sealed: %s)", async sealed => {
     const vault = new FakeVault(), target = new FakeTarget();
     await appendLocalComment(vault.as(), rec(), { deviceId: "laptop", now: NOW });

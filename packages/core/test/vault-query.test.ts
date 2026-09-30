@@ -21,7 +21,7 @@ describe("VaultQueryService", () => {
     // The raw input never reaches MATCH — it is quoted and prefix-starred.
     expect((db.queries[0].params as any[])[0]).toBe('"importan"*');
     // Title hits outrank body hits; snippet/highlight use char(1)/char(2).
-    expect(db.queries[0].query).toContain("bm25(fts_notes, 1.0, 4.0)");
+    expect(db.queries[0].query).toContain("bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0)");
     expect(db.queries[0].query).toContain("snippet(fts_notes, 0, char(1), char(2)");
     expect(db.queries[0].query).toContain("highlight(fts_notes, 1, char(1), char(2)) AS titleHighlighted");
     // Default limit is a bound parameter.
@@ -93,10 +93,20 @@ describe("VaultQueryService", () => {
     expect(hits).toEqual([{ path: "Offer.md", title: "Offer", score: 7.5, snippet: "the offer", mtime: 1_700_000_000_000 }]);
     // OR, quoted and prefix-starred: a question in a sentence still finds notes.
     expect((db.queries[0].params as any[])[0]).toBe('"offer"* OR "müller"*');
-    expect(db.queries[0].query).toContain("-bm25(fts_notes, 1.0, 4.0) AS score");
+    expect(db.queries[0].query).toContain("-bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0) AS score");
     expect(db.queries[0].query).toContain("is_deleted");
     expect(await queryService.searchCandidates(["…"])).toEqual([]);
     expect(db.queries).toHaveLength(1);
+  });
+
+  // A Japanese question term is one run of characters; as a whole it would only
+  // find the exact phrase, so it goes to the pair columns as its pairs.
+  it("asks for the pairs of a Japanese question term", async () => {
+    db.mockedResults.push([]);
+    await queryService.searchCandidates(["会議の議事録", "Plainva"], 20);
+    expect((db.queries[0].params as any[])[0]).toBe(
+      '{seg_content seg_title} : "会議" OR {seg_content seg_title} : "議の" OR {seg_content seg_title} : "の議" OR {seg_content seg_title} : "議事" OR {seg_content seg_title} : "事録" OR "Plainva"*'
+    );
   });
 
   it("lists notes linked with one note, both ways, the busiest first", async () => {
@@ -427,8 +437,8 @@ describe("VaultQueryService", () => {
       await queryService.searchFullText("task", 10, 0, false, order);
       return /ORDER BY (.+)/.exec(db.queries[0].query)![1].trim();
     };
-    expect(await orderOf()).toBe("bm25(fts_notes, 1.0, 4.0), f.path ASC");
-    expect(await orderOf({ key: "relevance", dir: "asc" })).toBe("bm25(fts_notes, 1.0, 4.0), f.path ASC");
+    expect(await orderOf()).toBe("bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0), f.path ASC");
+    expect(await orderOf({ key: "relevance", dir: "asc" })).toBe("bm25(fts_notes, 1.0, 4.0, 0.0, 1.0, 4.0), f.path ASC");
     expect(await orderOf({ key: "modified", dir: "desc" })).toBe("f.mtime_local DESC, f.path ASC");
     expect(await orderOf({ key: "modified", dir: "asc" })).toBe("f.mtime_local ASC, f.path ASC");
     expect(await orderOf({ key: "title", dir: "asc" })).toBe("f.title COLLATE NOCASE ASC, f.path ASC");

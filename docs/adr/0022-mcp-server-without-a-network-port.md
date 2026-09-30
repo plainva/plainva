@@ -1,4 +1,4 @@
-# ADR 0021: MCP server without a network port, and the MCP client
+# ADR 0022: MCP server without a network port, and the MCP client
 
 Status: Accepted
 
@@ -54,7 +54,7 @@ credentials from the environment".
    **per-client device secret** from the keychain. Grants are per client and
    folder, deny by default, revocable at any time; an audit (which client read
    what, when) is visible in the app.
-5. **A small tool surface from the shared manifests** (ADR 0018):
+5. **A small tool surface from the shared manifests** (ADR 0019):
    `search_vault`, `read_note` (section handles), `get_outline`,
    `get_backlinks`, `query_base`, `get_tasks`, `get_recent`, `open_in_app`.
    Resources: the format contracts. Prompts: the core skills. Never exposed:
@@ -150,6 +150,6 @@ credentials from the environment".
 
 ## Links
 
-- ADR 0016, ADR 0018, ADR 0019; `apps/desktop/src/services/windowBus.ts`,
+- ADR 0017, ADR 0019, ADR 0020; `apps/desktop/src/services/windowBus.ts`,
   `apps/desktop/src/adapters/RemoteVaultAdapter.ts`; MCP specification
   2026-07-28; MCP security best practices.

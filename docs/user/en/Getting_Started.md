@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-09-24
+Last updated: 2026-09-30
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -92,7 +92,7 @@ You can also toggle between **Readable width** and **Full width**.
 - **Creating:** right-click a folder → **New Note Here**, **New folder** or **New database (.base)**. The big **New** button creates inside the currently selected folder (or the parent folder of a selected file).
 - **Selecting:** click selects, `Ctrl`+click adds/removes individually, `Shift`+click selects a range, middle-click opens in a new tab.
 - **Context menu:** includes **Rename** (updates links vault-wide), **Duplicate**, **Open in split (right)** / **Open in split (bottom)**, **Add bookmark**, **Copy Path**, **Show in File Manager**, **Delete**.
-- **Move to…** in the context menu moves a note, a folder or the whole multi-selection into a folder of your choice — the same path as drag & drop, just without the drag: open tabs, pinboard references and the index follow.
+- **Move to…** in the context menu moves a note, a folder or the whole multi-selection into a folder of your choice — the same path as drag & drop, just without the drag: open tabs, pinboard references and the index follow. Unsaved text in a note being moved or renamed is saved first; if that fails, nothing moves and Plainva says why, and your text stays open. If the move itself worked but a later step failed, the message says the item is at its new place and names what went wrong.
 - **The same actions in the sections above the tree:** right-clicking an entry in **Recently opened** or **Bookmarks** opens the same menu — without the folder entries, and with **Remove from list** added (that drops the entry from the list, never the file). Renaming there runs through a prompt instead of an input field in the row. The calendar and task views can sit in **Recently opened** too; they can be opened and removed from the list, but not renamed or deleted — they are views, not files.
 - **Multi-selection:** deleting asks once for all items, duplicating and moving by drag work on the whole selection. Deleted items go to the operating system's trash.
 - New notes automatically start with a `# Heading` derived from the file name.
@@ -121,6 +121,7 @@ The quickest way into today's note is the **journal**: `Ctrl+Shift+J` takes one 
 - **Right-click a tab** for its menu: **Pin**, **Reload**, **Open in split (right)**, **Copy path**, **Show in file manager**, and the closing group.
 - **Pin** holds a tab in place: it moves to the front of the strip, shows a pin instead of the close cross, and survives every **Close others** / **Close to the left** / **Close to the right** / **Close all**. To close it, **Unpin** first.
 - **Reload** discards the view and reads the file from disk again — handy when another program changed it. If the tab has unsaved edits, Plainva refuses to reload rather than overwrite your work.
+- **Many tabs** no longer scroll sideways: tabs shrink as more open, down to the point where the icon, a shortened title and the close button still fit. What does not fit then waits behind one button that shows how many (**3 more tabs**) — one click lists them. The active tab always stays in view, and Plainva never closes a tab on its own.
 
 ## Several windows
 
@@ -160,7 +161,7 @@ The action rail offers **New Note**, **New Folder** and **New database (.base)**
 
 **Right where they are:** **press and hold** a button or a section heading and drag it to its new place — a plain click still just triggers it, and if you scroll while holding, you scroll (the drag is cancelled). `Esc` cancels a drag in progress. A **right-click** offers the same actions without holding: **Move up**, **Hide** and **Customize bars…**.
 
-**In one place:** under **Settings → Vault → Bars & areas** all five bars sit below each other — including the phone's navigation bar, which you can therefore arrange on the big screen. Each is **one** list with a dividing line: everything above it is visible, everything below is hidden. Here you move entries with the drag handle — on this page a list is being arranged, which is exactly what a handle is for. Dragging to the top or bottom edge scrolls the page along, so an entry travels from the very bottom to the very top in one movement.
+**In one place:** under **Settings → Vault → Bars & areas** all five bars sit below each other — including the phone's navigation bar, which you can therefore arrange on the big screen. Each is **one** list with a dividing line: everything above it is visible, everything below is hidden. Here you move entries with the drag handle — on this page a list is being arranged, which is exactly what a handle is for. Dragging to the top or bottom edge scrolls the page along, so an entry travels from the very bottom to the very top in one movement. **Arrange bars …**, the button with the sliders at the end of the action rail's upper group, opens this page directly.
 
 Two things deliberately cannot be hidden: **Help** and **Settings** at the bottom of the action rail, and the **Files** tab of the left sidebar. Everything else is yours to hide; hidden rail actions stay reachable from the **command palette** (`Ctrl+P`). Right-sidebar sections with nothing to show for the open note never appear in the first place.
 

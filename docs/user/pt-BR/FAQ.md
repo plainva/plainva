@@ -1,6 +1,6 @@
 # FAQ e Solução de Problemas
 
-Última revisão: 2026-09-24
+Última revisão: 2026-09-30
 
 Respostas para as perguntas mais comuns — da compatibilidade com o Obsidian a arquivos de conflito e backups.
 
@@ -47,6 +47,20 @@ Antes de qualquer alteração, o assistente faz backup do arquivo em `.plainva/b
 Notas diárias muito antigas podem ter herdado uma configuração do modelo delas que oculta suas tarefas. Pesquise no vault por `"tasks: false"` — **com** as aspas, ou você também encontrará notas em que as duas palavras aparecem apenas por coincidência. Nos resultados, a linha fica no frontmatter dentro de um bloco `plainva:`; exclua ali `tasks: false` (e `templateFor:`, se presente) e a nota volta a aparecer. Notas recém-criadas a partir de um modelo não herdam mais isso.
 
 ## Sincronização
+
+### Uma nota sumiu depois de movê-la ou renomeá-la
+
+Com a sincronização por WebDAV ou S3, o Plainva 0.8.3 removia uma nota sincronizada que você movia ou renomeava dentro do aplicativo: o primeiro ciclo de sincronização seguinte interpretava a nota no novo local como excluída no servidor e a removia aqui — um instante antes de enviar a movimentação. Com Google Drive, Dropbox e OneDrive isso acontecia só de vez em quando. No 0.8.3, o ciclo seguinte também excluía a nota no servidor. O Plainva 0.8.4 corrige isso no desktop e no celular.
+
+**Atualize todos os dispositivos que trabalham com o mesmo vault.** Um dispositivo que ainda está no 0.8.3 continua excluindo notas sincronizadas que são movidas ou renomeadas nele e replica exclusões sem perguntar.
+
+Se aconteceu com você, a nota ainda existe em até três lugares:
+
+- **O snapshot dentro do vault.** Antes de remover um arquivo, o Plainva o salva como `.plainva/backups/<pasta>/<nome>.md.<carimbo de data/hora>.bak`, onde `<pasta>` é a pasta *para onde* você moveu a nota. No desktop, clique com o botão direito no nome do vault → **Restaurar arquivos excluídos…**; no celular, **Configurações** → **Manutenção** → **Restaurar arquivos excluídos**. A lista mostra a nota com o novo caminho, e **Restaurar** a coloca de volta lá. O arquivo `.bak` é texto simples, então qualquer gerenciador de arquivos ou editor de texto também consegue abri-lo.
+- **A lixeira do sistema** (desktop): o próprio arquivo foi para a lixeira do seu sistema operacional.
+- **A lixeira do seu servidor**, se a nota também foi excluída lá (no Nextcloud, por exemplo, nos arquivos excluídos).
+
+Se você moveu ou renomeou outras notas sincronizadas com o 0.8.3, vale a pena procurá-las nesses mesmos lugares.
 
 ### O que é um arquivo .CONFLICT?
 
@@ -108,7 +122,7 @@ O Plainva respeita a configuração "reduzir movimento" do seu sistema. Se as tr
 
 ### Como mudo o idioma?
 
-**Configurações → App → Aparência → Idioma** (atualmente alemão e inglês).
+**Configurações → App → Aparência → Idioma**; no celular, **Configurações → Aparência → Idioma**. O Plainva fala dez idiomas: inglês, alemão, espanhol, francês, italiano, japonês, holandês, polonês, português (Brasil) e chinês simplificado.
 
 ### "Verificar atualizações" não encontra nada
 

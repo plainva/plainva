@@ -2,7 +2,7 @@ import { registerPlugin } from "@capacitor/core";
 import type { AiEgress, EgressChunk, EndpointConfirmText, HttpRequestSpec } from "@plainva/core";
 
 /**
- * The phone's native AI egress (ADR 0016): the `AiNet` plugin
+ * The phone's native AI egress (ADR 0017): the `AiNet` plugin
  * (android/…/AiNetPlugin.java, ios/App/App/AiNetPlugin.swift). Keys live in
  * the plugin's own store; no method returns them.
  */

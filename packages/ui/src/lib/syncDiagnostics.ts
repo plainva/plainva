@@ -86,17 +86,41 @@ export interface SyncDiagnostics {
    * -- so the streak resets and the "already said" flag re-arms by themselves,
    * with no second store to keep in step (finding 2026-08-21).
    */
-  lastError?: {
-    at: string;
-    message: string;
-    /** Absent on records written before 2026-08-21; treated as fatal. */
-    kind?: SyncErrorKind;
-    /** Consecutive failures including this one. */
-    streak?: number;
-    /** A red, actionable message has been shown for this failure. */
-    reported?: boolean;
-  };
+  lastError?: SyncStepFailureRecord;
+  /**
+   * The last sign-in-secrets transport failure, decided by the same rule
+   * (issue 113). Cleared by the next secrets result.
+   */
+  lastSecretsError?: SyncStepFailureRecord;
+  /**
+   * The last comment-sideband transport failure (issue 113). Its own entry, so a
+   * comment file the server cannot serve never reads as a settings failure,
+   * and cleared by the next cycle whose comment step succeeded. Unreadable
+   * comment FILES are not here: they are content faults with their own notice.
+   */
+  lastCommentsError?: SyncStepFailureRecord;
 }
+
+/** One failed sideband step, durable per vault. */
+export interface SyncStepFailureRecord {
+  at: string;
+  message: string;
+  /** Absent on records written before 2026-08-21; treated as fatal. */
+  kind?: SyncErrorKind;
+  /** Consecutive failures including this one. */
+  streak?: number;
+  /** A red, actionable message has been shown for this failure. */
+  reported?: boolean;
+}
+
+/** The sideband steps whose failures go through one decision (issue 113). */
+export type SyncStep = "settings" | "secrets" | "comments";
+
+const STEP_FIELD = {
+  settings: "lastError",
+  secrets: "lastSecretsError",
+  comments: "lastCommentsError",
+} as const satisfies Record<SyncStep, keyof SyncDiagnostics>;
 
 const MAX_SKIPPED = 20;
 const MAX_NAMES = 60;
@@ -166,8 +190,10 @@ export function recordSecretsResult(
     if (!entry.reason) continue;
     counts.set(entry.reason, (counts.get(entry.reason) ?? 0) + 1);
   }
+  // A result is a completed secrets step: its failure record resets (issue 113).
+  const { lastSecretsError: _cleared, ...current } = normalizeSyncDiagnostics(d);
   return {
-    ...normalizeSyncDiagnostics(d),
+    ...current,
     lastSecrets: {
       at,
       imported: result.imported.length,
@@ -316,10 +342,26 @@ export function noteSettingsSyncFailure(
   at: string,
   error: unknown,
 ): { diagnostics: SyncDiagnostics; failure: SettingsSyncFailure } {
+  return noteSyncStepFailure(d, "settings", at, error);
+}
+
+/**
+ * The same decision for every sideband step (issue 113). The comment step used to
+ * toast its raw provider sentence on every desktop cycle and to swallow it on
+ * the phone; the secrets step toasted on every cycle as well. Each step keeps
+ * its own record, so "already said" and the streak belong to that step alone.
+ */
+export function noteSyncStepFailure(
+  d: SyncDiagnostics,
+  step: SyncStep,
+  at: string,
+  error: unknown,
+): { diagnostics: SyncDiagnostics; failure: SettingsSyncFailure } {
+  const field = STEP_FIELD[step];
   const current = normalizeSyncDiagnostics(d);
   const kind = classifySyncError(error);
   const message = redactDiagnosticText(syncErrorMessage(error));
-  const previous = current.lastError;
+  const previous = current[field];
   // A record from before this change has no `kind`; treating its streak as
   // fatal would swallow the count, so only the number carries over.
   const streak = (previous?.streak ?? 0) + 1;
@@ -337,10 +379,57 @@ export function noteSettingsSyncFailure(
   return {
     diagnostics: {
       ...current,
-      lastError: { at, message, kind, streak, ...(escalate ? { reported: true } : {}) },
+      [field]: { at, message, kind, streak, ...(escalate ? { reported: true } : {}) },
     },
     failure,
   };
+}
+
+/** A successful step: its streak resets and "already said" re-arms. */
+export function clearSyncStepFailure(d: SyncDiagnostics, step: SyncStep): SyncDiagnostics {
+  const field = STEP_FIELD[step];
+  if (!d[field]) return d;
+  const { [field]: _dropped, ...rest } = d;
+  return rest;
+}
+
+/** The two things a shell has to lend the decision: its durable store and its voice. */
+export interface SyncStepReporter {
+  load(): Promise<SyncDiagnostics>;
+  /** Serialized, durable read-modify-write of this vault's record. */
+  update(reduce: (d: SyncDiagnostics) => SyncDiagnostics): Promise<void>;
+  /** Only called for a failure that escalated and was not said before. */
+  announce(failure: SettingsSyncFailure): void;
+  now?: () => string;
+}
+
+/**
+ * Runs the decision for one failed step and speaks only when it says so. The
+ * ONE place both shells go through (issue 113), so neither can drift back to a
+ * toast per cycle or to silence. Returns the decision, or null when the
+ * record could not be written (then nothing is said either).
+ */
+export async function reportSyncStepFailure(
+  step: SyncStep,
+  error: unknown,
+  io: SyncStepReporter,
+): Promise<SettingsSyncFailure | null> {
+  let failure: SettingsSyncFailure | null = null;
+  const at = (io.now ?? (() => new Date().toISOString()))();
+  await io.update((d) => {
+    const outcome = noteSyncStepFailure(d, step, at, error);
+    failure = outcome.failure;
+    return outcome.diagnostics;
+  });
+  const decided = failure as SettingsSyncFailure | null;
+  if (decided?.announce) io.announce(decided);
+  return decided;
+}
+
+/** Clears the step's record after a success - and writes nothing when there is none. */
+export async function reportSyncStepSuccess(step: SyncStep, io: Pick<SyncStepReporter, "load" | "update">): Promise<void> {
+  if (!(await io.load())[STEP_FIELD[step]]) return;
+  await io.update((d) => clearSyncStepFailure(d, step));
 }
 
 /**
@@ -351,7 +440,7 @@ export function noteSettingsSyncFailure(
  * how they were shown when they were written.
  */
 export function settingsSyncFailureIsWaiting(
-  e: SyncDiagnostics["lastError"],
+  e: SyncStepFailureRecord | undefined,
 ): boolean {
   if (!e || e.kind !== "transient") return false;
   return (e.streak ?? 0) < SETTINGS_SYNC_FAILURES_BEFORE_ERROR;

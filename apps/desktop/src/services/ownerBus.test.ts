@@ -207,6 +207,9 @@ async function setup(opts: { metaChanged?: boolean; auxTimeoutMs?: number; pimCo
     removePathFromIndex: async (path: string) => {
       calls.push("removeFromIndex:" + path);
     },
+    relocatePathInIndex: async (from: string, to: string) => {
+      calls.push(`relocate:${from}->${to}`);
+    },
     indexVaultFull: async () => {
       calls.push("indexVaultFull");
     },
@@ -444,7 +447,8 @@ describe("delegated mutations", () => {
     const { aux, calls, dispose } = await setup();
     await aux.request("rename", { from: "Old.md", to: "New.md" });
     expect(calls).toContain("rename:Old.md->New.md");
-    expect(calls).toContain("removeFromIndex:Old.md");
+    expect(calls).toContain("relocate:Old.md->New.md");
+    expect(calls).not.toContain("removeFromIndex:Old.md");
     expect(calls).toContain("indexPath:New.md");
     dispose();
   });

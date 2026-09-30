@@ -46,6 +46,8 @@ Sin workspace, las anotaciones viven en el vault bajo `.plainva/sync/`, un archi
 
 Cuando llega el archivo de otro dispositivo por una sincronización externa, el escritorio lo muestra en cuanto la carpeta lo notifica; el teléfono al abrir de nuevo o al volver al primer plano.
 
+Si las anotaciones no pueden llegar al destino de sincronización —el servidor no responde, rechaza los archivos de comentarios o contesta de una forma que Plainva no puede usar—, tus notas siguen sincronizándose como antes; solo esperan las anotaciones. Una interrupción breve simplemente se reintenta. Si persiste, Plainva lo dice **una vez**, no en cada ciclo, y el mismo fallo no se vuelve a anunciar hasta que un ciclo haya salido bien. El estado actual aparece en los ajustes de sincronización, en **Lo último que hizo la sincronización**; una exportación de diagnóstico desde **Acerca de y diagnóstico** contiene el motivo técnico, sin ningún texto de comentario.
+
 Si el vault tiene una frase de contraseña de sincronización que no se ha introducido en este dispositivo, las anotaciones están **bloqueadas**: columna, hoja y resumen lo dicen y ofrecen **Desbloquear**. Hasta entonces no se lee ni se escribe nada — un dispositivo bloqueado nunca pone un archivo en claro junto al sellado.
 
 Si renombras o mueves una nota (o una carpeta entera) en Plainva, sus anotaciones la siguen. Plainva recuerda el movimiento incluso antes del primer comentario o mientras el historial anterior está bloqueado. Al volver a abrir o desbloquear, los comentarios que lleguen tarde pueden seguir los cambios de ruta guardados. Si reutilizas el nombre anterior para una nota nueva, las anotaciones más recientes de esa nota permanecen allí.

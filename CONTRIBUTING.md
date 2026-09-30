@@ -8,7 +8,7 @@ Before proposing project changes, read:
 
 - `README.md`
 - `docs/adr/` — architecture decision records
-- `docs/engineering/` — engineering conventions (design language, theme platform, translations, performance, linear text scanning, test load)
+- `docs/engineering/` — engineering conventions (design language, theme platform, translations, performance, linear text scanning, test load, dependency updates)
 
 For direction and priorities, check GitHub Issues and Discussions. Concrete implementation steps are worked out incrementally.
 

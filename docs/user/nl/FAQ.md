@@ -1,6 +1,6 @@
 # FAQ & probleemoplossing
 
-Laatst bijgewerkt: 2026-09-24
+Laatst bijgewerkt: 2026-09-30
 
 Antwoorden op de meest gestelde vragen — van Obsidian-compatibiliteit tot conflictbestanden en back-ups.
 
@@ -47,6 +47,20 @@ Vóór elke wijziging maakt de wizard een back-up van het bestand naar `.plainva
 Zeer oude dagelijkse notities kunnen een instelling van hun sjabloon hebben geërfd die hun taken verbergt. Zoek in de vault naar `"tasks: false"` — **met** de aanhalingstekens, anders vind je ook notities waarin beide woorden toevallig samen voorkomen. In de resultaten staat de regel in de frontmatter onder een `plainva:`-blok; verwijder daar `tasks: false` (en `templateFor:`, indien aanwezig) en de notitie verschijnt weer. Notities die nieuw uit een sjabloon zijn aangemaakt, erven dit niet meer.
 
 ## Sync
+
+### Een notitie verdween na het verplaatsen of hernoemen
+
+Met synchronisatie via WebDAV of S3 verwijderde Plainva 0.8.3 een gesynchroniseerde notitie die je in de app verplaatste of hernoemde: de eerste synchronisatiecyclus daarna zag de notitie op haar nieuwe plek als verwijderd op de server en haalde haar hier weg — net voordat de verplaatsing zou zijn verstuurd. Met Google Drive, Dropbox en OneDrive gebeurde dat alleen af en toe. In 0.8.3 verwijderde de volgende cyclus de notitie daarna ook op de server. Plainva 0.8.4 lost dit op, op de desktop en op de telefoon.
+
+**Werk elk apparaat bij dat met dezelfde vault werkt.** Een apparaat dat nog op 0.8.3 draait, blijft gesynchroniseerde notities verwijderen die daar worden verplaatst of hernoemd, en neemt verwijderingen zonder te vragen over.
+
+Is het jou overkomen, dan bestaat de notitie nog op maximaal drie plekken:
+
+- **De snapshot in de vault.** Voordat Plainva een bestand verwijdert, bewaart het dat als `.plainva/backups/<map>/<naam>.md.<tijdstempel>.bak`, waarbij `<map>` de map is waarnaar je de notitie verplaatste. Op de desktop: rechtsklik op de vaultnaam → **Verwijderde bestanden herstellen…**; op de telefoon: **Instellingen** → **Onderhoud** → **Verwijderde bestanden herstellen**. De lijst toont de notitie onder haar nieuwe pad, en **Herstellen** zet haar daar terug. Het `.bak`-bestand is platte tekst, dus elke bestandsbeheerder of teksteditor kan het ook openen.
+- **De prullenbak van het systeem** (desktop): het bestand zelf ging naar de prullenbak van je besturingssysteem.
+- **De prullenbak van je server**, als de notitie daar ook is verwijderd (in Nextcloud bijvoorbeeld bij de verwijderde bestanden).
+
+Heb je met 0.8.3 nog andere gesynchroniseerde notities verplaatst of hernoemd, zoek die dan ook op deze plekken.
 
 ### Wat is een .CONFLICT-bestand?
 
@@ -108,7 +122,7 @@ Plainva respecteert de systeeminstelling "beweging verminderen". Als overgangen 
 
 ### Hoe verander ik de taal?
 
-**Instellingen → App → Weergave → Taal** (momenteel Duits en Engels).
+**Instellingen → App → Weergave → Taal**; op de telefoon **Instellingen → Weergave → Taal**. Plainva spreekt tien talen: Engels, Duits, Spaans, Frans, Italiaans, Japans, Nederlands, Pools, Portugees (Brazilië) en vereenvoudigd Chinees.
 
 ### "Controleren op updates" vindt niets
 

@@ -29,7 +29,7 @@ const TAB_SIDE_MIN_WIDTH = 760;
  * the phone's sheet and its screen all show (plan §19.1). What it says is
  * derived from the session; where it sits is the dress's business.
  *
- * Marking (ADR 0022, Art. 50): every conversation opens with the quiet line
+ * Marking (ADR 0023, Art. 50): every conversation opens with the quiet line
  * naming the model and the provider — in every dress, never a banner to
  * dismiss. Each run ends with one line saying what was sent where.
  */

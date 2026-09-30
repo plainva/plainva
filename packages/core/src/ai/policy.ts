@@ -1,7 +1,7 @@
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 /**
- * The AI privacy policy of a vault (ADR 0017; the format is documented for
+ * The AI privacy policy of a vault (ADR 0018; the format is documented for
  * people and other tools in the user guide's File Format Reference).
  *
  * Two dimensions, each allow or deny:
@@ -20,7 +20,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
  * - folders: `.agent/policy.yml` with `folders: { "Private/": { cloud: deny } }`;
  *   Plainva writes no marker files into the user's folders
  * - defaults: app-wide, with a vault override; encrypted workspaces default to
- *   `cloud: deny` (ADR 0016)
+ *   `cloud: deny` (ADR 0017)
  *
  * Resolution: the note's own value wins; otherwise the nearest folder rule
  * (longest matching prefix); otherwise the default. Each dimension resolves on

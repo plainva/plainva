@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-09-24
+Stand: 2026-09-30
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -17,7 +17,7 @@ Sie öffnet sich als Tab, wie jede Notiz.
 
 ## Auf dem Telefon
 
-Die Aufgabenansicht gibt es auch mobil. Du öffnest sie über das **▾** neben dem Titel in der oberen Leiste und kannst sie in der Navigationsleiste ablegen (**Einstellungen** → **Navigationsleiste**).
+Die Aufgabenansicht gibt es auch mobil. Du öffnest sie über **Bereiche** in der Navigationsleiste (oder langes Drücken auf die Leiste) und kannst sie auch direkt in die Navigationsleiste legen (**Einstellungen** → **Leisten & Bereiche**).
 
 Sie zeigt dieselben zwei Bereiche wie am Desktop: oben die **Aufgaben-Datenbank**, darunter **Aus Notizen** die Checkbox-Liste, mit den Filtern **Offen**/**Erledigt**/**Alle** und der Freitext-Suche. Abhaken, **Status ändern**, eine Checkbox **zur Datenbank verschieben**, **+ Neue Aufgabe**, **Zeit blocken** und die **Wiederholung** funktionieren wie beschrieben und schreiben dieselben Dateien: dieselbe Notiz mit Frontmatter, derselbe `[[Wiki-Link]]` in der Ursprungszeile, dieselbe Regel unter `plainva.repeat`.
 

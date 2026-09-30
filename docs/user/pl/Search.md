@@ -1,6 +1,6 @@
 # Wyszukiwanie
 
-Stan na: 2026-09-24
+Stan na: 2026-09-30
 
 Plainva oferuje trzy sposoby wyszukiwania: wyszukiwanie pełnotekstowe w całym vaulcie, szybkie przełączanie do otwierania plików oraz znajdź i zamień wewnątrz notatki.
 
@@ -10,13 +10,15 @@ Pole u góry panelu bocznego przeszukuje tytuły i treść w całym sejfie. Loka
 
 Wyszukiwanie reaguje w trakcie pisania: prefiksy słów pasują już od razu ("Projek" znajduje "Projekt plan") — bez potrzeby naciskania Enter. **X** po prawej stronie pola czyści bieżące wyszukiwanie (albo naciśnij `Esc`); pasek boczny pokazuje wtedy znowu zwykłe drzewo plików.
 
+W chińskim, japońskim, tajskim i innych pismach bez spacji między słowami wyszukiwanie znajduje termin w dowolnym miejscu tekstu: `議事録` znajduje "今日は会議の議事録を書いた", `搜索` znajduje "全文搜索". Znajdowane są też słowa łacińskie wewnątrz takiego tekstu ("Plainva" w "…でPlainvaを使った").
+
 Lista pokazuje poszczególne wystąpienia wraz z fragmentem tekstu, ścieżką nagłówków i numerem wiersza. Otwarcie pozycji zaznacza dokładnie wybrane wystąpienie; kilka dopasowań w tej samej notatce jest pokazanych osobno. Licznik obejmuje tylko załadowane wyniki. Można wczytać kolejne wystąpienia. Strzałki zmieniają wybór, a Enter go otwiera. Ładowanie, brak wyników i błędy są wyraźnie wskazane; nowe zapytanie odrzuca stare odpowiedzi. Gdy po edycji nie można jednoznacznie odnaleźć wystąpienia, pojawia się komunikat. Te same wystąpienia są dostępne w szybkim przełączniku i wyszukiwaniu mobilnym. Powrót do wyszukiwania na telefonie przywraca zapytanie, wczytane wyniki i pozycję listy. Wyniki są ułożone według pola **Trafność**, chyba że przyciskiem sortowania obok pola wyszukiwania (na telefonie: na pasku ekranu wyszukiwania) wybierzesz **Ostatnia zmiana**, **Tytuł** lub **Ścieżka**; doładowanie kolejnych zachowuje wybraną kolejność. Na telefonie arkusz sortowania pozostaje otwarty, dopóki nie stukniesz **Gotowe**: ponowne stuknięcie wybranej kolejności odwraca kierunek.
 
 Pole wyszukiwania działa też w pozostałych widokach paska bocznego: w **Tagi** filtruje listę tagów, w **Zakładki** — zakładki.
 
 ### Operatory wyszukiwania
 
-- `"dokładna fraza"` — cudzysłów dopasowuje sekwencję słów dokładnie. Działa to też jako wyszukiwanie całego wyrazu dla pojedynczego słowa: `"plan"` znajduje "plan", ale nie "planowanie".
+- `"dokładna fraza"` — cudzysłów dopasowuje sekwencję słów dokładnie. Działa to też jako wyszukiwanie całego wyrazu dla pojedynczego słowa: `"plan"` znajduje "plan", ale nie "planowanie". W pismach bez spacji cudzysłów niczego nie zmienia: taki tekst nie ma granic słów.
 - `-termin` — wyklucza notatki zawierające dany termin (działa też z frazami: `-"stara wersja"`).
 - `path:folder` — tylko pliki, których ścieżka zawiera dany tekst (np. `path:Projekty`; ze spacjami: `path:"Mój Folder"`).
 - `tag:nazwa` — tylko notatki z danym tagiem, wliczając tagi zagnieżdżone: `tag:projekt` znajduje też `#projekt/wewnetrzny`. `tag:#projekt` działa równie dobrze.

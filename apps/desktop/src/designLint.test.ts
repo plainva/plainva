@@ -87,7 +87,9 @@ const RULES: Record<string, RegExp> = {
   nakedButton: /<button\b/g,
   // gap/padding/margin with a bare number or a px/rem literal inside a style
   // object — the --space-* tokens are the scale. Zero is not a spacing value.
-  rawSpacing: /\b(?:gap|rowGap|columnGap|padding|margin|(?:padding|margin)(?:Top|Right|Bottom|Left))\s*:\s*(?:(?!0[,\s}])-?\d+(?:\.\d+)?\b|["'`]\s*(?!0["'`])-?\d+(?:\.\d+)?(?:px|rem|em)?(?:\s+-?\d+(?:\.\d+)?(?:px|rem|em)?)*\s*["'`])/g,
+  // The logical names count as well (issue #111, R5): note text turned from
+  // `paddingLeft` to `paddingInlineStart` must not drop out of the ratchet.
+  rawSpacing: /\b(?:gap|rowGap|columnGap|padding|margin|(?:padding|margin)(?:Top|Right|Bottom|Left|Inline|Block|InlineStart|InlineEnd|BlockStart|BlockEnd))\s*:\s*(?:(?!0[,\s}])-?\d+(?:\.\d+)?\b|["'`]\s*(?!0["'`])-?\d+(?:\.\d+)?(?:px|rem|em)?(?:\s+-?\d+(?:\.\d+)?(?:px|rem|em)?)*\s*["'`])/g,
 };
 
 /** Rules that describe React markup and style objects, not stylesheets. */
@@ -223,7 +225,10 @@ const BUDGET: Record<string, Counts> = {
   "components/onboarding/FirstRunModal.tsx": {nakedButton:2,rawSpacing:1},
   "components/pim/PimAccountsSection.tsx": {nakedInput:4,rawSpacing:29},
   "components/pimcal/BlockCalendarsModal.tsx": {rawSpacing:3},
-  "components/pimcal/CalendarView.tsx": {nakedButton:6,rawSpacing:28},
+  // rawSpacing 29 (was 28): not a new value - `marginInline: 3` has stood in
+  // the bar layout since the calendar rework; the rule only learned the
+  // logical names on 2026-09-30 (issue 111, R5) and now sees it.
+  "components/pimcal/CalendarView.tsx": {nakedButton:6,rawSpacing:29},
   "components/pimcal/DayTimeGrid.tsx": {zIndexRaw:3,nakedButton:3,rawSpacing:18},
   "components/pimcal/EventContextMenu.tsx": {rawSpacing:1},
   "components/pimcal/EventEditModal.tsx": {nakedInput:7,nakedButton:1,rawSpacing:12},
@@ -359,6 +364,69 @@ function scan(): Record<string, Counts> {
   );
   return actual;
 }
+
+/**
+ * Note text may run right to left (issue #111, plan Teil R, R5). The files
+ * that lay out a note's text - the editor theme and its list indent, the live
+ * preview's table, the reading view and its stylesheet rules, the note cards -
+ * set their sides LOGICALLY (`padding-inline-start`, `margin-inline-end`,
+ * `border-inline-start`, `text-align: start`), so a right-to-left block gets
+ * its bullet gap, quote bar and indent on the right. A physical left/right
+ * spacing, border or alignment is the regression; the budget holds the few
+ * that belong to interface chrome, which is not mirrored.
+ */
+const NOTE_TEXT_FILES = [
+  "packages/ui/src/components/MarkdownTheme.ts",
+  "packages/ui/src/components/listIndent.ts",
+  "packages/ui/src/components/LivePreviewPlugin.ts",
+  "packages/ui/src/components/NoteCardBody.tsx",
+  "packages/ui/src/components/textDirectionExtension.ts",
+  "apps/desktop/src/components/MarkdownReader.tsx",
+];
+const PHYSICAL_INLINE = /\b(?:margin|padding|border)(?:Left|Right)\b|\b(?:margin|padding|border)-(?:left|right)\b|text-?[aA]lign\s*[:=]\s*["'`]?(?:left|right)\b/g;
+const PHYSICAL_INLINE_BUDGET: Record<string, number> = {
+  // The slash-command popup is interface chrome, placed by CodeMirror's
+  // tooltip layer: its detail column (marginLeft auto, paddingLeft) and the
+  // indented description line stay on the left like the rest of the UI.
+  "packages/ui/src/components/MarkdownTheme.ts": 3,
+};
+
+function physicalInlineCounts(): Record<string, number> {
+  const out: Record<string, number> = {};
+  const count = (text: string) => (stripComments(text).match(PHYSICAL_INLINE) ?? []).length;
+  for (const rel of NOTE_TEXT_FILES) {
+    const n = count(sourceFile(rel));
+    if (n > 0) out[rel] = n;
+  }
+  // The reading view's stylesheet rules live in App.css.
+  const readerRules = [...sourceFile(`${SRC}/App.css`).replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+    .filter((m) => m[1].includes(".markdown-reader"))
+    .map((m) => m[2])
+    .join("\n");
+  const n = count(readerRules);
+  if (n > 0) out["apps/desktop/src/App.css (.markdown-reader)"] = n;
+  return out;
+}
+
+describe("note text runs in either direction (issue #111)", () => {
+  it("lays out note text with logical sides, never a new physical left/right", () => {
+    const actual = physicalInlineCounts();
+    const over = Object.entries(actual)
+      .filter(([file, n]) => n > (PHYSICAL_INLINE_BUDGET[file] ?? 0))
+      .map(([file, n]) => `${file}: ${n} physical left/right > budget ${PHYSICAL_INLINE_BUDGET[file] ?? 0}`);
+    expect(over, over.join("\n")).toEqual([]);
+    const stale = Object.entries(PHYSICAL_INLINE_BUDGET).filter(([file, n]) => (actual[file] ?? 0) < n).map(([file]) => file);
+    expect(stale, `lower the physical left/right budget: ${stale.join(", ")}`).toEqual([]);
+  });
+
+  it("the rule sees a physical side in every spelling it takes", () => {
+    const samples = ["paddingLeft: 8", "marginRight: \"4px\"", "borderLeft: \"1px\"", "padding-left: 1em", "border-right: 0", "textAlign: 'left'", "text-align: right", "td.style.textAlign = \"left\""];
+    for (const sample of samples) expect(sample.match(PHYSICAL_INLINE), sample).not.toBeNull();
+    for (const logical of ["paddingInlineStart: 8", "margin-inline-end: 4px", "borderInlineStart: 0", "textAlign: 'start'"]) {
+      expect(logical.match(PHYSICAL_INLINE), logical).toBeNull();
+    }
+  });
+});
 
 describe("design language ratchet", () => {
   const actual = scan();

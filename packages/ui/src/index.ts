@@ -134,6 +134,7 @@ export * from "./lib/wikiResolver";
 export * from "./lib/conflictFiles";
 export * from "./lib/editableField";
 export * from "./lib/errorText";
+export * from "./lib/moveOutcome";
 export * from "./lib/connectionErrorText";
 export * from "./lib/workspaceSyncFailureText";
 export * from "./lib/foreignLegacyComments";
@@ -340,6 +341,8 @@ export * from "./components/editorTriggers";
 export * from "./components/emojiData";
 export * from "./components/foldingExtension";
 export * from "./components/listIndent";
+export * from "./components/textDirectionExtension";
+export * from "./lib/textDirection";
 export * from "./components/listKeymap";
 export * from "./components/lucideIconData";
 export * from "./components/lucideIconDraw";
@@ -358,6 +361,7 @@ export * from "./vaultTemplates/registry";
 export * from "./vaultTemplates/scaffold";
 export * from "./components/searchSetup";
 export * from "./lib/readerSource";
+export * from "./lib/readerDirection";
 export * from "./lib/noteEmbed";
 export * from "./lib/useSearchPages";
 export * from "./components/tableModel";
@@ -420,5 +424,5 @@ export * from "./base/usePinboardCards";
 export * from "./base/BaseSearchField";
 export * from "./base/baseSearch";
 
-// AI harness (ADR 0016): the conversation store, the answer renderer, the vault tools.
+// AI harness (ADR 0017): the conversation store, the answer renderer, the vault tools.
 export * from "./ai";

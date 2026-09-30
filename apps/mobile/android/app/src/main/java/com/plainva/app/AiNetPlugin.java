@@ -31,7 +31,7 @@ import okhttp3.Response;
 import org.json.JSONObject;
 
 /**
- * The native AI egress on Android (ADR 0016) — the phone's twin of the
+ * The native AI egress on Android (ADR 0017) — the phone's twin of the
  * desktop's `ai_http` (src-tauri/src/ai_egress.rs). The WebView builds the
  * request specification but never holds a provider key:
  *

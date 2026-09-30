@@ -4,7 +4,7 @@ import { BUILTIN_ENDPOINTS, buildRequest, type HttpRequestSpec, type ProviderEnd
 import { coreTools } from "./tools.js";
 
 /**
- * Provider conformance (ADR 0016): every adapter, one set of rules. The
+ * Provider conformance (ADR 0017): every adapter, one set of rules. The
  * requests are specifications — nothing leaves the test — so each rule is
  * checked on exactly what the native egress would send.
  */

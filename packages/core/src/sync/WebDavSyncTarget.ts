@@ -301,6 +301,40 @@ export class WebDavSyncTarget implements ISyncTarget {
   }
 
   /**
+   * Creates the folder chain for a VAULT-RELATIVE `path` (issue #112). On
+   * WebDAV the configured URL IS the vault folder, so both coordinate systems
+   * coincide and this is `createFolder`; it exists so the engine never has to
+   * know which provider it talks to.
+   */
+  public async createVaultFolder(path: string): Promise<void> {
+    await this.createFolder(path);
+  }
+
+  /**
+   * Names directly inside a vault folder, as the server stores them (ADR
+   * 0016): one PROPFIND with Depth: 1, null for a folder that is not there.
+   * Asked only for a folder the cycle's listing did not show, before a write
+   * next to a name that could be stored in the other normalization form.
+   */
+  public async listVaultFolder(path: string): Promise<string[] | null> {
+    const rel = trimChars(path.replace(/\\/g, "/"), "/");
+    const url = rel ? this.urlForPath(rel + "/") : this.creds.url;
+    const res = await this.request("PROPFIND", url, {
+      headers: { ...this.headers, "Depth": "1" }
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
+    const names: string[] = [];
+    for (const resp of this.parseListing(await res.text())) {
+      if (!resp.href) continue;
+      const childRel = trimEndChars(this.relativeHref(resp.href), "/");
+      if (!childRel || childRel === rel) continue;
+      names.push(childRel.split("/").pop() ?? childRel);
+    }
+    return names;
+  }
+
+  /**
    * False once the vault has synced files before: a folder that is gone is then
    * an error with a way out, never an empty remote (finding 2026-09-20).
    */
@@ -416,6 +450,17 @@ export class WebDavSyncTarget implements ISyncTarget {
     // The collection itself comes back with or without the trailing slash.
     if (path === base || `${path}/` === base) return "";
     if (!path.startsWith(base)) {
+      // The vault folder's own name typed composed in the URL, stored
+      // decomposed by the server (a folder made in Finder, issue #112): the
+      // same folder by identity (ADR 0016), compared segment by segment.
+      const baseSegments = base.split("/").filter((s) => s.length > 0);
+      const pathSegments = path.split("/").filter((s) => s.length > 0);
+      if (
+        pathSegments.length >= baseSegments.length &&
+        baseSegments.every((segment, i) => segment.normalize("NFC") === pathSegments[i]!.normalize("NFC"))
+      ) {
+        return pathSegments.slice(baseSegments.length).join("/");
+      }
       throw new Error(
         `WebDAV listing returned "${rawHref}", which is not below the configured vault path "${base}". ` +
         `Refusing to treat it as a vault-relative path — that would copy the server's folder structure ` +

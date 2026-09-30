@@ -215,6 +215,8 @@ export interface RpcMap {
   "draft-record": { args: { vaultPath: string; notePath: string; text: string; revision: number; sessionId?: string }; result: void };
   /** Clears a journal entry; `upToRevision: null` forces (Infinity over JSON). */
   "draft-clear": { args: { vaultPath: string; notePath: string; upToRevision: number | null; sessionId?: string }; result: void };
+  /** Journal entries follow a move or rename made in the app (issue 113). */
+  "draft-relocate": { args: { vaultPath: string; moves: Array<{ from: string; to: string }> }; result: void };
   /**
    * Open this content wherever it belongs: the owner focuses the window that
    * already has it, otherwise it tells the caller to show it itself. `where`
@@ -504,6 +506,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "journal-capture": "app",
   "draft-record": "app",
   "draft-clear": "app",
+  "draft-relocate": "app",
   "flush-pending": "app",
 };
 

@@ -1,3 +1,5 @@
+import { hasSpacelessText } from "../../vault/spacelessText.js";
+
 /**
  * The words of a question that are worth a full-text search: what a person
  * asks in a sentence ("Where did I put the offer for Müller?") becomes the
@@ -28,8 +30,7 @@ const STOPWORDS = new Set(
     .split(/\s+/),
 );
 
-/** Scripts written without spaces: every character run is already a word of its own. */
-const SPACELESS = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]/u;
+/** Scripts written without spaces (vault/spacelessText.ts): a two-character run is already a word. */
 
 export function questionTerms(question: string, max = 10): string[] {
   const out: string[] = [];
@@ -37,7 +38,7 @@ export function questionTerms(question: string, max = 10): string[] {
     // Trailing apostrophes and dashes go; trimmed in code, not by an unanchored pattern.
     let word = match[0];
     while (word && "'’_-".includes(word[word.length - 1]!)) word = word.slice(0, -1);
-    const minimum = SPACELESS.test(word) ? 2 : 3;
+    const minimum = hasSpacelessText(word) ? 2 : 3;
     if (word.length < minimum || STOPWORDS.has(word) || /^\d{1,2}$/.test(word)) continue;
     if (!out.includes(word)) out.push(word);
     if (out.length >= max) break;

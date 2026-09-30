@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkMappedBreaks as remarkBreaks } from './markdownReaderModel';
-import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
+import { resolveVaultRelative, readAnchorRegions, rehypeReadAnchors, imageCandidates, rehypeReaderSource, rehypeReaderDirection, resolveNoteEmbed, AudioEmbed, Button, embedKindOf, imageBasename, parseWikiImageTarget, type AnchorHighlight } from '@plainva/ui';
 import { prepareReaderSource, selectNoteFragment } from '@plainva/core';
 import { loadImageBlob, imageMimeType } from '@plainva/ui';
 import { openContextMenu } from '../services/contextMenuStore';
@@ -311,6 +311,10 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
     return rehypeReadAnchors(anchors.map((a) => ({ ...a, from: source.toRendered(a.from), to: source.toRendered(a.to, "end") })));
   }, [anchors, source]);
   const sourcePlugin = useMemo(() => rehypeReaderSource(source, content), [source, content]);
+  // Right-to-left text (issue 111): each block gets the direction the editor
+  // gives its lines - one rule, read from the same source. Runs after the
+  // source plugin, whose line addresses it reads.
+  const directionPlugin = useMemo(() => rehypeReaderDirection(content), [content]);
   // Unresolved-link styling in read mode (maintainer 2026-07-18): same resolver
   // set as the editor, so a link to a not-yet-created note reads as muted here too.
   const wikiResolver = useWikiResolver();
@@ -428,7 +432,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
         remarkPlugins={mathPlugins
           ? [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills, mathPlugins.remark as never]
           : [remarkGfm, remarkTaskStates, remarkBreaks, remarkStripHtmlComments, remarkBrToBreak, remarkHtmlCheckbox, remarkStripHighlightMarks, remarkTagPills]}
-        rehypePlugins={[sourcePlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
+        rehypePlugins={[sourcePlugin as never, directionPlugin as never, ...(mathPlugins ? [mathPlugins.rehype as never] : []), ...(anchorPlugin ? [anchorPlugin as never] : [])]}
         urlTransform={(url) => url}
         components={{
           // A tinted run of text (C28): the click opens the comment it belongs to.
@@ -565,8 +569,8 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
             return hasEmbed ? <div {...props} /> : <p style={{ margin: '0.6em 0', color: 'var(--text-main)' }} {...props} />;
           },
           hr: ({ node: _node, ...props }) => <hr style={{ border: 'none', borderTop: '2px solid var(--border-color)', margin: '1.5em 0' }} {...props} />,
-          ul: ({ node: _node, ...props }) => <ul style={{ paddingLeft: '1.5em', margin: '0.5em 0' }} {...props} />,
-          ol: ({ node: _node, ...props }) => <ol style={{ paddingLeft: '1.5em', margin: '0.5em 0' }} {...props} />,
+          ul: ({ node: _node, ...props }) => <ul style={{ paddingInlineStart: '1.5em', margin: '0.5em 0' }} {...props} />,
+          ol: ({ node: _node, ...props }) => <ol style={{ paddingInlineStart: '1.5em', margin: '0.5em 0' }} {...props} />,
           li: ({ node, className, children, ...props }) => {
             const isTask = className?.includes('task-list-item');
             // A done task reads like one (finding 2026-09-19): muted and struck
@@ -577,7 +581,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               const all = React.Children.toArray(children);
               const nested = all.filter(isNestedList);
               return (
-                <li className={className} style={{ listStyleType: 'none', marginLeft: '-1.2em' }} {...props}>
+                <li className={className} style={{ listStyleType: 'none', marginInlineStart: '-1.2em' }} {...props}>
                   <div className="pv-reader-task-done">{all.filter((child) => !isNestedList(child))}</div>
                   {nested}
                 </li>
@@ -589,7 +593,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               return (
                 <li
                   className={className}
-                  style={{ listStyleType: 'none', marginLeft: '-1.2em' }}
+                  style={{ listStyleType: 'none', marginInlineStart: '-1.2em' }}
                   {...props}
                   ref={(el: HTMLLIElement | null) => {
                     const box = el?.querySelector<HTMLInputElement>(':scope > input[type="checkbox"], :scope > p > input[type="checkbox"]');
@@ -601,7 +605,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
               );
             }
             return (
-              <li className={className} style={isTask ? { listStyleType: 'none', marginLeft: '-1.2em' } : undefined} {...props}>
+              <li className={className} style={isTask ? { listStyleType: 'none', marginInlineStart: '-1.2em' } : undefined} {...props}>
                 {children}
               </li>
             );
@@ -621,11 +625,11 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                   // handler they become the real thing and write [x] back.
                   disabled={!toggle}
                   onChange={toggle ? (e) => toggle(ordinalOf(e.currentTarget), e.currentTarget.checked) : undefined}
-                  style={{ marginRight: '0.5em', verticalAlign: 'middle', accentColor: 'var(--accent-color)', cursor: toggle ? 'pointer' : undefined }}
+                  style={{ marginInlineEnd: '0.5em', verticalAlign: 'middle', accentColor: 'var(--accent-color)', cursor: toggle ? 'pointer' : undefined }}
                 />
               );
             }
-            return <input style={{ marginRight: '0.5em', verticalAlign: 'middle', accentColor: 'var(--accent-color)' }} {...props} />;
+            return <input style={{ marginInlineEnd: '0.5em', verticalAlign: 'middle', accentColor: 'var(--accent-color)' }} {...props} />;
           },
           blockquote: ({ node, children, ...props }: any) => {
             // .trim() first: the hast blockquote text starts with a "\n"
@@ -643,13 +647,15 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
                 <div {...props} className="pv-reader-callout" style={{ border: `1px solid ${calloutLine(colorKey)}`, background: calloutTint(colorKey), borderRadius: "var(--radius-md)", padding: "0.5em 0.8em", margin: "0.8em 0" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.4em", fontWeight: 600, color, marginBottom: "0.3em" }}>
                     <svg viewBox="0 0 24 24" width="1.1em" height="1.1em" style={{ flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: calloutIconPath(parsed.type) }} />
-                    <span style={parsed.title ? undefined : { textTransform: "capitalize" }}>{parsed.title || parsed.type}</span>
+                    {/* The title is note text and isolates itself; the type name that stands in
+                        for a missing title is a Latin label and never turns the card (issue 111). */}
+                    <span dir={parsed.title ? "auto" : "ltr"} style={parsed.title ? undefined : { textTransform: "capitalize" }}>{parsed.title || parsed.type}</span>
                   </div>
                   <div style={{ color: "var(--text-main)" }}>{stripCalloutHeader(children)}</div>
                 </div>
               );
             }
-            return <blockquote {...props} style={{ borderLeft: '4px solid var(--quote-border)', margin: '0.6em 0', paddingLeft: '16px', color: 'var(--text-muted)' }}>{children}</blockquote>;
+            return <blockquote {...props} style={{ borderInlineStart: '4px solid var(--quote-border)', margin: '0.6em 0', paddingInlineStart: '16px', color: 'var(--text-muted)' }}>{children}</blockquote>;
           },
           // A wide table scrolls inside its own box; the page never scrolls
           // sideways (feedback round 2026-09-01, T2 — same rule as the editor).
@@ -661,7 +667,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           thead: ({ node: _node, ...props }) => <thead style={{ background: 'var(--bg-secondary)' }} {...props} />,
           // A commented cell carries the frame class from applyReadAnchors (C28)
           // and opens its comment on click.
-          th: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <th style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, textAlign: 'left', verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
+          th: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <th style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, textAlign: 'start', verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
           td: ({ node, ...props }) => { const id = (node as { properties?: { dataCommentId?: unknown } } | undefined)?.properties?.dataCommentId; return <td style={{ border: '1px solid var(--border-color)', padding: 'var(--pad-cell)', minWidth: '90px', lineHeight: 1.6, verticalAlign: 'top', color: 'var(--text-main)' }} onClick={typeof id === 'string' ? () => onActivateAnchor?.(id) : undefined} {...props} />; },
           code: ({ node: _node, className, children, ...props }) => {
             const text = Array.isArray(children) ? children.join("") : String(children ?? "");

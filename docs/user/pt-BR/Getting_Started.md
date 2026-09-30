@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-09-24
+Última revisão: 2026-09-30
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -92,7 +92,7 @@ Você também pode alternar entre **Largura de leitura** e **Largura total**.
 - **Criar:** clique com o botão direito em uma pasta → **Nova nota aqui**, **Nova pasta** ou **Novo banco de dados (.base)**. O grande botão **Novo** cria dentro da pasta selecionada no momento (ou na pasta pai de um arquivo selecionado).
 - **Selecionar:** clicar seleciona, `Ctrl`+clique adiciona/remove individualmente, `Shift`+clique seleciona um intervalo, clique com o botão do meio abre em uma nova aba.
 - **Menu de contexto:** inclui **Renomear** (atualiza os links em todo o vault), **Duplicar**, **Abrir na divisão (direita)** / **Abrir na divisão (abaixo)**, **Adicionar aos favoritos**, **Copiar caminho**, **Mostrar no gerenciador de arquivos**, **Excluir**.
-- **Mover para…** no menu de contexto move uma nota, uma pasta ou toda a seleção múltipla para a pasta que você escolher — o mesmo caminho do arrastar e soltar, só que sem arrastar: abas abertas, referências do quadro e o índice acompanham.
+- **Mover para…** no menu de contexto move uma nota, uma pasta ou toda a seleção múltipla para a pasta que você escolher — o mesmo caminho do arrastar e soltar, só que sem arrastar: abas abertas, referências do quadro e o índice acompanham. O texto não salvo de uma nota que está sendo movida ou renomeada é salvo primeiro; se isso falhar, nada é movido, o Plainva diz o motivo e seu texto continua aberto. Se a movimentação em si funcionou, mas uma etapa posterior falhou, a mensagem diz que o item já está no novo local e informa o que deu errado.
 - **As mesmas ações nas seções acima da árvore:** clicar com o botão direito em uma entrada de **Abertos recentemente** ou **Favoritos** abre o mesmo menu — sem as entradas de pasta, e com **Remover da lista** adicionado (isso remove apenas o item da lista, nunca o arquivo). Ali, renomear passa por um diálogo em vez de um campo na linha. As visualizações de calendário e tarefas também podem estar em **Abertos recentemente**; podem ser abertas e removidas da lista, mas não renomeadas nem excluídas — são visualizações, não arquivos.
 - **Seleção múltipla:** excluir pergunta uma vez para todos os itens, duplicar e mover por arrastar funcionam para toda a seleção. Os itens excluídos vão para a lixeira do sistema operacional.
 - Novas notas começam automaticamente com um `# Título` derivado do nome do arquivo.
@@ -121,6 +121,7 @@ A forma mais rápida de chegar à nota de hoje é o **diário**: `Ctrl+Shift+J` 
 - **Clique com o botão direito em uma aba** para abrir seu menu: **Fixar aba**, **Recarregar**, **Abrir na divisão (direita)**, **Copiar caminho**, **Mostrar no gerenciador de arquivos** e o grupo de fechamento.
 - **Fixar aba** mantém uma aba no lugar: ela vai para o início da barra, mostra um alfinete em vez do X de fechar e sobrevive a qualquer **Fechar as outras abas** / **Fechar abas à esquerda** / **Fechar abas à direita** / **Fechar todas as abas**. Para fechá-la, primeiro **Desafixar aba**.
 - **Recarregar** descarta a visualização e relê o arquivo do disco — útil quando outro programa o alterou. Se a aba tiver alterações não salvas, o Plainva se recusa a recarregar em vez de sobrescrever seu trabalho.
+- **Muitas abas** não rolam mais para o lado: as abas ficam mais estreitas conforme você abre mais, até o ponto em que ainda cabem o ícone, um título encurtado e o botão de fechar. O que não cabe mais espera atrás de um botão que mostra quantas são (**Mais 3 abas**) — um clique lista todas. A aba ativa sempre fica à vista, e o Plainva nunca fecha uma aba por conta própria.
 
 ## Várias janelas
 
@@ -160,7 +161,7 @@ A barra de ações oferece **Nova nota**, **Nova pasta** e **Novo banco de dados
 
 **Bem onde estão:** **pressione e segure** um botão ou o título de uma seção e arraste-o até o novo lugar — um clique simples continua apenas acionando-o, e se você rolar a tela enquanto segura, a rolagem acontece normalmente (o arraste é cancelado). `Esc` cancela um arraste em andamento. Um **clique com o botão direito** oferece as mesmas ações sem precisar segurar: **Mover para cima**, **Ocultar** e **Personalizar barras…**.
 
-**Em um só lugar:** em **Configurações → Vault → Barras e áreas**, as cinco barras ficam uma abaixo da outra — inclusive a barra de navegação do telefone, que assim você organiza na tela grande. Cada uma é **uma** lista com uma linha divisória: tudo acima dela está visível, tudo abaixo está oculto. Aqui você move os itens pela alça de arraste — nesta página você está organizando uma lista, que é exatamente para isso que uma alça serve. Arrastar até a borda superior ou inferior rola a página junto, de modo que um item pode ir do fundo até o topo em um único movimento.
+**Em um só lugar:** em **Configurações → Vault → Barras e áreas**, as cinco barras ficam uma abaixo da outra — inclusive a barra de navegação do telefone, que assim você organiza na tela grande. Cada uma é **uma** lista com uma linha divisória: tudo acima dela está visível, tudo abaixo está oculto. Aqui você move os itens pela alça de arraste — nesta página você está organizando uma lista, que é exatamente para isso que uma alça serve. Arrastar até a borda superior ou inferior rola a página junto, de modo que um item pode ir do fundo até o topo em um único movimento. **Organizar barras …**, o botão com os controles deslizantes no fim do grupo superior da barra de ações, abre esta página diretamente.
 
 Duas coisas propositalmente não podem ser ocultadas: **Ajuda** e **Configurações**, na parte inferior da barra de ações, e a aba **Arquivos** da barra lateral esquerda. Tudo o mais é seu para ocultar; as ações ocultas da barra continuam acessíveis pela **paleta de comandos** (`Ctrl+P`). Seções da barra lateral direita que não têm nada a mostrar para a nota aberta nunca chegam a aparecer.
 
