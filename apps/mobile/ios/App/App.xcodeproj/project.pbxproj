@@ -239,7 +239,7 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				7B1004030000000000000001 /* Embed App Extensions */,
-				9F0001000000000000000001 /* Strip static frameworks */,
+				9F0001000000000000000001 /* Remove frameworks without code */,
 			);
 			buildRules = (
 			);
@@ -371,7 +371,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		9F0001000000000000000001 /* Strip static frameworks */ = {
+		9F0001000000000000000001 /* Remove frameworks without code */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -381,14 +381,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Strip static frameworks";
+			name = "Remove frameworks without code";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# A static framework is linked into the app, never shipped in it: App Store Connect\n# rejects the bundle (ITMS-90208). Xcode copies the framework of a Swift package's\n# binary target into the bundle even when its binary is a static archive (ONNX\n# Runtime, plan KI-Harness P2a-3); its code is already in the app's executable.\ndir=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\n[ -d \"$dir\" ] || exit 0\nfor fw in \"$dir\"/*.framework; do\n  [ -d \"$fw\" ] || continue\n  exe=$(/usr/libexec/PlistBuddy -c \"Print :CFBundleExecutable\" \"$fw/Info.plist\" 2>/dev/null || basename \"$fw\" .framework)\n  if file -b \"$fw/$exe\" | grep -q \"ar archive\"; then\n    echo \"Static framework removed from the bundle: $(basename \"$fw\")\"\n    rm -rf \"$fw\"\n  fi\ndone\n";
+			shellScript = "# A framework without code is not shipped (ITMS-90208, plan KI-Harness P2a-3). Xcode\n# embeds the framework of a Swift package's binary target even when its binary is a\n# static archive (ONNX Runtime): it drops the static code and injects an empty stub\n# library built for this app's deployment target, while the framework's Info.plist\n# keeps its own lower MinimumOSVersion - App Store Connect rejects that bundle. The\n# code is already linked into the app, which never loads the framework.\ndir=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\n[ -d \"$dir\" ] || exit 0\nfor fw in \"$dir\"/*.framework; do\n  [ -d \"$fw\" ] || continue\n  exe=$(/usr/libexec/PlistBuddy -c \"Print :CFBundleExecutable\" \"$fw/Info.plist\" 2>/dev/null || basename \"$fw\" .framework)\n  bin=\"$fw/$exe\"\n  symbols=$(nm -gUj \"$bin\" 2>/dev/null | grep -v ':$' | grep -cv '^$')\n  if file -b \"$bin\" | grep -q \"ar archive\" || [ \"$symbols\" = \"0\" ]; then\n    echo \"Framework without code removed from the bundle: $(basename \"$fw\")\"\n    rm -rf \"$fw\"\n  fi\ndone\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
