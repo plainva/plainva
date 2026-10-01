@@ -18,6 +18,7 @@ import {
   semanticReadyLine,
   semanticRunFailureText,
   semanticUnusedLine,
+  Switch,
   toast,
   useLocalEmbeddings,
   type AiSession,
@@ -200,6 +201,24 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
       {state?.measureError && <Banner kind="warning">{t("ai.semantic.measureFailed", { reason: state.measureError })}</Banner>}
       {engine?.kind === "ready" && progress?.state === "failed" && (
         <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
+      )}
+      {engine?.kind === "ready" && (
+        <GroupCard>
+          <RowList>
+            <Row
+              wrap
+              title={t("ai.related.show")}
+              subtitle={t("ai.related.showDesc")}
+              end={<Switch checked={settings.relatedNotes} label={t("ai.related.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, relatedNotes: on }))} />}
+            />
+            {state?.related.vaultPaused && <Row title={t("ai.related.vaultPausedRow")} />}
+            {state?.related.vaultPaused && <Row title={t("ai.related.resume")} onClick={() => void controller?.setRelatedVaultPaused(false)} data-testid="related-resume-vault" />}
+            {Boolean(state?.related.paused.length) && <Row title={t("ai.related.pausedNotes", { count: state?.related.paused.length ?? 0 })} />}
+            {Boolean(state?.related.paused.length) && <Row title={t("ai.related.resumeAll")} onClick={() => void controller?.resumeRelated()} data-testid="related-resume-all" />}
+            {Boolean(state?.related.dismissed) && <Row title={t("ai.related.hidden", { count: state?.related.dismissed ?? 0 })} />}
+            {Boolean(state?.related.dismissed) && <Row title={t("ai.related.restore")} onClick={() => void controller?.restoreRelated()} data-testid="related-restore" />}
+          </RowList>
+        </GroupCard>
       )}
       {hasUnused && unused && (
         <GroupCard>

@@ -45,6 +45,57 @@ export interface StandingApprovalStore {
   save(approvals: StandingApproval[]): Promise<void>;
 }
 
+/**
+ * What the reader said about related notes (plan KI-Harness P2b-4): pairs
+ * marked "not helpful", notes paused, the vault paused. Kept per vault on this
+ * device like the approvals, and capped — the oldest word goes first — so it
+ * never grows into a second index. It decides which hints show, never what a
+ * search finds.
+ */
+export interface RelatedFeedback {
+  /** Pairs of notes, each written with the smaller path first. */
+  dismissed: { pair: [string, string]; at: string }[];
+  paused: { path: string; at: string }[];
+  vaultPaused: boolean;
+}
+
+export interface RelatedFeedbackStore {
+  load(): Promise<RelatedFeedback>;
+  save(feedback: RelatedFeedback): Promise<void>;
+}
+
+export const RELATED_DISMISSED_CAP = 500;
+export const RELATED_PAUSED_CAP = 200;
+
+export const EMPTY_RELATED_FEEDBACK: RelatedFeedback = { dismissed: [], paused: [], vaultPaused: false };
+
+/** A pair in its one written form. */
+export function relatedPair(a: string, b: string): [string, string] {
+  return a < b ? [a, b] : [b, a];
+}
+
+function readRelatedFeedback(raw: string | null): RelatedFeedback {
+  if (raw === null) return EMPTY_RELATED_FEEDBACK;
+  try {
+    const value = JSON.parse(raw) as { version?: number; dismissed?: unknown; paused?: unknown; vaultPaused?: unknown };
+    if (value.version !== 1) return EMPTY_RELATED_FEEDBACK;
+    const dismissed = (Array.isArray(value.dismissed) ? value.dismissed : [])
+      .filter(
+        (d): d is { pair: [string, string]; at: string } =>
+          Boolean(d) && typeof d === "object" && Array.isArray((d as { pair?: unknown }).pair) && (d as { pair: unknown[] }).pair.length === 2 && (d as { pair: unknown[] }).pair.every((p) => typeof p === "string") && typeof (d as { at?: unknown }).at === "string",
+      )
+      .map((d) => ({ pair: relatedPair(d.pair[0], d.pair[1]), at: d.at }))
+      .slice(-RELATED_DISMISSED_CAP);
+    const paused = (Array.isArray(value.paused) ? value.paused : [])
+      .filter((p): p is { path: string; at: string } => Boolean(p) && typeof p === "object" && typeof (p as { path?: unknown }).path === "string" && typeof (p as { at?: unknown }).at === "string")
+      .slice(-RELATED_PAUSED_CAP);
+    return { dismissed, paused, vaultPaused: value.vaultPaused === true };
+  } catch {
+    // A damaged file hides nothing: every hint may show again.
+    return EMPTY_RELATED_FEEDBACK;
+  }
+}
+
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
 
 function readApprovals(raw: string | null): StandingApproval[] {
@@ -76,7 +127,10 @@ function readIndex(raw: string | null): ConversationSummary[] | null {
   }
 }
 
-export function createAiVaultStores(files: AiFileStore, vaultKey: string): { conversations: ConversationRepository; ledger: AiLedgerStore; approvals: StandingApprovalStore } {
+export function createAiVaultStores(
+  files: AiFileStore,
+  vaultKey: string,
+): { conversations: ConversationRepository; ledger: AiLedgerStore; approvals: StandingApprovalStore; related: RelatedFeedbackStore } {
   if (!SAFE_ID.test(vaultKey)) throw new Error("invalid vault key");
   const dir = vaultKey;
   const indexPath = `${dir}/index.json`;
@@ -143,7 +197,16 @@ export function createAiVaultStores(files: AiFileStore, vaultKey: string): { con
     save: (list) => files.write(`${dir}/approvals.json`, JSON.stringify({ version: 1, approvals: list })),
   };
 
-  return { conversations, ledger, approvals };
+  const related: RelatedFeedbackStore = {
+    load: async () => readRelatedFeedback(await files.read(`${dir}/related.json`)),
+    save: (feedback) =>
+      files.write(
+        `${dir}/related.json`,
+        JSON.stringify({ version: 1, dismissed: feedback.dismissed.slice(-RELATED_DISMISSED_CAP), paused: feedback.paused.slice(-RELATED_PAUSED_CAP), vaultPaused: feedback.vaultPaused }),
+      ),
+  };
+
+  return { conversations, ledger, approvals, related };
 }
 
 /** A stable, file-name-safe handle for a vault (FNV-1a over its path or id). */

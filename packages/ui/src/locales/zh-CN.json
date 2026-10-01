@@ -467,6 +467,39 @@
       "copyResults": "复制结果",
       "resultsCopied": "结果已复制。",
       "measureFailed": "测量失败：{{reason}}"
+    },
+    "related": {
+      "menu": "相关笔记",
+      "why": "为什么有这条提示？",
+      "pair": "{{from}} ↔ {{to}}",
+      "start": "开头",
+      "shared": "都提到了 [[{{link}}]]",
+      "fromSection": "本笔记，{{section}}：“{{text}}”",
+      "toSection": "{{title}}，{{section}}：“{{text}}”",
+      "veryClose": "含义非常接近",
+      "close": "含义接近",
+      "notLinked": "尚未链接",
+      "onDevice": "在此设备上计算",
+      "open": "打开",
+      "dismiss": "没有帮助",
+      "pauseNote": "对此笔记暂停",
+      "resumeNote": "对此笔记重新显示",
+      "pauseVault": "在此仓库中暂停",
+      "resumeVault": "在此仓库中重新显示",
+      "off": "相关笔记来自按含义搜索——请在 AI 设置中开启。",
+      "vaultPaused": "已在此仓库中暂停。",
+      "notePaused": "已对此笔记暂停。",
+      "pending": "正在读取此笔记——提示稍后显示。",
+      "none": "没有足够接近的笔记。",
+      "show": "显示相关笔记",
+      "showDesc": "为打开的笔记最多显示三条提示，来自此设备上的向量——不会发送任何内容。可在该区块的标题处暂停单篇笔记。",
+      "vaultPausedRow": "已在此仓库中暂停",
+      "resume": "继续",
+      "restore": "恢复",
+      "resumeAll": "重新显示",
+      "sharedMore_other": "都提到了 [[{{link}}]] 等另外 {{count}} 篇笔记",
+      "pausedNotes_other": "已暂停 {{count}} 篇笔记",
+      "hidden_other": "已将 {{count}} 条提示标记为“没有帮助”"
     }
   },
   "settingsSync": {
@@ -2527,7 +2560,8 @@
     "properties": "属性",
     "propertiesUnavailable": "此文件没有属性。",
     "graph": "关系图",
-    "databases": "数据库"
+    "databases": "数据库",
+    "related": "相关"
   },
   "search": {
     "find": "查找",

@@ -71,6 +71,7 @@ export function useDesktopEmbeddings({
       query: queryService,
       readText,
       ready: idleMoment,
+      related: stores.related,
       provider: {
         egress: session.egress,
         policy: createVaultPolicy({ readFile: readText, resolveLink: (target) => queryService.resolveNotePath(target), encrypted }),
@@ -88,11 +89,11 @@ export function useDesktopEmbeddings({
     };
   }, [session, dbAdapter, vaultAdapter, queryService, vaultPath]);
 
-  // The setting decides: what computes (only while the AI is on), and the mode.
+  // The setting decides: what computes (only while the AI is on), the mode, and whether related notes show.
   const source = useMemo(() => semanticSourceOf(settings), [settings]);
   useEffect(() => {
-    void controller?.update({ source, mode: settings.searchMode });
-  }, [controller, source, settings.searchMode]);
+    void controller?.update({ source, mode: settings.searchMode, related: settings.relatedNotes });
+  }, [controller, source, settings.searchMode, settings.relatedNotes]);
   // Every moved index is a reason to plan again; the plan itself is cheap.
   useEffect(() => {
     controller?.indexChanged();

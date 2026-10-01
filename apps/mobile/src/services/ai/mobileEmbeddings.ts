@@ -41,6 +41,7 @@ export function useMobileEmbeddings(vault: MobileVault | null, loaded: AiAppSett
       query: vault.queryService,
       readText,
       ready: nextTurn,
+      related: stores.related,
       provider: {
         egress: session.egress,
         policy: createVaultPolicy({ readFile: readText, resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from), encrypted }),
@@ -56,8 +57,8 @@ export function useMobileEmbeddings(vault: MobileVault | null, loaded: AiAppSett
   useEffect(() => () => void controller?.close(), [controller]);
   const source = useMemo(() => semanticSourceOf(settings), [settings]);
   useEffect(() => {
-    void controller?.update({ source, mode: settings.searchMode });
-  }, [controller, source, settings.searchMode]);
+    void controller?.update({ source, mode: settings.searchMode, related: settings.relatedNotes });
+  }, [controller, source, settings.searchMode, settings.relatedNotes]);
 
   useEffect(() => {
     if (!controller) return;

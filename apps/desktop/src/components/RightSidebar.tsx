@@ -1,5 +1,5 @@
 import { useId, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, Database, CalendarDays, Link as LinkIcon, NotebookPen, Pen, SlidersHorizontal, List, Sparkles, SquarePen, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
+import { ChevronDown, Database, CalendarDays, Link as LinkIcon, NotebookPen, Pen, Search, SlidersHorizontal, List, Sparkles, SquarePen, Waypoints, ArrowUp, EyeOff, Settings as SettingsIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import * as yaml from "yaml";
 import { CalendarWidget } from "./CalendarWidget";
@@ -22,6 +22,12 @@ import {
   MenuItem,
   MenuSeparator,
   MenuLabel,
+  RelatedNotesList,
+  RelatedNotesMenu,
+  relatedCount,
+  setPendingSearchJump,
+  useRelatedNotes,
+  type RelatedJump,
   useHoldDrag,
   visibleAreas,
   moveArea,
@@ -54,7 +60,7 @@ function frontmatterKeyCount(content: string): number {
   }
 }
 
-export type SectionId = "calendar" | "journal" | "outline" | "graph" | "databases" | "backlinks" | "properties" | "ai";
+export type SectionId = "calendar" | "journal" | "outline" | "graph" | "databases" | "backlinks" | "related" | "properties" | "ai";
 let cachedSpec: ReturnType<typeof barDef>["spec"] | null = null;
 /**
  * Read on first use, not while this module LOADS (C20): reaching across a
@@ -107,7 +113,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   // global default until this vault is adapted (plan § 3).
   const [layout, setLayout] = useState<AreaOrder>(() => sanitizeAreaOrder(undefined, spec()));
   const [open, setOpen] = useState<Record<SectionId, boolean>>(() => ({
-    calendar: readOpen("calendar"), journal: readOpen("journal"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), properties: readOpen("properties"), ai: readOpen("ai"),
+    calendar: readOpen("calendar"), journal: readOpen("journal"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), related: readOpen("related"), properties: readOpen("properties"), ai: readOpen("ai"),
   }));
   const [counts, setCounts] = useState<{ backlinks: number; properties: number; outline: number }>({ backlinks: 0, properties: 0, outline: 0 });
   /** Entries of the journal section's day — for the head's count, reported by the section itself. */
@@ -231,6 +237,15 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
 
   const setBacklinksCount = useCallback((n: number) => setCounts((c) => (c.backlinks === n ? c : { ...c, backlinks: n })), []);
 
+  // Related notes (plan KI-Harness P2b-4): asked here, so the head's count and whether the section
+  // shows hold while it is collapsed. Only the central window has search by meaning; elsewhere null.
+  const related = useRelatedNotes(activePath);
+  const jumpTo = (jump: RelatedJump) => {
+    setPendingSearchJump(jump);
+    onOpenPath(jump.path);
+    window.dispatchEvent(new CustomEvent("plainva-search-jump", { detail: { path: jump.path } }));
+  };
+
   // Header badges stay accurate even while a section is collapsed: compute the
   // counts here (cheaply) instead of relying on the body components, which only
   // mount when their section is expanded.
@@ -280,6 +295,13 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     graph: { title: t("rightPanel.graph", { defaultValue: "Graph" }), icon: <Waypoints size={ICON.ui} />, pad: true },
     databases: { title: t("rightPanel.databases", { defaultValue: "Datenbanken" }), icon: <Database size={ICON.ui} />, pad: true },
     backlinks: { title: t("rightPanel.backlinks", { defaultValue: "Backlinks" }), icon: <LinkIcon size={ICON.ui} />, count: counts.backlinks, pad: true },
+    related: {
+      title: t("rightPanel.related"),
+      icon: <Search size={ICON.ui} />,
+      count: relatedCount(related),
+      pad: true,
+      action: activePath && <RelatedNotesMenu path={activePath} answer={related} />,
+    },
     properties: { title: t("rightPanel.properties", { defaultValue: "Eigenschaften" }), icon: <SlidersHorizontal size={ICON.ui} />, count: counts.properties, pad: true },
     ai: {
       title: t("ai.title"),
@@ -305,6 +327,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     if (id === "graph") return <GraphContextSection activePath={activePath} onOpenPath={onOpenPath} onOpenPathInSplit={onOpenPathInSplit} />;
     if (id === "databases") return <NoteDatabasesSection context={dbContext} activePath={activePath} onOpenPath={onOpenPath} />;
     if (id === "backlinks") return <BacklinksPanel activePath={activePath} onOpenPath={onOpenPath} embedded />;
+    if (id === "related") return activePath ? <RelatedNotesList path={activePath} answer={related} onOpenNote={(path) => onOpenPath(path)} onJump={jumpTo} /> : null;
     if (id === "ai") return ai ? <AiDockSection {...ai} /> : null;
     return <PropertiesSection onOpenPath={onOpenPath} />;
   };
@@ -321,6 +344,8 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     || (id === "databases" && hasNoteDatabaseContext(dbContext))
     || (id === "outline" && counts.outline > 0)
     || (id === "backlinks" && counts.backlinks > 0)
+    // Hints, or a paused note — the section is where its pause is lifted.
+    || (id === "related" && (relatedCount(related) > 0 || related?.kind === "paused"))
     || (id === "properties" && counts.properties > 0)
     // The dock exists only while the AI is on, and only where its session runs.
     || (id === "ai" && Boolean(ai));

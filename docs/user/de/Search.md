@@ -1,6 +1,6 @@
 # Suche
 
-Stand: 2026-09-30
+Stand: 2026-10-01
 
 Plainva bietet drei Suchwege: die Volltextsuche über den ganzen Vault, den Schnellwechsel zum Datei-Öffnen und Suchen & Ersetzen innerhalb einer Notiz.
 
@@ -44,6 +44,12 @@ Solange ein Modell aktiv ist, bietet der Kopf der Suchergebnisse **Wörter**, **
 Bei **Bedeutung** und **Beides** erscheint jede Notiz einmal, und eine kleine Marke sagt, was sie gefunden hat: **Wörter**, **Bedeutung** oder **Wörter und Bedeutung**. Suchoperatoren (`path:`, `tag:`, `-Begriff`) begrenzen auch die Treffer nach Bedeutung. Die Wahl gilt für dieses Gerät.
 
 Plainva bettet die Notizen im Hintergrund ein, die zuletzt geänderten zuerst; eine Notiz, die Du gerade bearbeitest, folgt wenige Sekunden, nachdem Du aufhörst zu tippen. Bis dahin wird sie nur über ihre Wörter gefunden — ein Treffer nach Bedeutung stammt nie aus dem alten Text einer Notiz. Eine Zeile unter den Ergebnissen zeigt, wie weit das ist, und bietet **Pausieren**. Am Telefon wird nur eingebettet, solange Plainva geöffnet ist. **Entfernen (mit den Vektoren)** in den Einstellungen löscht das Modell und alles, was es berechnet hat.
+
+### Verwandte Notizen
+
+Neben der offenen Notiz zeigt Plainva bis zu drei Notizen, die ihr inhaltlich nah sind, aber noch nicht mit ihr verlinkt — am Desktop in der Sektion **Verwandt** der rechten Seitenleiste, nach **Backlinks**; am Telefon im Reiter **Verwandt** des Blatts zur Notiz. Sie entstehen aus den Vektoren, die die Suche nach Bedeutung ohnehin auf diesem Gerät hält: Nichts wird gesendet, auch nicht an einen eigenen Anbieter. Ein Hinweis erscheint nur, wenn sich eine Notiz deutlich vom Rest des Vaults abhebt; Kopien und gemeinsamer Vorlagentext zählen nicht. Die meisten Notizen haben deshalb keinen Hinweis, und die Sektion verschwindet dann.
+
+Jeder Hinweis nennt die zwei ähnlichsten Abschnitte — etwa „Produktion ↔ Drehtage › Aufteilung“ — und die Notizen, auf die beide verlinken. **Warum dieser Hinweis?** zeigt den Anfang beider Abschnitte (ein Klick springt hin); **Nicht hilfreich** blendet genau dieses Paar auf diesem Gerät aus und ändert nichts an der Suche. **Für diese Notiz pausieren** und **In diesem Vault pausieren** stehen im Menü der Sektion, am Telefon unter der Liste. **Verwandte Notizen zeigen** unter **Einstellungen → KI & Automatisierung → Semantische Suche** schaltet die Hinweise auf diesem Gerät ab; dort setzt Du auch einen pausierten Vault oder pausierte Notizen fort und holst ausgeblendete Hinweise zurück.
 
 ## Schnellwechsel (Quick Switcher)
 

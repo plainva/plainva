@@ -467,6 +467,39 @@
       "copyResults": "結果をコピー",
       "resultsCopied": "結果をコピーしました。",
       "measureFailed": "測定に失敗しました：{{reason}}"
+    },
+    "related": {
+      "menu": "関連ノート",
+      "why": "このヒントの理由",
+      "pair": "{{from}} ↔ {{to}}",
+      "start": "冒頭",
+      "shared": "どちらも [[{{link}}]] に言及",
+      "fromSection": "このノート、{{section}}：「{{text}}」",
+      "toSection": "{{title}}、{{section}}：「{{text}}」",
+      "veryClose": "意味がとても近い",
+      "close": "意味が近い",
+      "notLinked": "まだリンクされていません",
+      "onDevice": "この端末で計算",
+      "open": "開く",
+      "dismiss": "役に立たない",
+      "pauseNote": "このノートでは一時停止",
+      "resumeNote": "このノートで再び表示",
+      "pauseVault": "この保管庫では一時停止",
+      "resumeVault": "この保管庫で再び表示",
+      "off": "関連ノートは意味による検索から生まれます。AI の設定でオンにしてください。",
+      "vaultPaused": "この保管庫では一時停止中です。",
+      "notePaused": "このノートでは一時停止中です。",
+      "pending": "このノートを読み込み中です。ヒントはこの後に表示されます。",
+      "none": "十分に近いノートはありません。",
+      "show": "関連ノートを表示",
+      "showDesc": "開いているノートへのヒントを最大 3 件、この端末のベクトルから表示します。何も送信されません。個別のノートはセクションの見出しで一時停止できます。",
+      "vaultPausedRow": "この保管庫では一時停止中",
+      "resume": "再開",
+      "restore": "元に戻す",
+      "resumeAll": "再び表示",
+      "sharedMore_other": "どちらも [[{{link}}]] ほか {{count}} 件に言及",
+      "pausedNotes_other": "{{count}} 件のノートを一時停止中",
+      "hidden_other": "「役に立たない」にした {{count}} 件のヒント"
     }
   },
   "settingsSync": {
@@ -2527,7 +2560,8 @@
     "properties": "プロパティ",
     "propertiesUnavailable": "このファイルにはプロパティがありません。",
     "graph": "グラフ",
-    "databases": "データベース"
+    "databases": "データベース",
+    "related": "関連"
   },
   "search": {
     "find": "検索",

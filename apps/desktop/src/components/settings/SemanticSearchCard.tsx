@@ -23,6 +23,7 @@ import {
   SettingCard,
   SettingCardNote,
   SettingRow,
+  Switch,
   toast,
   useAiState,
   useLocalEmbeddings,
@@ -234,6 +235,34 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
       {state?.measureError && <Banner kind="warning">{t("ai.semantic.measureFailed", { reason: state.measureError })}</Banner>}
       {engine?.kind === "ready" && progress?.state === "failed" && (
         <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
+      )}
+      {engine?.kind === "ready" && settings && (
+        <>
+          <SettingRow label={t("ai.related.show")} desc={t("ai.related.showDesc")}>
+            <Switch checked={settings.relatedNotes} label={t("ai.related.show")} onChange={(on) => void session.updateSettings((s) => ({ ...s, relatedNotes: on }))} data-testid="related-show" />
+          </SettingRow>
+          {state?.related.vaultPaused && (
+            <SettingRow label={t("ai.related.vaultPausedRow")}>
+              <Button variant="ghost" size="sm" onClick={() => void controller?.setRelatedVaultPaused(false)} data-testid="related-resume-vault">
+                {t("ai.related.resume")}
+              </Button>
+            </SettingRow>
+          )}
+          {Boolean(state?.related.paused.length) && (
+            <SettingRow label={t("ai.related.pausedNotes", { count: state?.related.paused.length ?? 0 })}>
+              <Button variant="ghost" size="sm" onClick={() => void controller?.resumeRelated()} data-testid="related-resume-all">
+                {t("ai.related.resumeAll")}
+              </Button>
+            </SettingRow>
+          )}
+          {Boolean(state?.related.dismissed) && (
+            <SettingRow label={t("ai.related.hidden", { count: state?.related.dismissed ?? 0 })}>
+              <Button variant="ghost" size="sm" onClick={() => void controller?.restoreRelated()} data-testid="related-restore">
+                {t("ai.related.restore")}
+              </Button>
+            </SettingRow>
+          )}
+        </>
       )}
       {hasUnused && unused && (
         <SettingRow label={t("ai.semantic.unused")} desc={semanticUnusedLine(t, unused, i18n.language)}>

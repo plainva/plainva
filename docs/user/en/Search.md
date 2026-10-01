@@ -1,6 +1,6 @@
 # Search
 
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 Plainva offers three ways to search: full-text search across the whole vault, the quick switcher for opening files, and find & replace inside a note.
 
@@ -44,6 +44,12 @@ While a model is active, the head of the search results offers **Words**, **Mean
 In **Meaning** and **Both** every note appears once, and a small label says what found it: **Words**, **Meaning** or **Words and meaning**. Search operators (`path:`, `tag:`, `-term`) limit the hits by meaning too. The choice applies to this device.
 
 Plainva embeds the notes in the background, the most recently changed first; a note you are editing follows a few seconds after you stop typing. Until then it is found by its words only — a hit by meaning never comes from the old text of a note. A line under the results shows how far this has come and offers **Pause**. On the phone, embedding runs only while Plainva is open. **Remove (with its vectors)** in the settings deletes the model and everything it computed.
+
+### Related notes
+
+Beside the open note, Plainva shows up to three notes that are close to it in meaning but not linked with it yet — on the desktop in the section **Related** of the right sidebar, after **Backlinks**; on the phone in the tab **Related** of the note's sheet. They come from the vectors search by meaning already keeps on this device: nothing is sent, not even to an own provider. A hint appears only when a note stands out clearly from everything else in the vault; copies and shared template text do not count. Most notes therefore have no hint, and the section then disappears.
+
+Each hint names the two sections that are closest — for example “Production ↔ Shooting days › Split” — and the notes both link to. **Why this hint?** shows the beginning of both sections (a click jumps there); **Not helpful** hides exactly this pair on this device and does not change search. **Pause for this note** and **Pause in this vault** are in the section's menu, on the phone under the list. **Show related notes** under **Settings → AI & automation → Semantic search** switches the hints off on this device; there you also resume a paused vault or paused notes and bring back hidden hints.
 
 ## Quick switcher
 

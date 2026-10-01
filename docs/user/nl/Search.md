@@ -1,6 +1,6 @@
 # Zoeken
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-01
 
 Plainva biedt drie manieren om te zoeken: volledige-tekstzoekfunctie over de hele vault, de snelkiezer om bestanden te openen, en zoeken & vervangen binnen een notitie.
 
@@ -44,6 +44,12 @@ Zolang een model actief is, biedt de kop van de zoekresultaten **Woorden**, **Be
 Bij **Betekenis** en **Beide** verschijnt elke notitie één keer, en een klein label zegt wat haar vond: **Woorden**, **Betekenis** of **Woorden en betekenis**. Zoekoperatoren (`path:`, `tag:`, `-term`) beperken ook de resultaten op betekenis. De keuze geldt voor dit apparaat.
 
 Plainva verwerkt de notities op de achtergrond, de laatst gewijzigde eerst; een notitie die je bewerkt volgt een paar seconden nadat je stopt met typen. Tot dan wordt ze alleen via haar woorden gevonden — een resultaat op betekenis komt nooit uit de oude tekst van een notitie. Een regel onder de resultaten toont hoe ver dat is en biedt **Pauzeren**. Op de telefoon wordt alleen verwerkt terwijl Plainva open is. **Verwijderen (met de vectoren)** in de instellingen verwijdert het model en alles wat het heeft berekend.
+
+### Verwante notities
+
+Naast de open notitie toont Plainva tot drie notities die er inhoudelijk dicht bij liggen maar er nog niet mee gelinkt zijn — op de computer in de sectie **Verwant** van de rechterzijbalk, na **Backlinks**; op de telefoon in het tabblad **Verwant** van het blad bij de notitie. Ze komen uit de vectoren die zoeken op betekenis al op dit apparaat bewaart: er wordt niets verstuurd, ook niet naar een eigen provider. Een hint verschijnt alleen als een notitie duidelijk boven de rest van de vault uitsteekt; kopieën en gedeelde sjabloontekst tellen niet mee. De meeste notities hebben daarom geen hint, en de sectie verdwijnt dan.
+
+Elke hint noemt de twee secties die het dichtst bij elkaar liggen — bijvoorbeeld ‘Productie ↔ Draaidagen › Verdeling’ — en de notities waar beide naar linken. **Waarom deze hint?** toont het begin van beide secties (een klik springt erheen); **Niet nuttig** verbergt precies dit paar op dit apparaat en verandert niets aan het zoeken. **Pauzeren voor deze notitie** en **Pauzeren in deze vault** staan in het menu van de sectie, op de telefoon onder de lijst. **Verwante notities tonen** onder **Instellingen → AI & automatisering → Semantisch zoeken** zet de hints op dit apparaat uit; daar hervat je ook een gepauzeerde vault of gepauzeerde notities en haal je verborgen hints terug.
 
 ## Snelkiezer
 

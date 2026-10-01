@@ -1,6 +1,6 @@
 # Recherche
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-01
 
 Plainva propose trois façons de rechercher : la recherche en texte intégral dans tout le vault, le sélecteur rapide pour ouvrir des fichiers, et rechercher & remplacer dans une note.
 
@@ -44,6 +44,12 @@ Tant qu'un modèle est actif, l'en-tête des résultats propose **Mots**, **Sens
 Avec **Sens** et **Les deux**, chaque note apparaît une fois, et une petite étiquette indique ce qui l'a trouvée : **Mots**, **Sens** ou **Mots et sens**. Les opérateurs de recherche (`path:`, `tag:`, `-terme`) limitent aussi les résultats par le sens. Le choix s'applique à cet appareil.
 
 Plainva intègre les notes en arrière-plan, les plus récemment modifiées d'abord ; une note que vous modifiez suit quelques secondes après la fin de la saisie. D'ici là, elle n'est trouvée que par ses mots — un résultat par le sens ne provient jamais de l'ancien texte d'une note. Une ligne sous les résultats indique l'avancement et propose **Mettre en pause**. Sur téléphone, l'intégration ne s'effectue que lorsque Plainva est ouvert. **Retirer (avec ses vecteurs)** dans les paramètres supprime le modèle et tout ce qu'il a calculé.
+
+### Notes connexes
+
+À côté de la note ouverte, Plainva affiche jusqu'à trois notes proches d'elle par le sens mais pas encore liées à elle — sur l'ordinateur dans la section **Connexes** de la barre latérale droite, après **Backlinks** ; sur le téléphone dans l'onglet **Connexes** de la feuille de la note. Elles viennent des vecteurs que la recherche par le sens conserve déjà sur cet appareil : rien n'est envoyé, pas même à un fournisseur personnel. Une suggestion n'apparaît que si une note se distingue nettement du reste du vault ; les copies et le texte commun d'un modèle ne comptent pas. La plupart des notes n'ont donc aucune suggestion, et la section disparaît alors.
+
+Chaque suggestion nomme les deux sections les plus proches — par exemple « Production ↔ Jours de tournage › Répartition » — et les notes vers lesquelles les deux renvoient. **Pourquoi cette suggestion ?** montre le début des deux sections (un clic y mène) ; **Pas utile** masque exactement cette paire sur cet appareil et ne change pas la recherche. **Mettre en pause pour cette note** et **Mettre en pause dans ce vault** se trouvent dans le menu de la section, sur le téléphone sous la liste. **Afficher les notes connexes** dans **Paramètres → IA & automatisation → Recherche sémantique** désactive les suggestions sur cet appareil ; c'est là aussi que vous reprenez un vault ou des notes en pause et rétablissez les suggestions masquées.
 
 ## Sélecteur rapide
 

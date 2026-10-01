@@ -1,6 +1,6 @@
 # Ricerca
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-01
 
 Plainva offre tre modi per cercare: ricerca full-text in tutto il vault, il selettore rapido per aprire i file e trova e sostituisci all'interno di una nota.
 
@@ -44,6 +44,12 @@ Finché un modello è attivo, l'intestazione dei risultati offre **Parole**, **S
 Con **Significato** ed **Entrambi** ogni nota compare una volta, e una piccola etichetta dice cosa l'ha trovata: **Parole**, **Significato** o **Parole e significato**. Gli operatori di ricerca (`path:`, `tag:`, `-termine`) limitano anche i risultati per significato. La scelta vale per questo dispositivo.
 
 Plainva elabora le note in background, prima quelle modificate più di recente; una nota che stai modificando segue pochi secondi dopo che smetti di scrivere. Fino ad allora viene trovata solo tramite le sue parole — un risultato per significato non proviene mai dal vecchio testo di una nota. Una riga sotto i risultati mostra l'avanzamento e offre **Metti in pausa**. Sul telefono l'elaborazione avviene solo mentre Plainva è aperto. **Rimuovi (con i suoi vettori)** nelle impostazioni elimina il modello e tutto ciò che ha calcolato.
+
+### Note correlate
+
+Accanto alla nota aperta, Plainva mostra fino a tre note vicine nel significato ma non ancora collegate a essa: sul computer nella sezione **Correlate** della barra laterale destra, dopo **Backlink**; sul telefono nella scheda **Correlate** del foglio della nota. Nascono dai vettori che la ricerca per significato conserva già su questo dispositivo: non viene inviato nulla, nemmeno a un provider proprio. Un suggerimento compare solo quando una nota si distingue nettamente dal resto del vault; copie e testo comune di un modello non contano. Per questo la maggior parte delle note non ha suggerimenti, e allora la sezione scompare.
+
+Ogni suggerimento nomina le due sezioni più vicine — per esempio «Produzione ↔ Giorni di ripresa › Suddivisione» — e le note a cui rimandano entrambe. **Perché questo suggerimento?** mostra l'inizio delle due sezioni (un clic ci porta lì); **Non utile** nasconde esattamente questa coppia su questo dispositivo e non cambia la ricerca. **Metti in pausa per questa nota** e **Metti in pausa in questo vault** sono nel menu della sezione, sul telefono sotto l'elenco. **Mostra note correlate** in **Impostazioni → IA e automazione → Ricerca semantica** disattiva i suggerimenti su questo dispositivo; lì riprendi anche un vault o note in pausa e ripristini i suggerimenti nascosti.
 
 ## Selettore rapido
 

@@ -205,6 +205,11 @@ export interface AiAppSettings {
   semanticModel: string | null;
   /** How search ranks while a model is active. */
   searchMode: SearchMode;
+  /**
+   * Related notes beside the open note (plan P2b-4), from the vectors of
+   * search by meaning on this device; nothing is sent for them.
+   */
+  relatedNotes: boolean;
 }
 
 export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
@@ -219,6 +224,7 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   mcpEnabled: false,
   semanticModel: null,
   searchMode: DEFAULT_SEARCH_MODE,
+  relatedNotes: true,
 };
 
 /** Reads stored settings defensively: a damaged value falls back field by field. */
@@ -269,6 +275,7 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
     semanticModel:
       typeof value.semanticModel === "string" && (value.semanticModel === SEMANTIC_BY_PROVIDER || embeddingModel(value.semanticModel)) ? value.semanticModel : defaults.semanticModel,
     searchMode: isSearchMode(value.searchMode) ? value.searchMode : defaults.searchMode,
+    relatedNotes: typeof value.relatedNotes === "boolean" ? value.relatedNotes : defaults.relatedNotes,
   };
 }
 

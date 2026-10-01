@@ -2,8 +2,8 @@
  * Local embeddings (plan KI-Harness §10, P2a; ADR 0021): the model catalog,
  * notes as chunks, the tokenizer, the engine seam to the native runtime and
  * to an own provider's embeddings route, the vector store in the index
- * database, search by meaning, and the pipeline that keeps the vectors in
- * step with the notes.
+ * database, search by meaning, the pipeline that keeps the vectors in step
+ * with the notes, and related notes from those vectors.
  */
 export * from "./catalog.js";
 export * from "./chunks.js";
@@ -20,3 +20,4 @@ export * from "./hybridSearch.js";
 export * from "./providerEngine.js";
 export * from "./source.js";
 export * from "./benchmark.js";
+export * from "./related.js";

@@ -24,3 +24,5 @@ export * from "./localModels";
 export * from "./localEmbeddings";
 export * from "./SemanticSearch";
 export * from "./semanticSettingsModel";
+export * from "./relatedNotesModel";
+export * from "./RelatedNotes";

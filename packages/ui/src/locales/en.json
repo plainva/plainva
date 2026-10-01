@@ -480,6 +480,42 @@
       "copyResults": "Copy results",
       "resultsCopied": "Results copied.",
       "measureFailed": "The measurement failed: {{reason}}"
+    },
+    "related": {
+      "menu": "Related notes",
+      "why": "Why this hint?",
+      "pair": "{{from}} ↔ {{to}}",
+      "start": "Beginning",
+      "shared": "both mention [[{{link}}]]",
+      "fromSection": "This note, {{section}}: “{{text}}”",
+      "toSection": "{{title}}, {{section}}: “{{text}}”",
+      "veryClose": "very close in meaning",
+      "close": "close in meaning",
+      "notLinked": "not linked yet",
+      "onDevice": "computed on this device",
+      "open": "Open",
+      "dismiss": "Not helpful",
+      "pauseNote": "Pause for this note",
+      "resumeNote": "Show again for this note",
+      "pauseVault": "Pause in this vault",
+      "resumeVault": "Show in this vault again",
+      "off": "Related notes come from search by meaning — switch it on in the AI settings.",
+      "vaultPaused": "Paused in this vault.",
+      "notePaused": "Paused for this note.",
+      "pending": "Reading this note — hints follow.",
+      "none": "Nothing close enough.",
+      "show": "Show related notes",
+      "showDesc": "At most three hints to the open note, from the vectors on this device — nothing is sent. Pause a single note in the head of the section.",
+      "vaultPausedRow": "Paused in this vault",
+      "resume": "Resume",
+      "restore": "Bring back",
+      "resumeAll": "Show again",
+      "sharedMore_one": "both mention [[{{link}}]] and {{count}} more",
+      "sharedMore_other": "both mention [[{{link}}]] and {{count}} more",
+      "pausedNotes_one": "{{count}} note paused",
+      "pausedNotes_other": "{{count}} notes paused",
+      "hidden_one": "{{count}} hint marked “Not helpful”",
+      "hidden_other": "{{count}} hints marked “Not helpful”"
     }
   },
   "settingsSync": {
@@ -2547,7 +2583,8 @@
     "properties": "Properties",
     "propertiesUnavailable": "No properties for this file.",
     "graph": "Graph",
-    "databases": "Databases"
+    "databases": "Databases",
+    "related": "Related"
   },
   "search": {
     "find": "Find",

@@ -1,6 +1,6 @@
 # Buscar
 
-Última actualización: 2026-09-30
+Última actualización: 2026-10-01
 
 Plainva ofrece tres formas de buscar: búsqueda de texto completo en todo el vault, el selector rápido para abrir archivos, y buscar y reemplazar dentro de una nota.
 
@@ -44,6 +44,12 @@ Mientras un modelo está activo, la cabecera de los resultados ofrece **Palabras
 En **Significado** y **Ambos** cada nota aparece una vez, y una pequeña etiqueta indica qué la encontró: **Palabras**, **Significado** o **Palabras y significado**. Los operadores de búsqueda (`path:`, `tag:`, `-término`) también limitan los resultados por significado. La elección se aplica a este dispositivo.
 
 Plainva procesa las notas en segundo plano, las modificadas más recientemente primero; una nota que estás editando sigue unos segundos después de que dejes de escribir. Hasta entonces solo se encuentra por sus palabras — un resultado por significado nunca procede del texto antiguo de una nota. Una línea bajo los resultados muestra el avance y ofrece **Pausar**. En el teléfono solo se procesa mientras Plainva está abierto. **Quitar (con sus vectores)** en la configuración borra el modelo y todo lo que calculó.
+
+### Notas relacionadas
+
+Junto a la nota abierta, Plainva muestra hasta tres notas cercanas a ella en significado pero aún no enlazadas con ella: en el escritorio, en la sección **Relacionadas** de la barra lateral derecha, después de **Retroenlaces**; en el teléfono, en la pestaña **Relacionadas** de la hoja de la nota. Salen de los vectores que la búsqueda por significado ya guarda en este dispositivo: no se envía nada, ni siquiera a un proveedor propio. Una sugerencia solo aparece cuando una nota destaca claramente sobre el resto del vault; las copias y el texto común de una plantilla no cuentan. Por eso la mayoría de las notas no tiene ninguna sugerencia, y entonces la sección desaparece.
+
+Cada sugerencia nombra las dos secciones más cercanas —por ejemplo «Producción ↔ Días de rodaje › Reparto»— y las notas a las que enlazan ambas. **¿Por qué esta sugerencia?** muestra el comienzo de las dos secciones (un clic lleva hasta allí); **No es útil** oculta exactamente este par en este dispositivo y no cambia la búsqueda. **Pausar para esta nota** y **Pausar en este vault** están en el menú de la sección; en el teléfono, debajo de la lista. **Mostrar notas relacionadas** en **Configuración → IA y automatización → Búsqueda semántica** desactiva las sugerencias en este dispositivo; ahí también reanudas un vault o notas en pausa y recuperas las sugerencias ocultas.
 
 ## Selector rápido
 

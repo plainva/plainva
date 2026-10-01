@@ -21,7 +21,10 @@ import {
   backlinkContexts,
   contextChain,
   groupBacklinks,
+  RelatedNotesActions,
+  RelatedNotesList,
   setPendingSearchJump,
+  useRelatedNotes,
   type BacklinkContext,
   BACKLINK_SORT_KEYS,
   Button,
@@ -51,7 +54,7 @@ import { SortSheet } from "./SortSheet";
 import { ContextGraph } from "./ContextGraph";
 import { VersionsPanel } from "./VersionsPanel";
 
-export type ContextTab = "props" | "backlinks" | "outline" | "databases" | "graph" | "history" | "ai";
+export type ContextTab = "props" | "backlinks" | "related" | "outline" | "databases" | "graph" | "history" | "ai";
 
 /** OKF system fields stay read-only everywhere (desktop parity). */
 const LOCKED = new Set(["type", "okf_version"]);
@@ -120,6 +123,8 @@ export function NoteContextSheet({
   const [tab, setTab] = useState<ContextTab>(initialTab);
   // The AI segment is the desktop dock's counterpart (plan KI-Harness §19.1): beside the note on a tablet, over it on a phone.
   const aiOn = useMobileAiEnabled();
+  // Related notes (plan KI-Harness P2b-4): the desktop section's counterpart, a tab while the AI is on.
+  const related = useRelatedNotes(aiOn ? path : null);
   const [props, setProps] = useState<Array<[string, unknown]>>([]);
   const [backlinks, setBacklinks] = useState<Array<GroupedBacklink & { places: BacklinkContext[] }>>([]);
   // The reader's order (finding 2026-09-19): the list had none — the query
@@ -329,6 +334,7 @@ export function NoteContextSheet({
             options={[
               { value: "props", label: t("rightPanel.properties") },
               { value: "backlinks", label: t("rightPanel.backlinks") },
+              ...(aiOn ? [{ value: "related", label: t("rightPanel.related") }] : []),
               { value: "outline", label: t("rightPanel.outline") },
               { value: "databases", label: t("rightPanel.databases") },
               { value: "graph", label: t("rightPanel.graph") },
@@ -573,6 +579,30 @@ export function NoteContextSheet({
           )}
 
           {tab === "graph" && <ContextGraph onOpenNote={onOpenNote} path={path} vault={vault} />}
+
+          {tab === "related" && aiOn && (
+            <>
+              <RelatedNotesList
+                path={path}
+                answer={related}
+                showStates
+                onOpenNote={(target) => {
+                  onClose();
+                  onOpenNote(target);
+                }}
+                onJump={(jump) => {
+                  onClose();
+                  // The open note moves its editor; another note takes the jump when it opens.
+                  if (jump.path === path) onJumpToLine(jump.line);
+                  else {
+                    setPendingSearchJump(jump);
+                    onOpenNote(jump.path);
+                  }
+                }}
+              />
+              <RelatedNotesActions path={path} answer={related} />
+            </>
+          )}
 
           {tab === "ai" && aiOn && <NoteAiSegment onOpenNote={onOpenNote} path={path} vault={vault} />}
 

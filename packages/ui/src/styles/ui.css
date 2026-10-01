@@ -3855,6 +3855,22 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-semantic-choices .pv-checkrow { align-items: flex-start; }
 .pv-semantic-choices .pv-checkrow > span { display: flex; flex-direction: column; gap: var(--space-1); }
 .pv-semantic-choices .pv-checkrow > span > span { color: var(--text-muted); font-size: var(--text-sm); }
+/* Related notes (AI harness P2b-4, Design Language "Related notes"): layout and text runs in
+   tokens — the visible controls are IconButtons and ghost Buttons the themes restyle. */
+.pv-related { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.pv-related-row { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pv-related-head { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+/* The row's title is a ghost Button that reads as the row: full width, left-aligned, in the main text colour. */
+.pv-related-main { flex: 1; min-width: 0; justify-content: flex-start; margin-left: calc(-1 * var(--space-2)); color: var(--text-main); }
+.pv-related-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.pv-related-ctx { font-size: var(--text-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.pv-related-why { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); margin-top: var(--space-1); padding: var(--space-1) 0 var(--space-1) var(--space-2); border-left: 2px solid var(--border-color); font-size: var(--text-sm); }
+/* A quoted section: a ghost Button whose label wraps like a sentence. */
+.pv-related-quote { height: auto; min-height: var(--control-sm); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); justify-content: flex-start; white-space: normal; line-height: 1.4; text-align: left; color: var(--text-main); font-size: var(--text-sm); }
+.pv-related-facts { color: var(--text-muted); }
+.pv-related-actions { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); }
+.pv-related-state { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+.pv-related-pause { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-2); }
 /* The empty pane: one action, then what was open last, then the keys. */
 .pv-emptypane-recent { display: flex; flex-direction: column; gap: 2px; width: 100%; max-width: 18rem; margin-top: var(--space-3); text-align: left; }
 .pv-emptypane-recent > b { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); font-weight: 600; }

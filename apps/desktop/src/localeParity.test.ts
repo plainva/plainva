@@ -322,6 +322,8 @@ const VERBATIM_ALLOWED = new Set<string>([
   "ai.mcp.package",
   // A running AI tool: the tool's own (translated) name and an ellipsis.
   "ai.toolRunning",
+  // Related notes (plan KI-Harness P2b-4): two sections and the arrow between them, nothing to translate.
+  "ai.related.pair",
   // Two placeholders and a separator; there is no word in it to translate.
   "background.trayNextInVault",
   // The artifact kind and the worker's raw sentence, joined by a colon - the
@@ -410,7 +412,7 @@ const VERBATIM_ALLOWED = new Set<string>([
   "workspaceSecurity.ruleField.tag",
   "workspaceSecurity.slice",
   "workspaceSecurity.slices",
-// count: 79
+// count: 80
 ]);
 
 describe("verbatim English carry-over (D8)", () => {

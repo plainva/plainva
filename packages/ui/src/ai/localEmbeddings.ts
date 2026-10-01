@@ -45,9 +45,20 @@ import {
   type VaultQueryService,
 } from "@plainva/core";
 import type { AiLedgerStore } from "./aiSession";
-import type { StandingApproval, StandingApprovalStore } from "./aiStores";
+import {
+  EMPTY_RELATED_FEEDBACK,
+  RELATED_DISMISSED_CAP,
+  RELATED_PAUSED_CAP,
+  relatedPair,
+  type RelatedFeedback,
+  type RelatedFeedbackStore,
+  type StandingApproval,
+  type StandingApprovalStore,
+} from "./aiStores";
 import type { VaultPolicyHost } from "./aiVaultHost";
 import { downloadPackage, openPackage, packageInstalled, type LocalModelBridge, type PackageProgress } from "./localModels";
+import { relatedSection, type RelatedAnswer, type RelatedNote } from "./relatedNotesModel";
+import { noteDisplayName } from "../lib/noteTitle";
 
 /**
  * Search by meaning in one vault, the same way in both shells (plan
@@ -60,7 +71,8 @@ import { downloadPackage, openPackage, packageInstalled, type LocalModelBridge, 
  * in the native bridge, the vault's index, how to read a note and — for an
  * own provider — the egress, the vault's privacy rules and its app data;
  * they report the setting (`update`), a moved index (`indexChanged`) and when
- * the device may work (`ready`).
+ * the device may work (`ready`). From the same vectors it answers related
+ * notes (P2b-4), without a request.
  */
 
 /** What computing with an own provider needs (plan P2a-5), bound to one vault on this device. */
@@ -82,12 +94,14 @@ export interface ProviderEmbeddingHost {
 export interface LocalEmbeddingsHost {
   bridge: LocalModelBridge;
   db: IDatabaseAdapter;
-  query: Pick<VaultQueryService, "searchOccurrencesPage" | "searchFullText" | "filterByOperators" | "fileRecords" | "noteBytes">;
+  query: Pick<VaultQueryService, "searchOccurrencesPage" | "searchFullText" | "filterByOperators" | "fileRecords" | "noteBytes" | "getLinkNeighbors">;
   readText(path: string): Promise<string | null>;
   /** Resolves when the device may take the next step (desktop: an idle moment; phone: in the foreground). */
   ready?(signal: AbortSignal): Promise<void>;
   /** Absent where the shell offers no own provider. */
   provider?: ProviderEmbeddingHost;
+  /** The reader's word on related notes in this vault (plan P2b-4); without it, it lasts until the vault closes. */
+  related?: RelatedFeedbackStore;
 }
 
 type PackageSource = Extract<SemanticSource, { kind: "package" }>;
@@ -127,7 +141,23 @@ export interface LocalEmbeddingsState {
   /** Its last result, for the engine open now. */
   measurement: MeasurementReport | null;
   measureError: string | null;
+  /** Related notes (plan P2b-4): the device setting and the reader's word on this vault. */
+  related: RelatedState;
 }
+
+export interface RelatedState {
+  enabled: boolean;
+  vaultPaused: boolean;
+  /** Notes paused in this vault. */
+  paused: readonly string[];
+  /** Pairs marked "not helpful". */
+  dismissed: number;
+  /** Moves whenever the setting or the reader's word changed: the surfaces ask again. */
+  version: number;
+}
+
+/** Every note linked with the open one, either way: they are the backlinks' business, not a hint. */
+const LINK_NEIGHBOURS = 10_000;
 
 /** The device check's result: what was measured, and each budget of the device's class. */
 export interface MeasurementReport {
@@ -223,6 +253,7 @@ export class LocalEmbeddings {
     measuring: false,
     measurement: null,
     measureError: null,
+    related: { enabled: true, vaultPaused: false, paused: [], dismissed: 0, version: 0 },
   };
   private readonly listeners = new Set<() => void>();
   private source: SemanticSource | null = null;
@@ -239,6 +270,10 @@ export class LocalEmbeddings {
   /** The provider's last word on a request: null after an answer, its failure otherwise. */
   private lastFailure: ModelFailure | null = null;
   private openedAt = 0;
+  /** The reader's word on related notes, as last loaded or given. */
+  private feedback: RelatedFeedback = EMPTY_RELATED_FEEDBACK;
+  private readonly feedbackLoaded: Promise<void>;
+  private feedbackLane: Promise<void> = Promise.resolve();
   readonly search: HybridSearchService;
 
   constructor(private readonly host: LocalEmbeddingsHost) {
@@ -252,6 +287,7 @@ export class LocalEmbeddings {
         if (failure || this.state.meaningFailure) this.set({ meaningFailure: failure });
       },
     });
+    this.feedbackLoaded = this.loadFeedback();
   }
 
   snapshot = (): LocalEmbeddingsState => this.state;
@@ -266,9 +302,10 @@ export class LocalEmbeddings {
     for (const listener of this.listeners) listener();
   }
 
-  /** The device setting changed (or was read at start): what computes the vectors (`semanticSourceOf`), and the mode. */
-  update({ source, mode }: { source: SemanticSource | null; mode: SearchMode }): Promise<void> {
+  /** The device setting changed (or was read at start): what computes the vectors (`semanticSourceOf`), the mode, and whether related notes show. */
+  update({ source, mode, related }: { source: SemanticSource | null; mode: SearchMode; related?: boolean }): Promise<void> {
     if (mode !== this.state.mode) this.set({ mode });
+    if (related !== undefined && related !== this.state.related.enabled) this.set({ related: { ...this.state.related, enabled: related, version: this.state.related.version + 1 } });
     const kind = this.state.engine.kind;
     const same = (source?.key ?? null) === (this.source?.key ?? null);
     this.source = source;
@@ -615,6 +652,120 @@ export class LocalEmbeddings {
       // Meaning could not answer (a provider out of reach): the words still can.
       return [];
     }
+  }
+
+  /**
+   * Related notes for one note (plan P2b-4): at most three, not linked with it
+   * either way and not marked "not helpful", each with the pair of sections
+   * that says why and the notes both link to. From the vectors on this
+   * device: nothing is sent, not even to an own provider.
+   */
+  async related(path: string): Promise<RelatedAnswer> {
+    await this.feedbackLoaded;
+    const indexer = this.indexer;
+    if (!this.state.related.enabled || this.state.engine.kind !== "ready" || !indexer) return { kind: "off" };
+    if (this.feedback.vaultPaused) return { kind: "vaultPaused" };
+    if (this.feedback.paused.some((p) => p.path === path)) return { kind: "paused" };
+    const neighbours = await this.host.query.getLinkNeighbors(path, LINK_NEIGHBOURS).catch(() => []);
+    const exclude = new Set(neighbours.map((n) => n.path));
+    for (const { pair } of this.feedback.dismissed) {
+      if (pair[0] === path) exclude.add(pair[1]);
+      else if (pair[1] === path) exclude.add(pair[0]);
+    }
+    let hints: Awaited<ReturnType<EmbeddingIndexer["related"]>>;
+    try {
+      hints = await indexer.related(path, { exclude });
+    } catch {
+      return { kind: "off" };
+    }
+    const text = hints ? await this.host.readText(path) : null;
+    if (!hints || text === null) return { kind: "pending" };
+    const linksTo = new Set(neighbours.filter((n) => n.outgoing > 0).map((n) => n.path));
+    const notes: RelatedNote[] = [];
+    for (const hint of hints) {
+      const theirs = await this.host.readText(hint.path);
+      if (theirs === null) continue;
+      const shared = linksTo.size
+        ? (await this.host.query.getLinkNeighbors(hint.path, LINK_NEIGHBOURS).catch(() => []))
+            .filter((n) => n.outgoing > 0 && linksTo.has(n.path))
+            .map((n) => ({ path: n.path, title: n.title }))
+        : [];
+      notes.push({
+        path: hint.path,
+        title: noteDisplayName(hint.path),
+        prominence: hint.prominence,
+        from: relatedSection(text, hint.from.ordinal),
+        to: relatedSection(theirs, hint.to.ordinal),
+        shared,
+      });
+    }
+    return { kind: "hints", hints: notes };
+  }
+
+  /** "Not helpful": this pair of notes is not offered again (plan P2b-4); what search finds stays as it is. */
+  async dismissRelated(path: string, other: string): Promise<void> {
+    await this.feedbackLoaded;
+    const pair = relatedPair(path, other);
+    const kept = this.feedback.dismissed.filter((d) => d.pair[0] !== pair[0] || d.pair[1] !== pair[1]);
+    await this.saveFeedback({ ...this.feedback, dismissed: [...kept, { pair, at: new Date().toISOString() }].slice(-RELATED_DISMISSED_CAP) });
+  }
+
+  /** Every pair marked "not helpful" in this vault may show again. */
+  async restoreRelated(): Promise<void> {
+    await this.feedbackLoaded;
+    await this.saveFeedback({ ...this.feedback, dismissed: [] });
+  }
+
+  async pauseRelated(path: string): Promise<void> {
+    await this.feedbackLoaded;
+    if (this.feedback.paused.some((p) => p.path === path)) return;
+    await this.saveFeedback({ ...this.feedback, paused: [...this.feedback.paused, { path, at: new Date().toISOString() }].slice(-RELATED_PAUSED_CAP) });
+  }
+
+  /** Lifts the pause of one note, or — without a path — of every paused note. */
+  async resumeRelated(path?: string): Promise<void> {
+    await this.feedbackLoaded;
+    await this.saveFeedback({ ...this.feedback, paused: path === undefined ? [] : this.feedback.paused.filter((p) => p.path !== path) });
+  }
+
+  async setRelatedVaultPaused(paused: boolean): Promise<void> {
+    await this.feedbackLoaded;
+    if (this.feedback.vaultPaused === paused) return;
+    await this.saveFeedback({ ...this.feedback, vaultPaused: paused });
+  }
+
+  private async loadFeedback(): Promise<void> {
+    const store = this.host.related;
+    if (!store) return;
+    try {
+      this.feedback = await store.load();
+    } catch {
+      // Nothing known: every hint may show.
+      return;
+    }
+    this.publishFeedback();
+  }
+
+  private publishFeedback(): void {
+    const related = this.state.related;
+    const { vaultPaused, paused, dismissed } = this.feedback;
+    this.set({ related: { ...related, vaultPaused, paused: paused.map((p) => p.path), dismissed: dismissed.length, version: related.version + 1 } });
+  }
+
+  /** Takes the new word at once and writes it after the one before, so two quick clicks never lose each other. */
+  private saveFeedback(next: RelatedFeedback): Promise<void> {
+    this.feedback = next;
+    this.publishFeedback();
+    const store = this.host.related;
+    if (!store) return Promise.resolve();
+    this.feedbackLane = this.feedbackLane.then(async () => {
+      try {
+        await store.save(this.feedback);
+      } catch {
+        // The word counts until the vault closes even when app data cannot be written.
+      }
+    });
+    return this.feedbackLane;
   }
 
   /** Downloads a package with progress; switching the setting to it is the caller's. */

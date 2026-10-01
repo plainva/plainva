@@ -1,6 +1,6 @@
 # Wyszukiwanie
 
-Stan na: 2026-09-30
+Stan na: 2026-10-01
 
 Plainva oferuje trzy sposoby wyszukiwania: wyszukiwanie pełnotekstowe w całym vaulcie, szybkie przełączanie do otwierania plików oraz znajdź i zamień wewnątrz notatki.
 
@@ -44,6 +44,12 @@ Gdy model jest aktywny, nagłówek wyników oferuje **Słowa**, **Znaczenie** i 
 Przy **Znaczenie** i **Oba** każda notatka pojawia się raz, a mała etykieta mówi, co ją znalazło: **Słowa**, **Znaczenie** albo **Słowa i znaczenie**. Operatory wyszukiwania (`path:`, `tag:`, `-termin`) ograniczają także wyniki według znaczenia. Wybór dotyczy tego urządzenia.
 
 Plainva przetwarza notatki w tle, najpierw ostatnio zmienione; edytowana notatka dochodzi kilka sekund po zakończeniu pisania. Do tego czasu znajduje się ją tylko po słowach — wynik według znaczenia nigdy nie pochodzi ze starego tekstu notatki. Wiersz pod wynikami pokazuje postęp i oferuje **Wstrzymaj**. Na telefonie przetwarzanie trwa tylko wtedy, gdy Plainva jest otwarta. **Usuń (z wektorami)** w ustawieniach usuwa model i wszystko, co obliczył.
+
+### Powiązane notatki
+
+Obok otwartej notatki Plainva pokazuje do trzech notatek bliskich jej znaczeniowo, ale jeszcze z nią niepołączonych linkiem — na komputerze w sekcji **Powiązane** prawego panelu bocznego, po **Linki zwrotne**; na telefonie w karcie **Powiązane** arkusza notatki. Powstają z wektorów, które wyszukiwanie według znaczenia i tak przechowuje na tym urządzeniu: nic nie jest wysyłane, nawet do własnego dostawcy. Podpowiedź pojawia się tylko wtedy, gdy notatka wyraźnie wyróżnia się na tle reszty vaulta; kopie i wspólny tekst szablonu się nie liczą. Dlatego większość notatek nie ma podpowiedzi i sekcja wtedy znika.
+
+Każda podpowiedź wskazuje dwie najbliższe sekcje — na przykład „Produkcja ↔ Dni zdjęciowe › Podział” — oraz notatki, do których obie linkują. **Dlaczego ta podpowiedź?** pokazuje początek obu sekcji (kliknięcie przenosi do nich); **Nieprzydatne** ukrywa dokładnie tę parę na tym urządzeniu i nie zmienia wyszukiwania. **Wstrzymaj dla tej notatki** i **Wstrzymaj w tym vaulcie** są w menu sekcji, a na telefonie pod listą. **Pokazuj powiązane notatki** w **Ustawienia → AI & automatyzacja → Wyszukiwanie semantyczne** wyłącza podpowiedzi na tym urządzeniu; tam też wznawia się wstrzymany vault lub notatki i przywraca ukryte podpowiedzi.
 
 ## Szybkie przełączanie (Quick Switcher)
 

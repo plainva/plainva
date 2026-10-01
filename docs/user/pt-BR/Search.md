@@ -1,6 +1,6 @@
 # Busca
 
-Última revisão: 2026-09-30
+Última revisão: 2026-10-01
 
 O Plainva oferece três formas de buscar: busca de texto completo em todo o vault, o alternador rápido para abrir arquivos, e localizar e substituir dentro de uma nota.
 
@@ -44,6 +44,12 @@ Enquanto um modelo está ativo, o cabeçalho dos resultados oferece **Palavras**
 Em **Significado** e **Ambos** cada nota aparece uma vez, e um pequeno rótulo diz o que a encontrou: **Palavras**, **Significado** ou **Palavras e significado**. Os operadores de pesquisa (`path:`, `tag:`, `-termo`) também limitam os resultados por significado. A escolha vale para este dispositivo.
 
 O Plainva processa as notas em segundo plano, as alteradas mais recentemente primeiro; uma nota que você está editando entra alguns segundos depois que você para de digitar. Até lá, ela só é encontrada pelas palavras — um resultado por significado nunca vem do texto antigo de uma nota. Uma linha abaixo dos resultados mostra o progresso e oferece **Pausar**. No celular, o processamento só acontece enquanto o Plainva está aberto. **Remover (com os vetores)** nas configurações apaga o modelo e tudo o que ele calculou.
+
+### Notas relacionadas
+
+Ao lado da nota aberta, o Plainva mostra até três notas próximas a ela em significado, mas ainda sem link com ela — no computador, na seção **Relacionadas** da barra lateral direita, depois de **Backlinks**; no telefone, na aba **Relacionadas** da folha da nota. Elas vêm dos vetores que a pesquisa por significado já guarda neste dispositivo: nada é enviado, nem mesmo a um provedor próprio. Uma sugestão só aparece quando uma nota se destaca claramente do resto do vault; cópias e texto comum de um modelo não contam. Por isso a maioria das notas não tem sugestão, e então a seção desaparece.
+
+Cada sugestão indica as duas seções mais próximas — por exemplo “Produção ↔ Dias de filmagem › Divisão” — e as notas para as quais ambas têm link. **Por que esta sugestão?** mostra o início das duas seções (um clique leva até lá); **Não ajudou** oculta exatamente esse par neste dispositivo e não muda a pesquisa. **Pausar para esta nota** e **Pausar neste vault** ficam no menu da seção; no telefone, abaixo da lista. **Mostrar notas relacionadas** em **Configurações → IA e automação → Pesquisa semântica** desativa as sugestões neste dispositivo; ali você também retoma um vault ou notas pausadas e traz de volta as sugestões ocultas.
 
 ## Alternador rápido
 

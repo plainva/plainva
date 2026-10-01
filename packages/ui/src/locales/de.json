@@ -480,6 +480,42 @@
       "copyResults": "Ergebnisse kopieren",
       "resultsCopied": "Ergebnisse kopiert.",
       "measureFailed": "Die Messung ist fehlgeschlagen: {{reason}}"
+    },
+    "related": {
+      "menu": "Verwandte Notizen",
+      "why": "Warum dieser Hinweis?",
+      "pair": "{{from}} ↔ {{to}}",
+      "start": "Anfang",
+      "shared": "beide nennen [[{{link}}]]",
+      "fromSection": "Diese Notiz, {{section}}: „{{text}}“",
+      "toSection": "{{title}}, {{section}}: „{{text}}“",
+      "veryClose": "sehr ähnlich",
+      "close": "ähnlich",
+      "notLinked": "noch nicht verlinkt",
+      "onDevice": "auf diesem Gerät berechnet",
+      "open": "Öffnen",
+      "dismiss": "Nicht hilfreich",
+      "pauseNote": "Für diese Notiz pausieren",
+      "resumeNote": "Für diese Notiz wieder zeigen",
+      "pauseVault": "In diesem Vault pausieren",
+      "resumeVault": "In diesem Vault wieder zeigen",
+      "off": "Verwandte Notizen kommen aus der Suche nach Bedeutung — schalte sie in den KI-Einstellungen ein.",
+      "vaultPaused": "In diesem Vault pausiert.",
+      "notePaused": "Für diese Notiz pausiert.",
+      "pending": "Diese Notiz wird gelesen — Hinweise folgen.",
+      "none": "Nichts ähnlich genug.",
+      "show": "Verwandte Notizen zeigen",
+      "showDesc": "Höchstens drei Hinweise zur offenen Notiz, aus den Vektoren auf diesem Gerät — nichts wird gesendet. Eine einzelne Notiz pausierst Du im Kopf der Sektion.",
+      "vaultPausedRow": "In diesem Vault pausiert",
+      "resume": "Fortsetzen",
+      "restore": "Zurückholen",
+      "resumeAll": "Wieder zeigen",
+      "sharedMore_one": "beide nennen [[{{link}}]] und {{count}} weitere",
+      "sharedMore_other": "beide nennen [[{{link}}]] und {{count}} weitere",
+      "pausedNotes_one": "{{count}} Notiz pausiert",
+      "pausedNotes_other": "{{count}} Notizen pausiert",
+      "hidden_one": "{{count}} Hinweis als „Nicht hilfreich“ markiert",
+      "hidden_other": "{{count}} Hinweise als „Nicht hilfreich“ markiert"
     }
   },
   "settingsSync": {
@@ -2547,7 +2583,8 @@
     "properties": "Eigenschaften",
     "propertiesUnavailable": "Keine Eigenschaften für diese Datei.",
     "graph": "Graph",
-    "databases": "Datenbanken"
+    "databases": "Datenbanken",
+    "related": "Verwandt"
   },
   "search": {
     "find": "Suchen",

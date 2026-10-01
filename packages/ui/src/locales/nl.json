@@ -480,6 +480,42 @@
       "copyResults": "Resultaten kopiëren",
       "resultsCopied": "Resultaten gekopieerd.",
       "measureFailed": "Het meten is mislukt: {{reason}}"
+    },
+    "related": {
+      "menu": "Verwante notities",
+      "why": "Waarom deze hint?",
+      "pair": "{{from}} ↔ {{to}}",
+      "start": "Begin",
+      "shared": "beide noemen [[{{link}}]]",
+      "fromSection": "Deze notitie, {{section}}: ‘{{text}}’",
+      "toSection": "{{title}}, {{section}}: ‘{{text}}’",
+      "veryClose": "inhoudelijk zeer verwant",
+      "close": "inhoudelijk verwant",
+      "notLinked": "nog niet gelinkt",
+      "onDevice": "op dit apparaat berekend",
+      "open": "Openen",
+      "dismiss": "Niet nuttig",
+      "pauseNote": "Pauzeren voor deze notitie",
+      "resumeNote": "Weer tonen voor deze notitie",
+      "pauseVault": "Pauzeren in deze vault",
+      "resumeVault": "Weer tonen in deze vault",
+      "off": "Verwante notities komen uit zoeken op betekenis — zet dat aan in de AI-instellingen.",
+      "vaultPaused": "Gepauzeerd in deze vault.",
+      "notePaused": "Gepauzeerd voor deze notitie.",
+      "pending": "Deze notitie wordt gelezen — hints volgen.",
+      "none": "Niets verwant genoeg.",
+      "show": "Verwante notities tonen",
+      "showDesc": "Hooguit drie hints bij de open notitie, uit de vectoren op dit apparaat — er wordt niets verstuurd. Een losse notitie pauzeer je in de kop van de sectie.",
+      "vaultPausedRow": "Gepauzeerd in deze vault",
+      "resume": "Hervatten",
+      "restore": "Terughalen",
+      "resumeAll": "Weer tonen",
+      "sharedMore_one": "beide noemen [[{{link}}]] en {{count}} andere",
+      "sharedMore_other": "beide noemen [[{{link}}]] en {{count}} andere",
+      "pausedNotes_one": "{{count}} notitie gepauzeerd",
+      "pausedNotes_other": "{{count}} notities gepauzeerd",
+      "hidden_one": "{{count}} hint gemarkeerd als ‘Niet nuttig’",
+      "hidden_other": "{{count}} hints gemarkeerd als ‘Niet nuttig’"
     }
   },
   "settingsSync": {
@@ -2547,7 +2583,8 @@
     "properties": "Eigenschappen",
     "propertiesUnavailable": "Geen eigenschappen voor dit bestand.",
     "graph": "Graaf",
-    "databases": "Databases"
+    "databases": "Databases",
+    "related": "Verwant"
   },
   "search": {
     "find": "Zoeken",

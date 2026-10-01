@@ -22,6 +22,7 @@ import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
 import { chunkNote, type NoteChunk } from "./chunks.js";
 import type { EmbeddingEngine } from "./engine.js";
+import { RELATED_LIMIT, relatedNotes, type RelatedHint, type RelatedOptions } from "./related.js";
 import { scoreSpread, VectorIndex, type ScoreSpread, type SemanticHit } from "./search.js";
 import { EmbeddingStore, type StoredChunkVector } from "./store.js";
 import { quantizeInt8, type QuantizedVector } from "./vectors.js";
@@ -260,6 +261,24 @@ export class EmbeddingIndexer {
       if (current.length >= limit || ranked.hits.length < wanted) break;
     }
     return { hits: current.slice(0, limit), spread };
+  }
+
+  /**
+   * Notes close in meaning to one note (plan P2b-4), from the stored vectors
+   * alone: no request goes out, not even to an own provider. Null while the
+   * note's own vectors are missing or older than its text — a hint must not
+   * rest on what the note no longer says; a hint whose vectors are older than
+   * its text waits for them the same way.
+   */
+  async related(path: string, options: Omit<RelatedOptions, "accept"> = {}): Promise<RelatedHint[] | null> {
+    const index = await this.vectorIndex();
+    const own = index.sha256Of(path);
+    if (!own || (await this.currentShas([path])).get(path) !== own) return null;
+    const limit = options.limit ?? RELATED_LIMIT;
+    // Stale hints are left out afterwards: ask for a few more than needed.
+    const hints = relatedNotes(index, path, { ...options, limit: limit + 4 });
+    const shas = await this.currentShas(hints.map((hint) => hint.path));
+    return hints.filter((hint) => shas.get(hint.path) === index.sha256Of(hint.path)).slice(0, limit);
   }
 
   /**
