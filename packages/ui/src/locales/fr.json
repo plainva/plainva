@@ -424,6 +424,43 @@
         "prompt": "Où en est le projet de la note ouverte ? Objectif, ce qui est fait, ce qui reste ouvert, ce qui bloque et la prochaine étape — chaque point avec sa source. Si la note ouverte ne porte pas sur un projet, demandez-moi de quel projet je parle.",
         "promptFor": "Où en est le projet « {{project}} » ? Objectif, ce qui est fait, ce qui reste ouvert, ce qui bloque et la prochaine étape — chaque point avec sa source.",
         "argument": "Le projet : le nom de sa note ou de son dossier."
+      },
+      "meeting": {
+        "title": "Préparer une réunion",
+        "description": "Préparer une réunion ou en faire le compte rendu : le sujet, ce qui a changé depuis la dernière, les points ouverts.",
+        "prompt": "Préparez ma prochaine réunion : de quoi il s'agit, ce qui a changé depuis la dernière, quels points et tâches restent ouverts et ce que je dois apporter. Si la note ouverte est une réunion déjà passée, résumez plutôt les décisions et les prochaines étapes.",
+        "promptFor": "Préparez la réunion « {{meeting}} » : de quoi il s'agit, ce qui a changé depuis la dernière, quels points et tâches restent ouverts et ce que je dois apporter.",
+        "argument": "La réunion : son titre ou le nom de sa note."
+      },
+      "triage": {
+        "title": "Trier les tâches",
+        "description": "Classer les tâches ouvertes : maintenant, plus tard, à abandonner.",
+        "prompt": "Triez mes tâches ouvertes : que dois-je faire maintenant, qu'est-ce qui peut attendre, que pourrais-je abandonner ou déléguer, et quelles tâches ont besoin d'une date ?"
+      },
+      "writing": {
+        "title": "Écrire et réviser",
+        "description": "Résumer, raccourcir ou réécrire une note — un texte à reprendre.",
+        "prompt": "Aidez-moi avec le texte de la note ouverte : résumez-le en quelques phrases et proposez une version plus claire, sans changer aucun fait."
+      },
+      "upkeep": {
+        "title": "Entretenir les connaissances",
+        "description": "Trouver les notes qui disent la même chose, sont dépassées ou isolées.",
+        "prompt": "Entretenez mon vault : quelles notes modifiées récemment disent la même chose, sont dépassées ou ne sont reliées à rien ? Une suggestion pour chacune."
+      },
+      "links": {
+        "title": "Nettoyer les liens",
+        "description": "Vérifier les liens de la note ouverte : morts, manquants, à sens unique.",
+        "prompt": "Vérifiez les liens de la note ouverte : lesquels ne mènent nulle part, quelles mentions pourraient devenir des liens, et quelles notes devraient se citer mutuellement ?"
+      },
+      "privacy": {
+        "title": "Vérifier la confidentialité",
+        "description": "Trouver ce qui, dans une note, devrait rester sur cet appareil.",
+        "prompt": "Vérifiez la note ouverte : données personnelles, numéros, mots de passe ou informations de santé qui ne devraient pas aller dans un cloud, et proposez une règle pour chacun."
+      },
+      "reflection": {
+        "title": "Réflexion",
+        "description": "Revenir sur vos notes d'une journée ou d'une semaine — avec bienveillance, sans diagnostic.",
+        "prompt": "Réfléchissez avec moi à mes notes quotidiennes des sept derniers jours : ce qui ressort, ce qui s'est bien passé, ce qui semble me peser, et quelques questions à méditer."
       }
     },
     "mcp": {

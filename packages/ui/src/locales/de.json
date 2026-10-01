@@ -412,6 +412,43 @@
         "prompt": "Wie steht das Projekt in der offenen Notiz? Ziel, was erledigt ist, was offen ist, was es blockiert und der nächste Schritt — jeder Punkt mit seiner Quelle. Wenn es in der offenen Notiz um kein Projekt geht, frag mich, welches Projekt ich meine.",
         "promptFor": "Wie steht das Projekt „{{project}}“? Ziel, was erledigt ist, was offen ist, was es blockiert und der nächste Schritt — jeder Punkt mit seiner Quelle.",
         "argument": "Das Projekt: der Name seiner Notiz oder seines Ordners."
+      },
+      "meeting": {
+        "title": "Meeting vorbereiten",
+        "description": "Ein Meeting vorbereiten oder nachbereiten: worum es geht, was sich seit dem letzten getan hat, offene Punkte.",
+        "prompt": "Bereite mein nächstes Meeting vor: worum es geht, was sich seit dem letzten geändert hat, welche Punkte und Aufgaben offen sind und was ich mitbringen sollte. Ist die offene Notiz ein Meeting, das schon stattgefunden hat, schreib stattdessen Entscheidungen und nächste Schritte zusammen.",
+        "promptFor": "Bereite das Meeting „{{meeting}}“ vor: worum es geht, was sich seit dem letzten geändert hat, welche Punkte und Aufgaben offen sind und was ich mitbringen sollte.",
+        "argument": "Das Meeting: sein Titel oder der Name seiner Notiz."
+      },
+      "triage": {
+        "title": "Aufgaben sichten",
+        "description": "Offene Aufgaben ordnen: was jetzt, was warten kann, was weg kann.",
+        "prompt": "Sichte meine offenen Aufgaben: was sollte ich jetzt tun, was kann warten, was könnte ich streichen oder abgeben, und welche Aufgaben brauchen ein Datum?"
+      },
+      "writing": {
+        "title": "Schreiben und überarbeiten",
+        "description": "Eine Notiz zusammenfassen, kürzen oder umschreiben – als Text zum Übernehmen.",
+        "prompt": "Hilf mir mit dem Text der offenen Notiz: fasse ihn in wenigen Sätzen zusammen und schlag eine klarere Fassung vor, ohne eine Tatsache zu ändern."
+      },
+      "upkeep": {
+        "title": "Wissen pflegen",
+        "description": "Notizen finden, die dasselbe sagen, veraltet oder unverbunden sind.",
+        "prompt": "Pflege meinen Vault: welche zuletzt geänderten Notizen sagen dasselbe, sind veraltet oder mit nichts verbunden? Zu jeder einen Vorschlag."
+      },
+      "links": {
+        "title": "Links bereinigen",
+        "description": "Die Links der offenen Notiz prüfen: ins Leere, fehlend, einseitig.",
+        "prompt": "Prüfe die Links der offenen Notiz: welche führen ins Leere, welche Erwähnungen könnten Links sein, und welche Notizen sollten aufeinander verweisen?"
+      },
+      "privacy": {
+        "title": "Datenschutz prüfen",
+        "description": "Finden, was aus einer Notiz besser auf diesem Gerät bleibt.",
+        "prompt": "Prüfe die offene Notiz auf persönliche Daten, Nummern, Passwörter oder Gesundheitsangaben, die nicht in eine Cloud gehen sollten, und schlag zu jedem eine Regel vor."
+      },
+      "reflection": {
+        "title": "Reflexion",
+        "description": "Auf die Notizen eines Tages oder einer Woche zurückblicken – freundlich, ohne Diagnose.",
+        "prompt": "Blick mit mir auf meine Tagesnotizen der letzten sieben Tage: was auffällt, was gut lief, was mich zu belasten scheint, und ein paar Fragen zum Nachdenken."
       }
     },
     "mcp": {

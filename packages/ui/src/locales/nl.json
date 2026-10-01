@@ -412,6 +412,43 @@
         "prompt": "Hoe staat het project in de geopende notitie ervoor? Doel, wat klaar is, wat open is, wat het blokkeert en de volgende stap — elk punt met zijn bron. Gaat de geopende notitie niet over een project, vraag me dan welk project ik bedoel.",
         "promptFor": "Hoe staat het project “{{project}}” ervoor? Doel, wat klaar is, wat open is, wat het blokkeert en de volgende stap — elk punt met zijn bron.",
         "argument": "Het project: de naam van zijn notitie of map."
+      },
+      "meeting": {
+        "title": "Vergadering voorbereiden",
+        "description": "Een vergadering voorbereiden of uitwerken: waar het om gaat, wat er sinds de vorige veranderde, open punten.",
+        "prompt": "Bereid mijn volgende vergadering voor: waar het om gaat, wat er sinds de vorige is veranderd, welke punten en taken open staan en wat ik moet meenemen. Is de open notitie een vergadering die al heeft plaatsgevonden, vat dan de besluiten en volgende stappen samen.",
+        "promptFor": "Bereid de vergadering ‘{{meeting}}’ voor: waar het om gaat, wat er sinds de vorige is veranderd, welke punten en taken open staan en wat ik moet meenemen.",
+        "argument": "De vergadering: de titel of de naam van de notitie."
+      },
+      "triage": {
+        "title": "Taken ordenen",
+        "description": "Open taken ordenen: wat nu, wat kan wachten, wat kan weg.",
+        "prompt": "Orden mijn open taken: wat moet ik nu doen, wat kan wachten, wat kan ik schrappen of overdragen, en welke taken hebben een datum nodig?"
+      },
+      "writing": {
+        "title": "Schrijven en herschrijven",
+        "description": "Een notitie samenvatten, inkorten of herschrijven — als tekst om over te nemen.",
+        "prompt": "Help me met de tekst van de open notitie: vat hem samen in een paar zinnen en stel een duidelijkere versie voor, zonder een feit te veranderen."
+      },
+      "upkeep": {
+        "title": "Kennis onderhouden",
+        "description": "Notities vinden die hetzelfde zeggen, verouderd of niet gekoppeld zijn.",
+        "prompt": "Onderhoud mijn vault: welke recent gewijzigde notities zeggen hetzelfde, zijn verouderd of zijn nergens mee verbonden? Een voorstel voor elk."
+      },
+      "links": {
+        "title": "Links opschonen",
+        "description": "De links van de open notitie controleren: dood, ontbrekend, eenrichting.",
+        "prompt": "Controleer de links van de open notitie: welke leiden nergens heen, welke vermeldingen kunnen links worden, en welke notities zouden naar elkaar moeten verwijzen?"
+      },
+      "privacy": {
+        "title": "Privacycontrole",
+        "description": "Vinden wat uit een notitie beter op dit apparaat blijft.",
+        "prompt": "Controleer de open notitie op persoonsgegevens, nummers, wachtwoorden of gezondheidsgegevens die niet naar een cloud zouden moeten gaan, en stel voor elk een regel voor."
+      },
+      "reflection": {
+        "title": "Reflectie",
+        "description": "Terugblikken op je notities van een dag of een week — vriendelijk, zonder diagnose.",
+        "prompt": "Blik met me terug op mijn dagnotities van de afgelopen zeven dagen: wat opvalt, wat goed ging, wat op me lijkt te drukken, en een paar vragen om over na te denken."
       }
     },
     "mcp": {

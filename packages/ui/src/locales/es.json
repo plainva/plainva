@@ -424,6 +424,43 @@
         "prompt": "¿Cómo va el proyecto de la nota abierta? Objetivo, qué está hecho, qué está abierto, qué lo bloquea y el siguiente paso, cada punto con su fuente. Si la nota abierta no trata de un proyecto, pregúntame a qué proyecto me refiero.",
         "promptFor": "¿Cómo va el proyecto «{{project}}»? Objetivo, qué está hecho, qué está abierto, qué lo bloquea y el siguiente paso, cada punto con su fuente.",
         "argument": "El proyecto: el nombre de su nota o carpeta."
+      },
+      "meeting": {
+        "title": "Preparar reunión",
+        "description": "Prepara una reunión o resúmela después: de qué trata, qué cambió desde la última, puntos abiertos.",
+        "prompt": "Prepara mi próxima reunión: de qué trata, qué cambió desde la última, qué puntos y tareas siguen abiertos y qué debería llevar. Si la nota abierta es una reunión que ya tuvo lugar, resume en su lugar las decisiones y los próximos pasos.",
+        "promptFor": "Prepara la reunión «{{meeting}}»: de qué trata, qué cambió desde la última, qué puntos y tareas siguen abiertos y qué debería llevar.",
+        "argument": "La reunión: su título o el nombre de su nota."
+      },
+      "triage": {
+        "title": "Revisar tareas",
+        "description": "Ordena las tareas abiertas: qué ahora, qué puede esperar, qué sobra.",
+        "prompt": "Revisa mis tareas abiertas: ¿qué debería hacer ahora, qué puede esperar, qué podría descartar o delegar y qué tareas necesitan una fecha?"
+      },
+      "writing": {
+        "title": "Escribir y revisar",
+        "description": "Resume, acorta o reescribe una nota, como texto para copiar.",
+        "prompt": "Ayúdame con el texto de la nota abierta: resúmelo en pocas frases y propón una versión más clara, sin cambiar ningún dato."
+      },
+      "upkeep": {
+        "title": "Cuidar el conocimiento",
+        "description": "Encuentra notas que dicen lo mismo, están desactualizadas o sin conexión.",
+        "prompt": "Cuida mi vault: ¿qué notas cambiadas recientemente dicen lo mismo, están desactualizadas o no están conectadas con nada? Una propuesta para cada una."
+      },
+      "links": {
+        "title": "Revisar enlaces",
+        "description": "Revisa los enlaces de la nota abierta: rotos, que faltan, de un solo sentido.",
+        "prompt": "Revisa los enlaces de la nota abierta: ¿cuáles no llevan a ninguna parte, qué menciones podrían ser enlaces y qué notas deberían enlazarse entre sí?"
+      },
+      "privacy": {
+        "title": "Revisar privacidad",
+        "description": "Encuentra lo que de una nota debería quedarse en este dispositivo.",
+        "prompt": "Revisa la nota abierta en busca de datos personales, números, contraseñas o datos de salud que no deberían ir a una nube, y propón una regla para cada uno."
+      },
+      "reflection": {
+        "title": "Reflexión",
+        "description": "Repasa tus notas de un día o una semana, con amabilidad y sin diagnósticos.",
+        "prompt": "Reflexiona conmigo sobre mis notas diarias de los últimos siete días: qué destaca, qué salió bien, qué parece pesarme y algunas preguntas para pensar."
       }
     },
     "mcp": {

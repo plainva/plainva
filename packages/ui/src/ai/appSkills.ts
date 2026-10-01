@@ -1,5 +1,5 @@
 import { appSkillSource, type InstructionSource } from "@plainva/core";
-import { CalendarCheck, CalendarRange, FolderKanban, type LucideIcon } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarRange, Feather, FolderKanban, Link2, ListOrdered, PenLine, ShieldCheck, Sprout, type LucideIcon } from "lucide-react";
 
 /**
  * The skills that come with the app (plan KI-Harness P3, §14.2): each a
@@ -23,10 +23,23 @@ export interface AppSkill {
   mcp?: boolean;
 }
 
+/**
+ * In the order every list shows them — the most used first. Research with
+ * source capture and mail and calendar capture wait for the web and mail
+ * tools (P4), memory curation for memory itself (P6).
+ */
 export const APP_SKILLS: readonly AppSkill[] = [
   { name: "daily-orientation", key: "daily", icon: CalendarCheck, featured: true, mcp: true },
   { name: "weekly-review", key: "weekly", icon: CalendarRange, featured: true, mcp: true },
   { name: "project-status", key: "project", icon: FolderKanban, featured: true, mcp: true },
+  { name: "meeting-prep", key: "meeting", icon: CalendarClock, mcp: true },
+  { name: "task-triage", key: "triage", icon: ListOrdered, mcp: true },
+  { name: "writing", key: "writing", icon: PenLine },
+  { name: "knowledge-upkeep", key: "upkeep", icon: Sprout },
+  { name: "link-cleanup", key: "links", icon: Link2 },
+  // Meant for a model on this device (a hint in the send overview, never a block): they read what is most private.
+  { name: "privacy-check", key: "privacy", icon: ShieldCheck },
+  { name: "reflection", key: "reflection", icon: Feather },
 ];
 
 /** The bundled folders — a guard checks that each has its entry above and the other way round. */

@@ -37,13 +37,15 @@ describe("the app's own skills", () => {
 
   it("go to MCP clients as prompts, where the project status names its project by an argument", () => {
     const prompts = mcpSkillPrompts(t);
-    expect(prompts.map((p) => p.name)).toEqual(["daily-orientation", "weekly-review", "project-status"]);
+    expect(prompts.map((p) => p.name)).toEqual(["daily-orientation", "weekly-review", "project-status", "meeting-prep", "task-triage"]);
     const project = prompts.find((p) => p.name === "project-status")!;
     expect(project.argument?.name).toBe("project");
     // The server fills the placeholder; the app hands it over untouched.
     expect(project.text).toContain("“{{project}}”");
     expect(project.text).not.toContain("the open note");
-    expect(prompts.filter((p) => p.argument)).toHaveLength(1);
+    // The meeting preparation names its meeting the same way.
+    expect(prompts.find((p) => p.name === "meeting-prep")!.text).toContain("{{meeting}}");
+    expect(prompts.filter((p) => p.argument).map((p) => p.argument!.name)).toEqual(["project", "meeting"]);
     for (const prompt of prompts) expect(prompt.title && prompt.description && prompt.text).toBeTruthy();
   });
 

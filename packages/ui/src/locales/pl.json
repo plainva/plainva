@@ -436,6 +436,43 @@
         "prompt": "Jaki jest stan projektu w otwartej notatce? Cel, co zostało zrobione, co jest otwarte, co go blokuje i następny krok — każdy punkt ze źródłem. Jeśli otwarta notatka nie dotyczy projektu, zapytaj, o który projekt chodzi.",
         "promptFor": "Jaki jest stan projektu „{{project}}”? Cel, co zostało zrobione, co jest otwarte, co go blokuje i następny krok — każdy punkt ze źródłem.",
         "argument": "Projekt: nazwa jego notatki lub folderu."
+      },
+      "meeting": {
+        "title": "Przygotowanie spotkania",
+        "description": "Przygotowanie spotkania lub podsumowanie po nim: o czym jest, co się zmieniło od ostatniego, otwarte punkty.",
+        "prompt": "Przygotuj moje następne spotkanie: o czym jest, co się zmieniło od ostatniego, które punkty i zadania są otwarte i co warto przynieść. Jeśli otwarta notatka to spotkanie, które już się odbyło, podsumuj zamiast tego decyzje i kolejne kroki.",
+        "promptFor": "Przygotuj spotkanie „{{meeting}}”: o czym jest, co się zmieniło od ostatniego, które punkty i zadania są otwarte i co warto przynieść.",
+        "argument": "Spotkanie: jego tytuł lub nazwa jego notatki."
+      },
+      "triage": {
+        "title": "Przegląd zadań",
+        "description": "Uporządkowanie otwartych zadań: co teraz, co może poczekać, co odpuścić.",
+        "prompt": "Przejrzyj moje otwarte zadania: co warto zrobić teraz, co może poczekać, z czego można zrezygnować lub co przekazać, i które zadania potrzebują daty?"
+      },
+      "writing": {
+        "title": "Pisanie i redakcja",
+        "description": "Streszczenie, skrócenie lub przepisanie notatki — jako tekst do przejęcia.",
+        "prompt": "Pomóż mi z tekstem otwartej notatki: streść go w kilku zdaniach i zaproponuj jaśniejszą wersję, nie zmieniając żadnego faktu."
+      },
+      "upkeep": {
+        "title": "Dbanie o wiedzę",
+        "description": "Znajdowanie notatek, które mówią to samo, są nieaktualne lub niepowiązane.",
+        "prompt": "Zadbaj o mój vault: które ostatnio zmieniane notatki mówią to samo, są nieaktualne lub nie są z niczym połączone? Propozycja dla każdej."
+      },
+      "links": {
+        "title": "Porządkowanie linków",
+        "description": "Sprawdzenie linków otwartej notatki: martwe, brakujące, jednokierunkowe.",
+        "prompt": "Sprawdź linki otwartej notatki: które prowadzą donikąd, które wzmianki mogłyby być linkami i które notatki powinny odsyłać do siebie nawzajem?"
+      },
+      "privacy": {
+        "title": "Kontrola prywatności",
+        "description": "Znajdowanie tego, co z notatki powinno zostać na tym urządzeniu.",
+        "prompt": "Sprawdź otwartą notatkę pod kątem danych osobowych, numerów, haseł lub informacji o zdrowiu, które nie powinny trafić do chmury, i zaproponuj regułę dla każdego z nich."
+      },
+      "reflection": {
+        "title": "Refleksja",
+        "description": "Spojrzenie wstecz na notatki z dnia lub tygodnia — życzliwie, bez diagnozy.",
+        "prompt": "Zastanów się ze mną nad moimi notatkami dziennymi z ostatnich siedmiu dni: co się wyróżnia, co poszło dobrze, co wydaje się mi ciążyć i kilka pytań do przemyślenia."
       }
     },
     "mcp": {

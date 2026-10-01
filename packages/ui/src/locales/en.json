@@ -412,6 +412,43 @@
         "prompt": "What is the status of the project in the open note? Goal, what is done, what is open, what blocks it and the next step — each point with its source. If the open note is not about a project, ask me which project I mean.",
         "promptFor": "What is the status of the project “{{project}}”? Goal, what is done, what is open, what blocks it and the next step — each point with its source.",
         "argument": "The project: the name of its note or folder."
+      },
+      "meeting": {
+        "title": "Meeting preparation",
+        "description": "Prepare a meeting or write it up: what it is about, what changed since last time, open points.",
+        "prompt": "Prepare my next meeting: what it is about, what changed since the last one, which points and tasks are open and what I should bring. If the open note is a meeting that already took place, write up its decisions and next steps instead.",
+        "promptFor": "Prepare the meeting “{{meeting}}”: what it is about, what changed since the last one, which points and tasks are open and what I should bring.",
+        "argument": "The meeting: its title, or the name of its note."
+      },
+      "triage": {
+        "title": "Task triage",
+        "description": "Sort the open tasks: what now, what can wait, what to drop.",
+        "prompt": "Sort my open tasks: what should I do now, what can wait, what could I drop or hand over, and which tasks need a date?"
+      },
+      "writing": {
+        "title": "Write and rewrite",
+        "description": "Summarise, shorten or rewrite a note — as text to take over.",
+        "prompt": "Help me with the text of the open note: summarise it in a few sentences and suggest a clearer version, without changing any fact."
+      },
+      "upkeep": {
+        "title": "Knowledge upkeep",
+        "description": "Find notes that say the same, are out of date or unconnected.",
+        "prompt": "Look after my vault: which recently changed notes say the same thing, are out of date or are not connected to anything? A suggestion for each."
+      },
+      "links": {
+        "title": "Link cleanup",
+        "description": "Check the links of the open note: broken, missing, one-way.",
+        "prompt": "Check the links of the open note: which lead nowhere, which mentions could be links, and which notes should link to each other?"
+      },
+      "privacy": {
+        "title": "Privacy check",
+        "description": "Find what in a note should stay on this device.",
+        "prompt": "Check the open note for personal data, numbers, passwords or health details that should not go to a cloud, and suggest a rule for each."
+      },
+      "reflection": {
+        "title": "Reflection",
+        "description": "Look back on your notes of a day or a week — kindly, without a diagnosis.",
+        "prompt": "Reflect with me on my daily notes of the last seven days: what stands out, what went well, what seems to weigh on me, and a few questions to think on."
       }
     },
     "mcp": {

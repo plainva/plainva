@@ -424,6 +424,43 @@
         "prompt": "A che punto è il progetto della nota aperta? Obiettivo, cosa è fatto, cosa è aperto, cosa lo blocca e il prossimo passo — ogni punto con la sua fonte. Se la nota aperta non riguarda un progetto, chiedimi a quale progetto mi riferisco.",
         "promptFor": "A che punto è il progetto «{{project}}»? Obiettivo, cosa è fatto, cosa è aperto, cosa lo blocca e il prossimo passo — ogni punto con la sua fonte.",
         "argument": "Il progetto: il nome della sua nota o cartella."
+      },
+      "meeting": {
+        "title": "Preparare una riunione",
+        "description": "Prepara una riunione o riassumila dopo: di cosa si tratta, cosa è cambiato dall'ultima, punti aperti.",
+        "prompt": "Prepara la mia prossima riunione: di cosa si tratta, cosa è cambiato dall'ultima, quali punti e attività sono aperti e cosa dovrei portare. Se la nota aperta è una riunione già avvenuta, riassumi invece decisioni e prossimi passi.",
+        "promptFor": "Prepara la riunione «{{meeting}}»: di cosa si tratta, cosa è cambiato dall'ultima, quali punti e attività sono aperti e cosa dovrei portare.",
+        "argument": "La riunione: il suo titolo o il nome della sua nota."
+      },
+      "triage": {
+        "title": "Smistare le attività",
+        "description": "Ordina le attività aperte: cosa ora, cosa può aspettare, cosa togliere.",
+        "prompt": "Smista le mie attività aperte: cosa dovrei fare ora, cosa può aspettare, cosa potrei eliminare o delegare, e quali attività hanno bisogno di una data?"
+      },
+      "writing": {
+        "title": "Scrivere e rivedere",
+        "description": "Riassumi, accorcia o riscrivi una nota, come testo da riprendere.",
+        "prompt": "Aiutami con il testo della nota aperta: riassumilo in poche frasi e proponi una versione più chiara, senza cambiare alcun fatto."
+      },
+      "upkeep": {
+        "title": "Curare le conoscenze",
+        "description": "Trova note che dicono lo stesso, sono superate o scollegate.",
+        "prompt": "Cura il mio vault: quali note modificate di recente dicono la stessa cosa, sono superate o non sono collegate a nulla? Un suggerimento per ciascuna."
+      },
+      "links": {
+        "title": "Sistemare i link",
+        "description": "Controlla i link della nota aperta: interrotti, mancanti, a senso unico.",
+        "prompt": "Controlla i link della nota aperta: quali non portano da nessuna parte, quali menzioni potrebbero diventare link, e quali note dovrebbero rimandarsi a vicenda?"
+      },
+      "privacy": {
+        "title": "Controllo privacy",
+        "description": "Trova cosa di una nota dovrebbe restare su questo dispositivo.",
+        "prompt": "Controlla la nota aperta: dati personali, numeri, password o informazioni sanitarie che non dovrebbero andare in un cloud, e proponi una regola per ciascuno."
+      },
+      "reflection": {
+        "title": "Riflessione",
+        "description": "Ripensa alle tue note di un giorno o di una settimana, con gentilezza e senza diagnosi.",
+        "prompt": "Rifletti con me sulle mie note giornaliere degli ultimi sette giorni: cosa emerge, cosa è andato bene, cosa sembra pesarmi e qualche domanda su cui riflettere."
       }
     },
     "mcp": {
