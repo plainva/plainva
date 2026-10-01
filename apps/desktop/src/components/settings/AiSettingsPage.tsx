@@ -29,6 +29,7 @@ import { AreaHead } from "./AppPages";
 import { AiAddProviderDialog, AiKeyDialog, AiModelDialog } from "./AiDialogs";
 import { McpSettingsCard } from "./McpSettingsCard";
 import { SemanticSearchCard } from "./SemanticSearchCard";
+import { GistsCard } from "./GistsCard";
 
 /**
  * Settings → AI & automation, APP world (plan KI-Harness §19.1): what holds
@@ -169,6 +170,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
       </SettingCard>
 
       {settings.enabled && <SemanticSearchCard session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />}
+      {settings.enabled && <GistsCard session={session} />}
       {settings.enabled && <McpSettingsCard session={session} enabled={settings.mcpEnabled} />}
 
       <SettingCard label={t("ai.settings.history")}>

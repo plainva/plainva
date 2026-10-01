@@ -75,6 +75,10 @@ Notizen, die Deine Regeln zurückhalten, stehen ebenfalls da, damit Du weißt, w
 
 Über den Notizen sagt **Gesendet**, wie viel von diesen Notizen mitgeht — etwa ~870 von 3.460 Token —, und **Gespart**, wie viel weniger das ist, als jede vorgeschlagene Notiz ganz zu senden; beim ersten Mal steht auch dabei, wie viele Token das gewesen wären. **Als Spur im Graph zeigen** öffnet den Graph mit der offenen Notiz und den Quellen, markiert, samt den Links zwischen ihnen.
 
+## Gists
+
+Mit **Gists mit dem lokalen Modell** (unter **Einstellungen → KI & Automatisierung**, aus, bis Du es einschaltest) schreibt ein Modell auf Deinem Rechner kurze Zusammenfassungen der längeren Abschnitte Deiner Notizen, ganzer Notizen, der obersten Ordner und des Vaults. Es läuft nur, wenn das Profil **Lokal** einen Server auf diesem Rechner nennt (Ollama, LM Studio) — nie eine Cloud im Hintergrund — und nur, während Plainva nichts anderes zu tun hat; am Telefon nur, solange es offen ist. Jeder Gist wird geprüft: der Gist eines Abschnitts muss jede Zahl, jedes Datum, jeden Betrag, Link, Tag und jede Verneinung wörtlich behalten, sonst gehen die Sätze des Abschnitts selbst. Ein Gist ist an genau den Text gebunden, für den er steht; änderst Du den Abschnitt, wird er nicht benutzt, bis er neu geschrieben ist. Gists von Ordnern und vom Vault entstehen nur aus Notizen, die Deine Regeln an eine Cloud lassen. In **Kontext einsehen** sagt eine als Gist gesendete Quelle das, und **Original** schickt mit der nächsten Nachricht ihre eigenen Sätze.
+
 ## Mit einer Auswahl
 
 Markiere Text in einer Notiz, und die KI arbeitet nur mit dieser Stelle.

@@ -229,7 +229,7 @@
       "evidenceSection": "la sezione «{{section}}»",
       "evidenceStart": "l'inizio",
       "evidenceSelection": "il passaggio selezionato",
-      "card": "titolo e un estratto della ricerca",
+      "card": "titolo, sezione e frasi chiave",
       "handle": "solo il nome",
       "unchanged": "già inviato, invariato",
       "alsoGoes": "Va anche",
@@ -268,7 +268,8 @@
       "folders": "Cartelle",
       "standingNotes_one": "La {{count}} nota che le tue regole lasciano passare — ora, e di nuovo a ogni modifica",
       "standingNotes_many": "Le {{count}} note che le tue regole lasciano passare — ora, e ciascuna di nuovo a ogni modifica",
-      "standingNotes_other": "Le {{count}} note che le tue regole lasciano passare — ora, e ciascuna di nuovo a ogni modifica"
+      "standingNotes_other": "Le {{count}} note che le tue regole lasciano passare — ora, e ciascuna di nuovo a ogni modifica",
+      "gist": "titolo e una sintesi verificata"
     },
     "lens": {
       "open": "Vedi contesto",
@@ -311,7 +312,9 @@
       "savings": "Risparmiato",
       "savingsShare": "{{percent}} % in meno",
       "naive": "senza la selezione sarebbero stati ~{{tokens}} token",
-      "trail": "Mostra come traccia nel grafo"
+      "trail": "Mostra come traccia nel grafo",
+      "useOriginal": "Originale",
+      "useGist": "Sintesi"
     },
     "selection": {
       "menu": "IA",
@@ -545,6 +548,18 @@
       "partial": "copertura parziale",
       "low": "copertura bassa",
       "detail": "affermazioni con fonte: {{cited}} su {{total}}"
+    },
+    "gists": {
+      "title": "Sintesi",
+      "show": "Sintesi con il modello locale",
+      "showDesc": "Brevi sintesi verificate per il contesto dell'IA — solo quando il profilo Locale indica un server su questo computer (Ollama, LM Studio); mai un cloud in background. Numeri, date e scadenze devono restare parola per parola, altrimenti parte l'estratto originale.",
+      "noModel": "Scegli prima un modello su questo computer per il profilo Locale.",
+      "status": "{{covered}} di {{sections}} sezioni lunghe hanno una sintesi · {{model}}",
+      "working": "in scrittura",
+      "paused": "in pausa",
+      "failed": "Il modello su questo computer non ha risposto: {{reason}}",
+      "clear": "Rimuovi sintesi",
+      "clearConfirm": "Rimuovere tutte le sintesi di questo vault? Finché le sintesi sono attive, vengono riscritte."
     }
   },
   "settingsSync": {

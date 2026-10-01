@@ -75,6 +75,10 @@ Les notes que vos règles retiennent sont aussi listées, pour que vous sachiez 
 
 Au-dessus des notes, **Envoyé** indique la part de ces notes qui part — par exemple ~870 sur 3 460 jetons — et **Économisé** combien c'est de moins que d'envoyer entières toutes les notes proposées ; la première fois, il indique aussi combien de jetons cela aurait représenté. **Afficher comme piste dans le graphe** ouvre le graphe avec la note ouverte et les sources entourées, et les liens entre elles.
 
+## Résumés
+
+Avec **Résumés avec le modèle local** (dans **Paramètres → IA & automatisation**, désactivé jusqu'à ce que vous l'activiez), un modèle sur votre ordinateur écrit de courts résumés des sections longues de vos notes, des notes entières, des dossiers de premier niveau et du vault. Il ne fonctionne que si le profil **Local** désigne un serveur sur cet ordinateur (Ollama, LM Studio) — jamais un cloud en arrière-plan — et seulement quand Plainva est inactif ; sur le téléphone, seulement tant qu'il est ouvert. Chaque résumé est vérifié : le résumé d'une section doit garder mot pour mot chaque nombre, date, montant, lien, tag et chaque négation, sinon ce sont les phrases de la section qui partent. Un résumé est lié au texte exact qu'il représente ; si vous modifiez la section, il n'est plus utilisé avant d'avoir été réécrit. Les résumés de dossiers et du vault ne sont écrits qu'à partir des notes que vos règles laissent partir vers un cloud. Dans **Voir le contexte**, une source envoyée sous forme de résumé l'indique, et **Original** envoie ses propres phrases avec le message suivant.
+
 ## Avec une sélection
 
 Sélectionnez du texte dans une note : l'IA travaille uniquement sur ce passage.

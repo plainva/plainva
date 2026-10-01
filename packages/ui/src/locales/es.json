@@ -229,7 +229,7 @@
       "evidenceSection": "la sección «{{section}}»",
       "evidenceStart": "el comienzo",
       "evidenceSelection": "el fragmento seleccionado",
-      "card": "título y un extracto de la búsqueda",
+      "card": "título, sección y frases clave",
       "handle": "solo el nombre",
       "unchanged": "ya enviado, sin cambios",
       "alsoGoes": "También va",
@@ -268,7 +268,8 @@
       "folders": "Carpetas",
       "standingNotes_one": "La {{count}} nota que tus reglas dejan pasar — ahora, y de nuevo cada vez que cambie",
       "standingNotes_many": "Las {{count}} notas que tus reglas dejan pasar — ahora, y cada una de nuevo cada vez que cambie",
-      "standingNotes_other": "Las {{count}} notas que tus reglas dejan pasar — ahora, y cada una de nuevo cada vez que cambie"
+      "standingNotes_other": "Las {{count}} notas que tus reglas dejan pasar — ahora, y cada una de nuevo cada vez que cambie",
+      "gist": "título y un resumen comprobado"
     },
     "lens": {
       "open": "Ver contexto",
@@ -311,7 +312,9 @@
       "savings": "Ahorrado",
       "savingsShare": "{{percent}} % menos",
       "naive": "sin la selección habrían sido ~{{tokens}} tokens",
-      "trail": "Mostrar como rastro en el grafo"
+      "trail": "Mostrar como rastro en el grafo",
+      "useOriginal": "Original",
+      "useGist": "Resumen"
     },
     "selection": {
       "menu": "IA",
@@ -545,6 +548,18 @@
       "partial": "cobertura parcial",
       "low": "cobertura baja",
       "detail": "afirmaciones con fuente: {{cited}} de {{total}}"
+    },
+    "gists": {
+      "title": "Resúmenes",
+      "show": "Resúmenes con el modelo local",
+      "showDesc": "Resúmenes breves y comprobados para el contexto de la IA — solo cuando el perfil Local nombra un servidor en este ordenador (Ollama, LM Studio); nunca una nube en segundo plano. Los números, fechas y plazos deben figurar palabra por palabra; si no, se envía el extracto original.",
+      "noModel": "Elige primero un modelo en este ordenador para el perfil Local.",
+      "status": "{{covered}} de {{sections}} secciones largas tienen resumen · {{model}}",
+      "working": "escribiendo",
+      "paused": "en pausa",
+      "failed": "El modelo de este ordenador no respondió: {{reason}}",
+      "clear": "Quitar resúmenes",
+      "clearConfirm": "¿Quitar todos los resúmenes de este vault? Mientras los resúmenes estén activados, se vuelven a escribir."
     }
   },
   "settingsSync": {

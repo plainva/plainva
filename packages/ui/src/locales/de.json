@@ -225,7 +225,7 @@
       "evidenceSection": "der Abschnitt „{{section}}“",
       "evidenceStart": "der Anfang",
       "evidenceSelection": "die ausgewählte Stelle",
-      "card": "Titel und ein Suchauszug",
+      "card": "Titel, Abschnitt und Kernsätze",
       "handle": "nur der Name",
       "unchanged": "schon gesendet, unverändert",
       "alsoGoes": "Außerdem",
@@ -259,7 +259,8 @@
       "approveStanding": "Dauerhaft freigeben",
       "folders": "Ordner",
       "standingNotes_one": "Die {{count}} Notiz, die Deine Regeln durchlassen — jetzt und bei jeder Änderung erneut",
-      "standingNotes_other": "Alle {{count}} Notizen, die Deine Regeln durchlassen — jetzt und jede bei jeder Änderung erneut"
+      "standingNotes_other": "Alle {{count}} Notizen, die Deine Regeln durchlassen — jetzt und jede bei jeder Änderung erneut",
+      "gist": "Titel und ein geprüfter Gist"
     },
     "lens": {
       "open": "Kontext einsehen",
@@ -301,7 +302,9 @@
       "savings": "Gespart",
       "savingsShare": "{{percent}} % weniger",
       "naive": "ohne Auswahl wären es ~{{tokens}} Token gewesen",
-      "trail": "Als Spur im Graph zeigen"
+      "trail": "Als Spur im Graph zeigen",
+      "useOriginal": "Original",
+      "useGist": "Gist"
     },
     "selection": {
       "menu": "KI",
@@ -529,6 +532,18 @@
       "partial": "Abdeckung teilweise",
       "low": "Abdeckung gering",
       "detail": "Aussagen mit Quelle: {{cited}} von {{total}}"
+    },
+    "gists": {
+      "title": "Gists",
+      "show": "Gists mit dem lokalen Modell",
+      "showDesc": "Kurze, geprüfte Zusammenfassungen für den Kontext der KI — nur, wenn das Profil Lokal einen Server auf diesem Rechner nennt (Ollama, LM Studio); nie eine Cloud im Hintergrund. Zahlen, Daten und Fristen müssen wörtlich stehen, sonst geht der Originalauszug.",
+      "noModel": "Wähle zuerst ein Modell auf diesem Rechner für das Profil Lokal.",
+      "status": "{{covered}} von {{sections}} langen Abschnitten haben einen Gist · {{model}}",
+      "working": "schreibt",
+      "paused": "pausiert",
+      "failed": "Das Modell auf diesem Rechner hat nicht geantwortet: {{reason}}",
+      "clear": "Gists entfernen",
+      "clearConfirm": "Alle Gists dieses Vaults entfernen? Solange Gists an sind, werden sie neu geschrieben."
     }
   },
   "settingsSync": {

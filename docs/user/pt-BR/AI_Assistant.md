@@ -75,6 +75,10 @@ As notas que suas regras retêm também aparecem, para você saber o que falta; 
 
 Acima das notas, **Enviado** diz quanto dessas notas vai junto — por exemplo ~870 de 3.460 tokens — e **Economizado** quanto isso é a menos do que enviar inteiras todas as notas propostas; na primeira vez, também diz quantos tokens teriam sido. **Mostrar como trilha no grafo** abre o grafo com a nota aberta e as fontes destacadas, e os links entre elas.
 
+## Resumos
+
+Com **Resumos com o modelo local** (em **Configurações → IA e automação**, desativado até você ativar), um modelo no seu computador escreve resumos curtos das seções longas das suas notas, de notas inteiras, das pastas de primeiro nível e do vault. Ele só funciona quando o perfil **Local** indica um servidor neste computador (Ollama, LM Studio) — nunca uma nuvem em segundo plano — e só enquanto o Plainva está ocioso; no celular, só enquanto ele está aberto. Cada resumo é verificado: o resumo de uma seção precisa manter palavra por palavra cada número, data, valor, link, tag e cada negação; senão, vão as frases da própria seção. Um resumo fica ligado ao texto exato que representa; se você mudar a seção, ele não é usado até ser escrito de novo. Resumos de pastas e do vault só são escritos a partir de notas que suas regras deixam ir para uma nuvem. Em **Ver contexto**, uma fonte enviada como resumo diz isso, e **Original** envia as próprias frases com a próxima mensagem.
+
 ## Com uma seleção
 
 Selecione um texto em uma nota, e a IA trabalha só com esse trecho.

@@ -13,7 +13,7 @@ const NO_STATE = (): AiState | null => null;
  * native thread (or at the provider), so the only work here is reading and
  * cutting a few notes, and it waits until the window has nothing else to do.
  */
-function idleMoment(): Promise<void> {
+export function idleMoment(): Promise<void> {
   return new Promise((resolve) => {
     const idle = (window as Window & { requestIdleCallback?: (run: () => void, options?: { timeout: number }) => number }).requestIdleCallback;
     if (idle) idle(() => resolve(), { timeout: 2000 });

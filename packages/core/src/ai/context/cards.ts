@@ -60,6 +60,11 @@ const TURNING = new RegExp(`(?<![\\p{L}\\p{M}'’])(?:${TURNING_WORDS.map((w) =>
 /** Scripts without spaces: the words stand inside the text. */
 const TURNING_CJK = /ない|ません|禁止|必須|までに|のみ|期限|必ず|不|没|无|必须|只|仅|截止|务必/;
 
+/** Whether a text turns what it says: a negation, an obligation, a limit or an exception (a gist must keep one). */
+export function turns(text: string): boolean {
+  return TURNING.test(text) || TURNING_CJK.test(text);
+}
+
 /** Whether a sentence carries something a summary must never change. */
 export function isProtected(sentence: string): boolean {
   return (

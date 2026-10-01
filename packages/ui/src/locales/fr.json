@@ -229,7 +229,7 @@
       "evidenceSection": "la section « {{section}} »",
       "evidenceStart": "le début",
       "evidenceSelection": "le passage sélectionné",
-      "card": "titre et extrait de recherche",
+      "card": "titre, section et phrases clés",
       "handle": "le nom seul",
       "unchanged": "déjà envoyé, inchangé",
       "alsoGoes": "Part aussi",
@@ -268,7 +268,8 @@
       "folders": "Dossiers",
       "standingNotes_one": "La {{count}} note que vos règles laissent passer — maintenant, et de nouveau à chaque modification",
       "standingNotes_many": "Les {{count}} notes que vos règles laissent passer — maintenant, et chacune de nouveau à chaque modification",
-      "standingNotes_other": "Les {{count}} notes que vos règles laissent passer — maintenant, et chacune de nouveau à chaque modification"
+      "standingNotes_other": "Les {{count}} notes que vos règles laissent passer — maintenant, et chacune de nouveau à chaque modification",
+      "gist": "titre et un résumé vérifié"
     },
     "lens": {
       "open": "Voir le contexte",
@@ -311,7 +312,9 @@
       "savings": "Économisé",
       "savingsShare": "{{percent}} % de moins",
       "naive": "sans sélection, cela aurait fait ~{{tokens}} jetons",
-      "trail": "Afficher comme piste dans le graphe"
+      "trail": "Afficher comme piste dans le graphe",
+      "useOriginal": "Original",
+      "useGist": "Résumé"
     },
     "selection": {
       "menu": "IA",
@@ -545,6 +548,18 @@
       "partial": "couverture partielle",
       "low": "couverture faible",
       "detail": "affirmations avec source : {{cited}} sur {{total}}"
+    },
+    "gists": {
+      "title": "Résumés",
+      "show": "Résumés avec le modèle local",
+      "showDesc": "De courts résumés vérifiés pour le contexte de l'IA — seulement quand le profil Local désigne un serveur sur cet ordinateur (Ollama, LM Studio) ; jamais un cloud en arrière-plan. Les nombres, dates et échéances doivent figurer mot pour mot, sinon l'extrait original part.",
+      "noModel": "Choisissez d'abord un modèle sur cet ordinateur pour le profil Local.",
+      "status": "{{covered}} sections longues sur {{sections}} ont un résumé · {{model}}",
+      "working": "en cours",
+      "paused": "en pause",
+      "failed": "Le modèle sur cet ordinateur n'a pas répondu : {{reason}}",
+      "clear": "Supprimer les résumés",
+      "clearConfirm": "Supprimer tous les résumés de ce vault ? Tant que les résumés sont activés, ils sont réécrits."
     }
   },
   "settingsSync": {

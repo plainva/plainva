@@ -75,6 +75,10 @@ Las notas que tus reglas retienen también aparecen, para que sepas qué falta; 
 
 Encima de las notas, **Enviado** indica cuánto de estas notas va —por ejemplo ~870 de 3.460 tokens— y **Ahorrado** cuánto menos es que enviar enteras todas las notas propuestas; la primera vez también indica cuántos tokens habrían sido. **Mostrar como rastro en el grafo** abre el grafo con la nota abierta y las fuentes marcadas, y los enlaces entre ellas.
 
+## Resúmenes
+
+Con **Resúmenes con el modelo local** (en **Configuración → IA y automatización**, desactivado hasta que lo actives), un modelo en tu ordenador escribe resúmenes breves de las secciones largas de tus notas, de notas completas, de las carpetas de primer nivel y del vault. Solo funciona cuando el perfil **Local** nombra un servidor en este ordenador (Ollama, LM Studio) —nunca una nube en segundo plano— y solo mientras Plainva está inactivo; en el teléfono, solo mientras está abierto. Cada resumen se comprueba: el resumen de una sección debe conservar palabra por palabra cada número, fecha, importe, enlace, etiqueta y cada negación; si no, se envían las frases de la propia sección. Un resumen está ligado al texto exacto que representa; si cambias la sección, no se usa hasta que se vuelve a escribir. Los resúmenes de carpetas y del vault solo se escriben a partir de notas que tus reglas dejan ir a una nube. En **Ver contexto**, una fuente enviada como resumen lo indica, y **Original** envía sus propias frases con el siguiente mensaje.
+
 ## Con una selección
 
 Selecciona texto en una nota y la IA trabaja solo con ese fragmento.

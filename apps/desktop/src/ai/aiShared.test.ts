@@ -154,6 +154,7 @@ describe("the settings model", () => {
     draftChoice: null,
     excludeActive: false,
     leaveOutNext: [],
+    originalsNext: [],
     live: null,
     notice: null,
     dress: null,

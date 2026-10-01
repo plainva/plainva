@@ -3,7 +3,7 @@ import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
 import type { AiAppSettings, CommentOperationService, IVaultAdapter, VaultQueryService } from "@plainva/core";
-import type { LocalEmbeddings } from "@plainva/ui";
+import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
   aiDefaultSettings,
   AiSession,
@@ -153,6 +153,8 @@ export interface DesktopVaultInput {
   commentOperations: () => CommentOperationService | null;
   /** The vault's search by meaning, for the context package (plan P2b); null while there is none. */
   semantic?: () => LocalEmbeddings | null;
+  /** The vault's gists by the model on this computer, for the context package (plan P2b-3); null while there are none. */
+  gists?: () => LocalGists | null;
 }
 
 let currentPolicy: VaultPolicyHost | null = null;
@@ -218,6 +220,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       await proposeSuggestionRound(service, round);
     },
     encrypted: input.encrypted,
+    gists: () => input.gists?.()?.reader() ?? null,
     async keepOnDevice(path) {
       // The editor's pending keystrokes land first, so the rule is written into the live text.
       await flushPendingSave(path);

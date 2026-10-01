@@ -30,6 +30,8 @@ export interface ManifestSource {
   selection?: boolean;
   /** A recording that went to be transcribed, by its size in bytes (plan P1.5). */
   audioBytes?: number;
+  /** A gist by the model on this computer went for it (plan P2b-3). */
+  gist?: boolean;
 }
 
 export interface EgressManifest {
@@ -79,6 +81,7 @@ export function manifestOf(
     ...(ref.section !== undefined ? { section: ref.section } : {}),
     chars: ref.chars,
     ...(ref.unchanged ? { unchanged: true } : {}),
+    ...(ref.gist ? { gist: true } : {}),
     reasons: ref.reasons,
   }));
   const folders = [...new Set(pack.refs.map((ref) => topFolder(ref.path)))].sort();

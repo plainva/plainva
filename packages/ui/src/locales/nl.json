@@ -225,7 +225,7 @@
       "evidenceSection": "de sectie “{{section}}”",
       "evidenceStart": "het begin",
       "evidenceSelection": "de geselecteerde passage",
-      "card": "titel en een zoekfragment",
+      "card": "titel, sectie en kernzinnen",
       "handle": "alleen de naam",
       "unchanged": "al verzonden, ongewijzigd",
       "alsoGoes": "Gaat ook mee",
@@ -259,7 +259,8 @@
       "approveStanding": "Blijvend goedkeuren",
       "folders": "Mappen",
       "standingNotes_one": "De {{count}} notitie die je regels doorlaten — nu, en opnieuw bij elke wijziging",
-      "standingNotes_other": "Alle {{count}} notities die je regels doorlaten — nu, en elk opnieuw bij elke wijziging"
+      "standingNotes_other": "Alle {{count}} notities die je regels doorlaten — nu, en elk opnieuw bij elke wijziging",
+      "gist": "titel en een gecontroleerde samenvatting"
     },
     "lens": {
       "open": "Context bekijken",
@@ -301,7 +302,9 @@
       "savings": "Bespaard",
       "savingsShare": "{{percent}}% minder",
       "naive": "zonder de selectie waren het ~{{tokens}} tokens geweest",
-      "trail": "Als spoor in de graaf tonen"
+      "trail": "Als spoor in de graaf tonen",
+      "useOriginal": "Origineel",
+      "useGist": "Samenvatting"
     },
     "selection": {
       "menu": "AI",
@@ -529,6 +532,18 @@
       "partial": "dekking gedeeltelijk",
       "low": "dekking laag",
       "detail": "uitspraken met bron: {{cited}} van {{total}}"
+    },
+    "gists": {
+      "title": "Samenvattingen",
+      "show": "Samenvattingen met het lokale model",
+      "showDesc": "Korte, gecontroleerde samenvattingen voor de context van de AI — alleen als het profiel Lokaal een server op deze computer noemt (Ollama, LM Studio); nooit een cloud op de achtergrond. Getallen, datums en termijnen moeten woordelijk blijven staan, anders gaat het originele fragment.",
+      "noModel": "Kies eerst een model op deze computer voor het profiel Lokaal.",
+      "status": "{{covered}} van {{sections}} lange secties hebben een samenvatting · {{model}}",
+      "working": "bezig",
+      "paused": "gepauzeerd",
+      "failed": "Het model op deze computer gaf geen antwoord: {{reason}}",
+      "clear": "Samenvattingen verwijderen",
+      "clearConfirm": "Alle samenvattingen van deze vault verwijderen? Zolang samenvattingen aan staan, worden ze opnieuw geschreven."
     }
   },
   "settingsSync": {

@@ -16,6 +16,7 @@ import {
   type ContextPolicyHost,
   type EffectivePolicy,
   type EgressRecipient,
+  type PackageGists,
   type ParsedPolicyFile,
   type SituationInput,
 } from "@plainva/core";
@@ -101,6 +102,8 @@ export interface AiVaultHostInput {
   toolDeps: Omit<VaultToolDeps, "policyOf" | "resolveLink"> | null;
   /** Writes a note's own "never to the cloud" rule — the user's action in "View context". */
   keepOnDevice?(path: string): Promise<void>;
+  /** Checked gists of the model on this computer (plan P2b-3), asked when a message is built. */
+  gists?(): PackageGists | null;
   /** Writes an AI suggestion round into a note's comments (plan P1.5); absent where the shell cannot. */
   propose?: AiVaultHost["propose"];
   /** True inside an encrypted workspace, whose sealed suggestions cannot carry an author yet (E32). */
@@ -168,6 +171,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.retrieval?.noteSizes ? { noteSizes: input.retrieval.noteSizes.bind(input.retrieval) } : {}),
     policy: input.policy,
     ...(input.keepOnDevice ? { keepOnDevice: input.keepOnDevice } : {}),
+    ...(input.gists ? { gists: input.gists } : {}),
     ...(input.propose ? { propose: input.propose } : {}),
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
     tools(recipient: EgressRecipient, scope?: ToolScope) {

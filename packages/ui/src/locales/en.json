@@ -225,7 +225,7 @@
       "evidenceSection": "the section “{{section}}”",
       "evidenceStart": "the beginning",
       "evidenceSelection": "the selected passage",
-      "card": "title and a search excerpt",
+      "card": "title, section and key sentences",
       "handle": "name only",
       "unchanged": "already sent, unchanged",
       "alsoGoes": "Also goes",
@@ -259,7 +259,8 @@
       "approveStanding": "Approve until withdrawn",
       "folders": "Folders",
       "standingNotes_one": "The {{count}} note your rules let go — now, and again whenever it changes",
-      "standingNotes_other": "All {{count}} notes your rules let go — now, and each again whenever it changes"
+      "standingNotes_other": "All {{count}} notes your rules let go — now, and each again whenever it changes",
+      "gist": "title and a checked gist"
     },
     "lens": {
       "open": "View context",
@@ -301,7 +302,9 @@
       "savings": "Saved",
       "savingsShare": "{{percent}}% less",
       "naive": "without the selection it would have been ~{{tokens}} tokens",
-      "trail": "Show as a trail in the graph"
+      "trail": "Show as a trail in the graph",
+      "useOriginal": "Original",
+      "useGist": "Gist"
     },
     "selection": {
       "menu": "AI",
@@ -529,6 +532,18 @@
       "partial": "coverage partial",
       "low": "coverage low",
       "detail": "statements with a source: {{cited}} of {{total}}"
+    },
+    "gists": {
+      "title": "Gists",
+      "show": "Gists with the local model",
+      "showDesc": "Short, checked summaries for the AI's context — only when the profile Local names a server on this computer (Ollama, LM Studio); never a cloud in the background. Numbers, dates and deadlines must stand word for word, otherwise the original excerpt goes.",
+      "noModel": "Choose a model on this computer for the profile Local first.",
+      "status": "{{covered}} of {{sections}} long sections have a gist · {{model}}",
+      "working": "writing",
+      "paused": "paused",
+      "failed": "The model on this computer did not answer: {{reason}}",
+      "clear": "Remove gists",
+      "clearConfirm": "Remove every gist of this vault? While gists are on, they are written again."
     }
   },
   "settingsSync": {

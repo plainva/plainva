@@ -221,7 +221,7 @@
       "evidenceSection": "セクション「{{section}}」",
       "evidenceStart": "冒頭",
       "evidenceSelection": "選択した箇所",
-      "card": "タイトルと検索の抜粋",
+      "card": "タイトル・節・要となる文",
       "handle": "名前のみ",
       "unchanged": "送信済み・変更なし",
       "alsoGoes": "ほかに送信",
@@ -250,7 +250,8 @@
       "standingTitle": "{{provider}}で意味による検索を行いますか？",
       "approveStanding": "撤回するまで承認",
       "folders": "フォルダー",
-      "standingNotes_other": "ルールで許可されたノート {{count}} 件（今すぐ、そして変更のたびに再送信）"
+      "standingNotes_other": "ルールで許可されたノート {{count}} 件（今すぐ、そして変更のたびに再送信）",
+      "gist": "タイトルと確認済みの要旨"
     },
     "lens": {
       "open": "コンテキストを見る",
@@ -291,7 +292,9 @@
       "savings": "節約",
       "savingsShare": "{{percent}}% 削減",
       "naive": "選択しなければ ~{{tokens}} トークンでした",
-      "trail": "グラフで経路を表示"
+      "trail": "グラフで経路を表示",
+      "useOriginal": "元の文",
+      "useGist": "要旨"
     },
     "selection": {
       "menu": "AI",
@@ -513,6 +516,18 @@
       "partial": "カバー率：一部",
       "low": "カバー率：低",
       "detail": "出典のある記述：{{total}} 件中 {{cited}} 件"
+    },
+    "gists": {
+      "title": "要旨",
+      "show": "ローカルモデルで要旨を作成",
+      "showDesc": "AI のコンテキスト用の短く確認済みの要約です。プロファイル「ローカル」がこのコンピューター上のサーバー（Ollama、LM Studio）を指している場合だけ作成し、バックグラウンドでクラウドを使うことはありません。数値・日付・期限はそのまま残す必要があり、残っていなければ元の抜粋が送られます。",
+      "noModel": "まずプロファイル「ローカル」にこのコンピューター上のモデルを選んでください。",
+      "status": "長い節 {{sections}} 件中 {{covered}} 件に要旨あり · {{model}}",
+      "working": "作成中",
+      "paused": "一時停止中",
+      "failed": "このコンピューター上のモデルが応答しませんでした：{{reason}}",
+      "clear": "要旨を削除",
+      "clearConfirm": "この保管庫のすべての要旨を削除しますか？要旨がオンの間は、再び作成されます。"
     }
   },
   "settingsSync": {

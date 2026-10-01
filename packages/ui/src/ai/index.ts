@@ -26,3 +26,5 @@ export * from "./SemanticSearch";
 export * from "./semanticSettingsModel";
 export * from "./relatedNotesModel";
 export * from "./RelatedNotes";
+export * from "./localGists";
+export * from "./LocalGistsContext";

@@ -75,6 +75,10 @@ Notes your rules keep back are listed as well, so that you know what is missing;
 
 Above the notes, **Sent** says how much of these notes goes along — for example ~870 of 3,460 tokens — and **Saved** how much less that is than sending every proposed note whole; the first time, it also says how many tokens that would have been. **Show as a trail in the graph** opens the graph with the open note and the sources ringed and the links between them.
 
+## Gists
+
+With **Gists with the local model** (in **Settings → AI & automation**, off until you switch it on), a model on your computer writes short summaries of the longer sections of your notes, of whole notes, of the top-level folders and of the vault. It runs only when the profile **Local** names a server on this computer (Ollama, LM Studio) — never a cloud in the background — and only while Plainva is idle; on the phone only while it is open. Every gist is checked: a section's gist must keep every number, date, amount, link, tag and negation word for word, otherwise the section's own sentences go instead. A gist is bound to the exact text it stands for; after you change the section it is not used until it has been written again. Folder and vault gists are written only from notes your rules let go to a cloud. In **View context**, a source sent as a gist says so, and **Original** sends its own sentences with the next message.
+
 ## With a selection
 
 Select text in a note, and the AI works on just that passage.

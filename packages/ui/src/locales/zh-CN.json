@@ -221,7 +221,7 @@
       "evidenceSection": "章节“{{section}}”",
       "evidenceStart": "开头",
       "evidenceSelection": "选中的段落",
-      "card": "标题和搜索摘录",
+      "card": "标题、段落和关键句",
       "handle": "仅名称",
       "unchanged": "已发送，未更改",
       "alsoGoes": "同时发送",
@@ -250,7 +250,8 @@
       "standingTitle": "使用{{provider}}按含义搜索？",
       "approveStanding": "长期批准",
       "folders": "文件夹",
-      "standingNotes_other": "你的规则允许的全部 {{count}} 篇笔记——现在发送，之后每次修改时再次发送"
+      "standingNotes_other": "你的规则允许的全部 {{count}} 篇笔记——现在发送，之后每次修改时再次发送",
+      "gist": "标题和已核对的要点"
     },
     "lens": {
       "open": "查看上下文",
@@ -291,7 +292,9 @@
       "savings": "节省",
       "savingsShare": "减少 {{percent}}%",
       "naive": "如果不做选择，会是约 {{tokens}} 个 token",
-      "trail": "在关系图中显示为路径"
+      "trail": "在关系图中显示为路径",
+      "useOriginal": "原文",
+      "useGist": "要点"
     },
     "selection": {
       "menu": "AI",
@@ -513,6 +516,18 @@
       "partial": "覆盖度部分",
       "low": "覆盖度低",
       "detail": "注明来源的陈述：{{total}} 条中的 {{cited}} 条"
+    },
+    "gists": {
+      "title": "要点",
+      "show": "用本地模型生成要点",
+      "showDesc": "为 AI 的上下文生成简短且经过核对的摘要——仅当“本地”配置指向这台电脑上的服务器（Ollama、LM Studio）时才生成；绝不会在后台使用云端。数字、日期和期限必须逐字保留，否则发送原文摘录。",
+      "noModel": "请先为“本地”配置选择这台电脑上的模型。",
+      "status": "{{sections}} 个长段落中有 {{covered}} 个已有要点 · {{model}}",
+      "working": "生成中",
+      "paused": "已暂停",
+      "failed": "这台电脑上的模型没有响应：{{reason}}",
+      "clear": "删除要点",
+      "clearConfirm": "要删除此仓库的所有要点吗？只要要点处于开启状态，就会重新生成。"
     }
   },
   "settingsSync": {

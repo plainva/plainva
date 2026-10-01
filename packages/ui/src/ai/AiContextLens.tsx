@@ -73,8 +73,9 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
 
   const pins = state?.active ? state.active.pins : (state?.draftPins ?? []);
   const leftOut = state?.leaveOutNext ?? [];
+  const originals = state?.originalsNext ?? [];
   const choice = session?.choice();
-  const key = JSON.stringify([asked, leftOut, pins, state?.excludeActive, state?.active?.id, state?.active?.updatedAt, choice?.providerId, choice?.model, refresh]);
+  const key = JSON.stringify([asked, leftOut, originals, pins, state?.excludeActive, state?.active?.id, state?.active?.updatedAt, choice?.providerId, choice?.model, refresh]);
 
   useEffect(() => {
     if (!session) return;
@@ -114,9 +115,11 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
           : ref.section
             ? t("ai.overview.evidenceSection", { section: ref.section })
             : t("ai.overview.evidenceStart")
-        : ref.tier === "card"
-          ? t("ai.overview.card")
-          : t("ai.overview.handle");
+        : ref.gist
+          ? t("ai.overview.gist")
+          : ref.tier === "card"
+            ? t("ai.overview.card")
+            : t("ai.overview.handle");
   const why = (e: GateExclusion) =>
     e.source?.kind === "note" ? t("ai.lens.ruleNote") : e.source?.kind === "folder" ? t("ai.lens.ruleFolder", { folder: e.source.folder || "/" }) : t("ai.lens.ruleDefault");
   const keepLocal = (path: string) => {
@@ -221,6 +224,11 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
                       ))}
                     </div>
                     <div className="pv-ai-lens-actions">
+                      {(ref.gist || originals.includes(ref.path)) && (
+                        <Button size="sm" variant="ghost" onClick={() => session.toggleOriginal(ref.path)} data-testid="ai-lens-original">
+                          {ref.gist ? t("ai.lens.useOriginal") : t("ai.lens.useGist")}
+                        </Button>
+                      )}
                       <IconButton size="sm" label={t("ai.overview.leaveOut", { note: ref.title })} onClick={() => session.toggleLeaveOut(ref.path)}>
                         <Minus size={ICON.meta} />
                       </IconButton>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { LocalEmbeddingsContext, newEntries, requestNew, type NewHandlers } from "@plainva/ui";
+import { LocalModelsProvider, newEntries, requestNew, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
 import { tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
@@ -671,7 +671,7 @@ export default function App() {
 
   const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // the strip: reservesFabStrip
   return (
-    <LocalEmbeddingsContext.Provider value={ai.embeddings}>
+    <LocalModelsProvider embeddings={ai.embeddings} gists={ai.gists}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       {aiNavigation}
@@ -784,7 +784,7 @@ export default function App() {
         />
       )}
     </div>
-    </LocalEmbeddingsContext.Provider>
+    </LocalModelsProvider>
   );
 }
 

@@ -233,7 +233,7 @@
       "evidenceSection": "sekcja „{{section}}”",
       "evidenceStart": "początek",
       "evidenceSelection": "zaznaczony fragment",
-      "card": "tytuł i fragment wyszukiwania",
+      "card": "tytuł, sekcja i kluczowe zdania",
       "handle": "tylko nazwa",
       "unchanged": "już wysłane, bez zmian",
       "alsoGoes": "Wysyłane też",
@@ -277,7 +277,8 @@
       "standingNotes_one": "{{count}} notatka, którą przepuszczają Twoje reguły — teraz i ponownie przy każdej zmianie",
       "standingNotes_few": "{{count}} notatki, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie",
       "standingNotes_many": "{{count}} notatek, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie",
-      "standingNotes_other": "{{count}} notatki, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie"
+      "standingNotes_other": "{{count}} notatki, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie",
+      "gist": "tytuł i sprawdzone streszczenie"
     },
     "lens": {
       "open": "Pokaż kontekst",
@@ -321,7 +322,9 @@
       "savings": "Zaoszczędzono",
       "savingsShare": "o {{percent}}% mniej",
       "naive": "bez wyboru byłoby to ~{{tokens}} tokenów",
-      "trail": "Pokaż jako ślad na grafie"
+      "trail": "Pokaż jako ślad na grafie",
+      "useOriginal": "Oryginał",
+      "useGist": "Streszczenie"
     },
     "selection": {
       "menu": "AI",
@@ -561,6 +564,18 @@
       "partial": "pokrycie częściowe",
       "low": "pokrycie niskie",
       "detail": "stwierdzenia ze źródłem: {{cited}} z {{total}}"
+    },
+    "gists": {
+      "title": "Streszczenia",
+      "show": "Streszczenia z modelem lokalnym",
+      "showDesc": "Krótkie, sprawdzone streszczenia dla kontekstu AI — tylko gdy profil Lokalny wskazuje serwer na tym komputerze (Ollama, LM Studio); nigdy chmura w tle. Liczby, daty i terminy muszą pozostać słowo w słowo, inaczej idzie oryginalny fragment.",
+      "noModel": "Najpierw wybierz model na tym komputerze dla profilu Lokalny.",
+      "status": "{{covered}} z {{sections}} długich sekcji ma streszczenie · {{model}}",
+      "working": "trwa pisanie",
+      "paused": "wstrzymane",
+      "failed": "Model na tym komputerze nie odpowiedział: {{reason}}",
+      "clear": "Usuń streszczenia",
+      "clearConfirm": "Usunąć wszystkie streszczenia tego vaulta? Dopóki streszczenia są włączone, powstają od nowa."
     }
   },
   "settingsSync": {

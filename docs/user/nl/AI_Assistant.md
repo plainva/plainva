@@ -75,6 +75,10 @@ Notities die je regels achterhouden, staan er ook, zodat je weet wat er ontbreek
 
 Boven de notities zegt **Verstuurd** hoeveel van deze notities meegaat — bijvoorbeeld ~870 van 3.460 tokens — en **Bespaard** hoeveel minder dat is dan elke voorgestelde notitie helemaal te versturen; de eerste keer staat er ook bij hoeveel tokens dat zou zijn geweest. **Als spoor in de graaf tonen** opent de graaf met de open notitie en de bronnen gemarkeerd, en de links ertussen.
 
+## Samenvattingen
+
+Met **Samenvattingen met het lokale model** (onder **Instellingen → AI & automatisering**, uit totdat je het aanzet) schrijft een model op je computer korte samenvattingen van de lange secties van je notities, van hele notities, van de mappen op het hoogste niveau en van de vault. Het werkt alleen als het profiel **Lokaal** een server op deze computer noemt (Ollama, LM Studio) — nooit een cloud op de achtergrond — en alleen terwijl Plainva niets anders te doen heeft; op de telefoon alleen zolang die open is. Elke samenvatting wordt gecontroleerd: de samenvatting van een sectie moet elk getal, elke datum, elk bedrag, elke link, tag en ontkenning woordelijk behouden, anders gaan de zinnen van de sectie zelf. Een samenvatting is gebonden aan precies de tekst waarvoor ze staat; wijzig je de sectie, dan wordt ze niet gebruikt totdat ze opnieuw is geschreven. Samenvattingen van mappen en van de vault ontstaan alleen uit notities die je regels naar een cloud laten gaan. In **Context bekijken** zegt een bron die als samenvatting ging dat, en **Origineel** stuurt bij het volgende bericht haar eigen zinnen.
+
 ## Met een selectie
 
 Selecteer tekst in een notitie, en de AI werkt alleen met die passage.

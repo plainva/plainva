@@ -71,9 +71,11 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           : source.section
             ? t("ai.overview.evidenceSection", { section: source.section })
             : t("ai.overview.evidenceStart")
-        : source.tier === "card"
-          ? t("ai.overview.card")
-          : t("ai.overview.handle");
+        : source.gist
+          ? t("ai.overview.gist")
+          : source.tier === "card"
+            ? t("ai.overview.card")
+            : t("ai.overview.handle");
   const kept = [
     manifest.withheld.notes ? t("ai.overview.keptNotes", { count: manifest.withheld.notes }) : null,
     manifest.withheld.links ? t("ai.overview.keptLinks", { count: manifest.withheld.links }) : null,

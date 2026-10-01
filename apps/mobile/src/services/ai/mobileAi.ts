@@ -39,6 +39,7 @@ import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
 import { mobileCommentOperations } from "../commentOperations";
 import { useMobileEmbeddings } from "./mobileEmbeddings";
+import { useMobileGists } from "./mobileGists";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -211,10 +212,14 @@ export function useMobileAi(vault: MobileVault | null) {
   const [policy, setPolicy] = useState<VaultPolicyHost | null>(null);
   // Search by meaning (plan KI-Harness P2a-4/5) follows the same per-device settings; an own provider goes through this session's egress.
   const embeddings = useMobileEmbeddings(vault, state.loaded ? state.settings : null, { session: s, files: mobileAiFiles });
-  // The vault host is built once per vault; the context package reads the controller when a message is built.
+  // Gists (plan P2b-3): written by the model of the profile "Local" on a server counted as local.
+  const gists = useMobileGists(vault, state.loaded ? state.settings : null, { session: s, files: mobileAiFiles });
+  // The vault host is built once per vault; the context package reads the controllers when a message is built.
   const embeddingsRef = useRef(embeddings);
+  const gistsRef = useRef(gists);
   useLayoutEffect(() => {
     embeddingsRef.current = embeddings;
+    gistsRef.current = gists;
   });
 
   useEffect(() => {
@@ -304,6 +309,7 @@ export function useMobileAi(vault: MobileVault | null) {
         await proposeSuggestionRound(mobileCommentOperations(vault), round);
       },
       encrypted: () => vault.workspaceRuntime !== null,
+      gists: () => gistsRef.current?.reader() ?? null,
       async keepOnDevice(path) {
         // The editor's pending keystrokes land first; the save is the conflict-aware chain, synced like any edit.
         await flushPendingSave(path);
@@ -384,7 +390,7 @@ export function useMobileAi(vault: MobileVault | null) {
     sheetNote = null;
     setSheet(null);
   };
-  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef, embeddings };
+  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef, embeddings, gists };
 }
 
 /**

@@ -18,7 +18,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalEmbeddingsContext, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalModelsProvider, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -42,6 +42,7 @@ const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCapt
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
 import { useDesktopAi } from "./components/ai/useDesktopAi";
 import { useDesktopEmbeddings } from "./components/ai/useDesktopEmbeddings";
+import { useDesktopGists } from "./components/ai/useDesktopGists";
 import { commentLockState, requestCommentJump, type CommentNotificationNote } from "@plainva/ui";
 import { requestCalendarDay } from "./services/pim/calendarNav";
 import { BaseViewer } from "./components/BaseViewer";
@@ -555,6 +556,8 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
 
   // Search by meaning (plan KI-Harness P2a-4/5, P2b): the vault's controller for the search, the settings and the context package.
   const embeddings = useDesktopEmbeddings({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
+  // Gists (plan KI-Harness P2b-3): written by the model of the profile "Local" on this computer, read by the context package.
+  const gists = useDesktopGists({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });
   // The AI harness (plan KI-Harness P1a): one session of the central window;
   // the companion, the AI tab and the palette all show and drive it.
   const ai = useDesktopAi({
@@ -577,6 +580,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       rightSidebar: toggleRightSidebar,
     },
     embeddings,
+    gists,
   });
   // The global key handler binds these two, not the whole (per-render) object.
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;
@@ -1277,7 +1281,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
 
   return (
     <AiSessionContext.Provider value={ai.session}>
-    <LocalEmbeddingsContext.Provider value={embeddings}>
+    <LocalModelsProvider embeddings={embeddings} gists={gists}>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       <TitleBar
         tabs={isSplit ? [] : activePane.tabs.map((tb) => tb.history[tb.historyIndex])}
@@ -2081,7 +2085,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       {children}
       {tabTransfer.modal}
     </div>
-    </LocalEmbeddingsContext.Provider>
+    </LocalModelsProvider>
     </AiSessionContext.Provider>
   );
 }

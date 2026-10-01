@@ -66,6 +66,7 @@ import {
   type ModelChoice,
   type ModelFailure,
   type ModelInfo,
+  type PackageGists,
   type Part,
   type TextPart,
   type ProviderInfo,
@@ -126,6 +127,8 @@ export interface AiVaultHost {
   tools(recipient: EgressRecipient, scope?: ToolScope): { names: readonly string[]; executor: ToolExecutor } | null;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
   keepOnDevice?(path: string): Promise<void>;
+  /** Checked gists of the model on this computer (plan P2b-3), read when a message is built; null while there are none. */
+  gists?(): PackageGists | null;
   /** Writes a suggestion round into a note's comments (plan P1.5); nothing enters the note until someone accepts. */
   propose?(round: { path: string; base: string; chunks: readonly SuggestionChunk[]; note: string; author: SuggestionAuthor }): Promise<void>;
   /** True inside an encrypted workspace: its sealed comments cannot carry an author yet (E32). */
@@ -170,6 +173,13 @@ export type TranscriptionOutcome =
     };
 
 /** What the next message would carry, built like a send and sent nowhere (plan §13.3, "View context"). */
+/** One request to the model of the profile "Local" on this computer (plan P2b-3): no conversation, no tools, no transcript. */
+export interface LocalCompletion {
+  providerId: string;
+  model: string;
+  complete(instruction: string, text: string, signal?: AbortSignal): Promise<{ text: string; usage: { inputTokens: number; outputTokens: number } }>;
+}
+
 export interface ContextPreview {
   manifest: EgressManifest;
   pack: ContextPackage;
@@ -210,6 +220,8 @@ export interface AiState {
   excludeActive: boolean;
   /** Notes the user left out of the next message in "View context". */
   leaveOutNext: string[];
+  /** Sources the next message sends as the original instead of their gist ("View context", P2b-3). */
+  originalsNext: string[];
   live: LiveRun | null;
   /** The last run's end, when it ended in a way the reader must see. */
   notice: { conversationId: string; stop: RunStop } | null;
@@ -265,6 +277,7 @@ export class AiSession {
       draftChoice: null,
       excludeActive: false,
       leaveOutNext: [],
+      originalsNext: [],
       live: null,
       notice: null,
       dress: null,
@@ -730,6 +743,47 @@ export class AiSession {
     this.set({ leaveOutNext: list.includes(path) ? list.filter((p) => p !== path) : [...list, path] });
   }
 
+  /** Gist or original for one source of the next message ("View context", P2b-3). */
+  toggleOriginal(path: string): void {
+    const list = this.state.originalsNext;
+    this.set({ originalsNext: list.includes(path) ? list.filter((p) => p !== path) : [...list, path] });
+  }
+
+  /**
+   * One request to the model of the profile "Local", only while it runs on
+   * this computer (plan P2b-3, gists): no conversation, no tools, no
+   * transcript, nothing to a cloud. Null while the profile names no such model.
+   */
+  localCompletion(): LocalCompletion | null {
+    const choice = this.state.settings.profiles.local;
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : null;
+    if (!choice || !provider || provider.kind !== "local") return null;
+    return {
+      providerId: provider.id,
+      model: choice.model,
+      complete: async (instruction, text, signal) => {
+        const at = this.host.now().toISOString();
+        const conversation = appendTurn(startConversation(`gist-${this.host.newId()}`, instruction, []), { role: "user", parts: [{ type: "text", text }], at });
+        const result = await runAgent({
+          conversation,
+          egress: this.host.egress,
+          endpoint: provider.endpoint,
+          model: choice.model,
+          executor: { execute: async () => ({ content: "No tools.", isError: true }) },
+          context: { privateContext: true, untrustedContext: true },
+          limits: { maxSteps: 1, maxToolCalls: 0, maxOutputTokens: 1_000 },
+          ...(signal ? { signal } : {}),
+          newRequestId: () => `ai-${this.host.newId()}`,
+          now: () => this.host.now().toISOString(),
+        });
+        if (result.stop.kind !== "answered") throw new Error(result.stop.kind === "failed" ? result.stop.failure.kind : result.stop.kind);
+        const last = result.conversation.turns[result.conversation.turns.length - 1];
+        const answer = last?.role === "assistant" ? last.parts.map((part) => (part.type === "text" ? part.text : "")).join("") : "";
+        return { text: answer, usage: { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens } };
+      },
+    };
+  }
+
   /** Keeps a note on this device for good: its own rule, written into the note by the user's hand. */
   async keepOnDevice(path: string): Promise<boolean> {
     const vault = this.vault;
@@ -781,14 +835,16 @@ export class AiSession {
     const situation = await vault.situation().catch(() => this.bareSituation());
     const seen = this.state.excludeActive ? { ...situation, active: null } : situation;
     const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
+    const gists = vault.gists?.() ?? null;
     const build = async (leaveOut: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
       const pack = await buildContextPackage(
-        { question: message, recipient, situation: seen, candidates, pins: pins.filter((p) => !leaveOut.has(p)), alreadySent: sentStamps(turns), leaveOut },
+        { question: message, recipient, situation: seen, candidates, pins: pins.filter((p) => !leaveOut.has(p)), alreadySent: sentStamps(turns), leaveOut, originals: new Set(this.state.originalsNext) },
         {
           policyOf: vault.policy.policyOf,
           resolveLink: vault.policy.resolveLink,
           readNote: (path) => vault.readNote(path),
           ...(vault.noteSizes ? { noteSizes: (paths: readonly string[]) => vault.noteSizes!(paths) } : {}),
+          ...(gists ? { gists } : {}),
         },
       );
       const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: provider.kind === "local" }, choice.model, {
@@ -1002,7 +1058,7 @@ export class AiSession {
     this.abort = controller;
     const toolLog: LedgerEntry["tools"] = [];
     // A message typed in the composer used the drafts; an action at a selection leaves them for the next one.
-    const drafts = input.usedDrafts ? { draftPins: [], draftChoice: null, excludeActive: false, leaveOutNext: [] } : {};
+    const drafts = input.usedDrafts ? { draftPins: [], draftChoice: null, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
     this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
 
     const carriesVault = input.carriesVault;

@@ -229,7 +229,7 @@
       "evidenceSection": "a seção “{{section}}”",
       "evidenceStart": "o início",
       "evidenceSelection": "o trecho selecionado",
-      "card": "título e um trecho da busca",
+      "card": "título, seção e frases-chave",
       "handle": "só o nome",
       "unchanged": "já enviado, sem alterações",
       "alsoGoes": "Também vai",
@@ -268,7 +268,8 @@
       "folders": "Pastas",
       "standingNotes_one": "A {{count}} nota que suas regras deixam passar — agora, e de novo a cada mudança",
       "standingNotes_many": "As {{count}} notas que suas regras deixam passar — agora, e cada uma de novo a cada mudança",
-      "standingNotes_other": "As {{count}} notas que suas regras deixam passar — agora, e cada uma de novo a cada mudança"
+      "standingNotes_other": "As {{count}} notas que suas regras deixam passar — agora, e cada uma de novo a cada mudança",
+      "gist": "título e um resumo verificado"
     },
     "lens": {
       "open": "Ver contexto",
@@ -311,7 +312,9 @@
       "savings": "Economizado",
       "savingsShare": "{{percent}}% a menos",
       "naive": "sem a seleção seriam ~{{tokens}} tokens",
-      "trail": "Mostrar como trilha no grafo"
+      "trail": "Mostrar como trilha no grafo",
+      "useOriginal": "Original",
+      "useGist": "Resumo"
     },
     "selection": {
       "menu": "IA",
@@ -545,6 +548,18 @@
       "partial": "cobertura parcial",
       "low": "cobertura baixa",
       "detail": "afirmações com fonte: {{cited}} de {{total}}"
+    },
+    "gists": {
+      "title": "Resumos",
+      "show": "Resumos com o modelo local",
+      "showDesc": "Resumos curtos e verificados para o contexto da IA — só quando o perfil Local indica um servidor neste computador (Ollama, LM Studio); nunca uma nuvem em segundo plano. Números, datas e prazos precisam aparecer palavra por palavra; senão, vai o trecho original.",
+      "noModel": "Escolha primeiro um modelo neste computador para o perfil Local.",
+      "status": "{{covered}} de {{sections}} seções longas têm resumo · {{model}}",
+      "working": "escrevendo",
+      "paused": "pausado",
+      "failed": "O modelo neste computador não respondeu: {{reason}}",
+      "clear": "Remover resumos",
+      "clearConfirm": "Remover todos os resumos deste vault? Enquanto os resumos estiverem ativados, eles são escritos de novo."
     }
   },
   "settingsSync": {

@@ -75,6 +75,10 @@ Anche le note che le tue regole trattengono sono elencate, perché tu sappia cos
 
 Sopra le note, **Inviato** dice quanta parte di queste note parte — per esempio ~870 di 3.460 token — e **Risparmiato** quanto è in meno rispetto a inviare intere tutte le note proposte; la prima volta dice anche quanti token sarebbero stati. **Mostra come traccia nel grafo** apre il grafo con la nota aperta e le fonti evidenziate, e i link tra loro.
 
+## Sintesi
+
+Con **Sintesi con il modello locale** (in **Impostazioni → IA e automazione**, disattivato finché non lo attivi), un modello sul tuo computer scrive brevi sintesi delle sezioni lunghe delle tue note, di note intere, delle cartelle di primo livello e del vault. Funziona solo quando il profilo **Locale** indica un server su questo computer (Ollama, LM Studio) — mai un cloud in background — e solo mentre Plainva è inattivo; sul telefono solo finché è aperto. Ogni sintesi viene verificata: la sintesi di una sezione deve mantenere parola per parola ogni numero, data, importo, link, tag e ogni negazione, altrimenti partono le frasi della sezione stessa. Una sintesi è legata al testo esatto che rappresenta; se modifichi la sezione, non viene usata finché non è stata riscritta. Le sintesi delle cartelle e del vault nascono solo da note che le tue regole lasciano andare a un cloud. In **Vedi contesto**, una fonte inviata come sintesi lo indica, e **Originale** invia le sue frasi con il messaggio successivo.
+
 ## Con una selezione
 
 Seleziona del testo in una nota e l'IA lavora solo su quel passaggio.

@@ -210,6 +210,11 @@ export interface AiAppSettings {
    * search by meaning on this device; nothing is sent for them.
    */
   relatedNotes: boolean;
+  /**
+   * Gists for the AI's context (plan P2b-3), written by the model of the
+   * profile "Local" only when it runs on this computer; off until chosen.
+   */
+  gists: boolean;
 }
 
 export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
@@ -225,6 +230,7 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   semanticModel: null,
   searchMode: DEFAULT_SEARCH_MODE,
   relatedNotes: true,
+  gists: false,
 };
 
 /** Reads stored settings defensively: a damaged value falls back field by field. */
@@ -276,6 +282,7 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
       typeof value.semanticModel === "string" && (value.semanticModel === SEMANTIC_BY_PROVIDER || embeddingModel(value.semanticModel)) ? value.semanticModel : defaults.semanticModel,
     searchMode: isSearchMode(value.searchMode) ? value.searchMode : defaults.searchMode,
     relatedNotes: typeof value.relatedNotes === "boolean" ? value.relatedNotes : defaults.relatedNotes,
+    gists: typeof value.gists === "boolean" ? value.gists : defaults.gists,
   };
 }
 

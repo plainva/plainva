@@ -5,6 +5,8 @@ import { fenceUntrusted, payload } from "../trust.js";
 import { chunkNote } from "../embeddings/chunks.js";
 import { mergeCandidates, rankCandidates, urgencySignal, type Candidate, type CandidateSignal, type RankedCandidate } from "./ranking.js";
 import { cardText, contextCard } from "./cards.js";
+import { checkGist, gistKey } from "./gists.js";
+import { areaOf } from "./gistWriter.js";
 import { firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
 import { withholdPlaces, withoutSensitiveProperties } from "./sensitive.js";
 import { questionTerms } from "./terms.js";
@@ -84,7 +86,24 @@ export interface ContextBuildHost extends ContextPolicyHost {
    * comparison is left out.
    */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
+  /**
+   * Checked gists of the model of the profile "Local" on this computer (plan
+   * P2b-3), never a stale one; absent while no such model writes them.
+   */
+  gists?: PackageGists;
 }
+
+export interface PackageGists {
+  /** The gist of a section's exact text (`gistKey`). */
+  section(key: string): Promise<string | null>;
+  note(path: string): Promise<string | null>;
+  area(area: string): Promise<string | null>;
+  vault(): Promise<string | null>;
+}
+
+/** Map handles that may carry their note's gist, and areas that may be named with theirs. */
+const MAP_GISTS = 4;
+const AREA_GISTS = 3;
 
 export interface ContextBudget {
   /** Notes that may send a section. */
@@ -113,6 +132,8 @@ export interface ContextBuildInput {
   alreadySent?: ReadonlySet<string>;
   /** Notes the user left out in the send overview: not denied, just not wanted for this message. */
   leaveOut?: ReadonlySet<string>;
+  /** Sources the reader wants as the original, not as a gist ("View context", P2b-3). */
+  originals?: ReadonlySet<string>;
   budget?: Partial<ContextBudget>;
 }
 
@@ -132,6 +153,8 @@ export interface PackageRef {
   unchanged?: boolean;
   /** Characters of the whole note this source stands for (evidence and cards; plan P2b-5). */
   noteChars?: number;
+  /** A gist by the model on this computer went instead of the verbatim card (plan P2b-3). */
+  gist?: boolean;
 }
 
 /**
@@ -373,7 +396,19 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     const title = read.title || candidate.title;
     const found = cardSource(read.text, title, candidate, terms);
     // Cleaned line by line before it is cut: a place stamp is a line of its own, and a card joins its lines.
-    const text = cardText(contextCard(await clean(found.text, candidate.path), found.chain)).replace(/\s+/g, " ").trim();
+    let text = cardText(contextCard(await clean(found.text, candidate.path), found.chain)).replace(/\s+/g, " ").trim();
+    // A checked gist of exactly this section goes instead when it is shorter, unless the reader asked for the original (P2b-3).
+    let gisted = false;
+    if (host.gists && !input.originals?.has(candidate.path)) {
+      const raw = await host.gists.section(gistKey(found.text)).catch(() => null);
+      if (raw && checkGist("section", found.text, raw).ok) {
+        const gist = (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim();
+        if (gist && gist.length < text.length) {
+          text = gist;
+          gisted = true;
+        }
+      }
+    }
     const same = contextStamp(text);
     if (text && cardTexts.has(same)) {
       duplicates.add(candidate.path);
@@ -381,15 +416,45 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     }
     cardTexts.add(same);
     const why = candidate.reasons.slice(0, 2).map((r) => REASON_WORDS[r]).join(", ");
-    cards.push(`- [[${title}]] (${candidate.path})${found.chain ? ` › ${found.chain}` : ""} — ${why}${text ? `: ${text}` : ""}`);
-    refs.push({ path: candidate.path, title, tier: "card", reasons: candidate.reasons, score: candidate.score, chars: text.length, section: found.chain, noteChars: noteBody(read.text).length });
+    cards.push(`- [[${title}]] (${candidate.path})${found.chain ? ` › ${found.chain}` : ""} — ${why}${text ? `: ${gisted ? "(gist) " : ""}${text}` : ""}`);
+    refs.push({
+      path: candidate.path,
+      title,
+      tier: "card",
+      reasons: candidate.reasons,
+      score: candidate.score,
+      chars: text.length,
+      section: found.chain,
+      noteChars: noteBody(read.text).length,
+      ...(gisted ? { gist: true } : {}),
+    });
     carded.add(candidate.path);
   }
   const map: string[] = [];
   const mapped = rest.filter((c) => !carded.has(c.path) && !missing.has(c.path) && decisions.get(c.path)?.allowed !== false);
+  let mapGists = 0;
   for (const candidate of mapped.slice(0, budget.map)) {
-    map.push(`- [[${candidate.title}]] (${candidate.path})`);
-    refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: 0 });
+    // The first handles may carry their note's gist (P2b-3): a line instead of a bare name, where one exists.
+    const raw = host.gists && mapGists < MAP_GISTS && !input.originals?.has(candidate.path) ? await host.gists.note(candidate.path).catch(() => null) : null;
+    const gist = raw ? (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim() : "";
+    if (gist) mapGists++;
+    map.push(`- [[${candidate.title}]] (${candidate.path})${gist ? ` — (gist) ${gist}` : ""}`);
+    refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: gist.length, ...(gist ? { gist: true } : {}) });
+  }
+  // The areas the sources come from, and the vault, as gists (P2b-3): written only from notes a cloud may see.
+  const areaLines: string[] = [];
+  if (host.gists && refs.length) {
+    const counts = new Map<string, number>();
+    for (const ref of refs) {
+      const area = areaOf(ref.path);
+      if (area) counts.set(area, (counts.get(area) ?? 0) + 1);
+    }
+    for (const [area] of [...counts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, AREA_GISTS)) {
+      const gist = await host.gists.area(area).catch(() => null);
+      if (gist) areaLines.push(`- ${area}/ — ${gist.replace(/\s+/g, " ").trim()}`);
+    }
+    const vault = await host.gists.vault().catch(() => null);
+    if (vault) areaLines.unshift(`- The vault — ${vault.replace(/\s+/g, " ").trim()}`);
   }
 
   // ------------------------------------------------------------ situation
@@ -438,9 +503,11 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const parts = [HEADER, fenceUntrusted(payload(lines.join("\n\n"), { kind: "app" }))];
   if (blocks.length) parts.push(`Notes:\n\n${blocks.join("\n\n")}`);
   if (cards.length) {
-    parts.push(fenceUntrusted(payload(`Also relevant — each with its first sentence and every sentence carrying numbers, dates, tasks, negations or links, verbatim:\n${cards.join("\n")}`, { kind: "app" })));
+    const gists = refs.some((r) => r.tier === "card" && r.gist) ? " A card marked (gist) is a checked summary by a model on the user's computer: its numbers, dates and links are verbatim, its other words are not; read_note gives the original." : "";
+    parts.push(fenceUntrusted(payload(`Also relevant — each with its first sentence and every sentence carrying numbers, dates, tasks, negations or links, verbatim.${gists}\n${cards.join("\n")}`, { kind: "app" })));
   }
   if (map.length) parts.push(fenceUntrusted(payload(`Further notes that may matter:\n${map.join("\n")}`, { kind: "app" })));
+  if (areaLines.length) parts.push(fenceUntrusted(payload(`Where these notes sit (gists by a model on the user's computer):\n${areaLines.join("\n")}`, { kind: "app" })));
   const text = parts.join("\n\n");
   // What it saves: its sources against the whole of them, and the whole of everything proposed (P2b-5).
   let candidateChars: number | null = null;
