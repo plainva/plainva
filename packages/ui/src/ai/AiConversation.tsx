@@ -339,6 +339,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
             onSend={() => session.answerConsent(true)}
             onCancel={() => session.answerConsent(false)}
             onLeaveOut={(path) => session.leaveOutOfConsent(path)}
+            onRedact={(path) => session.redactInConsent(path)}
             onOpenNote={onOpenNote}
             everyRequest={{ value: state.settings.confirmEveryRequest, onChange: (value) => void session.updateSettings((s) => ({ ...s, confirmEveryRequest: value })) }}
             touch={touch}

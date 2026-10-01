@@ -220,7 +220,8 @@
         "tools": "Nuovi strumenti: {{tools}}",
         "web": "La richiesta può cercare sul web.",
         "size": "Molto più di prima: ~{{tokens}} token",
-        "standing": "La ricerca per significato calcola con un modello cloud: le note vi arrivano in background, senza chiedere ogni volta, finché non revochi questa approvazione nelle impostazioni."
+        "standing": "La ricerca per significato calcola con un modello cloud: le note vi arrivano in background, senza chiedere ogni volta, finché non revochi questa approvazione nelle impostazioni.",
+        "sensitive": "Forse sensibile, segnalato qui sotto: {{kinds}}"
       },
       "goesTo": "Va a",
       "notes": "Note",
@@ -255,6 +256,9 @@
       "keptMood_one": "{{count}} valore d'umore",
       "keptMood_many": "{{count}} valori d'umore",
       "keptMood_other": "{{count}} valori d'umore",
+      "keptSensitive_one": "{{count}} dato oscurato",
+      "keptSensitive_many": "{{count}} dati oscurati",
+      "keptSensitive_other": "{{count}} dati oscurati",
       "tools": "Strumenti",
       "size": "Dimensione",
       "estimate": "~{{tokens}} token",
@@ -314,7 +318,19 @@
       "naive": "senza la selezione sarebbero stati ~{{tokens}} token",
       "trail": "Mostra come traccia nel grafo",
       "useOriginal": "Originale",
-      "useGist": "Sintesi"
+      "useGist": "Sintesi",
+      "sensitive": "Forse sensibile: {{kinds}}",
+      "sensitiveKind": {
+        "credential": "password o chiave",
+        "account": "numero di conto",
+        "card": "numero di carta",
+        "id": "numero di documento o fiscale",
+        "health": "dati sulla salute"
+      },
+      "keepHere": "Tieni su questo dispositivo",
+      "redact": "Oscura in questa conversazione",
+      "unredact": "Invia senza oscurare",
+      "situation": "Attività, appuntamenti e dettagli della nota aperta"
     },
     "selection": {
       "menu": "IA",

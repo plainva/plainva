@@ -1,13 +1,14 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Minus, ShieldCheck } from "lucide-react";
-import type { AnswerCoverage, EgressManifest, ManifestSource, ScopeGrowth } from "@plainva/core";
+import { Minus, ShieldAlert, ShieldCheck } from "lucide-react";
+import { REDACTABLE, SITUATION_SOURCE, type AnswerCoverage, type EgressManifest, type ManifestSource, type ScopeGrowth, type SensitiveKind } from "@plainva/core";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { Switch } from "../components/ui/Switch";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
 import { megabytes } from "./aiTranscribe";
+import { useSensitiveKinds } from "./sensitiveKinds";
 
 /**
  * The send overview (plan §13.3): what goes where, before it goes — and,
@@ -26,6 +27,8 @@ export interface AiSendOverviewProps {
   onCancel?: () => void;
   /** Leave one note out of the waiting request. */
   onLeaveOut?: (path: string) => void;
+  /** Redact one source's numbers and secrets for this conversation, or no longer (P2b-6). */
+  onRedact?: (path: string) => void;
   onOpenNote?: (path: string) => void;
   /** "Ask before every request", when the overview offers the setting. */
   everyRequest?: { value: boolean; onChange: (value: boolean) => void };
@@ -34,8 +37,9 @@ export interface AiSendOverviewProps {
   coverage?: AnswerCoverage | null;
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onOpenNote, everyRequest, touch, coverage }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
+  const kindList = useSensitiveKinds();
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const money = useMemo(() => new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 4 }), [i18n.language]);
   const asking = Boolean(onSend);
@@ -56,8 +60,22 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         return t("ai.overview.why.web");
       case "size":
         return t("ai.overview.why.size", { tokens: number.format(g.tokens) });
+      case "sensitive":
+        return t("ai.overview.why.sensitive", { kinds: kindList(g.sensitive) });
     }
   };
+  /** The hint at a source or at the situation (P2b-6); redacting is offered where it can work — never for a selected passage. */
+  const sensitiveLine = (path: string, kinds: readonly SensitiveKind[], redacted: boolean, canRedact: boolean) => (
+    <span className="pv-ai-overview-sensitive" data-testid="ai-overview-sensitive">
+      <ShieldAlert size={ICON.meta} aria-hidden="true" />
+      <span>{t("ai.lens.sensitive", { kinds: kindList(kinds) })}</span>
+      {onRedact && canRedact && kinds.some((kind) => REDACTABLE.has(kind)) && (
+        <Button size="sm" variant="ghost" onClick={() => onRedact(path)} data-testid="ai-overview-redact">
+          {redacted ? t("ai.lens.unredact") : t("ai.lens.redact")}
+        </Button>
+      )}
+    </span>
+  );
   const form = (source: ManifestSource) =>
     source.audioBytes !== undefined
       ? t("ai.overview.evidenceAudio", { size: megabytes(source.audioBytes) })
@@ -81,6 +99,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
     manifest.withheld.links ? t("ai.overview.keptLinks", { count: manifest.withheld.links }) : null,
     manifest.withheld.places ? t("ai.overview.keptPlaces", { count: manifest.withheld.places }) : null,
     manifest.withheld.moodProperties ? t("ai.overview.keptMood", { count: manifest.withheld.moodProperties }) : null,
+    manifest.withheld.sensitive ? t("ai.overview.keptSensitive", { count: manifest.withheld.sensitive }) : null,
   ].filter((line): line is string => Boolean(line));
   const classes = manifest.dataClasses.filter((c) => c !== "notes");
   const estimate =
@@ -123,7 +142,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           ) : (
             <ul className="pv-ai-overview-sources">
               {manifest.sources.map((source) => (
-                <li key={source.path}>
+                <li key={source.path} className={cx(Boolean(source.sensitive?.length) && "pv-ai-overview-source--hint")}>
                   {onOpenNote ? (
                     <Button size="sm" variant="ghost" className="pv-ai-overview-note" onClick={() => onOpenNote(source.path)}>
                       {source.title}
@@ -137,6 +156,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
                       <Minus size={ICON.meta} />
                     </IconButton>
                   )}
+                  {source.sensitive && source.sensitive.length > 0 && sensitiveLine(source.path, source.sensitive, Boolean(source.redacted), !source.selection)}
                 </li>
               ))}
             </ul>
@@ -151,7 +171,10 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         {classes.length > 0 && (
           <>
             <dt>{t("ai.overview.alsoGoes")}</dt>
-            <dd>{classes.map((c) => t(`ai.overview.class.${c}`)).join(" · ")}</dd>
+            <dd>
+              {classes.map((c) => t(`ai.overview.class.${c}`)).join(" · ")}
+              {manifest.situationHint && sensitiveLine(SITUATION_SOURCE, manifest.situationHint.sensitive, Boolean(manifest.situationHint.redacted), true)}
+            </dd>
           </>
         )}
         {kept.length > 0 && (

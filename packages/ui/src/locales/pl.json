@@ -224,7 +224,8 @@
         "tools": "Nowe narzędzia: {{tools}}",
         "web": "Zapytanie może przeszukiwać sieć.",
         "size": "Znacznie więcej niż wcześniej: ~{{tokens}} tokenów",
-        "standing": "Wyszukiwanie po znaczeniu liczy modelem w chmurze: notatki trafiają tam w tle, bez pytania za każdym razem — dopóki nie wycofasz tej zgody w ustawieniach."
+        "standing": "Wyszukiwanie po znaczeniu liczy modelem w chmurze: notatki trafiają tam w tle, bez pytania za każdym razem — dopóki nie wycofasz tej zgody w ustawieniach.",
+        "sensitive": "Możliwie wrażliwe, zaznaczone poniżej: {{kinds}}"
       },
       "goesTo": "Odbiorca",
       "notes": "Notatki",
@@ -263,6 +264,10 @@
       "keptMood_few": "{{count}} wartości nastroju",
       "keptMood_many": "{{count}} wartości nastroju",
       "keptMood_other": "{{count}} wartości nastroju",
+      "keptSensitive_one": "{{count}} zakryty fragment",
+      "keptSensitive_few": "{{count}} zakryte fragmenty",
+      "keptSensitive_many": "{{count}} zakrytych fragmentów",
+      "keptSensitive_other": "{{count}} zakrytego fragmentu",
       "tools": "Narzędzia",
       "size": "Rozmiar",
       "estimate": "~{{tokens}} tokenów",
@@ -324,7 +329,19 @@
       "naive": "bez wyboru byłoby to ~{{tokens}} tokenów",
       "trail": "Pokaż jako ślad na grafie",
       "useOriginal": "Oryginał",
-      "useGist": "Streszczenie"
+      "useGist": "Streszczenie",
+      "sensitive": "Możliwie wrażliwe: {{kinds}}",
+      "sensitiveKind": {
+        "credential": "hasło lub klucz",
+        "account": "numer konta",
+        "card": "numer karty",
+        "id": "numer dokumentu lub podatkowy",
+        "health": "dane o zdrowiu"
+      },
+      "keepHere": "Zostaw na tym urządzeniu",
+      "redact": "Zakryj w tej rozmowie",
+      "unredact": "Wyślij bez zakrywania",
+      "situation": "Zadania, spotkania i dane otwartej notatki"
     },
     "selection": {
       "menu": "AI",

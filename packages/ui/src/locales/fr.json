@@ -220,7 +220,8 @@
         "tools": "De nouveaux outils : {{tools}}",
         "web": "La requête peut chercher sur le web.",
         "size": "Bien plus qu'avant : ~{{tokens}} jetons",
-        "standing": "La recherche par sens calcule avec un modèle cloud : les notes y partent en arrière-plan, sans demander à chaque fois — jusqu'à ce que vous retiriez cette approbation dans les paramètres."
+        "standing": "La recherche par sens calcule avec un modèle cloud : les notes y partent en arrière-plan, sans demander à chaque fois — jusqu'à ce que vous retiriez cette approbation dans les paramètres.",
+        "sensitive": "Peut-être sensible, signalé ci-dessous : {{kinds}}"
       },
       "goesTo": "Destinataire",
       "notes": "Notes",
@@ -255,6 +256,9 @@
       "keptMood_one": "{{count}} valeur d'humeur",
       "keptMood_many": "{{count}} valeurs d'humeur",
       "keptMood_other": "{{count}} valeurs d'humeur",
+      "keptSensitive_one": "{{count}} donnée masquée",
+      "keptSensitive_many": "{{count}} données masquées",
+      "keptSensitive_other": "{{count}} données masquées",
       "tools": "Outils",
       "size": "Taille",
       "estimate": "~{{tokens}} jetons",
@@ -314,7 +318,19 @@
       "naive": "sans sélection, cela aurait fait ~{{tokens}} jetons",
       "trail": "Afficher comme piste dans le graphe",
       "useOriginal": "Original",
-      "useGist": "Résumé"
+      "useGist": "Résumé",
+      "sensitive": "Peut-être sensible : {{kinds}}",
+      "sensitiveKind": {
+        "credential": "mot de passe ou clé",
+        "account": "numéro de compte",
+        "card": "numéro de carte",
+        "id": "numéro d'identité ou fiscal",
+        "health": "données de santé"
+      },
+      "keepHere": "Garder sur cet appareil",
+      "redact": "Masquer dans cette conversation",
+      "unredact": "Envoyer sans masquer",
+      "situation": "Tâches, rendez-vous et détails de la note ouverte"
     },
     "selection": {
       "menu": "IA",

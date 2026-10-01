@@ -283,6 +283,53 @@ describe("the AI session", () => {
     expect(written).toEqual(["Offer.md"]);
   });
 
+  it("names what looks sensitive; redacting it holds for the whole conversation, and a kind not yet approved asks again", async () => {
+    files["Bank.md"] = "# Bank\n\nThe rent goes to DE89 3704 0044 0532 0130 00 every month.";
+    try {
+      const { s, fake } = session([answer("One."), answer("Two."), answer("Three.")], { approve: false });
+      await s.load();
+      await s.attachVault(vaultHost("Plan.md").host);
+      await s.pin("Bank.md");
+
+      const preview = (await s.previewContext("Where does the rent go?"))!;
+      expect(preview.pack.refs.find((r) => r.path === "Bank.md")!.sensitive).toEqual(["account"]);
+      await s.toggleRedact("Bank.md");
+      expect(s.getState().draftRedact).toEqual(["Bank.md"]);
+
+      let asked = consentAsked(s);
+      const first = s.send("Where does the rent go?");
+      await asked;
+      expect(s.getState().consent!.manifest.sources.find((x) => x.path === "Bank.md")).toMatchObject({ sensitive: ["account"], redacted: 1 });
+      s.answerConsent(true);
+      await first;
+      expect(JSON.stringify(fake.sent[0]!.body)).not.toContain("DE89");
+      expect(JSON.stringify(fake.sent[0]!.body)).toContain("⟦withheld account⟧");
+      expect(s.getState().active!.redact).toEqual(["Bank.md"]);
+      expect(s.getState().draftRedact).toEqual([]);
+
+      // The next message keeps the choice without asking; the conversation stores it.
+      await s.send("And the deposit?");
+      expect(JSON.stringify(fake.sent[1]!.body)).not.toContain("DE89");
+
+      // Taken back, the number would go: a kind this session has not approved, so the overview asks — and redacting there holds again.
+      await s.toggleRedact("Bank.md");
+      asked = consentAsked(s);
+      const third = s.send("Once more");
+      await asked;
+      expect(s.getState().consent!.growth).toContainEqual({ kind: "sensitive", sensitive: ["account"] });
+      asked = consentAsked(s);
+      s.redactInConsent("Bank.md");
+      await asked;
+      expect(s.getState().consent!.manifest.sources.find((x) => x.path === "Bank.md")).toMatchObject({ unchanged: true, redacted: 1 });
+      s.answerConsent(true);
+      await third;
+      expect(JSON.stringify(fake.sent[2]!.body)).not.toContain("DE89");
+      expect(s.getState().active!.redact).toEqual(["Bank.md"]);
+    } finally {
+      delete files["Bank.md"];
+    }
+  });
+
   it("shows a failure as a notice and keeps the question", async () => {
     const { s } = session([[{ type: "httpError", status: 401, body: "{}" }]]);
     await s.load();

@@ -216,7 +216,8 @@
         "tools": "Neue Werkzeuge: {{tools}}",
         "web": "Die Anfrage darf im Web suchen.",
         "size": "Deutlich mehr als bisher: ~{{tokens}} Token",
-        "standing": "Die Suche nach Bedeutung rechnet mit einem Cloud-Modell: Notizen gehen im Hintergrund dorthin, ohne jedes Mal zu fragen — bis Du diese Freigabe in den Einstellungen widerrufst."
+        "standing": "Die Suche nach Bedeutung rechnet mit einem Cloud-Modell: Notizen gehen im Hintergrund dorthin, ohne jedes Mal zu fragen — bis Du diese Freigabe in den Einstellungen widerrufst.",
+        "sensitive": "Möglicherweise sensibel, unten markiert: {{kinds}}"
       },
       "goesTo": "Geht an",
       "notes": "Notizen",
@@ -247,6 +248,8 @@
       "keptPlaces_other": "{{count}} Ortsangaben aus dem Journal",
       "keptMood_one": "{{count}} Stimmungswert",
       "keptMood_other": "{{count}} Stimmungswerte",
+      "keptSensitive_one": "{{count}} geschwärzte Angabe",
+      "keptSensitive_other": "{{count}} geschwärzte Angaben",
       "tools": "Werkzeuge",
       "size": "Umfang",
       "estimate": "~{{tokens}} Token",
@@ -304,7 +307,19 @@
       "naive": "ohne Auswahl wären es ~{{tokens}} Token gewesen",
       "trail": "Als Spur im Graph zeigen",
       "useOriginal": "Original",
-      "useGist": "Gist"
+      "useGist": "Gist",
+      "sensitive": "Möglicherweise sensibel: {{kinds}}",
+      "sensitiveKind": {
+        "credential": "Passwort oder Schlüssel",
+        "account": "Kontonummer",
+        "card": "Kartennummer",
+        "id": "Ausweis- oder Steuernummer",
+        "health": "Gesundheitsangaben"
+      },
+      "keepHere": "Auf diesem Gerät lassen",
+      "redact": "In diesem Gespräch schwärzen",
+      "unredact": "Ungeschwärzt senden",
+      "situation": "Aufgaben, Termine und Angaben der offenen Notiz"
     },
     "selection": {
       "menu": "KI",

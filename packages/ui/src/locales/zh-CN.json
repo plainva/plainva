@@ -212,7 +212,8 @@
         "tools": "新的工具：{{tools}}",
         "web": "此请求可能会搜索网络。",
         "size": "比之前多得多：约{{tokens}}个Token",
-        "standing": "含义搜索使用云端模型计算：笔记会在后台发送到那里，不再每次询问——直到你在设置中撤回此批准。"
+        "standing": "含义搜索使用云端模型计算：笔记会在后台发送到那里，不再每次询问——直到你在设置中撤回此批准。",
+        "sensitive": "可能敏感（见下方标记）：{{kinds}}"
       },
       "goesTo": "发送至",
       "notes": "笔记",
@@ -239,6 +240,7 @@
       "keptLinks_other": "{{count}}个指向被屏蔽笔记的链接",
       "keptPlaces_other": "{{count}}个日志中的地点",
       "keptMood_other": "{{count}}个心情值",
+      "keptSensitive_other": "{{count}}处已遮盖的信息",
       "tools": "工具",
       "size": "大小",
       "estimate": "约{{tokens}}个Token",
@@ -294,7 +296,19 @@
       "naive": "如果不做选择，会是约 {{tokens}} 个 token",
       "trail": "在关系图中显示为路径",
       "useOriginal": "原文",
-      "useGist": "要点"
+      "useGist": "要点",
+      "sensitive": "可能敏感：{{kinds}}",
+      "sensitiveKind": {
+        "credential": "密码或密钥",
+        "account": "银行账号",
+        "card": "卡号",
+        "id": "证件号或税号",
+        "health": "健康信息"
+      },
+      "keepHere": "保留在此设备上",
+      "redact": "在本次对话中遮盖",
+      "unredact": "不遮盖发送",
+      "situation": "任务、日程和打开的笔记的信息"
     },
     "selection": {
       "menu": "AI",

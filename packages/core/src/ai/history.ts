@@ -1,5 +1,6 @@
 import type { Conversation } from "./conversation.js";
 import type { EgressManifest } from "./context/manifest.js";
+import { isSensitiveKind, type SensitiveKind } from "./context/sensitiveHints.js";
 
 /**
  * Conversation history and the run ledger (§16 of the plan).
@@ -54,6 +55,12 @@ export interface ConversationRecord {
   runs: RunMeta[];
   /** Notes pinned to this conversation's context, by path. */
   pins: string[];
+  /**
+   * Sources whose numbers and secrets this conversation sends redacted (plan
+   * P2b-6): note paths, and `SITUATION_SOURCE` for tasks and appointments.
+   * Kept with the conversation, so a reopened one sends what it sent before.
+   */
+  redact?: string[];
 }
 
 export interface ConversationSummary {
@@ -112,7 +119,13 @@ export function readConversationRecord(raw: unknown): ConversationRecord | null 
     usage: readUsage(r.usage),
     runs: Array.isArray(r.runs) ? r.runs.flatMap((run) => readRun(run)) : [],
     pins: Array.isArray(r.pins) ? r.pins.filter((p): p is string => typeof p === "string") : [],
+    ...(Array.isArray(r.redact) ? { redact: r.redact.filter((p): p is string => typeof p === "string") } : {}),
   };
+}
+
+/** Kinds of a sensitivity hint, read defensively. */
+function kinds(v: unknown): SensitiveKind[] {
+  return Array.isArray(v) ? v.filter(isSensitiveKind) : [];
 }
 
 function count(v: unknown): number {
@@ -160,12 +173,38 @@ function readManifest(raw: unknown): EgressManifest | null {
     local: m.local === true,
     sources: m.sources.flatMap((s) =>
       s && typeof s === "object" && typeof s.path === "string" && typeof s.title === "string" && (s.tier === "evidence" || s.tier === "card" || s.tier === "map")
-        ? [{ path: s.path, title: s.title, tier: s.tier, ...(typeof s.section === "string" ? { section: s.section } : {}), chars: count(s.chars), ...(s.unchanged ? { unchanged: true } : {}), reasons: strings(s.reasons) as EgressManifest["sources"][number]["reasons"] }]
+        ? [
+            {
+              path: s.path,
+              title: s.title,
+              tier: s.tier,
+              ...(typeof s.section === "string" ? { section: s.section } : {}),
+              chars: count(s.chars),
+              ...(s.unchanged ? { unchanged: true } : {}),
+              reasons: strings(s.reasons) as EgressManifest["sources"][number]["reasons"],
+              // What the run's overview showed for it: the passage, the recording, the gist, the hint.
+              ...(s.selection ? { selection: true } : {}),
+              ...(typeof s.audioBytes === "number" && s.audioBytes >= 0 ? { audioBytes: s.audioBytes } : {}),
+              ...(s.gist ? { gist: true } : {}),
+              ...(kinds(s.sensitive).length ? { sensitive: kinds(s.sensitive) } : {}),
+              ...(count(s.redacted) ? { redacted: count(s.redacted) } : {}),
+            },
+          ]
         : [],
     ),
     dataClasses: strings(m.dataClasses) as EgressManifest["dataClasses"],
     folders: strings(m.folders),
-    withheld: { notes: count(withheld.notes), links: count(withheld.links), places: count(withheld.places), moodProperties: count(withheld.moodProperties) },
+    withheld: {
+      notes: count(withheld.notes),
+      links: count(withheld.links),
+      places: count(withheld.places),
+      moodProperties: count(withheld.moodProperties),
+      ...(count(withheld.sensitive) ? { sensitive: count(withheld.sensitive) } : {}),
+    },
+    ...(kinds(m.sensitive).length ? { sensitive: kinds(m.sensitive) } : {}),
+    ...(m.situationHint && kinds(m.situationHint.sensitive).length
+      ? { situationHint: { sensitive: kinds(m.situationHint.sensitive), ...(count(m.situationHint.redacted) ? { redacted: count(m.situationHint.redacted) } : {}) } }
+      : {}),
     excluded: Array.isArray(m.excluded) ? m.excluded.flatMap((e) => (e && typeof e.path === "string" && (e.reason === "cloud-denied" || e.reason === "web-denied") ? [{ path: e.path, reason: e.reason }] : [])) : [],
     estimatedTokens: count(m.estimatedTokens),
     ...(typeof m.estimatedCostUsd === "number" && m.estimatedCostUsd >= 0 ? { estimatedCostUsd: m.estimatedCostUsd } : {}),

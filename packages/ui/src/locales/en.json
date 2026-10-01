@@ -216,7 +216,8 @@
         "tools": "New tools: {{tools}}",
         "web": "The request may search the web.",
         "size": "Much more than before: ~{{tokens}} tokens",
-        "standing": "Search by meaning computes with a cloud model: notes go there in the background, without asking each time — until you withdraw this approval in the settings."
+        "standing": "Search by meaning computes with a cloud model: notes go there in the background, without asking each time — until you withdraw this approval in the settings.",
+        "sensitive": "Possibly sensitive, marked below: {{kinds}}"
       },
       "goesTo": "Goes to",
       "notes": "Notes",
@@ -247,6 +248,8 @@
       "keptPlaces_other": "{{count}} places from the journal",
       "keptMood_one": "{{count}} mood value",
       "keptMood_other": "{{count}} mood values",
+      "keptSensitive_one": "{{count}} redacted number or secret",
+      "keptSensitive_other": "{{count}} redacted numbers or secrets",
       "tools": "Tools",
       "size": "Size",
       "estimate": "~{{tokens}} tokens",
@@ -304,7 +307,19 @@
       "naive": "without the selection it would have been ~{{tokens}} tokens",
       "trail": "Show as a trail in the graph",
       "useOriginal": "Original",
-      "useGist": "Gist"
+      "useGist": "Gist",
+      "sensitive": "Possibly sensitive: {{kinds}}",
+      "sensitiveKind": {
+        "credential": "password or key",
+        "account": "account number",
+        "card": "card number",
+        "id": "ID or tax number",
+        "health": "health details"
+      },
+      "keepHere": "Keep on this device",
+      "redact": "Redact in this conversation",
+      "unredact": "Send unredacted",
+      "situation": "Tasks, appointments and the open note's details"
     },
     "selection": {
       "menu": "AI",

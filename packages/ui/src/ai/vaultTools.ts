@@ -2,7 +2,10 @@ import {
   gateDecision,
   isCloudRecipient,
   outlineOf,
+  redactSensitive,
   sectionOf,
+  sensitiveFindings,
+  SITUATION_SOURCE,
   VaultQueryService,
   withholdDeniedLinks,
   withholdPlaces,
@@ -160,7 +163,12 @@ function dayStart(key: string): Date | null {
   return dayOf(d) === key ? d : null;
 }
 
-export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope): ToolExecutor {
+/**
+ * `redact`: the sources this conversation sends redacted (plan P2b-6) — what
+ * the model reads from them itself goes redacted as well; the situation's
+ * choice covers tasks and appointments.
+ */
+export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope, redact?: ReadonlySet<string>): ToolExecutor {
   const cloud = isCloudRecipient(run.recipient);
   const decisions = new Map<string, boolean>();
   const allowed = async (path: string, text?: string): Promise<boolean> => {
@@ -173,10 +181,18 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
     if (ok) scope?.passed?.(path);
     return ok;
   };
-  /** What any vault text passes: place stamps withheld for everyone, links to denied notes for a cloud. */
-  const withhold = async (text: string, fromPath: string): Promise<string> => {
+  /**
+   * What any vault text passes: place stamps withheld for everyone, links to
+   * denied notes for a cloud, and for a cloud the numbers and secrets of a
+   * source the reader redacts in this conversation (`situational`: tasks and
+   * appointments, which the situation's choice covers too).
+   */
+  const withhold = async (text: string, fromPath: string, situational = false): Promise<string> => {
     const places = withholdPlaces(text).text;
-    return cloud ? (await withholdDeniedLinks(places, fromPath, deps.resolveLink, (path) => allowed(path))).text : places;
+    if (!cloud) return places;
+    const linked = (await withholdDeniedLinks(places, fromPath, deps.resolveLink, (path) => allowed(path))).text;
+    if (!redact || !(redact.has(fromPath) || (situational && redact.has(SITUATION_SOURCE)))) return linked;
+    return redactSensitive(linked, sensitiveFindings(linked)).text;
   };
   const readAllowed = async (raw: unknown): Promise<{ path: string; text: string } | null> => {
     const path = typeof raw === "string" ? safeRelPath(raw) : null;
@@ -300,7 +316,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           for (const r of page) {
             const meta = [r.due ? `due ${r.due}` : "", r.priority ? `priority ${PRIORITY[r.priority]}` : ""].filter(Boolean).join(", ");
             const where = r.source === "note" ? ` — in [[${r.noteTitle ?? titleOf(r.path)}]]` : ` — [[${titleOf(r.path)}]] in the task database`;
-            lines.push(`- ${BOX[r.state]} ${await withhold(r.title, r.path)}${meta ? ` (${meta})` : ""}${where}`);
+            lines.push(`- ${BOX[r.state]} ${await withhold(r.title, r.path, true)}${meta ? ` (${meta})` : ""}${where}`);
           }
           const more = offset + limit < listed.length ? `\n\nMore: call get_tasks again with cursor "${offset + limit}".` : "";
           return result(tool.name, lines.length ? `${lines.join("\n")}${more}` : "No tasks in this list.");
@@ -395,7 +411,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             lines.push(`- ${when}: ${e.title || "(no title)"}`);
           }
           // Appointment titles are the user's words like a note's: the same text rules apply.
-          const listed = lines.length ? await withhold(lines.join("\n"), "") : "";
+          const listed = lines.length ? await withhold(lines.join("\n"), "", true) : "";
           const more = events.length > limit ? `\n\n${events.length - limit} more; ask for a shorter range.` : "";
           return result(tool.name, listed ? `${listed}${more}` : "No appointments in this range.");
         }

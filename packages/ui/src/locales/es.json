@@ -220,7 +220,8 @@
         "tools": "Herramientas nuevas: {{tools}}",
         "web": "La solicitud puede buscar en la web.",
         "size": "Mucho más que antes: ~{{tokens}} tokens",
-        "standing": "La búsqueda por significado calcula con un modelo en la nube: las notas van allí en segundo plano, sin preguntar cada vez, hasta que retires esta aprobación en la configuración."
+        "standing": "La búsqueda por significado calcula con un modelo en la nube: las notas van allí en segundo plano, sin preguntar cada vez, hasta que retires esta aprobación en la configuración.",
+        "sensitive": "Posiblemente sensible, marcado abajo: {{kinds}}"
       },
       "goesTo": "Va a",
       "notes": "Notas",
@@ -255,6 +256,9 @@
       "keptMood_one": "{{count}} valor de ánimo",
       "keptMood_many": "{{count}} valores de ánimo",
       "keptMood_other": "{{count}} valores de ánimo",
+      "keptSensitive_one": "{{count}} dato oculto",
+      "keptSensitive_many": "{{count}} datos ocultos",
+      "keptSensitive_other": "{{count}} datos ocultos",
       "tools": "Herramientas",
       "size": "Tamaño",
       "estimate": "~{{tokens}} tokens",
@@ -314,7 +318,19 @@
       "naive": "sin la selección habrían sido ~{{tokens}} tokens",
       "trail": "Mostrar como rastro en el grafo",
       "useOriginal": "Original",
-      "useGist": "Resumen"
+      "useGist": "Resumen",
+      "sensitive": "Posiblemente sensible: {{kinds}}",
+      "sensitiveKind": {
+        "credential": "contraseña o clave",
+        "account": "número de cuenta",
+        "card": "número de tarjeta",
+        "id": "número de identidad o fiscal",
+        "health": "datos de salud"
+      },
+      "keepHere": "Mantener en este dispositivo",
+      "redact": "Ocultar en esta conversación",
+      "unredact": "Enviar sin ocultar",
+      "situation": "Tareas, citas y datos de la nota abierta"
     },
     "selection": {
       "menu": "IA",

@@ -342,6 +342,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-semantic-choices": "layout only — Radio rows (.pv-checkrow) the themes already restyle",
   "pv-related": "layout only — a list of rows; its controls are IconButtons and ghost Buttons the themes restyle",
   "pv-ai-lens-trail": "layout only — a ghost Button the themes restyle",
+  "pv-ai-lens-sensitive": "a text line in --warning-text beside ghost Buttons; the themes override that token",
+  "pv-ai-overview-sensitive": "a text line in --warning-text beside a ghost Button; the themes override that token",
   "pv-related-row": "layout only — see pv-related",
   "pv-related-head": "layout only — see pv-related",
   "pv-related-main": "a placement class on a ghost Button the themes already restyle",

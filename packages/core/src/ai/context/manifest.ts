@@ -1,5 +1,6 @@
 import type { GateReason } from "../egressGate.js";
-import type { ContextPackage, DataClass, PackageTier } from "./package.js";
+import type { ContextPackage, DataClass, PackageTier, SourceHint } from "./package.js";
+import type { SensitiveKind } from "./sensitiveHints.js";
 import { folderOf, type CandidateSignal } from "./ranking.js";
 
 /**
@@ -32,6 +33,10 @@ export interface ManifestSource {
   audioBytes?: number;
   /** A gist by the model on this computer went for it (plan P2b-3). */
   gist?: boolean;
+  /** What the local patterns saw in what it sends (plan P2b-6). */
+  sensitive?: SensitiveKind[];
+  /** Spans of it sent redacted, at the reader's choice. */
+  redacted?: number;
 }
 
 export interface EgressManifest {
@@ -44,7 +49,15 @@ export interface EgressManifest {
   dataClasses: DataClass[];
   /** Top-level folders of the notes that go ("" = the vault's root). */
   folders: string[];
-  withheld: { notes: number; links: number; places: number; moodProperties: number };
+  /** What stayed back: notes the rules keep, links to them, place stamps, mood values, and numbers or secrets the reader redacted (P2b-6). */
+  withheld: { notes: number; links: number; places: number; moodProperties: number; sensitive?: number };
+  /**
+   * The kinds the local patterns saw in what goes unredacted (plan P2b-6):
+   * one the session has not approved yet brings the overview back.
+   */
+  sensitive?: SensitiveKind[];
+  /** What they saw in the situation's own text — tasks, appointments, the open note's details. */
+  situationHint?: SourceHint;
   /** The notes a privacy rule kept back — shown on this device only, never sent. */
   excluded: { path: string; reason: GateReason }[];
   estimatedTokens: number;
@@ -82,6 +95,8 @@ export function manifestOf(
     chars: ref.chars,
     ...(ref.unchanged ? { unchanged: true } : {}),
     ...(ref.gist ? { gist: true } : {}),
+    ...(ref.sensitive ? { sensitive: ref.sensitive } : {}),
+    ...(ref.redacted ? { redacted: ref.redacted } : {}),
     reasons: ref.reasons,
   }));
   const folders = [...new Set(pack.refs.map((ref) => topFolder(ref.path)))].sort();
@@ -94,7 +109,15 @@ export function manifestOf(
     sources,
     dataClasses: pack.dataClasses,
     folders,
-    withheld: { notes: pack.excluded.length, links: pack.redactions.withheldLinks, places: pack.redactions.places, moodProperties: pack.redactions.moodProperties },
+    withheld: {
+      notes: pack.excluded.length,
+      links: pack.redactions.withheldLinks,
+      places: pack.redactions.places,
+      moodProperties: pack.redactions.moodProperties,
+      ...(pack.redactions.sensitive ? { sensitive: pack.redactions.sensitive } : {}),
+    },
+    ...(pack.sensitive ? { sensitive: pack.sensitive } : {}),
+    ...(pack.situationHint ? { situationHint: pack.situationHint } : {}),
     excluded: pack.excluded.map((e) => ({ path: e.path, reason: e.reason })),
     estimatedTokens,
     ...(options.priceUsdPerMillionInput !== undefined ? { estimatedCostUsd: (estimatedTokens / 1_000_000) * options.priceUsdPerMillionInput } : {}),
@@ -141,6 +164,8 @@ export interface ApprovedScope {
   web: boolean;
   /** The largest request approved so far (estimated tokens). */
   maxTokens: number;
+  /** Kinds of sensitive text approved to go (plan P2b-6). */
+  sensitive?: SensitiveKind[];
 }
 
 export type ScopeGrowth =
@@ -150,7 +175,8 @@ export type ScopeGrowth =
   | { kind: "folder"; folder: string }
   | { kind: "tools"; tools: string[] }
   | { kind: "web" }
-  | { kind: "size"; tokens: number; approved: number };
+  | { kind: "size"; tokens: number; approved: number }
+  | { kind: "sensitive"; sensitive: SensitiveKind[] };
 
 /** A request this much larger than any approved one counts as a new scope ("budget jump"). */
 export const SCOPE_SIZE_FACTOR = 3;
@@ -173,6 +199,8 @@ export function scopeGrowth(manifest: EgressManifest, scope: ApprovedScope | nul
   const newTools = manifest.tools.filter((tool) => !scope.tools.includes(tool));
   if (newTools.length) out.push({ kind: "tools", tools: newTools });
   if (manifest.web && !scope.web) out.push({ kind: "web" });
+  const newKinds = (manifest.sensitive ?? []).filter((kind) => !(scope.sensitive ?? []).includes(kind));
+  if (newKinds.length) out.push({ kind: "sensitive", sensitive: newKinds });
   if (manifest.estimatedTokens > SCOPE_SIZE_FLOOR && manifest.estimatedTokens > scope.maxTokens * SCOPE_SIZE_FACTOR) {
     out.push({ kind: "size", tokens: manifest.estimatedTokens, approved: scope.maxTokens });
   }
@@ -190,5 +218,6 @@ export function widenScope(scope: ApprovedScope | null, manifest: EgressManifest
     tools: union(base.tools, manifest.tools),
     web: base.web || manifest.web,
     maxTokens: Math.max(base.maxTokens, manifest.estimatedTokens),
+    ...(base.sensitive || manifest.sensitive ? { sensitive: union(base.sensitive ?? [], manifest.sensitive ?? []) } : {}),
   };
 }

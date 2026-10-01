@@ -27,6 +27,8 @@ import {
   gateDecision,
   isCloudRecipient,
   payload,
+  sensitiveFindings,
+  sensitiveKinds,
   withholdDeniedLinks,
   withholdPlaces,
   TRANSCRIPTION_MAX_BYTES,
@@ -124,7 +126,7 @@ export interface AiVaultHost {
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   policy: ContextPolicyHost;
   /** The tools of a run for this recipient, optionally narrowed (the MCP server's clients); null when this vault offers none. */
-  tools(recipient: EgressRecipient, scope?: ToolScope): { names: readonly string[]; executor: ToolExecutor } | null;
+  tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>): { names: readonly string[]; executor: ToolExecutor } | null;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
   keepOnDevice?(path: string): Promise<void>;
   /** Checked gists of the model on this computer (plan P2b-3), read when a message is built; null while there are none. */
@@ -222,6 +224,8 @@ export interface AiState {
   leaveOutNext: string[];
   /** Sources the next message sends as the original instead of their gist ("View context", P2b-3). */
   originalsNext: string[];
+  /** Sources a new conversation sends redacted, chosen before its first message (P2b-6); afterwards the conversation keeps them. */
+  draftRedact: string[];
   live: LiveRun | null;
   /** The last run's end, when it ended in a way the reader must see. */
   notice: { conversationId: string; stop: RunStop } | null;
@@ -247,8 +251,8 @@ function lastAnswerText(conversation: ConversationRecord["conversation"]): strin
   return "";
 }
 
-/** How the send overview was answered: send, send nothing, or build it again without one note. */
-type ConsentAnswer = "send" | "cancel" | { leaveOut: string };
+/** How the send overview was answered: send, send nothing, or build it again without one note or with one redacted (or no longer). */
+type ConsentAnswer = "send" | "cancel" | { leaveOut: string } | { redact: string };
 
 const sortSummaries = (list: ConversationSummary[]) => [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
@@ -278,6 +282,7 @@ export class AiSession {
       excludeActive: false,
       leaveOutNext: [],
       originalsNext: [],
+      draftRedact: [],
       live: null,
       notice: null,
       dress: null,
@@ -427,7 +432,7 @@ export class AiSession {
     this.stop();
     this.answerConsent(false);
     this.vault = vault;
-    this.set({ summaries: [], active: null, live: null, excludeActive: false, draftPins: [], draftChoice: null, notice: null, hasVault: Boolean(vault) });
+    this.set({ summaries: [], active: null, live: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, notice: null, hasVault: Boolean(vault) });
     if (!vault) return;
     const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
     const old = expiredConversations(summaries, this.state.settings.historyDays, this.host.now());
@@ -445,7 +450,7 @@ export class AiSession {
 
   newConversation(): void {
     if (this.state.live) return;
-    this.set({ active: null, excludeActive: false, draftPins: [], draftChoice: null, notice: null });
+    this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, notice: null });
   }
 
   async remove(id: string): Promise<void> {
@@ -548,19 +553,22 @@ export class AiSession {
         part: passage,
         refs: [{ path: range.path, title, tier: "evidence", reasons: ["active"], score: 1, chars: range.text.length }],
         excluded: [],
-        redactions: { withheldLinks: 0, places: 0, moodProperties: 0 },
+        redactions: { withheldLinks: 0, places: 0, moodProperties: 0, sensitive: 0 },
         dataClasses: ["selection"],
         estimatedTokens: estimateTokens(passage.text + instruction),
         material: { sentChars: range.text.length, sourceChars: range.text.length, candidateChars: null },
       };
       const price = this.priceOf(choice);
       const folder = range.path.includes("/") ? range.path.slice(0, range.path.indexOf("/")) : "";
+      // The passage goes as it is — a placeholder would end up in the proposal —, but the overview names what it holds (P2b-6).
+      const seen = isCloudRecipient(recipient) ? sensitiveKinds(sensitiveFindings(range.text)) : [];
       const manifest: EgressManifest = {
         providerId: provider.id,
         providerLabel: provider.label,
         model: choice.model,
         local: provider.kind === "local",
-        sources: [{ path: range.path, title, tier: "evidence", chars: range.text.length, reasons: ["active"], selection: true }],
+        sources: [{ path: range.path, title, tier: "evidence", chars: range.text.length, reasons: ["active"], selection: true, ...(seen.length ? { sensitive: seen } : {}) }],
+        ...(seen.length ? { sensitive: seen } : {}),
         dataClasses: ["selection"],
         folders: [folder],
         withheld: { notes: 0, links: 0, places: 0, moodProperties: 0 },
@@ -743,6 +751,23 @@ export class AiSession {
     this.set({ leaveOutNext: list.includes(path) ? list.filter((p) => p !== path) : [...list, path] });
   }
 
+  /**
+   * Redacts one source's numbers and secrets for the rest of this
+   * conversation, or no longer ("View context", P2b-6). Kept with the
+   * conversation: what went redacted is never sent whole by a later message
+   * the reader did not choose.
+   */
+  async toggleRedact(path: string): Promise<void> {
+    const active = this.state.active;
+    const list = active ? (active.redact ?? []) : this.state.draftRedact;
+    const next = list.includes(path) ? list.filter((p) => p !== path) : [...list, path];
+    if (!active) {
+      this.set({ draftRedact: next });
+      return;
+    }
+    await this.saveActive({ ...active, redact: next });
+  }
+
   /** Gist or original for one source of the next message ("View context", P2b-3). */
   toggleOriginal(path: string): void {
     const list = this.state.originalsNext;
@@ -809,7 +834,7 @@ export class AiSession {
     if (!provider) return null;
     const record = this.state.active;
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : []);
-    const built = await context.build(new Set(this.state.leaveOutNext));
+    const built = await context.build(new Set(this.state.leaveOutNext), new Set(record ? (record.redact ?? []) : this.state.draftRedact));
     if (this.vault !== vault) return null;
     const proposed = new Set(context.candidates.flat().map((c) => c.path));
     return { ...built, candidates: proposed.size };
@@ -836,9 +861,9 @@ export class AiSession {
     const seen = this.state.excludeActive ? { ...situation, active: null } : situation;
     const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
     const gists = vault.gists?.() ?? null;
-    const build = async (leaveOut: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
+    const build = async (leaveOut: ReadonlySet<string>, redact: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
       const pack = await buildContextPackage(
-        { question: message, recipient, situation: seen, candidates, pins: pins.filter((p) => !leaveOut.has(p)), alreadySent: sentStamps(turns), leaveOut, originals: new Set(this.state.originalsNext) },
+        { question: message, recipient, situation: seen, candidates, pins: pins.filter((p) => !leaveOut.has(p)), alreadySent: sentStamps(turns), leaveOut, originals: new Set(this.state.originalsNext), redact },
         {
           policyOf: vault.policy.policyOf,
           resolveLink: vault.policy.resolveLink,
@@ -910,6 +935,11 @@ export class AiSession {
     this.settleConsent({ leaveOut: path });
   }
 
+  /** Redacts one source's numbers and secrets for this conversation, or no longer; the overview is built again (P2b-6). */
+  redactInConsent(path: string): void {
+    this.settleConsent({ redact: path });
+  }
+
   private settleConsent(answer: ConsentAnswer): void {
     const settle = this.consentAnswer;
     this.consentAnswer = null;
@@ -976,7 +1006,10 @@ export class AiSession {
     }
     const recipient: EgressRecipient =
       provider.kind === "local" ? { kind: "local", provider: provider.id, model: choice.model } : { kind: "cloud", provider: provider.id, model: choice.model };
-    const tools = vault.tools(recipient);
+    // Redacted for the whole conversation (P2b-6): in its context, and in what the model reads itself through the tools.
+    // One set for both: a choice in the overview below reaches the tools of this run too.
+    const redact = new Set<string>(this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
+    const tools = vault.tools(recipient, undefined, redact);
     const now = this.host.now().toISOString();
 
     let record: ConversationRecord = this.state.active ?? (() => {
@@ -999,7 +1032,7 @@ export class AiSession {
     // The context of this message: what "View context" showed, without the notes left out there.
     const { seen, build } = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns);
     const leaveOut = new Set<string>(this.state.leaveOutNext);
-    let { pack, manifest } = await build(leaveOut);
+    let { pack, manifest } = await build(leaveOut, redact);
     // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the strict.
     // Once the user reviews the overview, it stays until they send or cancel:
     // leaving a note out never sends on its own.
@@ -1011,9 +1044,12 @@ export class AiSession {
       if (this.vault !== vault || answer === "cancel") return null;
       if (answer === "send") break;
       reviewing = true;
-      leaveOut.add(answer.leaveOut);
-      ({ pack, manifest } = await build(leaveOut));
+      if ("leaveOut" in answer) leaveOut.add(answer.leaveOut);
+      else if (redact.has(answer.redact)) redact.delete(answer.redact);
+      else redact.add(answer.redact);
+      ({ pack, manifest } = await build(leaveOut, redact));
     }
+    if (redact.size || record.redact) record = { ...record, redact: [...redact] };
     if (!manifest.local) this.scope = widenScope(this.scope, manifest);
     const { stop } = await this.execute({
       vault,
@@ -1058,7 +1094,7 @@ export class AiSession {
     this.abort = controller;
     const toolLog: LedgerEntry["tools"] = [];
     // A message typed in the composer used the drafts; an action at a selection leaves them for the next one.
-    const drafts = input.usedDrafts ? { draftPins: [], draftChoice: null, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
+    const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
     this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
 
     const carriesVault = input.carriesVault;

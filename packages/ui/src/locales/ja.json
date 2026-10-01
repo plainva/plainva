@@ -212,7 +212,8 @@
         "tools": "新しいツール: {{tools}}",
         "web": "このリクエストはウェブを検索する場合があります。",
         "size": "以前よりかなり多い: 約 {{tokens}} トークン",
-        "standing": "意味の検索はクラウドのモデルで計算します。ノートは毎回確認せずにバックグラウンドで送信されます。設定でこの承認を撤回するまで続きます。"
+        "standing": "意味の検索はクラウドのモデルで計算します。ノートは毎回確認せずにバックグラウンドで送信されます。設定でこの承認を撤回するまで続きます。",
+        "sensitive": "機密の可能性（下に表示）: {{kinds}}"
       },
       "goesTo": "送信先",
       "notes": "ノート",
@@ -239,6 +240,7 @@
       "keptLinks_other": "ブロックされたノートへのリンク {{count}} 件",
       "keptPlaces_other": "ジャーナルの場所 {{count}} 件",
       "keptMood_other": "気分の値 {{count}} 件",
+      "keptSensitive_other": "伏せた情報 {{count}} 件",
       "tools": "ツール",
       "size": "サイズ",
       "estimate": "約 {{tokens}} トークン",
@@ -294,7 +296,19 @@
       "naive": "選択しなければ ~{{tokens}} トークンでした",
       "trail": "グラフで経路を表示",
       "useOriginal": "元の文",
-      "useGist": "要旨"
+      "useGist": "要旨",
+      "sensitive": "機密の可能性: {{kinds}}",
+      "sensitiveKind": {
+        "credential": "パスワードやキー",
+        "account": "口座番号",
+        "card": "カード番号",
+        "id": "身分証番号や納税者番号",
+        "health": "健康に関する情報"
+      },
+      "keepHere": "この端末に留める",
+      "redact": "この会話で伏せる",
+      "unredact": "伏せずに送信",
+      "situation": "タスク、予定、開いているノートの情報"
     },
     "selection": {
       "menu": "AI",

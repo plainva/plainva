@@ -9,6 +9,7 @@ import { checkGist, gistKey } from "./gists.js";
 import { areaOf } from "./gistWriter.js";
 import { firstLineWith, noteBody, outlineOf, sectionAt } from "./sections.js";
 import { withholdPlaces, withoutSensitiveProperties } from "./sensitive.js";
+import { goingKinds, redactSensitive, SENSITIVE_KINDS, sensitiveFindings, sensitiveKinds, SITUATION_SOURCE, type SensitiveKind } from "./sensitiveHints.js";
 import { questionTerms } from "./terms.js";
 
 /**
@@ -134,6 +135,12 @@ export interface ContextBuildInput {
   leaveOut?: ReadonlySet<string>;
   /** Sources the reader wants as the original, not as a gist ("View context", P2b-3). */
   originals?: ReadonlySet<string>;
+  /**
+   * Sources whose numbers and secrets this conversation sends redacted
+   * ("View context", P2b-6): note paths, and `SITUATION_SOURCE` for the due
+   * tasks, the appointments and the open note's details.
+   */
+  redact?: ReadonlySet<string>;
   budget?: Partial<ContextBudget>;
 }
 
@@ -155,6 +162,16 @@ export interface PackageRef {
   noteChars?: number;
   /** A gist by the model on this computer went instead of the verbatim card (plan P2b-3). */
   gist?: boolean;
+  /** What the local patterns saw in the text it sends to a cloud (plan P2b-6): a hint, never a block. */
+  sensitive?: SensitiveKind[];
+  /** Spans of it sent redacted, at the reader's choice. */
+  redacted?: number;
+}
+
+/** What the patterns saw in a source's text, and how much of it went redacted (plan P2b-6). */
+export interface SourceHint {
+  sensitive: SensitiveKind[];
+  redacted?: number;
 }
 
 /**
@@ -175,10 +192,34 @@ export interface ContextPackage {
   refs: PackageRef[];
   /** Kept back by the gate: paths only, shown locally, never sent. */
   excluded: GateExclusion[];
-  redactions: { withheldLinks: number; places: number; moodProperties: number };
+  /** `sensitive`: numbers and secrets sent redacted at the reader's choice (P2b-6). */
+  redactions: { withheldLinks: number; places: number; moodProperties: number; sensitive: number };
+  /** What the patterns saw in the situation's own text — due tasks, appointments, the open note's details — that no listed note carries (P2b-6). */
+  situationHint?: SourceHint;
+  /** The kinds in what goes unredacted (P2b-6): the overview's reason to come back. */
+  sensitive?: SensitiveKind[];
   dataClasses: DataClass[];
   estimatedTokens: number;
   material: PackageMaterial;
+}
+
+/** A text after the patterns looked at it: what goes, what they saw, how much went redacted. */
+interface Screened {
+  text: string;
+  sensitive?: SensitiveKind[];
+  redacted?: number;
+}
+
+/** The hint a screened text leaves on its source. */
+function hintOf(screened: Screened): { sensitive?: SensitiveKind[]; redacted?: number } {
+  return { ...(screened.sensitive ? { sensitive: screened.sensitive } : {}), ...(screened.redacted ? { redacted: screened.redacted } : {}) };
+}
+
+/** A second text of the same source: its kinds join the source's hint. */
+function joinHint(into: { sensitive?: SensitiveKind[]; redacted?: number }, add: Screened): void {
+  if (!add.sensitive) return;
+  into.sensitive = SENSITIVE_KINDS.filter((kind) => into.sensitive?.includes(kind) || add.sensitive!.includes(kind));
+  if (add.redacted) into.redacted = (into.redacted ?? 0) + add.redacted;
 }
 
 const HEADER =
@@ -240,7 +281,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   const cloud = isCloudRecipient(input.recipient);
   const situation = input.situation;
   const terms = questionTerms(input.question);
-  const redactions = { withheldLinks: 0, places: 0, moodProperties: 0 };
+  const redactions = { withheldLinks: 0, places: 0, moodProperties: 0, sensitive: 0 };
   const excluded: GateExclusion[] = [];
   const decisions = new Map<string, GateDecision>();
 
@@ -274,6 +315,27 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     const links = await withholdDeniedLinks(places.text, fromPath, host.resolveLink, (path) => allowed(path));
     redactions.withheldLinks += links.redacted;
     return links.text;
+  };
+  /**
+   * The local patterns on a text that would go to a cloud (P2b-6): what they
+   * saw rides on its source as a hint for "View context" and the overview;
+   * where the reader chose it for this conversation — for any of the sources
+   * the text belongs to —, numbers and secrets go redacted.
+   */
+  const screen = (text: string, ...sources: string[]): Screened => {
+    if (!cloud || !text) return { text };
+    const findings = sensitiveFindings(text);
+    if (!findings.length) return { text };
+    const sensitive = sensitiveKinds(findings);
+    if (!sources.some((source) => input.redact?.has(source))) return { text, sensitive };
+    const out = redactSensitive(text, findings);
+    return { text: out.text, sensitive, ...(out.redacted ? { redacted: out.redacted } : {}) };
+  };
+  /** A screened text that goes: its redactions counted, its unredacted kinds noted for the overview. */
+  const going = new Set<SensitiveKind>();
+  const went = (screened: Screened) => {
+    redactions.sensitive += screened.redacted ?? 0;
+    for (const kind of goingKinds(screened.sensitive ?? [], Boolean(screened.redacted))) going.add(kind);
   };
 
   // ------------------------------------------------------------ candidates
@@ -358,10 +420,25 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       continue;
     }
     chosenTexts.add(sameText);
+    // Screened after the duplicate check: a redacted copy must not turn its unredacted twin into a new source.
+    const screened = screen(text, candidate.path);
+    text = screened.text;
     const stamp = `${candidate.path}#${contextStamp(text)}`;
     const title = read.title || candidate.title;
     if (input.alreadySent?.has(stamp)) {
-      refs.push({ path: candidate.path, title, tier: "evidence", reasons: candidate.reasons, score: candidate.score, chars: 0, section, unchanged: true, noteChars: body.length });
+      // Nothing of it goes again; the hint stays only where the reader redacts it, so the choice can be taken back.
+      refs.push({
+        path: candidate.path,
+        title,
+        tier: "evidence",
+        reasons: candidate.reasons,
+        score: candidate.score,
+        chars: 0,
+        section,
+        unchanged: true,
+        noteChars: body.length,
+        ...(input.redact?.has(candidate.path) ? hintOf(screened) : {}),
+      });
       blocks.push(`[[${title}]] (${candidate.path}): unchanged since it was sent earlier in this conversation.`);
       stamps.push(stamp);
       continue;
@@ -372,7 +449,18 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     );
     stamps.push(stamp);
     evidenceChars += text.length;
-    refs.push({ path: candidate.path, title, tier: "evidence", reasons: candidate.reasons, score: candidate.score, chars: text.length, ...(whole ? {} : { section: section ?? "" }), noteChars: body.length });
+    went(screened);
+    refs.push({
+      path: candidate.path,
+      title,
+      tier: "evidence",
+      reasons: candidate.reasons,
+      score: candidate.score,
+      chars: text.length,
+      ...(whole ? {} : { section: section ?? "" }),
+      noteChars: body.length,
+      ...hintOf(screened),
+    });
   }
 
   // ---------------------------------------------------------- cards + map
@@ -415,6 +503,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       continue;
     }
     cardTexts.add(same);
+    const screened = screen(text, candidate.path);
+    text = screened.text;
+    went(screened);
     const why = candidate.reasons.slice(0, 2).map((r) => REASON_WORDS[r]).join(", ");
     cards.push(`- [[${title}]] (${candidate.path})${found.chain ? ` › ${found.chain}` : ""} — ${why}${text ? `: ${gisted ? "(gist) " : ""}${text}` : ""}`);
     refs.push({
@@ -427,6 +518,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       section: found.chain,
       noteChars: noteBody(read.text).length,
       ...(gisted ? { gist: true } : {}),
+      ...hintOf(screened),
     });
     carded.add(candidate.path);
   }
@@ -436,12 +528,17 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   for (const candidate of mapped.slice(0, budget.map)) {
     // The first handles may carry their note's gist (P2b-3): a line instead of a bare name, where one exists.
     const raw = host.gists && mapGists < MAP_GISTS && !input.originals?.has(candidate.path) ? await host.gists.note(candidate.path).catch(() => null) : null;
-    const gist = raw ? (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim() : "";
+    const screened = screen(raw ? (await clean(raw, candidate.path)).replace(/\s+/g, " ").trim() : "", candidate.path);
+    const gist = screened.text;
     if (gist) mapGists++;
+    went(screened);
     map.push(`- [[${candidate.title}]] (${candidate.path})${gist ? ` — (gist) ${gist}` : ""}`);
-    refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: gist.length, ...(gist ? { gist: true } : {}) });
+    refs.push({ path: candidate.path, title: candidate.title, tier: "map", reasons: candidate.reasons, score: candidate.score, chars: gist.length, ...(gist ? { gist: true } : {}), ...hintOf(screened) });
   }
   // The areas the sources come from, and the vault, as gists (P2b-3): written only from notes a cloud may see.
+  // A folder's or the vault's gist stands for many notes, so no one note's choice can govern it:
+  // where the patterns see something in it, it stays back (P2b-6).
+  const quiet = (gist: string) => !cloud || sensitiveFindings(gist).length === 0;
   const areaLines: string[] = [];
   if (host.gists && refs.length) {
     const counts = new Map<string, number>();
@@ -451,13 +548,26 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     }
     for (const [area] of [...counts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, AREA_GISTS)) {
       const gist = await host.gists.area(area).catch(() => null);
-      if (gist) areaLines.push(`- ${area}/ — ${gist.replace(/\s+/g, " ").trim()}`);
+      if (gist && quiet(gist)) areaLines.push(`- ${area}/ — ${gist.replace(/\s+/g, " ").trim()}`);
     }
     const vault = await host.gists.vault().catch(() => null);
-    if (vault) areaLines.unshift(`- The vault — ${vault.replace(/\s+/g, " ").trim()}`);
+    if (vault && quiet(vault)) areaLines.unshift(`- The vault — ${vault.replace(/\s+/g, " ").trim()}`);
   }
 
   // ------------------------------------------------------------ situation
+  /**
+   * Situation text belongs to the note it came from: its hint joins that
+   * note's row, and that note's choice redacts it; what no listed note
+   * carries is the situation's own (`SITUATION_SOURCE`).
+   */
+  const situationHint: { sensitive?: SensitiveKind[]; redacted?: number } = {};
+  const situationText = (text: string, path: string | null | undefined): string => {
+    const screened = path ? screen(text, path, SITUATION_SOURCE) : screen(text, SITUATION_SOURCE);
+    if (!screened.sensitive) return screened.text;
+    went(screened);
+    joinHint((path ? refs.find((ref) => ref.path === path) : undefined) ?? situationHint, screened);
+    return screened.text;
+  };
   const dataClasses = new Set<DataClass>(["situation"]);
   const lines: string[] = [`Now: ${situation.weekday}, ${situation.now}. Today for appointments and due dates: ${situation.calendarDay}; the journal's day: ${situation.journalDay}.`];
   const active = situation.active && !input.leaveOut?.has(situation.active.path) ? situation.active : null;
@@ -467,7 +577,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     if (active.selection && active.selection.trim()) {
       const read = await host.readNote(active.path);
       if (!read || (await allowedText(active.path, read.text))) {
-        const selection = clip(await clean(active.selection.trim(), active.path), 4_000).text;
+        const selection = situationText(clip(await clean(active.selection.trim(), active.path), 4_000).text, active.path);
         lines.push(`Selected text:\n«${selection}»`);
         dataClasses.add("selection");
       }
@@ -476,7 +586,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
       const { properties, withheld } = withoutSensitiveProperties(active.properties, situation.moodKey);
       redactions.moodProperties += withheld;
       const shown = Object.entries(properties).slice(0, 12).map(([k, v]) => propertyLine(k, v));
-      if (shown.length) lines.push(`Properties of the open note:\n${await clean(shown.join("\n"), active.path)}`);
+      if (shown.length) lines.push(`Properties of the open note:\n${situationText(await clean(shown.join("\n"), active.path), active.path)}`);
     }
   }
   const tabs: string[] = [];
@@ -487,7 +597,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   for (const task of situation.tasks.slice(0, 12)) {
     if (task.path && !(await allowed(task.path))) continue;
     const due = task.due ? ` (due ${task.due}${task.due < situation.calendarDay ? ", overdue" : ""})` : "";
-    tasks.push(`- [ ] ${task.title}${due}${task.path ? ` — in [[${titleFromPath(task.path)}]]` : ""}`);
+    tasks.push(`- [ ] ${situationText(task.title, task.path)}${due}${task.path ? ` — in [[${titleFromPath(task.path)}]]` : ""}`);
   }
   if (tasks.length) {
     lines.push(`Tasks that are due:\n${await clean(tasks.join("\n"), active?.path ?? "")}`);
@@ -495,7 +605,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   }
   const events = situation.events.slice(0, 8).map((e) => `- ${e.allDay ? "all day" : `${e.start}${e.end ? `–${e.end}` : ""}`} ${e.title}${e.calendar ? ` (${e.calendar})` : ""}`);
   if (events.length) {
-    lines.push(`Appointments:\n${withholdPlaces(events.join("\n")).text}`);
+    lines.push(`Appointments:\n${situationText(withholdPlaces(events.join("\n")).text, null)}`);
     dataClasses.add("calendar");
   }
   if (refs.length) dataClasses.add("notes");
@@ -530,6 +640,8 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     refs,
     excluded,
     redactions,
+    ...(situationHint.sensitive ? { situationHint: { sensitive: situationHint.sensitive, ...(situationHint.redacted ? { redacted: situationHint.redacted } : {}) } } : {}),
+    ...(going.size ? { sensitive: SENSITIVE_KINDS.filter((kind) => going.has(kind)) } : {}),
     dataClasses: [...dataClasses],
     estimatedTokens: estimateTokens(text),
     material,

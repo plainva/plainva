@@ -216,7 +216,8 @@
         "tools": "Nieuwe hulpmiddelen: {{tools}}",
         "web": "Het verzoek mag op het web zoeken.",
         "size": "Veel meer dan eerder: ~{{tokens}} tokens",
-        "standing": "Zoeken op betekenis rekent met een cloudmodel: notities gaan daar op de achtergrond naartoe, zonder telkens te vragen — tot je deze goedkeuring in de instellingen intrekt."
+        "standing": "Zoeken op betekenis rekent met een cloudmodel: notities gaan daar op de achtergrond naartoe, zonder telkens te vragen — tot je deze goedkeuring in de instellingen intrekt.",
+        "sensitive": "Mogelijk gevoelig, hieronder gemarkeerd: {{kinds}}"
       },
       "goesTo": "Gaat naar",
       "notes": "Notities",
@@ -247,6 +248,8 @@
       "keptPlaces_other": "{{count}} plaatsen uit het journaal",
       "keptMood_one": "{{count}} stemmingswaarde",
       "keptMood_other": "{{count}} stemmingswaarden",
+      "keptSensitive_one": "{{count}} weggelakt gegeven",
+      "keptSensitive_other": "{{count}} weggelakte gegevens",
       "tools": "Hulpmiddelen",
       "size": "Omvang",
       "estimate": "~{{tokens}} tokens",
@@ -304,7 +307,19 @@
       "naive": "zonder de selectie waren het ~{{tokens}} tokens geweest",
       "trail": "Als spoor in de graaf tonen",
       "useOriginal": "Origineel",
-      "useGist": "Samenvatting"
+      "useGist": "Samenvatting",
+      "sensitive": "Mogelijk gevoelig: {{kinds}}",
+      "sensitiveKind": {
+        "credential": "wachtwoord of sleutel",
+        "account": "rekeningnummer",
+        "card": "kaartnummer",
+        "id": "identiteits- of fiscaal nummer",
+        "health": "gezondheidsgegevens"
+      },
+      "keepHere": "Op dit apparaat houden",
+      "redact": "In dit gesprek weglakken",
+      "unredact": "Zonder weglakken versturen",
+      "situation": "Taken, afspraken en gegevens van de open notitie"
     },
     "selection": {
       "menu": "AI",

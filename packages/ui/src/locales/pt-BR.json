@@ -220,7 +220,8 @@
         "tools": "Novas ferramentas: {{tools}}",
         "web": "A solicitação pode pesquisar na web.",
         "size": "Muito mais que antes: ~{{tokens}} tokens",
-        "standing": "A pesquisa por significado calcula com um modelo na nuvem: as notas vão para lá em segundo plano, sem perguntar a cada vez, até você retirar esta aprovação nas configurações."
+        "standing": "A pesquisa por significado calcula com um modelo na nuvem: as notas vão para lá em segundo plano, sem perguntar a cada vez, até você retirar esta aprovação nas configurações.",
+        "sensitive": "Possivelmente sensível, marcado abaixo: {{kinds}}"
       },
       "goesTo": "Vai para",
       "notes": "Notas",
@@ -255,6 +256,9 @@
       "keptMood_one": "{{count}} valor de humor",
       "keptMood_many": "{{count}} valores de humor",
       "keptMood_other": "{{count}} valores de humor",
+      "keptSensitive_one": "{{count}} dado ocultado",
+      "keptSensitive_many": "{{count}} dados ocultados",
+      "keptSensitive_other": "{{count}} dados ocultados",
       "tools": "Ferramentas",
       "size": "Tamanho",
       "estimate": "~{{tokens}} tokens",
@@ -314,7 +318,19 @@
       "naive": "sem a seleção seriam ~{{tokens}} tokens",
       "trail": "Mostrar como trilha no grafo",
       "useOriginal": "Original",
-      "useGist": "Resumo"
+      "useGist": "Resumo",
+      "sensitive": "Possivelmente sensível: {{kinds}}",
+      "sensitiveKind": {
+        "credential": "senha ou chave",
+        "account": "número de conta",
+        "card": "número de cartão",
+        "id": "número de documento ou fiscal",
+        "health": "dados de saúde"
+      },
+      "keepHere": "Manter neste dispositivo",
+      "redact": "Ocultar nesta conversa",
+      "unredact": "Enviar sem ocultar",
+      "situation": "Tarefas, compromissos e dados da nota aberta"
     },
     "selection": {
       "menu": "IA",

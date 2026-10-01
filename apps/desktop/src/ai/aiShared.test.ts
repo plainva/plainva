@@ -155,6 +155,7 @@ describe("the settings model", () => {
     excludeActive: false,
     leaveOutNext: [],
     originalsNext: [],
+    draftRedact: [],
     live: null,
     notice: null,
     dress: null,

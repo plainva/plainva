@@ -13,3 +13,4 @@ export * from "./cards.js";
 export * from "./gists.js";
 export * from "./gistStore.js";
 export * from "./gistWriter.js";
+export * from "./sensitiveHints.js";

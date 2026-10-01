@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, HardDrive, LoaderCircle, Minus, Pin, Waypoints, X } from "lucide-react";
-import type { GateExclusion, PackageRef } from "@plainva/core";
+import { Eye, HardDrive, LoaderCircle, Minus, Pin, ShieldAlert, Waypoints, X } from "lucide-react";
+import { REDACTABLE, SITUATION_SOURCE, type GateExclusion, type PackageRef, type SensitiveKind } from "@plainva/core";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { cx } from "../components/ui/cx";
@@ -10,6 +10,7 @@ import { toast } from "../services/toastStore";
 import { requestGraphTrail } from "../graph/graphTrail";
 import type { ContextPreview } from "./aiSession";
 import { useAiSession, useAiState } from "./useAiSession";
+import { useSensitiveKinds } from "./sensitiveKinds";
 
 /**
  * "View context" (plan §13.3, mockup v5 §3): what the AI would see for the
@@ -74,8 +75,11 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
   const pins = state?.active ? state.active.pins : (state?.draftPins ?? []);
   const leftOut = state?.leaveOutNext ?? [];
   const originals = state?.originalsNext ?? [];
+  // Redacted for the conversation, or chosen for the one about to start (P2b-6).
+  const redacting = state?.active ? (state.active.redact ?? []) : (state?.draftRedact ?? []);
+  const kindList = useSensitiveKinds();
   const choice = session?.choice();
-  const key = JSON.stringify([asked, leftOut, originals, pins, state?.excludeActive, state?.active?.id, state?.active?.updatedAt, choice?.providerId, choice?.model, refresh]);
+  const key = JSON.stringify([asked, leftOut, originals, redacting, pins, state?.excludeActive, state?.active?.id, state?.active?.updatedAt, choice?.providerId, choice?.model, refresh]);
 
   useEffect(() => {
     if (!session) return;
@@ -141,8 +145,27 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
         manifest.withheld.links ? t("ai.overview.keptLinks", { count: manifest.withheld.links }) : null,
         manifest.withheld.places ? t("ai.overview.keptPlaces", { count: manifest.withheld.places }) : null,
         manifest.withheld.moodProperties ? t("ai.overview.keptMood", { count: manifest.withheld.moodProperties }) : null,
+        manifest.withheld.sensitive ? t("ai.overview.keptSensitive", { count: manifest.withheld.sensitive }) : null,
       ].filter((line): line is string => Boolean(line))
     : [];
+  /** What the patterns saw in a source (P2b-6): a hint with the reader's two ways out — never a block. */
+  const sensitiveLine = (path: string, kinds: readonly SensitiveKind[], keep: boolean) => (
+    <div className="pv-ai-lens-sensitive" data-testid="ai-lens-sensitive">
+      <ShieldAlert size={ICON.meta} aria-hidden="true" />
+      <span>{t("ai.lens.sensitive", { kinds: kindList(kinds) })}</span>
+      {keep && (
+        <Button size="sm" variant="ghost" onClick={() => keepLocal(path)} data-testid="ai-lens-sensitive-keep">
+          {t("ai.lens.keepHere")}
+        </Button>
+      )}
+      {kinds.some((kind) => REDACTABLE.has(kind)) && (
+        <Button size="sm" variant="ghost" onClick={() => void session.toggleRedact(path)} data-testid="ai-lens-redact">
+          {redacting.includes(path) ? t("ai.lens.unredact") : t("ai.lens.redact")}
+        </Button>
+      )}
+    </div>
+  );
+  const situationHint = preview?.pack.situationHint;
 
   return (
     <section className={cx("pv-ai-lens", side && "pv-ai-lens--side", touch && "pv-ai-lens--touch")} aria-label={t("ai.lens.title")} data-testid="ai-lens">
@@ -223,6 +246,7 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
                         </span>
                       ))}
                     </div>
+                    {ref.sensitive && ref.sensitive.length > 0 && sensitiveLine(ref.path, ref.sensitive, true)}
                     <div className="pv-ai-lens-actions">
                       {(ref.gist || originals.includes(ref.path)) && (
                         <Button size="sm" variant="ghost" onClick={() => session.toggleOriginal(ref.path)} data-testid="ai-lens-original">
@@ -250,6 +274,13 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
                 );
               })}
             </ul>
+          )}
+
+          {situationHint && (
+            <div className="pv-ai-lens-row pv-ai-lens-row--quiet" data-testid="ai-lens-situation">
+              <span className="pv-ai-overview-note">{t("ai.lens.situation")}</span>
+              {sensitiveLine(SITUATION_SOURCE, situationHint.sensitive, false)}
+            </div>
           )}
 
           {leftOut.length > 0 && (

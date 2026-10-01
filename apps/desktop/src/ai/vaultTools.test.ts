@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolByName, type EgressRecipient } from "@plainva/core";
+import { effectivePolicy, notePolicyFrom, parsePolicyFile, SITUATION_SOURCE, toolByName, type EgressRecipient } from "@plainva/core";
 import { createVaultToolExecutor, outlineOf, safeRelPath, sectionOf, withoutBrokenLinks, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
 
 const files: Record<string, string> = {
@@ -255,5 +255,34 @@ describe("the read tools of the context package (P1b)", () => {
   it("a shell without an index source says the tool is not there", async () => {
     const out = await run("get_backlinks", { path: "Projects/Offer.md", limit: 20 }, cloud, d());
     expect(out).toEqual({ content: "The tool get_backlinks is not available here.", isError: true });
+  });
+});
+
+describe("the redaction the reader chose for a conversation (P2b-6)", () => {
+  const BANK = "# Bank\n\nThe rent goes to DE89 3704 0044 0532 0130 00 every month.";
+  const bankDeps = () =>
+    deps({
+      async readNote(path) {
+        return path === "Finance/Bank.md" ? BANK : (files[path] ?? null);
+      },
+      async taskRows(): Promise<PlannerRow[]> {
+        return [{ id: "9", source: "note", path: "Finance/Bank.md", noteTitle: "Bank", ordinal: 0, title: "Transfer to DE89 3704 0044 0532 0130 00", state: "open", due: "2026-09-24", dueMinutes: null, priority: 0, tags: [] }];
+      },
+    });
+  const call = (redact: ReadonlySet<string> | undefined, name: string, args: unknown, recipient: EgressRecipient = cloud) =>
+    createVaultToolExecutor(bankDeps(), { recipient, webTools: false }, undefined, redact).execute(toolByName(name)!, args, { type: "tool_call", id: "c", name, args });
+
+  it("what the model reads itself stays redacted; without the choice, or for a model on this computer, it reads as it is", async () => {
+    const redacted = await call(new Set(["Finance/Bank.md"]), "read_note", { path: "Finance/Bank.md", maxChars: 8000 });
+    expect(redacted.content).toContain("⟦withheld account⟧");
+    expect(redacted.content).not.toContain("DE89");
+    expect((await call(undefined, "read_note", { path: "Finance/Bank.md", maxChars: 8000 })).content).toContain("DE89 3704");
+    expect((await call(new Set(["Finance/Bank.md"]), "read_note", { path: "Finance/Bank.md", maxChars: 8000 }, { kind: "local", provider: "ollama", model: "m" })).content).toContain("DE89 3704");
+  });
+
+  it("tasks follow their note's choice and the situation's", async () => {
+    expect((await call(new Set(["Finance/Bank.md"]), "get_tasks", { range: "all" })).content).not.toContain("DE89");
+    expect((await call(new Set([SITUATION_SOURCE]), "get_tasks", { range: "all" })).content).not.toContain("DE89");
+    expect((await call(new Set(["Projects/Offer.md"]), "get_tasks", { range: "all" })).content).toContain("DE89 3704");
   });
 });

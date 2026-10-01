@@ -174,7 +174,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.gists ? { gists: input.gists } : {}),
     ...(input.propose ? { propose: input.propose } : {}),
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
-    tools(recipient: EgressRecipient, scope?: ToolScope) {
+    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;
       const deps: VaultToolDeps = {
@@ -184,7 +184,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
         policyOf: input.policy.policyOf,
         resolveLink: input.policy.resolveLink,
       };
-      return { names: CHAT_TOOL_NAMES, executor: createVaultToolExecutor(deps, { recipient, webTools: false }, scope) };
+      return { names: CHAT_TOOL_NAMES, executor: createVaultToolExecutor(deps, { recipient, webTools: false }, scope, redact) };
     },
   };
 }
