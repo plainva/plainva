@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare, MoreHorizontal, SquarePen } from "lucide-react";
 import {
@@ -15,12 +15,16 @@ import {
   RowList,
   SearchField,
   SectionLabel,
+  Segmented,
   startableSkills,
+  waitingCount,
   useAiSession,
   useAiState,
   type ConversationRowCaps,
 } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
+import { AI_SKILLS_EVENT, takeSkillsRequest } from "../../services/ai/desktopAi";
+import { SkillsWorkshop } from "./SkillsWorkshop";
 import { editorSelectionReader } from "../../services/editorSelection";
 
 /**
@@ -34,12 +38,15 @@ export function AiTabView({
   onOpenUrl,
   onOpenSettings,
   onPickNote,
+  onOpenPath,
 }: {
   activeNote: { path: string; title: string } | null;
   onOpenNote: (target: string) => void;
   onOpenUrl: (url: string) => void;
   onOpenSettings: () => void;
   onPickNote?: () => void;
+  /** Opens a file of the vault in a tab — a skill's SKILL.md from the workshop. */
+  onOpenPath: (path: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
@@ -47,6 +54,21 @@ export function AiTabView({
   const [query, setQuery] = useState("");
   const [shown, setShown] = useState<string[] | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: ConversationRowCaps } | null>(null);
+  // The workshop (plan KI-Harness P3-5) beside the conversation; the settings may ask for it, with one review.
+  const [view, setView] = useState<"chats" | "skills">("chats");
+  const [review, setReview] = useState<string | null>(null);
+  useEffect(() => {
+    const take = () => {
+      const request = takeSkillsRequest();
+      if (!request) return;
+      setView("skills");
+      setReview(request.review);
+    };
+    take();
+    window.addEventListener(AI_SKILLS_EVENT, take);
+    return () => window.removeEventListener(AI_SKILLS_EVENT, take);
+  }, []);
+  const reviewOpened = useCallback(() => setReview(null), []);
 
   const summaries = state?.summaries;
   useEffect(() => {
@@ -89,6 +111,16 @@ export function AiTabView({
     <div className="pv-ai-tab" data-testid="ai-tab">
       <div className="pv-appbar">
         <h2 className="pv-ai-tabtitle">{t("ai.title")}</h2>
+        <Segmented
+          size="sm"
+          ariaLabel={t("ai.workshop.title")}
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "chats", label: t("ai.workshop.segmentChats"), testId: "ai-tab-chats" },
+            { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-tab-skills" },
+          ]}
+        />
         <Button size="sm" variant="primary" icon={<SquarePen size={ICON.ui} />} disabled={Boolean(state.live)} onClick={() => session.newConversation()} data-testid="ai-tab-new">
           {t("ai.newConversation")}
         </Button>
@@ -136,7 +168,11 @@ export function AiTabView({
           </RowList>
         </nav>
         <section className="pv-ai-tabmain">
-          <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+          {view === "skills" ? (
+            <SkillsWorkshop onOpenFile={onOpenPath} onRun={() => setView("chats")} review={review} onReviewOpened={reviewOpened} />
+          ) : (
+            <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+          )}
         </section>
       </div>
       {menu && (

@@ -98,7 +98,7 @@ Een passage uit een notitie die je regels bij de cloud weghouden — of een met 
 
 ## Vaardigheden
 
-Drie vaardigheden starten veelgestelde vragen met één klik: **Dagoriëntatie** (wat vandaag telt: taken die aflopen, afspraken en waar je laatst aan werkte), **Weekoverzicht** (de afgelopen zeven dagen en de week die komt) en **Projectstatus** (doel, voortgang, open punten en de volgende stap van het project in de geopende notitie). Je vindt ze als chips in een leeg gesprek, onder **Vaardigheden** in het AI-tabblad — op de telefoon in **Gesprekken** — en in het opdrachtenpalet. Een vaardigheid verzendt haar vraag als jouw bericht: in jouw taal, zichtbaar in het gesprek zoals alles wat je typt, en via hetzelfde overzicht. Daarna zoekt de assistent met zijn gewone tools.
+Vaardigheden zijn instructies voor terugkerend werk. Tien komen met Plainva mee — waaronder **Dagoriëntatie**, **Weekoverzicht** en **Projectstatus** als chips in een leeg gesprek — en je kunt je eigen schrijven of importeren. Start er een met één klik, of vraag het gewoon: de AI laadt zelf een passende vaardigheid. Je eigen vaardigheden draaien pas nadat je ze op dit apparaat hebt goedgekeurd. Alles erover: [Vaardigheden](AI_Skills.md).
 
 ## Een spraaknotitie uitschrijven
 

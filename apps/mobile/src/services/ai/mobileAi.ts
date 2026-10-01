@@ -7,6 +7,7 @@ import {
   aiVaultKey,
   calendarDay,
   adapterInstructionIO,
+  adapterInstructionWriter,
   createAiVaultHost,
   createVaultPolicy,
   dailyNotePathFor,
@@ -138,6 +139,22 @@ const SHEET_EVENT = "plainva-ai-sheet";
 /** Makes a note the AI's open note without opening the sheet (the AI segment of the note's context). */
 export function focusAiNote(path: string | null): void {
   sheetNote = path;
+}
+
+/**
+ * A review the vault's AI settings ask for on the way into the workshop (plan
+ * KI-Harness P3-5): taken once by the AI screen's skills segment.
+ */
+let pendingSkillReview: string | null = null;
+
+export function requestSkillReview(id: string | null): void {
+  pendingSkillReview = id;
+}
+
+export function takeSkillReview(): string | null {
+  const id = pendingSkillReview;
+  pendingSkillReview = null;
+  return id;
 }
 
 /** Starts a skill (plan KI-Harness P3) in a new conversation bound to it; the caller shows it. */
@@ -303,6 +320,7 @@ export function useMobileAi(vault: MobileVault | null) {
       files: mobileAiFiles,
       vaultKey: aiVaultKey(vault.vaultId),
       instructionIO: adapterInstructionIO(vault.files),
+      instructionWriter: adapterInstructionWriter(vault.files),
       policy: vaultPolicy,
       activeNote: async () => (sheetNote ? note(sheetNote) : null),
       readNote: note,

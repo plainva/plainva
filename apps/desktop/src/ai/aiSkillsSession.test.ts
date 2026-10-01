@@ -6,6 +6,7 @@ import {
   EMPTY_INSTRUCTION_APPROVALS,
   readConversationRecord,
   readInstructionFile,
+  readSkillImport,
   scanInstruction,
   scanVaultInstructions,
   type AiEgress,
@@ -16,6 +17,7 @@ import {
   type InstructionIO,
   type LedgerEntry,
   type ToolExecutor,
+  utf8Encode,
 } from "@plainva/core";
 import { AiSession, type AiVaultHost } from "@plainva/ui";
 
@@ -155,6 +157,12 @@ function skillVault(files: Record<string, string>) {
       scan: () => scanVaultInstructions(io),
       scanOne: (id) => scanInstruction(io, id),
       readFile: (source, rel) => readInstructionFile(io, source, rel),
+      async write(path, bytes) {
+        disk.set(path, new TextDecoder().decode(bytes));
+      },
+      async remove(path) {
+        for (const key of [...disk.keys()]) if (key === path || key.startsWith(`${path}/`)) disk.delete(key);
+      },
       approvals: {
         async load() {
           return approvals;
@@ -338,5 +346,62 @@ describe("skills in the session", () => {
     const [now] = (await s.refreshSkills()).filter((e) => e.source.id === OWN);
     expect(await s.approveInstruction(OWN, Object.fromEntries(now!.source.files.map((f) => [f.path, f.sha256])))).toBe(true);
     expect(s.getState().skills.entries.find((e) => e.source.id === OWN)?.status).toBe("active");
+  });
+
+  it("a skill created in the workshop is written as SKILL.md and approved as written; an invalid one is not written", async () => {
+    const { s } = session([]);
+    await s.load();
+    const vault = skillVault({});
+    await s.attachVault(vault.host);
+    const made = await s.createSkill({ name: "offer-check", description: "Checks an offer.", body: "Read the offer, compare it with 2025." });
+    expect(made).toEqual({ ok: true, id: OWN, path: `${OWN}/SKILL.md` });
+    expect(vault.disk.get(`${OWN}/SKILL.md`)).toContain("name: offer-check");
+    expect(vault.approvals().approved).toMatchObject([{ id: OWN, how: "created" }]);
+    expect(s.getState().skills.entries.find((e) => e.source.id === OWN)?.status).toBe("active");
+    expect(await s.createSkill({ name: "offer-check", description: "Again.", body: "x" })).toMatchObject({ ok: false, reason: "exists" });
+    const bad = await s.createSkill({ name: "Offer Check", description: "x", body: "y" });
+    expect(bad).toMatchObject({ ok: false, reason: "invalid" });
+    expect([...vault.disk.keys()]).toEqual([`${OWN}/SKILL.md`]);
+  });
+
+  it("an own version of the app's skill lands in the vault, and the app's is switched off here", async () => {
+    const { s } = session([]);
+    await s.load();
+    const vault = skillVault({});
+    await s.attachVault(vault.host);
+    const copied = await s.copyAppSkill("plainva:weekly-review");
+    expect(copied).toMatchObject({ ok: true, id: ".agent/skills/weekly-review" });
+    const entries = s.getState().skills.entries;
+    expect(entries.find((e) => e.source.id === "plainva:weekly-review")?.status).toBe("off");
+    expect(entries.find((e) => e.source.id === ".agent/skills/weekly-review")).toMatchObject({ status: "active", approval: { how: "copied" } });
+  });
+
+  it("an import writes exactly the checked files, notes where they came from, and replaces an own skill only when asked", async () => {
+    const { s } = session([]);
+    await s.load();
+    const vault = skillVault({ [`${OWN}/SKILL.md`]: SKILL() });
+    await s.attachVault(vault.host);
+    const imported = readSkillImport([
+      { path: "pack/offer-check/SKILL.md", bytes: utf8Encode(SKILL("Checks offers, imported.")) },
+      { path: "pack/offer-check/references/rates.md", bytes: utf8Encode("2025: 1850") },
+    ]);
+    expect(await s.importSkill(imported, { label: "offer-check.skill", sha256: imported.contentHash })).toMatchObject({ ok: false, reason: "exists" });
+    const done = await s.importSkill(imported, { label: "offer-check.skill", sha256: imported.contentHash }, true);
+    expect(done).toMatchObject({ ok: true, id: OWN });
+    expect(vault.disk.get(`${OWN}/references/rates.md`)).toBe("2025: 1850");
+    expect(vault.approvals().approved).toMatchObject([{ id: OWN, how: "imported", from: { label: "offer-check.skill", sha256: imported.contentHash } }]);
+    expect(await s.importSkill(readSkillImport([]), { label: "empty.zip" })).toMatchObject({ ok: false, reason: "invalid" });
+  });
+
+  it("deleting an own skill removes its folder and forgets its approval; the app's cannot be deleted", async () => {
+    const { s } = session([]);
+    await s.load();
+    const vault = skillVault({ [`${OWN}/SKILL.md`]: SKILL(), [`${OWN}/references/a.md`]: "a" });
+    await vault.approve(OWN);
+    await s.attachVault(vault.host);
+    expect(await s.deleteInstruction(OWN)).toBe(true);
+    expect([...vault.disk.keys()]).toEqual([]);
+    expect(vault.approvals().approved).toEqual([]);
+    expect(await s.deleteInstruction("plainva:daily-orientation")).toBe(false);
   });
 });

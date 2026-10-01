@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Ban, Bookmark, BookmarkMinus, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
-  ExternalLink, Eye, Flag, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Repeat, Rows2, Square, SquareSlash, Star, StarOff,
+  ExternalLink, Eye, Flag, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
 
@@ -204,6 +204,33 @@ export function conversationRowActions(t: RowActionT, c: ConversationRowCaps): R
   const out: Array<RowActionSpec | null> = [
     c.rename ? { id: "rename", label: t("ai.history.rename"), icon: Pencil, run: c.rename } : null,
     c.delete ? { id: "delete", label: t("ai.history.delete"), icon: Trash2, danger: true, run: c.delete, swipe: true } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
+/* ----------------------------------------------------------------- skill */
+
+export interface SkillRowCaps {
+  run?: () => void;
+  /** The app's own skills: their instructions, read only. */
+  showInstructions?: () => void;
+  /** The vault's own: the file in the editor (any change asks for an approval again). */
+  edit?: () => void;
+  /** The app's own: an own version in the vault, to change there. */
+  copy?: () => void;
+  revoke?: () => void;
+  delete?: () => void;
+}
+
+/** A skill or AGENTS.md in the workshop (plan KI-Harness P3-5): the same actions in both shells. */
+export function skillRowActions(t: RowActionT, c: SkillRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.run ? { id: "run", label: t("ai.workshop.run"), icon: Play, run: c.run } : null,
+    c.showInstructions ? { id: "showInstructions", label: t("ai.workshop.showInstructions"), icon: Eye, run: c.showInstructions } : null,
+    c.edit ? { id: "edit", label: t("ai.workshop.edit"), icon: Pencil, run: c.edit } : null,
+    c.copy ? { id: "copy", label: t("ai.workshop.copy"), icon: Copy, run: c.copy } : null,
+    c.revoke ? { id: "revoke", label: t("ai.workshop.revoke"), icon: ShieldOff, run: c.revoke } : null,
+    c.delete ? { id: "delete", label: t("ai.workshop.delete"), icon: Trash2, danger: true, run: c.delete } : null,
   ];
   return out.filter((a): a is RowActionSpec => a !== null);
 }

@@ -405,6 +405,7 @@ export * from "./lib/fileBrokerBinding";
 export * from "./lib/serviceConnection";
 export * from "./components/FileComparisonDetails";
 export * from "./components/ConflictHistory";
+export * from "./components/LineCompare";
 
 export * from "./lib/accountPasswordChange";
 export * from "./lib/passwordChangeJournal";

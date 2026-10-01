@@ -1,12 +1,13 @@
 import { useEffect, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare } from "lucide-react";
-import { startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, Row, RowList, SearchField, SectionLabel, type ConversationRowCaps } from "@plainva/ui";
+import { startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, Row, RowList, SearchField, SectionLabel, Segmented, waitingCount, type ConversationRowCaps } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
 import { useLongPress } from "../lib/useLongPress";
-import { getMobileAiSession } from "../services/ai/mobileAi";
+import { getMobileAiSession, takeSkillReview } from "../services/ai/mobileAi";
+import { MobileSkillsWorkshop } from "../components/MobileSkillsWorkshop";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 
 /**
@@ -15,13 +16,16 @@ import { mConfirm, mPrompt } from "../services/mobileDialogs";
  * loud action — both read the shared list (rename, delete), the same words as
  * the desktop's context menu.
  */
-export function AiHistoryScreen({ onBack }: { onBack: () => void }) {
+export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: { onBack: () => void; onOpenNote: (path: string) => void; initialView?: "chats" | "skills" }) {
   const { t, i18n } = useTranslation();
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const [query, setQuery] = useState("");
   const [shown, setShown] = useState<string[] | null>(null);
   const [sheet, setSheet] = useState<{ title: string; caps: ConversationRowCaps } | null>(null);
+  // The skills workshop is this screen's second segment (plan KI-Harness P3-5).
+  const [view, setView] = useState<"chats" | "skills">(initialView);
+  const [review] = useState(() => takeSkillReview());
 
   useEffect(() => {
     let alive = true;
@@ -62,6 +66,19 @@ export function AiHistoryScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="m-page" data-testid="ai-history-screen">
       <AppBar onBack={onBack} title={t("ai.history.title")} />
+      <Segmented
+        ariaLabel={t("ai.workshop.title")}
+        value={view}
+        onChange={setView}
+        options={[
+          { value: "chats", label: t("ai.workshop.segmentChats"), testId: "ai-history-chats" },
+          { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-history-skills" },
+        ]}
+      />
+      {view === "skills" ? (
+        <MobileSkillsWorkshop onOpenNote={onOpenNote} onRun={onBack} review={review} />
+      ) : (
+        <>
       <SearchField value={query} onValueChange={setQuery} placeholder={t("ai.history.search")} aria-label={t("ai.history.search")} clearLabel={t("ai.history.clearSearch")} />
       <GroupCard>
         {list.length === 0 ? (
@@ -110,6 +127,8 @@ export function AiHistoryScreen({ onBack }: { onBack: () => void }) {
           ))}
         </RowList>
       </GroupCard>
+        </>
+      )}
       {sheet && <RowActionSheet title={sheet.title} actions={rowActions(sheet.caps)} onClose={() => setSheet(null)} />}
     </div>
   );

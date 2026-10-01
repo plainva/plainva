@@ -49,7 +49,7 @@ import { AiScreen } from "./screens/AiScreen";
 import { AiHistoryScreen } from "./screens/AiHistoryScreen";
 import { AiPolicyScreen } from "./screens/AiPolicyScreen";
 import { AiSettingsScreen } from "./screens/AiSettingsScreen";
-import { openAiNoteTarget } from "./services/ai/mobileAi";
+import { requestSkillReview, openAiNoteTarget } from "./services/ai/mobileAi";
 import { TasksScreen } from "./screens/TasksScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { VaultDetailScreen } from "./VaultDetailScreen";
@@ -166,7 +166,17 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
     // AI & automation, in both worlds: this device's providers and keys, and
     // the privacy rules that travel with the vault (plan KI-Harness §19.1).
     case "ai": return <AiSettingsScreen onBack={ctx.pop} />;
-    case "aiVault": return <AiPolicyScreen onBack={ctx.pop} vault={ctx.vault} />;
+    case "aiVault":
+      return (
+        <AiPolicyScreen
+          onBack={ctx.pop}
+          vault={ctx.vault}
+          onOpenSkills={(review) => {
+            requestSkillReview(review ?? null);
+            ctx.push({ kind: "aihistory", path: "skills" });
+          }}
+        />
+      );
     // An unknown id is a bug, not a screen. It used to render About, which
     // looked like a working area and hid the typo.
     default: return null;
@@ -428,7 +438,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   ai: (_e, c) => (
     <AiScreen onBack={c.pop} onHistory={() => c.push({ kind: "aihistory", path: "" })} onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)} onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })} />
   ),
-  aihistory: (_e, c) => <AiHistoryScreen onBack={c.pop} />,
+  aihistory: (e, c) => <AiHistoryScreen onBack={c.pop} onOpenNote={c.openNote} initialView={e.path === "skills" ? "skills" : "chats"} />,
   cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   // The security wizards are a DESTINATION (S37), not a state inside the
   // security area and not a sheet: the bar is hidden here, and Back — which

@@ -1643,6 +1643,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                           onOpenUrl={ai.openUrl}
                           onOpenSettings={() => capabilities.openSettings()}
                           onPickNote={() => { setAiPinPick(true); setShowQuickSwitcher(true); }}
+                          onOpenPath={(p) => openTab(i, p, true)}
                         />
                       </Suspense>
                     ) : path === COMMENTS_TAB_PATH ? (

@@ -115,6 +115,31 @@ export interface AiVaultHostInput {
   encrypted?: AiVaultHost["encrypted"];
   /** The vault's folder entries and file bytes, for its own instructions (plan KI-Harness P3); absent, only the app's skills exist. */
   instructionIO?: InstructionIO;
+  /** Writes and removes the workshop's skills (plan P3-5); absent, the workshop only reads. */
+  instructionWriter?: InstructionWriter;
+}
+
+export interface InstructionWriter {
+  write(path: string, bytes: Uint8Array): Promise<void>;
+  remove(path: string): Promise<void>;
+}
+
+/** Writing through a vault adapter: the folder first, then the file; a removal as the file tree does it, confirmed. */
+export function adapterInstructionWriter(adapter: {
+  exists(path: string): Promise<boolean>;
+  createDir(path: string): Promise<void>;
+  writeBinaryFile(path: string, content: Uint8Array): Promise<void>;
+  deleteItem(path: string, recursive?: boolean, confirmation?: { confirmed: true }): Promise<void>;
+}): InstructionWriter {
+  return {
+    async write(path, bytes) {
+      const folder = path.slice(0, path.lastIndexOf("/"));
+      if (folder && !(await adapter.exists(folder))) await adapter.createDir(folder);
+      await adapter.writeBinaryFile(path, bytes);
+    },
+    // The user confirmed in the workshop; the adapters back the files up before they go.
+    remove: (path) => adapter.deleteItem(path, true, { confirmed: true }),
+  };
 }
 
 /** The scan's view of a vault adapter — folder entries and file bytes, nothing written (plan KI-Harness P3). */
@@ -142,12 +167,13 @@ export function adapterInstructionIO(adapter: {
   };
 }
 
-function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore): AiInstructionsHost {
+function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore, writer?: InstructionWriter): AiInstructionsHost {
   return {
     scan: () => scanVaultInstructions(io),
     scanOne: (id) => scanInstruction(io, id),
     readFile: (source, rel) => readInstructionFile(io, source, rel),
     approvals,
+    ...(writer ? { write: writer.write, remove: writer.remove } : {}),
   };
 }
 
@@ -217,7 +243,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.gists ? { gists: input.gists } : {}),
     ...(input.propose ? { propose: input.propose } : {}),
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
-    ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals) } : {}),
+    ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
     tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;

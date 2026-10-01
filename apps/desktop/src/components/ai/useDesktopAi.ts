@@ -19,7 +19,7 @@ import {
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
-import { AI_OPEN_EVENT, createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
+import { AI_OPEN_EVENT, AI_SKILLS_EVENT, createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { AI_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
 
@@ -203,6 +203,12 @@ export function useDesktopAi(input: DesktopAiInput) {
     session?.present("tab");
     latest.current.openView(AI_TAB_PATH);
   });
+  // "Open skills" in the settings: the AI tab takes the request when it shows (plan P3-5).
+  useEffect(() => {
+    const open = () => latest.current.openView(AI_TAB_PATH);
+    window.addEventListener(AI_SKILLS_EVENT, open);
+    return () => window.removeEventListener(AI_SKILLS_EVENT, open);
+  }, []);
   const openNoteTarget = useStableHandler((target: string) => {
     const query = latest.current.queryService;
     if (!query) return;

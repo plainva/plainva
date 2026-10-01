@@ -98,7 +98,7 @@ Eine Stelle aus einer Notiz, die Deine Regeln von der Cloud fernhalten — oder 
 
 ## Skills
 
-Drei Skills starten häufige Fragen mit einem Klick: **Tagesorientierung** (was heute wichtig ist — fällige Aufgaben, Termine und woran Du zuletzt gearbeitet hast), **Wochenrückblick** (die letzten sieben Tage und die Woche, die kommt) und **Projektstatus** (Ziel, Fortschritt, offene Punkte und der nächste Schritt des Projekts in der offenen Notiz). Du findest sie als Chips in einem leeren Gespräch, unter **Skills** im KI-Tab — am Telefon in **Gespräche** — und in der Befehlspalette. Ein Skill sendet seine Frage als Deine Nachricht: in Deiner Sprache, im Gespräch sichtbar wie alles, was Du tippst, und über dieselbe Übersicht. Der Assistent sucht dann mit seinen üblichen Werkzeugen nach.
+Skills sind Anleitungen für wiederkehrende Arbeit. Zehn kommen mit Plainva — darunter **Tagesorientierung**, **Wochenrückblick** und **Projektstatus** als Chips in einem leeren Gespräch —, eigene kannst Du schreiben oder importieren. Starte einen mit einem Klick oder frag einfach: die KI lädt einen passenden Skill selbst. Eigene Skills laufen erst, wenn Du sie auf diesem Gerät freigegeben hast. Alles dazu: [Skills](AI_Skills.md).
 
 ## Eine Sprachnotiz transkribieren
 

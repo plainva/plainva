@@ -98,7 +98,7 @@ Un passage d'une note que vos règles tiennent à l'écart du cloud — ou un pa
 
 ## Compétences
 
-Trois compétences lancent des questions courantes en un clic : **Orientation du jour** (ce qui compte aujourd'hui — tâches à échéance, rendez-vous et ce sur quoi vous avez travaillé récemment), **Bilan de la semaine** (les sept derniers jours et la semaine à venir) et **État du projet** (objectif, avancement, points ouverts et prochaine étape du projet de la note ouverte). Vous les trouvez sous forme de puces dans une conversation vide, sous **Compétences** dans l'onglet IA — sur le téléphone dans **Conversations** — et dans la palette de commandes. Une compétence envoie sa question comme votre message : dans votre langue, visible dans la conversation comme tout ce que vous tapez, et via le même aperçu. L'assistant cherche ensuite avec ses outils habituels.
+Les compétences sont des instructions pour un travail récurrent. Dix sont fournies avec Plainva — dont **Orientation du jour**, **Bilan de la semaine** et **État du projet** sous forme de puces dans une conversation vide — et vous pouvez écrire ou importer les vôtres. Lancez-en une en un clic, ou demandez simplement : l'IA charge d'elle-même une compétence adaptée. Vos propres compétences ne s'exécutent qu'après votre approbation sur cet appareil. Tout à leur sujet : [Compétences](AI_Skills.md).
 
 ## Transcrire une note vocale
 

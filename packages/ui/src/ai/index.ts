@@ -21,6 +21,7 @@ export * from "./aiSelectionActions";
 export * from "./aiSkills";
 export * from "./appSkills";
 export * from "./skillRuntime";
+export * from "./skillsWorkshop";
 export * from "./aiTranscribe";
 export * from "./localModels";
 export * from "./localEmbeddings";

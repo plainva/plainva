@@ -28,6 +28,7 @@ Plainva is een Markdown-vault-editor: je notities zijn gewone Markdown-bestanden
 | [Zoeken](Search.md) | Volledige-tekstzoekfunctie, snelkiezer, zoeken & vervangen, tags |
 | [Taken](Tasks.md) | De vault-brede Taken-weergave: elk selectievakje in al je notities, met filters op status, tag, map en vervaldatum, en met één klik omschakelen |
 | [AI-assistent (Beta)](AI_Assistant.md) | Vragen stellen over je notities met een AI-model van jouw keuze: providers en sleutels, profielen, context, privacyregels en geschiedenis |
+| [Vaardigheden (Beta)](AI_Skills.md) | Instructies voor terugkerend werk: de tien meegeleverde, je eigen, importeren en goedkeuren wat binnenkomt voordat het draait |
 | [AI-apps koppelen (bèta)](Connect_AI_Apps.md) | AI-apps op deze computer (Claude Code, Claude Desktop, editors) de kluis laten lezen via de MCP-server van Plainva: inschakelen, koppelen, mappen, wat een app ziet |
 | [Journaal](Journal.md) | De snelle invoer in de dagnotitie van vandaag: vastleggen vanaf overal, de journaalweergave over alle dagen, hoe items worden opgeslagen, en de optionele globale sneltoets |
 | [Agenda & externe taken](Calendar_and_Tasks.md) | CalDAV-/Google-/Microsoft-agenda's verbinden, het agenda-tabblad, vergadernotities en het synchroniseren van externe takenlijsten naar de takendatabase |

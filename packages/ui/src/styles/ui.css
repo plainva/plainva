@@ -3798,10 +3798,18 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-conflict-history { padding: var(--space-2) var(--space-4); flex-shrink: 0; min-width: 0; }
 .pv-conflict-history-pickers { display: flex; gap: var(--space-2); flex-wrap: wrap; padding-block: var(--space-2); }
 .pv-conflict-history-pickers select { min-width: 0; max-width: 100%; }
-.pv-conflict-history-text { max-height: 30vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: var(--text-sm); }
-.pv-conflict-history-line--add { background: var(--success-bg); }
-.pv-conflict-history-line--del { background: var(--error-bg); }
-.pv-conflict-history-text > span { display: block; }
+/* One rendering of a line comparison (`LineCompare`): the conflict history and the skills workshop. */
+.pv-linecompare { max-height: 30vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: var(--text-sm); }
+.pv-linecompare-line--add { background: var(--success-bg); }
+.pv-linecompare-line--del { background: var(--error-bg); }
+.pv-linecompare > span { display: block; }
+
+/* The skills workshop (plan KI-Harness P3-5): settings cards in the AI tab, a facts list in its dialogs. */
+.pv-skills { display: grid; gap: var(--space-4); align-content: start; padding: var(--space-4); overflow: auto; min-height: 0; }
+.pv-skills-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.pv-skill-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); }
+.pv-skill-facts dt { color: var(--text-muted); }
+.pv-skill-facts dd { display: grid; gap: var(--space-1); min-width: 0; margin: 0; overflow-wrap: anywhere; }
 
 /* Pinboard loading retains a readable file identity, independently of content. */
 .pv-pinboard-placeholder {

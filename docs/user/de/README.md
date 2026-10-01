@@ -26,6 +26,7 @@ Plainva ist ein Markdown-Vault-Editor: Deine Notizen sind gewöhnliche Markdown-
 | [Suche](Search.md) | Volltextsuche, Schnellwechsel, Suchen & Ersetzen, Tags |
 | [Aufgaben](Tasks.md) | Die vault-weite Aufgabenansicht: jede Checkbox über alle Notizen, mit Status-/Tag-/Ordner-/Fälligkeitsfiltern und Ein-Klick-Umschalten |
 | [KI-Assistent (Beta)](AI_Assistant.md) | Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl: Anbieter und Schlüssel, Profile, Kontext, Datenschutzregeln und Verlauf |
+| [Skills (Beta)](AI_Skills.md) | Anleitungen für wiederkehrende Arbeit: die zehn mitgelieferten, eigene, Importieren und das Freigeben dessen, was ankommt, bevor es läuft |
 | [KI-Apps verbinden (Beta)](Connect_AI_Apps.md) | KI-Apps auf diesem Rechner (Claude Code, Claude Desktop, Editoren) den Vault über Plainvas MCP-Server lesen lassen: Einschalten, Koppeln, Ordner, was eine App sieht |
 | [Journal](Journal.md) | Der schnelle Eintrag in die heutige Tagesnotiz: Erfassen von überall, die Journal-Ansicht über alle Tage, wie Einträge gespeichert werden, und das optionale globale Tastenkürzel |
 | [Kalender & externe Aufgaben](Calendar_and_Tasks.md) | CalDAV-/Google-/Microsoft-Kalender verbinden, der Kalender-Tab, Meeting-Notizen und der Abgleich externer Aufgabenlisten mit der Aufgabendatenbank |

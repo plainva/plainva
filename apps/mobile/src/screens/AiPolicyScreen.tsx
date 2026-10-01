@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { parsePolicyFile, serializePolicyFile, type AiPolicyDimension, type FolderPolicyRule } from "@plainva/core";
@@ -11,14 +11,17 @@ import {
   RowList,
   ruleOf,
   SectionLabel,
+  skillView,
   toast,
+  waitingCount,
+  workshopSections,
   unruledFolders,
   withoutRule,
   withRuleValue,
   type PolicyChoice,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
-import { currentMobileAiPolicy } from "../services/ai/mobileAi";
+import { currentMobileAiPolicy, getMobileAiSession } from "../services/ai/mobileAi";
 import { mActions, mSelect, mTargets } from "../services/mobileDialogs";
 import type { MobileVault } from "../services/vaultService";
 
@@ -27,8 +30,15 @@ import type { MobileVault } from "../services/vaultService";
  * the privacy rules that travel with this vault, written as `.agent/policy.yml`
  * — the same file the desktop edits.
  */
-export function AiPolicyScreen({ vault, onBack }: { vault: MobileVault; onBack: () => void }) {
+export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileVault; onBack: () => void; onOpenSkills: (review?: string) => void }) {
   const { t } = useTranslation();
+  // Skills and memory (plan KI-Harness P3-5): the summary, what waits, and the way into the workshop.
+  const session = getMobileAiSession();
+  const aiState = useSyncExternalStore(session.subscribe, session.getState);
+  useEffect(() => {
+    void session.refreshSkills();
+  }, [session]);
+  const sections = workshopSections(aiState.skills.entries);
   const [rules, setRules] = useState<FolderPolicyRule[] | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
@@ -122,6 +132,30 @@ export function AiPolicyScreen({ vault, onBack }: { vault: MobileVault; onBack: 
         </GroupCard>
         <p className="m-hint">{t("ai.policy.localAllowed")}</p>
         {vault.workspaceRuntime !== null && <p className="m-hint">{t("ai.policy.encrypted")}</p>}
+        <SectionLabel>{t("ai.workshop.settingsTitle")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              wrap
+              title={t("ai.workshop.open")}
+              subtitle={t("ai.workshop.summary", { app: sections.app.filter((e) => e.status === "active").length, own: sections.own.length, waiting: waitingCount(aiState.skills.entries) })}
+              onClick={() => onOpenSkills()}
+              data-testid="settings-ai-skills-open"
+            />
+            {sections.waiting
+              .filter((e) => e.status === "new" || e.status === "changed")
+              .map((entry) => (
+                <Row
+                  key={entry.source.id}
+                  title={entry.source.kind === "agents" ? "AGENTS.md" : skillView(t, entry).title}
+                  subtitle={`${t(`ai.workshop.status.${entry.status}`)} · ${t("ai.workshop.review")}`}
+                  onClick={() => onOpenSkills(entry.source.id)}
+                  data-testid="settings-ai-skill-review"
+                />
+              ))}
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("ai.workshop.settingsDesc")}</p>
       </div>
     </div>
   );

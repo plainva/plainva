@@ -98,7 +98,7 @@ Fragment notatki, którą Twoje reguły trzymają z dala od chmury — albo frag
 
 ## Umiejętności
 
-Trzy umiejętności uruchamiają częste pytania jednym kliknięciem: **Orientacja na dziś** (co jest dziś ważne: zadania z terminem, spotkania i ostatnio zmieniane notatki), **Przegląd tygodnia** (ostatnie siedem dni i nadchodzący tydzień) oraz **Stan projektu** (cel, postęp, otwarte punkty i następny krok projektu z otwartej notatki). Znajdują się jako chipy w pustej rozmowie, w sekcji **Umiejętności** na karcie AI — na telefonie w **Rozmowy** — oraz w palecie poleceń. Umiejętność wysyła swoje pytanie jako wiadomość użytkownika: w jego języku, widoczną w rozmowie jak wszystko, co zostało wpisane, i przez ten sam przegląd. Następnie asystent wyszukuje informacje swoimi zwykłymi narzędziami.
+Umiejętności to instrukcje do powtarzalnej pracy. Dziesięć jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
 
 ## Transkrypcja notatki głosowej
 

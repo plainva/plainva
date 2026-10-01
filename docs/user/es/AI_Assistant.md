@@ -98,7 +98,7 @@ Un fragmento de una nota que tus reglas mantienen fuera de la nube — o uno con
 
 ## Habilidades
 
-Tres habilidades inician preguntas frecuentes con un clic: **Orientación del día** (lo que importa hoy: tareas pendientes, citas y en qué trabajaste últimamente), **Repaso semanal** (los últimos siete días y la semana que viene) y **Estado del proyecto** (objetivo, avances, puntos abiertos y el siguiente paso del proyecto de la nota abierta). Las encuentras como chips en una conversación vacía, en **Habilidades** en la pestaña de IA —en el teléfono, en **Conversaciones**— y en la paleta de comandos. Una habilidad envía su pregunta como tu mensaje: en tu idioma, visible en la conversación como todo lo que escribes, y a través del mismo resumen. Después, el asistente consulta lo necesario con sus herramientas habituales.
+Las habilidades son instrucciones para trabajo recurrente. Diez vienen con Plainva —entre ellas **Orientación del día**, **Repaso semanal** y **Estado del proyecto** como chips en una conversación vacía— y puedes escribir o importar las tuyas. Inicia una con un clic o simplemente pregunta: la IA carga por sí misma una habilidad que encaje. Tus propias habilidades solo se ejecutan después de que las apruebes en este dispositivo. Todo sobre ellas: [Habilidades](AI_Skills.md).
 
 ## Transcribir una nota de voz
 

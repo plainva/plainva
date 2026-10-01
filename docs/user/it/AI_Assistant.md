@@ -98,7 +98,7 @@ Un passaggio di una nota che le tue regole tengono lontana dal cloud — o uno c
 
 ## Competenze
 
-Tre competenze avviano domande frequenti con un clic: **Orientamento del giorno** (cosa conta oggi: attività in scadenza, appuntamenti e ciò su cui hai lavorato di recente), **Riepilogo settimanale** (gli ultimi sette giorni e la settimana che arriva) e **Stato del progetto** (obiettivo, avanzamento, punti aperti e prossimo passo del progetto della nota aperta). Le trovi come chip in una conversazione vuota, sotto **Competenze** nella scheda IA — sul telefono in **Conversazioni** — e nella palette dei comandi. Una competenza invia la sua domanda come tuo messaggio: nella tua lingua, visibile nella conversazione come tutto ciò che scrivi, e attraverso lo stesso riepilogo. Poi l'assistente cerca con i suoi strumenti abituali.
+Le competenze sono istruzioni per lavori ricorrenti. Dieci sono incluse in Plainva — tra cui **Orientamento del giorno**, **Riepilogo settimanale** e **Stato del progetto** come chip in una conversazione vuota — e puoi scriverne o importarne di tue. Avviane una con un clic, oppure chiedi semplicemente: l'IA carica da sola una competenza adatta. Le tue competenze si eseguono solo dopo che le hai approvate su questo dispositivo. Tutto su di esse: [Competenze](AI_Skills.md).
 
 ## Trascrivere una nota vocale
 

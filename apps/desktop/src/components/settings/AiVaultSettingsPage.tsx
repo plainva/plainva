@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import { parsePolicyFile, serializePolicyFile, type FolderPolicyRule } from "@plainva/core";
@@ -7,6 +7,9 @@ import {
   Banner,
   Button,
   ICON,
+  skillView,
+  waitingCount,
+  workshopSections,
   IconButton,
   ruleOf,
   Select,
@@ -20,7 +23,7 @@ import {
   type PolicyChoice,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
-import { currentAiPolicy } from "../../services/ai/desktopAi";
+import { currentAiPolicy, getDesktopAiSession, requestSkillsView } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
 
 /**
@@ -29,8 +32,52 @@ import { AreaHead } from "./AppPages";
  * in `.agent/policy.yml`, readable by people and other tools alike; a note
  * can still carry its own `plainva.ai` in its frontmatter.
  */
-export function AiVaultSettingsPage({ isActiveVault }: { isActiveVault: boolean }) {
+const NOOP = () => () => {};
+const NONE = () => null;
+
+/**
+ * The skills of this vault in its settings (plan KI-Harness P3-5, mockup
+ * chapter 7): a summary, what waits for an approval on this device, and the
+ * way into the workshop in the AI tab — reviewing one entry right away.
+ */
+function SkillsCard({ onOpenSkills }: { onOpenSkills: (review?: string) => void }) {
   const { t } = useTranslation();
+  const session = getDesktopAiSession();
+  const state = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
+  useEffect(() => {
+    void session?.refreshSkills();
+  }, [session]);
+  if (!session || !state) return null;
+  const entries = state.skills.entries;
+  const sections = workshopSections(entries);
+  const app = sections.app.filter((e) => e.status === "active").length;
+  return (
+    <SettingCard label={t("ai.workshop.settingsTitle")}>
+      <SettingCardNote>{t("ai.workshop.settingsDesc")}</SettingCardNote>
+      <SettingRow label={t("ai.workshop.title")} desc={t("ai.workshop.summary", { app, own: sections.own.length, waiting: waitingCount(entries) })}>
+        <Button size="sm" variant="secondary" onClick={() => onOpenSkills()} data-testid="settings-ai-skills-open">
+          {t("ai.workshop.open")}
+        </Button>
+      </SettingRow>
+      {sections.waiting
+        .filter((e) => e.status === "new" || e.status === "changed")
+        .map((entry) => (
+          <SettingRow key={entry.source.id} label={entry.source.kind === "agents" ? "AGENTS.md" : skillView(t, entry).title} desc={t(`ai.workshop.status.${entry.status}`)}>
+            <Button size="sm" variant="tonal" onClick={() => onOpenSkills(entry.source.id)} data-testid="settings-ai-skill-review">
+              {t("ai.workshop.review")}
+            </Button>
+          </SettingRow>
+        ))}
+    </SettingCard>
+  );
+}
+
+export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault: boolean; onClose?: () => void }) {
+  const { t } = useTranslation();
+  const openSkills = (review?: string) => {
+    requestSkillsView(review ?? null);
+    onClose?.();
+  };
   const { vaultAdapter, queryService, workspaceSecurityStatus } = useVault();
   const [rules, setRules] = useState<FolderPolicyRule[] | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
@@ -146,6 +193,7 @@ export function AiVaultSettingsPage({ isActiveVault }: { isActiveVault: boolean 
         <SettingCardNote>{t("ai.policy.localAllowed")}</SettingCardNote>
         {workspaceSecurityStatus !== null && <SettingCardNote>{t("ai.policy.encrypted")}</SettingCardNote>}
       </SettingCard>
+      <SkillsCard onOpenSkills={openSkills} />
     </div>
   );
 }

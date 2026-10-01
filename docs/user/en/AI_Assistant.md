@@ -98,7 +98,7 @@ A passage from a note your rules keep from the cloud — or one with links to su
 
 ## Skills
 
-Three skills start common questions with one click: **Daily orientation** (what matters today — due tasks, appointments and what you worked on lately), **Weekly review** (the past seven days and the week ahead) and **Project status** (goal, progress, open points and the next step of the project in the open note). You find them as chips in an empty conversation, under **Skills** in the AI tab — on the phone in **Conversations** — and in the command palette. A skill sends its question as your message: in your language, visible in the conversation like anything you type, and through the same overview. The assistant then looks things up with its usual tools.
+Skills are instructions for recurring work. Ten come with Plainva — among them **Daily orientation**, **Weekly review** and **Project status** as chips in an empty conversation — and you can write or import your own. Start one with a click, or simply ask: the AI loads a matching skill by itself. Your own skills run only after you approved them on this device. Everything about them: [Skills](AI_Skills.md).
 
 ## Transcribing a voice note
 

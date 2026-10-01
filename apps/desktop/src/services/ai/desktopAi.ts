@@ -10,6 +10,7 @@ import {
   aiVaultKey,
   calendarDay,
   adapterInstructionIO,
+  adapterInstructionWriter,
   createAiVaultHost,
   createVaultPolicy,
   databaseTaskRows,
@@ -48,6 +49,25 @@ const SETTINGS_KEY = "ai";
 
 /** Opens the companion from anywhere in the main window (the selection door, plan P1.5). */
 export const AI_OPEN_EVENT = "plainva-ai-open";
+
+/**
+ * Opens the AI tab on its skills — the settings' "Open skills" (plan
+ * KI-Harness P3-5), optionally reviewing one source. The request waits here
+ * until the tab takes it, so a tab that mounts only now still sees it.
+ */
+export const AI_SKILLS_EVENT = "plainva-ai-skills";
+let pendingSkills: { review: string | null } | null = null;
+
+export function requestSkillsView(review: string | null = null): void {
+  pendingSkills = { review };
+  window.dispatchEvent(new CustomEvent(AI_SKILLS_EVENT));
+}
+
+export function takeSkillsRequest(): { review: string | null } | null {
+  const request = pendingSkills;
+  pendingSkills = null;
+  return request;
+}
 
 let aiRootPromise: Promise<{ dir: string; rootId: string }> | null = null;
 
@@ -210,6 +230,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     files: desktopAiFiles,
     vaultKey: aiVaultKey(input.vaultPath),
     instructionIO: adapterInstructionIO(input.adapter),
+    instructionWriter: adapterInstructionWriter(input.adapter),
     policy,
     async activeNote() {
       const path = input.activePath();

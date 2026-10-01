@@ -16,7 +16,15 @@ import type { SuggestionChunk } from "../components/suggestMode";
 import {
   addUsage,
   approveInstruction,
+  blockingProblems,
   DEFAULT_RUN_LIMITS,
+  instructionFileHash,
+  parseSkillFile,
+  pruneInstructionApprovals,
+  sameFiles,
+  serializeSkillFile,
+  SKILLS_FOLDER,
+  utf8Encode,
   EMPTY_INSTRUCTION_APPROVALS,
   resolveInstructions,
   revokeInstruction,
@@ -74,8 +82,12 @@ import {
   type ContextPolicyHost,
   type ConversationInstructions,
   type ConversationRecord,
+  type ApprovalHow,
+  type InstructionApproval,
   type InstructionApprovals,
   type InstructionEntry,
+  type SkillImport,
+  type SkillProblem,
   type InstructionSource,
   type ManifestInstructions,
   type RunLimits,
@@ -171,7 +183,16 @@ export interface AiInstructionsHost {
   /** A file of a source as the scan saw it (its hash checked again), as text; null otherwise. */
   readFile(source: InstructionSource, rel: string): Promise<string | null>;
   approvals: InstructionApprovalStore;
+  /** Writes one file into the vault, its folder created — synced and backed up like any edit (the workshop's skills, plan P3-5). */
+  write?(path: string, bytes: Uint8Array): Promise<void>;
+  /** Removes a folder of the vault after the user confirmed it: through the adapters, so it is backed up and goes to the trash. */
+  remove?(path: string): Promise<void>;
 }
+
+/** How writing a skill from the workshop ended. */
+export type SkillWriteOutcome =
+  | { ok: true; id: string; path: string }
+  | { ok: false; reason: "no-vault" | "invalid" | "exists" | "write-failed" | "changed"; problems?: SkillProblem[] };
 
 /** Skills and vault instructions as the workshop and the entry points show them (plan KI-Harness P3). */
 export interface AiSkillsState {
@@ -582,6 +603,83 @@ export class AiSession {
     if (!host) return;
     await host.approvals.save(switchInstruction(await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), id, on));
     await this.refreshSkills();
+  }
+
+  /**
+   * Writes a skill into `.agent/skills/<name>/` and approves exactly what was
+   * written — the user wrote, copied or picked it here (plan KI-Harness P3-5).
+   * What reads back different from what was written is not approved; an own
+   * skill of the same name is only replaced when the user said so (its folder
+   * goes to the trash first).
+   */
+  private async writeSkill(name: string, files: readonly { path: string; bytes: Uint8Array }[], how: ApprovalHow, options: { from?: InstructionApproval["from"]; replace?: boolean } = {}): Promise<SkillWriteOutcome> {
+    const host = this.vault?.instructions;
+    if (!host?.write) return { ok: false, reason: "no-vault" };
+    const id = `${SKILLS_FOLDER}/${name}`;
+    const existing = await host.scanOne(id).catch(() => null);
+    if (existing && !options.replace) return { ok: false, reason: "exists" };
+    try {
+      if (existing && host.remove) await host.remove(id);
+      for (const file of files) await host.write(`${id}/${file.path}`, file.bytes);
+    } catch {
+      await this.refreshSkills();
+      return { ok: false, reason: "write-failed" };
+    }
+    const written = await host.scanOne(id).catch(() => null);
+    const expected = Object.fromEntries(files.map((f) => [f.path, instructionFileHash(f.bytes)]));
+    if (!written || !sameFiles(expected, written.files)) {
+      await this.refreshSkills();
+      return { ok: false, reason: "changed" };
+    }
+    const approvals = await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS);
+    await host.approvals.save(approveInstruction(approvals, written, this.host.now().toISOString(), how, options.from));
+    await this.refreshSkills();
+    return { ok: true, id, path: `${id}/SKILL.md` };
+  }
+
+  /** A new skill from the workshop's form: name, description, instructions — written and approved here. */
+  async createSkill(input: { name: string; description: string; body: string }): Promise<SkillWriteOutcome> {
+    const name = input.name.trim();
+    const text = serializeSkillFile({ name, description: input.description.trim(), body: input.body, metadata: { "plainva.version": "1" } });
+    const parsed = parseSkillFile(text, name);
+    const problems = blockingProblems(parsed.problems);
+    if (!input.body.trim()) problems.push({ code: "description-missing", detail: "body" });
+    if (problems.length) return { ok: false, reason: "invalid", problems };
+    return this.writeSkill(name, [{ path: "SKILL.md", bytes: utf8Encode(text) }], "created");
+  }
+
+  /**
+   * One of the app's skills as an own version in the vault, to change there;
+   * the app's own is switched off on this device so the two do not compete.
+   */
+  async copyAppSkill(id: string): Promise<SkillWriteOutcome> {
+    const source = APP_SKILL_SOURCES.find((s) => s.id === id);
+    if (!source?.skill || source.text === null) return { ok: false, reason: "invalid" };
+    const result = await this.writeSkill(source.skill.name, [{ path: "SKILL.md", bytes: utf8Encode(source.text) }], "copied");
+    if (result.ok) await this.switchInstruction(id, false);
+    return result;
+  }
+
+  /** A skill the user picked and checked in the import dialog (`readSkillImport`), with where it came from. */
+  async importSkill(imported: SkillImport, from: { label: string; sha256?: string }, replace = false): Promise<SkillWriteOutcome> {
+    if (imported.blocked) return { ok: false, reason: "invalid", problems: imported.problems };
+    return this.writeSkill(imported.name, imported.files, "imported", { from, replace });
+  }
+
+  /** Deletes an own skill or AGENTS.md after the user confirmed it; its approval and switch go with it. */
+  async deleteInstruction(id: string): Promise<boolean> {
+    const host = this.vault?.instructions;
+    if (!host?.remove || id.startsWith("plainva:")) return false;
+    try {
+      await host.remove(id);
+    } catch {
+      await this.refreshSkills();
+      return false;
+    }
+    const approvals = await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS);
+    await host.approvals.save(pruneInstructionApprovals(revokeInstruction(approvals, id), new Set((await host.scan().catch(() => [] as InstructionSource[])).map((s) => s.id))));
+    await this.refreshSkills();
+    return true;
   }
 
   /**

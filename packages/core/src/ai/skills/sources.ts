@@ -65,6 +65,11 @@ export interface InstructionIO {
 
 const decoder = new TextDecoder("utf-8", { fatal: false });
 
+/** The hash the scan gives a file — what an approval binds. */
+export function instructionFileHash(bytes: Uint8Array): string {
+  return sha256Hex(bytes);
+}
+
 /** A skill that comes with the app: its `SKILL.md`, read as it is bundled. */
 export function appSkillSource(folder: string, text: string): InstructionSource {
   const parsed = parseSkillFile(text, folder);
