@@ -32,6 +32,16 @@ on:
         description: "Upload to the TestFlight app Plainva Labs"
         type: boolean
         default: true
+      # Android developer verification of com.plainva.app.labs (Play Console →
+      # Android developer verification → the package's key → "Get started"):
+      # the console shows a string that has to ride in
+      # assets/adi-registration.properties of an APK signed with that key —
+      # the Labs APK is. Run once with it, upload that APK in the console:
+      #   gh workflow run labs-mobile.yml --ref feature/ai-harness -f ios=false -f registration_token='<string>'
+      registration_token:
+        description: "Android developer verification: the console's string for assets/adi-registration.properties (empty for a normal build)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -80,6 +90,18 @@ jobs:
         working-directory: apps/mobile
         run: npx cap sync android
 
+      # The proof of key ownership, only when a registration asks for it. The
+      # string goes through the environment, never into the script text.
+      - name: Proof of key ownership for the package registration
+        if: ${{ inputs.registration_token != '' }}
+        working-directory: apps/mobile/android/app/src/main
+        env:
+          REGISTRATION_TOKEN: ${{ inputs.registration_token }}
+        run: |
+          mkdir -p assets
+          printf '%s\n' "$REGISTRATION_TOKEN" > assets/adi-registration.properties
+          echo "assets/adi-registration.properties written"
+
       # The build type `labs` (build.gradle): application id
       # com.plainva.app.labs, its own name, scheme and launcher shortcuts
       # (src/labs/res). Signed with the upload key; the versionCode is this
@@ -113,12 +135,14 @@ jobs:
       - name: Attach the APK to the labs-android draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          KEY_PROOF: ${{ inputs.registration_token != '' && 'yes' || '' }}
         run: |
           set -euo pipefail
           apk="$(find apps/mobile/android/app/build/outputs/apk/labs -name '*.apk' | head -1)"
           [ -n "$apk" ] || { echo "::error::No Labs APK was built."; exit 1; }
           cp "$apk" "$RUNNER_TEMP/plainva-labs.apk"
           notes="Plainva Labs · ${GITHUB_REF_NAME} · ${GITHUB_SHA::8} · run #${GITHUB_RUN_NUMBER}"
+          if [ -n "$KEY_PROOF" ]; then notes="$notes · carries the proof of key ownership for the Play Console"; fi
           if gh release view labs-android >/dev/null 2>&1; then
             gh release upload labs-android "$RUNNER_TEMP/plainva-labs.apk" --clobber
             gh release edit labs-android --notes "$notes"
