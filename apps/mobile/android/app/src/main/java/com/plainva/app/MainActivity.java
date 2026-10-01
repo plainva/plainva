@@ -22,6 +22,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(WidgetBridgePlugin.class);
         registerPlugin(LocalModelPlugin.class);
         registerPlugin(AiNetPlugin.class);
+        registerPlugin(PlatformModelPlugin.class);
         super.onCreate(savedInstanceState);
         shareIntentId = savedInstanceState == null ? null : savedInstanceState.getString("plainva.shareIntentId");
         stashShare(getIntent());

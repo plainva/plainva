@@ -118,6 +118,8 @@ export function failureFromChunk(code: string, message: string): ModelFailure {
       return { kind: "overloaded", status: 0 };
     case "platform_refused":
       return { kind: "refused_by_provider", status: 0, message };
+    case "platform_error":
+      return { kind: "provider_error", message };
     default:
       return { kind: "offline", message };
   }

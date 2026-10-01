@@ -86,6 +86,9 @@ dependencies {
     implementation "com.google.android.gms:play-services-auth:22.0.0"
     // Local embeddings (plan KI-Harness P2a-3, ADR 0021): Microsoft's ONNX Runtime.
     implementation "com.microsoft.onnxruntime:onnxruntime-android:1.30.0"
+    // The system's own model (plan KI-Harness P2c, ADR 0021): ML Kit's Prompt API.
+    // It needs Android 8; the manifest overrides its minSdk and the plugin checks the version first.
+    implementation "com.google.mlkit:genai-prompt:1.0.0-beta4"
     testImplementation "junit:junit:$junitVersion"
     // android.jar stubs org.json on the unit-test classpath: every call
     // returns a default and a parser test would pass on nothing. The real

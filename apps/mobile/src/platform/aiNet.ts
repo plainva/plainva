@@ -1,5 +1,6 @@
 import { registerPlugin } from "@capacitor/core";
 import type { AiEgress, EgressChunk, EndpointConfirmText, HttpRequestSpec } from "@plainva/core";
+import { isPlatformRequest, PlatformModel } from "./platformModel";
 
 /**
  * The phone's native AI egress (ADR 0017): the `AiNet` plugin
@@ -33,6 +34,8 @@ const AiNet = registerPlugin<AiNetNative>("AiNet");
 const TERMINAL: ReadonlySet<EgressChunk["type"]> = new Set(["done", "cancelled", "failed", "httpError"]);
 
 export function createMobileAiEgress(confirmText: () => EndpointConfirmText): AiEgress {
+  /** Requests the system's own model is answering (plan P2c): a cancel goes where the request went. */
+  const onDevice = new Set<string>();
   return {
     send(requestId: string, spec: HttpRequestSpec, onChunk: (chunk: EgressChunk) => void) {
       return new Promise<void>((resolve, reject) => {
@@ -46,27 +49,35 @@ export function createMobileAiEgress(confirmText: () => EndpointConfirmText): Ai
           ...(spec.body ? { body: spec.body } : {}),
           ...(spec.rawBody ? { rawBody: spec.rawBody } : {}),
         };
-        void AiNet.request(options, (chunk, error) => {
+        // The system's own model answers on the device (plan P2c); everything else goes through the network egress.
+        const platform = isPlatformRequest(spec.url);
+        if (platform) onDevice.add(requestId);
+        const native = platform ? PlatformModel : AiNet;
+        void native.request(options, (chunk, error) => {
           if (settled) return;
           if (error || !chunk) {
             settled = true;
+            onDevice.delete(requestId);
             reject(error instanceof Error ? error : new Error(String(error ?? "AiNet request failed")));
             return;
           }
           onChunk(chunk);
           if (TERMINAL.has(chunk.type)) {
             settled = true;
+            onDevice.delete(requestId);
             resolve();
           }
         }).catch((error: unknown) => {
           if (settled) return;
           settled = true;
+          onDevice.delete(requestId);
           reject(error instanceof Error ? error : new Error(String(error)));
         });
       });
     },
     async cancel(requestId) {
-      await AiNet.cancel({ requestId });
+      if (onDevice.has(requestId)) await PlatformModel.cancel({ requestId });
+      else await AiNet.cancel({ requestId });
     },
     async setKey(endpointId, key) {
       await AiNet.setKey({ endpointId, value: key });

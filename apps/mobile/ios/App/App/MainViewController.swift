@@ -18,5 +18,6 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(WidgetBridgePlugin())
         bridge?.registerPluginInstance(AiNetPlugin())
         bridge?.registerPluginInstance(LocalModelPlugin())
+        bridge?.registerPluginInstance(PlatformModelPlugin())
     }
 }
