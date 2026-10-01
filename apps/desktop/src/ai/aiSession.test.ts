@@ -26,6 +26,15 @@ function answer(text: string): EgressChunk[] {
   return [{ type: "open", status: 200 }, { type: "data", text: events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join("") }, { type: "done" }];
 }
 
+/** An answer of a system's own model (plan P2c): the platform plugins' small dialect. */
+function platformAnswer(text: string): EgressChunk[] {
+  return [
+    { type: "open", status: 200 },
+    { type: "data", text: `data: ${JSON.stringify({ text })}\n\ndata: ${JSON.stringify({ stop: "end" })}\n\n` },
+    { type: "done" },
+  ];
+}
+
 function fakeEgress(script: EgressChunk[][]) {
   const sent: HttpRequestSpec[] = [];
   const keys = new Set<string>(["anthropic"]);
@@ -328,6 +337,31 @@ describe("the AI session", () => {
     } finally {
       delete files["Bank.md"];
     }
+  });
+
+  it("answers with the system's own model on this device: no overview, no tools, the request cut to its window (plan P2c)", async () => {
+    const { s, fake } = session([platformAnswer("From the device.")], { approve: false });
+    await s.load();
+    await s.attachVault(vaultHost("Offer.md").host);
+    await s.setChoice({ providerId: "apple", model: "on-device" });
+
+    expect(await s.send("Where is the offer?")).toEqual({ kind: "answered" });
+    // Nothing leaves the device, so nothing is asked.
+    expect(s.getState().consent).toBeNull();
+    const spec = fake.sent[0]!;
+    expect(spec).toMatchObject({ endpointId: "apple", url: "platform://apple/generate", auth: null });
+    const body = spec.body as { instructions: string; prompt: string; maxOutputTokens: number };
+    expect(body.prompt).toContain("Where is the offer?");
+    // The open note went along whole — links included, a cloud rule does not apply on the device.
+    expect(body.prompt).toContain("Rates as in [[Salaries]]");
+    expect(body.maxOutputTokens).toBeLessThanOrEqual(700);
+    expect(s.getState().active!.conversation.tools).toEqual([]);
+    expect(s.getState().active!.runs[0]!.manifest!.local).toBe(true);
+
+    // The profile "Local" may name it: gists then come from the phone's own model.
+    expect(s.localCompletion()).toBeNull();
+    await s.updateSettings((x) => ({ ...x, profiles: { ...x.profiles, local: { providerId: "apple", model: "on-device" } } }));
+    expect(s.localCompletion()?.providerId).toBe("apple");
   });
 
   it("shows a failure as a notice and keeps the question", async () => {

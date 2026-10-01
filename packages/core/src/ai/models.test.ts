@@ -41,7 +41,7 @@ describe("model list (connection test)", () => {
 
 describe("provider registry", () => {
   it("lists every stage A and B provider, each with a hint and none hidden", () => {
-    expect(BUILTIN_PROVIDERS.map((p) => p.id)).toEqual(["anthropic", "openai", "gemini", "openrouter", "ollama", "lmstudio"]);
+    expect(BUILTIN_PROVIDERS.map((p) => p.id)).toEqual(["anthropic", "openai", "gemini", "openrouter", "ollama", "lmstudio", "apple", "gemini-nano"]);
     for (const p of BUILTIN_PROVIDERS) expect(p.hints.length).toBeGreaterThan(0);
   });
 

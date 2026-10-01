@@ -55,7 +55,19 @@
       "offline": "No se pudo contactar con {{provider}}.",
       "streamBroken": "La conexión se cortó en mitad de la respuesta.",
       "providerError": "{{provider}} informó de un error: {{message}}",
-      "openSetup": "Abrir configuración"
+      "openSetup": "Abrir configuración",
+      "platform": {
+        "deviceNotEligible": "{{provider}} no funciona en este dispositivo.",
+        "appleIntelligenceNotEnabled": "Apple Intelligence está desactivado. Actívalo en los Ajustes del iPhone y vuelve a intentarlo.",
+        "modelNotReady": "El sistema aún está preparando el modelo. Vuelve a intentarlo más tarde.",
+        "downloadable": "El sistema puede descargar primero el modelo — con «Cargar modelo» en la configuración.",
+        "downloading": "El sistema está descargando el modelo. Vuelve a intentarlo cuando termine.",
+        "notSupported": "{{provider}} no está disponible en este dispositivo.",
+        "osTooOld": "{{provider}} necesita una versión más reciente del sistema.",
+        "background": "{{provider}} solo responde mientras Plainva está abierto.",
+        "unsupportedLanguage": "{{provider}} no habla este idioma. Escribe en otro o elige otro modelo.",
+        "unavailable": "{{provider}} no está disponible ahora mismo."
+      }
     },
     "empty": {
       "setupTitle": "Configurar la IA",
@@ -145,7 +157,8 @@
       "feedback": "Comentarios sobre la IA (beta)",
       "feedbackDesc": "Cuéntanos qué funciona y qué no, en las discusiones del proyecto en GitHub.",
       "feedbackOpen": "Abrir discusiones",
-      "embeddingHint": "El modelo con el que calcula la búsqueda por significado cuando eliges «Proveedor propio» en Búsqueda semántica. Funciona cualquier modelo que el proveedor ofrezca para embeddings."
+      "embeddingHint": "El modelo con el que calcula la búsqueda por significado cuando eliges «Proveedor propio» en Búsqueda semántica. Funciona cualquier modelo que el proveedor ofrezca para embeddings.",
+      "onDevice": "En este dispositivo — sin clave, nada sale de él"
     },
     "add": {
       "title": "Añadir proveedor",
@@ -174,7 +187,9 @@
       "geminiFreeTier": "Pensado para uso profesional, a partir de 18 años. En el acceso gratuito, las entradas pueden ser leídas por personas y usarse para mejorar los productos de Google; en el EEE, Suiza y el Reino Unido, Google solo ofrece servicios de pago para programas de API. Tu decisión.",
       "gateway": "Un intermediario es también un destinatario: ve lo que envías y lo transmite al modelo que elegiste.",
       "local": "Se ejecuta en este ordenador; nada sale de él. La calidad y la velocidad dependen del dispositivo.",
-      "customServer": "Se aplican las condiciones de quien administra este servidor."
+      "customServer": "Se aplican las condiciones de quien administra este servidor.",
+      "appleDevice": "El modelo de Apple en este iPhone: gratis, nada sale del dispositivo. Necesita Apple Intelligence (desde el iPhone 15 Pro); su ventana pequeña solo admite unas pocas notas por pregunta y no habla todos los idiomas (no polaco).",
+      "geminiNano": "El modelo de Google en este teléfono, a través de AICore de Android: gratis, nada sale del dispositivo. Solo en algunos teléfonos recientes; su ventana pequeña solo admite unas pocas notas por pregunta."
     },
     "profile": {
       "fast": "Rápido",

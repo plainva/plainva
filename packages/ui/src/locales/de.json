@@ -53,7 +53,19 @@
       "offline": "{{provider}} ist nicht erreichbar.",
       "streamBroken": "Die Verbindung brach mitten in der Antwort ab.",
       "providerError": "{{provider}} meldet einen Fehler: {{message}}",
-      "openSetup": "Einstellungen öffnen"
+      "openSetup": "Einstellungen öffnen",
+      "platform": {
+        "deviceNotEligible": "{{provider}} läuft auf diesem Gerät nicht.",
+        "appleIntelligenceNotEnabled": "Apple Intelligence ist aus. Schalte sie in den Einstellungen des iPhones ein und versuche es dann noch einmal.",
+        "modelNotReady": "Das System bereitet das Modell noch vor. Versuche es später noch einmal.",
+        "downloadable": "Das System kann das Modell zuerst laden — dafür „Modell laden“ in den Einstellungen.",
+        "downloading": "Das System lädt das Modell. Versuche es noch einmal, wenn es fertig ist.",
+        "notSupported": "{{provider}} ist auf diesem Gerät nicht verfügbar.",
+        "osTooOld": "{{provider}} braucht eine neuere Systemversion.",
+        "background": "{{provider}} antwortet nur, solange Plainva geöffnet ist.",
+        "unsupportedLanguage": "{{provider}} spricht diese Sprache nicht. Schreibe in einer anderen oder wähle ein anderes Modell.",
+        "unavailable": "{{provider}} ist gerade nicht verfügbar."
+      }
     },
     "empty": {
       "setupTitle": "KI einrichten",
@@ -141,7 +153,8 @@
       "feedback": "Rückmeldung zur KI (Beta)",
       "feedbackDesc": "Sag uns, was funktioniert und was nicht — in den Diskussionen des Projekts auf GitHub.",
       "feedbackOpen": "Diskussionen öffnen",
-      "embeddingHint": "Das Modell, mit dem die Suche nach Bedeutung rechnet, wenn Du unter Semantische Suche „Eigener Anbieter“ wählst. Jedes Modell, das der Anbieter für Einbettungen anbietet, funktioniert."
+      "embeddingHint": "Das Modell, mit dem die Suche nach Bedeutung rechnet, wenn Du unter Semantische Suche „Eigener Anbieter“ wählst. Jedes Modell, das der Anbieter für Einbettungen anbietet, funktioniert.",
+      "onDevice": "Auf diesem Gerät — ohne Schlüssel, nichts verlässt es"
     },
     "add": {
       "title": "Anbieter hinzufügen",
@@ -170,7 +183,9 @@
       "geminiFreeTier": "Gedacht für berufliche Nutzung, ab 18. Im kostenlosen Zugang dürfen Eingaben von Menschen gelesen und zur Verbesserung von Googles Produkten genutzt werden; in EWR, Schweiz und Vereinigtem Königreich sieht Google für API-Programme nur bezahlte Dienste vor. Deine Entscheidung.",
       "gateway": "Ein Vermittler ist selbst Empfänger: er sieht, was Du sendest, und reicht es an das gewählte Modell weiter.",
       "local": "Läuft auf diesem Rechner; nichts verlässt ihn. Qualität und Tempo hängen am Gerät.",
-      "customServer": "Es gelten die Bedingungen dessen, der diesen Server betreibt."
+      "customServer": "Es gelten die Bedingungen dessen, der diesen Server betreibt.",
+      "appleDevice": "Apples Modell auf diesem iPhone: kostenlos, nichts verlässt das Gerät. Braucht Apple Intelligence (ab iPhone 15 Pro); sein kleines Fenster fasst nur wenige Notizen je Frage, und es spricht nicht jede Sprache (kein Polnisch).",
+      "geminiNano": "Googles Modell auf diesem Telefon, über Androids AICore: kostenlos, nichts verlässt das Gerät. Nur auf einigen neueren Telefonen; sein kleines Fenster fasst nur wenige Notizen je Frage."
     },
     "profile": {
       "fast": "Schnell",

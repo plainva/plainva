@@ -55,7 +55,19 @@
       "offline": "Impossible de joindre {{provider}}.",
       "streamBroken": "La connexion s'est interrompue en pleine réponse.",
       "providerError": "{{provider}} a signalé une erreur : {{message}}",
-      "openSetup": "Ouvrir les paramètres"
+      "openSetup": "Ouvrir les paramètres",
+      "platform": {
+        "deviceNotEligible": "{{provider}} ne fonctionne pas sur cet appareil.",
+        "appleIntelligenceNotEnabled": "Apple Intelligence est désactivée. Activez-la dans les Réglages de l'iPhone, puis réessayez.",
+        "modelNotReady": "Le système prépare encore le modèle. Réessayez plus tard.",
+        "downloadable": "Le système peut d'abord télécharger le modèle — avec « Charger le modèle » dans les paramètres.",
+        "downloading": "Le système télécharge le modèle. Réessayez quand ce sera terminé.",
+        "notSupported": "{{provider}} n'est pas disponible sur cet appareil.",
+        "osTooOld": "{{provider}} nécessite une version plus récente du système.",
+        "background": "{{provider}} ne répond que tant que Plainva est ouvert.",
+        "unsupportedLanguage": "{{provider}} ne parle pas cette langue. Écrivez dans une autre ou choisissez un autre modèle.",
+        "unavailable": "{{provider}} n'est pas disponible pour le moment."
+      }
     },
     "empty": {
       "setupTitle": "Configurer l'IA",
@@ -145,7 +157,8 @@
       "feedback": "Retour sur l'IA (bêta)",
       "feedbackDesc": "Dites-nous ce qui fonctionne et ce qui ne fonctionne pas — dans les discussions du projet sur GitHub.",
       "feedbackOpen": "Ouvrir les discussions",
-      "embeddingHint": "Le modèle avec lequel la recherche par sens calcule quand vous choisissez « Fournisseur personnel » sous Recherche sémantique. Tout modèle que le fournisseur propose pour les embeddings fonctionne."
+      "embeddingHint": "Le modèle avec lequel la recherche par sens calcule quand vous choisissez « Fournisseur personnel » sous Recherche sémantique. Tout modèle que le fournisseur propose pour les embeddings fonctionne.",
+      "onDevice": "Sur cet appareil — sans clé, rien n'en sort"
     },
     "add": {
       "title": "Ajouter un fournisseur",
@@ -174,7 +187,9 @@
       "geminiFreeTier": "Destiné à un usage professionnel, à partir de 18 ans. Dans l'accès gratuit, les entrées peuvent être lues par des personnes et utilisées pour améliorer les produits de Google ; dans l'EEE, en Suisse et au Royaume-Uni, Google ne propose que des services payants pour les programmes API. À vous de choisir.",
       "gateway": "Une passerelle est elle-même un destinataire : elle voit ce que vous envoyez et le transmet au modèle que vous avez choisi.",
       "local": "S'exécute sur cet ordinateur ; rien n'en sort. La qualité et la vitesse dépendent de l'appareil.",
-      "customServer": "Les conditions de la personne qui exploite ce serveur s'appliquent."
+      "customServer": "Les conditions de la personne qui exploite ce serveur s'appliquent.",
+      "appleDevice": "Le modèle d'Apple sur cet iPhone : gratuit, rien ne quitte l'appareil. Nécessite Apple Intelligence (à partir de l'iPhone 15 Pro) ; sa petite fenêtre ne contient que quelques notes par question, et il ne parle pas toutes les langues (pas le polonais).",
+      "geminiNano": "Le modèle de Google sur ce téléphone, via AICore d'Android : gratuit, rien ne quitte l'appareil. Seulement sur certains téléphones récents ; sa petite fenêtre ne contient que quelques notes par question."
     },
     "profile": {
       "fast": "Rapide",

@@ -18,6 +18,8 @@ import {
   appendTurn,
   assistantSystemPrompt,
   buildContextPackage,
+  contextBudgetFor,
+  PLATFORM_CONTEXT_DEFAULT,
   conversationMatches,
   conversationSummaryOf,
   conversationTitleFrom,
@@ -44,6 +46,7 @@ import {
   modelListSpec,
   parseModelList,
   providerById,
+  recipientOf,
   readAiAppSettings,
   runAgent,
   scopeGrowth,
@@ -175,7 +178,7 @@ export type TranscriptionOutcome =
     };
 
 /** What the next message would carry, built like a send and sent nowhere (plan §13.3, "View context"). */
-/** One request to the model of the profile "Local" on this computer (plan P2b-3): no conversation, no tools, no transcript. */
+/** One request to the model of the profile "Local" on this device (plans P2b-3, P2c): no conversation, no tools, no transcript. */
 export interface LocalCompletion {
   providerId: string;
   model: string;
@@ -327,6 +330,14 @@ export class AiSession {
     const settings = change(this.state.settings);
     this.set({ settings });
     await this.host.saveSettings(settings);
+  }
+
+  /**
+   * The window of the chosen model where it is known (plan P2c): what the
+   * provider's model list reported, else what a platform model has.
+   */
+  private windowOf(provider: ProviderInfo, model: string): number | undefined {
+    return this.state.tests[provider.id]?.models?.find((m) => m.id === model)?.contextTokens ?? provider.contextTokens;
   }
 
   providers(): ProviderInfo[] {
@@ -527,8 +538,7 @@ export class AiSession {
     if (range.text.length > SELECTION_MAX_CHARS) return { kind: "refused", reason: "too-long" };
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) return { kind: "refused", reason: "no-model" };
-    const recipient: EgressRecipient =
-      provider.kind === "local" ? { kind: "local", provider: provider.id, model: choice.model } : { kind: "cloud", provider: provider.id, model: choice.model };
+    const recipient: EgressRecipient = recipientOf(provider, choice.model);
     const run = { recipient, webTools: false };
     // The note passes the gate with the text in the editor: an unsaved `cloud: deny` counts.
     if (!gateDecision(await vault.policy.policyOf(range.path, range.doc), run).allowed) return { kind: "refused", reason: "denied" };
@@ -566,7 +576,7 @@ export class AiSession {
         providerId: provider.id,
         providerLabel: provider.label,
         model: choice.model,
-        local: provider.kind === "local",
+        local: !isCloudRecipient(recipient),
         sources: [{ path: range.path, title, tier: "evidence", chars: range.text.length, reasons: ["active"], selection: true, ...(seen.length ? { sensitive: seen } : {}) }],
         ...(seen.length ? { sensitive: seen } : {}),
         dataClasses: ["selection"],
@@ -659,8 +669,7 @@ export class AiSession {
     const { audio, notePath, target } = request;
     if (audio.bytes.length > TRANSCRIPTION_MAX_BYTES) return refused("too-large", { size: audio.bytes.length });
     if (this.transcribing.has(audio.path)) return refused("busy");
-    const recipient: EgressRecipient =
-      provider.kind === "local" ? { kind: "local", provider: provider.id, model: choice.model } : { kind: "cloud", provider: provider.id, model: choice.model };
+    const recipient: EgressRecipient = recipientOf(provider, choice.model);
     const run = { recipient, webTools: false };
     const note = await vault.readNote(notePath);
     if (!note || !note.text.includes(target)) return refused("changed");
@@ -673,7 +682,7 @@ export class AiSession {
       providerId: provider.id,
       providerLabel: provider.label,
       model: choice.model,
-      local: provider.kind === "local",
+      local: !isCloudRecipient(recipient),
       sources: [{ path: audio.path, title: audio.name, tier: "evidence", chars: 0, reasons: ["active"], audioBytes: audio.bytes.length }],
       dataClasses: ["audio"],
       folders: [folder],
@@ -776,13 +785,14 @@ export class AiSession {
 
   /**
    * One request to the model of the profile "Local", only while it runs on
-   * this computer (plan P2b-3, gists): no conversation, no tools, no
+   * this device — a server on this computer, or the system's own model on
+   * the phone (plans P2b-3 and P2c, gists): no conversation, no tools, no
    * transcript, nothing to a cloud. Null while the profile names no such model.
    */
   localCompletion(): LocalCompletion | null {
     const choice = this.state.settings.profiles.local;
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : null;
-    if (!choice || !provider || provider.kind !== "local") return null;
+    if (!choice || !provider || (provider.kind !== "local" && provider.kind !== "platform-device")) return null;
     return {
       providerId: provider.id,
       model: choice.model,
@@ -797,6 +807,7 @@ export class AiSession {
           executor: { execute: async () => ({ content: "No tools.", isError: true }) },
           context: { privateContext: true, untrustedContext: true },
           limits: { maxSteps: 1, maxToolCalls: 0, maxOutputTokens: 1_000 },
+          ...(provider.endpoint.api === "platform" ? { contextTokens: this.windowOf(provider, choice.model) ?? PLATFORM_CONTEXT_DEFAULT } : {}),
           ...(signal ? { signal } : {}),
           newRequestId: () => `ai-${this.host.newId()}`,
           now: () => this.host.now().toISOString(),
@@ -854,16 +865,30 @@ export class AiSession {
     pins: readonly string[],
     turns: ConversationRecord["conversation"]["turns"],
   ) {
-    const recipient: EgressRecipient =
-      provider.kind === "local" ? { kind: "local", provider: provider.id, model: choice.model } : { kind: "cloud", provider: provider.id, model: choice.model };
-    const tools = vault.tools(recipient);
+    const recipient: EgressRecipient = recipientOf(provider, choice.model);
+    // The system's own model takes no tools, and a small window a smaller package (plan P2c).
+    const platform = provider.endpoint.api === "platform";
+    const budget = contextBudgetFor(this.windowOf(provider, choice.model));
+    const tools = platform ? null : vault.tools(recipient);
     const situation = await vault.situation().catch(() => this.bareSituation());
     const seen = this.state.excludeActive ? { ...situation, active: null } : situation;
     const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
     const gists = vault.gists?.() ?? null;
     const build = async (leaveOut: ReadonlySet<string>, redact: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
       const pack = await buildContextPackage(
-        { question: message, recipient, situation: seen, candidates, pins: pins.filter((p) => !leaveOut.has(p)), alreadySent: sentStamps(turns), leaveOut, originals: new Set(this.state.originalsNext), redact },
+        {
+          question: message,
+          recipient,
+          situation: seen,
+          candidates,
+          pins: pins.filter((p) => !leaveOut.has(p)),
+          // A platform model's request carries only the latest notes (plan P2c): nothing counts as sent before.
+          ...(platform ? {} : { alreadySent: sentStamps(turns) }),
+          leaveOut,
+          originals: new Set(this.state.originalsNext),
+          redact,
+          ...(budget ? { budget } : {}),
+        },
         {
           policyOf: vault.policy.policyOf,
           resolveLink: vault.policy.resolveLink,
@@ -872,7 +897,7 @@ export class AiSession {
           ...(gists ? { gists } : {}),
         },
       );
-      const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: provider.kind === "local" }, choice.model, {
+      const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: !isCloudRecipient(recipient) }, choice.model, {
         tools: tools?.names ?? [],
         questionChars: message.length,
         ...(this.priceOf(choice) ? { priceUsdPerMillionInput: this.priceOf(choice)!.input } : {}),
@@ -1004,12 +1029,12 @@ export class AiSession {
       this.set({ notice: { conversationId: this.state.active?.id ?? "", stop } });
       return stop;
     }
-    const recipient: EgressRecipient =
-      provider.kind === "local" ? { kind: "local", provider: provider.id, model: choice.model } : { kind: "cloud", provider: provider.id, model: choice.model };
+    const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // Redacted for the whole conversation (P2b-6): in its context, and in what the model reads itself through the tools.
     // One set for both: a choice in the overview below reaches the tools of this run too.
     const redact = new Set<string>(this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
-    const tools = vault.tools(recipient, undefined, redact);
+    // The system's own model takes no tools (plan P2c).
+    const tools = provider.endpoint.api === "platform" ? null : vault.tools(recipient, undefined, redact);
     const now = this.host.now().toISOString();
 
     let record: ConversationRecord = this.state.active ?? (() => {
@@ -1107,6 +1132,7 @@ export class AiSession {
       context: { privateContext: carriesVault, untrustedContext: carriesVault },
       signal: controller.signal,
       cache: true,
+      ...(provider.endpoint.api === "platform" ? { contextTokens: this.windowOf(provider, choice.model) ?? PLATFORM_CONTEXT_DEFAULT } : {}),
       newRequestId: () => `ai-${this.host.newId()}`,
       now: () => this.host.now().toISOString(),
       onEvent: (event) => {

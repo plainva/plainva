@@ -1,4 +1,5 @@
 import { BUILTIN_ENDPOINTS, type ProviderApi, type ProviderEndpoint } from "./providers.js";
+import type { EgressRecipient } from "./egressGate.js";
 import { embeddingModel } from "./embeddings/catalog.js";
 import { DEFAULT_SEARCH_MODE, isSearchMode, type SearchMode } from "./embeddings/searchMode.js";
 
@@ -10,7 +11,12 @@ import { DEFAULT_SEARCH_MODE, isSearchMode, type SearchMode } from "./embeddings
  * "the best model".
  */
 
-export type ProviderKind = "cloud" | "gateway" | "local";
+/**
+ * `platform-device`: the system's own model on this device (plan P2c) — no
+ * key, nothing leaves the device. `platform-cloud` names Apple's Private
+ * Cloud Compute, a server with Apple's assurances, once it can be reached.
+ */
+export type ProviderKind = "cloud" | "gateway" | "local" | "platform-device" | "platform-cloud";
 
 export interface ProviderInfo {
   /** The endpoint id; also the key slot on the native side. */
@@ -27,6 +33,10 @@ export interface ProviderInfo {
   hints: readonly string[];
   /** A user-added endpoint (OpenAI-compatible server or gateway). */
   custom?: boolean;
+  /** A platform model exists only on its own system (plan P2c). */
+  os?: "ios" | "android";
+  /** The window a platform model has when its plugin names none. */
+  contextTokens?: number;
 }
 
 function endpoint(id: string): ProviderEndpoint {
@@ -89,7 +99,47 @@ export const BUILTIN_PROVIDERS: readonly ProviderInfo[] = [
     keyUrl: "https://lmstudio.ai/",
     hints: ["ai.hint.local"],
   },
+  // Plan P2c: the systems' own models, offered only on their system.
+  {
+    id: "apple",
+    label: "Apple",
+    endpoint: endpoint("apple"),
+    kind: "platform-device",
+    os: "ios",
+    contextTokens: 4_096,
+    hints: ["ai.hint.appleDevice"],
+  },
+  {
+    id: "gemini-nano",
+    label: "Gemini Nano",
+    endpoint: endpoint("gemini-nano"),
+    kind: "platform-device",
+    os: "android",
+    contextTokens: 4_000,
+    hints: ["ai.hint.geminiNano"],
+  },
 ];
+
+/**
+ * Where a request to this provider goes, as the hard gate sees it: a gateway
+ * is a cloud like any other, a platform model stays on the device.
+ */
+export function recipientOf(provider: ProviderInfo, model: string): EgressRecipient {
+  switch (provider.kind) {
+    case "local":
+    case "platform-device":
+    case "platform-cloud":
+      return { kind: provider.kind, provider: provider.id, model };
+    case "cloud":
+    case "gateway":
+      return { kind: "cloud", provider: provider.id, model };
+  }
+}
+
+/** The providers a shell offers: a platform model only on its own system. */
+export function offeredOn(os: "ios" | "android" | null): (provider: ProviderInfo) => boolean {
+  return (provider) => !provider.os || provider.os === os;
+}
 
 /** A server the user added: OpenAI-compatible, key optional, confirmed natively. */
 export interface CustomEndpoint {

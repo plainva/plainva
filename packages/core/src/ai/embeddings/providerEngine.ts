@@ -31,6 +31,7 @@ export function embeddingRoute(endpoint: ProviderEndpoint): EmbeddingRoute | nul
     case "openai-chat":
       return "openai-embeddings";
     case "anthropic-messages":
+    case "platform":
       return null;
   }
 }

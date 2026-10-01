@@ -53,7 +53,19 @@
       "offline": "Could not reach {{provider}}.",
       "streamBroken": "The connection broke off in the middle of the answer.",
       "providerError": "{{provider}} reported an error: {{message}}",
-      "openSetup": "Open settings"
+      "openSetup": "Open settings",
+      "platform": {
+        "deviceNotEligible": "{{provider}} cannot run on this device.",
+        "appleIntelligenceNotEnabled": "Apple Intelligence is off. Turn it on in the iPhone's Settings, then try again.",
+        "modelNotReady": "The system is still preparing the model. Try again later.",
+        "downloadable": "The system can download the model first — use “Load model” in the settings.",
+        "downloading": "The system is downloading the model. Try again when it is done.",
+        "notSupported": "{{provider}} is not available on this device.",
+        "osTooOld": "{{provider}} needs a newer system version.",
+        "background": "{{provider}} answers only while Plainva is open.",
+        "unsupportedLanguage": "{{provider}} does not speak this language. Write in another one or choose another model.",
+        "unavailable": "{{provider}} is not available right now."
+      }
     },
     "empty": {
       "setupTitle": "Set up the AI",
@@ -141,7 +153,8 @@
       "feedback": "Feedback on the AI (Beta)",
       "feedbackDesc": "Tell us what works and what does not — in the project's discussions on GitHub.",
       "feedbackOpen": "Open discussions",
-      "embeddingHint": "The model search by meaning computes with when you choose “Own provider” under Semantic search. Any model the provider offers for embeddings works."
+      "embeddingHint": "The model search by meaning computes with when you choose “Own provider” under Semantic search. Any model the provider offers for embeddings works.",
+      "onDevice": "On this device — no key, nothing leaves it"
     },
     "add": {
       "title": "Add provider",
@@ -170,7 +183,9 @@
       "geminiFreeTier": "Meant for professional use, from 18. In the free access, inputs may be read by people and used to improve Google's products; in the EEA, Switzerland and the UK, Google provides only paid services for API programs. Your choice.",
       "gateway": "A gateway is a recipient itself: it sees what you send and passes it on to the model you chose.",
       "local": "Runs on this computer; nothing leaves it. Quality and speed depend on the device.",
-      "customServer": "The terms of whoever runs this server apply."
+      "customServer": "The terms of whoever runs this server apply.",
+      "appleDevice": "Apple's model on this iPhone: free, and nothing leaves the device. Needs Apple Intelligence (iPhone 15 Pro or later); its small window holds only a few notes per question, and it does not speak every language (no Polish).",
+      "geminiNano": "Google's model on this phone, through Android's AICore: free, and nothing leaves the device. Only on some recent phones; its small window holds only a few notes per question."
     },
     "profile": {
       "fast": "Fast",

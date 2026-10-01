@@ -1,5 +1,6 @@
 import type { Conversation, Part, Turn } from "./conversation.js";
 import { toolInputJsonSchema, type ToolManifest } from "./tools.js";
+import { PLATFORM_ANSWER_TOKENS, PLATFORM_CONTEXT_DEFAULT, platformPrompt } from "./platform.js";
 
 /**
  * Provider request codecs (ADR 0017): own thin adapters, no provider SDK.
@@ -14,7 +15,8 @@ import { toolInputJsonSchema, type ToolManifest } from "./tools.js";
  * string exactly as chosen, nothing but the endpoint as recipient.
  */
 
-export type ProviderApi = "anthropic-messages" | "openai-responses" | "openai-chat" | "gemini";
+/** `platform`: the system's own model (plan P2c) — no HTTP; the phone's egress hands it to a native plugin. */
+export type ProviderApi = "anthropic-messages" | "openai-responses" | "openai-chat" | "gemini" | "platform";
 
 export interface ProviderEndpoint {
   /** Stable id: "anthropic", "openai", "gemini", "openrouter", "ollama", "lmstudio", or a user endpoint id. */
@@ -69,6 +71,8 @@ export interface ModelRequest {
   maxOutputTokens: number;
   /** Mark the stable prefix for provider-side prompt caching. */
   cache?: boolean;
+  /** The model's whole window (prompt and answer), where it is small enough to matter (platform models, plan P2c). */
+  contextTokens?: number;
 }
 
 export const BUILTIN_ENDPOINTS: readonly ProviderEndpoint[] = [
@@ -78,6 +82,9 @@ export const BUILTIN_ENDPOINTS: readonly ProviderEndpoint[] = [
   { id: "openrouter", api: "openai-chat", baseUrl: "https://openrouter.ai/api/v1", needsKey: true },
   { id: "ollama", api: "openai-chat", baseUrl: "http://localhost:11434/v1", needsKey: false },
   { id: "lmstudio", api: "openai-chat", baseUrl: "http://localhost:1234/v1", needsKey: false },
+  // The systems' own models (plan P2c): never a network address — the phone's egress answers these itself.
+  { id: "apple", api: "platform", baseUrl: "platform://apple", needsKey: false },
+  { id: "gemini-nano", api: "platform", baseUrl: "platform://gemini-nano", needsKey: false },
 ];
 
 function checkTools(request: ModelRequest): void {
@@ -270,6 +277,27 @@ function buildGemini(endpoint: ProviderEndpoint, request: ModelRequest): HttpReq
   };
 }
 
+/**
+ * A platform model (plan P2c): one request for the native plugin of the
+ * system's model — the instructions, and a prompt cut to the model's window
+ * (`platformPrompt`). It takes no tools: they would not fit, and the system
+ * models have no general way to call them.
+ */
+function buildPlatform(endpoint: ProviderEndpoint, request: ModelRequest): HttpRequestSpec {
+  const contextTokens = request.contextTokens ?? PLATFORM_CONTEXT_DEFAULT;
+  const answerTokens = Math.min(request.maxOutputTokens, PLATFORM_ANSWER_TOKENS);
+  const { instructions, prompt } = platformPrompt(request.conversation, { contextTokens, answerTokens });
+  return {
+    endpointId: endpoint.id,
+    url: `${endpoint.baseUrl}/generate`,
+    method: "POST",
+    headers: {},
+    body: { instructions, prompt, maxOutputTokens: answerTokens },
+    auth: null,
+    stream: true,
+  };
+}
+
 export function buildRequest(endpoint: ProviderEndpoint, request: ModelRequest): HttpRequestSpec {
   checkTools(request);
   switch (endpoint.api) {
@@ -281,5 +309,7 @@ export function buildRequest(endpoint: ProviderEndpoint, request: ModelRequest):
       return buildOpenAiChat(endpoint, request);
     case "gemini":
       return buildGemini(endpoint, request);
+    case "platform":
+      return buildPlatform(endpoint, request);
   }
 }

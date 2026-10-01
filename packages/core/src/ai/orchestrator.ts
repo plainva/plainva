@@ -108,6 +108,8 @@ export interface RunInput {
   now?: () => string;
   /** Mark the stable prefix for provider-side prompt caching. */
   cache?: boolean;
+  /** The model's window, where it is small (platform models, plan P2c): the request is cut to it. */
+  contextTokens?: number;
   /** Test seams: the pause before a retried call, and its jitter. */
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
   random?: () => number;
@@ -183,6 +185,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           tools,
           maxOutputTokens: Math.max(256, limits.maxOutputTokens - usage.outputTokens),
           cache: input.cache,
+          ...(input.contextTokens ? { contextTokens: input.contextTokens } : {}),
         },
         (event) => {
           heard = true;

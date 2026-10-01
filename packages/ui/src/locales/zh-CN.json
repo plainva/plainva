@@ -51,7 +51,19 @@
       "offline": "无法连接到{{provider}}。",
       "streamBroken": "连接在回答过程中中断了。",
       "providerError": "{{provider}}报告了一个错误：{{message}}",
-      "openSetup": "打开设置"
+      "openSetup": "打开设置",
+      "platform": {
+        "deviceNotEligible": "此设备无法运行{{provider}}。",
+        "appleIntelligenceNotEnabled": "Apple 智能已关闭。请在 iPhone 的设置中开启，然后重试。",
+        "modelNotReady": "系统仍在准备模型。请稍后重试。",
+        "downloadable": "系统可以先下载模型——请在设置中使用“加载模型”。",
+        "downloading": "系统正在下载模型。完成后请重试。",
+        "notSupported": "此设备上无法使用{{provider}}。",
+        "osTooOld": "{{provider}}需要更新的系统版本。",
+        "background": "{{provider}}只在 Plainva 打开时回答。",
+        "unsupportedLanguage": "{{provider}}不支持这种语言。请用其他语言书写，或选择其他模型。",
+        "unavailable": "{{provider}}当前不可用。"
+      }
     },
     "empty": {
       "setupTitle": "设置AI",
@@ -137,7 +149,8 @@
       "feedback": "AI（测试版）反馈",
       "feedbackDesc": "在GitHub上的项目讨论区告诉我们哪些好用、哪些不好用。",
       "feedbackOpen": "打开讨论区",
-      "embeddingHint": "在“语义搜索”中选择“自有服务商”时，含义搜索所用的模型。服务商提供的任何嵌入模型都可以使用。"
+      "embeddingHint": "在“语义搜索”中选择“自有服务商”时，含义搜索所用的模型。服务商提供的任何嵌入模型都可以使用。",
+      "onDevice": "在此设备上——无需密钥，任何内容都不会离开"
     },
     "add": {
       "title": "添加服务商",
@@ -166,7 +179,9 @@
       "geminiFreeTier": "面向18岁以上的专业使用场景。在免费访问中，你的输入可能被人工读取，并用于改进Google的产品；在欧洲经济区、瑞士和英国，Google的API项目仅提供付费服务。由你决定。",
       "gateway": "网关本身也是一个接收方：它能看到你发送的内容，并将其转发给你选择的模型。",
       "local": "运行在此电脑上；不会有任何内容离开它。质量和速度取决于设备性能。",
-      "customServer": "适用于运营此服务器一方的条款。"
+      "customServer": "适用于运营此服务器一方的条款。",
+      "appleDevice": "这台 iPhone 上的 Apple 模型：免费，任何内容都不会离开设备。需要 Apple 智能（iPhone 15 Pro 或更新机型）；窗口较小，每个问题只能带上少量笔记，并且不支持所有语言（不支持波兰语）。",
+      "geminiNano": "这部手机上的 Google 模型，通过 Android 的 AICore 运行：免费，任何内容都不会离开设备。仅在部分较新的手机上可用；窗口较小，每个问题只能带上少量笔记。"
     },
     "profile": {
       "fast": "快速",

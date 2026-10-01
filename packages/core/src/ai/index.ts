@@ -17,6 +17,7 @@ export * from "./ruleOfTwo.js";
 export * from "./egress.js";
 export * from "./models.js";
 export * from "./registry.js";
+export * from "./platform.js";
 export * from "./history.js";
 export * from "./chat.js";
 export * from "./orchestrator.js";

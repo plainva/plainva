@@ -284,6 +284,26 @@ function geminiDecoder(): StreamDecoder {
   };
 }
 
+/**
+ * A platform model (plan P2c) speaks Plainva's own small dialect: the native
+ * plugin sends `{"text"}` deltas and, at the end, `{"stop"}` with the token
+ * counts where the platform has them.
+ */
+function platformDecoder(): StreamDecoder {
+  const count = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+  return {
+    push(message) {
+      const msg = parseJson(message.data) as { text?: unknown; stop?: unknown; usage?: { inputTokens?: unknown; outputTokens?: unknown } } | undefined;
+      if (!msg || typeof msg !== "object") return [];
+      const out: StreamEvent[] = [];
+      if (typeof msg.text === "string" && msg.text) out.push({ type: "text", text: msg.text });
+      if (msg.usage && typeof msg.usage === "object") out.push({ type: "usage", inputTokens: count(msg.usage.inputTokens), outputTokens: count(msg.usage.outputTokens) });
+      if (typeof msg.stop === "string") out.push({ type: "stop", reason: msg.stop === "max_tokens" ? "max_tokens" : msg.stop === "refusal" ? "refusal" : "end" });
+      return out;
+    },
+  };
+}
+
 export function createStreamDecoder(api: ProviderApi): StreamDecoder {
   switch (api) {
     case "anthropic-messages":
@@ -294,5 +314,7 @@ export function createStreamDecoder(api: ProviderApi): StreamDecoder {
       return openAiChatDecoder();
     case "gemini":
       return geminiDecoder();
+    case "platform":
+      return platformDecoder();
   }
 }

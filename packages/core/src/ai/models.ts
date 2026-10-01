@@ -67,6 +67,9 @@ export function modelListSpec(endpoint: ProviderEndpoint): HttpRequestSpec {
         auth: endpoint.needsKey ? { header: "authorization", scheme: "Bearer" } : null,
         stream: false,
       };
+    case "platform":
+      // The plugin answers with the model and its window in the list shape below — or why the system has none.
+      return { endpointId: endpoint.id, url: `${base}/models`, method: "GET", headers: {}, auth: null, stream: false };
   }
 }
 

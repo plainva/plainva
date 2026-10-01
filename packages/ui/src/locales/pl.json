@@ -57,7 +57,19 @@
       "offline": "Nie udało się połączyć z {{provider}}.",
       "streamBroken": "Połączenie urwało się w trakcie odpowiedzi.",
       "providerError": "{{provider}} zgłosił błąd: {{message}}",
-      "openSetup": "Otwórz ustawienia"
+      "openSetup": "Otwórz ustawienia",
+      "platform": {
+        "deviceNotEligible": "{{provider}} nie działa na tym urządzeniu.",
+        "appleIntelligenceNotEnabled": "Apple Intelligence jest wyłączone. Włącz je w Ustawieniach iPhone'a i spróbuj ponownie.",
+        "modelNotReady": "System wciąż przygotowuje model. Spróbuj ponownie później.",
+        "downloadable": "System może najpierw pobrać model — przez „Załaduj model” w ustawieniach.",
+        "downloading": "System pobiera model. Spróbuj ponownie, gdy skończy.",
+        "notSupported": "{{provider}} nie jest dostępny na tym urządzeniu.",
+        "osTooOld": "{{provider}} wymaga nowszej wersji systemu.",
+        "background": "{{provider}} odpowiada tylko wtedy, gdy Plainva jest otwarta.",
+        "unsupportedLanguage": "{{provider}} nie zna tego języka. Napisz w innym albo wybierz inny model.",
+        "unavailable": "{{provider}} jest teraz niedostępny."
+      }
     },
     "empty": {
       "setupTitle": "Skonfiguruj AI",
@@ -149,7 +161,8 @@
       "feedback": "Opinie o AI (beta)",
       "feedbackDesc": "Napisz, co działa, a co nie — w dyskusjach projektu na GitHubie.",
       "feedbackOpen": "Otwórz dyskusje",
-      "embeddingHint": "Model, którym liczy wyszukiwanie po znaczeniu, gdy w Wyszukiwaniu semantycznym wybierzesz „Własny dostawca”. Działa każdy model, który dostawca oferuje do embeddingów."
+      "embeddingHint": "Model, którym liczy wyszukiwanie po znaczeniu, gdy w Wyszukiwaniu semantycznym wybierzesz „Własny dostawca”. Działa każdy model, który dostawca oferuje do embeddingów.",
+      "onDevice": "Na tym urządzeniu — bez klucza, nic go nie opuszcza"
     },
     "add": {
       "title": "Dodaj dostawcę",
@@ -178,7 +191,9 @@
       "geminiFreeTier": "Pomyślany do użytku zawodowego, od 18 roku życia. W bezpłatnym dostępie dane wejściowe mogą być czytane przez ludzi i wykorzystywane do ulepszania produktów Google; w EOG, Szwajcarii i Wielkiej Brytanii Google oferuje w programach API wyłącznie usługi płatne. Decyzja należy do użytkownika.",
       "gateway": "Pośrednik sam jest odbiorcą: widzi, co zostaje wysłane, i przekazuje to do wybranego modelu.",
       "local": "Działa na tym komputerze; nic go nie opuszcza. Jakość i szybkość zależą od urządzenia.",
-      "customServer": "Obowiązują warunki tego, kto prowadzi ten serwer."
+      "customServer": "Obowiązują warunki tego, kto prowadzi ten serwer.",
+      "appleDevice": "Model Apple na tym iPhonie: bezpłatny, nic nie opuszcza urządzenia. Wymaga Apple Intelligence (od iPhone'a 15 Pro); jego małe okno mieści tylko kilka notatek na pytanie i nie zna każdego języka (nie zna polskiego).",
+      "geminiNano": "Model Google na tym telefonie, przez AICore Androida: bezpłatny, nic nie opuszcza urządzenia. Tylko na niektórych nowszych telefonach; jego małe okno mieści tylko kilka notatek na pytanie."
     },
     "profile": {
       "fast": "Szybki",

@@ -52,7 +52,9 @@ function deepKeys(value: unknown, out = new Set<string>()): Set<string> {
   return out;
 }
 
-const cases: Array<[string, ProviderEndpoint]> = BUILTIN_ENDPOINTS.map((e) => [e.id, e]);
+// HTTP providers. The systems' own models (plan P2c) take no HTTP and keep no conversation of their own:
+// their request is cut to a small window each time, so append-only does not apply — platform.test.ts pins their rules.
+const cases: Array<[string, ProviderEndpoint]> = BUILTIN_ENDPOINTS.filter((e) => e.api !== "platform").map((e) => [e.id, e]);
 
 describe.each(cases)("provider conformance: %s", (_id, endpoint) => {
   const provider = endpoint.id;

@@ -58,7 +58,13 @@ export type ModelFailure =
   | { kind: "unknown_endpoint"; message: string }
   | { kind: "offline"; message: string }
   | { kind: "stream_broken"; message: string }
-  | { kind: "provider_error"; message: string; code?: string };
+  | { kind: "provider_error"; message: string; code?: string }
+  /**
+   * The system's model is not there (plan P2c): the device is not eligible,
+   * Apple Intelligence is off, the model is still loading or can be loaded,
+   * the app is in the background — `reason` names which, for the settings to say.
+   */
+  | { kind: "platform_unavailable"; reason: string };
 
 export interface ModelCallResult {
   stop: StopReason | "cancelled" | null;
@@ -101,6 +107,17 @@ export function failureFromChunk(code: string, message: string): ModelFailure {
       return { kind: "unknown_endpoint", message };
     case "idle_timeout":
       return { kind: "stream_broken", message };
+    // The platform plugins' own codes (plan P2c): no HTTP status, the same meanings.
+    case "platform_unavailable":
+      return { kind: "platform_unavailable", reason: message };
+    case "context_too_long":
+      return { kind: "context_too_long", status: 0 };
+    case "rate_limited":
+      return { kind: "rate_limited", status: 0 };
+    case "overloaded":
+      return { kind: "overloaded", status: 0 };
+    case "platform_refused":
+      return { kind: "refused_by_provider", status: 0, message };
     default:
       return { kind: "offline", message };
   }

@@ -3,6 +3,7 @@ import { appendTurn, DEFAULT_AI_APP_SETTINGS, EMPTY_USAGE, parsePolicyFile, read
 import {
   addableProviders,
   aiDefaultSettings,
+  aiFailureText,
   aiVaultKey,
   configuredProviders,
   createAiVaultStores,
@@ -182,5 +183,15 @@ describe("the settings model", () => {
     expect(desktop.gateways.map((p) => p.id)).toEqual(["openrouter"]);
     expect(desktop.local.map((p) => p.id)).toEqual(["lmstudio"]);
     expect(addableProviders(state({}), { localServers: false }).local).toEqual([]);
+    // The system's own model only on its own system (plan P2c).
+    expect(desktop.device).toEqual([]);
+    expect(addableProviders(state({}), { localServers: false, platformOs: "ios" }).device.map((p) => p.id)).toEqual(["apple"]);
+    expect(addableProviders(state({}), { localServers: false, platformOs: "android" }).device.map((p) => p.id)).toEqual(["gemini-nano"]);
+  });
+
+  it("says why the system's model is not there, in words the reader can act on", () => {
+    const t = (key: string, vars?: Record<string, unknown>) => `${key}${vars ? JSON.stringify(vars) : ""}`;
+    expect(aiFailureText(t, { kind: "platform_unavailable", reason: "appleIntelligenceNotEnabled" }, "Apple")).toBe('ai.error.platform.appleIntelligenceNotEnabled{"provider":"Apple"}');
+    expect(aiFailureText(t, { kind: "platform_unavailable", reason: "a reason of a later system" }, "Gemini Nano")).toBe('ai.error.platform.unavailable{"provider":"Gemini Nano"}');
   });
 });

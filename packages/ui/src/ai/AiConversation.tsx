@@ -56,7 +56,7 @@ const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
 };
 
 /** Failures the settings can fix: the notice offers the way there. */
-const SETUP_FAILURES = new Set<ModelFailure["kind"]>(["no_key", "invalid_key", "not_found", "unknown_endpoint"]);
+const SETUP_FAILURES = new Set<ModelFailure["kind"]>(["no_key", "invalid_key", "not_found", "unknown_endpoint", "platform_unavailable"]);
 
 export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpenSettings, onPickNote, selection }: AiConversationProps) {
   const { t, i18n } = useTranslation();

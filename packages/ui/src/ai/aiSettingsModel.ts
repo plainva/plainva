@@ -23,6 +23,19 @@ export function aiDefaultSettings(info: BuildInfo = buildInfo()): AiAppSettings 
   return info.channel === "labs" ? { ...DEFAULT_AI_APP_SETTINGS, enabled: true } : DEFAULT_AI_APP_SETTINGS;
 }
 
+/** Why a system's model is not there (plan P2c), as the native plugins name it. */
+const PLATFORM_REASONS: ReadonlySet<string> = new Set([
+  "deviceNotEligible",
+  "appleIntelligenceNotEnabled",
+  "modelNotReady",
+  "downloadable",
+  "downloading",
+  "notSupported",
+  "osTooOld",
+  "background",
+  "unsupportedLanguage",
+]);
+
 /** A failure in words the reader can act on — the chat and the settings say it alike. */
 export function aiFailureText(t: T, failure: ModelFailure, provider: string, model = ""): string {
   switch (failure.kind) {
@@ -48,6 +61,8 @@ export function aiFailureText(t: T, failure: ModelFailure, provider: string, mod
       return t("ai.error.streamBroken");
     case "provider_error":
       return t("ai.error.providerError", { provider, message: failure.message });
+    case "platform_unavailable":
+      return PLATFORM_REASONS.has(failure.reason) ? t(`ai.error.platform.${failure.reason}`, { provider }) : t("ai.error.platform.unavailable", { provider });
   }
 }
 
@@ -82,6 +97,7 @@ export function providerStatus(t: T, row: ProviderRowModel): string {
   if (test?.state === "testing") return t("ai.settings.testing");
   if (test?.state === "ok") return t("ai.settings.testOk", { count: test.models?.length ?? 0 });
   if (test?.state === "failed" && test.failure) return t("ai.settings.testFailed", { reason: aiFailureText(t, test.failure, row.provider.label) });
+  if (row.provider.kind === "platform-device") return t("ai.settings.onDevice");
   if (!row.needsKey) return row.provider.kind === "local" ? t("ai.hint.local") : t("ai.settings.noKeyNeeded");
   return row.hasKey ? t("ai.settings.keyStored") : t("ai.settings.noKey");
 }
@@ -91,16 +107,19 @@ export interface AddableGroups {
   gateways: ProviderInfo[];
   /** Servers on this computer; the phone runs none (a parity decision, not a limit). */
   local: ProviderInfo[];
+  /** The system's own model on this device (plan P2c): Apple on the iPhone, Gemini Nano on Android. */
+  device: ProviderInfo[];
 }
 
 /** The providers that can still be added, grouped the way the dialog shows them. */
-export function addableProviders(state: AiState, opts: { localServers: boolean }): AddableGroups {
+export function addableProviders(state: AiState, opts: { localServers: boolean; platformOs?: "ios" | "android" | null }): AddableGroups {
   const shown = new Set(configuredProviders(state).map((r) => r.provider.id));
   const free = BUILTIN_PROVIDERS.filter((p) => !shown.has(p.id));
   return {
     cloud: free.filter((p) => p.kind === "cloud"),
     gateways: free.filter((p) => p.kind === "gateway"),
     local: opts.localServers ? free.filter((p) => p.kind === "local") : [],
+    device: free.filter((p) => p.kind === "platform-device" && p.os === opts.platformOs),
   };
 }
 

@@ -53,7 +53,19 @@
       "offline": "Kon {{provider}} niet bereiken.",
       "streamBroken": "De verbinding brak midden in het antwoord af.",
       "providerError": "{{provider}} meldde een fout: {{message}}",
-      "openSetup": "Instellingen openen"
+      "openSetup": "Instellingen openen",
+      "platform": {
+        "deviceNotEligible": "{{provider}} werkt niet op dit apparaat.",
+        "appleIntelligenceNotEnabled": "Apple Intelligence staat uit. Zet het aan in de Instellingen van de iPhone en probeer het opnieuw.",
+        "modelNotReady": "Het systeem bereidt het model nog voor. Probeer het later opnieuw.",
+        "downloadable": "Het systeem kan het model eerst downloaden — met „Model laden” in de instellingen.",
+        "downloading": "Het systeem downloadt het model. Probeer het opnieuw als het klaar is.",
+        "notSupported": "{{provider}} is niet beschikbaar op dit apparaat.",
+        "osTooOld": "{{provider}} heeft een nieuwere systeemversie nodig.",
+        "background": "{{provider}} antwoordt alleen zolang Plainva open is.",
+        "unsupportedLanguage": "{{provider}} spreekt deze taal niet. Schrijf in een andere of kies een ander model.",
+        "unavailable": "{{provider}} is nu niet beschikbaar."
+      }
     },
     "empty": {
       "setupTitle": "AI instellen",
@@ -141,7 +153,8 @@
       "feedback": "Feedback over de AI (bèta)",
       "feedbackDesc": "Vertel ons wat werkt en wat niet — in de discussies van het project op GitHub.",
       "feedbackOpen": "Discussies openen",
-      "embeddingHint": "Het model waarmee zoeken op betekenis rekent als je onder Semantisch zoeken „Eigen provider” kiest. Elk model dat de provider voor embeddings aanbiedt, werkt."
+      "embeddingHint": "Het model waarmee zoeken op betekenis rekent als je onder Semantisch zoeken „Eigen provider” kiest. Elk model dat de provider voor embeddings aanbiedt, werkt.",
+      "onDevice": "Op dit apparaat — zonder sleutel, er gaat niets naar buiten"
     },
     "add": {
       "title": "Provider toevoegen",
@@ -170,7 +183,9 @@
       "geminiFreeTier": "Bedoeld voor professioneel gebruik, vanaf 18 jaar. Bij de gratis toegang mogen invoergegevens door mensen worden gelezen en gebruikt om Googles producten te verbeteren; in de EER, Zwitserland en het Verenigd Koninkrijk biedt Google voor API-programma's alleen betaalde diensten aan. Jouw keuze.",
       "gateway": "Een gateway is zelf ook een ontvanger: hij ziet wat je verstuurt en geeft het door aan het model dat je gekozen hebt.",
       "local": "Draait op deze computer; niets verlaat hem. Kwaliteit en snelheid hangen af van het apparaat.",
-      "customServer": "De voorwaarden van wie deze server beheert, zijn van toepassing."
+      "customServer": "De voorwaarden van wie deze server beheert, zijn van toepassing.",
+      "appleDevice": "Het model van Apple op deze iPhone: gratis, er verlaat niets het apparaat. Vereist Apple Intelligence (vanaf iPhone 15 Pro); het kleine venster past maar een paar notities per vraag, en het spreekt niet elke taal (geen Pools).",
+      "geminiNano": "Het model van Google op deze telefoon, via AICore van Android: gratis, er verlaat niets het apparaat. Alleen op sommige recente telefoons; het kleine venster past maar een paar notities per vraag."
     },
     "profile": {
       "fast": "Snel",

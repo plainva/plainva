@@ -55,7 +55,19 @@
       "offline": "Impossibile raggiungere {{provider}}.",
       "streamBroken": "La connessione si è interrotta a metà della risposta.",
       "providerError": "{{provider}} ha segnalato un errore: {{message}}",
-      "openSetup": "Apri le impostazioni"
+      "openSetup": "Apri le impostazioni",
+      "platform": {
+        "deviceNotEligible": "{{provider}} non funziona su questo dispositivo.",
+        "appleIntelligenceNotEnabled": "Apple Intelligence è disattivata. Attivala nelle Impostazioni dell'iPhone, poi riprova.",
+        "modelNotReady": "Il sistema sta ancora preparando il modello. Riprova più tardi.",
+        "downloadable": "Il sistema può prima scaricare il modello — con «Carica modello» nelle impostazioni.",
+        "downloading": "Il sistema sta scaricando il modello. Riprova quando ha finito.",
+        "notSupported": "{{provider}} non è disponibile su questo dispositivo.",
+        "osTooOld": "{{provider}} richiede una versione più recente del sistema.",
+        "background": "{{provider}} risponde solo mentre Plainva è aperto.",
+        "unsupportedLanguage": "{{provider}} non parla questa lingua. Scrivi in un'altra o scegli un altro modello.",
+        "unavailable": "{{provider}} non è disponibile al momento."
+      }
     },
     "empty": {
       "setupTitle": "Configura l'IA",
@@ -145,7 +157,8 @@
       "feedback": "Feedback sull'IA (beta)",
       "feedbackDesc": "Dicci cosa funziona e cosa no, nelle discussioni del progetto su GitHub.",
       "feedbackOpen": "Apri discussioni",
-      "embeddingHint": "Il modello con cui calcola la ricerca per significato quando scegli «Provider proprio» in Ricerca semantica. Funziona qualsiasi modello che il provider offre per gli embedding."
+      "embeddingHint": "Il modello con cui calcola la ricerca per significato quando scegli «Provider proprio» in Ricerca semantica. Funziona qualsiasi modello che il provider offre per gli embedding.",
+      "onDevice": "Su questo dispositivo — senza chiave, nulla ne esce"
     },
     "add": {
       "title": "Aggiungi provider",
@@ -174,7 +187,9 @@
       "geminiFreeTier": "Pensato per uso professionale, dai 18 anni. Nell'accesso gratuito, gli input possono essere letti da persone e usati per migliorare i prodotti di Google; nello SEE, in Svizzera e nel Regno Unito, Google offre solo servizi a pagamento per i programmi API. Scelta tua.",
       "gateway": "Un gateway è esso stesso un destinatario: vede quello che invii e lo inoltra al modello che hai scelto.",
       "local": "Funziona su questo computer; nulla lo lascia. Qualità e velocità dipendono dal dispositivo.",
-      "customServer": "Si applicano le condizioni di chi gestisce questo server."
+      "customServer": "Si applicano le condizioni di chi gestisce questo server.",
+      "appleDevice": "Il modello di Apple su questo iPhone: gratuito, nulla lascia il dispositivo. Richiede Apple Intelligence (da iPhone 15 Pro); la sua finestra piccola contiene solo poche note per domanda e non parla tutte le lingue (niente polacco).",
+      "geminiNano": "Il modello di Google su questo telefono, tramite AICore di Android: gratuito, nulla lascia il dispositivo. Solo su alcuni telefoni recenti; la sua finestra piccola contiene solo poche note per domanda."
     },
     "profile": {
       "fast": "Veloce",
