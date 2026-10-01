@@ -119,8 +119,42 @@ describe("vault tools behind the hard gate", () => {
     expect(opened).toEqual(["Projects/Offer.md"]);
   });
 
+  it("a search hit, a task or a recent note below .agent/ does not exist for the model, whatever the recipient", async () => {
+    const skill = ".agent/skills/offer-check/SKILL.md";
+    const d = deps({
+      async search() {
+        return [
+          { path: skill, title: "SKILL", snippet: "skill instructions" },
+          { path: "Projects/Offer.md", title: "Offer", snippet: "Rates" },
+        ];
+      },
+      async taskRows(): Promise<PlannerRow[]> {
+        return [
+          { id: "1", source: "note", path: skill, noteTitle: "SKILL", ordinal: 0, title: "Skill step", state: "open", due: "2026-09-24", dueMinutes: null, priority: 0, tags: [] },
+          { id: "2", source: "note", path: "Projects/Offer.md", noteTitle: "Offer", ordinal: 0, title: "Send offer", state: "open", due: "2026-09-24", dueMinutes: null, priority: 0, tags: [] },
+        ];
+      },
+      async recentlyChanged() {
+        return [
+          { path: skill, title: "SKILL", mtime: 2 },
+          { path: "Projects/Offer.md", title: "Offer", mtime: 1 },
+        ];
+      },
+    });
+    for (const recipient of [cloud, { kind: "local", provider: "ollama", model: "m" } as EgressRecipient]) {
+      const search = await run("search_vault", { query: "skill", limit: 10 }, recipient, d);
+      expect(search.content).toBe("- [[Offer]] (Projects/Offer.md) — Rates");
+      const tasks = await run("get_tasks", { range: "all", limit: 25 }, recipient, d);
+      expect(tasks.content).toContain("Send offer");
+      expect(tasks.content).not.toMatch(/Skill step|\.agent/);
+      const recent = await run("get_recent", { kind: "edited", limit: 10 }, recipient, d);
+      expect(recent.content).not.toContain(".agent");
+      expect((await run("read_note", { path: skill, maxChars: 8000 }, recipient, d)).isError).toBe(true);
+    }
+  });
+
   it("refuses paths that leave the vault or reach Plainva's own folders", () => {
-    for (const bad of ["../x.md", "/etc/passwd", "C:/Windows", "a\\b.md", "a//b.md", "./../x", ".plainva/state.db", ".agent/policy.yml", "x\0.md", ""]) expect(safeRelPath(bad)).toBeNull();
+    for (const bad of ["../x.md", "/etc/passwd", "C:/Windows", "a\\b.md", "a//b.md", "./../x", ".plainva/state.db", ".agent/policy.yml", ".Agent/skills/a/SKILL.md", "x\0.md", ""]) expect(safeRelPath(bad)).toBeNull();
     expect(safeRelPath("./Projects/Offer.md")).toBe("Projects/Offer.md");
   });
 

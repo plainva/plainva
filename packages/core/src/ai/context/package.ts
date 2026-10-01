@@ -2,6 +2,7 @@ import type { TextPart } from "../conversation.js";
 import { CONTEXT_NOTE_LIMIT, contextStamp, withholdDeniedLinks, type ContextPolicyHost } from "../chat.js";
 import { gateDecision, isCloudRecipient, type EgressRecipient, type GateDecision, type GateExclusion } from "../egressGate.js";
 import { fenceUntrusted, payload } from "../trust.js";
+import { isAiHiddenPath } from "../hiddenPaths.js";
 import { chunkNote } from "../embeddings/chunks.js";
 import { mergeCandidates, rankCandidates, urgencySignal, type Candidate, type CandidateSignal, type RankedCandidate } from "./ranking.js";
 import { cardText, contextCard } from "./cards.js";
@@ -275,11 +276,27 @@ function cardSource(text: string, title: string, candidate: RankedCandidate, ter
   return heading ? sectionAt(body, heading.line) : first;
 }
 
+/**
+ * The situation without anything below a hidden root (`.agent/`, ADR 0020):
+ * an open skill file or a task written in one is not the user's work the
+ * model should see — approved instructions reach it as instructions.
+ */
+function visibleSituation(situation: SituationInput): SituationInput {
+  const visible = (path: string | null | undefined) => !path || !isAiHiddenPath(path);
+  return {
+    ...situation,
+    active: situation.active && visible(situation.active.path) ? situation.active : null,
+    tabs: situation.tabs.filter((tab) => visible(tab.path)),
+    tasks: situation.tasks.filter((task) => visible(task.path)),
+    dailyNote: situation.dailyNote && visible(situation.dailyNote.path) ? situation.dailyNote : null,
+  };
+}
+
 export async function buildContextPackage(input: ContextBuildInput, host: ContextBuildHost): Promise<ContextPackage> {
   const budget: ContextBudget = { ...DEFAULT_CONTEXT_BUDGET, ...input.budget };
   const run = { recipient: input.recipient, webTools: false };
   const cloud = isCloudRecipient(input.recipient);
-  const situation = input.situation;
+  const situation = visibleSituation(input.situation);
   const terms = questionTerms(input.question);
   const redactions = { withheldLinks: 0, places: 0, moodProperties: 0, sensitive: 0 };
   const excluded: GateExclusion[] = [];
@@ -341,14 +358,14 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   // ------------------------------------------------------------ candidates
   const own: Candidate[] = [];
   if (situation.active?.kind === "note") own.push({ path: situation.active.path, title: situation.active.title, signals: { active: 1 } });
-  for (const path of input.pins) own.push({ path, title: titleFromPath(path), signals: { pinned: 1 } });
+  for (const path of input.pins) if (!isAiHiddenPath(path)) own.push({ path, title: titleFromPath(path), signals: { pinned: 1 } });
   for (const tab of situation.tabs) own.push({ path: tab.path, title: tab.title, signals: { tab: 1 } });
   if (situation.dailyNote) own.push({ path: situation.dailyNote.path, title: situation.dailyNote.title, signals: { daily: 1 } });
   for (const task of situation.tasks) {
     const urgency = urgencySignal(task.due, situation.calendarDay);
     if (task.path && urgency > 0) own.push({ path: task.path, title: titleFromPath(task.path), signals: { urgency } });
   }
-  const merged = mergeCandidates([own, ...input.candidates]).filter((candidate) => !input.leaveOut?.has(candidate.path));
+  const merged = mergeCandidates([own, ...input.candidates]).filter((candidate) => !input.leaveOut?.has(candidate.path) && !isAiHiddenPath(candidate.path));
 
   // The hard gate BEFORE scoring: a denied candidate does not exist for anything below.
   const verdicts = await Promise.all(merged.map((candidate) => allowed(candidate.path)));

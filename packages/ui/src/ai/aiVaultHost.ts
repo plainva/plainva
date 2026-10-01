@@ -4,6 +4,7 @@ import {
   effectivePolicy,
   isCloudRecipient,
   ENCRYPTED_WORKSPACE_AI_POLICY,
+  isAiHiddenPath,
   notePolicyFrom,
   OPENED_HALF_LIFE_MS,
   parsePolicyFile,
@@ -149,7 +150,7 @@ export async function gatherCandidates(retrieval: CandidateRetrieval, question: 
     retrieval.semanticCandidates ? retrieval.semanticCandidates(question, 20, { cloudQuestion }).catch(() => []) : Promise.resolve([]),
   ]);
   const best = Math.max(...hits.map((h) => h.score), 0) || 1;
-  return [
+  const lists: Candidate[][] = [
     hits.map((h) => ({ path: h.path, title: h.title || noteTitle(h.path), signals: { lexical: Math.max(0, h.score) / best }, ...(h.snippet ? { snippet: withoutBrokenLinks(unmarkSnippet(h.snippet)) } : {}) })),
     neighbors.map((n) => ({ path: n.path, title: n.title || noteTitle(n.path), signals: { graph: Math.min(1, 0.6 + 0.15 * (n.incoming + n.outgoing - 1)) } })),
     changed.map((c) => ({ path: c.path, title: c.title || noteTitle(c.path), signals: { edited: recencySignal(now - c.mtime, EDITED_HALF_LIFE_MS) } })),
@@ -158,6 +159,8 @@ export async function gatherCandidates(retrieval: CandidateRetrieval, question: 
       .map((o) => ({ path: o.path, title: noteTitle(o.path), signals: { opened: recencySignal(now - o.openedAt, OPENED_HALF_LIFE_MS) } })),
     meaning.map((m) => ({ path: m.path, title: noteTitle(m.path), signals: { semantic: m.score }, chunk: { ordinal: m.ordinal, hash: m.hash } })),
   ];
+  // `.agent/` and the other hidden roots are never candidates (ADR 0020): the package drops them too.
+  return lists.map((list) => list.filter((candidate) => !isAiHiddenPath(candidate.path)));
 }
 
 export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {

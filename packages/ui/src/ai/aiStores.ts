@@ -1,6 +1,9 @@
 import {
   conversationSummaryOf,
   readConversationRecord,
+  readInstructionApprovals,
+  serializeInstructionApprovals,
+  type InstructionApprovals,
   type ConversationRecord,
   type ConversationRepository,
   type ConversationSummary,
@@ -62,6 +65,17 @@ export interface RelatedFeedback {
 export interface RelatedFeedbackStore {
   load(): Promise<RelatedFeedback>;
   save(feedback: RelatedFeedback): Promise<void>;
+}
+
+/**
+ * The approvals of skills and vault instructions on this device (plan
+ * KI-Harness P3, ADR 0020): per vault, in the app's data — never in the vault,
+ * whose writers could otherwise approve what they write. A damaged file
+ * approves nothing.
+ */
+export interface InstructionApprovalStore {
+  load(): Promise<InstructionApprovals>;
+  save(approvals: InstructionApprovals): Promise<void>;
 }
 
 export const RELATED_DISMISSED_CAP = 500;
@@ -130,7 +144,7 @@ function readIndex(raw: string | null): ConversationSummary[] | null {
 export function createAiVaultStores(
   files: AiFileStore,
   vaultKey: string,
-): { conversations: ConversationRepository; ledger: AiLedgerStore; approvals: StandingApprovalStore; related: RelatedFeedbackStore } {
+): { conversations: ConversationRepository; ledger: AiLedgerStore; approvals: StandingApprovalStore; related: RelatedFeedbackStore; instructions: InstructionApprovalStore } {
   if (!SAFE_ID.test(vaultKey)) throw new Error("invalid vault key");
   const dir = vaultKey;
   const indexPath = `${dir}/index.json`;
@@ -206,7 +220,12 @@ export function createAiVaultStores(
       ),
   };
 
-  return { conversations, ledger, approvals, related };
+  const instructions: InstructionApprovalStore = {
+    load: async () => readInstructionApprovals(await files.read(`${dir}/instructions.json`)),
+    save: (value) => files.write(`${dir}/instructions.json`, serializeInstructionApprovals(value)),
+  };
+
+  return { conversations, ledger, approvals, related, instructions };
 }
 
 /** A stable, file-name-safe handle for a vault (FNV-1a over its path or id). */

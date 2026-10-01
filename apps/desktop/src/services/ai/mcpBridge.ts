@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { parseToolInput, toolByName, toolInputJsonSchema, toolsFor, type EgressRecipient } from "@plainva/core";
+import { parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFolders, type EgressRecipient } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { aiVaultKey, mcpSkillPrompts, type AiVaultHost } from "@plainva/ui";
 
@@ -43,13 +43,9 @@ export function trimSlashes(value: string): string {
   return value.slice(start, end);
 }
 
+/** The one folder rule of the harness (a skill's folders read the same way, plan KI-Harness P3). */
 export function insideFolders(path: string, folders: readonly string[]): boolean {
-  const fold = (value: string) => trimSlashes(value.normalize("NFC").toLowerCase());
-  const p = fold(path);
-  return folders.some((folder) => {
-    const f = fold(folder);
-    return f === "" || p === f || p.startsWith(`${f}/`);
-  });
+  return withinFolders(path, folders);
 }
 
 export interface McpCallRequest {

@@ -18,6 +18,7 @@ const files: Record<string, string> = {
   "Journal/2026-09-28.md": "# Monday\n\n- 09:12 Walk\n📍 52.5200, 13.4050\n\nSee [[Salaries]].",
   "Notes/Pinned.md": "---\nstatus: done\n---\nA pinned note, whole.",
   "Notes/Draft.md": "# Draft\n\nnothing yet",
+  ".agent/skills/offer-check/SKILL.md": "---\nname: offer-check\ndescription: x\n---\n\nskill instructions\n\n- [ ] skill step",
 };
 const rules = parsePolicyFile("folders:\n  Private/:\n    cloud: deny\n").rules;
 
@@ -120,6 +121,26 @@ describe("the context package", () => {
     expect(pack.excluded).toEqual([{ path: "Private/Salaries.md", reason: "cloud-denied", source: { kind: "folder", folder: "Private/" } }]);
     // A link to it inside an allowed note is withheld, not resolved.
     expect(pack.redactions.withheldLinks).toBeGreaterThan(0);
+  });
+
+  it("never sends anything below .agent/ as data — not the open skill file, a pin, a tab, a task or a candidate, to any recipient", async () => {
+    const skill = ".agent/skills/offer-check/SKILL.md";
+    for (const recipient of [cloud, local]) {
+      const pack = await buildContextPackage(
+        {
+          question: "skill instructions",
+          recipient,
+          situation: situation({ active: { path: skill, title: "SKILL", kind: "note" }, tabs: [{ path: skill, title: "SKILL" }], tasks: [{ title: "skill step", path: skill, due: "2026-09-28" }] }),
+          candidates: [[{ path: skill, title: "SKILL", signals: { lexical: 1, semantic: 1 } }]],
+          pins: [skill],
+        },
+        host(),
+      );
+      expect(pack.refs.map((r) => r.path)).not.toContain(skill);
+      expect(pack.part.text).not.toMatch(/skill instructions|skill step|\.agent/);
+      // Not a privacy exclusion the overview would list: the folder is simply no data.
+      expect(pack.excluded.map((e) => e.path)).not.toContain(skill);
+    }
   });
 
   it("sends the open note's section, the situation and handles — and a local model may see the denied note", async () => {

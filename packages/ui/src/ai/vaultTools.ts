@@ -1,5 +1,6 @@
 import {
   gateDecision,
+  isAiHiddenPath,
   isCloudRecipient,
   outlineOf,
   redactSensitive,
@@ -121,8 +122,8 @@ export function safeRelPath(path: string): string | null {
   if (!p || p.includes("\0") || p.includes("\\") || p.startsWith("/") || /^[a-z]:/i.test(p)) return null;
   const parts = p.split("/");
   if (parts.some((part) => part === "" || part === "." || part === "..")) return null;
-  // Plainva's own state and the policy files are never tool results (ADR 0022).
-  if ([".plainva", ".agent", ".git", ".obsidian", ".trash"].includes(parts[0]!.toLowerCase())) return null;
+  // Plainva's own state, the policy files and the skills are never tool results (ADR 0020, ADR 0022).
+  if (isAiHiddenPath(p)) return null;
   return p;
 }
 
@@ -172,6 +173,8 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   const cloud = isCloudRecipient(run.recipient);
   const decisions = new Map<string, boolean>();
   const allowed = async (path: string, text?: string): Promise<boolean> => {
+    // A search hit, a neighbour or a task below a hidden root does not exist for the model either.
+    if (isAiHiddenPath(path)) return false;
     if (scope && !scope.inside(path)) return false;
     let ok = decisions.get(path);
     if (ok === undefined) {

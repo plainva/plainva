@@ -20,6 +20,7 @@
  */
 import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
+import { aiVisibleSql } from "../hiddenPaths.js";
 import { chunkNote, type NoteChunk } from "./chunks.js";
 import type { EmbeddingEngine } from "./engine.js";
 import { RELATED_LIMIT, relatedNotes, type RelatedHint, type RelatedOptions } from "./related.js";
@@ -72,8 +73,13 @@ export interface EmbeddingIndexerOptions {
   admission?: EmbeddingAdmission;
 }
 
-/** The notes the pipeline owes vectors — everything indexed but attachments and databases. */
-const EMBEDDABLE = `f.mode != 'attachment' AND f.path NOT LIKE '%.base'`;
+/**
+ * The notes the pipeline owes vectors — everything indexed but attachments,
+ * databases and what lies below a hidden root: `.agent/` stays in the index
+ * for sync, but its files never reach a model as data, a cloud engine
+ * included. Vectors an earlier version wrote for them leave as orphans.
+ */
+const EMBEDDABLE = `f.mode != 'attachment' AND f.path NOT LIKE '%.base' AND ${aiVisibleSql("f.path")}`;
 
 /** The vault's notes with their size: what a standing approval covers. */
 export async function embeddableNotes(db: IDatabaseAdapter): Promise<{ path: string; bytes: number }[]> {

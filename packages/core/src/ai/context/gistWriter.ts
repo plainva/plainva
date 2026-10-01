@@ -13,6 +13,7 @@
  * gist only ever travels where the note itself may go.
  */
 import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
+import { aiVisibleSql } from "../hiddenPaths.js";
 import { checkGist, gistInstruction, gistOfGists, gistSections, GIST_MIN_SOURCE, type GistLevel } from "./gists.js";
 import { GistStore, type StoredGist } from "./gistStore.js";
 
@@ -88,7 +89,7 @@ export class GistWriter {
     if (!(await this.store.writable())) return pass;
     const notes = await this.host.db.query<{ path: string; title: string }>(
       `SELECT path, title FROM files
-       WHERE mode != 'attachment' AND path LIKE '%.md' AND (is_deleted IS NULL OR is_deleted = 0)
+       WHERE mode != 'attachment' AND path LIKE '%.md' AND (is_deleted IS NULL OR is_deleted = 0) AND ${aiVisibleSql("path")}
        ORDER BY mtime_local DESC, path ASC`,
     );
     const live = new Set<string>();
@@ -200,7 +201,7 @@ export class GistReader {
 
   private async newest(where: string, params: unknown[]): Promise<number> {
     const row = await this.db.queryOne<{ newest: number | null }>(
-      `SELECT MAX(mtime_local) AS newest FROM files WHERE mode != 'attachment' AND path LIKE '%.md' AND (is_deleted IS NULL OR is_deleted = 0) AND ${where}`,
+      `SELECT MAX(mtime_local) AS newest FROM files WHERE mode != 'attachment' AND path LIKE '%.md' AND (is_deleted IS NULL OR is_deleted = 0) AND ${aiVisibleSql("path")} AND ${where}`,
       params,
     );
     return epochMs(row?.newest ?? 0);

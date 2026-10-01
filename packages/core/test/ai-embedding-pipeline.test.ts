@@ -61,6 +61,14 @@ describe("EmbeddingIndexer", () => {
     expect(plan.orphans).toEqual([]);
   });
 
+  it("never embeds a file below .agent/ — the folder travels with the vault, but is no data for a model", async () => {
+    await indexed(".agent/skills/offer-check/SKILL.md", "---\nname: offer-check\ndescription: x\n---\n\nInstructions.", 5000);
+    await indexed(".Agent/AGENTS.md", "Stray copy.", 5000);
+    const plan = await indexer.plan();
+    expect(plan.pending.map((work) => work.path)).toEqual(["Budget.md", "Garden.md", "Old.md"]);
+    expect(plan.total).toBe(3);
+  });
+
   it("embeds notes and has nothing left to do", async () => {
     const outcome = await indexer.embed((await indexer.plan()).pending);
     expect([...outcome.values()]).toEqual(["embedded", "embedded", "embedded"]);
