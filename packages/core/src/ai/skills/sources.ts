@@ -1,5 +1,6 @@
 import { isSystemJunkName } from "../../vault/systemJunk.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
+import { stripInvisible } from "../trust.js";
 import { parseSkillFile, SKILL_FILE, type SkillDefinition, type SkillProblem } from "./skillFile.js";
 
 /**
@@ -46,6 +47,12 @@ export interface InstructionSource {
   problems: SkillProblem[];
   /** Over the limits above: never approvable, never read in full. */
   tooLarge: boolean;
+  /**
+   * Invisible characters in the main file (zero-width, bidirectional, tag
+   * characters): the approval dialog says so, and none of them reaches a
+   * model — the user approves what they can see.
+   */
+  invisible?: number;
 }
 
 /** The vault as the scan needs it: folder entries and file bytes, nothing written. */
@@ -112,7 +119,8 @@ export async function scanSkillFolder(io: InstructionIO, folder: string): Promis
   if (main.length > SKILL_MAIN_MAX_BYTES) return { ...source, tooLarge: true };
   const text = decoder.decode(main);
   const parsed = parseSkillFile(text, folder);
-  return { ...source, text, skill: parsed.skill, problems: parsed.problems };
+  const invisible = stripInvisible(text).removed;
+  return { ...source, text, skill: parsed.skill, problems: parsed.problems, ...(invisible ? { invisible } : {}) };
 }
 
 /** The vault's own instructions: every skill folder and a root `AGENTS.md`. */
@@ -120,13 +128,46 @@ export async function scanVaultInstructions(io: InstructionIO): Promise<Instruct
   const sources: InstructionSource[] = [];
   const folders = (await io.list(SKILLS_FOLDER).catch(() => [])).filter((e) => e.folder && !isSystemJunkName(e.name)).map((e) => e.name);
   for (const folder of folders.sort()) sources.push(await scanSkillFolder(io, folder).catch(() => brokenSkill(folder)));
-  const agents = await io.read(AGENTS_FILE).catch(() => null);
-  if (agents) {
-    const file = { path: AGENTS_FILE, bytes: agents.length, sha256: sha256Hex(agents) };
-    const tooLarge = agents.length > AGENTS_MAX_BYTES;
-    sources.push({ id: AGENTS_FILE, kind: "agents", origin: "vault", root: "", files: [file], text: tooLarge ? null : decoder.decode(agents), skill: null, problems: [], tooLarge });
-  }
+  const agents = await scanAgents(io);
+  if (agents) sources.push(agents);
   return sources;
+}
+
+/** The root AGENTS.md as a source; null when there is none. */
+async function scanAgents(io: InstructionIO): Promise<InstructionSource | null> {
+  const agents = await io.read(AGENTS_FILE).catch(() => null);
+  if (!agents) return null;
+  const file = { path: AGENTS_FILE, bytes: agents.length, sha256: sha256Hex(agents) };
+  const tooLarge = agents.length > AGENTS_MAX_BYTES;
+  const text = tooLarge ? null : decoder.decode(agents);
+  const invisible = text === null ? 0 : stripInvisible(text).removed;
+  return { id: AGENTS_FILE, kind: "agents", origin: "vault", root: "", files: [file], text, skill: null, problems: [], tooLarge, ...(invisible ? { invisible } : {}) };
+}
+
+/** One source of the vault as it is now — a skill folder or the root AGENTS.md; null when it is gone. */
+export async function scanInstruction(io: InstructionIO, id: string): Promise<InstructionSource | null> {
+  if (id === AGENTS_FILE) return scanAgents(io);
+  const prefix = `${SKILLS_FOLDER}/`;
+  if (!id.startsWith(prefix) || id.slice(prefix.length).includes("/")) return null;
+  const source = await scanSkillFolder(io, id.slice(prefix.length)).catch(() => null);
+  return source && (source.files.length || source.tooLarge) ? source : null;
+}
+
+/**
+ * A file of a source as the scan saw it: its bytes must still hash to the
+ * scanned value — a file changed since does not count as approved — and be
+ * UTF-8 text. Null otherwise.
+ */
+export async function readInstructionFile(io: InstructionIO, source: InstructionSource, rel: string): Promise<string | null> {
+  const file = source.files.find((f) => f.path === rel);
+  if (!file) return null;
+  const bytes = await io.read(source.root ? `${source.root}/${rel}` : rel).catch(() => null);
+  if (!bytes || sha256Hex(bytes) !== file.sha256) return null;
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
 }
 
 /** A folder the scan could not read: shown, never run. */

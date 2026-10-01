@@ -331,7 +331,8 @@ describe("the catalog", () => {
     for (const source of vault.filter((s) => s.id !== ".agent/skills/pending")) approvals = approveInstruction(approvals, source, "t", "review");
     const entries = resolveInstructions([...vault, app("weekly-review"), app("daily-orientation")], approvals);
     const catalog = skillCatalog(entries);
-    expect(catalog.entries.map((e) => e.key)).toEqual(["plainva/daily-orientation", "weekly-review", "vault/daily-orientation", "offer-check"]);
+    // The app's skills in the order the app lists them, then the vault's by name.
+    expect(catalog.entries.map((e) => e.key)).toEqual(["weekly-review", "plainva/daily-orientation", "vault/daily-orientation", "offer-check"]);
     expect(catalog.text).toContain("- offer-check: Checks an offer.");
     expect(catalog.text).not.toContain("pending");
     expect(catalog.tokens).toBeGreaterThan(0);

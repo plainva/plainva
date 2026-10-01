@@ -14,7 +14,7 @@ import { ICON } from "../lib/iconSizes";
 import { AiAnswer } from "./AiAnswer";
 import { AiContextLens } from "./AiContextLens";
 import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAction, type SelectionReader } from "./aiSelectionActions";
-import { AI_CORE_SKILLS, skillPrompt } from "./aiSkills";
+import { startableSkills } from "./aiSkills";
 import { AiSendOverview } from "./AiSendOverview";
 import { aiFailureText } from "./aiSettingsModel";
 import type { AiDress } from "./aiSession";
@@ -278,11 +278,13 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
         )}
         {items.length === 0 && !live && !consent && state.hasVault && (
           <div className="pv-ai-skills" role="group" aria-label={t("ai.skills.title")} data-testid="ai-skills">
-            {AI_CORE_SKILLS.map((skill) => (
-              <Chip key={skill.id} size="sm" icon={<skill.icon size={ICON.meta} />} testId={`ai-skill-${skill.id}`} onClick={() => void session.send(skillPrompt(t, skill.id))}>
-                {t(`ai.skills.${skill.id}.title`)}
-              </Chip>
-            ))}
+            {startableSkills(t, state.skills.entries)
+              .filter((skill) => skill.featured)
+              .map((skill) => (
+                <Chip key={skill.id} size="sm" icon={<skill.icon size={ICON.meta} />} testId={skill.commandId} onClick={() => void session.runSkill(skill.id, skill.start)}>
+                  {skill.title}
+                </Chip>
+              ))}
           </div>
         )}
         {items.map((item, index) => renderItem(item, index))}

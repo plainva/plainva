@@ -17,12 +17,17 @@ export interface InstructionEntry {
   approval: InstructionApproval | null;
 }
 
-/** Every source with its state on this device: the app's skills first, then the vault's, each by name. */
+/**
+ * Every source with its state on this device: the app's skills first, in the
+ * order the app lists them (the most used first), then the vault's skills by
+ * name, then `AGENTS.md`.
+ */
 export function resolveInstructions(sources: readonly InstructionSource[], approvals: InstructionApprovals): InstructionEntry[] {
-  const order = (s: InstructionSource) => (s.origin === "plainva" ? 0 : s.kind === "skill" ? 1 : 2);
-  return [...sources]
-    .sort((a, b) => order(a) - order(b) || nameOf(a).localeCompare(nameOf(b)) || a.id.localeCompare(b.id))
-    .map((source) => ({ source, status: instructionStatus(source, approvals), approval: approvalOf(approvals, source.id) }));
+  const group = (s: InstructionSource) => (s.origin === "plainva" ? 0 : s.kind === "skill" ? 1 : 2);
+  return sources
+    .map((source, index) => ({ source, index }))
+    .sort((a, b) => group(a.source) - group(b.source) || (group(a.source) === 0 ? a.index - b.index : nameOf(a.source).localeCompare(nameOf(b.source)) || a.source.id.localeCompare(b.source.id)))
+    .map(({ source }) => ({ source, status: instructionStatus(source, approvals), approval: approvalOf(approvals, source.id) }));
 }
 
 /** A source's name: the skill's own, or its folder or file when it is no valid skill. */

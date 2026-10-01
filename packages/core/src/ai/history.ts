@@ -37,6 +37,36 @@ export interface RunMeta {
   costUsd?: number;
   /** The send overview of this run: what went where, by path and section — never content. */
   manifest?: EgressManifest;
+  /** Skills the run used: the one the conversation runs ("bound") and the ones the model loaded, with their tokens (plan KI-Harness P3). */
+  skills?: { id: string; how: "bound" | "loaded"; tokens: number }[];
+  /** The catalog the request carried: how many skills, how many tokens. */
+  skillCatalog?: { count: number; tokens: number };
+}
+
+/** The skill a conversation runs, bound when it started (plan KI-Harness P3). */
+export interface ConversationSkill {
+  id: string;
+  name: string;
+  origin: "plainva" | "vault";
+  /** SHA-256 of its main file as it was bound. */
+  sha256: string;
+  /** Tools and context only inside these folders. */
+  folders?: string[];
+  /** Output tokens of a run, at most. */
+  maxOutputTokens?: number;
+  /** Meant for a model on this device (a hint). */
+  localPreferred?: boolean;
+}
+
+/** What a conversation's system prompt carries besides the app's own rules — fixed when it started. */
+export interface ConversationInstructions {
+  skill?: ConversationSkill;
+  /** The catalog's entries: the name the model calls, the source's id and its origin. */
+  catalog?: { key: string; id: string; origin: "plainva" | "vault" }[];
+  catalogTokens?: number;
+  skillTokens?: number;
+  /** The vault owner's AGENTS.md went in, this many tokens. */
+  vaultTokens?: number;
 }
 
 export interface ConversationRecord {
@@ -61,6 +91,8 @@ export interface ConversationRecord {
    * Kept with the conversation, so a reopened one sends what it sent before.
    */
   redact?: string[];
+  /** The skill, the catalog and AGENTS.md its system prompt carries (plan KI-Harness P3). */
+  instructions?: ConversationInstructions;
 }
 
 export interface ConversationSummary {
@@ -120,7 +152,40 @@ export function readConversationRecord(raw: unknown): ConversationRecord | null 
     runs: Array.isArray(r.runs) ? r.runs.flatMap((run) => readRun(run)) : [],
     pins: Array.isArray(r.pins) ? r.pins.filter((p): p is string => typeof p === "string") : [],
     ...(Array.isArray(r.redact) ? { redact: r.redact.filter((p): p is string => typeof p === "string") } : {}),
+    ...(readInstructions(r.instructions) ? { instructions: readInstructions(r.instructions)! } : {}),
   };
+}
+
+const ORIGINS = ["plainva", "vault"] as const;
+const originOf = (v: unknown): "plainva" | "vault" | null => (ORIGINS as readonly unknown[]).includes(v) ? (v as "plainva" | "vault") : null;
+
+/** A conversation's instructions, field by field; what does not read is left out. */
+function readInstructions(raw: unknown): ConversationInstructions | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const out: ConversationInstructions = {};
+  const s = r.skill as Record<string, unknown> | undefined;
+  if (s && typeof s === "object" && typeof s.id === "string" && typeof s.name === "string" && originOf(s.origin) && typeof s.sha256 === "string") {
+    out.skill = {
+      id: s.id,
+      name: s.name,
+      origin: originOf(s.origin)!,
+      sha256: s.sha256,
+      ...(Array.isArray(s.folders) ? { folders: s.folders.filter((f): f is string => typeof f === "string") } : {}),
+      ...(count(s.maxOutputTokens) ? { maxOutputTokens: count(s.maxOutputTokens) } : {}),
+      ...(s.localPreferred === true ? { localPreferred: true } : {}),
+    };
+  }
+  if (Array.isArray(r.catalog)) {
+    out.catalog = r.catalog.flatMap((e) => {
+      const x = e as Record<string, unknown> | null;
+      return x && typeof x.key === "string" && typeof x.id === "string" && originOf(x.origin) ? [{ key: x.key, id: x.id, origin: originOf(x.origin)! }] : [];
+    });
+  }
+  if (count(r.catalogTokens)) out.catalogTokens = count(r.catalogTokens);
+  if (count(r.skillTokens)) out.skillTokens = count(r.skillTokens);
+  if (count(r.vaultTokens)) out.vaultTokens = count(r.vaultTokens);
+  return Object.keys(out).length ? out : null;
 }
 
 /** Kinds of a sensitivity hint, read defensively. */
@@ -155,6 +220,14 @@ function readRun(raw: unknown): RunMeta[] {
       ...(typeof r.failure === "string" ? { failure: r.failure } : {}),
       ...(typeof r.costUsd === "number" && Number.isFinite(r.costUsd) && r.costUsd >= 0 ? { costUsd: r.costUsd } : {}),
       ...(readManifest(r.manifest) ? { manifest: readManifest(r.manifest)! } : {}),
+      ...(Array.isArray(r.skills)
+        ? {
+            skills: r.skills.flatMap((x) =>
+              x && typeof x === "object" && typeof x.id === "string" && (x.how === "bound" || x.how === "loaded") ? [{ id: x.id, how: x.how, tokens: count(x.tokens) }] : [],
+            ),
+          }
+        : {}),
+      ...(r.skillCatalog && typeof r.skillCatalog === "object" ? { skillCatalog: { count: count(r.skillCatalog.count), tokens: count(r.skillCatalog.tokens) } } : {}),
     },
   ];
 }
@@ -210,7 +283,23 @@ function readManifest(raw: unknown): EgressManifest | null {
     ...(typeof m.estimatedCostUsd === "number" && m.estimatedCostUsd >= 0 ? { estimatedCostUsd: m.estimatedCostUsd } : {}),
     tools: strings(m.tools),
     web: m.web === true,
+    ...(readManifestInstructions(m.instructions) ? { instructions: readManifestInstructions(m.instructions)! } : {}),
   };
+}
+
+function readManifestInstructions(raw: unknown): EgressManifest["instructions"] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const out: NonNullable<EgressManifest["instructions"]> = {};
+  const s = r.skill as Record<string, unknown> | undefined;
+  if (s && typeof s.id === "string" && typeof s.name === "string" && originOf(s.origin)) {
+    out.skill = { id: s.id, name: s.name, origin: originOf(s.origin)!, tokens: count(s.tokens), ...(s.localPreferred === true ? { localPreferred: true } : {}) };
+  }
+  const c = r.catalog as Record<string, unknown> | undefined;
+  if (c && typeof c === "object") out.catalog = { count: count(c.count), vault: Array.isArray(c.vault) ? c.vault.filter((v): v is string => typeof v === "string") : [], tokens: count(c.tokens) };
+  const v = r.vault as Record<string, unknown> | undefined;
+  if (v && typeof v === "object") out.vault = { tokens: count(v.tokens) };
+  return Object.keys(out).length ? out : null;
 }
 
 export function conversationSummaryOf(record: ConversationRecord): ConversationSummary {
@@ -248,6 +337,10 @@ export interface LedgerEntry {
   costUsd?: number;
   /** A failure's kind — never the provider's text, which may quote content. */
   failure?: string;
+  /** The skills the run used, by id (plan KI-Harness P3). */
+  skills?: string[];
+  /** Tokens of the instructions it carried: the skill, the ones the model loaded, the catalog. */
+  skillTokens?: number;
 }
 
 export const AI_LEDGER_LIMIT = 500;

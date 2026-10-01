@@ -31,7 +31,8 @@
       "graph_neighborhood": "Folgt Links",
       "get_recent": "Sieht zuletzt benutzte Notizen an",
       "get_calendar": "Liest Termine",
-      "open_in_app": "Öffnet eine Notiz in Plainva"
+      "open_in_app": "Öffnet eine Notiz in Plainva",
+      "use_skill": "Lädt einen Skill"
     },
     "stopped": {
       "cancelled": "Angehalten.",
@@ -238,7 +239,8 @@
         "web": "Die Anfrage darf im Web suchen.",
         "size": "Deutlich mehr als bisher: ~{{tokens}} Token",
         "standing": "Die Suche nach Bedeutung rechnet mit einem Cloud-Modell: Notizen gehen im Hintergrund dorthin, ohne jedes Mal zu fragen — bis Du diese Freigabe in den Einstellungen widerrufst.",
-        "sensitive": "Möglicherweise sensibel, unten markiert: {{kinds}}"
+        "sensitive": "Möglicherweise sensibel, unten markiert: {{kinds}}",
+        "instructions": "Anweisungen aus diesem Vault gehen zum ersten Mal hinaus."
       },
       "goesTo": "Geht an",
       "notes": "Notizen",
@@ -272,6 +274,13 @@
       "keptSensitive_one": "{{count}} geschwärzte Angabe",
       "keptSensitive_other": "{{count}} geschwärzte Angaben",
       "tools": "Werkzeuge",
+      "instructions": "Anweisungen",
+      "skillApp": "Skill „{{title}}“ (mitgeliefert)",
+      "skillVault": "Skill „{{title}}“ (aus diesem Vault)",
+      "catalog": "Liste der Skills, die die KI laden darf ({{count}})",
+      "catalogVault": "Liste der Skills, die die KI laden darf ({{count}}; aus diesem Vault: {{vault}})",
+      "vaultInstructions": "Stehende Anweisungen des Vaults (AGENTS.md)",
+      "localPreferred": "Dieser Skill ist für ein Modell auf diesem Gerät gedacht.",
       "size": "Umfang",
       "estimate": "~{{tokens}} Token",
       "estimateCost": "~{{tokens}} Token, etwa {{cost}}",
@@ -386,6 +395,7 @@
     },
     "skills": {
       "title": "Skills",
+      "runOwn": "Führe den Skill „{{title}}“ aus.",
       "daily": {
         "title": "Tagesorientierung",
         "description": "Was heute wichtig ist: fällige Aufgaben, Termine und woran Du zuletzt gearbeitet hast.",

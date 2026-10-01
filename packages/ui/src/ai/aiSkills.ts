@@ -1,37 +1,68 @@
-import { CalendarCheck, CalendarRange, FolderKanban, type LucideIcon } from "lucide-react";
+import { nameOf, type InstructionEntry } from "@plainva/core";
+import { ScrollText, type LucideIcon } from "lucide-react";
+import { APP_SKILL_SOURCES, APP_SKILLS, appSkillOf } from "./appSkills";
 
 /**
- * The core skills of the beta (plan KI-Harness P1.5, §14.2): prompt
- * templates started by hand — a chip in an empty conversation, a row in the
- * AI tab and on the phone's conversation list, a command in the palette, a
- * prompt of the MCP server. Their words are the user's language (locales):
- * the prompt is the user's message, visible like anything typed, and the
- * model answers in kind. P3's skill registry takes them over as files.
+ * How a skill shows where a person starts it (plan KI-Harness P3): a chip in
+ * an empty conversation, a row in the AI tab and on the phone's list, a
+ * command in the palette, a prompt of the MCP server. One definition, so a
+ * skill looks and starts the same everywhere. The sentence that starts it is
+ * the user's language and stands in the conversation like anything typed;
+ * the skill's own instructions go with it as approved instructions.
  */
-
-export type AiSkillId = "daily" | "weekly" | "project";
-
-export interface AiSkill {
-  id: AiSkillId;
-  icon: LucideIcon;
-  /** The name an MCP client lists it under. */
-  mcpName: string;
-}
-
-export const AI_CORE_SKILLS: readonly AiSkill[] = [
-  { id: "daily", icon: CalendarCheck, mcpName: "daily-orientation" },
-  { id: "weekly", icon: CalendarRange, mcpName: "weekly-review" },
-  { id: "project", icon: FolderKanban, mcpName: "project-status" },
-];
 
 type Translate = (key: string, vars?: Record<string, unknown>) => string;
 
-/** What a skill sends: the prompt in the user's language. */
-export function skillPrompt(t: Translate, id: AiSkillId): string {
-  return t(`ai.skills.${id}.prompt`);
+export interface SkillView {
+  /** The source's id (`plainva:<name>`, `.agent/skills/<folder>`). */
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  /** The user's message that starts it. */
+  start: string;
+  origin: "plainva" | "vault";
+  /** A chip of an empty conversation. */
+  featured: boolean;
+  /** The palette command's id: stable for the app's skills (`ai-skill-daily`). */
+  commandId: string;
 }
 
-/** A prompt as the MCP server offers it; `{{project}}` is filled by the server from the argument. */
+export function skillView(t: Translate, entry: InstructionEntry): SkillView {
+  const id = entry.source.id;
+  const app = appSkillOf(id);
+  if (app) {
+    return {
+      id,
+      title: t(`ai.skills.${app.key}.title`),
+      description: t(`ai.skills.${app.key}.description`),
+      icon: app.icon,
+      start: t(`ai.skills.${app.key}.prompt`),
+      origin: "plainva",
+      featured: Boolean(app.featured),
+      commandId: `ai-skill-${app.key}`,
+    };
+  }
+  const skill = entry.source.skill;
+  const title = skill?.plainva.title || nameOf(entry.source);
+  return {
+    id,
+    title,
+    description: skill?.description ?? "",
+    icon: ScrollText,
+    start: t("ai.skills.runOwn", { title }),
+    origin: "vault",
+    featured: false,
+    commandId: `ai-skill-own-${nameOf(entry.source)}`,
+  };
+}
+
+/** The skills a person can start now: active, the app's first — as the registry orders them. */
+export function startableSkills(t: Translate, entries: readonly InstructionEntry[]): SkillView[] {
+  return entries.filter((e) => e.status === "active" && e.source.kind === "skill" && e.source.skill).map((e) => skillView(t, e));
+}
+
+/** A prompt as the MCP server offers it; `{{<argument>}}` is filled by the server from the argument. */
 export interface McpPromptSpec {
   name: string;
   title: string;
@@ -41,18 +72,20 @@ export interface McpPromptSpec {
 }
 
 /**
- * The skills for an MCP client, which has no open note: the project status
- * names its project through an argument instead.
+ * The app's skills for an MCP client (ADR 0022: the vault's own never leave
+ * the app). A client has no open note: a skill that takes an argument names
+ * it instead (the project of the project status).
  */
 export function mcpSkillPrompts(t: Translate): McpPromptSpec[] {
-  return AI_CORE_SKILLS.map((skill) => {
-    const base = { name: skill.mcpName, title: t(`ai.skills.${skill.id}.title`), description: t(`ai.skills.${skill.id}.description`) };
-    if (skill.id !== "project") return { ...base, text: skillPrompt(t, skill.id) };
+  return APP_SKILLS.filter((skill) => skill.mcp).map((skill) => {
+    const base = { name: skill.name, title: t(`ai.skills.${skill.key}.title`), description: t(`ai.skills.${skill.key}.description`) };
+    const argument = APP_SKILL_SOURCES.find((s) => s.id === `plainva:${skill.name}`)?.skill?.plainva.argument;
+    if (!argument) return { ...base, text: t(`ai.skills.${skill.key}.prompt`) };
     return {
       ...base,
       // The placeholder goes to the server as it is: interpolating it with itself keeps it.
-      text: t("ai.skills.project.promptFor", { project: "{{project}}", interpolation: { escapeValue: false } }),
-      argument: { name: "project", description: t("ai.skills.project.argument") },
+      text: t(`ai.skills.${skill.key}.promptFor`, { [argument.name]: `{{${argument.name}}}`, interpolation: { escapeValue: false } }),
+      argument: { name: argument.name, description: t(`ai.skills.${skill.key}.argument`) },
     };
   });
 }

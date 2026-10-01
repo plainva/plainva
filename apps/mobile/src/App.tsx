@@ -657,6 +657,7 @@ export default function App() {
           runMobileAiSkill(id);
         }
       : undefined,
+    aiSkills: ai.enabled ? ai.skills : undefined,
   });
 
   const routeCtx = {

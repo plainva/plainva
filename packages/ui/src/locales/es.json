@@ -33,7 +33,8 @@
       "graph_neighborhood": "Siguiendo enlaces",
       "get_recent": "Mirando notas recientes",
       "get_calendar": "Leyendo citas",
-      "open_in_app": "Abriendo una nota en Plainva"
+      "open_in_app": "Abriendo una nota en Plainva",
+      "use_skill": "Cargando una habilidad"
     },
     "stopped": {
       "cancelled": "Detenido.",
@@ -242,7 +243,8 @@
         "web": "La solicitud puede buscar en la web.",
         "size": "Mucho más que antes: ~{{tokens}} tokens",
         "standing": "La búsqueda por significado calcula con un modelo en la nube: las notas van allí en segundo plano, sin preguntar cada vez, hasta que retires esta aprobación en la configuración.",
-        "sensitive": "Posiblemente sensible, marcado abajo: {{kinds}}"
+        "sensitive": "Posiblemente sensible, marcado abajo: {{kinds}}",
+        "instructions": "Instrucciones de este vault salen por primera vez."
       },
       "goesTo": "Va a",
       "notes": "Notas",
@@ -281,6 +283,13 @@
       "keptSensitive_many": "{{count}} datos ocultos",
       "keptSensitive_other": "{{count}} datos ocultos",
       "tools": "Herramientas",
+      "instructions": "Instrucciones",
+      "skillApp": "Habilidad «{{title}}» (incluida en Plainva)",
+      "skillVault": "Habilidad «{{title}}» (de este vault)",
+      "catalog": "Lista de habilidades que la IA puede cargar ({{count}})",
+      "catalogVault": "Lista de habilidades que la IA puede cargar ({{count}}; de este vault: {{vault}})",
+      "vaultInstructions": "Instrucciones permanentes del vault (AGENTS.md)",
+      "localPreferred": "Esta habilidad está pensada para un modelo en este dispositivo.",
       "size": "Tamaño",
       "estimate": "~{{tokens}} tokens",
       "estimateCost": "~{{tokens}} tokens, unos {{cost}}",
@@ -398,6 +407,7 @@
     },
     "skills": {
       "title": "Habilidades",
+      "runOwn": "Ejecuta la habilidad «{{title}}».",
       "daily": {
         "title": "Orientación del día",
         "description": "Lo que importa hoy: tareas pendientes, citas y en qué trabajaste últimamente.",

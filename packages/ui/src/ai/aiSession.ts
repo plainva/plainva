@@ -1,4 +1,7 @@
 import type { ToolScope } from "./vaultTools";
+import { APP_SKILL_SOURCES } from "./appSkills";
+import type { InstructionApprovalStore } from "./aiStores";
+import { createSkillExecutor, newSkillRunState, skillScope, type SkillRunState } from "./skillRuntime";
 import {
   PASSAGE_ONLY,
   passageOf,
@@ -12,6 +15,14 @@ import {
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
   addUsage,
+  approveInstruction,
+  DEFAULT_RUN_LIMITS,
+  EMPTY_INSTRUCTION_APPROVALS,
+  resolveInstructions,
+  revokeInstruction,
+  skillCatalog,
+  skillGrant,
+  switchInstruction,
   aiMonthlyTotals,
   allProviders,
   appendAiLedgerEntry,
@@ -61,7 +72,14 @@ import {
   type ContextNote,
   type ContextPackage,
   type ContextPolicyHost,
+  type ConversationInstructions,
   type ConversationRecord,
+  type InstructionApprovals,
+  type InstructionEntry,
+  type InstructionSource,
+  type ManifestInstructions,
+  type RunLimits,
+  type SystemPromptInput,
   type ConversationUsage,
   type ConversationRepository,
   type ConversationSummary,
@@ -138,6 +156,29 @@ export interface AiVaultHost {
   propose?(round: { path: string; base: string; chunks: readonly SuggestionChunk[]; note: string; author: SuggestionAuthor }): Promise<void>;
   /** True inside an encrypted workspace: its sealed comments cannot carry an author yet (E32). */
   encrypted?(): boolean;
+  /**
+   * The vault's own instructions — skills in `.agent/skills/` and a root
+   * `AGENTS.md` — and their approvals on this device (plan KI-Harness P3);
+   * absent where the shell cannot read them.
+   */
+  instructions?: AiInstructionsHost;
+}
+
+export interface AiInstructionsHost {
+  scan(): Promise<InstructionSource[]>;
+  /** One source as it is now; null when it is gone. */
+  scanOne(id: string): Promise<InstructionSource | null>;
+  /** A file of a source as the scan saw it (its hash checked again), as text; null otherwise. */
+  readFile(source: InstructionSource, rel: string): Promise<string | null>;
+  approvals: InstructionApprovalStore;
+}
+
+/** Skills and vault instructions as the workshop and the entry points show them (plan KI-Harness P3). */
+export interface AiSkillsState {
+  /** Every source with its state on this device: the app's skills first, then the vault's. */
+  entries: InstructionEntry[];
+  /** Active skills the catalog had no room for — still startable by hand. */
+  omitted: string[];
 }
 
 /** An action at a selection (plan P1.5): the passage, where it stands, and what to do with it. */
@@ -240,9 +281,32 @@ export interface AiState {
    * the first request of the session and whenever the scope grows.
    */
   consent: { manifest: EgressManifest; growth: ScopeGrowth[] } | null;
+  skills: AiSkillsState;
 }
 
 type Listener = () => void;
+
+/** What the send overview shows of a conversation's instructions (plan KI-Harness P3). */
+function manifestInstructionsOf(instructions: ConversationInstructions | undefined): ManifestInstructions | undefined {
+  if (!instructions) return undefined;
+  const out: ManifestInstructions = {};
+  const skill = instructions.skill;
+  if (skill) out.skill = { id: skill.id, name: skill.name, origin: skill.origin, tokens: instructions.skillTokens ?? 0, ...(skill.localPreferred ? { localPreferred: true } : {}) };
+  if (instructions.catalog?.length) {
+    out.catalog = { count: instructions.catalog.length, vault: instructions.catalog.filter((e) => e.origin === "vault").map((e) => e.id), tokens: instructions.catalogTokens ?? 0 };
+  }
+  if (instructions.vaultTokens) out.vault = { tokens: instructions.vaultTokens };
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** What a new conversation starts with: its tools, the blocks of its system prompt, and the record of both. */
+interface ConversationStart {
+  tools: string[];
+  prompt: Pick<SystemPromptInput, "skill" | "skillCatalog" | "vaultInstructions">;
+  instructions: ConversationInstructions | null;
+}
+
+const APP_ENTRIES = (): InstructionEntry[] => resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS);
 
 /** The text of the conversation's last answer. */
 function lastAnswerText(conversation: ConversationRecord["conversation"]): string {
@@ -291,6 +355,7 @@ export class AiSession {
       dress: null,
       hasVault: false,
       consent: null,
+      skills: { entries: APP_ENTRIES(), omitted: [] },
     };
   }
 
@@ -443,8 +508,9 @@ export class AiSession {
     this.stop();
     this.answerConsent(false);
     this.vault = vault;
-    this.set({ summaries: [], active: null, live: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, notice: null, hasVault: Boolean(vault) });
+    this.set({ summaries: [], active: null, live: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, notice: null, hasVault: Boolean(vault), skills: { entries: APP_ENTRIES(), omitted: [] } });
     if (!vault) return;
+    void this.refreshSkills();
     const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
     const old = expiredConversations(summaries, this.state.settings.historyDays, this.host.now());
     for (const id of old) await vault.conversations.remove(id).catch(() => undefined);
@@ -462,6 +528,149 @@ export class AiSession {
   newConversation(): void {
     if (this.state.live) return;
     this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, notice: null });
+  }
+
+  // ----------------------------------------------------------------- skills
+
+  /** Every source of instructions as it is now, with its state on this device (plan KI-Harness P3). */
+  private async instructionEntries(vault: AiVaultHost): Promise<{ entries: InstructionEntry[]; approvals: InstructionApprovals }> {
+    const host = vault.instructions;
+    if (!host) return { entries: APP_ENTRIES(), approvals: EMPTY_INSTRUCTION_APPROVALS };
+    const [approvals, sources] = await Promise.all([host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), host.scan().catch(() => [] as InstructionSource[])]);
+    return { entries: resolveInstructions([...APP_SKILL_SOURCES, ...sources], approvals), approvals };
+  }
+
+  /** Reads the instructions again: the workshop and the entry points show what is there now. */
+  async refreshSkills(): Promise<InstructionEntry[]> {
+    const vault = this.vault;
+    if (!vault) return this.state.skills.entries;
+    const { entries } = await this.instructionEntries(vault);
+    if (this.vault === vault) this.set({ skills: { entries, omitted: skillCatalog(entries).omitted } });
+    return entries;
+  }
+
+  /**
+   * Approves a source exactly as the user saw it — `seen` maps every file the
+   * dialog showed to its SHA-256 (ADR 0020). When the files changed in the
+   * meantime nothing is approved, and the state is read again.
+   */
+  async approveInstruction(id: string, seen: Readonly<Record<string, string>>): Promise<boolean> {
+    const vault = this.vault;
+    const host = vault?.instructions;
+    if (!vault || !host) return false;
+    const source = await host.scanOne(id).catch(() => null);
+    const same = Boolean(source) && source!.files.length === Object.keys(seen).length && source!.files.every((f) => seen[f.path] === f.sha256);
+    if (same) {
+      const approvals = await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS);
+      await host.approvals.save(approveInstruction(approvals, source!, this.host.now().toISOString(), "review"));
+    }
+    await this.refreshSkills();
+    return same;
+  }
+
+  /** Withdraws an approval on this device: the source is "new" again. */
+  async revokeInstruction(id: string): Promise<void> {
+    const host = this.vault?.instructions;
+    if (!host) return;
+    await host.approvals.save(revokeInstruction(await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), id));
+    await this.refreshSkills();
+  }
+
+  /** Switches a skill or AGENTS.md on or off on this device — the app's own skills too. */
+  async switchInstruction(id: string, on: boolean): Promise<void> {
+    const host = this.vault?.instructions;
+    if (!host) return;
+    await host.approvals.save(switchInstruction(await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), id, on));
+    await this.refreshSkills();
+  }
+
+  /**
+   * Starts a skill in a new conversation (plan KI-Harness P3): bound from the
+   * first message — its instructions in the system prompt, the tools, folders
+   * and budget narrowed to it. `text` is the user's message that starts it.
+   * Nothing runs when the skill is not active on this device at this moment.
+   */
+  async runSkill(id: string, text: string): Promise<RunStop | null> {
+    const vault = this.vault;
+    const choice = this.choice();
+    const message = text.trim();
+    if (!message || !vault || !choice || this.state.live || this.sending || !this.state.settings.enabled) return null;
+    this.sending = true;
+    try {
+      const { entries } = await this.instructionEntries(vault);
+      if (this.vault !== vault) return null;
+      this.set({ skills: { entries, omitted: skillCatalog(entries).omitted } });
+      const entry = entries.find((e) => e.source.id === id);
+      if (!entry || entry.status !== "active" || !entry.source.skill) return null;
+      this.set({ active: null, excludeActive: false, notice: null });
+      return await this.runMessage(message, vault, this.choice() ?? choice, { entries, bind: id });
+    } catch (error) {
+      this.abort = null;
+      const stop: RunStop = { kind: "failed", failure: { kind: "offline", message: error instanceof Error ? error.message : String(error) } };
+      this.set({ live: null, notice: { conversationId: this.state.active?.id ?? "", stop } });
+      return stop;
+    } finally {
+      this.sending = false;
+    }
+  }
+
+  /**
+   * The tools and the system prompt's blocks of a new conversation: the
+   * vault's AGENTS.md when it is active here; a bound skill with its grant —
+   * or, with tools, the catalog and `use_skill`. Fixed from the first message
+   * on (the conversation is append-only).
+   */
+  private conversationStart(entries: readonly InstructionEntry[], offered: readonly string[], bind?: string): ConversationStart {
+    const prompt: ConversationStart["prompt"] = {};
+    const instructions: ConversationInstructions = {};
+    const agents = entries.find((e) => e.source.kind === "agents" && e.status === "active" && e.source.text);
+    if (agents?.source.text) {
+      prompt.vaultInstructions = agents.source.text;
+      instructions.vaultTokens = estimateTokens(agents.source.text);
+    }
+    const result = (tools: string[]): ConversationStart => ({ tools, prompt, instructions: Object.keys(instructions).length ? instructions : null });
+    const bound = bind ? entries.find((e) => e.source.id === bind && e.status === "active" && e.source.skill) : undefined;
+    if (bound?.source.skill) {
+      const skill = bound.source.skill;
+      const grant = skillGrant(skill, offered, DEFAULT_RUN_LIMITS.maxOutputTokens);
+      prompt.skill = { name: skill.name, instructions: skill.body };
+      instructions.skill = {
+        id: bound.source.id,
+        name: skill.name,
+        origin: bound.source.origin,
+        sha256: bound.source.files.find((f) => /^skill\.md$/i.test(f.path))?.sha256 ?? "",
+        ...(grant.folders ? { folders: grant.folders } : {}),
+        ...(grant.maxOutputTokens !== null ? { maxOutputTokens: grant.maxOutputTokens } : {}),
+        ...(skill.plainva.localPreferred ? { localPreferred: true } : {}),
+      };
+      instructions.skillTokens = estimateTokens(skill.body);
+      return result(grant.tools);
+    }
+    const catalog = offered.length ? skillCatalog(entries) : null;
+    if (catalog?.entries.length) {
+      prompt.skillCatalog = catalog.text;
+      instructions.catalog = catalog.entries.map((e) => ({ key: e.key, id: e.id, origin: e.id.startsWith("plainva:") ? ("plainva" as const) : ("vault" as const) }));
+      instructions.catalogTokens = catalog.tokens;
+      return result([...offered, "use_skill"]);
+    }
+    return result([...offered]);
+  }
+
+  /** How a run reaches the skills its conversation lists: read again at the moment, hash checked. */
+  private skillRuntime(vault: AiVaultHost, record: ConversationRecord) {
+    return {
+      catalog: record.instructions?.catalog ?? [],
+      entry: async (id: string): Promise<InstructionEntry | null> => {
+        if (id.startsWith("plainva:")) return APP_ENTRIES().find((e) => e.source.id === id) ?? null;
+        const host = vault.instructions;
+        if (!host) return null;
+        const [source, approvals] = await Promise.all([host.scanOne(id).catch(() => null), host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS)]);
+        if (!source) return null;
+        // The app's switches count for the app's skills too; read them with the vault's approvals.
+        return resolveInstructions([source], approvals)[0] ?? null;
+      },
+      file: async (entry: InstructionEntry, rel: string): Promise<string | null> => (entry.source.origin === "vault" && vault.instructions ? vault.instructions.readFile(entry.source, rel) : null),
+    };
   }
 
   async remove(id: string): Promise<void> {
@@ -844,7 +1053,12 @@ export class AiSession {
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) return null;
     const record = this.state.active;
-    const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : []);
+    // A new conversation shows what it would start with: the catalog, AGENTS.md, the tools.
+    const start = record ? null : this.conversationStart((await this.instructionEntries(vault)).entries, provider.endpoint.api === "platform" ? [] : (vault.tools(recipientOf(provider, choice.model))?.names ?? []));
+    const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
+      tools: record ? record.conversation.tools : (start?.tools ?? []),
+      instructions: manifestInstructionsOf(record ? record.instructions : (start?.instructions ?? undefined)),
+    });
     const built = await context.build(new Set(this.state.leaveOutNext), new Set(record ? (record.redact ?? []) : this.state.draftRedact));
     if (this.vault !== vault) return null;
     const proposed = new Set(context.candidates.flat().map((c) => c.path));
@@ -864,12 +1078,14 @@ export class AiSession {
     provider: ProviderInfo,
     pins: readonly string[],
     turns: ConversationRecord["conversation"]["turns"],
+    conversation: { tools: readonly string[]; instructions?: ManifestInstructions },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // The system's own model takes no tools, and a small window a smaller package (plan P2c).
     const platform = provider.endpoint.api === "platform";
     const budget = contextBudgetFor(this.windowOf(provider, choice.model));
-    const tools = platform ? null : vault.tools(recipient);
+    // The tools the conversation carries — what the model may call, as the overview lists them.
+    const tools = platform ? [] : conversation.tools;
     const situation = await vault.situation().catch(() => this.bareSituation());
     const seen = this.state.excludeActive ? { ...situation, active: null } : situation;
     const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
@@ -898,8 +1114,9 @@ export class AiSession {
         },
       );
       const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: !isCloudRecipient(recipient) }, choice.model, {
-        tools: tools?.names ?? [],
+        tools,
         questionChars: message.length,
+        ...(conversation.instructions ? { instructions: conversation.instructions } : {}),
         ...(this.priceOf(choice) ? { priceUsdPerMillionInput: this.priceOf(choice)!.input } : {}),
       });
       return { pack, manifest };
@@ -1022,7 +1239,7 @@ export class AiSession {
     }
   }
 
-  private async runMessage(message: string, vault: AiVaultHost, choice: ModelChoice): Promise<RunStop | null> {
+  private async runMessage(message: string, vault: AiVaultHost, choice: ModelChoice, skills?: { entries: readonly InstructionEntry[]; bind?: string }): Promise<RunStop | null> {
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
@@ -1034,12 +1251,18 @@ export class AiSession {
     // One set for both: a choice in the overview below reaches the tools of this run too.
     const redact = new Set<string>(this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
     // The system's own model takes no tools (plan P2c).
-    const tools = provider.endpoint.api === "platform" ? null : vault.tools(recipient, undefined, redact);
+    const platform = provider.endpoint.api === "platform";
     const now = this.host.now().toISOString();
 
-    let record: ConversationRecord = this.state.active ?? (() => {
+    let record: ConversationRecord;
+    if (this.state.active) {
+      record = this.state.active;
+    } else {
+      // A new conversation: its system prompt and its tools are fixed from here on (append-only).
+      const offered = platform ? [] : (vault.tools(recipient)?.names ?? []);
+      const start = this.conversationStart(skills?.entries ?? (await this.instructionEntries(vault)).entries, offered, skills?.bind);
       const id = this.host.newId();
-      return {
+      record = {
         version: 1 as const,
         id,
         title: conversationTitleFrom(message, message),
@@ -1047,15 +1270,23 @@ export class AiSession {
         updatedAt: now,
         providerId: choice.providerId,
         model: choice.model,
-        conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: tools?.names ?? [] }), tools?.names ?? []),
+        conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, ...start.prompt }), start.tools),
         usage: EMPTY_USAGE,
         runs: [],
         pins: this.state.draftPins,
+        ...(start.instructions ? { instructions: start.instructions } : {}),
       };
-    })();
+    }
+    // A skill narrows the run (plan KI-Harness P3): the bound one's folders from the start, a loaded one's from its load.
+    const skillState = newSkillRunState();
+    const bound = record.instructions?.skill;
+    const toolNames = platform ? [] : record.conversation.tools;
+    const base = toolNames.length ? vault.tools(recipient, skillScope(bound?.folders, skillState), redact) : null;
+    const tools = base ? { names: toolNames, executor: createSkillExecutor(base.executor, this.skillRuntime(vault, record), toolNames, skillState) } : null;
+    const limits: RunLimits | undefined = bound?.maxOutputTokens ? { ...DEFAULT_RUN_LIMITS, maxOutputTokens: bound.maxOutputTokens } : undefined;
 
     // The context of this message: what "View context" showed, without the notes left out there.
-    const { seen, build } = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns);
+    const { seen, build } = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, { tools: toolNames, instructions: manifestInstructionsOf(record.instructions) });
     const leaveOut = new Set<string>(this.state.leaveOutNext);
     let { pack, manifest } = await build(leaveOut, redact);
     // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the strict.
@@ -1088,6 +1319,8 @@ export class AiSession {
       // Rule of Two (§13.4): vault text is private and untrusted at once.
       carriesVault: pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active),
       usedDrafts: true,
+      skillState,
+      ...(limits ? { limits } : {}),
     });
     return stop;
   }
@@ -1108,6 +1341,9 @@ export class AiSession {
     executor: ToolExecutor | null;
     carriesVault: boolean;
     usedDrafts: boolean;
+    /** The skills of the run (plan KI-Harness P3): what the model loaded, for the measurement. */
+    skillState?: SkillRunState;
+    limits?: RunLimits;
   }): Promise<{ stop: RunStop; record: ConversationRecord; answer: string }> {
     const { vault, choice, provider, pack, manifest } = input;
     const now = this.host.now().toISOString();
@@ -1131,6 +1367,7 @@ export class AiSession {
       executor: input.executor ?? { execute: async () => ({ content: "This conversation has no tools.", isError: true }) },
       context: { privateContext: carriesVault, untrustedContext: carriesVault },
       signal: controller.signal,
+      ...(input.limits ? { limits: input.limits } : {}),
       cache: true,
       ...(provider.endpoint.api === "platform" ? { contextTokens: this.windowOf(provider, choice.model) ?? PLATFORM_CONTEXT_DEFAULT } : {}),
       newRequestId: () => `ai-${this.host.newId()}`,
@@ -1155,6 +1392,14 @@ export class AiSession {
 
     const usage = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, cacheReadTokens: result.usage.cacheReadTokens, cacheWriteTokens: result.usage.cacheWriteTokens };
     const costUsd = usageCostUsd(usage, this.priceOf(choice));
+    // What the skills cost (gate "token cost of skill selection measurable"): the bound one, the loaded ones, the catalog.
+    const instructions = record.instructions;
+    const skillsUsed: NonNullable<RunMeta["skills"]> = [
+      ...(instructions?.skill ? [{ id: instructions.skill.id, how: "bound" as const, tokens: instructions.skillTokens ?? 0 }] : []),
+      ...(input.skillState?.loads ?? []).map((load) => ({ id: load.id, how: "loaded" as const, tokens: load.tokens })),
+    ];
+    const skillCatalogMeta = instructions?.catalog?.length ? { count: instructions.catalog.length, tokens: instructions.catalogTokens ?? 0 } : null;
+    const skillTokens = skillsUsed.reduce((sum, s) => sum + s.tokens, 0) + (skillCatalogMeta?.tokens ?? 0);
     const run: RunMeta = {
       userTurn,
       providerId: choice.providerId,
@@ -1167,6 +1412,8 @@ export class AiSession {
       ...(result.stop.kind === "failed" ? { failure: result.stop.failure.kind } : {}),
       ...(costUsd !== undefined ? { costUsd } : {}),
       manifest,
+      ...(skillsUsed.length ? { skills: skillsUsed } : {}),
+      ...(skillCatalogMeta ? { skillCatalog: skillCatalogMeta } : {}),
     };
     record = {
       ...record,
@@ -1190,6 +1437,8 @@ export class AiSession {
           usage,
           ...(costUsd !== undefined ? { costUsd } : {}),
           ...(result.stop.kind === "failed" ? { failure: result.stop.failure.kind } : {}),
+          ...(skillsUsed.length ? { skills: [...new Set(skillsUsed.map((s) => s.id))] } : {}),
+          ...(skillTokens ? { skillTokens } : {}),
         }),
       );
     } catch {

@@ -10,6 +10,9 @@ import {
   parsePolicyFile,
   questionTerms,
   readFrontmatterPath,
+  readInstructionFile,
+  scanInstruction,
+  scanVaultInstructions,
   recencySignal,
   setFrontmatterPath,
   type Candidate,
@@ -17,12 +20,13 @@ import {
   type ContextPolicyHost,
   type EffectivePolicy,
   type EgressRecipient,
+  type InstructionIO,
   type PackageGists,
   type ParsedPolicyFile,
   type SituationInput,
 } from "@plainva/core";
-import type { AiVaultHost } from "./aiSession";
-import { createAiVaultStores, type AiFileStore } from "./aiStores";
+import type { AiInstructionsHost, AiVaultHost } from "./aiSession";
+import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
 import { CHAT_TOOL_NAMES, createVaultToolExecutor, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
 
 /**
@@ -109,6 +113,42 @@ export interface AiVaultHostInput {
   propose?: AiVaultHost["propose"];
   /** True inside an encrypted workspace, whose sealed suggestions cannot carry an author yet (E32). */
   encrypted?: AiVaultHost["encrypted"];
+  /** The vault's folder entries and file bytes, for its own instructions (plan KI-Harness P3); absent, only the app's skills exist. */
+  instructionIO?: InstructionIO;
+}
+
+/** The scan's view of a vault adapter — folder entries and file bytes, nothing written (plan KI-Harness P3). */
+export function adapterInstructionIO(adapter: {
+  exists(path: string): Promise<boolean>;
+  listDir(path?: string, recursive?: boolean): Promise<readonly { name: string; isDirectory: boolean }[]>;
+  readBinaryFile(path: string): Promise<Uint8Array>;
+}): InstructionIO {
+  return {
+    async list(folder) {
+      try {
+        if (!(await adapter.exists(folder))) return [];
+        return (await adapter.listDir(folder, false)).map((entry) => ({ name: entry.name, folder: entry.isDirectory }));
+      } catch {
+        return [];
+      }
+    },
+    async read(path) {
+      try {
+        return (await adapter.exists(path)) ? await adapter.readBinaryFile(path) : null;
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
+function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore): AiInstructionsHost {
+  return {
+    scan: () => scanVaultInstructions(io),
+    scanOne: (id) => scanInstruction(io, id),
+    readFile: (source, rel) => readInstructionFile(io, source, rel),
+    approvals,
+  };
 }
 
 /** A note's text with its own rule "never to the cloud" (the plainva namespace, ADR 0018). */
@@ -177,6 +217,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.gists ? { gists: input.gists } : {}),
     ...(input.propose ? { propose: input.propose } : {}),
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
+    ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals) } : {}),
     tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;

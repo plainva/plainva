@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import i18n from "@plainva/ui/i18n";
 import {
@@ -6,6 +6,7 @@ import {
   AiSession,
   aiVaultKey,
   calendarDay,
+  adapterInstructionIO,
   createAiVaultHost,
   createVaultPolicy,
   dailyNotePathFor,
@@ -22,10 +23,9 @@ import {
   setAudioTranscriber,
   situationEvents,
   situationFrom,
-  skillPrompt,
+  startableSkills,
   withCloudDenied,
   type AiFileStore,
-  type AiSkillId,
   type AiNavigationCommand,
   type AreaOrder,
   type VaultPolicyHost,
@@ -140,12 +140,12 @@ export function focusAiNote(path: string | null): void {
   sheetNote = path;
 }
 
-/** Starts a core skill (plan P1.5) in a new conversation; the caller shows it. */
-export function runMobileAiSkill(id: AiSkillId): void {
+/** Starts a skill (plan KI-Harness P3) in a new conversation bound to it; the caller shows it. */
+export function runMobileAiSkill(id: string): void {
   const session = getMobileAiSession();
   if (session.getState().live) return;
-  session.newConversation();
-  void session.send(skillPrompt((key, vars) => i18n.t(key, vars), id));
+  const skill = startableSkills((key, vars) => i18n.t(key, vars), session.getState().skills.entries).find((s) => s.id === id);
+  if (skill) void session.runSkill(skill.id, skill.start);
 }
 
 /** Opens the KI sheet over a note (the note's ⋮ menu, the palette). */
@@ -302,6 +302,7 @@ export function useMobileAi(vault: MobileVault | null) {
     const host = createAiVaultHost({
       files: mobileAiFiles,
       vaultKey: aiVaultKey(vault.vaultId),
+      instructionIO: adapterInstructionIO(vault.files),
       policy: vaultPolicy,
       activeNote: async () => (sheetNote ? note(sheetNote) : null),
       readNote: note,
@@ -390,7 +391,9 @@ export function useMobileAi(vault: MobileVault | null) {
     sheetNote = null;
     setSheet(null);
   };
-  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef, embeddings, gists };
+  // The skills a person can start now (plan KI-Harness P3): the palette lists them.
+  const skills = useMemo(() => startableSkills((key, vars) => i18n.t(key, vars), state.skills.entries), [state.skills]);
+  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef, embeddings, gists, skills };
 }
 
 /**

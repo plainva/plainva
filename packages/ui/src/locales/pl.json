@@ -35,7 +35,8 @@
       "graph_neighborhood": "Podążanie za linkami",
       "get_recent": "Przeglądanie ostatnich notatek",
       "get_calendar": "Czytanie spotkań",
-      "open_in_app": "Otwieranie notatki w Plainva"
+      "open_in_app": "Otwieranie notatki w Plainva",
+      "use_skill": "Wczytywanie umiejętności"
     },
     "stopped": {
       "cancelled": "Zatrzymano.",
@@ -246,7 +247,8 @@
         "web": "Zapytanie może przeszukiwać sieć.",
         "size": "Znacznie więcej niż wcześniej: ~{{tokens}} tokenów",
         "standing": "Wyszukiwanie po znaczeniu liczy modelem w chmurze: notatki trafiają tam w tle, bez pytania za każdym razem — dopóki nie wycofasz tej zgody w ustawieniach.",
-        "sensitive": "Możliwie wrażliwe, zaznaczone poniżej: {{kinds}}"
+        "sensitive": "Możliwie wrażliwe, zaznaczone poniżej: {{kinds}}",
+        "instructions": "Instrukcje z tego vaultu wychodzą po raz pierwszy."
       },
       "goesTo": "Odbiorca",
       "notes": "Notatki",
@@ -290,6 +292,13 @@
       "keptSensitive_many": "{{count}} zakrytych fragmentów",
       "keptSensitive_other": "{{count}} zakrytego fragmentu",
       "tools": "Narzędzia",
+      "instructions": "Instrukcje",
+      "skillApp": "Umiejętność „{{title}}” (dołączona do Plainva)",
+      "skillVault": "Umiejętność „{{title}}” (z tego vaultu)",
+      "catalog": "Lista umiejętności, które AI może wczytać ({{count}})",
+      "catalogVault": "Lista umiejętności, które AI może wczytać ({{count}}; z tego vaultu: {{vault}})",
+      "vaultInstructions": "Stałe instrukcje vaultu (AGENTS.md)",
+      "localPreferred": "Ta umiejętność jest przeznaczona dla modelu na tym urządzeniu.",
       "size": "Rozmiar",
       "estimate": "~{{tokens}} tokenów",
       "estimateCost": "~{{tokens}} tokenów, około {{cost}}",
@@ -410,6 +419,7 @@
     },
     "skills": {
       "title": "Umiejętności",
+      "runOwn": "Uruchom umiejętność „{{title}}”.",
       "daily": {
         "title": "Orientacja na dziś",
         "description": "Co jest dziś ważne: zadania z terminem, spotkania i ostatnio zmieniane notatki.",

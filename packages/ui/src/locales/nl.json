@@ -31,7 +31,8 @@
       "graph_neighborhood": "Links volgen",
       "get_recent": "Recente notities bekijken",
       "get_calendar": "Afspraken lezen",
-      "open_in_app": "Een notitie openen in Plainva"
+      "open_in_app": "Een notitie openen in Plainva",
+      "use_skill": "Een vaardigheid laden"
     },
     "stopped": {
       "cancelled": "Gestopt.",
@@ -238,7 +239,8 @@
         "web": "Het verzoek mag op het web zoeken.",
         "size": "Veel meer dan eerder: ~{{tokens}} tokens",
         "standing": "Zoeken op betekenis rekent met een cloudmodel: notities gaan daar op de achtergrond naartoe, zonder telkens te vragen — tot je deze goedkeuring in de instellingen intrekt.",
-        "sensitive": "Mogelijk gevoelig, hieronder gemarkeerd: {{kinds}}"
+        "sensitive": "Mogelijk gevoelig, hieronder gemarkeerd: {{kinds}}",
+        "instructions": "Instructies uit deze vault gaan voor het eerst de deur uit."
       },
       "goesTo": "Gaat naar",
       "notes": "Notities",
@@ -272,6 +274,13 @@
       "keptSensitive_one": "{{count}} weggelakt gegeven",
       "keptSensitive_other": "{{count}} weggelakte gegevens",
       "tools": "Hulpmiddelen",
+      "instructions": "Instructies",
+      "skillApp": "Vaardigheid ‘{{title}}’ (meegeleverd met Plainva)",
+      "skillVault": "Vaardigheid ‘{{title}}’ (uit deze vault)",
+      "catalog": "Lijst met vaardigheden die de AI mag laden ({{count}})",
+      "catalogVault": "Lijst met vaardigheden die de AI mag laden ({{count}}; uit deze vault: {{vault}})",
+      "vaultInstructions": "Vaste instructies van de vault (AGENTS.md)",
+      "localPreferred": "Deze vaardigheid is bedoeld voor een model op dit apparaat.",
       "size": "Omvang",
       "estimate": "~{{tokens}} tokens",
       "estimateCost": "~{{tokens}} tokens, ongeveer {{cost}}",
@@ -386,6 +395,7 @@
     },
     "skills": {
       "title": "Vaardigheden",
+      "runOwn": "Voer de vaardigheid ‘{{title}}’ uit.",
       "daily": {
         "title": "Dagoriëntatie",
         "description": "Wat vandaag telt: taken die aflopen, afspraken en waar je laatst aan werkte.",

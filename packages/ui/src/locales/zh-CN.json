@@ -29,7 +29,8 @@
       "graph_neighborhood": "正在追踪链接",
       "get_recent": "正在查看最近的笔记",
       "get_calendar": "正在读取日程",
-      "open_in_app": "正在Plainva中打开笔记"
+      "open_in_app": "正在Plainva中打开笔记",
+      "use_skill": "正在加载技能"
     },
     "stopped": {
       "cancelled": "已停止。",
@@ -234,7 +235,8 @@
         "web": "此请求可能会搜索网络。",
         "size": "比之前多得多：约{{tokens}}个Token",
         "standing": "含义搜索使用云端模型计算：笔记会在后台发送到那里，不再每次询问——直到你在设置中撤回此批准。",
-        "sensitive": "可能敏感（见下方标记）：{{kinds}}"
+        "sensitive": "可能敏感（见下方标记）：{{kinds}}",
+        "instructions": "来自此仓库的指令首次发出。"
       },
       "goesTo": "发送至",
       "notes": "笔记",
@@ -263,6 +265,13 @@
       "keptMood_other": "{{count}}个心情值",
       "keptSensitive_other": "{{count}}处已遮盖的信息",
       "tools": "工具",
+      "instructions": "指令",
+      "skillApp": "技能“{{title}}”（Plainva自带）",
+      "skillVault": "技能“{{title}}”（来自此仓库）",
+      "catalog": "AI可加载的技能列表（{{count}}）",
+      "catalogVault": "AI可加载的技能列表（{{count}}，来自此仓库：{{vault}}）",
+      "vaultInstructions": "仓库的常设指令（AGENTS.md）",
+      "localPreferred": "此技能适用于本设备上的模型。",
       "size": "大小",
       "estimate": "约{{tokens}}个Token",
       "estimateCost": "约{{tokens}}个Token，约{{cost}}",
@@ -374,6 +383,7 @@
     },
     "skills": {
       "title": "技能",
+      "runOwn": "运行技能“{{title}}”。",
       "daily": {
         "title": "今日概览",
         "description": "今天的重点：到期的任务、日程以及你最近在做的事。",

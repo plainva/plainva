@@ -73,6 +73,30 @@ export interface EgressManifest {
    * empty; `notes` counts them.
    */
   standing?: { notes: number };
+  /**
+   * Instructions that go with the request (plan KI-Harness P3): approved on
+   * this device or part of the app, never data. Those from the vault are the
+   * vault's text — the first time they go to a cloud, the scope grows.
+   */
+  instructions?: ManifestInstructions;
+}
+
+export interface ManifestInstructions {
+  /** The skill the conversation runs. */
+  skill?: { id: string; name: string; origin: "plainva" | "vault"; tokens: number; localPreferred?: boolean };
+  /** The skills the model may load; `vault` names the vault's own among them by id. */
+  catalog?: { count: number; vault: string[]; tokens: number };
+  /** The vault owner's `AGENTS.md`. */
+  vault?: { tokens: number };
+}
+
+/** The ids of the vault's own instructions a request carries — what the scope counts. */
+export function vaultInstructionIds(instructions: ManifestInstructions | undefined): string[] {
+  if (!instructions) return [];
+  const ids = [...(instructions.catalog?.vault ?? [])];
+  if (instructions.skill?.origin === "vault") ids.push(instructions.skill.id);
+  if (instructions.vault) ids.push("AGENTS.md");
+  return [...new Set(ids)];
 }
 
 function topFolder(path: string): string {
@@ -85,7 +109,7 @@ export function manifestOf(
   pack: ContextPackage,
   provider: { id: string; label: string; local: boolean },
   model: string,
-  options: { tools: readonly string[]; web?: boolean; priceUsdPerMillionInput?: number; questionChars?: number },
+  options: { tools: readonly string[]; web?: boolean; priceUsdPerMillionInput?: number; questionChars?: number; instructions?: ManifestInstructions },
 ): EgressManifest {
   const sources: ManifestSource[] = pack.refs.map((ref) => ({
     path: ref.path,
@@ -100,7 +124,8 @@ export function manifestOf(
     reasons: ref.reasons,
   }));
   const folders = [...new Set(pack.refs.map((ref) => topFolder(ref.path)))].sort();
-  const estimatedTokens = pack.estimatedTokens + Math.ceil((options.questionChars ?? 0) / 3.5);
+  const instructionTokens = (options.instructions?.skill?.tokens ?? 0) + (options.instructions?.catalog?.tokens ?? 0) + (options.instructions?.vault?.tokens ?? 0);
+  const estimatedTokens = pack.estimatedTokens + Math.ceil((options.questionChars ?? 0) / 3.5) + instructionTokens;
   return {
     providerId: provider.id,
     providerLabel: provider.label,
@@ -123,6 +148,7 @@ export function manifestOf(
     ...(options.priceUsdPerMillionInput !== undefined ? { estimatedCostUsd: (estimatedTokens / 1_000_000) * options.priceUsdPerMillionInput } : {}),
     tools: [...options.tools],
     web: options.web ?? false,
+    ...(options.instructions && (options.instructions.skill || options.instructions.catalog || options.instructions.vault) ? { instructions: options.instructions } : {}),
   };
 }
 
@@ -166,6 +192,8 @@ export interface ApprovedScope {
   maxTokens: number;
   /** Kinds of sensitive text approved to go (plan P2b-6). */
   sensitive?: SensitiveKind[];
+  /** The vault's own instructions approved to go (plan KI-Harness P3), by id. */
+  instructions?: string[];
 }
 
 export type ScopeGrowth =
@@ -176,7 +204,8 @@ export type ScopeGrowth =
   | { kind: "tools"; tools: string[] }
   | { kind: "web" }
   | { kind: "size"; tokens: number; approved: number }
-  | { kind: "sensitive"; sensitive: SensitiveKind[] };
+  | { kind: "sensitive"; sensitive: SensitiveKind[] }
+  | { kind: "instructions"; ids: string[] };
 
 /** A request this much larger than any approved one counts as a new scope ("budget jump"). */
 export const SCOPE_SIZE_FACTOR = 3;
@@ -201,6 +230,8 @@ export function scopeGrowth(manifest: EgressManifest, scope: ApprovedScope | nul
   if (manifest.web && !scope.web) out.push({ kind: "web" });
   const newKinds = (manifest.sensitive ?? []).filter((kind) => !(scope.sensitive ?? []).includes(kind));
   if (newKinds.length) out.push({ kind: "sensitive", sensitive: newKinds });
+  const newInstructions = vaultInstructionIds(manifest.instructions).filter((id) => !(scope.instructions ?? []).includes(id));
+  if (newInstructions.length) out.push({ kind: "instructions", ids: newInstructions });
   if (manifest.estimatedTokens > SCOPE_SIZE_FLOOR && manifest.estimatedTokens > scope.maxTokens * SCOPE_SIZE_FACTOR) {
     out.push({ kind: "size", tokens: manifest.estimatedTokens, approved: scope.maxTokens });
   }
@@ -218,6 +249,7 @@ export function widenScope(scope: ApprovedScope | null, manifest: EgressManifest
     tools: union(base.tools, manifest.tools),
     web: base.web || manifest.web,
     maxTokens: Math.max(base.maxTokens, manifest.estimatedTokens),
+    ...(vaultInstructionIds(manifest.instructions).length || base.instructions ? { instructions: union(base.instructions ?? [], vaultInstructionIds(manifest.instructions)) } : {}),
     ...(base.sensitive || manifest.sensitive ? { sensitive: union(base.sensitive ?? [], manifest.sensitive ?? []) } : {}),
   };
 }

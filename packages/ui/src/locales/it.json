@@ -33,7 +33,8 @@
       "graph_neighborhood": "Seguo i collegamenti",
       "get_recent": "Guardo le note recenti",
       "get_calendar": "Lettura degli appuntamenti",
-      "open_in_app": "Apro una nota in Plainva"
+      "open_in_app": "Apro una nota in Plainva",
+      "use_skill": "Carico una competenza"
     },
     "stopped": {
       "cancelled": "Interrotto.",
@@ -242,7 +243,8 @@
         "web": "La richiesta può cercare sul web.",
         "size": "Molto più di prima: ~{{tokens}} token",
         "standing": "La ricerca per significato calcola con un modello cloud: le note vi arrivano in background, senza chiedere ogni volta, finché non revochi questa approvazione nelle impostazioni.",
-        "sensitive": "Forse sensibile, segnalato qui sotto: {{kinds}}"
+        "sensitive": "Forse sensibile, segnalato qui sotto: {{kinds}}",
+        "instructions": "Istruzioni da questo vault escono per la prima volta."
       },
       "goesTo": "Va a",
       "notes": "Note",
@@ -281,6 +283,13 @@
       "keptSensitive_many": "{{count}} dati oscurati",
       "keptSensitive_other": "{{count}} dati oscurati",
       "tools": "Strumenti",
+      "instructions": "Istruzioni",
+      "skillApp": "Competenza «{{title}}» (inclusa in Plainva)",
+      "skillVault": "Competenza «{{title}}» (da questo vault)",
+      "catalog": "Elenco delle competenze che l'IA può caricare ({{count}})",
+      "catalogVault": "Elenco delle competenze che l'IA può caricare ({{count}}; da questo vault: {{vault}})",
+      "vaultInstructions": "Istruzioni permanenti del vault (AGENTS.md)",
+      "localPreferred": "Questa competenza è pensata per un modello su questo dispositivo.",
       "size": "Dimensione",
       "estimate": "~{{tokens}} token",
       "estimateCost": "~{{tokens}} token, circa {{cost}}",
@@ -398,6 +407,7 @@
     },
     "skills": {
       "title": "Competenze",
+      "runOwn": "Esegui la competenza «{{title}}».",
       "daily": {
         "title": "Orientamento del giorno",
         "description": "Cosa conta oggi: attività in scadenza, appuntamenti e ciò su cui hai lavorato di recente.",

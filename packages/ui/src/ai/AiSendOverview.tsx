@@ -9,6 +9,7 @@ import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
 import { megabytes } from "./aiTranscribe";
 import { useSensitiveKinds } from "./sensitiveKinds";
+import { appSkillOf } from "./appSkills";
 
 /**
  * The send overview (plan §13.3): what goes where, before it goes — and,
@@ -37,9 +38,19 @@ export interface AiSendOverviewProps {
   coverage?: AnswerCoverage | null;
 }
 
+/** A skill's title for the overview: the app's in the user's language, the vault's own by its name. */
+function useSkillTitle(): (id: string, name: string) => string {
+  const { t } = useTranslation();
+  return (id, name) => {
+    const app = appSkillOf(id);
+    return app ? t(`ai.skills.${app.key}.title`) : name;
+  };
+}
+
 export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
   const kindList = useSensitiveKinds();
+  const skillTitle = useSkillTitle();
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const money = useMemo(() => new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 4 }), [i18n.language]);
   const asking = Boolean(onSend);
@@ -62,8 +73,25 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         return t("ai.overview.why.size", { tokens: number.format(g.tokens) });
       case "sensitive":
         return t("ai.overview.why.sensitive", { kinds: kindList(g.sensitive) });
+      case "instructions":
+        return t("ai.overview.why.instructions");
     }
   };
+  /** The instructions that go with the request (plan KI-Harness P3): the skill, the list of skills, AGENTS.md. */
+  const instructions = manifest.instructions;
+  const instructionLines = instructions
+    ? [
+        instructions.skill
+          ? t(instructions.skill.origin === "plainva" ? "ai.overview.skillApp" : "ai.overview.skillVault", { title: skillTitle(instructions.skill.id, instructions.skill.name) })
+          : null,
+        instructions.catalog
+          ? instructions.catalog.vault.length
+            ? t("ai.overview.catalogVault", { count: instructions.catalog.count, vault: instructions.catalog.vault.length })
+            : t("ai.overview.catalog", { count: instructions.catalog.count })
+          : null,
+        instructions.vault ? t("ai.overview.vaultInstructions") : null,
+      ].filter((line): line is string => Boolean(line))
+    : [];
   /** The hint at a source or at the situation (P2b-6); redacting is offered where it can work — never for a selected passage. */
   const sensitiveLine = (path: string, kinds: readonly SensitiveKind[], redacted: boolean, canRedact: boolean) => (
     <span className="pv-ai-overview-sensitive" data-testid="ai-overview-sensitive">
@@ -181,6 +209,15 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           <>
             <dt>{t("ai.overview.keptBack")}</dt>
             <dd>{kept.join(" · ")}</dd>
+          </>
+        )}
+        {instructionLines.length > 0 && (
+          <>
+            <dt>{t("ai.overview.instructions")}</dt>
+            <dd data-testid="ai-overview-instructions">
+              {instructionLines.join(" · ")}
+              {instructions?.skill?.localPreferred && !manifest.local && <span className="pv-ai-overview-hint">{t("ai.overview.localPreferred")}</span>}
+            </dd>
           </>
         )}
         {manifest.tools.length > 0 && (

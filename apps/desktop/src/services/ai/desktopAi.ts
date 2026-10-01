@@ -9,6 +9,7 @@ import {
   AiSession,
   aiVaultKey,
   calendarDay,
+  adapterInstructionIO,
   createAiVaultHost,
   createVaultPolicy,
   databaseTaskRows,
@@ -208,6 +209,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
   const host = createAiVaultHost({
     files: desktopAiFiles,
     vaultKey: aiVaultKey(input.vaultPath),
+    instructionIO: adapterInstructionIO(input.adapter),
     policy,
     async activeNote() {
       const path = input.activePath();

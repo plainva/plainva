@@ -2,7 +2,6 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare, MoreHorizontal, SquarePen } from "lucide-react";
 import {
-  AI_CORE_SKILLS,
   AiConversation,
   Button,
   conversationRowActions,
@@ -16,7 +15,7 @@ import {
   RowList,
   SearchField,
   SectionLabel,
-  skillPrompt,
+  startableSkills,
   useAiSession,
   useAiState,
   type ConversationRowCaps,
@@ -123,18 +122,15 @@ export function AiTabView({
           )}
           <SectionLabel>{t("ai.skills.title")}</SectionLabel>
           <RowList className="pv-ai-historylist">
-            {AI_CORE_SKILLS.map((skill) => (
+            {startableSkills(t, state.skills.entries).map((skill) => (
               <Row
                 key={skill.id}
                 icon={<skill.icon size={ICON.ui} />}
-                title={t(`ai.skills.${skill.id}.title`)}
-                subtitle={t(`ai.skills.${skill.id}.description`)}
+                title={skill.title}
+                subtitle={skill.description}
                 disabled={Boolean(state.live)}
-                onClick={() => {
-                  session.newConversation();
-                  void session.send(skillPrompt(t, skill.id));
-                }}
-                data-testid={`ai-tab-skill-${skill.id}`}
+                onClick={() => void session.runSkill(skill.id, skill.start)}
+                data-testid={skill.commandId.replace(/^ai-skill-/, "ai-tab-skill-")}
               />
             ))}
           </RowList>

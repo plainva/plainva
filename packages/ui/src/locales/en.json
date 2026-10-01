@@ -31,7 +31,8 @@
       "graph_neighborhood": "Following links",
       "get_recent": "Looking at recent notes",
       "get_calendar": "Reading appointments",
-      "open_in_app": "Opening a note in Plainva"
+      "open_in_app": "Opening a note in Plainva",
+      "use_skill": "Loading a skill"
     },
     "stopped": {
       "cancelled": "Stopped.",
@@ -238,7 +239,8 @@
         "web": "The request may search the web.",
         "size": "Much more than before: ~{{tokens}} tokens",
         "standing": "Search by meaning computes with a cloud model: notes go there in the background, without asking each time — until you withdraw this approval in the settings.",
-        "sensitive": "Possibly sensitive, marked below: {{kinds}}"
+        "sensitive": "Possibly sensitive, marked below: {{kinds}}",
+        "instructions": "Instructions from this vault go out for the first time."
       },
       "goesTo": "Goes to",
       "notes": "Notes",
@@ -272,6 +274,13 @@
       "keptSensitive_one": "{{count}} redacted number or secret",
       "keptSensitive_other": "{{count}} redacted numbers or secrets",
       "tools": "Tools",
+      "instructions": "Instructions",
+      "skillApp": "Skill “{{title}}” (comes with Plainva)",
+      "skillVault": "Skill “{{title}}” (from this vault)",
+      "catalog": "List of skills the AI may load ({{count}})",
+      "catalogVault": "List of skills the AI may load ({{count}}; from this vault: {{vault}})",
+      "vaultInstructions": "Standing instructions of the vault (AGENTS.md)",
+      "localPreferred": "This skill is meant for a model on this device.",
       "size": "Size",
       "estimate": "~{{tokens}} tokens",
       "estimateCost": "~{{tokens}} tokens, about {{cost}}",
@@ -386,6 +395,7 @@
     },
     "skills": {
       "title": "Skills",
+      "runOwn": "Run the skill “{{title}}”.",
       "daily": {
         "title": "Daily orientation",
         "description": "What matters today: due tasks, appointments and what you worked on lately.",

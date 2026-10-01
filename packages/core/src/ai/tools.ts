@@ -133,7 +133,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
   {
     name: "run_command",
     description:
-      "Runs one of Plainva's app commands to navigate or show something: open a note, open a view, focus the graph, open today's note. Changes no data. find_tools with the query 'commands' lists the available command ids.",
+      "Runs one of Plainva's app commands to navigate or show something: open a note, open a view, focus the graph, open today's note. Changes no data. An unknown id returns the list of command ids.",
     risk: "ui",
     input: z.object({
       id: z.string().min(1).max(128).describe("Command id from the command list"),
@@ -217,6 +217,23 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     risk: "read",
     input: z.object({ text: z.string().min(1).max(500), language: z.string().max(10).optional() }),
     dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "use_skill",
+    description:
+      "Loads the instructions of one of the listed skills, to follow them for the current request. With `file`, loads one file of that skill instead (a path from the list the instructions end with).",
+    risk: "read",
+    input: z.object({
+      name: z.string().min(1).max(80).describe("The skill's name as the list writes it"),
+      file: z.string().min(1).max(256).optional().describe("A file of the skill, e.g. references/terms.md"),
+    }),
+    dataClasses: [],
+    // Approved instructions, not data: the result is tier 1 (plan KI-Harness P3).
     untrustedResult: false,
     core: false,
     surfaces: ["harness"],

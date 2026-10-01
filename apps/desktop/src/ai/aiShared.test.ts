@@ -162,6 +162,7 @@ describe("the settings model", () => {
     dress: null,
     hasVault: true,
     consent: null,
+    skills: { entries: [], omitted: [] },
     ...patch,
   });
 

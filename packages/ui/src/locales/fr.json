@@ -33,7 +33,8 @@
       "graph_neighborhood": "Suivi des liens",
       "get_recent": "Consultation des notes récentes",
       "get_calendar": "Lecture des rendez-vous",
-      "open_in_app": "Ouverture d'une note dans Plainva"
+      "open_in_app": "Ouverture d'une note dans Plainva",
+      "use_skill": "Chargement d'une compétence"
     },
     "stopped": {
       "cancelled": "Arrêté.",
@@ -242,7 +243,8 @@
         "web": "La requête peut chercher sur le web.",
         "size": "Bien plus qu'avant : ~{{tokens}} jetons",
         "standing": "La recherche par sens calcule avec un modèle cloud : les notes y partent en arrière-plan, sans demander à chaque fois — jusqu'à ce que vous retiriez cette approbation dans les paramètres.",
-        "sensitive": "Peut-être sensible, signalé ci-dessous : {{kinds}}"
+        "sensitive": "Peut-être sensible, signalé ci-dessous : {{kinds}}",
+        "instructions": "Des instructions de ce vault partent pour la première fois."
       },
       "goesTo": "Destinataire",
       "notes": "Notes",
@@ -281,6 +283,13 @@
       "keptSensitive_many": "{{count}} données masquées",
       "keptSensitive_other": "{{count}} données masquées",
       "tools": "Outils",
+      "instructions": "Instructions",
+      "skillApp": "Compétence « {{title}} » (fournie avec Plainva)",
+      "skillVault": "Compétence « {{title}} » (de ce vault)",
+      "catalog": "Liste des compétences que l'IA peut charger ({{count}})",
+      "catalogVault": "Liste des compétences que l'IA peut charger ({{count}} ; de ce vault : {{vault}})",
+      "vaultInstructions": "Instructions permanentes du vault (AGENTS.md)",
+      "localPreferred": "Cette compétence est prévue pour un modèle sur cet appareil.",
       "size": "Taille",
       "estimate": "~{{tokens}} jetons",
       "estimateCost": "~{{tokens}} jetons, environ {{cost}}",
@@ -398,6 +407,7 @@
     },
     "skills": {
       "title": "Compétences",
+      "runOwn": "Exécutez la compétence « {{title}} ».",
       "daily": {
         "title": "Orientation du jour",
         "description": "Ce qui compte aujourd'hui : tâches à échéance, rendez-vous et ce sur quoi vous avez travaillé récemment.",

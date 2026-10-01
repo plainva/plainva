@@ -344,6 +344,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-ai-lens-trail": "layout only — a ghost Button the themes restyle",
   "pv-ai-lens-sensitive": "a text line in --warning-text beside ghost Buttons; the themes override that token",
   "pv-ai-overview-sensitive": "a text line in --warning-text beside a ghost Button; the themes override that token",
+  "pv-ai-overview-hint": "a text line in --text-muted; the themes override that token",
   "pv-related-row": "layout only — see pv-related",
   "pv-related-head": "layout only — see pv-related",
   "pv-related-main": "a placement class on a ghost Button the themes already restyle",

@@ -144,7 +144,13 @@ function readIndex(raw: string | null): ConversationSummary[] | null {
 export function createAiVaultStores(
   files: AiFileStore,
   vaultKey: string,
-): { conversations: ConversationRepository; ledger: AiLedgerStore; approvals: StandingApprovalStore; related: RelatedFeedbackStore; instructions: InstructionApprovalStore } {
+): {
+  conversations: ConversationRepository;
+  ledger: AiLedgerStore;
+  approvals: StandingApprovalStore;
+  related: RelatedFeedbackStore;
+  instructionApprovals: InstructionApprovalStore;
+} {
   if (!SAFE_ID.test(vaultKey)) throw new Error("invalid vault key");
   const dir = vaultKey;
   const indexPath = `${dir}/index.json`;
@@ -220,12 +226,12 @@ export function createAiVaultStores(
       ),
   };
 
-  const instructions: InstructionApprovalStore = {
+  const instructionApprovals: InstructionApprovalStore = {
     load: async () => readInstructionApprovals(await files.read(`${dir}/instructions.json`)),
     save: (value) => files.write(`${dir}/instructions.json`, serializeInstructionApprovals(value)),
   };
 
-  return { conversations, ledger, approvals, related, instructions };
+  return { conversations, ledger, approvals, related, instructionApprovals };
 }
 
 /** A stable, file-name-safe handle for a vault (FNV-1a over its path or id). */

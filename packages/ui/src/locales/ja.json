@@ -29,7 +29,8 @@
       "graph_neighborhood": "リンクをたどっています",
       "get_recent": "最近のノートを見ています",
       "get_calendar": "予定を読んでいます",
-      "open_in_app": "Plainvaでノートを開いています"
+      "open_in_app": "Plainvaでノートを開いています",
+      "use_skill": "スキルを読み込んでいます"
     },
     "stopped": {
       "cancelled": "停止しました。",
@@ -234,7 +235,8 @@
         "web": "このリクエストはウェブを検索する場合があります。",
         "size": "以前よりかなり多い: 約 {{tokens}} トークン",
         "standing": "意味の検索はクラウドのモデルで計算します。ノートは毎回確認せずにバックグラウンドで送信されます。設定でこの承認を撤回するまで続きます。",
-        "sensitive": "機密の可能性（下に表示）: {{kinds}}"
+        "sensitive": "機密の可能性（下に表示）: {{kinds}}",
+        "instructions": "この保管庫の指示が初めて送信されます。"
       },
       "goesTo": "送信先",
       "notes": "ノート",
@@ -263,6 +265,13 @@
       "keptMood_other": "気分の値 {{count}} 件",
       "keptSensitive_other": "伏せた情報 {{count}} 件",
       "tools": "ツール",
+      "instructions": "指示",
+      "skillApp": "スキル「{{title}}」（Plainvaに付属）",
+      "skillVault": "スキル「{{title}}」（この保管庫から）",
+      "catalog": "AIが読み込めるスキルの一覧（{{count}}）",
+      "catalogVault": "AIが読み込めるスキルの一覧（{{count}}、この保管庫から: {{vault}}）",
+      "vaultInstructions": "保管庫の常設の指示（AGENTS.md）",
+      "localPreferred": "このスキルはこのデバイス上のモデル向けです。",
       "size": "サイズ",
       "estimate": "約 {{tokens}} トークン",
       "estimateCost": "約 {{tokens}} トークン、約 {{cost}}",
@@ -374,6 +383,7 @@
     },
     "skills": {
       "title": "スキル",
+      "runOwn": "スキル「{{title}}」を実行してください。",
       "daily": {
         "title": "今日のオリエンテーション",
         "description": "今日大切なこと：期限のタスク、予定、最近取り組んだこと。",

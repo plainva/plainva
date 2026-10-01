@@ -10,11 +10,10 @@ import {
   resolveAudioPath,
   setAudioTranscriber,
   situationEvents,
-  skillPrompt,
+  startableSkills,
   useStableHandler,
   type AiNavigationCommand,
   type AiSession,
-  type AiSkillId,
   type AiState,
   type AiVaultHost,
 } from "@plainva/ui";
@@ -190,12 +189,14 @@ export function useDesktopAi(input: DesktopAiInput) {
     return () => window.removeEventListener(AI_OPEN_EVENT, open);
   }, [openCompanion]);
   const toggleCompanion = useStableHandler(() => (companionOpen ? closeCompanion() : openCompanion()));
-  // A core skill from the palette (plan P1.5): a new conversation in the companion.
-  const runSkill = useStableHandler((id: AiSkillId) => {
+  // The skills a person can start now (plan KI-Harness P3): the palette lists them.
+  const skills = useMemo(() => (state ? startableSkills((key, vars) => i18n.t(key, vars), state.skills.entries) : []), [state]);
+  // A skill from the palette: a new conversation in the companion, bound to it.
+  const runSkill = useStableHandler((id: string) => {
     if (!session || session.getState().live) return openCompanion();
+    const skill = startableSkills((key, vars) => i18n.t(key, vars), session.getState().skills.entries).find((s) => s.id === id);
     openCompanion();
-    session.newConversation();
-    void session.send(skillPrompt((key, vars) => i18n.t(key, vars), id));
+    if (skill) void session.runSkill(skill.id, skill.start);
   });
   const openAsTab = useStableHandler(() => {
     setCompanionOpen(false);
@@ -222,5 +223,5 @@ export function useDesktopAi(input: DesktopAiInput) {
     [activePath],
   );
 
-  return { session, enabled, companionOpen, openCompanion, closeCompanion, toggleCompanion, runSkill, openAsTab, openNoteTarget, openUrl, activeNote };
+  return { session, enabled, companionOpen, openCompanion, closeCompanion, toggleCompanion, runSkill, skills, openAsTab, openNoteTarget, openUrl, activeNote };
 }

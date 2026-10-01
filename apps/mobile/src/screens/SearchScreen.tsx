@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Clock, FilePlus, Search } from "lucide-react";
 import {
-  useSearchPages, recallSearchSession, rememberSearchSession, Button, Chip, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
+  useSearchPages, recallSearchSession, rememberSearchSession, Button, Chip, commandTitle, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
   rememberSearch, SearchField,
   setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge,
   IconButton, SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey,
@@ -157,7 +157,7 @@ export function SearchScreen({
 
   const commandHits =
     parsed.mode === "commands"
-      ? filterCommands(commands, parsed.term, (c) => t(c.titleKey, { defaultValue: c.titleDefault }))
+      ? filterCommands(commands, parsed.term, (c) => commandTitle(t, c))
       : [];
 
   const createName = parsed.mode === "find" && !/[/\\]/.test(parsed.term) ? parsed.term : "";
@@ -207,7 +207,7 @@ export function SearchScreen({
         }}
       >
         <Icon size={ICON.head} />
-        <span>{t(c.titleKey, { defaultValue: c.titleDefault })}</span>
+        <span>{commandTitle(t, c)}</span>
       </button>
     );
   };

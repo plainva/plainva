@@ -33,7 +33,8 @@
       "graph_neighborhood": "Seguindo links",
       "get_recent": "Olhando notas recentes",
       "get_calendar": "Lendo compromissos",
-      "open_in_app": "Abrindo uma nota no Plainva"
+      "open_in_app": "Abrindo uma nota no Plainva",
+      "use_skill": "Carregando uma habilidade"
     },
     "stopped": {
       "cancelled": "Parado.",
@@ -242,7 +243,8 @@
         "web": "A solicitação pode pesquisar na web.",
         "size": "Muito mais que antes: ~{{tokens}} tokens",
         "standing": "A pesquisa por significado calcula com um modelo na nuvem: as notas vão para lá em segundo plano, sem perguntar a cada vez, até você retirar esta aprovação nas configurações.",
-        "sensitive": "Possivelmente sensível, marcado abaixo: {{kinds}}"
+        "sensitive": "Possivelmente sensível, marcado abaixo: {{kinds}}",
+        "instructions": "Instruções deste vault saem pela primeira vez."
       },
       "goesTo": "Vai para",
       "notes": "Notas",
@@ -281,6 +283,13 @@
       "keptSensitive_many": "{{count}} dados ocultados",
       "keptSensitive_other": "{{count}} dados ocultados",
       "tools": "Ferramentas",
+      "instructions": "Instruções",
+      "skillApp": "Habilidade “{{title}}” (incluída no Plainva)",
+      "skillVault": "Habilidade “{{title}}” (deste vault)",
+      "catalog": "Lista de habilidades que a IA pode carregar ({{count}})",
+      "catalogVault": "Lista de habilidades que a IA pode carregar ({{count}}; deste vault: {{vault}})",
+      "vaultInstructions": "Instruções permanentes do vault (AGENTS.md)",
+      "localPreferred": "Esta habilidade foi pensada para um modelo neste dispositivo.",
       "size": "Tamanho",
       "estimate": "~{{tokens}} tokens",
       "estimateCost": "~{{tokens}} tokens, cerca de {{cost}}",
@@ -398,6 +407,7 @@
     },
     "skills": {
       "title": "Habilidades",
+      "runOwn": "Execute a habilidade “{{title}}”.",
       "daily": {
         "title": "Orientação do dia",
         "description": "O que importa hoje: tarefas com prazo, compromissos e o que você fez por último.",

@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare } from "lucide-react";
-import { AI_CORE_SKILLS, conversationRowActions, EmptyState, GroupCard, ICON, Row, RowList, SearchField, SectionLabel, skillPrompt, type ConversationRowCaps } from "@plainva/ui";
+import { startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, Row, RowList, SearchField, SectionLabel, type ConversationRowCaps } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
@@ -93,18 +93,17 @@ export function AiHistoryScreen({ onBack }: { onBack: () => void }) {
       <SectionLabel>{t("ai.skills.title")}</SectionLabel>
       <GroupCard>
         <RowList>
-          {AI_CORE_SKILLS.map((skill) => (
+          {startableSkills(t, state.skills.entries).map((skill) => (
             <Row
               key={skill.id}
               icon={<skill.icon size={ICON.ui} />}
-              title={t(`ai.skills.${skill.id}.title`)}
-              subtitle={t(`ai.skills.${skill.id}.description`)}
+              title={skill.title}
+              subtitle={skill.description}
               disabled={Boolean(state.live)}
-              data-testid={`ai-history-skill-${skill.id}`}
+              data-testid={skill.commandId.replace(/^ai-skill-/, "ai-history-skill-")}
               onClick={() => {
-                // A new conversation, shown on the KI screen while it streams.
-                session.newConversation();
-                void session.send(skillPrompt(t, skill.id));
+                // A new conversation bound to the skill, shown on the KI screen while it streams.
+                void session.runSkill(skill.id, skill.start);
                 onBack();
               }}
             />

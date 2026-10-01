@@ -5,7 +5,7 @@ import {
   Rows2, Save, Search, Settings, Sparkles, SquareArrowOutUpRight, Trash2, Type, Waypoints, X,
 } from "lucide-react";
 import { NEW_ITEM_ORDER, NEW_ITEMS, type NewHandlers, type NewItemId } from "../lib/newCatalog";
-import { AI_CORE_SKILLS, type AiSkillId } from "../ai/aiSkills";
+import type { SkillView } from "../ai/aiSkills";
 
 /**
  * Command registry (plan Designsprache 2026-07-05, P9/L11/E7). One central
@@ -44,6 +44,8 @@ export interface AppCommand {
   /** i18n key + German fallback for the title. */
   titleKey: string;
   titleDefault: string;
+  /** A title that is no key — a skill the user named themselves (plan KI-Harness P3). */
+  title?: string;
   /** Shortcut hint shown right-aligned ("Mod" is localized by the palette). */
   hint?: string;
   run: () => void;
@@ -66,8 +68,10 @@ export interface CommandDeps {
   newJournalEntry?: () => void;
   /** Asks the AI (Mod+J, plan KI-Harness §19.1); absent while the per-device switch is off. */
   openAi?: () => void;
-  /** Starts a core skill in a new conversation (plan KI-Harness P1.5). */
-  runAiSkill?: (id: AiSkillId) => void;
+  /** The skills a person can start now, as every entry point shows them (plan KI-Harness P3). */
+  aiSkills?: readonly SkillView[];
+  /** Starts a skill in a new conversation, bound to it from the first message. */
+  runAiSkill?: (id: string) => void;
   openQuickSwitcher?: () => void;
   openTemplatePicker?: () => void;
   openGraph?: () => void;
@@ -154,12 +158,18 @@ export interface CommandDeps {
   rebuildIndex?: () => void;
 }
 
-/** German fallbacks of the skill commands, like every other `titleDefault`. */
-const SKILL_TITLE_DEFAULT: Record<AiSkillId, string> = { daily: "Tagesorientierung", weekly: "Wochenrückblick", project: "Projektstatus" };
+/** A command's title in the user's language: its own title when it has one, otherwise its key. */
+export function commandTitle(t: (key: string, options: { defaultValue: string }) => string, command: AppCommand): string {
+  return command.title ?? t(command.titleKey, { defaultValue: command.titleDefault });
+}
 
 export function buildAppCommands(d: CommandDeps): AppCommand[] {
   const p = () => d.activePath?.() ?? null;
   const note = () => d.hasActiveNote?.() === true;
+  // The skills are data, not a handler: only a real list makes commands (the inventory's probe answers
+  // every key with a function), and the handler is read even when the list is empty.
+  const runAiSkill = d.runAiSkill;
+  const aiSkills = Array.isArray(d.aiSkills) ? d.aiSkills : [];
   // `need` is the whole contract: a command exists only where its handler does.
   const cmds: Array<AppCommand | null> = [
     need(d.openImport, (run) => ({ id: "import-pkm", group: "vault", icon: Download, titleKey: "import.openWizard", titleDefault: "Aus anderer App importieren...", run })),
@@ -174,7 +184,7 @@ export function buildAppCommands(d: CommandDeps): AppCommand[] {
     need(d.openCalendar, (run) => ({ id: "open-calendar", group: "open", icon: Calendar, titleKey: "pim.openCalendar", titleDefault: "Kalender öffnen", run })),
     need(d.openJournal, (run) => ({ id: "open-journal", group: "open", icon: NotebookText, titleKey: "journal.open", titleDefault: "Journal öffnen", run })),
     need(d.openAi, (run) => ({ id: "ask-ai", group: "open", icon: Sparkles, titleKey: "ai.ask", titleDefault: "KI fragen", hint: "Mod+J", run })),
-    ...AI_CORE_SKILLS.map((skill) => need(d.runAiSkill, (run) => ({ id: `ai-skill-${skill.id}`, group: "open" as const, icon: skill.icon, titleKey: `ai.skills.${skill.id}.title`, titleDefault: SKILL_TITLE_DEFAULT[skill.id], run: () => run(skill.id) }))),
+    ...aiSkills.map((skill) => need(runAiSkill, (run) => ({ id: skill.commandId, group: "open" as const, icon: skill.icon, titleKey: "ai.skills.title", titleDefault: skill.title, title: skill.title, run: () => run(skill.id) }))),
     need(d.openMail, (run) => ({ id: "open-mail", group: "open", icon: Mail, titleKey: "mail.openMail", titleDefault: "E-Mail öffnen", run })),
     need(d.openComments, (run) => ({ id: "open-comments", group: "open", icon: MessageSquare, titleKey: "comments.commentOverview", titleDefault: "Offene Kommentare", run })),
     need(d.openCommsWindow, (run) => ({ id: "open-comms-window", group: "open", icon: SquareArrowOutUpRight, titleKey: "window.openComms", titleDefault: "Kommunikations-Fenster öffnen", run })),

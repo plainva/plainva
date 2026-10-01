@@ -19,6 +19,8 @@ export * from "./AiSendOverview";
 export * from "./AiContextLens";
 export * from "./aiSelectionActions";
 export * from "./aiSkills";
+export * from "./appSkills";
+export * from "./skillRuntime";
 export * from "./aiTranscribe";
 export * from "./localModels";
 export * from "./localEmbeddings";
