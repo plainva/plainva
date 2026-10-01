@@ -154,7 +154,13 @@
       "feedbackDesc": "Vertel ons wat werkt en wat niet — in de discussies van het project op GitHub.",
       "feedbackOpen": "Discussies openen",
       "embeddingHint": "Het model waarmee zoeken op betekenis rekent als je onder Semantisch zoeken „Eigen provider” kiest. Elk model dat de provider voor embeddings aanbiedt, werkt.",
-      "onDevice": "Op dit apparaat — zonder sleutel, er gaat niets naar buiten"
+      "onDevice": "Op dit apparaat — zonder sleutel, er gaat niets naar buiten",
+      "onDeviceReady": "Klaar op dit apparaat · venster van ongeveer {{tokens}} tokens",
+      "checkPlatform": "Beschikbaarheid controleren",
+      "loadPlatformModel": "Model laden",
+      "loadPlatformStarted": "{{provider}}: het systeem laadt het model…",
+      "loadPlatformDone": "{{provider}}: het model is klaar.",
+      "loadPlatformFailed": "{{provider}}: het systeem kon het model niet laden."
     },
     "add": {
       "title": "Provider toevoegen",
@@ -566,12 +572,12 @@
     "gists": {
       "title": "Samenvattingen",
       "show": "Samenvattingen met het lokale model",
-      "showDesc": "Korte, gecontroleerde samenvattingen voor de context van de AI — alleen als het profiel Lokaal een server op deze computer noemt (Ollama, LM Studio); nooit een cloud op de achtergrond. Getallen, datums en termijnen moeten woordelijk blijven staan, anders gaat het originele fragment.",
-      "noModel": "Kies eerst een model op deze computer voor het profiel Lokaal.",
+      "showDesc": "Korte, gecontroleerde samenvattingen voor de context van de AI — alleen als het profiel Lokaal een model op dit apparaat noemt (Ollama of LM Studio op een computer, het model van het systeem op een telefoon); nooit een cloud op de achtergrond. Getallen, datums en termijnen moeten woordelijk blijven staan, anders gaat het originele fragment.",
+      "noModel": "Kies eerst een model op dit apparaat voor het profiel Lokaal.",
       "status": "{{covered}} van {{sections}} lange secties hebben een samenvatting · {{model}}",
       "working": "bezig",
       "paused": "gepauzeerd",
-      "failed": "Het model op deze computer gaf geen antwoord: {{reason}}",
+      "failed": "Het model op dit apparaat gaf geen antwoord: {{reason}}",
       "clear": "Samenvattingen verwijderen",
       "clearConfirm": "Alle samenvattingen van deze vault verwijderen? Zolang samenvattingen aan staan, worden ze opnieuw geschreven."
     }

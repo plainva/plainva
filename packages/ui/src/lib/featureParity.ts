@@ -295,6 +295,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-29",
   },
   {
+    id: "ai-platform-models",
+    title: "The system's own AI model on this device (plan KI-Harness P2c)",
+    area: "ai",
+    kind: "decision",
+    desktop: null,
+    desktopReason:
+      "Windows and Linux bring no model an app may call. macOS has one on " +
+      "Apple-silicon Macs, but the desktop's way without a key is a model of " +
+      "the user's choice on the computer itself, through Ollama or LM Studio " +
+      "(ADR 0021, decision 5); a second, smaller system model would add a " +
+      "native bridge for less than that path already gives.",
+    mobile: "yes",
+    verified: "2026-10-01",
+  },
+  {
     id: "density-mode",
     title: "Comfortable/compact density choice",
     area: "appearance",

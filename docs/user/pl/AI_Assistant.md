@@ -17,6 +17,7 @@ Plainva nie ma własnej usługi AI: korzysta się z wybranego dostawcy, z własn
 | Dostawcy w chmurze | Anthropic, OpenAI, Google Gemini |
 | Pośrednicy i własne serwery | OpenRouter, dowolny **serwer kompatybilny z OpenAI** |
 | Na tym komputerze (desktop) | Ollama, LM Studio |
+| Na tym telefonie | Apple (iPhone), Gemini Nano (Android) |
 
 1. W **AI & automatyzacja** wybierz **Dodaj dostawcę** i wskaż jednego z nich. Każdy wpis niesie krótką uwagę o swoich warunkach — na przykład, że w bezpłatnym dostępie Google dane wejściowe mogą czytać ludzie.
 2. Wpisz klucz przyciskiem **Wpisz klucz**. Klucz trafia do bezpiecznego magazynu tego urządzenia; Plainva nigdy nie pokazuje go ponownie — ani AI, ani na ekranie.
@@ -25,6 +26,8 @@ Plainva nie ma własnej usługi AI: korzysta się z wybranego dostawcy, z własn
 Taki **serwer kompatybilny z OpenAI** dodaje się, podając jego adres. Plainva pyta jeszcze raz przed dodaniem, w oknie systemu operacyjnego, i wysyła tylko na potwierdzony adres. Zwykłe `http` działa tylko dla serwera na tym urządzeniu; wszystko inne wymaga `https`.
 
 Jeśli nie masz jeszcze klucza: model na tym komputerze (Ollama, LM Studio) nic nie kosztuje, a konsola każdego dostawcy wydaje klucze.
+
+**Model systemu na telefonie.** Na iPhonie z Apple Intelligence (od iPhone'a 15 Pro) **Dodaj dostawcę** proponuje najpierw **Apple**, na niektórych telefonach z Androidem **Gemini Nano**. Nie potrzebuje klucza, nic nie kosztuje i nic nie opuszcza urządzenia — dlatego żaden przegląd nie pyta przed wysłaniem. Jego okno jest małe, około 4000 tokenów na notatki, pytanie i odpowiedź razem: idzie mniej notatek, wcześniejsze tury są skracane i nie używa narzędzi. Wiersz mówi, czy jest gotowy, a jeśli nie, to dlaczego — Apple Intelligence wyłączone, urządzenie, które go nie uruchomi, model, który system jeszcze przygotowuje; na Androidzie **Załaduj model** prosi system o jego pobranie. Model Apple nie zna każdego języka (nie zna polskiego). Jeśli wskazuje go profil **Lokalny**, pisze też streszczenia na telefonie.
 
 ## Modele i profile
 
@@ -79,7 +82,7 @@ Gdy tekst, który poszedłby do chmury, wygląda na hasło lub klucz, numer kont
 
 ## Streszczenia
 
-Dzięki **Streszczenia z modelem lokalnym** (w **Ustawienia → AI & automatyzacja**, wyłączone, dopóki ich nie włączysz) model na Twoim komputerze pisze krótkie streszczenia dłuższych sekcji notatek, całych notatek, folderów najwyższego poziomu i vaulta. Działa tylko wtedy, gdy profil **Lokalny** wskazuje serwer na tym komputerze (Ollama, LM Studio) — nigdy chmura w tle — i tylko gdy Plainva nie ma nic innego do roboty; na telefonie tylko wtedy, gdy jest otwarta. Każde streszczenie jest sprawdzane: streszczenie sekcji musi zachować słowo w słowo każdą liczbę, datę, kwotę, link, tag i każde zaprzeczenie, inaczej idą zdania samej sekcji. Streszczenie jest związane z dokładnie tym tekstem, za który stoi; po zmianie sekcji nie jest używane, dopóki nie powstanie od nowa. Streszczenia folderów i vaulta powstają tylko z notatek, które Twoje zasady wypuszczają do chmury. W **Pokaż kontekst** źródło wysłane jako streszczenie to zaznacza, a **Oryginał** wysyła z następną wiadomością jego własne zdania.
+Dzięki **Streszczenia z modelem lokalnym** (w **Ustawienia → AI & automatyzacja**, wyłączone, dopóki ich nie włączysz) model na Twoim komputerze pisze krótkie streszczenia dłuższych sekcji notatek, całych notatek, folderów najwyższego poziomu i vaulta. Działa tylko wtedy, gdy profil **Lokalny** wskazuje serwer na tym komputerze (Ollama, LM Studio; na telefonie model systemu) — nigdy chmura w tle — i tylko gdy Plainva nie ma nic innego do roboty; na telefonie tylko wtedy, gdy jest otwarta. Każde streszczenie jest sprawdzane: streszczenie sekcji musi zachować słowo w słowo każdą liczbę, datę, kwotę, link, tag i każde zaprzeczenie, inaczej idą zdania samej sekcji. Streszczenie jest związane z dokładnie tym tekstem, za który stoi; po zmianie sekcji nie jest używane, dopóki nie powstanie od nowa. Streszczenia folderów i vaulta powstają tylko z notatek, które Twoje zasady wypuszczają do chmury. W **Pokaż kontekst** źródło wysłane jako streszczenie to zaznacza, a **Oryginał** wysyła z następną wiadomością jego własne zdania.
 
 ## Z zaznaczeniem
 

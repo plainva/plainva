@@ -17,6 +17,7 @@ Plainva non porta un proprio servizio IA: usi un provider di tua scelta, con una
 | Provider cloud | Anthropic, OpenAI, Google Gemini |
 | Gateway e server propri | OpenRouter, qualsiasi **Server compatibile con OpenAI** |
 | Su questo computer (desktop) | Ollama, LM Studio |
+| Su questo telefono | Apple (iPhone), Gemini Nano (Android) |
 
 1. In **IA e automazione**, scegli **Aggiungi provider** e selezionane uno. Ogni voce porta una breve nota sulle sue condizioni — per esempio che l'accesso gratuito di Google può permettere a delle persone di leggere i tuoi input.
 2. Inserisci la chiave con **Inserisci chiave**. La chiave va nell'archivio sicuro di questo dispositivo; Plainva non la mostra mai più — né all'IA né sullo schermo.
@@ -25,6 +26,8 @@ Plainva non porta un proprio servizio IA: usi un provider di tua scelta, con una
 Un **Server compatibile con OpenAI** si aggiunge tramite il suo indirizzo. Plainva chiede ancora una volta conferma prima di aggiungerlo, in una finestra del sistema operativo, e invia solo all'indirizzo che hai confermato. `http` semplice funziona solo per un server su questo dispositivo; tutto il resto richiede `https`.
 
 Se non hai ancora una chiave: un modello su questo computer (Ollama, LM Studio) non costa nulla, e la console di ogni provider rilascia chiavi.
+
+**Il modello del sistema sul telefono.** Su un iPhone con Apple Intelligence (da iPhone 15 Pro), **Aggiungi provider** propone per primo **Apple**, su alcuni telefoni Android **Gemini Nano**. Non richiede chiavi, non costa nulla e nulla lascia il dispositivo: per questo nessun riepilogo chiede prima dell'invio. La sua finestra è piccola, circa 4.000 token per note, domanda e risposta insieme: partono meno note, i turni precedenti vengono accorciati e non usa strumenti. La riga dice se è pronto e, se no, perché: Apple Intelligence disattivata, un dispositivo che non può eseguirlo, un modello che il sistema sta ancora preparando; su Android, **Carica modello** chiede al sistema di scaricarlo. Il modello di Apple non parla tutte le lingue (niente polacco). Se il profilo **Locale** lo indica, scrive anche le sintesi sul telefono.
 
 ## Modelli e profili
 
@@ -79,7 +82,7 @@ Quando il testo che andrebbe a un cloud sembra contenere una password o una chia
 
 ## Sintesi
 
-Con **Sintesi con il modello locale** (in **Impostazioni → IA e automazione**, disattivato finché non lo attivi), un modello sul tuo computer scrive brevi sintesi delle sezioni lunghe delle tue note, di note intere, delle cartelle di primo livello e del vault. Funziona solo quando il profilo **Locale** indica un server su questo computer (Ollama, LM Studio) — mai un cloud in background — e solo mentre Plainva è inattivo; sul telefono solo finché è aperto. Ogni sintesi viene verificata: la sintesi di una sezione deve mantenere parola per parola ogni numero, data, importo, link, tag e ogni negazione, altrimenti partono le frasi della sezione stessa. Una sintesi è legata al testo esatto che rappresenta; se modifichi la sezione, non viene usata finché non è stata riscritta. Le sintesi delle cartelle e del vault nascono solo da note che le tue regole lasciano andare a un cloud. In **Vedi contesto**, una fonte inviata come sintesi lo indica, e **Originale** invia le sue frasi con il messaggio successivo.
+Con **Sintesi con il modello locale** (in **Impostazioni → IA e automazione**, disattivato finché non lo attivi), un modello sul tuo computer scrive brevi sintesi delle sezioni lunghe delle tue note, di note intere, delle cartelle di primo livello e del vault. Funziona solo quando il profilo **Locale** indica un server su questo computer (Ollama, LM Studio; sul telefono, il modello del sistema) — mai un cloud in background — e solo mentre Plainva è inattivo; sul telefono solo finché è aperto. Ogni sintesi viene verificata: la sintesi di una sezione deve mantenere parola per parola ogni numero, data, importo, link, tag e ogni negazione, altrimenti partono le frasi della sezione stessa. Una sintesi è legata al testo esatto che rappresenta; se modifichi la sezione, non viene usata finché non è stata riscritta. Le sintesi delle cartelle e del vault nascono solo da note che le tue regole lasciano andare a un cloud. In **Vedi contesto**, una fonte inviata come sintesi lo indica, e **Originale** invia le sue frasi con il messaggio successivo.
 
 ## Con una selezione
 

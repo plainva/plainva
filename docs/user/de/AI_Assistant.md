@@ -17,6 +17,7 @@ Plainva bringt keinen eigenen KI-Dienst mit: Du nutzt einen Anbieter Deiner Wahl
 | Cloud-Anbieter | Anthropic, OpenAI, Google Gemini |
 | Vermittler und eigene Server | OpenRouter, jeder **OpenAI-kompatibler Server** |
 | Auf diesem Rechner (Desktop) | Ollama, LM Studio |
+| Auf diesem Telefon | Apple (iPhone), Gemini Nano (Android) |
 
 1. Wähle in **KI & Automatisierung** **Anbieter hinzufügen** und einen Anbieter. Jeder Eintrag trägt einen kurzen Hinweis zu seinen Bedingungen — etwa, dass im kostenlosen Zugang von Google Menschen Deine Eingaben lesen dürfen.
 2. Gib den Schlüssel mit **Schlüssel eingeben** ein. Er geht in den sicheren Speicher dieses Geräts; Plainva zeigt ihn nie wieder an — weder der KI noch auf dem Bildschirm.
@@ -25,6 +26,8 @@ Plainva bringt keinen eigenen KI-Dienst mit: Du nutzt einen Anbieter Deiner Wahl
 Einen **OpenAI-kompatiblen Server** fügst Du über seine Adresse hinzu. Plainva fragt vor dem Hinzufügen noch einmal nach, in einem Fenster des Betriebssystems, und sendet nur an die Adresse, die Du bestätigt hast. Unverschlüsseltes `http` geht nur für einen Server auf diesem Gerät; alles andere braucht `https`.
 
 Wenn Du noch keinen Schlüssel hast: ein Modell auf diesem Rechner (Ollama, LM Studio) kostet nichts, und die Konsole jedes Anbieters gibt Schlüssel aus.
+
+**Das Modell des Systems am Telefon.** Auf einem iPhone mit Apple Intelligence (ab iPhone 15 Pro) bietet **Anbieter hinzufügen** zuerst **Apple** an, auf einigen Android-Telefonen **Gemini Nano**. Es braucht keinen Schlüssel und kostet nichts, und nichts verlässt das Gerät — deshalb fragt keine Übersicht vor dem Senden. Sein Fenster ist klein, etwa 4.000 Token für Notizen, Frage und Antwort zusammen: Es gehen weniger Notizen mit, frühere Runden werden gekürzt, und es nutzt keine Werkzeuge. Die Zeile sagt, ob es bereit ist und sonst warum nicht — Apple Intelligence aus, ein Gerät, das es nicht kann, ein Modell, das das System noch vorbereitet; unter Android bittet **Modell laden** das System, es herunterzuladen. Apples Modell spricht nicht jede Sprache (kein Polnisch). Nennt das Profil **Lokal** es, schreibt es am Telefon auch die Gists.
 
 ## Modelle und Profile
 
@@ -79,7 +82,7 @@ Sieht der Text, der an eine Cloud ginge, nach einem Passwort oder Schlüssel, ei
 
 ## Gists
 
-Mit **Gists mit dem lokalen Modell** (unter **Einstellungen → KI & Automatisierung**, aus, bis Du es einschaltest) schreibt ein Modell auf Deinem Rechner kurze Zusammenfassungen der längeren Abschnitte Deiner Notizen, ganzer Notizen, der obersten Ordner und des Vaults. Es läuft nur, wenn das Profil **Lokal** einen Server auf diesem Rechner nennt (Ollama, LM Studio) — nie eine Cloud im Hintergrund — und nur, während Plainva nichts anderes zu tun hat; am Telefon nur, solange es offen ist. Jeder Gist wird geprüft: der Gist eines Abschnitts muss jede Zahl, jedes Datum, jeden Betrag, Link, Tag und jede Verneinung wörtlich behalten, sonst gehen die Sätze des Abschnitts selbst. Ein Gist ist an genau den Text gebunden, für den er steht; änderst Du den Abschnitt, wird er nicht benutzt, bis er neu geschrieben ist. Gists von Ordnern und vom Vault entstehen nur aus Notizen, die Deine Regeln an eine Cloud lassen. In **Kontext einsehen** sagt eine als Gist gesendete Quelle das, und **Original** schickt mit der nächsten Nachricht ihre eigenen Sätze.
+Mit **Gists mit dem lokalen Modell** (unter **Einstellungen → KI & Automatisierung**, aus, bis Du es einschaltest) schreibt ein Modell auf Deinem Rechner kurze Zusammenfassungen der längeren Abschnitte Deiner Notizen, ganzer Notizen, der obersten Ordner und des Vaults. Es läuft nur, wenn das Profil **Lokal** einen Server auf diesem Rechner nennt (Ollama, LM Studio; am Telefon das Modell des Systems) — nie eine Cloud im Hintergrund — und nur, während Plainva nichts anderes zu tun hat; am Telefon nur, solange es offen ist. Jeder Gist wird geprüft: der Gist eines Abschnitts muss jede Zahl, jedes Datum, jeden Betrag, Link, Tag und jede Verneinung wörtlich behalten, sonst gehen die Sätze des Abschnitts selbst. Ein Gist ist an genau den Text gebunden, für den er steht; änderst Du den Abschnitt, wird er nicht benutzt, bis er neu geschrieben ist. Gists von Ordnern und vom Vault entstehen nur aus Notizen, die Deine Regeln an eine Cloud lassen. In **Kontext einsehen** sagt eine als Gist gesendete Quelle das, und **Original** schickt mit der nächsten Nachricht ihre eigenen Sätze.
 
 ## Mit einer Auswahl
 

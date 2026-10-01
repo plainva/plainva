@@ -158,7 +158,13 @@
       "feedbackDesc": "Conte o que funciona e o que não funciona — nas discussões do projeto no GitHub.",
       "feedbackOpen": "Abrir discussões",
       "embeddingHint": "O modelo com que a pesquisa por significado calcula quando você escolhe “Provedor próprio” em Pesquisa semântica. Qualquer modelo que o provedor ofereça para embeddings funciona.",
-      "onDevice": "Neste dispositivo — sem chave, nada sai dele"
+      "onDevice": "Neste dispositivo — sem chave, nada sai dele",
+      "onDeviceReady": "Pronto neste dispositivo · janela de cerca de {{tokens}} tokens",
+      "checkPlatform": "Verificar disponibilidade",
+      "loadPlatformModel": "Carregar modelo",
+      "loadPlatformStarted": "{{provider}}: o sistema está carregando o modelo…",
+      "loadPlatformDone": "{{provider}}: o modelo está pronto.",
+      "loadPlatformFailed": "{{provider}}: o sistema não conseguiu carregar o modelo."
     },
     "add": {
       "title": "Adicionar provedor",
@@ -583,12 +589,12 @@
     "gists": {
       "title": "Resumos",
       "show": "Resumos com o modelo local",
-      "showDesc": "Resumos curtos e verificados para o contexto da IA — só quando o perfil Local indica um servidor neste computador (Ollama, LM Studio); nunca uma nuvem em segundo plano. Números, datas e prazos precisam aparecer palavra por palavra; senão, vai o trecho original.",
-      "noModel": "Escolha primeiro um modelo neste computador para o perfil Local.",
+      "showDesc": "Resumos curtos e verificados para o contexto da IA — só quando o perfil Local indica um modelo neste dispositivo (Ollama ou LM Studio em um computador, o modelo do sistema em um celular); nunca uma nuvem em segundo plano. Números, datas e prazos precisam aparecer palavra por palavra; senão, vai o trecho original.",
+      "noModel": "Escolha primeiro um modelo neste dispositivo para o perfil Local.",
       "status": "{{covered}} de {{sections}} seções longas têm resumo · {{model}}",
       "working": "escrevendo",
       "paused": "pausado",
-      "failed": "O modelo neste computador não respondeu: {{reason}}",
+      "failed": "O modelo neste dispositivo não respondeu: {{reason}}",
       "clear": "Remover resumos",
       "clearConfirm": "Remover todos os resumos deste vault? Enquanto os resumos estiverem ativados, eles são escritos de novo."
     }

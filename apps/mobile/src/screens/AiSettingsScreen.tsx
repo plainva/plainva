@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, Plus } from "lucide-react";
 import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
@@ -22,7 +23,14 @@ import { AppBar } from "../components/AppBar";
 import { MobileSemanticSection } from "../components/MobileSemanticSection";
 import { MobileGistsSection } from "../components/MobileGistsSection";
 import { getMobileAiSession } from "../services/ai/mobileAi";
+import { PlatformModel } from "../platform/platformModel";
 import { mActions, mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
+
+/** The system whose own model this phone may offer (plan KI-Harness P2c). */
+function platformOs(): "ios" | "android" | null {
+  const p = Capacitor.getPlatform();
+  return p === "ios" || p === "android" ? p : null;
+}
 
 /**
  * Settings → AI & automation on the phone (plan KI-Harness §19.1), APP world:
@@ -30,6 +38,8 @@ import { mActions, mConfirm, mPrompt, mSelect } from "../services/mobileDialogs"
  * keys, profiles, history — told in the phone's grammar of rows and sheets.
  * Servers "on this computer" are a desktop matter; a phone reaches a server in
  * the network as an own server with https (parity decision `ai-local-servers`).
+ * The system's own model is the phone's free way instead (plan P2c, parity
+ * decision `ai-platform-models`): offered first, checked on opening.
  */
 export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
   const { t, i18n } = useTranslation();
@@ -48,6 +58,13 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
     };
   }, [session, state.summaries]);
 
+  // The system's own model says on opening whether it is there (plan P2c).
+  useEffect(() => {
+    for (const row of configuredProviders(session.getState())) {
+      if (row.provider.kind === "platform-device" && !session.getState().tests[row.provider.id]) void session.testProvider(row.provider.id);
+    }
+  }, [session, state.loaded]);
+
   if (!state.loaded) return null;
   const settings = state.settings;
   const rows = configuredProviders(state);
@@ -65,12 +82,28 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
     }
   };
 
+  /** Asks the system to load its model (Android); the row says when it is there. */
+  const loadPlatformModel = async (provider: ProviderInfo) => {
+    toast.info(t("ai.settings.loadPlatformStarted", { provider: provider.label }));
+    try {
+      await PlatformModel.download();
+      toast.success(t("ai.settings.loadPlatformDone", { provider: provider.label }));
+    } catch {
+      toast.error(t("ai.settings.loadPlatformFailed", { provider: provider.label }));
+    }
+    void session.testProvider(provider.id);
+  };
+
   const providerActions = async (provider: ProviderInfo) => {
     const hasKey = Boolean(state.keys[provider.id]);
+    const platform = provider.kind === "platform-device";
+    const failure = state.tests[provider.id]?.failure;
+    const loadable = platform && failure?.kind === "platform_unavailable" && failure.reason === "downloadable";
     const choice = await mActions({
       title: provider.label,
       options: [
-        { value: "test", label: t("ai.settings.test") },
+        { value: "test", label: platform ? t("ai.settings.checkPlatform") : t("ai.settings.test") },
+        ...(loadable ? [{ value: "load", label: t("ai.settings.loadPlatformModel") }] : []),
         ...(provider.endpoint.needsKey ? [{ value: "key", label: hasKey ? t("ai.settings.replaceKey") : t("ai.settings.enterKey") }] : []),
         ...(provider.keyUrl ? [{ value: "console", label: t("ai.settings.getKey", { provider: provider.label }) }] : []),
         ...(hasKey ? [{ value: "deleteKey", label: t("ai.settings.deleteKey"), danger: true }] : []),
@@ -78,6 +111,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
       ],
     });
     if (choice === "test") void session.testProvider(provider.id);
+    else if (choice === "load") void loadPlatformModel(provider);
     else if (choice === "key") void enterKey(provider);
     else if (choice === "console" && provider.keyUrl) void getPlatformServices().openExternal(provider.keyUrl);
     else if (choice === "deleteKey") {
@@ -88,9 +122,10 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
   };
 
   const addProvider = async () => {
-    const groups = addableProviders(state, { localServers: false });
+    const groups = addableProviders(state, { localServers: false, platformOs: platformOs() });
     const options = [
-      ...[...groups.cloud, ...groups.gateways].map((p) => ({ value: p.id, label: p.label, desc: p.hints.map((h) => t(h)).join(" ") })),
+      // The system's own model first: the phone's way without a key (plan P2c).
+      ...[...groups.device, ...groups.cloud, ...groups.gateways].map((p) => ({ value: p.id, label: p.label, desc: p.hints.map((h) => t(h)).join(" ") })),
       { value: "__custom", label: t("ai.add.custom"), desc: t("ai.add.customDesc") },
     ];
     const picked = await mActions({ title: t("ai.add.title"), message: t("ai.add.lead"), options });
@@ -110,7 +145,8 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
     }
     await session.addProvider(picked);
     const provider = providerById(picked, settings.custom);
-    if (provider?.endpoint.needsKey) void enterKey(provider);
+    if (provider?.kind === "platform-device") void session.testProvider(provider.id);
+    else if (provider?.endpoint.needsKey) void enterKey(provider);
   };
 
   const chooseModel = async (profile: AiProfileSlot) => {

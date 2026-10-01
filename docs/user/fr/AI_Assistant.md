@@ -17,6 +17,7 @@ Plainva n'apporte pas son propre service d'IA : vous utilisez un fournisseur de 
 | Fournisseurs cloud | Anthropic, OpenAI, Google Gemini |
 | Passerelles et serveurs personnels | OpenRouter, tout **serveur compatible OpenAI** |
 | Sur cet ordinateur (bureau) | Ollama, LM Studio |
+| Sur ce téléphone | Apple (iPhone), Gemini Nano (Android) |
 
 1. Dans **IA & automatisation**, choisissez **Ajouter un fournisseur** et sélectionnez-en un. Chaque entrée porte une brève remarque sur ses conditions — par exemple que l'accès gratuit de Google peut laisser des personnes lire vos saisies.
 2. Saisissez la clé avec **Saisir la clé**. La clé va dans le stockage sécurisé de cet appareil ; Plainva ne l'affiche plus jamais — ni à l'IA, ni à l'écran.
@@ -25,6 +26,8 @@ Plainva n'apporte pas son propre service d'IA : vous utilisez un fournisseur de 
 Un **serveur compatible OpenAI** s'ajoute par son adresse. Plainva redemande confirmation avant de l'ajouter, dans une fenêtre du système d'exploitation, et n'envoie qu'à l'adresse que vous avez confirmée. Le `http` non chiffré ne fonctionne que pour un serveur sur cet appareil ; tout le reste exige `https`.
 
 Si vous n'avez pas encore de clé : un modèle sur cet ordinateur (Ollama, LM Studio) ne coûte rien, et la console de chaque fournisseur délivre des clés.
+
+**Le modèle du système sur le téléphone.** Sur un iPhone avec Apple Intelligence (à partir de l'iPhone 15 Pro), **Ajouter un fournisseur** propose d'abord **Apple**, sur certains téléphones Android **Gemini Nano**. Il ne demande aucune clé, ne coûte rien et rien ne quitte l'appareil — aucun aperçu ne demande donc avant l'envoi. Sa fenêtre est petite, environ 4 000 jetons pour les notes, la question et la réponse ensemble : moins de notes partent, les échanges précédents sont raccourcis, et il n'utilise aucun outil. La ligne indique s'il est prêt et, sinon, pourquoi — Apple Intelligence désactivée, un appareil qui ne peut pas le faire tourner, un modèle que le système prépare encore ; sous Android, **Charger le modèle** demande au système de le télécharger. Le modèle d'Apple ne parle pas toutes les langues (pas le polonais). Si le profil **Local** le désigne, il écrit aussi les résumés sur le téléphone.
 
 ## Modèles et profils
 
@@ -79,7 +82,7 @@ Quand le texte qui partirait vers un cloud semble contenir un mot de passe ou un
 
 ## Résumés
 
-Avec **Résumés avec le modèle local** (dans **Paramètres → IA & automatisation**, désactivé jusqu'à ce que vous l'activiez), un modèle sur votre ordinateur écrit de courts résumés des sections longues de vos notes, des notes entières, des dossiers de premier niveau et du vault. Il ne fonctionne que si le profil **Local** désigne un serveur sur cet ordinateur (Ollama, LM Studio) — jamais un cloud en arrière-plan — et seulement quand Plainva est inactif ; sur le téléphone, seulement tant qu'il est ouvert. Chaque résumé est vérifié : le résumé d'une section doit garder mot pour mot chaque nombre, date, montant, lien, tag et chaque négation, sinon ce sont les phrases de la section qui partent. Un résumé est lié au texte exact qu'il représente ; si vous modifiez la section, il n'est plus utilisé avant d'avoir été réécrit. Les résumés de dossiers et du vault ne sont écrits qu'à partir des notes que vos règles laissent partir vers un cloud. Dans **Voir le contexte**, une source envoyée sous forme de résumé l'indique, et **Original** envoie ses propres phrases avec le message suivant.
+Avec **Résumés avec le modèle local** (dans **Paramètres → IA & automatisation**, désactivé jusqu'à ce que vous l'activiez), un modèle sur votre ordinateur écrit de courts résumés des sections longues de vos notes, des notes entières, des dossiers de premier niveau et du vault. Il ne fonctionne que si le profil **Local** désigne un serveur sur cet ordinateur (Ollama, LM Studio ; sur le téléphone, le modèle du système) — jamais un cloud en arrière-plan — et seulement quand Plainva est inactif ; sur le téléphone, seulement tant qu'il est ouvert. Chaque résumé est vérifié : le résumé d'une section doit garder mot pour mot chaque nombre, date, montant, lien, tag et chaque négation, sinon ce sont les phrases de la section qui partent. Un résumé est lié au texte exact qu'il représente ; si vous modifiez la section, il n'est plus utilisé avant d'avoir été réécrit. Les résumés de dossiers et du vault ne sont écrits qu'à partir des notes que vos règles laissent partir vers un cloud. Dans **Voir le contexte**, une source envoyée sous forme de résumé l'indique, et **Original** envoie ses propres phrases avec le message suivant.
 
 ## Avec une sélection
 

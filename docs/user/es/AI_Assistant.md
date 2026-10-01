@@ -17,6 +17,7 @@ Plainva no trae su propio servicio de IA: usas un proveedor que tú eliges, con 
 | Proveedores en la nube | Anthropic, OpenAI, Google Gemini |
 | Intermediarios y servidores propios | OpenRouter, cualquier **Servidor compatible con OpenAI** |
 | En este ordenador (escritorio) | Ollama, LM Studio |
+| En este teléfono | Apple (iPhone), Gemini Nano (Android) |
 
 1. En **IA y automatización**, elige **Añadir proveedor** y selecciona uno. Cada entrada lleva una breve nota sobre sus condiciones — por ejemplo, que el acceso gratuito de Google puede dejar que otras personas lean tus entradas.
 2. Introduce la clave con **Introducir clave**. La clave va al almacén seguro de este dispositivo; Plainva no vuelve a mostrarla — ni a la IA ni en la pantalla.
@@ -25,6 +26,8 @@ Plainva no trae su propio servicio de IA: usas un proveedor que tú eliges, con 
 Un **Servidor compatible con OpenAI** se añade mediante su dirección. Plainva pregunta una vez más antes de añadirlo, en una ventana del sistema operativo, y solo envía a la dirección que confirmaste. El `http` sin cifrar solo funciona para un servidor en este dispositivo; todo lo demás necesita `https`.
 
 Si todavía no tienes una clave: un modelo en este ordenador (Ollama, LM Studio) no cuesta nada, y la consola de cada proveedor emite claves.
+
+**El modelo del sistema en el teléfono.** En un iPhone con Apple Intelligence (desde el iPhone 15 Pro), **Añadir proveedor** ofrece primero **Apple**; en algunos teléfonos Android, **Gemini Nano**. No necesita clave, no cuesta nada y nada sale del dispositivo, así que ningún resumen pregunta antes de enviar. Su ventana es pequeña, unos 4000 tokens para las notas, la pregunta y la respuesta juntas: van menos notas, los turnos anteriores se acortan y no usa herramientas. La fila indica si está listo y, si no, por qué: Apple Intelligence desactivado, un dispositivo que no puede ejecutarlo, un modelo que el sistema aún prepara; en Android, **Cargar modelo** pide al sistema que lo descargue. El modelo de Apple no habla todos los idiomas (no polaco). Si el perfil **Local** lo nombra, también escribe los resúmenes en el teléfono.
 
 ## Modelos y perfiles
 
@@ -79,7 +82,7 @@ Cuando el texto que iría a una nube parece contener una contraseña o clave, un
 
 ## Resúmenes
 
-Con **Resúmenes con el modelo local** (en **Configuración → IA y automatización**, desactivado hasta que lo actives), un modelo en tu ordenador escribe resúmenes breves de las secciones largas de tus notas, de notas completas, de las carpetas de primer nivel y del vault. Solo funciona cuando el perfil **Local** nombra un servidor en este ordenador (Ollama, LM Studio) —nunca una nube en segundo plano— y solo mientras Plainva está inactivo; en el teléfono, solo mientras está abierto. Cada resumen se comprueba: el resumen de una sección debe conservar palabra por palabra cada número, fecha, importe, enlace, etiqueta y cada negación; si no, se envían las frases de la propia sección. Un resumen está ligado al texto exacto que representa; si cambias la sección, no se usa hasta que se vuelve a escribir. Los resúmenes de carpetas y del vault solo se escriben a partir de notas que tus reglas dejan ir a una nube. En **Ver contexto**, una fuente enviada como resumen lo indica, y **Original** envía sus propias frases con el siguiente mensaje.
+Con **Resúmenes con el modelo local** (en **Configuración → IA y automatización**, desactivado hasta que lo actives), un modelo en tu ordenador escribe resúmenes breves de las secciones largas de tus notas, de notas completas, de las carpetas de primer nivel y del vault. Solo funciona cuando el perfil **Local** nombra un servidor en este ordenador (Ollama, LM Studio; en el teléfono, el modelo del sistema) —nunca una nube en segundo plano— y solo mientras Plainva está inactivo; en el teléfono, solo mientras está abierto. Cada resumen se comprueba: el resumen de una sección debe conservar palabra por palabra cada número, fecha, importe, enlace, etiqueta y cada negación; si no, se envían las frases de la propia sección. Un resumen está ligado al texto exacto que representa; si cambias la sección, no se usa hasta que se vuelve a escribir. Los resúmenes de carpetas y del vault solo se escriben a partir de notas que tus reglas dejan ir a una nube. En **Ver contexto**, una fuente enviada como resumen lo indica, y **Original** envía sus propias frases con el siguiente mensaje.
 
 ## Con una selección
 

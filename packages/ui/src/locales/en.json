@@ -154,7 +154,13 @@
       "feedbackDesc": "Tell us what works and what does not — in the project's discussions on GitHub.",
       "feedbackOpen": "Open discussions",
       "embeddingHint": "The model search by meaning computes with when you choose “Own provider” under Semantic search. Any model the provider offers for embeddings works.",
-      "onDevice": "On this device — no key, nothing leaves it"
+      "onDevice": "On this device — no key, nothing leaves it",
+      "onDeviceReady": "Ready on this device · window of about {{tokens}} tokens",
+      "checkPlatform": "Check availability",
+      "loadPlatformModel": "Load model",
+      "loadPlatformStarted": "{{provider}}: the system is loading the model…",
+      "loadPlatformDone": "{{provider}}: the model is ready.",
+      "loadPlatformFailed": "{{provider}}: the system could not load the model."
     },
     "add": {
       "title": "Add provider",
@@ -566,12 +572,12 @@
     "gists": {
       "title": "Gists",
       "show": "Gists with the local model",
-      "showDesc": "Short, checked summaries for the AI's context — only when the profile Local names a server on this computer (Ollama, LM Studio); never a cloud in the background. Numbers, dates and deadlines must stand word for word, otherwise the original excerpt goes.",
-      "noModel": "Choose a model on this computer for the profile Local first.",
+      "showDesc": "Short, checked summaries for the AI's context — only when the profile Local names a model on this device (Ollama or LM Studio on a computer, the system's own model on a phone); never a cloud in the background. Numbers, dates and deadlines must stand word for word, otherwise the original excerpt goes.",
+      "noModel": "Choose a model on this device for the profile Local first.",
       "status": "{{covered}} of {{sections}} long sections have a gist · {{model}}",
       "working": "writing",
       "paused": "paused",
-      "failed": "The model on this computer did not answer: {{reason}}",
+      "failed": "The model on this device did not answer: {{reason}}",
       "clear": "Remove gists",
       "clearConfirm": "Remove every gist of this vault? While gists are on, they are written again."
     }

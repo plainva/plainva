@@ -154,7 +154,13 @@
       "feedbackDesc": "Sag uns, was funktioniert und was nicht — in den Diskussionen des Projekts auf GitHub.",
       "feedbackOpen": "Diskussionen öffnen",
       "embeddingHint": "Das Modell, mit dem die Suche nach Bedeutung rechnet, wenn Du unter Semantische Suche „Eigener Anbieter“ wählst. Jedes Modell, das der Anbieter für Einbettungen anbietet, funktioniert.",
-      "onDevice": "Auf diesem Gerät — ohne Schlüssel, nichts verlässt es"
+      "onDevice": "Auf diesem Gerät — ohne Schlüssel, nichts verlässt es",
+      "onDeviceReady": "Bereit auf diesem Gerät · Fenster von etwa {{tokens}} Token",
+      "checkPlatform": "Verfügbarkeit prüfen",
+      "loadPlatformModel": "Modell laden",
+      "loadPlatformStarted": "{{provider}}: Das System lädt das Modell …",
+      "loadPlatformDone": "{{provider}}: Das Modell ist bereit.",
+      "loadPlatformFailed": "{{provider}}: Das System konnte das Modell nicht laden."
     },
     "add": {
       "title": "Anbieter hinzufügen",
@@ -566,12 +572,12 @@
     "gists": {
       "title": "Gists",
       "show": "Gists mit dem lokalen Modell",
-      "showDesc": "Kurze, geprüfte Zusammenfassungen für den Kontext der KI — nur, wenn das Profil Lokal einen Server auf diesem Rechner nennt (Ollama, LM Studio); nie eine Cloud im Hintergrund. Zahlen, Daten und Fristen müssen wörtlich stehen, sonst geht der Originalauszug.",
-      "noModel": "Wähle zuerst ein Modell auf diesem Rechner für das Profil Lokal.",
+      "showDesc": "Kurze, geprüfte Zusammenfassungen für den Kontext der KI — nur, wenn das Profil Lokal ein Modell auf diesem Gerät nennt (Ollama oder LM Studio am Rechner, das Modell des Systems am Telefon); nie eine Cloud im Hintergrund. Zahlen, Daten und Fristen müssen wörtlich stehen, sonst geht der Originalauszug.",
+      "noModel": "Wähle zuerst ein Modell auf diesem Gerät für das Profil Lokal.",
       "status": "{{covered}} von {{sections}} langen Abschnitten haben einen Gist · {{model}}",
       "working": "schreibt",
       "paused": "pausiert",
-      "failed": "Das Modell auf diesem Rechner hat nicht geantwortet: {{reason}}",
+      "failed": "Das Modell auf diesem Gerät hat nicht geantwortet: {{reason}}",
       "clear": "Gists entfernen",
       "clearConfirm": "Alle Gists dieses Vaults entfernen? Solange Gists an sind, werden sie neu geschrieben."
     }

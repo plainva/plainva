@@ -158,7 +158,13 @@
       "feedbackDesc": "Dites-nous ce qui fonctionne et ce qui ne fonctionne pas — dans les discussions du projet sur GitHub.",
       "feedbackOpen": "Ouvrir les discussions",
       "embeddingHint": "Le modèle avec lequel la recherche par sens calcule quand vous choisissez « Fournisseur personnel » sous Recherche sémantique. Tout modèle que le fournisseur propose pour les embeddings fonctionne.",
-      "onDevice": "Sur cet appareil — sans clé, rien n'en sort"
+      "onDevice": "Sur cet appareil — sans clé, rien n'en sort",
+      "onDeviceReady": "Prêt sur cet appareil · fenêtre d'environ {{tokens}} jetons",
+      "checkPlatform": "Vérifier la disponibilité",
+      "loadPlatformModel": "Charger le modèle",
+      "loadPlatformStarted": "{{provider}} : le système charge le modèle…",
+      "loadPlatformDone": "{{provider}} : le modèle est prêt.",
+      "loadPlatformFailed": "{{provider}} : le système n'a pas pu charger le modèle."
     },
     "add": {
       "title": "Ajouter un fournisseur",
@@ -583,12 +589,12 @@
     "gists": {
       "title": "Résumés",
       "show": "Résumés avec le modèle local",
-      "showDesc": "De courts résumés vérifiés pour le contexte de l'IA — seulement quand le profil Local désigne un serveur sur cet ordinateur (Ollama, LM Studio) ; jamais un cloud en arrière-plan. Les nombres, dates et échéances doivent figurer mot pour mot, sinon l'extrait original part.",
-      "noModel": "Choisissez d'abord un modèle sur cet ordinateur pour le profil Local.",
+      "showDesc": "De courts résumés vérifiés pour le contexte de l'IA — seulement quand le profil Local désigne un modèle sur cet appareil (Ollama ou LM Studio sur un ordinateur, le modèle du système sur un téléphone) ; jamais un cloud en arrière-plan. Les nombres, dates et échéances doivent figurer mot pour mot, sinon l'extrait original part.",
+      "noModel": "Choisissez d'abord un modèle sur cet appareil pour le profil Local.",
       "status": "{{covered}} sections longues sur {{sections}} ont un résumé · {{model}}",
       "working": "en cours",
       "paused": "en pause",
-      "failed": "Le modèle sur cet ordinateur n'a pas répondu : {{reason}}",
+      "failed": "Le modèle sur cet appareil n'a pas répondu : {{reason}}",
       "clear": "Supprimer les résumés",
       "clearConfirm": "Supprimer tous les résumés de ce vault ? Tant que les résumés sont activés, ils sont réécrits."
     }

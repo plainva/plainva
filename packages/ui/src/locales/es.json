@@ -158,7 +158,13 @@
       "feedbackDesc": "Cuéntanos qué funciona y qué no, en las discusiones del proyecto en GitHub.",
       "feedbackOpen": "Abrir discusiones",
       "embeddingHint": "El modelo con el que calcula la búsqueda por significado cuando eliges «Proveedor propio» en Búsqueda semántica. Funciona cualquier modelo que el proveedor ofrezca para embeddings.",
-      "onDevice": "En este dispositivo — sin clave, nada sale de él"
+      "onDevice": "En este dispositivo — sin clave, nada sale de él",
+      "onDeviceReady": "Listo en este dispositivo · ventana de unos {{tokens}} tokens",
+      "checkPlatform": "Comprobar disponibilidad",
+      "loadPlatformModel": "Cargar modelo",
+      "loadPlatformStarted": "{{provider}}: el sistema está cargando el modelo…",
+      "loadPlatformDone": "{{provider}}: el modelo está listo.",
+      "loadPlatformFailed": "{{provider}}: el sistema no pudo cargar el modelo."
     },
     "add": {
       "title": "Añadir proveedor",
@@ -583,12 +589,12 @@
     "gists": {
       "title": "Resúmenes",
       "show": "Resúmenes con el modelo local",
-      "showDesc": "Resúmenes breves y comprobados para el contexto de la IA — solo cuando el perfil Local nombra un servidor en este ordenador (Ollama, LM Studio); nunca una nube en segundo plano. Los números, fechas y plazos deben figurar palabra por palabra; si no, se envía el extracto original.",
-      "noModel": "Elige primero un modelo en este ordenador para el perfil Local.",
+      "showDesc": "Resúmenes breves y comprobados para el contexto de la IA — solo cuando el perfil Local nombra un modelo en este dispositivo (Ollama o LM Studio en un ordenador, el modelo del sistema en un teléfono); nunca una nube en segundo plano. Los números, fechas y plazos deben figurar palabra por palabra; si no, se envía el extracto original.",
+      "noModel": "Elige primero un modelo en este dispositivo para el perfil Local.",
       "status": "{{covered}} de {{sections}} secciones largas tienen resumen · {{model}}",
       "working": "escribiendo",
       "paused": "en pausa",
-      "failed": "El modelo de este ordenador no respondió: {{reason}}",
+      "failed": "El modelo de este dispositivo no respondió: {{reason}}",
       "clear": "Quitar resúmenes",
       "clearConfirm": "¿Quitar todos los resúmenes de este vault? Mientras los resúmenes estén activados, se vuelven a escribir."
     }

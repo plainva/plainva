@@ -17,6 +17,7 @@ Plainva brengt geen eigen AI-dienst mee: je gebruikt een provider van jouw keuze
 | Cloudproviders | Anthropic, OpenAI, Google Gemini |
 | Gateways en eigen servers | OpenRouter, elke **OpenAI-compatibele server** |
 | Op deze computer (desktop) | Ollama, LM Studio |
+| Op deze telefoon | Apple (iPhone), Gemini Nano (Android) |
 
 1. Kies in **AI & automatisering** voor **Provider toevoegen** en kies er een. Elk item draagt een korte opmerking over de voorwaarden — bijvoorbeeld dat bij de gratis toegang van Google mensen je invoer kunnen lezen.
 2. Voer de sleutel in met **Sleutel invoeren**. De sleutel gaat naar de beveiligde opslag van dit apparaat; Plainva toont hem nooit meer — niet aan de AI en niet op het scherm.
@@ -25,6 +26,8 @@ Plainva brengt geen eigen AI-dienst mee: je gebruikt een provider van jouw keuze
 Een **OpenAI-compatibele server** voeg je toe via het adres ervan. Plainva vraagt vlak voor het toevoegen nog een keer om bevestiging, in een venster van het besturingssysteem, en verzendt alleen naar het adres dat je hebt bevestigd. Onversleuteld `http` werkt alleen voor een server op dit apparaat; voor al het andere is `https` nodig.
 
 Heb je nog geen sleutel: een model op deze computer (Ollama, LM Studio) kost niets, en de console van elke provider geeft sleutels uit.
+
+**Het model van het systeem op de telefoon.** Op een iPhone met Apple Intelligence (vanaf iPhone 15 Pro) biedt **Provider toevoegen** eerst **Apple** aan, op sommige Android-telefoons **Gemini Nano**. Het heeft geen sleutel nodig, kost niets en er verlaat niets het apparaat — daarom vraagt geen overzicht vóór het verzenden. Het venster is klein, ongeveer 4.000 tokens voor notities, vraag en antwoord samen: er gaan minder notities mee, eerdere beurten worden ingekort en het gebruikt geen hulpmiddelen. De regel zegt of het klaar is en zo niet, waarom — Apple Intelligence uit, een apparaat dat het niet kan draaien, een model dat het systeem nog voorbereidt; op Android vraagt **Model laden** het systeem om het te downloaden. Het model van Apple spreekt niet elke taal (geen Pools). Noemt het profiel **Lokaal** het, dan schrijft het op de telefoon ook de samenvattingen.
 
 ## Modellen en profielen
 
@@ -79,7 +82,7 @@ Lijkt de tekst die naar een cloud zou gaan een wachtwoord of sleutel, een rekeni
 
 ## Samenvattingen
 
-Met **Samenvattingen met het lokale model** (onder **Instellingen → AI & automatisering**, uit totdat je het aanzet) schrijft een model op je computer korte samenvattingen van de lange secties van je notities, van hele notities, van de mappen op het hoogste niveau en van de vault. Het werkt alleen als het profiel **Lokaal** een server op deze computer noemt (Ollama, LM Studio) — nooit een cloud op de achtergrond — en alleen terwijl Plainva niets anders te doen heeft; op de telefoon alleen zolang die open is. Elke samenvatting wordt gecontroleerd: de samenvatting van een sectie moet elk getal, elke datum, elk bedrag, elke link, tag en ontkenning woordelijk behouden, anders gaan de zinnen van de sectie zelf. Een samenvatting is gebonden aan precies de tekst waarvoor ze staat; wijzig je de sectie, dan wordt ze niet gebruikt totdat ze opnieuw is geschreven. Samenvattingen van mappen en van de vault ontstaan alleen uit notities die je regels naar een cloud laten gaan. In **Context bekijken** zegt een bron die als samenvatting ging dat, en **Origineel** stuurt bij het volgende bericht haar eigen zinnen.
+Met **Samenvattingen met het lokale model** (onder **Instellingen → AI & automatisering**, uit totdat je het aanzet) schrijft een model op je computer korte samenvattingen van de lange secties van je notities, van hele notities, van de mappen op het hoogste niveau en van de vault. Het werkt alleen als het profiel **Lokaal** een server op deze computer noemt (Ollama, LM Studio; op de telefoon het model van het systeem) — nooit een cloud op de achtergrond — en alleen terwijl Plainva niets anders te doen heeft; op de telefoon alleen zolang die open is. Elke samenvatting wordt gecontroleerd: de samenvatting van een sectie moet elk getal, elke datum, elk bedrag, elke link, tag en ontkenning woordelijk behouden, anders gaan de zinnen van de sectie zelf. Een samenvatting is gebonden aan precies de tekst waarvoor ze staat; wijzig je de sectie, dan wordt ze niet gebruikt totdat ze opnieuw is geschreven. Samenvattingen van mappen en van de vault ontstaan alleen uit notities die je regels naar een cloud laten gaan. In **Context bekijken** zegt een bron die als samenvatting ging dat, en **Origineel** stuurt bij het volgende bericht haar eigen zinnen.
 
 ## Met een selectie
 

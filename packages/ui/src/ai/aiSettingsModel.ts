@@ -95,9 +95,14 @@ export function configuredProviders(state: AiState): ProviderRowModel[] {
 export function providerStatus(t: T, row: ProviderRowModel): string {
   const test = row.test;
   if (test?.state === "testing") return t("ai.settings.testing");
+  if (row.provider.kind === "platform-device") {
+    // The system's own model (plan P2c): ready with its window, or why it is not there.
+    if (test?.state === "ok") return t("ai.settings.onDeviceReady", { tokens: test.models?.[0]?.contextTokens ?? row.provider.contextTokens ?? 0 });
+    if (test?.state === "failed" && test.failure) return aiFailureText(t, test.failure, row.provider.label);
+    return t("ai.settings.onDevice");
+  }
   if (test?.state === "ok") return t("ai.settings.testOk", { count: test.models?.length ?? 0 });
   if (test?.state === "failed" && test.failure) return t("ai.settings.testFailed", { reason: aiFailureText(t, test.failure, row.provider.label) });
-  if (row.provider.kind === "platform-device") return t("ai.settings.onDevice");
   if (!row.needsKey) return row.provider.kind === "local" ? t("ai.hint.local") : t("ai.settings.noKeyNeeded");
   return row.hasKey ? t("ai.settings.keyStored") : t("ai.settings.noKey");
 }

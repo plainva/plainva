@@ -17,6 +17,7 @@ O Plainva não traz um serviço de IA próprio: você usa um provedor à sua esc
 | Provedores de nuvem | Anthropic, OpenAI, Google Gemini |
 | Gateways e servidores próprios | OpenRouter, qualquer **Servidor compatível com OpenAI** |
 | Neste computador (desktop) | Ollama, LM Studio |
+| Neste celular | Apple (iPhone), Gemini Nano (Android) |
 
 1. Em **IA e automação**, escolha **Adicionar provedor** e selecione um. Cada entrada traz uma observação curta sobre seus termos — por exemplo, que o acesso gratuito do Google pode permitir que pessoas leiam suas entradas.
 2. Digite a chave com **Inserir chave**. A chave vai para o armazenamento seguro deste dispositivo; o Plainva nunca a mostra de novo — nem para a IA, nem na tela.
@@ -25,6 +26,8 @@ O Plainva não traz um serviço de IA próprio: você usa um provedor à sua esc
 Um **Servidor compatível com OpenAI** é adicionado pelo endereço. O Plainva pergunta mais uma vez antes de adicioná-lo, em uma janela do sistema operacional, e envia somente para o endereço que você confirmou. `http` simples só funciona para um servidor neste dispositivo; tudo o mais precisa de `https`.
 
 Se você ainda não tem uma chave: um modelo neste computador (Ollama, LM Studio) não custa nada, e o console de cada provedor emite chaves.
+
+**O modelo do sistema no celular.** Em um iPhone com Apple Intelligence (a partir do iPhone 15 Pro), **Adicionar provedor** oferece primeiro **Apple**; em alguns celulares Android, **Gemini Nano**. Ele não precisa de chave, não custa nada e nada sai do dispositivo — por isso nenhum resumo pergunta antes do envio. Sua janela é pequena, cerca de 4.000 tokens para as notas, a pergunta e a resposta juntas: vão menos notas, as rodadas anteriores são encurtadas e ele não usa ferramentas. A linha diz se ele está pronto e, se não, por quê — Apple Intelligence desativado, um dispositivo que não consegue rodá-lo, um modelo que o sistema ainda está preparando; no Android, **Carregar modelo** pede ao sistema que o baixe. O modelo da Apple não fala todos os idiomas (sem polonês). Se o perfil **Local** o indicar, ele também escreve os resumos no celular.
 
 ## Modelos e perfis
 
@@ -79,7 +82,7 @@ Quando o texto que iria para uma nuvem parece conter uma senha ou chave, um núm
 
 ## Resumos
 
-Com **Resumos com o modelo local** (em **Configurações → IA e automação**, desativado até você ativar), um modelo no seu computador escreve resumos curtos das seções longas das suas notas, de notas inteiras, das pastas de primeiro nível e do vault. Ele só funciona quando o perfil **Local** indica um servidor neste computador (Ollama, LM Studio) — nunca uma nuvem em segundo plano — e só enquanto o Plainva está ocioso; no celular, só enquanto ele está aberto. Cada resumo é verificado: o resumo de uma seção precisa manter palavra por palavra cada número, data, valor, link, tag e cada negação; senão, vão as frases da própria seção. Um resumo fica ligado ao texto exato que representa; se você mudar a seção, ele não é usado até ser escrito de novo. Resumos de pastas e do vault só são escritos a partir de notas que suas regras deixam ir para uma nuvem. Em **Ver contexto**, uma fonte enviada como resumo diz isso, e **Original** envia as próprias frases com a próxima mensagem.
+Com **Resumos com o modelo local** (em **Configurações → IA e automação**, desativado até você ativar), um modelo no seu computador escreve resumos curtos das seções longas das suas notas, de notas inteiras, das pastas de primeiro nível e do vault. Ele só funciona quando o perfil **Local** indica um servidor neste computador (Ollama, LM Studio; no celular, o modelo do sistema) — nunca uma nuvem em segundo plano — e só enquanto o Plainva está ocioso; no celular, só enquanto ele está aberto. Cada resumo é verificado: o resumo de uma seção precisa manter palavra por palavra cada número, data, valor, link, tag e cada negação; senão, vão as frases da própria seção. Um resumo fica ligado ao texto exato que representa; se você mudar a seção, ele não é usado até ser escrito de novo. Resumos de pastas e do vault só são escritos a partir de notas que suas regras deixam ir para uma nuvem. Em **Ver contexto**, uma fonte enviada como resumo diz isso, e **Original** envia as próprias frases com a próxima mensagem.
 
 ## Com uma seleção
 

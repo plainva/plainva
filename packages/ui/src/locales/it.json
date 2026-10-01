@@ -158,7 +158,13 @@
       "feedbackDesc": "Dicci cosa funziona e cosa no, nelle discussioni del progetto su GitHub.",
       "feedbackOpen": "Apri discussioni",
       "embeddingHint": "Il modello con cui calcola la ricerca per significato quando scegli «Provider proprio» in Ricerca semantica. Funziona qualsiasi modello che il provider offre per gli embedding.",
-      "onDevice": "Su questo dispositivo — senza chiave, nulla ne esce"
+      "onDevice": "Su questo dispositivo — senza chiave, nulla ne esce",
+      "onDeviceReady": "Pronto su questo dispositivo · finestra di circa {{tokens}} token",
+      "checkPlatform": "Verifica disponibilità",
+      "loadPlatformModel": "Carica modello",
+      "loadPlatformStarted": "{{provider}}: il sistema sta caricando il modello…",
+      "loadPlatformDone": "{{provider}}: il modello è pronto.",
+      "loadPlatformFailed": "{{provider}}: il sistema non è riuscito a caricare il modello."
     },
     "add": {
       "title": "Aggiungi provider",
@@ -583,12 +589,12 @@
     "gists": {
       "title": "Sintesi",
       "show": "Sintesi con il modello locale",
-      "showDesc": "Brevi sintesi verificate per il contesto dell'IA — solo quando il profilo Locale indica un server su questo computer (Ollama, LM Studio); mai un cloud in background. Numeri, date e scadenze devono restare parola per parola, altrimenti parte l'estratto originale.",
-      "noModel": "Scegli prima un modello su questo computer per il profilo Locale.",
+      "showDesc": "Brevi sintesi verificate per il contesto dell'IA — solo quando il profilo Locale indica un modello su questo dispositivo (Ollama o LM Studio su un computer, il modello del sistema su un telefono); mai un cloud in background. Numeri, date e scadenze devono restare parola per parola, altrimenti parte l'estratto originale.",
+      "noModel": "Scegli prima un modello su questo dispositivo per il profilo Locale.",
       "status": "{{covered}} di {{sections}} sezioni lunghe hanno una sintesi · {{model}}",
       "working": "in scrittura",
       "paused": "in pausa",
-      "failed": "Il modello su questo computer non ha risposto: {{reason}}",
+      "failed": "Il modello su questo dispositivo non ha risposto: {{reason}}",
       "clear": "Rimuovi sintesi",
       "clearConfirm": "Rimuovere tutte le sintesi di questo vault? Finché le sintesi sono attive, vengono riscritte."
     }

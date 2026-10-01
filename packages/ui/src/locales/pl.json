@@ -162,7 +162,13 @@
       "feedbackDesc": "Napisz, co działa, a co nie — w dyskusjach projektu na GitHubie.",
       "feedbackOpen": "Otwórz dyskusje",
       "embeddingHint": "Model, którym liczy wyszukiwanie po znaczeniu, gdy w Wyszukiwaniu semantycznym wybierzesz „Własny dostawca”. Działa każdy model, który dostawca oferuje do embeddingów.",
-      "onDevice": "Na tym urządzeniu — bez klucza, nic go nie opuszcza"
+      "onDevice": "Na tym urządzeniu — bez klucza, nic go nie opuszcza",
+      "onDeviceReady": "Gotowy na tym urządzeniu · okno około {{tokens}} tokenów",
+      "checkPlatform": "Sprawdź dostępność",
+      "loadPlatformModel": "Załaduj model",
+      "loadPlatformStarted": "{{provider}}: system ładuje model…",
+      "loadPlatformDone": "{{provider}}: model jest gotowy.",
+      "loadPlatformFailed": "{{provider}}: system nie mógł załadować modelu."
     },
     "add": {
       "title": "Dodaj dostawcę",
@@ -600,12 +606,12 @@
     "gists": {
       "title": "Streszczenia",
       "show": "Streszczenia z modelem lokalnym",
-      "showDesc": "Krótkie, sprawdzone streszczenia dla kontekstu AI — tylko gdy profil Lokalny wskazuje serwer na tym komputerze (Ollama, LM Studio); nigdy chmura w tle. Liczby, daty i terminy muszą pozostać słowo w słowo, inaczej idzie oryginalny fragment.",
-      "noModel": "Najpierw wybierz model na tym komputerze dla profilu Lokalny.",
+      "showDesc": "Krótkie, sprawdzone streszczenia dla kontekstu AI — tylko gdy profil Lokalny wskazuje model na tym urządzeniu (Ollama lub LM Studio na komputerze, model systemu na telefonie); nigdy chmura w tle. Liczby, daty i terminy muszą pozostać słowo w słowo, inaczej idzie oryginalny fragment.",
+      "noModel": "Najpierw wybierz model na tym urządzeniu dla profilu Lokalny.",
       "status": "{{covered}} z {{sections}} długich sekcji ma streszczenie · {{model}}",
       "working": "trwa pisanie",
       "paused": "wstrzymane",
-      "failed": "Model na tym komputerze nie odpowiedział: {{reason}}",
+      "failed": "Model na tym urządzeniu nie odpowiedział: {{reason}}",
       "clear": "Usuń streszczenia",
       "clearConfirm": "Usunąć wszystkie streszczenia tego vaulta? Dopóki streszczenia są włączone, powstają od nowa."
     }

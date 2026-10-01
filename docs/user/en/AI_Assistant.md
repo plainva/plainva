@@ -17,6 +17,7 @@ Plainva does not bring its own AI service: you use a provider you choose, with y
 | Cloud providers | Anthropic, OpenAI, Google Gemini |
 | Gateways and own servers | OpenRouter, any **OpenAI-compatible server** |
 | On this computer (desktop) | Ollama, LM Studio |
+| On this phone | Apple (iPhone), Gemini Nano (Android) |
 
 1. In **AI & automation**, choose **Add provider** and pick one. Each entry carries a short note on its terms — for example that Google's free access may let people read your inputs.
 2. Enter the key with **Enter key**. The key goes into this device's secure store; Plainva never shows it again — neither to the AI nor on screen.
@@ -25,6 +26,8 @@ Plainva does not bring its own AI service: you use a provider you choose, with y
 An **OpenAI-compatible server** is added by its address. Plainva asks once more before it adds it, in a window of the operating system, and sends only to the address you confirmed. Plain `http` works only for a server on this device; everything else needs `https`.
 
 If you have no key yet: a model on this computer (Ollama, LM Studio) costs nothing, and every provider's console issues keys.
+
+**The system's own model on the phone.** On an iPhone with Apple Intelligence (iPhone 15 Pro or later), **Add provider** offers **Apple** first, on some Android phones **Gemini Nano**. It needs no key and costs nothing, and nothing leaves the device — so no overview asks before sending. Its window is small, about 4,000 tokens for the notes, the question and the answer together: fewer notes go along, earlier turns are shortened, and it uses no tools. The row says whether it is ready and, if not, why — Apple Intelligence switched off, a device that cannot run it, a model the system is still preparing; on Android, **Load model** asks the system to download it. Apple's model does not speak every language (no Polish). If the profile **Local** names it, it also writes the gists on the phone.
 
 ## Models and profiles
 
@@ -79,7 +82,7 @@ When the text that would go to a cloud looks like it holds a password or key, an
 
 ## Gists
 
-With **Gists with the local model** (in **Settings → AI & automation**, off until you switch it on), a model on your computer writes short summaries of the longer sections of your notes, of whole notes, of the top-level folders and of the vault. It runs only when the profile **Local** names a server on this computer (Ollama, LM Studio) — never a cloud in the background — and only while Plainva is idle; on the phone only while it is open. Every gist is checked: a section's gist must keep every number, date, amount, link, tag and negation word for word, otherwise the section's own sentences go instead. A gist is bound to the exact text it stands for; after you change the section it is not used until it has been written again. Folder and vault gists are written only from notes your rules let go to a cloud. In **View context**, a source sent as a gist says so, and **Original** sends its own sentences with the next message.
+With **Gists with the local model** (in **Settings → AI & automation**, off until you switch it on), a model on your computer writes short summaries of the longer sections of your notes, of whole notes, of the top-level folders and of the vault. It runs only when the profile **Local** names a server on this computer (Ollama, LM Studio; on the phone, the system's own model) — never a cloud in the background — and only while Plainva is idle; on the phone only while it is open. Every gist is checked: a section's gist must keep every number, date, amount, link, tag and negation word for word, otherwise the section's own sentences go instead. A gist is bound to the exact text it stands for; after you change the section it is not used until it has been written again. Folder and vault gists are written only from notes your rules let go to a cloud. In **View context**, a source sent as a gist says so, and **Original** sends its own sentences with the next message.
 
 ## With a selection
 

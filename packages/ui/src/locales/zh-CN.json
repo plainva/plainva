@@ -150,7 +150,13 @@
       "feedbackDesc": "在GitHub上的项目讨论区告诉我们哪些好用、哪些不好用。",
       "feedbackOpen": "打开讨论区",
       "embeddingHint": "在“语义搜索”中选择“自有服务商”时，含义搜索所用的模型。服务商提供的任何嵌入模型都可以使用。",
-      "onDevice": "在此设备上——无需密钥，任何内容都不会离开"
+      "onDevice": "在此设备上——无需密钥，任何内容都不会离开",
+      "onDeviceReady": "已在此设备上就绪 · 窗口约 {{tokens}} 个 Token",
+      "checkPlatform": "检查可用性",
+      "loadPlatformModel": "加载模型",
+      "loadPlatformStarted": "{{provider}}：系统正在加载模型…",
+      "loadPlatformDone": "{{provider}}：模型已就绪。",
+      "loadPlatformFailed": "{{provider}}：系统无法加载模型。"
     },
     "add": {
       "title": "添加服务商",
@@ -549,12 +555,12 @@
     "gists": {
       "title": "要点",
       "show": "用本地模型生成要点",
-      "showDesc": "为 AI 的上下文生成简短且经过核对的摘要——仅当“本地”配置指向这台电脑上的服务器（Ollama、LM Studio）时才生成；绝不会在后台使用云端。数字、日期和期限必须逐字保留，否则发送原文摘录。",
-      "noModel": "请先为“本地”配置选择这台电脑上的模型。",
+      "showDesc": "为 AI 的上下文生成简短且经过核对的摘要——仅当“本地”配置指向此设备上的模型（电脑上的 Ollama 或 LM Studio，手机上系统自带的模型）时才生成；绝不会在后台使用云端。数字、日期和期限必须逐字保留，否则发送原文摘录。",
+      "noModel": "请先为“本地”配置选择此设备上的模型。",
       "status": "{{sections}} 个长段落中有 {{covered}} 个已有要点 · {{model}}",
       "working": "生成中",
       "paused": "已暂停",
-      "failed": "这台电脑上的模型没有响应：{{reason}}",
+      "failed": "此设备上的模型没有响应：{{reason}}",
       "clear": "删除要点",
       "clearConfirm": "要删除此仓库的所有要点吗？只要要点处于开启状态，就会重新生成。"
     }
