@@ -43,6 +43,15 @@ const manifest: EgressManifest = {
 };
 
 describe("AiSendOverview", () => {
+  it("names the coverage of the answer it went with (plan P2b-5)", () => {
+    void i18n.changeLanguage("en");
+    const container = mount(<AiSendOverview manifest={manifest} coverage={{ statements: 5, cited: 4, level: "high" }} />);
+    expect(container.querySelector('[data-testid="ai-coverage"]')!.textContent).toBe("coverage high — statements with a source: 4 of 5");
+    act(() => root?.unmount());
+    const quiet = mount(<AiSendOverview manifest={manifest} coverage={{ statements: 0, cited: 0, level: null }} />);
+    expect(quiet.querySelector('[data-testid="ai-coverage"]')).toBeNull();
+  });
+
   it("as the approval: says why it asks, names paths and sections, never the text, and answers through its handlers", () => {
     const onSend = vi.fn();
     const onCancel = vi.fn();

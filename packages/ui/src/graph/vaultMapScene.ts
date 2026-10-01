@@ -32,6 +32,8 @@ export interface VaultMapFilters {
 export interface VaultMapFocus {
   seed: string;
   depth: number;
+  /** Notes shown beside the seed's neighbourhood and ringed: the AI's trail (plan KI-Harness P2b-5). */
+  trail?: readonly string[];
 }
 
 /**
@@ -282,6 +284,8 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
       }
       frontier = next;
     }
+    // The trail's notes stay in sight, wherever they are (as their folder while it is folded).
+    for (const path of focus.trail ?? []) seen.add(noteReps.get(path) ?? path);
     // Guard: never apply a focus that would hide EVERY visible node.
     visibleSet = [...seen].some((id) => entitySet.has(id)) ? seen : null;
   }
@@ -300,6 +304,8 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
     }
     return cached;
   };
+
+  const trail = focus?.trail?.length ? new Set(focus.trail) : null;
 
   const replayVisible = (path: string): boolean =>
     overlay.mode !== "replay" || effectiveDate(path, graph, overlay.dates) <= overlay.cutoff;
@@ -329,6 +335,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
         dimmed: anyFilter && !memberMatch,
         hidden: focusHidden || (overlay.mode === "replay" && visibleMembers.length === 0),
         heat,
+        ...(trail && members.some((m) => trail.has(m)) ? { flag: "trail" as const } : {}),
       });
     } else {
       const info = graph.nodes.get(id);
@@ -348,6 +355,7 @@ export function buildVaultMapScene(input: VaultMapInput): VaultMapScene {
         dimmed: anyFilter && !matches(id),
         hidden: focusHidden || !replayVisible(id),
         heat: overlay.mode === "heatmap" ? heatOf(info.mtime, overlay.now) : null,
+        ...(trail?.has(id) ? { flag: "trail" as const } : {}),
       });
     }
   }

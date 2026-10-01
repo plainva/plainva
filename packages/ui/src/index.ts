@@ -353,6 +353,7 @@ export * from "./graph/graphLayout";
 export * from "./graph/graphTypes";
 export * from "./graph/contextScene";
 export * from "./graph/vaultMapScene";
+export * from "./graph/graphTrail";
 export * from "./graph/themeTokens";
 export * from "./graph/baseGraphScene";
 export * from "./vaultTemplates/types";

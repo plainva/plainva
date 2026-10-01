@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, HardDrive, LoaderCircle, Minus, Pin, X } from "lucide-react";
+import { Eye, HardDrive, LoaderCircle, Minus, Pin, Waypoints, X } from "lucide-react";
 import type { GateExclusion, PackageRef } from "@plainva/core";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
 import { toast } from "../services/toastStore";
+import { requestGraphTrail } from "../graph/graphTrail";
 import type { ContextPreview } from "./aiSession";
 import { useAiSession, useAiState } from "./useAiSession";
 
@@ -36,6 +37,23 @@ const titleOf = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(
 /** Tokens as the overview estimates them: about four characters each. */
 const tokensOf = (chars: number) => Math.ceil(chars / 4);
 
+/** The naive comparison is told once per device (mockup v5 §3): after that the share says it. */
+const NAIVE_SEEN = "plainva-ai-lens-naive-seen";
+function naiveSeen(): boolean {
+  try {
+    return localStorage.getItem(NAIVE_SEEN) === "1";
+  } catch {
+    return true;
+  }
+}
+function markNaiveSeen(): void {
+  try {
+    localStorage.setItem(NAIVE_SEEN, "1");
+  } catch {
+    // Without storage the comparison simply shows again.
+  }
+}
+
 export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, side }: AiContextLensProps) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
@@ -44,6 +62,8 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
   const [asked, setAsked] = useState(question);
   const [refresh, setRefresh] = useState(0);
   const [result, setResult] = useState<{ key: string; preview: ContextPreview | null } | null>(null);
+  // Read once per lens: whether this device has been told what sending without a selection would cost.
+  const [toldNaive] = useState(naiveSeen);
 
   // The composer changes with every key: the context follows once typing pauses.
   useEffect(() => {
@@ -73,6 +93,13 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
     // `key` carries every input of the preview.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, key]);
+
+  const material = result?.preview?.pack.material ?? null;
+  const naive = material && material.candidateChars !== null && material.candidateChars > material.sentChars ? material.candidateChars : null;
+  // Told once: the first lens that can show the comparison marks it seen for the next ones.
+  useEffect(() => {
+    if (naive !== null && !toldNaive) markNaiveSeen();
+  }, [naive, toldNaive]);
 
   if (!session || !state) return null;
   const loading = result?.key !== key;
@@ -147,6 +174,21 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
               <dt>{t("ai.overview.size")}</dt>
               <dd>{t("ai.overview.estimate", { tokens: number.format(preview.manifest.estimatedTokens) })}</dd>
             </div>
+            {material && material.sourceChars > 0 && (
+              <div>
+                <dt>{t("ai.lens.sent")}</dt>
+                <dd>{t("ai.lens.sentOf", { sent: number.format(tokensOf(material.sentChars)), source: number.format(tokensOf(material.sourceChars)) })}</dd>
+              </div>
+            )}
+            {naive !== null && material && (
+              <div data-testid="ai-lens-savings">
+                <dt>{t("ai.lens.savings")}</dt>
+                <dd>
+                  {t("ai.lens.savingsShare", { percent: number.format(Math.round((1 - material.sentChars / naive) * 100)) })}
+                  {!toldNaive && ` — ${t("ai.lens.naive", { tokens: number.format(tokensOf(naive)) })}`}
+                </dd>
+              </div>
+            )}
           </dl>
           {preview.manifest.local && <p className="pv-ai-lens-note">{t("ai.lens.local")}</p>}
 
@@ -219,6 +261,25 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
           )}
 
           {kept.length > 0 && <p className="pv-ai-lens-note">{`${t("ai.overview.keptBack")}: ${kept.join(" · ")}`}</p>}
+
+          {refs.some((ref) => ref.tier !== "map") && (
+            <div className="pv-ai-lens-trail">
+              <Button
+                size="sm"
+                variant="ghost"
+                icon={<Waypoints size={ICON.meta} />}
+                onClick={() =>
+                  requestGraphTrail({
+                    seed: refs.find((ref) => ref.reasons.includes("active"))?.path ?? null,
+                    paths: refs.filter((ref) => ref.tier !== "map").map((ref) => ref.path),
+                  })
+                }
+                data-testid="ai-lens-trail"
+              >
+                {t("ai.lens.trail")}
+              </Button>
+            </div>
+          )}
 
           {excluded.length > 0 && (
             <div className="pv-ai-lens-group">

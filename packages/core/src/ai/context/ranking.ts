@@ -35,8 +35,10 @@ export const DEFAULT_RANK_WEIGHTS: Readonly<Record<CandidateSignal, number>> = {
   active: 4,
   pinned: 3.5,
   lexical: 2.5,
-  // Below the words: meaning finds what the words miss, the words stay the sharper evidence (an eval hypothesis, P2b-7).
-  semantic: 2,
+  // As much as the words (P2b-7 measured it on the spike corpus, 90 questions in ten languages: at 2 a note
+  // found by meaning alone lost its place to weak word matches and recall stayed at 93 %; at 2.5 it is 96 %,
+  // the cross-language questions 85 % instead of 75 %, and the questions the words answer lose nothing).
+  semantic: 2.5,
   graph: 1.2,
   urgency: 1,
   edited: 0.8,

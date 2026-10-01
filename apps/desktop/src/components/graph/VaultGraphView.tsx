@@ -23,8 +23,13 @@ import { PinModeToggle } from "./PinModeToggle";
 import { GraphCanvasMenu, GraphConnectMenu, GraphEdgeMenu, GraphFolderMenu, GraphNodeMenu, type CanvasMenuState, type ConnectDropState, type EdgeMenuState, type FolderMenuState, type NodeMenuState } from "./GraphMapMenus";
 import {
   buildVaultMapScene,
+  consumeGraphTrail,
   DEFAULT_EDGE_KINDS,
   effectiveDate,
+  GRAPH_TRAIL_EVENT,
+  trailFocus,
+  trailFolders,
+  type VaultMapFocus,
   type VaultMapOverlay,
   type VaultMapScene,
 } from "@plainva/ui";
@@ -80,7 +85,7 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   const [showIndexNotes, setShowIndexNotes] = useState<boolean>(
     () => typeof localStorage !== "undefined" && localStorage.getItem("plainva-graph-show-index") === "1"
   );
-  const [focus, setFocus] = useState<{ seed: string; depth: number } | null>(null);
+  const [focus, setFocus] = useState<VaultMapFocus | null>(null);
   const [overlayMode, setOverlayMode] = useState<"normal" | "heatmap" | "replay">("normal");
   // Sampled ONCE when the heatmap toggles on (render must stay pure).
   const [heatmapNow, setHeatmapNow] = useState(0);
@@ -108,6 +113,19 @@ export function VaultGraphView({ onOpenPath, onOpenInSplit, onToggleBookmark }: 
   // Camera follow for fold/unfold: the toggled folder id, consumed by the
   // next setData; "@fit" refits everything (expand/collapse all).
   const pendingRevealRef = useRef<string | null>(null);
+
+  // The AI's trail (plan KI-Harness P2b-5): taken when the view opens for it, or when it is already open.
+  useEffect(() => {
+    const take = () => {
+      const trail = consumeGraphTrail();
+      if (!trail || trail.paths.length === 0) return;
+      setExpanded((prev) => new Set([...prev, ...trailFolders([...trail.paths, ...(trail.seed ? [trail.seed] : [])])]));
+      setFocus(trailFocus(trail));
+    };
+    take();
+    window.addEventListener(GRAPH_TRAIL_EVENT, take);
+    return () => window.removeEventListener(GRAPH_TRAIL_EVENT, take);
+  }, []);
 
   // ---- data -------------------------------------------------------------------
 

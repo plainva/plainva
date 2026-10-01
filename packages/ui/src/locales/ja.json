@@ -285,7 +285,13 @@
       "ruleFolder": "{{folder}}のルール",
       "ruleDefault": "保管庫の既定",
       "sendWith": "このコンテキストで送信",
-      "never_other": "クラウドには送らない: {{count}} 件のノート"
+      "never_other": "クラウドには送らない: {{count}} 件のノート",
+      "sent": "送信",
+      "sentOf": "これらのノートの {{source}} トークン中 ~{{sent}}",
+      "savings": "節約",
+      "savingsShare": "{{percent}}% 削減",
+      "naive": "選択しなければ ~{{tokens}} トークンでした",
+      "trail": "グラフで経路を表示"
     },
     "selection": {
       "menu": "AI",
@@ -500,6 +506,13 @@
       "sharedMore_other": "どちらも [[{{link}}]] ほか {{count}} 件に言及",
       "pausedNotes_other": "{{count}} 件のノートを一時停止中",
       "hidden_other": "「役に立たない」にした {{count}} 件のヒント"
+    },
+    "coverage": {
+      "label": "カバー率",
+      "high": "カバー率：高",
+      "partial": "カバー率：一部",
+      "low": "カバー率：低",
+      "detail": "出典のある記述：{{total}} 件中 {{cited}} 件"
     }
   },
   "settingsSync": {

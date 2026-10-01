@@ -29,6 +29,7 @@ import {
   type AiNavigationCommand,
   type AreaOrder,
   type VaultPolicyHost,
+  GRAPH_TRAIL_EVENT,
 } from "@plainva/ui";
 import { atomicWriteText } from "../../platform/atomicFile";
 import { mConfirm } from "../mobileDialogs";
@@ -223,6 +224,12 @@ export function useMobileAi(vault: MobileVault | null) {
   }, []);
 
   const navRef = useRef<MobileAiNavigation>({ openNote: () => undefined, areas: {} });
+  // The AI's trail (plan KI-Harness P2b-5): the graph opens for it, and the graph screen takes the trail.
+  useEffect(() => {
+    const onTrail = () => navRef.current.areas.graph?.();
+    window.addEventListener(GRAPH_TRAIL_EVENT, onTrail);
+    return () => window.removeEventListener(GRAPH_TRAIL_EVENT, onTrail);
+  }, []);
   useEffect(() => {
     if (!vault || !vault.queryService) {
       void s.attachVault(null);
@@ -337,6 +344,8 @@ export function useMobileAi(vault: MobileVault | null) {
         now: () => Date.now(),
         // Search by meaning of this vault (plan P2b): read when a message is built, never while rendering.
         semanticCandidates: async (question, limit, options) => (await embeddingsRef.current?.semanticCandidates(question, limit, options)) ?? [],
+        // What sending without a selection would cost (plan P2b-5): the index's sizes, no note read.
+        noteSizes: async (paths) => new Map([...(await query.fileRecords(paths))].map(([path, record]) => [path, record.size_bytes])),
       },
       toolDeps: {
         async search(q, limit, offset) {

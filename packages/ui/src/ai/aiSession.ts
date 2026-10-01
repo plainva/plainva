@@ -119,6 +119,8 @@ export interface AiVaultHost {
   /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
   /** The recipient decides whether a cloud embedding model may see the question (plan P2b). */
   candidates(question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]>;
+  /** Note sizes as the index knows them (plan P2b-5); absent, the lens leaves the naive comparison out. */
+  noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   policy: ContextPolicyHost;
   /** The tools of a run for this recipient, optionally narrowed (the MCP server's clients); null when this vault offers none. */
   tools(recipient: EgressRecipient, scope?: ToolScope): { names: readonly string[]; executor: ToolExecutor } | null;
@@ -536,6 +538,7 @@ export class AiSession {
         redactions: { withheldLinks: 0, places: 0, moodProperties: 0 },
         dataClasses: ["selection"],
         estimatedTokens: estimateTokens(passage.text + instruction),
+        material: { sentChars: range.text.length, sourceChars: range.text.length, candidateChars: null },
       };
       const price = this.priceOf(choice);
       const folder = range.path.includes("/") ? range.path.slice(0, range.path.indexOf("/")) : "";
@@ -781,7 +784,12 @@ export class AiSession {
     const build = async (leaveOut: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
       const pack = await buildContextPackage(
         { question: message, recipient, situation: seen, candidates, pins: pins.filter((p) => !leaveOut.has(p)), alreadySent: sentStamps(turns), leaveOut },
-        { policyOf: vault.policy.policyOf, resolveLink: vault.policy.resolveLink, readNote: (path) => vault.readNote(path) },
+        {
+          policyOf: vault.policy.policyOf,
+          resolveLink: vault.policy.resolveLink,
+          readNote: (path) => vault.readNote(path),
+          ...(vault.noteSizes ? { noteSizes: (paths: readonly string[]) => vault.noteSizes!(paths) } : {}),
+        },
       );
       const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: provider.kind === "local" }, choice.model, {
         tools: tools?.names ?? [],

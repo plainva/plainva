@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Minus, ShieldCheck } from "lucide-react";
-import type { EgressManifest, ManifestSource, ScopeGrowth } from "@plainva/core";
+import type { AnswerCoverage, EgressManifest, ManifestSource, ScopeGrowth } from "@plainva/core";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { Switch } from "../components/ui/Switch";
@@ -30,9 +30,11 @@ export interface AiSendOverviewProps {
   /** "Ask before every request", when the overview offers the setting. */
   everyRequest?: { value: boolean; onChange: (value: boolean) => void };
   touch?: boolean;
+  /** After the answer: how many of its statements name a note (plan P2b-5). */
+  coverage?: AnswerCoverage | null;
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onOpenNote, everyRequest, touch }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onOpenNote, everyRequest, touch, coverage }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const money = useMemo(() => new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 4 }), [i18n.language]);
@@ -164,6 +166,12 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         )}
         <dt>{t("ai.overview.size")}</dt>
         <dd>{estimate}</dd>
+        {coverage?.level && (
+          <>
+            <dt>{t("ai.coverage.label")}</dt>
+            <dd data-testid="ai-coverage">{`${t(`ai.coverage.${coverage.level}`)} — ${t("ai.coverage.detail", { cited: number.format(coverage.cited), total: number.format(coverage.statements) })}`}</dd>
+          </>
+        )}
       </dl>
       {asking && (
         <div className="pv-ai-overview-actions">

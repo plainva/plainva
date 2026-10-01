@@ -122,6 +122,8 @@ export interface CandidateRetrieval {
   now(): number;
   /** Notes close in meaning (plan P2b); absent while the vault has no search by meaning. */
   semanticCandidates?(question: string, limit: number, options: { cloudQuestion: boolean }): Promise<{ path: string; ordinal: number; hash: string; score: number }[]>;
+  /** Note sizes as the index knows them, for what a naive request would have sent (plan P2b-5). */
+  noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
 }
 
 const noteTitle = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
@@ -163,6 +165,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     readNote: input.readNote,
     situation: input.situation,
     candidates: (question, activePath, recipient) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient) : Promise.resolve([])),
+    ...(input.retrieval?.noteSizes ? { noteSizes: input.retrieval.noteSizes.bind(input.retrieval) } : {}),
     policy: input.policy,
     ...(input.keepOnDevice ? { keepOnDevice: input.keepOnDevice } : {}),
     ...(input.propose ? { propose: input.propose } : {}),

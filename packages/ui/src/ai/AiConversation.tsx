@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, CircleAlert, Eye, FileText, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
-import { AI_PROFILE_IDS, providerById, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
+import { AI_PROFILE_IDS, answerCoverage, providerById, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -169,11 +169,12 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
   };
 
   const providerLabel = (id: string) => providerById(id, state.settings.custom)?.label ?? id;
-  const runLine = (run: RunMeta) => {
+  const runLine = (run: RunMeta, coverage: AnswerCoverage | null) => {
     const tokens = run.usage.inputTokens + run.usage.cacheReadTokens + run.usage.cacheWriteTokens + run.usage.outputTokens;
     const parts = [t("ai.sentLine", { provider: providerLabel(run.providerId), count: run.sent.length, tokens: number.format(tokens) })];
     if (run.kept.length) parts.push(t("ai.keptLine", { count: run.kept.length }));
     if (run.costUsd !== undefined) parts.push(`≈ ${money.format(run.costUsd)}`);
+    if (coverage?.level) parts.push(t(`ai.coverage.${coverage.level}`));
     return parts.join(" · ");
   };
   const toolLabel = (name: string) => t(`ai.tool.${name}`, { defaultValue: t("ai.tool.unknown") });
@@ -223,17 +224,19 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
         const open = openRun === item.key && Boolean(manifest);
         const answer = answerBefore(index);
         const uncited = Boolean(manifest && manifest.sources.some((s) => s.tier === "evidence") && answer !== null && !answer.includes("[["));
+        // Coverage after the answer (plan P2b-5): only where notes went, so a statement could have named one.
+        const coverage = manifest && manifest.sources.some((s) => s.tier === "evidence" || s.tier === "card") && answer !== null ? answerCoverage(answer) : null;
         return (
           <div key={item.key} className="pv-ai-run">
             {uncited && <p className="pv-ai-nocite">{t("ai.noCitation")}</p>}
             {manifest ? (
               <Button size="sm" variant="ghost" className="pv-ai-runline" aria-expanded={open} onClick={() => setOpenRun(open ? null : item.key)}>
-                {runLine(item.run)}
+                {runLine(item.run, coverage)}
               </Button>
             ) : (
-              <span className="pv-ai-runline">{runLine(item.run)}</span>
+              <span className="pv-ai-runline">{runLine(item.run, coverage)}</span>
             )}
-            {open && manifest && <AiSendOverview manifest={manifest} onOpenNote={onOpenNote} touch={touch} />}
+            {open && manifest && <AiSendOverview manifest={manifest} onOpenNote={onOpenNote} touch={touch} coverage={coverage} />}
           </div>
         );
       }

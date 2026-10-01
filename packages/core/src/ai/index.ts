@@ -22,3 +22,4 @@ export * from "./chat.js";
 export * from "./orchestrator.js";
 export * from "./context/index.js";
 export * from "./embeddings/index.js";
+export * from "./coverage.js";

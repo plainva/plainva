@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-09-30
+Stand: 2026-10-01
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen an einer markierten Stelle als Vorschläge vor — eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -51,7 +51,7 @@ Ein Link in einer Antwort öffnet sich erst, nachdem Du seine Adresse bestätigt
 Zu jeder Frage stellt Plainva zusammen, was wichtig sein kann — auf diesem Gerät, bevor etwas gesendet wird:
 
 - **Wo Du gerade bist:** Datum und Uhrzeit, die offene Notiz oder Datenbank und Deine Auswahl darin, Deine offenen Tabs, in der kommenden Woche fällige Aufgaben, die nächsten Termine und die heutige Tagesnotiz.
-- **Notizen, die wichtig sein können:** gefunden über Deine Worte, die Links der offenen Notiz und was Du zuletzt geöffnet oder geändert hast. Zuerst entscheiden Deine Datenschutzregeln; bewertet werden überhaupt nur die Notizen, die sie erlauben. Einige gehen als Abschnitte mit — nicht als ganze Notizen —, andere nur mit Titel und Suchauszug oder allein mit ihrem Namen; mehr davon liest der Assistent, wenn er es braucht.
+- **Notizen, die wichtig sein können:** gefunden über Deine Worte, die Links der offenen Notiz und was Du zuletzt geöffnet oder geändert hast. Zuerst entscheiden Deine Datenschutzregeln; bewertet werden überhaupt nur die Notizen, die sie erlauben. Einige gehen als Abschnitte mit — nicht als ganze Notizen —, andere nur mit Titel und einer Karte — dem ersten Satz ihres Abschnitts und jedem Satz mit Zahlen, Daten, Aufgaben, Verneinungen oder Links, wörtlich — oder allein mit ihrem Namen; mehr davon liest der Assistent, wenn er es braucht.
 
 Eine Notiz, die das Gespräch schon trägt und die sich seitdem nicht geändert hat, wird genannt, nicht noch einmal gesendet. Ortsangaben aus Deinem Journal und Stimmungswerte werden nie von selbst gesendet.
 
@@ -61,7 +61,7 @@ Die erste Anfrage einer Sitzung zeigt eine Übersicht: wohin sie geht (Anbieter 
 
 Wenn Du die Übersicht vor jeder Anfrage sehen willst, schalte **Vor jeder Anfrage fragen** ein — in der Übersicht selbst oder unter **Einstellungen → KI & Automatisierung** bei **Senden**.
 
-Die Zeile unter jeder Antwort öffnet die Übersicht dessen, was mit ihr ging. Nennt eine Antwort keine der gesendeten Notizen, sagt ein Hinweis über dieser Zeile das; prüfe die Antwort dann an den Notizen.
+Die Zeile unter jeder Antwort öffnet die Übersicht dessen, was mit ihr ging. Nennt eine Antwort keine der gesendeten Notizen, sagt ein Hinweis über dieser Zeile das; prüfe die Antwort dann an den Notizen. Gingen Notizen mit, nennt die Zeile auch die Abdeckung: **Abdeckung hoch**, wenn fast jede Aussage der Antwort eine Notiz nennt, **Abdeckung teilweise** oder **Abdeckung gering**, wenn es weniger sind.
 
 ## Kontext einsehen
 
@@ -72,6 +72,8 @@ Das Auge unter dem Eingabefeld, **Kontext einsehen**, zeigt, was die nächste An
 - dauerhaft auf diesem Gerät behalten: das schreibt die Regel `cloud: deny` in die Notiz (siehe unten).
 
 Notizen, die Deine Regeln zurückhalten, stehen ebenfalls da, damit Du weißt, was fehlt; sie werden nie bewertet und nie gesendet. **Mit diesem Kontext senden** sendet, was Du geschrieben hast. In einem breiten KI-Tab bleibt die Ansicht als Spalte neben dem Gespräch offen.
+
+Über den Notizen sagt **Gesendet**, wie viel von diesen Notizen mitgeht — etwa ~870 von 3.460 Token —, und **Gespart**, wie viel weniger das ist, als jede vorgeschlagene Notiz ganz zu senden; beim ersten Mal steht auch dabei, wie viele Token das gewesen wären. **Als Spur im Graph zeigen** öffnet den Graph mit der offenen Notiz und den Quellen, markiert, samt den Links zwischen ihnen.
 
 ## Mit einer Auswahl
 

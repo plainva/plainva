@@ -18,7 +18,7 @@ const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ d
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
-import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, ICON, IconButton, isImagePath, journalToday, LocalEmbeddingsContext, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
+import { ActiveSearchModeSwitch, AiSessionContext, EmptyState, GRAPH_TRAIL_EVENT, ICON, IconButton, isImagePath, journalToday, LocalEmbeddingsContext, noteDisplayName, RECENTS_MAX, parkTreeReveal, rememberSearch, SearchField, ShortcutHints, useStableHandler } from "@plainva/ui";
 import { createIndexAutoUpdater, notifyFileOps, updateAllManagedIndexes, type FileOp } from "./services/indexMdAutoUpdate";
 import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
@@ -545,6 +545,13 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       }
     })();
   });
+
+  // The AI's trail (plan KI-Harness P2b-5) shows in this window's graph: the trail waits in this window, so the view opens here.
+  useEffect(() => {
+    const onTrail = () => focusOrOpenVirtual(GRAPH_TAB_PATH);
+    window.addEventListener(GRAPH_TRAIL_EVENT, onTrail);
+    return () => window.removeEventListener(GRAPH_TRAIL_EVENT, onTrail);
+  }, [focusOrOpenVirtual]);
 
   // Search by meaning (plan KI-Harness P2a-4/5, P2b): the vault's controller for the search, the settings and the context package.
   const embeddings = useDesktopEmbeddings({ vaultAdapter, queryService, vaultPath, encrypted: workspaceSecurityStatus !== null });

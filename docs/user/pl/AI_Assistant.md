@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-09-30
+Stan na: 2026-10-01
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany w zaznaczonym fragmencie jako propozycje — sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -51,7 +51,7 @@ Link w odpowiedzi otwiera się dopiero po potwierdzeniu jego adresu, a obrazy w 
 Do każdego pytania Plainva zbiera to, co może mieć znaczenie — na tym urządzeniu, zanim cokolwiek zostanie wysłane:
 
 - **Gdzie jesteś:** data i godzina, otwarta notatka lub baza danych i zaznaczenie w niej, otwarte karty, zadania z terminem w najbliższym tygodniu, najbliższe spotkania i dzisiejsza notatka dzienna.
-- **Notatki, które mogą mieć znaczenie:** znalezione po Twoich słowach, po linkach otwartej notatki i po tym, co niedawno otwierano lub zmieniano. Najpierw decydują Twoje zasady prywatności; oceniane są wyłącznie notatki, na które pozwalają. Kilka idzie jako sekcje — nie całe notatki —, inne tylko z tytułem i fragmentem wyszukiwania albo samą nazwą; asystent doczytuje je, gdy tego potrzebuje.
+- **Notatki, które mogą mieć znaczenie:** znalezione po Twoich słowach, po linkach otwartej notatki i po tym, co niedawno otwierano lub zmieniano. Najpierw decydują Twoje zasady prywatności; oceniane są wyłącznie notatki, na które pozwalają. Kilka idzie jako sekcje — nie całe notatki —, inne tylko z tytułem i kartą — pierwszym zdaniem swojej sekcji i każdym zdaniem z liczbami, datami, zadaniami, zaprzeczeniami lub linkami, słowo w słowo — albo samą nazwą; asystent doczytuje je, gdy tego potrzebuje.
 
 Notatka, którą rozmowa już zawiera i która od tamtej pory się nie zmieniła, jest wymieniana, a nie wysyłana ponownie. Miejsca z dziennika i wartości nastroju nigdy nie są wysyłane same z siebie.
 
@@ -61,7 +61,7 @@ Pierwsze zapytanie w sesji pokazuje przegląd: dokąd idzie (dostawca i model), 
 
 Aby widzieć przegląd przed każdym zapytaniem, włącz **Pytaj przed każdym zapytaniem** — w samym przeglądzie albo w **Ustawienia → AI & automatyzacja**, w sekcji **Wysyłanie**.
 
-Wiersz pod każdą odpowiedzią otwiera przegląd tego, co z nią poszło. Jeśli odpowiedź nie cytuje żadnej z wysłanych notatek, mówi o tym komunikat nad tym wierszem; wtedy sprawdź odpowiedź w notatkach.
+Wiersz pod każdą odpowiedzią otwiera przegląd tego, co z nią poszło. Jeśli odpowiedź nie cytuje żadnej z wysłanych notatek, mówi o tym komunikat nad tym wierszem; wtedy sprawdź odpowiedź w notatkach. Jeśli wysłano notatki, wiersz podaje też pokrycie: **pokrycie wysokie**, gdy prawie każde stwierdzenie odpowiedzi wskazuje notatkę, **pokrycie częściowe** lub **pokrycie niskie**, gdy jest ich mniej.
 
 ## Pokaż kontekst
 
@@ -72,6 +72,8 @@ Oko pod polem wpisywania, **Pokaż kontekst**, pokazuje, co zabrałoby następne
 - zachować na tym urządzeniu na stałe: to wpisuje do notatki regułę `cloud: deny` (zob. niżej).
 
 Notatki zatrzymywane przez Twoje reguły też są wymienione, żeby było wiadomo, czego brakuje; nigdy nie są oceniane ani wysyłane. **Wyślij z tym kontekstem** wysyła to, co wpisano. W szerokiej karcie AI widok zostaje otwarty jako kolumna obok rozmowy.
+
+Nad notatkami **Wysłano** podaje, ile z tych notatek idzie — na przykład ~870 z 3460 tokenów — a **Zaoszczędzono**, o ile to mniej niż wysłanie w całości wszystkich proponowanych notatek; za pierwszym razem podaje też, ile tokenów by to było. **Pokaż jako ślad na grafie** otwiera graf z otwartą notatką i źródłami zaznaczonymi oraz linkami między nimi.
 
 ## Z zaznaczeniem
 

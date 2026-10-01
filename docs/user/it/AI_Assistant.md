@@ -1,6 +1,6 @@
 # Assistente IA (Beta)
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-01
 
 Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa, apre note e viste per te e propone modifiche a un passaggio selezionato come proposte — non cambia mai una nota da solo. L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
 
@@ -51,7 +51,7 @@ Un link in una risposta si apre solo dopo che ne hai confermato l'indirizzo, e l
 A ogni domanda Plainva raccoglie ciò che può contare — su questo dispositivo, prima di inviare qualsiasi cosa:
 
 - **Dove ti trovi:** data e ora, la nota o il database aperto e la tua selezione, le schede aperte, le attività in scadenza nella prossima settimana, i prossimi appuntamenti e la nota di oggi.
-- **Note che possono contare:** trovate a partire dalle tue parole, dai link della nota aperta e da ciò che hai aperto o modificato di recente. Prima decidono le tue regole sulla privacy; vengono valutate solo le note che esse consentono. Alcune partono come sezioni — non come note intere —, altre solo con il titolo e un estratto della ricerca o solo con il nome; l'assistente ne legge di più quando gli serve.
+- **Note che possono contare:** trovate a partire dalle tue parole, dai link della nota aperta e da ciò che hai aperto o modificato di recente. Prima decidono le tue regole sulla privacy; vengono valutate solo le note che esse consentono. Alcune partono come sezioni — non come note intere —, altre solo con il titolo e una scheda — la prima frase della loro sezione e ogni frase con numeri, date, attività, negazioni o link, parola per parola — o solo con il nome; l'assistente ne legge di più quando gli serve.
 
 Una nota che la conversazione contiene già e che da allora non è cambiata viene nominata, non inviata di nuovo. I luoghi del tuo diario e i valori d'umore non partono mai da soli.
 
@@ -61,7 +61,7 @@ La prima richiesta di una sessione mostra un riepilogo: dove va (provider e mode
 
 Se vuoi vedere il riepilogo prima di ogni richiesta, attiva **Chiedi prima di ogni richiesta** — nel riepilogo stesso o in **Impostazioni → IA e automazione**, alla voce **Invio**.
 
-La riga sotto ogni risposta apre il riepilogo di ciò che è partito con essa. Se una risposta non cita nessuna delle note inviate, un avviso sopra quella riga lo dice; verifica allora la risposta con le note.
+La riga sotto ogni risposta apre il riepilogo di ciò che è partito con essa. Se una risposta non cita nessuna delle note inviate, un avviso sopra quella riga lo dice; verifica allora la risposta con le note. Se sono partite delle note, la riga indica anche la copertura: **copertura alta** quando quasi ogni affermazione della risposta cita una nota, **copertura parziale** o **copertura bassa** quando sono meno.
 
 ## Vedi contesto
 
@@ -72,6 +72,8 @@ L'occhio sotto il campo di testo, **Vedi contesto**, mostra ciò che porterebbe 
 - tenerla su questo dispositivo per sempre: questo scrive la regola `cloud: deny` nella nota (vedi sotto).
 
 Anche le note che le tue regole trattengono sono elencate, perché tu sappia cosa manca; non vengono mai valutate né inviate. **Invia con questo contesto** invia ciò che hai scritto. In una scheda IA ampia la vista resta aperta come colonna accanto alla conversazione.
+
+Sopra le note, **Inviato** dice quanta parte di queste note parte — per esempio ~870 di 3.460 token — e **Risparmiato** quanto è in meno rispetto a inviare intere tutte le note proposte; la prima volta dice anche quanti token sarebbero stati. **Mostra come traccia nel grafo** apre il grafo con la nota aperta e le fonti evidenziate, e i link tra loro.
 
 ## Con una selezione
 

@@ -295,7 +295,13 @@
       "ruleDefault": "Voreinstellung des Vaults",
       "sendWith": "Mit diesem Kontext senden",
       "never_one": "Nie an die Cloud: {{count}} Notiz",
-      "never_other": "Nie an die Cloud: {{count}} Notizen"
+      "never_other": "Nie an die Cloud: {{count}} Notizen",
+      "sent": "Gesendet",
+      "sentOf": "~{{sent}} von {{source}} Token dieser Notizen",
+      "savings": "Gespart",
+      "savingsShare": "{{percent}} % weniger",
+      "naive": "ohne Auswahl wären es ~{{tokens}} Token gewesen",
+      "trail": "Als Spur im Graph zeigen"
     },
     "selection": {
       "menu": "KI",
@@ -516,6 +522,13 @@
       "pausedNotes_other": "{{count}} Notizen pausiert",
       "hidden_one": "{{count}} Hinweis als „Nicht hilfreich“ markiert",
       "hidden_other": "{{count}} Hinweise als „Nicht hilfreich“ markiert"
+    },
+    "coverage": {
+      "label": "Abdeckung",
+      "high": "Abdeckung hoch",
+      "partial": "Abdeckung teilweise",
+      "low": "Abdeckung gering",
+      "detail": "Aussagen mit Quelle: {{cited}} von {{total}}"
     }
   },
   "settingsSync": {

@@ -295,7 +295,13 @@
       "ruleDefault": "standaard van de kluis",
       "sendWith": "Met deze context verzenden",
       "never_one": "Nooit naar de cloud: {{count}} notitie",
-      "never_other": "Nooit naar de cloud: {{count}} notities"
+      "never_other": "Nooit naar de cloud: {{count}} notities",
+      "sent": "Verstuurd",
+      "sentOf": "~{{sent}} van {{source}} tokens van deze notities",
+      "savings": "Bespaard",
+      "savingsShare": "{{percent}}% minder",
+      "naive": "zonder de selectie waren het ~{{tokens}} tokens geweest",
+      "trail": "Als spoor in de graaf tonen"
     },
     "selection": {
       "menu": "AI",
@@ -516,6 +522,13 @@
       "pausedNotes_other": "{{count}} notities gepauzeerd",
       "hidden_one": "{{count}} hint gemarkeerd als ‘Niet nuttig’",
       "hidden_other": "{{count}} hints gemarkeerd als ‘Niet nuttig’"
+    },
+    "coverage": {
+      "label": "Dekking",
+      "high": "dekking hoog",
+      "partial": "dekking gedeeltelijk",
+      "low": "dekking laag",
+      "detail": "uitspraken met bron: {{cited}} van {{total}}"
     }
   },
   "settingsSync": {

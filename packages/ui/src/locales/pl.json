@@ -315,7 +315,13 @@
       "never_one": "Nigdy do chmury: {{count}} notatka",
       "never_few": "Nigdy do chmury: {{count}} notatki",
       "never_many": "Nigdy do chmury: {{count}} notatek",
-      "never_other": "Nigdy do chmury: {{count}} notatki"
+      "never_other": "Nigdy do chmury: {{count}} notatki",
+      "sent": "Wysłano",
+      "sentOf": "~{{sent}} z {{source}} tokenów tych notatek",
+      "savings": "Zaoszczędzono",
+      "savingsShare": "o {{percent}}% mniej",
+      "naive": "bez wyboru byłoby to ~{{tokens}} tokenów",
+      "trail": "Pokaż jako ślad na grafie"
     },
     "selection": {
       "menu": "AI",
@@ -548,6 +554,13 @@
       "hidden_few": "{{count}} podpowiedzi oznaczone jako „Nieprzydatne”",
       "hidden_many": "{{count}} podpowiedzi oznaczonych jako „Nieprzydatne”",
       "hidden_other": "{{count}} podpowiedzi oznaczonej jako „Nieprzydatne”"
+    },
+    "coverage": {
+      "label": "Pokrycie",
+      "high": "pokrycie wysokie",
+      "partial": "pokrycie częściowe",
+      "low": "pokrycie niskie",
+      "detail": "stwierdzenia ze źródłem: {{cited}} z {{total}}"
     }
   },
   "settingsSync": {

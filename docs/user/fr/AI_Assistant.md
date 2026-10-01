@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-01
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications d'un passage sélectionné sous forme de propositions — il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -51,7 +51,7 @@ Un lien dans une réponse ne s'ouvre qu'après confirmation de son adresse, et l
 À chaque question, Plainva rassemble ce qui peut compter — sur cet appareil, avant tout envoi :
 
 - **Où vous en êtes :** la date et l'heure, la note ou la base ouverte et votre sélection, vos onglets ouverts, les tâches à échéance dans la semaine, les prochains rendez-vous et la note du jour.
-- **Les notes qui peuvent compter :** trouvées à partir de vos mots, des liens de la note ouverte et de ce que vous avez ouvert ou modifié récemment. Vos règles de confidentialité décident d'abord ; seules les notes qu'elles autorisent sont évaluées. Quelques-unes partent sous forme de sections — pas de notes entières —, d'autres seulement avec leur titre et un extrait de recherche, ou leur seul nom ; l'assistant en lit davantage s'il en a besoin.
+- **Les notes qui peuvent compter :** trouvées à partir de vos mots, des liens de la note ouverte et de ce que vous avez ouvert ou modifié récemment. Vos règles de confidentialité décident d'abord ; seules les notes qu'elles autorisent sont évaluées. Quelques-unes partent sous forme de sections — pas de notes entières —, d'autres seulement avec leur titre et une fiche — la première phrase de leur section et chaque phrase contenant des nombres, des dates, des tâches, des négations ou des liens, mot pour mot —, ou leur seul nom ; l'assistant en lit davantage s'il en a besoin.
 
 Une note que la conversation contient déjà et qui n'a pas changé depuis est nommée, pas renvoyée. Les lieux de votre journal et les valeurs d'humeur ne partent jamais d'eux-mêmes.
 
@@ -61,7 +61,7 @@ La première requête d'une session affiche un aperçu : où elle part (fourniss
 
 Pour voir l'aperçu avant chaque requête, activez **Demander avant chaque requête** — dans l'aperçu lui-même ou dans **Paramètres → IA & automatisation**, sous **Envoi**.
 
-La ligne sous chaque réponse ouvre l'aperçu de ce qui est parti avec elle. Si une réponse ne cite aucune des notes envoyées, un avis au-dessus de cette ligne le signale ; vérifiez alors la réponse à partir des notes.
+La ligne sous chaque réponse ouvre l'aperçu de ce qui est parti avec elle. Si une réponse ne cite aucune des notes envoyées, un avis au-dessus de cette ligne le signale ; vérifiez alors la réponse à partir des notes. Quand des notes sont parties, la ligne indique aussi la couverture : **couverture élevée** quand presque chaque affirmation de la réponse cite une note, **couverture partielle** ou **couverture faible** quand c'est moins le cas.
 
 ## Voir le contexte
 
@@ -72,6 +72,8 @@ L'œil sous le champ de saisie, **Voir le contexte**, montre ce que la prochaine
 - gardée sur cet appareil pour de bon : cela écrit la règle `cloud: deny` dans la note (voir plus bas).
 
 Les notes que vos règles retiennent sont aussi listées, pour que vous sachiez ce qui manque ; elles ne sont jamais évaluées ni envoyées. **Envoyer avec ce contexte** envoie ce que vous avez tapé. Dans un onglet IA large, la vue reste ouverte en colonne à côté de la conversation.
+
+Au-dessus des notes, **Envoyé** indique la part de ces notes qui part — par exemple ~870 sur 3 460 jetons — et **Économisé** combien c'est de moins que d'envoyer entières toutes les notes proposées ; la première fois, il indique aussi combien de jetons cela aurait représenté. **Afficher comme piste dans le graphe** ouvre le graphe avec la note ouverte et les sources entourées, et les liens entre elles.
 
 ## Avec une sélection
 

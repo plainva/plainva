@@ -295,7 +295,13 @@
       "ruleDefault": "the vault's default",
       "sendWith": "Send with this context",
       "never_one": "Never to the cloud: {{count}} note",
-      "never_other": "Never to the cloud: {{count}} notes"
+      "never_other": "Never to the cloud: {{count}} notes",
+      "sent": "Sent",
+      "sentOf": "~{{sent}} of {{source}} tokens of these notes",
+      "savings": "Saved",
+      "savingsShare": "{{percent}}% less",
+      "naive": "without the selection it would have been ~{{tokens}} tokens",
+      "trail": "Show as a trail in the graph"
     },
     "selection": {
       "menu": "AI",
@@ -516,6 +522,13 @@
       "pausedNotes_other": "{{count}} notes paused",
       "hidden_one": "{{count}} hint marked “Not helpful”",
       "hidden_other": "{{count}} hints marked “Not helpful”"
+    },
+    "coverage": {
+      "label": "Coverage",
+      "high": "coverage high",
+      "partial": "coverage partial",
+      "low": "coverage low",
+      "detail": "statements with a source: {{cited}} of {{total}}"
     }
   },
   "settingsSync": {

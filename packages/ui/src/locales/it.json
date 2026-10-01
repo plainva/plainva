@@ -305,7 +305,13 @@
       "sendWith": "Invia con questo contesto",
       "never_one": "Mai nel cloud: {{count}} nota",
       "never_many": "Mai nel cloud: {{count}} note",
-      "never_other": "Mai nel cloud: {{count}} note"
+      "never_other": "Mai nel cloud: {{count}} note",
+      "sent": "Inviato",
+      "sentOf": "~{{sent}} di {{source}} token di queste note",
+      "savings": "Risparmiato",
+      "savingsShare": "{{percent}} % in meno",
+      "naive": "senza la selezione sarebbero stati ~{{tokens}} token",
+      "trail": "Mostra come traccia nel grafo"
     },
     "selection": {
       "menu": "IA",
@@ -532,6 +538,13 @@
       "hidden_one": "{{count}} suggerimento segnato come «Non utile»",
       "hidden_many": "{{count}} di suggerimenti segnati come «Non utile»",
       "hidden_other": "{{count}} suggerimenti segnati come «Non utile»"
+    },
+    "coverage": {
+      "label": "Copertura",
+      "high": "copertura alta",
+      "partial": "copertura parziale",
+      "low": "copertura bassa",
+      "detail": "affermazioni con fonte: {{cited}} su {{total}}"
     }
   },
   "settingsSync": {

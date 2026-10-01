@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-01
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen aan een geselecteerde passage voor als voorstellen — een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -51,7 +51,7 @@ Een link in een antwoord opent pas nadat je het adres ervan hebt bevestigd, en a
 Bij elke vraag stelt Plainva samen wat ertoe kan doen — op dit apparaat, voordat er iets wordt verzonden:
 
 - **Waar je bent:** datum en tijd, de notitie of database die je open hebt en je selectie daarin, je open tabbladen, taken die in de komende week vervallen, de volgende afspraken en de dagnotitie van vandaag.
-- **Notities die ertoe kunnen doen:** gevonden via je woorden, de links van de open notitie en wat je onlangs hebt geopend of gewijzigd. Eerst beslissen je privacyregels; alleen de notities die zij toestaan, worden überhaupt beoordeeld. Een paar gaan mee als secties — niet als hele notities —, andere alleen met hun titel en een zoekfragment of alleen met hun naam; de assistent leest er meer van als hij dat nodig heeft.
+- **Notities die ertoe kunnen doen:** gevonden via je woorden, de links van de open notitie en wat je onlangs hebt geopend of gewijzigd. Eerst beslissen je privacyregels; alleen de notities die zij toestaan, worden überhaupt beoordeeld. Een paar gaan mee als secties — niet als hele notities —, andere alleen met hun titel en een kaart — de eerste zin van hun sectie en elke zin met getallen, datums, taken, ontkenningen of links, woord voor woord — of alleen met hun naam; de assistent leest er meer van als hij dat nodig heeft.
 
 Een notitie die het gesprek al bevat en die sindsdien niet is veranderd, wordt genoemd, niet opnieuw verzonden. Plaatsen uit je journaal en stemmingswaarden worden nooit uit zichzelf verzonden.
 
@@ -61,7 +61,7 @@ Het eerste verzoek van een sessie toont een overzicht: waar het heen gaat (provi
 
 Wil je het overzicht vóór elk verzoek zien, zet dan **Vragen vóór elk verzoek** aan — in het overzicht zelf of in **Instellingen → AI & automatisering** onder **Verzenden**.
 
-De regel onder elk antwoord opent het overzicht van wat ermee meeging. Noemt een antwoord geen van de verzonden notities, dan zegt een melding boven die regel dat; controleer het antwoord dan aan de notities.
+De regel onder elk antwoord opent het overzicht van wat ermee meeging. Noemt een antwoord geen van de verzonden notities, dan zegt een melding boven die regel dat; controleer het antwoord dan aan de notities. Gingen er notities mee, dan noemt de regel ook de dekking: **dekking hoog** als bijna elke uitspraak van het antwoord een notitie noemt, **dekking gedeeltelijk** of **dekking laag** als dat er minder zijn.
 
 ## Context bekijken
 
@@ -72,6 +72,8 @@ Het oog onder het invoerveld, **Context bekijken**, toont wat het volgende verzo
 - voorgoed op dit apparaat houden: dat schrijft de regel `cloud: deny` in de notitie (zie hieronder).
 
 Notities die je regels achterhouden, staan er ook, zodat je weet wat er ontbreekt; ze worden nooit beoordeeld en nooit verzonden. **Met deze context verzenden** verzendt wat je hebt getypt. In een breed AI-tabblad blijft de weergave als kolom naast het gesprek open.
+
+Boven de notities zegt **Verstuurd** hoeveel van deze notities meegaat — bijvoorbeeld ~870 van 3.460 tokens — en **Bespaard** hoeveel minder dat is dan elke voorgestelde notitie helemaal te versturen; de eerste keer staat er ook bij hoeveel tokens dat zou zijn geweest. **Als spoor in de graaf tonen** opent de graaf met de open notitie en de bronnen gemarkeerd, en de links ertussen.
 
 ## Met een selectie
 

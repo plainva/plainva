@@ -1,6 +1,6 @@
 # Assistente de IA (Beta)
 
-Última revisão: 2026-09-30
+Última revisão: 2026-10-01
 
 O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações em um trecho selecionado como sugestões — nunca muda uma nota sozinho. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
 
@@ -51,7 +51,7 @@ Um link em uma resposta só abre depois que você confirma o endereço dele, e i
 A cada pergunta, o Plainva reúne o que pode importar — neste dispositivo, antes de enviar qualquer coisa:
 
 - **Onde você está:** a data e a hora, a nota ou o banco de dados aberto e sua seleção nele, suas abas abertas, as tarefas que vencem na próxima semana, os próximos compromissos e a nota diária de hoje.
-- **Notas que podem importar:** encontradas pelas suas palavras, pelos links da nota aberta e pelo que você abriu ou alterou há pouco. Primeiro decidem suas regras de privacidade; só as notas que elas permitem são avaliadas. Algumas vão como seções — não como notas inteiras —, outras só com o título e um trecho da busca ou só com o nome; o assistente lê mais delas quando precisa.
+- **Notas que podem importar:** encontradas pelas suas palavras, pelos links da nota aberta e pelo que você abriu ou alterou há pouco. Primeiro decidem suas regras de privacidade; só as notas que elas permitem são avaliadas. Algumas vão como seções — não como notas inteiras —, outras só com o título e um cartão — a primeira frase da seção e cada frase com números, datas, tarefas, negações ou links, palavra por palavra — ou só com o nome; o assistente lê mais delas quando precisa.
 
 Uma nota que a conversa já contém e que não mudou desde então é nomeada, não enviada de novo. Lugares do seu diário e valores de humor nunca são enviados por conta própria.
 
@@ -61,7 +61,7 @@ A primeira solicitação de uma sessão mostra um resumo: para onde vai (provedo
 
 Se quiser ver o resumo antes de cada solicitação, ative **Perguntar antes de cada solicitação** — no próprio resumo ou em **Configurações → IA e automação**, em **Envio**.
 
-A linha sob cada resposta abre o resumo do que foi com ela. Se uma resposta não cita nenhuma das notas enviadas, um aviso acima dessa linha diz isso; confira então a resposta com as notas.
+A linha sob cada resposta abre o resumo do que foi com ela. Se uma resposta não cita nenhuma das notas enviadas, um aviso acima dessa linha diz isso; confira então a resposta com as notas. Quando notas foram junto, a linha também indica a cobertura: **cobertura alta** quando quase toda afirmação da resposta cita uma nota, **cobertura parcial** ou **cobertura baixa** quando são menos.
 
 ## Ver contexto
 
@@ -72,6 +72,8 @@ O olho abaixo do campo de entrada, **Ver contexto**, mostra o que a próxima sol
 - manter neste dispositivo para sempre: isso grava a regra `cloud: deny` na nota (veja abaixo).
 
 As notas que suas regras retêm também aparecem, para você saber o que falta; elas nunca são avaliadas nem enviadas. **Enviar com este contexto** envia o que você digitou. Numa aba de IA larga, a visualização fica aberta como uma coluna ao lado da conversa.
+
+Acima das notas, **Enviado** diz quanto dessas notas vai junto — por exemplo ~870 de 3.460 tokens — e **Economizado** quanto isso é a menos do que enviar inteiras todas as notas propostas; na primeira vez, também diz quantos tokens teriam sido. **Mostrar como trilha no grafo** abre o grafo com a nota aberta e as fontes destacadas, e os links entre elas.
 
 ## Com uma seleção
 

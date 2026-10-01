@@ -44,14 +44,17 @@ function byMeaning(path: string, chain: string, score = 1): Candidate {
 
 /** Plan KI-Harness P2b-1: meaning joins the words in the context of a message. */
 describe("hybrid retrieval in the context package", () => {
-  it("ranks meaning below the words and above the graph", () => {
+  it("weighs meaning as much as the words, both above the graph, and words and meaning together above either", () => {
     const ranked = rankCandidates([
       { path: "a.md", title: "a", signals: { semantic: 1 } },
       { path: "b.md", title: "b", signals: { lexical: 1 } },
       { path: "c.md", title: "c", signals: { graph: 1 } },
+      { path: "d.md", title: "d", signals: { lexical: 0.6, semantic: 0.6 } },
     ]);
-    expect(ranked.map((c) => c.path)).toEqual(["b.md", "a.md", "c.md"]);
-    expect(ranked[1]!.reasons).toEqual(["semantic"]);
+    expect(ranked[0]!.path).toBe("d.md");
+    expect(ranked.slice(1, 3).map((c) => c.score)).toEqual([ranked[1]!.score, ranked[1]!.score]);
+    expect(ranked[3]!.path).toBe("c.md");
+    expect(ranked.find((c) => c.path === "a.md")!.reasons).toEqual(["semantic"]);
   });
 
   it("sends the section a note was found by meaning in, not its beginning", async () => {

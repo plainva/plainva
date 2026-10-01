@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GraphService, type FolderOverview, type GraphEdgeKind, type VaultGraph } from "@plainva/core";
-import { appendWikiLink, findRelationOptions, getGraphState, loadRelationCatalog, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapOverlay, writeRelationLink } from "@plainva/ui";
+import { appendWikiLink, consumeGraphTrail, findRelationOptions, getGraphState, GRAPH_TRAIL_EVENT, loadRelationCatalog, trailFocus, trailFolders, type GraphPin, type GraphStateStore, type RelationOption, type VaultMapFocus, type VaultMapOverlay, writeRelationLink } from "@plainva/ui";
 import { buildVaultMapScene, Chip, toast, createGraphScene, DEFAULT_EDGE_KINDS, EmptyState, type GraphEngineDeps, type GraphScene, Button, GroupCard, ICON, IconButton, Row, RowList, SearchField, Switch } from "@plainva/ui";
 import { AlertTriangle, ChevronRight, Clock, Crosshair, FileText, Flame, ImageDown, Maximize2, Minus, MousePointerSquareDashed, PinOff, Plus, SlidersHorizontal, Trash2, Link2, Waypoints } from "lucide-react";
 import { mActions, mConfirm, mSelect } from "../services/mobileDialogs";
@@ -61,7 +61,7 @@ export function GraphScreen({
   // are arguments `buildVaultMapScene` has always taken; the phone passed
   // empty, null and "normal" — a map you cannot pin, narrow or read by age.
   const [pins, setPins] = useState<Record<string, GraphPin>>({});
-  const [focus, setFocus] = useState<{ seed: string; depth: number } | null>(null);
+  const [focus, setFocus] = useState<VaultMapFocus | null>(null);
   const [overlayMode, setOverlayMode] = useState<"normal" | "heatmap" | "replay">("normal");
   const [replayCutoff, setReplayCutoff] = useState(0);
   // Pinned when the heatmap is switched on, not read per render: "recent"
@@ -90,6 +90,18 @@ export function GraphScreen({
   // handlers can simply depend on it.
   const [store, setStore] = useState<GraphStateStore | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // The AI's trail (plan KI-Harness P2b-5): taken when the view opens for it, or when it is already open.
+  useEffect(() => {
+    const take = () => {
+      const trail = consumeGraphTrail();
+      if (!trail || trail.paths.length === 0) return;
+      setExpanded((prev) => new Set([...prev, ...trailFolders([...trail.paths, ...(trail.seed ? [trail.seed] : [])])]));
+      setFocus(trailFocus(trail));
+    };
+    take();
+    window.addEventListener(GRAPH_TRAIL_EVENT, take);
+    return () => window.removeEventListener(GRAPH_TRAIL_EVENT, take);
+  }, []);
   // The drag handler is registered once; it must not close over a stale set.
   const expandedRef = useRef(expanded);
   useEffect(() => {

@@ -78,6 +78,12 @@ export interface SituationInput {
 export interface ContextBuildHost extends ContextPolicyHost {
   /** The note's current text: the open note as the editor holds it, any other as saved. */
   readNote(path: string): Promise<{ title: string; text: string } | null>;
+  /**
+   * The size of notes as the index knows it (bytes, about one character
+   * each), for what a naive request would have sent (plan P2b-5); absent, the
+   * comparison is left out.
+   */
+  noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
 }
 
 export interface ContextBudget {
@@ -124,6 +130,20 @@ export interface PackageRef {
   section?: string;
   /** Sent earlier in the conversation and unchanged: named, not repeated. */
   unchanged?: boolean;
+  /** Characters of the whole note this source stands for (evidence and cards; plan P2b-5). */
+  noteChars?: number;
+}
+
+/**
+ * What a package saves (plan P2b-5, "View context"): the characters it sends
+ * of its sources, the whole of those notes, and — when the host knows note
+ * sizes — the whole of every note the sources proposed that passed the gate:
+ * what sending without a selection would have cost.
+ */
+export interface PackageMaterial {
+  sentChars: number;
+  sourceChars: number;
+  candidateChars: number | null;
 }
 
 export interface ContextPackage {
@@ -135,6 +155,7 @@ export interface ContextPackage {
   redactions: { withheldLinks: number; places: number; moodProperties: number };
   dataClasses: DataClass[];
   estimatedTokens: number;
+  material: PackageMaterial;
 }
 
 const HEADER =
@@ -317,7 +338,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     const stamp = `${candidate.path}#${contextStamp(text)}`;
     const title = read.title || candidate.title;
     if (input.alreadySent?.has(stamp)) {
-      refs.push({ path: candidate.path, title, tier: "evidence", reasons: candidate.reasons, score: candidate.score, chars: 0, section, unchanged: true });
+      refs.push({ path: candidate.path, title, tier: "evidence", reasons: candidate.reasons, score: candidate.score, chars: 0, section, unchanged: true, noteChars: body.length });
       blocks.push(`[[${title}]] (${candidate.path}): unchanged since it was sent earlier in this conversation.`);
       stamps.push(stamp);
       continue;
@@ -328,7 +349,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     );
     stamps.push(stamp);
     evidenceChars += text.length;
-    refs.push({ path: candidate.path, title, tier: "evidence", reasons: candidate.reasons, score: candidate.score, chars: text.length, ...(whole ? {} : { section: section ?? "" }) });
+    refs.push({ path: candidate.path, title, tier: "evidence", reasons: candidate.reasons, score: candidate.score, chars: text.length, ...(whole ? {} : { section: section ?? "" }), noteChars: body.length });
   }
 
   // ---------------------------------------------------------- cards + map
@@ -361,7 +382,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     cardTexts.add(same);
     const why = candidate.reasons.slice(0, 2).map((r) => REASON_WORDS[r]).join(", ");
     cards.push(`- [[${title}]] (${candidate.path})${found.chain ? ` › ${found.chain}` : ""} — ${why}${text ? `: ${text}` : ""}`);
-    refs.push({ path: candidate.path, title, tier: "card", reasons: candidate.reasons, score: candidate.score, chars: text.length, section: found.chain });
+    refs.push({ path: candidate.path, title, tier: "card", reasons: candidate.reasons, score: candidate.score, chars: text.length, section: found.chain, noteChars: noteBody(read.text).length });
     carded.add(candidate.path);
   }
   const map: string[] = [];
@@ -421,6 +442,22 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   }
   if (map.length) parts.push(fenceUntrusted(payload(`Further notes that may matter:\n${map.join("\n")}`, { kind: "app" })));
   const text = parts.join("\n\n");
+  // What it saves: its sources against the whole of them, and the whole of everything proposed (P2b-5).
+  let candidateChars: number | null = null;
+  if (host.noteSizes) {
+    try {
+      const sizes = await host.noteSizes(ranked.map((c) => c.path));
+      candidateChars = ranked.reduce((sum, c) => sum + (sizes.get(c.path) ?? 0), 0);
+    } catch {
+      candidateChars = null;
+    }
+  }
+  const material: PackageMaterial = {
+    sentChars: refs.reduce((sum, r) => sum + r.chars, 0),
+    sourceChars: refs.reduce((sum, r) => sum + (r.unchanged ? 0 : (r.noteChars ?? 0)), 0),
+    candidateChars,
+  };
+
   return {
     part: { type: "text", text, context: stamps },
     refs,
@@ -428,6 +465,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     redactions,
     dataClasses: [...dataClasses],
     estimatedTokens: estimateTokens(text),
+    material,
   };
 }
 

@@ -305,7 +305,13 @@
       "sendWith": "Enviar com este contexto",
       "never_one": "Nunca para a nuvem: {{count}} nota",
       "never_many": "Nunca para a nuvem: {{count}} notas",
-      "never_other": "Nunca para a nuvem: {{count}} notas"
+      "never_other": "Nunca para a nuvem: {{count}} notas",
+      "sent": "Enviado",
+      "sentOf": "~{{sent}} de {{source}} tokens dessas notas",
+      "savings": "Economizado",
+      "savingsShare": "{{percent}}% a menos",
+      "naive": "sem a seleção seriam ~{{tokens}} tokens",
+      "trail": "Mostrar como trilha no grafo"
     },
     "selection": {
       "menu": "IA",
@@ -532,6 +538,13 @@
       "hidden_one": "{{count}} sugestão marcada como “Não ajudou”",
       "hidden_many": "{{count}} de sugestões marcadas como “Não ajudou”",
       "hidden_other": "{{count}} sugestões marcadas como “Não ajudou”"
+    },
+    "coverage": {
+      "label": "Cobertura",
+      "high": "cobertura alta",
+      "partial": "cobertura parcial",
+      "low": "cobertura baixa",
+      "detail": "afirmações com fonte: {{cited}} de {{total}}"
     }
   },
   "settingsSync": {

@@ -34,7 +34,8 @@ export interface SceneNode {
   /** Replay overlay: not drawn and not hit-testable, layout keeps its slot. */
   hidden?: boolean;
   /** Cleanup overlay accent ring. */
-  flag?: "orphan" | "broken" | null;
+  /** A ring: a cleanup finding, or a note of the AI's trail (plan KI-Harness P2b-5). */
+  flag?: "orphan" | "broken" | "trail" | null;
   /** Folder bubbles: number badge (note count). */
   badge?: number;
   /**

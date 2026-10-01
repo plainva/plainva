@@ -3855,6 +3855,8 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-semantic-choices .pv-checkrow { align-items: flex-start; }
 .pv-semantic-choices .pv-checkrow > span { display: flex; flex-direction: column; gap: var(--space-1); }
 .pv-semantic-choices .pv-checkrow > span > span { color: var(--text-muted); font-size: var(--text-sm); }
+/* "Show as a trail in the graph" under the lens's sources (AI harness P2b-5): layout only. */
+.pv-ai-lens-trail { display: flex; justify-content: flex-start; margin-top: var(--space-1); }
 /* Related notes (AI harness P2b-4, Design Language "Related notes"): layout and text runs in
    tokens — the visible controls are IconButtons and ghost Buttons the themes restyle. */
 .pv-related { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }

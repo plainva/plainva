@@ -285,7 +285,13 @@
       "ruleFolder": "{{folder}}的规则",
       "ruleDefault": "保险库的默认设置",
       "sendWith": "使用此上下文发送",
-      "never_other": "从不发送到云端：{{count}}条笔记"
+      "never_other": "从不发送到云端：{{count}}条笔记",
+      "sent": "已发送",
+      "sentOf": "这些笔记 {{source}} 个 token 中的约 {{sent}} 个",
+      "savings": "节省",
+      "savingsShare": "减少 {{percent}}%",
+      "naive": "如果不做选择，会是约 {{tokens}} 个 token",
+      "trail": "在关系图中显示为路径"
     },
     "selection": {
       "menu": "AI",
@@ -500,6 +506,13 @@
       "sharedMore_other": "都提到了 [[{{link}}]] 等另外 {{count}} 篇笔记",
       "pausedNotes_other": "已暂停 {{count}} 篇笔记",
       "hidden_other": "已将 {{count}} 条提示标记为“没有帮助”"
+    },
+    "coverage": {
+      "label": "覆盖度",
+      "high": "覆盖度高",
+      "partial": "覆盖度部分",
+      "low": "覆盖度低",
+      "detail": "注明来源的陈述：{{total}} 条中的 {{cited}} 条"
     }
   },
   "settingsSync": {

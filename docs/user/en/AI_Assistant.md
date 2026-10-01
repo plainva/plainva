@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-01
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes to a passage you selected as suggestions — it never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -51,7 +51,7 @@ A link in an answer opens only after you confirmed its address, and images in an
 With every question Plainva puts together what may matter — on this device, before anything is sent:
 
 - **Where you are:** the date and time, the note or database you have open and your selection in it, your open tabs, tasks due in the coming week, the next appointments and today's daily note.
-- **Notes that may matter:** found through your words, the links of the open note and what you opened or changed lately. Your privacy rules decide first; only the notes they allow are ranked at all. A few go as sections — not as whole notes —, others only with their title and a search excerpt or just their name; the assistant reads more of them when it needs to.
+- **Notes that may matter:** found through your words, the links of the open note and what you opened or changed lately. Your privacy rules decide first; only the notes they allow are ranked at all. A few go as sections — not as whole notes —, others only with their title and a card — the first sentence of their section and every sentence with numbers, dates, tasks, negations or links, word for word — or just their name; the assistant reads more of them when it needs to.
 
 A note this conversation already carries and that has not changed since is named, not sent again. Place stamps from your journal and mood values are never sent on their own.
 
@@ -61,7 +61,7 @@ The first request of a session shows an overview: where it goes (provider and mo
 
 If you want to see the overview before every request, switch on **Ask before every request** — in the overview itself or in **Settings → AI & automation** under **Sending**.
 
-The line under each answer opens the overview of what went with it. If an answer cites none of the notes that were sent, a notice above that line says so; check the answer against the notes.
+The line under each answer opens the overview of what went with it. If an answer cites none of the notes that were sent, a notice above that line says so; check the answer against the notes. Where notes went along, the line also names the coverage: **coverage high** when nearly every statement of the answer names a note, **coverage partial** or **coverage low** when fewer do.
 
 ## View context
 
@@ -72,6 +72,8 @@ The eye below the input, **View context**, shows what the next request would car
 - keep it on this device for good: that writes the rule `cloud: deny` into the note (see below).
 
 Notes your rules keep back are listed as well, so that you know what is missing; they are never scored and never sent. **Send with this context** sends what you typed. In a wide AI tab the view stays open as a column beside the conversation.
+
+Above the notes, **Sent** says how much of these notes goes along — for example ~870 of 3,460 tokens — and **Saved** how much less that is than sending every proposed note whole; the first time, it also says how many tokens that would have been. **Show as a trail in the graph** opens the graph with the open note and the sources ringed and the links between them.
 
 ## With a selection
 
