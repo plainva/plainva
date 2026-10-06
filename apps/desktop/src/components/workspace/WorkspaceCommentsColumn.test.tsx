@@ -737,3 +737,94 @@ describe("the byline (finding 2026-09-09)", () => {
     unmount();
   });
 });
+
+/**
+ * The assistant in the threads (plan KI-Harness P3-6).
+ *
+ * What has to hold on both shells: "@" offers the assistant only where it can
+ * answer, a mention written elsewhere is drawn as one regardless, the thread
+ * it is answering says so and can be stopped, and what it wrote from this
+ * device is this device's to delete.
+ */
+describe("the assistant in the threads (P3-6)", () => {
+  const SELF = "de".repeat(16);
+  const AI_AUTHOR = "plainva-ai/m-1";
+  const names = new Map<string, string>([...NAMES, [AI_AUTHOR, "Plainva AI · m-1"]]);
+  const assistant = (over: Partial<{ label: string; replyingTo: string | null; stop: () => void }> = {}) => ({ label: "AI", replyingTo: null, stop: vi.fn(), ...over });
+
+  /** Types into a controlled field the way a person does: the value, the caret, the input event. */
+  function type(field: HTMLTextAreaElement, value: string) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    act(() => {
+      setter.call(field, value);
+      field.setSelectionRange(value.length, value.length);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+  const offeredNames = () => [...document.querySelectorAll('[role="menuitem"]')].map((item) => item.querySelector(".pv-menu-text")?.textContent);
+
+  it("draws a mention of the assistant in every spelling, without an id behind it", () => {
+    const asked = comment({ commentId: "q1", body: "@KI is that right, @Anna?" });
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [asked], memberNames: names })} />);
+    const mentions = [...host.querySelectorAll(".pv-comment-card__mention")];
+    expect(mentions.map((mention) => mention.textContent)).toEqual(["@KI", "@Anna"]);
+    // A person's mention names the id behind the name; the assistant has none to show.
+    expect(mentions.map((mention) => mention.getAttribute("data-tip"))).toEqual([null, "9999888877776666"]);
+    unmount();
+  });
+
+  it("offers the assistant after an @ only where it can answer, and never one of its bylines", () => {
+    const off = render(<WorkspaceCommentsColumn {...props({ memberNames: names })} />);
+    const plain = off.host.querySelector(".pv-comment-compose--new textarea") as HTMLTextAreaElement;
+    expect(plain.placeholder).toBe(tr("workspaceSecurity.addComment"));
+    type(plain, "@");
+    expect(offeredNames()).toEqual(["Anna", "Marco"]);
+    off.unmount();
+
+    const on = render(<WorkspaceCommentsColumn {...props({ memberNames: names, ai: assistant() })} />);
+    const field = on.host.querySelector(".pv-comment-compose--new textarea") as HTMLTextAreaElement;
+    expect(field.placeholder).toBe(tr("ai.thread.composer"));
+    type(field, "@");
+    expect(offeredNames()).toEqual(["AI", "Anna", "Marco"]);
+    // It is not a person: the row carries the AI mark and says what picking it does.
+    const row = [...document.querySelectorAll('[role="menuitem"]')].find((item) => item.querySelector(".pv-menu-text")?.textContent === "AI")!;
+    expect(row.querySelector(".pv-menu-ic svg")).not.toBeNull();
+    expect(row.querySelector(".pv-menu-hint")?.textContent).toBe(tr("ai.thread.mentionHint"));
+    on.unmount();
+  });
+
+  it("shows which thread the assistant is answering, and stops it from there", () => {
+    const first = comment({ commentId: "t1", body: "@AI is that right?" });
+    const other = comment({ commentId: "t2", body: "Something else." });
+    const stop = vi.fn();
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [first, other], memberNames: names, ai: assistant({ replyingTo: "t1", stop }) })} />);
+    const waiting = [...host.querySelectorAll("[data-testid=comment-ai-pending]")];
+    expect(waiting).toHaveLength(1);
+    expect(waiting[0]!.closest(".pv-comment-card")?.textContent).toContain("@AI is that right?");
+    expect(waiting[0]!.textContent).toContain(tr("ai.thread.replying"));
+    act(() => { (host.querySelector("[data-testid=comment-ai-stop]") as HTMLElement).click(); });
+    expect(stop).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it("marks what the assistant wrote and lets the device that wrote it delete it", () => {
+    const asked = comment({ commentId: "t1", authorMemberId: SELF, authorDeviceId: SELF, body: "@AI is that right?" });
+    const answer = comment({ commentId: "a1", parentCommentId: "t1", authorMemberId: AI_AUTHOR, authorDeviceId: SELF, body: "It is." });
+    const foreign = comment({ commentId: "a2", parentCommentId: "t1", authorMemberId: AI_AUTHOR, authorDeviceId: "9999888877776666", body: "From another device." });
+    const onDelete = vi.fn();
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [asked, answer, foreign], memberNames: names, selfMemberId: SELF, onDelete })} />);
+    try {
+      // The AI mark instead of two letters of a model's name, in the app's own colour pair.
+      const marks = [...host.querySelectorAll(".pv-comment-card__avatar[data-ai]")];
+      expect(marks).toHaveLength(2);
+      expect(marks.every((mark) => mark.querySelector("svg") && !mark.hasAttribute("data-hue"))).toBe(true);
+      expect(host.textContent).toContain("Plainva AI · m-1");
+      // Written from this device: this device may delete it. Another device's is not ours to take back.
+      expect(host.querySelector("[data-testid=comment-delete-a1]")).not.toBeNull();
+      expect(host.querySelector("[data-testid=comment-delete-a2]")).toBeNull();
+      act(() => { (host.querySelector("[data-testid=comment-delete-a1]") as HTMLElement).click(); });
+      act(() => { (host.querySelector("[data-testid=comment-delete-confirm]") as HTMLElement).click(); });
+      expect(onDelete).toHaveBeenCalledWith(answer);
+    } finally { unmount(); }
+  });
+});

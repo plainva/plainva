@@ -1,6 +1,6 @@
 # Comments & Suggestions
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Comments and suggestions exist in **every** vault — with or without sync, with or without encryption. In an encrypted workspace they are signed objects (see [Security & Sharing](Security_and_Sharing.md)); everywhere else they carry the name from **Your name (remarks and reviews)** in the settings. A suggestion is a comment with a replacement text: both run through the same store, the same column, the same sheet. If the name is missing, Plainva asks for it once at the first comment; without an answer the device signs with its own label (such as “Windows device 4f3a”). Your own remarks read **You**.
 
@@ -9,6 +9,8 @@ Comments and suggestions exist in **every** vault — with or without sync, with
 Commenters get a read-only editor with **Comments** beside it. Select a passage in the text and write your note next to it — the comment then hangs on that passage rather than on the document. Replies form a thread, **Resolve** files it away. Comments and resolution markers are encrypted and signed workspace objects themselves; the note stays plain Markdown, and no reply ever lands in its version history. The column shows and hides with the **Comments** button in the note's toolbar — it carries the number of open threads; Plainva remembers your choice per vault and otherwise opens the column only when the note has open threads. Its head counts, filters (**Open** · **All**) and mutes; every card names who wrote when at the top and shows its actions once you hover or select it. You can **delete** your own comment or suggestion (trash on the card, the question asked right there); owners and admins can delete anybody's. Deleted means hidden for everyone — the sealed record stays in the store.
 
 Type an **@** in the comment field and Plainva offers the members of the workspace; picking one writes the name into the comment as ordinary text. A thread that names you moves to the top of the column and carries the **Mentions you** badge — a resolved thread does not, it needs no attention any more. Mentions are never stored; they are read out of the text when it is displayed: rename a member and older comments follow the new name; remove them from the workspace and the highlight falls away while the typed text stays exactly as written.
+
+Where the AI assistant is switched on, the **@** offers it as well: a comment that addresses **@AI** is answered by the assistant in the same thread, authored **Plainva AI · ⟨model⟩** — see [AI Assistant](AI_Assistant.md). Not in an encrypted workspace yet.
 
 So a comment finds its passage again after later edits, Plainva wraps it in invisible HTML comments. Other editors do not display them; anyone who would rather not have them in their files turns off **Mark commented passages in the note** under **Content & structure** — Plainva then locates the passage through the quoted text. If it can no longer be found, the comment says so instead of pointing somewhere arbitrary. In **Live** mode these markers are invisible — even on the line you are typing in; the caret steps over them. Only **Source** mode shows them.
 

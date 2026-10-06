@@ -31,7 +31,7 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
+import { addressesAi, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
@@ -53,7 +53,7 @@ import { mobileCommentStore, listMobileComments, listMobileCommentAuthors, mobil
 import { mobileCommentOperations } from "../services/commentOperations";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
-import { aiEnabled, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAi";
+import { aiEnabled, focusAiNote, getMobileAiSession, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAi";
 
 /** A property value as the anchor quote carries it (desktop parity). */
 function propertyValueText(value: unknown): string {
@@ -882,6 +882,8 @@ export function NoteScreen({
   };
 
   const commentOperations = useMemo(() => mobileCommentOperations(vault), [vault]);
+  // The assistant in this note's comment threads (plan KI-Harness P3-6); not where the remarks are sealed.
+  const threadAi = useCommentThreadAi(getMobileAiSession(), path, { sealed: vault.workspaceRuntime !== null });
   const pendingCommentOperations = usePendingCommentOperations(commentOperations, vault.vaultId, path);
   const [decisionReview, setDecisionReview] = useState<{ path: string; vaultId: string; comment: WorkspaceCommentRecord; snapshot: CommentEditorSnapshot } | null>(null);
   const reportCommentFailure = useStableHandler((error: unknown) => {
@@ -971,12 +973,15 @@ export function NoteScreen({
       if (workspaceCanWrite && !parkedRange?.display)
         intended = insertAnchorMarkers(snapshot.text, resolved.from, resolved.to, anchor.markerId!);
     }
-    await runCommentInput({ notePath: path, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
+    const operation = await runCommentInput({ notePath: path, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
       markers: [{ path, body, parentCommentId, ...(parent?.targetRevisionId ? { targetObjectId: parent.targetObjectId } : {}), anchor }] }, snapshot);
     if (snapshot.alive?.()) {
       setPendingPropertyAnchor((value) => value === parkedProperty ? null : value);
       setPendingRange((value) => value === parkedRange ? null : value);
     }
+    // "@AI" in the remark (plan KI-Harness P3-6): the assistant answers in the thread. Its send overview, when it asks, opens over this note.
+    if (addressesAi(body, t("ai.title"))) focusAiNote(path);
+    threadAi.answer({ commentId: operation.markers[0]!.identity.commentId, parentCommentId, body, quote: anchor?.quote ?? null }, { comments, names: commentNames, selfId: commentSelfId });
   });
 
   /**
@@ -1299,6 +1304,7 @@ export function NoteScreen({
           canWrite={workspaceCanWrite}
           onClose={() => { setCommentsOpen(false); setPendingPropertyAnchor(null); setPendingRange(null); }}
           onSubmit={postComment}
+          ai={threadAi.ai}
           onResolve={(commentId) => { void resolveComment(commentId); }}
           onReviewDecision={(comment) => { void reviewCommentDecision(comment); }}
           onPromoteToTask={(comment) => { void promoteCommentToTask(comment).catch((e) => toast.error(errorText(e))); }}

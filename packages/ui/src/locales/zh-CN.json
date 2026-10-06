@@ -256,7 +256,8 @@
         "calendar": "日程",
         "notes": "笔记",
         "audio": "一段录音",
-        "searches": "你的搜索问题"
+        "searches": "你的搜索问题",
+        "comments": "一段评论讨论"
       },
       "keptBack": "未发送",
       "keptNotes_other": "{{count}}条被规则屏蔽的笔记",
@@ -380,6 +381,28 @@
         "changed": "AI撰写期间该段落已改变——未提出任何建议。",
         "failed": "AI无法提出建议。"
       }
+    },
+    "thread": {
+      "title": "评论讨论 · {{note}}",
+      "mentionHint": "在讨论中回答",
+      "composer": "对笔记发表评论 · 输入 @ 提及成员或AI",
+      "replying": "正在撰写回复…",
+      "evidence_other": "评论讨论（{{count}}条评论）",
+      "evidencePassage": "被评论的段落",
+      "refused": {
+        "off": "AI已关闭。",
+        "no-model": "请先选择模型。",
+        "busy": "AI仍在回答——请等待或停止它。",
+        "encrypted": "加密工作区中暂不可用：其中的评论无法将AI标为作者。",
+        "denied": "你的规则不允许将这条笔记发送给此模型，因此它的评论也不会发送。",
+        "empty": "请写下你想知道的内容。",
+        "no-answer": "AI没有给出回答。",
+        "failed": "AI无法回答。",
+        "post-failed": "回复未能写入讨论。你可以在AI的对话中找到它。"
+      }
+    },
+    "lint": {
+      "defused": "新出现的网址已被处理为无效：可以阅读，但不是链接。"
     },
     "skills": {
       "title": "技能",

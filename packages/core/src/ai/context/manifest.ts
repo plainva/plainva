@@ -31,6 +31,8 @@ export interface ManifestSource {
   selection?: boolean;
   /** A recording that went to be transcribed, by its size in bytes (plan P1.5). */
   audioBytes?: number;
+  /** The remarks of a comment thread on the note went, this many (plan P3-6). */
+  comments?: number;
   /** A gist by the model on this computer went for it (plan P2b-3). */
   gist?: boolean;
   /** What the local patterns saw in what it sends (plan P2b-6). */

@@ -264,7 +264,8 @@
         "calendar": "rendez-vous",
         "notes": "notes",
         "audio": "un enregistrement",
-        "searches": "vos questions de recherche"
+        "searches": "vos questions de recherche",
+        "comments": "un fil de commentaires"
       },
       "keptBack": "Retenu",
       "keptNotes_one": "{{count}} note bloquée par vos règles",
@@ -404,6 +405,30 @@
         "changed": "Le passage a changé pendant que l'IA écrivait — rien n'a été proposé.",
         "failed": "L'IA n'a pas pu faire de proposition."
       }
+    },
+    "thread": {
+      "title": "Fil de commentaires · {{note}}",
+      "mentionHint": "répond dans le fil",
+      "composer": "Commentaire sur la note · @ pour les personnes et l'IA",
+      "replying": "rédige une réponse…",
+      "evidence_one": "le fil de commentaires ({{count}} commentaire)",
+      "evidence_many": "le fil de commentaires ({{count}} commentaires)",
+      "evidence_other": "le fil de commentaires ({{count}} commentaires)",
+      "evidencePassage": "le passage commenté",
+      "refused": {
+        "off": "L'IA est désactivée.",
+        "no-model": "Choisissez d'abord un modèle.",
+        "busy": "L'IA répond encore — attendez ou arrêtez-la.",
+        "encrypted": "Pas encore dans un espace chiffré : ses commentaires ne peuvent pas nommer l'IA comme auteur.",
+        "denied": "Vos règles tiennent cette note à l'écart de ce modèle — ses commentaires n'y vont donc pas non plus.",
+        "empty": "Ajoutez ce que vous voulez savoir.",
+        "no-answer": "L'IA n'a donné aucune réponse.",
+        "failed": "L'IA n'a pas pu répondre.",
+        "post-failed": "La réponse n'a pas pu être écrite dans le fil. Vous la trouverez parmi les conversations de l'IA."
+      }
+    },
+    "lint": {
+      "defused": "Les nouvelles adresses web ont été neutralisées : lisibles, mais sans lien."
     },
     "skills": {
       "title": "Compétences",

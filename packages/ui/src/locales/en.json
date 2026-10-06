@@ -260,7 +260,8 @@
         "calendar": "appointments",
         "notes": "notes",
         "audio": "a recording",
-        "searches": "your search questions"
+        "searches": "your search questions",
+        "comments": "a comment thread"
       },
       "keptBack": "Kept back",
       "keptNotes_one": "{{count}} note your rules block",
@@ -392,6 +393,29 @@
         "changed": "The passage changed while the AI was writing — nothing was suggested.",
         "failed": "The AI could not make a suggestion."
       }
+    },
+    "thread": {
+      "title": "Comment thread · {{note}}",
+      "mentionHint": "answers in the thread",
+      "composer": "Comment on the note · @ for people and the AI",
+      "replying": "is writing a reply…",
+      "evidence_one": "the comment thread ({{count}} comment)",
+      "evidence_other": "the comment thread ({{count}} comments)",
+      "evidencePassage": "the passage commented on",
+      "refused": {
+        "off": "The AI is off.",
+        "no-model": "Choose a model first.",
+        "busy": "The AI is still answering — wait for it or stop it.",
+        "encrypted": "Not yet in an encrypted workspace: its comments cannot name the AI as their author.",
+        "denied": "Your rules keep this note from this model — so its comments do not go there either.",
+        "empty": "Add what you want to know.",
+        "no-answer": "The AI gave no answer.",
+        "failed": "The AI could not answer.",
+        "post-failed": "The reply could not be written into the thread. You'll find it among the AI conversations."
+      }
+    },
+    "lint": {
+      "defused": "New web addresses were defused: readable, but not links."
     },
     "skills": {
       "title": "Skills",

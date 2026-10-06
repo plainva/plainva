@@ -188,6 +188,14 @@ export function useDesktopAi(input: DesktopAiInput) {
     window.addEventListener(AI_OPEN_EVENT, open);
     return () => window.removeEventListener(AI_OPEN_EVENT, open);
   }, [openCompanion]);
+  // A door outside the conversation ("Transcribe" at a voice note, "@AI" in a
+  // comment thread) may need the send overview while no conversation shows:
+  // then the companion opens, or the question would wait unseen.
+  useEffect(() => {
+    if (!session) return;
+    session.setReveal(() => openCompanion());
+    return () => session.setReveal(null);
+  }, [session, openCompanion]);
   const toggleCompanion = useStableHandler(() => (companionOpen ? closeCompanion() : openCompanion()));
   // The skills a person can start now (plan KI-Harness P3): the palette lists them.
   const skills = useMemo(() => (state ? startableSkills((key, vars) => i18n.t(key, vars), state.skills.entries) : []), [state]);

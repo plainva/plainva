@@ -87,6 +87,31 @@ describe("AiSendOverview", () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 
+  it("names a comment thread as its own row beside its note: what is asked about goes or the request is cancelled (plan P3-6)", async () => {
+    await i18n.changeLanguage("en");
+    const onLeaveOut = vi.fn();
+    const withThread: EgressManifest = {
+      ...manifest,
+      sources: [{ path: "Projects/Offer.md", title: "Offer", tier: "evidence", chars: 300, reasons: ["active"], comments: 2 }, ...manifest.sources],
+      dataClasses: [...manifest.dataClasses, "comments"],
+    };
+    const container = mount(<AiSendOverview manifest={withThread} growth={[{ kind: "dataClass", dataClass: "comments" }]} onSend={vi.fn()} onCancel={vi.fn()} onLeaveOut={onLeaveOut} />);
+    const view = container.querySelector('[data-testid="ai-consent"]')!;
+    expect(view.querySelector(".pv-ai-overview-why")!.textContent).toContain("a comment thread");
+    // Two rows carry the same path — the thread and the note — and both are there.
+    const rows = Array.from(view.querySelectorAll(".pv-ai-overview-sources li"));
+    expect(rows).toHaveLength(3);
+    expect(rows[0]!.querySelector(".pv-ai-overview-form")!.textContent).toBe("the comment thread (2 comments)");
+    expect(rows[0]!.querySelectorAll("button")).toHaveLength(0);
+    expect(rows[1]!.querySelectorAll("button")).toHaveLength(1);
+    expect(view.textContent).toContain("a comment thread");
+    act(() => root?.unmount());
+
+    // A remark that starts a thread on a passage brings the passage and no remarks yet.
+    const passage = mount(<AiSendOverview manifest={{ ...withThread, sources: [{ ...withThread.sources[0]!, comments: 0 }] }} />);
+    expect(passage.querySelector(".pv-ai-overview-form")!.textContent).toBe("the passage commented on");
+  });
+
   it("as the record under a run line: the same list, no actions", () => {
     const container = mount(<AiSendOverview manifest={manifest} />);
     expect(container.querySelector('[data-testid="ai-overview"]')).not.toBeNull();

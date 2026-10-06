@@ -34,8 +34,12 @@ import { questionTerms } from "./terms.js";
  * title, no path, no excerpt, no link anchor in a neighbour (§8.2).
  */
 
-/** `audio`: a recording, sent to be transcribed (plan P1.5, E28) — never part of a chat's context. */
-export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio" | "searches";
+/**
+ * `audio`: a recording, sent to be transcribed (plan P1.5, E28) — never part of a chat's context.
+ * `comments`: the remarks of a comment thread the assistant was addressed in (plan P3-6) — other
+ * people's words about a note, which the notes themselves never carry.
+ */
+export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio" | "searches" | "comments";
 
 export interface SituationTask {
   title: string;

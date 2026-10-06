@@ -35,7 +35,10 @@ enough. The review runs in parallel and does not block (E33).
    `plainva-ai/<model-id>`, shown as "Plainva KI · ⟨model⟩" (ADR 0019). The
    author stays in the suggestion history after the user accepts the round, so
    the record of which passage an AI wrote survives the acceptance. Proposals
-   from other harnesses carry `mcp:<client>` or `acp:<agent>`.
+   from other harnesses carry `mcp:<client>` or `acp:<agent>`. A reply the
+   assistant writes into a comment thread (addressed with "@AI") is a remark
+   under the same author and is shown with the AI mark in place of initials;
+   it is never text in the note.
 3. **New notes.** A note the harness creates carries OKF provenance in its
    frontmatter — `generated: { by: "plainva-ai/<model-id>", at: <ISO-8601> }`
    and, where it answered from the vault or the web, `sources` — written once,
@@ -46,9 +49,9 @@ enough. The review runs in parallel and does not block (E33).
    existing note does not stamp the note: a note-level flag cannot say which
    passage the AI wrote and would mislabel the human text around it. The
    passage-level record is the suggestion history (item 2).
-5. **Encrypted workspaces:** the harness makes no proposals there until the
-   sealed comment path carries the author field (ADR 0017), so the marking can
-   never be lost in that path.
+5. **Encrypted workspaces:** the harness makes no proposals and writes no
+   replies there until the sealed comment path carries the author field
+   (ADR 0017), so the marking can never be lost in that path.
 6. The OKF trust fields are a critical write class (ADR 0019): the harness
    can never write `verified` with a `human:` actor or remove a `generated`
    stamp.

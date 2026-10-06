@@ -113,6 +113,8 @@ export interface AiVaultHostInput {
   propose?: AiVaultHost["propose"];
   /** True inside an encrypted workspace, whose sealed suggestions cannot carry an author yet (E32). */
   encrypted?: AiVaultHost["encrypted"];
+  /** Posts the assistant's reply into a comment thread (plan P3-6); absent where the shell cannot. */
+  reply?: AiVaultHost["reply"];
   /** The vault's folder entries and file bytes, for its own instructions (plan KI-Harness P3); absent, only the app's skills exist. */
   instructionIO?: InstructionIO;
   /** Writes and removes the workshop's skills (plan P3-5); absent, the workshop only reads. */
@@ -243,6 +245,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.gists ? { gists: input.gists } : {}),
     ...(input.propose ? { propose: input.propose } : {}),
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
+    ...(input.reply ? { reply: input.reply } : {}),
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
     tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>) {
       if (!input.toolDeps) return null;

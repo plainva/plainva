@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-06
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes to a passage you selected as suggestions — it never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -96,6 +96,12 @@ A suggestion action sends the selected passage alone — not the rest of the not
 
 A passage from a note your rules keep from the cloud — or one with links to such notes or with place stamps — goes to no cloud model. In an encrypted workspace the suggestion actions are not available yet: its suggestions cannot name the AI as their author yet.
 
+## In a comment thread
+
+Address the assistant in a comment and it answers in the thread. Type an **@** in the comment field and pick **AI** — the entry with the AI mark — or type the name yourself: **@AI**, **@KI** and **@IA** all reach it, whatever language the app speaks. Once your comment is sent, the thread shows the row **is writing a reply…** under **AI**; **Stop** ends it. The answer appears as a reply in the same thread, authored **Plainva AI · ⟨model⟩**. Unlike a suggestion it does not wait to be accepted — it is a remark beside the note, never text in it — and on the device that asked you delete it like one of your own.
+
+The thread goes to the model the way a question does: its comments, the passage it hangs on and the note itself, through the same overview. A comment thread is a kind of data of its own, so the overview asks the first time. Where your rules keep the note from the cloud, its comments do not go there either, and links in them to such notes are withheld. Only a comment you send on this device calls the assistant; one that arrives through sync never does, whatever it says. Web addresses the AI brings along itself — in a reply, a suggestion or a transcript — are written so that nothing opens or loads them (`https[://]…`); addresses your own text already contained stay as they are. In an encrypted workspace the assistant cannot be addressed yet: its comments cannot name the AI as their author yet.
+
 ## Skills
 
 Skills are instructions for recurring work. Ten come with Plainva — among them **Daily orientation**, **Weekly review** and **Project status** as chips in an empty conversation — and you can write or import your own. Start one with a click, or simply ask: the AI loads a matching skill by itself. Your own skills run only after you approved them on this device. Everything about them: [Skills](AI_Skills.md).
@@ -126,6 +132,6 @@ Conversations stay on this device, per vault — never in the vault and never sy
 
 - On the desktop the AI runs in the main window only.
 - On the phone an answer comes only while the app is open.
-- The assistant changes nothing itself: it proposes changes to a selected passage and transcripts of voice notes, as suggestions you accept or decline.
+- The assistant changes no note itself: it proposes changes to a selected passage and transcripts of voice notes, as suggestions you accept or decline; in a comment thread it writes a reply beside the note, never text in it.
 
 Feedback on the beta goes to the project's discussions on GitHub: **Feedback on the AI (Beta)** in the settings starts one.

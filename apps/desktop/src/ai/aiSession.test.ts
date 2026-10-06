@@ -657,3 +657,224 @@ describe("transcribing a voice note", () => {
     expect(vault.ledger().map((entry) => entry.stop)).toEqual(["failed", "answered"]);
   });
 });
+
+/** Plan KI-Harness P3-6 (§19.1 D): "@AI" in a comment thread, answered as a reply in the thread. */
+describe("answering in a comment thread", () => {
+  const passage = "The contract runs until the end of the year and renews itself.";
+  const at = "2026-09-24T09:00:00.000Z";
+  const request = {
+    path: "Contract.md",
+    rootCommentId: "c1",
+    quote: passage,
+    thread: [{ author: "Anna", body: "Does this renew by itself?", at }],
+    question: "What does the note say?",
+  };
+  type Reply = Parameters<NonNullable<AiVaultHost["reply"]>>[0];
+  type Round = Parameters<NonNullable<AiVaultHost["propose"]>>[0];
+
+  function replying(active: string | null = "Contract.md") {
+    const vault = vaultHost(active);
+    const replies: Reply[] = [];
+    vault.host.reply = async (reply) => {
+      replies.push(reply);
+    };
+    return { vault, replies };
+  }
+
+  it("asks with the thread, its passage and the note, and posts the answer as a reply under the model's name", async () => {
+    const { s, fake } = session([answer("It renews itself — see [[Contract]].")]);
+    await s.load();
+    const { vault, replies } = replying();
+    vault.host.tools = () => ({ names: ["search_vault", "read_note", "run_command"], executor: { execute: async () => ({ content: "unused" }) } });
+    await s.attachVault(vault.host);
+    await s.pin("Offer.md");
+    const outcome = await s.replyInThread(request);
+    expect(outcome).toEqual({ kind: "replied", conversationId: expect.any(String), model: "m-1" });
+
+    expect(fake.sent).toHaveLength(1);
+    const body = JSON.stringify(fake.sent[0]!.body);
+    expect(body).toContain("Does this renew by itself?");
+    expect(body).toContain(`Anna (${at})`);
+    expect(body).toContain("posted as a reply in this comment thread");
+    expect(body).toContain("What does the note say?");
+    // The thread's note goes along; what the composer's next message was given does not.
+    expect(body).toContain("Rates follow");
+    expect(body).not.toContain("Rates as in");
+    expect(s.getState().draftPins).toEqual(["Offer.md"]);
+
+    expect(replies).toEqual([
+      { path: "Contract.md", parentCommentId: "c1", body: "It renews itself — see [[Contract]].", author: { id: "plainva-ai/m-1", displayName: 'ai.suggestionAuthor {"model":"m-1"}' } },
+    ]);
+
+    // A conversation of its own, kept in the history, without skills; the send overview named the thread.
+    const saved = vault.saved.get(outcome.kind === "replied" ? outcome.conversationId : "")!;
+    expect(saved.title).toBe('ai.thread.title {"note":"Contract"}');
+    expect(saved.pins).toEqual(["Contract.md"]);
+    expect(saved.instructions).toBeUndefined();
+    // It reads the vault to answer; it does not open notes or views from a comment.
+    expect(saved.conversation.tools).toEqual(["search_vault", "read_note"]);
+    const manifest = saved.runs[0]!.manifest!;
+    expect(manifest.dataClasses).toContain("comments");
+    expect(manifest.sources[0]).toMatchObject({ path: "Contract.md", tier: "evidence", comments: 1 });
+    expect(manifest.sources.slice(1).some((source) => source.path === "Contract.md" && source.comments === undefined)).toBe(true);
+    // Read back from disk, the run's overview still names the thread.
+    const reread = await vault.host.conversations.load(saved.id);
+    expect(reread!.runs[0]!.manifest!.sources[0]).toMatchObject({ path: "Contract.md", comments: 1 });
+    expect(reread!.runs[0]!.manifest!.dataClasses).toContain("comments");
+  });
+
+  it("asks with the send overview first, naming the thread; leaving the note out keeps the thread, and declined, nothing goes", async () => {
+    const { s, fake } = session([answer("x")], { approve: false });
+    await s.load();
+    const { vault, replies } = replying();
+    await s.attachVault(vault.host);
+    const asked = consentAsked(s);
+    const pending = s.replyInThread(request);
+    await asked;
+    const consent = s.getState().consent!;
+    expect(consent.growth).toEqual([{ kind: "first" }]);
+    expect(consent.manifest.dataClasses).toContain("comments");
+    expect(consent.manifest.sources[0]).toMatchObject({ path: "Contract.md", comments: 1 });
+    expect(consent.manifest.sources.length).toBeGreaterThan(1);
+
+    const again = consentAsked(s);
+    s.leaveOutOfConsent("Contract.md");
+    await again;
+    expect(s.getState().consent!.manifest.sources).toEqual([expect.objectContaining({ path: "Contract.md", comments: 1 })]);
+
+    s.answerConsent(false);
+    expect(await pending).toEqual({ kind: "refused", reason: "cancelled" });
+    expect(fake.sent).toHaveLength(0);
+    expect(replies).toHaveLength(0);
+  });
+
+  it("names no thread in the overview when the remark brings nothing but the user's own words", async () => {
+    const { s } = session([answer("x")], { approve: false });
+    await s.load();
+    const { vault } = replying();
+    await s.attachVault(vault.host);
+    const asked = consentAsked(s);
+    const pending = s.replyInThread({ ...request, quote: null, thread: [] });
+    await asked;
+    const manifest = s.getState().consent!.manifest;
+    expect(manifest.dataClasses).not.toContain("comments");
+    expect(manifest.sources.every((source) => source.comments === undefined)).toBe(true);
+    s.answerConsent(false);
+    await pending;
+  });
+
+  it("refuses before anything goes out: no way to post, an encrypted workspace, a denied note, nothing asked, a run under way", async () => {
+    const { s, fake } = session([], { approve: false });
+    await s.load();
+    await s.attachVault(vaultHost("Contract.md").host);
+    expect(await s.replyInThread(request)).toEqual({ kind: "refused", reason: "off" });
+
+    const { vault, replies } = replying();
+    await s.attachVault(vault.host);
+    vault.host.encrypted = () => true;
+    expect(await s.replyInThread(request)).toEqual({ kind: "refused", reason: "encrypted" });
+    vault.host.encrypted = () => false;
+
+    // Where the note may not go, its comments do not go either.
+    expect(await s.replyInThread({ ...request, path: "Salaries.md" })).toEqual({ kind: "refused", reason: "denied" });
+    expect(await s.replyInThread({ ...request, quote: null, thread: [], question: "  " })).toEqual({ kind: "refused", reason: "empty" });
+
+    const asked = consentAsked(s);
+    const typed = s.send("Hello?");
+    await asked;
+    expect(await s.replyInThread(request)).toEqual({ kind: "refused", reason: "busy" });
+    s.answerConsent(false);
+    await typed;
+
+    expect(fake.sent).toHaveLength(0);
+    expect(replies).toHaveLength(0);
+  });
+
+  it("withholds a link to a note the rules keep back, in a remark as in a note", async () => {
+    const { s, fake } = session([answer("Fine.")]);
+    await s.load();
+    const { vault } = replying();
+    await s.attachVault(vault.host);
+    await s.replyInThread({ ...request, quote: "Rates as in [[Salaries]].", thread: [{ author: "Anna", body: "Compare with [[Salaries]] first.", at }] });
+    const body = JSON.stringify(fake.sent[0]!.body);
+    expect(body).toContain("Compare with ⟦withheld note⟧ first.");
+    expect(body).toContain("Rates as in ⟦withheld note⟧.");
+    expect(body).not.toContain("Salaries");
+  });
+
+  it("makes inert every address the model brought and keeps the ones the thread already had", async () => {
+    const { s } = session([answer("See https://evil.example/c?d=1 and https://docs.example/terms.")]);
+    await s.load();
+    const { vault, replies } = replying();
+    await s.attachVault(vault.host);
+    await s.replyInThread({ ...request, thread: [{ author: "Anna", body: "The terms are at https://docs.example/terms", at }] });
+    expect(replies.map((reply) => reply.body)).toEqual(["See https[://]evil.example/c?d=1 and https://docs.example/terms."]);
+  });
+
+  it("applies the same rule to a proposal, and says so in the round's note", async () => {
+    const contract = files["Contract.md"]!;
+    const from = contract.indexOf(passage);
+    const range = { path: "Contract.md", from, to: from + passage.length, text: passage, doc: contract };
+    const { s } = session([answer("The contract runs until the end of the year; details at https://evil.example/x?d=1")]);
+    await s.load();
+    const vault = vaultHost("Contract.md");
+    const rounds: Round[] = [];
+    vault.host.propose = async (round) => {
+      rounds.push(round);
+    };
+    await s.attachVault(vault.host);
+    expect(await s.proposeForSelection({ action: "rewrite", range })).toMatchObject({ kind: "proposed" });
+    let accepted = rounds[0]!.base;
+    for (const chunk of [...rounds[0]!.chunks].sort((a, b) => b.fromA - a.fromA)) accepted = accepted.slice(0, chunk.fromA) + chunk.replacement + accepted.slice(chunk.toA);
+    expect(accepted).toContain("details at https[://]evil.example/x?d=1");
+    expect(accepted).not.toContain("https://evil.example");
+    expect(rounds[0]!.note).toBe('ai.selection.roundNote.rewrite {"model":"m-1"} ai.lint.defused');
+  });
+
+  it("says what happened when the model writes nothing, the run fails, or the reply cannot be stored", async () => {
+    const { s } = session([answer("  "), [{ type: "httpError", status: 401, body: "{}" }], answer("An answer.")]);
+    await s.load();
+    const { vault, replies } = replying();
+    await s.attachVault(vault.host);
+    expect(await s.replyInThread(request)).toEqual({ kind: "refused", reason: "no-answer", conversationId: expect.any(String) });
+    expect(await s.replyInThread(request)).toEqual({ kind: "refused", reason: "failed", conversationId: expect.any(String) });
+    vault.host.reply = async () => {
+      throw new Error("comment-operation-pending");
+    };
+    // The answer exists: the history keeps it, and the outcome says where.
+    const lost = await s.replyInThread(request);
+    expect(lost).toEqual({ kind: "refused", reason: "post-failed", conversationId: expect.any(String), message: "comment-operation-pending" });
+    expect(JSON.stringify(vault.saved.get(lost.kind === "refused" ? (lost.conversationId ?? "") : "")!.conversation.turns)).toContain("An answer.");
+    expect(replies).toHaveLength(0);
+  });
+
+  it("asks the shell to show a conversation when the send overview waits and none is on screen", async () => {
+    const { s } = session([answer("x")], { approve: false });
+    await s.load();
+    const { vault } = replying();
+    await s.attachVault(vault.host);
+    let revealed = 0;
+    s.setReveal(() => {
+      revealed += 1;
+    });
+
+    // A conversation on screen answers the overview itself.
+    const unmount = s.mountSurface();
+    let asked = consentAsked(s);
+    let pending = s.replyInThread(request);
+    await asked;
+    expect(revealed).toBe(0);
+    s.answerConsent(false);
+    await pending;
+
+    // Unmounted (twice makes no difference): the door asks, and the shell shows the place to answer.
+    unmount();
+    unmount();
+    asked = consentAsked(s);
+    pending = s.replyInThread(request);
+    await asked;
+    expect(revealed).toBe(1);
+    s.answerConsent(false);
+    await pending;
+  });
+});

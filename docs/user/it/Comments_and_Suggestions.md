@@ -1,6 +1,6 @@
 # Commenti e suggerimenti
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazione, con o senza cifratura. In un workspace cifrato sono oggetti firmati (vedi [Sicurezza e condivisione](Security_and_Sharing.md)); ovunque altrove portano il nome impostato in **Il tuo nome (annotazioni e revisioni)** nelle impostazioni. Un suggerimento è un commento con un testo sostitutivo: entrambi passano dallo stesso archivio, dalla stessa colonna, dallo stesso foglio. Se il nome manca, Plainva lo chiede una volta al primo commento; senza risposta il dispositivo firma con la propria etichetta (ad esempio «Dispositivo Windows 4f3a»). Le tue annotazioni compaiono come **Tu**.
 
@@ -9,6 +9,8 @@ Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazi
 Commenter ottiene un editor di sola lettura con **Commenti** accanto. Seleziona un passaggio nel testo e scrivi la tua annotazione a fianco: il commento resta legato a quel passaggio e non al documento. Le risposte formano un thread, **Risolvi** lo archivia. I commenti e i marcatori di risoluzione sono essi stessi oggetti cifrati e firmati del workspace; la nota resta puro Markdown e nessuna risposta finisce nella sua cronologia versioni. La colonna si mostra e si nasconde con il pulsante **Commenti** nella barra della nota, che riporta il numero di discussioni aperte; Plainva ricorda la tua scelta per vault e altrimenti apre la colonna solo se la nota ha discussioni aperte. La sua intestazione conta, filtra (**Aperti** · **Tutti**) e silenzia; ogni scheda indica in alto chi ha scritto e quando, e mostra le azioni quando la passi col puntatore o la selezioni. Puoi **eliminare** il tuo commento o la tua proposta (cestino sulla scheda, la domanda viene posta lì); proprietari e amministratori possono eliminare quelli di chiunque. Eliminato significa nascosto per tutti: il record sigillato resta nell'archivio.
 
 Digita una **@** nel campo del commento e Plainva propone i membri del workspace; sceglierne uno scrive il nome nel commento come testo normale. Un thread che ti nomina risale in cima alla colonna e porta il contrassegno **Ti menziona** — un thread risolto no, non richiede più attenzione. Le menzioni non vengono mai memorizzate: sono lette dal testo al momento della visualizzazione. Se qualcuno cambia nome, i vecchi commenti seguono quello nuovo; se lascia il workspace, l'evidenziazione scompare e il testo digitato resta esattamente com'è.
+
+Dove l'assistente IA è attivo, la **@** propone anche lui: a un commento che si rivolge a **@IA** l'assistente risponde nello stesso thread, con la riga dell'autore **Plainva IA · ⟨modello⟩** — vedi [Assistente IA](AI_Assistant.md). Non ancora in un workspace cifrato.
 
 Perché un commento ritrovi il suo passaggio anche dopo modifiche successive, Plainva lo circonda di commenti HTML invisibili. Gli altri editor non li mostrano; chi preferisce non averli nei propri file disattiva **Segna nella nota i passaggi commentati** in **Contenuto e struttura**: Plainva individua allora il passaggio tramite il testo citato. Se non si ritrova più, il commento lo dice invece di puntare a caso. In modalità **Live** questi marcatori sono invisibili, anche nella riga in cui stai scrivendo; il cursore li salta. Solo la modalità **Sorgente** li mostra.
 

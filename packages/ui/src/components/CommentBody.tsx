@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { isAiMentionId } from "../lib/aiMention";
 import { parseCommentMentions } from "../lib/commentMentions";
 import { parseInlineMarkdown } from "../lib/inlineMarkdown";
 import { renderInlineNodes } from "../lib/inlineReact";
@@ -32,7 +33,8 @@ export function CommentBody({ body, names, onOpenNote, onOpenUrl }: CommentBodyP
     <span className="pv-comment-card__body">
       {parseCommentMentions(body, names).map((segment, index) =>
         segment.kind === "mention" ? (
-          <span key={index} className="pv-comment-card__mention" data-tip={segment.memberId}>
+          // A member's mention names the id behind the name; the assistant has none to show.
+          <span key={index} className="pv-comment-card__mention" data-tip={isAiMentionId(segment.memberId) ? undefined : segment.memberId}>
             {segment.text}
           </span>
         ) : (

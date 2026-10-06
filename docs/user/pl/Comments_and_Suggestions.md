@@ -1,6 +1,6 @@
 # Komentarze i propozycje
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Komentarze i propozycje istnieją w **każdym** sejfie — z synchronizacją lub bez, z szyfrowaniem lub bez. W szyfrowanym workspace są podpisanymi obiektami (zob. [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md)); wszędzie indziej noszą imię z pola **Twoje imię (uwagi i przeglądy)** w ustawieniach. Propozycja to komentarz z tekstem zastępczym: oba przechodzą przez ten sam magazyn, tę samą kolumnę, ten sam arkusz. Jeśli imienia brakuje, Plainva pyta o nie raz przy pierwszym komentarzu; bez odpowiedzi urządzenie podpisuje własną etykietą (np. „Urządzenie Windows 4f3a”). Twoje własne uwagi widnieją jako **Ty**.
 
@@ -9,6 +9,8 @@ Komentarze i propozycje istnieją w **każdym** sejfie — z synchronizacją lub
 Commenter otrzymuje edytor tylko do odczytu z panelem **Komentarze** obok. Zaznacz fragment tekstu i dopisz swoją uwagę — komentarz zostaje przy tym fragmencie, a nie przy całym dokumencie. Odpowiedzi tworzą wątek, a **Rozwiąż** go zamyka. Komentarze i znaczniki rozwiązania same są zaszyfrowanymi, podpisanymi obiektami workspace'u; notatka pozostaje czystym Markdownem, a żadna odpowiedź nie trafia do jej historii wersji. Kolumnę pokazujesz i ukrywasz przyciskiem **Komentarze** na pasku notatki — nosi on liczbę otwartych wątków; Plainva zapamiętuje Twój wybór dla każdego vaulta, a poza tym otwiera kolumnę tylko wtedy, gdy notatka ma otwarte wątki. Jej nagłówek liczy, filtruje (**Otwarte** · **Wszystkie**) i wycisza; każda karta podaje u góry, kto i kiedy napisał, a swoje akcje pokazuje po najechaniu lub zaznaczeniu. Własny komentarz lub propozycję możesz **usunąć** (kosz na karcie, pytanie pada w tym samym miejscu); właściciele i administratorzy mogą usuwać wszystkie. Usunięte znaczy ukryte dla wszystkich — zapieczętowany rekord pozostaje w magazynie.
 
 Wpisz **@** w polu komentarza, a Plainva zaproponuje członków przestrzeni; wybór wpisuje nazwę do komentarza jako zwykły tekst. Wątek, w którym pada Twoje imię, przesuwa się na górę kolumny i nosi oznaczenie **Wspomina Cię** — wątek rozwiązany już nie, nie wymaga więcej uwagi. Wzmianki nie są nigdzie zapisywane, tylko odczytywane z tekstu przy wyświetlaniu: gdy ktoś zmieni nazwę, stare komentarze podążają za nową; gdy opuści przestrzeń, wyróżnienie znika, a wpisany tekst zostaje dokładnie taki, jaki był.
+
+Tam, gdzie asystent AI jest włączony, **@** proponuje także jego: na komentarz skierowany do **@AI** asystent odpowiada w tym samym wątku, z wierszem autora **Plainva AI · ⟨model⟩** — zobacz [Asystent AI](AI_Assistant.md). Jeszcze nie w zaszyfrowanej przestrzeni.
 
 Aby komentarz odnalazł swój fragment także po późniejszych zmianach, Plainva otacza go niewidocznymi komentarzami HTML. Inne edytory ich nie pokazują; kto mimo to nie chce ich w swoich plikach, wyłącza **Oznaczaj skomentowane fragmenty w notatce** w sekcji **Treść i struktura** — wtedy Plainva szuka fragmentu po cytowanym tekście. Jeśli nie da się go już znaleźć, komentarz to mówi, zamiast wskazywać gdziekolwiek. W trybie **Na żywo** te znaczniki są niewidoczne — także w wierszu, w którym właśnie piszesz; kursor je przeskakuje. Pokazuje je tylko tryb **Źródło**.
 

@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-10-01
+Stand: 2026-10-06
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen an einer markierten Stelle als Vorschläge vor — eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -96,6 +96,12 @@ Eine Vorschlags-Aktion sendet nur die markierte Stelle — nicht den Rest der No
 
 Eine Stelle aus einer Notiz, die Deine Regeln von der Cloud fernhalten — oder eine mit Links auf solche Notizen oder mit Ortsangaben —, geht an kein Cloud-Modell. In einem verschlüsselten Workspace gibt es die Vorschlags-Aktionen noch nicht: seine Vorschläge können die KI noch nicht als Autor nennen.
 
+## Im Kommentar-Faden
+
+Sprich den Assistenten in einem Kommentar an, und er antwortet im Faden. Tippe im Kommentarfeld ein **@** und wähle **KI** — den Eintrag mit dem KI-Zeichen — oder schreib den Namen selbst: **@KI**, **@AI** und **@IA** erreichen ihn alle, gleich in welcher Sprache die App läuft. Sobald Dein Kommentar gesendet ist, zeigt der Faden unter **KI** die Zeile **schreibt eine Antwort…**; **Stopp** beendet das. Die Antwort erscheint als Antwort im selben Faden, mit der Autorzeile **Plainva KI · ⟨Modell⟩**. Anders als ein Vorschlag wartet sie nicht darauf, übernommen zu werden — sie ist eine Anmerkung neben der Notiz, nie Text in ihr —, und auf dem Gerät, das gefragt hat, löschst Du sie wie eine eigene.
+
+Der Faden geht an das Modell wie eine Frage: seine Kommentare, die Stelle, an der er hängt, und die Notiz selbst, über dieselbe Übersicht. Ein Kommentar-Faden ist eine eigene Art von Daten, deshalb fragt die Übersicht beim ersten Mal. Wo Deine Regeln die Notiz von der Cloud fernhalten, gehen auch ihre Kommentare nicht dorthin, und Links darin auf solche Notizen werden zurückgehalten. Nur ein Kommentar, den Du auf diesem Gerät sendest, ruft den Assistenten; einer, der per Sync ankommt, tut es nie, was auch immer darin steht. Internetadressen, die die KI von sich aus mitbringt — in einer Antwort, einem Vorschlag oder einem Transkript —, werden so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`); Adressen, die Dein eigener Text schon enthielt, bleiben, wie sie sind. In einem verschlüsselten Workspace lässt sich der Assistent noch nicht ansprechen: seine Kommentare können die KI noch nicht als Autor nennen.
+
 ## Skills
 
 Skills sind Anleitungen für wiederkehrende Arbeit. Zehn kommen mit Plainva — darunter **Tagesorientierung**, **Wochenrückblick** und **Projektstatus** als Chips in einem leeren Gespräch —, eigene kannst Du schreiben oder importieren. Starte einen mit einem Klick oder frag einfach: die KI lädt einen passenden Skill selbst. Eigene Skills laufen erst, wenn Du sie auf diesem Gerät freigegeben hast. Alles dazu: [Skills](AI_Skills.md).
@@ -126,6 +132,6 @@ Gespräche bleiben auf diesem Gerät, je Vault — nie im Vault und nie synchron
 
 - Am Desktop läuft die KI nur im Hauptfenster.
 - Am Telefon kommt eine Antwort nur, solange die App geöffnet ist.
-- Der Assistent ändert nichts selbst: Änderungen an einer markierten Stelle und Transkripte von Sprachnotizen schlägt er vor, als Vorschläge, die Du übernimmst oder ablehnst.
+- Der Assistent ändert keine Notiz selbst: Änderungen an einer markierten Stelle und Transkripte von Sprachnotizen schlägt er vor, als Vorschläge, die Du übernimmst oder ablehnst; in einem Kommentar-Faden schreibt er eine Antwort neben die Notiz, nie Text in sie.
 
 Rückmeldungen zur Beta gehen in die Diskussionen des Projekts auf GitHub: **Rückmeldung zur KI (Beta)** in den Einstellungen beginnt eine.

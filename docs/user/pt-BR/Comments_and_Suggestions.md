@@ -1,6 +1,6 @@
 # Comentários e sugestões
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Comentários e sugestões existem em **todo** cofre — com ou sem sincronização, com ou sem criptografia. Em um workspace criptografado são objetos assinados (veja [Segurança e compartilhamento](Security_and_Sharing.md)); em todos os outros levam o nome de **Seu nome (anotações e revisões)** nas configurações. Uma sugestão é um comentário com um texto de substituição: ambos passam pelo mesmo armazenamento, pela mesma coluna, pela mesma folha. Se o nome faltar, o Plainva pergunta uma vez no primeiro comentário; sem resposta, o dispositivo assina com o próprio rótulo (por exemplo “Dispositivo Windows 4f3a”). Suas próprias anotações aparecem como **Você**.
 
@@ -9,6 +9,8 @@ Comentários e sugestões existem em **todo** cofre — com ou sem sincronizaç�
 Commenter recebe um editor somente leitura com **Comentários** ao lado. Selecione um trecho do texto e escreva sua observação ao lado — o comentário fica preso a esse trecho e não ao documento. As respostas formam um tópico e **Resolver** o arquiva. Os comentários e os marcadores de resolução são, eles mesmos, objetos criptografados e assinados do workspace; a nota continua sendo Markdown puro e nenhuma resposta vai parar no seu histórico de versões. A coluna aparece e some com o botão **Comentários** na barra da nota — ele mostra o número de conversas abertas; o Plainva lembra sua escolha por vault e, fora isso, abre a coluna só quando a nota tem conversas abertas. O cabeçalho conta, filtra (**Abertos** · **Todos**) e silencia; cada cartão diz no topo quem escreveu e quando, e mostra suas ações ao passar o mouse ou selecioná-lo. Você pode **excluir** seu próprio comentário ou sugestão (lixeira no cartão, a pergunta é feita ali mesmo); proprietários e administradores podem excluir os de qualquer pessoa. Excluído significa oculto para todos — o registro selado permanece no armazenamento.
 
 Digite um **@** no campo de comentário e o Plainva sugere os membros do workspace; escolher um escreve o nome no comentário como texto comum. Um tópico que cita você sobe para o topo da coluna e recebe a marca **Menciona você** — um tópico resolvido não, ele não precisa mais de atenção. Menções nunca são armazenadas: elas são lidas do texto na hora de exibi-lo. Se alguém mudar de nome, comentários antigos seguem o novo; se sair do workspace, o destaque some e o texto digitado permanece exatamente como estava.
+
+Onde o assistente de IA está ativado, o **@** também o oferece: a um comentário que se dirige a **@IA** o assistente responde no mesmo tópico, com a linha de autor **Plainva IA · ⟨modelo⟩** — veja [Assistente de IA](AI_Assistant.md). Ainda não em um workspace criptografado.
 
 Para que um comentário reencontre seu trecho mesmo após alterações posteriores, o Plainva o envolve em comentários HTML invisíveis. Outros editores não os exibem; quem preferir não tê-los nos seus arquivos desativa **Marcar os trechos comentados na nota** em **Conteúdo e estrutura** — o Plainva passa então a localizar o trecho pelo texto citado. Se ele não for mais encontrado, o comentário diz isso em vez de apontar para qualquer lugar. No modo **Ao vivo** esses marcadores ficam invisíveis — mesmo na linha em que você está digitando; o cursor pula por cima deles. Só o modo **Fonte** os mostra.
 

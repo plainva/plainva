@@ -3,7 +3,7 @@ import { PublicationFeedback, publicationFeedbackCounts, CommentLegacyLock, type
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, groupSuggestionRounds, ICON, IconButton, isCommentThreadOpen, MentionTextArea, Segmented, SuggestionDiff, toAnchorDisplayHint, type AnchorCellPlace, type CommentThread, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
+import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, composerNames, groupSuggestionRounds, ICON, IconButton, isAiAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type AnchorCellPlace, type CommentThread, type CommentThreadAi, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -90,6 +90,13 @@ export interface CommentsSheetProps {
    */
   locked?: { onUnlock(): void; workspace?: boolean };
   legacyLocked?: { onUnlock(): void };
+  /**
+   * The assistant in the threads (plan KI-Harness P3-6): "@" offers it, and
+   * the thread it is answering shows that it is. Absent where it cannot
+   * answer - the AI is off on this phone, or the remarks are sealed. A
+   * mention written elsewhere is still drawn as one either way.
+   */
+  ai?: CommentThreadAi | null;
 }
 
 /**
@@ -140,8 +147,15 @@ export function CommentsSheet({
   onToggleMute,
   locked,
   legacyLocked,
+  ai = null,
 }: CommentsSheetProps) {
   const { t, i18n } = useTranslation();
+  const aiLabel = t("ai.title");
+  const aiOffered = ai !== null;
+  /** What a card reads mentions against: the members, and the assistant in every spelling. */
+  const cardNames = useMemo(() => namesWithAi(memberNames, aiLabel), [memberNames, aiLabel]);
+  /** What the field offers after an "@": the people, and the assistant where it can answer. */
+  const fieldNames = useMemo(() => composerNames(memberNames, aiLabel, aiOffered), [memberNames, aiLabel, aiOffered]);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
@@ -189,7 +203,9 @@ export function CommentsSheet({
     nameOf(round.blocks[0].root);
   /** Same question in the card as on the desktop (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && !record.legacyPending && ((!record.legacyOrigin && record.authorMemberId === selfMemberId) || canModerate === true);
+  // What the assistant wrote from this phone is this phone's to delete: the store judges a retraction by the writer.
+  const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && !record.legacyPending
+    && ((!record.legacyOrigin && (record.authorMemberId === selfMemberId || (isAiAuthorId(record.authorMemberId) && record.authorDeviceId === selfMemberId))) || canModerate === true);
   const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
     <IconButton label={t("comments.commentDelete")} onClick={() => setConfirmDelete(confirmDelete === record.commentId ? null : record.commentId)}>
       <Trash2 size={ICON.touch} />
@@ -213,6 +229,11 @@ export function CommentsSheet({
       await onSubmit(text, replyTo);
       setBody("");
       setReplyTo(null);
+    } catch (error) {
+      // A refused post was an unhandled rejection here: the draft stayed and
+      // nothing said why. The desktop column has shown the reason since K6
+      // (finding 2026-09-03); the sheet says it now too (finding 2026-10-06).
+      toast.error(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }
@@ -279,7 +300,7 @@ export function CommentsSheet({
                     {anchorText(root)}
                   </button>
                 )}
-                {root.body && <CommentBody body={root.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />}
+                {root.body && <CommentBody body={root.body} names={cardNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />}
                 {state && root.suggestion && (
                   <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("comments.suggestionDeletes")} />
                 )}
@@ -288,11 +309,12 @@ export function CommentsSheet({
                     <CommentCardHead name={nameOf(reply)} initials={authorInitials(memberNames.get(commentAuthorKey(reply)) ?? nameOf(reply))} memberId={commentAuthorKey(reply)} createdAt={commentCreatedAt(reply)} locale={i18n.language} />
                     <CommentProvenance comment={reply} />
                     <CommentDeliveryState comment={reply} own={reply.authorMemberId === selfMemberId} onRetry={onRetryPending} onDiscard={onDiscardPending} />
-                    <CommentBody body={reply.body} names={memberNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
+                    <CommentBody body={reply.body} names={cardNames} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
                     {mayDelete(reply) && <div className="pv-comment-card__actions">{deleteControl(reply)}</div>}
                     {confirmBox(reply, 0)}
                   </div>
                 ))}
+                {ai?.replyingTo === root.commentId && <CommentAiPending label={ai.label} onStop={ai.stop} />}
                 {state === "conflict" && <CommentDecisionConflict onReview={canComment && !root.legacyPending && !root.pending && onReviewDecision ? () => onReviewDecision(root) : undefined} />}
                 {state === "open" && !root.legacyPending && !root.pending && (canWrite || canComment) && (
                   // The decision is its own row (finding 2026-09-03, desktop
@@ -421,10 +443,11 @@ export function CommentsSheet({
           <div className="pv-comment-compose">
             <MentionTextArea
               aria-label={t(replyTo ? "comments.commentReply" : "workspaceSecurity.addComment")}
-              names={memberNames}
+              names={fieldNames}
+              aiHint={t("ai.thread.mentionHint")}
               onChange={setBody}
               pickerLabel={t("comments.commentMentionPicker")}
-              placeholder={t(replyTo ? "comments.commentReplyPlaceholder" : "workspaceSecurity.addComment")}
+              placeholder={replyTo ? t("comments.commentReplyPlaceholder") : aiOffered ? t("ai.thread.composer") : t("workspaceSecurity.addComment")}
               rows={3}
               value={body}
             />

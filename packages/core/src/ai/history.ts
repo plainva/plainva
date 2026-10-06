@@ -255,9 +255,10 @@ function readManifest(raw: unknown): EgressManifest | null {
               chars: count(s.chars),
               ...(s.unchanged ? { unchanged: true } : {}),
               reasons: strings(s.reasons) as EgressManifest["sources"][number]["reasons"],
-              // What the run's overview showed for it: the passage, the recording, the gist, the hint.
+              // What the run's overview showed for it: the passage, the recording, the thread, the gist, the hint.
               ...(s.selection ? { selection: true } : {}),
               ...(typeof s.audioBytes === "number" && s.audioBytes >= 0 ? { audioBytes: s.audioBytes } : {}),
+              ...(typeof s.comments === "number" && s.comments >= 0 ? { comments: Math.floor(s.comments) } : {}),
               ...(s.gist ? { gist: true } : {}),
               ...(kinds(s.sensitive).length ? { sensitive: kinds(s.sensitive) } : {}),
               ...(count(s.redacted) ? { redacted: count(s.redacted) } : {}),

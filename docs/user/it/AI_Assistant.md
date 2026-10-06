@@ -1,6 +1,6 @@
 # Assistente IA (Beta)
 
-Ultimo aggiornamento: 2026-10-01
+Ultimo aggiornamento: 2026-10-06
 
 Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa, apre note e viste per te e propone modifiche a un passaggio selezionato come proposte — non cambia mai una nota da solo. L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
 
@@ -96,6 +96,12 @@ Un'azione di proposta invia solo il passaggio selezionato — non il resto della
 
 Un passaggio di una nota che le tue regole tengono lontana dal cloud — o uno con link a note del genere o con indicazioni di luogo — non va a nessun modello cloud. In un workspace cifrato le azioni di proposta non sono ancora disponibili: le sue proposte non possono ancora indicare l'IA come autore.
 
+## In un thread di commenti
+
+Rivolgiti all'assistente in un commento e lui risponde nel thread. Digita una **@** nel campo del commento e scegli **IA** — la voce con il simbolo dell'IA — oppure scrivi tu stesso il nome: **@IA**, **@AI** e **@KI** lo raggiungono tutti, qualunque sia la lingua dell'app. Appena il tuo commento è inviato, il thread mostra sotto **IA** la riga **sta scrivendo una risposta…**; **Interrompi** la ferma. La risposta compare come risposta nello stesso thread, con la riga dell'autore **Plainva IA · ⟨modello⟩**. A differenza di una proposta non aspetta di essere accettata — è un'annotazione accanto alla nota, mai testo al suo interno — e sul dispositivo che ha fatto la domanda la elimini come una tua.
+
+Il thread va al modello come una domanda: i suoi commenti, il passaggio a cui è legato e la nota stessa, attraverso lo stesso riepilogo. Un thread di commenti è un tipo di dati a sé, perciò il riepilogo chiede la prima volta. Dove le tue regole tengono la nota lontana dal cloud, nemmeno i suoi commenti ci vanno, e i link che contengono verso note di quel tipo vengono trattenuti. Solo un commento che invii su questo dispositivo chiama l'assistente; uno che arriva con la sincronizzazione non lo fa mai, qualunque cosa dica. Gli indirizzi web che l'IA porta di sua iniziativa — in una risposta, in una proposta o in una trascrizione — vengono scritti in modo che nulla li apra o li carichi (`https[://]…`); gli indirizzi che il tuo testo conteneva già restano come sono. In un workspace cifrato non ci si può ancora rivolgere all'assistente: i suoi commenti non possono ancora indicare l'IA come autore.
+
 ## Competenze
 
 Le competenze sono istruzioni per lavori ricorrenti. Dieci sono incluse in Plainva — tra cui **Orientamento del giorno**, **Riepilogo settimanale** e **Stato del progetto** come chip in una conversazione vuota — e puoi scriverne o importarne di tue. Avviane una con un clic, oppure chiedi semplicemente: l'IA carica da sola una competenza adatta. Le tue competenze si eseguono solo dopo che le hai approvate su questo dispositivo. Tutto su di esse: [Competenze](AI_Skills.md).
@@ -126,6 +132,6 @@ Le conversazioni restano su questo dispositivo, per vault — mai nel vault e ma
 
 - Sul desktop l'IA funziona solo nella finestra principale.
 - Sul telefono una risposta arriva solo mentre l'app è aperta.
-- L'assistente non cambia nulla da solo: propone modifiche a un passaggio selezionato e trascrizioni di note vocali, come proposte che accetti o rifiuti.
+- L'assistente non cambia nessuna nota da solo: propone modifiche a un passaggio selezionato e trascrizioni di note vocali, come proposte che accetti o rifiuti; in un thread di commenti scrive una risposta accanto alla nota, mai testo al suo interno.
 
 Il feedback sulla beta va nelle discussioni del progetto su GitHub: **Feedback sull'IA (beta)** nelle impostazioni ne apre una.

@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-10-01
+Stan na: 2026-10-06
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany w zaznaczonym fragmencie jako propozycje — sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -96,6 +96,12 @@ Akcja propozycji wysyła wyłącznie zaznaczony fragment — nie resztę notatki
 
 Fragment notatki, którą Twoje reguły trzymają z dala od chmury — albo fragment z linkami do takich notatek lub z danymi o miejscach — nie trafia do żadnego modelu w chmurze. W zaszyfrowanym obszarze roboczym akcje propozycji nie są jeszcze dostępne: propozycje w nim nie mogą jeszcze wskazać AI jako autora.
 
+## W wątku komentarzy
+
+Zwróć się do asystenta w komentarzu, a odpowie w wątku. Wpisz **@** w polu komentarza i wybierz **AI** — pozycję ze znakiem AI — albo wpisz nazwę samodzielnie: **@AI**, **@KI** i **@IA** docierają do niego niezależnie od języka aplikacji. Gdy Twój komentarz zostanie wysłany, wątek pokazuje pod **AI** wiersz **pisze odpowiedź…**; **Zatrzymaj** to przerywa. Odpowiedź pojawia się jako odpowiedź w tym samym wątku, z wierszem autora **Plainva AI · ⟨model⟩**. Inaczej niż propozycja nie czeka na zaakceptowanie — jest uwagą obok notatki, nigdy tekstem w niej — a na urządzeniu, które zadało pytanie, usuwasz ją jak własną.
+
+Wątek trafia do modelu tak jak pytanie: jego komentarze, fragment, do którego jest przypięty, i sama notatka, przez ten sam przegląd. Wątek komentarzy to osobny rodzaj danych, więc przegląd pyta za pierwszym razem. Tam, gdzie Twoje reguły trzymają notatkę z dala od chmury, nie trafiają tam również jej komentarze, a zawarte w nich linki do takich notatek są wstrzymywane. Asystenta wywołuje tylko komentarz wysłany na tym urządzeniu; komentarz, który przychodzi przez synchronizację, nigdy tego nie robi, cokolwiek zawiera. Adresy internetowe, które AI wnosi od siebie — w odpowiedzi, propozycji lub transkrypcji — są zapisywane tak, aby nic ich nie otwierało ani nie wczytywało (`https[://]…`); adresy, które zawierał już Twój własny tekst, zostają bez zmian. W zaszyfrowanej przestrzeni nie można jeszcze zwrócić się do asystenta: jej komentarze nie mogą jeszcze wskazać AI jako autora.
+
 ## Umiejętności
 
 Umiejętności to instrukcje do powtarzalnej pracy. Dziesięć jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
@@ -126,6 +132,6 @@ Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i n
 
 - Na komputerze AI działa tylko w głównym oknie.
 - Na telefonie odpowiedź pojawia się tylko, gdy aplikacja jest otwarta.
-- Asystent sam niczego nie zmienia: proponuje zmiany w zaznaczonym fragmencie i transkrypcje notatek głosowych, jako propozycje do zaakceptowania lub odrzucenia.
+- Asystent sam nie zmienia żadnej notatki: proponuje zmiany w zaznaczonym fragmencie i transkrypcje notatek głosowych, jako propozycje do zaakceptowania lub odrzucenia; w wątku komentarzy pisze odpowiedź obok notatki, nigdy tekst w niej.
 
 Opinie o wersji beta trafiają do dyskusji projektu na GitHubie: **Opinie o AI (beta)** w ustawieniach rozpoczyna nową.

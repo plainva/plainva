@@ -18,6 +18,7 @@ import {
   noteDisplayName,
   parseRecentsFile,
   plannerRowsFromTasks,
+  postThreadReply,
   proposeSuggestionRound,
   createAudioTranscriber,
   resolveAudioPath,
@@ -244,6 +245,13 @@ export function useMobileAi(vault: MobileVault | null) {
     window.addEventListener(SHEET_EVENT, onSheet);
     return () => window.removeEventListener(SHEET_EVENT, onSheet);
   }, []);
+  // A door outside the conversation ("Transcribe" at a voice note, "@AI" in a
+  // comment thread) may need the send overview while no conversation shows:
+  // then the sheet opens over the note the AI was last pointed at.
+  useEffect(() => {
+    s.setReveal(() => openAiSheet(sheetNote));
+    return () => s.setReveal(null);
+  }, [s]);
 
   const navRef = useRef<MobileAiNavigation>({ openNote: () => undefined, areas: {} });
   // The AI's trail (plan KI-Harness P2b-5): the graph opens for it, and the graph screen takes the trail.
@@ -326,6 +334,9 @@ export function useMobileAi(vault: MobileVault | null) {
       readNote: note,
       async propose(round) {
         await proposeSuggestionRound(mobileCommentOperations(vault), round);
+      },
+      async reply(reply) {
+        await postThreadReply(mobileCommentOperations(vault), reply);
       },
       encrypted: () => vault.workspaceRuntime !== null,
       gists: () => gistsRef.current?.reader() ?? null,

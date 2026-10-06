@@ -36,7 +36,7 @@ import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
 import { Button as UiButton, TextInput } from "@plainva/ui";
-import { IconButton, isCommentThreadOpen } from "@plainva/ui";
+import { IconButton, isCommentThreadOpen, useAiSession, useCommentThreadAi } from "@plainva/ui";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -372,6 +372,8 @@ export const Editor: React.FC<{
   // A name is a CLAIM the policy carries, not a verified identity - the card
   // keeps the member id reachable, so nobody has to take the name on faith.
   const memberNames = useMemo(() => new Map(workspaceMembers.map((member) => [member.memberId, member.displayName])), [workspaceMembers]);
+  // The assistant in this note's comment threads (plan KI-Harness P3-6); not where the remarks are sealed.
+  const threadAi = useCommentThreadAi(useAiSession(), activePath, { sealed: workspaceSecurityStatus !== null });
 
   /**
    * Where each anchored comment currently lands, in RAW offsets - which is what
@@ -2868,12 +2870,14 @@ export const Editor: React.FC<{
         intended = insertAnchorMarkers(snapshot.text, resolved.from, resolved.to, anchor.markerId!);
     }
     if (suggestion && !anchor?.quote) throw new Error("workspace-suggestion-needs-selection");
-    await runCommentInput({ notePath: activePath, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
+    const operation = await runCommentInput({ notePath: activePath, kind: "post", text: intended === snapshot.text ? null : { before: snapshot.text, intended },
       markers: [{ path: activePath, body, parentCommentId, ...(parent?.targetRevisionId ? { targetObjectId: parent.targetObjectId } : {}), anchor, suggestion }] }, snapshot);
     if (snapshot.current() || (saveState.isActive() && sessionRef.current?.view === view)) {
       if (propertyTargetRef.current === parkedProperty) propertyTargetRef.current = null;
       if (commentTargetRef.current === parked) commentTargetRef.current = null;
     }
+    // "@AI" in the remark (plan KI-Harness P3-6): the assistant answers in the thread.
+    if (!suggestion) threadAi.answer({ commentId: operation.markers[0]!.identity.commentId, parentCommentId, body, quote: anchor?.quote ?? null }, { comments: workspaceComments, names: memberNames, selfId: commentSelfId });
   });
   const decideComments = useStableHandler(async (comments: WorkspaceCommentRecord[], outcome: "applied" | "declined") => {
     if (!activePath || !comments.length) return;
@@ -3711,6 +3715,7 @@ export const Editor: React.FC<{
           selectionQuote={selectionQuote}
           onSelect={selectCommentFromColumn}
           onSubmit={postComment}
+          ai={threadAi.ai}
           canWrite={!workspaceReadOnly}
           canModerate={workspaceCapabilities?.includes("workspace.manage") === true}
           onDelete={(comment) => { void deleteComment(comment); }}

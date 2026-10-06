@@ -107,6 +107,10 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
   const form = (source: ManifestSource) =>
     source.audioBytes !== undefined
       ? t("ai.overview.evidenceAudio", { size: megabytes(source.audioBytes) })
+      : source.comments !== undefined
+      ? source.comments > 0
+        ? t("ai.thread.evidence", { count: source.comments })
+        : t("ai.thread.evidencePassage")
       : source.selection
       ? t("ai.overview.evidenceSelection")
       : source.unchanged
@@ -169,8 +173,9 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             t("ai.overview.noNotes")
           ) : (
             <ul className="pv-ai-overview-sources">
-              {manifest.sources.map((source) => (
-                <li key={source.path} className={cx(Boolean(source.sensitive?.length) && "pv-ai-overview-source--hint")}>
+              {manifest.sources.map((source, index) => (
+                // A note and the comment thread on it are two rows with one path (plan P3-6).
+                <li key={`${index}:${source.path}`} className={cx(Boolean(source.sensitive?.length) && "pv-ai-overview-source--hint")}>
                   {onOpenNote ? (
                     <Button size="sm" variant="ghost" className="pv-ai-overview-note" onClick={() => onOpenNote(source.path)}>
                       {source.title}
@@ -179,12 +184,13 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
                     <span className="pv-ai-overview-note">{source.title}</span>
                   )}
                   <span className="pv-ai-overview-form">{form(source)}</span>
-                  {onLeaveOut && (
+                  {/* The thread is what was asked about: it goes, or the request is cancelled. */}
+                  {onLeaveOut && source.comments === undefined && (
                     <IconButton size="sm" label={t("ai.overview.leaveOut", { note: source.title })} onClick={() => onLeaveOut(source.path)}>
                       <Minus size={ICON.meta} />
                     </IconButton>
                   )}
-                  {source.sensitive && source.sensitive.length > 0 && sensitiveLine(source.path, source.sensitive, Boolean(source.redacted), !source.selection)}
+                  {source.sensitive && source.sensitive.length > 0 && sensitiveLine(source.path, source.sensitive, Boolean(source.redacted), !source.selection && source.comments === undefined)}
                 </li>
               ))}
             </ul>

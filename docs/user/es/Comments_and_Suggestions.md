@@ -1,6 +1,6 @@
 # Comentarios y sugerencias
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Los comentarios y las sugerencias existen en **todo** vault — con o sin sincronización, con o sin cifrado. En un workspace cifrado son objetos firmados (ver [Seguridad y uso compartido](Security_and_Sharing.md)); en todos los demás llevan el nombre de **Tu nombre (anotaciones y revisiones)** en los ajustes. Una sugerencia es un comentario con un texto de reemplazo: ambos pasan por el mismo almacén, la misma columna, la misma hoja. Si falta el nombre, Plainva lo pregunta una vez en el primer comentario; sin respuesta, el dispositivo firma con su propia etiqueta (por ejemplo «Dispositivo Windows 4f3a»). Tus propias anotaciones aparecen como **Tú**.
 
@@ -9,6 +9,8 @@ Los comentarios y las sugerencias existen en **todo** vault — con o sin sincro
 Commenter obtiene un editor de solo lectura con **Comentarios** al lado. Selecciona un pasaje del texto y escribe tu anotación junto a él: el comentario queda anclado a ese pasaje y no al documento. Las respuestas forman un hilo y **Resolver** lo archiva. Los comentarios y las marcas de resolución son, ellos mismos, objetos cifrados y firmados del workspace; la nota sigue siendo Markdown puro y ninguna respuesta acaba en su historial de versiones. La columna se muestra u oculta con el botón **Comentarios** de la barra de la nota, que lleva el número de hilos abiertos; Plainva recuerda tu elección por vault y, si no, abre la columna solo cuando la nota tiene hilos abiertos. Su cabecera cuenta, filtra (**Abiertos** · **Todos**) y silencia; cada tarjeta indica arriba quién escribió y cuándo, y muestra sus acciones al pasar el cursor o seleccionarla. Puedes **eliminar** tu propio comentario o sugerencia (papelera en la tarjeta, la pregunta se hace allí mismo); propietarios y administradores pueden eliminar cualquiera. Eliminado significa oculto para todos: el registro sellado permanece en el almacén.
 
 Escribe una **@** en el campo de comentario y Plainva propone los miembros del espacio; al elegir uno, el nombre se escribe en el comentario como texto normal. Un hilo que te nombra sube al principio de la columna y lleva la marca **Te menciona** — un hilo resuelto no, ya no necesita atención. Las menciones nunca se guardan: se leen del texto al mostrarlo. Si alguien cambia de nombre, los comentarios antiguos siguen el nuevo; si sale del espacio, el resaltado desaparece y el texto escrito permanece tal cual.
+
+Donde el asistente de IA está activado, la **@** también lo propone: a un comentario que se dirige a **@IA** el asistente responde en el mismo hilo, con la línea de autor **Plainva IA · ⟨modelo⟩** — consulta [Asistente de IA](AI_Assistant.md). Todavía no en un espacio cifrado.
 
 Para que un comentario vuelva a encontrar su pasaje tras ediciones posteriores, Plainva lo rodea de comentarios HTML invisibles. Otros editores no los muestran; quien prefiera no tenerlos en sus archivos desactiva **Marcar los pasajes comentados en la nota** en **Contenido y estructura**: entonces Plainva localiza el pasaje por el texto citado. Si ya no aparece, el comentario lo dice en lugar de apuntar a cualquier sitio. En el modo **Directo** estos marcadores son invisibles, incluso en la línea en la que escribes; el cursor los salta. Solo el modo **Código** los muestra.
 

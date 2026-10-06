@@ -1,6 +1,6 @@
 # Assistente de IA (Beta)
 
-Última revisão: 2026-10-01
+Última revisão: 2026-10-06
 
 O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações em um trecho selecionado como sugestões — nunca muda uma nota sozinho. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
 
@@ -96,6 +96,12 @@ Uma ação de sugestão envia apenas o trecho selecionado — não o resto da no
 
 Um trecho de uma nota que suas regras mantêm longe da nuvem — ou um com links para essas notas ou com dados de local — não vai para nenhum modelo na nuvem. Em um workspace criptografado as ações de sugestão ainda não estão disponíveis: as sugestões nele ainda não podem indicar a IA como autora.
 
+## Em um tópico de comentários
+
+Dirija-se ao assistente em um comentário e ele responde no tópico. Digite um **@** no campo de comentário e escolha **IA** — a entrada com o símbolo da IA — ou escreva o nome você mesmo: **@IA**, **@AI** e **@KI** chegam todos a ele, seja qual for o idioma do app. Assim que seu comentário é enviado, o tópico mostra abaixo de **IA** a linha **está escrevendo uma resposta…**; **Parar** interrompe. A resposta aparece como resposta no mesmo tópico, com a linha de autor **Plainva IA · ⟨modelo⟩**. Diferente de uma sugestão, ela não espera ser aceita — é uma anotação ao lado da nota, nunca texto dentro dela — e, no dispositivo que perguntou, você a exclui como uma sua.
+
+O tópico vai para o modelo como uma pergunta: seus comentários, o trecho ao qual está preso e a própria nota, pelo mesmo resumo. Um tópico de comentários é um tipo de dado próprio, por isso o resumo pergunta na primeira vez. Onde suas regras mantêm a nota longe da nuvem, os comentários dela também não vão para lá, e os links neles para notas assim são retidos. Só um comentário que você envia neste dispositivo chama o assistente; um que chega pela sincronização nunca faz isso, diga o que disser. Endereços da web que a IA traz por conta própria — em uma resposta, uma sugestão ou uma transcrição — são escritos de modo que nada os abra ou carregue (`https[://]…`); os endereços que seu próprio texto já continha ficam como estão. Em um workspace criptografado ainda não dá para se dirigir ao assistente: os comentários nele ainda não podem indicar a IA como autora.
+
 ## Habilidades
 
 Habilidades são instruções para trabalho recorrente. Dez vêm com o Plainva — entre elas **Orientação do dia**, **Revisão semanal** e **Status do projeto** como chips em uma conversa vazia — e você pode escrever ou importar as suas. Inicie uma com um clique ou simplesmente pergunte: a IA carrega sozinha uma habilidade adequada. Suas próprias habilidades só rodam depois que você as aprova neste dispositivo. Tudo sobre elas: [Habilidades](AI_Skills.md).
@@ -126,6 +132,6 @@ As conversas ficam neste dispositivo, por vault — nunca no vault e nunca sincr
 
 - No desktop, a IA roda apenas na janela principal.
 - No celular, uma resposta só chega enquanto o Plainva estiver aberto.
-- O assistente não muda nada sozinho: propõe alterações em um trecho selecionado e transcrições de notas de voz, como sugestões que você aceita ou recusa.
+- O assistente não muda nenhuma nota sozinho: propõe alterações em um trecho selecionado e transcrições de notas de voz, como sugestões que você aceita ou recusa; em um tópico de comentários ele escreve uma resposta ao lado da nota, nunca texto dentro dela.
 
 O feedback sobre a beta vai para as discussões do projeto no GitHub: **Feedback sobre a IA (beta)** nas configurações abre uma.

@@ -18,6 +18,8 @@ export * from "./aiSituation";
 export * from "./AiSendOverview";
 export * from "./AiContextLens";
 export * from "./aiSelectionActions";
+export * from "./aiThreadReply";
+export * from "./aiWriteLint";
 export * from "./aiSkills";
 export * from "./appSkills";
 export * from "./skillRuntime";

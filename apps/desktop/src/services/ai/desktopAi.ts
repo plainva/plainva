@@ -20,6 +20,7 @@ import {
   noteDisplayName,
   parseRecentsFile,
   plannerRowsFromTasks,
+  postThreadReply,
   proposeSuggestionRound,
   situationFrom,
   withCloudDenied,
@@ -241,6 +242,11 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       const service = input.commentOperations();
       if (!service) throw new Error("comments are not available in this vault");
       await proposeSuggestionRound(service, round);
+    },
+    async reply(reply) {
+      const service = input.commentOperations();
+      if (!service) throw new Error("comments are not available in this vault");
+      await postThreadReply(service, reply);
     },
     encrypted: input.encrypted,
     gists: () => input.gists?.()?.reader() ?? null,

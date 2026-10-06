@@ -12,6 +12,7 @@ import {
   type AiSuggestAction,
   type SuggestionAuthor,
 } from "./aiSelectionActions";
+import { defuseNewAddresses } from "./aiWriteLint";
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
   addUsage,
@@ -169,6 +170,12 @@ export interface AiVaultHost {
   /** True inside an encrypted workspace: its sealed comments cannot carry an author yet (E32). */
   encrypted?(): boolean;
   /**
+   * Posts a reply into a comment thread of a note under the assistant's name
+   * (plan P3-6) — a remark like any other: journaled, synced, deletable.
+   * Absent where the shell has no comments to write.
+   */
+  reply?(reply: { path: string; parentCommentId: string; body: string; author: SuggestionAuthor }): Promise<void>;
+  /**
    * The vault's own instructions — skills in `.agent/skills/` and a root
    * `AGENTS.md` — and their approvals on this device (plan KI-Harness P3);
    * absent where the shell cannot read them.
@@ -239,7 +246,34 @@ export type TranscriptionOutcome =
       message?: string;
     };
 
-/** What the next message would carry, built like a send and sent nowhere (plan §13.3, "View context"). */
+/**
+ * A remark that addresses the assistant in a comment thread (plan P3-6): the
+ * note, the thread so far, and what was asked.
+ */
+export interface ThreadReplyRequest {
+  /** The note the thread belongs to. */
+  path: string;
+  /** The thread's first remark: the reply hangs under it, like every reply. */
+  rootCommentId: string;
+  /** The passage the thread is attached to, if it has one. */
+  quote: string | null;
+  /** The remarks before the question, oldest first — other people's words, so data. */
+  thread: readonly { author: string; body: string; at: string }[];
+  /** The user's remark without the mention; empty when it was the mention alone. */
+  question: string;
+}
+
+export type ThreadReplyOutcome =
+  | { kind: "replied"; conversationId: string; model: string }
+  | {
+      kind: "refused";
+      /** `empty`: the remark asked nothing — the mention alone, on the note as a whole. `no-answer`: the model wrote nothing. */
+      reason: "off" | "no-model" | "busy" | "encrypted" | "denied" | "cancelled" | "empty" | "no-answer" | "failed" | "post-failed";
+      /** Set once a conversation exists: the answer, if there was one, is in the history. */
+      conversationId?: string;
+      message?: string;
+    };
+
 /** One request to the model of the profile "Local" on this device (plans P2b-3, P2c): no conversation, no tools, no transcript. */
 export interface LocalCompletion {
   providerId: string;
@@ -247,6 +281,7 @@ export interface LocalCompletion {
   complete(instruction: string, text: string, signal?: AbortSignal): Promise<{ text: string; usage: { inputTokens: number; outputTokens: number } }>;
 }
 
+/** What the next message would carry, built like a send and sent nowhere (plan §13.3, "View context"). */
 export interface ContextPreview {
   manifest: EgressManifest;
   pack: ContextPackage;
@@ -327,6 +362,41 @@ interface ConversationStart {
   instructions: ConversationInstructions | null;
 }
 
+/**
+ * A message that starts a conversation of its own from a place outside the
+ * composer (a door, plan §19.1 D) and runs like any message: the context of
+ * the question, the gate, the send overview, the tools.
+ */
+interface DoorStart {
+  title: string;
+  /** Notes that go along whatever is open. */
+  pins: string[];
+  /** What the door brings, before the user's words — fenced where it is not the user's own. */
+  lead: TextPart[];
+  /** Names in the send overview what `lead` carries. */
+  disclose(manifest: EgressManifest): EgressManifest;
+  limits?: RunLimits;
+}
+
+/** How a run ended; with the conversation it left and the answer's text once a request went out. */
+interface RunOutcome {
+  stop: RunStop;
+  record?: ConversationRecord;
+  answer?: string;
+}
+
+/**
+ * A reply in a comment thread is a few sentences after, at most, a few looks
+ * into the vault. The output budget is the run's, tool calls included, and a
+ * reasoning model spends part of it on thinking.
+ */
+const THREAD_REPLY_LIMITS: RunLimits = { maxSteps: 6, maxToolCalls: 8, maxOutputTokens: 4_000 };
+
+const THREAD_REPLY_RULES =
+  "Your answer is posted as a reply in this comment thread, under your name, for everyone who reads the note's comments. " +
+  "Answer what is asked in a few sentences of running text, in the language of the question. " +
+  "Name a note you rely on as a wiki link ([[Note title]]). No headings, no lists, no preamble, no sign-off.";
+
 const APP_ENTRIES = (): InstructionEntry[] => resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS);
 
 /** The text of the conversation's last answer. */
@@ -356,6 +426,10 @@ export class AiSession {
   /** What the user approved in this app session (E25); a server on this computer needs none. */
   private scope: ApprovedScope | null = null;
   private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
+  /** Conversations on screen right now: the places where the send overview can be answered. */
+  private surfaces = 0;
+  /** How the shell puts a conversation on screen (the companion, the AI sheet). */
+  private reveal: (() => void) | null = null;
 
   constructor(private readonly host: AiSessionHost) {
     this.state = {
@@ -397,6 +471,30 @@ export class AiSession {
   private set(patch: Partial<AiState>): void {
     this.state = { ...this.state, ...patch };
     for (const listener of this.listeners) listener();
+  }
+
+  /**
+   * A conversation is on screen until the returned function is called — its
+   * component's mount and unmount. The send overview is answered inside one.
+   */
+  mountSurface(): () => void {
+    this.surfaces += 1;
+    let mounted = true;
+    return () => {
+      if (!mounted) return;
+      mounted = false;
+      this.surfaces -= 1;
+    };
+  }
+
+  /**
+   * The shell's way to put a conversation on screen. A door outside the
+   * conversation — "Transcribe" at a voice note, "@AI" in a comment thread —
+   * may need the send overview while none is shown; without this, the
+   * question would wait where nobody can see it.
+   */
+  setReveal(reveal: (() => void) | null): void {
+    this.reveal = reveal;
   }
 
   // --------------------------------------------------------------- settings
@@ -701,7 +799,7 @@ export class AiSession {
       const entry = entries.find((e) => e.source.id === id);
       if (!entry || entry.status !== "active" || !entry.source.skill) return null;
       this.set({ active: null, excludeActive: false, notice: null });
-      return await this.runMessage(message, vault, this.choice() ?? choice, { entries, bind: id });
+      return (await this.runMessage(message, vault, this.choice() ?? choice, { skills: { entries, bind: id } }))?.stop ?? null;
     } catch (error) {
       this.abort = null;
       const stop: RunStop = { kind: "failed", failure: { kind: "offline", message: error instanceof Error ? error.message : String(error) } };
@@ -937,13 +1035,16 @@ export class AiSession {
       const base = note?.text ?? range.doc;
       const place = relocate(base, range.from, range.to, range.text);
       if (!place) return { kind: "refused", reason: "changed" };
-      const chunks = selectionChunks(base, place.from, place.to, text, action === "tasks" ? "insert" : "replace");
+      // The whole new passage is linted, then diffed: a block of the round is a fragment, and half an address is none.
+      const linted = defuseNewAddresses(text, [base]);
+      const chunks = selectionChunks(base, place.from, place.to, linted.text, action === "tasks" ? "insert" : "replace");
       if (!chunks.length) return { kind: "unchanged", conversationId: saved.id };
+      const roundNote = t(`ai.selection.roundNote.${action}`, { model: choice.model });
       await vault.propose({
         path: range.path,
         base,
         chunks,
-        note: t(`ai.selection.roundNote.${action}`, { model: choice.model }),
+        note: linted.defused ? `${roundNote} ${t("ai.lint.defused")}` : roundNote,
         author: { id: `plainva-ai/${choice.model}`, displayName: t("ai.suggestionAuthor", { model: choice.model }) },
       });
       return { kind: "proposed", conversationId: saved.id, changes: chunks.length };
@@ -1022,11 +1123,14 @@ export class AiSession {
       if (at < 0 || base.indexOf(target, at + 1) >= 0) return refused("changed");
       const lineEnd = base.indexOf("\n", at + target.length);
       const end = lineEnd < 0 ? base.length : lineEnd;
+      // What was said in a recording is text a model wrote down: an address in it is made inert like any other.
+      const linted = defuseNewAddresses(transcript, [base]);
+      const roundNote = t("ai.transcribe.roundNote", { name: audio.name });
       await vault.propose({
         path: notePath,
         base,
-        chunks: [{ fromA: end, toA: end, replacement: transcriptBlock(transcript) }],
-        note: t("ai.transcribe.roundNote", { name: audio.name }),
+        chunks: [{ fromA: end, toA: end, replacement: transcriptBlock(linted.text) }],
+        note: linted.defused ? `${roundNote} ${t("ai.lint.defused")}` : roundNote,
         author: { id: `plainva-ai/${choice.model}`, displayName: t("ai.suggestionAuthor", { model: choice.model }) },
       });
       return { kind: "proposed", model: choice.model };
@@ -1058,6 +1162,115 @@ export class AiSession {
       );
     } catch {
       // The transcript still goes to the note when app data cannot be written.
+    }
+  }
+
+  /**
+   * "@AI" in a comment thread (plan P3-6, §19.1 D): the user's remark is the
+   * question, the thread and the passage it hangs on go along as data, and
+   * the answer comes back as a reply in the thread, authored "Plainva AI ·
+   * model". It runs like a message typed in the composer — the context of the
+   * question with the thread's note along, the gate, the send overview naming
+   * the thread, the read tools — in a conversation of its own that the
+   * history keeps, and without skills.
+   *
+   * Unlike a proposal, a reply does not wait to be accepted: it is in the
+   * thread once the model has answered. So the note the thread belongs to
+   * decides (where the note may not go, its comments do not go either), the
+   * thread's places and its links to notes the rules keep back are withheld
+   * like a note's, and every address the model brought is made inert before
+   * the reply is stored.
+   */
+  async replyInThread(request: ThreadReplyRequest): Promise<ThreadReplyOutcome> {
+    type Refusal = Extract<ThreadReplyOutcome, { kind: "refused" }>;
+    const refused = (reason: Refusal["reason"], extra: Omit<Refusal, "kind" | "reason"> = {}): ThreadReplyOutcome => ({ kind: "refused", reason, ...extra });
+    const vault = this.vault;
+    if (!this.state.settings.enabled || !vault || !vault.reply) return refused("off");
+    if (vault.encrypted?.()) return refused("encrypted");
+    const choice = this.choice();
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
+    if (!choice || !provider) return refused("no-model");
+    if (this.state.live || this.sending) return refused("busy");
+    const question = request.question.trim();
+    const quote = request.quote?.trim() ?? "";
+    if (!question && request.thread.length === 0 && !quote) return refused("empty");
+    const recipient: EgressRecipient = recipientOf(provider, choice.model);
+    const run = { recipient, webTools: false };
+    const note = await vault.readNote(request.path);
+    if (!gateDecision(await vault.policy.policyOf(request.path, note?.text), run).allowed) return refused("denied");
+
+    this.sending = true;
+    let conversationId: string | undefined;
+    try {
+      const cloud = isCloudRecipient(recipient);
+      // Remarks are text like a note's: a place stays on the device, and a link to a note the rules keep back names nothing.
+      const withheld = async (text: string): Promise<string> => {
+        const places = withholdPlaces(text).text;
+        return cloud ? (await withholdDeniedLinks(places, request.path, vault.policy.resolveLink, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)).text : places;
+      };
+      const title = request.path.slice(request.path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+      // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
+      const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+      const remarks = (await Promise.all(request.thread.map(async (remark) => `${remark.author} (${remark.at}): ${await withheld(remark.body)}`))).join("\n\n");
+      const passage = quote ? await withheld(quote) : "";
+      const lead: TextPart = {
+        type: "text",
+        text: [
+          `A comment thread on the note [[${title}]].`,
+          ...(passage ? ["It is attached to this passage of the note:", fenceUntrusted(payload(passage, { kind: "vault", path: request.path, section: "comment anchor" }))] : []),
+          ...(remarks ? ["The thread so far, oldest first:", fenceUntrusted(payload(remarks, { kind: "vault", path: request.path, section: "comments" }))] : []),
+          THREAD_REPLY_RULES,
+        ].join("\n"),
+        context: [],
+      };
+      const folder = request.path.includes("/") ? request.path.slice(0, request.path.indexOf("/")) : "";
+      const price = this.priceOf(choice);
+      // The thread goes as it was written; the overview names what the local patterns see in it (P2b-6).
+      const seen = cloud ? sensitiveKinds(sensitiveFindings(`${passage}\n${remarks}`)) : [];
+      const disclose = (manifest: EgressManifest): EgressManifest => {
+        const estimatedTokens = manifest.estimatedTokens + estimateTokens(lead.text);
+        const sized = { ...manifest, estimatedTokens, ...(price ? { estimatedCostUsd: (estimatedTokens / 1_000_000) * price.input } : {}) };
+        // A remark that starts a thread on the note as a whole brings nothing but the user's own words.
+        if (!passage && !remarks) return sized;
+        const sensitive = [...new Set([...(manifest.sensitive ?? []), ...seen])];
+        return {
+          ...sized,
+          sources: [
+            { path: request.path, title, tier: "evidence", chars: passage.length + remarks.length, reasons: ["active"], comments: request.thread.length, ...(seen.length ? { sensitive: seen } : {}) },
+            ...manifest.sources,
+          ],
+          ...(sensitive.length ? { sensitive } : {}),
+          dataClasses: manifest.dataClasses.includes("comments") ? manifest.dataClasses : [...manifest.dataClasses, "comments"],
+          folders: manifest.folders.includes(folder) ? manifest.folders : [...manifest.folders, folder].sort(),
+        };
+      };
+      const outcome = await this.runMessage(question || "Answer the question this comment thread asks.", vault, choice, {
+        door: { title: t("ai.thread.title", { note: title }), pins: [request.path], lead: [lead], disclose, limits: THREAD_REPLY_LIMITS },
+      });
+      if (!outcome) return refused("cancelled");
+      conversationId = outcome.record?.id;
+      const withId = conversationId ? { conversationId } : {};
+      if (outcome.stop.kind !== "answered") return refused(outcome.stop.kind === "cancelled" ? "cancelled" : "failed", withId);
+      // What the user's own text already links to stays a link; what the model brought does not become one.
+      const reply = defuseNewAddresses((outcome.answer ?? "").trim(), [note?.text ?? "", request.quote ?? "", request.question, ...request.thread.map((remark) => remark.body)]).text;
+      if (!reply) return refused("no-answer", withId);
+      try {
+        await vault.reply({
+          path: request.path,
+          parentCommentId: request.rootCommentId,
+          body: reply,
+          author: { id: `plainva-ai/${choice.model}`, displayName: t("ai.suggestionAuthor", { model: choice.model }) },
+        });
+      } catch (error) {
+        return refused("post-failed", { ...withId, message: error instanceof Error ? error.message : String(error) });
+      }
+      return { kind: "replied", conversationId: conversationId ?? "", model: choice.model };
+    } catch (error) {
+      this.abort = null;
+      if (this.state.live) this.set({ live: null });
+      return refused("failed", { ...(conversationId ? { conversationId } : {}), message: error instanceof Error ? error.message : String(error) });
+    } finally {
+      this.sending = false;
     }
   }
 
@@ -1292,6 +1505,8 @@ export class AiSession {
     return new Promise((resolve) => {
       this.consentAnswer = resolve;
       this.set({ consent: { manifest, growth } });
+      // Asked from a door while no conversation is on screen: the shell shows one, or nobody could answer.
+      if (this.surfaces === 0) this.reveal?.();
     });
   }
 
@@ -1324,7 +1539,7 @@ export class AiSession {
     if (!message || !vault || !choice || this.state.live || this.sending || !this.state.settings.enabled) return null;
     this.sending = true;
     try {
-      return await this.runMessage(message, vault, choice);
+      return (await this.runMessage(message, vault, choice))?.stop ?? null;
     } catch (error) {
       // Whatever broke on the way (a vault read, the store) ends the run as a
       // failure the reader sees — never as a spinner that turns forever.
@@ -1337,33 +1552,43 @@ export class AiSession {
     }
   }
 
-  private async runMessage(message: string, vault: AiVaultHost, choice: ModelChoice, skills?: { entries: readonly InstructionEntry[]; bind?: string }): Promise<RunStop | null> {
+  private async runMessage(
+    message: string,
+    vault: AiVaultHost,
+    choice: ModelChoice,
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart } = {},
+  ): Promise<RunOutcome | null> {
+    const { skills, door } = options;
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
       this.set({ notice: { conversationId: this.state.active?.id ?? "", stop } });
-      return stop;
+      return { stop };
     }
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // Redacted for the whole conversation (P2b-6): in its context, and in what the model reads itself through the tools.
     // One set for both: a choice in the overview below reaches the tools of this run too.
-    const redact = new Set<string>(this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
+    // A door starts a conversation of its own: what the composer's next message was given is not its to use.
+    const redact = new Set<string>(door ? [] : this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
     // The system's own model takes no tools (plan P2c).
     const platform = provider.endpoint.api === "platform";
     const now = this.host.now().toISOString();
 
     let record: ConversationRecord;
-    if (this.state.active) {
+    if (this.state.active && !door) {
       record = this.state.active;
     } else {
       // A new conversation: its system prompt and its tools are fixed from here on (append-only).
-      const offered = platform ? [] : (vault.tools(recipient)?.names ?? []);
-      const start = this.conversationStart(skills?.entries ?? (await this.instructionEntries(vault)).entries, offered, skills?.bind);
+      // A door answers where it was asked: it reads the vault, it does not move the app.
+      const offered = platform ? [] : (vault.tools(recipient)?.names ?? []).filter((name) => !door || name !== "run_command");
+      const entries = skills?.entries ?? (await this.instructionEntries(vault)).entries;
+      // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
+      const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind);
       const id = this.host.newId();
       record = {
         version: 1 as const,
         id,
-        title: conversationTitleFrom(message, message),
+        title: door?.title ?? conversationTitleFrom(message, message),
         createdAt: now,
         updatedAt: now,
         providerId: choice.providerId,
@@ -1371,7 +1596,7 @@ export class AiSession {
         conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, ...start.prompt }), start.tools),
         usage: EMPTY_USAGE,
         runs: [],
-        pins: this.state.draftPins,
+        pins: door ? door.pins : this.state.draftPins,
         ...(start.instructions ? { instructions: start.instructions } : {}),
       };
     }
@@ -1381,11 +1606,17 @@ export class AiSession {
     const toolNames = platform ? [] : record.conversation.tools;
     const base = toolNames.length ? vault.tools(recipient, skillScope(bound?.folders, skillState), redact) : null;
     const tools = base ? { names: toolNames, executor: createSkillExecutor(base.executor, this.skillRuntime(vault, record), toolNames, skillState) } : null;
-    const limits: RunLimits | undefined = bound?.maxOutputTokens ? { ...DEFAULT_RUN_LIMITS, maxOutputTokens: bound.maxOutputTokens } : undefined;
+    const limits: RunLimits | undefined = door?.limits ?? (bound?.maxOutputTokens ? { ...DEFAULT_RUN_LIMITS, maxOutputTokens: bound.maxOutputTokens } : undefined);
 
     // The context of this message: what "View context" showed, without the notes left out there.
-    const { seen, build } = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, { tools: toolNames, instructions: manifestInstructionsOf(record.instructions) });
-    const leaveOut = new Set<string>(this.state.leaveOutNext);
+    const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, { tools: toolNames, instructions: manifestInstructionsOf(record.instructions) });
+    const { seen } = context;
+    // What a door brings goes into the overview with everything else: the user sees it before it is sent.
+    const build = async (out: ReadonlySet<string>, red: ReadonlySet<string>) => {
+      const built = await context.build(out, red);
+      return door ? { pack: built.pack, manifest: door.disclose(built.manifest) } : built;
+    };
+    const leaveOut = new Set<string>(door ? [] : this.state.leaveOutNext);
     let { pack, manifest } = await build(leaveOut, redact);
     // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the strict.
     // Once the user reviews the overview, it stays until they send or cancel:
@@ -1405,22 +1636,22 @@ export class AiSession {
     }
     if (redact.size || record.redact) record = { ...record, redact: [...redact] };
     if (!manifest.local) this.scope = widenScope(this.scope, manifest);
-    const { stop } = await this.execute({
+    return this.execute({
       vault,
       choice,
       provider,
       record,
       pack,
       manifest,
-      parts: [pack.part, { type: "text" as const, text: message }],
+      parts: [pack.part, ...(door?.lead ?? []), { type: "text" as const, text: message }],
       executor: tools?.executor ?? null,
       // Rule of Two (§13.4): vault text is private and untrusted at once.
-      carriesVault: pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active),
-      usedDrafts: true,
+      carriesVault: Boolean(door) || pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active),
+      // A message typed in the composer used the drafts; a door leaves them for the next one.
+      usedDrafts: !door,
       skillState,
       ...(limits ? { limits } : {}),
     });
-    return stop;
   }
 
   /**

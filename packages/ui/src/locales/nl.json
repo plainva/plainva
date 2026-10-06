@@ -260,7 +260,8 @@
         "calendar": "afspraken",
         "notes": "notities",
         "audio": "een opname",
-        "searches": "je zoekvragen"
+        "searches": "je zoekvragen",
+        "comments": "een discussie in de opmerkingen"
       },
       "keptBack": "Achtergehouden",
       "keptNotes_one": "{{count}} notitie die je regels blokkeren",
@@ -392,6 +393,29 @@
         "changed": "De passage is veranderd terwijl de AI schreef — er is niets voorgesteld.",
         "failed": "De AI kon geen voorstel doen."
       }
+    },
+    "thread": {
+      "title": "Discussie in de opmerkingen · {{note}}",
+      "mentionHint": "antwoordt in de discussie",
+      "composer": "Opmerking bij de notitie · @ voor personen en de AI",
+      "replying": "schrijft een antwoord…",
+      "evidence_one": "de discussie in de opmerkingen ({{count}} opmerking)",
+      "evidence_other": "de discussie in de opmerkingen ({{count}} opmerkingen)",
+      "evidencePassage": "de passage bij de opmerking",
+      "refused": {
+        "off": "De AI staat uit.",
+        "no-model": "Kies eerst een model.",
+        "busy": "De AI antwoordt nog — wacht of stop hem.",
+        "encrypted": "Nog niet in een versleutelde workspace: de opmerkingen daarin kunnen de AI niet als auteur noemen.",
+        "denied": "Je regels houden deze notitie weg van dit model — de opmerkingen erbij gaan er dus ook niet heen.",
+        "empty": "Schrijf erbij wat je wilt weten.",
+        "no-answer": "De AI gaf geen antwoord.",
+        "failed": "De AI kon niet antwoorden.",
+        "post-failed": "Het antwoord kon niet in de discussie worden geschreven. Je vindt het bij de AI-gesprekken."
+      }
+    },
+    "lint": {
+      "defused": "Nieuwe webadressen zijn onschadelijk gemaakt: leesbaar, maar geen link."
     },
     "skills": {
       "title": "Vaardigheden",

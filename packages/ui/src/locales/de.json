@@ -260,7 +260,8 @@
         "calendar": "Termine",
         "notes": "Notizen",
         "audio": "eine Aufnahme",
-        "searches": "Deine Suchfragen"
+        "searches": "Deine Suchfragen",
+        "comments": "ein Kommentar-Faden"
       },
       "keptBack": "Zurückgehalten",
       "keptNotes_one": "{{count}} Notiz, die Deine Regeln sperren",
@@ -392,6 +393,29 @@
         "changed": "Die Stelle hat sich geändert, während die KI schrieb — es wurde nichts vorgeschlagen.",
         "failed": "Die KI konnte keinen Vorschlag machen."
       }
+    },
+    "thread": {
+      "title": "Kommentar-Faden · {{note}}",
+      "mentionHint": "antwortet im Faden",
+      "composer": "Kommentar zur Notiz · @ für Personen und die KI",
+      "replying": "schreibt eine Antwort…",
+      "evidence_one": "der Kommentar-Faden ({{count}} Kommentar)",
+      "evidence_other": "der Kommentar-Faden ({{count}} Kommentare)",
+      "evidencePassage": "die kommentierte Stelle",
+      "refused": {
+        "off": "Die KI ist aus.",
+        "no-model": "Wähle zuerst ein Modell.",
+        "busy": "Die KI antwortet noch — warte oder halte sie an.",
+        "encrypted": "In einem verschlüsselten Workspace noch nicht: seine Kommentare können die KI nicht als Autor nennen.",
+        "denied": "Deine Regeln halten diese Notiz von diesem Modell fern — ihre Kommentare gehen deshalb auch nicht dorthin.",
+        "empty": "Schreib dazu, was Du wissen willst.",
+        "no-answer": "Die KI hat keine Antwort geliefert.",
+        "failed": "Die KI konnte nicht antworten.",
+        "post-failed": "Die Antwort ließ sich nicht in den Faden schreiben. Du findest sie bei den KI-Gesprächen."
+      }
+    },
+    "lint": {
+      "defused": "Neue Internetadressen sind entschärft: lesbar, aber kein Link."
     },
     "skills": {
       "title": "Skills",

@@ -264,7 +264,8 @@
         "calendar": "appuntamenti",
         "notes": "note",
         "audio": "una registrazione",
-        "searches": "le tue domande di ricerca"
+        "searches": "le tue domande di ricerca",
+        "comments": "una discussione nei commenti"
       },
       "keptBack": "Trattenuto",
       "keptNotes_one": "{{count}} nota bloccata dalle tue regole",
@@ -404,6 +405,30 @@
         "changed": "Il passaggio è cambiato mentre l'IA scriveva: non è stato proposto nulla.",
         "failed": "L'IA non è riuscita a fare una proposta."
       }
+    },
+    "thread": {
+      "title": "Discussione nei commenti · {{note}}",
+      "mentionHint": "risponde nella discussione",
+      "composer": "Commento sulla nota · @ per le persone e l'IA",
+      "replying": "sta scrivendo una risposta…",
+      "evidence_one": "la discussione nei commenti ({{count}} commento)",
+      "evidence_many": "la discussione nei commenti ({{count}} commenti)",
+      "evidence_other": "la discussione nei commenti ({{count}} commenti)",
+      "evidencePassage": "il passaggio commentato",
+      "refused": {
+        "off": "L'IA è disattivata.",
+        "no-model": "Scegli prima un modello.",
+        "busy": "L'IA sta ancora rispondendo: attendi o fermala.",
+        "encrypted": "Non ancora in un workspace cifrato: i suoi commenti non possono indicare l'IA come autore.",
+        "denied": "Le tue regole tengono questa nota lontana da questo modello, quindi nemmeno i suoi commenti ci vanno.",
+        "empty": "Aggiungi che cosa vuoi sapere.",
+        "no-answer": "L'IA non ha dato alcuna risposta.",
+        "failed": "L'IA non è riuscita a rispondere.",
+        "post-failed": "Non è stato possibile scrivere la risposta nella discussione. La trovi tra le conversazioni dell'IA."
+      }
+    },
+    "lint": {
+      "defused": "I nuovi indirizzi web sono stati disinnescati: leggibili, ma non sono link."
     },
     "skills": {
       "title": "Competenze",

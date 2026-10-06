@@ -264,7 +264,8 @@
         "calendar": "compromissos",
         "notes": "notas",
         "audio": "uma gravação",
-        "searches": "suas perguntas de pesquisa"
+        "searches": "suas perguntas de pesquisa",
+        "comments": "uma conversa nos comentários"
       },
       "keptBack": "Retido",
       "keptNotes_one": "{{count}} nota bloqueada por suas regras",
@@ -404,6 +405,30 @@
         "changed": "O trecho mudou enquanto a IA escrevia — nada foi sugerido.",
         "failed": "A IA não conseguiu fazer uma sugestão."
       }
+    },
+    "thread": {
+      "title": "Conversa nos comentários · {{note}}",
+      "mentionHint": "responde na conversa",
+      "composer": "Comentário sobre a nota · @ para pessoas e a IA",
+      "replying": "está escrevendo uma resposta…",
+      "evidence_one": "a conversa nos comentários ({{count}} comentário)",
+      "evidence_many": "a conversa nos comentários ({{count}} comentários)",
+      "evidence_other": "a conversa nos comentários ({{count}} comentários)",
+      "evidencePassage": "o trecho comentado",
+      "refused": {
+        "off": "A IA está desativada.",
+        "no-model": "Escolha primeiro um modelo.",
+        "busy": "A IA ainda está respondendo — espere ou pare-a.",
+        "encrypted": "Ainda não em um workspace criptografado: os comentários nele não podem indicar a IA como autora.",
+        "denied": "Suas regras mantêm esta nota longe deste modelo — por isso os comentários dela também não vão para lá.",
+        "empty": "Acrescente o que você quer saber.",
+        "no-answer": "A IA não deu nenhuma resposta.",
+        "failed": "A IA não conseguiu responder.",
+        "post-failed": "Não foi possível escrever a resposta nos comentários. Você a encontra entre as conversas da IA."
+      }
+    },
+    "lint": {
+      "defused": "Os novos endereços da web foram neutralizados: legíveis, mas não são links."
     },
     "skills": {
       "title": "Habilidades",

@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-10-01
+Dernière mise à jour : 2026-10-06
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications d'un passage sélectionné sous forme de propositions — il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -96,6 +96,12 @@ Une action de proposition envoie uniquement le passage sélectionné — ni le r
 
 Un passage d'une note que vos règles tiennent à l'écart du cloud — ou un passage avec des liens vers de telles notes ou avec des indications de lieu — ne part vers aucun modèle cloud. Dans un espace chiffré, les actions de proposition ne sont pas encore disponibles : ses propositions ne peuvent pas encore nommer l'IA comme auteur.
 
+## Dans un fil de commentaires
+
+Adressez-vous à l'assistant dans un commentaire, et il répond dans le fil. Tapez un **@** dans le champ de commentaire et choisissez **IA** — l'entrée qui porte le symbole de l'IA — ou écrivez le nom vous-même : **@IA**, **@AI** et **@KI** l'atteignent tous, quelle que soit la langue de l'application. Dès que votre commentaire est envoyé, le fil affiche sous **IA** la ligne **rédige une réponse…** ; **Arrêter** y met fin. La réponse apparaît comme réponse dans le même fil, avec la ligne d'auteur **Plainva IA · ⟨modèle⟩**. Contrairement à une proposition, elle n'attend pas d'être acceptée — c'est une remarque à côté de la note, jamais du texte dans celle-ci — et, sur l'appareil qui a posé la question, vous la supprimez comme l'une des vôtres.
+
+Le fil part vers le modèle comme une question : ses commentaires, le passage auquel il est rattaché et la note elle-même, via le même aperçu. Un fil de commentaires est un type de données à part, l'aperçu demande donc la première fois. Là où vos règles tiennent la note à l'écart du cloud, ses commentaires n'y vont pas non plus, et les liens qu'ils contiennent vers de telles notes sont retenus. Seul un commentaire que vous envoyez sur cet appareil appelle l'assistant ; un commentaire arrivé par la synchronisation ne le fait jamais, quoi qu'il dise. Les adresses web que l'IA apporte d'elle-même — dans une réponse, une proposition ou une transcription — sont écrites de façon que rien ne les ouvre ni ne les charge (`https[://]…`) ; les adresses que votre propre texte contenait déjà restent telles quelles. Dans un espace chiffré, on ne peut pas encore s'adresser à l'assistant : ses commentaires ne peuvent pas encore nommer l'IA comme auteur.
+
 ## Compétences
 
 Les compétences sont des instructions pour un travail récurrent. Dix sont fournies avec Plainva — dont **Orientation du jour**, **Bilan de la semaine** et **État du projet** sous forme de puces dans une conversation vide — et vous pouvez écrire ou importer les vôtres. Lancez-en une en un clic, ou demandez simplement : l'IA charge d'elle-même une compétence adaptée. Vos propres compétences ne s'exécutent qu'après votre approbation sur cet appareil. Tout à leur sujet : [Compétences](AI_Skills.md).
@@ -126,6 +132,6 @@ Les conversations restent sur cet appareil, par vault — jamais dans le vault e
 
 - Sur l'ordinateur, l'IA s'exécute uniquement dans la fenêtre principale.
 - Sur le téléphone, une réponse n'arrive que si l'application est ouverte.
-- L'assistant ne modifie rien lui-même : il propose des modifications d'un passage sélectionné et des transcriptions de notes vocales, sous forme de propositions que vous acceptez ou refusez.
+- L'assistant ne modifie aucune note lui-même : il propose des modifications d'un passage sélectionné et des transcriptions de notes vocales, sous forme de propositions que vous acceptez ou refusez ; dans un fil de commentaires, il écrit une réponse à côté de la note, jamais du texte dans celle-ci.
 
 Les retours sur la bêta vont dans les discussions du projet sur GitHub : **Retour sur l'IA (bêta)** dans les réglages en ouvre une.

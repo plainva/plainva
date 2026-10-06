@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-10-01
+Laatst bijgewerkt: 2026-10-06
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen aan een geselecteerde passage voor als voorstellen — een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -96,6 +96,12 @@ Een voorstelactie verzendt alleen de geselecteerde passage — niet de rest van 
 
 Een passage uit een notitie die je regels bij de cloud weghouden — of een met links naar zulke notities of met plaatsgegevens — gaat naar geen enkel cloudmodel. In een versleutelde workspace zijn de voorstelacties nog niet beschikbaar: de voorstellen daarin kunnen de AI nog niet als auteur noemen.
 
+## In een draad met opmerkingen
+
+Spreek de assistent aan in een opmerking, en hij antwoordt in de draad. Typ een **@** in het opmerkingsveld en kies **AI** — het item met het AI-teken — of schrijf de naam zelf: **@AI**, **@KI** en **@IA** bereiken hem allemaal, in welke taal de app ook staat. Zodra je opmerking is verzonden, toont de draad onder **AI** de regel **schrijft een antwoord…**; **Stoppen** beëindigt dat. Het antwoord verschijnt als antwoord in dezelfde draad, met de auteursregel **Plainva AI · ⟨model⟩**. Anders dan een voorstel wacht het niet tot het wordt geaccepteerd — het is een aantekening naast de notitie, nooit tekst erin — en op het apparaat dat de vraag stelde verwijder je het zoals een eigen opmerking.
+
+De draad gaat naar het model zoals een vraag: de opmerkingen erin, de passage waaraan hij hangt en de notitie zelf, via hetzelfde overzicht. Een draad met opmerkingen is een eigen soort gegevens, dus het overzicht vraagt het de eerste keer. Waar je regels de notitie weghouden van de cloud, gaan ook haar opmerkingen daar niet heen, en links daarin naar zulke notities worden achtergehouden. Alleen een opmerking die je op dit apparaat verzendt, roept de assistent; een opmerking die via synchronisatie binnenkomt doet dat nooit, wat er ook in staat. Webadressen die de AI zelf meebrengt — in een antwoord, een voorstel of een transcriptie — worden zo geschreven dat niets ze opent of laadt (`https[://]…`); adressen die je eigen tekst al bevatte, blijven zoals ze zijn. In een versleutelde workspace kun je de assistent nog niet aanspreken: de opmerkingen daarin kunnen de AI nog niet als auteur noemen.
+
 ## Vaardigheden
 
 Vaardigheden zijn instructies voor terugkerend werk. Tien komen met Plainva mee — waaronder **Dagoriëntatie**, **Weekoverzicht** en **Projectstatus** als chips in een leeg gesprek — en je kunt je eigen schrijven of importeren. Start er een met één klik, of vraag het gewoon: de AI laadt zelf een passende vaardigheid. Je eigen vaardigheden draaien pas nadat je ze op dit apparaat hebt goedgekeurd. Alles erover: [Vaardigheden](AI_Skills.md).
@@ -126,6 +132,6 @@ Gesprekken blijven op dit apparaat, per vault — nooit in de vault en nooit ges
 
 - Op de desktop werkt de AI alleen in het hoofdvenster.
 - Op de telefoon komt een antwoord alleen terwijl de app open staat.
-- De assistent verandert zelf niets: hij stelt wijzigingen aan een geselecteerde passage en transcripties van spraaknotities voor, als voorstellen die je accepteert of afwijst.
+- De assistent verandert zelf geen notitie: hij stelt wijzigingen aan een geselecteerde passage en transcripties van spraaknotities voor, als voorstellen die je accepteert of afwijst; in een draad met opmerkingen schrijft hij een antwoord naast de notitie, nooit tekst erin.
 
 Feedback over de bèta gaat naar de discussies van het project op GitHub: **Feedback over de AI (bèta)** in de instellingen begint er een.

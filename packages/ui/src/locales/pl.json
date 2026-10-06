@@ -268,7 +268,8 @@
         "calendar": "spotkania",
         "notes": "notatki",
         "audio": "nagranie",
-        "searches": "Twoje pytania wyszukiwania"
+        "searches": "Twoje pytania wyszukiwania",
+        "comments": "wątek komentarzy"
       },
       "keptBack": "Zatrzymano",
       "keptNotes_one": "{{count}} notatka zablokowana przez Twoje reguły",
@@ -416,6 +417,31 @@
         "changed": "Fragment zmienił się, gdy AI pisała — niczego nie zaproponowano.",
         "failed": "AI nie mogła przygotować propozycji."
       }
+    },
+    "thread": {
+      "title": "Wątek komentarzy · {{note}}",
+      "mentionHint": "odpowiada w wątku",
+      "composer": "Komentarz do notatki · @ dla osób i AI",
+      "replying": "pisze odpowiedź…",
+      "evidence_one": "wątek komentarzy ({{count}} komentarz)",
+      "evidence_few": "wątek komentarzy ({{count}} komentarze)",
+      "evidence_many": "wątek komentarzy ({{count}} komentarzy)",
+      "evidence_other": "wątek komentarzy ({{count}} komentarza)",
+      "evidencePassage": "skomentowany fragment",
+      "refused": {
+        "off": "AI jest wyłączona.",
+        "no-model": "Najpierw wybierz model.",
+        "busy": "AI jeszcze odpowiada — poczekaj lub ją zatrzymaj.",
+        "encrypted": "Jeszcze nie w zaszyfrowanym obszarze roboczym: komentarze w nim nie mogą wskazać AI jako autora.",
+        "denied": "Twoje reguły trzymają tę notatkę z dala od tego modelu — jej komentarze też tam nie trafiają.",
+        "empty": "Dopisz, czego chcesz się dowiedzieć.",
+        "no-answer": "AI nie udzieliła odpowiedzi.",
+        "failed": "AI nie mogła odpowiedzieć.",
+        "post-failed": "Nie udało się zapisać odpowiedzi w wątku. Znajdziesz ją wśród rozmów z AI."
+      }
+    },
+    "lint": {
+      "defused": "Nowe adresy internetowe zostały unieszkodliwione: da się je przeczytać, ale nie są linkami."
     },
     "skills": {
       "title": "Umiejętności",

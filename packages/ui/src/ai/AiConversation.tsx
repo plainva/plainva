@@ -105,6 +105,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
     if (el) el.scrollTop = el.scrollHeight;
   }, [items.length, liveText, state?.live?.tools.length, state?.consent]);
 
+  // The send overview is answered here: a door outside the conversation relies on the session knowing one is on screen.
+  useEffect(() => session?.mountSurface(), [session]);
+
   if (!session || !state || !state.loaded) return null;
 
   if (!state.settings.enabled) {

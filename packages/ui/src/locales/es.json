@@ -264,7 +264,8 @@
         "calendar": "citas",
         "notes": "notas",
         "audio": "una grabación",
-        "searches": "tus preguntas de búsqueda"
+        "searches": "tus preguntas de búsqueda",
+        "comments": "un hilo de comentarios"
       },
       "keptBack": "Retenido",
       "keptNotes_one": "{{count}} nota que tus reglas bloquean",
@@ -404,6 +405,30 @@
         "changed": "El fragmento cambió mientras la IA escribía: no se sugirió nada.",
         "failed": "La IA no pudo hacer una sugerencia."
       }
+    },
+    "thread": {
+      "title": "Hilo de comentarios · {{note}}",
+      "mentionHint": "responde en el hilo",
+      "composer": "Comentario sobre la nota · @ para personas y la IA",
+      "replying": "está escribiendo una respuesta…",
+      "evidence_one": "el hilo de comentarios ({{count}} comentario)",
+      "evidence_many": "el hilo de comentarios ({{count}} comentarios)",
+      "evidence_other": "el hilo de comentarios ({{count}} comentarios)",
+      "evidencePassage": "el fragmento comentado",
+      "refused": {
+        "off": "La IA está desactivada.",
+        "no-model": "Elige primero un modelo.",
+        "busy": "La IA todavía está respondiendo: espera o detenla.",
+        "encrypted": "Aún no en un espacio cifrado: sus comentarios no pueden indicar a la IA como autora.",
+        "denied": "Tus reglas mantienen esta nota lejos de este modelo, así que sus comentarios tampoco van allí.",
+        "empty": "Añade lo que quieres saber.",
+        "no-answer": "La IA no ha dado ninguna respuesta.",
+        "failed": "La IA no ha podido responder.",
+        "post-failed": "No se ha podido escribir la respuesta en el hilo. La encontrarás entre las conversaciones de la IA."
+      }
+    },
+    "lint": {
+      "defused": "Las direcciones web nuevas se han desactivado: se leen, pero no son enlaces."
     },
     "skills": {
       "title": "Habilidades",
