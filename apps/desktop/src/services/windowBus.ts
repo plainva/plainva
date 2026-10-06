@@ -251,6 +251,8 @@ export interface RpcMap {
   "toggle-bookmark": { args: { path: string; type?: BookmarkEntry["type"] }; result: BookmarkEntry[] };
   "bookmarks-list": { args: Record<string, never>; result: BookmarkEntry[] };
   "remove-bookmarks": { args: { paths: string[] }; result: BookmarkEntry[] };
+  /** One entry in front of another, or to the end (`beforeKey` null); keys are `bookmarkKey`s. */
+  "move-bookmark": { args: { key: string; beforeKey: string | null }; result: BookmarkEntry[] };
   "rename-bookmarks": { args: { from: string; to: string }; result: BookmarkEntry[] };
   /** Ask the owner's PIM worker for a cycle now (an aux view has no worker). */
   "pim-refresh": { args: Record<string, never>; result: void };
@@ -462,6 +464,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "toggle-bookmark": "vault",
   "bookmarks-list": "vault",
   "remove-bookmarks": "vault",
+  "move-bookmark": "vault",
   "rename-bookmarks": "vault",
   // Remarks belong to one vault's workspace or sideband bundle (V7).
   "comment-capabilities": "vault",

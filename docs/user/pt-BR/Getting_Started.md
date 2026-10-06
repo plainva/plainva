@@ -208,7 +208,7 @@ Em uma janela separada ou em uma segunda janela completa, clique com o botão di
 
 ## Favoritos de pastas
 
-Adicione um favorito pelo menu de contexto de um arquivo ou pasta. Os favoritos de pastas mostram um ícone próprio: no celular abrem a pasta, no desktop a expandem na árvore. Renomear e mover itens no Plainva também atualiza favoritos de subpastas e arquivos. Destinos ausentes continuam sinalizados; remova esses favoritos explicitamente.
+Adicione um favorito pelo menu de contexto de um arquivo ou pasta. Os favoritos de pastas mostram um ícone próprio: no celular abrem a pasta, no desktop a expandem na árvore. Renomear e mover itens no Plainva também atualiza favoritos de subpastas e arquivos. Destinos ausentes continuam sinalizados; remova esses favoritos explicitamente. Para mudar a ordem, arraste um favorito até o lugar dele na barra lateral — ou pressione `Alt+↑` / `Alt+↓` na linha em foco; no celular, **Organizar favoritos** ao lado do título **Favoritos** abre a lista, onde você arrasta a alça no fim de uma linha.
 
 Ao abrir um cofre, o Plainva importa automaticamente favoritos de arquivos e pastas do Obsidian, inclusive grupos. Tipo e caminho evitam duplicatas. O arquivo do Obsidian permanece intacto. Perfis de configuração transportam as pastas separadamente; um perfil antigo sem esse campo mantém os favoritos de pastas existentes.
 

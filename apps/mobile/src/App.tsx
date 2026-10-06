@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { newEntries, requestNew, type NewHandlers } from "@plainva/ui";
+import { InlineSuggestProvider, newEntries, requestNew, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
 import { tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
@@ -670,6 +670,8 @@ export default function App() {
 
   const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // the strip: reservesFabStrip
   return (
+    // `[[` and `#` in the capture fields read this vault's index (W5).
+    <InlineSuggestProvider source={vault.queryService ?? null}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
       <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
@@ -777,6 +779,7 @@ export default function App() {
         />
       )}
     </div>
+    </InlineSuggestProvider>
   );
 }
 

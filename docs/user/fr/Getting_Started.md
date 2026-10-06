@@ -208,7 +208,7 @@ Dans une fenêtre séparée ou une seconde fenêtre complète, faites un clic dr
 
 ## Favoris de dossiers
 
-Ajoutez un favori depuis le menu contextuel d’un fichier ou d’un dossier. Les favoris de dossiers portent une icône de dossier : le mobile ouvre le dossier et le bureau le déplie dans l’arborescence. Déplacer ou renommer un élément dans Plainva met aussi à jour les favoris des sous-dossiers et fichiers. Les cibles introuvables restent indiquées ; supprimez ces favoris explicitement.
+Ajoutez un favori depuis le menu contextuel d’un fichier ou d’un dossier. Les favoris de dossiers portent une icône de dossier : le mobile ouvre le dossier et le bureau le déplie dans l’arborescence. Déplacer ou renommer un élément dans Plainva met aussi à jour les favoris des sous-dossiers et fichiers. Les cibles introuvables restent indiquées ; supprimez ces favoris explicitement. Pour changer l'ordre, faites glisser un signet à sa place dans la barre latérale — ou appuyez sur `Alt+↑` / `Alt+↓` sur la ligne qui a le focus ; sur le téléphone, **Ordonner les signets** à côté du titre **Signets** ouvre la liste, où vous faites glisser la poignée au bout d'une ligne.
 
 À l’ouverture d’un coffre, Plainva importe automatiquement les favoris de fichiers et dossiers d’Obsidian, groupes compris. Le type et le chemin évitent les doublons. Le fichier Obsidian reste intact. Les profils transportent les dossiers séparément ; un ancien profil sans ce champ conserve les favoris de dossiers existants.
 

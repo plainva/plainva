@@ -1,6 +1,6 @@
-import { Fragment, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
+import { Fragment, type HTMLAttributes, type MouseEvent, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, CheckSquare, Repeat } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckSquare, Repeat } from "lucide-react";
 import { ICON } from "../lib/iconSizes";
 import { formatDueLabel } from "../lib/dueLabel";
 import { noteDisplayName } from "../lib/noteTitle";
@@ -8,9 +8,9 @@ import { isOpenState, type PlannerRow, type PlannerSection } from "../lib/taskPl
 import { Chip } from "./ui/Chip";
 import { EmptyState } from "./ui/EmptyState";
 import { GroupCard, Row, RowList, SectionLabel } from "./ui/GroupedRows";
-import { IconButton } from "./ui/IconButton";
+import { Button } from "./ui/Button";
+import { TaskCheckButton } from "./TaskCheckButton";
 import { TaskPriorityFlag } from "./TaskPriorityFlag";
-import { TaskStateIcon } from "./TaskStateIcon";
 
 /**
  * One list of the planner (plan Aufgaben-Oberfläche, B1) — Today with Overdue on
@@ -35,6 +35,15 @@ export interface TaskPlannerListProps {
   wrapRow?: (row: PlannerRow, element: ReactElement) => ReactNode;
   /** Extra attributes for a row — the phone's hold gesture lives on the row itself. */
   rowProps?: (row: PlannerRow) => Omit<HTMLAttributes<HTMLElement>, "onClick" | "title" | "className">;
+  /**
+   * A press on a row's date or time (W2): the shell opens its date picker — a
+   * popover at `anchor` on the desktop, a sheet on the phone. Absent, or
+   * answering `false` for a row, the date stays a label.
+   */
+  onDue?: (row: PlannerRow, anchor: HTMLElement) => void;
+  canDue?: (row: PlannerRow) => boolean;
+  /** "All to today" at the Overdue heading (W3). Absent: no button. */
+  onOverdueToToday?: () => void;
 }
 
 function dayHeading(dayKey: string, locale: string): string {
@@ -46,7 +55,7 @@ function clock(minutes: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60));
 }
 
-export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle, onOpen, onMenu, wrapRow, rowProps }: TaskPlannerListProps) {
+export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle, onOpen, onMenu, wrapRow, rowProps, onDue, canDue, onOverdueToToday }: TaskPlannerListProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
   const shown = sections.filter((s) => s.rows.length > 0 || s.kind === "today");
@@ -70,14 +79,18 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
 
   const when = (row: PlannerRow, section: PlannerSection): ReactNode => {
     if (!row.due) return null;
+    // The date is the way to change it (W2): where the shell can move this
+    // row's day, the chip is a button, and it says so with the calendar glyph.
+    const press = onDue && (canDue?.(row) ?? true) ? (e: MouseEvent<HTMLButtonElement>) => onDue(row, e.currentTarget) : undefined;
+    const glyph = press ? <CalendarClock size={ICON.meta} /> : undefined;
     // Inside a day the day is the heading; the row only adds its time.
     if (section.kind === "today" || section.kind === "day") {
-      return row.dueMinutes != null ? <Chip size="sm" tone="muted">{clock(row.dueMinutes, locale)}</Chip> : null;
+      return row.dueMinutes != null ? <Chip size="sm" tone="muted" icon={glyph} onClick={press} testId="task-planner-due">{clock(row.dueMinutes, locale)}</Chip> : null;
     }
     const label = formatDueLabel(row.due, { locale, t });
     const text = row.dueMinutes != null ? `${label.text} · ${clock(row.dueMinutes, locale)}` : label.text;
     return (
-      <Chip size="sm" tone={isOpenState(row.state) && label.tone === "due" ? "warning" : "muted"}>
+      <Chip size="sm" tone={isOpenState(row.state) && label.tone === "due" ? "warning" : "muted"} icon={glyph} onClick={press} testId="task-planner-due">
         {text}
       </Chip>
     );
@@ -87,7 +100,24 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
     <div className="pv-planner-list" data-testid="task-planner-list">
       {shown.map((section) => (
         <section key={section.key} data-testid={`task-planner-section-${section.kind}`}>
-          <SectionLabel end={section.rows.length || undefined}>{heading(section)}</SectionLabel>
+          <SectionLabel
+            end={
+              section.kind === "overdue" && onOverdueToToday ? (
+                <>
+                  {/* One press for the whole section; the shell answers with a
+                      toast that carries Undo (W3). */}
+                  <Button variant="ghost" size="sm" onClick={onOverdueToToday} data-testid="task-planner-overdue-today">
+                    {t("tasks.overdueToToday")}
+                  </Button>
+                  {section.rows.length}
+                </>
+              ) : (
+                section.rows.length || undefined
+              )
+            }
+          >
+            {heading(section)}
+          </SectionLabel>
           {section.rows.length === 0 ? (
             <p className="pv-planner-none">{t("tasks.plannerEmptyToday")}</p>
           ) : (
@@ -105,13 +135,12 @@ export function TaskPlannerList({ sections, emptyLabel, databaseLabel, onToggle,
                       onContextMenu={onMenu ? (e) => { e.preventDefault(); onMenu(row, { x: e.clientX, y: e.clientY }); } : undefined}
                       {...rowProps?.(row)}
                       icon={
-                        <IconButton
+                        <TaskCheckButton
+                          state={row.state}
                           label={closed ? t("tasks.open") : t("tasks.done")}
-                          onClick={() => onToggle(row)}
-                          data-testid="task-planner-toggle"
-                        >
-                          <TaskStateIcon state={row.state} size={ICON.ui} />
-                        </IconButton>
+                          onToggle={() => onToggle(row)}
+                          testId="task-planner-toggle"
+                        />
                       }
                       title={
                         <span className={closed ? "pv-planner-closed" : undefined}>

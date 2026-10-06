@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2026-09-30
+Last updated: 2026-10-06
 
 The Tasks view collects every checkbox in your vault into one place: all the `- [ ]` and `- [x]` list items across all your notes, grouped by the note they live in. It is the "what do I still have to do?" view over plain Markdown — no plugin, no special file.
 
@@ -166,6 +166,8 @@ Above the lists sits the capture field; on the phone **+ New task** and the **�
 **Set priority** in a row's menu (right-click on the desktop, press and hold on the phone) offers **high**, **medium**, **low** and **none**; a flag in front of the title shows it. In the task database the priority is a select column: a database created now has it, an older one gets it the first time you set a priority — never by merely being opened. A checkbox carries the mark of the Obsidian Tasks plugin on its line: Plainva reads 🔺 and ⏫ as high, 🔼 as medium, 🔽 and ⏬ as low, and writes ⏫, 🔼 or 🔽.
 
 `- [/]` (**In progress**) and `- [-]` (**Cancelled**) are tasks too. They get a box of their own in the editor, in reading mode and in every list; in progress counts as open, cancelled as closed. A click still only moves between open and done — it completes a task in progress and reopens a cancelled one. **Set state** in the row menu sets the two states; Plainva never writes them on its own.
+
+**A task's date is the way to change it.** Press the date on a task (inside a day, its time) and the date picker opens — under the date on the desktop, as a sheet on the phone. **Change due date** in the row's menu opens the same picker; that is also how a task without a date gets one. An entry of the task database keeps its time of day, a checkbox gets or changes its `📅` date. At the **Overdue** heading, **All to today** moves every overdue task to today in one step. Both are confirmed by a notice that offers **Undo**. In the capture field, `[[` suggests notes and `#` suggests tags, as in the editor: `Enter` or `Tab` takes the highlighted suggestion, `Esc` closes the list.
 
 More ways in: **New task** in the tray menu on the desktop (when Plainva keeps running in the background), on Android the launcher shortcut **New task** (press and hold the app icon), and on the phone **Create as a task** when you share something to Plainva — the text and the attachments end up in the task's note. How a task with a time reminds you is described under [Calendar & external tasks](Calendar_and_Tasks.md).
 

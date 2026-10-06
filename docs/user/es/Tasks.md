@@ -1,6 +1,6 @@
 # Tareas
 
-Última actualización: 2026-09-30
+Última actualización: 2026-10-06
 
 La vista **Tareas** reúne en un solo lugar todas las casillas de tu vault: todos los elementos de lista `- [ ]` y `- [x]` de todas tus notas, agrupados por la nota en la que viven. Es la vista de "¿qué me queda por hacer?" sobre Markdown puro — sin plugin, sin archivo especial.
 
@@ -166,6 +166,8 @@ Encima de las listas está el campo de captura; en el teléfono, **+ Nueva tarea
 **Establecer prioridad** en el menú de una fila (clic derecho en el escritorio, mantener pulsado en el teléfono) ofrece **alta**, **media**, **baja** y **ninguna**; una bandera delante del título la muestra. En la base de datos de tareas, la prioridad es una columna de selección: una base de datos creada ahora ya la tiene, una más antigua la recibe la primera vez que estableces una prioridad — nunca por el simple hecho de abrirla. Una casilla lleva la marca del plugin Obsidian Tasks en su línea: Plainva lee 🔺 y ⏫ como alta, 🔼 como media, 🔽 y ⏬ como baja, y escribe ⏫, 🔼 o 🔽.
 
 `- [/]` (**En curso**) y `- [-]` (**Cancelada**) también son tareas. Reciben su propia casilla en el editor, en el modo de lectura y en cada lista; en curso cuenta como abierta, cancelada como cerrada. Un clic solo sigue alternando entre abierta y hecha — completa una tarea en curso y reabre una cancelada. **Establecer estado** en el menú de la fila fija los dos estados; Plainva no los escribe nunca por su cuenta.
+
+**La fecha de una tarea es la forma de cambiarla.** Pulsa la fecha de una tarea (dentro de un día, su hora) y se abre el selector de fecha: bajo la fecha en el escritorio, como hoja en el teléfono. **Cambiar vencimiento** en el menú de la fila abre el mismo selector; así también recibe fecha una tarea que no la tiene. Una entrada de la base de datos de tareas conserva su hora, una casilla recibe o cambia su fecha `📅`. Junto al título **Atrasadas**, **Todas a hoy** mueve de una vez todas las tareas atrasadas a hoy. Ambas acciones se confirman con un aviso que ofrece **Deshacer**. En el campo de captura, `[[` sugiere notas y `#` etiquetas, como en el editor: `Enter` o `Tab` toma la sugerencia resaltada, `Esc` cierra la lista.
 
 Más formas de entrada: **Nueva tarea** en el menú de la bandeja del sistema en el escritorio (cuando Plainva sigue ejecutándose en segundo plano), en Android el acceso directo del launcher **Nueva tarea** (mantén pulsado el icono de la app), y en el teléfono **Crear como tarea** cuando compartes algo con Plainva — el texto y los archivos adjuntos terminan en la nota de la tarea. Cómo te avisa una tarea con hora se describe en [Calendario y tareas externas](Calendar_and_Tasks.md).
 

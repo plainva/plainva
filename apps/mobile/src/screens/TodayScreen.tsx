@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { consumePendingNew } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, CheckSquare, FileText, ListTodo, Square, Trash2 } from "lucide-react";
+import { CalendarClock, CalendarDays, CheckSquare, FileText, ListTodo, Square, Trash2 } from "lucide-react";
+import { errorText, formatPickedDay, taskDbDueKey, toast, type TaskDueChange } from "@plainva/ui";
+import { TaskDueSheet } from "../components/TaskDueSheet";
+import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, journalToday, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows, useJournalDayKey } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
 import { listShownPimEvents } from "../services/pim/pimService";
@@ -67,6 +70,26 @@ export function TodayScreen({
   const [dailyDays, setDailyDays] = useState<Set<string>>(new Set());
   const [edited, setEdited] = useState<Array<{ path: string; title: string; mtime_local: number }>>([]);
   const [agenda, setAgenda] = useState<ReturnType<typeof buildDayAgenda>>([]);
+  // A task's date on this screen is the way to change it (plan Befunde
+  // 2026-10-06, W2), as in the tasks screen: the same sheet, the same write,
+  // the same notice with Undo. The task then leaves the day it was listed under.
+  const [taskDueKey, setTaskDueKey] = useState<string | null>(null);
+  const [dueTarget, setDueTarget] = useState<{ path: string; value: string | null } | null>(null);
+  const [dueTick, setDueTick] = useState(0);
+  const moveDue = (changes: readonly TaskDueChange[], day: string | null) => {
+    void moveTaskDueOnPhone(vault, taskDueKey, changes)
+      .then((outcome) => {
+        setDueTick((x) => x + 1);
+        // An undo is confirmed by the row coming back; it needs no second notice.
+        if (day === null) return;
+        announceTaskDue(
+          outcome,
+          { moved: t("tasks.dueMoved", { date: formatPickedDay(day, i18nInstance.language) }), skipped: (count) => t("tasks.dueSkipped", { count }), undo: t("common.undo") },
+          (back) => moveDue(back, null),
+        );
+      })
+      .catch((error) => toast.error(errorText(error)));
+  };
   // The agenda carries only what a day surface DISPLAYS; opening an appointment
   // needs the whole row, so it is kept beside the list under the same key.
   const [eventRows, setEventRows] = useState<Map<string, PimEventRow>>(new Map());
@@ -175,6 +198,7 @@ export function TodayScreen({
       for (const [i, e] of rows.entries()) rowByUid.set(events[i]!.uid, e);
 
       let due: AgendaTask[] = [];
+      let dueKey: string | null = null;
       const db = getMobileSettings().taskDatabase.trim();
       if (db && vault.queryService) {
         try {
@@ -184,11 +208,13 @@ export function TodayScreen({
           // No filtering here: `buildDayAgenda` is the one place that decides
           // what a day shows (due on this day, unfinished unless asked).
           due = taskDbRows(raw, config, completion);
+          dueKey = taskDbDueKey(config);
         } catch {
           due = [];
         }
       }
       if (!stale) {
+        setTaskDueKey(dueKey);
         setAgenda(buildDayAgenda(selectedIso, events, due));
         setEventRows(rowByUid);
       }
@@ -196,7 +222,7 @@ export function TodayScreen({
     return () => {
       stale = true;
     };
-  }, [vault, selectedIso, bump, i18nInstance.language]);
+  }, [vault, selectedIso, bump, dueTick, i18nInstance.language]);
 
   const weekday = new Intl.DateTimeFormat(i18nInstance.language, { weekday: "short" });
   const longDate = new Intl.DateTimeFormat(i18nInstance.language, { day: "numeric", month: "long", year: "numeric" });
@@ -335,8 +361,17 @@ export function TodayScreen({
                     }
                     key={item.task.path}
                     onClick={() => onOpenNote(item.task.path)}
+                    // The date is a control of its own (W2): a tap on it opens
+                    // the date sheet, a tap beside it still opens the task.
+                    controls
+                    data-testid="today-task-row"
                     subtitle={
-                      <Chip size="sm">
+                      <Chip
+                        size="sm"
+                        icon={taskDueKey ? <CalendarClock size={ICON.meta} /> : undefined}
+                        testId="today-task-due"
+                        onClick={taskDueKey ? () => setDueTarget({ path: item.task.path, value: item.task.due ?? null }) : undefined}
+                      >
                         {item.task.dueMinutes === undefined
                           ? t("pim.dueOn", { date: longDate.format(selectedDate) })
                           : t("pim.dueAt", { defaultValue: "fällig {{time}}", time: minutesToHHMM(item.task.dueMinutes) })}
@@ -390,6 +425,17 @@ export function TodayScreen({
             ))}
           </RowList>
         </GroupCard>
+      )}
+      {dueTarget && (
+        <TaskDueSheet
+          value={dueTarget.value}
+          onClose={() => setDueTarget(null)}
+          onPick={(day) => {
+            const target = dueTarget;
+            setDueTarget(null);
+            if (day !== target.value) moveDue([{ source: "database", path: target.path, day }], day);
+          }}
+        />
       )}
       {sheet && (
         <RowActionSheet

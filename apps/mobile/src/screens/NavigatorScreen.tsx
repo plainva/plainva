@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Bookmark, Database, FileText, Sun, Folder } from "lucide-react";
-import { Chip, DocIcon, ICON, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
+import { ArrowUpDown, Bookmark, Database, FileText, Sun, Folder } from "lucide-react";
+import { Chip, DocIcon, ICON, IconButton, bookmarkKey, useBookmarkTargets, toast, type BookmarkEntry, noteDisplayName, SectionLabel, Segmented, ScrollEdge} from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { useSyncSubtitle } from "../components/syncSubtitle";
@@ -46,6 +46,7 @@ export function NavigatorScreen({
   onMenu,
   onCreateDatabase,
   onCreateNote,
+  onArrangeBookmarks,
 }: {
   vault: MobileVault;
   vaultName: string;
@@ -62,6 +63,13 @@ export function NavigatorScreen({
    *  rendered no empty state at all, not even the sentence (S45). */
   onCreateNote?: () => void;
   onCreateDatabase?: () => void;
+  /**
+   * Opens the list in which the bookmarks are arranged (plan Befunde
+   * 2026-10-06, W6). The band below scrolls sideways, so a drag on it is a
+   * scroll; the order is changed in a list with a grip per row. That list had
+   * been a route nothing led to since the bookmarks became this band.
+   */
+  onArrangeBookmarks?: () => void;
 }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<NavigatorTab>(getNavigatorTab);
@@ -168,7 +176,18 @@ export function NavigatorScreen({
       )}
       {marks.length > 0 && (
         <>
-          <SectionLabel>{t("mobile.bookmarks")}</SectionLabel>
+          <SectionLabel
+            end={
+              // One entry needs no order; the heading's one action appears with the second.
+              onArrangeBookmarks && marks.length > 1 ? (
+                <IconButton label={t("mobile.bookmarksArrange")} onClick={onArrangeBookmarks} data-testid="bookmarks-arrange">
+                  <ArrowUpDown size={ICON.ui} />
+                </IconButton>
+              ) : undefined
+            }
+          >
+            {t("mobile.bookmarks")}
+          </SectionLabel>
           <ScrollEdge axis="x" className="m-chiprow">
             {marks.map((entry) => {
               const missing = targets.get(bookmarkKey(entry)) === false;

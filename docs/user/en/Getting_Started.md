@@ -208,7 +208,7 @@ In a separate or second full window, right-click a tab and choose **Return to ma
 
 ## Folder bookmarks
 
-Add a bookmark from a file or folder context menu. Folder bookmarks have a folder icon: mobile opens the folder, while desktop expands it in the file tree. Renaming and moving items in Plainva also updates bookmarks for nested folders and their files. Missing targets stay visible with a label; remove those bookmarks explicitly.
+Add a bookmark from a file or folder context menu. Folder bookmarks have a folder icon: mobile opens the folder, while desktop expands it in the file tree. Renaming and moving items in Plainva also updates bookmarks for nested folders and their files. Missing targets stay visible with a label; remove those bookmarks explicitly. To change the order, drag a bookmark to its place in the sidebar — or press `Alt+↑` / `Alt+↓` on the focused row; on the phone, **Arrange bookmarks** beside the **Bookmarks** heading opens the list, where you drag the grip at the end of a row.
 
 When a vault opens, Plainva automatically imports file and folder bookmarks from Obsidian, including groups. Type and path prevent duplicates. The Obsidian file stays unchanged. Settings profiles carry folder bookmarks separately from files; an older profile without a folder field keeps existing folder bookmarks.
 

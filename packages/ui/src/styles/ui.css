@@ -1959,6 +1959,11 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
 /* Trailing slot: a count, or exactly one action. Reads as itself, not as a
    continuation of the heading, so it drops the caps and the tracking. */
 .pv-grouplabel-end {
+  /* A count may stand beside the heading's one action ("All to today" at
+     Overdue): the two sit on one line with a gap instead of touching. */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   margin-left: auto;
   font-size: var(--text-sm);
   font-weight: 650;
@@ -2200,6 +2205,32 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
   flex: 0 0 auto;
   min-width: 5.5rem;
 }
+/* The line of a task in the "All" list: the title is a button that opens the
+   note, and what stands beside it — the due date (a control of its own since
+   a press on it opens the date picker), the tags — wraps after it. The line is
+   as tall as the box in front of it, so one line of text centres on the box. */
+.pv-taskline {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-md);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--text-md);
+  line-height: 1.4;
+  cursor: pointer;
+}
+.pv-taskline-open {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 
 /* "Bars & areas": one ordered list per bar inside a SettingCard.
    The card deliberately carries NO padding of its own — .pv-setrow supplies the
@@ -2223,6 +2254,12 @@ html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
 }
 .pv-barrow.is-over { border-top-color: var(--accent-color); }
 .pv-barrow.is-dragging { opacity: 0.6; }
+/* A bookmark row of the sidebar while the list is being arranged: the lifted
+   row dims, and an accent line on the row's edge says where a drop lands — an
+   inset shadow, so the row it marks does not move. */
+.pv-bookmark-row.is-dragging { opacity: 0.6; cursor: grabbing; }
+.pv-bookmark-row.is-drop-before { box-shadow: inset 0 2px 0 var(--accent-color); }
+.pv-bookmark-row.is-drop-after { box-shadow: inset 0 -2px 0 var(--accent-color); }
 .pv-barrow-grip {
   display: flex;
   align-items: center;
@@ -2897,6 +2934,10 @@ button.pv-acct:hover { background: var(--state-hover); }
 .pv-planner-flag[data-priority="1"] { color: var(--warning-text); }
 .pv-planner-flag[data-priority="2"] { color: var(--accent-color); }
 .pv-planner-flag svg { fill: currentColor; fill-opacity: 0.25; }
+/* The box of a task row (TaskCheckButton): the button carries the target, the
+   glyph follows --taskbox-size — 18px with a pointer, 24px under a finger. */
+.pv-iconbtn--taskbox svg { width: var(--taskbox-size); height: var(--taskbox-size); }
+.pv-iconbtn--taskbox.is-done { color: var(--accent-color); }
 .pv-planner-source { margin-left: auto; font-size: var(--text-sm); color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
 .pv-planner-segment { margin-bottom: var(--space-2); }
 

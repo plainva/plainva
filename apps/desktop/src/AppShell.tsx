@@ -262,7 +262,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   const [quickSwitcherNewTab, setQuickSwitcherNewTab] = useState(false);
   const newBtnRef = useRef<HTMLButtonElement>(null);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
-  const { bookmarks, toggleBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
+  const { bookmarks, toggleBookmark, moveBookmark } = useWindowBookmarks(vaultAdapter, vaultPath);
   // The two sides need different floors (plan P3): on the left a narrow strip
   // still works — file names simply truncate — while on the right no section is
   // usable below 200 px. The calendar, the property rows and the graph all need
@@ -1412,6 +1412,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
             onOpenInSplit={openPathInSplit}
             isBookmarked={(p, type = "file") => bookmarks.some((b) => b.type === type && b.path === p)}
             onToggleBookmarkPath={toggleBookmark}
+            onMoveBookmark={moveBookmark}
             onForgetRecent={(p) => {
               setRecentPaths((prev) => prev.filter((x) => x !== p));
               if (vaultAdapter) void recentsModule().then((m) => m.forgetRecent(vaultAdapter, p)).catch(() => undefined);

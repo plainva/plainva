@@ -6,6 +6,7 @@ import { TextInput } from "./ui/Field";
 import { ICON } from "../lib/iconSizes";
 import { captureVocabularyFrom, parseTaskCapture, type CaptureBrick, type CaptureResult, type CaptureVocabulary } from "../lib/taskCapture";
 import { describeRule } from "../lib/taskRecurrence";
+import { CARET_KEYS, useInlineSuggest } from "./InlineSuggest";
 
 /**
  * The capture field of the tasks view (plan Aufgaben-Oberfläche, B2), shared by
@@ -21,6 +22,10 @@ import { describeRule } from "../lib/taskRecurrence";
  * sits exactly under its word, and the mirror follows the input's scrolling).
  * The mirror is `aria-hidden`; a screen reader gets the bricks, which say the
  * same thing in words.
+ *
+ * After `[[` and `#` the field offers the vault's notes and tags, as the note
+ * editor does (plan Befunde 2026-10-06, W5). A picked tag is a brick like a
+ * typed one; a link stays part of the title.
  */
 
 export function useCaptureVocabulary(): CaptureVocabulary {
@@ -68,6 +73,8 @@ export function TaskCaptureField({ value, onChange, todayKey, onSubmit, onCancel
   const [disabled, setDisabled] = useState<ReadonlySet<string>>(() => new Set());
   const [needsTitle, setNeedsTitle] = useState(false);
   const mirrorRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<HTMLInputElement>(null);
+  const suggest = useInlineSuggest({ value, onChange: (next) => { setNeedsTitle(false); onChange(next); }, fieldRef });
   const hintId = useId();
   const result = useMemo(() => parseTaskCapture(value, vocab, todayKey, disabled), [value, vocab, todayKey, disabled]);
 
@@ -106,6 +113,8 @@ export function TaskCaptureField({ value, onChange, todayKey, onSubmit, onCancel
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // An open suggestion list answers the arrows, Enter, Tab and Escape first.
+    if (suggest.onKeyDown(e)) return;
     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
       e.preventDefault();
       submit();
@@ -131,11 +140,15 @@ export function TaskCaptureField({ value, onChange, todayKey, onSubmit, onCancel
       <div className="pv-capture-box">
         <div className="pv-capture-mirror" aria-hidden="true" ref={mirrorRef}>{mirror}</div>
         <TextInput
+          ref={fieldRef}
           className="pv-capture-input"
           value={value}
           // A brick id is its text; when the text changes the old ids simply stop matching.
-          onChange={(e) => { setNeedsTitle(false); onChange(e.target.value); }}
+          onChange={(e) => { setNeedsTitle(false); onChange(e.target.value); suggest.onText(e.target.value, e.target.selectionStart); }}
           onKeyDown={onKeyDown}
+          onKeyUp={(e) => { if (CARET_KEYS.has(e.key)) suggest.onCaret(e.currentTarget.selectionStart); }}
+          onClick={(e) => suggest.onCaret(e.currentTarget.selectionStart)}
+          onBlur={suggest.onBlur}
           onScroll={(e) => { if (mirrorRef.current) mirrorRef.current.scrollLeft = e.currentTarget.scrollLeft; }}
           placeholder={t("tasks.capturePlaceholder")}
           aria-label={t("tasks.newTask")}
@@ -148,6 +161,7 @@ export function TaskCaptureField({ value, onChange, todayKey, onSubmit, onCancel
           // switch like every prose field (it was hard-wired on until 2026-10-06).
           purpose="prose"
         />
+        {suggest.menu}
       </div>
       {result.bricks.length > 0 && (
         <div className="pv-capture-bricks" data-testid="task-capture-bricks">

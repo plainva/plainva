@@ -476,6 +476,7 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onOpenNote={c.openNote}
       onMenu={() => c.push({ kind: "settings", path: "" })}
       onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
+      onArrangeBookmarks={() => c.push({ kind: "bookmarks", path: "" })}
       vault={c.vault}
       vaultName={c.vaultName}
     />

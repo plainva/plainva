@@ -1,6 +1,6 @@
 # Taken
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-06
 
 De Taken-weergave verzamelt elk selectievakje in je vault op één plek: alle `- [ ]`- en `- [x]`-lijstitems uit al je notities, gegroepeerd per notitie waarin ze staan. De Taken-weergave is de "wat moet ik nog doen?"-weergave over gewone Markdown — geen plugin, geen speciaal bestand.
 
@@ -166,6 +166,8 @@ Boven de lijsten staat het invoerveld; op de telefoon openen **+ Nieuwe taak** e
 **Prioriteit instellen** in het menu van een rij (rechtsklikken op de desktop, ingedrukt houden op de telefoon) biedt **hoog**, **gemiddeld**, **laag** en **geen**; een vlaggetje voor de titel toont dit. In de takendatabase is prioriteit een keuzekolom: een nu aangemaakte database heeft hem al, een oudere krijgt hem zodra je voor het eerst een prioriteit instelt — nooit door hem enkel te openen. Een selectievakje draagt op zijn regel het teken van de Obsidian Tasks-plugin: Plainva leest 🔺 en ⏫ als hoog, 🔼 als gemiddeld, 🔽 en ⏬ als laag, en schrijft ⏫, 🔼 of 🔽.
 
 `- [/]` (**Bezig**) en `- [-]` (**Geannuleerd**) zijn ook taken. Ze krijgen een eigen vakje in de editor, in de leesmodus en in elke lijst; bezig telt als open, geannuleerd als afgerond. Een klik wisselt nog steeds alleen tussen open en klaar — hij rondt een taak die bezig is af en heropent een geannuleerde. **Status instellen** in het rijmenu zet de twee statussen; Plainva schrijft ze nooit uit zichzelf.
+
+**De datum van een taak is de manier om hem te wijzigen.** Druk op de datum van een taak (binnen een dag: op het tijdstip) en de datumkiezer opent — op de desktop onder de datum, op de telefoon als blad. **Vervaldatum wijzigen** in het menu van de rij opent dezelfde kiezer; zo krijgt ook een taak zonder datum er een. Een item van de takendatabase houdt zijn tijdstip, een selectievakje krijgt of wijzigt zijn `📅`-datum. Bij de kop **Te laat** verplaatst **Alles naar vandaag** alle te late taken in één keer naar vandaag. Beide worden bevestigd met een melding die **Ongedaan maken** aanbiedt. In het invoerveld stelt `[[` notities voor en `#` tags, net als in de editor: `Enter` of `Tab` neemt het gemarkeerde voorstel over, `Esc` sluit de lijst.
 
 Meer manieren om een taak toe te voegen: **Nieuwe taak** in het systeemvakmenu op de desktop (wanneer Plainva op de achtergrond actief blijft), op Android de launcher-snelkoppeling **Nieuwe taak** (app-icoon ingedrukt houden), en op de telefoon **Als taak aanmaken** wanneer je iets met Plainva deelt — de tekst en de bijlagen komen terecht in de notitie van de taak. Hoe een taak met een tijdstip je eraan herinnert, staat beschreven onder [Agenda & externe taken](Calendar_and_Tasks.md).
 

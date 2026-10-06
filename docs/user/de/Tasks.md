@@ -1,6 +1,6 @@
 # Aufgaben
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Die Aufgabenansicht sammelt jede Checkbox Deines Vaults an einem Ort: alle `- [ ]`- und `- [x]`-Listeneinträge über alle Notizen hinweg, gruppiert nach der Notiz, in der sie stehen. Sie ist die „Was habe ich noch zu tun?"-Ansicht über reines Markdown — kein Plugin, keine Sonderdatei.
 
@@ -166,6 +166,8 @@ Die Aufgabenansicht öffnet sich auf **Heute**. Die Listen — am Desktop eine L
 **Priorität setzen** im Menü einer Zeile (Rechtsklick am Desktop, gedrückt halten am Telefon) bietet **hoch**, **mittel**, **niedrig** und **keine**; eine Fahne vor dem Titel zeigt sie. In der Aufgaben-Datenbank ist die Priorität eine Auswahl-Spalte: eine jetzt angelegte Datenbank hat sie, eine ältere bekommt sie, wenn Du zum ersten Mal eine Priorität setzt — nie durch bloßes Öffnen. Eine Checkbox trägt das Zeichen des Obsidian-Tasks-Plugins in ihrer Zeile: Plainva liest 🔺 und ⏫ als hoch, 🔼 als mittel, 🔽 und ⏬ als niedrig und schreibt ⏫, 🔼 oder 🔽.
 
 `- [/]` (**In Arbeit**) und `- [-]` (**Abgebrochen**) sind ebenfalls Aufgaben. Sie bekommen im Editor, im Lesemodus und in jeder Liste ein eigenes Kästchen; „in Arbeit“ zählt als offen, „abgebrochen“ als geschlossen. Ein Klick schaltet weiterhin nur zwischen offen und erledigt — er erledigt eine Aufgabe in Arbeit und öffnet eine abgebrochene wieder. **Zustand setzen** im Zeilenmenü setzt die beiden Zustände; von sich aus schreibt Plainva sie nie.
+
+**Das Datum einer Aufgabe ist der Weg, es zu ändern.** Tippe oder klicke auf das Datum einer Aufgabe (innerhalb eines Tages: auf ihre Uhrzeit), und die Datumswahl öffnet sich — am Desktop unter dem Datum, am Telefon als Blatt. **Fälligkeit ändern** im Menü der Zeile öffnet dieselbe Datumswahl; so bekommt auch eine Aufgabe ohne Datum eines. Ein Eintrag der Aufgaben-Datenbank behält seine Uhrzeit, eine Checkbox bekommt oder ändert ihr `📅`-Datum. An der Überschrift **Überfällig** verschiebt **Alle auf heute** alle überfälligen Aufgaben in einem Schritt auf heute. Beides bestätigt ein Hinweis, der **Rückgängig** anbietet. Im Erfassungsfeld schlägt `[[` Notizen vor und `#` Tags, wie im Editor: `Enter` oder `Tab` übernimmt den markierten Vorschlag, `Esc` schließt die Liste.
 
 Weitere Wege hinein: **Neue Aufgabe** im Tray-Menü am Desktop (wenn Plainva im Hintergrund weiterläuft), unter Android der Startmenü-Eintrag **Neue Aufgabe** (App-Symbol gedrückt halten) und am Telefon **Als Aufgabe anlegen**, wenn Du etwas an Plainva teilst — Text und Anhänge landen in der Notiz der Aufgabe. Wie eine Aufgabe mit Uhrzeit erinnert, steht unter [Kalender & externe Aufgaben](Calendar_and_Tasks.md).
 

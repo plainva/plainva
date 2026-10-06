@@ -80,6 +80,16 @@ export function setChecklistTaskPriority(content: string, index: number, rank: 0
 }
 
 /**
+ * Sets or clears the due day (`📅 YYYY-MM-DD`) of one checkbox — the field the
+ * Tasks plugin reads. A line that already carries two due dates is ambiguous
+ * and stays as it is (`changed: false`), like every other field edit.
+ */
+export function setChecklistTaskDue(content: string, index: number, day: string | null): ChecklistMutationResult {
+  if (day !== null && tasksDayNumber(day) === null) throw new Error("invalid_task_due_day");
+  return rewriteChecklistTaskText(content, index, (text) => setTasksField(text, "due", day));
+}
+
+/**
  * Sets what the box of one checkbox holds (plan Aufgaben-Oberflaeche, E12). Open
  * and done go through `setChecklistTaskDone`, so the completion date and a
  * repeating task's successor behave exactly as with a click; in progress and

@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, InlineSuggestProvider } from "@plainva/ui";
 import { projectPublicationFeedbackForOwner, sameStoredValue } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
@@ -3486,7 +3486,8 @@ export const VaultProvider: React.FC<{
 
   return (
     <VaultContext.Provider value={value}>
-      {children}
+      {/* `[[` and `#` in the capture fields read this vault's index (W5). */}
+      <InlineSuggestProvider source={state.queryService}>{children}</InlineSuggestProvider>
     </VaultContext.Provider>
   );
 };

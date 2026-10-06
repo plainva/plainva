@@ -90,6 +90,16 @@ test.beforeEach(async ({ page }) => {
               .filter((r) => r.mode !== 'attachment')
               .map((r) => ({ path: r.path, title: r.title, content: fs.__fts[r.path] ?? fs['/test-vault/' + r.path] }));
           }
+          // `[[` and `#` in the capture fields (plan Befunde 2026-10-06, W5): the
+          // note search of the suggestion list, and the vault's tags — a test
+          // opts in to tags with fs.__tags.
+          if (q.includes('AS is_attachment FROM files')) {
+            const term = String((args.values || [])[0] || '').replace(/%/g, '').toLowerCase();
+            return noteRows()
+              .filter((r) => !r.path.endsWith('.base') && r.path.toLowerCase().includes(term))
+              .map((r) => ({ path: r.path, title: r.mode === 'attachment' ? null : r.title, is_attachment: r.mode === 'attachment' ? 1 : 0 }));
+          }
+          if (q.includes('FROM tags') && q.includes('GROUP BY tag')) return fs.__tags ?? [];
           if (q.includes('FROM files WHERE is_deleted = 0')) return noteRows();
           // listBases(): inline `LIKE '%.base'` — must precede the generic
           // "SELECT path, title FROM files" (listNotes) branch below.
@@ -271,15 +281,15 @@ test('Tasks metadata stays visible and a repeated completion keeps one successor
   await expect(original.getByTestId('task-metadata')).toContainText('audit-1');
   await expect(original.getByTestId('task-metadata')).toContainText('2026-08-01');
   await expect(page.getByRole('button', { name: /Unusual rule/ }).locator('.pv-taskmeta-unsupported')).toBeVisible();
-  await original.locator('xpath=preceding-sibling::button[1]').click();
+  await original.locator('xpath=../preceding-sibling::button[1]').click();
   await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md'])).toContain('✅');
   await expect(page.getByRole('button', { name: /Weekly audit/ })).toHaveCount(1);
   await expect(page.getByRole('button', { name: /Weekly audit/ }).getByTestId('task-metadata')).toContainText('pv-');
   await page.getByTestId('tasks-filter-all').click();
   const done = page.getByRole('button', { name: /Weekly audit/ }).filter({ hasText: 'audit-1' });
-  await done.locator('xpath=preceding-sibling::button[1]').click();
+  await done.locator('xpath=../preceding-sibling::button[1]').click();
   await expect(done.getByTestId('task-metadata')).not.toContainText('Completed:');
-  await done.locator('xpath=preceding-sibling::button[1]').click();
+  await done.locator('xpath=../preceding-sibling::button[1]').click();
   await expect(page.getByRole('button', { name: /Weekly audit/ })).toHaveCount(2);
   const text = await page.evaluate(() => (window as any).mockFs['/test-vault/Todo.md']);
   expect(text.match(/Weekly audit/g)).toHaveLength(2); expect(text).toContain('every month on the last');
@@ -304,9 +314,9 @@ test('tasks view aggregates checkboxes across notes, filters by status, and togg
   await expect(recentRow).toBeVisible();
   await expect(recentRow.locator('svg.lucide-list-checks')).toBeVisible();
 
-  // Toggle "buy milk" via its checkbox (the button just before the text button).
+  // Toggle "buy milk" via its checkbox (the box in front of the task's line).
   const indexWritesBefore = await page.evaluate(() => (window as any).mockFs.__taskIndexWrites);
-  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=preceding-sibling::button[1]').click();
+  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=../preceding-sibling::button[1]').click();
 
   // It is written back to disk as [x].
   await expect
@@ -391,7 +401,7 @@ test('promoting a checkbox creates a task note in the standard database and link
   await expect(page.getByText(/From notes|Aus Notizen/)).toBeVisible();
 
   // Promote "call bob" (the database button right after the task text).
-  await page.getByRole('button', { name: /call bob/ }).locator('xpath=..').getByTestId('task-promote').click();
+  await page.getByRole('button', { name: /call bob/ }).locator('xpath=../..').getByTestId('task-promote').click();
 
   // A task note appears in the database folder: due date in the date column,
   // first status option, tags carried, source backlink; the checkbox line in
@@ -556,7 +566,7 @@ test('without a standard database the promote button offers the database picker'
 
   // The promote click opens the picker menu listing the vault's databases;
   // choosing one promotes into it ad hoc.
-  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=..').getByTestId('task-promote').click();
+  await page.getByRole('button', { name: /buy milk/ }).locator('xpath=../..').getByTestId('task-promote').click();
   const menu = page.getByRole('menu', { name: /Move to database|In Datenbank verschieben/ });
   await expect(menu).toBeVisible();
   await menu.getByRole('menuitem', { name: 'Aufgaben' }).click();
@@ -1141,4 +1151,206 @@ test('the journal and an OPEN daily note: unsaved typing stays, the entry arrive
   await page.keyboard.type('!');
   await expect.poll(async () => page.evaluate((p) => String((window as any).mockFs[p]), path), { timeout: 15000 }).toMatch(/plan typed and unsaved!\n\n## Journal\n\n- 08:00 first\n- \d{2}:\d{2} second, from the dialog\n$/);
   expect(errors).toEqual([]);
+});
+
+test('the due day: a press on a task\'s date opens the date picker, "All to today" moves the overdue ones, both can be undone (plan Befunde 2026-10-06, W1-W3)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const key = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+    (window as any).__dayKey = key;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    // One with a time of day: only its DAY may change.
+    fs['/test-vault/Aufgaben/Steuer.md'] = `---\nstatus: Offen\nfrist: ${key(-2)}T09:15\n---\n# Steuer\n`;
+    fs['/test-vault/Aufgaben/Miete.md'] = `---\nstatus: Offen\nfrist: ${key(-5)}\n---\n# Miete\n`;
+    fs['/test-vault/Todo.md'] = `# Todo\n- [ ] Drucker einrichten 📅 ${key(-1)} #buero\n- [ ] ohne Datum\n`;
+  }, TASK_DB_YAML);
+  await openVault(page);
+  await page.getByTestId('ribbon-tasks').click();
+  const key = (offset: number) => page.evaluate((o) => (window as any).__dayKey(o), offset);
+  const file = (path: string) => page.evaluate((p) => String((window as any).mockFs[p]), path);
+  const [today, inTwo, minusOne, minusTwo, minusFive] = [await key(0), await key(2), await key(-1), await key(-2), await key(-5)];
+
+  const overdue = page.getByTestId('task-planner-section-overdue');
+  await expect(overdue.getByTestId('task-planner-row')).toHaveCount(3);
+
+  // W1: the box is a control of its own size — an 18px glyph in a 28px target.
+  const box = overdue.getByTestId('task-planner-toggle').first();
+  const target = await box.boundingBox();
+  expect(target!.width).toBeGreaterThanOrEqual(24);
+  expect(target!.height).toBeGreaterThanOrEqual(24);
+  expect((await box.locator('svg').boundingBox())!.width).toBe(18);
+
+  // W2: the date on a row is a button; it opens the shared date picker under it.
+  const rent = overdue.locator('[data-testid="task-planner-row"]', { hasText: 'Miete' });
+  await rent.getByTestId('task-planner-due').click();
+  await expect(page.getByTestId('task-due-picker')).toBeVisible();
+  // A press on the date is not a press on the row: no note opened.
+  await expect(page.getByTestId('task-planner-list')).toBeVisible();
+  await page.getByTestId(`task-due-grid-day-${inTwo}`).click();
+  await expect(page.getByTestId('task-due-picker')).toHaveCount(0);
+  await expect.poll(() => file('/test-vault/Aufgaben/Miete.md')).toMatch(new RegExp(`frist: "?${inTwo}"?\\n`));
+  await expect(overdue.getByTestId('task-planner-row')).toHaveCount(2);
+
+  // ... and the notice takes it back.
+  const moved = page.locator('.pv-toast').filter({ hasText: /New due date|Neue Fälligkeit/ });
+  await moved.locator('.pv-toast-action').click();
+  await expect.poll(() => file('/test-vault/Aufgaben/Miete.md')).toMatch(new RegExp(`frist: "?${minusFive}"?\\n`));
+  await expect(overdue.getByTestId('task-planner-row')).toHaveCount(3);
+
+  // W3: one press for the whole section — database entries and a checkbox alike.
+  await page.getByTestId('task-planner-overdue-today').click();
+  await expect.poll(() => file('/test-vault/Aufgaben/Steuer.md')).toMatch(new RegExp(`frist: "?${today}T09:15"?\\n`));
+  await expect.poll(() => file('/test-vault/Aufgaben/Miete.md')).toMatch(new RegExp(`frist: "?${today}"?\\n`));
+  await expect.poll(() => file('/test-vault/Todo.md')).toBe(`# Todo\n- [ ] Drucker einrichten 📅 ${today} #buero\n- [ ] ohne Datum\n`);
+  await expect(page.getByTestId('task-planner-section-overdue')).toHaveCount(0);
+  await expect(page.getByTestId('task-planner-section-today').getByTestId('task-planner-row')).toHaveCount(3);
+
+  const all = page.locator('.pv-toast').filter({ hasText: /Moved to today: 3|Auf heute verschoben: 3/ });
+  await all.locator('.pv-toast-action').click();
+  await expect.poll(() => file('/test-vault/Aufgaben/Steuer.md')).toMatch(new RegExp(`frist: "?${minusTwo}T09:15"?\\n`));
+  await expect.poll(() => file('/test-vault/Aufgaben/Miete.md')).toMatch(new RegExp(`frist: "?${minusFive}"?\\n`));
+  await expect.poll(() => file('/test-vault/Todo.md')).toBe(`# Todo\n- [ ] Drucker einrichten 📅 ${minusOne} #buero\n- [ ] ohne Datum\n`);
+  await expect(page.getByTestId('task-planner-section-overdue').getByTestId('task-planner-row')).toHaveCount(3);
+
+  // The row menu carries the same picker — the way a task WITHOUT a date gets one.
+  await page.getByTestId('tasks-list-inbox').click();
+  await page.locator('[data-testid="task-planner-row"]', { hasText: 'ohne Datum' }).click({ button: 'right' });
+  await page.getByTestId('task-ctx-due').click();
+  await expect(page.getByTestId('task-due-picker')).toBeVisible();
+  await page.getByTestId(`task-due-grid-day-${today}`).click();
+  await expect.poll(() => file('/test-vault/Todo.md')).toContain(`- [ ] ohne Datum 📅 ${today}\n`);
+
+  // "All" draws the same box and the same date control in both of its sections.
+  await page.getByTestId('tasks-list-all').click();
+  const dbRow = page.locator('[data-testid="task-db-row"]', { hasText: 'Steuer' });
+  expect((await dbRow.getByTestId('task-db-toggle').boundingBox())!.width).toBeGreaterThanOrEqual(24);
+  expect((await page.getByTestId('task-toggle').first().boundingBox())!.width).toBeGreaterThanOrEqual(24);
+  await dbRow.getByTestId('task-db-due').click();
+  await expect(page.getByTestId('task-due-picker')).toBeVisible();
+  // Escape puts the picker away and changes nothing.
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('task-due-picker')).toHaveCount(0);
+  expect(await file('/test-vault/Aufgaben/Steuer.md')).toMatch(new RegExp(`frist: "?${minusTwo}T09:15"?\\n`));
+  await page.getByTestId('task-due').first().click();
+  await expect(page.getByTestId('task-due-picker')).toBeVisible();
+  await page.getByTestId(`task-due-grid-day-${inTwo}`).click();
+  await expect.poll(() => file('/test-vault/Todo.md')).toContain(`- [ ] Drucker einrichten 📅 ${inTwo} #buero\n`);
+  expect(errors).toEqual([]);
+});
+
+test('the capture fields offer notes after [[ and tags after # (plan Befunde 2026-10-06, W5)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  await page.addInitScript((yaml) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Aufgaben'] = { isDir: true };
+    fs['/test-vault/Aufgaben.base'] = yaml;
+    fs.__taskDb = 'Aufgaben.base';
+    fs.__tags = [{ tag: 'shopping', count: 3 }, { tag: 'shop/tools', count: 1 }, { tag: 'dev', count: 2 }];
+  }, TASK_DB_YAML);
+  await openVault(page);
+
+  // The journal's field: `[[` lists notes; Enter takes the highlighted one instead of saving.
+  await page.keyboard.press('Control+Shift+J');
+  const dialog = page.getByTestId('journal-capture-dialog');
+  const field = dialog.getByTestId('journal-capture-input');
+  await field.pressSequentially('Look at [[oth');
+  const options = page.getByTestId('inline-suggest-option');
+  await expect(options).toHaveCount(1);
+  await expect(options.first()).toContainText('other');
+  await field.press('Enter');
+  await expect(field).toHaveValue('Look at [[other]] ');
+  await expect(dialog).toBeVisible();
+
+  // `#` lists the vault's tags; the arrows move, Tab takes.
+  await field.pressSequentially('#sho');
+  await expect(options).toHaveCount(2);
+  await field.press('ArrowDown');
+  await field.press('Tab');
+  await expect(field).toHaveValue('Look at [[other]] #shop/tools ');
+  // Escape closes the list only — the dialog and its text stay.
+  await field.pressSequentially('#de');
+  await expect(options).toHaveCount(1);
+  await field.press('Escape');
+  await expect(options).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(field).toHaveValue('Look at [[other]] #shop/tools #de');
+  // A tag written out in full is complete: Enter saves.
+  await field.pressSequentially('v');
+  await expect(options).toHaveCount(0);
+  await field.press('Enter');
+  await expect(dialog).toBeHidden();
+
+  // The task capture: the same list, and a picked tag is a brick like a typed one.
+  await page.getByTestId('ribbon-tasks').click();
+  const input = page.getByTestId('task-capture-input');
+  await input.pressSequentially('Buy screws #sh');
+  await expect(options).toHaveCount(2);
+  await input.press('Enter');
+  await expect(input).toHaveValue('Buy screws #shopping ');
+  await expect(page.getByTestId('task-capture-brick-tag')).toContainText('shopping');
+  await input.press('Enter');
+  await expect.poll(async () => page.evaluate(() => Object.keys((window as any).mockFs).some((p) => p.includes('Buy screws')))).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('bookmarks are arranged by dragging a row or with Alt+Arrow, and the order is the file\'s (plan Befunde 2026-10-06, W6)', async ({ page }) => {
+  await page.addInitScript(() => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/Alpha.md'] = '# Alpha';
+    fs['/test-vault/Beta.md'] = '# Beta';
+    fs['/test-vault/.plainva/bookmarks.json'] = JSON.stringify({ items: [
+      { type: 'file', path: 'Alpha.md' }, { type: 'file', path: 'Beta.md' }, { type: 'folder', path: 'Notes' }, { type: 'file', path: 'Todo.md' },
+    ] });
+  });
+  await openVault(page);
+  const rows = page.getByTestId('bookmarks-section').locator('[data-bookmark-row]');
+  const order = () => rows.evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.bookmarkKey));
+  const onDisk = () => page.evaluate(() => JSON.parse((window as any).mockFs['/test-vault/.plainva/bookmarks.json']).items.map((i: any) => `${i.type}:${i.path}`));
+  await expect(rows).toHaveCount(4);
+  expect(await order()).toEqual(['file:Alpha.md', 'file:Beta.md', 'folder:Notes', 'file:Todo.md']);
+
+  // Drag the last row in front of the first.
+  const from = (await rows.nth(3).boundingBox())!;
+  const to = (await rows.nth(0).boundingBox())!;
+  await page.mouse.move(from.x + 30, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 30, from.y - 10, { steps: 4 });
+  await page.mouse.move(to.x + 30, to.y + 3, { steps: 6 });
+  await expect(rows.nth(3)).toHaveClass(/is-dragging/);
+  await expect(rows.nth(0)).toHaveClass(/is-drop-before/);
+  await page.mouse.up();
+  await expect.poll(onDisk).toEqual(['file:Todo.md', 'file:Alpha.md', 'file:Beta.md', 'folder:Notes']);
+  await expect.poll(order).toEqual(['file:Todo.md', 'file:Alpha.md', 'file:Beta.md', 'folder:Notes']);
+
+  // The drop did not open the note that was dragged, and a plain click still does.
+  await expect(page.locator('.cm-content')).toHaveCount(0);
+
+  // One step with the keyboard, and back.
+  await rows.nth(1).focus();
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect.poll(onDisk).toEqual(['file:Todo.md', 'file:Beta.md', 'file:Alpha.md', 'folder:Notes']);
+  await page.locator('[data-bookmark-key="file:Alpha.md"]').focus();
+  await page.keyboard.press('Alt+ArrowUp');
+  await expect.poll(onDisk).toEqual(['file:Todo.md', 'file:Alpha.md', 'file:Beta.md', 'folder:Notes']);
+
+  // A drop behind the last row goes to the end.
+  const first = (await rows.nth(0).boundingBox())!;
+  const last = (await rows.nth(3).boundingBox())!;
+  await page.mouse.move(first.x + 30, first.y + first.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(first.x + 30, first.y + first.height + 8, { steps: 4 });
+  await page.mouse.move(last.x + 30, last.y + last.height - 2, { steps: 6 });
+  await expect(rows.nth(3)).toHaveClass(/is-drop-after/);
+  await page.mouse.up();
+  await expect.poll(onDisk).toEqual(['file:Alpha.md', 'file:Beta.md', 'folder:Notes', 'file:Todo.md']);
 });

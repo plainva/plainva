@@ -17,7 +17,8 @@ export interface ChipProps {
    * a screen reader could not tell a chosen filter from an unchosen one.
    */
   selected?: boolean;
-  onClick?: () => void;
+  /** The event is handed on for a chip that anchors a popover (a task's due date). */
+  onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   /**
    * A hold gesture on a chip that acts. The app already uses hold to mean
@@ -105,7 +106,7 @@ export function Chip({
   if (onClick && onRemove) return (
     <span className={cls} style={style} title={title} data-testid={testId}>
       <button type="button" className="pv-chip-open" aria-disabled={disabled} aria-pressed={selected}
-        onClick={() => { if (!disabled) onClick(); }} onPointerDown={onPointerDown} onPointerUp={onPointerUp}
+        onClick={(e) => { if (!disabled) onClick(e); }} onPointerDown={onPointerDown} onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave} onPointerCancel={onPointerCancel}>{glyph}{label}</button>
       {remove}
     </span>
@@ -120,7 +121,7 @@ export function Chip({
         title={title}
         data-testid={testId}
         aria-disabled={disabled}
-        onClick={() => { if (!disabled) onClick(); }}
+        onClick={(e) => { if (!disabled) onClick(e); }}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}

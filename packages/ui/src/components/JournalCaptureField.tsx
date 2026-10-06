@@ -1,4 +1,4 @@
-import { useId, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { useId, useImperativeHandle, useRef, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, Square, SquareCheck } from "lucide-react";
 import { Button } from "./ui/Button";
@@ -7,6 +7,7 @@ import { TextArea } from "./ui/Field";
 import { ShortcutHints } from "./ui/ShortcutHints";
 import { ICON } from "../lib/iconSizes";
 import { useMinuteClock } from "../hooks/useMinuteClock";
+import { CARET_KEYS, useInlineSuggest } from "./InlineSuggest";
 
 /**
  * The capture field of the journal (plan Journal, J4), shared by both shells:
@@ -15,7 +16,9 @@ import { useMinuteClock } from "../hooks/useMinuteClock";
  *
  * It shows the time the entry WILL carry — Plainva stamps it, nobody types it —
  * and a chip that makes the entry a task (`- [ ] 14:05 …`). The text is plain
- * Markdown: tags, links and a second line are simply typed.
+ * Markdown: tags, links and a second line are simply typed — and after `[[`
+ * and `#` the field offers the vault's notes and tags, as the note editor does
+ * (plan Befunde 2026-10-06, W5).
  *
  * Enter saves where there is a physical keyboard. A soft keyboard has no
  * Shift+Enter, so there Enter stays a line break and a button saves
@@ -81,8 +84,13 @@ export function JournalCaptureField({
     )
     : t("journal.captureHintTouch");
   const hintLine = hint === undefined ? defaultHint : hint;
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  useImperativeHandle(inputRef, () => fieldRef.current as HTMLTextAreaElement, []);
+  const suggest = useInlineSuggest({ value, onChange, fieldRef });
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // An open suggestion list answers the arrows, Enter, Tab and Escape first.
+    if (suggest.onKeyDown(e)) return;
     if (e.key === "Enter" && enterSubmits && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       if (value.trim()) onSubmit();
@@ -98,12 +106,15 @@ export function JournalCaptureField({
       <div className="pv-journal-capture-row">
         <time className="pv-journal-time" dateTime={clock} data-testid={`${testId}-time`}>{shown}</time>
         <TextArea
-          ref={inputRef}
+          ref={fieldRef}
           className="pv-journal-capture-input"
           rows={rows}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => { onChange(e.target.value); suggest.onText(e.target.value, e.target.selectionStart); }}
           onKeyDown={onKeyDown}
+          onKeyUp={(e) => { if (CARET_KEYS.has(e.key)) suggest.onCaret(e.currentTarget.selectionStart); }}
+          onClick={(e) => suggest.onCaret(e.currentTarget.selectionStart)}
+          onBlur={suggest.onBlur}
           placeholder={placeholder ?? t("journal.capturePlaceholder")}
           aria-label={t("journal.captureLabel")}
           aria-describedby={hintLine ? hintId : undefined}
@@ -113,6 +124,7 @@ export function JournalCaptureField({
           enterKeyHint={enterSubmits ? "done" : "enter"}
           autoComplete="off"
         />
+        {suggest.menu}
       </div>
       <div className="pv-capture-quick">
         {/* The chip shows its state the way every other checkbox in the app

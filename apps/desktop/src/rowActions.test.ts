@@ -75,7 +75,7 @@ describe("file row actions", () => {
       versionHistory: noop, resolveConflict: noop, reveal: noop, copyPath: noop, removeFromList: noop, delete: noop,
     });
     expect(every.map((a) => a.id)).toEqual([...ROW_ACTION_IDS.file]);
-    const task = taskRowActions(t, { done: false, toggle: noop, promote: noop, repeat: noop, block: noop, priority: noop, state: noop });
+    const task = taskRowActions(t, { done: false, toggle: noop, promote: noop, repeat: noop, block: noop, due: noop, priority: noop, state: noop });
     expect(task.map((a) => a.id)).toEqual([...ROW_ACTION_IDS.task]);
     // A journal entry is a plain line or a task, never both: the catalog is the union of the two, in its order.
     const caps = { done: false, toggle: noop, edit: noop, copy: noop, toTask: noop, toEntry: noop, showInNote: noop, delete: noop };

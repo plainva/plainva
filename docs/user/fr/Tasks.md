@@ -1,6 +1,6 @@
 # Tâches
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-06
 
 La vue Tâches réunit en un seul endroit chaque case à cocher de votre vault : tous les éléments de liste `- [ ]` et `- [x]` de toutes vos notes, regroupés par la note où ils se trouvent. C'est la vue « qu'est-ce qu'il me reste à faire ? » sur du Markdown pur — aucun plugin, aucun fichier spécial.
 
@@ -166,6 +166,8 @@ Au-dessus des listes se trouve le champ de saisie ; sur le téléphone, **+ Nouv
 **Définir la priorité** dans le menu d'une ligne (clic droit sur le bureau, appui long sur le téléphone) propose **haute**, **moyenne**, **basse** et **aucune** ; un drapeau devant le titre l'indique. Dans la base de tâches, la priorité est une colonne à sélection : une base créée maintenant l'a déjà, une plus ancienne l'obtient la première fois que vous définissez une priorité — jamais par simple ouverture. Une case à cocher porte la marque du plugin Obsidian Tasks sur sa ligne : Plainva lit 🔺 et ⏫ comme haute, 🔼 comme moyenne, 🔽 et ⏬ comme basse, et écrit ⏫, 🔼 ou 🔽.
 
 `- [/]` (**En cours**) et `- [-]` (**Annulée**) sont aussi des tâches. Elles reçoivent leur propre case dans l'éditeur, en mode lecture et dans chaque liste ; en cours compte comme ouverte, annulée comme fermée. Un clic continue de basculer seulement entre ouverte et terminée — il termine une tâche en cours et rouvre une tâche annulée. **Définir l'état** dans le menu de la ligne fixe les deux états ; Plainva ne les écrit jamais de lui-même.
+
+**La date d'une tâche est le moyen de la modifier.** Appuyez sur la date d'une tâche (à l'intérieur d'un jour, sur son heure) et le sélecteur de date s'ouvre — sous la date sur le bureau, en feuille sur le téléphone. **Modifier l'échéance** dans le menu de la ligne ouvre le même sélecteur ; c'est aussi ainsi qu'une tâche sans date en reçoit une. Une entrée de la base de données des tâches garde son heure, une case à cocher reçoit ou change sa date `📅`. À côté du titre **En retard**, **Tout à aujourd'hui** reporte d'un coup toutes les tâches en retard à aujourd'hui. Les deux sont confirmés par un message qui propose **Annuler**. Dans le champ de saisie, `[[` propose des notes et `#` des tags, comme dans l'éditeur : `Entrée` ou `Tab` prend la proposition surlignée, `Esc` ferme la liste.
 
 D'autres façons d'y entrer : **Nouvelle tâche** dans le menu de la zone de notification sur le bureau (quand Plainva continue de tourner en arrière-plan), sur Android le raccourci du lanceur **Nouvelle tâche** (appui long sur l'icône de l'application), et sur le téléphone **Créer comme tâche** quand vous partagez quelque chose vers Plainva — le texte et les pièces jointes finissent dans la note de la tâche. La façon dont une tâche avec une heure vous le rappelle est décrite dans [Calendrier et tâches externes](Calendar_and_Tasks.md).
 

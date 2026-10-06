@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   extensionForRecording,
   pickRecordingType,
+  recordedType,
+  RECORDING_TYPES,
   startVoiceMemo,
   VoiceMemoError,
   voiceMemoFileName,
@@ -63,21 +65,42 @@ function harness(overrides: Partial<VoiceMemoPorts> = {}) {
 }
 
 describe("which format this platform records in", () => {
-  it("prefers Opus in WebM, and falls back through what a WebView may have", () => {
+  it("prefers AAC in MP4 wherever the platform records it, and WebM where it does not (W4)", () => {
+    // Chromium 126+ with a system AAC encoder (WebView2, Android WebView), and
+    // Safari: everything is on offer, and the m4a wins.
+    const chromium = new Set(["audio/mp4;codecs=mp4a.40.2", "audio/mp4", "audio/webm;codecs=opus", "audio/webm"]);
+    expect(pickRecordingType((m) => chromium.has(m))).toBe("audio/mp4;codecs=mp4a.40.2");
+    // A Chromium without an AAC encoder still answers the bare `audio/mp4` —
+    // with Opus inside (measured on 153/154). It must not be picked while WebM
+    // is there: an .m4a holding Opus is the file transcription apps turn away.
+    const noAac = new Set(["audio/mp4", "audio/webm;codecs=opus", "audio/webm"]);
+    expect(pickRecordingType((m) => noAac.has(m))).toBe("audio/webm;codecs=opus");
     expect(pickRecordingType((m) => m === "audio/webm;codecs=opus")).toBe("audio/webm;codecs=opus");
-    // Safari has only this one.
+    // A WebView that reports no codec detail and has only this one.
     expect(pickRecordingType((m) => m === "audio/mp4")).toBe("audio/mp4");
     expect(pickRecordingType(() => false)).toBeNull();
     // A WebView that throws on the question cannot record that type.
     expect(pickRecordingType(() => { throw new Error("nope"); })).toBeNull();
   });
 
+  it("asks for AAC by its codec and never puts the bare MP4 in front of WebM", () => {
+    expect(RECORDING_TYPES[0]).toBe("audio/mp4;codecs=mp4a.40.2");
+    expect(RECORDING_TYPES.indexOf("audio/mp4")).toBeGreaterThan(RECORDING_TYPES.indexOf("audio/webm"));
+  });
+
   it("names the file after the container the recorder actually used", () => {
     expect(extensionForRecording("audio/webm;codecs=opus")).toBe("webm");
     expect(extensionForRecording("audio/mp4")).toBe("m4a");
+    expect(extensionForRecording("audio/mp4;codecs=mp4a.40.2")).toBe("m4a");
     expect(extensionForRecording("audio/ogg;codecs=opus")).toBe("ogg");
     // An unknown type is still written; WebM is what a WebView produces.
     expect(extensionForRecording("audio/weird")).toBe("webm");
+  });
+
+  it("believes the recorder about what it wrote, and the request when it says nothing", () => {
+    expect(recordedType("audio/webm;codecs=opus", "audio/mp4;codecs=mp4a.40.2")).toBe("audio/webm;codecs=opus");
+    expect(recordedType("", "audio/mp4;codecs=mp4a.40.2")).toBe("audio/mp4;codecs=mp4a.40.2");
+    expect(recordedType(undefined, "audio/webm")).toBe("audio/webm");
   });
 
   it("writes the date and the minute into the name, so a day of memos sorts itself", () => {
@@ -97,6 +120,25 @@ describe("a take", () => {
     expect(result.extension).toBe("webm");
     // Every track is stopped — otherwise the recording light stays on.
     expect(h.tracks.every((track) => track.stop.mock.calls.length === 1)).toBe(true);
+  });
+
+  it("records an m4a where the platform offers AAC, and says so in the result (W4)", async () => {
+    const h = harness({ isTypeSupported: () => true });
+    const recorder = await startVoiceMemo(h.ports);
+    expect(h.recorder?.mimeType).toBe("audio/mp4;codecs=mp4a.40.2");
+    const result = await recorder.stop();
+    expect(result.mime).toBe("audio/mp4;codecs=mp4a.40.2");
+    expect(result.extension).toBe("m4a");
+  });
+
+  it("names the file after what the recorder wrote when that differs from the request", async () => {
+    const h = harness({
+      isTypeSupported: () => true,
+      createRecorder: (s) => new FakeRecorder(s, "audio/webm;codecs=opus") as unknown as MediaRecorder,
+    });
+    const result = await (await startVoiceMemo(h.ports)).stop();
+    expect(result.mime).toBe("audio/webm;codecs=opus");
+    expect(result.extension).toBe("webm");
   });
 
   it("pauses and resumes without ending", async () => {

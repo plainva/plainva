@@ -3741,6 +3741,10 @@ textarea {
 .m-navrow.is-drop-before {
   box-shadow: inset 0 2px 0 var(--accent-color);
 }
+/* A drop behind the last row of a list that is being arranged (bookmarks). */
+.m-row.is-drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent-color);
+}
 
 /* ---- Settings master: active-vault block (redesign P4) ---- */
 

@@ -79,6 +79,34 @@ export function toggleBookmarkOnDisk(io: BookmarksIO, path: string, type: Bookma
 export function removeBookmarksOnDisk(io: BookmarksIO, paths: readonly string[]): Promise<BookmarkEntry[]> {
   const gone = new Set(paths); return updateBookmarksOnDisk(io, (current) => current.filter((e) => !gone.has(e.path)));
 }
+/**
+ * The list with one entry moved in front of another — or to the end, with
+ * `beforeKey` null. Named by KEYS, not by positions: a position is only true
+ * for the list a view happens to show, and the file may have gained or lost an
+ * entry since. An entry that is gone, or a target that is, leaves the order
+ * alone rather than guessing a place.
+ */
+export function moveBookmark(entries: readonly BookmarkEntry[], key: string, beforeKey: string | null): BookmarkEntry[] {
+  const moved = entries.find((e) => bookmarkKey(e) === key);
+  if (!moved || key === beforeKey) return [...entries];
+  const rest = entries.filter((e) => bookmarkKey(e) !== key);
+  if (beforeKey === null) return [...rest, moved];
+  const at = rest.findIndex((e) => bookmarkKey(e) === beforeKey);
+  if (at < 0) return [...entries];
+  return [...rest.slice(0, at), moved, ...rest.slice(at)];
+}
+/** One step up or down, as keys for `moveBookmark` — the keyboard's and the menu's way to reorder. */
+export function bookmarkStepTarget(entries: readonly BookmarkEntry[], key: string, direction: -1 | 1): { beforeKey: string | null } | null {
+  const from = entries.findIndex((e) => bookmarkKey(e) === key);
+  const to = from + direction;
+  if (from < 0 || to < 0 || to >= entries.length) return null;
+  // Up: in front of the neighbour above. Down: in front of the one after the neighbour below.
+  const anchor = direction < 0 ? entries[to] : entries[to + 1];
+  return { beforeKey: anchor ? bookmarkKey(anchor) : null };
+}
+export function moveBookmarkOnDisk(io: BookmarksIO, key: string, beforeKey: string | null): Promise<BookmarkEntry[]> {
+  return updateBookmarksOnDisk(io, (current) => moveBookmark(current, key, beforeKey));
+}
 export function mergeBookmarksOnDisk(io: BookmarksIO, entries: readonly (BookmarkEntry | string)[]): Promise<BookmarkEntry[]> {
   return updateBookmarksOnDisk(io, (current) => [...current, ...deduplicateBookmarks(entries)]);
 }

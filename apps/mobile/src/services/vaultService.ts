@@ -70,7 +70,7 @@ import {
   buildDailyNotePath,
   ensureDailyNote as ensureSharedDailyNote, type EnsuredDailyNote,
   conflictCopyPath,
-  importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, type BookmarkEntry,
+  importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk, type BookmarkEntry,
   parseRecentsFile,
   pushRecentEntry,
   renameFileWithLinkUpdates,
@@ -1066,6 +1066,12 @@ export const vaultOps = {
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
     return marks.some((m) => m.path === path && m.type === type);
+  },
+  /** One entry in front of another, or to the end (plan Befunde 2026-10-06, W6); keys are `bookmarkKey`s. */
+  async moveBookmark(v: MobileVault, key: string, beforeKey: string | null): Promise<BookmarkEntry[]> {
+    const marks = await moveBookmarkOnDisk(v.adapter, key, beforeKey);
+    window.dispatchEvent(new CustomEvent("m-bookmarks-changed"));
+    return marks;
   },
   async removeBookmark(v: MobileVault, path: string): Promise<void> {
     await removeBookmarksOnDisk(v.adapter, [path]);

@@ -403,6 +403,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-svcchip": "service chip on the themed accent-container pair",
   "pv-wizsteps": "wizard step header, layout only",
   "pv-taskmeta": "wrapping task metadata text, no surface; shared muted/warning tokens already follow every theme",
+  "pv-bookmark-row": "drag states only (plan Befunde 06.10., W6) — the lifted row dims and an --accent-color line marks the drop; the row itself keeps the sidebar row look both themes already carry",
+  "pv-taskline": "layout only (plan Befunde 06.10., W2) — the title button and the due chip of a task in the 'All' list side by side; the text colours are tokens and the chip is the Chip primitive, which both themes restyle",
   "pv-wizstep": "step chips on token colors; active/done discs use the accent pair",
   "pv-svcline": "service rows inside .pv-setcard — setrow grammar, card carries the theme",
   "pv-svcstat": "status rows inside .pv-setcard on shared status tokens",
