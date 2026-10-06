@@ -989,14 +989,49 @@ test('Base table: a single click starts inline editing and saves (P3)', async ({
   await openBase(page, 'Cockpit');
   const row = page.locator('tr', { hasText: 'Alpha' });
   await row.getByText('active', { exact: true }).click();
-  // The row now also carries the selection checkbox — say which input is meant.
-  const input = row.locator('td:not(.pv-selcol) input');
+  // The row now also carries the selection checkbox — say which field is meant.
+  // Since issue 118 a text cell is edited in a field that grows with its text.
+  const input = row.locator('td:not(.pv-selcol) textarea');
   await expect(input).toBeVisible();
   await input.fill('review');
   await input.press('Enter');
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md']))
     .toContain('status: review');
+});
+
+test('Base table: a long text cell is edited at its full height, and stays one value (issue 118)', async ({ page }) => {
+  const LONG = 'A long value that wraps over several lines while it is read and has to stay just as readable while it is being changed in the table';
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  const row = page.locator('tr', { hasText: 'Alpha' });
+  await row.getByText('active', { exact: true }).click();
+  const field = row.locator('td:not(.pv-selcol) textarea');
+  await expect(field).toBeFocused();
+  const oneLine = (await field.boundingBox())!.height;
+
+  // Typed text wraps at the cell's width and the field grows with it — no
+  // scrolling inside the field, no single line cut off at its edge.
+  await field.fill(LONG);
+  await expect.poll(async () => (await field.boundingBox())!.height).toBeGreaterThan(oneLine * 1.8);
+  expect(await field.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+
+  // A pasted paragraph stays ONE value: its line break becomes a space.
+  await field.fill('first line\nsecond line');
+  await expect(field).toHaveValue('first line second line');
+
+  // Escape discards; Enter saves, as it always did.
+  await field.press('Escape');
+  await expect(row.locator('td:not(.pv-selcol) textarea')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md'] as string)).toContain('status: active');
+  await row.getByText('active', { exact: true }).click();
+  await row.locator('td:not(.pv-selcol) textarea').fill(LONG);
+  await row.locator('td:not(.pv-selcol) textarea').press('Enter');
+  // The frontmatter writer folds a long plain scalar at 80 columns (valid YAML,
+  // one value); read it back the way a YAML reader does.
+  await expect
+    .poll(async () => (await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md'] as string)).replace(/\s+/g, ' '))
+    .toContain(`status: ${LONG}`);
 });
 
 /**

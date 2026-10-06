@@ -1,6 +1,6 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { SidebarStepContext } from "../lib/sidebarStep";
-import { Button, IconButton, ICON, Rating, tagColorAttrs, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
+import { asSingleLineValue, Button, GrowingField, IconButton, ICON, Rating, tagColorAttrs, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, Star, MessageSquare,
@@ -62,9 +62,11 @@ function findOption(curated: CuratedOption[] | undefined, value: string): Curate
 
 /* ------------------------------------------------------------------ inputs */
 
-export function PlainInput({ value, onChange, type, t, propKey = "", getValueSuggestions, curated, autoFocus, onClose }: {
+export function PlainInput({ value, onChange, type, t, propKey = "", getValueSuggestions, curated, autoFocus, onClose, growing }: {
   value: any; onChange: (v: any) => void; type: PropertyType; t: TFn; propKey?: string;
   getValueSuggestions?: ValueSuggestionLoader; curated?: CuratedOption[]; autoFocus?: boolean; onClose?: () => void;
+  /** A table cell (issue 118): the field wraps and grows with the text instead of showing one line of it. */
+  growing?: boolean;
 }) {
   const [v, setV] = useState(String(value ?? ""));
   const [open, setOpen] = useState(false);
@@ -78,17 +80,31 @@ export function PlainInput({ value, onChange, type, t, propKey = "", getValueSug
   const commit = () => { if (v !== String(value ?? "")) onChange(v); onClose?.(); };
   const pick = (next: string) => { setV(next); setOpen(false); onChange(next); onClose?.(); };
   const href = type === "url" ? v : type === "email" ? `mailto:${v}` : type === "phone" ? `tel:${v}` : "";
+  // One set of keys for both shapes of the field. Enter saves in the growing
+  // one too: a cell holds one value, its lines come from wrapping.
+  const onFieldKey = (e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      // Without a suggestion to choose, the arrows belong to the caret: in a
+      // field with several lines that is how one gets from line to line.
+      if (growing && matches.length === 0) return;
+      e.preventDefault();
+      setActive((a) => Math.max(0, Math.min(matches.length - 1, a + (e.key === "ArrowDown" ? 1 : -1))));
+    }
+    if (e.key === "Enter") { e.preventDefault(); if (active >= 0 && matches[active]) pick(matches[active].value); else e.currentTarget.blur(); }
+    if (e.key === "Escape") { e.stopPropagation(); setOpen(false); setV(String(value ?? "")); onClose?.(); }
+  };
   return <div ref={wrapRef} className="pv-property-text" onBlur={(e) => {
     if (!e.currentTarget.contains(e.relatedTarget)) { setOpen(false); commit(); }
   }}>
-    <input autoFocus={autoFocus} type={type === "phone" ? "tel" : type === "email" ? "email" : "text"}
-      className="pv-field pv-field--compact" value={v} onFocus={() => setOpen(true)}
-      onChange={(e) => { setV(e.target.value); setActive(-1); setOpen(true); }}
-      onKeyDown={(e) => {
-        if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, Math.min(matches.length - 1, a + (e.key === "ArrowDown" ? 1 : -1)))); }
-        if (e.key === "Enter") { e.preventDefault(); if (active >= 0 && matches[active]) pick(matches[active].value); else e.currentTarget.blur(); }
-        if (e.key === "Escape") { e.stopPropagation(); setOpen(false); setV(String(value ?? "")); onClose?.(); }
-      }} placeholder={t("properties.value")} />
+    {growing
+      ? <GrowingField autoFocus={autoFocus} value={v} onFocus={(e) => { setOpen(true); e.currentTarget.select(); }}
+          onChange={(e) => { setV(asSingleLineValue(e.target.value)); setActive(-1); setOpen(true); }}
+          onKeyDown={onFieldKey} placeholder={t("properties.value")} />
+      : <input autoFocus={autoFocus} type={type === "phone" ? "tel" : type === "email" ? "email" : "text"}
+          className="pv-field pv-field--compact" value={v} onFocus={() => setOpen(true)}
+          onChange={(e) => { setV(e.target.value); setActive(-1); setOpen(true); }}
+          onKeyDown={onFieldKey} placeholder={t("properties.value")} />}
     {open && (!!getValueSuggestions || curated !== undefined) && <div ref={popRef} className="pv-popover pv-popover--fixed">
       {matches.map((o, i) => <Button variant="ghost" key={o.value} type="button" className="pv-popover-row" aria-pressed={active === i}
         onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o.value)}>{"label" in o ? o.label ?? o.value : o.value}</Button>)}

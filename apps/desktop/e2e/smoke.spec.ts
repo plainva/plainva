@@ -1701,6 +1701,60 @@ test('Table widget: cells render inline formatting and clickable links', async (
   await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
 });
 
+test('Table widget: a cell is edited in a field as tall as its text; Shift+Enter writes a line break (issue 118)', async ({ page }) => {
+  const LONG = 'Ein langer Zelleninhalt, der in der Anzeige über mehrere Zeilen umbricht und beim Bearbeiten genauso lesbar bleiben soll wie vorher';
+  await page.addInitScript((long) => {
+    (window as any).mockFs['/test-vault/Zellen.md'] =
+      `# Zellen\n\n| Thema | Notiz |\n| --- | --- |\n| kurz | ${long} |\n| zwei | oben<br/>unten |\n`;
+  }, LONG);
+  await page.goto('/');
+  await expect(page.getByText('Zellen', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Zellen', { exact: true }).click();
+  const table = page.locator('.cm-md-table');
+  await expect(table).toBeVisible();
+  const source = () => page.evaluate(() => (window as any).mockFs['/test-vault/Zellen.md'] as string);
+
+  // The long cell wraps while it is read — and the field it is edited in is as
+  // tall as that, not one line of it.
+  const longCell = table.locator('tbody tr').nth(0).locator('td').nth(1);
+  const shownHeight = (await longCell.boundingBox())!.height;
+  await longCell.click();
+  const field = longCell.locator('textarea.cm-md-table-input');
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue(LONG);
+  const lineHeight = await field.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.4);
+  const editHeight = (await field.boundingBox())!.height;
+  expect(editHeight).toBeGreaterThan(lineHeight * 1.8);
+  expect(Math.abs(editHeight - shownHeight)).toBeLessThan(lineHeight * 1.5);
+  expect(await field.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+
+  // Escape discards, and a cell left as it was writes nothing.
+  await field.press('End');
+  await page.keyboard.type(' VERWORFEN');
+  await page.keyboard.press('Escape');
+  await expect(longCell.locator('textarea')).toHaveCount(0);
+  expect(await source()).not.toContain('VERWORFEN');
+
+  // Enter saves; Shift+Enter adds a line the source carries as <br>.
+  await longCell.click();
+  await longCell.locator('textarea').press('End');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('zweite Zeile');
+  await page.keyboard.press('Enter');
+  await expect(longCell.locator('textarea')).toHaveCount(0);
+  await expect.poll(source).toContain(`${LONG}<br>zweite Zeile |`);
+  await expect(longCell.locator('br')).toHaveCount(1);
+
+  // A cell that already holds a break opens with it as a real line, and
+  // closing it unchanged does not rewrite its `<br/>`.
+  const breakCell = table.locator('tbody tr').nth(1).locator('td').nth(1);
+  await breakCell.click();
+  await expect(breakCell.locator('textarea')).toHaveValue('oben\nunten');
+  await page.keyboard.press('Enter');
+  await expect(breakCell.locator('textarea')).toHaveCount(0);
+  expect(await source()).toContain('| zwei | oben<br/>unten |');
+});
+
 test('Splash: removing a recent vault only forgets it — files stay on disk', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = (window as any).__TAURI_INTERNALS__.invoke;

@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-06
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -45,7 +45,7 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 - **`@`-vermeldingen** — typ `@` ergens in de tekst om een **Datum** (Vandaag, Morgen, Gisteren of **Kies een datum…**, opgeslagen als ISO-datum), een link naar een **Notitie** of een **Database**-insluiting toe te voegen.
 - **Emoji** — het slash-commando **Emoji** (`/emoji`) opent een emojikiezer bij de cursor; of typ `:name` (bijvoorbeeld `:rocket`) voor inline-suggesties. In beide gevallen voegt Plainva het eigenlijke **emojiteken** in (draagbare Unicode), nooit een `:shortcode:` — zodat de notitie leesbaar blijft in Obsidian, op GitHub en overal elders. (Dit is iets anders dan het **Documenticoon** van de notitie, dat wordt opgeslagen in de frontmatter.)
 - **Blokgrepen** — bij het overgaan met de muis verschijnt links van elke alinea een greep: sleep hem om het blok te verplaatsen, klik erop om **Blokacties** te openen (**Omzetten in** Tekst/Kop/Lijst/To-do/Citaat/Codeblok, **Dupliceren**, **Omhoog**/**Omlaag**, **Blok verwijderen**). Als je een lijst naast een andere lijst van hetzelfde soort sleept, voegt Plainva een onzichtbare scheidingsregel `<!-- -->` toe zodat beide lijsten gescheiden blijven — in Markdown zouden gelijksoortige lijsten anders ondanks de lege regel samensmelten (ook in Obsidian).
-- **Tabellen** — weergegeven als widget met klik-om-te-bewerken-cellen. De celweergave rendert opmaak (**vet**, *cursief*, `code`, markering), klikbare links (`[[Interne link]]`, webadressen) en `<br>` als regeleinde; tijdens het bewerken zie je de ruwe tekst. Het tabelmenu biedt rijen/kolommen invoegen en verwijderen plus uitlijning (**Links uitlijnen**/**Centreren**/**Rechts uitlijnen**).
+- **Tabellen** — weergegeven als widget met klik-om-te-bewerken-cellen. De celweergave rendert opmaak (**vet**, *cursief*, `code`, markering), klikbare links (`[[Interne link]]`, webadressen) en `<br>` als regeleinde; tijdens het bewerken zie je de ruwe tekst. Het tabelmenu biedt rijen/kolommen invoegen en verwijderen plus uitlijning (**Links uitlijnen**/**Centreren**/**Rechts uitlijnen**). De cel opent in een veld dat met de tekst meegroeit en afbreekt: **Enter** slaat op, **Shift+Enter** voegt een regeleinde toe (geschreven als `<br>`), **Esc** verwerpt.
 - **Lijsten zetten zichzelf voort** (Enter voegt het volgende lijstteken in), codeblokken krijgen taalbewuste kleuraccentuering (ook in de leesmodus), geplakte inhoud wordt omgezet naar Markdown (smart paste), en koppen kunnen worden ingeklapt.
 - **Lijsten invouwen** — een klik op het opsommingsteken van een item met subitems vouwt ze in; het teken krijgt de accentkleur en een „…” markeert de plek, een tweede klik vouwt weer uit. Het bestand verandert nooit. De tekens wisselen per niveau (• ◦ ▪) en vervolgregels staan precies onder de tekst van hun item — ook op de telefoon, waar het teken de enige vouwknop is.
 - **Scrollpositie** — elke notitie opent waar je haar verliet; per apparaat onthouden, niet gesynchroniseerd.

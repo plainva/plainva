@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-09-30
+Last updated: 2026-10-06
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -45,7 +45,7 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 - **`@` mentions** — type `@` anywhere in the text to insert a **Date** (Today, Tomorrow, Yesterday, or **Pick a date…**, stored as an ISO date), a link to a **Note**, or a **Database** embed.
 - **Emoji** — the **Emoji** slash command (`/emoji`) opens an emoji picker at the cursor; or type `:name` (for example `:rocket`) for inline suggestions. Either way Plainva inserts the actual emoji **character** (portable Unicode), never a `:shortcode:` — so the note stays readable in Obsidian, on GitHub and everywhere else. (This is separate from the note's **Document icon**, which is stored in the frontmatter.)
 - **Block handles** — a handle appears to the left of each paragraph on hover: drag it to move the block, click it to open **Block actions** (**Turn into** Text/Heading/List/To-do/Quote/Code block, **Duplicate**, **Move up**/**Move down**, **Delete block**). If you drag a list next to another list of the same kind, Plainva inserts an invisible separator line `<!-- -->` so both lists stay separate — in Markdown, same-style lists would otherwise merge despite the blank line (in Obsidian too).
-- **Tables** — rendered as a widget with click-to-edit cells. The cell display renders formatting (**bold**, *italic*, `code`, highlight), clickable links (`[[Internal Link]]`, web addresses) and `<br>` as a line break; while editing you see the raw text. The table menu offers inserting/deleting rows and columns plus alignment (**Align left**/**Align center**/**Align right**).
+- **Tables** — rendered as a widget with click-to-edit cells. The cell display renders formatting (**bold**, *italic*, `code`, highlight), clickable links (`[[Internal Link]]`, web addresses) and `<br>` as a line break; while editing you see the raw text. The table menu offers inserting/deleting rows and columns plus alignment (**Align left**/**Align center**/**Align right**). The cell opens in a field that grows and wraps with its text: **Enter** saves, **Shift+Enter** adds a line break (written as `<br>`), **Esc** discards.
 - **Lists continue themselves** (Enter inserts the next list marker), code blocks get language-aware highlighting (in the reading view as well), pasted content is converted to Markdown (smart paste), and headings can be folded.
 - **Fold lists** — clicking the bullet of a list item with nested items folds them; the bullet turns accent-colored and a “…” marks the spot, a second click unfolds. The file never changes. Bullets alternate per level (• ◦ ▪), continuation lines sit exactly under their item's text — on the phone too, where the bullet is the only fold control.
 - **Scroll position** — every note opens where you left it; remembered per device, not synchronized.

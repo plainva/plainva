@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { Check, ExternalLink, MessageSquare } from "lucide-react";
-import { type CuratedOption, dateTimeEditorValue, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
+import { asSingleLineValue, type CuratedOption, dateTimeEditorValue, GrowingField, getPlatformServices, ICON, IconButton, inlineOptionsFrom, propertyFolder, propertyIndexTypes, usePropertyValues, parseWikiLinkValue, Rating, SearchField, splitMultiValue, TextInput } from "@plainva/ui";
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
@@ -265,23 +265,23 @@ export function CellEditSheet({
         {!isSelect && !isMulti && !isRelation && !isDate && input !== "checkbox" && (
           <>
             <div className="m-sheet-inputrow">
-              <TextInput
-                inputMode={
-                  input === "number"
-                    ? "decimal"
-                    : input === "url"
-                      ? "url"
-                      : input === "email"
-                        ? "email"
-                        : input === "phone"
-                          ? "tel"
-                          : undefined
-                }
-                onChange={(e) => setText(e.target.value)}
-                placeholder={col}
-                type={input === "number" ? "number" : "text"}
-                value={text}
-              />
+              {input === "number" ? (
+                <TextInput inputMode="decimal" onChange={(e) => setText(e.target.value)} placeholder={col} type="number" value={text} />
+              ) : (
+                // As tall as its text (issue 118): a long value stays readable
+                // while it is changed. One value — a pasted line break becomes
+                // a space, and the keyboard's Enter does not add one.
+                <GrowingField
+                  enterKeyHint="done"
+                  inputMode={input === "url" ? "url" : input === "email" ? "email" : input === "phone" ? "tel" : undefined}
+                  onChange={(e) => setText(asSingleLineValue(e.target.value))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) e.preventDefault();
+                  }}
+                  placeholder={col}
+                  value={text}
+                />
+              )}
               <IconButton
                 label={t("common.ok", { defaultValue: "OK" })}
                 onClick={() =>

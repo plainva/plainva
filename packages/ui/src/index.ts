@@ -134,6 +134,7 @@ export * from "./lib/iconSizes";
 export * from "./lib/wikiResolver";
 export * from "./lib/conflictFiles";
 export * from "./lib/editableField";
+export * from "./lib/growingField";
 export * from "./lib/errorText";
 export * from "./lib/moveOutcome";
 export * from "./lib/connectionErrorText";

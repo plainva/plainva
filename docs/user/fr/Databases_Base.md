@@ -1,6 +1,6 @@
 # Bases de données (.base)
 
-Dernière mise à jour : 2026-09-24
+Dernière mise à jour : 2026-10-06
 
 Avec les fichiers `.base`, vous transformez des notes en bases de données : tableaux, boards, calendriers — avec des filtres, des propriétés typées et des relations entre bases de données. Le concept ressemble aux bases de données Notion, avec une différence décisive : **les données ne vivent pas dans la base de données, elles vivent dans vos notes.**
 
@@ -164,7 +164,7 @@ Remarque pour les vaults synchronisés : si deux appareils organisent le tableau
 
 ## Utilisation au quotidien
 
-- **Édition en ligne** : un simple clic dans une cellule (ou sur une valeur de carte) la rend modifiable — dans toutes les vues.
+- **Édition en ligne** : un simple clic dans une cellule (ou sur une valeur de carte) la rend modifiable — dans toutes les vues. Une valeur de texte s’ouvre dans un champ qui grandit et se replie avec le texte : une valeur longue reste entièrement lisible pendant que vous la modifiez. Elle reste une seule valeur : **Entrée** enregistre, et un saut de ligne collé devient une espace.
 - **Ouvrir** : cliquer sur le titre d'un élément ouvre la note dans la fenêtre d'aperçu — une fenêtre flottante que vous pouvez déplacer par sa barre de titre et redimensionner depuis le coin. Elle conserve son propre historique **Retour**/**Avancer** pour les notes que vous y ouvrez, propose un bouton qui bascule l'affichage d'une colonne **Propriétés** pour la note affichée, et offre **Ouvrir en onglet** et **Ouvrir dans la vue scindée**. `Ctrl`+clic ouvre directement dans la vue scindée ; vous pouvez aussi faire glisser une carte sur la zone de dépôt **Déposer ici : ouvrir dans la vue scindée**. La colonne des propriétés se redimensionne en tirant son bord gauche (232 px minimum) ; en dessous de 280 px, l'étiquette passe au-dessus de la valeur, comme dans la barre latérale droite.
 - **Glisser-déposer** : pendant le glissement de cartes (Kanban, Calendrier, Chronologie), une carte fantôme suit le pointeur. Dans un **Kanban**, vous pouvez aussi faire glisser un **en-tête de colonne** pour réordonner les colonnes — pour les boards **Sélection**/**Statut**, cela réordonne les options de la propriété (les listes déroulantes suivent partout) ; les boards de relation et de texte libre mémorisent l'ordre par vue.
 - **Couleur du Kanban** : dans les paramètres **Vue** d'un Kanban, **Couleur de colonne** permet à une colonne de prendre la couleur de son groupe — soit **Colonne entière** (toute la colonne est teintée), soit **Puce seulement** (seulement la puce de l'en-tête, par défaut). S'applique aux groupes Sélection/Statut/Sélection multiple.

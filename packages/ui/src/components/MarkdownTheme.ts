@@ -226,9 +226,17 @@ export const editorTheme = EditorView.theme({
     textDecoration: "underline",
     cursor: "pointer",
   },
-  // Inline cell editing (TS3): a native <input> opens in place on click.
+  // Inline cell editing (TS3): a native field opens in place on click. Since
+  // issue 118 it is a textarea as tall as its text: it wraps like the cell it
+  // replaces and its height is set from its content, so it has neither a
+  // resize handle nor a scrollbar.
   ".cm-md-table-input": {
+    display: "block",
     width: "100%",
+    resize: "none",
+    overflow: "hidden",
+    whiteSpace: "pre-wrap",
+    overflowWrap: "anywhere",
     boxSizing: "border-box",
     border: "none",
     outline: "2px solid var(--accent-color)",

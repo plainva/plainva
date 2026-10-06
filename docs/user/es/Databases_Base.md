@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-09-24
+Última actualización: 2026-10-06
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -164,7 +164,7 @@ Nota para vaults sincronizados: si dos dispositivos organizan el tablón al mism
 
 ## Uso cotidiano
 
-- **Edición en línea**: un solo clic en una celda (o en el valor de una tarjeta) la hace editable — en todas las vistas.
+- **Edición en línea**: un solo clic en una celda (o en el valor de una tarjeta) la hace editable — en todas las vistas. Un valor de texto se abre en un campo que crece y se ajusta con el texto, de modo que un valor largo sigue siendo legible por completo mientras lo cambias. Sigue siendo un solo valor: **Enter** guarda, y un salto de línea pegado se convierte en un espacio.
 - **Abrir**: un clic en el título de una entrada abre la nota en la ventana de vista previa — una ventana flotante que puedes arrastrar por su barra de título y redimensionar desde la esquina. Mantiene su propio historial de **Atrás**/**Adelante** para las notas que abres dentro de ella, tiene un interruptor que muestra una columna de **Propiedades** para la nota mostrada, y ofrece **Abrir como pestaña** y **Abrir en panel dividido**. `Ctrl`+clic abre directamente en el panel dividido; alternativamente, arrastra una tarjeta a la zona de destino **Suelta aquí: abrir en panel dividido**. La columna de propiedades se puede ensanchar o estrechar arrastrando su borde izquierdo (mínimo 232 px); por debajo de 280 px coloca la etiqueta encima del valor, como la barra lateral derecha.
 - **Arrastrar**: mientras arrastras tarjetas (Tablero, Calendario, Cronología), una tarjeta fantasma sigue al cursor. En un **Tablero** también puedes arrastrar un **encabezado de columna** para reordenar las columnas — en los tableros de **Selección**/**Estado** esto reordena las opciones de la propiedad (así que los desplegables en todas partes lo siguen); los tableros de relación y de texto libre recuerdan el orden por vista.
 - **Color del tablero**: en los ajustes de **Vista** de un tablero, **Color de columna** permite que una columna adopte el color de su grupo — ya sea **Columna completa** (se tiñe toda la columna) o **Solo el chip** (solo el chip de la cabecera, la opción por defecto). Se aplica a los grupos de Selección/Estado/Selección múltiple.

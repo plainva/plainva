@@ -42,7 +42,7 @@ for (const shell of ["desktop", "mobile"] as const) {
     await expect(page.getByTestId("property-value")).toHaveText('["Other folder"]');
     await expect(page.getByTestId("property-type")).toHaveText("list");
     await page.evaluate(shell => (window as PropertyProbeWindow).propertyProbe.mount({ shell, mode: "value", type: "text" }), shell);
-    const field = page.locator(shell === "desktop" ? ".pv-property-text input" : ".m-sheet-inputrow input");
+    const field = page.locator(shell === "desktop" ? ".pv-property-text input" : ".m-sheet-inputrow textarea");
     await field.fill("A freely written sentence");
     if (shell === "desktop") await field.press("Enter"); else await page.getByRole("button", { name: "OK", exact: true }).click();
     await expect(page.getByTestId("property-value")).toHaveText('"A freely written sentence"');

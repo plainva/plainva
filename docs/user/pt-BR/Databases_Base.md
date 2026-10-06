@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-09-24
+Última revisão: 2026-10-06
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -164,7 +164,7 @@ Observação para vaults sincronizados: se dois dispositivos organizarem o mural
 
 ## Uso no dia a dia
 
-- **Edição inline**: um único clique em uma célula (ou no valor de um cartão) a torna editável — em todas as visualizações.
+- **Edição inline**: um único clique em uma célula (ou no valor de um cartão) a torna editável — em todas as visualizações. Um valor de texto abre em um campo que cresce e quebra junto com o texto, de modo que um valor longo continua totalmente legível enquanto você o altera. Ele continua sendo um único valor: **Enter** salva, e uma quebra de linha colada vira um espaço.
 - **Abrindo**: clicar no título de um item abre a nota na janela de pré-visualização — uma janela flutuante que você pode arrastar pela barra de título e redimensionar pelo canto. Ela mantém seu próprio histórico de **Voltar**/**Avançar** para as notas que você abre dentro dela, tem um alternador que revela uma coluna de **Propriedades** para a nota exibida e oferece **Abrir como aba** e **Abrir na divisão**. `Ctrl`+clique abre diretamente na divisão; alternativamente, arraste um cartão para a zona de soltar **Solte aqui: abrir na divisão**. A coluna de propriedades pode ser alargada ou estreitada arrastando sua borda esquerda (mínimo 232 px); abaixo de 280 px ela coloca o rótulo acima do valor, como a barra lateral direita.
 - **Arrastando**: ao arrastar cartões (Quadro, Calendário, Linha do tempo), um cartão fantasma acompanha o ponteiro. Em um **Quadro** você também pode arrastar um **cabeçalho de coluna** para reordenar as colunas — em quadros de **Seleção**/**Status** isso reordena as opções da propriedade (então os menus suspensos em toda parte passam a seguir essa ordem); quadros de relação e de texto livre lembram a ordem por visualização.
 - **Cor da coluna**: nas configurações de **Visualização** de um quadro, **Cor da coluna** permite que uma coluna assuma a cor do seu grupo — **Coluna inteira** (a coluna inteira fica colorida) ou **Apenas o chip** (apenas o chip do cabeçalho, o padrão). Vale para grupos de Seleção/Status/Seleção múltipla.

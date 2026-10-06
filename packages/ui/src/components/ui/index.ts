@@ -6,7 +6,7 @@ export { Segmented, type SegmentedProps, type SegmentedOption } from "./Segmente
 export { ScrollEdge, type ScrollEdgeProps } from "./ScrollEdge";
 export { DockedToolbar, type DockedToolbarProps } from "./DockedToolbar";
 export { IconButton, type IconButtonProps } from "./IconButton";
-export { TextInput, SelectField, TextArea } from "./Field";
+export { TextInput, SelectField, TextArea, GrowingField } from "./Field";
 export { CommittedTextInput, type CommittedTextInputProps } from "./CommittedTextInput";
 export { MentionTextArea, type MentionTextAreaProps } from "./MentionTextArea";
 export { Select, type SelectProps, type SelectOption } from "./Select";

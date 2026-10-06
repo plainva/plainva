@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -45,7 +45,7 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 - **`@`-Mentions** — tippe `@` mitten im Text: fügt **Datum** (Heute, Morgen, Gestern oder **Datum wählen…**, gespeichert als ISO-Datum), Links auf **Notizen** oder **Datenbanken** ein.
 - **Emoji** — der Slash-Befehl **Emoji** (`/emoji`) öffnet an der Schreibmarke einen Emoji-Picker; oder tippe `:name` (zum Beispiel `:rocket`) für Inline-Vorschläge. In beiden Fällen fügt Plainva das echte Emoji-**Zeichen** ein (portables Unicode), nie einen `:shortcode:` — so bleibt die Notiz in Obsidian, auf GitHub und überall sonst lesbar. (Das ist unabhängig vom **Dokument-Icon** der Notiz, das im Frontmatter liegt.)
 - **Block-Griffe** — links neben jedem Absatz erscheint beim Überfahren ein Griff: per Drag verschiebst Du den Block, per Klick öffnet sich das Menü **Block-Aktionen** (**Umwandeln in** Text/Überschrift/Liste/Aufgabe/Zitat/Code-Block, **Duplizieren**, **Nach oben**/**Nach unten**, **Block löschen**). Ziehst Du eine Liste neben eine gleichartige Liste, fügt Plainva eine unsichtbare Trennzeile `<!-- -->` ein, damit beide Listen getrennt bleiben — in Markdown verschmelzen gleichartige Listen sonst trotz Leerzeile (auch in Obsidian).
-- **Tabellen** — als Widget mit Klick-Editing in jeder Zelle. Die Zellen-Anzeige rendert Formatierung (**fett**, *kursiv*, `Code`, Markierung), klickbare Links (`[[Interner Link]]`, Web-Adressen) und `<br>` als Zeilenumbruch; beim Bearbeiten siehst Du den Rohtext. Das Tabellen-Menü bietet Zeilen/Spalten einfügen und löschen sowie die Ausrichtung (**Linksbündig**/**Zentriert**/**Rechtsbündig**).
+- **Tabellen** — als Widget mit Klick-Editing in jeder Zelle. Die Zellen-Anzeige rendert Formatierung (**fett**, *kursiv*, `Code`, Markierung), klickbare Links (`[[Interner Link]]`, Web-Adressen) und `<br>` als Zeilenumbruch; beim Bearbeiten siehst Du den Rohtext. Das Tabellen-Menü bietet Zeilen/Spalten einfügen und löschen sowie die Ausrichtung (**Linksbündig**/**Zentriert**/**Rechtsbündig**). Die Zelle öffnet sich in einem Feld, das mit dem Text wächst und umbricht: **Eingabe** speichert, **Umschalt+Eingabe** setzt einen Zeilenumbruch (geschrieben als `<br>`), **Esc** verwirft.
 - **Listen** schreiben sich weiter (Enter setzt das nächste Listenzeichen), Code-Blöcke werden je Sprache farbig hervorgehoben (auch im Lesemodus), eingefügte Inhalte werden als Markdown übernommen (Smart-Paste), Überschnitte lassen sich einklappen (Faltung).
 - **Listen falten** — ein Klick auf den Punkt eines Listeneintrags mit Untereinträgen klappt sie ein; der Punkt wird zur Akzentfarbe und ein „…“ markiert die Stelle, ein zweiter Klick klappt wieder auf. Die Datei ändert sich dabei nie. Die Punkte wechseln je Ebene (• ◦ ▪), Folgezeilen stehen exakt unter dem Text ihres Eintrags — auch am Telefon, wo der Punkt die einzige Falt-Fläche ist.
 - **Scrollposition** — jede Notiz öffnet dort, wo Du sie verlassen hast; gemerkt wird das je Gerät, nicht synchronisiert.

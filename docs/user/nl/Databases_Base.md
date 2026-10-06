@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-09-24
+Laatst bijgewerkt: 2026-10-06
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -164,7 +164,7 @@ Opmerking voor gesynchroniseerde vaults: als twee apparaten tegelijk het bord or
 
 ## Dagelijks gebruik
 
-- **Inline-editing**: één klik in een cel (of op een kaartwaarde) maakt hem bewerkbaar — in elke weergave.
+- **Inline-editing**: één klik in een cel (of op een kaartwaarde) maakt hem bewerkbaar — in elke weergave. Een tekstwaarde opent in een veld dat met de tekst meegroeit en afbreekt, zodat een lange waarde tijdens het wijzigen helemaal leesbaar blijft. Het blijft één waarde: **Enter** slaat op, en een geplakt regeleinde wordt een spatie.
 - **Openen**: een klik op de titel van een item opent de notitie in het peek-venster — een vrij zwevend venster dat je aan de titelbalk kunt verslepen en vanuit de hoek kunt vergroten of verkleinen. Het houdt een eigen **Terug**/**Vooruit**-geschiedenis bij voor de notities die je erin opent, heeft een schakelaar die een **Eigenschappen**-kolom toont voor de weergegeven notitie, en biedt **Als tabblad openen** en **In split openen**. `Ctrl`+klik opent direct in de split; alternatief sleep je een kaart naar de drop-zone **Hier neerzetten: in split openen**. De eigenschappenkolom kun je aan de linkerrand breder of smaller slepen (minimaal 232 px); onder 280 px zet ze het label boven de waarde, net als de rechter zijbalk.
 - **Slepen**: tijdens het slepen van kaarten (Bord, Kalender, Tijdlijn) volgt een spookkaart de muisaanwijzer. In een **Bord** kun je ook een **kolomkop** slepen om de kolommen opnieuw te ordenen — bij **Selectie**/**Status**-borden herschikt dat de opties van de eigenschap (de dropdowns volgen overal mee); relatie- en vrijetekst-borden onthouden de volgorde per weergave.
 - **Kolomkleur**: in de **Weergave**-instellingen van een bord laat **Kolomkleur** een kolom de kleur van zijn groep aannemen — **Hele kolom** (de hele kolom wordt gekleurd) of **Alleen chip** (alleen de chip in de kop, standaard). Geldt voor Selectie-/Status-/Multiselectie-groepen.

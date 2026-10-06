@@ -152,6 +152,20 @@
 .pv-field--select { cursor: pointer; }
 .pv-field--area { height: auto; min-height: calc(var(--control-md) * 2); padding: var(--space-3); resize: vertical; line-height: 1.45; }
 .pv-field--compact.pv-field--area { padding: var(--space-2); }
+/* A one-value field as tall as its text (issue 118, GrowingField): one line to
+   begin with, wrapping at its own width, its height set from its content. */
+.pv-field--grow {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: var(--control-md);
+  padding: var(--space-1) var(--space-2);
+  resize: none;
+  overflow: hidden;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 /* Search field (new primitive, sweep 2026-07-19): THE one search pattern —
    magnifier as a flex sibling, clear-X once there is text, Escape clears

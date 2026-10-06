@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-10-06
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -164,7 +164,7 @@ Note for synced vaults: if two devices arrange the board at the same time, a `.C
 
 ## Everyday usage
 
-- **Inline editing**: a single click into a cell (or onto a card value) makes it editable — in every view.
+- **Inline editing**: a single click into a cell (or onto a card value) makes it editable — in every view. A text value opens in a field that grows and wraps with its text, so a long value stays fully readable while you change it. It remains one value: **Enter** saves, and a pasted line break becomes a space.
 - **Opening**: clicking an entry title opens the note in the peek window — a free-floating window you can drag by its title bar and resize from the corner. It keeps its own **Back**/**Forward** history for the notes you open inside it, has a toggle that reveals a **Properties** column for the shown note, and offers **Open as tab** and **Open in split**. `Ctrl`+click opens directly in the split; alternatively drag a card onto the drop zone **Drop here: open in split**. The properties column can be dragged wider or narrower at its left edge (232 px at least); below 280 px it puts the label above the value, as the right sidebar does.
 - **Dragging**: while dragging cards (Board, Calendar, Timeline) a ghost card follows the pointer. On a **Board** you can also drag a **column header** to reorder the columns — for **Select**/**Status** boards this reorders the property's options (so the dropdowns everywhere follow); relation and free-text boards remember the order per view.
 - **Board colour**: in a board's **View** settings, **Column colour** lets a column take its group's colour — either **Whole list** (the whole column is tinted) or **Chip only** (just the header chip, the default). It applies to Select/Status/Multi-select groups.

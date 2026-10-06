@@ -653,7 +653,7 @@ export function useBaseCells({
           />
         );
       }
-      if (input !== "number") return <PlainInput autoFocus value={val == null ? "" : String(val)} type={input === "url" || input === "email" || input === "phone" ? input : "text"}
+      if (input !== "number") return <PlainInput autoFocus growing value={val == null ? "" : String(val)} type={input === "url" || input === "email" || input === "phone" ? input : "text"}
         propKey={col} getValueSuggestions={loadSuggestions} curated={getColumnSchema(col)?.options}
         onChange={(v) => handleCellSave(path, col, v)} onClose={() => setEditingCell(null)} t={t} />;
       return (

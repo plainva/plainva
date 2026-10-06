@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-09-30
+Stan na: 2026-10-06
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -45,7 +45,7 @@ Wpisz `/` na początku wiersza, aby otworzyć menu wstawiania. Jest ono podzielo
 - **Mentions `@`** — wpisz `@` w dowolnym miejscu tekstu, aby wstawić **datę** (Dziś, Jutro, Wczoraj lub **Wybierz datę…**, zapisywaną jako data ISO), link do **notatki** lub osadzenie **bazy danych**.
 - **Emoji** — polecenie slash **Emoji** (`/emoji`) otwiera przy kursorze wybór emoji; możesz też wpisać `:name` (np. `:rocket`), aby zobaczyć podpowiedzi w tekście. W obu przypadkach Plainva wstawia rzeczywisty **znak** emoji (przenośny Unicode), nigdy `:shortcode:` — dzięki temu notatka pozostaje czytelna w Obsidian, na GitHubie i wszędzie indziej. (To coś innego niż **Ikona dokumentu** notatki, która jest zapisywana we frontmatter.)
 - **Uchwyty bloków** — po najechaniu na akapit z lewej strony pojawia się uchwyt: przeciągając go, przenosisz blok, klikając — otwierasz menu **Akcje bloku** (**Przekształć w** Tekst/Nagłówek/Lista/Zadanie/Cytat/Blok kodu, **Duplikuj**, **Przenieś w górę**/**Przenieś w dół**, **Usuń blok**). Jeśli przeciągniesz listę obok innej listy tego samego rodzaju, Plainva wstawia niewidoczną linię separatora `<!-- -->`, aby obie listy pozostały oddzielne — w Markdownie listy tego samego stylu mimo pustej linii zwykle by się scaliły (również w Obsidian).
-- **Tabele** — renderowane jako widget z edytowalnymi klikalnie komórkami. Widok komórki renderuje formatowanie (**pogrubienie**, *kursywę*, `kod`, wyróżnienie), klikalne linki (`[[Link wewnętrzny]]`, adresy internetowe) i `<br>` jako złamanie wiersza; podczas edycji widzisz surowy tekst. Menu tabeli oferuje wstawianie/usuwanie wierszy i kolumn oraz wyrównanie (**Wyrównaj do lewej**/**Wyśrodkuj**/**Wyrównaj do prawej**).
+- **Tabele** — renderowane jako widget z edytowalnymi klikalnie komórkami. Widok komórki renderuje formatowanie (**pogrubienie**, *kursywę*, `kod`, wyróżnienie), klikalne linki (`[[Link wewnętrzny]]`, adresy internetowe) i `<br>` jako złamanie wiersza; podczas edycji widzisz surowy tekst. Menu tabeli oferuje wstawianie/usuwanie wierszy i kolumn oraz wyrównanie (**Wyrównaj do lewej**/**Wyśrodkuj**/**Wyrównaj do prawej**). Komórka otwiera się w polu, które rośnie i zawija się razem z tekstem: **Enter** zapisuje, **Shift+Enter** dodaje podział wiersza (zapisywany jako `<br>`), **Esc** odrzuca.
 - **Listy kontynuują się same** (Enter wstawia kolejny znacznik listy), bloki kodu otrzymują podświetlanie zależne od języka (także w trybie czytania), wklejana zawartość jest konwertowana na Markdown (smart paste), a nagłówki można zwijać (folding).
 - **Zwijanie list** — kliknięcie punktora elementu z podelementami zwija je; punktor przyjmuje kolor akcentu, a „…” oznacza miejsce, drugie kliknięcie rozwija. Plik nigdy się nie zmienia. Punktory zmieniają się na każdym poziomie (• ◦ ▪), a wiersze kontynuacji stoją dokładnie pod tekstem elementu — także na telefonie, gdzie punktor jest jedynym elementem do zwijania.
 - **Pozycja przewijania** — każda notatka otwiera się tam, gdzie ją zostawiono; zapamiętywana na urządzeniu, nie synchronizowana.
