@@ -34,6 +34,13 @@ describe("Plainva native smoke", () => {
     // language and the catalog's wording, the id does not (first Linux run,
     // 2026-09-30: the vault opened and the button was not found by its label).
     await $('[data-testid="ribbon-new"]').click();
+    // "New note" asks for the name first, in a field in the file tree (third
+    // Linux run, 2026-10-06: the click worked and no editor appeared — the
+    // page source showed that field waiting). Name it, then the note opens.
+    const name = await $('[data-testid="file-tree"] input.pv-field');
+    await name.waitForExist({ timeout: 10_000 });
+    await name.setValue("smoke-note");
+    await browser.keys("Enter");
     const editor = await $(".cm-content");
     await editor.waitForExist({ timeout: 10_000 });
     await editor.click();

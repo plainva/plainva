@@ -97,6 +97,9 @@ jobs:
           Write-Host "port file in the given folder: $(Test-Path (Join-Path $probe 'EBWebView\DevToolsActivePort'))"
           Write-Host "port file in the app's own folder: $(Test-Path "$env:LOCALAPPDATA\com.plainva.desktop\EBWebView\DevToolsActivePort")"
           Get-ChildItem $probe -ErrorAction SilentlyContinue | Select-Object Name | Format-Table
+          # Third run: the folder was taken, the port was not. Did the argument
+          # reach the WebView's browser process at all? Its command line says.
+          Get-CimInstance Win32_Process -Filter "Name = 'msedgewebview2.exe'" | Where-Object { $_.CommandLine -notmatch '--type=' } | ForEach-Object { Write-Host "browser process: $($_.CommandLine)" }
           try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 http://127.0.0.1:9333/json/version).Content } catch { Write-Host "port 9333 does not answer: $($_.Exception.Message)" }
           if (-not $q.HasExited) { Stop-Process -Id $q.Id -Force }
           Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
