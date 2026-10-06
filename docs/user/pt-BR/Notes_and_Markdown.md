@@ -50,6 +50,7 @@ Digite `/` no início de uma linha para abrir o menu de inserção. Ele é agrup
 - **Dobrar listas** — um clique no marcador de um item com subitens os dobra; o marcador fica na cor de destaque e um “…” marca o lugar, um segundo clique desdobra. O arquivo nunca muda. Os marcadores alternam por nível (• ◦ ▪) e as linhas de continuação ficam exatamente sob o texto do item — também no celular, onde o marcador é o único controle de dobra.
 - **Posição de rolagem** — cada nota abre onde você a deixou; lembrada por dispositivo, não sincronizada.
 - **Localizar e substituir** dentro da nota atual: `Ctrl+F` (veja [Busca](Search.md)).
+- **Verificação ortográfica** — desativada por padrão. Ative-a em **Configurações → App → Editor e notas** e as palavras escritas incorretamente são sublinhadas em notas, células de tabela, e-mails, comentários, entradas do diário e tarefas; código, endereços da web, chaves e senhas nunca são verificados. O Plainva usa o corretor ortográfico do seu sistema e os idiomas dele e não traz dicionários próprios. Enquanto estiver ativada, um clique com o botão direito nesse texto abre o menu do sistema com as sugestões, em vez do menu do Plainva; uma célula de tabela mantém o menu da tabela. A configuração pertence a este dispositivo. No Linux, o Plainva ainda não ativa o corretor do WebView do sistema, então lá ela não tem efeito.
 
 ## Links e backlinks
 

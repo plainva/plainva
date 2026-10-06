@@ -290,6 +290,8 @@ O ícone selecionado mantém espaço até a borda na barra compacta. As áreas d
 
 Em **Editor e notas**, você pode desativar **Ocultar controles automaticamente durante a leitura**. Por padrão, cabeçalho e lápis se recolhem ao rolar para baixo. Eles voltam ao subir, no início da nota, com seleção de texto, controle aberto, teclado ou aviso de conflito. A área de rolagem mantém o tamanho e respeita a preferência de movimento. A barra do tablet permanece visível; no desktop há o modo de foco.
 
+A **Verificação ortográfica**, na mesma área, vem desativada por padrão. Ativada, seu teclado e seu sistema verificam com os próprios idiomas as notas, células de tabela, e-mails, comentários, entradas do diário e tarefas; código, chaves e senhas, nunca. A configuração pertence a este dispositivo.
+
 **Abrir imagem** está disponível para imagens locais na leitura, prévia e menu de contexto. No visualizador móvel, use dois dedos, toque duplo ou botões; **Redefinir zoom** mostra a imagem inteira. Voltar retorna à nota. Pressionar a imagem incorporada mantém as ações do sistema e a seleção de regiões para comentários.
 
 <!-- planner-capture-2026-09-20 -->

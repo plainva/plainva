@@ -290,6 +290,8 @@ Das ausgewählte Symbol behält auch in der kompakten Leiste Abstand zum Rand. D
 
 Unter **Editor & Notizen** kannst Du **Beim Lesen Leisten automatisch ausblenden** abschalten. Standardmäßig fahren Kopfzeile und Bleistift beim Herunterscrollen ein. Die erste Aufwärtsbewegung, der Notizanfang, eine Textauswahl, eine offene Bedienfläche, die Tastatur oder ein Konflikthinweis holen die Bedienelemente zurück. Die Scrollfläche bleibt gleich groß; die Bewegungseinstellung wird berücksichtigt. Das Tablet-Rail bleibt sichtbar. Am Desktop blendet der Fokusmodus die umgebenden Leisten aus.
 
+Die **Rechtschreibprüfung** im selben Bereich ist in der Voreinstellung aus. Eingeschaltet prüfen Deine Tastatur und Dein System – mit ihren Sprachen – Notizen, Tabellenzellen, E-Mails, Kommentare, Journal-Einträge und Aufgaben; Code, Schlüssel und Passwörter nie. Die Einstellung gehört zu diesem Gerät.
+
 **Bild öffnen** steht bei lokalen Bildern in der Lesedarstellung und Live-Vorschau sowie im Bild-Kontextmenü bereit. Mobil vergrößerst Du im Bildbetrachter mit zwei Fingern, einem Doppeltipp oder den Zoomknöpfen; **Zoom zurücksetzen** zeigt das ganze Bild. Zurück führt zur Notiz. Langes Drücken auf das eingebettete Bild bleibt für die Bildaktionen des Betriebssystems erhalten, ebenso die Markierung einer Bildregion für Kommentare.
 
 <!-- planner-capture-2026-09-20 -->

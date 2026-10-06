@@ -206,7 +206,7 @@ export const WorkspaceSetupWizard: React.FC<WorkspaceSetupWizardProps> = ({ vaul
                           aria-describedby={statusId}
                           aria-invalid={state === "mismatch"}
                           maxLength={recoveryGroups[groupIndex]?.length}
-                          spellCheck={false}
+                          purpose="secret"
                           value={answer}
                           onChange={(event) => {
                             const value = event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase();

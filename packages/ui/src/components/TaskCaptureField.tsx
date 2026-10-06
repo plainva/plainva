@@ -144,7 +144,9 @@ export function TaskCaptureField({ value, onChange, todayKey, onSubmit, onCancel
           data-testid="task-capture-input"
           enterKeyHint="done"
           autoComplete="off"
-          spellCheck
+          // A task is a sentence a person writes: it follows the spell-checking
+          // switch like every prose field (it was hard-wired on until 2026-10-06).
+          purpose="prose"
         />
       </div>
       {result.bricks.length > 0 && (

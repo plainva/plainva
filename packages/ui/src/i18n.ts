@@ -39,6 +39,23 @@ i18n
   });
 
 /**
+ * The document's language follows the app's (plan Befunde 2026-10-06, S1).
+ *
+ * Both shells' index.html say `lang="en"`, and until now nothing ever changed
+ * it: a German interface announced itself as English to a screen reader, and
+ * to everything in the WebView that picks by language - the spell checker
+ * where it reads the attribute, the Han glyph variants for Japanese against
+ * Chinese. No stylesheet of the app selects on `:lang()` or hyphenates, so
+ * the attribute changes nothing the app itself draws.
+ */
+function reflectDocumentLanguage(code: string | undefined): void {
+  if (typeof document === "undefined" || !code) return;
+  document.documentElement.lang = code;
+}
+i18n.on("languageChanged", reflectDocumentLanguage);
+reflectDocumentLanguage(initialLanguage);
+
+/**
  * Resolves once the initial language (plus the English fallback) is loaded.
  * main.tsx awaits this before the first render so no raw keys ever flash.
  */

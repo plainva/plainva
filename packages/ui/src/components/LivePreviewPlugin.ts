@@ -13,6 +13,7 @@ import { isAnchorMarkerText } from "./anchorMarkerHide";
 import { listDepthAt } from "./listIndent";
 import { editorLineDirection } from "./textDirectionExtension";
 import { textDirectionOf, type TextDirection } from "../lib/textDirection";
+import { spellcheckAttr } from "../lib/spellcheck";
 import { onCompletedTap } from "./completedTap";
 import { scanTasks, setChecklistTaskDone } from "@plainva/core";
 import { minimalDocChange } from "../lib/textDiff";
@@ -363,6 +364,9 @@ class TableWidget extends WidgetType {
       const input = document.createElement("textarea");
       input.rows = 1;
       input.className = "cm-md-table-input";
+      // A cell holds prose: it follows the spell-checking switch by the one
+      // rule every writing field follows (lib/spellcheck.ts).
+      input.setAttribute("spellcheck", spellcheckAttr("prose"));
       input.value = originalText;
       input.dir = cellDir(original);
       input.style.textAlign = alignToCss(this.model.aligns[colIndex] ?? null);

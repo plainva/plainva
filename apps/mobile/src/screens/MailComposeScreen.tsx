@@ -353,7 +353,7 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
 
         <label className="m-field">
           <span>{t("mail.draftSubject")}</span>
-          <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} purpose="prose" />
         </label>
 
         <div className="m-field">

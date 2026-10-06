@@ -8,6 +8,7 @@ import {
 } from "./webviewHardening";
 import { contextMenuStore, closeContextMenu } from "./contextMenuStore";
 import { SHORTCUT_CATEGORIES } from "./shortcutCatalog";
+import { resetSpellcheckForTests, setSpellcheckOn } from "@plainva/ui";
 
 function mockSelection(text: string) {
   vi.spyOn(window, "getSelection").mockReturnValue({
@@ -250,6 +251,104 @@ describe("webviewHardening listeners", () => {
     document.body.dispatchEvent(ev);
     expect(contextMenuStore.get()).toBeNull();
     document.removeEventListener("contextmenu", appHandler);
+  });
+
+  describe("with spell checking on (plan Befunde 2026-10-06, E3)", () => {
+    afterEach(() => resetSpellcheckForTests());
+
+    /** A field the rule marks: the attribute is what the rule wrote. */
+    function field(tag: "input" | "textarea", spellcheck: "true" | "false" | null): HTMLElement {
+      const el = document.createElement(tag);
+      if (spellcheck) el.setAttribute("spellcheck", spellcheck);
+      document.body.appendChild(el);
+      return el;
+    }
+    function rightClick(el: Element): MouseEvent {
+      const ev = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 3, clientY: 4 });
+      el.dispatchEvent(ev);
+      return ev;
+    }
+
+    it("lets the system's menu through in a checked text field and opens no menu of its own", () => {
+      setSpellcheckOn(true);
+      initWebviewHardening();
+      for (const tag of ["input", "textarea"] as const) {
+        const el = field(tag, "true");
+        const ev = rightClick(el);
+        expect(ev.defaultPrevented, tag).toBe(false);
+        expect(contextMenuStore.get(), tag).toBeNull();
+        el.remove();
+      }
+    });
+
+    it("does the same in a checked editor, wherever the click lands inside it", () => {
+      setSpellcheckOn(true);
+      initWebviewHardening();
+      const host = document.createElement("div");
+      host.setAttribute("contenteditable", "true");
+      host.setAttribute("spellcheck", "true");
+      // A code span is exempt from checking; the menu of one editor must not
+      // change from word to word, so the editor's own attribute decides.
+      host.innerHTML = '<div class="cm-line">Text <span spellcheck="false">code</span></div>';
+      document.body.appendChild(host);
+      const ev = rightClick(host.querySelector("span")!);
+      expect(ev.defaultPrevented).toBe(false);
+      expect(contextMenuStore.get()).toBeNull();
+      host.remove();
+    });
+
+    it("keeps Plainva's menu in fields that are never checked", () => {
+      setSpellcheckOn(true);
+      initWebviewHardening();
+      // A code or secret field says false; an unclassified field says nothing
+      // and inherits the document root's false.
+      for (const attr of ["false", null] as const) {
+        const el = field("input", attr);
+        const ev = rightClick(el);
+        expect(ev.defaultPrevented, String(attr)).toBe(true);
+        expect(contextMenuStore.get()?.editable?.kind, String(attr)).toBe("input");
+        closeContextMenu();
+        el.remove();
+      }
+    });
+
+    it("still suppresses the native menu over plain page text", () => {
+      setSpellcheckOn(true);
+      mockSelection("hello");
+      initWebviewHardening();
+      const ev = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+      document.body.dispatchEvent(ev);
+      expect(ev.defaultPrevented).toBe(true);
+      expect(contextMenuStore.get()?.selection).toBe("hello");
+    });
+
+    it("a more specific Plainva menu still wins inside a checked field", () => {
+      setSpellcheckOn(true);
+      initWebviewHardening();
+      // The table cell's menu: its listener prevents the default before the
+      // document's listener runs.
+      const cell = document.createElement("div");
+      const el = document.createElement("textarea");
+      el.setAttribute("spellcheck", "true");
+      cell.appendChild(el);
+      document.body.appendChild(cell);
+      let tableMenu = 0;
+      cell.addEventListener("contextmenu", (e) => { e.preventDefault(); e.stopPropagation(); tableMenu += 1; });
+      const ev = rightClick(el);
+      expect(tableMenu).toBe(1);
+      expect(ev.defaultPrevented).toBe(true);
+      expect(contextMenuStore.get()).toBeNull();
+      cell.remove();
+    });
+
+    it("changes nothing while the switch is off, even in a field marked true", () => {
+      initWebviewHardening();
+      const el = field("textarea", "true");
+      const ev = rightClick(el);
+      expect(ev.defaultPrevented).toBe(true);
+      expect(contextMenuStore.get()?.editable?.kind).toBe("textarea");
+      el.remove();
+    });
   });
 
   it("is idempotent — a second init does not double-fire", () => {

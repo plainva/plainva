@@ -50,6 +50,7 @@ Wpisz `/` na początku wiersza, aby otworzyć menu wstawiania. Jest ono podzielo
 - **Zwijanie list** — kliknięcie punktora elementu z podelementami zwija je; punktor przyjmuje kolor akcentu, a „…” oznacza miejsce, drugie kliknięcie rozwija. Plik nigdy się nie zmienia. Punktory zmieniają się na każdym poziomie (• ◦ ▪), a wiersze kontynuacji stoją dokładnie pod tekstem elementu — także na telefonie, gdzie punktor jest jedynym elementem do zwijania.
 - **Pozycja przewijania** — każda notatka otwiera się tam, gdzie ją zostawiono; zapamiętywana na urządzeniu, nie synchronizowana.
 - **Znajdź i zamień** w bieżącej notatce: `Ctrl+F` (patrz [Wyszukiwanie](Search.md)).
+- **Sprawdzanie pisowni** — domyślnie wyłączone. Włącz je w **Ustawienia → Aplikacja → Edytor i notatki**, a błędnie napisane słowa będą podkreślane w notatkach, komórkach tabel, e-mailach, komentarzach, wpisach dziennika i zadaniach; kod, adresy internetowe, klucze i hasła nigdy nie są sprawdzane. Plainva korzysta ze sprawdzania pisowni Twojego systemu i jego języków i nie ma własnych słowników. Gdy jest włączone, kliknięcie prawym przyciskiem w takim tekście otwiera menu systemu z podpowiedziami zamiast menu Plainvy; komórka tabeli zachowuje swoje menu tabeli. Ustawienie należy do tego urządzenia. W systemie Linux Plainva nie włącza jeszcze sprawdzania w systemowym WebView, więc nie ma tam ono żadnego efektu.
 
 ## Linki i linki zwrotne
 

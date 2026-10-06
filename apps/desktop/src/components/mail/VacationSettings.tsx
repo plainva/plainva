@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, SettingCard, SettingCardNote, SettingRow, toast } from "@plainva/ui";
+import { Banner, Button, SettingCard, SettingCardNote, SettingRow, TextArea, TextInput, toast } from "@plainva/ui";
 import { SIEVE_PORT, setVacation, vacationSupport, type MailAccountConfig } from "@plainva/ui/mail";
 
 /**
@@ -85,11 +85,11 @@ export function VacationSettings({ vaultPath, account }: { vaultPath: string; ac
       </SettingRow>
 
       <SettingRow label={t("vacation.subject", { defaultValue: "Betreff" })}>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} className="pv-field" data-testid="vacation-subject" style={{ width: 220 }} />
+        <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="vacation-subject" style={{ width: 220 }} purpose="prose" />
       </SettingRow>
 
       <SettingRow label={t("vacation.message", { defaultValue: "Text" })}>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} className="pv-field pv-field--area" data-testid="vacation-message" rows={4} style={{ width: 320 }} />
+        <TextArea value={message} onChange={(e) => setMessage(e.target.value)} data-testid="vacation-message" rows={4} style={{ width: 320 }} />
       </SettingRow>
 
       <SettingRow label={t("vacation.from", { defaultValue: "Von" })} desc={t("vacation.windowHint", { defaultValue: "Ohne Zeitraum läuft die Notiz, bis Du sie ausschaltest." })}>

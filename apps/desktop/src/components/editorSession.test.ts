@@ -12,7 +12,7 @@ import { EditorView } from "@codemirror/view";
 import { undoDepth } from "@codemirror/commands";
 import { searchPanelOpen } from "@codemirror/search";
 import type { i18n as I18nInstance } from "i18next";
-import { createEditorSession, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
+import { createEditorSession, resetSpellcheckForTests, setSpellcheckOn, type EditorSession, type EditorSessionDeps } from "@plainva/ui";
 import { tableLinkHandlers } from "@plainva/ui";
 import { setWikiResolver, buildWikiTargetSet } from "@plainva/ui";
 import { forceFullParse } from "../test-parse";
@@ -116,6 +116,7 @@ function makeSession(
 afterEach(() => {
   while (open.length) open.pop()!.destroy();
   document.body.innerHTML = "";
+  resetSpellcheckForTests();
 });
 
 describe("editorSession", () => {
@@ -127,11 +128,109 @@ describe("editorSession", () => {
     expect(content.getAttribute("autocapitalize")).toBe("sentences");
     expect(content.getAttribute("autocorrect")).toBe("on");
     expect(content.getAttribute("writingsuggestions")).toBe("true");
-    // Spellcheck stays off by decision (no squiggles under markdown syntax).
+    // Spell checking is NOT part of the touch profile. This line pinned "stays
+    // off by decision" (2026-07-16) until that decision was reversed on
+    // 2026-10-06 (plan Befunde, E3): it is a device switch now. The default is
+    // still off, on both profiles; the switch is tested below.
     expect(content.getAttribute("spellcheck")).toBe("false");
     // drawSelection's layers are gone -> the platform renders the NATIVE
     // selection (with its handles) instead of CM's drawn one.
     expect(session.view.dom.querySelector(".cm-selectionLayer")).toBeNull();
+  });
+
+  describe("the spell-checking switch (plan Befunde 2026-10-06, E3)", () => {
+    const CHECKED = "# Titel\n\nEin Satz mit `code` und https://example.com/pfad darin.\n\n```js\nconst a = 1;\n```\n\nEnde.\n";
+
+    it("is off by default on both profiles and follows the switch without a new session", () => {
+      const desktop = makeSession("live");
+      const phone = makeSession("live", DOC, undefined, true);
+      const views = [desktop.session.view, phone.session.view];
+      expect(views.map((v) => v.contentDOM.getAttribute("spellcheck"))).toEqual(["false", "false"]);
+
+      setSpellcheckOn(true);
+      // The same views, the same content elements: nothing was rebuilt.
+      expect(desktop.session.view).toBe(views[0]);
+      expect(views.map((v) => v.contentDOM.getAttribute("spellcheck"))).toEqual(["true", "true"]);
+      // The touch keyboard's smartness is its own matter and did not move.
+      expect(phone.session.view.contentDOM.getAttribute("autocorrect")).toBe("on");
+      expect(desktop.session.view.contentDOM.getAttribute("autocorrect")).toBe("off");
+
+      setSpellcheckOn(false);
+      expect(views.map((v) => v.contentDOM.getAttribute("spellcheck"))).toEqual(["false", "false"]);
+    });
+
+    it("a session opened while the switch is on starts checked, in source mode too", () => {
+      setSpellcheckOn(true);
+      expect(makeSession("live").session.view.contentDOM.getAttribute("spellcheck")).toBe("true");
+      expect(makeSession("source").session.view.contentDOM.getAttribute("spellcheck")).toBe("true");
+    });
+
+    it("keeps the text, the caret and the undo history when the switch flips", () => {
+      const { session } = makeSession("live", "eins zwei");
+      const view = session.view;
+      view.dispatch({ changes: { from: 9, insert: " drei" }, selection: { anchor: 4, head: 8 }, userEvent: "input.type" });
+      const depth = undoDepth(view.state);
+      expect(depth).toBeGreaterThan(0);
+
+      setSpellcheckOn(true);
+      expect(view.state.doc.toString()).toBe("eins zwei drei");
+      expect(view.state.selection.main.anchor).toBe(4);
+      expect(view.state.selection.main.head).toBe(8);
+      expect(undoDepth(view.state)).toBe(depth);
+
+      setSpellcheckOn(false);
+      expect(undoDepth(view.state)).toBe(depth);
+      expect(view.state.selection.main.head).toBe(8);
+    });
+
+    it("survives a mode switch and a read-only switch", () => {
+      const { session } = makeSession("live");
+      setSpellcheckOn(true);
+      session.setMode("source");
+      session.setEditable(false);
+      expect(session.view.contentDOM.getAttribute("spellcheck")).toBe("true");
+      session.setMode("live");
+      setSpellcheckOn(false);
+      expect(session.view.contentDOM.getAttribute("spellcheck")).toBe("false");
+    });
+
+    it("leaves code, URLs and the frontmatter inside a note unchecked", () => {
+      setSpellcheckOn(true);
+      const { session } = makeSession("source", `---\ntitle: Xyzzy\n---\n${CHECKED}`);
+      forceFullParse(session.view);
+      session.view.dispatch({});
+      const content = session.view.contentDOM;
+      const off = Array.from(content.querySelectorAll('[spellcheck="false"]')).map((el) => el.textContent ?? "");
+      // Inline code and the URL are spans inside a checked line …
+      expect(off).toContain("`code`");
+      expect(off.some((text) => text.includes("https://example.com/pfad"))).toBe(true);
+      // … the fenced block and the frontmatter are whole lines.
+      expect(off).toContain("const a = 1;");
+      expect(off).toContain("title: Xyzzy");
+      // Prose stays checked: its line carries no exemption.
+      const prose = Array.from(content.querySelectorAll(".cm-line")).find((line) => line.textContent === "Ende.");
+      expect(prose).toBeTruthy();
+      expect(prose?.getAttribute("spellcheck")).toBeNull();
+
+      // Switch off: the marks are gone with the compartment.
+      setSpellcheckOn(false);
+      expect(content.querySelectorAll('[spellcheck="false"]').length).toBe(0);
+    });
+
+    it("never checks a text file that has a grammar; a plain text file follows the switch", () => {
+      const code = makeSession("source", "import os\n", undefined, undefined, "scripts/run.py");
+      const text = makeSession("source", "Liebe Leute\n", undefined, undefined, "notes/brief.txt");
+      setSpellcheckOn(true);
+      expect(code.session.view.contentDOM.getAttribute("spellcheck")).toBe("false");
+      expect(text.session.view.contentDOM.getAttribute("spellcheck")).toBe("true");
+    });
+
+    it("a destroyed session no longer listens", () => {
+      const { session } = makeSession("live");
+      open.pop();
+      session.destroy();
+      expect(() => setSpellcheckOn(true)).not.toThrow();
+    });
   });
 
   it("the desktop default keeps CM6's input defaults and the drawn selection", () => {

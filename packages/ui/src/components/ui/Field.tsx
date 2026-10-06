@@ -9,6 +9,7 @@ import {
 } from "react";
 import { cx } from "./cx";
 import { fitFieldHeight } from "../../lib/growingField";
+import { useSpellcheck, type WritingPurpose } from "../../lib/spellcheck";
 
 /**
  * Form fields (plan Designsprache P2; metric roles sweep 2026-07-19, E10):
@@ -23,12 +24,24 @@ interface FieldRole {
   compact?: boolean;
 }
 
+/**
+ * What the field holds, for the spell-checking rule (lib/spellcheck.ts). The
+ * primitives own the `spellcheck` attribute - a call site names the purpose and
+ * never sets the attribute itself, which is why `spellCheck` is not accepted.
+ * A multi-line field holds prose unless it says otherwise; a one-line field
+ * holds a name, an address or a number unless it says it holds prose.
+ */
+interface FieldPurpose {
+  purpose?: WritingPurpose;
+}
+
 export const TextInput = forwardRef<
   HTMLInputElement,
-  InputHTMLAttributes<HTMLInputElement> & FieldRole
->(function TextInput({ className, compact, ...rest }, ref) {
+  Omit<InputHTMLAttributes<HTMLInputElement>, "spellCheck"> & FieldRole & FieldPurpose
+>(function TextInput({ className, compact, purpose = "name", ...rest }, ref) {
+  const spellCheck = useSpellcheck(purpose);
   return (
-    <input ref={ref} className={cx("pv-field", compact && "pv-field--compact", className)} {...rest} />
+    <input ref={ref} className={cx("pv-field", compact && "pv-field--compact", className)} spellCheck={spellCheck} {...rest} />
   );
 });
 
@@ -49,12 +62,14 @@ export const SelectField = forwardRef<
 
 export const TextArea = forwardRef<
   HTMLTextAreaElement,
-  TextareaHTMLAttributes<HTMLTextAreaElement> & FieldRole
->(function TextArea({ className, compact, ...rest }, ref) {
+  Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "spellCheck"> & FieldRole & FieldPurpose
+>(function TextArea({ className, compact, purpose = "prose", ...rest }, ref) {
+  const spellCheck = useSpellcheck(purpose);
   return (
     <textarea
       ref={ref}
       className={cx("pv-field", "pv-field--area", compact && "pv-field--compact", className)}
+      spellCheck={spellCheck}
       {...rest}
     />
   );
@@ -68,8 +83,9 @@ export const TextArea = forwardRef<
  */
 export const GrowingField = forwardRef<
   HTMLTextAreaElement,
-  TextareaHTMLAttributes<HTMLTextAreaElement>
->(function GrowingField({ className, value, ...rest }, ref) {
+  Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "spellCheck"> & FieldPurpose
+>(function GrowingField({ className, value, purpose = "prose", ...rest }, ref) {
+  const spellCheck = useSpellcheck(purpose);
   const field = useRef<HTMLTextAreaElement>(null);
   useImperativeHandle(ref, () => field.current as HTMLTextAreaElement, []);
   // After every change of the text, before paint: the field never shows a
@@ -77,5 +93,5 @@ export const GrowingField = forwardRef<
   useLayoutEffect(() => {
     if (field.current) fitFieldHeight(field.current);
   }, [value]);
-  return <textarea ref={field} rows={1} className={cx("pv-field", "pv-field--compact", "pv-field--grow", className)} value={value} {...rest} />;
+  return <textarea ref={field} rows={1} className={cx("pv-field", "pv-field--compact", "pv-field--grow", className)} value={value} spellCheck={spellCheck} {...rest} />;
 });

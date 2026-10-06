@@ -50,6 +50,7 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 - **Listen falten** — ein Klick auf den Punkt eines Listeneintrags mit Untereinträgen klappt sie ein; der Punkt wird zur Akzentfarbe und ein „…“ markiert die Stelle, ein zweiter Klick klappt wieder auf. Die Datei ändert sich dabei nie. Die Punkte wechseln je Ebene (• ◦ ▪), Folgezeilen stehen exakt unter dem Text ihres Eintrags — auch am Telefon, wo der Punkt die einzige Falt-Fläche ist.
 - **Scrollposition** — jede Notiz öffnet dort, wo Du sie verlassen hast; gemerkt wird das je Gerät, nicht synchronisiert.
 - **Suchen & Ersetzen** in der aktuellen Notiz: `Strg+F` (siehe [Suche](Search.md)).
+- **Rechtschreibprüfung** — in der Voreinstellung aus. Schalte sie unter **Einstellungen → App → Editor & Notizen** ein, und falsch geschriebene Wörter werden in Notizen, Tabellenzellen, E-Mails, Kommentaren, Journal-Einträgen und Aufgaben unterstrichen; Code, Web-Adressen, Schlüssel und Passwörter werden nie geprüft. Plainva nutzt die Rechtschreibprüfung Deines Systems und dessen Sprachen und bringt keine eigenen Wörterbücher mit. Solange sie an ist, öffnet ein Rechtsklick in solchem Text das Menü des Systems mit den Korrekturvorschlägen statt Plainvas eigenem; eine Tabellenzelle behält ihr Tabellenmenü. Die Einstellung gehört zu diesem Gerät. Unter Linux schaltet Plainva die Prüfung der System-WebView noch nicht ein; dort bleibt sie ohne Wirkung.
 
 ## Links und Backlinks
 

@@ -290,6 +290,8 @@ El icono seleccionado mantiene su separación del borde en la barra compacta. La
 
 En **Editor y notas** puedes desactivar **Ocultar controles automáticamente al leer**. De forma predeterminada, la cabecera y el lápiz se ocultan al bajar. Vuelven al subir, al principio de la nota, al seleccionar texto, abrir un control o el teclado, o mostrar un aviso de conflicto. El área desplazable mantiene su tamaño y se respeta la preferencia de movimiento. La barra de la tableta sigue visible; en el escritorio puedes usar el modo de concentración.
 
+La **Corrección ortográfica**, en la misma área, está desactivada de forma predeterminada. Activada, tu teclado y tu sistema revisan con sus propios idiomas las notas, celdas de tabla, correos, comentarios, entradas del diario y tareas; el código, las claves y las contraseñas, nunca. El ajuste pertenece a este dispositivo.
+
 **Abrir imagen** está disponible para imágenes locales en lectura, vista previa y el menú contextual. En el visor móvil, amplía con dos dedos, un doble toque o los botones; **Restablecer zoom** muestra la imagen completa. Atrás vuelve a la nota. La pulsación larga conserva las acciones del sistema y sigue siendo posible seleccionar una región para comentarla.
 
 <!-- planner-capture-2026-09-20 -->

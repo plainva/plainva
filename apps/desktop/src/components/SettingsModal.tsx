@@ -48,6 +48,7 @@ import { getStoredAppFonts, setStoredAppFonts, defaultAppFontSettings, type AppF
 import { getStoredUiZoom, setStoredUiZoom, DEFAULT_UI_ZOOM } from "../services/uiZoom";
 import { getStoredDefaultViewMode, setStoredDefaultViewMode, DEFAULT_VIEW_MODE, type EditorViewMode } from "../services/viewModeDefault";
 import { getAskBeforeCreateLink, setAskBeforeCreateLink } from "../services/linkCreatePrompt";
+import { getStoredSpellcheck, setStoredSpellcheck, DEFAULT_SPELLCHECK } from "../services/spellcheck";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { checkForAppUpdate, downloadAndInstallUpdate, getAutoUpdateCheck, setAutoUpdateCheck } from "../services/appUpdate";
 import { formatBuildLine, formatDiagnosticsExport } from "@plainva/ui";
@@ -131,6 +132,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
   useEffect(() => { getStoredAppFonts().then(setFonts).catch(() => {}); }, []);
   const [askBeforeCreateLink, setAskBeforeCreateLinkState] = useState(false);
   useEffect(() => { getAskBeforeCreateLink().then(setAskBeforeCreateLinkState).catch(() => {}); }, []);
+  const [spellcheck, setSpellcheck] = useState(DEFAULT_SPELLCHECK);
+  useEffect(() => { getStoredSpellcheck().then(setSpellcheck).catch(() => {}); }, []);
   const [uiZoom, setUiZoom] = useState<number>(DEFAULT_UI_ZOOM);
   useEffect(() => { getStoredUiZoom().then(setUiZoom).catch(() => {}); }, []);
   const [themePref, setThemePref] = useState<ThemePref>("system");
@@ -848,6 +851,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialPr
                       onDefaultViewMode={(m) => { setDefaultViewMode(m); void setStoredDefaultViewMode(m); }}
                       askBeforeCreateLink={askBeforeCreateLink}
                       onAskBeforeCreateLink={(v) => { setAskBeforeCreateLinkState(v); void setAskBeforeCreateLink(v); }}
+                      spellcheck={spellcheck}
+                      onSpellcheck={(v) => { setSpellcheck(v); void setStoredSpellcheck(v); }}
                     />
                   </SettingsPage>
                   <SettingsPage active={inAppWorld && appPage === "behavior"}>

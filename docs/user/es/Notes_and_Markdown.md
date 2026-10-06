@@ -50,6 +50,7 @@ Escribe `/` al principio de una línea para abrir el menú de inserción. Está 
 - **Plegar listas**: un clic en la viñeta de un elemento con subelementos los pliega; la viñeta toma el color de acento y un «…» marca el lugar, un segundo clic los despliega. El archivo nunca cambia. Las viñetas alternan por nivel (• ◦ ▪) y las líneas de continuación quedan justo bajo el texto de su elemento, también en el teléfono, donde la viñeta es el único control de plegado.
 - **Posición de desplazamiento**: cada nota se abre donde la dejaste; se recuerda por dispositivo, sin sincronizar.
 - **Buscar y reemplazar** dentro de la nota actual: `Ctrl+F` (ver [Buscar](Search.md)).
+- **Corrección ortográfica** — desactivada de forma predeterminada. Actívala en **Configuración → App → Editor y notas** y las palabras mal escritas se subrayan en notas, celdas de tabla, correos, comentarios, entradas del diario y tareas; el código, las direcciones web, las claves y las contraseñas nunca se revisan. Plainva usa el corrector ortográfico de tu sistema y sus idiomas y no trae diccionarios propios. Mientras está activada, un clic derecho en ese texto abre el menú del sistema con las sugerencias en lugar del de Plainva; una celda de tabla conserva su menú de tabla. El ajuste pertenece a este dispositivo. En Linux, Plainva todavía no activa el corrector del WebView del sistema, así que allí no tiene efecto.
 
 ## Enlaces y retroenlaces
 

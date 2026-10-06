@@ -290,6 +290,8 @@ L’icône sélectionnée garde une marge dans la barre compacte. Les zones tact
 
 Dans **Éditeur et notes**, vous pouvez désactiver **Masquer automatiquement les commandes pendant la lecture**. Par défaut, l’en-tête et le crayon se retirent en descendant. Ils reviennent en remontant, au début de la note, lors d’une sélection, d’une commande ouverte, du clavier ou d’un avis de conflit. La zone de défilement garde sa taille et le réglage de mouvement est respecté. Le rail de la tablette reste visible ; le bureau propose le mode concentration.
 
+La **Vérification orthographique**, dans la même zone, est désactivée par défaut. Activée, votre clavier et votre système vérifient avec leurs propres langues les notes, les cellules de tableau, les e-mails, les commentaires, les entrées du journal et les tâches ; le code, les clés et les mots de passe, jamais. Le réglage appartient à cet appareil.
+
 **Ouvrir l’image** est disponible pour les images locales en lecture, en aperçu et dans le menu contextuel. Le visualiseur mobile propose le zoom à deux doigts, le double appui et les boutons ; **Réinitialiser le zoom** affiche toute l’image. Retour ramène à la note. L’appui long conserve les actions du système et les régions d’image restent commentables.
 
 <!-- planner-capture-2026-09-20 -->

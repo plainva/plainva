@@ -1,4 +1,4 @@
-import { EditorState, Prec, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import { EditorView, keymap, placeholder as cmPlaceholder, type KeyBinding } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
@@ -6,6 +6,8 @@ import { markdownDecorationPlugin } from "../components/LivePreviewPlugin";
 import { markdownTheme } from "../components/MarkdownTheme";
 import { composeLinkPlugin } from "./composeLinks";
 import { applyComposeCommand, detectSlash, type ComposeCommandId } from "./composeMarkdown";
+import { spellcheckAttr, spellcheckFor, subscribeSpellcheck } from "../lib/spellcheck";
+import { spellcheckExemptions } from "../components/spellcheckExemptions";
 
 /**
  * The compose editor's engine, shared by both shells (G3b).
@@ -30,7 +32,8 @@ export interface ComposeSessionOptions {
   /**
    * Phone profile: CodeMirror hard-codes autocapitalize/autocorrect/
    * writingsuggestions to "off", which turns a virtual keyboard dumb. Same
-   * override the mobile note editor carries.
+   * override the mobile note editor carries. Spell checking is not part of
+   * the profile: it follows the device switch on both shells (below).
    */
   touch?: boolean;
   /** Extra key bindings at highest precedence (menu navigation, shortcuts). */
@@ -56,6 +59,14 @@ export interface ComposeSession {
 
 export function createComposeSession(opts: ComposeSessionOptions): ComposeSession {
   let last = opts.doc;
+  // A message is prose, so the composer follows the spell-checking switch
+  // (lib/spellcheck.ts) exactly as the note editor does: one compartment, so
+  // an open draft changes one attribute and keeps caret and undo history.
+  const spellComp = new Compartment();
+  const spellExtensions = (): Extension => [
+    EditorView.contentAttributes.of({ spellcheck: spellcheckAttr("prose") }),
+    spellcheckFor("prose") ? spellcheckExemptions() : [],
+  ];
 
   const extensions: Extension[] = [
     ...(opts.extraKeys && opts.extraKeys.length > 0 ? [Prec.highest(keymap.of([...opts.extraKeys]))] : []),
@@ -73,6 +84,7 @@ export function createComposeSession(opts: ComposeSessionOptions): ComposeSessio
     ...(opts.touch
       ? [EditorView.contentAttributes.of({ autocapitalize: "sentences", autocorrect: "on", writingsuggestions: "true" })]
       : []),
+    spellComp.of(spellExtensions()),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) {
         last = u.state.doc.toString();
@@ -88,6 +100,11 @@ export function createComposeSession(opts: ComposeSessionOptions): ComposeSessio
   const view = new EditorView({
     state: EditorState.create({ doc: opts.doc, extensions }),
     parent: opts.parent,
+  });
+
+  let destroyed = false;
+  const stopSpellcheck = subscribeSpellcheck(() => {
+    if (!destroyed) view.dispatch({ effects: spellComp.reconfigure(spellExtensions()) });
   });
 
   /** Replace the whole document with the result of a pure text operation. */
@@ -125,6 +142,8 @@ export function createComposeSession(opts: ComposeSessionOptions): ComposeSessio
       return last;
     },
     destroy() {
+      destroyed = true;
+      stopSpellcheck();
       view.destroy();
     },
   };

@@ -290,6 +290,8 @@ Het geselecteerde pictogram houdt afstand tot de rand in de compacte balk. Aanra
 
 Bij **Editor en notities** kun je **Bediening tijdens het lezen automatisch verbergen** uitschakelen. Standaard verdwijnen kopbalk en potlood bij omlaag scrollen. Ze keren terug bij omhoog scrollen, bovenaan de notitie, bij tekstselectie, een open bedieningselement, het toetsenbord of een conflictmelding. Het schuifgebied houdt dezelfde grootte en de bewegingsvoorkeur wordt gevolgd. De tabletrail blijft zichtbaar; op desktop gebruik je focusmodus.
 
+De **Spellingcontrole** in hetzelfde gebied staat standaard uit. Ingeschakeld controleren je toetsenbord en je systeem met hun eigen talen notities, tabelcellen, e-mails, opmerkingen, journaalitems en taken; code, sleutels en wachtwoorden nooit. De instelling hoort bij dit apparaat.
+
 **Afbeelding openen** is beschikbaar voor lokale afbeeldingen in leesmodus, livevoorbeeld en het contextmenu. Gebruik in de mobiele viewer twee vingers, dubbeltikken of de zoomknoppen; **Zoom herstellen** toont de hele afbeelding. Terug brengt je naar de notitie. Lang drukken behoudt de systeemacties en je kunt nog steeds een gebied selecteren voor een opmerking.
 
 <!-- planner-capture-2026-09-20 -->

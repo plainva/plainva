@@ -50,6 +50,7 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 - **Lijsten invouwen** — een klik op het opsommingsteken van een item met subitems vouwt ze in; het teken krijgt de accentkleur en een „…” markeert de plek, een tweede klik vouwt weer uit. Het bestand verandert nooit. De tekens wisselen per niveau (• ◦ ▪) en vervolgregels staan precies onder de tekst van hun item — ook op de telefoon, waar het teken de enige vouwknop is.
 - **Scrollpositie** — elke notitie opent waar je haar verliet; per apparaat onthouden, niet gesynchroniseerd.
 - **Zoeken & vervangen** binnen de huidige notitie: `Ctrl+F` (zie [Zoeken](Search.md)).
+- **Spellingcontrole** — standaard uit. Schakel ze in onder **Instellingen → App → Editor en notities** en verkeerd gespelde woorden worden onderstreept in notities, tabelcellen, e-mails, opmerkingen, journaalitems en taken; code, webadressen, sleutels en wachtwoorden worden nooit gecontroleerd. Plainva gebruikt de spellingcontrole van je systeem en de talen daarvan en brengt geen eigen woordenboeken mee. Zolang ze aan staat, opent een rechtsklik in zulke tekst het menu van het systeem met de suggesties in plaats van dat van Plainva; een tabelcel houdt haar tabelmenu. De instelling hoort bij dit apparaat. Op Linux schakelt Plainva de controle van de systeem-WebView nog niet in; daar heeft ze geen effect.
 
 ## Links en backlinks
 

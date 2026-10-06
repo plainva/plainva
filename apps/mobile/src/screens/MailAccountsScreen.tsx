@@ -614,7 +614,7 @@ export function MailAccountsScreen({
                 </GroupCard>
                 <GroupCard><RowList>
                   <SettingField label={t("vacation.subject")}>
-                    <TextInput value={vacSubject} onChange={(e) => setVacSubject(e.target.value)} data-testid="vacation-subject" />
+                    <TextInput value={vacSubject} onChange={(e) => setVacSubject(e.target.value)} data-testid="vacation-subject" purpose="prose" />
                   </SettingField>
                 </RowList></GroupCard>
                 <GroupCard><RowList>
@@ -682,6 +682,7 @@ export function MailAccountsScreen({
                   onChange={(e) => setSenders(e.target.value)}
                   onBlur={() => void persistSending({ senders: senders.split("\n").map((l) => l.trim()).filter(Boolean) })}
                   data-testid="mail-senders"
+                  purpose="address"
                 />
               </SettingField>
             </RowList></GroupCard>

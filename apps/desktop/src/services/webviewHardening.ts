@@ -1,5 +1,5 @@
 import { openContextMenu } from "./contextMenuStore";
-import { findEditable, selectedText } from "@plainva/ui";
+import { findEditable, selectedText, wantsSystemTextMenu } from "@plainva/ui";
 
 /**
  * Webview hardening (2026-07-07): make the shipped app feel like a native
@@ -10,6 +10,13 @@ import { findEditable, selectedText } from "@plainva/ui";
  *    cells, block handles, graph) call preventDefault/stopPropagation first, so
  *    this bubble-phase listener leaves them untouched (`e.defaultPrevented`).
  *    Over plain text with a selection we open our own minimal "Copy" menu.
+ *    ONE exception since 2026-10-06 (plan Befunde, E3): while the device's
+ *    spell-checking switch is on, a right-click in a text field the rule marks
+ *    as checked gets the SYSTEM's menu. The correction suggestions exist only
+ *    there - the WebView does not hand them to JavaScript - and that menu
+ *    carries cut, copy and paste itself. The app's more specific menus (table
+ *    cell, image, block handle) still come first: they prevent the default
+ *    before this listener runs. With the switch off nothing changes.
  *  - Reload keys (F5, Ctrl/Cmd+R) never reload the webview: that would throw
  *    away the whole in-memory app state (open tabs, unsaved buffers, split
  *    layout). Since 2026-07-25 they are not merely swallowed — they mean what
@@ -69,9 +76,12 @@ function onKeyDown(e: KeyboardEvent): void {
 function onContextMenu(e: MouseEvent): void {
   // An app-owned context menu already handled this right-click — leave it be.
   if (e.defaultPrevented) return;
+  const editable = findEditable(e.target);
+  // Spell checking on, and this field is checked: the system's menu has the
+  // suggestions, so it is the one that opens (see the header).
+  if (editable && wantsSystemTextMenu(editable.el)) return;
   // Kill the native WebView menu everywhere else.
   e.preventDefault();
-  const editable = findEditable(e.target);
   const selection = selectedText(editable);
   // Over an editable field we always offer Paste; over plain text we only offer
   // Copy when there is a selection. Otherwise nothing shows.

@@ -290,6 +290,8 @@ Wybrana ikona zachowuje odstęp od krawędzi w kompaktowym pasku. Obszary dotyku
 
 W **Edytor i notatki** możesz wyłączyć **Automatycznie ukrywaj elementy sterujące podczas czytania**. Domyślnie nagłówek i ołówek chowają się przy przewijaniu w dół. Wracają przy ruchu w górę, na początku notatki, przy zaznaczeniu tekstu, otwartym panelu, klawiaturze lub komunikacie o konflikcie. Obszar przewijania zachowuje rozmiar i respektuje ustawienia ruchu. Pasek tabletu pozostaje widoczny; komputer ma tryb skupienia.
 
+**Sprawdzanie pisowni** w tym samym obszarze jest domyślnie wyłączone. Po włączeniu Twoja klawiatura i Twój system sprawdzają – w swoich językach – notatki, komórki tabel, e-maile, komentarze, wpisy dziennika i zadania; kodu, kluczy i haseł nigdy. Ustawienie należy do tego urządzenia.
+
 **Otwórz obraz** jest dostępne dla lokalnych obrazów w trybie czytania, podglądzie i menu kontekstowym. W mobilnej przeglądarce użyj dwóch palców, podwójnego stuknięcia lub przycisków; **Resetuj powiększenie** pokazuje cały obraz. Wstecz wraca do notatki. Przytrzymanie zachowuje akcje systemu, a zaznaczanie regionu do komentarza nadal działa.
 
 <!-- planner-capture-2026-09-20 -->

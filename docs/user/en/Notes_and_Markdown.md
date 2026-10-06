@@ -50,6 +50,7 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 - **Fold lists** — clicking the bullet of a list item with nested items folds them; the bullet turns accent-colored and a “…” marks the spot, a second click unfolds. The file never changes. Bullets alternate per level (• ◦ ▪), continuation lines sit exactly under their item's text — on the phone too, where the bullet is the only fold control.
 - **Scroll position** — every note opens where you left it; remembered per device, not synchronized.
 - **Find & replace** inside the current note: `Ctrl+F` (see [Search](Search.md)).
+- **Spell checking** — off by default. Switch it on under **Settings → App → Editor & notes** and misspelled words are underlined in notes, table cells, emails, comments, journal entries and tasks; code, web addresses, keys and passwords are never checked. Plainva uses your system's spell checker and its languages and brings no dictionaries of its own. While it is on, a right-click in such text opens the system's menu with the suggestions instead of Plainva's own; a table cell keeps its table menu. The setting belongs to this device. On Linux, Plainva does not switch on the system WebView's checker yet, so it has no effect there.
 
 ## Links and backlinks
 

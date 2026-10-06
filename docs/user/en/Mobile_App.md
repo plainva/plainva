@@ -290,6 +290,8 @@ The selected icon keeps its spacing from the edge in the compact bar. Tap target
 
 In **Editor & notes**, turn off **Automatically hide controls while reading** if you prefer. By default the header and pencil retreat on downward scrolling. The first upward movement, the top of the note, a text selection, an open control, the keyboard or a conflict notice brings them back. The scroll viewport keeps its size and the motion preference is respected. The tablet rail stays visible. On desktop, focus mode hides surrounding controls.
 
+**Spell checking** in the same area is off by default. Switched on, your keyboard and your system check notes, table cells, emails, comments, journal entries and tasks with their own languages; code, keys and passwords never. The setting belongs to this device.
+
 **Open image** is available for local images in reading mode, live preview and the image context menu. In the mobile viewer, use two fingers, a double-tap or the zoom buttons; **Reset zoom** shows the whole image. Back returns to the note. Long-pressing an embedded image keeps the operating system’s image actions, and selecting a region for a comment still works.
 
 <!-- planner-capture-2026-09-20 -->

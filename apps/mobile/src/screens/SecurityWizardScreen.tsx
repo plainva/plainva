@@ -308,7 +308,7 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
                 aria-invalid={state === "mismatch"}
                 data-testid={`wizard-verify-${answerIndex}`}
                 maxLength={groups[groupIndex]?.length}
-                spellCheck={false}
+                purpose="secret"
                 value={answer}
                 onChange={(event) => {
                   const value = event.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase();

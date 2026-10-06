@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, ChipField, FloatingWindow, ICON, Select, toast } from "@plainva/ui";
+import { Button, ChipField, FloatingWindow, ICON, Select, TextInput, toast } from "@plainva/ui";
 import { FileText, Paperclip, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
@@ -413,7 +413,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               )}
               <div className="pv-mail-addr">
                 <span className="k">{t("mail.draftSubject", { defaultValue: "Betreff" })}</span>
-                <input className="pv-field" value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" />
+                <TextInput value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="draft-subject" purpose="prose" />
               </div>
               <ComposeEditor
                 value={body}

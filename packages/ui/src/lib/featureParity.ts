@@ -442,6 +442,27 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-16",
   },
   {
+    id: "spell-checking",
+    title: "Spell checking in the writing surfaces",
+    area: "editor",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "One device switch and one rule serve both shells (lib/spellcheck.ts); what " +
+      "checks the text is the platform. On Windows (WebView2) and macOS (WKWebView) " +
+      "the WebView checks with the system's languages, on a phone the keyboard and " +
+      "the system do. On Linux nothing checks: wry 0.57 never switches WebKitGTK's " +
+      "spell checker on (no call in its source), and WebKitGTK has it off until an " +
+      "application enables it on the WebKitWebContext and names the languages. " +
+      "Closing this needs a Linux-only step in src-tauri (enable it and pass the " +
+      "system's languages) plus a check that the AppImage finds the system's " +
+      "dictionaries - neither could be built or run on the machine this was " +
+      "written on, so the settings page says so on Linux instead of pretending " +
+      "(plan Befunde 2026-10-06, S1).",
+    mobile: "yes",
+    verified: "2026-10-06",
+  },
+  {
     id: "tag-pill-open-while-editing",
     title: "Opening a tag from its pill while the note is being edited",
     area: "editor",

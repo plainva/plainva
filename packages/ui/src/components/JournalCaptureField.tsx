@@ -112,7 +112,6 @@ export function JournalCaptureField({
           data-testid={`${testId}-input`}
           enterKeyHint={enterSubmits ? "done" : "enter"}
           autoComplete="off"
-          spellCheck
         />
       </div>
       <div className="pv-capture-quick">
