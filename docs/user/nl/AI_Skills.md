@@ -2,7 +2,7 @@
 
 Laatst bijgewerkt: 2026-10-06
 
-Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er tien mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
+Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er twaalf mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
 ## Een vaardigheid gebruiken
 
@@ -19,13 +19,25 @@ Je kunt ook gewoon vragen. In elk gesprek kent de AI de namen en beschrijvingen 
 | **Projectstatus** | Doel, voortgang, open punten en de volgende stap van een project. |
 | **Vergadering voorbereiden** | Bereidt een vergadering voor uit eerdere notities en open punten, of werkt haar achteraf uit. |
 | **Taken ordenen** | Ordent je open taken: wat nu, wat kan wachten, wat kan weg. |
+| **Onderzoek** | Onderzoekt een vraag op het web en in je notities, met elke bron genoemd. |
+| **E-mail en agenda** | Neemt de recente e-mail en de komende afspraken door: wat een antwoord nodig heeft, wat voor te bereiden is, welke taken volgen. |
 | **Schrijven en herschrijven** | Vat een notitie samen, kort haar in of herschrijft haar — als tekst die je overneemt. |
 | **Kennis onderhouden** | Vindt notities die hetzelfde zeggen, verouderd zijn of nergens mee verbonden. |
 | **Links opschonen** | Controleert de links van een notitie: die nergens heen leiden, ontbrekende, eenrichting. |
 | **Privacycontrole** | Vindt wat uit een notitie beter op dit apparaat blijft, en stelt een regel voor. |
 | **Reflectie** | Blikt met je terug op de notities van een dag of een week — vriendelijk, nooit een diagnose. |
 
-Ze lezen allemaal alleen: geen enkele verandert een notitie, verstuurt iets of gaat het internet op. Privacycontrole en Reflectie zijn bedoeld voor een model op dit apparaat; met een cloudmodel zegt het verzendoverzicht dat. Zet elke vaardigheid uit onder **Vaardigheden** — de schakelaar geldt voor deze vault op dit apparaat. **Eigen versie maken** kopieert er een naar je vault, waar je haar kunt aanpassen.
+Ze lezen allemaal alleen: geen enkele verandert een notitie of verstuurt iets. Alleen **Onderzoek** gebruikt internet, en alleen **E-mail en agenda** leest je e-mail — zie hieronder. Privacycontrole en Reflectie zijn bedoeld voor een model op dit apparaat; met een cloudmodel zegt het verzendoverzicht dat. Zet elke vaardigheid uit onder **Vaardigheden** — de schakelaar geldt voor deze vault op dit apparaat. **Eigen versie maken** kopieert er een naar je vault, waar je haar kunt aanpassen.
+
+## Op internet en in je e-mail
+
+**Onderzoek** is de enige meegeleverde vaardigheid die internet gebruikt. Haar starten is jouw keuze voor het gesprek, net als de wereldbol onder het invoerveld: waar je **De AI mag internet gebruiken in deze vault** hebt aangezet, zoekt ze en leest ze pagina's — en zolang je notities in het gesprek zitten, vraagt elke pagina en elke zoekopdracht nog steeds eerst, zoals beschreven onder **Op internet** in [AI-assistent](AI_Assistant.md). Waar de schakelaar uit staat, onderzoekt ze alleen in je notities en zegt ze dat. Hetzelfde geldt wanneer de AI de vaardigheid zelf laadt in een gesprek dat je zonder internet begon.
+
+**E-mail en agenda** leest e-mail via dezelfde vraag als elk gesprek: de eerste keer **Je e-mail lezen?** Ze leest nooit zelf de tekst van een bericht; een tweede lezer zonder hulpmiddelen schrijft er een verslag over. Beide staan beschreven in [AI-assistent](AI_Assistant.md).
+
+Een eigen vaardigheid gebruikt internet alleen als haar `allowed-tools`-regel `web_search` of `fetch_url` noemt. **Controleren en goedkeuren** zegt dan **Gebruikt internet waar je dat voor deze vault hebt toegestaan.** voordat je haar goedkeurt. Een vaardigheid die geen hulpmiddelen noemt, brengt internet nooit mee.
+
+Een testuitvoering gebruikt nooit internet en vraagt nooit: e-mail die ze in deze sessie niet mocht lezen, blijft ongelezen.
 
 ## Je eigen vaardigheden
 
@@ -70,4 +82,4 @@ Het verzendoverzicht noemt onder **Instructies** wat er meegaat: de vaardigheid 
 
 ## Grenzen van de beta
 
-Vaardigheden voeren geen scripts uit, en vaardigheden die het web of je e-mail nodig hebben komen later. Je eigen vaardigheden worden niet aangeboden aan AI-apps die via de MCP-server verbonden zijn; alleen de meegeleverde.
+Vaardigheden voeren geen scripts uit. Je eigen vaardigheden worden niet aangeboden aan AI-apps die via de MCP-server verbonden zijn; alleen de meegeleverde.

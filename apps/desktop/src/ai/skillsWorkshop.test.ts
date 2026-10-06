@@ -88,6 +88,33 @@ describe("the skills workshop", () => {
     expect((await factsOf("allowed-tools: read_note\n")).may[0]).toBe("Uses: Reading a note");
   });
 
+  it("says before the yes that a skill reaches the internet — only one that names its tools does", async () => {
+    await i18n.changeLanguage("en");
+    const skill = (tools: string) => `---\nname: fact-check\ndescription: Checks a claim.\n${tools}---\n\nCheck the claim.\n`;
+    const factsOf = async (tools: string) => approvalFacts(t, resolveInstructions(await scanVaultInstructions(io({ ".agent/skills/fact-check/SKILL.md": skill(tools) })), EMPTY_INSTRUCTION_APPROVALS)[0]!, "en");
+    // The request to the internet is the one thing that leaves: the line no longer says "sends nothing".
+    expect((await factsOf("allowed-tools: web_search fetch_url read_note\n")).may).toEqual([
+      "Uses: Reading a note · Reading a web page · Searching the web",
+      "Notes in the whole vault, as far as your rules allow",
+      "Uses the internet where you allowed it for this vault. While notes are in the conversation, every page and every search asks first.",
+      "Changes nothing.",
+    ]);
+    // A skill that names nothing leaves a conversation what it has — and brings no internet along.
+    const everything = (await factsOf("")).may;
+    expect(everything[0]).not.toContain("web");
+    expect(everything).not.toContain("Uses the internet where you allowed it for this vault. While notes are in the conversation, every page and every search asks first.");
+    expect(everything[everything.length - 1]).toBe("Changes nothing, sends nothing.");
+    // The skill that comes with the app says the same about itself.
+    const research = resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS).find((entry) => entry.source.id === "plainva:research")!;
+    const facts = approvalFacts(t, research, "en");
+    expect(facts.title).toBe("Research");
+    expect(facts.may[0]).toBe("Uses: Searching the vault · Reading a note · Reading the outline · Reading backlinks · Reading a web page · Searching the web");
+    expect(facts.may).toContain("Changes nothing.");
+    for (const other of resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS).filter((entry) => entry.source.id !== "plainva:research")) {
+      expect(approvalFacts(t, other, "en").may.join("\n"), other.source.id).not.toContain("Uses the internet");
+    }
+  });
+
   it("shows the app's own skills read only, and an invalid one with its problems", async () => {
     await i18n.changeLanguage("en");
     const [daily] = resolveInstructions(APP_SKILL_SOURCES.slice(0, 1), EMPTY_INSTRUCTION_APPROVALS);

@@ -106,7 +106,7 @@ De draad gaat naar het model zoals een vraag: de opmerkingen erin, de passage wa
 
 ## Vaardigheden
 
-Vaardigheden zijn instructies voor terugkerend werk. Tien komen met Plainva mee — waaronder **Dagoriëntatie**, **Weekoverzicht** en **Projectstatus** als chips in een leeg gesprek — en je kunt je eigen schrijven of importeren. Start er een met één klik, of vraag het gewoon: de AI laadt zelf een passende vaardigheid. Je eigen vaardigheden draaien pas nadat je ze op dit apparaat hebt goedgekeurd. Alles erover: [Vaardigheden](AI_Skills.md).
+Vaardigheden zijn instructies voor terugkerend werk. Twaalf komen met Plainva mee — waaronder **Dagoriëntatie**, **Weekoverzicht** en **Projectstatus** als chips in een leeg gesprek — en je kunt je eigen schrijven of importeren. Start er een met één klik, of vraag het gewoon: de AI laadt zelf een passende vaardigheid. Je eigen vaardigheden draaien pas nadat je ze op dit apparaat hebt goedgekeurd. Alles erover: [Vaardigheden](AI_Skills.md).
 
 ## Een spraaknotitie uitschrijven
 
@@ -134,7 +134,7 @@ De afbeelding gaat, met de vraag, naar het model waarmee nieuwe gesprekken begin
 De assistent kan internet pas gebruiken als jij dat toestaat — en wel drie keer:
 
 1. **Voor de vault.** Zet in **Instellingen → AI & automatisering** (het Vault-deel) **De AI mag internet gebruiken in deze vault** aan. De schakelaar staat voor elke vault uit totdat je beslist, en geldt alleen op dit apparaat.
-2. **Voor een gesprek.** Druk vóór het eerste bericht van een nieuw gesprek op de wereldbol onder het invoerveld — **Laat dit gesprek internet gebruiken**. Of een gesprek internet mag gebruiken, wordt bepaald wanneer het begint; om dat te wijzigen begin je een nieuw gesprek. Een gesprek dat het mag, zegt dat in zijn eerste regel.
+2. **Voor een gesprek.** Druk vóór het eerste bericht van een nieuw gesprek op de wereldbol onder het invoerveld — **Laat dit gesprek internet gebruiken**. Of een gesprek internet mag gebruiken, wordt bepaald wanneer het begint; om dat te wijzigen begin je een nieuw gesprek. Een gesprek dat het mag, zegt dat in zijn eerste regel. De vaardigheid **Onderzoek** starten is dezelfde keuze: haar gesprek mag internet gebruiken — zie [Vaardigheden](AI_Skills.md).
 3. **Voor elk verzoek.** Zolang je notities in het gesprek zitten, vraagt elke pagina die de assistent wil lezen en elke zoekopdracht die hij wil doen eerst, met het volledige adres of de zoekwoorden — dat is alles wat daarvoor je apparaat verlaat. **Pagina lezen** of **Zoeken** laat dit ene verzoek door; **Niet lezen** of **Niet zoeken** laat het achterwege, en de assistent gaat zonder verder.
 
 **Wat een verzoek is.** Een pagina lezen is één verzoek van dit apparaat aan de website, zoals het openen van de pagina in een browser — zonder cookies, zonder inlog en zonder iets uit je notities; zoals bij elk bezoek ziet de website je IP-adres. Alleen openbare pagina's via `https` worden gelezen; adressen in je thuis- of bedrijfsnetwerk worden geweigerd. Een zoekopdracht gaat naar de provider van je model — Anthropic, OpenAI, Google Gemini of OpenRouter —, die precies zoekt met de woorden die je te zien kreeg; providers kunnen zoekopdrachten apart in rekening brengen. Een model op dit apparaat kan pagina's lezen maar niet zoeken, en het model van het systeem op de telefoon kan helemaal geen internet gebruiken.
@@ -158,6 +158,18 @@ Een link in een antwoord waarvan het model het adres zelf heeft samengesteld, is
 **Wat de assistent ervan leest.** Van een zoekopdracht ziet hij de datum, de afzender en het onderwerp van de berichten — nooit hun tekst. De tekst van een bericht en de beschrijving van een afspraak leest hij nooit zelf: anderen hebben ze geschreven, en wie een e-mail of een uitnodiging schrijft, kan die precies voor deze lezer schrijven. Een tweede lezer zonder enig hulpmiddel leest ze en schrijft een kort verslag — een samenvatting, uitspraken met de passage waarop ze berusten, en links die er echt in staan. Is onder **Modellen en profielen** een model op dit apparaat ingesteld als **Lokaal**, dan is dat model die lezer, en verlaat de tekst zelf het apparaat niet; alleen het verslag gaat naar de provider. Anders leest de provider van het gesprek, in een apart verzoek zonder hulpmiddelen. De vraag zegt je vooraf wie er leest.
 
 **Wat niet verandert.** De assistent leest alleen: een bericht dat hij las, blijft ongelezen, er wordt niets verplaatst, beantwoord of verwijderd, en bijlagen opent hij niet — hij noemt alleen hun namen. Onder het antwoord zie je hoeveel berichten zijn gelezen, en de regel eronder zegt wie de tekst las.
+
+## Een antwoord als notitie bewaren
+
+Onder elk afgerond antwoord maakt **Bewaren als notitie** van het antwoord een notitie in je vault. Jij drukt erop en Plainva schrijft de notitie — de assistent zelf verandert nog steeds niets.
+
+- **Waar de notitie terechtkomt.** In de **Inbox-map** van de vault (**Instellingen → Inhoud en structuur**), onder een naam die uit je vraag is afgeleid — in een gesprek dat door een vaardigheid is gestart, uit de vaardigheid en de notitie die openstond, of de dag. Een notitie die daar al staat, wordt nooit aangeraakt: de nieuwe krijgt de eerstvolgende vrije naam. Plainva opent haar meteen.
+- **Wie de notitie schreef.** De eerste regel zegt het in woorden — een antwoord van Plainva AI, met het model, het tijdstip en je vraag. De eigenschappen van de notitie zeggen hetzelfde voor andere hulpmiddelen: `generated`, met het model en het tijdstip. Niets markeert de notitie als gecontroleerd; dat blijft aan jou — zie [OKF](OKF.md).
+- **Waarop de notitie berust.** Onder het antwoord somt **Bronnen** op wat de uitvoering echt heeft gebruikt. Plainva schrijft deze lijst uit zijn eigen logboek, niet het model: de gelezen pagina's en wanneer, de zoekopdrachten en via welke provider, en je notities die meegingen of zijn gelezen. De eigenschappen dragen dezelfde lijst als `sources`.
+- **Adressen.** Elk webadres dat het model in zijn antwoord heeft geschreven, wordt zo geschreven dat niets het opent of laadt (`https[://]…`), en een afbeelding van het web is in de notitie nooit een afbeelding. Alleen de pagina's onder **Bronnen** zijn echte links: adressen die de uitvoering met jouw toestemming heeft gelezen. Links naar je eigen notities blijven links.
+- **Regels.** Een bewaard antwoord erft de privacyregels van datgene waarop het berust. Als een notitie die in het gesprek zat, of een die de assistent las, van de cloud of van internet wordt weggehouden, draagt de nieuwe notitie dezelfde regel — in de notitie zelf geschreven, waar haar map meer zou toestaan. Zo komt een antwoord dat een model op dit apparaat uit een privénotitie heeft gemaakt, ook als notitie niet bij een cloud terecht.
+
+In een gedeelde workspace kunnen de leden een notitie lezen — en ook de lezers van een publicatie die de map omvat. Daar vraagt Plainva elke keer, met de naam van de notitie en de map: **Bewaren als notitie** schrijft haar, **Niet bewaren** schrijft niets.
 
 ## Privacyregels
 
@@ -183,6 +195,6 @@ Gesprekken blijven op dit apparaat, per vault — nooit in de vault en nooit ges
 
 - Op de desktop werkt de AI alleen in het hoofdvenster.
 - Op de telefoon komt een antwoord alleen terwijl de app open staat.
-- De assistent verandert zelf geen notitie: hij stelt wijzigingen aan een geselecteerde passage en transcripties van spraaknotities voor, als voorstellen die je accepteert of afwijst; in een draad met opmerkingen schrijft hij een antwoord naast de notitie, nooit tekst erin.
+- De assistent verandert zelf geen notitie: hij stelt wijzigingen aan een geselecteerde passage en transcripties van spraaknotities voor, als voorstellen die je accepteert of afwijst; in een draad met opmerkingen schrijft hij een antwoord naast de notitie, nooit tekst erin. Een antwoord wordt pas een notitie wanneer je op **Bewaren als notitie** drukt; dan schrijft Plainva haar, niet de assistent.
 
 Feedback over de bèta gaat naar de discussies van het project op GitHub: **Feedback over de AI (bèta)** in de instellingen begint er een.

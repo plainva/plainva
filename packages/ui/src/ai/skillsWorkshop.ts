@@ -4,10 +4,13 @@ import {
   SKILL_TEST_MAX_TOKENS,
   SKILL_TEST_NOT_APPLICABLE,
   SKILL_TEST_NOT_RUN,
+  hasWebTools,
   skillGrant,
+  skillNamesWeb,
   skillTestState,
   skillTestSummary,
   toolByName,
+  WEB_TOOL_NAMES,
   type InstructionEntry,
   type InstructionStatus,
   type SkillCheck,
@@ -102,12 +105,16 @@ export function approvalFacts(t: Translate, entry: InstructionEntry, language: s
     may.push(t("ai.workshop.mayAgents"));
   } else if (skill) {
     // What a conversation can reach is the upper bound — its own tools and the further ones (mail); the skill can only narrow it.
-    const grant = skillGrant(skill, SKILL_TOOL_NAMES);
+    // The internet's tools are in that bound only for a skill that names them itself (plan P4-6): started by the user, it brings them along.
+    const web = skillNamesWeb(skill);
+    const grant = skillGrant(skill, web ? [...SKILL_TOOL_NAMES, ...WEB_TOOL_NAMES] : SKILL_TOOL_NAMES);
     may.push(grant.tools.length ? t("ai.workshop.mayTools", { tools: grant.tools.map((name) => t(`ai.tool.${name}`, { defaultValue: name })).join(" · ") }) : t("ai.workshop.mayNoTools"));
     may.push(grant.folders ? t("ai.workshop.mayFolders", { folders: grant.folders.join(", ") || "—" }) : t("ai.workshop.mayWholeVault"));
     if (grant.maxOutputTokens !== null) may.push(t("ai.workshop.mayBudget", { tokens: new Intl.NumberFormat(language).format(grant.maxOutputTokens) }));
-    // Every tool before P5 reads or shows: nothing a skill could do changes the vault or reaches outside.
-    if (grant.tools.every((name) => toolByName(name)?.risk === "read" || toolByName(name)?.risk === "ui")) may.push(t("ai.workshop.mayReadOnly"));
+    const reachesWeb = hasWebTools(grant.tools);
+    if (reachesWeb) may.push(t("ai.workshop.mayWeb"));
+    // Every tool before P5 reads or shows: nothing a skill could do changes the vault. A request to the internet is the one thing that leaves.
+    if (grant.tools.every((name) => toolByName(name)?.risk === "read" || toolByName(name)?.risk === "ui")) may.push(t(reachesWeb ? "ai.workshop.mayNoChange" : "ai.workshop.mayReadOnly"));
   }
 
   const changes = entry.status === "changed" && approval?.text !== undefined && source.text !== null ? compareLines(approval.text, source.text) : null;

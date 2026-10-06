@@ -2,7 +2,7 @@
 
 Stand: 2026-10-06
 
-Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt zehn davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
+Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt zwölf davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
 ## Einen Skill benutzen
 
@@ -19,13 +19,25 @@ Du kannst auch einfach fragen. In jedem Gespräch kennt die KI Namen und Beschre
 | **Projektstatus** | Ziel, Fortschritt, offene Punkte und der nächste Schritt eines Projekts. |
 | **Meeting vorbereiten** | Bereitet ein Meeting aus früheren Notizen und offenen Punkten vor oder fasst es hinterher zusammen. |
 | **Aufgaben sichten** | Ordnet Deine offenen Aufgaben: was jetzt, was warten kann, was weg kann. |
+| **Recherche** | Recherchiert eine Frage im Web und in Deinen Notizen, mit jeder Quelle beim Namen. |
+| **E-Mail und Kalender** | Geht die letzten E-Mails und die nächsten Termine durch: was eine Antwort braucht, was vorzubereiten ist, welche Aufgaben folgen. |
 | **Schreiben und überarbeiten** | Fasst eine Notiz zusammen, kürzt sie oder schreibt sie um — als Text, den Du übernimmst. |
 | **Wissen pflegen** | Findet Notizen, die dasselbe sagen, veraltet sind oder mit nichts verbunden. |
 | **Links bereinigen** | Prüft die Links einer Notiz: ins Leere, fehlend, einseitig. |
 | **Datenschutz prüfen** | Findet, was aus einer Notiz besser auf diesem Gerät bleibt, und schlägt eine Regel vor. |
 | **Reflexion** | Blickt mit Dir auf die Notizen eines Tages oder einer Woche zurück — freundlich, nie eine Diagnose. |
 
-Alle lesen nur: keiner ändert eine Notiz, sendet etwas oder geht ins Internet. Datenschutz prüfen und Reflexion sind für ein Modell auf diesem Gerät gedacht; mit einem Cloud-Modell sagt die Sende-Übersicht das. Jeden Skill schaltest Du unter **Skills** aus — der Schalter gilt für diesen Vault auf diesem Gerät. **Eigene Fassung anlegen** kopiert einen in Deinen Vault, wo Du ihn ändern kannst.
+Alle lesen nur: keiner ändert eine Notiz oder sendet etwas. Nur **Recherche** benutzt das Internet, und nur **E-Mail und Kalender** liest Deine E-Mails — siehe unten. Datenschutz prüfen und Reflexion sind für ein Modell auf diesem Gerät gedacht; mit einem Cloud-Modell sagt die Sende-Übersicht das. Jeden Skill schaltest Du unter **Skills** aus — der Schalter gilt für diesen Vault auf diesem Gerät. **Eigene Fassung anlegen** kopiert einen in Deinen Vault, wo Du ihn ändern kannst.
+
+## Im Internet und in Deinen E-Mails
+
+**Recherche** ist der eine mitgelieferte Skill, der das Internet benutzt. Ihn zu starten ist Deine Wahl für sein Gespräch, wie die Weltkugel unter dem Eingabefeld: Wo Du **Die KI darf in diesem Vault ins Internet** eingeschaltet hast, sucht er und liest Seiten — und solange Deine Notizen im Gespräch sind, fragt weiterhin jede Seite und jede Suche vorher, wie unter **Im Internet** in [KI-Assistent](AI_Assistant.md) beschrieben. Wo der Schalter aus ist, recherchiert er nur in Deinen Notizen und sagt das. Dasselbe gilt, wenn die KI den Skill von sich aus in einem Gespräch lädt, das Du ohne Internet begonnen hast.
+
+**E-Mail und Kalender** liest E-Mails über dieselbe Frage wie jedes Gespräch: beim ersten Mal **E-Mails lesen?** Den Text einer Nachricht liest er nie selbst; ein zweiter Leser ohne Werkzeuge schreibt einen Bericht darüber. Beides steht in [KI-Assistent](AI_Assistant.md).
+
+Ein eigener Skill benutzt das Internet nur, wenn seine Zeile `allowed-tools` `web_search` oder `fetch_url` nennt. **Prüfen und freigeben** sagt dann **Nutzt das Internet, wo Du es für diesen Vault erlaubt hast.**, bevor Du ihn freigibst. Ein Skill, der keine Werkzeuge nennt, bringt das Internet nie mit.
+
+Ein Testlauf benutzt das Internet nie, und er fragt nie: E-Mails, die er in dieser Sitzung nicht lesen durfte, bleiben ungelesen.
 
 ## Eigene Skills
 
@@ -70,4 +82,4 @@ Die Sende-Übersicht nennt unter **Anweisungen**, was mitgeht: den Skill des Ges
 
 ## Grenzen der Beta
 
-Skills führen keine Skripte aus, und Skills, die das Web oder Deine Mail brauchen, kommen später. Deine eigenen Skills werden KI-Apps, die über den MCP-Server verbunden sind, nicht angeboten; nur die mitgelieferten.
+Skills führen keine Skripte aus. Deine eigenen Skills werden KI-Apps, die über den MCP-Server verbunden sind, nicht angeboten; nur die mitgelieferten.

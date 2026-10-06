@@ -23,6 +23,7 @@ import {
   proposeSuggestionRound,
   createAudioTranscriber,
   createImageExplainer,
+  profileDefault,
   resolveAudioPath,
   setAudioTranscriber,
   setImageExplainer,
@@ -336,6 +337,11 @@ export function useMobileAi(vault: MobileVault | null) {
         await postThreadReply(mobileCommentOperations(vault), reply);
       },
       encrypted: () => vault.workspaceRuntime !== null,
+      // "Keep as a note" (plan P4-6): into the vault's inbox folder — where the ＋ quick capture puts its notes too.
+      capture: {
+        folder: async () => getMobileSettings().inboxFolder.trim() || (profileDefault<string>("inboxFolder") ?? "Inbox"),
+        write: (folder, stem, content) => vaultOps.createNoteWithContent(vault, folder, stem, content),
+      },
       gists: () => gistsRef.current?.reader() ?? null,
       async keepOnDevice(path) {
         // The editor's pending keystrokes land first; the save is the conflict-aware chain, synced like any edit.

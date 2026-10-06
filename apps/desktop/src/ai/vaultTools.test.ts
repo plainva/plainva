@@ -57,6 +57,23 @@ describe("vault tools behind the hard gate", () => {
     expect(local.content).toContain("secret");
   });
 
+  it("says which rules a note carries that passed here — what is made of the answer inherits them", async () => {
+    const through = async (recipient: EgressRecipient, webTools: boolean) => {
+      const passed: Array<[string, readonly string[]]> = [];
+      const executor = createVaultToolExecutor(deps(), { recipient, webTools }, { inside: () => true, passed: (path, rules) => void passed.push([path, rules]) });
+      await executor.execute(toolByName("search_vault")!, { query: "rates", limit: 10 }, { type: "tool_call", id: "c", name: "search_vault", args: {} });
+      return passed;
+    };
+    // A model on this device gets the private note — and the gate names the rule it carries.
+    const local = await through({ kind: "local", provider: "ollama", model: "m" }, false);
+    expect(local).toContainEqual(["Private/Client.md", ["cloud"]]);
+    expect(local).toContainEqual(["Projects/Offer.md", []]);
+    // A cloud never gets it: nothing passed, so nothing is named.
+    const cloudRun = await through(cloud, false);
+    expect(cloudRun.map(([path]) => path)).not.toContain("Private/Client.md");
+    expect(cloudRun.every(([, noteRules]) => noteRules.length === 0)).toBe(true);
+  });
+
   it("reads sections by heading chain, pages long notes, strips the frontmatter", async () => {
     const section = await run("read_note", { path: "Projects/Offer.md", section: "Offer > Costs", maxChars: 8000 });
     expect(section.content).toBe("Projects/Offer.md\n\n## Costs\n\n### 2026\n\nRates as in ⟦withheld note⟧.\n");

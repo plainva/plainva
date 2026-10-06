@@ -507,6 +507,26 @@
         "failed": "无法解释图片：{{reason}}"
       }
     },
+    "capture": {
+      "action": "保留为笔记",
+      "done": "已保留为笔记：{{name}}",
+      "doneInherited": "已保留为笔记：{{name}}。它带有所依据笔记的隐私规则。",
+      "failed": "无法将回答保留为笔记：{{reason}}",
+      "fallbackTitle": "AI回答",
+      "intro": "Plainva AI · {{model}}对“{{question}}”的回答（{{date}}）",
+      "sources": "来源",
+      "web": "来自网络",
+      "vault": "来自你的笔记",
+      "read": "读取于{{date}}",
+      "search": "搜索“{{query}}”，通过{{provider}}，{{date}}",
+      "shared": {
+        "title": "保留在其他人也能读到的地方？",
+        "note": "笔记",
+        "folder": "存放位置",
+        "hint": "此仓库是共享工作区：其成员可以在这里读到笔记，涵盖该文件夹的发布的读者也可以。",
+        "deny": "不保留"
+      }
+    },
     "lint": {
       "defused": "新出现的网址已被处理为无效：可以阅读，但不是链接。"
     },
@@ -566,6 +586,16 @@
         "title": "反思",
         "description": "回顾一天或一周的笔记——温和，不做诊断。",
         "prompt": "请和我一起回顾过去七天的日记：有什么突出之处，哪些进展顺利，什么似乎让我感到压力，再提几个值得思考的问题。"
+      },
+      "research": {
+        "title": "调研",
+        "description": "在网络和你的笔记中调研一个问题，并注明每个来源。",
+        "prompt": "我想在网络和我的笔记中调研一件事。如果打开的笔记写明了主题，就调研它；否则请问我要查什么。"
+      },
+      "mailcal": {
+        "title": "邮件和日历",
+        "description": "浏览近期邮件和即将到来的日程：哪些需要回复、要准备什么、会产生哪些任务。",
+        "prompt": "请浏览我最近三天的邮件和下周的日程：哪些需要回复，我应该准备什么，会产生哪些任务？"
       }
     },
     "workshop": {
@@ -607,6 +637,8 @@
       "mayWholeVault": "在你的规则允许范围内，整个仓库的笔记",
       "mayBudget": "每次回答最多{{tokens}}个token",
       "mayReadOnly": "不更改任何内容，不发送任何内容。",
+      "mayWeb": "在你为此仓库允许的范围内使用互联网。只要对话中有笔记，每个网页和每次搜索都会先询问。",
+      "mayNoChange": "不更改任何内容。",
       "mayAgents": "此仓库中每个新对话的常设指令。它们不能解除你的隐私规则。",
       "originApp": "Plainva自带",
       "originPath": "位于{{path}}",
@@ -1260,7 +1292,7 @@
     "askBeforeCreateLink": "创建空链接前先询问",
     "askBeforeCreateLinkDesc": "点击指向尚不存在的笔记的链接，通常会立即创建该笔记。启用此选项后，会先询问你。",
     "inboxFolder": "收件箱文件夹",
-    "inboxFolderDesc": "手机上 ＋ 速记会把笔记存放在这里，从其他应用分享来的文字也会落在这里；桌面端则始终在你指定的位置新建笔记。",
+    "inboxFolderDesc": "手机上 ＋ 速记会把笔记存放在这里，从其他应用分享来的文字会落在这里；你作为笔记保留的AI回答，在桌面端也会放在这里。除此之外，桌面端会在你指定的位置新建笔记。",
     "attachmentFolder": "附件文件夹",
     "attachmentFolderDesc": "拖入、粘贴和拍摄的文件存放在哪里。留空则与笔记放在同一文件夹。",
     "textFileExtensions": "更多文本文件",

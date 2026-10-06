@@ -547,6 +547,26 @@
         "failed": "L'image n'a pas pu être expliquée : {{reason}}"
       }
     },
+    "capture": {
+      "action": "Conserver comme note",
+      "done": "Conservée comme note : {{name}}",
+      "doneInherited": "Conservée comme note : {{name}}. Elle porte les règles de confidentialité des notes sur lesquelles elle repose.",
+      "failed": "La réponse n'a pas pu être conservée comme note : {{reason}}",
+      "fallbackTitle": "Réponse de l'IA",
+      "intro": "Réponse de Plainva IA · {{model}}, {{date}}, à la question : « {{question}} »",
+      "sources": "Sources",
+      "web": "Du web",
+      "vault": "De vos notes",
+      "read": "lue le {{date}}",
+      "search": "Recherche « {{query}} » via {{provider}}, {{date}}",
+      "shared": {
+        "title": "La conserver là où d'autres la lisent ?",
+        "note": "Note",
+        "folder": "Va dans",
+        "hint": "Ce vault est un espace de travail partagé : ses membres peuvent y lire une note, tout comme les lecteurs d'une publication qui couvre le dossier.",
+        "deny": "Ne pas conserver"
+      }
+    },
     "lint": {
       "defused": "Les nouvelles adresses web ont été neutralisées : lisibles, mais sans lien."
     },
@@ -606,6 +626,16 @@
         "title": "Réflexion",
         "description": "Revenir sur vos notes d'une journée ou d'une semaine — avec bienveillance, sans diagnostic.",
         "prompt": "Réfléchissez avec moi à mes notes quotidiennes des sept derniers jours : ce qui ressort, ce qui s'est bien passé, ce qui semble me peser, et quelques questions à méditer."
+      },
+      "research": {
+        "title": "Se documenter",
+        "description": "Se documenter sur une question, sur le web comme dans vos notes, en citant chaque source.",
+        "prompt": "Je voudrais me documenter sur un sujet, sur le web et dans mes notes. Si la note ouverte nomme le sujet, documentez-vous dessus ; sinon, demandez-moi ce qu'il faut chercher."
+      },
+      "mailcal": {
+        "title": "E-mail et calendrier",
+        "description": "Passer en revue les e-mails récents et les prochains rendez-vous : ce qui demande une réponse, ce qu'il faut préparer, quelles tâches en découlent.",
+        "prompt": "Passez en revue mes e-mails des trois derniers jours et mes rendez-vous de la semaine à venir : qu'est-ce qui demande une réponse, que dois-je préparer et quelles tâches en découlent ?"
       }
     },
     "workshop": {
@@ -647,6 +677,8 @@
       "mayWholeVault": "Les notes de tout le vault, dans la mesure où vos règles le permettent",
       "mayBudget": "Au plus {{tokens}} tokens par réponse",
       "mayReadOnly": "Ne modifie rien, n'envoie rien.",
+      "mayWeb": "Utilise Internet là où vous l'avez autorisé pour ce vault. Tant que des notes sont dans la conversation, chaque page et chaque recherche demandent d'abord.",
+      "mayNoChange": "Ne modifie rien.",
       "mayAgents": "Instructions permanentes pour chaque nouvelle conversation dans ce vault. Elles ne peuvent pas lever vos règles de confidentialité.",
       "originApp": "Fournie avec Plainva",
       "originPath": "Se trouve dans {{path}}",
@@ -1328,7 +1360,7 @@
     "askBeforeCreateLink": "Demander avant de créer des liens vides",
     "askBeforeCreateLinkDesc": "Normalement, un clic sur un lien vers une note qui n'existe pas encore la crée aussitôt. Avec cette option, une confirmation vous est demandée au préalable.",
     "inboxFolder": "Dossier de la boîte de réception",
-    "inboxFolderDesc": "Là où la capture rapide ＋ de votre téléphone dépose une note, et où atterrit le texte partagé par une autre application. Sur le bureau, les notes sont toujours créées à l'endroit que vous indiquez.",
+    "inboxFolderDesc": "Là où la capture rapide ＋ de votre téléphone dépose une note, où atterrit le texte partagé par une autre application et où va une réponse de l'IA que vous conservez comme note — sur le bureau aussi. Pour le reste, sur le bureau, les notes sont créées à l'endroit que vous indiquez.",
     "attachmentFolder": "Dossier des pièces jointes",
     "attachmentFolderDesc": "Où atterrissent les fichiers déposés, collés et photographiés. Laissez vide pour les garder à côté de la note.",
     "textFileExtensions": "Autres fichiers texte",

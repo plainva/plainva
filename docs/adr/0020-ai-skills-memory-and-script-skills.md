@@ -54,12 +54,19 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    status, meeting preparation, task triage, research with source capture,
    writing and summarising, mail and calendar capture, knowledge upkeep, link
    cleanup, memory curation, a privacy check before cloud egress, reflection
-   on explicitly released personal notes without diagnosis). Ten of them ship
-   with the beta as real skills in the format, read-only: day orientation,
-   weekly review, project status, meeting preparation, task triage, writing
-   and rewriting, knowledge upkeep, link cleanup, the privacy check and
-   reflection. Research, mail and calendar capture and memory curation follow
-   with the tools they need.
+   on explicitly released personal notes without diagnosis). Twelve of them
+   ship with the beta as real skills in the format, read-only: day
+   orientation, weekly review, project status, meeting preparation, task
+   triage, research, mail and calendar, writing and rewriting, knowledge
+   upkeep, link cleanup, the privacy check and reflection. Memory curation
+   follows with memory itself. "Research" is the one skill that names the
+   internet's tools: what that means for a conversation, and for a skill of
+   the vault that names them, is ADR 0019 §11 — a skill still creates no
+   right, it names tools a conversation the user starts may carry where the
+   vault allows the internet. "Mail and calendar" names the mail tools; their
+   first call asks as in any conversation (ADR 0019 §10). Neither is offered
+   as a prompt of the MCP server: a client there has its own way onto the
+   web and no reach into the user's mail.
 5. **Self-improvement is proposal-first.** A reviewer analyses a run, proposes
    memory or skill changes with evidence, shows diff, origin, new rights, cost
    and tests; the user applies, revises or rejects; a new version runs

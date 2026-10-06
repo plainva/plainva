@@ -1921,6 +1921,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                   activeNote: ai.activeNote,
                   onNewConversation: () => void ai.session?.newConversation(),
                   onOpenNote: ai.openNoteTarget,
+                  onOpenCreated: (path) => openInFocusedPane(path, true),
                   onOpenUrl: ai.openUrl,
                   onOpenSettings: () => capabilities.openSettings(),
                   onPickNote: () => {
@@ -2004,6 +2005,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               onClose={ai.closeCompanion}
               onOpenAsTab={ai.openAsTab}
               onOpenNote={ai.openNoteTarget}
+              onOpenCreated={(path) => openInFocusedPane(path, true)}
               onOpenUrl={ai.openUrl}
               onOpenSettings={() => capabilities.openSettings()}
               onPickNote={() => { setAiPinPick(true); setShowQuickSwitcher(true); }}

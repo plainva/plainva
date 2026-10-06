@@ -83,6 +83,7 @@ import {
   getPlatformServices,
   noteLargeFileTrimmed,
   notifyFileOps,
+  writeCapturedNote,
   scaffoldVaultTemplate,
   type VaultTemplateDefinition,
 } from "@plainva/ui";
@@ -1205,6 +1206,24 @@ export const vaultOps = {
       if (built.caret !== null) setPendingTemplateCaret({ path, offset: built.caret });
       return path;
     }
+  },
+
+  /**
+   * A note written whole under a free name in `folder` — an AI answer kept as
+   * a note (plan KI-Harness P4-6). Where it goes and what it is called is the
+   * shared `writeCapturedNote`; what this adds is what every new note of the
+   * phone gets: the index, and the report that a file was created. A note
+   * that is there is never touched.
+   */
+  async createNoteWithContent(v: MobileVault, folder: string, stem: string, content: string): Promise<string> {
+    const path = await writeCapturedNote(
+      { exists: (p) => v.files.exists(p), createDir: (p) => v.files.createDir(p), writeTextFile: (p, text) => this.save(v, p, text) },
+      folder,
+      stem,
+      content,
+    );
+    reportCreated(path);
+    return path;
   },
 
   /**

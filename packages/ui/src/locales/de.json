@@ -527,6 +527,26 @@
         "failed": "Das Bild ließ sich nicht erklären: {{reason}}"
       }
     },
+    "capture": {
+      "action": "Als Notiz festhalten",
+      "done": "Als Notiz festgehalten: {{name}}",
+      "doneInherited": "Als Notiz festgehalten: {{name}}. Sie trägt die Datenschutzregeln der Notizen, auf denen sie beruht.",
+      "failed": "Die Antwort ließ sich nicht als Notiz festhalten: {{reason}}",
+      "fallbackTitle": "KI-Antwort",
+      "intro": "Antwort von Plainva KI · {{model}}, {{date}}, auf: „{{question}}“",
+      "sources": "Quellen",
+      "web": "Aus dem Web",
+      "vault": "Aus Deinen Notizen",
+      "read": "gelesen am {{date}}",
+      "search": "Suche „{{query}}“ über {{provider}}, {{date}}",
+      "shared": {
+        "title": "Festhalten, wo andere mitlesen?",
+        "note": "Notiz",
+        "folder": "Landet in",
+        "hint": "Dieser Vault ist ein geteilter Workspace: Seine Mitglieder können eine Notiz hier lesen — ebenso die Leser einer Publikation, die den Ordner umfasst.",
+        "deny": "Nicht festhalten"
+      }
+    },
     "lint": {
       "defused": "Neue Internetadressen sind entschärft: lesbar, aber kein Link."
     },
@@ -586,6 +606,16 @@
         "title": "Reflexion",
         "description": "Auf die Notizen eines Tages oder einer Woche zurückblicken – freundlich, ohne Diagnose.",
         "prompt": "Blick mit mir auf meine Tagesnotizen der letzten sieben Tage: was auffällt, was gut lief, was mich zu belasten scheint, und ein paar Fragen zum Nachdenken."
+      },
+      "research": {
+        "title": "Recherche",
+        "description": "Eine Frage im Web und in Deinen Notizen recherchieren, mit jeder Quelle beim Namen.",
+        "prompt": "Ich möchte etwas im Web und in meinen Notizen recherchieren. Wenn die geöffnete Notiz das Thema nennt, recherchiere es; sonst frag mich, wonach Du suchen sollst."
+      },
+      "mailcal": {
+        "title": "E-Mail und Kalender",
+        "description": "Die letzten E-Mails und die nächsten Termine durchgehen: was eine Antwort braucht, was vorzubereiten ist, welche Aufgaben folgen.",
+        "prompt": "Geh meine E-Mails der letzten drei Tage und meine Termine der kommenden Woche durch: Was braucht eine Antwort, was sollte ich vorbereiten, und welche Aufgaben folgen daraus?"
       }
     },
     "workshop": {
@@ -627,6 +657,8 @@
       "mayWholeVault": "Notizen im ganzen Vault, soweit Deine Regeln es erlauben",
       "mayBudget": "Höchstens {{tokens}} Token je Antwort",
       "mayReadOnly": "Ändert nichts, sendet nichts.",
+      "mayWeb": "Nutzt das Internet, wo Du es für diesen Vault erlaubt hast. Solange Notizen im Gespräch sind, fragt jede Seite und jede Suche vorher.",
+      "mayNoChange": "Ändert nichts.",
       "mayAgents": "Stehende Anweisungen für jedes neue Gespräch in diesem Vault. Deine Datenschutzregeln kann sie nicht aufheben.",
       "originApp": "Kommt mit Plainva",
       "originPath": "Liegt in {{path}}",
@@ -1294,7 +1326,7 @@
     "askBeforeCreateLink": "Vor dem Anlegen leerer Links fragen",
     "askBeforeCreateLinkDesc": "Ein Klick auf einen Link zu einer noch nicht existierenden Notiz legt sie normalerweise sofort an. Mit dieser Option wird vorher gefragt.",
     "inboxFolder": "Eingangsordner",
-    "inboxFolderDesc": "Wohin die ＋-Schnellerfassung auf Deinem Telefon eine Notiz legt und wo aus anderen Apps geteilter Text landet. Am Desktop entstehen Notizen immer dort, wohin Du zeigst.",
+    "inboxFolderDesc": "Wohin die ＋-Schnellerfassung auf Deinem Telefon eine Notiz legt, wo aus anderen Apps geteilter Text landet und wohin eine KI-Antwort geht, die Du als Notiz festhältst — auch am Desktop. Sonst entstehen Notizen am Desktop dort, wohin Du zeigst.",
     "attachmentFolder": "Anhänge-Ordner",
     "attachmentFolderDesc": "Wohin abgelegte, eingefügte und fotografierte Dateien kommen. Leer lassen, um sie neben der Notiz zu behalten.",
     "textFileExtensions": "Weitere Textdateien",

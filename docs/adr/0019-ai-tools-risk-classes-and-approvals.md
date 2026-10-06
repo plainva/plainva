@@ -105,7 +105,8 @@ a write or an outside effect.
    domain at all: an address stays live only where the user's own text
    already carries it character for character. Allowing its host would let
    the model hang data onto a host a note merely mentions, and the note is
-   where an injected instruction comes from.
+   where an injected instruction comes from. In an answer kept as a note
+   (decision 11) no address the model wrote stays live at all.
 7. **Guardrails.** Limits for steps, tool calls, tokens and cost with a
    warning at 80 %; a loop guard for repeated identical calls; a circuit
    breaker after three errors; STOP at any time — an abort in the middle of a
@@ -132,7 +133,8 @@ a write or an outside effect.
      until the user decides and lives in the app's data on the device, never
      in the vault, whose writers could otherwise switch it on. The
      conversation was started with it: chosen in the composer for one
-     conversation, never kept as a default, and fixed like every tool — a
+     conversation — or by starting a skill that names the two tools
+     (decision 11) —, never kept as a default, and fixed like every tool — a
      conversation that began without it may already carry notes whose rules
      say `web: deny`, so it cannot gain the tools later. And the request
      itself is approved: while private data is in the run, every page and
@@ -208,6 +210,67 @@ a write or an outside effect.
     - *The record holds numbers.* A run's record and the ledger say how many
       searches, messages and descriptions, who read the text, and the
       reader's tokens — never a subject, a sender or a word of a message.
+    - *A failure is fenced too.* Whatever names an origin reaches the model
+      inside the data fence, a failed tool included: the head of a message
+      whose text no reader could report on is still a stranger's subject.
+11. **Keeping an answer, and the one skill that reaches the internet** (built
+    with P4-6).
+    - *"Keep as a note" is the user's act, written by the app.* Under a
+      finished answer the user can turn it into a note. No model is asked and
+      no tool is called: the app builds the note from the conversation's
+      record and writes it under a free name into the vault's inbox folder,
+      through the path every new note takes; a note that is there is never
+      touched. This is not the `write` class of decision 2, whose writes a
+      model proposes — nothing here is a model's to trigger.
+    - *The note says who wrote it and what it rests on.* `generated` with the
+      model as its actor (ADR 0023), stamped once; a first line that says the
+      same in words; and `sources` plus a list under the answer that the app
+      takes from the run's own record — the pages it read, the searches it
+      made, the notes that went along or were read through a tool — never
+      from what the model says it used.
+    - *Nothing the model wrote loads or leads anywhere.* The answer's text
+      passes the pre-write linter with no exception at all (decision 6): every
+      address is inert. The linter does not depend on parsing Markdown, so
+      the syntax around an inert address is still that of a link or an
+      image; a second pass, which is about how the note reads and not about
+      safety, writes those as their words with the address beside them as
+      text — nothing is drawn as a link that is none, and an image is never
+      an image. The live addresses are the app's own entries for pages the
+      run read with the user's approval.
+      A beacon needs an address the model composed, and none survives.
+      Wikilinks stay: they lead into the vault.
+    - *The note inherits the rules of what the answer rests on.* An answer a
+      model on the device made from a note kept from the cloud would
+      otherwise become an ordinary note in the inbox folder, and the next
+      cloud conversation would read it. So the new note carries the rules of
+      everything the conversation carried up to that answer (ADR 0018 §11):
+      the sources of every overview, the notes pinned to it, the notes that
+      embed a picture it sent — and what passed its tools, for which the gate
+      itself reports the rules of each note it lets through and the run's
+      record keeps the rule, never a path. `cloud: deny` and `web: deny` are
+      written into the note where the folder it lands in would allow more. A
+      rule that cannot be looked up counts as one that says no.
+    - *Where others read, it asks.* In a shared workspace the note is
+      readable by its members and by the readers of a publication that covers
+      the folder — a write into a surface third parties read (decision 2,
+      `external`). The app asks each time, with the note's name and the
+      folder; a yes is for one note.
+    - *A skill reaches the internet only by naming its tools, and only when
+      the user starts it.* A conversation bound to a skill carries exactly the
+      tools the skill names (decision 3). A skill whose `allowed-tools` name
+      `fetch_url` or `web_search` therefore brings them — where the vault's
+      switch is on, and with the question per request of decision 9
+      unchanged. Starting such a skill is the second of the three decisions:
+      the user chose the internet for this one conversation, and the overview
+      and the conversation's first line say so. A skill the model loads by
+      itself only narrows a conversation; it never adds the internet to one
+      that began without it. One skill that comes with the app does this
+      ("research"); a skill from the vault that does is shown as such before
+      it is approved (ADR 0020).
+    - *Nobody to ask means no.* A regression run of a skill (ADR 0020) is
+      watched by nobody: it gets no internet tools whatever its skill names,
+      and a kind of data this session has not approved — mail — is answered
+      as declined instead of asked for.
 
 ## Consequences
 
@@ -227,6 +290,14 @@ a write or an outside effect.
   same, and mail is never read by a conversation that was not asked about it.
 - A mail read by a model on the device is read by a smaller model. The
   report may be thinner than a cloud model's; the text stayed where it was.
+- An answer kept as a note is a plain Markdown note the user owns, marked
+  for every other tool. A link the model wrote into its answer cannot be
+  followed there; the page it stood for is in the list of sources if the run
+  read it, and nowhere if the model only named it.
+- The skills that come with the app no longer all stay off the internet: one
+  names its tools. What a skill may reach is what the user reviews — for a
+  skill of the vault before the approval, for every skill in the overview
+  before the first request.
 
 ## Alternatives
 
@@ -264,6 +335,20 @@ a write or an outside effect.
   commands that create, export, send and close. "Changes no data" is a
   promise of `run_command`, so each command is decided, and a new one fails
   the build until it is.
+- **A tool with which the model keeps its answer as a note.** Rejected for
+  this step: a write a model triggers is a proposal (decision 2) and comes
+  with the write tools. Keeping an answer is the user's decision about a text
+  they have read, so it is a button, and the app writes.
+- **Keeping an answer's own links live where they match a page the run
+  read.** Rejected: "the same address" would have to hold after Markdown
+  parsing in every renderer a note ever meets. The app's own list gives the
+  same links without trusting a character the model wrote.
+- **The internet for every skill, in a vault that allows it.** Rejected: a
+  skill that never names the web would gain it silently, also one that
+  arrived through sync. Naming the tools is what the user reviews.
+- **Asking in a regression run.** Rejected: a question nobody is there to
+  read would hold the run, and a standing yes for runs nobody watches is the
+  capability set of decision 8, which comes with the routines.
 
 ## Links
 
@@ -278,3 +363,7 @@ a write or an outside effect.
   appointments: `packages/ui/src/ai/mailTools.ts`, `eventDetails.ts`,
   `privateData.ts`; the assistant's commands: `packages/ui/src/ai/aiCommands.ts`;
   `docs/engineering/AI_Threat_Model.md` (T18, T19).
+- Keeping an answer: `packages/ui/src/ai/aiCapture.ts`, `captureAnswer` in
+  `packages/ui/src/ai/aiSession.ts`; a skill and the internet: `skillNamesWeb`
+  in `packages/core/src/ai/skills/narrowing.ts`; ADR 0023 §3;
+  `docs/engineering/AI_Threat_Model.md` (T22, T23).

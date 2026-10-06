@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Globe, Mail, TriangleAlert } from "lucide-react";
+import { Globe, Mail, TriangleAlert, Users } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
@@ -59,9 +59,43 @@ function AiDataApproval({ request, onAnswer, touch }: { request: Extract<EffectR
   );
 }
 
+/**
+ * A note about to be written where other people read it (plan P4-6, §12.1):
+ * an answer kept as a note inside a shared workspace. The same card, asked
+ * each time — a yes for one note says nothing about the next.
+ */
+function AiWriteApproval({ request, onAnswer, touch }: { request: Extract<EffectRequest, { kind: "write" }>; onAnswer: (answer: EffectAnswer) => void; touch?: boolean }) {
+  const { t } = useTranslation();
+  const title = t("ai.capture.shared.title");
+  return (
+    <section className={cx("pv-ai-overview", "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid="ai-effect" data-kind="write">
+      <h4 className="pv-ai-overview-head">
+        <Users size={ICON.ui} aria-hidden="true" />
+        <span>{title}</span>
+      </h4>
+      <dl className="pv-ai-overview-list">
+        <dt>{t("ai.capture.shared.note")}</dt>
+        <dd data-testid="ai-effect-note">{request.title}</dd>
+        <dt>{t("ai.capture.shared.folder")}</dt>
+        <dd>{request.folder || "/"}</dd>
+      </dl>
+      <span className="pv-ai-overview-hint">{t("ai.capture.shared.hint")}</span>
+      <div className="pv-ai-overview-actions">
+        <Button variant="ghost" onClick={() => onAnswer("deny")} data-testid="ai-effect-deny">
+          {t("ai.capture.shared.deny")}
+        </Button>
+        <Button variant="primary" onClick={() => onAnswer("once")} data-testid="ai-effect-allow">
+          {t("ai.capture.action")}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export function AiEffectApproval({ request, onAnswer, touch }: AiEffectApprovalProps) {
   const { t } = useTranslation();
   if (request.kind === "data") return <AiDataApproval request={request} onAnswer={onAnswer} touch={touch} />;
+  if (request.kind === "write") return <AiWriteApproval request={request} onAnswer={onAnswer} touch={touch} />;
   const fetch = request.kind === "fetch";
   const title = fetch ? t("ai.web.ask.fetchTitle") : t("ai.web.ask.searchTitle");
   return (

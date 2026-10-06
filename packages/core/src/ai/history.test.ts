@@ -107,6 +107,20 @@ describe("conversation records", () => {
     expect(startConversation("c", "s", ["search_vault"])).not.toHaveProperty("more");
   });
 
+  it("keeps the rules a run's notes carried — the rule, each once, and nothing that is none", () => {
+    const r = record();
+    r.runs[0] = { ...r.runs[0]!, restricted: ["cloud", "web"] };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.restricted).toEqual(["cloud", "web"]);
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].restricted = ["web", "Private/Client.md", "web", 7, null];
+    expect(readConversationRecord(tampered)!.runs[0]!.restricted).toEqual(["web"]);
+    // Nothing restricted is no entry at all, whatever stood there.
+    for (const none of [[], ["mail"], "cloud", { cloud: true }]) {
+      tampered.runs[0].restricted = none;
+      expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("restricted");
+    }
+  });
+
   it("keeps a picture with the turn that sent it, and its size with the run's overview", () => {
     const r = record();
     const picture = { type: "image" as const, mime: "image/jpeg" as const, data: "QUJDRA==", name: "Whiteboard.jpg", width: 1568, height: 1045, path: "Assets/Whiteboard.jpg" };

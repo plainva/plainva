@@ -4141,3 +4141,201 @@ test('AI explain image: the picture goes drawn anew and only after the overview 
   expect(sent).toHaveLength(2);
   expect(sent[1]).toContain('embedded in the note [[Board]]');
 });
+
+// The research skill and "Keep as a note" (AI harness P4-6). Starting the
+// skill is choosing the internet for its conversation — where the vault
+// allows it, and each page still asks. The answer then becomes a note the
+// app writes: marked as an AI's, with the page the run read as its source,
+// and with no address the model wrote left live in it.
+test('AI research and keep as a note: the skill reaches the internet only where the vault allows it, and the kept answer names its sources', async ({ page }) => {
+  const URL = 'https://example.org/rates';
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (name: string, input: unknown) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'call-1', name, input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const script = [
+    // A vault nobody decided about: the skill has no tool of the web, and says so.
+    says('I could not look anything up on the web here.'),
+    // With the vault's switch on: the page, the reader's report, and an answer that carries a link and an image of the model's own.
+    calls('fetch_url', { url: URL, question: 'What is the day rate?' }),
+    says(JSON.stringify({ relevant: true, summary: 'The day rate for 2026 is 1,900 euros.', facts: [{ text: 'Day rate 2026: 1,900 euros', quote: 'The day rate for 2026 is 1,900 euros.' }], links: [] })),
+    says(`The day rate for 2026 is 1,900 euros, see [the rates](${URL}). ![chart](https://collect.example.net/p.png?d=1900)`),
+  ];
+  await page.addInitScript(({ script }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    (window as any).__aiFetched = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      if (cmd === 'ai_web_fetch') {
+        (window as any).__aiFetched.push(args.url);
+        return { kind: 'page', url: args.url, status: 200, contentType: 'text/html; charset=utf-8', body: '<html><head><title>Rates</title></head><body><main><h1>Rates</h1><p>The day rate for 2026 is 1,900 euros.</p></main></body></html>', truncated: false };
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const fetched = () => page.evaluate(() => (window as any).__aiFetched as string[]);
+  const kept = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path, value]) => path.startsWith('/test-vault/Inbox/') && typeof value === 'string').map(([path, text]) => ({ path, text: String(text) })));
+
+  // 1. The skill, started in a vault whose switch is off: bound to its own tools, and none of them reaches the internet.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-chats').click();
+  const tab = page.getByTestId('ai-tab');
+  await tab.getByTestId('ai-tab-skill-research').click();
+  await tab.getByTestId('ai-consent-send').click();
+  await expect(tab.getByText('I could not look anything up on the web here.')).toBeVisible();
+  const first = (await requests())[0];
+  expect(first).toContain('"name":"search_vault"');
+  expect(first).not.toMatch(/"name":"(fetch_url|web_search|run_command)"/);
+  await expect(tab.getByTestId('ai-web-marking')).toHaveCount(0);
+
+  // 2. The vault's switch, in its settings.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  const allow = dialog.getByRole('switch', { name: /The AI may use the internet in this vault|Die KI darf in diesem Vault ins Internet/ });
+  await allow.click();
+  await expect(allow).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // 3. Started again, the skill brings the two tools of the web — nobody pressed the globe — and the overview says so.
+  await tab.getByTestId('ai-tab-skill-research').click();
+  await expect(tab.getByTestId('ai-overview-web')).toBeVisible();
+  await tab.getByTestId('ai-consent-send').click();
+  // The page still waits for its own answer.
+  const question = tab.getByTestId('ai-effect');
+  await expect(question.getByTestId('ai-effect-address')).toHaveText(URL);
+  expect(await fetched()).toEqual([]);
+  await question.getByTestId('ai-effect-once').click();
+  await expect(tab.getByText('The day rate for 2026 is 1,900 euros, see')).toBeVisible();
+  expect(await fetched()).toEqual([URL]);
+  await expect(tab.getByTestId('ai-web-marking')).toBeVisible();
+  expect((await requests())[1]).toMatch(/"name":"fetch_url"/);
+
+  // 4. The answer becomes a note: the user's step, written by the app — no model is asked for it.
+  expect(await kept()).toEqual([]);
+  const before = (await requests()).length;
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-capture-answer-desktop.png') });
+  await tab.getByTestId('ai-capture').click();
+  await expect(page.getByText(/Kept as a note|Als Notiz festgehalten/)).toBeVisible();
+  // The note as the editor draws it: no picture that is none, and one link — the app's own, to the page that was read.
+  const editor = page.locator('.cm-content').first();
+  await expect(editor).toContainText('chart (https[://]collect.example.net/p.png?d=1900)');
+  await expect(editor.locator('.pv-image-embed')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-capture-note-desktop.png') });
+  expect((await requests()).length).toBe(before);
+  const notes = await kept();
+  expect(notes).toHaveLength(1);
+  const note = notes[0].text;
+  // Who wrote it, for machines and in words.
+  expect(note).toMatch(/generated:\s*\n\s+by: "?plainva-ai\/m-1/);
+  expect(note).toMatch(/^> .*Plainva (AI|KI) · m-1/m);
+  // What it rests on: the page the run read, from the run's own record.
+  expect(note).toMatch(/sources:\s*\n\s+- resource: "?https:\/\/example\.org\/rates/);
+  const body = note.slice(note.indexOf('\n---\n') + 5);
+  const split = body.search(/^## /m);
+  expect(split).toBeGreaterThan(0);
+  const [answer, sources] = [body.slice(0, split), body.slice(split)];
+  // Nothing the model wrote leads or loads anywhere: its link and its image are words, with the address beside them as text.
+  expect(answer).toContain('The day rate for 2026 is 1,900 euros');
+  expect(answer).not.toMatch(/https?:\/\//);
+  expect(answer).toContain('see the rates (https[://]example.org/rates). chart (https[://]collect.example.net/p.png?d=1900)');
+  expect(answer).not.toContain('](');
+  // The one live address is the app's own entry for the page that was read.
+  expect(sources.match(/https:\/\/[^\s)]+/g)).toEqual([URL]);
+  expect(sources).toContain('- [Rates](https://example.org/rates)');
+  // It opened like any new note, and the tree knows it — in a tab of its own: the conversation's tab is still there.
+  await expect(page.locator('[data-tree-path="Inbox"]')).toBeVisible();
+  await expect(page.getByRole('tab').filter({ hasText: /^(Research|Recherche) – \d{4}-\d{2}-\d{2}/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab').filter({ hasText: /^(AI|KI)$/ })).toHaveCount(1);
+});
+
+// What is made of an answer inherits the rules of its sources (AI harness
+// P4-6). A model on this computer may read a note the vault keeps from the
+// cloud; the answer, kept as a note, must not reach a cloud as a note either.
+// The rules here are the app's own: the vault's `.agent/policy.yml`, read by
+// the real policy host — the session tests hold the same against a stand-in.
+test('AI keep as a note: an answer a model on this computer made from a note kept from the cloud is kept from it too', async ({ page }) => {
+  const chunk = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
+  const says = (text: string) =>
+    `${chunk({ choices: [{ delta: { content: text } }] })}${chunk({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 300, completion_tokens: 40 } })}data: [DONE]\n\n`;
+  const script = [says('Northwind pays 2,400 euros a day.')];
+  await page.addInitScript(({ script }) => {
+    // A server on this computer is the model new conversations start with: nothing leaves the device for it.
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['ollama'], profiles: { balanced: { providerId: 'ollama', model: 'm-local' } } } };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/.agent': { isDir: true },
+      '/test-vault/.agent/policy.yml': 'folders:\n  Private/:\n    cloud: deny\n',
+      '/test-vault/Private': { isDir: true },
+      '/test-vault/Private/Client.md': '# Client\n\nNorthwind pays 2,400 euros a day.\n',
+    });
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const kept = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path, value]) => path.startsWith('/test-vault/Inbox/') && typeof value === 'string').map(([path, text]) => ({ path, text: String(text) })));
+
+  // 1. The private note is open; the model on this computer gets it — no overview asks, because nothing leaves.
+  await page.locator('[data-tree-path="Private"]').click();
+  await page.locator('[data-tree-path="Private/Client.md"]').click();
+  await expect(page.locator('.cm-content').first()).toContainText('Northwind pays 2,400 euros a day.');
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('What does this client pay?');
+  await companion.getByTestId('ai-send').click();
+  await expect(companion.locator('.pv-ai-answer').filter({ hasText: 'Northwind pays 2,400 euros a day.' })).toBeVisible();
+  const [request] = await requests();
+  expect(request).toContain('"endpointId":"ollama"');
+  expect(request).toContain('Northwind pays 2,400 euros a day.');
+
+  // 2. Kept as a note: it lands in the inbox folder — which no rule covers — and carries the rule of what it rests on.
+  await companion.getByTestId('ai-capture').click();
+  await expect(page.getByText(/It carries the privacy rules of the notes it rests on|Sie trägt die Datenschutzregeln der Notizen/)).toBeVisible();
+  const notes = await kept();
+  expect(notes).toHaveLength(1);
+  expect(notes[0].text).toMatch(/plainva:\s*\n\s+ai:\s*\n\s+cloud: deny/);
+  expect(notes[0].text).toMatch(/generated:\s*\n\s+by: "?plainva-ai\/m-local/);
+  expect(notes[0].text).toContain('Northwind pays 2,400 euros a day.');
+});

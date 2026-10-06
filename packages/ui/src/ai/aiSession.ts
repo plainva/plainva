@@ -4,6 +4,7 @@ import type { InstructionApprovalStore, SkillTestStore, WebSettingsStore } from 
 import { createWebExecutor, newRunWeb, webToolNames } from "./webTools";
 import { createPrivateDataExecutor, newRunReading, readSomething, type QuarantineReader } from "./privateData";
 import type { PreparedImage, PrepareFailure } from "./aiImage";
+import { capturedNotePath, captureNote, captureStamp, withInheritedRules } from "./aiCapture";
 import { createSkillExecutor, newSkillRunState, skillScope, type SkillRunState } from "./skillRuntime";
 import {
   PASSAGE_ONLY,
@@ -20,6 +21,9 @@ import type { SuggestionChunk } from "../components/suggestMode";
 import {
   addressOrigin,
   addUsage,
+  AI_POLICY_DIMENSIONS,
+  calledToolName,
+  dispatchedArgs,
   allowHost,
   approveInstruction,
   approveToolData,
@@ -32,6 +36,7 @@ import {
   META_TOOL_NAMES,
   toolDataApproved,
   hasWebTools,
+  skillNamesWeb,
   hostAllowed,
   knownAddresses,
   mergeCandidates,
@@ -114,6 +119,7 @@ import {
   usageCostUsd,
   widenScope,
   type AiAppSettings,
+  type AiPolicyDimension,
   type ApprovedScope,
   type Candidate,
   type AiEgress,
@@ -236,6 +242,14 @@ export interface AiVaultHost {
   keepOnDevice?(path: string): Promise<void>;
   /** Checked gists of the model on this computer (plan P2b-3), read when a message is built; null while there are none. */
   gists?(): PackageGists | null;
+  /**
+   * Where an answer kept as a note is written (plan P4-6): `folder` names the
+   * vault's inbox folder, `write` puts the note there under a free name —
+   * through the vault's adapters, so it is indexed, synced and backed up like
+   * a note the user made — and returns its path. Absent where the shell
+   * cannot write notes.
+   */
+  capture?: { folder(): Promise<string>; write(folder: string, stem: string, content: string): Promise<string> };
   /**
    * The notes that embed a file (plan P4-5): their rules decide whether a
    * picture may go to a cloud. `null` when that cannot be found out — which
@@ -407,6 +421,17 @@ export type ImageOutcome =
       message?: string;
     };
 
+/** How "Keep as a note" under an answer ended (plan P4-6). */
+export type CaptureOutcome =
+  /** `inherited`: the rules written into the note because what the answer rests on carries them. */
+  | { kind: "captured"; path: string; title: string; inherited?: AiPolicyDimension[] }
+  | {
+      kind: "refused";
+      /** `nothing`: the run has no answer to keep. `unavailable`: this shell writes no notes. `cancelled`: the user said no to a note other people read. */
+      reason: "off" | "nothing" | "unavailable" | "busy" | "cancelled" | "failed";
+      message?: string;
+    };
+
 /**
  * A remark that addresses the assistant in a comment thread (plan P3-6): the
  * note, the thread so far, and what was asked.
@@ -451,7 +476,13 @@ export type ThreadReplyOutcome =
 export type EffectRequest =
   | { id: string; kind: "fetch"; url: string; host: string; question: string; origin: AddressOrigin }
   | { id: string; kind: "search"; query: string; provider: string }
-  | { id: string; kind: "data"; dataClass: "mail"; tool: string; provider: string; reader: "provider" | "device"; readerLabel: string };
+  | { id: string; kind: "data"; dataClass: "mail"; tool: string; provider: string; reader: "provider" | "device"; readerLabel: string }
+  /**
+   * `write` — a note about to be written where other people read it (plan
+   * P4-6, §12.1 "a write into a place third parties read"): an answer kept as
+   * a note inside a shared workspace. Asked each time; `always` means yes.
+   */
+  | { id: string; kind: "write"; audience: "members"; title: string; folder: string };
 
 /**
  * The user's answer. To a request to the internet: this once, from now on for
@@ -650,6 +681,8 @@ export class AiSession {
   private sending = false;
   /** Recordings being transcribed now: one run per file. */
   private transcribing = new Set<string>();
+  /** An answer is being kept as a note right now. */
+  private capturing = false;
   /** What the user approved in this app session (E25); a server on this computer needs none. */
   private scope: ApprovedScope | null = null;
   private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
@@ -889,13 +922,24 @@ export class AiSession {
   async open(id: string): Promise<void> {
     const vault = this.vault;
     if (!vault || this.state.live) return;
+    this.dropWriteQuestion();
     const record = await vault.conversations.load(id);
     if (record && this.vault === vault) this.set({ active: record, excludeActive: false, notice: null });
   }
 
   newConversation(): void {
     if (this.state.live) return;
+    this.dropWriteQuestion();
     this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, notice: null });
+  }
+
+  /**
+   * The question before an answer is kept where others read (plan P4-6) is
+   * about the conversation on screen. Leaving that conversation is a no: the
+   * card does not stay behind over another one.
+   */
+  private dropWriteQuestion(): void {
+    if (this.state.effect?.kind === "write") this.settleEffect("deny");
   }
 
   // --------------------------------------------------------------- internet
@@ -1406,6 +1450,7 @@ export class AiSession {
     const vault = this.vault;
     if (!vault) return;
     if (this.state.live?.conversationId === id) this.stop();
+    if (this.state.active?.id === id) this.dropWriteQuestion();
     await vault.conversations.remove(id);
     this.set({
       summaries: this.state.summaries.filter((s) => s.id !== id),
@@ -1786,6 +1831,128 @@ export class AiSession {
       return refused("failed", { ...(conversationId ? { conversationId } : {}), message: error instanceof Error ? error.message : String(error) });
     } finally {
       this.sending = false;
+    }
+  }
+
+  /** Whether an answer can be kept as a note here: the shell writes notes, and the AI is on. */
+  canCapture(): boolean {
+    return Boolean(this.state.settings.enabled && this.vault?.capture);
+  }
+
+  /**
+   * "Keep as a note" under an answer (plan P4-6, §17.1): the answer of the
+   * run that began at `userTurn` becomes a note in the vault's inbox folder —
+   * stamped as generated by the model, with the pages the run read, the
+   * searches it made and the notes it rests on as its sources (`aiCapture`).
+   * The user asks for it and the app writes it; no model is called.
+   *
+   * A note written where other people read it is an effect on them (§12.1):
+   * inside a shared workspace the user is asked first, each time.
+   */
+  async captureAnswer(userTurn: number): Promise<CaptureOutcome> {
+    const refused = (reason: Extract<CaptureOutcome, { kind: "refused" }>["reason"], message?: string): CaptureOutcome => ({ kind: "refused", reason, ...(message ? { message } : {}) });
+    const vault = this.vault;
+    const record = this.state.active;
+    if (!this.state.settings.enabled || !vault) return refused("off");
+    if (!vault.capture) return refused("unavailable");
+    // One at a time, and not while a run is on: a run that ends answers every open question with no.
+    if (this.capturing || this.state.live || this.sending) return refused("busy");
+    const run = record?.runs.find((candidate) => candidate.userTurn === userTurn);
+    if (!record || !run || run.stop !== "answered") return refused("nothing");
+    const turns = record.conversation.turns;
+    const next = record.runs.map((other) => other.userTurn).filter((turn) => turn > userTurn).sort((a, b) => a - b)[0] ?? turns.length;
+    const mine = turns.slice(userTurn, next);
+    const question = (mine[0]?.parts ?? []).map((part) => (part.type === "text" && !part.context ? part.text : "")).filter(Boolean).join("\n\n");
+    const answer = [...mine].reverse().find((turn) => turn.role === "assistant" && turn.parts.some((part) => part.type === "text" && part.text.trim()));
+    const text = answer ? answer.parts.map((part) => (part.type === "text" ? part.text : "")).join("") : "";
+    if (!text.trim()) return refused("nothing");
+
+    // What the answer rests on, from the record — never from the answer's own words: the notes that went along, and the ones a tool read.
+    const title = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+    const notes = new Map<string, string>();
+    for (const source of run.manifest?.sources ?? []) {
+      if (!source.image && source.audioBytes === undefined && source.tier !== "map") notes.set(source.path, source.title);
+    }
+    const failed = new Set(mine.flatMap((turn) => turn.parts.flatMap((part) => (part.type === "tool_result" && part.isError ? [part.callId] : []))));
+    for (const turn of mine) {
+      for (const part of turn.parts) {
+        if (part.type !== "tool_call" || failed.has(part.id)) continue;
+        const args = (calledToolName(part) === part.name ? part.args : dispatchedArgs(part.args)) as { path?: unknown } | null;
+        if (calledToolName(part) === "read_note" && typeof args?.path === "string" && !notes.has(args.path)) notes.set(args.path, title(args.path));
+      }
+    }
+    // The note inherits the rules of what the answer may rest on: everything the conversation carried up to this answer —
+    // the sources of each overview, the notes pinned to it, and what passed the tools of its runs. An answer a model on
+    // this device made from a note that must never reach a cloud must not reach one as a note either. A rule that
+    // cannot be looked up counts as one that says no.
+    const inherited = new Set<AiPolicyDimension>();
+    const carried = new Set<string>(record.pins);
+    let unknown = false;
+    for (const earlier of record.runs) {
+      if (earlier.userTurn > userTurn) continue;
+      for (const rule of earlier.restricted ?? []) inherited.add(rule);
+      for (const source of earlier.manifest?.sources ?? []) {
+        carried.add(source.path);
+        if (!source.image) continue;
+        // A picture belongs to the notes that show it (ADR 0018 §10).
+        const embedders = vault.embedders ? await vault.embedders(source.path).catch(() => null) : null;
+        if (embedders === null) unknown = true;
+        else for (const path of embedders) carried.add(path);
+      }
+    }
+    for (const path of carried) {
+      const effective = await (/\.md$/i.test(path) ? vault.policy.policyOf(path) : vault.policy.policyOf(path, "")).catch(() => null);
+      for (const dimension of AI_POLICY_DIMENSIONS) if (!effective || effective.policy[dimension] === "deny") inherited.add(dimension);
+    }
+    if (unknown) for (const dimension of AI_POLICY_DIMENSIONS) inherited.add(dimension);
+
+    const provider = providerById(run.providerId, this.state.settings.custom);
+    // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
+    const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+    // A conversation a skill started opens with the skill's own request, the same words every time: such a note is
+    // called after the skill and the note that was open — or the day —, never after a sentence the user did not write.
+    const bound = record.instructions?.skill;
+    let named: string | undefined;
+    if (bound && userTurn === Math.min(...record.runs.map((other) => other.userTurn))) {
+      const app = appSkillOf(bound.id);
+      const skill = app ? t(`ai.skills.${app.key}.title`) : bound.name;
+      const open = (run.manifest?.sources ?? []).find((source) => source.reasons.includes("active") && !source.image && source.audioBytes === undefined);
+      named = `${skill} – ${open ? open.title : captureStamp(this.host.now()).slice(0, 10)}`;
+    }
+    const note = captureNote(
+      {
+        question,
+        ...(named ? { title: named } : {}),
+        answer: text,
+        model: run.model,
+        now: this.host.now(),
+        pages: (run.web?.pages ?? []).filter((page) => page.read).map((page) => ({ url: page.url, title: page.title, at: page.at })),
+        searches: (run.web?.searches ?? []).map((search) => ({ query: search.query, at: search.at })),
+        searchProvider: provider?.label ?? run.providerId,
+        notes: [...notes].map(([path, noteTitle]) => ({ path, title: noteTitle })),
+      },
+      t,
+    );
+
+    this.capturing = true;
+    try {
+      const folder = await vault.capture.folder();
+      if (vault.encrypted?.()) {
+        // Members of the workspace read what lands in it: that is asked, here and each time.
+        const asked = new AbortController();
+        const answerTo = await this.askEffect({ id: `capture-${this.host.newId()}`, kind: "write", audience: "members", title: note.title, folder }, asked.signal);
+        // A yes counts for the conversation it was given in, in the vault it was given for.
+        if (answerTo === "deny" || this.vault !== vault || this.state.active?.id !== record.id) return refused("cancelled");
+      }
+      // Written into the note only where the place it lands in would allow more than its sources do.
+      const place = await vault.policy.policyOf(capturedNotePath(folder, note.stem), "").catch(() => null);
+      const rules = AI_POLICY_DIMENSIONS.filter((dimension) => inherited.has(dimension) && place?.policy[dimension] !== "deny");
+      const path = await vault.capture.write(folder, note.stem, withInheritedRules(note.content, rules));
+      return { kind: "captured", path, title: note.title, ...(rules.length ? { inherited: rules } : {}) };
+    } catch (error) {
+      return refused("failed", error instanceof Error ? error.message : String(error));
+    } finally {
+      this.capturing = false;
     }
   }
 
@@ -2222,11 +2389,16 @@ export class AiSession {
       // The internet is chosen for one conversation, in the composer, where the vault allows it — never by a door,
       // a regression run or a run bound to a skill. Fixed like every tool: a conversation that began without it
       // may already carry notes that must never meet the internet.
-      const withWeb = !apart && !skills?.bind && this.state.draftWeb && this.state.web.enabled;
+      const entries = skills?.entries ?? (await this.instructionEntries(vault)).entries;
+      // One exception, and it is the user's own choice too (plan P4-6): a skill the user starts that names the internet's
+      // tools brings them along where the vault allows the internet — starting "Research" is choosing it for this one
+      // conversation, and the overview says so. No other skill reaches the internet, and a regression run never does.
+      const boundSkill = skills?.bind ? entries.find((entry) => entry.source.id === skills.bind && entry.status === "active")?.source.skill : undefined;
+      const skillWeb = Boolean(boundSkill && skillNamesWeb(boundSkill));
+      const withWeb = !apart && this.state.web.enabled && (skills?.bind ? skillWeb : this.state.draftWeb);
       // A door answers where it was asked: it reads the vault, it does not move the app — and it looks for no further tool.
       const offered = this.offeredTools(vault, provider, recipient, withWeb).filter((name) => !door || name !== "run_command");
       const further = door ? [] : this.furtherTools(vault, provider, recipient);
-      const entries = skills?.entries ?? (await this.instructionEntries(vault)).entries;
       // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
       const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further);
       const id = this.host.newId();
@@ -2254,7 +2426,17 @@ export class AiSession {
     const webLog = web ? newRunWeb() : null;
     // The conversation's further tools (ADR 0019), as fixed as its own.
     const moreNames = platform ? [] : (record.conversation.more ?? []);
-    const base = toolNames.length ? vault.tools(recipient, skillScope(bound?.folders, skillState), redact, web, () => skillState.loaded?.tools ?? null) : null;
+    // What passes the tools here although a rule restricts it elsewhere (plan P4-6) — a note kept from the cloud read by a
+    // model on this device, a note kept from the internet in a conversation without it: the run's record keeps the rule,
+    // never the path, and a note made of its answer inherits it.
+    const restricted = new Set<AiPolicyDimension>();
+    const scope: ToolScope = {
+      ...skillScope(bound?.folders, skillState),
+      passed: (_path, rules) => {
+        for (const rule of rules) restricted.add(rule);
+      },
+    };
+    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillState.loaded?.tools ?? null) : null;
     // Mail and the descriptions of appointments (plan P4-4): a kind of data no overview named asks first, and raw text goes to a reader without tools.
     const reading = newRunReading();
     const guarded = base
@@ -2263,7 +2445,8 @@ export class AiSession {
           {
             egress: this.host.egress,
             reader: () => this.quarantineReader(provider, choice),
-            approve: (dataClass, tool, call, signal) => this.approveData(dataClass, tool, call, { provider, choice, recipient, signal }),
+            // A regression run has nobody to ask: what this session has not allowed yet does not happen in it.
+            approve: (dataClass, tool, call, signal) => this.approveData(dataClass, tool, call, { provider, choice, recipient, signal, ...(detached ? { silent: true } : {}) }),
             newRequestId: () => `ai-${this.host.newId()}`,
             now: () => this.host.now().toISOString(),
           },
@@ -2357,6 +2540,7 @@ export class AiSession {
       ...(limits ? { limits } : {}),
       ...(webLog ? { web: webLog } : {}),
       ...(guarded ? { reading } : {}),
+      ...(base ? { restricted } : {}),
       ...(related.length ? { related } : {}),
     });
   }
@@ -2408,15 +2592,15 @@ export class AiSession {
     dataClass: "mail",
     tool: ToolManifest,
     call: ToolCallPart,
-    run: { provider: ProviderInfo; choice: ModelChoice; recipient: EgressRecipient; signal?: AbortSignal },
+    run: { provider: ProviderInfo; choice: ModelChoice; recipient: EgressRecipient; signal?: AbortSignal; silent?: boolean },
   ): Promise<boolean> {
     if (!isCloudRecipient(run.recipient)) return true;
     const key = `${run.choice.providerId}/${run.choice.model}`;
     if (toolDataApproved(this.scope, dataClass, key)) return true;
     const reader = this.quarantineReader(run.provider, run.choice);
     const request: EffectRequest = { id: call.id, kind: "data", dataClass, tool: tool.name, provider: run.provider.label, reader: reader.onDevice ? "device" : "provider", readerLabel: reader.label };
-    // A run that nobody can stop is not asked a question nobody could withdraw.
-    if (!run.signal) return false;
+    // A run that nobody can stop is not asked a question nobody could withdraw — and neither is one nobody watches.
+    if (!run.signal || run.silent) return false;
     if ((await this.askEffect(request, run.signal)) === "deny") return false;
     this.scope = approveToolData(this.scope, dataClass, key);
     return true;
@@ -2481,6 +2665,8 @@ export class AiSession {
     web?: RunWeb;
     /** What the run's tools read of mail and appointments (plan P4-4), gathered while it runs. */
     reading?: RunReading;
+    /** The rules of notes that passed the run's tools although they restrict them elsewhere (plan P4-6), gathered while it runs. */
+    restricted?: ReadonlySet<AiPolicyDimension>;
     /** The notes that match the question best, shown when no answer comes back (plan §19.4). */
     related?: { path: string; title: string }[];
   }): Promise<{ stop: RunStop; record: ConversationRecord; answer: string }> {
@@ -2575,6 +2761,7 @@ export class AiSession {
       ...(skillCatalogMeta ? { skillCatalog: skillCatalogMeta } : {}),
       ...(web ? { web } : {}),
       ...(reading ? { reading } : {}),
+      ...(input.restricted?.size ? { restricted: AI_POLICY_DIMENSIONS.filter((dimension) => input.restricted!.has(dimension)) } : {}),
     };
     record = {
       ...record,

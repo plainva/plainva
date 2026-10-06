@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-10-06
 
-A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with ten of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
+A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with twelve of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
 
 ## Using a skill
 
@@ -19,13 +19,25 @@ You can also simply ask. In every conversation the AI knows the names and descri
 | **Project status** | Goal, progress, open points and the next step of a project. |
 | **Meeting preparation** | Prepares a meeting from earlier notes and open points, or writes one up afterwards. |
 | **Task triage** | Sorts your open tasks: what now, what can wait, what to drop. |
+| **Research** | Researches a question on the web and in your notes, with every source named. |
+| **Mail and calendar** | Goes through recent mail and the coming appointments: what needs an answer, what to prepare, which tasks follow. |
 | **Write and rewrite** | Summarises, shortens or rewrites a note — as text you take over. |
 | **Knowledge upkeep** | Finds notes that say the same, are out of date or are connected to nothing. |
 | **Link cleanup** | Checks the links of a note: leading nowhere, missing, one-way. |
 | **Privacy check** | Finds what in a note should stay on this device, and suggests a rule. |
 | **Reflection** | Looks back on the notes of a day or a week with you — kindly, never a diagnosis. |
 
-All of them only read: none changes a note, sends anything or goes on the internet. The privacy check and reflection are meant for a model on this device; with a cloud model the send overview says so. Switch any skill off under **Skills** — the switch holds for this vault on this device. **Make your own version** copies one into your vault, where you can change it.
+All of them only read: none changes a note or sends anything. Only **Research** uses the internet, and only **Mail and calendar** reads your mail — see below. The privacy check and reflection are meant for a model on this device; with a cloud model the send overview says so. Switch any skill off under **Skills** — the switch holds for this vault on this device. **Make your own version** copies one into your vault, where you can change it.
+
+## On the internet and in your mail
+
+**Research** is the one skill that comes with Plainva and uses the internet. Starting it is your choice for its conversation, like the globe under the input field: where you switched on **The AI may use the internet in this vault**, it searches and reads pages — and while your notes are in the conversation, every page and every search still asks first, as described under **On the internet** in [AI Assistant](AI_Assistant.md). Where the switch is off, it researches in your notes only and says so. The same holds when the AI loads the skill by itself in a conversation you started without the internet.
+
+**Mail and calendar** reads mail through the same question as any conversation: **Read your mail?** the first time. It never reads the text of a message itself; a second reader without tools writes a report about it. Both are described in [AI Assistant](AI_Assistant.md).
+
+A skill of your own uses the internet only when its `allowed-tools` line names `web_search` or `fetch_url`. **Review and approve** then says **Uses the internet where you allowed it for this vault.** before you approve it. A skill that names no tools never brings the internet along.
+
+A test run never uses the internet, and it never asks: mail it was not allowed to read in this session stays unread.
 
 ## Your own skills
 
@@ -70,4 +82,4 @@ The send overview lists the instructions that go along under **Instructions**: t
 
 ## Limits of the beta
 
-Skills run no scripts, and skills that need the web or your mail come later. Your own skills are not offered to AI apps connected through the MCP server; only the skills that come with Plainva are.
+Skills run no scripts. Your own skills are not offered to AI apps connected through the MCP server; only the skills that come with Plainva are.

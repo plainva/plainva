@@ -527,6 +527,26 @@
         "failed": "The image could not be explained: {{reason}}"
       }
     },
+    "capture": {
+      "action": "Keep as a note",
+      "done": "Kept as a note: {{name}}",
+      "doneInherited": "Kept as a note: {{name}}. It carries the privacy rules of the notes it rests on.",
+      "failed": "The answer could not be kept as a note: {{reason}}",
+      "fallbackTitle": "AI answer",
+      "intro": "Answer by Plainva AI · {{model}}, {{date}}, to: “{{question}}”",
+      "sources": "Sources",
+      "web": "From the web",
+      "vault": "From your notes",
+      "read": "read on {{date}}",
+      "search": "Search “{{query}}” via {{provider}}, {{date}}",
+      "shared": {
+        "title": "Keep it where others read it?",
+        "note": "Note",
+        "folder": "Goes into",
+        "hint": "This vault is a shared workspace: its members can read a note here, and so can the readers of a publication that covers the folder.",
+        "deny": "Don't keep"
+      }
+    },
     "lint": {
       "defused": "New web addresses were defused: readable, but not links."
     },
@@ -586,6 +606,16 @@
         "title": "Reflection",
         "description": "Look back on your notes of a day or a week — kindly, without a diagnosis.",
         "prompt": "Reflect with me on my daily notes of the last seven days: what stands out, what went well, what seems to weigh on me, and a few questions to think on."
+      },
+      "research": {
+        "title": "Research",
+        "description": "Research a question on the web and in your notes, with every source named.",
+        "prompt": "I want to research something on the web and in my notes. If the open note names the topic, research it; otherwise ask me what to look for."
+      },
+      "mailcal": {
+        "title": "Mail and calendar",
+        "description": "Go through recent mail and the coming appointments: what needs an answer, what to prepare, which tasks follow.",
+        "prompt": "Go through my mail of the last three days and my appointments of the coming week: what needs an answer, what should I prepare, and which tasks follow from it?"
       }
     },
     "workshop": {
@@ -627,6 +657,8 @@
       "mayWholeVault": "Notes in the whole vault, as far as your rules allow",
       "mayBudget": "At most {{tokens}} tokens per answer",
       "mayReadOnly": "Changes nothing, sends nothing.",
+      "mayWeb": "Uses the internet where you allowed it for this vault. While notes are in the conversation, every page and every search asks first.",
+      "mayNoChange": "Changes nothing.",
       "mayAgents": "Standing instructions for every new conversation in this vault. They cannot lift your privacy rules.",
       "originApp": "Comes with Plainva",
       "originPath": "Lies in {{path}}",
@@ -1294,7 +1326,7 @@
     "askBeforeCreateLink": "Ask before creating empty links",
     "askBeforeCreateLinkDesc": "Clicking a link to a note that doesn't exist yet normally creates it right away. With this option, you're asked first.",
     "inboxFolder": "Inbox folder",
-    "inboxFolderDesc": "Where the ＋ quick capture on your phone puts a note, and where text shared from another app lands. The desktop always creates notes where you point it.",
+    "inboxFolderDesc": "Where the ＋ quick capture on your phone puts a note, where text shared from another app lands, and where an AI answer you keep as a note goes — on the desktop too. Otherwise the desktop creates notes where you point it.",
     "attachmentFolder": "Attachments folder",
     "attachmentFolderDesc": "Where dropped, pasted and photographed files land. Leave empty to keep them beside the note.",
     "textFileExtensions": "More text files",

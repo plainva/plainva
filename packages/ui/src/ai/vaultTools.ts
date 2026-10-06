@@ -1,4 +1,5 @@
 import {
+  AI_POLICY_DIMENSIONS,
   findToolsText,
   gateDecision,
   isAiHiddenPath,
@@ -14,6 +15,7 @@ import {
   withholdDeniedLinks,
   withholdPlaces,
   withoutSensitiveProperties,
+  type AiPolicyDimension,
   type EffectivePolicy,
   type GateRun,
   type ToolExecutor,
@@ -96,7 +98,14 @@ export interface FurtherTools {
  */
 export interface ToolScope {
   inside(path: string): boolean;
-  passed?(path: string): void;
+  /**
+   * A path that passed the gate for this run. `rules`: the dimensions its own
+   * rules deny — it passed because this run does not concern them (a note
+   * kept from the cloud read by a model on this device, a note kept from the
+   * internet in a conversation without it). What is made of the run's answer
+   * inherits them (plan KI-Harness P4-6).
+   */
+  passed?(path: string, rules: readonly AiPolicyDimension[]): void;
 }
 
 /** The tools a new conversation carries; a conversation's own list never changes afterwards. */
@@ -208,18 +217,20 @@ function dayStart(key: string): Date | null {
  */
 export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope, redact?: ReadonlySet<string>, further?: FurtherTools): ToolExecutor {
   const cloud = isCloudRecipient(run.recipient);
-  const decisions = new Map<string, boolean>();
+  /** Per path: whether it passes here, and which of its rules deny it elsewhere. */
+  const decisions = new Map<string, { ok: boolean; rules: readonly AiPolicyDimension[] }>();
   const allowed = async (path: string, text?: string): Promise<boolean> => {
     // A search hit, a neighbour or a task below a hidden root does not exist for the model either.
     if (isAiHiddenPath(path)) return false;
     if (scope && !scope.inside(path)) return false;
-    let ok = decisions.get(path);
-    if (ok === undefined) {
-      ok = gateDecision(await deps.policyOf(path, text), run).allowed;
-      decisions.set(path, ok);
+    let decision = decisions.get(path);
+    if (decision === undefined) {
+      const effective = await deps.policyOf(path, text);
+      decision = { ok: gateDecision(effective, run).allowed, rules: AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny") };
+      decisions.set(path, decision);
     }
-    if (ok) scope?.passed?.(path);
-    return ok;
+    if (decision.ok) scope?.passed?.(path, decision.rules);
+    return decision.ok;
   };
   /**
    * What any vault text passes: place stamps withheld for everyone, links to

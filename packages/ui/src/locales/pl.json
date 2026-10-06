@@ -567,6 +567,26 @@
         "failed": "Nie udało się wyjaśnić obrazu: {{reason}}"
       }
     },
+    "capture": {
+      "action": "Zachowaj jako notatkę",
+      "done": "Zachowano jako notatkę: {{name}}",
+      "doneInherited": "Zachowano jako notatkę: {{name}}. Niesie ze sobą zasady prywatności notatek, na których się opiera.",
+      "failed": "Nie udało się zachować odpowiedzi jako notatki: {{reason}}",
+      "fallbackTitle": "Odpowiedź AI",
+      "intro": "Odpowiedź Plainva AI · {{model}}, {{date}}, na pytanie: „{{question}}”",
+      "sources": "Źródła",
+      "web": "Z sieci",
+      "vault": "Z Twoich notatek",
+      "read": "odczytano {{date}}",
+      "search": "Wyszukiwanie „{{query}}” przez {{provider}}, {{date}}",
+      "shared": {
+        "title": "Zachować tam, gdzie czytają inni?",
+        "note": "Notatka",
+        "folder": "Trafia do",
+        "hint": "Ten vault jest wspólnym obszarem roboczym: jego członkowie mogą tu przeczytać notatkę, podobnie jak czytelnicy publikacji obejmującej ten folder.",
+        "deny": "Nie zachowuj"
+      }
+    },
     "lint": {
       "defused": "Nowe adresy internetowe zostały unieszkodliwione: da się je przeczytać, ale nie są linkami."
     },
@@ -626,6 +646,16 @@
         "title": "Refleksja",
         "description": "Spojrzenie wstecz na notatki z dnia lub tygodnia — życzliwie, bez diagnozy.",
         "prompt": "Zastanów się ze mną nad moimi notatkami dziennymi z ostatnich siedmiu dni: co się wyróżnia, co poszło dobrze, co wydaje się mi ciążyć i kilka pytań do przemyślenia."
+      },
+      "research": {
+        "title": "Badanie tematu",
+        "description": "Zbadanie pytania w internecie i w Twoich notatkach, z podaniem każdego źródła.",
+        "prompt": "Chcę coś zbadać w internecie i w moich notatkach. Jeśli otwarta notatka wymienia temat, zbadaj go; w przeciwnym razie zapytaj mnie, czego szukać."
+      },
+      "mailcal": {
+        "title": "E-mail i kalendarz",
+        "description": "Przejrzenie ostatnich e-maili i nadchodzących spotkań: co wymaga odpowiedzi, co przygotować, jakie zadania z tego wynikają.",
+        "prompt": "Przejrzyj moje e-maile z ostatnich trzech dni i moje spotkania z nadchodzącego tygodnia: co wymaga odpowiedzi, co warto przygotować i jakie zadania z tego wynikają?"
       }
     },
     "workshop": {
@@ -667,6 +697,8 @@
       "mayWholeVault": "Notatki w całym vaulcie, na ile pozwalają reguły",
       "mayBudget": "Najwyżej {{tokens}} tokenów na odpowiedź",
       "mayReadOnly": "Niczego nie zmienia, niczego nie wysyła.",
+      "mayWeb": "Korzysta z internetu tam, gdzie dopuścisz to dla tego vaultu. Dopóki w rozmowie są notatki, każda strona i każde wyszukiwanie pytają najpierw.",
+      "mayNoChange": "Niczego nie zmienia.",
       "mayAgents": "Stałe instrukcje dla każdej nowej rozmowy w tym vaulcie. Nie mogą uchylić reguł prywatności.",
       "originApp": "Dołączona do Plainva",
       "originPath": "Leży w {{path}}",
@@ -1362,7 +1394,7 @@
     "askBeforeCreateLink": "Pytaj przed utworzeniem pustych linków",
     "askBeforeCreateLinkDesc": "Kliknięcie linku do notatki, która jeszcze nie istnieje, zwykle tworzy ją od razu. Przy tej opcji najpierw pojawia się pytanie.",
     "inboxFolder": "Folder skrzynki",
-    "inboxFolderDesc": "Miejsce, gdzie szybkie przechwytywanie ＋ na Twoim telefonie zapisuje notatkę i gdzie trafia tekst udostępniony z innej aplikacji. Na komputerze notatki są zawsze tworzone tam, gdzie wskażesz.",
+    "inboxFolderDesc": "Miejsce, gdzie szybkie przechwytywanie ＋ na Twoim telefonie zapisuje notatkę, gdzie trafia tekst udostępniony z innej aplikacji i dokąd idzie odpowiedź AI, którą zachowasz jako notatkę — także na komputerze. Poza tym na komputerze notatki są tworzone tam, gdzie wskażesz.",
     "attachmentFolder": "Folder załączników",
     "attachmentFolderDesc": "Gdzie trafiają pliki upuszczone, wklejone i sfotografowane. Zostaw puste, aby trzymać je obok notatki.",
     "textFileExtensions": "Więcej plików tekstowych",

@@ -44,14 +44,21 @@ enough. The review runs in parallel and does not block (E33).
    and, where it answered from the vault or the web, `sources` — written once,
    at the moment of creation, through the OKF write path (ADR 0009). This is
    the machine-readable marking that travels with the file into every other
-   tool, export and publication.
+   tool, export and publication. The first such note is an answer the user
+   keeps as a note (ADR 0019 §11): besides the stamp, its first line says in
+   words that an AI wrote it, with the model, the time and the question, so
+   the marking is also there for a person who reads the file anywhere else.
+   Nothing sets `verified` on it.
 4. **No note-level marking for passages.** An accepted change inside an
    existing note does not stamp the note: a note-level flag cannot say which
    passage the AI wrote and would mislabel the human text around it. The
    passage-level record is the suggestion history (item 2).
 5. **Encrypted workspaces:** the harness makes no proposals and writes no
    replies there until the sealed comment path carries the author field
-   (ADR 0017), so the marking can never be lost in that path.
+   (ADR 0017), so the marking can never be lost in that path. An answer kept
+   as a note is written there like any note, through the workspace's own
+   adapter chain with the member's rights: its marking stands in the note's
+   own frontmatter and first line and travels with the note.
 6. The OKF trust fields are a critical write class (ADR 0019): the harness
    can never write `verified` with a `human:` actor or remove a `generated`
    stamp.

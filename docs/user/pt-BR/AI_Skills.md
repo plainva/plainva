@@ -2,7 +2,7 @@
 
 Última revisão: 2026-10-06
 
-Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz dez, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
+Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz doze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
 
 ## Usar uma habilidade
 
@@ -19,13 +19,25 @@ Você também pode simplesmente perguntar. Em toda conversa a IA conhece os nome
 | **Status do projeto** | Objetivo, progresso, pontos em aberto e o próximo passo de um projeto. |
 | **Preparar reunião** | Prepara uma reunião a partir de notas anteriores e pontos em aberto, ou a resume depois. |
 | **Triagem de tarefas** | Organiza suas tarefas abertas: o que agora, o que pode esperar, o que descartar. |
+| **Investigar** | Investiga uma pergunta na web e nas suas notas, com cada fonte citada. |
+| **E-mail e calendário** | Repassa os e-mails recentes e os próximos compromissos: o que precisa de resposta, o que preparar, quais tarefas decorrem disso. |
 | **Escrever e revisar** | Resume, encurta ou reescreve uma nota — como texto que você aproveita. |
 | **Cuidar do conhecimento** | Encontra notas que dizem o mesmo, estão desatualizadas ou não se ligam a nada. |
 | **Revisar links** | Verifica os links de uma nota: que não levam a lugar nenhum, que faltam, de mão única. |
 | **Verificar privacidade** | Encontra o que de uma nota deveria ficar neste dispositivo e sugere uma regra. |
 | **Reflexão** | Revisita com você as notas de um dia ou de uma semana — com gentileza, nunca um diagnóstico. |
 
-Todas apenas leem: nenhuma altera uma nota, envia algo ou acessa a internet. Verificar privacidade e Reflexão foram pensadas para um modelo neste dispositivo; com um modelo na nuvem a visão de envio avisa. Desligue qualquer habilidade em **Habilidades** — o interruptor vale para este vault neste dispositivo. **Criar sua própria versão** copia uma para o seu vault, onde você pode alterá-la.
+Todas apenas leem: nenhuma altera uma nota ou envia algo. Só **Investigar** usa a internet, e só **E-mail e calendário** lê seu e-mail — veja abaixo. Verificar privacidade e Reflexão foram pensadas para um modelo neste dispositivo; com um modelo na nuvem a visão de envio avisa. Desligue qualquer habilidade em **Habilidades** — o interruptor vale para este vault neste dispositivo. **Criar sua própria versão** copia uma para o seu vault, onde você pode alterá-la.
+
+## Na internet e no seu e-mail
+
+**Investigar** é a única habilidade que vem com o Plainva e usa a internet. Iniciá-la é uma escolha sua para a conversa dela, como o globo abaixo do campo de entrada: onde você ativou **A IA pode usar a internet neste vault**, ela pesquisa e lê páginas — e enquanto suas notas estiverem na conversa, cada página e cada pesquisa continua perguntando antes, como descrito em **Na internet**, em [Assistente de IA](AI_Assistant.md). Onde o interruptor está desligado, ela investiga só nas suas notas e diz isso. O mesmo vale quando a IA carrega a habilidade por conta própria em uma conversa que você começou sem internet.
+
+**E-mail e calendário** lê e-mail pela mesma pergunta de qualquer conversa: **Ler seu e-mail?** na primeira vez. Ela nunca lê sozinha o texto de uma mensagem; um segundo leitor, sem ferramentas, escreve um relatório sobre ele. Ambos estão descritos em [Assistente de IA](AI_Assistant.md).
+
+Uma habilidade sua só usa a internet quando a linha `allowed-tools` dela nomeia `web_search` ou `fetch_url`. **Revisar e aprovar** então diz **Usa a internet onde você a permitiu para este vault.** antes de você aprová-la. Uma habilidade que não nomeia ferramentas nunca traz a internet junto.
+
+Uma execução de teste nunca usa a internet e nunca pergunta: o e-mail que ela não tinha permissão para ler nesta sessão continua não lido.
 
 ## Suas próprias habilidades
 
@@ -70,4 +82,4 @@ A visão de envio mostra em **Instruções** o que vai junto: a habilidade da co
 
 ## Limites da beta
 
-As habilidades não executam scripts, e as que precisam da web ou do seu e-mail virão depois. Suas próprias habilidades não são oferecidas aos apps de IA conectados pelo servidor MCP; apenas as incluídas no Plainva.
+As habilidades não executam scripts. Suas próprias habilidades não são oferecidas aos apps de IA conectados pelo servidor MCP; apenas as incluídas no Plainva.

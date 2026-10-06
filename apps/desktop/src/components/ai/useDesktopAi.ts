@@ -23,6 +23,8 @@ import {
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
+import { applyIndexChanges } from "../../services/fileActions";
+import { notifyFileOps } from "../../services/indexMdAutoUpdate";
 import { AI_OPEN_EVENT, AI_SKILLS_EVENT, createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { AI_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
@@ -84,10 +86,20 @@ export function useDesktopAi(input: DesktopAiInput) {
   });
   // Appointments come from the PIM cache of the open vault, when it has one;
   // an AI suggestion round goes through its comment service (plan P1.5).
-  const { pimRuntime, commentOperations, dbAdapter } = useVault();
+  const { pimRuntime, commentOperations, dbAdapter, indexer, triggerFileTreeUpdate } = useVault();
   const comments = useRef(commentOperations);
   useLayoutEffect(() => {
     comments.current = commentOperations;
+  });
+  // A note the assistant's "Keep as a note" wrote (plan P4-6) is made known like any new file: to the index, to the tree,
+  // and to whoever follows file operations (the folder's index.md).
+  const created = useRef<(path: string) => Promise<void>>(async () => undefined);
+  useLayoutEffect(() => {
+    created.current = async (path) => {
+      if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+      triggerFileTreeUpdate([path]);
+      notifyFileOps([{ type: "create", path }]);
+    };
   });
   const pim = useRef(pimRuntime);
   useLayoutEffect(() => {
@@ -138,6 +150,7 @@ export function useDesktopAi(input: DesktopAiInput) {
       commands,
       db: () => db.current,
       commentOperations: () => comments.current,
+      noteCreated: (path) => created.current(path),
       semantic: () => latest.current.embeddings ?? null,
       gists: () => latest.current.gists ?? null,
     });

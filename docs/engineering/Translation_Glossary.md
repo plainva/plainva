@@ -83,6 +83,25 @@ The skill titles are UI strings (`ai.skills.*`); the MCP prompt names (`daily-or
 | zh-CN | AI | 悬浮窗 | 技能 | Plainva AI · ⟨模型⟩ |
 | ja | AI | コンパニオン | スキル | Plainva AI · ⟨モデル⟩ |
 
+Two terms that must not borrow a word the app already uses for something else
+(`ai.capture.action`, `ai.skills.research.title`): **Keep as a note** — an AI
+answer kept as a note — is never the label of the mail-to-note action ("Save
+as note" and its translations); its verb is the one of "Keep conversations".
+The skill **Research** never uses the word of the search field.
+
+| Language | Keep as a note | Research (the skill) |
+|---|---|---|
+| en | Keep as a note | Research |
+| de | Als Notiz festhalten | Recherche |
+| fr | Conserver comme note | Se documenter |
+| es | Conservar como nota | Investigación |
+| pt-BR | Manter como nota | Investigar |
+| it | Conserva come nota | Documentarsi |
+| nl | Bewaren als notitie | Onderzoek |
+| pl | Zachowaj jako notatkę | Badanie tematu |
+| zh-CN | 保留为笔记 | 调研 |
+| ja | ノートとして残す | リサーチ |
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

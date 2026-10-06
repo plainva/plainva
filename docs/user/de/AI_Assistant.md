@@ -106,7 +106,7 @@ Der Faden geht an das Modell wie eine Frage: seine Kommentare, die Stelle, an de
 
 ## Skills
 
-Skills sind Anleitungen für wiederkehrende Arbeit. Zehn kommen mit Plainva — darunter **Tagesorientierung**, **Wochenrückblick** und **Projektstatus** als Chips in einem leeren Gespräch —, eigene kannst Du schreiben oder importieren. Starte einen mit einem Klick oder frag einfach: die KI lädt einen passenden Skill selbst. Eigene Skills laufen erst, wenn Du sie auf diesem Gerät freigegeben hast. Alles dazu: [Skills](AI_Skills.md).
+Skills sind Anleitungen für wiederkehrende Arbeit. Zwölf kommen mit Plainva — darunter **Tagesorientierung**, **Wochenrückblick** und **Projektstatus** als Chips in einem leeren Gespräch —, eigene kannst Du schreiben oder importieren. Starte einen mit einem Klick oder frag einfach: die KI lädt einen passenden Skill selbst. Eigene Skills laufen erst, wenn Du sie auf diesem Gerät freigegeben hast. Alles dazu: [Skills](AI_Skills.md).
 
 ## Eine Sprachnotiz transkribieren
 
@@ -134,7 +134,7 @@ Das Bild geht mit der Frage an das Modell, mit dem neue Gespräche beginnen — 
 Der Assistent kann das Internet erst benutzen, wenn Du es erlaubst — und zwar dreimal:
 
 1. **Für den Vault.** Schalte in **Einstellungen → KI & Automatisierung** (dem Vault-Teil) **Die KI darf in diesem Vault ins Internet** ein. Der Schalter ist für jeden Vault aus, bis Du entscheidest, und gilt nur auf diesem Gerät.
-2. **Für ein Gespräch.** Drücke vor der ersten Nachricht eines neuen Gesprächs die Weltkugel unter dem Eingabefeld — **Dieses Gespräch ins Internet lassen**. Ob ein Gespräch ins Internet darf, entscheidet sich bei seinem Beginn; um es zu ändern, beginne ein neues Gespräch. Ein Gespräch, das es darf, sagt das in seiner ersten Zeile.
+2. **Für ein Gespräch.** Drücke vor der ersten Nachricht eines neuen Gesprächs die Weltkugel unter dem Eingabefeld — **Dieses Gespräch ins Internet lassen**. Ob ein Gespräch ins Internet darf, entscheidet sich bei seinem Beginn; um es zu ändern, beginne ein neues Gespräch. Ein Gespräch, das es darf, sagt das in seiner ersten Zeile. Den Skill **Recherche** zu starten ist dieselbe Wahl: Sein Gespräch darf ins Internet — siehe [Skills](AI_Skills.md).
 3. **Für jede Anfrage.** Solange Deine Notizen im Gespräch sind, fragt jede Seite, die der Assistent lesen will, und jede Suche vorher — mit der ganzen Adresse oder den Suchwörtern, denn das ist alles, was Dein Gerät dafür verlässt. **Seite lesen** oder **Suchen** lässt diese eine Anfrage durch; **Nicht lesen** oder **Nicht suchen** lässt sie weg, und der Assistent macht ohne sie weiter.
 
 **Was eine Anfrage ist.** Eine Seite zu lesen ist eine Anfrage von diesem Gerät an die Website, wie das Öffnen der Seite im Browser — ohne Cookies, ohne Anmeldung und ohne etwas aus Deinen Notizen; wie bei jedem Besuch sieht die Website Deine Internet-Adresse. Gelesen werden nur öffentliche Seiten über `https`; Adressen in Deinem Heim- oder Firmennetz werden abgelehnt. Eine Suche geht an den Anbieter Deines Modells — Anthropic, OpenAI, Google Gemini oder OpenRouter —, der genau mit den Wörtern sucht, die Dir gezeigt wurden; Anbieter können Suchen gesondert berechnen. Ein Modell auf diesem Gerät kann Seiten lesen, aber nicht suchen, und das Modell des Systems am Telefon kann das Internet gar nicht benutzen.
@@ -158,6 +158,18 @@ Ein Link in einer Antwort, dessen Adresse das Modell selbst gebildet hat, ist ma
 **Was der Assistent davon liest.** Von einer Suche sieht er Datum, Absender und Betreff der Nachrichten — nie ihren Text. Den Text einer Nachricht und die Beschreibung eines Termins liest er nie selbst: andere haben sie geschrieben, und wer eine Mail oder eine Einladung schreibt, kann sie für genau diesen Leser schreiben. Ein zweiter Leser ohne jedes Werkzeug liest sie und schreibt einen kurzen Bericht — eine Zusammenfassung, Aussagen mit der Stelle, auf der sie beruhen, und Links, die wirklich darin stehen. Ist unter **Modelle und Profile** ein Modell auf diesem Gerät als **Lokal** eingerichtet, ist es dieser Leser, und der Text selbst verlässt das Gerät nicht; an den Anbieter geht nur der Bericht. Sonst liest der Anbieter des Gesprächs, in einer eigenen Anfrage ohne Werkzeuge. Die Frage sagt Dir vorher, wer liest.
 
 **Was sich nicht ändert.** Der Assistent liest nur: eine Nachricht, die er gelesen hat, bleibt ungelesen, nichts wird verschoben, beantwortet oder gelöscht, und Anhänge öffnet er nicht — er nennt nur ihre Namen. Unter der Antwort siehst Du, wie viele Nachrichten gelesen wurden, und die Zeile darunter sagt, wer den Text gelesen hat.
+
+## Eine Antwort als Notiz festhalten
+
+Unter jeder fertigen Antwort macht **Als Notiz festhalten** aus der Antwort eine Notiz Deines Vaults. Du drückst es, und Plainva schreibt die Notiz — der Assistent selbst ändert weiterhin nichts.
+
+- **Wohin sie kommt.** In den **Eingangsordner** des Vaults (**Einstellungen → Inhalt & Struktur**; am Telefon heißt er **Inbox-Ordner**), unter einem Namen aus Deiner Frage — in einem Gespräch, das ein Skill begonnen hat, aus dem Skill und der geöffneten Notiz oder dem Tag. Eine Notiz, die schon dort liegt, wird nie angerührt: die neue bekommt den nächsten freien Namen. Plainva öffnet sie sofort.
+- **Wer sie geschrieben hat.** Die erste Zeile sagt es in Worten — eine Antwort von Plainva KI, mit dem Modell, der Uhrzeit und Deiner Frage. Die Eigenschaften der Notiz sagen dasselbe für andere Werkzeuge: `generated`, mit dem Modell und der Uhrzeit. Nichts kennzeichnet die Notiz als geprüft; das bleibt Deine Sache — siehe [OKF](OKF.md).
+- **Worauf sie sich stützt.** Unter der Antwort listet **Quellen** auf, was der Lauf wirklich benutzt hat. Diese Liste schreibt Plainva aus dem eigenen Protokoll, nicht das Modell: die gelesenen Seiten und wann, die Suchen und über welchen Anbieter, und Deine Notizen, die mitgingen oder gelesen wurden. Die Eigenschaften tragen dieselbe Liste als `sources`.
+- **Adressen.** Jede Webadresse, die das Modell in seine Antwort geschrieben hat, steht so da, dass nichts sie öffnet oder lädt (`https[://]…`), und ein Bild aus dem Web ist in der Notiz nie ein Bild. Nur die Seiten unter **Quellen** sind echte Links: Adressen, die der Lauf mit Deiner Erlaubnis gelesen hat. Links zu Deinen eigenen Notizen bleiben Links.
+- **Regeln.** Eine festgehaltene Antwort erbt die Datenschutzregeln dessen, worauf sie beruht. Ist eine Notiz, die im Gespräch mitging oder die der Assistent gelesen hat, von der Cloud oder vom Internet ausgenommen, trägt die neue Notiz dieselbe Regel — in die Notiz selbst geschrieben, wo ihr Ordner mehr erlauben würde. So erreicht eine Antwort, die ein Modell auf diesem Gerät aus einer privaten Notiz gemacht hat, auch als Notiz keine Cloud.
+
+In einem geteilten Workspace können seine Mitglieder eine Notiz lesen — und ebenso die Leser einer Publikation, die den Ordner umfasst. Dort fragt Plainva jedes Mal, mit dem Namen der Notiz und dem Ordner: **Als Notiz festhalten** schreibt sie, **Nicht festhalten** lässt es.
 
 ## Datenschutzregeln
 
@@ -183,6 +195,6 @@ Gespräche bleiben auf diesem Gerät, je Vault — nie im Vault und nie synchron
 
 - Am Desktop läuft die KI nur im Hauptfenster.
 - Am Telefon kommt eine Antwort nur, solange die App geöffnet ist.
-- Der Assistent ändert keine Notiz selbst: Änderungen an einer markierten Stelle und Transkripte von Sprachnotizen schlägt er vor, als Vorschläge, die Du übernimmst oder ablehnst; in einem Kommentar-Faden schreibt er eine Antwort neben die Notiz, nie Text in sie.
+- Der Assistent ändert keine Notiz selbst: Änderungen an einer markierten Stelle und Transkripte von Sprachnotizen schlägt er vor, als Vorschläge, die Du übernimmst oder ablehnst; in einem Kommentar-Faden schreibt er eine Antwort neben die Notiz, nie Text in sie. Eine Antwort wird nur dann zu einer Notiz, wenn Du **Als Notiz festhalten** drückst; dann schreibt Plainva sie, nicht der Assistent.
 
 Rückmeldungen zur Beta gehen in die Diskussionen des Projekts auf GitHub: **Rückmeldung zur KI (Beta)** in den Einstellungen beginnt eine.

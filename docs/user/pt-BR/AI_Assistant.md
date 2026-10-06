@@ -106,7 +106,7 @@ O tópico vai para o modelo como uma pergunta: seus comentários, o trecho ao qu
 
 ## Habilidades
 
-Habilidades são instruções para trabalho recorrente. Dez vêm com o Plainva — entre elas **Orientação do dia**, **Revisão semanal** e **Status do projeto** como chips em uma conversa vazia — e você pode escrever ou importar as suas. Inicie uma com um clique ou simplesmente pergunte: a IA carrega sozinha uma habilidade adequada. Suas próprias habilidades só rodam depois que você as aprova neste dispositivo. Tudo sobre elas: [Habilidades](AI_Skills.md).
+Habilidades são instruções para trabalho recorrente. Doze vêm com o Plainva — entre elas **Orientação do dia**, **Revisão semanal** e **Status do projeto** como chips em uma conversa vazia — e você pode escrever ou importar as suas. Inicie uma com um clique ou simplesmente pergunte: a IA carrega sozinha uma habilidade adequada. Suas próprias habilidades só rodam depois que você as aprova neste dispositivo. Tudo sobre elas: [Habilidades](AI_Skills.md).
 
 ## Transcrever uma nota de voz
 
@@ -134,7 +134,7 @@ A imagem vai, com a pergunta, para o modelo com que as novas conversas começam 
 O assistente não pode usar a internet até você permitir — três vezes:
 
 1. **Para o vault.** Em **Configurações → IA e automação** (a parte do Vault), ative **A IA pode usar a internet neste vault**. O interruptor fica desligado em todos os vaults até você decidir e vale somente neste dispositivo.
-2. **Para uma conversa.** Antes da primeira mensagem de uma nova conversa, pressione o globo abaixo do campo de entrada — **Deixar esta conversa usar a internet**. Se uma conversa pode ou não usar a internet é decidido quando ela começa; para mudar isso, comece uma nova conversa. Uma conversa que pode usá-la diz isso na primeira linha.
+2. **Para uma conversa.** Antes da primeira mensagem de uma nova conversa, pressione o globo abaixo do campo de entrada — **Deixar esta conversa usar a internet**. Se uma conversa pode ou não usar a internet é decidido quando ela começa; para mudar isso, comece uma nova conversa. Uma conversa que pode usá-la diz isso na primeira linha. Iniciar a habilidade **Investigar** é a mesma escolha: a conversa dela pode usar a internet — veja [Habilidades](AI_Skills.md).
 3. **Para cada solicitação.** Enquanto suas notas estiverem na conversa, cada página que o assistente quer ler e cada pesquisa que ele quer fazer perguntam antes, com o endereço completo ou as palavras da pesquisa — é tudo o que sai do seu dispositivo para isso. **Ler página** ou **Pesquisar** deixa passar esta única solicitação; **Não ler** ou **Não pesquisar** a deixa de lado, e o assistente continua sem ela.
 
 **O que é uma solicitação.** Ler uma página é uma solicitação deste dispositivo ao site, como abrir a página em um navegador — sem cookies, sem login e sem nada das suas notas; como em qualquer visita, o site vê o seu endereço IP. Só páginas públicas via `https` são lidas; endereços da sua rede doméstica ou da empresa são recusados. Uma pesquisa vai para o provedor do seu modelo — Anthropic, OpenAI, Google Gemini ou OpenRouter —, que pesquisa exatamente com as palavras que lhe foram mostradas; os provedores podem cobrar as pesquisas separadamente. Um modelo neste dispositivo pode ler páginas, mas não pode pesquisar, e o modelo do sistema no celular não pode usar a internet de forma alguma.
@@ -158,6 +158,18 @@ Um link em uma resposta cujo endereço o próprio modelo montou é marcado, e a 
 **O que o assistente lê do e-mail.** De uma pesquisa, ele vê a data, o remetente e o assunto das mensagens — nunca o texto delas. Ele nunca lê sozinho o texto de uma mensagem nem a descrição de um compromisso: outras pessoas os escreveram, e quem escreve um e-mail ou um convite pode escrevê-lo justamente para esse leitor. Um segundo leitor, sem nenhuma ferramenta, os lê e escreve um relatório curto — um resumo, afirmações com o trecho em que se baseiam e links que realmente estão ali. Se um modelo neste dispositivo estiver definido como **Local** em **Modelos e perfis**, esse modelo é o leitor, e o texto em si não sai do dispositivo; só o relatório vai para o provedor. Caso contrário, quem lê é o provedor da conversa, em uma solicitação à parte, sem ferramentas. A pergunta diz de antemão quem lê.
 
 **O que não muda.** O assistente só lê: uma mensagem que ele leu continua não lida, e ele não move, não responde e não exclui nada, nem abre anexos — só diz o nome deles. Abaixo da resposta você vê quantas mensagens foram lidas, e a linha abaixo dela diz quem leu o texto.
+
+## Manter uma resposta como nota
+
+Abaixo de cada resposta concluída, **Manter como nota** transforma a resposta em uma nota do seu vault. Você pressiona e o Plainva escreve a nota — o assistente em si continua não mudando nada.
+
+- **Para onde vai.** Para a **Pasta de entrada** do vault (**Configurações → Conteúdo e estrutura**), com um nome tirado da sua pergunta — em uma conversa iniciada por uma habilidade, da habilidade e da nota que estava aberta, ou do dia. Uma nota que já está lá nunca é tocada: a nova recebe o próximo nome livre. O Plainva a abre na hora.
+- **Quem a escreveu.** A primeira linha diz isso em palavras — uma resposta do Plainva IA, com o modelo, a hora e a sua pergunta. As propriedades da nota dizem o mesmo para outras ferramentas: `generated`, com o modelo e a hora. Nada marca a nota como revisada; isso continua sendo coisa sua — veja [OKF](OKF.md).
+- **Em que ela se baseia.** Abaixo da resposta, **Fontes** lista o que a execução realmente usou. O Plainva escreve essa lista a partir do próprio registro, não o modelo: as páginas lidas e quando, as pesquisas e por qual provedor, e as suas notas que foram junto ou foram lidas. As propriedades trazem a mesma lista como `sources`.
+- **Endereços.** Todo endereço da web que o modelo escreveu na resposta é escrito de modo que nada o abra ou carregue (`https[://]…`), e uma imagem da web nunca é uma imagem na nota. Só as páginas em **Fontes** são links de verdade: endereços que a execução leu com a sua permissão. Links para as suas próprias notas continuam sendo links.
+- **Regras.** Uma resposta mantida herda as regras de privacidade daquilo em que se baseia. Se uma nota que estava na conversa, ou uma que o assistente leu, é mantida fora da nuvem ou da internet, a nova nota leva a mesma regra — escrita na própria nota onde a pasta dela permitiria mais. Assim, uma resposta que um modelo neste dispositivo fez a partir de uma nota privada também não chega a uma nuvem como nota.
+
+Em um workspace compartilhado, os membros dele podem ler uma nota — e também os leitores de uma publicação que abrange a pasta. Ali o Plainva pergunta sempre, com o nome da nota e a pasta: **Manter como nota** a escreve, **Não manter** não escreve nada.
 
 ## Regras de privacidade
 
@@ -183,6 +195,6 @@ As conversas ficam neste dispositivo, por vault — nunca no vault e nunca sincr
 
 - No desktop, a IA roda apenas na janela principal.
 - No celular, uma resposta só chega enquanto o Plainva estiver aberto.
-- O assistente não muda nenhuma nota sozinho: propõe alterações em um trecho selecionado e transcrições de notas de voz, como sugestões que você aceita ou recusa; em um tópico de comentários ele escreve uma resposta ao lado da nota, nunca texto dentro dela.
+- O assistente não muda nenhuma nota sozinho: propõe alterações em um trecho selecionado e transcrições de notas de voz, como sugestões que você aceita ou recusa; em um tópico de comentários ele escreve uma resposta ao lado da nota, nunca texto dentro dela. Uma resposta só vira nota quando você pressiona **Manter como nota**; é então que o Plainva a escreve, não o assistente.
 
 O feedback sobre a beta vai para as discussões do projeto no GitHub: **Feedback sobre a IA (beta)** nas configurações abre uma.

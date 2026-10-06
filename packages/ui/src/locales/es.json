@@ -547,6 +547,26 @@
         "failed": "No se pudo explicar la imagen: {{reason}}"
       }
     },
+    "capture": {
+      "action": "Conservar como nota",
+      "done": "Conservada como nota: {{name}}",
+      "doneInherited": "Conservada como nota: {{name}}. Lleva las reglas de privacidad de las notas en las que se basa.",
+      "failed": "La respuesta no se pudo conservar como nota: {{reason}}",
+      "fallbackTitle": "Respuesta de la IA",
+      "intro": "Respuesta de Plainva IA · {{model}}, {{date}}, a la pregunta: «{{question}}»",
+      "sources": "Fuentes",
+      "web": "De la web",
+      "vault": "De tus notas",
+      "read": "leída el {{date}}",
+      "search": "Búsqueda «{{query}}» a través de {{provider}}, {{date}}",
+      "shared": {
+        "title": "¿Conservarla donde otros la leen?",
+        "note": "Nota",
+        "folder": "Va a",
+        "hint": "Este vault es un espacio de trabajo compartido: sus miembros pueden leer aquí una nota, y también los lectores de una publicación que abarque la carpeta.",
+        "deny": "No conservar"
+      }
+    },
     "lint": {
       "defused": "Las direcciones web nuevas se han desactivado: se leen, pero no son enlaces."
     },
@@ -606,6 +626,16 @@
         "title": "Reflexión",
         "description": "Repasa tus notas de un día o una semana, con amabilidad y sin diagnósticos.",
         "prompt": "Reflexiona conmigo sobre mis notas diarias de los últimos siete días: qué destaca, qué salió bien, qué parece pesarme y algunas preguntas para pensar."
+      },
+      "research": {
+        "title": "Investigación",
+        "description": "Investiga una pregunta en la web y en tus notas, con cada fuente citada.",
+        "prompt": "Quiero investigar algo en la web y en mis notas. Si la nota abierta nombra el tema, investígalo; si no, pregúntame qué debes buscar."
+      },
+      "mailcal": {
+        "title": "Correo y calendario",
+        "description": "Repasa el correo reciente y las próximas citas: qué necesita respuesta, qué preparar y qué tareas se derivan.",
+        "prompt": "Repasa mi correo de los últimos tres días y mis citas de la próxima semana: ¿qué necesita respuesta, qué debería preparar y qué tareas se derivan de ello?"
       }
     },
     "workshop": {
@@ -647,6 +677,8 @@
       "mayWholeVault": "Notas de todo el vault, en la medida en que tus reglas lo permitan",
       "mayBudget": "Como máximo {{tokens}} tokens por respuesta",
       "mayReadOnly": "No cambia nada ni envía nada.",
+      "mayWeb": "Usa Internet donde lo permitiste para este vault. Mientras haya notas en la conversación, cada página y cada búsqueda pregunta antes.",
+      "mayNoChange": "No cambia nada.",
       "mayAgents": "Instrucciones permanentes para cada conversación nueva en este vault. No pueden levantar tus reglas de privacidad.",
       "originApp": "Incluida en Plainva",
       "originPath": "Está en {{path}}",
@@ -1328,7 +1360,7 @@
     "askBeforeCreateLink": "Preguntar antes de crear enlaces vacíos",
     "askBeforeCreateLinkDesc": "Al hacer clic en un enlace a una nota que aún no existe, normalmente se crea de inmediato. Con esta opción, primero se te pregunta.",
     "inboxFolder": "Carpeta de entrada",
-    "inboxFolderDesc": "Donde la captura rápida ＋ de tu teléfono coloca una nota, y donde aterriza el texto compartido desde otra aplicación. El escritorio siempre crea las notas donde tú indiques.",
+    "inboxFolderDesc": "Donde la captura rápida ＋ de tu teléfono coloca una nota, donde aterriza el texto compartido desde otra aplicación y adonde va una respuesta de la IA que conservas como nota — también en el escritorio. Por lo demás, el escritorio crea las notas donde tú indiques.",
     "attachmentFolder": "Carpeta de adjuntos",
     "attachmentFolderDesc": "Dónde van los archivos soltados, pegados y fotografiados. Déjalo vacío para mantenerlos junto a la nota.",
     "textFileExtensions": "Más archivos de texto",

@@ -363,7 +363,9 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
       if (outcome.declined) declined = true;
       if (!declined) failuresInRow = outcome.isError ? failuresInRow + 1 : 0;
       input.onEvent?.({ type: "tool_done", call: meant, outcome, ms: Date.now() - started });
-      const content = outcome.origin && !outcome.isError ? fenceUntrusted(payload(outcome.content, outcome.origin)) : outcome.content;
+      // What names an origin is fenced as data — a failure too: one that quotes a stranger (the head of a message whose text
+      // no reader could report on) is still a stranger's words, and a failed tool is no way around the fence.
+      const content = outcome.origin ? fenceUntrusted(payload(outcome.content, outcome.origin)) : outcome.content;
       results.push({
         type: "tool_result",
         callId: call.id,

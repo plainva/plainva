@@ -14,6 +14,7 @@ export function AiCompanion({
   onClose,
   onOpenAsTab,
   onOpenNote,
+  onOpenCreated,
   onOpenUrl,
   onOpenSettings,
   onPickNote,
@@ -22,6 +23,8 @@ export function AiCompanion({
   onClose: () => void;
   onOpenAsTab: () => void;
   onOpenNote: (target: string) => void;
+  /** Opens a note the conversation just made — an answer kept as a note — in a tab of its own, beside what is open. */
+  onOpenCreated?: (path: string) => void;
   /** `composed`: the model put the address together itself (plan KI-Harness P4); the question before opening says so. */
   onOpenUrl: (url: string, composed?: boolean) => void;
   onOpenSettings: () => void;
@@ -55,7 +58,7 @@ export function AiCompanion({
         </>
       }
     >
-      <AiConversation selection={editorSelectionReader} dress="window" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+      <AiConversation selection={editorSelectionReader} dress="window" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
     </FloatingWindow>
   );
 }

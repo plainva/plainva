@@ -21,10 +21,12 @@ import {
   parseRecentsFile,
   plannerRowsFromTasks,
   postThreadReply,
+  profileDefault,
   proposeSuggestionRound,
   situationFrom,
   vaultMailSource,
   withCloudDenied,
+  writeCapturedNote,
   type AiFileStore,
   type AiNavigationCommand,
   type AiVaultHost,
@@ -32,7 +34,7 @@ import {
   type VaultPolicyHost,
 } from "@plainva/ui";
 import { checkedReadTextFile } from "../../adapters/checkedFilesystem";
-import { journalMoodPropertyKey } from "../../contexts/VaultContext";
+import { inboxFolderKey, journalMoodPropertyKey } from "../../contexts/VaultContext";
 import { buildDailyNotePath, readDailyNoteConfig } from "../dailyNotes";
 import { readEditorSelection } from "../editorSelection";
 import { getSettingsStore } from "../settingsStore";
@@ -179,11 +181,16 @@ export interface DesktopVaultInput {
   db: () => IDatabaseAdapter | null | undefined;
   /** The vault's comment service: where an AI suggestion round is written (plan P1.5). */
   commentOperations: () => CommentOperationService | null;
+  /** Makes a note the assistant's "Keep as a note" wrote known to the index and the file tree (plan P4-6). */
+  noteCreated?: (path: string) => Promise<void>;
   /** The vault's search by meaning, for the context package (plan P2b); null while there is none. */
   semantic?: () => LocalEmbeddings | null;
   /** The vault's gists by the model on this computer, for the context package (plan P2b-3); null while there are none. */
   gists?: () => LocalGists | null;
 }
+
+/** Where an answer kept as a note goes while the vault names no inbox folder of its own. Asked when it is needed: nothing of another package runs while this module loads. */
+const defaultInboxFolder = () => profileDefault<string>("inboxFolder") ?? "Inbox";
 
 let currentPolicy: VaultPolicyHost | null = null;
 
@@ -255,6 +262,21 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       await postThreadReply(service, reply);
     },
     encrypted: input.encrypted,
+    // "Keep as a note" (plan P4-6): into the vault's inbox folder, through the adapter chain like any note.
+    capture: {
+      async folder() {
+        try {
+          return ((await (await getSettingsStore()).get<string>(inboxFolderKey(input.vaultPath))) ?? "").trim() || defaultInboxFolder();
+        } catch {
+          return defaultInboxFolder();
+        }
+      },
+      async write(folder, stem, content) {
+        const path = await writeCapturedNote(input.adapter, folder, stem, content);
+        await input.noteCreated?.(path);
+        return path;
+      },
+    },
     gists: () => input.gists?.()?.reader() ?? null,
     async keepOnDevice(path) {
       // The editor's pending keystrokes land first, so the rule is written into the live text.

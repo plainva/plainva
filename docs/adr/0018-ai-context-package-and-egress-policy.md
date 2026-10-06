@@ -107,6 +107,22 @@ thinking blocks are involved).
       Elsewhere the provider answers; where its own model list names a
       model's input kinds, the overview says beforehand that the model reads
       no pictures, and sends all the same if the user wants.
+11. **What is made of an answer inherits the rules of its sources** (built
+    with P4-6). The gate decides what a recipient gets; it must not be
+    undone by writing the answer down. A model on the device may read a note
+    kept from the cloud, and a conversation without the internet may read a
+    note kept from it — so an answer the app turns into a note of the vault
+    (ADR 0019 §11) carries those rules on: `plainva.ai.cloud: deny` or
+    `plainva.ai.web: deny` in the new note, where the place it lands in
+    would allow more. The rules are those of everything the conversation
+    carried up to that answer. For what went along as context the overview's
+    record names the notes, and their rules are looked up when the note is
+    made; for what the tools let through, the gate reports each passing
+    note's rules while the run is on, and the run's record keeps the
+    dimension (`restricted`), never a path. A rule that cannot be looked up
+    counts as a denial. Suggestions, transcripts and replies in a comment
+    thread are written into, or beside, the note they come from and need no
+    such step: they are under that note's rule already.
 
 ## Consequences
 

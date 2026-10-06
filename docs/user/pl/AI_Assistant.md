@@ -106,7 +106,7 @@ Wątek trafia do modelu tak jak pytanie: jego komentarze, fragment, do którego 
 
 ## Umiejętności
 
-Umiejętności to instrukcje do powtarzalnej pracy. Dziesięć jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
+Umiejętności to instrukcje do powtarzalnej pracy. Dwanaście jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
 
 ## Transkrypcja notatki głosowej
 
@@ -134,7 +134,7 @@ Obraz trafia wraz z pytaniem do modelu, którym zaczynają się nowe rozmowy —
 Asystent nie może korzystać z internetu, dopóki tego nie dopuścisz — i to trzykrotnie:
 
 1. **Dla vaultu.** W **Ustawienia → AI & automatyzacja** (część vaultu) włącz **AI może korzystać z internetu w tym vaulcie**. Dla każdego vaultu przełącznik jest wyłączony, dopóki nie zdecydujesz, i obowiązuje tylko na tym urządzeniu.
-2. **Dla rozmowy.** Przed pierwszą wiadomością nowej rozmowy naciśnij ikonę globusa pod polem wpisywania — **Pozwól tej rozmowie korzystać z internetu**. To, czy rozmowa może korzystać z internetu, rozstrzyga się na jej początku; aby to zmienić, zacznij nową rozmowę. Rozmowa, która może z niego korzystać, mówi o tym w pierwszym wierszu.
+2. **Dla rozmowy.** Przed pierwszą wiadomością nowej rozmowy naciśnij ikonę globusa pod polem wpisywania — **Pozwól tej rozmowie korzystać z internetu**. To, czy rozmowa może korzystać z internetu, rozstrzyga się na jej początku; aby to zmienić, zacznij nową rozmowę. Rozmowa, która może z niego korzystać, mówi o tym w pierwszym wierszu. Uruchomienie umiejętności **Badanie tematu** to ten sam wybór: jej rozmowa może korzystać z internetu — zob. [Umiejętności](AI_Skills.md).
 3. **Dla każdego zapytania.** Dopóki Twoje notatki są w rozmowie, każda strona, którą asystent chce odczytać, i każde wyszukiwanie, które chce wykonać, pytają najpierw — z pełnym adresem lub szukanymi słowami; to wszystko, co w tym celu opuszcza Twoje urządzenie. **Odczytaj stronę** lub **Szukaj** przepuszcza to jedno zapytanie; **Nie odczytuj** lub **Nie szukaj** je pomija, a asystent działa dalej bez niego.
 
 **Czym jest zapytanie.** Odczytanie strony to jedno zapytanie z tego urządzenia do witryny, jak otwarcie strony w przeglądarce — bez ciasteczek, bez logowania i bez niczego z Twoich notatek; jak przy każdej wizycie, witryna widzi Twój adres IP. Odczytywane są tylko publiczne strony przez `https`; adresy w Twojej sieci domowej lub firmowej są odrzucane. Wyszukiwanie idzie do dostawcy Twojego modelu — Anthropic, OpenAI, Google Gemini albo OpenRouter —, który wyszukuje dokładnie tymi słowami, które Ci pokazano; dostawcy mogą naliczać opłaty za wyszukiwania osobno. Model na tym urządzeniu potrafi odczytywać strony, ale nie potrafi wyszukiwać, a model systemu na telefonie w ogóle nie może korzystać z internetu.
@@ -158,6 +158,18 @@ Link w odpowiedzi, którego adres model zbudował sam, jest oznaczony, a pytanie
 **Co z tego czyta asystent.** Z wyszukiwania widzi datę, nadawcę i temat wiadomości — nigdy ich tekst. Tekstu wiadomości ani opisu spotkania nigdy nie czyta sam: napisały je inne osoby, a kto pisze e-mail albo zaproszenie, może to napisać właśnie dla tego czytelnika. Drugi czytelnik, bez żadnych narzędzi, czyta je i pisze krótki raport — streszczenie, stwierdzenia z fragmentem, na którym się opierają, oraz linki, które naprawdę w nich są. Jeśli model na tym urządzeniu jest ustawiony jako **Lokalny** w **Modele i profile**, to on jest tym czytelnikiem, a sam tekst nie opuszcza urządzenia; do dostawcy trafia tylko raport. W przeciwnym razie czyta dostawca rozmowy, w osobnym zapytaniu, bez narzędzi. Pytanie mówi Ci z góry, kto czyta.
 
 **Co się nie zmienia.** Asystent tylko czyta: wiadomość, którą przeczytał, pozostaje nieprzeczytana, nic nie jest przenoszone, odpisywane ani usuwane, a załączników nie otwiera — podaje tylko ich nazwy. Pod odpowiedzią widzisz, ile wiadomości przeczytano, a wiersz pod nią mówi, kto przeczytał tekst.
+
+## Zachowywanie odpowiedzi jako notatki
+
+Pod każdą gotową odpowiedzią **Zachowaj jako notatkę** zamienia odpowiedź w notatkę w Twoim vaulcie. Ty naciskasz, a notatkę zapisuje Plainva — sam asystent nadal niczego nie zmienia.
+
+- **Dokąd trafia.** Do folderu ustawionego w vaulcie jako **Folder skrzynki** (**Ustawienia → Treść i struktura**), pod nazwą wziętą z Twojego pytania — w rozmowie rozpoczętej przez umiejętność, z umiejętności i notatki, która była otwarta, albo z dnia. Notatka, która już tam jest, nigdy nie jest ruszana: nowa dostaje następną wolną nazwę. Plainva od razu ją otwiera.
+- **Kto ją napisał.** Mówi o tym pierwszy wiersz, słowami — odpowiedź Plainva AI, z modelem, godziną i Twoim pytaniem. Właściwości notatki mówią to samo innym narzędziom: `generated`, z modelem i godziną. Nic nie oznacza notatki jako sprawdzonej; to zostaje Twoją sprawą — zob. [OKF](OKF.md).
+- **Na czym się opiera.** Pod odpowiedzią lista **Źródła** wymienia to, z czego uruchomienie naprawdę skorzystało. Tę listę pisze Plainva z własnego rejestru, nie model: odczytane strony i kiedy, wyszukiwania i przez którego dostawcę oraz Twoje notatki, które poszły razem z pytaniem albo zostały odczytane. Właściwości niosą tę samą listę jako `sources`.
+- **Adresy.** Każdy adres internetowy, który model wpisał do swojej odpowiedzi, jest zapisany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`), a obraz z internetu nigdy nie jest w notatce obrazem. Prawdziwymi linkami są tylko strony w sekcji **Źródła**: adresy, które uruchomienie odczytało za Twoją zgodą. Linki do Twoich własnych notatek pozostają linkami.
+- **Zasady.** Zachowana odpowiedź dziedziczy zasady prywatności tego, na czym się opiera. Jeśli notatka, która była w rozmowie, albo taka, którą asystent odczytał, jest trzymana z dala od chmury lub od internetu, nowa notatka niesie tę samą regułę — zapisaną w samej notatce tam, gdzie jej folder pozwalałby na więcej. Dzięki temu odpowiedź, którą model na tym urządzeniu przygotował na podstawie prywatnej notatki, nie trafia do chmury także jako notatka.
+
+We wspólnym obszarze roboczym jego członkowie mogą przeczytać notatkę — podobnie jak czytelnicy publikacji obejmującej ten folder. Plainva pyta tam za każdym razem, podając nazwę notatki i folder: **Zachowaj jako notatkę** ją zapisuje, **Nie zachowuj** niczego nie zapisuje.
 
 ## Zasady prywatności
 
@@ -183,6 +195,6 @@ Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i n
 
 - Na komputerze AI działa tylko w głównym oknie.
 - Na telefonie odpowiedź pojawia się tylko, gdy aplikacja jest otwarta.
-- Asystent sam nie zmienia żadnej notatki: proponuje zmiany w zaznaczonym fragmencie i transkrypcje notatek głosowych, jako propozycje do zaakceptowania lub odrzucenia; w wątku komentarzy pisze odpowiedź obok notatki, nigdy tekst w niej.
+- Asystent sam nie zmienia żadnej notatki: proponuje zmiany w zaznaczonym fragmencie i transkrypcje notatek głosowych, jako propozycje do zaakceptowania lub odrzucenia; w wątku komentarzy pisze odpowiedź obok notatki, nigdy tekst w niej. Odpowiedź staje się notatką tylko wtedy, gdy naciśniesz **Zachowaj jako notatkę**; wtedy zapisuje ją Plainva, nie asystent.
 
 Opinie o wersji beta trafiają do dyskusji projektu na GitHubie: **Opinie o AI (beta)** w ustawieniach rozpoczyna nową.

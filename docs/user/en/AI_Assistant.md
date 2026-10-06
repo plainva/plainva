@@ -106,7 +106,7 @@ The thread goes to the model the way a question does: its comments, the passage 
 
 ## Skills
 
-Skills are instructions for recurring work. Ten come with Plainva — among them **Daily orientation**, **Weekly review** and **Project status** as chips in an empty conversation — and you can write or import your own. Start one with a click, or simply ask: the AI loads a matching skill by itself. Your own skills run only after you approved them on this device. Everything about them: [Skills](AI_Skills.md).
+Skills are instructions for recurring work. Twelve come with Plainva — among them **Daily orientation**, **Weekly review** and **Project status** as chips in an empty conversation — and you can write or import your own. Start one with a click, or simply ask: the AI loads a matching skill by itself. Your own skills run only after you approved them on this device. Everything about them: [Skills](AI_Skills.md).
 
 ## Transcribing a voice note
 
@@ -134,7 +134,7 @@ The picture goes, with the question, to the model new conversations start with �
 The assistant cannot use the internet until you allow it — three times over:
 
 1. **For the vault.** In **Settings → AI & automation** (the Vault part), switch on **The AI may use the internet in this vault**. It is off for every vault until you decide, and it applies on this device only.
-2. **For a conversation.** Before the first message of a new conversation, press the globe under the input field — **Let this conversation use the internet**. Whether a conversation may use the internet is decided when it starts; to change it, start a new conversation. A conversation that may use it says so in its first line.
+2. **For a conversation.** Before the first message of a new conversation, press the globe under the input field — **Let this conversation use the internet**. Whether a conversation may use the internet is decided when it starts; to change it, start a new conversation. A conversation that may use it says so in its first line. Starting the skill **Research** is the same choice: its conversation may use the internet — see [Skills](AI_Skills.md).
 3. **For every request.** While your notes are in the conversation, every page the assistant wants to read and every search it wants to make asks first, with the whole address or the search words — that is everything that leaves your device for it. **Read page** or **Search** lets this one request through; **Don't read** or **Don't search** leaves it, and the assistant goes on without it.
 
 **What a request is.** Reading a page is one request from this device to the site, like opening the page in a browser — without cookies, without a login and with nothing from your notes; as with any visit, the site sees your internet address. Only public pages over `https` are read; addresses in your home or company network are refused. A search goes to the provider of your model — Anthropic, OpenAI, Google Gemini or OpenRouter — which searches with exactly the words you were shown; providers may charge for searches separately. A model on this device can read pages but cannot search, and the system's own model on the phone cannot use the internet at all.
@@ -158,6 +158,18 @@ A link in an answer whose address the model composed itself is marked, and the q
 **What the assistant reads of it.** Of a search it sees the date, the sender and the subject of the messages — never their text. It never reads the text of a message or the description of an appointment itself: other people wrote them, and whoever writes a mail or an invitation can write it for exactly this reader. A second reader without any tools reads them and writes a short report — a summary, statements with the passage they rest on, and links that are really in there. If a model on this device is set up as **Local** under **Models and profiles**, it is that reader, and the text itself does not leave the device; only the report goes to the provider. Otherwise the conversation's provider reads it, in a request of its own without tools. The question tells you beforehand who reads.
 
 **What does not change.** The assistant only reads: a message it read stays unread, nothing is moved, answered or deleted, and it does not open attachments — it only names them. Below the answer you see how many messages were read, and the line below it says who read the text.
+
+## Keeping an answer as a note
+
+Under every finished answer, **Keep as a note** turns the answer into a note of your vault. You press it and Plainva writes the note — the assistant itself still changes nothing.
+
+- **Where it goes.** Into the vault's **Inbox folder** (**Settings → Content & structure**), under a name taken from your question — in a conversation a skill started, from the skill and the note that was open, or the day. A note that is already there is never touched: the new one gets the next free name. Plainva opens it right away.
+- **Who wrote it.** The first line says it in words — an answer by Plainva AI, with the model, the time and your question. The note's properties say the same for other tools: `generated`, with the model and the time. Nothing marks the note as checked; that stays yours to do — see [OKF](OKF.md).
+- **What it rests on.** Below the answer, **Sources** lists what the run really used. Plainva writes this list from its own record, not the model: the pages that were read and when, the searches and through which provider, and your notes that went along or were read. The properties carry the same list as `sources`.
+- **Addresses.** Every web address the model wrote into its answer is written so that nothing opens or loads it (`https[://]…`), and an image from the web is never an image in the note. Only the pages under **Sources** are real links: addresses the run read with your leave. Links to your own notes stay links.
+- **Rules.** A kept answer inherits the privacy rules of what it rests on. If a note that went along with the conversation, or one the assistant read, is kept from the cloud or from the internet, the new note carries the same rule — written into the note itself where its folder would allow more. So an answer that a model on this device made from a private note does not reach a cloud as a note either.
+
+In a shared workspace its members can read a note — and so can the readers of a publication that covers the folder. There Plainva asks every time, with the note's name and the folder: **Keep as a note** writes it, **Don't keep** leaves it.
 
 ## Privacy rules
 
@@ -183,6 +195,6 @@ Conversations stay on this device, per vault — never in the vault and never sy
 
 - On the desktop the AI runs in the main window only.
 - On the phone an answer comes only while the app is open.
-- The assistant changes no note itself: it proposes changes to a selected passage and transcripts of voice notes, as suggestions you accept or decline; in a comment thread it writes a reply beside the note, never text in it.
+- The assistant changes no note itself: it proposes changes to a selected passage and transcripts of voice notes, as suggestions you accept or decline; in a comment thread it writes a reply beside the note, never text in it. An answer becomes a note only when you press **Keep as a note**; Plainva writes it then, not the assistant.
 
 Feedback on the beta goes to the project's discussions on GitHub: **Feedback on the AI (Beta)** in the settings starts one.

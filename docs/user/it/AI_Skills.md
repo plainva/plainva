@@ -2,7 +2,7 @@
 
 Ultimo aggiornamento: 2026-10-06
 
-Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include dieci e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
+Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include dodici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
 ## Usare una competenza
 
@@ -19,13 +19,25 @@ Puoi anche semplicemente chiedere. In ogni conversazione l'IA conosce i nomi e l
 | **Stato del progetto** | Obiettivo, avanzamento, punti aperti e prossimo passo di un progetto. |
 | **Preparare una riunione** | Prepara una riunione da note precedenti e punti aperti, oppure la riassume dopo. |
 | **Smistare le attività** | Ordina le tue attività aperte: cosa ora, cosa può aspettare, cosa togliere. |
+| **Documentarsi** | Si documenta su una domanda, sia sul web sia nelle tue note, con ogni fonte citata. |
+| **E-mail e calendario** | Passa in rassegna le e-mail recenti e i prossimi appuntamenti: cosa richiede una risposta, cosa preparare, quali attività ne derivano. |
 | **Scrivere e rivedere** | Riassume, accorcia o riscrive una nota, come testo che riprendi tu. |
 | **Curare le conoscenze** | Trova note che dicono la stessa cosa, sono superate o non sono collegate a nulla. |
 | **Sistemare i link** | Controlla i link di una nota: che non portano da nessuna parte, mancanti, a senso unico. |
 | **Controllo privacy** | Trova cosa di una nota dovrebbe restare su questo dispositivo e propone una regola. |
 | **Riflessione** | Ripensa con te alle note di un giorno o di una settimana, con gentilezza e mai una diagnosi. |
 
-Tutte si limitano a leggere: nessuna cambia una nota, invia qualcosa o va su internet. Controllo privacy e Riflessione sono pensate per un modello su questo dispositivo; con un modello nel cloud lo segnala il riepilogo di invio. Disattiva qualsiasi competenza sotto **Competenze**: l'interruttore vale per questo vault su questo dispositivo. **Crea la tua versione** ne copia una nel tuo vault, dove puoi modificarla.
+Tutte si limitano a leggere: nessuna cambia una nota o invia qualcosa. Solo **Documentarsi** usa Internet, e solo **E-mail e calendario** legge le tue e-mail — vedi sotto. Controllo privacy e Riflessione sono pensate per un modello su questo dispositivo; con un modello nel cloud lo segnala il riepilogo di invio. Disattiva qualsiasi competenza sotto **Competenze**: l'interruttore vale per questo vault su questo dispositivo. **Crea la tua versione** ne copia una nel tuo vault, dove puoi modificarla.
+
+## Su Internet e nelle tue e-mail
+
+**Documentarsi** è l'unica competenza inclusa in Plainva che usa Internet. Avviarla è una tua scelta per la sua conversazione, come il globo sotto il campo di testo: dove hai attivato **L'IA può usare Internet in questo vault**, cerca e legge pagine — e finché le tue note sono nella conversazione, ogni pagina e ogni ricerca chiede comunque prima, come descritto sotto **Su Internet** in [Assistente IA](AI_Assistant.md). Dove l'interruttore è disattivato, si documenta solo nelle tue note e lo dice. Lo stesso vale quando l'IA carica da sola la competenza in una conversazione che hai iniziato senza Internet.
+
+**E-mail e calendario** legge le e-mail con la stessa domanda di qualsiasi conversazione: **Leggere le tue e-mail?** la prima volta. Non legge mai da sola il testo di un messaggio; un secondo lettore senza strumenti ne scrive un rapporto. Entrambe le cose sono descritte in [Assistente IA](AI_Assistant.md).
+
+Una tua competenza usa Internet solo quando la sua riga `allowed-tools` nomina `web_search` o `fetch_url`. **Controlla e approva** dice allora **Usa Internet dove l'hai consentito per questo vault.** prima che tu la approvi. Una competenza che non nomina alcuno strumento non porta mai con sé Internet.
+
+Un'esecuzione di prova non usa mai Internet e non chiede mai: le e-mail che in questa sessione non aveva il permesso di leggere restano non lette.
 
 ## Le tue competenze
 
@@ -70,4 +82,4 @@ Il riepilogo di invio elenca sotto **Istruzioni** cosa va insieme: la competenza
 
 ## Limiti della beta
 
-Le competenze non eseguono script, e quelle che richiedono il web o la tua posta arriveranno più avanti. Le tue competenze non vengono offerte alle app di IA collegate tramite il server MCP; solo quelle incluse in Plainva.
+Le competenze non eseguono script. Le tue competenze non vengono offerte alle app di IA collegate tramite il server MCP; solo quelle incluse in Plainva.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Check, CircleAlert, Eye, FileText, Globe, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
+import { Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
 import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, comparableAddress, hasImages, hasWebTools, knownAddresses, providerById, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
@@ -42,6 +42,13 @@ export interface AiConversationProps {
   activeNote: { path: string; title: string } | null;
   onOpenNote: (target: string) => void;
   /**
+   * Opens a note this conversation just made — an answer kept as a note (plan
+   * P4-6) — by its path. A shell with tabs opens it beside what is open, so
+   * neither the conversation nor the user's place is replaced; without it the
+   * note opens like any other.
+   */
+  onOpenCreated?: (path: string) => void;
+  /**
    * Opens a web address after the shell asked. `composed`: the model put the
    * address together itself — it stood in none of the user's messages, notes
    * or results (plan KI-Harness P4), and the question says so.
@@ -69,7 +76,7 @@ const SETUP_FAILURES = new Set<ModelFailure["kind"]>(["no_key", "invalid_key", "
 /** How a provider answers a picture its model cannot read (plan P4-5): it turns the request down. */
 const PICTURE_REFUSALS = new Set<ModelFailure["kind"]>(["refused_by_provider", "provider_error"]);
 
-export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpenSettings, onPickNote, selection }: AiConversationProps) {
+export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection }: AiConversationProps) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
@@ -77,6 +84,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
   const [menuOpen, setMenuOpen] = useState(false);
   /** The run whose send overview is open under its line. */
   const [openRun, setOpenRun] = useState<string | null>(null);
+  /** The run whose answer is being kept as a note right now. */
+  const [capturing, setCapturing] = useState<number | null>(null);
   const modelButton = useRef<HTMLButtonElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const touch = dress === "sheet" || dress === "screen";
@@ -187,6 +196,23 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
     } catch {
       return code;
     }
+  };
+  const canCapture = session.canCapture();
+  /** "Keep as a note": the answer of one run goes into the vault, and the new note opens. */
+  const capture = (userTurn: number) => {
+    setCapturing(userTurn);
+    void session
+      .captureAnswer(userTurn)
+      .then((outcome) => {
+        if (outcome.kind === "captured") {
+          // A note made from notes with a privacy rule carries that rule: said once, here, so it is no surprise later.
+          toast.success(outcome.inherited?.length ? t("ai.capture.doneInherited", { name: outcome.title }) : t("ai.capture.done", { name: outcome.title }));
+          (onOpenCreated ?? onOpenNote)(outcome.path);
+        } else if (outcome.reason === "failed") {
+          toast.error(t("ai.capture.failed", { reason: outcome.message ?? "" }));
+        }
+      })
+      .finally(() => setCapturing(null));
   };
   const send = () => {
     const text = draft.trim();
@@ -335,6 +361,13 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
               </Button>
             ) : (
               <span className="pv-ai-runline">{runLine(item.run, coverage)}</span>
+            )}
+            {/* The answer becomes a note of the vault, with what it rests on (plan P4-6): the user's own step, never the model's. */}
+            {canCapture && item.run.stop === "answered" && answer !== null && (
+              <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" disabled={capturing !== null || running} onClick={() => capture(item.run.userTurn)} data-testid="ai-capture">
+                <FilePlus2 size={ICON.meta} aria-hidden="true" />
+                {t("ai.capture.action")}
+              </Button>
             )}
             {open && manifest && (
               <AiSendOverview manifest={manifest} onOpenNote={onOpenNote} touch={touch} coverage={coverage} web={item.run.web ?? null} reading={item.run.reading ?? null} onOpenUrl={(url) => onOpenUrl(url)} />

@@ -1,4 +1,4 @@
-import { toolByName, type ToolRiskClass } from "../tools.js";
+import { toolByName, WEB_TOOL_NAMES, type ToolRiskClass } from "../tools.js";
 import type { SkillDefinition } from "./skillFile.js";
 
 /**
@@ -22,6 +22,17 @@ export interface SkillGrant {
 }
 
 const RISK_RANK: Record<ToolRiskClass, number> = { read: 0, ui: 1, write: 2, critical: 3, external: 4, script: 5 };
+
+/**
+ * Whether a skill names the internet's tools itself (plan KI-Harness P4-6).
+ * Only such a skill, started by the user, brings them into its conversation —
+ * and only where the vault allows the internet; each request still asks. A
+ * skill without an `allowed-tools` line uses whatever a conversation has, but
+ * naming nothing it asks for nothing: it never brings the internet along.
+ */
+export function skillNamesWeb(skill: Pick<SkillDefinition, "allowedTools">): boolean {
+  return Boolean(skill.allowedTools?.some((name) => WEB_TOOL_NAMES.includes(name)));
+}
 
 export function skillGrant(skill: SkillDefinition, available: readonly string[], defaultMaxOutputTokens?: number): SkillGrant {
   const listed = skill.allowedTools;

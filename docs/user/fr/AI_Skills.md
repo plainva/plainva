@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-10-06
 
-Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit dix, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
+Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit douze, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
 
 ## Utiliser une compétence
 
@@ -19,13 +19,25 @@ Vous pouvez aussi simplement demander. Dans chaque conversation, l'IA connaît l
 | **État du projet** | Objectif, avancement, points ouverts et prochaine étape d'un projet. |
 | **Préparer une réunion** | Prépare une réunion à partir de notes antérieures et de points ouverts, ou en fait le compte rendu ensuite. |
 | **Trier les tâches** | Classe vos tâches ouvertes : maintenant, plus tard, à abandonner. |
+| **Se documenter** | Se documente sur une question, sur le web comme dans vos notes, en citant chaque source. |
+| **E-mail et calendrier** | Passe en revue les e-mails récents et les prochains rendez-vous : ce qui demande une réponse, ce qu'il faut préparer, quelles tâches en découlent. |
 | **Écrire et réviser** | Résume, raccourcit ou réécrit une note — un texte que vous reprenez. |
 | **Entretenir les connaissances** | Trouve les notes qui disent la même chose, sont dépassées ou ne sont reliées à rien. |
 | **Nettoyer les liens** | Vérifie les liens d'une note : qui ne mènent nulle part, manquants, à sens unique. |
 | **Vérifier la confidentialité** | Trouve ce qui, dans une note, devrait rester sur cet appareil, et propose une règle. |
 | **Réflexion** | Revient avec vous sur les notes d'une journée ou d'une semaine — avec bienveillance, jamais un diagnostic. |
 
-Toutes ne font que lire : aucune ne modifie une note, n'envoie quoi que ce soit ni ne va sur internet. Vérifier la confidentialité et Réflexion sont prévues pour un modèle sur cet appareil ; avec un modèle cloud, l'aperçu d'envoi le signale. Désactivez n'importe quelle compétence sous **Compétences** — l'interrupteur vaut pour ce vault sur cet appareil. **Créer votre propre version** en copie une dans votre vault, où vous pouvez la modifier.
+Toutes ne font que lire : aucune ne modifie une note ni n'envoie quoi que ce soit. Seule **Se documenter** utilise Internet, et seule **E-mail et calendrier** lit vos e-mails — voir ci-dessous. Vérifier la confidentialité et Réflexion sont prévues pour un modèle sur cet appareil ; avec un modèle cloud, l'aperçu d'envoi le signale. Désactivez n'importe quelle compétence sous **Compétences** — l'interrupteur vaut pour ce vault sur cet appareil. **Créer votre propre version** en copie une dans votre vault, où vous pouvez la modifier.
+
+## Sur Internet et dans vos e-mails
+
+**Se documenter** est la seule compétence fournie avec Plainva qui utilise Internet. La lancer est votre choix pour sa conversation, comme le globe sous le champ de saisie : là où vous avez activé **L'IA peut utiliser Internet dans ce vault**, elle cherche et lit des pages — et tant que vos notes sont dans la conversation, chaque page et chaque recherche demandent toujours d'abord, comme décrit sous **Sur Internet** dans [Assistant IA](AI_Assistant.md). Là où l'interrupteur est désactivé, elle ne se documente que dans vos notes et le dit. Il en va de même quand l'IA charge elle-même la compétence dans une conversation que vous avez commencée sans Internet.
+
+**E-mail et calendrier** lit les e-mails via la même question que n'importe quelle conversation : **Lire vos e-mails ?** la première fois. Elle ne lit jamais elle-même le texte d'un message ; un second lecteur sans outils en rédige un rapport. Les deux sont décrits dans [Assistant IA](AI_Assistant.md).
+
+Une de vos propres compétences n'utilise Internet que lorsque sa ligne `allowed-tools` nomme `web_search` ou `fetch_url`. **Vérifier et approuver** indique alors **Utilise Internet là où vous l'avez autorisé pour ce vault.** avant que vous ne l'approuviez. Une compétence qui ne nomme aucun outil n'amène jamais Internet avec elle.
+
+Une exécution de test n'utilise jamais Internet et ne demande jamais : les e-mails qu'elle n'avait pas le droit de lire dans cette session restent non lus.
 
 ## Vos propres compétences
 
@@ -70,4 +82,4 @@ L'aperçu d'envoi indique sous **Instructions** ce qui accompagne la demande : l
 
 ## Limites de la bêta
 
-Les compétences n'exécutent aucun script, et celles qui ont besoin du web ou de votre courrier viendront plus tard. Vos propres compétences ne sont pas proposées aux apps d'IA connectées par le serveur MCP ; seules celles fournies avec Plainva le sont.
+Les compétences n'exécutent aucun script. Vos propres compétences ne sont pas proposées aux apps d'IA connectées par le serveur MCP ; seules celles fournies avec Plainva le sont.

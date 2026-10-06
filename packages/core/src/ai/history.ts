@@ -1,6 +1,7 @@
 import type { Conversation } from "./conversation.js";
 import type { EgressManifest } from "./context/manifest.js";
 import { isSensitiveKind, type SensitiveKind } from "./context/sensitiveHints.js";
+import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "./policy.js";
 import { checkWebUrl } from "./web/rules.js";
 
 /**
@@ -81,6 +82,15 @@ export interface RunMeta {
   web?: RunWeb;
   /** What the run read of mail and appointments; absent when it read none. */
   reading?: RunReading;
+  /**
+   * Rules that notes carried which passed this run's tools although the rule
+   * restricts them elsewhere (plan KI-Harness P4-6): a note kept from the
+   * cloud that a model on this device read (`cloud`), a note kept from the
+   * internet in a conversation without it (`web`). The rule, never a path:
+   * what is made of this run's answer — a note — inherits it. Absent when
+   * nothing of the kind passed.
+   */
+  restricted?: AiPolicyDimension[];
 }
 
 /** The skill a conversation runs, bound when it started (plan KI-Harness P3). */
@@ -270,8 +280,14 @@ function readRun(raw: unknown): RunMeta[] {
       ...(r.skillCatalog && typeof r.skillCatalog === "object" ? { skillCatalog: { count: count(r.skillCatalog.count), tokens: count(r.skillCatalog.tokens) } } : {}),
       ...(readRunWeb(r.web) ? { web: readRunWeb(r.web)! } : {}),
       ...(readRunReading(r.reading) ? { reading: readRunReading(r.reading)! } : {}),
+      ...(readRestricted(r.restricted).length ? { restricted: readRestricted(r.restricted) } : {}),
     },
   ];
+}
+
+/** The rules a run's notes carried, read defensively: only the dimensions there are, each once, in their order. */
+function readRestricted(raw: unknown): AiPolicyDimension[] {
+  return Array.isArray(raw) ? AI_POLICY_DIMENSIONS.filter((dimension) => raw.includes(dimension)) : [];
 }
 
 /** A run's record of what it read of mail and appointments, read defensively: numbers, and who read. */

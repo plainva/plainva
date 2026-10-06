@@ -1448,8 +1448,10 @@ describe("vault operations report themselves to the overview updater", () => {
     // in without a report (raise it deliberately, with the site next to it).
     // Six since the daily note is created in ONE place — the shared
     // `ensureDailyNote` of packages/ui (plan Journal, J2); the template branch
-    // and the skeleton branch used to report separately.
-    expect(svc.match(/reportCreated\(/g)?.length).toBe(6);
+    // and the skeleton branch used to report separately. Seven with
+    // `createNoteWithContent`: an AI answer kept as a note (plan KI-Harness
+    // P4-6) is a new note like any other.
+    expect(svc.match(/reportCreated\(/g)?.length).toBe(7);
   });
 
   it("does not report from the indexer's callbacks", () => {

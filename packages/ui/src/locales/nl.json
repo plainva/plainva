@@ -527,6 +527,26 @@
         "failed": "De afbeelding kon niet worden uitgelegd: {{reason}}"
       }
     },
+    "capture": {
+      "action": "Bewaren als notitie",
+      "done": "Bewaard als notitie: {{name}}",
+      "doneInherited": "Bewaard als notitie: {{name}}. Ze draagt de privacyregels van de notities waarop ze berust.",
+      "failed": "Het antwoord kon niet als notitie worden bewaard: {{reason}}",
+      "fallbackTitle": "AI-antwoord",
+      "intro": "Antwoord van Plainva AI · {{model}}, {{date}}, op de vraag: “{{question}}”",
+      "sources": "Bronnen",
+      "web": "Van het web",
+      "vault": "Uit je notities",
+      "read": "gelezen op {{date}}",
+      "search": "Zoekopdracht “{{query}}” via {{provider}}, {{date}}",
+      "shared": {
+        "title": "Bewaren waar anderen meelezen?",
+        "note": "Notitie",
+        "folder": "Komt terecht in",
+        "hint": "Deze vault is een gedeelde workspace: de leden ervan kunnen hier een notitie lezen, net als de lezers van een publicatie die de map omvat.",
+        "deny": "Niet bewaren"
+      }
+    },
     "lint": {
       "defused": "Nieuwe webadressen zijn onschadelijk gemaakt: leesbaar, maar geen link."
     },
@@ -586,6 +606,16 @@
         "title": "Reflectie",
         "description": "Terugblikken op je notities van een dag of een week — vriendelijk, zonder diagnose.",
         "prompt": "Blik met me terug op mijn dagnotities van de afgelopen zeven dagen: wat opvalt, wat goed ging, wat op me lijkt te drukken, en een paar vragen om over na te denken."
+      },
+      "research": {
+        "title": "Onderzoek",
+        "description": "Een vraag onderzoeken op het web en in je notities, met elke bron genoemd.",
+        "prompt": "Ik wil iets onderzoeken op het web en in mijn notities. Als de open notitie het onderwerp noemt, onderzoek dat dan; vraag me anders waarnaar je moet zoeken."
+      },
+      "mailcal": {
+        "title": "E-mail en agenda",
+        "description": "De recente e-mail en de komende afspraken doornemen: wat een antwoord nodig heeft, wat voor te bereiden is en welke taken eruit volgen.",
+        "prompt": "Neem mijn e-mail van de afgelopen drie dagen en mijn afspraken van de komende week door: wat heeft een antwoord nodig, wat moet ik voorbereiden en welke taken volgen daaruit?"
       }
     },
     "workshop": {
@@ -627,6 +657,8 @@
       "mayWholeVault": "Notities in de hele vault, voor zover je regels het toestaan",
       "mayBudget": "Hoogstens {{tokens}} tokens per antwoord",
       "mayReadOnly": "Verandert niets, verstuurt niets.",
+      "mayWeb": "Gebruikt internet waar je dat voor deze vault hebt toegestaan. Zolang er notities in het gesprek zitten, vraagt elke pagina en elke zoekopdracht eerst.",
+      "mayNoChange": "Verandert niets.",
       "mayAgents": "Vaste instructies voor elk nieuw gesprek in deze vault. Ze kunnen je privacyregels niet opheffen.",
       "originApp": "Meegeleverd met Plainva",
       "originPath": "Staat in {{path}}",
@@ -1294,7 +1326,7 @@
     "askBeforeCreateLink": "Vragen voordat lege links worden aangemaakt",
     "askBeforeCreateLinkDesc": "Klikken op een link naar een notitie die nog niet bestaat, maakt deze normaal gesproken meteen aan. Met deze optie wordt eerst gevraagd.",
     "inboxFolder": "Inbox-map",
-    "inboxFolderDesc": "Waar de snelle ＋-vastlegging op je telefoon een notitie neerzet, en waar gedeelde tekst uit een andere app terechtkomt. Op de desktop worden notities altijd aangemaakt waar je op wijst.",
+    "inboxFolderDesc": "Waar de snelle ＋-vastlegging op je telefoon een notitie neerzet, waar gedeelde tekst uit een andere app terechtkomt en waar een AI-antwoord dat je als notitie bewaart naartoe gaat — ook op de desktop. Verder worden notities op de desktop aangemaakt waar je op wijst.",
     "attachmentFolder": "Bijlagenmap",
     "attachmentFolderDesc": "Waar neergezette, geplakte en gefotografeerde bestanden terechtkomen. Laat leeg om ze naast de notitie te houden.",
     "textFileExtensions": "Meer tekstbestanden",

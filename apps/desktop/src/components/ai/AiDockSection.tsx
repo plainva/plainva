@@ -5,6 +5,8 @@ export interface AiDockProps {
   activeNote: { path: string; title: string } | null;
   onNewConversation: () => void;
   onOpenNote: (target: string) => void;
+  /** Opens a note the conversation just made — an answer kept as a note — in a tab of its own, beside what is open. */
+  onOpenCreated?: (path: string) => void;
   /** `composed`: the model put the address together itself (plan KI-Harness P4); the question before opening says so. */
   onOpenUrl: (url: string, composed?: boolean) => void;
   onOpenSettings: () => void;
@@ -18,10 +20,10 @@ export interface AiDockProps {
  * never the conversation. A 250-px column: the thread keeps a bounded height,
  * so the section scrolls inside and the sidebar around it stays put.
  */
-export function AiDockSection({ activeNote, onOpenNote, onOpenUrl, onOpenSettings, onPickNote }: AiDockProps) {
+export function AiDockSection({ activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote }: AiDockProps) {
   return (
     <div className="pv-ai-dock" data-testid="ai-dock">
-      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
+      <AiConversation selection={editorSelectionReader} dress="dock" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenCreated} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { appSkillSource, type InstructionSource } from "@plainva/core";
-import { CalendarCheck, CalendarClock, CalendarRange, Feather, FolderKanban, Link2, ListOrdered, PenLine, ShieldCheck, Sprout, type LucideIcon } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarRange, Feather, FolderKanban, Inbox, Link2, ListOrdered, PenLine, ShieldCheck, Sprout, Telescope, type LucideIcon } from "lucide-react";
 
 /**
  * The skills that come with the app (plan KI-Harness P3, §14.2): each a
@@ -24,9 +24,8 @@ export interface AppSkill {
 }
 
 /**
- * In the order every list shows them — the most used first. Research with
- * source capture and mail and calendar capture wait for the web and mail
- * tools (P4), memory curation for memory itself (P6).
+ * In the order every list shows them — the most used first. Memory curation
+ * waits for memory itself (P6).
  */
 export const APP_SKILLS: readonly AppSkill[] = [
   { name: "daily-orientation", key: "daily", icon: CalendarCheck, featured: true, mcp: true },
@@ -34,6 +33,11 @@ export const APP_SKILLS: readonly AppSkill[] = [
   { name: "project-status", key: "project", icon: FolderKanban, featured: true, mcp: true },
   { name: "meeting-prep", key: "meeting", icon: CalendarClock, mcp: true },
   { name: "task-triage", key: "triage", icon: ListOrdered, mcp: true },
+  // The one skill that names the internet's tools (plan P4-6): started by the user, it brings them along where the vault allows the internet.
+  // Not a prompt of the MCP server: a client there has its own way onto the web.
+  { name: "research", key: "research", icon: Telescope },
+  // Reads mail and appointments — through the tools that ask before mail is read for the first time.
+  { name: "mail-and-calendar", key: "mailcal", icon: Inbox },
   { name: "writing", key: "writing", icon: PenLine },
   { name: "knowledge-upkeep", key: "upkeep", icon: Sprout },
   { name: "link-cleanup", key: "links", icon: Link2 },

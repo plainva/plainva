@@ -116,6 +116,8 @@ export interface AiVaultHostInput {
   encrypted?: AiVaultHost["encrypted"];
   /** Posts the assistant's reply into a comment thread (plan P3-6); absent where the shell cannot. */
   reply?: AiVaultHost["reply"];
+  /** Where an answer kept as a note is written (plan P4-6); absent where the shell writes no notes. */
+  capture?: AiVaultHost["capture"];
   /** The vault's folder entries and file bytes, for its own instructions (plan KI-Harness P3); absent, only the app's skills exist. */
   instructionIO?: InstructionIO;
   /** Writes and removes the workshop's skills (plan P3-5); absent, the workshop only reads. */
@@ -253,6 +255,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.propose ? { propose: input.propose } : {}),
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
     ...(input.reply ? { reply: input.reply } : {}),
+    ...(input.capture ? { capture: input.capture } : {}),
     // Which notes embed a picture (plan P4-5): their rules decide with the picture's own. Without an index nobody can tell — `null`, never "none".
     embedders: (path) => {
       const containing = input.retrieval?.notesContaining?.bind(input.retrieval);
