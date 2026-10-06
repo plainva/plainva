@@ -79,6 +79,7 @@ export * from "./lib/timeGrid";
 export * from "./pim/eventColors";
 export * from "./pim/blockCalendars";
 export * from "./pim/eventWrite";
+export * from "./pim/pendingEventWrites";
 export * from "./pim/meetingNote";
 export * from "./pim/calendarForm";
 export * from "./pim/eventPeek";

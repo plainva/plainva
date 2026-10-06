@@ -730,7 +730,15 @@ export function TasksScreen({
         toast.error(t(res && res.reason === "noFolder" ? "tasks.promoteNoFolder" : "tasks.promoteFailed"));
         return;
       }
-      if (alsoAtProvider) await sendTaskToProviderList(promotionAdapter, taskDb, res.notePath, result.title);
+      // The task is in the list as soon as its note is written (issue 119);
+      // the provider's answer only adds the link to it. The due day goes
+      // along, as it does on the desktop — it was left out here.
+      if (alsoAtProvider) {
+        void sendTaskToProviderList(promotionAdapter, taskDb, res.notePath, result.title, result.due ?? undefined).then(() => {
+          syncSoon();
+          setTick((x) => x + 1);
+        });
+      }
       syncSoon();
       setTick((x) => x + 1);
       setCapture(null);

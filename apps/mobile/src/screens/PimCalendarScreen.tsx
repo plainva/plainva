@@ -12,7 +12,7 @@ import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
 import {
   subscribePimStatus,
   getPimStatus,
-  listPimEvents,
+  listShownPimEvents,
   listPimCalendars,
   listPimAccounts,
   pimSyncNow,
@@ -190,7 +190,7 @@ export function PimCalendarScreen({
   }, [days]);
 
   const reload = useCallback(() => {
-    void listPimEvents(rangeStart, rangeEnd).then(setEvents).catch(() => setEvents([]));
+    void listShownPimEvents(rangeStart, rangeEnd).then(setEvents).catch(() => setEvents([]));
     void listPimCalendars()
       .then((cals) => setCalColor(new Map(cals.map((c) => [`${c.accountId} ${c.id}`, c.color ?? ""]))))
       .catch(() => setCalColor(new Map()));
@@ -330,7 +330,7 @@ export function PimCalendarScreen({
   /** The one-word state ("Abgesagt", "Offen", "Vielleicht") for an agenda row;
    * confirmed events say nothing (report 2026-07-29 F7/F8). */
   const stateLabel = (e: PimEventRow) => {
-    const key = eventStateLabelKey(eventVisualState(e));
+    const key = eventStateLabelKey(eventVisualState(e), e);
     return key ? t(key) : null;
   };
   const todayIso = isoOf(new Date());
@@ -779,7 +779,7 @@ export function PimCalendarScreen({
                 >
                   {(byDay.get(isoOf(day)) ?? []).filter((e) => e.allDay).map((e) => (
                     <button
-                      className={eventStateClass("m-evt", eventVisualState(e))}
+                      className={eventStateClass("m-evt", eventVisualState(e), e)}
                       data-state={eventVisualState(e)}
                       data-testid="pim-event"
                       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
@@ -849,7 +849,7 @@ export function PimCalendarScreen({
                         data-testid="pim-event"
                         data-state={eventVisualState(e)}
                         data-compact={compact ? "true" : undefined}
-                        className={eventStateClass("m-evt", eventVisualState(e))}
+                        className={eventStateClass("m-evt", eventVisualState(e), e)}
                         onClick={() => void editor.openEvent(e)}
                         style={{ position: "absolute", top, height, left: `calc(${l.lane * laneWidthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: compact ? "0 4px" : "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: compact ? 1 : 1.15 }}
                       >

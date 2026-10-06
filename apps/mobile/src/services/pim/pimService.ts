@@ -34,6 +34,12 @@ import {
   calendarPickerOptions,
   createCalendarEvent,
   deleteCalendarEvent,
+  applyPendingEventWrites,
+  draftToRow,
+  pendingEventRow,
+  type ShownEventRow,
+  pendingEventWrites,
+  writeEventOptimistically,
   type EventTargets,
   parseGoogleUserInfo,
   type VerifiedProviderProfile,
@@ -97,6 +103,7 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
  * sign-in store, provider clients and diagnostics log. No-op without an index
  * DB (web dev server). */
 export async function startPim(vault: MobileVault): Promise<void> {
+  wirePendingEventWrites();
   return startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     accountAuthRevision: async (vaultId, account) =>
@@ -155,6 +162,54 @@ export async function setPimCalendarSelected(accountId: string, calId: string, s
 
 export async function listPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<PimEventRow[]> {
   return (await runtime?.cache.listEvents(rangeStartTs, rangeEndTs)) ?? [];
+}
+
+/**
+ * The events a SCREEN shows: what the cache holds, with the writes that are on
+ * their way laid over it (issue 119). Reminders and the widget keep reading
+ * {@link listPimEvents} — they act on what the provider confirmed.
+ */
+export async function listShownPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<ShownEventRow[]> {
+  const cached = await listPimEvents(rangeStartTs, rangeEndTs);
+  const shown = applyPendingEventWrites(cached, pendingEventWrites.snapshot());
+  if (shown === cached) return shown;
+  // A created event comes from the overlay, not from the range query.
+  return shown.filter((row) => cached.includes(row) || (row.start.ts < rangeEndTs && row.end.ts >= rangeStartTs));
+}
+
+/**
+ * Lets settled writes go once the cache agrees with them. Asked per event and
+ * not per screen range: a screen that shows today must not conclude that an
+ * event deleted from next week is gone from the cache.
+ */
+async function reconcilePendingEventWrites(): Promise<void> {
+  const cache = runtime?.cache;
+  const writes = pendingEventWrites.snapshot();
+  if (!cache || writes.length === 0) return;
+  const found: PimEventRow[] = [];
+  for (const write of writes) {
+    const ref = write.kind === "create" ? write.row : write.ref;
+    const row = await cache.getEventByUid(ref.accountId, ref.calendarId, ref.uid).catch(() => null);
+    if (row) found.push(row);
+  }
+  pendingEventWrites.reconcile(found);
+}
+
+let pendingWritesWired = false;
+/**
+ * A write that begins, settles or is refused changes what the screens show;
+ * they already reload on `m-pim-changed`. A finished cycle fires it too, which
+ * is the moment the cache may have caught up with a settled write.
+ *
+ * Wired when the runtime starts, not when this module loads: at load time the
+ * shared package this store comes from may not have run yet (the modules
+ * import each other), and the app then did not start at all.
+ */
+function wirePendingEventWrites(): void {
+  if (pendingWritesWired || typeof window === "undefined") return;
+  pendingWritesWired = true;
+  pendingEventWrites.subscribe(() => window.dispatchEvent(new CustomEvent("m-pim-changed")));
+  window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
 }
 
 let idCounter = 0;
@@ -458,10 +513,25 @@ const eventTargets: EventTargets = {
   },
 };
 
+/*
+ * Every write below shows on screen from the moment it is made (issue 119):
+ * the change is laid over the cached rows by the shared overlay and stays
+ * there until the cache agrees. Before, the phone waited for the provider and
+ * then for a whole cycle over every account before the new event appeared —
+ * the row the shared writer hands back was thrown away.
+ */
 export async function createPimEvent(calendarKey: string, draft: PimEventDraft) {
   const key = splitCalendarKey(calendarKey);
   if (!key) throw new Error("no writable calendar selected");
-  const out = await createCalendarEvent(eventTargets, key.accountId, key.calendarId, draft);
+  const id = pendingEventWrites.reserve();
+  const { uid: _uid, ...shown } = draftToRow(key.accountId, key.calendarId, "", draft);
+  const out = await writeEventOptimistically(
+    pendingEventWrites,
+    { kind: "create", row: pendingEventRow(id, shown) },
+    () => createCalendarEvent(eventTargets, key.accountId, key.calendarId, draft),
+    (written) => written.rows.map((row) => ({ kind: "create" as const, row })),
+    id,
+  );
   pimSyncNow();
   return out;
 }
@@ -472,7 +542,19 @@ export async function updatePimEvent(
   moveToCalendarKey?: string | null,
 ) {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
-  const out = await updateCalendarEvent(eventTargets, event, draft, move);
+  const moving = !!move && (move.accountId !== event.accountId || move.calendarId !== event.calendarId);
+  const { uid: _uid, ...patch } = draftToRow(moving ? move.accountId : event.accountId, moving ? move.calendarId : event.calendarId, event.uid, draft);
+  const out = await writeEventOptimistically(
+    pendingEventWrites,
+    { kind: "update", ref: event, patch },
+    () => updateCalendarEvent(eventTargets, event, draft, move),
+    (result) => {
+      if (result.kind === "conflict") return [];
+      if (!moving) return undefined;
+      const created = result.rows.map((row) => ({ kind: "create" as const, row }));
+      return result.kind === "written" ? [...created, { kind: "delete" as const, ref: event }] : created;
+    },
+  );
   if (out.kind !== "conflict") pimSyncNow();
   return out;
 }
@@ -549,7 +631,7 @@ export async function openMeetingNoteFor(
 }
 
 export async function deletePimEvent(event: PimEventRow): Promise<void> {
-  await deleteCalendarEvent(eventTargets, event);
+  await writeEventOptimistically(pendingEventWrites, { kind: "delete", ref: event }, () => deleteCalendarEvent(eventTargets, event));
   pimSyncNow();
 }
 
@@ -560,6 +642,9 @@ export async function respondToPimEvent(event: PimEventRow, response: "accepted"
   if (!account) throw new Error("account not found");
   const target = await runtime.buildTarget(account);
   if (!target?.respondToEvent) throw new Error("responding is not supported for this account");
-  await target.respondToEvent({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response);
+  const respond = target.respondToEvent.bind(target);
+  await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: event, patch: { selfResponse: response } }, () =>
+    respond({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response),
+  );
   pimSyncNow();
 }

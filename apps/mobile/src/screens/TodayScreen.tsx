@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { CalendarDays, CheckSquare, FileText, ListTodo, Square, Trash2 } from "lucide-react";
 import { type AgendaTask, buildDayAgenda, minutesToHHMM, buildDayStrip, Button, Chip, dailyNotePathFor, dayWindow, DocIcon, existingDailyNoteDays, GroupCard, ICON, journalToday, parseBaseConfig, resolveTaskCompletionModel, RowList, Row, SectionLabel, taskDbRows, useJournalDayKey } from "@plainva/ui";
 import { isoOf } from "../lib/dates";
-import { listPimEvents } from "../services/pim/pimService";
+import { listShownPimEvents } from "../services/pim/pimService";
 import { getMobileSettings } from "../services/mobileSettings";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useLongPress } from "../lib/useLongPress";
@@ -160,7 +160,7 @@ export function TodayScreen({
     let stale = false;
     void (async () => {
       const { start, end } = dayWindow(selectedIso);
-      const rows = await listPimEvents(start, end).catch(() => []);
+      const rows = await listShownPimEvents(start, end).catch(() => []);
       const rowByUid = new Map<string, PimEventRow>();
       const events = rows.map((e) => ({
         uid: `${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`,

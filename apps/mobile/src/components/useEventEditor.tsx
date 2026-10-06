@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
+import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
 import { parseRRule, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -95,6 +95,12 @@ export function useEventEditor({
     setSheet({ event: null, startTs, endTs: startTs + 60 * 60_000 });
   };
 
+  /** A write the provider refused: said once, with the way to try it again. */
+  const reportRefused = (err: unknown, retry: () => void) => {
+    const reason = err instanceof Error ? err.message : String(err);
+    toast.error(t("pim.eventWriteRefused", { reason }), { label: t("pim.eventWriteRetry"), run: retry });
+  };
+
   const confirmDelete = async (target: PimEventRow) => {
     const ok = await mConfirm({
       title: t("pim.deleteEvent"),
@@ -103,13 +109,13 @@ export function useEventEditor({
       confirmLabel: t("common.delete"),
     });
     if (!ok) return false;
-    try {
-      await deletePimEvent(target);
-      return true;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
-      return false;
-    }
+    // Gone from the screen with the confirmation (issue 119); a refusal
+    // brings the event back and says why.
+    const run = () => {
+      void deletePimEvent(target).catch((err) => reportRefused(err, run));
+    };
+    run();
+    return true;
   };
 
   /**
@@ -117,7 +123,12 @@ export function useEventEditor({
    * desktop's floating window. It used to open a bare list of verbs that said
    * nothing about the event beyond its title and time.
    */
-  const openEvent = (e: PimEventRow) => setPeek(e);
+  const openEvent = (e: PimEventRow) => {
+    // No provider id yet (issue 119): the preview's actions would write
+    // against an event that does not exist there. It has one in a moment.
+    if (isPendingEventUid(e.uid)) return;
+    setPeek(e);
+  };
 
   const deleteFromPeek = async (e: PimEventRow) => {
     setPeek(null);
@@ -239,17 +250,18 @@ export function useEventEditor({
 
   /** Writes an edited form against ONE event — the occurrence or the master. */
   const writeTo = async (target: PimEventRow, values: EventEditValues) => {
+    // The sheet closes with the save; the change is on screen already and the
+    // provider's answer arrives on the event itself.
+    setSheet(null);
     try {
       const out = await updatePimEvent(target, values.draft, values.calendarKey);
       if (out.kind === "conflict") {
-        setSheet(null);
         toast.info(t("pim.eventConflict"));
         return;
       }
       if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
-      setSheet(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      reportRefused(err, () => void writeTo(target, values));
     }
   };
 
@@ -286,22 +298,15 @@ export function useEventEditor({
       await writeTo(master, { calendarKey: merged.calendarKey, draft: eventFormToDraft(merged), form: merged });
       return;
     }
-    try {
-      if (target) {
-        const out = await updatePimEvent(target, values.draft, values.calendarKey);
-        if (out.kind === "conflict") {
-          setSheet(null);
-          toast.info(t("pim.eventConflict"));
-          return;
-        }
-        if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
-      } else {
-        await createPimEvent(values.calendarKey, values.draft);
-      }
-      setSheet(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+    if (target) {
+      await writeTo(target, values);
+      return;
     }
+    setSheet(null);
+    const create = () => {
+      void createPimEvent(values.calendarKey, values.draft).catch((err) => reportRefused(err, create));
+    };
+    create();
   };
 
   const remove = async () => {

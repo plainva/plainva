@@ -412,6 +412,12 @@ textarea {
 .m-evt--declined .m-evt-title {
   text-decoration: line-through;
 }
+/* On its way to the provider (issue 119) — the twin of .pv-evt--sending. */
+.m-evt--sending {
+  animation: m-evt-sending var(--dur-progress) ease-in-out infinite;
+}
+@keyframes m-evt-sending { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .m-evt--sending { animation: none; opacity: 0.6; } }
 .m-evt-state {
   flex: 0 0 auto;
   font-size: var(--text-xs);

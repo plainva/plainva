@@ -1290,7 +1290,9 @@ describe("today answers the whole day", () => {
   it("merges events and due tasks through the shared rule", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/TodayScreen.tsx"), "utf8"));
     expect(screen).toMatch(/buildDayAgenda\(/);
-    expect(screen).toMatch(/listPimEvents\(/);
+    // The SHOWN events: the cache with the writes that are on their way laid
+    // over it, so an event made on Today is on Today at once (issue 119).
+    expect(screen).toMatch(/listShownPimEvents\(/);
     // Not a second ordering: the sort lives in @plainva/ui, not here.
     expect(screen).not.toMatch(/\.sort\(/);
   });
@@ -3068,7 +3070,10 @@ describe("tasks created on the phone reach the provider list", () => {
     expect(capture).toMatch(/\{providerList && \(/);
     expect(capture).toMatch(/const \[atProvider, setAtProvider\] = useState\(true\)/);
     expect(capture).toMatch(/onSubmit\(result, providerList !== null && atProvider\)/);
-    expect(tasks).toMatch(/if \(alsoAtProvider\) await sendTaskToProviderList\(/);
+    // Sent, but never awaited before the task shows (issue 119): the note is
+    // the task, the provider's answer only adds the link.
+    expect(tasks).toMatch(/if \(alsoAtProvider\) \{\s*void sendTaskToProviderList\(/);
+    expect(tasks).not.toMatch(/await sendTaskToProviderList\(promotionAdapter, taskDb, res\.notePath, result\.title/);
   });
 
   it("lets the phone SET the list, not only read it", () => {

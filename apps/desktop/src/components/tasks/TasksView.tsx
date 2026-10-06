@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
 import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
@@ -355,6 +355,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
    * could NOT be anchored is worse still: the next sync finds a remote task
    * with no note and imports a second one.
    */
+  // A retry calls the send it belongs to, and a callback cannot name itself.
+  const retrySend = useRef<((dbPath: string, notePath: string, title: string, dueDate?: string) => void) | null>(null);
   const sendToProvider = useCallback(
     async (dbPath: string, notePath: string, title: string, dueDate?: string) => {
       if (!vaultAdapter) return;
@@ -366,11 +368,18 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         ...(dueDate ? { dueDate } : {}),
         pimRuntime,
       });
-      if (outcome === "createFailed") toast.error(t("tasks.providerCreateFailed"));
-      else if (outcome === "notAnchored") toast.error(t("tasks.providerAnchorFailed"));
+      // Nothing exists at the provider yet, so trying again is safe. A task
+      // that was created but not anchored is the opposite: a second attempt
+      // would create a second remote task, so that message offers no retry.
+      if (outcome === "createFailed") {
+        toast.error(t("tasks.providerCreateFailed"), { label: t("pim.eventWriteRetry"), run: () => retrySend.current?.(dbPath, notePath, title, dueDate) });
+      } else if (outcome === "notAnchored") toast.error(t("tasks.providerAnchorFailed"));
     },
     [vaultAdapter, pimRuntime, t]
   );
+  useEffect(() => {
+    retrySend.current = (dbPath, notePath, title, dueDate) => void sendToProvider(dbPath, notePath, title, dueDate).then(() => setRefreshTick((x) => x + 1));
+  }, [sendToProvider]);
 
   // Promote a checkbox into the task database (default DB on click; any DB via
   // the context menu). The service re-verifies the ordinal against the fresh
@@ -470,8 +479,10 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         // …and, if the database names a provider list AND the chip stayed on,
         // create it there too (C4, S16). The note is the deliverable and already
         // exists; this is the addition, so its failures are REPORTED and never
-        // cost the note.
-        if (alsoAtProvider) await sendToProvider(taskDb, res.notePath, result.title, result.due ?? undefined);
+        // cost the note. Nor do they hold it back (issue 119): the task is in
+        // the list as soon as its note is written, and the provider's answer
+        // only adds the link to it.
+        if (alsoAtProvider) void sendToProvider(taskDb, res.notePath, result.title, result.due ?? undefined).then(() => setRefreshTick((x) => x + 1));
         setRefreshTick((x) => x + 1);
         toast.success(t("tasks.captureCreated", { name: result.title }), { label: t("tasks.captureOpen"), run: () => onOpenPath(res.notePath, false) });
         // A database from before tasks had times types its due column as a day:

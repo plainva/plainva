@@ -5,7 +5,7 @@ import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, 
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
 import type { EventChange } from "@plainva/ui";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
@@ -132,7 +132,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const closeJump = useCallback(() => setJumpOpen(false), []);
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<CalRow[]>([]);
-  const [events, setEvents] = useState<PimEventRow[]>([]);
+  // What the cache holds, and on top of it what the user just did (issue 119):
+  // a write shows from the moment it is made, not from the provider's answer.
+  const [cachedEvents, setEvents] = useState<PimEventRow[]>([]);
+  const events = useShownEvents(cachedEvents);
   const [status, setStatus] = useState<{ status: string; message?: string }>({ status: "idle" });
   const [tick, setTick] = useState(0);
   // Optional: overlay the standard task database's due-dated tasks (device-local
@@ -733,9 +736,24 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
               attendees: draft.attendees ?? (e.attendees && e.attendees.length ? [...e.attendees] : undefined),
             }
           : draft;
-        const out = await updateCalendarEvent(targets, e, writeDraft, moveTo);
+        const shownRow = draftToRow(moveTo?.accountId ?? e.accountId, moveTo?.calendarId ?? e.calendarId, e.uid, writeDraft);
+        const { uid: _uid, ...patch } = shownRow;
+        // The dialog closes with the save; the provider's answer arrives on the
+        // event itself, and a refusal comes back as a message with a retry.
+        setEditState(null);
+        setCreateInitial(null);
+        const out = await writeEventOptimistically(
+          pendingEventWrites,
+          { kind: "update", ref: e, patch },
+          () => updateCalendarEvent(targets, e, writeDraft, moveTo),
+          (result) => {
+            if (result.kind === "conflict") return [];
+            if (!moveTo) return undefined;
+            const created = result.rows.map((row) => ({ kind: "create" as const, row }));
+            return result.kind === "written" ? [...created, { kind: "delete" as const, ref: e }] : created;
+          },
+        );
         if (out.kind === "conflict") {
-          setEditState(null);
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
           refresh();
           return;
@@ -750,11 +768,39 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           return prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, ...rows[0] } : ev));
         });
       }
-      setEditState(null);
-      setCreateInitial(null);
       refresh();
     },
     [targetFor, refresh, t]
+  );
+
+  // A retry calls the write it belongs to — and a callback cannot name itself.
+  // The current set of writes is kept here and read when the user asks again.
+  const retryWrites = useRef<{
+    save(e: PimEventRow, values: EventFormValues): void;
+    reschedule(e: PimEventRow, startMs: number, endMs: number): void;
+    color(e: PimEventRow, color: string): void;
+    remove(e: PimEventRow): void;
+  } | null>(null);
+
+  /** A refused write, said once, with the way to try it again. */
+  const reportWriteFailure = useCallback(
+    (error: unknown, retry: () => void) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      logDiagnostic("calendar", `event write refused: ${reason}`);
+      toast.error(t("pim.eventWriteRefused", { reason, defaultValue: "Der Termin wurde nicht gespeichert: {{reason}}" }), {
+        label: t("pim.eventWriteRetry", { defaultValue: "Erneut versuchen" }),
+        run: retry,
+      });
+    },
+    [t]
+  );
+
+  /** `writeEventForm` in the background: the form is already closed. */
+  const saveEventForm = useCallback(
+    (e: PimEventRow, values: EventFormValues) => {
+      void writeEventForm(e, values).catch((error) => reportWriteFailure(error, () => retryWrites.current?.save(e, values)));
+    },
+    [writeEventForm, reportWriteFailure]
   );
 
   /**
@@ -777,20 +823,35 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           setSavePrompt({ event: e, values, before, changes });
           return;
         }
-        await writeEventForm(e, values);
+        saveEventForm(e, values);
         return;
       }
       const draft = eventFormToDraft(values);
       const [accountId, ...rest] = values.calendarKey.split(" ");
       const calId = rest.join(" ");
       if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));
-      const out = await createCalendarEvent({ targetFor }, accountId, calId, draft);
-      setEvents((prev) => [...prev, ...out.rows]);
       setEditState(null);
       setCreateInitial(null);
-      refresh();
+      const create = () => {
+        const id = pendingEventWrites.reserve();
+        const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
+        void writeEventOptimistically(
+          pendingEventWrites,
+          { kind: "create", row: pendingEventRow(id, shown) },
+          () => createCalendarEvent({ targetFor }, accountId, calId, draft),
+          (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
+          id,
+        ).then(
+          (out) => {
+            setEvents((prev) => [...prev, ...out.rows]);
+            refresh();
+          },
+          (error) => reportWriteFailure(error, create),
+        );
+      };
+      create();
     },
-    [editState, writeEventForm, targetFor, refresh, t]
+    [editState, saveEventForm, reportWriteFailure, targetFor, refresh, t]
   );
 
   // ---- drag reschedule (move/resize existing single events) ----------------
@@ -798,6 +859,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const canEditEvent = useCallback(
     (e: PimEventRow) => {
       if (e.seriesMaster) return false; // series instances stay read-only (v1)
+      if (isPendingEventUid(e.uid)) return false; // no provider id yet: nothing to write against
       const key = `${e.accountId} ${e.calendarId}`;
       return writableCalendars.some((c) => `${c.accountId} ${c.id}` === key);
     },
@@ -825,21 +887,23 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         color: e.color,
       };
       try {
-        await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+        // The block lands at its new time with the drop, not with the answer.
+        await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { start: draft.start, end: draft.end, allDay: false } }, () =>
+          target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft),
+        );
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
           refresh();
           return;
         }
-        toast.error(err instanceof Error ? err.message : String(err));
+        reportWriteFailure(err, () => retryWrites.current?.reschedule(e, newStartMs, newEndMs));
         return;
       }
-      // Optimistic: land the block at the new time immediately.
       setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, start: draft.start, end: draft.end, allDay: false } : ev)));
       refresh();
     },
-    [targetFor, refresh, t]
+    [targetFor, refresh, reportWriteFailure, t]
   );
 
   const onEventMove = useCallback(
@@ -858,8 +922,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       if (!target?.respondToEvent) {
         throw new Error(t("pim.rsvpUnsupported", { defaultValue: "Zu-/Absagen wird für dieses Konto nicht unterstützt." }));
       }
-      await target.respondToEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response);
-      // Optimistic: reflect the new self-response at once (worker re-query confirms).
+      const respond = target.respondToEvent.bind(target);
+      await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { selfResponse: response } }, () =>
+        respond({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response),
+      );
       setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, selfResponse: response } : ev)));
       refresh();
     },
@@ -886,20 +952,22 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         color,
       };
       try {
-        await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+        await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { color } }, () =>
+          target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft),
+        );
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
           refresh();
           return;
         }
-        toast.error(err instanceof Error ? err.message : String(err));
+        reportWriteFailure(err, () => retryWrites.current?.color(e, color));
         return;
       }
       setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, color } : ev)));
       refresh();
     },
-    [targetFor, refresh, t]
+    [targetFor, refresh, reportWriteFailure, t]
   );
 
   // ---- quick create (feedback round 3: click/drag on an empty slot) --------
@@ -959,20 +1027,31 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         return;
       }
       try {
-        await target.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href });
-        // Optimistic: drop it from view at once (worker re-query confirms).
+        // Gone from view with the confirmation; a refusal brings it back.
+        await writeEventOptimistically(pendingEventWrites, { kind: "delete", ref: e }, () =>
+          target.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }),
+        );
         setEvents((prev) => prev.filter((ev) => !sameEventRef(ev, e)));
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
         } else {
-          toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+          reportWriteFailure(err, () => retryWrites.current?.remove(e));
         }
       }
       refresh();
     },
-    [targetFor, refresh, t]
+    [targetFor, refresh, reportWriteFailure, t]
   );
+
+  useEffect(() => {
+    retryWrites.current = {
+      save: saveEventForm,
+      reschedule: (e, startMs, endMs) => void rescheduleEvent(e, startMs, endMs),
+      color: (e, color) => void setEventColor(e, color),
+      remove: (e) => void performDelete(e),
+    };
+  }, [saveEventForm, rescheduleEvent, setEventColor, performDelete]);
 
   const deleteEvent = useCallback(
     async (e: PimEventRow) => {
@@ -996,7 +1075,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const [ctxMenu, setCtxMenu] = useState<{ event: PimEventRow; x: number; y: number } | null>(null);
   const [peekEvent, setPeekEvent] = useState<PimEventRow | null>(null);
   const openEventContextMenu = useCallback(
-    (e: PimEventRow, at: { x: number; y: number }) => setCtxMenu({ event: e, x: at.x, y: at.y }),
+    (e: PimEventRow, at: { x: number; y: number }) => {
+      if (isPendingEventUid(e.uid)) return;
+      setCtxMenu({ event: e, x: at.x, y: at.y });
+    },
     []
   );
 
@@ -1042,7 +1124,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       setSavePrompt(null);
       if (!prompt) return;
       if (scope === "this") {
-        await writeEventForm(prompt.event, prompt.values);
+        saveEventForm(prompt.event, prompt.values);
         return;
       }
       const master = await resolveSeriesMaster(prompt.event);
@@ -1050,9 +1132,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
         return;
       }
-      await writeEventForm(master, applyEventChanges(eventFormFromEvent(master), prompt.values, prompt.changes));
+      saveEventForm(master, applyEventChanges(eventFormFromEvent(master), prompt.values, prompt.changes));
     },
-    [savePrompt, resolveSeriesMaster, writeEventForm, t]
+    [savePrompt, resolveSeriesMaster, saveEventForm, t]
   );
 
   /**
@@ -1072,7 +1154,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * What a CLICK does (S2): open the preview. Reading an event is not editing
    * it, and a series is named rather than questioned.
    */
-  const requestPreview = useCallback((e: PimEventRow) => setPeekEvent(e), []);
+  const requestPreview = useCallback((e: PimEventRow) => {
+    // An event the provider has not named yet has nothing to open: every
+    // action in the preview writes against an id it does not have. It gets
+    // one within the moment it takes the write to return.
+    if (isPendingEventUid(e.uid)) return;
+    setPeekEvent(e);
+  }, []);
 
   const requestDelete = useCallback(
     (e: PimEventRow) => {
@@ -1256,7 +1344,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   /** The one-word state ("Abgesagt", "Offen", "Vielleicht") where a row has room
    * for it — the agenda. Confirmed events say nothing (report 2026-07-29 F7/F8). */
   const stateLabel = (e: PimEventRow) => {
-    const key = eventStateLabelKey(eventVisualState(e));
+    const key = eventStateLabelKey(eventVisualState(e), e);
     return key ? t(key) : null;
   };
 
@@ -1276,7 +1364,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
       data-testid="calendar-event"
       data-state={eventVisualState(e)}
-      className={`pv-rowhover ${eventStateClass("pv-evt", eventVisualState(e))}`}
+      className={`pv-rowhover ${eventStateClass("pv-evt", eventVisualState(e), e)}`}
       style={{
         ["--evt-color" as string]: colorOf(e),
         display: "grid",
@@ -1740,7 +1828,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
                       data-testid="calendar-month-event"
                       data-state={eventVisualState(e)}
-                      className={eventStateClass("pv-evt", eventVisualState(e))}
+                      className={eventStateClass("pv-evt", eventVisualState(e), e)}
                       onClick={(ev) => { ev.stopPropagation(); requestPreview(e); }}
                       onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                       style={{
@@ -1869,7 +1957,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   data-clipped-start={bar.clippedStart ? "1" : undefined}
                   data-clipped-end={bar.clippedEnd ? "1" : undefined}
                   data-state={eventVisualState(bar.event)}
-                  className={eventStateClass("pv-evt", eventVisualState(bar.event))}
+                  className={eventStateClass("pv-evt", eventVisualState(bar.event), bar.event)}
                   data-tip={eventDisplayTitle(bar.event.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}
                   onClick={(ev) => { ev.stopPropagation(); requestPreview(bar.event); }}
                   onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(bar.event, { x: ev.clientX, y: ev.clientY }); }}
@@ -1992,7 +2080,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                               onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                               data-testid="agenda-allday"
                               data-state={eventVisualState(e)}
-                              className={`pv-evt pv-evt--soft ${eventVisualState(e) === "confirmed" ? "" : `pv-evt--${eventVisualState(e)}`}`}
+                              className={`${eventStateClass("pv-evt", eventVisualState(e), e)} pv-evt--soft`}
                               style={{
                                 fontSize: "var(--text-xs)",
                                 padding: "2px 9px",

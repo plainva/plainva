@@ -31,7 +31,7 @@ import {
   MessageSquare,
   FileX,
   X, Search } from "lucide-react";
-import { listPimEvents } from "../../services/pim/pimService";
+import { listShownPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
@@ -287,7 +287,7 @@ export function BaseScreen({
     }
     const from = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1).getTime();
     const to = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1).getTime();
-    void listPimEvents(from, to)
+    void listShownPimEvents(from, to)
       .then((rows) => {
         if (!alive) return;
         const map = new Map<string, { count: number }>();

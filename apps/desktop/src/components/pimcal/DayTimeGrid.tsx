@@ -417,7 +417,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   data-testid="calendar-allday-event"
                   data-state={eventVisualState(e)}
                   data-tip={`${eventDisplayTitle(e.title, untitledLabel)}${calName(e) ? ` · ${calName(e)}` : ""}`}
-                  className={eventStateClass("pv-evt", eventVisualState(e))}
+                  className={eventStateClass("pv-evt", eventVisualState(e), e)}
                   style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", ["--evt-color" as string]: colorOf(e), fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
                 >
                   {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ marginRight: 3, verticalAlign: "text-bottom" }} /> : null}
@@ -495,7 +495,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
               data-clipped-end={bar.clippedEnd ? "1" : undefined}
               data-state={eventVisualState(bar.event)}
               data-tip={`${eventDisplayTitle(bar.event.title, untitledLabel)}${calName(bar.event) ? ` · ${calName(bar.event)}` : ""}`}
-              className={eventStateClass("pv-evt", eventVisualState(bar.event))}
+              className={eventStateClass("pv-evt", eventVisualState(bar.event), bar.event)}
               style={{
                 gridRow: 1,
                 gridColumn: `${bar.startCol + 2} / span ${bar.endCol - bar.startCol + 1}`,
@@ -609,7 +609,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                       data-testid="calendar-timed-event"
                       data-state={eventVisualState(b.ev)}
                       data-compact={compact ? "true" : undefined}
-                      className={eventStateClass("pv-evt", eventVisualState(b.ev))}
+                      className={eventStateClass("pv-evt", eventVisualState(b.ev), b.ev)}
                       onPointerDown={(e) => {
                         // Clear a stale suppression left by a prior drag that
                         // ended off the block (resize) so this click still works.

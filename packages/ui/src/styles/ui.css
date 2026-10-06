@@ -1138,6 +1138,15 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-evt--declined .pv-evt-title {
   text-decoration: line-through;
 }
+/* On its way to the provider (issue 119): the event is already where the user
+   put it and breathes until the answer is in. A mark on whatever state it has,
+   so it adds to the hatch or the outline instead of replacing them. */
+.pv-evt--sending {
+  animation: pv-evt-sending var(--dur-progress) ease-in-out infinite;
+  cursor: progress;
+}
+@keyframes pv-evt-sending { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .pv-evt--sending { animation: none; opacity: 0.6; } }
 /* A tinted chip (the agenda's all-day pills): the soft fill instead of the
    solid one, so the state modifiers below can still take it away. */
 .pv-evt--soft {

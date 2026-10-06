@@ -513,13 +513,22 @@ test('event dialog: create validation + provider-error surface, edit prefill, de
   await page.getByTestId('event-save').click();
   await expect(page.getByTestId('event-error')).toBeVisible();
 
-  // With a title the submit reaches the provider layer; no mock credentials ->
-  // the write fails INLINE instead of pretending success.
+  // With a title the dialog closes with the save and the event is on its way
+  // (issue 119). No mock credentials -> the provider layer refuses, the event
+  // is taken back, and the refusal is said once with the way to try again —
+  // instead of pretending success, and instead of holding the dialog open
+  // until a provider has answered.
   await page.getByTestId('event-title').fill('Neuer Test-Termin');
   await page.getByTestId('event-save').click();
-  await expect(page.getByTestId('event-error')).toBeVisible();
-  await page.getByRole('dialog').filter({ has: page.getByTestId('event-edit-form') }).getByRole('button', { name: /Abbrechen|Cancel/ }).click();
   await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+  const refused = page.locator('.pv-toast--error').filter({ hasText: /nicht gespeichert|was not saved/ });
+  await expect(refused).toBeVisible();
+  await expect(refused.locator('.pv-toast-action')).toHaveText(/Erneut versuchen|Try again/);
+  await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'Neuer Test-Termin' })).toHaveCount(0);
+  // Trying again makes the same attempt: refused again, said again.
+  await refused.locator('.pv-toast-action').click();
+  await expect(page.locator('.pv-toast--error').filter({ hasText: /nicht gespeichert|was not saved/ })).toBeVisible();
+  await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'Neuer Test-Termin' })).toHaveCount(0);
 
   // Clicking the timed block opens the edit dialog prefilled with its values.
   await page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).click();
@@ -583,13 +592,14 @@ test('series instance: the preview names the series; editing routes through the 
   await expect(page.getByTestId('event-start-time')).toHaveValue('14:00');
 
   // Saving it UNCHANGED asks nothing and writes nothing. The mock has no
-  // credentials, so an attempted write fails INLINE and keeps the dialog open
-  // (see the "provider-error surface" test) — a silent close is the proof that
-  // no provider call was made at all.
+  // credentials, so an attempted write is refused and says so in a toast (see
+  // the "provider-error surface" test) — a close WITHOUT that toast is the
+  // proof that no provider call was made at all.
   await page.getByTestId('event-save').click();
   await expect(page.getByTestId('series-scope')).toHaveCount(0);
   await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
   await expect(page.getByTestId('event-error')).toHaveCount(0);
+  await expect(page.locator('.pv-toast--error')).toHaveCount(0);
 
   // A CHANGED time asks — and the question names the change.
   await seriesBlock.click();
