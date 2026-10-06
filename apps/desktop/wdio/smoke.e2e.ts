@@ -21,6 +21,15 @@ describe("Plainva native smoke", () => {
     await $('[data-testid="ribbon-tasks"]').waitForExist({ timeout: 40_000 });
 
     // New note, then type the marker into the editor.
+    // A fresh profile greets with dialogs of its own (What's New at the
+    // least), and a dialog over the ribbon takes the click (second Linux run,
+    // 2026-10-06: "element click intercepted"). They close on Escape; three
+    // rounds are more than a first start has ever shown.
+    for (let round = 0; round < 3 && (await $('[role="dialog"]').isExisting()); round += 1) {
+      await browser.keys("Escape");
+      await browser.pause(400);
+    }
+
     // By test id, like every other ribbon entry: the label follows the app's
     // language and the catalog's wording, the id does not (first Linux run,
     // 2026-09-30: the vault opened and the button was not found by its label).

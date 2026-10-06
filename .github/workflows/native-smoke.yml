@@ -82,6 +82,25 @@ jobs:
           (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue).pv
           if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
           Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
+          # The driver reaches a WebView2 app through two environment variables:
+          # its own user data folder, and a debugging port. If the app's WebView
+          # honours them, the port file appears in THAT folder. If it does not,
+          # the driver waits for a file that is written somewhere else.
+          $probe = Join-Path $env:RUNNER_TEMP "wv2-probe"
+          New-Item -ItemType Directory -Force -Path $probe | Out-Null
+          $env:WEBVIEW2_USER_DATA_FOLDER = $probe
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9333"
+          $q = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 20
+          Write-Host "with the driver's variables: running=$(-not $q.HasExited)"
+          Write-Host "port file in the given folder: $(Test-Path (Join-Path $probe 'EBWebView\DevToolsActivePort'))"
+          Write-Host "port file in the app's own folder: $(Test-Path "$env:LOCALAPPDATA\com.plainva.desktop\EBWebView\DevToolsActivePort")"
+          Get-ChildItem $probe -ErrorAction SilentlyContinue | Select-Object Name | Format-Table
+          try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 http://127.0.0.1:9333/json/version).Content } catch { Write-Host "port 9333 does not answer: $($_.Exception.Message)" }
+          if (-not $q.HasExited) { Stop-Process -Id $q.Id -Force }
+          Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Remove-Item Env:WEBVIEW2_USER_DATA_FOLDER; Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
       - name: Native smoke
         run: pnpm --filter desktop test:native
       - name: Upload driver logs

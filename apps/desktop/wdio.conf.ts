@@ -73,6 +73,19 @@ export const config: WebdriverIO.Config = {
   // way to tell which of the three processes gave up.
   outputDir: "wdio-logs",
 
+  // A failed step leaves what the window looked like: without it the job log
+  // names an element and nothing about what stood in front of it.
+  async afterTest(_test, _context, result) {
+    if (result.passed) return;
+    try {
+      mkdirSync("wdio-logs", { recursive: true });
+      await browser.saveScreenshot(join("wdio-logs", "failed.png"));
+      writeFileSync(join("wdio-logs", "failed.html"), await browser.getPageSource(), "utf8");
+    } catch {
+      /* the session may be gone; the driver log says so */
+    }
+  },
+
   onPrepare() {
     vaultDir = mkdtempSync(join(tmpdir(), "plainva-smoke-vault-"));
     const dataDir = appDataDir();
