@@ -794,6 +794,13 @@ export async function installSqlBridge(context) {
     seedPim(dbName) {
       outsideTransaction(dbName, () => seedPimAccounts(open(dbName)));
     },
+    /**
+     * One statement of a spec's own — rows a single test needs and no other
+     * surface should carry (a sync failure on record, six entries on one day).
+     */
+    run(dbName, sql, params = []) {
+      outsideTransaction(dbName, () => open(dbName).prepare(sql).run(...params));
+    },
     /** The connected vault's own calendar account — see the note above. */
     seedCloudPim(dbName) {
       outsideTransaction(dbName, () => seedCloudPimAccount(open(dbName)));

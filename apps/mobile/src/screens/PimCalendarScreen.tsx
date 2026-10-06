@@ -3,8 +3,8 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
-import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
-import type { PimEventRow } from "@plainva/core";
+import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, CalendarSyncNotice, hiddenBeyondDots} from "@plainva/ui";
+import type { PimEventRow, PimSyncProblem } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { usePageSwipe } from "../lib/usePageSwipe";
@@ -115,6 +115,9 @@ export function PimCalendarScreen({
     }
   }, [view]);
   const [events, setEvents] = useState<PimEventRow[]>([]);
+  // Accounts and calendars that are not being synced — the line above the
+  // calendar, the same one the desktop shows (plan Befunde 2026-10-06, K1).
+  const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
   // Calendar colours, so an event without its own colour still reads as
   // belonging to its calendar (desktop parity).
   const [calColor, setCalColor] = useState<Map<string, string>>(new Map());
@@ -191,6 +194,7 @@ export function PimCalendarScreen({
 
   const reload = useCallback(() => {
     void listShownPimEvents(rangeStart, rangeEnd).then(setEvents).catch(() => setEvents([]));
+    void (getPimCache()?.listSyncProblems() ?? Promise.resolve([])).then(setSyncProblems).catch(() => setSyncProblems([]));
     void listPimCalendars()
       .then((cals) => setCalColor(new Map(cals.map((c) => [`${c.accountId} ${c.id}`, c.color ?? ""]))))
       .catch(() => setCalColor(new Map()));
@@ -220,7 +224,21 @@ export function PimCalendarScreen({
     });
   }, [rangeStart, rangeEnd]);
 
-  useEffect(() => { reload(); }, [reload, bump]);
+  // `status.status` is a dependency on purpose (K1): the screen reads the
+  // cache again when a cycle begins and when it ENDS — also one that failed or
+  // wrote nothing. `m-pim-changed` only fires when a cycle wrote, so after a
+  // failed cycle the screen stayed on what it had read last and never learned
+  // that an account had stopped syncing.
+  useEffect(() => { reload(); }, [reload, bump, status.status]);
+  // Coming back to the app reads again as well; the cycle that resume starts
+  // may take a while, and what is cached is better than what was on screen.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reload();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [reload]);
   // Opening a screen that shows PIM data pulls fresh (plan
   // Mobile-PIM-Auffrischung, P3). The worker comment promised exactly this
   // — "opening the calendar tab" — and it was never wired; the two-minute
@@ -555,6 +573,11 @@ export function PimCalendarScreen({
         </ScrollEdge>
       )}
 
+      {/* Who is not being synced, since when and why (K1) — only above an
+          actual calendar: without accounts, or with none that signs in, the
+          surface below already is the explanation. */}
+      {hasAccounts !== false && !needsSignIn && <CalendarSyncNotice problems={syncProblems} onRetry={pimSyncNow} busy={status.status === "syncing"} />}
+
       {/* The paging surface (P4): a horizontal drag pages to the neighbouring
           period — what the arrows do — and the page follows the finger. It
           wraps every state, so a phone without accounts pages the period
@@ -646,6 +669,13 @@ export function PimCalendarScreen({
                     {(ovByDay.get(key) ?? []).slice(0, 2).map((entry) => (
                       <span className="m-cal-dot m-cal-dot--note" key={`ov-${entry.basePath}-${entry.path}`} />
                     ))}
+                    {/* What lies beyond the dots (plan Befunde 2026-10-06, K2):
+                        three dots said "three" for a day with nine entries. */}
+                    {hiddenBeyondDots(list.length, 3) + hiddenBeyondDots((ovByDay.get(key) ?? []).length, 2) > 0 && (
+                      <span className="m-cal-more" data-testid="pim-month-more">
+                        +{hiddenBeyondDots(list.length, 3) + hiddenBeyondDots((ovByDay.get(key) ?? []).length, 2)}
+                      </span>
+                    )}
                   </span>
                 </button>
               );
@@ -777,7 +807,21 @@ export function PimCalendarScreen({
                   key={isoOf(day)}
                   style={{ flex: 1, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: "var(--space-1)", display: "flex", flexDirection: "column", gap: "var(--space-1)" }}
                 >
-                  {(byDay.get(isoOf(day)) ?? []).filter((e) => e.allDay).map((e) => (
+                  {/* A working location or an out-of-office entry is a STATE of
+                      the day, not an appointment in it (K2): the same split
+                      and the same band as the desktop's all-day row, where
+                      this strip used to draw "Home" as a meeting. */}
+                  {partitionStatus((byDay.get(isoOf(day)) ?? []).filter((e) => e.allDay)).status.map((e) => (
+                    <span
+                      className={`pv-status-band pv-status-band--${e.statusKind}`}
+                      data-status={e.statusKind}
+                      data-testid="pim-status-band"
+                      key={`st-${e.accountId}-${e.calendarId}-${e.uid}`}
+                    >
+                      {statusLabel(e, t)}
+                    </span>
+                  ))}
+                  {partitionStatus((byDay.get(isoOf(day)) ?? []).filter((e) => e.allDay)).appointments.map((e) => (
                     <button
                       className={eventStateClass("m-evt", eventVisualState(e), e)}
                       data-state={eventVisualState(e)}

@@ -114,6 +114,17 @@ test.beforeEach(async ({ page }) => {
                   },
                 ]
               : []),
+            // Opt-in: five more all-day entries on today, which with "Feiertag"
+            // makes six — one more than the all-day row shows on its own (E8).
+            ...((window as any).__pimAllDay
+              ? ['Urlaub', 'Kalenderwoche', 'Messe', 'Geburtstag', 'Abgabe'].map((title, i) => ({
+                  account_id: 'acc1', cal_id: 'cal1', uid: `ev-allday-${i}`, title,
+                  start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(),
+                  end_ts: tomorrow.getTime(),
+                  start_date: todayKey, end_date: dayKey(tomorrow), all_day: 1, location: null, description: null,
+                  attendees: null, status: null, etag: `e-ad-${i}`, series_master: null, recurrence: null, href: null,
+                }))
+              : []),
           ];
 
     (window as any).__TAURI_INTERNALS__ = {
@@ -172,6 +183,9 @@ test.beforeEach(async ({ page }) => {
             // The grid query excludes series masters (`recurrence IS NULL`).
             return pimEvents().filter((e: any) => !e.recurrence);
           }
+          // listSyncProblems (K1): what is not being synced. Opt-in rows; read
+          // on every call, so a test can clear them and watch the view re-read.
+          if (q.includes('FROM pim_state s JOIN pim_accounts')) return (window as any).__pimProblems ?? [];
           if (q.includes('FROM pim_accounts')) {
             const custom = (window as any).__pimAccounts;
             if (custom) return custom;
@@ -1372,4 +1386,115 @@ test('daily-note marks follow the configured path and open or create the selecte
   await page.getByTestId('calendar-jump-daily-note').click();
   await expect(page.getByRole('tab', { name: /26.10.21/ })).toHaveAttribute('aria-selected', 'true');
   await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Journal/26.10.21.md'])).toBeTruthy();
+});
+
+test('an account that is not being synced says so above the calendar, and the events stay', async ({ page }, testInfo) => {
+  // Plan Befunde 2026-10-06, K1. The account's last attempt failed at 10:42
+  // today; what the cache holds is still shown, and the line names the
+  // account, the time and the reason.
+  await page.addInitScript(() => {
+    const now = new Date();
+    (window as any).__pimProblems = [
+      {
+        account_id: 'acc1', scope: 'account',
+        last_sync_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 42).getTime(),
+        last_error: 'error sending request for url (https://dav.example.org/calendars/me/)',
+        last_error_kind: 'transient', label: 'Testkonto', provider: 'caldav',
+      },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+
+  const notice = page.getByTestId('calendar-sync-notice');
+  await expect(notice).toBeVisible();
+  const line = notice.getByTestId('calendar-sync-line');
+  await expect(line).toHaveCount(1);
+  await expect(line).toContainText('Testkonto');
+  await expect(line).toContainText('10:42');
+  // The reason in words, never the address the request went to.
+  await expect(line).not.toContainText('dav.example.org');
+  await expect(line).not.toContainText('{{');
+
+  // The events are still there: the month cell, and the grid of today.
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  await expect(page.getByTestId(`calendar-day-${todayKey}`)).toContainText('Standup');
+  await page.getByTestId('calendar-mode-day').click();
+  await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' })).toBeVisible();
+  await expect(notice).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('calendar-sync-notice.png') });
+
+  // "Try again" asks for a cycle. This one writes nothing (the mock has no
+  // sign-in to pull with) — and the view reads the cache again all the same,
+  // which is how it learns that the account is fine now. Before K1 only a
+  // cycle that WROTE made the calendar look again.
+  await page.evaluate(() => { (window as any).__pimProblems = []; });
+  await notice.getByTestId('calendar-sync-retry').click();
+  await expect(notice).toHaveCount(0);
+  await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' })).toBeVisible();
+});
+
+test('the calendar reads again when its window comes back, without a cycle', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await expect(page.getByTestId('calendar-view')).toBeVisible();
+  await expect(page.getByTestId('calendar-sync-notice')).toHaveCount(0);
+
+  // Something changed in the cache while the window was away…
+  await page.evaluate(() => {
+    (window as any).__pimProblems = [
+      { account_id: 'acc1', scope: 'account', last_sync_ts: null, last_error: 'invalid_grant', last_error_kind: 'fatal', label: 'Testkonto', provider: 'caldav' },
+    ];
+    window.dispatchEvent(new Event('focus'));
+  });
+  // …and coming back is enough to see it. Never synced: no time is invented.
+  const line = page.getByTestId('calendar-sync-line');
+  await expect(line).toContainText('Testkonto');
+  await expect(line).not.toContainText('{{');
+});
+
+test('the all-day row shows five rows, counts the rest and opens for all days', async ({ page }, testInfo) => {
+  // Plan Befunde 2026-10-06, K2 (E8). Six all-day entries today: four and a
+  // count where a fixed 84 px used to cut the fourth in half behind a
+  // scrollbar nobody saw.
+  await page.addInitScript(() => {
+    (window as any).__pimAllDay = true;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-mode-week').click();
+
+  const strip = page.getByTestId('calendar-allday-strip');
+  await expect(strip).toBeVisible();
+  const entries = strip.getByTestId('calendar-allday-event');
+  await expect(entries).toHaveCount(4);
+  const more = strip.getByTestId('calendar-allday-more');
+  await expect(more).toHaveCount(1);
+  await expect(more).toContainText('2');
+  await expect(more).not.toContainText('{{');
+  // Nothing is hidden behind a scrollbar: the row is as tall as its content.
+  expect(await strip.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+  const closedHeight = (await strip.boundingBox())!.height;
+  await page.screenshot({ path: testInfo.outputPath('allday-row-closed.png') });
+
+  // One click opens the row — every entry, and the way back in the same place.
+  await more.click();
+  await expect(entries).toHaveCount(6);
+  await expect(strip.getByTestId('calendar-allday-more')).toHaveCount(0);
+  const less = strip.getByTestId('calendar-allday-less');
+  await expect(less).toHaveCount(1);
+  expect((await strip.boundingBox())!.height).toBeGreaterThan(closedHeight);
+  await page.screenshot({ path: testInfo.outputPath('allday-row-open.png') });
+  expect(await strip.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
+  // The grid under it is still there to scroll and click.
+  await expect(page.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' })).toBeVisible();
+
+  await less.click();
+  await expect(entries).toHaveCount(4);
+  await expect(strip.getByTestId('calendar-allday-more')).toContainText('2');
+
+  // A day with five entries or fewer has no count at all.
+  await page.getByTestId('calendar-next').click();
+  await expect(page.getByTestId('calendar-allday-more')).toHaveCount(0);
 });

@@ -6,8 +6,8 @@ import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
 import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
-import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
-import type { EventChange } from "@plainva/ui";
+import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
+import { CalendarSyncNotice, type EventChange } from "@plainva/ui";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
@@ -137,6 +137,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const [cachedEvents, setEvents] = useState<PimEventRow[]>([]);
   const events = useShownEvents(cachedEvents);
   const [status, setStatus] = useState<{ status: string; message?: string }>({ status: "idle" });
+  // Accounts and calendars that are not being synced — the line above the grid.
+  const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
   const [tick, setTick] = useState(0);
   // Optional: overlay the standard task database's due-dated tasks (device-local
   // view preference, like the graph pins). Only offered when a task DB exists.
@@ -211,34 +213,60 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   }, [applyDay]);
 
   // Cache re-query: worker cycles announce fresh data over the window event.
+  //
+  // And the END of every cycle re-reads too (plan Befunde 2026-10-06, K1) —
+  // also one that failed or wrote nothing. `plainva-pim-changed` only fires
+  // when a cycle wrote, so after a failed cycle the view stayed on whatever it
+  // had read last, and nothing told it that an account had stopped syncing.
+  // Coming back to the window does the same: a calendar in a background window
+  // is not a reason to show what it knew an hour ago.
   useEffect(() => {
     const onChanged = () => setTick((v) => v + 1);
     const onStatus = (e: Event) => {
       const d = (e as CustomEvent).detail;
-      if (d && typeof d.status === "string") setStatus({ status: d.status, message: d.message });
+      if (d && typeof d.status === "string") {
+        setStatus({ status: d.status, message: d.message });
+        if (d.status !== "syncing") onChanged();
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") onChanged();
     };
     window.addEventListener("plainva-pim-changed", onChanged);
     window.addEventListener("plainva-pim-status", onStatus);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
       window.removeEventListener("plainva-pim-changed", onChanged);
       window.removeEventListener("plainva-pim-status", onStatus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
   }, []);
+  // The pane becoming the active one is the third occasion: a calendar that
+  // sat in the other half of a split is read again when it is turned to.
+  useEffect(() => {
+    if (isActivePane) setTick((v) => v + 1);
+  }, [isActivePane]);
 
   useEffect(() => {
     let stale = false;
     (async () => {
       if (!pimRuntime) return;
       try {
-        const [acc, cals, evs] = await Promise.all([
+        const [acc, cals, evs, notFresh] = await Promise.all([
           pimRuntime.cache.listAccounts(),
           pimRuntime.cache.listCalendars(),
           pimRuntime.cache.listEvents(rangeStartTs, rangeEndTs),
+          // Its own catch: the line above the calendar must never cost the
+          // calendar its events.
+          pimRuntime.cache.listSyncProblems().catch(() => [] as PimSyncProblem[]),
         ]);
         if (stale) return;
         setAccounts(acc);
         setCalendars(cals);
         setEvents(evs);
+        setSyncProblems(notFresh);
       } catch {
         /* cache unreadable — leave the previous state */
       }
@@ -1672,6 +1700,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           <RefreshCw size={ICON.ui} />
         </IconButton>
       </div>
+
+      {/* Who is not being synced, since when and why (K1). The events stay
+          where they are — this line is what tells them apart from fresh ones. */}
+      <CalendarSyncNotice problems={syncProblems} onRetry={refresh} busy={status.status === "syncing"} />
 
       {showTasks && taskError && (
         <p

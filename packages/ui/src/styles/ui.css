@@ -1119,6 +1119,23 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
    follows the same ranking the shared model sorts by. */
 .pv-status-band--outOfOffice { color: var(--warning-text); background: var(--warning-bg); }
 .pv-status-band--focusTime { color: var(--accent-color); }
+/* The all-day row's count ("+ 2 more") and its way back (plan Befunde
+   2026-10-06, E8). A ghost Button cut down to the height of the entries it
+   stands in for: it takes a row of the strip, not a control's worth of it. */
+.pv-btn.pv-allday-more {
+  height: auto;
+  min-height: 0;
+  justify-content: flex-start;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+/* The line above the calendar (K1): one sentence per account or calendar that
+   is not fresh. Each on its own line — two accounts are two statements. */
+.pv-syncnote-line { display: block; }
+.pv-syncnote-line + .pv-syncnote-line { margin-top: var(--space-1); }
 
 .pv-evt {
   background: var(--evt-color, var(--accent-color));

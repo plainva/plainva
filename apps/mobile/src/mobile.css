@@ -2076,6 +2076,17 @@ textarea {
   width: 4px;
   height: 4px;
 }
+/* What a month cell does not show as dots (plan Befunde 2026-10-06, K2): the
+   count sits in the row of the dots and reads with them. */
+.m-cal-grid--month .m-cal-dots { align-items: center; }
+.m-cal-more {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+/* Today's cell is filled with the accent: the count takes the cell's own text
+   colour there, or it would be muted grey on petrol. */
+.m-cal-day.is-today .m-cal-more { color: inherit; }
 
 /* P1 onboarding */
 .m-onboarding {

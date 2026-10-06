@@ -457,6 +457,23 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
+    id: "calendar-all-day-row-limit",
+    title: "The all-day row of the time grid: five rows, a count, and opening it",
+    area: "pim",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "On the desktop the all-day row is pinned above a time grid that fills the pane, " +
+      "so it grows to five rows, counts the rest per day and opens for all days on a " +
+      "click (DayTimeGrid.tsx). On the phone the row is not pinned: it scrolls away " +
+      "with the grid (PimCalendarScreen.tsx), so it shows every entry at once and has " +
+      "nothing to hide or to open - a limit there would add a tap without saving " +
+      "space. Status entries are bands in both rows, and the phone's month grid " +
+      "counts what lies beyond its dots (plan Befunde 2026-10-06, E8).",
+    verified: "2026-10-06",
+  },
+  {
     id: "device-pim-accounts",
     title: "The device's own calendars and reminder lists as a calendar account",
     area: "pim",
