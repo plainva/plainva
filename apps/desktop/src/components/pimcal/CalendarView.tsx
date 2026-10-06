@@ -868,11 +868,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   const rescheduleEvent = useCallback(
     async (e: PimEventRow, newStartMs: number, newEndMs: number) => {
-      const target = await targetFor(e.accountId);
-      if (!target) {
-        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        return;
-      }
       // Direct draft from the event's current fields with new times; the
       // adapter GET-modify-PUTs, so attendees/alarms/color are preserved.
       const draft: PimEventDraft = {
@@ -887,10 +882,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         color: e.color,
       };
       try {
-        // The block lands at its new time with the drop, not with the answer.
-        await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { start: draft.start, end: draft.end, allDay: false } }, () =>
-          target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft),
-        );
+        // The block lands at its new time with the drop — before anything is
+        // awaited. Building the target (reading the sign-in) used to come
+        // first, and for that long the block stood at its old place again.
+        await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { start: draft.start, end: draft.end, allDay: false } }, async () => {
+          const target = await targetFor(e.accountId);
+          if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+          await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+        });
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
@@ -938,11 +937,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // color:"" clears back to the calendar colour (same contract as the dialog).
   const setEventColor = useCallback(
     async (e: PimEventRow, color: string) => {
-      const target = await targetFor(e.accountId);
-      if (!target) {
-        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        return;
-      }
       const draft: PimEventDraft = {
         title: e.title,
         allDay: e.allDay,
@@ -952,9 +946,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         color,
       };
       try {
-        await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { color } }, () =>
-          target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft),
-        );
+        await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { color } }, async () => {
+          const target = await targetFor(e.accountId);
+          if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+          await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+        });
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
@@ -1021,16 +1017,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   /** Provider delete WITHOUT its own confirmation (callers confirm). */
   const performDelete = useCallback(
     async (e: PimEventRow) => {
-      const target = await targetFor(e.accountId);
-      if (!target) {
-        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        return;
-      }
       try {
         // Gone from view with the confirmation; a refusal brings it back.
-        await writeEventOptimistically(pendingEventWrites, { kind: "delete", ref: e }, () =>
-          target.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }),
-        );
+        await writeEventOptimistically(pendingEventWrites, { kind: "delete", ref: e }, async () => {
+          const target = await targetFor(e.accountId);
+          if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+          await target.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href });
+        });
         setEvents((prev) => prev.filter((ev) => !sameEventRef(ev, e)));
       } catch (err) {
         if (err instanceof PimConflictError) {

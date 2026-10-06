@@ -102,6 +102,17 @@ describe("pending calendar writes (issue 119)", () => {
     expect(unsettledEventWrites([], writes, SETTLED_EVENT_WRITE_TTL_MS + 1)).toEqual([]);
   });
 
+  it("lays over only what a patch sets: a field left undefined keeps its cached value, and the overlay lets go", () => {
+    const store = new PendingEventWrites();
+    const cached = [row("u1", { description: "kept", location: "Room 5" })];
+    // A patch built from a draft: the description is "do not touch".
+    const id = store.begin({ kind: "update", ref: ref("u1"), patch: { title: "New", description: undefined, location: undefined } });
+    expect(applyPendingEventWrites(cached, store.snapshot())[0]).toMatchObject({ title: "New", description: "kept", location: "Room 5" });
+    store.settle(id, undefined, 0);
+    store.reconcile([row("u1", { title: "New", description: "kept", location: "Room 5" })], 10);
+    expect(store.snapshot()).toEqual([]);
+  });
+
   it("tells its listeners about every change and keeps a stable snapshot in between", () => {
     const store = new PendingEventWrites();
     const listener = vi.fn();

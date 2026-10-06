@@ -102,6 +102,19 @@ export function unsettledEventWrites(rows: readonly PimEventRow[], writes: reado
   });
 }
 
+/**
+ * A patch says only what it sets. A draft leaves a field `undefined` to mean
+ * "do not touch" (the provider keeps its description, its attendees), and a
+ * patch built from such a draft carried those keys along: laid over the cached
+ * row they blanked the description on screen, and because the cache never
+ * agrees with "undefined" the overlay then stayed until it timed out.
+ */
+function statedChange(change: PendingEventChange): PendingEventChange {
+  if (change.kind !== "update") return change;
+  const patch = Object.fromEntries(Object.entries(change.patch).filter(([, value]) => value !== undefined)) as Partial<PimEventRow>;
+  return { ...change, patch };
+}
+
 export class PendingEventWrites {
   private writes: readonly PendingEventWrite[] = [];
   private readonly listeners = new Set<() => void>();
@@ -128,7 +141,7 @@ export class PendingEventWrites {
   }
 
   begin(change: PendingEventChange, id: number = this.reserve()): number {
-    this.set([...this.writes, { ...change, id, state: "sending" }]);
+    this.set([...this.writes, { ...statedChange(change), id, state: "sending" }]);
     return id;
   }
 
@@ -140,7 +153,7 @@ export class PendingEventWrites {
   settle(id: number, after?: readonly PendingEventChange[], now: number = Date.now()): void {
     const current = this.writes.find((write) => write.id === id);
     if (!current) return;
-    const replaced: PendingEventChange[] = after ? [...after] : [current];
+    const replaced: PendingEventChange[] = after ? after.map(statedChange) : [current];
     const settled = replaced.map((change, index): PendingEventWrite => ({ ...change, id: index === 0 ? id : this.reserve(), state: "settled", settledAt: now }));
     this.set(this.writes.flatMap((write) => (write.id === id ? settled : [write])));
   }
