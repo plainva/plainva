@@ -1,6 +1,5 @@
-import { useContext, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { SidebarStepContext } from "../lib/sidebarStep";
-import { asSingleLineValue, Button, GrowingField, IconButton, ICON, Rating, tagColorAttrs, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { asSingleLineValue, Button, GrowingField, IconButton, ICON, PropRow, Rating, tagColorAttrs, useFixedPopover, usePropertyValues, PropertyNameInput, type ValueSuggestionLoader, type PropertySuggestionSource } from "@plainva/ui";
 import {
   Type, Hash, CheckSquare, Calendar, Clock, List, Tag, Link2, Mail, Phone, Globe,
   CircleDot, ListChecks, ChevronsUpDown, ChevronDown, X, Plus, Trash2, Search, ExternalLink, Lock, Sigma, Star, MessageSquare,
@@ -60,13 +59,30 @@ function findOption(curated: CuratedOption[] | undefined, value: string): Curate
   return curated?.find((o) => o.value === value);
 }
 
+/**
+ * A click on the free part of a chip value puts the caret into its input. The
+ * input is folded away while the value is only read (a quiet value shows its
+ * chips, not an empty field behind them), so the value itself is the target.
+ * A click on a chip's own button stays that button's.
+ */
+function focusChipInput(e: ReactMouseEvent<HTMLElement>) {
+  if ((e.target as HTMLElement).closest("button")) return;
+  e.currentTarget.querySelector<HTMLInputElement>(".pv-chip-input")?.focus();
+}
+
 /* ------------------------------------------------------------------ inputs */
 
-export function PlainInput({ value, onChange, type, t, propKey = "", getValueSuggestions, curated, autoFocus, onClose, growing }: {
+export function PlainInput({ value, onChange, type, t, propKey = "", getValueSuggestions, curated, autoFocus, onClose, growing, selectOnFocus = true }: {
   value: any; onChange: (v: any) => void; type: PropertyType; t: TFn; propKey?: string;
   getValueSuggestions?: ValueSuggestionLoader; curated?: CuratedOption[]; autoFocus?: boolean; onClose?: () => void;
   /** A table cell (issue 118): the field wraps and grows with the text instead of showing one line of it. */
   growing?: boolean;
+  /**
+   * A cell editor opens to replace its value, so the text is selected. A
+   * property row is a standing field one clicks INTO — there the caret goes
+   * where the click was.
+   */
+  selectOnFocus?: boolean;
 }) {
   const [v, setV] = useState(String(value ?? ""));
   const [open, setOpen] = useState(false);
@@ -98,7 +114,7 @@ export function PlainInput({ value, onChange, type, t, propKey = "", getValueSug
     if (!e.currentTarget.contains(e.relatedTarget)) { setOpen(false); commit(); }
   }}>
     {growing
-      ? <GrowingField autoFocus={autoFocus} value={v} onFocus={(e) => { setOpen(true); e.currentTarget.select(); }}
+      ? <GrowingField autoFocus={autoFocus} value={v} onFocus={(e) => { setOpen(true); if (selectOnFocus) e.currentTarget.select(); }}
           onChange={(e) => { setV(asSingleLineValue(e.target.value)); setActive(-1); setOpen(true); }}
           onKeyDown={onFieldKey} placeholder={t("properties.value")} />
       : <input autoFocus={autoFocus} type={type === "phone" ? "tel" : type === "email" ? "email" : "text"}
@@ -144,10 +160,11 @@ function CheckboxToggle({ value, onChange, label }: { value: any; onChange: (v: 
 
 function DateValue({ value, onChange, includeTime, locale }: { value: any; onChange: (v: any) => void; includeTime: boolean; locale: string }) {
   const [editing, setEditing] = useState(false);
-  // Below the comfortable step the long form ("Fr., 10. Juli 2026") does not
-  // fit beside the label; the numeric form does. Either way the button never
-  // wraps: it has a fixed height, and a wrapped date ran into the next section.
-  const step = useContext(SidebarStepContext);
+  // The long form at every width ("Do., 24. September 2026"), and it WRAPS
+  // (plan Befunde 2026-10-06, R2). The button used to have a fixed height and
+  // an ellipsis, so a narrow column showed "Do., 2…" — two letters of a date.
+  // The numeric form below the comfortable step was the workaround for that
+  // fixed height; a value that may take a second line does not need one.
   const str = String(value ?? "");
   if (editing || !str) {
     return (
@@ -159,15 +176,8 @@ function DateValue({ value, onChange, includeTime, locale }: { value: any; onCha
     );
   }
   return (
-    <button
-      type="button"
-      className="pv-field pv-field--compact"
-      style={{ display: "flex", alignItems: "center", gap: "6px", textAlign: "left", cursor: "pointer", minWidth: 0, overflow: "hidden" }}
-      onClick={() => setEditing(true)}
-      data-tip={formatDateValue(str, includeTime, locale, "long")}
-    >
-      {includeTime ? <Clock size={ICON.ui} style={{ flexShrink: 0 }} /> : <Calendar size={ICON.ui} style={{ flexShrink: 0 }} />}
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formatDateValue(str, includeTime, locale, step === "comfortable" ? "long" : "default")}</span>
+    <button type="button" className="pv-prow-date" onClick={() => setEditing(true)}>
+      {formatDateValue(str, includeTime, locale, "long")}
     </button>
   );
 }
@@ -218,13 +228,15 @@ function RelationPicker(props: {
 
   return (
     <div className="pv-tags" ref={wrapRef}>
-      <div className="pv-chips">
+      <div className="pv-chips" onClick={focusChipInput}>
         {items.map((it, i) => {
           const target = stripWikiLink(it);
           return (
             <span key={`${it}-${i}`} className="pv-chip pv-chip--removable pv-chip-link">
-              <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} aria-label={t("properties.openLink")} data-tip={t("properties.openLink")}>
-                <Link2 size={ICON.meta} /> {target}
+              {/* The tooltip is the full target: a chip longer than the row
+                  shortens with an ellipsis, and this is where the rest is. */}
+              <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} aria-label={`${t("properties.openLink")}: ${target}`} data-tip={target}>
+                <Link2 size={ICON.meta} /><span className="pv-chip-text">{target}</span>
               </button>
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={ICON.meta} /></button>
             </span>
@@ -285,7 +297,7 @@ function TagPills({ value, onChange, suggestions, t }: { value: any; onChange: (
 
   return (
     <div className="pv-tags" ref={wrapRef}>
-      <div className="pv-chips">
+      <div className="pv-chips" onClick={focusChipInput}>
         {items.map((tag, i) => {
           const { parent, leaf } = tagSegments(tag);
           return (
@@ -338,8 +350,14 @@ export function SelectChip(props: {
   value: any; onChange: (v: any) => void; propKey: string;
   getValueSuggestions?: ValueSuggestionLoader;
   curated?: CuratedOption[]; grouped?: boolean; t: TFn; autoOpen?: boolean; onClose?: () => void;
+  /**
+   * Draw the caret inside the trigger. A table cell does (it has nowhere else);
+   * a property row does not — its caret stands in the row's edge column, where
+   * every row keeps what it can do.
+   */
+  caret?: boolean;
 }) {
-  const { value, onChange, propKey, getValueSuggestions, curated, grouped, t, onClose } = props;
+  const { value, onChange, propKey, getValueSuggestions, curated, grouped, t, onClose, caret = true } = props;
   const [open, setOpen] = useState(props.autoOpen ?? false);
   const [query, setQuery] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -372,16 +390,11 @@ export function SelectChip(props: {
 
   return (
     <div className="pv-select" ref={wrapRef}>
-      <button
-        type="button"
-        className="pv-rowhover"
-        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", width: "100%", padding: "3px 6px", border: "1px solid transparent", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
-        onClick={() => setOpen((o) => !o)}
-      >
+      <button type="button" className="pv-rowhover pv-select-btn" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         {current
-          ? <span className={chipClass(current, currentOpt?.color)}><span className="pv-dot" /><span className="pv-chip-text">{currentOpt?.label ?? current}</span></span>
+          ? <span className={chipClass(current, currentOpt?.color)} data-tip={currentOpt?.label ?? current}><span className="pv-dot" /><span className="pv-chip-text">{currentOpt?.label ?? current}</span></span>
           : <span className="pv-placeholder">{t("properties.selectValue")}</span>}
-        <ChevronDown size={ICON.ui} className="pv-select-caret" />
+        {caret && <ChevronDown size={ICON.ui} className="pv-select-caret" />}
       </button>
       {open && (
         <div ref={popRef} className="pv-popover pv-popover--fixed">
@@ -439,11 +452,11 @@ export function MultiSelectChips(props: {
 
   return (
     <div className="pv-select" ref={wrapRef}>
-      <div className="pv-chips" onClick={() => setOpen(true)}>
+      <div className="pv-chips" onClick={(e) => { setOpen(true); focusChipInput(e); }}>
         {items.map((it, i) => {
           const opt = findOption(curated, it);
           return (
-            <span key={`${it}-${i}`} className={`${neutral ? "pv-chip pv-chip--neutral" : chipClass(it, opt?.color)} pv-chip--removable`}>
+            <span key={`${it}-${i}`} className={`${neutral ? "pv-chip pv-chip--neutral" : chipClass(it, opt?.color)} pv-chip--removable`} data-tip={opt?.label ?? it}>
               {!neutral && <span className="pv-dot" />}<span className="pv-chip-text">{opt?.label ?? it}</span>
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={(e) => { e.stopPropagation(); remove(i); }}><X size={ICON.meta} /></button>
             </span>
@@ -508,11 +521,20 @@ export function PropertyValue({ type, value, propKey, onChange, tagSuggestions, 
     case "tags": return <TagPills value={value} onChange={onChange} suggestions={tagSuggestions} t={t} />;
     case "link": return <RelationPicker value={value} onChange={onChange} getRelationCandidates={getRelationCandidates} onOpenLink={onOpenLink} relationLimit={relationLimit} t={t} />;
     case "select":
-    case "status": return <SelectChip value={value} onChange={onChange} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} grouped={type === "status"} t={t} />;
+    case "status": return <SelectChip value={value} onChange={onChange} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} grouped={type === "status"} t={t} caret={false} />;
     case "multiselect": return <MultiSelectChips value={value} onChange={onChange} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} t={t} />;
-    default: return <PlainInput value={value} onChange={onChange} type={type} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} t={t} />;
+    // Text in the growing field (R2): a long value wraps and stays readable
+    // instead of running out of a one-line input. It is still ONE value —
+    // PlainInput folds a pasted line break into a space.
+    default: return <PlainInput growing selectOnFocus={false} value={value} onChange={onChange} type={type} propKey={propKey} getValueSuggestions={getValueSuggestions} curated={curatedOptions} t={t} />;
   }
 }
+
+/** What a value of this type shows in the row's edge at rest. */
+const CHIP_LIST_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["list", "tags", "multiselect", "link"]);
+const SELECT_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["select", "status"]);
+/** Values that are a control of their own — a switch, a row of marks — get no field frame. */
+const FRAMELESS_TYPES: ReadonlySet<PropertyType> = new Set<PropertyType>(["checkbox", "rating"]);
 
 /* ------------------------------------------------------------------ type menu */
 
@@ -591,51 +613,31 @@ export function PropertyRow(props: PropertyRowProps) {
   useEffect(() => setEditKey(propKey), [propKey]);
   const Icon = TYPE_ICONS[type];
 
-  return (
-    <div className="pv-row">
-      <div className="pv-row-label">
-        <div className="pv-key-box">
-          <button ref={typeBtnRef} type="button" className="pv-type-btn" data-tip={lockMeta ? t("properties.okfLockedHint") : t("properties.changeType")} aria-label={lockMeta ? t("properties.okfLockedHint") : t("properties.changeType")} style={lockMeta ? { cursor: "default", opacity: 0.6 } : undefined} onClick={() => { if (!lockMeta) setMenuOpen((o) => !o); }}>
-            <Icon size={ICON.ui} />
-          </button>
-          <input
-            className="pv-key" value={lockMeta && displayLabel ? displayLabel : editKey} aria-label={t("properties.name")}
-            data-key={propKey}
-            disabled={lockMeta}
-            data-tip={lockMeta ? t("properties.okfLockedHint") : undefined}
-            onChange={(e) => setEditKey(e.target.value)}
-            onBlur={() => { if (editKey.trim() && editKey !== propKey) onRename(propKey, editKey.trim()); else setEditKey(propKey); }}
-            onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
-          />
-          {lockMeta && (
-            <span data-tip={t("properties.okfKeyHint", { key: propKey })} style={{ display: "inline-flex", color: "var(--text-faint)", flexShrink: 0 }}>
-              <Lock size={ICON.meta} aria-hidden="true" />
-            </span>
-          )}
-        </div>
-        {menuOpen && <TypeMenu current={type} anchorRef={typeBtnRef} onPick={(ty) => { onChangeType(propKey, ty); setMenuOpen(false); }} onClose={() => setMenuOpen(false)} t={t} />}
-      </div>
-      <div className="pv-row-value">
-        {lockValue ? (
-          <span data-tip={t("properties.okfLockedHint")} style={{ fontSize: "var(--text-md)", color: "var(--text-muted)", padding: "4px 7px" }}>{String(value ?? "")}</span>
-        ) : (
-          <PropertyValue
-            type={type} value={value} propKey={propKey}
-            onChange={(v) => onChangeValue(propKey, v)}
-            tagSuggestions={tagSuggestions} getValueSuggestions={getValueSuggestions}
-            curatedOptions={curatedOptions} getRelationCandidates={getRelationCandidates} onOpenLink={onOpenLink}
-            relationLimit={relationLimit}
-            t={t} locale={locale}
-          />
-        )}
-      </div>
+  // The edge at rest: what the row is, said with one glyph. A locked row shows
+  // its lock (and names the file's key in the tooltip); a select shows the
+  // caret its trigger no longer draws; a chip list shows that more can be
+  // added. Caret and "add" are signs, not buttons — the value beside them is
+  // what is clicked, and the actions below lay over them on hover.
+  const edge = lockMeta ? (
+    <span className="pv-prow-lock" data-tip={t("properties.okfKeyHint", { key: propKey })}>
+      <Lock size={ICON.meta} aria-hidden="true" />
+    </span>
+  ) : SELECT_TYPES.has(type) ? (
+    <ChevronDown size={ICON.meta} aria-hidden="true" />
+  ) : CHIP_LIST_TYPES.has(type) ? (
+    <Plus size={ICON.meta} aria-hidden="true" />
+  ) : null;
+
+  const commentLabel = commentCount ? t("comments.commentThreadCount", { count: commentCount }) : t("comments.commentOnProperty");
+  const actions = onComment || !lockMeta ? (
+    <>
       {onComment && (
         <button
           type="button"
           className="pv-comment-dot"
           data-has={commentCount ? "true" : "false"}
-          data-tip={commentCount ? t("comments.commentThreadCount", { count: commentCount }) : t("comments.commentOnProperty")}
-          aria-label={commentCount ? t("comments.commentThreadCount", { count: commentCount }) : t("comments.commentOnProperty")}
+          data-tip={commentLabel}
+          aria-label={commentLabel}
           onClick={() => onComment(propKey)}
         >
           <MessageSquare size={ICON.meta} aria-hidden="true" />
@@ -644,10 +646,65 @@ export function PropertyRow(props: PropertyRowProps) {
       )}
       {!lockMeta && (
         <button type="button" className="pv-del" data-tip={t("properties.deleteProperty")} aria-label={t("properties.deleteProperty")} onClick={() => onDelete(propKey)}>
-          <Trash2 size={ICON.ui} />
+          <Trash2 size={ICON.meta} />
         </button>
       )}
-    </div>
+    </>
+  ) : null;
+
+  return (
+    <PropRow
+      data-prop={propKey}
+      kind={type}
+      // A value that cannot be changed gets no field frame; neither does a
+      // control that is its own frame (switch, rating).
+      frame={lockValue || FRAMELESS_TYPES.has(type) ? "none" : "quiet"}
+      icon={
+        <>
+          <button ref={typeBtnRef} type="button" className="pv-type-btn" data-tip={lockMeta ? t("properties.okfLockedHint") : t("properties.changeType")} aria-label={lockMeta ? t("properties.okfLockedHint") : t("properties.changeType")} disabled={lockMeta} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+            <Icon size={ICON.ui} />
+          </button>
+          {menuOpen && <TypeMenu current={type} anchorRef={typeBtnRef} onPick={(ty) => { onChangeType(propKey, ty); setMenuOpen(false); }} onClose={() => setMenuOpen(false)} t={t} />}
+        </>
+      }
+      // The name wraps instead of being cut: it is a field that grows with its
+      // text. A one-line input clipped `day_of_week` at 78 px without a sign.
+      name={
+        <span className="pv-prow-namebox" data-tip={lockMeta ? t("properties.okfLockedHint") : undefined}>
+          <GrowingField
+            className="pv-key"
+            value={lockMeta && displayLabel ? displayLabel : editKey}
+            aria-label={t("properties.name")}
+            data-key={propKey}
+            disabled={lockMeta}
+            spellCheck={false}
+            onChange={(e) => setEditKey(asSingleLineValue(e.target.value))}
+            onBlur={() => { if (editKey.trim() && editKey !== propKey) onRename(propKey, editKey.trim()); else setEditKey(propKey); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
+          />
+        </span>
+      }
+      edge={edge}
+      actions={actions}
+      // The lock's tooltip is the only place the file's key is named once a row
+      // shows a translated label, so the actions open beside it, not over it.
+      keepEdge={lockMeta}
+      // A count nobody has to hover for: the comment dot stays once it counts.
+      actionsPinned={Boolean(commentCount)}
+    >
+      {lockValue ? (
+        <span className="pv-prow-static" data-tip={t("properties.okfLockedHint")}>{String(value ?? "")}</span>
+      ) : (
+        <PropertyValue
+          type={type} value={value} propKey={propKey}
+          onChange={(v) => onChangeValue(propKey, v)}
+          tagSuggestions={tagSuggestions} getValueSuggestions={getValueSuggestions}
+          curatedOptions={curatedOptions} getRelationCandidates={getRelationCandidates} onOpenLink={onOpenLink}
+          relationLimit={relationLimit}
+          t={t} locale={locale}
+        />
+      )}
+    </PropRow>
   );
 }
 

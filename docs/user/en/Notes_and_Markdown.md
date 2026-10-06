@@ -63,7 +63,7 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 
 ## Properties (frontmatter)
 
-The **Properties** section in the right sidebar shows the note's frontmatter as a form. **Add property** creates new ones; every property has a **Field type**:
+The **Properties** section in the right sidebar shows the note's frontmatter as a form. Every property is one row: type icon, name, value, and at the right edge what the row can do — a lock on protected fields, on hover **Delete property** and the comment bubble. Values are edited in place and wrap instead of being cut off. **Add property** creates new ones; every property has a **Field type**:
 
 | Group | Types |
 |---|---|

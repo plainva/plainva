@@ -63,7 +63,7 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 
 ## Eigenschaften (Frontmatter)
 
-Der Abschnitt **Eigenschaften** in der rechten Seitenleiste zeigt das Frontmatter der Notiz als Formular. Mit **Eigenschaft hinzufügen** legst Du neue an; jede Eigenschaft hat einen **Feldtyp**:
+Der Abschnitt **Eigenschaften** in der rechten Seitenleiste zeigt das Frontmatter der Notiz als Formular. Jede Eigenschaft ist eine Zeile: Typ-Symbol, Name, Wert und am rechten Rand, was die Zeile kann — ein Schloss bei geschützten Feldern, beim Überfahren **Eigenschaft löschen** und die Kommentar-Blase. Werte bearbeitest Du an Ort und Stelle; sie brechen um, statt abgeschnitten zu werden. Mit **Eigenschaft hinzufügen** legst Du neue an; jede Eigenschaft hat einen **Feldtyp**:
 
 | Gruppe | Typen |
 |---|---|

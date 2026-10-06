@@ -4495,6 +4495,8 @@
     "linked": "Collegato",
     "linkedEntry": "{{base}} · {{n}} voci",
     "openBaseView": "{{base}} · vista \"{{view}}\"",
+    "viewLabel": "vista \"{{view}}\"",
+    "underProperties": "In Proprietà: {{fields}}",
     "prevEntry": "Voce precedente",
     "nextEntry": "Voce successiva"
   },

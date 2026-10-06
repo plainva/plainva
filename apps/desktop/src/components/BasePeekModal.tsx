@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Columns2, ExternalLink, Maximize2, MoreVertical,
 import { createDocChannel } from "../services/activeDocument";
 import { FloatingWindow, ICON, MenuSurface, MenuItem, MenuLabel, MenuSeparator, opensExternally, peekInit, peekCurrent, canPeekBack, canPeekForward, peekBack, peekForward, peekPush, resolveOpenAction, type PeekHistory } from "@plainva/ui";
 import { PropertiesSection } from "./PropertiesSection";
-import { SidebarStepContext, clampPeekSideWidth, readPeekSideWidth, useSidebarStep, writePeekSideWidth } from "../lib/sidebarStep";
+import { clampPeekSideWidth, readPeekSideWidth, useSidebarStep, writePeekSideWidth } from "../lib/sidebarStep";
 import { openAttachmentExternally } from "../services/openAttachment";
 import { useVault } from "../contexts/VaultContext";
 
@@ -283,9 +283,7 @@ export function BasePeekModal({
         {showProps && !isBase && (
           <div className="pv-peek-side" ref={sideRef} data-side-step={sideStep} style={{ width: sideWidth }}>
             <div className="pv-peek-side-scroll">
-              <SidebarStepContext.Provider value={sideStep}>
-                <PropertiesSection channel={peekChannel} onOpenPath={(p) => navigate(p)} />
-              </SidebarStepContext.Provider>
+              <PropertiesSection channel={peekChannel} onOpenPath={(p) => navigate(p)} />
             </div>
             {/* After the scroll host in DOM order, so it paints above it without a z-index. */}
             <div

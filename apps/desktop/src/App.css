@@ -332,56 +332,66 @@ option {
 }
 
 /* ============================================================
- * Properties panel (right sidebar) — typed, responsive rows.
- * Container-query driven: rows stack label-over-value when narrow.
+ * Properties panel (right sidebar, peek window).
+ *
+ * The row itself is the shared `.pv-prow` (ui.css): icon · name · value · edge.
+ * What is left here is what only the desktop's editors bring into that row.
+ * There is NO container query on the panel any more: the column's step
+ * (`data-side-step`) is the one mechanism that decides the layout, and a second
+ * rule at 220 px answered the same question differently (finding 2026-10-06).
  * ============================================================ */
-.pv-props { container-type: inline-size; }
+.pv-props { position: relative; display: flex; flex-direction: column; }
 
-.pv-row { display: flex; gap: 6px; align-items: flex-start; padding: 3px 2px; border-radius: var(--radius-sm); }
-.pv-row:hover { background: var(--bg-hover); }
-.pv-row-label { position: relative; width: 100px; flex-shrink: 0; padding-top: 4px; }
-.pv-key-box { display: flex; align-items: center; gap: 2px; width: 100%; border-radius: var(--radius-sm); min-width: 0; }
-.pv-type-btn { display: flex; align-items: center; justify-content: center; padding: 3px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); flex-shrink: 0; }
-.pv-type-btn:hover { color: var(--text-main); background: var(--state-hover); }
-.pv-key { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text-muted); font-size: var(--text-ui); padding: 2px 0; }
-.pv-key:focus { color: var(--text-main); }
-/* `overflow-wrap` belongs here rather than in a step: a value long enough to
-   push the row wider than the panel does that at every width. */
-.pv-row-value { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; min-height: 28px; overflow-wrap: anywhere; }
-.pv-del { border: none; background: transparent; color: var(--error-text); cursor: pointer; padding: 4px; opacity: 0; flex-shrink: 0; align-self: center; }
-.pv-row:hover .pv-del { opacity: 0.55; }
-.pv-del:hover { opacity: 1; }
-/* Comment dot on a property row (plan Stufe E, E2). Small on purpose: the row
-   already carries a type button, a value editor and a delete button. It appears
-   on hover like the other secondary controls, but STAYS once the property
-   carries comments - a count you have to hover to discover is a count nobody
-   reads. The number is THREADS, not messages: replies carry no anchor. */
-.pv-comment-dot {
+/* The type glyph is the button that opens the type menu; it fills the row's
+   icon column, so the glyph sits where every other row's icon sits. */
+.pv-type-btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 0; border: none; background: transparent; color: var(--text-faint); cursor: pointer; border-radius: var(--radius-sm); }
+.pv-type-btn:hover:not(:disabled) { color: var(--text-main); background: var(--state-hover); }
+.pv-type-btn:disabled { cursor: default; }
+/* The name: a growing field that looks like text. It wraps instead of being
+   cut, and shows that it is a field only while it has the focus. */
+.pv-prow-name .pv-key,
+.pv-prow-name .pv-key:focus {
+  height: auto;
+  min-height: 18px;
+  padding: 0;
   border: none;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--text-muted);
-  cursor: pointer;
-  padding: 4px;
-  opacity: 0;
-  flex-shrink: 0;
-  align-self: center;
+  font-size: inherit;
+  line-height: 18px;
+}
+.pv-prow-name .pv-key:focus { color: var(--text-main); background: var(--bg-primary); box-shadow: 0 0 0 1px var(--border-color); }
+.pv-prow-name .pv-key:disabled { opacity: 1; cursor: default; -webkit-text-fill-color: currentColor; }
+/* The row's actions (ui.css opens and closes them); here only their look. */
+.pv-del,
+.pv-comment-dot {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 3px;
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
+  min-width: var(--prow-edge);
+  height: var(--prow-line);
+  padding: 0 3px;
+  border: none;
   border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
 }
-.pv-row:hover .pv-comment-dot { opacity: 0.55; }
-.pv-comment-dot:hover, .pv-comment-dot:focus-visible { opacity: 1; }
-.pv-comment-dot[data-has="true"] { opacity: 1; color: var(--accent-color); }
-
-@container (max-width: 220px) {
-  .pv-row { flex-direction: column; align-items: stretch; gap: 3px; }
-  .pv-row-label { width: 100%; padding-top: 0; }
-  .pv-del { position: absolute; top: 2px; right: 2px; }
-  .pv-comment-dot { position: absolute; top: 2px; right: 26px; }
-}
+.pv-del { color: var(--error-text); }
+.pv-del:hover, .pv-del:focus-visible { background: var(--state-hover); }
+/* Comment dot on a property row (plan Stufe E, E2). It appears with the row's
+   other actions, but STAYS once the property carries comments - a count you
+   have to hover to discover is a count nobody reads. The number is THREADS,
+   not messages: replies carry no anchor. */
+.pv-comment-dot { color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.pv-comment-dot:hover, .pv-comment-dot:focus-visible { background: var(--state-hover); color: var(--text-main); }
+.pv-comment-dot[data-has="true"] { color: var(--accent-color); }
+/* The select's trigger. In a table cell it is its own field; in a property
+   row the value box is the frame, so it gives up inset and hover there. */
+.pv-select-btn { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; min-width: 0; padding: 3px 6px; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: inherit; }
+.pv-prow-value .pv-select-btn,
+.pv-prow-value .pv-select-btn:hover:not(:disabled) { min-height: 22px; padding: 0; border: none; background: transparent; }
 
 /* Calendar day dots: hide once the month grid gets too narrow to fit them
    without overlapping (right sidebar dragged very small). Scoped to the named
@@ -436,64 +446,37 @@ option {
  *   comfortable  >= 280px   as before
  *   compact      232-280px  label over value, tighter indentation
  *   minimal      < 232px    week row, shorter graph, no backlink context
+ *
+ * The widths are the COLUMN's (its border box). The panel reserves its
+ * scrollbar's room at all times, so neither the step nor the width the rows
+ * are laid out in depends on whether the content happens to scroll (finding
+ * 2026-10-06: the same note showed two layouts, with and without scrollbar).
  * ============================================================ */
+
+/* `overflow-y: scroll` rather than `scrollbar-gutter: stable`: it reserves the
+   same room, and it does so in every WebView the app runs in — the gutter
+   property is missing from WebKit before 18.2. The track is transparent, so an
+   idle panel shows nothing. `--pv-side-pad-end` takes the reserved room off the
+   sections' own inset on that side: gutter plus inset is the column's margin. */
+.pv-side-right { overflow-x: hidden; overflow-y: scroll; }
+.pv-side-right .pv-side-section { --pv-side-pad-end: 2px; }
+/* The sections lose their generous inset below the comfortable step. Through
+   the TOKEN, which the head and the body both read — the rule this replaces
+   inset "the section's last child", and with a collapsed section that is the
+   head: the heading jumped 8 px every time a section was opened or closed. */
+.pv-side-right[data-side-step="compact"] .pv-side-section,
+.pv-side-right[data-side-step="minimal"] .pv-side-section { --pv-side-pad: 8px; }
 
 /* Compact: the day dots shrink rather than disappear — at this width the month
    still fits, so the information should stay. (Below 232 px the cal-grid
    container hides them outright; there is no room left at all.) */
 .pv-side-right[data-side-step="compact"] .pv-cal-dots { transform: translateX(-50%) scale(0.75); gap: 1px; }
 
-/* Compact: the property rows stack, exactly as the 220px container query does
-   for panels elsewhere — but keyed to the PANEL width, which is what the user
-   is actually dragging. Keyed to the ATTRIBUTE, not to the sidebar: the peek
-   window's properties column carries the same steps since 2026-09-04 (it was
-   260 px wide with the comfortable layout — below the compact threshold, and
-   the date wrapped into four lines). */
-[data-side-step="compact"] .pv-row,
-[data-side-step="minimal"] .pv-row {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 3px;
-}
-[data-side-step="compact"] .pv-row-label,
-[data-side-step="minimal"] .pv-row-label {
-  width: 100%;
-  padding-top: 0;
-}
-[data-side-step="compact"] .pv-del,
-[data-side-step="minimal"] .pv-del {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-}
-[data-side-step="compact"] .pv-comment-dot,
-[data-side-step="minimal"] .pv-comment-dot {
-  position: absolute;
-  top: 2px;
-  right: 26px;
-}
-/* Long values wrap instead of pushing the row wider than the panel. */
-[data-side-step="compact"] .pv-row-value,
-[data-side-step="minimal"] .pv-row-value {
-  overflow-wrap: anywhere;
-}
-/* Entry inspector: the two-column key/value grid gives up its columns before
-   the editors get squeezed — an option chip that cannot show its label is
-   worse than a label on its own line (plan P2, 232px). */
-[data-side-step="compact"] .pv-dbinsp-grid,
-[data-side-step="minimal"] .pv-dbinsp-grid {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1px;
-}
-[data-side-step="minimal"] .pv-dbinsp-val {
-  overflow-wrap: anywhere;
-}
-
-/* Section bodies lose their generous inset before the content has to. */
-.pv-side-right[data-side-step="compact"] .pv-side-section > div:last-child,
-.pv-side-right[data-side-step="minimal"] .pv-side-section > div:last-child {
-  padding-inline: 8px;
-}
+/* Compact: the rows of the column put the name above the value. That rule
+   lives with the row (ui.css, `.pv-prow`), keyed to the ATTRIBUTE rather than
+   to the sidebar — the peek window's properties column carries the same steps.
+   The property rows, the trust group and the database section are all that
+   one row, so they change together; each used to bring its own stacking. */
 
 /* Minimal: the graph keeps a usable but small stage, and backlinks drop the
    context line — at this width it was one word per line. */
@@ -586,7 +569,10 @@ option {
    left edge; the width is inline state (2026-09-04). The grip sits OUTSIDE the
    scrolling part so it spans the full height instead of scrolling away. */
 .pv-peek-side { flex: 0 0 auto; position: relative; display: flex; min-width: 0; border-left: 1px solid var(--border-color); background: var(--bg-primary); }
-.pv-peek-side-scroll { flex: 1; min-width: 0; overflow: auto; padding: 0.5rem 0.7rem; }
+/* The scrollbar's room is reserved here as in the right sidebar: the rows are
+   laid out in the same width whether or not the column scrolls. The column
+   stands on the window's surface, which is what the row's actions lay over. */
+.pv-peek-side-scroll { flex: 1; min-width: 0; overflow-x: hidden; overflow-y: scroll; padding: 0.5rem 2px 0.5rem 0.7rem; --prow-surface: var(--bg-primary); }
 .pv-peek-side-grip { position: absolute; left: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; touch-action: none; }
 .pv-peek-side-grip::after { content: ""; position: absolute; left: 2px; top: 50%; width: 3px; height: 28px; margin-top: -14px; border-radius: var(--radius-xs); background: var(--border-color); }
 .pv-peek-side-grip:hover::after, .pv-peek-side-grip:active::after { background: var(--accent-color); }

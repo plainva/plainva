@@ -1,90 +1,108 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { ICON, type NoteDatabaseContext, type NoteDatabaseMembership } from "@plainva/ui";
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Clock, CornerLeftUp, Database, FileText, Link2, ListTree, Sigma } from "lucide-react";
+import {
+  computedFieldText,
+  ICON,
+  IconButton,
+  listNames,
+  PropLine,
+  PropRow,
+  shownComputedFields,
+  type NoteComputedField,
+  type NoteDatabaseContext,
+  type NoteDatabaseMembership,
+} from "@plainva/ui";
 import { useBaseCells } from "./base/useBaseCells";
 
 /**
- * "Databases" section of the right sidebar — the entry inspector (plan P2).
+ * "Databases" section of the right sidebar (plan Befunde 2026-10-06, R3 —
+ * decision E1, variant A).
  *
- * The context line above the note answers "where am I"; this answers "what is
- * this entry". It shows the note's values for the columns of its database, in
- * the database's own order and with its types, options and colors — and lets
- * them be edited through the same cell editor the table uses, so a status can
- * be changed without opening the database first.
+ * It answers what only the database knows about this note: which database it
+ * is a row of, where it stands in the view, and the values the database
+ * COMPUTES when the view is read — rollups, reverse relations, facts about the
+ * file. It used to list every column of the view with an editor, and for most
+ * notes that was the same three values the properties section showed directly
+ * below in another form. A column that is a property of the note is shown and
+ * edited once, under Properties; a line here says which ones those are.
  *
- * The properties panel does not replace this: it lists raw frontmatter with no
- * order, no types and no knowledge of the database.
+ * Everything is drawn in the column's one row grammar (`PropRow`); the section
+ * has no grid of its own any more.
  */
+
+function fieldIcon(field: NoteComputedField): React.ReactNode {
+  if (field.kind === "rollup" || field.kind === "formula") return <Sigma size={ICON.ui} aria-hidden="true" />;
+  if (field.kind === "reverse") return <Link2 size={ICON.ui} aria-hidden="true" />;
+  if (field.column === "file.mtime" || field.column === "file.ctime") return <Clock size={ICON.ui} aria-hidden="true" />;
+  if (field.column === "file.day") return <Calendar size={ICON.ui} aria-hidden="true" />;
+  return <FileText size={ICON.ui} aria-hidden="true" />;
+}
 
 const MembershipBlock: React.FC<{
   membership: NoteDatabaseMembership;
-  notePath: string;
   onOpenPath: (path: string, newTab?: boolean) => void;
-}> = ({ membership, notePath, onOpenPath }) => {
-  const { t } = useTranslation();
-  // The cell layer edits rows in place, so it owns a copy of this one row.
-  const [rows, setRows] = useState<Record<string, unknown>[]>(() => (membership.row ? [membership.row] : []));
-  useEffect(() => { setRows(membership.row ? [membership.row] : []); }, [membership.row]);
-
-  const cells = useBaseCells({ dbConfig: membership.config, dbData: rows, setDbData: setRows as never, onOpenNote: (p) => onOpenPath(p) });
-  const row = rows[0];
+}> = ({ membership, onOpenPath }) => {
+  const { t, i18n } = useTranslation();
+  // The cell layer formats a value the way the database's table does (option
+  // colours, link chips that open their note). It wants rows it could edit;
+  // nothing here is edited, so the one row is handed over as it is.
+  const rows = useMemo(() => (membership.row ? [membership.row] : []), [membership.row]);
+  const cells = useBaseCells({ dbConfig: membership.config, dbData: rows, setDbData: (() => {}) as never, onOpenNote: (p) => onOpenPath(p) });
+  const fields = shownComputedFields(membership.computed);
+  const viewLabel = membership.viewName ? t("dbContext.viewLabel", { view: membership.viewName }) : "";
+  const listed = listNames(membership.shownAsProperties.map((col) => cells.columnLabel(col)), i18n.language);
 
   return (
-    <div className="pv-dbinsp-block" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <div className="pv-dbinsp-block" data-testid="db-membership">
+      <PropLine
+        icon={<Database size={ICON.ui} aria-hidden="true" />}
+        trailing={
+          // Position in the view, with a step to either neighbour. Hidden when
+          // the view's filters exclude this note — "0 / 34" would be a riddle.
+          membership.index > 0 && (
+            <span className="pv-dbinsp-nav">
+              <IconButton size="sm" label={t("dbContext.prevEntry")} disabled={!membership.prevPath} onClick={() => membership.prevPath && onOpenPath(membership.prevPath)}>
+                <ChevronLeft size={ICON.meta} />
+              </IconButton>
+              <span className="pv-dbinsp-pos">{membership.index} / {membership.total}</span>
+              <IconButton size="sm" label={t("dbContext.nextEntry")} disabled={!membership.nextPath} onClick={() => membership.nextPath && onOpenPath(membership.nextPath)}>
+                <ChevronRight size={ICON.meta} />
+              </IconButton>
+            </span>
+          )
+        }
+      >
+        {/* The name shortens with an ellipsis; the tooltip has all of it. */}
         <button
           type="button"
-          className="pv-dbbar-crumb"
-          style={{ flex: 1, textAlign: "left", color: "var(--text-main)" }}
+          className="pv-dbinsp-open"
+          data-tip={viewLabel ? `${membership.baseLabel} · ${viewLabel}` : membership.baseLabel}
           onClick={() => onOpenPath(membership.basePath)}
         >
-          {membership.viewName
-            ? t("dbContext.openBaseView", { defaultValue: "{{base}} · Ansicht „{{view}}“", base: membership.baseLabel, view: membership.viewName })
-            : membership.baseLabel}
+          <b>{membership.baseLabel}</b>
+          {viewLabel && <small> · {viewLabel}</small>}
         </button>
-        {/* Position in the view, with a step to either neighbour. Hidden when
-            the view's filters exclude this note — "0 / 34" would be a riddle. */}
-        {membership.index > 0 && (
-          <span className="pv-dbinsp-nav">
-            <button
-              type="button"
-              className="pv-iconbtn"
-              disabled={!membership.prevPath}
-              aria-label={t("dbContext.prevEntry", { defaultValue: "Voriger Eintrag" })}
-              data-tip={t("dbContext.prevEntry", { defaultValue: "Voriger Eintrag" })}
-              onClick={() => membership.prevPath && onOpenPath(membership.prevPath)}
-            >
-              <ChevronLeft size={ICON.meta} />
-            </button>
-            <span className="pv-dbinsp-pos">{membership.index} / {membership.total}</span>
-            <button
-              type="button"
-              className="pv-iconbtn"
-              disabled={!membership.nextPath}
-              aria-label={t("dbContext.nextEntry", { defaultValue: "Nächster Eintrag" })}
-              data-tip={t("dbContext.nextEntry", { defaultValue: "Nächster Eintrag" })}
-              onClick={() => membership.nextPath && onOpenPath(membership.nextPath)}
-            >
-              <ChevronRight size={ICON.meta} />
-            </button>
-          </span>
-        )}
-      </div>
+      </PropLine>
 
-      {row && membership.columns.length > 0 && (
-        <div className="pv-dbinsp-grid">
-          {membership.columns.map((col) => {
-            const val = row[col] ?? row[`note.${col}`];
-            const { displayVal } = cells.formatValueForDisplay(val, col);
-            return (
-              <React.Fragment key={col}>
-                <span className="pv-kv-key">{cells.columnLabel(col)}</span>
-                <span className="pv-dbinsp-val">{cells.renderEditableCell({ ...row, "file.path": notePath }, col, val, displayVal)}</span>
-              </React.Fragment>
-            );
-          })}
-        </div>
+      {fields.map((field) => {
+        // Rollups and reverse relations go through the table's own formatter
+        // (a percentage says so, a link is a chip that opens its note); the
+        // file facts are plain text, written the same on both shells.
+        const rich = field.kind === "rollup" || field.kind === "reverse";
+        const text = rich ? "" : computedFieldText(field, i18n.language);
+        return (
+          <PropRow key={field.column} data-testid="db-computed" data-column={field.column} kind={field.kind} icon={fieldIcon(field)} name={cells.columnLabel(field.column)}>
+            {rich
+              ? cells.formatValueForDisplay(field.value, field.column).displayVal
+              : <span className="pv-prow-static">{text || "–"}</span>}
+          </PropRow>
+        );
+      })}
+
+      {membership.shownAsProperties.length > 0 && (
+        <p className="pv-prow-hint" data-testid="db-under-properties">{t("dbContext.underProperties", { fields: listed })}</p>
       )}
     </div>
   );
@@ -98,62 +116,50 @@ export const NoteDatabasesSection: React.FC<{
   const { t } = useTranslation();
   const { memberships, parent, children, linked } = context;
   const [childrenOpen, setChildrenOpen] = useState(true);
+  // A different note starts with its sub-items in view again.
+  useEffect(() => { setChildrenOpen(true); }, [activePath]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
+    <div className="pv-dbinsp">
       {/* One block per database — a note can be a row of several (E6). */}
       {activePath && memberships.map((m) => (
-        <MembershipBlock key={m.basePath} membership={m} notePath={activePath} onOpenPath={onOpenPath} />
+        <MembershipBlock key={m.basePath} membership={m} onOpenPath={onOpenPath} />
       ))}
 
       {parent && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span className="pv-kv-key">{t("dbContext.parent", { defaultValue: "Übergeordnet" })}</span>
-          <button type="button" className="pv-dbbar-crumb" style={{ textAlign: "left", color: "var(--text-main)" }} onClick={() => onOpenPath(parent.path)}>
-            {parent.title} <span style={{ color: "var(--text-faint)" }}>({parent.baseLabel})</span>
-          </button>
-        </div>
+        <PropRow icon={<CornerLeftUp size={ICON.ui} aria-hidden="true" />} name={t("dbContext.parent")}>
+          <button type="button" className="pv-linkbtn pv-prow-link" onClick={() => onOpenPath(parent.path)}>{parent.title}</button>
+          <span className="pv-prow-static">({parent.baseLabel})</span>
+        </PropRow>
       )}
 
       {children.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {/* Collapsible: a parent with twenty sub-items must not push the rest
-              of the section out of sight. */}
-          <button
-            type="button"
-            className="pv-dbinsp-disclose"
-            aria-expanded={childrenOpen}
-            onClick={() => setChildrenOpen((v) => !v)}
-          >
-            <ChevronDown size={ICON.meta} style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: childrenOpen ? "none" : "rotate(-90deg)", flexShrink: 0 }} />
-            <span className="pv-kv-key">{t("dbContext.subItems", { defaultValue: "Unterelemente" })}</span>
-            <span className="pv-badge pv-badge--accent">{children.length}</span>
-          </button>
-          {childrenOpen && children.map((c) => (
-            <button
-              key={c.path}
-              type="button"
-              className="pv-dbbar-crumb"
-              style={{ display: "flex", alignItems: "center", gap: 4, textAlign: "left" }}
-              onClick={() => onOpenPath(c.path)}
-            >
-              <ChevronRight size={ICON.meta} aria-hidden />
-              {c.title}
+        <PropRow
+          icon={<ListTree size={ICON.ui} aria-hidden="true" />}
+          name={t("dbContext.subItems")}
+          // Collapsible: a parent with twenty sub-items must not push the rest
+          // of the section out of sight. The toggle stands in the edge, where
+          // every row keeps what it can do.
+          edge={
+            <button type="button" className="pv-prow-toggle" aria-expanded={childrenOpen} aria-label={t("dbContext.subItems")} onClick={() => setChildrenOpen((v) => !v)}>
+              <ChevronDown size={ICON.meta} className={childrenOpen ? undefined : "pv-prow-toggle-closed"} />
             </button>
+          }
+        >
+          <span className="pv-badge pv-badge--accent">{children.length}</span>
+          {childrenOpen && children.map((c) => (
+            <button key={c.path} type="button" className="pv-linkbtn pv-prow-link pv-prow-item" onClick={() => onOpenPath(c.path)}>{c.title}</button>
           ))}
-        </div>
+        </PropRow>
       )}
 
-      {linked.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span className="pv-kv-key">{t("dbContext.linked", { defaultValue: "Verknüpft" })}</span>
-          {linked.map((l) => (
-            <button key={l.basePath} type="button" className="pv-dbbar-crumb" style={{ textAlign: "left", color: "var(--text-main)" }} onClick={() => onOpenPath(l.basePath)}>
-              {t("dbContext.linkedEntry", { defaultValue: "{{base}} · {{n}} Einträge", base: l.baseLabel, n: l.count })}
-            </button>
-          ))}
-        </div>
-      )}
+      {linked.map((l, i) => (
+        <PropRow key={l.basePath} icon={i === 0 ? <Link2 size={ICON.ui} aria-hidden="true" /> : undefined} name={i === 0 ? t("dbContext.linked") : ""}>
+          <button type="button" className="pv-linkbtn pv-prow-link" onClick={() => onOpenPath(l.basePath)}>
+            {t("dbContext.linkedEntry", { base: l.baseLabel, n: l.count })}
+          </button>
+        </PropRow>
+      ))}
     </div>
   );
 };

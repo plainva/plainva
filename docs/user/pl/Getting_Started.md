@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-09-30
+Stan na: 2026-10-06
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -188,10 +188,10 @@ Przez **Ctrl/Cmd+Shift+G** (lub sekcję **Graf** w prawym pasku bocznym) widzisz
 
 Sekcje, które nie mają nic do pokazania dla otwartej notatki — **Konspekt**, **Linki zwrotne**, **Właściwości**, **Bazy danych** — w ogóle się nie pojawiają, zamiast stać tam wyszarzone. Cały prawy panel pamięta jedną globalną preferencję dla notatek; widoki pełnoekranowe bez kontekstu notatki zamykają go tylko tymczasowo.
 
-**Gdy przeciągniesz panel, zwężając go**, zmienia się on w trzech krokach, dzięki czemu nic się nie psuje:
+**Gdy przeciągniesz panel, zwężając go**, zmienia się on w trzech krokach, dzięki czemu nic się nie psuje. Liczy się szerokość samego panelu — to, czy jego zawartość się przewija, niczego nie zmienia — a nowe okno otwiera go na 300 px:
 
 - **280 px i więcej** — jak zwykle.
-- **232–280 px** — właściwości umieszczają nazwę nad wartością zamiast obok niej, długie wartości zawijają się, sekcje stają się bardziej zwarte.
+- **232–280 px** — każdy wiersz umieszcza nazwę nad wartością zamiast obok niej (właściwości tak samo jak pola bazy danych), długie wartości zawijają się, sekcje stają się bardziej zwarte.
 - **poniżej 232 px** — kalendarz pokazuje **jeden tydzień zamiast miesiąca** (siedem dni, numer tygodnia poniżej z prawej); siatka miesiąca miałaby tu komórki o szerokości 14 pikseli i przestałaby być kalendarzem. Graf robi się krótszy, a linki zwrotne pokazują nazwę pliku bez linii ze ścieżką.
 
 Prawy panel nie może zejść poniżej **200 px** — poniżej tej wartości żadna sekcja nie jest użyteczna. Lewy panel wciąż schodzi do 150 px, bo nazwy plików po prostu są ucinane.

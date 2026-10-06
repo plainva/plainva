@@ -191,6 +191,70 @@ describe("buildNoteDatabaseContext", () => {
     expect([m.prevPath, m.nextPath]).toEqual(["A/Eins.md", "A/Drei.md"]);
   });
 
+  // Decision E1 (plan Befunde 2026-10-06): the sidebar's database section used
+  // to list every column of the view — and for most notes that was what the
+  // properties section showed directly below. The context now says which of
+  // the view's columns the database COMPUTES (those are the section's rows)
+  // and which the note carries itself (those stand once, under Properties).
+  const computedBase = JSON.stringify({
+    filters: { and: ['file.folder == "Kunden"'] },
+    columns: {
+      branche: { input: "select" },
+      notiz: { input: "text" },
+      projekte: { reverseOf: { base: "Aufgaben.base", property: "kunde" } },
+      offen: { rollup: { through: "projekte", of: "status", fn: "percentWhere", where: { op: "!=", value: "done" } } },
+    },
+    views: [{
+      type: "table",
+      name: "Tabelle",
+      order: ["file.name", "note.branche", "note.notiz", "note.projekte", "note.offen", "file.mtime", "formula.summe"],
+    }],
+  });
+
+  it("splits the view's columns into what the database computes and what the note carries", async () => {
+    const ctx = await buildNoteDatabaseContext(
+      deps({
+        bases: { "Kunden.base": computedBase },
+        members: { "Kunden.base": ["K/ACME.md"] },
+        viewRows: {
+          "Kunden.base": [{ "file.path": "K/ACME.md", "file.name": "ACME", "file.mtime": 1750000003000, branche: "tech", projekte: ["[[Alpha]]"], offen: 50 }],
+        },
+      }),
+      "K/ACME.md"
+    );
+    const m = ctx.memberships[0];
+    // In view order. `file.name` is the note's own title and is neither.
+    expect(m.computed.map((f) => [f.column, f.kind])).toEqual([
+      ["projekte", "reverse"],
+      ["offen", "rollup"],
+      ["file.mtime", "file"],
+      ["formula.summe", "formula"],
+    ]);
+    expect(m.computed.find((f) => f.column === "projekte")?.value).toEqual(["[[Alpha]]"]);
+    // The rollup function travels along: a percentage has to say so.
+    expect(m.computed.find((f) => f.column === "offen")).toMatchObject({ value: 50, rollupFn: "percentWhere" });
+    // `notiz` is a column of the view, but this note has no such key: it is not
+    // "under Properties", it is nowhere yet — so it is not named.
+    expect(m.shownAsProperties).toEqual(["branche"]);
+    // The old list of non-file columns is unchanged for whoever reads it.
+    expect(m.columns).toEqual(["branche", "notiz", "projekte", "offen", "formula.summe"]);
+  });
+
+  it("a database without computed columns has none — membership and position are all there is to show", async () => {
+    const ctx = await buildNoteDatabaseContext(
+      deps({
+        bases: { "Aufgaben.base": inspectBase },
+        members: { "Aufgaben.base": ["A/Eins.md"] },
+        viewRows: { "Aufgaben.base": [{ "file.path": "A/Eins.md", status: "Offen" }] },
+      }),
+      "A/Eins.md"
+    );
+    const m = ctx.memberships[0];
+    expect(m.computed).toEqual([]);
+    expect(m.shownAsProperties).toEqual(["status"]);
+    expect([m.index, m.total]).toEqual([1, 1]);
+  });
+
   it("has no neighbour past either end of the view", async () => {
     const rows = [{ "file.path": "A/Eins.md" }, { "file.path": "A/Zwei.md" }];
     const first = await buildNoteDatabaseContext(

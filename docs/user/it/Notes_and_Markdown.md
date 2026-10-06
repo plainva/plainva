@@ -63,7 +63,7 @@ Digita `/` all'inizio di una riga per aprire il menu di inserimento. È suddivis
 
 ## Proprietà (frontmatter)
 
-La sezione **Proprietà** nella barra laterale destra mostra il frontmatter della nota come un modulo. **Aggiungi proprietà** ne crea di nuove; ogni proprietà ha un **Tipo di campo**:
+La sezione **Proprietà** nella barra laterale destra mostra il frontmatter della nota come un modulo. Ogni proprietà è una riga: icona del tipo, nome, valore e, sul bordo destro, ciò che la riga permette — un lucchetto sui campi protetti e, al passaggio del mouse, **Elimina proprietà** e il fumetto dei commenti. I valori si modificano sul posto e vanno a capo invece di essere tagliati. **Aggiungi proprietà** ne crea di nuove; ogni proprietà ha un **Tipo di campo**:
 
 | Gruppo | Tipi |
 |---|---|

@@ -63,7 +63,7 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 
 ## Eigenschappen (frontmatter)
 
-De sectie **Eigenschappen** in de rechterzijbalk toont de frontmatter van de notitie als formulier. Met **Eigenschap toevoegen** maak je nieuwe aan; elke eigenschap heeft een **Veldtype**:
+De sectie **Eigenschappen** in de rechterzijbalk toont de frontmatter van de notitie als formulier. Elke eigenschap is één rij: type-icoon, naam, waarde en aan de rechterrand wat de rij kan — een slot bij beschermde velden, en bij aanwijzen **Eigenschap verwijderen** en de opmerkingsballon. Waarden bewerk je ter plekke; ze lopen door naar een nieuwe regel in plaats van te worden afgekapt. Met **Eigenschap toevoegen** maak je nieuwe aan; elke eigenschap heeft een **Veldtype**:
 
 | Groep | Typen |
 |---|---|

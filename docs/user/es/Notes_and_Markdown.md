@@ -63,7 +63,7 @@ Escribe `/` al principio de una línea para abrir el menú de inserción. Está 
 
 ## Propiedades (frontmatter)
 
-La sección **Propiedades** de la barra lateral derecha muestra el frontmatter de la nota como un formulario. **Añadir propiedad** crea nuevas; cada propiedad tiene un **Tipo de campo**:
+La sección **Propiedades** de la barra lateral derecha muestra el frontmatter de la nota como un formulario. Cada propiedad es una fila: icono de tipo, nombre, valor y, en el borde derecho, lo que la fila permite — un candado en los campos protegidos y, al pasar el ratón, **Eliminar propiedad** y el bocadillo de comentario. Los valores se editan en el sitio y pasan a la línea siguiente en lugar de cortarse. **Añadir propiedad** crea nuevas; cada propiedad tiene un **Tipo de campo**:
 
 | Grupo | Tipos |
 |---|---|

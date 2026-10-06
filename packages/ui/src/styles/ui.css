@@ -342,6 +342,15 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
      ICON starts rather than under its disclosure chevron. */
   --pv-sec-gap: 0.55rem;
   --pv-sec-glyph: 15px; /* ICON.ui */
+  /* The section's inset, read by the head AND the body, so the two cannot
+     drift apart. `--pv-side-pad-end` is the inset on the scrollbar's side: a
+     panel that reserves its scrollbar's room (the right one) sets it smaller,
+     because the gutter is inset already. */
+  --pv-side-pad: 0.75rem;
+  --pv-side-pad-end: var(--pv-side-pad);
+  /* Room for a three-digit count. Fixed: the title's column must not depend
+     on whether a number is shown. */
+  --pv-sec-count: 32px;
 }
 /* A section's rows belong AFTER its disclosure control. They used to start at
    the chevron — the outermost element in the sidebar — so a bookmark sat
@@ -354,12 +363,19 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
      nothing on the first attempt. */
   padding: 0.25rem 0.25rem 0.25rem calc(0.25rem + var(--pv-sec-glyph) + var(--pv-sec-gap));
 }
+/* The head is a FIXED GRID — chevron, icon, title, count slot (finding
+   2026-10-06). As a flex row its title ended where the badge happened to
+   begin, and a rule that inset "the section's last child" hit the head itself
+   whenever the section was collapsed: the heading jumped 8 px on every toggle.
+   Four named columns, one padding, no rule that depends on the body. */
 .pv-side-section-header {
   flex: 1;
-  display: flex;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: var(--pv-sec-glyph) var(--pv-sec-glyph) minmax(0, 1fr) var(--pv-sec-count);
   align-items: center;
   gap: var(--pv-sec-gap);
-  padding: 0.7rem 0.75rem;
+  padding: 0.7rem var(--pv-side-pad-end) 0.7rem var(--pv-side-pad);
   background: transparent;
   border: none;
   color: var(--text-main);
@@ -371,6 +387,253 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 }
 .pv-side-section-header:hover { background: var(--bg-hover); }
 .pv-side-section-header .pv-side-section-glyph { display: flex; color: var(--text-muted); }
+.pv-side-section-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
+.pv-side-section-count { display: flex; justify-content: flex-end; min-width: 0; }
+/* The body's inset. Its own class, never "the last child of the section". */
+.pv-side-section-body { padding: 0 var(--pv-side-pad-end) 0.85rem var(--pv-side-pad); }
+.pv-side-section-body--flush { padding: 0; }
+
+/* ------------------------------------------------- context column: one row */
+/* icon · name · value · edge — the ONE row of the context column (PropRow;
+   plan Befunde 2026-10-06, R2). Properties, the trust group and the database
+   section draw it; none of them brings a grid of its own any more.
+
+   Four fixed positions: the icon, where the name starts, where EVERY value
+   starts, and the edge. The value column takes what is left and wraps. */
+.pv-prow {
+  --prow-icon: 16px;
+  --prow-name: 86px;
+  --prow-edge: 20px;
+  /* Height of a row's first line: icon, name, value and edge centre on it, so
+     a value that wraps grows downward and the row's head stays put. */
+  --prow-line: 26px;
+  /* How far a value's frame reaches past its text. Taken back by a negative
+     margin, so the TEXT keeps the column's edge and the frame grows outward. */
+  --prow-inset: 6px;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--prow-icon) var(--prow-name) minmax(0, 1fr) var(--prow-edge);
+  align-items: start;
+  gap: 0 var(--space-2);
+  padding: 1px 0;
+  font-size: var(--text-ui);
+  color: var(--text-main);
+}
+.pv-prow-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--prow-icon);
+  height: var(--prow-line);
+  color: var(--text-faint);
+}
+.pv-prow-name {
+  min-width: 0;
+  min-height: var(--prow-line);
+  padding: 4px 0;
+  box-sizing: border-box;
+  color: var(--text-muted);
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.pv-prow-namebox { display: block; min-width: 0; }
+.pv-prow-value {
+  position: relative;
+  min-width: 0;
+  min-height: var(--prow-line);
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--prow-inset);
+  margin-inline: calc(-1 * var(--prow-inset));
+  border-radius: var(--radius-sm);
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+/* Quiet fields: a value looks like text, and gets its frame on hover and
+   while it is edited. */
+.pv-prow[data-frame="quiet"] > .pv-prow-value:hover { background: var(--state-hover); }
+.pv-prow[data-frame="quiet"] > .pv-prow-value:focus-within {
+  background: var(--bg-primary);
+  box-shadow: inset 0 0 0 1px var(--border-color);
+}
+/* Whatever stands in a value gives up its own frame, height and inset: the
+   value box is the frame, and the text starts at the value's edge. */
+.pv-prow-value .pv-field,
+.pv-prow-value .pv-field:focus {
+  height: auto;
+  min-height: 22px;
+  padding: 2px 0;
+  /* No border at all, not a transparent one: a hairline nobody sees still
+     moves the text one pixel off the edge every other value starts at. */
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: inherit;
+  line-height: 18px;
+}
+.pv-prow-value .pv-property-text,
+.pv-prow-value .pv-select,
+.pv-prow-value .pv-tags { flex: 1 1 100%; min-width: 0; width: auto; }
+.pv-prow-value .pv-chips { gap: var(--space-1); }
+/* A chip list that is only being read shows its chips, not an empty field
+   behind them. The input opens when it has the focus (a click on the value
+   puts the caret there) and stays open while it holds text. */
+.pv-prow-value .pv-chip ~ .pv-chip-input:placeholder-shown:not(:focus) {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  opacity: 0;
+}
+.pv-prow-static { min-width: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+.pv-prow-date {
+  flex: 1 1 100%;
+  min-width: 0;
+  min-height: 22px;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 18px;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.pv-prow-link { display: inline; font-size: inherit; overflow-wrap: anywhere; }
+.pv-prow-link svg { display: inline; vertical-align: -1px; }
+/* The edge: one glyph wide. At rest it says what the row is (lock, caret,
+   "add"); on hover and keyboard focus the row's actions open INSIDE it and lay
+   over it — the value never moves, because nothing here is in the flow. */
+.pv-prow-edge {
+  position: relative;
+  width: var(--prow-edge);
+  height: var(--prow-line);
+  color: var(--text-faint);
+}
+.pv-prow-rest {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pv-prow-lock { display: inline-flex; }
+.pv-prow-actions {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+}
+/* Beside the glyph instead of over it, for a glyph that says something of its
+   own (the lock names the file's key). */
+.pv-prow-edge[data-keep="true"] > .pv-prow-actions { inset-inline-end: 100%; }
+.pv-prow-actions > * { opacity: 0; pointer-events: none; }
+.pv-prow:hover .pv-prow-actions,
+.pv-prow:focus-within .pv-prow-actions,
+.pv-prow-actions[data-pinned="true"] { background: var(--prow-surface, var(--bg-secondary)); }
+.pv-prow:hover .pv-prow-actions > *,
+.pv-prow:focus-within .pv-prow-actions > *,
+.pv-prow-actions > [data-has="true"] { opacity: 1; pointer-events: auto; }
+/* At rest only what is pinned takes room; the rest of the actions folds away,
+   so a comment count does not stand beside an invisible delete button. */
+.pv-prow:not(:hover):not(:focus-within) .pv-prow-actions > :not([data-has="true"]) { display: none; }
+
+/* Below the compact step the name moves above the value — for every row of
+   the column at once, because the step is the column's. The value takes the
+   whole line under the name; the edge stays on the name's line. */
+[data-side-step="compact"] .pv-prow,
+[data-side-step="minimal"] .pv-prow {
+  grid-template-columns: var(--prow-icon) minmax(0, 1fr) var(--prow-edge);
+}
+[data-side-step="compact"] .pv-prow > .pv-prow-name,
+[data-side-step="minimal"] .pv-prow > .pv-prow-name {
+  min-height: 0;
+  padding-bottom: 0;
+  font-size: var(--text-sm);
+}
+[data-side-step="compact"] .pv-prow > .pv-prow-value,
+[data-side-step="minimal"] .pv-prow > .pv-prow-value {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  /* It reaches the row's end here, where there is no gap to grow into. */
+  margin-inline-end: 0;
+}
+[data-side-step="compact"] .pv-prow > .pv-prow-edge,
+[data-side-step="minimal"] .pv-prow > .pv-prow-edge {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+/* Group head: divides a section. Icon, uppercase label, one trailing chip. */
+.pv-prow-group {
+  display: grid;
+  grid-template-columns: var(--prow-icon, 16px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) 0 var(--space-1);
+  border-top: 1px solid var(--border-color-light);
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.pv-prow-group > .pv-prow-icon { width: auto; height: auto; }
+.pv-prow-group-label { min-width: 0; overflow-wrap: anywhere; }
+.pv-prow-group-trailing { display: flex; min-width: 0; letter-spacing: 0; text-transform: none; font-weight: 400; }
+/* Action row: what the section can do, as a row of the same column. */
+.pv-prow-action {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  height: auto;
+  min-height: var(--prow-line, 26px);
+  padding: 2px 0;
+  gap: var(--space-2);
+  text-align: start;
+  white-space: normal;
+}
+.pv-prow-action > .pv-btn-ic { width: var(--prow-icon, 16px); justify-content: center; flex: none; }
+/* Membership line: names what the rows under it belong to. */
+.pv-prow-line {
+  display: grid;
+  grid-template-columns: var(--prow-icon, 16px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--prow-line, 26px);
+  font-size: var(--text-ui);
+}
+.pv-prow-line > .pv-prow-icon { width: auto; height: auto; }
+.pv-prow-line-main { min-width: 0; overflow-wrap: anywhere; }
+.pv-prow-line-trailing { display: flex; align-items: center; min-width: 0; }
+.pv-prow-hint { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--text-faint); overflow-wrap: anywhere; }
+/* A row that folds its value (sub-items): the toggle is the edge's glyph. */
+.pv-prow-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.pv-prow-toggle:hover { background: var(--state-hover); color: var(--text-main); }
+.pv-prow-toggle > svg { transition: transform var(--dur-2) var(--ease-1); }
+.pv-prow-toggle-closed { transform: rotate(-90deg); }
+/* One entry of a value that is a list of links: each on its own line. */
+.pv-prow-item { flex: 1 1 100%; min-width: 0; }
 
 /* App bar: ONE grammar for the headers over a working surface — editor, base,
    calendar, mail (S19, the promised desktop rückwirkung of the mobile
@@ -1408,7 +1671,12 @@ button.pv-chip:hover { background: var(--state-hover); }
   color: var(--on-accent-container);
   font-weight: 600;
 }
-.pv-chip > span,
+/* Every span of a chip keeps its size EXCEPT the label (finding 2026-10-06).
+   This rule used to say `.pv-chip > span` and so hit `.pv-chip-text` as well:
+   the label could not shrink, and as a flex container it could not draw an
+   ellipsis either — a chip longer than its row was cut hard in the middle of a
+   word ("typ/tagebuc"). The label is the one part that gives way. */
+.pv-chip > span:not(.pv-chip-text),
 /* The icon's OWN slot, a sibling of the text — never inside it. As a child of
    `.pv-chip-text` an inline SVG joins that span's text-overflow chain, and it is
    the label alone that should ever be cut. `flex: 0 0 auto` keeps the glyph from
@@ -1419,6 +1687,8 @@ button.pv-chip:hover { background: var(--state-hover); }
   flex: 0 0 auto;
 }
 .pv-chip-text {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1506,7 +1776,8 @@ html[data-tag-colors="on"] [data-tag-ink="5"] { color: var(--chip-5-fg); }
 html[data-tag-colors="on"] [data-tag-ink="6"] { color: var(--chip-6-fg); }
 html[data-tag-colors="on"] [data-tag-ink="7"] { color: var(--chip-7-fg); }
 .pv-chip-link { background: var(--chip-link-bg); color: var(--chip-link-fg); border-color: transparent; padding-left: 4px; }
-.pv-chip-link-open { display: inline-flex; align-items: center; gap: 3px; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: var(--text-sm); }
+.pv-chip-link-open { display: inline-flex; align-items: center; gap: 3px; min-width: 0; border: none; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: var(--text-sm); }
+.pv-chip-link-open > svg { flex: none; }
 .pv-chip-link-open:hover { text-decoration: underline; }
 .pv-chip-0 { background: var(--chip-0-bg); color: var(--chip-0-fg); border-color: transparent; }
 .pv-chip-1 { background: var(--chip-1-bg); color: var(--chip-1-fg); border-color: transparent; }
@@ -3098,25 +3369,36 @@ button.pv-acct:hover { background: var(--state-hover); }
   white-space: nowrap;
 }
 .pv-dbbar-crumb--here { color: var(--text-main); font-weight: 600; cursor: default; }
-/* Entry inspector: the sidebar's database section shows this note's row the
-   way its database sees it — column order, types, option colors — so a status
-   can be changed without opening the database first (plan P2). */
-.pv-dbinsp-grid {
-  display: grid;
-  /* The key column takes what the labels need and no more; the value column
-     gets the rest, because that is where the editors live. */
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  align-items: baseline;
-  gap: 2px var(--space-2);
-}
-.pv-dbinsp-val {
+/* The sidebar's database section (plan Befunde 2026-10-06, R3): membership,
+   position, and the columns the database COMPUTES for this note. Its rows are
+   the context column's one row (`.pv-prow`); what is left here is the
+   membership line's own content. The key/value grid and its uppercase labels
+   are gone with the duplicated columns they showed. */
+.pv-dbinsp { display: flex; flex-direction: column; }
+/* The database's name opens it. It shortens with an ellipsis (the tooltip has
+   all of it); the view's name is the part that gives way first. */
+.pv-dbinsp-open {
+  display: block;
+  max-width: 100%;
   min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  text-align: start;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
 }
+.pv-dbinsp-open:hover > b { text-decoration: underline; }
+.pv-dbinsp-open > b { font-weight: 600; }
+.pv-dbinsp-open > small { color: var(--text-faint); font-size: var(--text-sm); }
 /* A note can be a row of several databases. Without a rule between the blocks
    the second one's column values read as a continuation of the first. */
 .pv-dbinsp-block + .pv-dbinsp-block {
+  margin-top: var(--space-2);
   border-top: 1px solid var(--border-color-light);
   padding-top: var(--space-2);
 }
@@ -3134,24 +3416,6 @@ button.pv-acct:hover { background: var(--state-hover); }
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   padding: 0 2px;
-}
-.pv-dbinsp-disclose {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-/* Key/value label of the sidebar's database section (mockup variant B). */
-.pv-kv-key {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
 }
 
 /* Account-sync chain (settings): three steps that BUILD ON EACH OTHER, so the

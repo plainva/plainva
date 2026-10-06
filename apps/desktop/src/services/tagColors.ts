@@ -28,9 +28,17 @@ export async function setStoredTagColors(on: boolean): Promise<void> {
   notifyAppearanceChanged();
 }
 
-/** Applies the default immediately (avoids a flash), then the stored value. */
+/**
+ * Applies the stored value — and nothing before it.
+ *
+ * This used to write the default first "to avoid a flash", and that WAS the
+ * flash (finding 2026-10-06): the function also runs whenever another window
+ * reports an appearance change, so with colours on it took the attribute away
+ * and put it back a tick later, and every tag blinked grey. At a cold start
+ * the attribute is absent, which is the default already; there is nothing to
+ * apply until the store has answered.
+ */
 export function initTagColors(): void {
-  applyTagColors(DEFAULT_TAG_COLORS);
   getStoredTagColors()
     .then((on) => applyTagColors(on))
     .catch(() => {});

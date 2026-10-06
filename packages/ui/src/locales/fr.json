@@ -4495,6 +4495,8 @@
     "linked": "Lié",
     "linkedEntry": "{{base}} · {{n}} entrées",
     "openBaseView": "{{base}} · vue « {{view}} »",
+    "viewLabel": "vue « {{view}} »",
+    "underProperties": "Sous Propriétés : {{fields}}",
     "prevEntry": "Entrée précédente",
     "nextEntry": "Entrée suivante"
   },

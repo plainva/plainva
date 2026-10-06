@@ -4444,6 +4444,8 @@
     "linked": "Verknüpft",
     "linkedEntry": "{{base}} · {{n}} Einträge",
     "openBaseView": "{{base}} · Ansicht „{{view}}“",
+    "viewLabel": "Ansicht „{{view}}“",
+    "underProperties": "Unter Eigenschaften: {{fields}}",
     "prevEntry": "Voriger Eintrag",
     "nextEntry": "Nächster Eintrag"
   },

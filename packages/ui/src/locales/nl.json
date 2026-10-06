@@ -4444,6 +4444,8 @@
     "linked": "Gekoppeld",
     "linkedEntry": "{{base}} · {{n}} items",
     "openBaseView": "{{base}} · weergave \"{{view}}\"",
+    "viewLabel": "weergave \"{{view}}\"",
+    "underProperties": "Onder Eigenschappen: {{fields}}",
     "prevEntry": "Vorig item",
     "nextEntry": "Volgend item"
   },

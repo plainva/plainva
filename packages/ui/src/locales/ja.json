@@ -4393,6 +4393,8 @@
     "linked": "リンク済み",
     "linkedEntry": "{{base}} · {{n}}件のエントリ",
     "openBaseView": "{{base}} · 「{{view}}」ビュー",
+    "viewLabel": "「{{view}}」ビュー",
+    "underProperties": "プロパティに表示: {{fields}}",
     "prevEntry": "前の項目",
     "nextEntry": "次の項目"
   },

@@ -581,6 +581,28 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       verified: "2026-09-11",
   },
   {
+    id: "context-column-layout",
+    title: "The context column's layout: one row grammar, width steps, collapsible section heads",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "What the column SHOWS is the same on both shells and comes from shared " +
+      "code: which properties are rows, the trust group, the lifecycle rows " +
+      "(propertyPanelModel), and for a note that is a row of a database its " +
+      "membership, position and the columns the database computes " +
+      "(computedFieldKind). How it is laid out is the desktop's alone - a row of " +
+      "icon, name, value and edge whose value is edited in place and whose " +
+      "actions a pointer reveals in the edge, three width steps of a draggable " +
+      "panel, and section heads that collapse. The phone's context sheet has one " +
+      "width class, tabs instead of sections, and touch rows: a row is the button " +
+      "that opens the shared cell editor in a sheet, a long press opens its " +
+      "actions. The width rule, the fixed head grid and the edge column have " +
+      "nothing to act on there (findings 2026-10-06, plan Teil R).",
+    verified: "2026-10-06",
+  },
+  {
     id: "editor-tabs",
     title: "Tabs: closing one, reopening the last one closed",
     area: "platform",

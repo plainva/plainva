@@ -63,7 +63,7 @@ Tapez `/` en début de ligne pour ouvrir le menu d'insertion. Il est organisé e
 
 ## Propriétés (frontmatter)
 
-La section **Propriétés** dans la barre latérale droite montre le frontmatter de la note sous forme de formulaire. **Ajouter une propriété** en crée de nouvelles ; chaque propriété a un **type de champ** :
+La section **Propriétés** dans la barre latérale droite montre le frontmatter de la note sous forme de formulaire. Chaque propriété est une ligne : icône de type, nom, valeur et, au bord droit, ce que la ligne permet — un cadenas sur les champs protégés et, au survol, **Supprimer la propriété** et la bulle de commentaire. Les valeurs se modifient sur place et passent à la ligne au lieu d'être coupées. **Ajouter une propriété** en crée de nouvelles ; chaque propriété a un **type de champ** :
 
 | Groupe | Types |
 |---|---|

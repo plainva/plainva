@@ -4495,6 +4495,8 @@
     "linked": "Vinculado",
     "linkedEntry": "{{base}} · {{n}} entradas",
     "openBaseView": "{{base}} · visualização \"{{view}}\"",
+    "viewLabel": "visualização \"{{view}}\"",
+    "underProperties": "Em Propriedades: {{fields}}",
     "prevEntry": "Entrada anterior",
     "nextEntry": "Próxima entrada"
   },

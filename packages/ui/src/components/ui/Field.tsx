@@ -93,5 +93,23 @@ export const GrowingField = forwardRef<
   useLayoutEffect(() => {
     if (field.current) fitFieldHeight(field.current);
   }, [value]);
+  // ... and after every change of its WIDTH: the text wraps differently in a
+  // column that was dragged narrower, and the height has to follow. A cell
+  // editor lives for one edit and never saw its width change; a property value
+  // in the context column stands in this field for as long as the note is open
+  // (plan Befunde 2026-10-06, R2). Setting the height does not change the
+  // width, so the observer cannot feed itself.
+  useLayoutEffect(() => {
+    const el = field.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let width = el.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (el.clientWidth === width) return;
+      width = el.clientWidth;
+      fitFieldHeight(el);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   return <textarea ref={field} rows={1} className={cx("pv-field", "pv-field--compact", "pv-field--grow", className)} value={value} spellCheck={spellCheck} {...rest} />;
 });

@@ -63,7 +63,7 @@ Wpisz `/` na początku wiersza, aby otworzyć menu wstawiania. Jest ono podzielo
 
 ## Właściwości (frontmatter)
 
-Sekcja **Właściwości** w prawym pasku bocznym pokazuje frontmatter notatki jako formularz. **Dodaj właściwość** tworzy nowe; każda właściwość ma **Typ pola**:
+Sekcja **Właściwości** w prawym pasku bocznym pokazuje frontmatter notatki jako formularz. Każda właściwość to jeden wiersz: ikona typu, nazwa, wartość, a przy prawej krawędzi to, co wiersz potrafi — kłódka przy polach chronionych, a po najechaniu **Usuń właściwość** i dymek komentarza. Wartości edytujesz na miejscu; zawijają się, zamiast być ucinane. **Dodaj właściwość** tworzy nowe; każda właściwość ma **Typ pola**:
 
 | Grupa | Typy |
 |---|---|

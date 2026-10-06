@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ExternalLink, Plus } from "lucide-react";
+import { BadgeCheck, Check, ExternalLink, Link2, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   appendVerification,
@@ -9,18 +9,22 @@ import {
   getPlatformServices,
   ICON,
   parseBaseConfig, propertyIndexTypes, reservedPropertyName,
+  PropActionRow,
+  PropGroupHead,
+  propertyPanelModel,
+  PropRow,
   toast,
   TRUST_LEVEL_I18N,
   trustLevelOf,
+  useKeptResolution,
 } from "@plainva/ui";
 import {
   parseMarkdownAst,
   extractFrontmatter,
   updateFrontmatterString,
   ReadableFrontmatter,
-  PLAINVA_NAMESPACE_KEY,
-  parseOkfTrustSignals,
   OKF_STATUS_VALUES,
+  sameStoredValue,
   type OkfSource,
 } from "@plainva/core";
 import { activeDocument, type ActiveDoc, type DocChannel } from "../services/activeDocument";
@@ -32,7 +36,7 @@ import {
 } from "@plainva/ui";
 import { getConfiguredNoteType, getConfiguredDailyNoteType } from "../services/newNote";
 import { loadPropertyTypes, setPropertyType, clearPropertyType, renamePropertyType } from "./propertyTypeStore";
-import { resolveGoverningBase, clearGoverningBaseCache, type GoverningBase } from "../services/baseSchema";
+import { resolveGoverningBase, clearGoverningBaseCache, governingBasesBelongTo, governingBaseMemory, type GoverningBase } from "../services/baseSchema";
 import { PropertyRow, AddPropertyPopover, type RelationCandidate } from "./PropertyValues";
 import {
   propertyCommentStore,
@@ -61,10 +65,10 @@ const OKF_SYSTEM_KEYS = new Set(["type", "okf_version"]);
  * value stays editable, and clearing it removes the key. */
 const OKF_LIFECYCLE_KEYS = new Set(["status", "stale_after"]);
 
-/** OKF 0.2 provenance families: shown as the read-only trust card, never as
- * editable rows — the editor does not touch `generated`/`verified`/`sources`
- * (plan decision E3), and a hand-typed stamp would be a claim, not a fact. */
-const OKF_CARD_KEYS = new Set(["generated", "verified", "sources"]);
+// The OKF 0.2 provenance families (`generated`/`verified`/`sources`) render as
+// the read-only trust group, never as editable rows — the editor does not
+// touch them (plan decision E3), and a hand-typed stamp would be a claim, not
+// a fact. Which keys those are is decided in the shared `propertyPanelModel`.
 
 interface Row {
   key: string;
@@ -77,13 +81,16 @@ interface Row {
   lockValue: boolean;
 }
 
-/** One label/value line of the trust card. */
-function TrustLine({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * One line of the trust group, in the column's row grammar (R4): it used to be
+ * a third grid with a fixed 88-px label column, beside the property rows and
+ * the database section's.
+ */
+function TrustLine({ icon, label, children }: { icon?: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 88px) minmax(0, 1fr)", gap: "0 0.5rem", alignItems: "baseline", fontSize: "var(--text-ui)", padding: "0.1rem 0.1rem" }}>
-      <span style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-      <span style={{ color: "var(--text-main)", minWidth: 0, overflowWrap: "anywhere" }}>{children}</span>
-    </div>
+    <PropRow icon={icon} name={label}>
+      <span className="pv-prow-static">{children}</span>
+    </PropRow>
   );
 }
 
@@ -92,18 +99,18 @@ function SourceLine({ source }: { source: OkfSource }) {
   const label = source.title ?? source.resource;
   const external = /^https?:\/\//i.test(source.resource);
   if (!external) {
-    return <span data-tip={source.title ? source.resource : undefined} style={{ overflowWrap: "anywhere" }}>{label}</span>;
+    return <span data-tip={source.title ? source.resource : undefined}>{label}</span>;
   }
+  // The label wraps like every other value of the column; the tooltip carries
+  // the address when the label is a title.
   return (
     <button
       type="button"
-      className="pv-linkbtn"
+      className="pv-linkbtn pv-prow-link"
       data-tip={source.title ? source.resource : undefined}
       onClick={() => { void getPlatformServices().openExternal(source.resource); }}
-      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", maxWidth: "100%" }}
     >
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-      <ExternalLink size={ICON.meta} style={{ flexShrink: 0 }} />
+      {label} <ExternalLink size={ICON.meta} aria-hidden="true" />
     </button>
   );
 }
@@ -129,7 +136,6 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   const [properties, setProperties] = useState<ReadableFrontmatter>({});
   const [typeReg, setTypeReg] = useState<Record<string, PropertyType>>({});
   const [tagSuggestions, setTagSuggestions] = useState<TagSuggestion[]>([]);
-  const [governing, setGoverning] = useState<GoverningBase | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const addBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -141,8 +147,11 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // Per-vault type registry (Obsidian-safe; lives in localStorage, not the note).
   useEffect(() => { setTypeReg(loadPropertyTypes(vaultPath)); }, [vaultPath]);
 
-  // A re-index (e.g. after editing a `.base`) may change schemas/candidates — drop caches.
-  useEffect(() => { clearGoverningBaseCache(); relationCandidateCache.clear(); }, [fileTreeVersion, vaultPath]);
+  // A re-index (e.g. after editing a `.base`) may change schemas/candidates:
+  // they are looked up again. What was known about the governing database
+  // stays on screen until the new answer is there (see `useKeptResolution`).
+  // Another vault is another set of answers; nothing remembered applies there.
+  useEffect(() => { governingBasesBelongTo(vaultPath ?? ""); clearGoverningBaseCache(); relationCandidateCache.clear(); }, [fileTreeVersion, vaultPath]);
 
   // Vault-wide tags for the tag-pill autocomplete (loaded once per vault).
   useEffect(() => {
@@ -165,25 +174,34 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
         ];
         const used = queryService ? await queryService.getDistinctPropertyValues("type", "") : [];
         const values = [...new Set([...configured, ...used.map((u) => String(u.value))])].filter(Boolean);
-        if (alive) setOkfTypeOptions(values.map((value) => ({ value })));
+        const next = values.map((value) => ({ value }));
+        // An index update that changes nothing must not hand the `type` row a
+        // new list: the same options keep their identity.
+        if (alive) setOkfTypeOptions((prev) => (sameStoredValue(prev, next) ? prev : next));
       } catch {
-        if (alive) setOkfTypeOptions([]);
+        if (alive) setOkfTypeOptions((prev) => (prev.length === 0 ? prev : []));
       }
     })();
     return () => { alive = false; };
   }, [vaultPath, queryService, fileTreeVersion]);
 
-  // Resolve which `.base` governs this note (its column schema drives typed rendering).
-  useEffect(() => {
-    let alive = true;
-    setGoverning(null); setShowAdd(false);
-    if (doc.kind === "markdown" && doc.path) {
-      resolveGoverningBase(doc.path, queryService, vaultAdapter).then((g) => { if (alive) setGoverning(g); }).catch((e) => { console.warn("[PropertiesSection] resolving governing .base failed", e); if (alive) setGoverning(null); });
-    } else {
-      setGoverning(null);
-    }
-    return () => { alive = false; };
-  }, [doc.path, doc.kind, queryService, vaultAdapter, fileTreeVersion]);
+  // Which `.base` governs this note — its column schema drives typed rendering.
+  //
+  // The answer is KEPT while it is looked up again (finding 2026-10-06). This
+  // effect used to start with `setGoverning(null)`, and it re-runs on every
+  // index update — every save, every sync cycle. Until the lookup came back, a
+  // `tags` value the database declares a multi-select was drawn as tag pills,
+  // then as option chips again: two renderers with two colour sources, which
+  // is the flicker between two colours. Now the row keeps its rendering until
+  // the new answer is there, and an equal answer changes nothing at all.
+  const governingKey = doc.kind === "markdown" && doc.path ? doc.path : null;
+  const resolveGoverning = useCallback(
+    (path: string) => resolveGoverningBase(path, queryService, vaultAdapter),
+    [queryService, vaultAdapter]
+  );
+  const governing: GoverningBase | null = useKeptResolution(governingKey, fileTreeVersion, resolveGoverning, governingBaseMemory);
+  // The add popover belongs to the note it was opened on.
+  useEffect(() => { setShowAdd(false); }, [governingKey]);
 
   useEffect(() => {
     if (doc.kind !== "markdown") { setProperties({}); return; }
@@ -194,35 +212,17 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     } catch { /* ignore parse errors while typing */ }
   }, [doc.content, doc.kind]);
 
-  // OKF 0.2 trust signals — form-checked, total. `claimedKeys` tells which of
-  // the families actually carry the spec shape; only those leave the generic list.
-  const trust = useMemo(() => parseOkfTrustSignals(properties as Record<string, unknown>), [properties]);
-  const claimed = useMemo(() => new Set(trust.claimedKeys), [trust]);
-  const showStatusRow = !trust.statusForeign;
-  // A present-but-malformed `stale_after` stays an ordinary row: the pinned
-  // date editor would otherwise show the same key twice.
-  const showStaleRow = properties.stale_after === undefined || trust.staleAfter !== null;
+  // What the panel shows, decided by the shared model — the same one the
+  // section head counts with (R4), so the number and the rows cannot disagree.
+  // OKF 0.2 trust signals are form-checked and total: only the families that
+  // carry the spec shape leave the generic list. The `plainva` namespace (doc
+  // icon, header colour) has its own UI in the editor; it is hidden from the
+  // list but stays in `properties`, so apply() writes it back untouched.
+  const model = useMemo(() => propertyPanelModel(properties as Record<string, unknown>), [properties]);
+  const { trust, showStatusRow, showStaleRow } = model;
+  const visibleKeys = model.genericKeys;
 
-  // The `plainva` namespace (doc icon, header color) is managed via its own UI
-  // in the editor — hide it from the generic list, but keep it in `properties`
-  // so apply() writes it back untouched.
-  const allKeys = useMemo(
-    () => Object.keys(properties).filter((k) => k !== PLAINVA_NAMESPACE_KEY),
-    [properties]
-  );
-  const visibleKeys = useMemo(
-    () => allKeys.filter((k) => {
-      if (OKF_CARD_KEYS.has(k) && claimed.has(k)) return false;
-      if (k === "status" && showStatusRow) return false;
-      if (k === "stale_after" && showStaleRow) return false;
-      return true;
-    }),
-    [allKeys, claimed, showStatusRow, showStaleRow]
-  );
-
-  // The header badge counts every user-facing key, the pinned lifecycle rows
-  // included — a note that carries only `status: draft` must not hide the section.
-  useEffect(() => { onCountChange?.(allKeys.length); }, [allKeys, onCountChange]);
+  useEffect(() => { onCountChange?.(model.shownCount); }, [model.shownCount, onCountChange]);
 
   const apply = useCallback((newProps: ReadableFrontmatter) => {
     try {
@@ -439,11 +439,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   const levelClass = trustLevel === "human-reviewed" ? " is-on" : trustLevel === "unverified" ? " pv-chip--muted" : "";
 
   if (doc.kind !== "markdown" || !doc.path) {
-    return (
-      <div style={{ padding: "0.75rem 0.25rem", color: "var(--text-faint)", fontSize: "var(--text-ui)", fontStyle: "italic" }}>
-        {t("rightPanel.propertiesUnavailable")}
-      </div>
-    );
+    return <p className="pv-prow-hint">{t("rightPanel.propertiesUnavailable")}</p>;
   }
 
   // The OKF lifecycle rows show their translated name; the key stays in the
@@ -482,69 +478,50 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     />
   );
 
+  // One grammar from the first property to the last action (R2, R4): the rows,
+  // the trust group under its own head, and what the section can do as action
+  // rows at the end. Nothing here lays itself out.
   return (
-    <div className="pv-props" style={{ position: "relative", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
-      {rows.length === 0 ? (
-        <div style={{ fontSize: "var(--text-ui)", color: "var(--text-faint)", fontStyle: "italic", padding: "0.25rem 0.1rem" }}>
-          {t("properties.noProperties")}
-        </div>
-      ) : (
-        rows.map(renderRow)
-      )}
+    <div className="pv-props">
+      {rows.length === 0 ? <p className="pv-prow-hint">{t("properties.noProperties")}</p> : rows.map(renderRow)}
 
-      <div
-        data-testid="okf-trust-section"
-        style={{ display: "flex", flexDirection: "column", gap: "0.15rem", marginTop: "0.45rem", paddingTop: "0.4rem", borderTop: "1px solid var(--border-color-light)" }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", padding: "0 0.1rem 0.15rem" }}>
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            {t("trust.title")}
-          </span>
-          <span className={`pv-chip pv-chip--sm${levelClass}`} data-testid="okf-trust-level" data-level={trustLevel}>
-            {t(TRUST_LEVEL_I18N[trustLevel])}
-          </span>
-        </div>
+      <div data-testid="okf-trust-section">
+        <PropGroupHead
+          icon={<ShieldCheck size={ICON.meta} aria-hidden="true" />}
+          trailing={
+            <span className={`pv-chip pv-chip--sm${levelClass}`} data-testid="okf-trust-level" data-level={trustLevel}>
+              {t(TRUST_LEVEL_I18N[trustLevel])}
+            </span>
+          }
+        >
+          {t("trust.title")}
+        </PropGroupHead>
         {generatedAt && (
-          <TrustLine label={t("trust.generated")}>
+          <TrustLine icon={<Sparkles size={ICON.ui} aria-hidden="true" />} label={t("trust.generated")}>
             {trust.generated ? `${formatActor(trust.generated.by, actorWords)} · ` : ""}
             {formatStampDate(generatedAt, locale)}
           </TrustLine>
         )}
         {trust.verified.map((v, i) => (
-          <TrustLine key={`${v.by}-${v.at}-${i}`} label={i === 0 ? t("trust.verified") : ""}>
+          <TrustLine key={`${v.by}-${v.at}-${i}`} icon={i === 0 ? <BadgeCheck size={ICON.ui} aria-hidden="true" /> : undefined} label={i === 0 ? t("trust.verified") : ""}>
             {formatActor(v.by, actorWords)} · {formatStampDate(v.at, locale)}
           </TrustLine>
         ))}
-        {trust.sources.length > 0 && (
-          <TrustLine label={t("trust.sources")}>
-            <span style={{ display: "flex", flexDirection: "column", gap: "0.1rem", alignItems: "flex-start" }}>
-              {trust.sources.map((s, i) => <SourceLine key={`${s.resource}-${i}`} source={s} />)}
-            </span>
+        {trust.sources.map((s, i) => (
+          <TrustLine key={`${s.resource}-${i}`} icon={i === 0 ? <Link2 size={ICON.ui} aria-hidden="true" /> : undefined} label={i === 0 ? t("trust.sources") : ""}>
+            <SourceLine source={s} />
           </TrustLine>
-        )}
+        ))}
         {lifecycleRows.map(renderRow)}
-        {doc.kind === "markdown" && (
-          <div style={{ padding: "0.15rem 0.1rem 0" }}>
-            <button
-              type="button"
-              className="pv-btn pv-btn--ghost pv-btn--sm"
-              data-testid="okf-mark-verified"
-              onClick={() => { void markReviewed(); }}
-            >
-              <Check size={ICON.ui} />
-              {t("trust.markVerified")}
-            </button>
-          </div>
-        )}
+        <PropActionRow icon={<Check size={ICON.ui} />} testId="okf-mark-verified" onClick={() => { void markReviewed(); }}>
+          {t("trust.markVerified")}
+        </PropActionRow>
       </div>
 
-      <div style={{ position: "relative", marginTop: "0.35rem" }}>
-        <button ref={addBtnRef} type="button" className="pv-btn pv-btn--ghost pv-btn--sm" onClick={() => setShowAdd((s) => !s)}>
-          <Plus size={ICON.ui} />
-          {t("properties.addProperty")}
-        </button>
-        {showAdd && <AddPropertyPopover source={queryService} columns={governing?.columns} registry={typeReg} existing={Object.keys(properties)} onAdd={onAddProp} onClose={() => setShowAdd(false)} t={t} anchorRef={addBtnRef} />}
-      </div>
+      <PropActionRow icon={<Plus size={ICON.ui} />} buttonRef={addBtnRef} expanded={showAdd} onClick={() => setShowAdd((s) => !s)}>
+        {t("properties.addProperty")}
+      </PropActionRow>
+      {showAdd && <AddPropertyPopover source={queryService} columns={governing?.columns} registry={typeReg} existing={Object.keys(properties)} onAdd={onAddProp} onClose={() => setShowAdd(false)} t={t} anchorRef={addBtnRef} />}
     </div>
   );
 }

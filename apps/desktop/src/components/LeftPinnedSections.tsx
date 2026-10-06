@@ -263,8 +263,12 @@ export function LeftPinnedSections({
               >
                 <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)", flexShrink: 0 }} />
                 <Icon size={ICON.ui} className="pv-side-section-glyph" style={{ flexShrink: 0 }} />
-                <span style={{ flex: 1, textAlign: "left", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title(id)}</span>
-                {count !== undefined && count > 0 && <span className="pv-badge pv-badge--accent">{count}</span>}
+                {/* The head is one fixed grid on both sides of the window: the
+                    count slot is there whether or not a number is. */}
+                <span className="pv-side-section-title">{title(id)}</span>
+                <span className="pv-side-section-count">
+                  {count !== undefined && count > 0 && <span className="pv-badge pv-badge--accent">{count}</span>}
+                </span>
               </button>
             </div>
             {isOpen && (

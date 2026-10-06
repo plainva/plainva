@@ -26,12 +26,13 @@ import {
   moveArea,
   setAreaVisible,
   sanitizeAreaOrder,
+  propertyPanelModel,
   type AreaOrder,
   type NoteDatabaseContext,
 } from "@plainva/ui";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { SidebarStepContext, useSidebarStep } from "../lib/sidebarStep";
+import { useSidebarStep } from "../lib/sidebarStep";
 import {
   BAR_LAYOUT_CHANGED_EVENT,
   openBarSettings,
@@ -40,16 +41,27 @@ import {
   saveBarLayout,
 } from "@plainva/ui";
 
-/** Cheap top-level frontmatter key count (regex + small YAML parse) — avoids a full
- *  markdown AST parse per keystroke so the badge stays light even when collapsed. */
-function frontmatterKeyCount(content: string): number {
+/**
+ * What the properties section would show for this text, without mounting it
+ * (regex + small YAML parse — no full markdown AST per keystroke, so the badge
+ * stays light even while the section is collapsed).
+ *
+ * `shown` is the number at the head: the rows the section draws, counted by
+ * the same model the section draws them from (R4). It used to be the number of
+ * top-level keys, which counted keys the section hides and missed the rows it
+ * adds. `present` answers a different question — is there anything of the
+ * user's in the frontmatter at all — and decides whether the section appears.
+ */
+export function propertySectionCounts(content: string): { present: number; shown: number } {
   const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!m) return 0;
+  if (!m) return { present: 0, shown: 0 };
   try {
     const o = yaml.parse(m[1]);
-    return o && typeof o === "object" && !Array.isArray(o) ? Object.keys(o).length : 0;
+    if (!o || typeof o !== "object" || Array.isArray(o)) return { present: 0, shown: 0 };
+    const model = propertyPanelModel(o as Record<string, unknown>);
+    return { present: model.userKeys.length, shown: model.shownCount };
   } catch {
-    return 0;
+    return { present: 0, shown: 0 };
   }
 }
 
@@ -106,7 +118,7 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   const [open, setOpen] = useState<Record<SectionId, boolean>>(() => ({
     calendar: readOpen("calendar"), journal: readOpen("journal"), outline: readOpen("outline"), graph: readOpen("graph"), databases: readOpen("databases"), backlinks: readOpen("backlinks"), properties: readOpen("properties"),
   }));
-  const [counts, setCounts] = useState<{ backlinks: number; properties: number; outline: number }>({ backlinks: 0, properties: 0, outline: 0 });
+  const [counts, setCounts] = useState<{ backlinks: number; properties: number; propertiesPresent: number; outline: number }>({ backlinks: 0, properties: 0, propertiesPresent: 0, outline: 0 });
   /** Entries of the journal section's day — for the head's count, reported by the section itself. */
   const [journalCount, setJournalCount] = useState(0);
   const [menuAt, setMenuAt] = useState<{ id: SectionId; x: number; y: number } | null>(null);
@@ -233,9 +245,11 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
   // mount when their section is expanded.
   useEffect(() => {
     const update = (d: ActiveDoc) => setCounts((c) => {
-      const properties = d.kind === "markdown" ? frontmatterKeyCount(d.content) : 0;
+      const props = d.kind === "markdown" ? propertySectionCounts(d.content) : { present: 0, shown: 0 };
       const outline = d.kind === "markdown" ? parseHeadings(d.content).length : 0;
-      return c.properties === properties && c.outline === outline ? c : { ...c, properties, outline };
+      return c.properties === props.shown && c.propertiesPresent === props.present && c.outline === outline
+        ? c
+        : { ...c, properties: props.shown, propertiesPresent: props.present, outline };
     });
     update(activeDocument.get());
     return activeDocument.subscribe(update);
@@ -275,7 +289,9 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     },
     outline: { title: t("rightPanel.outline", { defaultValue: "Gliederung" }), icon: <List size={ICON.ui} />, count: counts.outline, pad: true },
     graph: { title: t("rightPanel.graph", { defaultValue: "Graph" }), icon: <Waypoints size={ICON.ui} />, pad: true },
-    databases: { title: t("rightPanel.databases", { defaultValue: "Datenbanken" }), icon: <Database size={ICON.ui} />, pad: true },
+    // The number of databases this note is a row of — the head says how many
+    // blocks the section holds, like every other head.
+    databases: { title: t("rightPanel.databases", { defaultValue: "Datenbanken" }), icon: <Database size={ICON.ui} />, count: dbContext.memberships.length, pad: true },
     backlinks: { title: t("rightPanel.backlinks", { defaultValue: "Backlinks" }), icon: <LinkIcon size={ICON.ui} />, count: counts.backlinks, pad: true },
     properties: { title: t("rightPanel.properties", { defaultValue: "Eigenschaften" }), icon: <SlidersHorizontal size={ICON.ui} />, count: counts.properties, pad: true },
   };
@@ -307,16 +323,20 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
     || (id === "databases" && hasNoteDatabaseContext(dbContext))
     || (id === "outline" && counts.outline > 0)
     || (id === "backlinks" && counts.backlinks > 0)
-    || (id === "properties" && counts.properties > 0);
+    // Present, not shown: the two pinned lifecycle rows exist for every note,
+    // and a note without any frontmatter of the user's keeps no section.
+    || (id === "properties" && counts.propertiesPresent > 0);
 
   return (
+    // The panel ALWAYS reserves its scrollbar's room (`.pv-side-right`), and
+    // the step is read from this element's border box: a section that opens
+    // and makes the panel scroll changes neither (finding 2026-10-06).
     <div
       ref={rootRef}
       className="custom-scrollbar pv-side-right"
       data-side-step={step}
-      style={{ width: "100%", height: "100%", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", minHeight: 0, overflowY: "auto" }}
+      style={{ width: "100%", height: "100%", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", minHeight: 0 }}
     >
-      <SidebarStepContext.Provider value={step}>
       {shown.filter(hasContent).map((id) => {
         const m = meta[id];
         const drag = handlers(id);
@@ -343,20 +363,21 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
                 className="pv-side-section-header"
                 style={{ cursor: dragId === id ? "grabbing" : undefined }}
               >
-                <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)", flexShrink: 0 }} />
+                {/* A fixed grid — chevron, icon, title, count slot. The slot is
+                    there whether or not a number is: the head is the same box
+                    at the same place, collapsed and expanded (R1). */}
+                <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)" }} />
                 <span className="pv-side-section-glyph">{m.icon}</span>
-                <span style={{ flex: 1, textAlign: "left", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.title}</span>
-                {m.count !== undefined && m.count > 0 && (
-                  <span className="pv-badge pv-badge--accent">
-                    {m.count}
-                  </span>
-                )}
+                <span className="pv-side-section-title">{m.title}</span>
+                <span className="pv-side-section-count">
+                  {m.count !== undefined && m.count > 0 && <span className="pv-badge pv-badge--accent">{m.count}</span>}
+                </span>
               </button>
               {/* One action beside the head, outside the collapse button — a
                   button inside a button is invalid and stops working. */}
               {m.action}
             </div>
-            {isOpen && <div style={{ padding: m.pad ? "0 0.75rem 0.85rem" : 0 }}>{renderBody(id)}</div>}
+            {isOpen && <div className={m.pad ? "pv-side-section-body" : "pv-side-section-body pv-side-section-body--flush"}>{renderBody(id)}</div>}
           </section>
         );
       })}
@@ -400,7 +421,6 @@ export function RightSidebar({ activePath, onOpenPath, onOpenPathInSplit, onSele
           </MenuItem>
         </MenuSurface>
       )}
-      </SidebarStepContext.Provider>
     </div>
   );
 }

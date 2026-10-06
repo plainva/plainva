@@ -764,6 +764,14 @@
         <p>Hover aus CSS (<code>.pv-rowhover</code>), Icon links 15, Meta rechts gedämpft. <b>Aktiv einheitlich:</b> Akzent-Container-Fill + Gewicht 600 (E2) — heute drei verschiedene Markierungen in Dateibaum/Zuletzt/Lesezeichen. Paletten-Ergebniszeilen teilen dieselbe Klasse.</p>
       </div>
       <div class="card spec">
+        <h4>Kontextspalte — eine Zeile für jeden Abschnitt</h4>
+        <div class="demo on-surface" style="flex-direction:column; align-items:stretch; gap:0;">
+          <div style="display:grid; grid-template-columns:16px 86px minmax(0,1fr) 18px; gap:4px 8px; align-items:start; padding:3px 0; font-size:var(--text-ui);"><span style="color:var(--text-faint);">T</span><span style="color:var(--text-muted);">day_of_week</span><span>Donnerstag</span><span></span></div>
+          <div style="display:grid; grid-template-columns:16px 86px minmax(0,1fr) 18px; gap:4px 8px; align-items:start; padding:3px 0; font-size:var(--text-ui);"><span style="color:var(--text-faint);">#</span><span style="color:var(--text-muted);">tags</span><span style="display:flex; flex-wrap:wrap; gap:4px;"><span class="chip c1">typ/tagebuch</span><span class="chip c2">ort/mahlow</span></span><span style="color:var(--text-faint);">+</span></div>
+        </div>
+        <p><b>Symbol · Name · Wert · Rand</b> (<code>PropRow</code>, <code>.pv-prow</code>) für Eigenschaften, Herkunft und Datenbanken. Jeder Wert beginnt an derselben Kante; Schloss, Auswahlpfeil und „hinzufügen“ stehen im Rand, Kommentar und Löschen erscheinen dort beim Überfahren und verschieben nichts. Werte brechen um, statt abgeschnitten zu werden; ein Feld ist ruhig und bekommt seinen Rahmen beim Überfahren und Bearbeiten. Unter der Stufe <code>compact</code> rückt der Name über den Wert — für die ganze Spalte zugleich. <b>Die Breite der Spalte entscheidet die Stufe,</b> nie ihr Inhalt: der Platz für den Rollbalken ist immer reserviert. Der Abschnittskopf ist ein festes Raster (Pfeil, Symbol, Titel, Zähler-Platz), eingeklappt wie ausgeklappt.</p>
+      </div>
+      <div class="card spec">
         <h4>Chips &amp; Badges <span class="tagnew">Runde 2: Anatomie fixiert</span></h4>
         <div class="demo on-surface">
           <span class="chip c1">projekt</span>

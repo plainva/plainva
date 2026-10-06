@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-06
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -188,10 +188,10 @@ Tramite **Ctrl/Cmd+Shift+G** (o la sezione **Grafo** nella barra laterale destra
 
 Le sezioni che non hanno nulla da mostrare per la nota aperta — **Struttura**, **Backlink**, **Proprietà**, **Database** — non compaiono affatto, invece di restare lì in grigio. L’intera barra laterale destra ricorda un’unica preferenza globale per le note; le viste a schermo intero senza contesto nota la chiudono solo temporaneamente.
 
-**Quando trascini il pannello per restringerlo** cambia in tre passaggi, così niente si rompe:
+**Quando trascini il pannello per restringerlo** cambia in tre passaggi, così niente si rompe. Conta la larghezza del pannello stesso — che il contenuto scorra o no non cambia nulla — e una nuova finestra lo apre a 300 px:
 
 - **280 px e oltre** — come al solito.
-- **232–280 px** — le proprietà mettono il nome sopra il valore invece che accanto, i valori lunghi vanno a capo, le sezioni si stringono.
+- **232–280 px** — ogni riga mette il nome sopra il valore invece che accanto (le proprietà come i campi del database), i valori lunghi vanno a capo, le sezioni si stringono.
 - **sotto i 232 px** — il calendario mostra **una settimana invece del mese** (sette giorni, numero della settimana in basso a destra); una griglia mensile avrebbe qui celle da 14 pixel e smetterebbe di essere un calendario. Il grafo diventa più corto, e i backlink mostrano il nome del file senza la riga del percorso.
 
 La barra laterale destra non può scendere sotto i **200 px** — nessuna sezione è utilizzabile al di sotto. Quella sinistra scende ancora fino a 150 px, perché i nomi dei file si troncano semplicemente.

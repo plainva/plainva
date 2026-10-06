@@ -1,7 +1,7 @@
 import type React from "react";
 import { List as ListIcon, LayoutGrid, Table as TableIcon, Calendar as CalendarIcon, Clock, PanelRight, StickyNote, Waypoints } from "lucide-react";
 import type { TFunction } from "i18next";
-import { capitalizeFirst, ICON, type RowDueTone } from "@plainva/ui";
+import { baseColumnLabel, capitalizeFirst, formatByteSize, ICON, type RowDueTone } from "@plainva/ui";
 // Co-located with the module that owns the base-*/base-cfg-* classes, so every
 // surface using them is styled — including the create wizard, which opens
 // without a BaseViewer (and therefore without the old inline <style>) anywhere.
@@ -10,15 +10,10 @@ import "./base.css";
 // Shared constants and helpers for the BaseViewer and its view components
 // (structural split of the former single-file BaseViewer, plan C3).
 
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return String(bytes);
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB", "TB"];
-  let value = bytes / 1024;
-  let i = 0;
-  while (value >= 1024 && i < units.length - 1) { value /= 1024; i++; }
-  return `${value.toFixed(1)} ${units[i]}`;
-}
+// The byte formatter moved to the shared package (2026-10-06): the phone's
+// database section shows a file's size too, and one of them writing "1.5 KB"
+// while the other writes "1536" would be a difference nobody decided.
+export const formatBytes = formatByteSize;
 
 export const EXTENDED_TYPES = ["board", "calendar", "timeline", "graph", "pinboard"];
 export const ALL_VIEW_TYPES = ["table", "list", "gallery", "board", "calendar", "timeline", "graph", "pinboard"];
@@ -66,22 +61,8 @@ export function baseInputTypeOptions(
  * otherwise show their bare frontmatter key.
  */
 export function columnLabel(col: string, t: TFunction, dbConfig?: any): string {
-  if (col === "file.name") return t("database.colFileName", "Name");
-  if (col === "file.mtime") return t("database.colModified", "Geändert");
-  if (col === "file.size") return t("database.colSize", "Größe");
-  if (col === "file.path") return t("database.colPath", "Pfad");
-  if (col === "file.tasks") return t("database.colChecklist", "Checkliste");
-  // The day a daily note's FILE NAME stands for (plan Journal-Erweiterungen, X8).
-  if (col === "file.day") return t("database.colDay");
-  if (col.startsWith("file.")) return col.slice(5);
-  const bare = col.replace(/^note\./, "");
-  const displayName = dbConfig?._obsidian?.properties?.[`note.${bare}`]?.displayName
-    ?? dbConfig?._obsidian?.properties?.[bare]?.displayName;
-  if (typeof displayName === "string" && displayName.trim()) return displayName;
-  // No Obsidian displayName: title-case the first letter of the bare frontmatter
-  // key for display (maintainer 2026-07-07). Display-only — the on-disk key and
-  // Obsidian stay lowercase; tables/board/graph read "Bereich", not "bereich".
-  return capitalizeFirst(bare);
+  // One definition for both shells (`baseColumnLabel`, shared since 2026-10-06).
+  return baseColumnLabel(col, (key, fallback) => (fallback === undefined ? t(key) : t(key, fallback)), dbConfig);
 }
 
 // capitalizeFirst moved to @plainva/ui (R4) — imported above, re-exported here.

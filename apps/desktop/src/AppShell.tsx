@@ -24,7 +24,7 @@ import { FileTree } from "./components/FileTree";
 import { DatabasesList } from "./components/DatabasesList";
 import { LeftPinnedSections } from "./components/LeftPinnedSections";
 import { LeftSidebarTabs } from "./components/LeftSidebarTabs";
-import { useSidebarStep } from "./lib/sidebarStep";
+import { RIGHT_SIDEBAR_CHOSEN_KEY, RIGHT_SIDEBAR_WIDTH_KEY, rightSidebarWidthFrom, useSidebarStep } from "./lib/sidebarStep";
 const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
@@ -278,7 +278,14 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     return v >= min && v <= SIDEBAR_MAX ? v : Math.max(min, 250);
   };
   const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => readSidebarWidth("plainva-left-sidebar-width", SIDEBAR_MIN_LEFT));
-  const [rightSidebarWidth, setRightSidebarWidth] = useState<number>(() => readSidebarWidth("plainva-right-sidebar-width", SIDEBAR_MIN_RIGHT));
+  // The right panel's default is 300 px (decision E2, 2026-10-06); a width that
+  // was dragged is kept. `rightSidebarWidthFrom` tells the two apart.
+  const [rightSidebarWidth, setRightSidebarWidth] = useState<number>(() => rightSidebarWidthFrom(
+    localStorage.getItem(windowStateKey(RIGHT_SIDEBAR_WIDTH_KEY)),
+    localStorage.getItem(windowStateKey(RIGHT_SIDEBAR_CHOSEN_KEY)) === "1",
+    SIDEBAR_MIN_RIGHT,
+    SIDEBAR_MAX,
+  ));
   // The left panel degrades in the same named steps as the right one. Measured
   // on the element rather than derived from `leftSidebarWidth`, so a collapsed
   // panel or a future non-drag resize reaches the same answer.
@@ -1060,7 +1067,6 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
 
   // Persist user-chosen sidebar widths.
   useEffect(() => { localStorage.setItem(windowStateKey("plainva-left-sidebar-width"), String(leftSidebarWidth)); }, [leftSidebarWidth]);
-  useEffect(() => { localStorage.setItem(windowStateKey("plainva-right-sidebar-width"), String(rightSidebarWidth)); }, [rightSidebarWidth]);
   useEffect(() => { localStorage.setItem(windowStateKey("plainva-left-sidebar-collapsed"), leftCollapsed ? "1" : "0"); }, [leftCollapsed]);
 
   // Drag-to-resize for the left/right sidebars (clamped to SIDEBAR_MIN..MAX).
@@ -1071,7 +1077,14 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       const min = side === "left" ? SIDEBAR_MIN_LEFT : SIDEBAR_MIN_RIGHT;
       const w = Math.max(min, Math.min(SIDEBAR_MAX, raw));
       if (side === "left") setLeftSidebarWidth(w);
-      else setRightSidebarWidth(w);
+      else {
+        setRightSidebarWidth(w);
+        // Stored by the drag, not by an effect on every start: only then is a
+        // stored width a choice, and a new default can ever reach a window
+        // whose panel nobody touched.
+        localStorage.setItem(windowStateKey(RIGHT_SIDEBAR_WIDTH_KEY), String(w));
+        localStorage.setItem(windowStateKey(RIGHT_SIDEBAR_CHOSEN_KEY), "1");
+      }
     };
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);

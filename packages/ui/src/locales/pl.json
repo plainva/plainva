@@ -4546,6 +4546,8 @@
     "linked": "Powiązane",
     "linkedEntry": "{{base}} · {{n}} wpisów",
     "openBaseView": "{{base}} · widok „{{view}}”",
+    "viewLabel": "widok „{{view}}”",
+    "underProperties": "We Właściwościach: {{fields}}",
     "prevEntry": "Poprzedni wpis",
     "nextEntry": "Następny wpis"
   },
