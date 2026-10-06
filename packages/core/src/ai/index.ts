@@ -27,3 +27,4 @@ export * from "./coverage.js";
 export * from "./hiddenPaths.js";
 export * from "./skills/index.js";
 export * from "./mcp/index.js";
+export * from "./web/index.js";

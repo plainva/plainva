@@ -40,7 +40,18 @@ export interface ToolManifest {
   native: string | null;
   /** Upper bound on items per result page — results are small by design. */
   pageLimit: number;
+  /**
+   * The call itself sends something to a third party: an address, a search
+   * query. Reading the web changes nothing, so the risk stays `read` — but a
+   * request is a way out, and the Rule of Two counts it as one (plan §13.4):
+   * in a run that also holds private data and untrusted text, each such call
+   * needs the user's approval.
+   */
+  outward?: boolean;
 }
+
+/** The tools that reach the internet. A conversation carries them only while its vault allows the internet. */
+export const WEB_TOOL_NAMES: readonly string[] = ["fetch_url", "web_search"];
 
 const path = z.string().min(1).max(1024).describe("Vault-relative path, forward slashes, e.g. Projects/Offer.md");
 const limit = (max: number, fallback: number) => z.number().int().min(1).max(max).default(fallback);
@@ -239,6 +250,37 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     surfaces: ["harness"],
     native: null,
     pageLimit: 1,
+  },
+  {
+    name: "fetch_url",
+    description:
+      "Reads one public web page (https) and reports what it says about your question: a short summary, facts with quotes from the page, and links that lead further. You receive a report, not the page's text. Use it for an address the user gave, or one that a search or an earlier report returned.",
+    risk: "read",
+    outward: true,
+    input: z.object({
+      url: z.string().min(8).max(2048).describe("The page's address, starting with https://"),
+      question: z.string().min(1).max(500).describe("What you want to know from the page"),
+    }),
+    dataClasses: ["web"],
+    untrustedResult: true,
+    core: false,
+    surfaces: ["harness"],
+    native: "ai_web_fetch",
+    pageLimit: 1,
+  },
+  {
+    name: "web_search",
+    description:
+      "Searches the web through the model provider's own search. Returns pages with title and address, best first, and a short note on what they say. Read a page with fetch_url. The query goes to the provider: it holds search terms, never passages from the user's notes.",
+    risk: "read",
+    outward: true,
+    input: z.object({ query: z.string().min(2).max(200).describe("Search terms, as typed into a search engine") }),
+    dataClasses: ["web"],
+    untrustedResult: true,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 8,
   },
   {
     name: "open_in_app",

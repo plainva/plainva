@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { coreTools, findTools, parseToolInput, TOOL_DESCRIPTION_LIMIT, TOOL_MANIFESTS, TOOL_NAME_PATTERN, toolByName, toolInputJsonSchema, toolsFor } from "./tools.js";
-import { ruleOfTwo, runTraits } from "./ruleOfTwo.js";
+import { coreTools, findTools, parseToolInput, TOOL_DESCRIPTION_LIMIT, TOOL_MANIFESTS, TOOL_NAME_PATTERN, toolByName, toolInputJsonSchema, toolsFor, WEB_TOOL_NAMES } from "./tools.js";
+import { isEffectTool, ruleOfTwo, runTraits } from "./ruleOfTwo.js";
 
 describe("tool manifests", () => {
   it("every name reaches every provider and is unique", () => {
@@ -64,7 +64,20 @@ describe("tool manifests", () => {
 });
 
 describe("rule of two", () => {
-  const read = TOOL_MANIFESTS.filter((t) => t.risk === "read");
+  const read = TOOL_MANIFESTS.filter((t) => t.risk === "read" && !t.outward);
+
+  it("reading the web changes nothing, but its call is a way out: with vault content, all three", () => {
+    const web = TOOL_MANIFESTS.filter((t) => t.outward);
+    // Exactly the web tools, harness only: Plainva's MCP server is no proxy onto the internet.
+    expect(web.map((t) => t.name)).toEqual([...WEB_TOOL_NAMES]);
+    expect(web.every((t) => t.risk === "read" && t.untrustedResult && !t.core && t.dataClasses.includes("web") && t.surfaces.join() === "harness")).toBe(true);
+    expect(web.every(isEffectTool)).toBe(true);
+    expect(read.some(isEffectTool)).toBe(false);
+    const verdict = ruleOfTwo(runTraits([...read, ...web], { privateContext: true, untrustedContext: true }));
+    expect(verdict).toEqual({ allThree: true, approvalPerEffect: true, unattendedAllowed: false });
+    // On their own, with nothing private in reach: untrusted text and a way out — two of three.
+    expect(ruleOfTwo(runTraits(web, { privateContext: false, untrustedContext: false }))).toEqual({ allThree: false, approvalPerEffect: false, unattendedAllowed: true });
+  });
 
   it("reading the vault is untrusted and private, but changes nothing", () => {
     const traits = runTraits(read, { privateContext: true, untrustedContext: true });

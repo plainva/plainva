@@ -2,7 +2,7 @@ import { appendTurn, type Conversation, type Part, type ToolCallPart, type ToolR
 import { runModelCall, type AiEgress, type ModelCallResult, type ModelFailure } from "./egress.js";
 import { retryDelayMs } from "../sync/httpRetry.js";
 import type { ProviderEndpoint } from "./providers.js";
-import { ruleOfTwo, runTraits, type RunContextTraits } from "./ruleOfTwo.js";
+import { isEffectTool, ruleOfTwo, runTraits, type RunContextTraits } from "./ruleOfTwo.js";
 import type { StreamEvent } from "./streams.js";
 import { parseToolInput, toolByName, type ToolManifest } from "./tools.js";
 import { fenceUntrusted, payload, type PayloadOrigin } from "./trust.js";
@@ -102,7 +102,12 @@ export interface RunInput {
   limits?: RunLimits;
   signal?: AbortSignal;
   onEvent?: (event: RunEvent) => void;
-  /** Asked before an effect tool runs when the Rule of Two demands it. */
+  /**
+   * Asked before an effect tool runs — one that changes something or whose
+   * call leaves the device (a page fetched, a search) — when the Rule of Two
+   * demands it. `call.args` are the validated arguments. Without this callback
+   * such a call is refused: nobody was there to approve it.
+   */
   approveEffect?: (call: ToolCallPart, tool: ToolManifest) => Promise<boolean>;
   newRequestId?: () => string;
   now?: () => string;
@@ -129,8 +134,6 @@ export interface RunResult {
   stop: RunStop;
   usage: RunUsage;
 }
-
-const EFFECT_RISKS = new Set(["write", "critical", "external", "script"]);
 
 function notRun(call: ToolCallPart, why: string): ToolResultPart {
   return { type: "tool_result", callId: call.id, name: call.name, content: `Not run: ${why}.`, isError: true };
@@ -260,13 +263,16 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
       const started = Date.now();
       const tool = tools.find((t) => t.name === call.name);
       let outcome: ToolOutcome;
+      // A "no" from the user is an answer, not a tool that failed: it does not count towards the circuit breaker.
+      let declined = false;
       if (!tool) {
         outcome = { content: `Unknown tool "${call.name}". Available: ${tools.map((t) => t.name).join(", ")}.`, isError: true };
       } else {
         const parsed = parseToolInput(tool, call.args);
         if (!parsed.ok) {
           outcome = { content: `Invalid arguments: ${parsed.error}`, isError: true };
-        } else if (EFFECT_RISKS.has(tool.risk) && verdict.approvalPerEffect && !(await input.approveEffect?.(call, tool))) {
+        } else if (isEffectTool(tool) && verdict.approvalPerEffect && !(await input.approveEffect?.({ ...call, args: parsed.value }, tool))) {
+          declined = true;
           outcome = { content: "The user did not approve this action.", isError: true };
         } else {
           try {
@@ -276,7 +282,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           }
         }
       }
-      failuresInRow = outcome.isError ? failuresInRow + 1 : 0;
+      if (!declined) failuresInRow = outcome.isError ? failuresInRow + 1 : 0;
       input.onEvent?.({ type: "tool_done", call, outcome, ms: Date.now() - started });
       const content = outcome.origin && !outcome.isError ? fenceUntrusted(payload(outcome.content, outcome.origin)) : outcome.content;
       results.push({ type: "tool_result", callId: call.id, name: call.name, content, ...(outcome.isError ? { isError: true } : {}) });

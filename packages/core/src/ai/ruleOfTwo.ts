@@ -8,7 +8,8 @@ import type { ToolManifest } from "./tools.js";
  *   pages, tool results — tier 3);
  * - B: it sees private data (notes, tasks, calendar, mail);
  * - C: it can change state or communicate outward (write proposals, critical
- *   and external tools, scripts).
+ *   and external tools, scripts — and every tool whose call is itself a
+ *   request to a third party: fetching a page, searching the web).
  *
  * A run with all three needs an approval for EACH outside effect and can
  * never be an unattended routine. Navigation (`ui`) is not state in this
@@ -31,11 +32,16 @@ export interface RunContextTraits {
 const EFFECT_RISKS = new Set(["write", "critical", "external", "script"]);
 const PRIVATE_CLASSES = new Set(["notes", "tasks", "calendar", "mail"]);
 
+/** A tool whose use is an outside effect: it changes something, or its call leaves the device for a third party. */
+export function isEffectTool(tool: ToolManifest): boolean {
+  return EFFECT_RISKS.has(tool.risk) || tool.outward === true;
+}
+
 export function runTraits(tools: readonly ToolManifest[], context: RunContextTraits): RunTraits {
   return {
     untrustedInput: context.untrustedContext || tools.some((tool) => tool.untrustedResult),
     privateData: context.privateContext || tools.some((tool) => tool.dataClasses.some((c) => PRIVATE_CLASSES.has(c))),
-    stateOrOutward: tools.some((tool) => EFFECT_RISKS.has(tool.risk)),
+    stateOrOutward: tools.some(isEffectTool),
   };
 }
 
