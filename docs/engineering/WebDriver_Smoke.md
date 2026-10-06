@@ -84,3 +84,10 @@ Notes:
 - [ ] macOS — needs the embedded driver, i.e. `tauri-plugin-wdio-webdriver` in
   a smoke-only build (a decision, see "Tooling decision"), and a `macos-latest`
   job in the workflow.
+
+## State on 2026-10-06
+
+- **Linux:** the app opened the test vault in the last run and the test then failed to find the "New note" button — the only ribbon entry without a test id, addressed by its label. The entry now carries `data-testid="ribbon-new"` and the spec uses it.
+- **Windows:** every run ended before the first test step with `session not created: DevToolsActivePort file doesn't exist`, after the driver had waited a minute per attempt. That message does not say whether the binary exited at once or its WebView never took the driver's debugging port. The workflow now starts the binary on its own for twenty seconds first and prints whether it stays up, whether a WebView2 process appears and which runtime is installed; the drivers' own logs are written to `apps/desktop/wdio-logs/` and uploaded when a run fails. The cause is not known yet — the next dispatch is the measurement.
+- **macOS:** unchanged, not covered. Only the embedded driver reaches WKWebView and it needs `tauri-plugin-wdio-webdriver` in the binary; decided on 2026-10-06 not to add that until Linux and Windows are green.
+

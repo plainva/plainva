@@ -36,6 +36,14 @@ jobs:
         run: pnpm --filter desktop exec tauri build --debug --no-bundle
       - name: Native smoke
         run: xvfb-run --auto-servernum pnpm --filter desktop test:native
+      - name: Upload driver logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-linux-${{ github.run_attempt }}
+          path: apps/desktop/wdio-logs/
+          if-no-files-found: ignore
+          retention-days: 7
 
   windows:
     runs-on: windows-latest
@@ -55,5 +63,32 @@ jobs:
         run: pnpm --filter desktop build
       - name: Build debug binary
         run: pnpm --filter desktop exec tauri build --debug --no-bundle
+      # Before the driver gets the binary: does it start at all, and does it
+      # create its WebView? "session not created: DevToolsActivePort file doesn't
+      # exist" (first runs, 2026-09-29/30) says only that the driver waited a
+      # minute for a browser that never reported in — a binary that exits at
+      # once and a WebView that ignores the driver's debugging port look the
+      # same from there. This step tells them apart and never fails the job.
+      - name: Does the binary start on its own?
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $exe = "apps/desktop/src-tauri/target/debug/plainva-desktop.exe"
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($p.HasExited) { Write-Host "binary exited after start, exit code $($p.ExitCode)" } else { Write-Host "binary is running (pid $($p.Id))" }
+          Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Select-Object Id, StartTime | Format-Table
+          Get-ChildItem "$env:LOCALAPPDATA\com.plainva.desktop" -ErrorAction SilentlyContinue | Select-Object Name | Format-Table
+          (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue).pv
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
       - name: Native smoke
         run: pnpm --filter desktop test:native
+      - name: Upload driver logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-windows-${{ github.run_attempt }}
+          path: apps/desktop/wdio-logs/
+          if-no-files-found: ignore
+          retention-days: 7

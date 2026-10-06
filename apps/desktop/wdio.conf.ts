@@ -67,6 +67,11 @@ export const config: WebdriverIO.Config = {
   reporters: ["spec"],
   mochaOpts: { timeout: 180_000 },
   logLevel: "warn",
+  // The drivers' own output (tauri-driver, the Edge and WebKit WebDrivers) goes
+  // to files here, and the workflow uploads them when a run fails. Without
+  // them a session that never starts leaves one line in the job log and no
+  // way to tell which of the three processes gave up.
+  outputDir: "wdio-logs",
 
   onPrepare() {
     vaultDir = mkdtempSync(join(tmpdir(), "plainva-smoke-vault-"));

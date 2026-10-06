@@ -21,7 +21,10 @@ describe("Plainva native smoke", () => {
     await $('[data-testid="ribbon-tasks"]').waitForExist({ timeout: 40_000 });
 
     // New note, then type the marker into the editor.
-    await $('button[aria-label="New note"], button[aria-label="Neue Notiz"]').click();
+    // By test id, like every other ribbon entry: the label follows the app's
+    // language and the catalog's wording, the id does not (first Linux run,
+    // 2026-09-30: the vault opened and the button was not found by its label).
+    await $('[data-testid="ribbon-new"]').click();
     const editor = await $(".cm-content");
     await editor.waitForExist({ timeout: 10_000 });
     await editor.click();
