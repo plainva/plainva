@@ -26,6 +26,7 @@
 		7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0001000000000000000001 /* DevicePimPlugin.swift */; };
 		7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F0001000000000000000001 /* WidgetBridgePlugin.swift */; };
 		8C0002000000000000000001 /* AiNetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C0001000000000000000001 /* AiNetPlugin.swift */; };
+		A10002000000000000000002 /* AiWebPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000002 /* AiWebPlugin.swift */; };
 		9D0002000000000000000001 /* LocalModelPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0001000000000000000001 /* LocalModelPlugin.swift */; };
 		9E0002000000000000000001 /* PlatformModelPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0001000000000000000001 /* PlatformModelPlugin.swift */; };
 		9D0005000000000000000001 /* PlainvaOrt in Frameworks */ = {isa = PBXBuildFile; productRef = 9D0004000000000000000001 /* PlainvaOrt */; };
@@ -34,6 +35,7 @@
 		7B1008020000000000000001 /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B1009040000000000000001 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7E0002000000000000000001 /* ShareQueueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* ShareQueueStore.swift */; };
 		7E0002000000000000000002 /* ShareQueueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000001 /* ShareQueueStore.swift */; };
+		A10002000000000000000001 /* AiWebRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000001 /* AiWebRules.swift */; };
 		7E0002000000000000000003 /* ShareCopy.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 7E0001000000000000000002 /* ShareCopy.xcstrings */; };
 		8A0002000000000000000001 /* PlainvaWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000001 /* PlainvaWidgets.swift */; };
 		8A0002000000000000000002 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0001000000000000000002 /* WidgetModel.swift */; };
@@ -100,6 +102,7 @@
 		7D0001000000000000000001 /* DevicePimPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePimPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000001 /* WidgetBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridgePlugin.swift; sourceTree = "<group>"; };
 		8C0001000000000000000001 /* AiNetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiNetPlugin.swift; sourceTree = "<group>"; };
+		A10001000000000000000002 /* AiWebPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiWebPlugin.swift; sourceTree = "<group>"; };
 		9D0001000000000000000001 /* LocalModelPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelPlugin.swift; sourceTree = "<group>"; };
 		9E0001000000000000000001 /* PlatformModelPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformModelPlugin.swift; sourceTree = "<group>"; };
 		7F0001000000000000000002 /* WidgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/WidgetStore.swift; sourceTree = SOURCE_ROOT; };
@@ -109,6 +112,7 @@
 		7B1009030000000000000001 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		7B1009040000000000000001 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E0001000000000000000001 /* ShareQueueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ShareQueueStore.swift; sourceTree = SOURCE_ROOT; };
+		A10001000000000000000001 /* AiWebRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AiWebRules.swift; sourceTree = SOURCE_ROOT; };
 		7E0001000000000000000002 /* ShareCopy.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ShareCopy.xcstrings; sourceTree = "<group>"; };
 		8A0001000000000000000001 /* PlainvaWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainvaWidgets.swift; sourceTree = "<group>"; };
 		8A0001000000000000000002 /* WidgetModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetModel.swift; sourceTree = "<group>"; };
@@ -158,6 +162,7 @@
 				8A1007000000000000000001 /* PlainvaWidgets */,
 				7E0001000000000000000001 /* ShareQueueStore.swift */,
 				7F0001000000000000000002 /* WidgetStore.swift */,
+				A10001000000000000000001 /* AiWebRules.swift */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -192,6 +197,7 @@
 				7D0001000000000000000001 /* DevicePimPlugin.swift */,
 				7F0001000000000000000001 /* WidgetBridgePlugin.swift */,
 				8C0001000000000000000001 /* AiNetPlugin.swift */,
+				A10001000000000000000002 /* AiWebPlugin.swift */,
 				9D0001000000000000000001 /* LocalModelPlugin.swift */,
 				9E0001000000000000000001 /* PlatformModelPlugin.swift */,
 				7B0001000000000000000002 /* App.entitlements */,
@@ -409,6 +415,8 @@
 				7D0002000000000000000001 /* DevicePimPlugin.swift in Sources */,
 				7F0002000000000000000001 /* WidgetBridgePlugin.swift in Sources */,
 				8C0002000000000000000001 /* AiNetPlugin.swift in Sources */,
+				A10002000000000000000002 /* AiWebPlugin.swift in Sources */,
+				A10002000000000000000001 /* AiWebRules.swift in Sources */,
 				9D0002000000000000000001 /* LocalModelPlugin.swift in Sources */,
 				9E0002000000000000000001 /* PlatformModelPlugin.swift in Sources */,
 				7F0002000000000000000002 /* WidgetStore.swift in Sources */,

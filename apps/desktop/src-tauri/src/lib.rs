@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use tauri::Manager;
 
 mod ai_egress;
+mod ai_web;
 mod mcp;
 mod app_identity;
 mod atomic_write;
@@ -406,6 +407,7 @@ pub fn run() {
             secure_store::keychain_compare_and_set,
             ai_egress::ai_http,
             ai_egress::ai_http_cancel,
+            ai_web::ai_web_fetch,
             ai_egress::ai_key_set,
             ai_egress::ai_key_present,
             ai_egress::ai_key_delete,

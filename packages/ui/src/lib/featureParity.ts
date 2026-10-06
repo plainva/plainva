@@ -310,6 +310,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-01",
   },
   {
+    id: "ai-web-fetch-pinned-address",
+    title: "A page the assistant fetches comes from exactly the address that was checked (plan KI-Harness P4)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Android connects to the checked addresses like the desktop. On iOS, " +
+      "URLSession offers no way to name the address a request connects to, so " +
+      "the check stands on both sides of the request instead: every address of " +
+      "the name is found public before it starts, and the far end the system " +
+      "reports afterwards is checked again; an answer from an address that is " +
+      "not public is thrown away. A name server that answers twice differently " +
+      "can make one GET without a body reach a private address there — never " +
+      "its answer a model (AiWebFetch in AiWebPlugin.swift).",
+    verified: "2026-10-06",
+  },
+  {
     id: "density-mode",
     title: "Comfortable/compact density choice",
     area: "appearance",

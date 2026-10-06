@@ -3534,6 +3534,7 @@ name = "plainva-desktop"
 version = "0.8.4"
 dependencies = [
  "base64 0.23.1",
+ "encoding_rs",
  "getrandom 0.3.4",
  "glob",
  "imap",

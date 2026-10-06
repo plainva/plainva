@@ -299,11 +299,27 @@ fn read_key(app: &AppHandle, endpoint_id: &str) -> Result<Option<String>, String
     crate::secure_store::read_slot(app, &key_entry_name(endpoint_id))
 }
 
-fn only_main(window: &tauri::Window) -> Result<(), String> {
+pub(crate) fn only_main(window: &tauri::Window) -> Result<(), String> {
     if window.label() == "main" {
         Ok(())
     } else {
         Err("the AI egress is only available to the main window".into())
+    }
+}
+
+impl AiEgress {
+    /// Registers a running request so STOP (`ai_http_cancel`) reaches it; the receiver fires when it is named.
+    /// The page fetch (ai_web.rs) shares the one list: the web view stops a model call and a fetch the same way.
+    pub(crate) fn track(&self, request_id: &str) -> Result<tokio::sync::oneshot::Receiver<()>, String> {
+        let (sender, receiver) = tokio::sync::oneshot::channel::<()>();
+        self.running.lock().map_err(|_| "lock failed".to_string())?.insert(request_id.to_string(), sender);
+        Ok(receiver)
+    }
+
+    pub(crate) fn untrack(&self, request_id: &str) {
+        if let Ok(mut running) = self.running.lock() {
+            running.remove(request_id);
+        }
     }
 }
 

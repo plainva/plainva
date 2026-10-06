@@ -31,6 +31,14 @@ const ios = read("apps", "mobile", "ios", "App", "App", "AiNetPlugin.swift");
 const iosSecureStore = read("apps", "mobile", "ios", "App", "App", "SecureStorePlugin.swift");
 const coreEgress = read("packages", "core", "src", "ai", "egress.ts");
 const mobileBridge = read("apps", "mobile", "src", "platform", "aiNet.ts");
+// The assistant's page fetch (plan KI-Harness P4): native code of its own on every platform.
+const rustWeb = read("apps", "desktop", "src-tauri", "src", "ai_web.rs");
+const androidWeb = read("apps", "mobile", "android", "app", "src", "main", "java", "com", "plainva", "app", "AiWebPlugin.java");
+const iosWeb = read("apps", "mobile", "ios", "App", "App", "AiWebPlugin.swift");
+const mobileWebBridge = read("apps", "mobile", "src", "platform", "aiWeb.ts");
+
+/** Code without its comments: a rule that prose can satisfy or break is none. */
+const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("desktop: the Rust egress", () => {
   it("answers every command with a unit or a flag, never a string", () => {
@@ -108,6 +116,39 @@ describe("iOS: AiNetPlugin", () => {
         if ((name === "message" || name === "body") && !value!.startsWith('"')) expect(value, name).toMatch(/^AiNetPlugin\.redact\(/);
       }
     }
+  });
+});
+
+/**
+ * The page fetch answers the web view with a page's text — which is why it is
+ * not part of the egress on any platform: the rules above hold for the egress
+ * unchanged, and the fetch has nothing a key could come from.
+ */
+describe("the assistant's page fetch", () => {
+  it("is no part of the egress plugins", () => {
+    for (const egress of [android, ios, mobileBridge]) expect(egress).not.toMatch(/fetchPage|AiWebRules/);
+    expect(mobileWebBridge).toMatch(/registerPlugin<AiWebNative>\("AiWeb"\)/);
+    expect(mobileWebBridge).not.toMatch(/"AiNet"|from "\.\/aiNet"/);
+  });
+
+  it("has no way to a key on any platform", () => {
+    // The desktop command shares the egress's list of running requests, so STOP reaches it — and nothing else.
+    expect([...code(rustWeb).matchAll(/crate::(\w+)::\{?([^;}]+)\}?;/g)].map((m) => `${m[1]}: ${m[2]!.trim()}`)).toEqual(["ai_egress: only_main, AiEgress"]);
+    expect([...code(rustWeb).matchAll(/\bstate\.(\w+)\(/g)].map((m) => m[1]).sort()).toEqual(["track", "untrack"]);
+    for (const word of ["read_slot", "write_slot", "AI_KEY_PREFIX", "secure_store", "keyring", "AUTHORIZATION", "COOKIE"]) expect(code(rustWeb), word).not.toContain(word);
+    for (const word of ["KeystoreBox", "SharedPreferences", "getContext", "AiNetPlugin", "SecureStore", "authorization", "cookie"]) expect(code(androidWeb), word).not.toContain(word);
+    for (const word of ["kSec", "Keychain", "UserDefaults", "AiNetPlugin", "SecureStore", "Authorization", "Cookie\""]) expect(code(iosWeb), word).not.toContain(word);
+  });
+
+  it("sends the two headers that say who asks and what it reads, and no other", () => {
+    expect([...code(rustWeb).matchAll(/\.header\(reqwest::header::(\w+)/g)].map((m) => m[1])).toEqual(["ACCEPT"]);
+    expect(code(rustWeb)).toMatch(/\.user_agent\(USER_AGENT\)/);
+    // Android builds its one request in one statement; iOS sets a header with `setValue`.
+    const built = [...code(androidWeb).matchAll(/new Request\.Builder\(\)([^;]*);/g)].map((m) => m[1]!);
+    expect(built).toHaveLength(1);
+    expect([...built[0]!.matchAll(/\.(?:add)?[hH]eader\("([\w-]+)"/g)].map((m) => m[1]).sort()).toEqual(["accept", "user-agent"]);
+    expect([...code(iosWeb).matchAll(/\b(?:set|add)Value\([^)]*forHTTPHeaderField: "([\w-]+)"\)/g)].map((m) => m[1]).sort()).toEqual(["Accept", "User-Agent"]);
+    expect(code(iosWeb)).not.toMatch(/allHTTPHeaderFields|httpAdditionalHeaders|httpBody/);
   });
 });
 

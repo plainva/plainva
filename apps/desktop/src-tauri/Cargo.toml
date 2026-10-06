@@ -60,6 +60,9 @@ walkdir = "2.5.0"
 # `Body::sized` takes any Read, so a large attachment never has to exist in memory
 # (the async path would need a second dependency for the same thing).
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "blocking"] }
+# The assistant's page fetch (ai_web.rs) reads a page in the charset it names. The crate is already in the
+# tree (other dependencies decode with it); this only makes it nameable.
+encoding_rs = "0.8"
 # The AI egress (ai_egress.rs) races a streaming response against STOP and an
 # idle timeout. Tauri already runs on tokio; this only names the features it uses.
 tokio = { version = "1", features = ["macros", "sync", "time", "net", "io-util", "io-std", "rt", "fs"] }
