@@ -93,7 +93,7 @@ export function MenuSurface({
     // Roving focus starts on the first enabled item.
     if (autoFocus) {
       const first = el.querySelector<HTMLElement>(".pv-menu-item:not(:disabled)");
-      first?.focus();
+      first?.focus({ preventScroll: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -124,12 +124,19 @@ export function MenuSurface({
     const onCtx = (e: MouseEvent) => {
       if (ref.current?.contains(e.target as Node)) e.preventDefault();
     };
-    window.addEventListener("scroll", onScroll, true);
+    // A scroll that happened BEFORE the menu opened is not a reason to close
+    // it — and its event is still on its way: the browser reports a scroll in
+    // the next frame. A folder opened in the tree and right-clicked at once
+    // closed its own context menu that way (finding 2026-10-06). The listener
+    // therefore starts with the first frame after the menu, when everything
+    // that was pending has been delivered.
+    const frame = requestAnimationFrame(() => window.addEventListener("scroll", onScroll, true));
     window.addEventListener("resize", close);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     document.addEventListener("contextmenu", onCtx);
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", close);
       document.removeEventListener("mousedown", onDown);
