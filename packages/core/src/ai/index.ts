@@ -26,3 +26,4 @@ export * from "./embeddings/index.js";
 export * from "./coverage.js";
 export * from "./hiddenPaths.js";
 export * from "./skills/index.js";
+export * from "./mcp/index.js";
