@@ -677,7 +677,7 @@ export function PropertyRow(props: PropertyRowProps) {
             aria-label={t("properties.name")}
             data-key={propKey}
             disabled={lockMeta}
-            spellCheck={false}
+            purpose="name"
             onChange={(e) => setEditKey(asSingleLineValue(e.target.value))}
             onBlur={() => { if (editKey.trim() && editKey !== propKey) onRename(propKey, editKey.trim()); else setEditKey(propKey); }}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
