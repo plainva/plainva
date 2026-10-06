@@ -288,6 +288,41 @@ describe("MenuSurface / MenuItem", () => {
     press("Escape");
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("does not close itself by opening: its focus scrolls nothing, and a scroll already on its way is not its own", async () => {
+    // A context menu in the file tree (finding 2026-10-06). The menu is
+    // rendered inside the list it belongs to and measured off screen first;
+    // focusing its first item scrolled the list, and that scroll closed the
+    // menu. So did the scroll of the click before it (a folder opening), whose
+    // event the browser only delivers with the next frame.
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    const onClose = vi.fn();
+    render(
+      <div data-testid="list" style={{ overflow: "auto" }}>
+        <MenuSurface open onClose={onClose} at={{ x: 10, y: 10 }}>
+          <MenuItem onSelect={() => {}}>Umbenennen</MenuItem>
+        </MenuSurface>
+      </div>
+    );
+    const list = container.querySelector<HTMLElement>("[data-testid=list]")!;
+    const first = container.querySelector<HTMLElement>(".pv-menu-item")!;
+    expect(focus.mock.contexts).toContain(first);
+    expect(focus.mock.calls[focus.mock.contexts.indexOf(first)]).toEqual([{ preventScroll: true }]);
+    focus.mockRestore();
+
+    // The scroll that was pending when the menu opened.
+    act(() => void list.dispatchEvent(new Event("scroll")));
+    expect(onClose).not.toHaveBeenCalled();
+
+    // From the first frame on, the list scrolling under the menu closes it — its own scrolling never does.
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    });
+    act(() => void container.querySelector(".pv-menu")!.dispatchEvent(new Event("scroll")));
+    expect(onClose).not.toHaveBeenCalled();
+    act(() => void list.dispatchEvent(new Event("scroll")));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("DropdownMenu (adapter)", () => {
