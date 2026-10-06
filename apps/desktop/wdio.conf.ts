@@ -88,6 +88,9 @@ export const config: WebdriverIO.Config = {
 
   onPrepare() {
     vaultDir = mkdtempSync(join(tmpdir(), "plainva-smoke-vault-"));
+    // The spec reads the note back from disk; the workers start after this
+    // hook and inherit the variable.
+    process.env.PLAINVA_SMOKE_VAULT = vaultDir;
     const dataDir = appDataDir();
     mkdirSync(dataDir, { recursive: true });
     writeFileSync(

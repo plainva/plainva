@@ -61,8 +61,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build web assets
         run: pnpm --filter desktop build
+      # With the smoke overlay (src-tauri/tauri.smoke.conf.json): the WebView
+      # library always sets the browser arguments itself, so the debugging port
+      # the Edge driver asks for through the environment never reached the
+      # browser process (measured 2026-10-06: its command line carried the
+      # library's arguments and nothing else). The overlay puts the port into
+      # those arguments. It exists only in this build; no release uses it.
       - name: Build debug binary
-        run: pnpm --filter desktop exec tauri build --debug --no-bundle
+        run: pnpm --filter desktop exec tauri build --debug --no-bundle --config src-tauri/tauri.smoke.conf.json
       # Before the driver gets the binary: does it start at all, and does it
       # create its WebView? "session not created: DevToolsActivePort file doesn't
       # exist" (first runs, 2026-09-29/30) says only that the driver waited a
