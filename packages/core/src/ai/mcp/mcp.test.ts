@@ -360,6 +360,13 @@ describe("what a server may be asked", () => {
     expect(mcpHostAllowed(remote, "https://mcp.example.com.evil.test/v1")).toBe(false);
     expect(mcpHostAllowed(remote, "not a url")).toBe(false);
     expect(mcpHostAllowed(grant, "https://mcp.example.com/v1")).toBe(false);
+    // A port that is not the usual one is part of where a server is.
+    expect(mcpHostAllowed(remote, "https://mcp.example.com:8443/v1")).toBe(false);
+    expect(mcpHostAllowed({ ...grant, hosts: ["mcp.example.com:8443"] }, "https://mcp.example.com:8443/v1")).toBe(true);
+    // Plain http only to a server on this device.
+    const local = { ...grant, hosts: ["localhost:3000"] };
+    expect(mcpHostAllowed(local, "http://localhost:3000/mcp")).toBe(true);
+    expect(mcpHostAllowed({ ...grant, hosts: ["192.168.1.20:3000"] }, "http://192.168.1.20:3000/mcp")).toBe(false);
   });
 
   it("reads a stored grant defensively", () => {

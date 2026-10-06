@@ -22,10 +22,14 @@ fn entry(app: &tauri::AppHandle, key: &str) -> Result<keyring::Entry, String> {
 /// AI provider keys are write-only for the web view (ADR 0017): only the AI
 /// egress reads them, natively, to put them into a request. The generic
 /// commands below refuse their slots, so no script in the web view -- injected
-/// or not -- can read one back, overwrite it or probe it through them.
+/// or not -- can read one back, overwrite it or probe it through them. The
+/// credentials of foreign MCP servers (src/mcp_client) are kept the same way.
 fn generic(key: &str) -> Result<&str, String> {
     if key.starts_with(crate::ai_egress::AI_KEY_PREFIX) {
         return Err("this keychain slot is reserved for the AI egress".into());
+    }
+    if key.starts_with(crate::mcp_client::registry::MCP_KEY_PREFIX) {
+        return Err("this keychain slot is reserved for the credentials of MCP servers".into());
     }
     Ok(key)
 }
@@ -135,6 +139,14 @@ mod tests {
         assert_eq!(generic("sync-token:v1"), Ok("sync-token:v1"));
         // Only the prefix counts, not a look-alike further in.
         assert_eq!(generic("x-ai-provider:y"), Ok("x-ai-provider:y"));
+    }
+
+    #[test]
+    fn the_generic_commands_cannot_reach_the_credentials_of_an_mcp_server() {
+        assert!(generic("ai-mcp:tracker").is_err());
+        assert!(generic("ai-mcp:tracker:API_KEY").is_err());
+        assert!(generic("ai-mcp:").is_err());
+        assert_eq!(generic("x-ai-mcp:y"), Ok("x-ai-mcp:y"));
     }
 
     #[test]

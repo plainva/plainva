@@ -189,6 +189,8 @@ jobs:
           "$RUNNER_TEMP/widget-store-tests"
           swiftc Shared/AiWebRules.swift tests/AiWebRulesTests.swift -o "$RUNNER_TEMP/ai-web-rules-tests"
           "$RUNNER_TEMP/ai-web-rules-tests"
+          swiftc Shared/AiMcpRules.swift tests/AiMcpRulesTests.swift -o "$RUNNER_TEMP/ai-mcp-rules-tests"
+          "$RUNNER_TEMP/ai-mcp-rules-tests"
 
       - name: Import signing certificate and the Labs profiles
         env:

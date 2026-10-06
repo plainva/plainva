@@ -66,7 +66,7 @@ A call goes out only if the server is approved, the tool's name is not withheld,
 - `readOnlyHint` is the server's own claim. It is **necessary** — a tool that does not even claim to only read is not offered while writing through MCP is closed — and never **sufficient**: the call is previewed, its result is tier 3, and nothing a foreign tool returns can change the vault.
 - A grant names folders. By default it names none: the server only ever sees what the user typed.
 - To the privacy gate ([ADR 0018](../adr/0018-ai-context-package-and-egress-policy.md)) every MCP server is a **cloud recipient**, a local stdio server included. It runs on this computer, but it is someone else's program with the user's network access. A note marked `cloud: deny` therefore reaches no MCP server.
-- A remote server is reached only at a host the grant names, over HTTPS.
+- A remote server is reached only at a host the grant names, over https — plain http only where the server is on this device.
 
 ### Results
 
@@ -88,6 +88,7 @@ How a server is asked is separate from what it may do. The protocol lives in the
 | `stdioWire.ts` | a program on this computer: one message per line, which answer belongs to which request, giving up, telling the generations apart |
 | `client.ts` | what Plainva asks: what the server is, its lists (all pages, bounded), one call, one prompt |
 | `schemaView.ts` | a tool's arguments as a model reads them: cleaned, cut, bounded |
+| `native.ts` | the contract of the shells' native side, and the address rule both sides of it keep |
 | `scripted.ts` | a server in a script, for tests in every package |
 
 ### Two generations
@@ -116,6 +117,36 @@ Over HTTP the name of a tool travels in `Mcp-Name`, and a tool's schema may mark
 ### Arguments as a model reads them
 
 A tool's input schema is another place a server writes text a model reads: every argument can carry a description, and a schema can be as large as its author likes. The pin covers the schema as sent; `mcpSchemaView` is the reading copy — only keywords that say what an argument is, every text cleaned and cut at 300 characters, depth and width bounded, at most 4,000 characters of JSON, shallower and at last without descriptions if that is what it takes. An argument is offered only under its exact name. Nothing is resolved and nothing is fetched: `$ref` stays a name, and only one that points into the schema itself.
+
+## The native side
+
+Everything the web view should not be able to do on its own lives behind `McpNativeHost` (`native.ts`), implemented three times: `apps/desktop/src-tauri/src/mcp_client` in Rust, `AiMcpPlugin.java` on Android, `AiMcpPlugin.swift` on iOS. `aiMcpBoundary.test.ts` holds the three to one contract by reading their sources.
+
+### The registry
+
+A server is registered natively before anything can be sent to it or started. Registering shows a **native** dialog — the address of a remote server, or the whole command line of a program: the file that will be started, every argument on a line of its own, the names of the environment values it gets, and whether it runs in a sandbox. The web view supplies the words around it in the user's language; what is confirmed is written by the native side. From then on a request or a start names a server **id**. No command takes an address or a program.
+
+- An address is printable ASCII (a name in another script is typed in its `xn--` form, so nothing that only looks like a host is connected to), https or plain http to this device, and carries no credentials. One list of cases, `MCP_ADDRESS_CASES`, runs on all four implementations of the rule.
+- A program is resolved to a file when it is confirmed, and that file is what is started later. A program that moved is confirmed anew.
+- Registering a server anew under an old id forgets the old one's credentials.
+
+### Credentials
+
+A remote server's token and the values a program gets in its environment are stored in the system's keychain (the desktop: slots `ai-mcp:…`, which the generic keychain commands refuse; the phones: a store of the plugin's own). They are write-only for the web view: it can set one, ask whether one is there, and delete it. They go into a request or a process natively.
+
+### A request
+
+https, the registered address, no redirect followed — a redirect could carry the token and the arguments of a call to another host; it is reported as the answer it is. The web view sets only protocol headers from a fixed list (`Content-Type`, `Accept`, `MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`, `Mcp-Session-Id`, `Mcp-Param-*`), and only values of visible ASCII. The answer is cut at five megabytes. What comes back is the status, the content type, two response headers, the body, and for a request that got no answer one of a fixed set of words — never a text of the network's own.
+
+### A program (desktop only)
+
+A server that is a program is somebody else's code with the user's rights. It is started from the registry's entry, **without a shell**, with a short list of inherited environment variables instead of the app's own environment, and its process tree ends with the app (a job object on Windows, a process group elsewhere). What it writes to its error stream is kept in a small ring for the settings to show, scrubbed of the values it was given, and never goes to a model. A phone starts no programs; the parity catalog records that as a decision.
+
+### The sandbox
+
+A program gets what it needs through the arguments of a call. It has no business in the user's vaults, keys, browser profiles or Plainva's own data. Where the system can start a program without those folders, Plainva does: `sandbox-exec` on macOS, `bwrap` on Linux. The rest of the system stays as it is, because a program fetched by `npx` needs its own files, a cache and the network to work at all. Windows offers nothing comparable for an arbitrary program, and the approval says so.
+
+Plainva says "in a sandbox" only where a **self-test on this computer** passed with the wrapper a server gets: a program starts, and it cannot read a file in a closed folder. A sandbox that is installed but does not hold counts as none, and a program that was confirmed to run in one is not started without it.
 
 ## The life of a server on a device
 
@@ -146,6 +177,6 @@ Nothing of a `new` or `blocked` server is offered to a model.
 - It calls no tool that changes something before writing through MCP opens with the approval chain of [ADR 0019](../adr/0019-ai-tools-risk-classes-and-approvals.md).
 - It never passes `_meta` to a model.
 
-## Decided with the parts that follow
+## Decided with the part that follows
 
-Two questions belong to parts that are built after the protocol client, and are answered there rather than fixed here: the OAuth flow for remote servers (PKCE, issuer and audience checks, client metadata documents), and which sandbox each desktop platform offers for a server that is a program.
+One question belongs to a part that is built after this one, and is answered there rather than fixed here: the OAuth flow for remote servers (PKCE, issuer and audience checks, client metadata documents). Until then a remote server is reached without a sign-in or with a token the user stores for it.

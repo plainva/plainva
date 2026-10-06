@@ -8,6 +8,7 @@ use tauri::Manager;
 mod ai_egress;
 mod ai_web;
 mod mcp;
+mod mcp_client;
 mod app_identity;
 mod atomic_write;
 mod checked_fs;
@@ -376,6 +377,7 @@ pub fn run() {
         .manage(tray::TrayState::default())
         .manage(ai_egress::AiEgress::default())
         .manage(mcp::McpState::default())
+        .manage(mcp_client::McpClientState::default())
         .manage(embedding::Embeddings::default())
         .manage(model_store::ModelDownloads::default())
         .setup(|app| {
@@ -399,6 +401,11 @@ pub fn run() {
                     api.prevent_close();
                 }
             }
+            // The owner window is gone: the programs the assistant started for
+            // foreign MCP servers end with it (src/mcp_client).
+            if matches!(event, tauri::WindowEvent::Destroyed) && window.label() == "main" {
+                mcp_client::shutdown(&window.state::<mcp_client::McpClientState>());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             secure_store::keychain_set,
@@ -420,6 +427,20 @@ pub fn run() {
             mcp::mcp_set_folders,
             mcp::mcp_revoke,
             mcp::mcp_write_package,
+            mcp_client::registry::mcp_client_servers,
+            mcp_client::registry::mcp_client_add_http,
+            mcp_client::registry::mcp_client_add_program,
+            mcp_client::registry::mcp_client_remove,
+            mcp_client::registry::mcp_client_secret_set,
+            mcp_client::registry::mcp_client_secret_present,
+            mcp_client::registry::mcp_client_secret_delete,
+            mcp_client::http::mcp_client_http,
+            mcp_client::http::mcp_client_cancel,
+            mcp_client::program::mcp_client_start,
+            mcp_client::program::mcp_client_write,
+            mcp_client::program::mcp_client_stop,
+            mcp_client::program::mcp_client_log,
+            mcp_client::sandbox::mcp_client_sandbox,
             model_store::model_status,
             model_store::model_download,
             model_store::model_download_cancel,

@@ -199,8 +199,9 @@ fn redact(text: &str, key: Option<&str>) -> String {
 /// Takes the longest prefix of `pending` that can go out as text. A UTF-8
 /// sequence split across two packets waits for the next one; bytes that are
 /// invalid anywhere else are replaced, never held back — a held-back byte
-/// would stall the stream for good.
-fn take_text(pending: &mut Vec<u8>) -> Option<String> {
+/// would stall the stream for good. Shared with the other stream this app
+/// reads as text (src/mcp_client/http.rs).
+pub(crate) fn take_text(pending: &mut Vec<u8>) -> Option<String> {
     let mut cut = 0;
     loop {
         match std::str::from_utf8(&pending[cut..]) {

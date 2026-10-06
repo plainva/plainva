@@ -279,6 +279,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-24",
   },
   {
+    id: "ai-mcp-client-programs",
+    title: "A program on this device as a server whose tools the assistant uses (MCP client, plan KI-Harness P4.5)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "An MCP server that is a program is started by the app and spoken to over " +
+      "its standard input and output. Neither iOS nor Android lets an app start " +
+      "another program, and there is no place to install one. The phone uses " +
+      "the servers that are services on the internet, over https, exactly as " +
+      "the desktop does (AiMcpPlugin on both platforms).",
+    verified: "2026-10-07",
+  },
+  {
     id: "ai-mcp-server",
     title: "AI apps on this computer read the vault through Plainva (MCP server)",
     area: "ai",

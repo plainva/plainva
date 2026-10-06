@@ -5,8 +5,9 @@
  * protocol — how a server is asked, in both generations and over both
  * transports — is `wire`, `headerValues`, `httpWire`, `stdioWire` and
  * `client`; the requests themselves are the shells' native code, reached
- * through two ports. `scripted` is a server in a script, for tests in every
- * package. See docs/engineering/MCP_Client_Architecture.md.
+ * through two ports, and `native` is the contract of that side. `scripted` is
+ * a server in a script, for tests in every package. See
+ * docs/engineering/MCP_Client_Architecture.md.
  */
 export * from "./listing.js";
 export * from "./pin.js";
@@ -20,4 +21,5 @@ export * from "./headerValues.js";
 export * from "./httpWire.js";
 export * from "./stdioWire.js";
 export * from "./client.js";
+export * from "./native.js";
 export * from "./scripted.js";

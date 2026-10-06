@@ -88,6 +88,14 @@ jobs:
           swiftc Shared/AiWebRules.swift tests/AiWebRulesTests.swift -o "$RUNNER_TEMP/ai-web-rules-tests"
           "$RUNNER_TEMP/ai-web-rules-tests"
 
+      # Foreign MCP servers: which address a server may have and which headers
+      # a request may carry are decided the same on every platform.
+      - name: Test the rules for foreign MCP servers
+        working-directory: apps/mobile/ios/App
+        run: |
+          swiftc Shared/AiMcpRules.swift tests/AiMcpRulesTests.swift -o "$RUNNER_TEMP/ai-mcp-rules-tests"
+          "$RUNNER_TEMP/ai-mcp-rules-tests"
+
       - name: Build for simulator
         working-directory: apps/mobile/ios/App
         run: |

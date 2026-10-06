@@ -3,6 +3,7 @@ import { withinFolders } from "../skills/narrowing.js";
 import type { ToolDataClass } from "../tools.js";
 import { mcpDeclaresReadOnly, type McpToolDescriptor } from "./listing.js";
 import { withheldMcpTools, type McpNameIssue } from "./names.js";
+import { checkMcpAddress } from "./native.js";
 import { mcpOffersTools, type McpServerReview } from "./pin.js";
 
 /**
@@ -93,17 +94,14 @@ export function mcpRecipient(serverId: string): EgressRecipient {
   return { kind: "cloud", provider: `mcp:${serverId}`, model: "" };
 }
 
-/** True when a remote server's address is one the grant names (exact host, lower case). */
+/**
+ * True when a remote server's address is one the grant names (exact host,
+ * lower case, a port that is not the usual one included). The address itself
+ * must be one a server may have at all: https, or http to this device.
+ */
 export function mcpHostAllowed(grant: McpServerGrant, url: string): boolean {
-  let host: string;
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") return false;
-    host = parsed.host.toLowerCase();
-  } catch {
-    return false;
-  }
-  return grant.hosts.some((allowed) => allowed.toLowerCase() === host);
+  const address = checkMcpAddress(url);
+  return address.ok && grant.hosts.some((allowed) => allowed.toLowerCase() === address.host);
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
