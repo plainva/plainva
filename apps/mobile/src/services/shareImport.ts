@@ -3,6 +3,16 @@ import { SHARE_LIMITS, validateShare, type PendingShare, type SharedFile, type S
 import { trimEndChars } from "@plainva/core";
 
 const active = new Map<string, { vaultId: string; run: Promise<string> }>();
+/**
+ * One plan is made at a time. A plan names the note's path, and two shares
+ * with the same title planned side by side would both find the name free.
+ */
+let planning: Promise<unknown> = Promise.resolve();
+function planInTurn<T>(make: () => Promise<T>): Promise<T> {
+  const turn = planning.then(make, make);
+  planning = turn.catch(() => undefined);
+  return turn;
+}
 function safeName(name: string): string {
   let result = "", size = 0;
   for (const c of name.split(/[\\/]/).pop() || "Shared") {
@@ -90,7 +100,7 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
   if (share.status !== "ready") throw new Error("SHARE_INCOMPLETE");
   const guard = async () => { ctx.signal?.throwIfAborted(); await ctx.ensureOpen(); };
   await guard();
-  if (!share.plan) {
+  if (!share.plan) share = await planInTurn(async () => {
     if (ctx.folder && !safePath(ctx.folder)) throw new Error("SHARE_INVALID");
     const title = safeName(share.subject.trim() || share.text.split("\n")[0].slice(0, 60).trim() || share.files[0]?.name.replace(/\.[^.]+$/, "") || "Shared");
     const files = share.files.map((f, i) => ({ id: f.id, path: `Attachments/Shared/${share.id}/${i + 1}-${safeName(f.name)}` }));
@@ -101,20 +111,32 @@ async function runImport(port: ShareTargetPort, incoming: PendingShare, ctx: Sha
       // journal writes further lines as continuation lines of the entry.
       const text = [share.subject.trim(), share.text.trim(), ...links].filter(Boolean).join("\n") || title;
       const { notePath, ...stamp } = journal;
-      share = validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText: "", files, journal: { ...stamp, text } } })).entry);
+      return validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText: "", files, journal: { ...stamp, text } } })).entry);
     } else {
       const task = ctx.asTask ? await ctx.asTask({ title, body: [share.text, ...links].filter(Boolean).join("\n\n") }) : null;
       const folder = task ? task.folder : ctx.folder;
       if (task && !safePath(folder)) throw new Error("SHARE_INVALID");
-      const stem = `${folder ? folder + "/" : ""}${title} (${share.id.slice(0, 8)})`;
+      // The note is named after its title, like every other note — and
+      // numbered like every other note when the name is taken ("Buy stamps 2").
+      // It used to carry the first eight characters of the share's id, which
+      // kept two shares with one title apart and showed up in every list as
+      // "Buy stamps (5a4e0001)". What the id did is done by looking: a name is
+      // taken when a file has it OR when another share's plan, made but not
+      // yet written, has already claimed it.
+      const claimed = new Set(
+        (await port.listPendingShares()).entries
+          .filter((other) => other.id !== share.id && other.plan?.vaultId === ctx.vaultId)
+          .map((other) => other.plan!.notePath.toLowerCase()),
+      );
+      const stem = `${folder ? folder + "/" : ""}${title}`;
       let notePath = stem + ".md";
-      for (let n = 2; await ctx.files.exists(notePath); n++) {
+      for (let n = 2; claimed.has(notePath.toLowerCase()) || await ctx.files.exists(notePath); n++) {
         await guard(); if (n > 100) throw new Error("SHARE_TARGET_CHANGED"); notePath = `${stem} ${n}.md`;
       }
       const noteText = task ? task.text : ["# " + title, share.text, ...links].filter(Boolean).join("\n\n") + "\n";
-      share = validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText, files } })).entry);
+      return validateShare((await port.beginImport({ id: share.id, plan: { version: 1, vaultId: ctx.vaultId, notePath, noteText, files } })).entry);
     }
-  }
+  });
   const plan = share.plan!;
   checkPlan(plan, share, ctx.vaultId);
   let journalPath: string | null = null;
