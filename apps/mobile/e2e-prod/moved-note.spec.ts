@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { returnToApp, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 
 /**
  * Issue 110 (E9) on the phone: the app's own vault is visible in the iOS Files
@@ -71,18 +71,6 @@ async function typeIntoNote(page: Page, text: string) {
   await page.keyboard.type(text);
 }
 
-/** Away from the app and back: the web shell reports it as a visibility change. */
-async function returnToApp(page: Page) {
-  await page.evaluate(() => {
-    const set = (hidden: boolean) => {
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
-      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (hidden ? "hidden" : "visible") });
-      document.dispatchEvent(new Event("visibilitychange"));
-    };
-    set(true);
-    set(false);
-  });
-}
 
 type Bridge = Awaited<ReturnType<typeof installSqlBridge>>;
 const indexed = (sql: Bridge, path: string) => sql.count(INDEX, `files WHERE path = '${path.replace(/'/g, "''")}' AND sha256 IS NOT NULL`);

@@ -665,6 +665,18 @@ function seedPimAccounts(db) {
  * the app asks for and OUTLIVE the individual pages: a capture opens one page
  * per surface, and rebuilding the index for each of them would cost the run
  * minutes and photograph a half-filled index on the way.
+ *
+ * Outliving the page has one consequence a real connection does not have: a
+ * page that is reloaded in the middle of a transaction leaves its BEGIN open
+ * here, where a native connection would have died with its process and rolled
+ * back. The next document's first BEGIN then failed with "cannot start a
+ * transaction within a transaction", the boot swallowed that as "index
+ * unavailable", and the run went on without an index — the specs that seed
+ * files and reload right after the first boot met exactly this, whenever the
+ * reload happened to land inside the schema or index transaction. So every
+ * new document reports in before the app's bundle runs, and whatever
+ * transaction its predecessor left open is rolled back, as the death of the
+ * connection would have done. One context drives one live document at a time.
  */
 export async function installSqlBridge(context) {
   const dbs = new Map();
@@ -678,8 +690,31 @@ export async function installSqlBridge(context) {
     return db;
   };
 
+  // Which databases a page currently holds a transaction on, and what the
+  // runner wanted to write into them meanwhile. A seed that lands inside the
+  // app's open transaction belongs to that transaction: it is committed with
+  // it or — when the page is reloaded first — rolled back with it, and the
+  // spec that seeded a calendar then finds none. So a seed waits for the
+  // transaction to end, whichever way it ends.
+  const inTransaction = new Set();
+  const waiting = new Map();
+  const settle = (name) => {
+    inTransaction.delete(name);
+    const queued = waiting.get(name);
+    if (!queued) return;
+    waiting.delete(name);
+    for (const run of queued) run();
+  };
+  const outsideTransaction = (name, run) => {
+    if (!inTransaction.has(name)) return run();
+    waiting.set(name, [...(waiting.get(name) ?? []), run]);
+  };
+
   await context.exposeFunction(`${BRIDGE_KEY}__exec`, (name, sql, params) => {
     open(name).prepare(sql).run(...params);
+    // Only reached when the statement succeeded: a refused BEGIN opens nothing.
+    if (/^\s*BEGIN\b/i.test(sql)) inTransaction.add(name);
+    else if (/^\s*(COMMIT|END|ROLLBACK)\b/i.test(sql)) settle(name);
   });
   await context.exposeFunction(`${BRIDGE_KEY}__all`, (name, sql, params) =>
     // Structured clone cannot carry BigInt, which SQLite hands back for large
@@ -690,11 +725,40 @@ export async function installSqlBridge(context) {
       .map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, typeof v === "bigint" ? Number(v) : v]))),
   );
 
+  // The app treats a broken index as optional and carries on without one (it
+  // has to: the plain web server has none). Under the bridge an index is
+  // promised, so the app's own report of losing it is kept and handed to the
+  // first proof that asks — a poll that would otherwise wait out its timeout
+  // on a zero says what happened instead.
+  let indexFailure = null;
+  context.on("console", (message) => {
+    const text = message.text();
+    if (indexFailure === null && text.includes("[mobile] index unavailable")) indexFailure = text;
+  });
+
+  let abandoned = 0;
+  await context.exposeFunction(`${BRIDGE_KEY}__boot`, () => {
+    // What the previous document said about its index went with it.
+    indexFailure = null;
+    for (const [name, db] of dbs) {
+      try {
+        db.exec("ROLLBACK");
+        abandoned += 1;
+      } catch {
+        /* no transaction was open — the usual case */
+      }
+      settle(name);
+    }
+  });
+
   // The adapter looks for one object, so the two exposed functions are bound
   // into it before the app's bundle runs.
   await context.addInitScript(
     ({ key }) => {
       const g = globalThis;
+      // Only the top document owns the database; a frame must not roll back
+      // what its parent is in the middle of.
+      if (g.top === g.self) void g[`${key}__boot`]();
       g[key] = {
         exec: (db, sql, params) => g[`${key}__exec`](db, sql, params),
         all: (db, sql, params) => g[`${key}__all`](db, sql, params),
@@ -704,22 +768,35 @@ export async function installSqlBridge(context) {
   );
 
   return {
-    /** Row count of a table — the run's own proof that indexing happened. */
+    /**
+     * Row count of a table — the run's own proof that indexing happened.
+     *
+     * A table that does not exist yet counts as zero rows: polls start before
+     * the schema is there. Every other failure is thrown, because a zero that
+     * means "the query broke" reads exactly like "not indexed yet" and sends
+     * the reader of a red run looking in the wrong place.
+     */
     count(dbName, table) {
+      if (indexFailure !== null) throw new Error(`the app started without its index: ${indexFailure}`);
       const db = dbs.get(dbName);
       if (!db) return 0;
       try {
         return Number(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n);
-      } catch {
-        return 0;
+      } catch (err) {
+        if (/no such table/i.test(String(err?.message ?? err))) return 0;
+        throw err;
       }
     },
+    /** How many transactions a reloaded document left open and this bridge rolled back. */
+    abandonedTransactions() {
+      return abandoned;
+    },
     seedPim(dbName) {
-      seedPimAccounts(open(dbName));
+      outsideTransaction(dbName, () => seedPimAccounts(open(dbName)));
     },
     /** The connected vault's own calendar account — see the note above. */
     seedCloudPim(dbName) {
-      seedCloudPimAccount(open(dbName));
+      outsideTransaction(dbName, () => seedCloudPimAccount(open(dbName)));
     },
     close() {
       for (const db of dbs.values()) db.close();

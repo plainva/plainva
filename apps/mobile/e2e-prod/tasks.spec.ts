@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { returnToApp, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 import { installShareInbox } from "./shareInbox";
 
 /**
@@ -183,18 +183,6 @@ async function recordShown(context: BrowserContext, testId: string) {
 }
 const shown = (page: Page, testId: string) => page.evaluate((id) => (globalThis as unknown as Record<string, string[]>)[`__shown:${id}`], testId);
 
-/** Away from the app and back: the web shell reports it as a visibility change, and the app catches up. */
-async function returnToApp(page: Page) {
-  await page.evaluate(() => {
-    const set = (hidden: boolean) => {
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
-      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (hidden ? "hidden" : "visible") });
-      document.dispatchEvent(new Event("visibilitychange"));
-    };
-    set(true);
-    set(false);
-  });
-}
 
 /**
  * The app on a vault with these files, under the fixed clock, with the task
