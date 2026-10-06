@@ -1,6 +1,6 @@
 # MCP client architecture
 
-Status: design and building blocks. The rules below exist as code with tests in `packages/core/src/ai/mcp/`; the client that uses them — transports, the protocol SDK, the settings surface, the first connected servers — is built on top of them and adds no rule of its own.
+Status: rules and protocol client built, in `packages/core/src/ai/mcp/` with tests. The native transports, the stores, the session and the settings surface are built on top of them and add no rule of their own.
 
 Plainva speaks MCP in two directions. As a **server** it lets AI apps on the same computer read the vault ([ADR 0022](../adr/0022-mcp-server-without-a-network-port.md)). As a **client**, described here, it lets the assistant use tools of servers the user added: an issue tracker, a calendar service, a search API. The two share the tool manifest idea and nothing else; the trust runs in opposite directions.
 
@@ -76,6 +76,47 @@ A result becomes one text of bounded length, tier 3, with server and tool as its
 
 A remote server that needs the user's account gets a token made for that server: bound to its address, limited to the scopes the user granted, and alive for at most ten minutes. The broker that issues such tokens is the one the account connections use; `McpTokenBroker` is the contract. Two checks do not depend on the implementation: a request is served only for the server's own address and granted scopes, and a token is sent only to its audience and only before it expires — checked at the moment of use, so a redirect carries no token along. This is what keeps a token issued for one server from being accepted by another.
 
+## The protocol client
+
+How a server is asked is separate from what it may do. The protocol lives in the modules below, next to the rules, and it is Plainva's own code, not the official SDK. Four reasons: both shells need the same protocol code over **native** transports (a web view starts no program, and a request has to pass the native side, because only there can an address, a redirect and a credential be enforced — the SDK's transports use `fetch` and `child_process`); a server's credential never enters the web view ([ADR 0017](../adr/0017-ai-harness-architecture-and-native-boundary.md) keeps SDKs off the key path); pinning needs a listing exactly as the server sent it, not as a schema filtered it; and a reading client speaks seven methods.
+
+| Module | What it does |
+|---|---|
+| `wire.ts` | revisions, the request metadata, how an answer is read, how a failure is named, and the two ports a shell implements |
+| `headerValues.ts` | the mirrored request headers of the stateless revision: `Mcp-Name`, and arguments a tool marks with `x-mcp-header` |
+| `httpWire.ts` | Streamable HTTP: one POST per message, a JSON or event-stream answer, the handshake and session of an earlier revision |
+| `stdioWire.ts` | a program on this computer: one message per line, which answer belongs to which request, giving up, telling the generations apart |
+| `client.ts` | what Plainva asks: what the server is, its lists (all pages, bounded), one call, one prompt |
+| `schemaView.ts` | a tool's arguments as a model reads them: cleaned, cut, bounded |
+| `scripted.ts` | a server in a script, for tests in every package |
+
+### Two generations
+
+The current revision (`2026-07-28`) is stateless: every request names its revision and the client in `_meta`, and `server/discover` says what the server speaks. Earlier revisions (`2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`) want an `initialize` handshake, and over HTTP may hand out a session id. Plainva asks the modern way first and falls back to the handshake — on any answer that is not a recognised modern one, never on one error code alone, as the specification demands. A program gets four seconds to answer the first question; then the handshake is sent as well and whichever answer arrives decides, so a modern program that is slow to come up is not mistaken for an old one. The deprecated HTTP+SSE transport is not spoken.
+
+### What Plainva offers a server: nothing
+
+The capabilities in every request are empty. No roots, no sampling, no logging — the specification deprecates all three — and **no questions to the user**: a server that may put its own text into Plainva's dialogs has a phishing channel. A result that says "come back with this state" is retried, at most three times. A result that asks for input (`inputRequests`) breaks the protocol, since nothing was offered; the call fails and none of what the server asked is shown. Plainva opens no long-lived notification stream either (`subscriptions/listen`); instead a listing is loaded again before it is used.
+
+### Freshness
+
+A server may say how long its lists stay fresh (`ttlMs`). Plainva takes the shortest hint of the lists it loaded, never more than five minutes, and nothing where a list gives none. While a listing is fresh a call goes out without loading it again; otherwise the lists are loaded and compared with the pin first. The hint shortens round trips. It never replaces the comparison: every listing that is loaded is compared.
+
+### The two ports
+
+A shell implements two small interfaces, and everything a web view should not be able to do stays behind them:
+
+- **`McpHttpPort`** — one exchange with the server the port is bound to. The web view names protocol headers and a body. The address and the credential are the native side's; it follows no redirect, cuts the answer, and hands back the status, the content type and two response headers (`Mcp-Session-Id`, `WWW-Authenticate`).
+- **`McpStdioPort`** — the approved program of the server the port is bound to: start, write a line, stop. The command is never named from the web view.
+
+### Headers from arguments
+
+Over HTTP the name of a tool travels in `Mcp-Name`, and a tool's schema may mark arguments (`x-mcp-header`) whose values travel in `Mcp-Param-<Name>`. Both are text that a server and a model supply, placed into a header: a value goes as it is only if it is visible ASCII, otherwise as the Base64 form of the specification, so a line break in an argument never becomes one in a request. A tool whose marks break the specification's rules (an empty or invalid header name, two arguments asking for one header, an argument that is no string, integer or boolean, a mark that is not reached through `properties` alone) is not offered over HTTP.
+
+### Arguments as a model reads them
+
+A tool's input schema is another place a server writes text a model reads: every argument can carry a description, and a schema can be as large as its author likes. The pin covers the schema as sent; `mcpSchemaView` is the reading copy — only keywords that say what an argument is, every text cleaned and cut at 300 characters, depth and width bounded, at most 4,000 characters of JSON, shallower and at last without descriptions if that is what it takes. An argument is offered only under its exact name. Nothing is resolved and nothing is fetched: `$ref` stays a name, and only one that points into the schema itself.
+
 ## The life of a server on a device
 
 ```text
@@ -105,6 +146,6 @@ Nothing of a `new` or `blocked` server is offered to a model.
 - It calls no tool that changes something before writing through MCP opens with the approval chain of [ADR 0019](../adr/0019-ai-tools-risk-classes-and-approvals.md).
 - It never passes `_meta` to a model.
 
-## Decided when the client is built
+## Decided with the parts that follow
 
-These depend on the protocol revision and the SDK in use at that time, and are checked against both rather than fixed here: the wire form of a server's request for more input inside a result; the OAuth flow for remote servers (PKCE, issuer and audience checks, client metadata documents); which sandbox each desktop platform offers for stdio servers; how list caching hints interact with reloads (they shorten round trips, they never replace the comparison with the pin).
+Two questions belong to parts that are built after the protocol client, and are answered there rather than fixed here: the OAuth flow for remote servers (PKCE, issuer and audience checks, client metadata documents), and which sandbox each desktop platform offers for a server that is a program.
