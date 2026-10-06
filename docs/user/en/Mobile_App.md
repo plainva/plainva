@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-09-30
+Last updated: 2026-10-06
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -30,6 +30,8 @@ It is an early build: keep a backup of your vault, and tell me what breaks.
 Notes open **rendered and read-only**; the pen at the top right switches to editing (with a toolbar above the keyboard: formatting, lists, wiki link, slash commands, insert photo). `![[Note]]` embeds appear as tappable preview cards.
 
 Hold a word to select text. The selection bar offers **Copy** and **Select all**, including the entire text of a long note. Hidden YAML properties and Markdown formatting markers are not copied. **Edit** switches to writing at the selected passage when you have permission to edit the note.
+
+**The command palette** is the search field: tap the magnifier and type `>`, and it lists commands instead of notes — importing, a backup, rebuilding the index, the open comments and more. From an open note, the **⋮** menu has **Commands**; the palette then also lists what acts on that note: renaming, version history, Markdown source, templates and sending it by email.
 
 Folders can be **searched** and **sorted** from the toolbar above the list — by **Title**, **Last modified** or **Created**, choosing again reverses the direction; the sort is remembered on the device. On a cold start the app opens what you last had open — note, folder or database view, tab included — and every note opens where you left it; setup assistants and an unfinished mail are not restored. Lists with nested items fold and unfold with a tap on their bullet.
 

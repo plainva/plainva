@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-09-24
+Dernière mise à jour : 2026-10-06
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -74,7 +74,7 @@ Vous n'êtes pas obligé d'envoyer depuis Plainva. Ceci fonctionne sur n'importe
 
 - **Répondre comme note** (sur un message) : crée une note adressée à l'expéditeur (`to:` dans le frontmatter) avec l'original cité — rédigez votre réponse dans Plainva. Si vous envoyez cette note plus tard (ou l'enregistrez comme brouillon), l'adresse `to:` est reprise automatiquement dans le champ **À**.
 - **Enregistrer la note comme brouillon dans la boîte** (palette de commandes, sur n'importe quelle note ouverte) : stocke la note comme **brouillon dans votre propre boîte aux lettres** via IMAP — choisissez le compte, le destinataire et le dossier des brouillons, puis ouvrez votre programme de messagerie habituel, relisez et envoyez depuis là-bas. La mise en forme est préservée.
-- **Envoyer la note par e-mail (mailto)** (palette de commandes) : ouvre votre programme de messagerie par défaut avec la note en texte brut (les notes longues sont raccourcies).
+- **Envoyer la note par e-mail (mailto)** (palette de commandes) : ouvre votre programme de messagerie par défaut avec la note en texte brut (les notes longues sont raccourcies). Sur le téléphone, le menu **⋮** de la note → **Commandes** liste aussi cette commande et celle du brouillon ; le brouillon s'ouvre dans l'éditeur de message, la note déjà insérée.
 - **Copier la note comme texte d'e-mail** (palette de commandes) : place la note dans le presse-papiers avec sa mise en forme — collez-la dans n'importe quel éditeur de message.
 
 ## Signature et adresses d'expéditeur

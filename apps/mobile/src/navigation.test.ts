@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   activeFolderPath,
   backStep,
+  commandNotePath,
   currentArea,
   ensureVisibleTab,
   initialNavState,
@@ -372,5 +373,32 @@ describe("the area on screen, as the areas sheet marks it (E20)", () => {
     s = pushEntry(s, SCREEN_ENTRY.journal);
     s = pushEntry(s, { kind: "settings", path: "" });
     expect(currentArea(s)).toBe("journal");
+  });
+});
+
+describe("the note a palette command acts on", () => {
+  it("is the open note, and the note under the palette while the palette is up", () => {
+    let s = pushEntry(initialNavState("notes"), { kind: "note", path: "Projects/A.md" });
+    expect(commandNotePath(s)).toBe("Projects/A.md");
+    // The palette is the search surface; it covers the note it was opened over.
+    s = pushEntry(s, { kind: "search", path: "" });
+    expect(navTop(s)?.kind).toBe("search");
+    expect(commandNotePath(s)).toBe("Projects/A.md");
+  });
+
+  it("is a note that was itself opened in the overlay", () => {
+    let s = pushEntry(initialNavState("notes"), { kind: "search", path: "" });
+    s = pushEntry(s, { kind: "note", path: "B.md" });
+    s = pushEntry(s, { kind: "search", path: "" });
+    expect(commandNotePath(s)).toBe("B.md");
+  });
+
+  it("is none when the palette stands over anything else", () => {
+    expect(commandNotePath(initialNavState("notes"))).toBeNull();
+    expect(commandNotePath(pushEntry(initialNavState("notes"), { kind: "search", path: "" }))).toBeNull();
+    const folder = pushEntry(initialNavState("notes"), { kind: "folder", path: "Projects" });
+    expect(commandNotePath(pushEntry(folder, { kind: "search", path: "" }))).toBeNull();
+    // A database is not a note: the note commands do not apply to it.
+    expect(commandNotePath(pushEntry(initialNavState("notes"), { kind: "base", path: "X.base" }))).toBeNull();
   });
 });

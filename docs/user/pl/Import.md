@@ -1,10 +1,10 @@
 # Import z innej aplikacji
 
-Stan na: 2026-09-17
+Stan na: 2026-10-06
 
 Plainva importuje notatki z innych aplikacji do nowego sejfu lub podfolderu o nowej nazwie w otwartym sejfie. Pozostała zawartość się nie zmienia; folder importu można potem przenieść lub usunąć.
 
-**Import działa na obu urządzeniach — z tymi samymi źródłami.** Na komputerze prowadzą do niego ekran powitalny, paleta poleceń i menu kontekstowe folderu; w telefonie znajdziesz go w **Ustawienia → Konserwacja → Import z innej aplikacji**. Dostępne są tam także źródła wymagające dostępu do usługi — Notion przez API.
+**Import działa na obu urządzeniach — z tymi samymi źródłami.** Na komputerze prowadzą do niego ekran powitalny, paleta poleceń i menu kontekstowe folderu; w telefonie znajdziesz go w **Ustawienia → Konserwacja → Import z innej aplikacji**. Dostępne są tam także źródła wymagające dostępu do usługi — Notion przez API. Prowadzi do niego także paleta poleceń w telefonie (`>` w polu wyszukiwania).
 
 ## Rozpoczynanie importu
 

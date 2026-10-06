@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-10-06
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -74,7 +74,7 @@ You don't have to send from within Plainva. These work on any note and need no S
 
 - **Reply as note** (on a message): creates a note addressed at the sender (`to:` in the frontmatter) with the original quoted — write your reply in Plainva. When you later send that note (or save it as a draft), the `to:` address is filled into the **To** field automatically.
 - **Save note as email draft in the mailbox** (command palette, on any open note): stores the note as a **draft in your own mailbox** via IMAP — pick the account, recipient and drafts folder, then open your regular mail program, review and send from there. Formatting is preserved.
-- **Send note via email (mailto)** (command palette): opens your default mail program with the note as plain text (long notes are shortened).
+- **Send note via email (mailto)** (command palette): opens your default mail program with the note as plain text (long notes are shortened). On the phone, the note's **⋮** menu → **Commands** lists this command and the draft one too; the draft opens in the composer with the note already in it.
 - **Copy note as email text** (command palette): puts the note on the clipboard with formatting — paste it into any composer.
 
 ## Signature and sender addresses

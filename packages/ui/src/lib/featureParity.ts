@@ -214,10 +214,12 @@ export interface ParityGuardMarker {
  * not quietly get built. A `gap` is the entry that rots, because the work
  * happens and the line stays.
  *
- * The one gap written back since (`palette-command-reach`, 2026-09-24) is held
- * from the code's side instead: MOBILE_ABSENT_COMMANDS points at it command by
- * command, and mobileCommands.test.ts wants a line deleted as soon as the phone
- * offers that command, and the entry deleted once no line points at it.
+ * The one gap written back since (`palette-command-reach`, 2026-09-24) was held
+ * from the code's side instead: MOBILE_ABSENT_COMMANDS pointed at it command by
+ * command, and mobileCommands.test.ts wanted a line deleted as soon as the
+ * phone offered that command, and the entry deleted once no line pointed at
+ * it. That is how it went on 2026-10-06 — the twelve lines and the entry left
+ * in one change — and the same mechanism waits for the next such gap.
  */
 export function findGuardContradictions(
   features: readonly ParityFeatureDef[],
@@ -681,25 +683,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "snapshot in a separate window. Mobile uses its full comparison screen " +
       "with the same line-change counts. Permanent by platform, not a backlog item.",
     verified: "2026-09-14",
-  },
-  {
-    id: "palette-command-reach",
-    title: "Reaching screen actions through the command palette",
-    area: "platform",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Each of these works on the phone, on a screen of its own, but the phone's " +
-      "palette does not list them yet: the comment overview (Comments), import, the " +
-      "index rebuild and the index.md overviews (Maintenance), backup now (the " +
-      "vault's detail screen), a new template (New from template), version history " +
-      "(the note's context), and from the note menu Markdown source, insert " +
-      "template, save as template, mailto and compose. Closing it takes a handler " +
-      "per command in mobileCommands.ts - for the note ones an event the note " +
-      "screen listens for, as rename does. MOBILE_ABSENT_COMMANDS names them one by " +
-      "one; in the maintainer's open-items plan since 2026-09-24.",
-    verified: "2026-09-24",
   },
   {
     id: "process-exit-diagnostics",

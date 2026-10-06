@@ -129,7 +129,7 @@ Fragt eine Vorlage etwas, stellt Plainva **alle** Fragen zusammen in einem Dialo
 
 **Vorlagen je Ordner**: Unter **Einstellungen → Vault → Inhalt & Struktur → Vorlagen** ordnest Du einem Ordner eine Vorlage zu — jede neue Notiz dort startet dann aus ihr, ohne dass Du etwas wählst. Die Zuordnung gilt auch für Unterordner; passen mehrere, gewinnt der längste Pfad (`Projekte/Kunden` schlägt `Projekte`). Genauso ordnest Du eine Vorlage einem **Notiztyp** zu; sie greift, wenn für den Ordner nichts hinterlegt ist — Ordner schlägt Typ. Über **Neue Notiz aus Vorlage …** (Rechtsklick im Dateibaum, Befehls-Palette oder Schnellöffner) wählst Du eine Vorlage ausdrücklich — das schlägt jede Zuordnung. Die Zuordnungen liegen in den Einstellungen, nicht in den Notizen, und reisen über die Einstellungs-Synchronisation auf Deine anderen Geräte.
 
-Vorlagen erstellen geht von überall: Die Befehls-Palette (`Strg+P`) bietet **Neue Vorlage erstellen** (eine frische Vorlage öffnet sich zum Bearbeiten) und **Aktuelle Notiz als Vorlage speichern** (kopiert die offene Notiz in den Vorlagen-Ordner). Vorlagen sind gewöhnliche Markdown-Dateien — bearbeite, benenne oder lösche sie direkt im Dateibaum.
+Vorlagen erstellen geht von überall: Die Befehls-Palette (`Strg+P`) bietet **Neue Vorlage erstellen** (eine frische Vorlage öffnet sich zum Bearbeiten) und **Aktuelle Notiz als Vorlage speichern** (kopiert die offene Notiz in den Vorlagen-Ordner). Vorlagen sind gewöhnliche Markdown-Dateien — bearbeite, benenne oder lösche sie direkt im Dateibaum. Auf dem Telefon stehen beide ebenfalls in der Befehlspalette (`>` im Suchfeld); für den zweiten öffnest Du sie aus dem **⋮**-Menü der Notiz → **Befehle**.
 
 ## Tägliche Notizen
 

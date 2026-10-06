@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-09-24
+Stan na: 2026-10-06
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -74,7 +74,7 @@ Nie musisz wysyłać z poziomu Plainva. To działa dla dowolnej notatki i nie wy
 
 - **Odpowiedz jako notatka** (przy wiadomości): tworzy notatkę zaadresowaną do nadawcy (`to:` we frontmatter) z zacytowanym oryginałem — napisz swoją odpowiedź w Plainva. Jeśli później wyślesz tę notatkę (lub zapiszesz ją jako szkic), adres `to:` trafia automatycznie do pola **Do**.
 - **Zapisz notatkę jako szkic w skrzynce** (paleta poleceń, przy dowolnej otwartej notatce): zapisuje notatkę jako **szkic we własnej skrzynce** przez IMAP — wybierz konto, odbiorcę i folder szkiców, a potem otwórz swój zwykły program pocztowy, sprawdź i wyślij stamtąd. Formatowanie jest zachowane.
-- **Wyślij notatkę e-mailem (mailto)** (paleta poleceń): otwiera Twój domyślny program pocztowy z notatką jako zwykłym tekstem (długie notatki są skracane).
+- **Wyślij notatkę e-mailem (mailto)** (paleta poleceń): otwiera Twój domyślny program pocztowy z notatką jako zwykłym tekstem (długie notatki są skracane). W telefonie menu **⋮** notatki → **Polecenia** pokazuje także to polecenie i polecenie wersji roboczej; wersja robocza otwiera się w edytorze wiadomości z notatką już w środku.
 - **Kopiuj notatkę jako tekst e-maila** (paleta poleceń): umieszcza notatkę w schowku z formatowaniem — wklej ją w dowolnym edytorze wiadomości.
 
 ## Podpis i adresy nadawcy

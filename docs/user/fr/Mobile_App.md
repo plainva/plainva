@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-06
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -30,6 +30,8 @@ C’est une version préliminaire : garde une sauvegarde de ton vault et dis-moi
 Les notes s'ouvrent **rendues et en lecture seule** ; le crayon en haut à droite bascule en mode d'édition (avec une barre d'outils au-dessus du clavier : mise en forme, listes, lien wiki, commandes slash, insertion de photo). Les inclusions `![[Note]]` apparaissent sous forme de cartes d'aperçu à toucher.
 
 Maintiens un mot appuyé pour sélectionner du texte. La barre de sélection propose **Copier** et **Tout sélectionner**, y compris pour copier le texte intégral d’une longue note. Les propriétés YAML masquées et les marques de formatage Markdown ne sont pas copiées. **Modifier** passe à l’écriture au passage sélectionné si tu peux modifier la note.
+
+**La palette de commandes** est le champ de recherche : touchez la loupe et saisissez `>` ; à la place des notes s'affichent des commandes, dont l'import, une sauvegarde, la reconstruction de l'index et les commentaires ouverts. Depuis une note ouverte, le menu **⋮** propose **Commandes** ; la palette liste alors aussi ce qui agit sur cette note : renommer, historique des versions, source Markdown, modèles et envoi par e-mail.
 
 Les dossiers se **cherchent** et se **trient** depuis la barre au-dessus de la liste — par **Titre**, **Dernière modification** ou **Création** ; choisir à nouveau inverse le sens, et le tri est mémorisé sur l’appareil. Au démarrage à froid, l’app rouvre ce que vous aviez ouvert en dernier — note, dossier ou vue de base de données, onglet compris — et chaque note s’ouvre là où vous l’aviez laissée ; les assistants de configuration et un e-mail inachevé ne sont pas restaurés. Les listes avec sous-éléments se replient et se déplient d’un toucher sur leur puce.
 

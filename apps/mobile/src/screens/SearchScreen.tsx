@@ -41,12 +41,22 @@ export function SearchScreen({
   onBack,
   onOpenNote,
   commands,
+  onLeaveForCommand,
 }: {
   vault: MobileVault;
   onBack: () => void;
   onOpenNote: (path: string) => void;
   /** What this shell can do — the shared registry, mobile deps (S15). */
   commands: AppCommand[];
+  /**
+   * Takes this surface off the stack AT ONCE, before a chosen command runs.
+   * `onBack` cannot do that: it asks about unsaved input first and so lands a
+   * microtask later — after the command's own navigation, which it then
+   * removed again. "Open settings" from the palette pushed the settings and
+   * popped them in the same breath (the #47 class: pop-then-push is not
+   * simultaneous). A search field has nothing to discard, so no question.
+   */
+  onLeaveForCommand: () => void;
 }) {
   const { t } = useTranslation();
   const restore = useRef(recallSearchSession(vault.vaultId));
@@ -186,9 +196,10 @@ export function SearchScreen({
     return (
       <button
         className="m-row"
+        data-testid={`command-${c.id}`}
         key={c.id}
         onClick={() => {
-          onBack();
+          onLeaveForCommand();
           c.run();
         }}
       >

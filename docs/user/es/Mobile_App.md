@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-09-30
+Última actualización: 2026-10-06
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -30,6 +30,8 @@ Es una versión temprana: guarda una copia de seguridad de tu vault y cuéntame 
 Las notas se abren **renderizadas y de solo lectura**; el lápiz de arriba a la derecha cambia al modo de edición (con una barra de herramientas sobre el teclado: formato, listas, enlace interno, comandos de barra oblicua, insertar foto). Las inclusiones `![[Nota]]` aparecen como tarjetas de vista previa que se pueden tocar.
 
 Mantén pulsada una palabra para seleccionar texto. La barra de selección ofrece **Copiar** y **Seleccionar todo**, también para copiar el texto completo de una nota larga. No se copian las propiedades YAML ocultas ni los marcadores de formato Markdown. **Editar** permite escribir en el pasaje seleccionado si tienes permiso para editar la nota.
+
+**La paleta de comandos** es el campo de búsqueda: toca la lupa y escribe `>`; en lugar de notas aparecen comandos, entre ellos la importación, una copia de seguridad, la reconstrucción del índice y los comentarios abiertos. Desde una nota abierta, el menú **⋮** tiene **Comandos**; la paleta muestra entonces también lo que actúa sobre esa nota: renombrar, historial de versiones, código Markdown, plantillas y el envío por correo.
 
 Las carpetas se pueden **buscar** y **ordenar** desde la barra sobre la lista: por **Título**, **Última modificación** o **Creación**; elegir de nuevo invierte la dirección, y el orden se recuerda en el dispositivo. En un arranque en frío la app abre lo que tenías abierto por última vez — nota, carpeta o vista de base de datos, pestaña incluida — y cada nota se abre donde la dejaste; los asistentes de configuración y un correo sin terminar no se restauran. Las listas con subelementos se pliegan y despliegan con un toque en su viñeta.
 

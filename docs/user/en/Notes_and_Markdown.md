@@ -129,7 +129,7 @@ When a template asks something, Plainva asks **everything** in one dialog before
 
 **Templates per folder**: under **Settings → Vault → Content & structure → Templates** you map a folder to a template — every new note there then starts from it, without you choosing anything. The mapping also covers subfolders; when several match, the longest path wins (`Projects/Clients` beats `Projects`). You map a template to a **note type** the same way; it applies when no folder rule covers the note — folder beats type. **New note from template …** (right-click in the file tree, the command palette or the quick switcher) lets you pick one explicitly — that beats every mapping. The mappings live in the settings, not in the notes, and travel to your other devices through the settings sync.
 
-Creating templates works from anywhere: the command palette (`Ctrl+P`) offers **Create new template** (a fresh template opens for editing) and **Save current note as template** (copies the open note into the template folder). Templates are ordinary Markdown files — edit, rename or delete them right in the file tree.
+Creating templates works from anywhere: the command palette (`Ctrl+P`) offers **Create new template** (a fresh template opens for editing) and **Save current note as template** (copies the open note into the template folder). Templates are ordinary Markdown files — edit, rename or delete them right in the file tree. On the phone both are in the command palette as well (`>` in the search field); for the second one, open it from the note's **⋮** menu → **Commands**.
 
 ## Daily notes
 

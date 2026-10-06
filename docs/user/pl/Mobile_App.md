@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-09-30
+Stan na: 2026-10-06
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -30,6 +30,8 @@ To wczesna wersja: miej kopię zapasową swojego sejfu i daj znać, co nie dzia�
 Notatki otwierają się **wyrenderowane i tylko do odczytu**; ikona pióra w prawym górnym rogu przełącza na edycję (z paskiem narzędzi nad klawiaturą: formatowanie, listy, link wiki, polecenia slash, wstawianie zdjęcia). Osadzenia `![[Notatka]]` pojawiają się jako klikalne karty podglądu.
 
 Przytrzymaj słowo, aby zaznaczyć tekst. Pasek zaznaczenia oferuje **Kopiuj** i **Zaznacz wszystko**, także do kopiowania całego tekstu długiej notatki. Ukryte właściwości YAML i znaczniki formatowania Markdown nie są kopiowane. **Edytuj** przełącza do pisania w zaznaczonym miejscu, jeśli masz uprawnienia do edycji notatki.
+
+**Paleta poleceń** to pole wyszukiwania: dotknij lupy i wpisz `>` — zamiast notatek pojawią się polecenia, między innymi import, kopia zapasowa, przebudowa indeksu i otwarte komentarze. Z otwartej notatki prowadzi tam menu **⋮** z pozycją **Polecenia**; paleta pokazuje wtedy także to, co dotyczy tej notatki: zmianę nazwy, historię wersji, źródło Markdown, szablony i wysyłkę e-mailem.
 
 Foldery można **przeszukiwać** i **sortować** z paska narzędzi nad listą — według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór odwraca kierunek, a sortowanie jest zapamiętywane na urządzeniu. Przy zimnym starcie aplikacja otwiera to, co było ostatnio otwarte — notatkę, folder lub widok bazy danych wraz z kartą — a każda notatka otwiera się tam, gdzie ją zostawiono; asystenci konfiguracji i nieukończona wiadomość nie są przywracane. Listy z podelementami zwija się i rozwija dotknięciem ich punktora.
 

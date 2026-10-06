@@ -129,7 +129,7 @@ Als een sjabloon iets vraagt, stelt Plainva **alle** vragen in één dialoogvens
 
 **Sjablonen per map**: onder **Instellingen → Vault → Inhoud en structuur → Sjablonen** koppel je een map aan een sjabloon — elke nieuwe notitie die daar wordt aangemaakt, start dan vanuit dat sjabloon, zonder dat je iets hoeft te kiezen. De koppeling geldt ook voor submappen; komen er meerdere overeen, dan wint het langste pad (`Projecten/Klanten` wint van `Projecten`). Op dezelfde manier koppel je een sjabloon aan een **notitietype**; dat geldt wanneer geen enkele mapregel de notitie dekt — map wint van type. **Nieuwe notitie vanuit sjabloon …** (rechtsklik in de bestandsboom, het opdrachtenpalet of de snelkiezer) laat je er expliciet één kiezen — dat wint van elke koppeling. De koppelingen leven in de instellingen, niet in de notities, en reizen via de instellingensynchronisatie mee naar je andere apparaten.
 
-Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw sjabloon maken** (een nieuw sjabloon opent om te bewerken) en **Huidige notitie opslaan als sjabloon** (kopieert de open notitie naar de sjablonenmap). Sjablonen zijn gewone Markdown-bestanden — bewerk, hernoem of verwijder ze direct in de bestandsboom.
+Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw sjabloon maken** (een nieuw sjabloon opent om te bewerken) en **Huidige notitie opslaan als sjabloon** (kopieert de open notitie naar de sjablonenmap). Sjablonen zijn gewone Markdown-bestanden — bewerk, hernoem of verwijder ze direct in de bestandsboom. Op de telefoon staan beide ook in het opdrachtenpalet (`>` in het zoekveld); voor de tweede open je het vanuit het **⋮**-menu van de notitie → **Opdrachten**.
 
 ## Dagelijkse notities
 

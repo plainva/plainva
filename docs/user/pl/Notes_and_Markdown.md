@@ -129,7 +129,7 @@ Gdy szablon o coś pyta, Plainva zadaje **wszystkie** pytania w jednym oknie dia
 
 **Szablony dla folderów**: w **Ustawieniach → Vault → Treść i struktura → Szablony** przypisujesz folderowi szablon — każda nowa notatka powstająca tam zaczyna się wtedy od niego, bez żadnego wyboru z Twojej strony. Przypisanie obejmuje też podfoldery; gdy pasuje ich kilka, wygrywa najdłuższa ścieżka (`Projects/Clients` wygrywa z `Projects`). W ten sam sposób przypisujesz szablon do **typu notatki**; obowiązuje, gdy żadna reguła folderu nie obejmuje notatki — folder wygrywa z typem. **Nowa notatka z szablonu …** (kliknięcie prawym przyciskiem myszy w drzewie plików, paleta poleceń lub szybkie przełączanie) pozwala Ci wybrać jeden wprost — to wygrywa z każdym przypisaniem. Przypisania mieszkają w ustawieniach, nie w notatkach, i podróżują na Twoje inne urządzenia przez synchronizację ustawień.
 
-Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) oferuje **Utwórz nowy szablon** (otwiera się nowy szablon do edycji) oraz **Zapisz bieżącą notatkę jako szablon** (kopiuje otwartą notatkę do folderu szablonów). Szablony to zwykłe pliki Markdown — edytuj, zmieniaj nazwę lub usuwaj je bezpośrednio w drzewie plików.
+Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) oferuje **Utwórz nowy szablon** (otwiera się nowy szablon do edycji) oraz **Zapisz bieżącą notatkę jako szablon** (kopiuje otwartą notatkę do folderu szablonów). Szablony to zwykłe pliki Markdown — edytuj, zmieniaj nazwę lub usuwaj je bezpośrednio w drzewie plików. W telefonie oba są także w palecie poleceń (`>` w polu wyszukiwania); dla drugiego otwórz ją z menu **⋮** notatki → **Polecenia**.
 
 ## Notatki dzienne
 

@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-06
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -30,6 +30,8 @@ L’app mobile è in **test aperto** su Google Play. Su **Android** si entra dir
 Le note si aprono **renderizzate e in sola lettura**; la penna in alto a destra passa alla modifica (con una barra degli strumenti sopra la tastiera: formattazione, elenchi, wiki-link, comandi slash, inserisci foto). Gli incorporamenti `![[Nota]]` appaiono come schede di anteprima toccabili.
 
 Tieni premuta una parola per selezionare il testo. La barra di selezione offre **Copia** e **Seleziona tutto**, anche per copiare l’intero testo di una nota lunga. Le proprietà YAML nascoste e i marcatori di formattazione Markdown non vengono copiati. **Modifica** passa alla scrittura nel punto selezionato se puoi modificare la nota.
+
+**La palette dei comandi** è il campo di ricerca: tocca la lente e digita `>`; al posto delle note compaiono i comandi, tra cui l'importazione, un backup, la ricostruzione dell'indice e i commenti aperti. Da una nota aperta, il menu **⋮** ha **Comandi**; la palette elenca allora anche ciò che agisce su quella nota: rinomina, cronologia delle versioni, sorgente Markdown, modelli e invio via e-mail.
 
 Le cartelle si possono **cercare** e **ordinare** dalla barra sopra l’elenco: per **Titolo**, **Ultima modifica** o **Creazione**; scegliere di nuovo inverte la direzione, e l’ordinamento viene ricordato sul dispositivo. All’avvio a freddo l’app riapre ciò che avevi aperto per ultimo — nota, cartella o vista del database, scheda compresa — e ogni nota si apre dove l’avevi lasciata; le procedure guidate di configurazione e un’e-mail non terminata non vengono ripristinate. Gli elenchi con sottovoci si ripiegano e riaprono con un tocco sul loro punto.
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Download, FileClock, FileCog, FileUp, ListTree, RefreshCw } from "lucide-react";
-import { GroupCard, ICON, Row, RowList, SectionLabel, okfBundleStatusLines, toast } from "@plainva/ui";
+import { GroupCard, ICON, Row, RowList, SectionLabel, okfBundleStatusLines } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { DeletedFilesSheet } from "../components/DeletedFilesSheet";
+import { rebuildVaultIndex } from "../services/indexMaintenance";
 import { scanVaultOkfVersion } from "../services/okfMigration";
 import type { MobileVault } from "../services/vaultService";
 
@@ -79,19 +80,12 @@ export function MaintenanceAreaScreen({
 
   const rebuildIndex = () => {
     setBusy(true);
-    void vault.indexer
-      ?.indexVaultFull()
-      .then(async () => {
-        setStats(await loadStats());
-        // The index is invisible; without a word the button just goes quiet and
-        // the user cannot tell a finished rebuild from a swallowed one.
-        toast.success(t("settings.rebuildIndexDone"));
-        window.dispatchEvent(new CustomEvent("m-index-changed"));
+    // The run and its two outcome messages live in services/indexMaintenance,
+    // shared with the palette's command; the screen adds what only it shows.
+    void rebuildVaultIndex(vault)
+      .then(async (done) => {
+        if (done) setStats(await loadStats());
       })
-      // Both branches used to emit the SECTION HEADING — the same outcome-free
-      // word whether the rebuild finished or was swallowed, which is exactly
-      // what the comment above says must not happen (S45).
-      .catch(() => toast.warning(t("settings.rebuildIndexFailed")))
       .finally(() => setBusy(false));
   };
 

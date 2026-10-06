@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -30,6 +30,8 @@ Es ist eine frühe Version: Halte eine Sicherung Deines Vaults bereit und sag Be
 Notizen öffnen **gerendert und schreibgeschützt**; der Stift oben rechts wechselt ins Bearbeiten (mit Werkzeugleiste über der Tastatur: Formatierung, Listen, Wiki-Link, Slash-Befehle, Foto einfügen). `![[Notiz]]`-Einbettungen erscheinen als antippbare Vorschau-Karten.
 
 Halte ein Wort gedrückt, um Text zu markieren. Die Auswahlleiste bietet **Kopieren** und **Alles auswählen**; damit lässt sich auch eine lange Notiz vollständig kopieren. Verborgene YAML-Eigenschaften und Markdown-Formatzeichen werden dabei nicht mitkopiert. **Bearbeiten** wechselt genau an der markierten Stelle ins Schreiben, sofern Du die Notiz bearbeiten darfst.
+
+**Die Befehlspalette** ist das Suchfeld: Tippe auf die Lupe und gib `>` ein — statt Notizen stehen dort Befehle, darunter der Import, eine Sicherung, der Neuaufbau des Index und die offenen Kommentare. Aus einer offenen Notiz führt das **⋮**-Menü mit **Befehle** dorthin; dann listet die Palette auch, was diese Notiz betrifft: Umbenennen, Versionsverlauf, Markdown-Quelltext, Vorlagen und den Versand per E-Mail.
 
 Ordner lassen sich über die Werkzeugzeile über der Liste **durchsuchen** und **sortieren** — nach **Titel**, **Zuletzt geändert** oder **Erstellt**, die zweite Wahl kehrt die Richtung um; die Sortierung merkt sich das Gerät. Beim Kaltstart öffnet die App, was Du zuletzt offen hattest — Notiz, Ordner oder Datenbank-Ansicht samt Reiter — und jede Notiz öffnet an der Stelle, an der Du sie verlassen hast; Einrichtungs-Assistenten und eine angefangene Mail werden nicht wiederhergestellt. Listen mit Untereinträgen klappst Du mit einem Tipp auf ihren Punkt ein und wieder aus.
 

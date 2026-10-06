@@ -141,6 +141,20 @@ export async function runVaultBackup(vault: MobileVault, name: string): Promise<
 }
 
 /**
+ * A backup the user asked for, with its answer: the archive's name, or that it
+ * failed. One function for the vault screen's "back up now" row and the
+ * palette's command, so the two cannot report differently.
+ */
+export async function backupVaultNow(vault: MobileVault, name: string): Promise<void> {
+  try {
+    const file = await runVaultBackup(vault, name);
+    toast.info(file ? i18n.t("mobile.backupZipDone", { name: file }) : i18n.t("mobile.vaultExportFailed"));
+  } catch {
+    toast.warning(i18n.t("mobile.vaultExportFailed"));
+  }
+}
+
+/**
  * Catch-up check: runs an archive if one is due. Called on vault open and on
  * return to the foreground. A failed automatic run reports the vault by name;
  * the previous successful timestamp remains unchanged so the next check retries.

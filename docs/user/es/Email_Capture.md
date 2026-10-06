@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-09-24
+Última actualización: 2026-10-06
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -74,7 +74,7 @@ No tienes que enviar desde dentro de Plainva. Esto funciona con cualquier nota y
 
 - **Responder como nota** (en un mensaje): crea una nota dirigida al remitente (`to:` en el frontmatter) con el original citado — escribe tu respuesta en Plainva. Si más tarde envías esta nota (o la guardas como borrador), la dirección `to:` pasa automáticamente al campo **Para**.
 - **Guardar la nota como borrador en el buzón** (paleta de comandos, en cualquier nota abierta): guarda la nota como un **borrador en tu propio buzón** por IMAP — elige la cuenta, el destinatario y la carpeta de borradores, luego abre tu programa de correo habitual, revisa y envía desde ahí. El formato se conserva.
-- **Enviar la nota por correo (mailto)** (paleta de comandos): abre tu programa de correo predeterminado con la nota como texto sin formato (las notas largas se acortan).
+- **Enviar la nota por correo (mailto)** (paleta de comandos): abre tu programa de correo predeterminado con la nota como texto sin formato (las notas largas se acortan). En el teléfono, el menú **⋮** de la nota → **Comandos** muestra también este comando y el del borrador; el borrador se abre en el editor de correo con la nota ya dentro.
 - **Copiar la nota como texto de correo** (paleta de comandos): pone la nota en el portapapeles con formato — pégala en cualquier editor de correo.
 
 ## Firma y direcciones de remitente

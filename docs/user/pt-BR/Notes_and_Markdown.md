@@ -129,7 +129,7 @@ Quando um modelo pergunta algo, o Plainva faz **todas** as perguntas em um únic
 
 **Modelos por pasta**: em **Configurações → Vault → Conteúdo e estrutura → Modelos** você associa uma pasta a um modelo — toda nova nota criada ali parte então dele, sem que você escolha nada. A associação também cobre subpastas; quando várias correspondem, vence o caminho mais longo (`Projects/Clients` vence `Projects`). Você associa um modelo a um **tipo de nota** da mesma forma; aplica-se quando nenhuma regra de pasta cobre a nota — a pasta vence o tipo. **Nova nota a partir de modelo …** (clique com o botão direito na árvore de arquivos, a paleta de comandos ou o alternador rápido) permite escolher um explicitamente — isso vence qualquer associação. As associações vivem nas configurações, não nas notas, e viajam para seus outros dispositivos através da sincronização das configurações.
 
-Criar modelos funciona de qualquer lugar: a paleta de comandos (`Ctrl+P`) oferece **Criar novo modelo** (um modelo novo abre para edição) e **Salvar a nota atual como modelo** (copia a nota aberta para a pasta de modelos). Modelos são arquivos Markdown comuns — edite, renomeie ou exclua-os diretamente na árvore de arquivos.
+Criar modelos funciona de qualquer lugar: a paleta de comandos (`Ctrl+P`) oferece **Criar novo modelo** (um modelo novo abre para edição) e **Salvar a nota atual como modelo** (copia a nota aberta para a pasta de modelos). Modelos são arquivos Markdown comuns — edite, renomeie ou exclua-os diretamente na árvore de arquivos. No telefone, os dois também estão na paleta de comandos (`>` no campo de busca); para o segundo, abra-a pelo menu **⋮** da nota → **Comandos**.
 
 ## Notas diárias
 

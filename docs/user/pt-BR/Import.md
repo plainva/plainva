@@ -1,10 +1,10 @@
 # Importar de outro aplicativo
 
-Última revisão: 2026-09-17
+Última revisão: 2026-10-06
 
 O Plainva importa notas de outros aplicativos para um novo vault ou uma subpasta com nome novo do vault aberto. O restante fica intacto; depois você pode mover ou excluir a pasta importada.
 
-**A importação funciona nos dois dispositivos, com as mesmas fontes.** No desktop, a tela de boas-vindas, a paleta de comandos e o menu de contexto de uma pasta levam até ela; no telefone, você a encontra em **Configurações → Manutenção → Importar de outro aplicativo**. As fontes que precisam de acesso a um serviço — o Notion pela API — também estão disponíveis lá.
+**A importação funciona nos dois dispositivos, com as mesmas fontes.** No desktop, a tela de boas-vindas, a paleta de comandos e o menu de contexto de uma pasta levam até ela; no telefone, você a encontra em **Configurações → Manutenção → Importar de outro aplicativo**. As fontes que precisam de acesso a um serviço — o Notion pela API — também estão disponíveis lá. A paleta de comandos do telefone (`>` no campo de busca) também leva até ela.
 
 ## Iniciando uma importação
 

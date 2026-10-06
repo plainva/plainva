@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-09-24
+Stand: 2026-10-06
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -74,7 +74,7 @@ Du musst nicht aus Plainva heraus senden. Das hier funktioniert an jeder Notiz u
 
 - **Antwort als Notiz** (an einer Nachricht): erstellt eine Notiz an den Absender (`to:` im Frontmatter) mit dem zitierten Original — schreib Deine Antwort in Plainva. Versendest Du diese Notiz später (oder legst sie als Entwurf ab), wird die `to:`-Adresse automatisch ins **An**-Feld übernommen.
 - **Notiz als E-Mail-Entwurf ins Postfach** (Befehlspalette, an jeder offenen Notiz): legt die Notiz per IMAP als **Entwurf in Dein eigenes Postfach** — Konto, Empfänger und Entwurfsordner wählen, dann im normalen Mail-Programm öffnen, prüfen und von dort senden. Die Formatierung bleibt erhalten.
-- **Notiz per E-Mail senden (mailto)** (Befehlspalette): öffnet Dein Standard-Mail-Programm mit der Notiz als reinem Text (lange Notizen werden gekürzt).
+- **Notiz per E-Mail senden (mailto)** (Befehlspalette): öffnet Dein Standard-Mail-Programm mit der Notiz als reinem Text (lange Notizen werden gekürzt). Auf dem Telefon listet das **⋮**-Menü der Notiz → **Befehle** diesen Befehl und den für den Entwurf ebenfalls; der Entwurf öffnet den Mail-Editor mit der Notiz darin.
 - **Notiz als E-Mail-Text kopieren** (Befehlspalette): legt die Notiz mit Formatierung in die Zwischenablage — in jeden Editor einfügbar.
 
 ## Signatur und Absender-Adressen

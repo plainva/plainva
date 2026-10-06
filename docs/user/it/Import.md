@@ -1,10 +1,10 @@
 # Importare da un'altra app
 
-Ultimo aggiornamento: 2026-09-17
+Ultimo aggiornamento: 2026-10-06
 
 Plainva importa note da altre app in un nuovo vault o in una sottocartella con un nome nuovo del vault aperto. Il resto rimane invariato; puoi poi spostare o eliminare la cartella importata.
 
-**L'importazione funziona su entrambi i dispositivi, con le stesse sorgenti.** Sul desktop ci si arriva dalla schermata di benvenuto, dalla palette dei comandi e dal menu contestuale di una cartella; sul telefono la trovi in **Impostazioni → Manutenzione → Importa da un'altra app**. Anche le sorgenti che richiedono l'accesso a un servizio — Notion tramite la sua API — sono disponibili lì.
+**L'importazione funziona su entrambi i dispositivi, con le stesse sorgenti.** Sul desktop ci si arriva dalla schermata di benvenuto, dalla palette dei comandi e dal menu contestuale di una cartella; sul telefono la trovi in **Impostazioni → Manutenzione → Importa da un'altra app**. Anche le sorgenti che richiedono l'accesso a un servizio — Notion tramite la sua API — sono disponibili lì. Anche la palette dei comandi del telefono (`>` nel campo di ricerca) porta lì.
 
 ## Avviare un'importazione
 

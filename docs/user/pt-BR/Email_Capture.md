@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-09-24
+Última revisão: 2026-10-06
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -74,7 +74,7 @@ Você não precisa enviar de dentro do Plainva. Isto funciona com qualquer nota 
 
 - **Responder como nota** (em uma mensagem): cria uma nota endereçada ao remetente (`to:` no frontmatter) com o original citado — escreva sua resposta no Plainva. Se você enviar esta nota mais tarde (ou a salvar como rascunho), o endereço `to:` é levado automaticamente para o campo **Para**.
 - **Salvar nota como rascunho na caixa de correio** (paleta de comandos, em qualquer nota aberta): grava a nota como um **rascunho na sua própria caixa de correio** via IMAP — escolha a conta, o destinatário e a pasta de rascunhos, depois abra seu programa de e-mail normal, revise e envie por lá. A formatação é preservada.
-- **Enviar nota por e-mail (mailto)** (paleta de comandos): abre seu programa de e-mail padrão com a nota como texto simples (notas longas são encurtadas).
+- **Enviar nota por e-mail (mailto)** (paleta de comandos): abre seu programa de e-mail padrão com a nota como texto simples (notas longas são encurtadas). No telefone, o menu **⋮** da nota → **Comandos** também lista este comando e o do rascunho; o rascunho abre no editor de mensagem com a nota já inserida.
 - **Copiar nota como texto de e-mail** (paleta de comandos): coloca a nota na área de transferência com formatação — cole em qualquer editor de e-mail.
 
 ## Assinatura e endereços de remetente

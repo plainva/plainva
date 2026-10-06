@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { taskViewStore, toast } from "@plainva/ui";
+import { rememberSearchSession, taskViewStore, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import { COMMAND_PREFIX } from "./lib/searchMode";
 import { connectDevicePimAccount } from "./services/pim/pimService";
 import { devicePermissionKey } from "./services/pim/devicePermission";
 import type { MobileVault } from "./services/vaultService";
-import type { NavEntry, NavKind, NavState, TabScreenId } from "./navigation";
+import { popTop, type NavEntry, type NavKind, type NavState, type TabScreenId } from "./navigation";
 import type { AppCommand, AreaOrder } from "@plainva/ui";
 import { BaseScreen } from "./screens/base/BaseScreen";
 import { PinboardEntryScreen } from "./screens/base/PinboardEntryScreen";
@@ -317,6 +318,12 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
           path: JSON.stringify({ accountId: "", to: "", subject: d.subject, body: d.body, attachments: d.attachments }),
         })
       }
+      onOpenCommands={() => {
+        // The palette is the search field in its command mode; it opens over
+        // the note, and the note commands act on the one underneath.
+        rememberSearchSession(c.vault.vaultId, COMMAND_PREFIX, 0);
+        c.push({ kind: "search", path: "" });
+      }}
       onOpenNote={c.openNote}
       onOpenTag={(tag) => c.push({ kind: "tags", path: tag })}
       onRenamed={(newPath) => retargetTop(c.setNav, newPath)}
@@ -326,7 +333,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   ),
   appearance: (_e, c) => <AppearanceScreen onBack={c.pop} onEditCustomTheme={() => c.push({ kind: "customtheme", path: "" })} />,
   customtheme: (_e, c) => <CustomThemeScreen onBack={c.pop} />,
-  search: (_e, c) => <SearchScreen commands={c.commands} onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
+  search: (_e, c) => <SearchScreen commands={c.commands} onBack={c.pop} onLeaveForCommand={() => c.setNav(popTop)} onOpenNote={c.openNote} vault={c.vault} />,
   findreplace: (_e, c) => <FindReplaceScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   overviews: (_e, c) => <OverviewsScreen onBack={c.pop} vault={c.vault} />,
   more: (_e, c) => (

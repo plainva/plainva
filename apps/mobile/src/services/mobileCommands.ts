@@ -1,4 +1,5 @@
-import { buildAppCommands, type AppCommand, type CommandDeps } from "@plainva/ui";
+import { buildAppCommands, resolveOpenAction, type AppCommand, type CommandDeps } from "@plainva/ui";
+import { requestNoteCommand, type NoteCommand } from "./noteCommands";
 
 /**
  * What the phone can actually do, expressed as command deps (S15).
@@ -37,23 +38,46 @@ export interface MobileCommandHost {
   openSettings: () => void;
   switchVault: () => void;
   refreshVault: () => void;
-  /** The open note, or null — gates the note-scoped commands. */
+  /**
+   * What the phone serves on a screen of its own and the palette now reaches
+   * too (parity gap palette-command-reach, closed 2026-10-06). Each one leads
+   * to the surface or runs the function that surface runs — never a second
+   * implementation: the template prompt, the comments area, the import
+   * wizard, the vault archive, the index rebuild, the overviews list.
+   */
+  newTemplate?: () => void;
+  openComments?: () => void;
+  openImport?: () => void;
+  backupNow?: () => void;
+  rebuildIndex?: () => void;
+  updateIndexes?: () => void;
+  /**
+   * The note a command acts on, or null — gates the note-scoped commands. The
+   * palette covers the note it was opened over, so this is that note, not
+   * "the top of the stack" (which is the palette itself).
+   */
   activeNote: () => string | null;
   /**
-   * The note-scoped actions. Each defaults to the window event the open note
-   * already listens for, so the shell does not carry a second copy of the
-   * event names — they are not app state, they are this module's contract with
-   * the note screen.
+   * The note-scoped actions. Each defaults to a request the note screen takes
+   * (services/noteCommands), so the shell does not carry a second copy of the
+   * names — they are not app state, they are this module's contract with the
+   * note screen.
    */
   renameActive?: () => void;
   toggleReadEdit?: () => void;
   exportActive?: () => void;
+  toggleSource?: () => void;
+  insertTemplate?: () => void;
+  saveAsTemplate?: () => void;
+  sendViaMailto?: () => void;
+  composeMail?: () => void;
+  showVersionHistory?: () => void;
 }
 
-/** Fires the event the open note listens for. */
-const noteEvent = (name: string) => () => window.dispatchEvent(new CustomEvent(name));
-
 export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
+  /** Asks the note the palette was opened over; the note screen carries it out. */
+  const ask = (command: NoteCommand) => () => requestNoteCommand(h.activeNote(), command);
+  const hasNote = () => h.activeNote() !== null;
   const deps: CommandDeps = {
     newItem: (kind, opts) => {
       if (kind === "folder") h.newFolder();
@@ -77,24 +101,56 @@ export function buildMobileCommands(h: MobileCommandHost): AppCommand[] {
     openSettings: h.openSettings,
     switchVault: h.switchVault,
     refreshVault: h.refreshVault,
-    renameActive: h.renameActive ?? noteEvent("m-note-rename"),
-    toggleReadEdit: h.toggleReadEdit ?? noteEvent("m-note-toggle-edit"),
+    createTemplate: h.newTemplate,
+    openComments: h.openComments,
+    openImport: h.openImport,
+    backupNow: h.backupNow,
+    rebuildIndex: h.rebuildIndex,
+    // The desktop's command refreshes every managed index.md in one go; the
+    // phone's surface for that is the overviews list, folder by folder, so
+    // the command leads there instead of growing a bulk run of its own.
+    updateAllIndexes: h.updateIndexes,
+    renameActive: h.renameActive ?? ask("rename"),
+    toggleReadEdit: h.toggleReadEdit ?? ask("toggle-edit"),
     // Points at the FILE export, not at sharing the text (fixed 2026-08-20 —
     // it mapped to shareActive, so the command named "export as Markdown"
     // handed out plain text that cannot be reopened as the note).
-    exportActiveMarkdown: h.exportActive ?? noteEvent("m-note-export"),
+    exportActiveMarkdown: h.exportActive ?? ask("export"),
+    toggleSourceMode: h.toggleSource ?? ask("toggle-source"),
+    openTemplatePicker: h.insertTemplate ?? ask("insert-template"),
+    saveActiveAsTemplate: h.saveAsTemplate ?? ask("save-as-template"),
+    sendNoteViaMailto: h.sendViaMailto ?? ask("mailto"),
+    // The desktop asks for the account and files the draft; the phone's way
+    // is its composer with the note already in it, which picks the account and
+    // files the message in that account's drafts folder (S29) — the note
+    // menu's "send via email" entry, and the same one here.
+    saveNoteAsMailDraft: h.composeMail ?? ask("compose-mail"),
+    // The registry hands over the path; the request carries it already.
+    showVersionHistory: h.showVersionHistory ?? ask("history"),
     activePath: h.activeNote,
     // Gates every note-scoped command, not just print (renamed 2026-08-20 —
     // as `canPrint` it read like a print flag on a shell that cannot print,
     // and was written down as dead. Read/edit and the Markdown export hang
     // off it here).
-    hasActiveNote: () => h.activeNote() !== null,
+    hasActiveNote: hasNote,
     // Everything else is absent on purpose, and MOBILE_ABSENT_COMMANDS below
     // names each command with the catalog entry that says why. (Sharing the
     // note as text was supplied here once and never read — the note screen
     // has its own share action; removed 2026-08-21.)
   };
-  return buildAppCommands(deps);
+  // Two gates the shared registry does not carry, because the desktop does not
+  // need them: its template picker is a modal of the shell and opens without a
+  // note, the phone's belongs to the open editor; and a plain-text file
+  // (`.csv`, `.txt`) is opened by the note screen but has one mode only, which
+  // is why the note menu leaves "Markdown source" out for it as well.
+  const gates: Record<string, () => boolean> = {
+    "insert-template": hasNote,
+    "toggle-source": () => {
+      const path = h.activeNote();
+      return path !== null && resolveOpenAction(path) !== "text";
+    },
+  };
+  return buildAppCommands(deps).map((c) => (gates[c.id] ? { ...c, isAvailable: gates[c.id] } : c));
 }
 
 /**
@@ -126,17 +182,4 @@ export const MOBILE_ABSENT_COMMANDS: Readonly<Record<string, string>> = {
   "mail-copy-html": "note-copy-as-email",
   "toggle-theme": "theme-quick-toggle",
   "show-shortcuts": "keyboard-shortcuts",
-  // Served on a screen of its own, but not from the palette yet — a gap.
-  "template-new": "palette-command-reach",
-  "open-comments": "palette-command-reach",
-  "import-pkm": "palette-command-reach",
-  "backup-now": "palette-command-reach",
-  "rebuild-index": "palette-command-reach",
-  "update-indexes": "palette-command-reach",
-  "version-history": "palette-command-reach",
-  "insert-template": "palette-command-reach",
-  "template-from-note": "palette-command-reach",
-  "toggle-source": "palette-command-reach",
-  "mail-mailto": "palette-command-reach",
-  "mail-draft": "palette-command-reach",
 };

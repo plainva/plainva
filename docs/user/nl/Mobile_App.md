@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-06
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -30,6 +30,8 @@ Het is een vroege build: houd een back-up van je vault en laat me weten wat er m
 Notities openen **weergegeven en alleen-lezen**; de pen rechtsboven schakelt over naar bewerken (met een werkbalk boven het toetsenbord: opmaak, lijsten, wiki-link, slash-commando's, foto invoegen). `![[Notitie]]`-embeds verschijnen als aantikbare voorbeeldkaarten.
 
 Houd een woord ingedrukt om tekst te selecteren. De selectiebalk biedt **Kopiëren** en **Alles selecteren**, ook om de volledige tekst van een lange notitie te kopiëren. Verborgen YAML-eigenschappen en Markdown-opmaaktekens worden niet gekopieerd. **Bewerken** schakelt over naar schrijven op de geselecteerde plek als je de notitie mag bewerken.
+
+**Het opdrachtenpalet** is het zoekveld: tik op het vergrootglas en typ `>`; in plaats van notities staan er opdrachten, waaronder importeren, een back-up, het opnieuw opbouwen van de index en de openstaande opmerkingen. Vanuit een open notitie heeft het **⋮**-menu **Opdrachten**; het palet toont dan ook wat op die notitie werkt: hernoemen, versiegeschiedenis, Markdown-bron, sjablonen en versturen per e-mail.
 
 Mappen kun je vanuit de werkbalk boven de lijst **doorzoeken** en **sorteren** — op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; nogmaals kiezen keert de richting om, en de sortering wordt op het apparaat onthouden. Bij een koude start opent de app wat je het laatst open had — notitie, map of databaseweergave, tabblad inbegrepen — en elke notitie opent waar je haar verliet; installatie-assistenten en een onvoltooide e-mail worden niet hersteld. Lijsten met subitems vouw je in en uit met een tik op hun opsommingsteken.
 

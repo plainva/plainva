@@ -22,6 +22,8 @@ import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder, type MobileVault } from "./services/vaultService";
 import { startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
+import { backupVaultNow } from "./services/vaultBackup";
+import { rebuildVaultIndex } from "./services/indexMaintenance";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { usePinboardDraftSweep } from "./services/usePinboardDraftSweep";
 import { startPim, stopPim } from "./services/pim/pimService";
@@ -68,7 +70,7 @@ import {
   navTop,
   pushCapturedNote,
   pushEntry,
-  activeNotePath,
+  commandNotePath,
   reservesFabStrip, showsCaptureFab,
   tapTab,
   SCREEN_ENTRY,
@@ -645,7 +647,15 @@ export default function App() {
     openSettings: () => push({ kind: "settings", path: "" }),
     switchVault: () => push({ kind: "vaults", path: "" }),
     refreshVault: () => setBump((n) => n + 1),
-    activeNote: () => activeNotePath(top),
+    // Six the phone served on a screen of its own and the palette now reaches
+    // too: each leads to that screen or runs the function its row runs.
+    newTemplate: quickCreateTemplate,
+    openComments: () => setNav((st) => tapTab(st, "comments")),
+    openImport: () => push({ kind: "importwizard", path: "" }),
+    backupNow: () => void backupVaultNow(vault, vaultName),
+    rebuildIndex: () => void rebuildVaultIndex(vault),
+    updateIndexes: () => push({ kind: "overviews", path: "" }),
+    activeNote: () => commandNotePath(nav),
   });
 
   const routeCtx = {
