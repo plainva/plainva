@@ -275,7 +275,8 @@
         "notes": "notas",
         "audio": "una grabación",
         "searches": "tus preguntas de búsqueda",
-        "comments": "un hilo de comentarios"
+        "comments": "un hilo de comentarios",
+        "images": "una imagen"
       },
       "keptBack": "Retenido",
       "keptNotes_one": "{{count}} nota que tus reglas bloquean",
@@ -323,7 +324,8 @@
       "webSearches": "Se buscó",
       "further": "Otras herramientas",
       "furtherMail": "correo — pregunta antes de leerlo por primera vez",
-      "reading": "Correo y calendario"
+      "reading": "Correo y calendario",
+      "evidenceImage": "imagen, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
       "open": "Ver contexto",
@@ -523,6 +525,27 @@
       "descriptions_other": "{{count}} descripciones de citas leídas",
       "byDevice": "El texto lo leyó {{reader}} en este dispositivo; solo se transmitió su informe.",
       "byProvider": "El texto lo leyó {{provider}}, en solicitudes aparte y sin herramientas."
+    },
+    "image": {
+      "action": "Explicar imagen",
+      "ask": "Explica esta imagen.",
+      "title": "Imagen: {{name}}",
+      "sentLine_one": "{{count}} imagen",
+      "sentLine_many": "{{count}} imágenes",
+      "sentLine_other": "{{count}} imágenes",
+      "asSent": "Se envía tal como se ve aquí: reducida y guardada de nuevo — sin el lugar, la fecha ni la cámara que el archivo registra.",
+      "blind": "Según la lista del proveedor, {{model}} no lee imágenes. Aun así, puedes enviar la imagen.",
+      "refusedHint": "Puede que este modelo no pueda leer imágenes. Elige otro abajo y vuelve a preguntar.",
+      "refused": {
+        "off": "La IA está desactivada.",
+        "no-model": "Elige primero un modelo, en los ajustes de IA.",
+        "no-route": "{{provider}} no lee imágenes. Elige otro modelo para conversaciones nuevas.",
+        "denied": "Tus reglas mantienen esta imagen lejos de este modelo: las de su carpeta o las de una nota que la muestra.",
+        "unchecked": "Plainva no pudo comprobar qué notas muestran esta imagen, así que no se envió.",
+        "unreadable": "No se pudo leer la imagen.",
+        "too-large": "La imagen es demasiado grande para enviarla, incluso reducida (como máximo {{max}}).",
+        "failed": "No se pudo explicar la imagen: {{reason}}"
+      }
     },
     "lint": {
       "defused": "Las direcciones web nuevas se han desactivado: se leen, pero no son enlaces."

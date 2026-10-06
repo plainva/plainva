@@ -22,8 +22,10 @@ import {
   postThreadReply,
   proposeSuggestionRound,
   createAudioTranscriber,
+  createImageExplainer,
   resolveAudioPath,
   setAudioTranscriber,
+  setImageExplainer,
   situationEvents,
   situationFrom,
   startableSkills,
@@ -377,6 +379,8 @@ export function useMobileAi(vault: MobileVault | null) {
         semanticCandidates: async (question, limit, options) => (await embeddingsRef.current?.semanticCandidates(question, limit, options)) ?? [],
         // What sending without a selection would cost (plan P2b-5): the index's sizes, no note read.
         noteSizes: async (paths) => new Map([...(await query.fileRecords(paths))].map(([path, record]) => [path, record.size_bytes])),
+        // Which notes name a file (plan P4-5): a picture embedded in a note kept from the cloud stays with it.
+        notesContaining: (needles) => query.notesContaining(needles),
       },
       toolDeps: {
         async search(q, limit, offset) {
@@ -412,6 +416,12 @@ export function useMobileAi(vault: MobileVault | null) {
       }),
     );
     return () => setAudioTranscriber(null);
+  }, [s, enabled, vault]);
+  // "Explain image" at every picture of the vault (plan P4-5): the door exists while the AI is on for the open vault.
+  useEffect(() => {
+    if (!enabled || !vault) return;
+    setImageExplainer(createImageExplainer(s, (key, vars) => i18n.t(key, vars), { readBinary: (path) => vault.adapter.readBinaryFile(path) }));
+    return () => setImageExplainer(null);
   }, [s, enabled, vault]);
   const closeSheet = () => {
     sheetNote = null;

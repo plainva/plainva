@@ -1,4 +1,4 @@
-import type { Conversation, Part, Turn } from "./conversation.js";
+import type { Conversation, ImagePart, Part, Turn } from "./conversation.js";
 import { toolInputJsonSchema, type ToolManifest } from "./tools.js";
 import { PLATFORM_ANSWER_TOKENS, PLATFORM_CONTEXT_DEFAULT, platformPrompt } from "./platform.js";
 
@@ -98,6 +98,15 @@ function jsonArgs(args: unknown): string {
   return JSON.stringify(args ?? {});
 }
 
+/**
+ * A picture as the OpenAI protocols take it: a `data:` address. Only the
+ * encoding and the bytes — the name, the size and the vault path of an image
+ * part are the reader's, never the provider's (plan KI-Harness P4-5).
+ */
+function imageDataUrl(part: ImagePart): string {
+  return `data:${part.mime};base64,${part.data}`;
+}
+
 // ---------------------------------------------------------------- Anthropic
 
 function anthropicPart(part: Part, turn: Turn): Record<string, unknown> | null {
@@ -111,6 +120,9 @@ function anthropicPart(part: Part, turn: Turn): Record<string, unknown> | null {
     case "reasoning":
       // Thinking blocks go back verbatim, and only to the provider that wrote them.
       return part.provider === "anthropic" && turn.provider === "anthropic" ? (part.data as Record<string, unknown>) : null;
+    case "image":
+      // Only the user sends pictures.
+      return turn.role === "user" ? { type: "image", source: { type: "base64", media_type: part.mime, data: part.data } } : null;
   }
 }
 
@@ -147,16 +159,16 @@ function buildAnthropic(endpoint: ProviderEndpoint, request: ModelRequest): Http
 function buildOpenAiResponses(endpoint: ProviderEndpoint, request: ModelRequest): HttpRequestSpec {
   const input: Record<string, unknown>[] = [];
   for (const turn of request.conversation.turns) {
-    const text = turn.parts.filter((p) => p.type === "text").map((p) => (p as { text: string }).text);
+    // The message of a turn: its texts and, in a user turn, its pictures — in the order they stand.
+    const content: Record<string, unknown>[] = [];
+    for (const part of turn.parts) {
+      if (part.type === "text") content.push({ type: turn.role === "user" ? "input_text" : "output_text", text: part.text });
+      else if (part.type === "image" && turn.role === "user") content.push({ type: "input_image", image_url: imageDataUrl(part) });
+    }
     for (const part of turn.parts) {
       if (part.type === "reasoning" && part.provider === "openai" && turn.provider === "openai") input.push(part.data as Record<string, unknown>);
     }
-    if (text.length) {
-      input.push({
-        role: turn.role,
-        content: text.map((t) => ({ type: turn.role === "user" ? "input_text" : "output_text", text: t })),
-      });
-    }
+    if (content.length) input.push({ role: turn.role, content });
     for (const part of turn.parts) {
       if (part.type === "tool_call") input.push({ type: "function_call", call_id: part.id, name: part.name, arguments: jsonArgs(part.args) });
       if (part.type === "tool_result") input.push({ type: "function_call_output", call_id: part.callId, output: part.content });
@@ -206,7 +218,15 @@ function buildOpenAiChat(endpoint: ProviderEndpoint, request: ModelRequest): Htt
     for (const part of turn.parts) {
       if (part.type === "tool_result") messages.push({ role: "tool", tool_call_id: part.callId, content: part.content });
     }
-    if (text) messages.push({ role: "user", content: text });
+    // A message with a picture is a list of parts in their order; one without stays the plain string every compatible server takes.
+    if (turn.parts.some((p) => p.type === "image")) {
+      const content: Record<string, unknown>[] = [];
+      for (const part of turn.parts) {
+        if (part.type === "text") content.push({ type: "text", text: part.text });
+        else if (part.type === "image") content.push({ type: "image_url", image_url: { url: imageDataUrl(part) } });
+      }
+      messages.push({ role: "user", content });
+    } else if (text) messages.push({ role: "user", content: text });
   }
   const tools = request.tools.map((tool) => ({ type: "function", function: { name: tool.name, description: tool.description, parameters: toolInputJsonSchema(tool) } }));
   return {
@@ -247,6 +267,8 @@ function buildGemini(endpoint: ProviderEndpoint, request: ModelRequest): HttpReq
             return { functionResponse: { name: part.name, response: part.isError ? { error: part.content } : { content: part.content } } };
           case "reasoning":
             return null;
+          case "image":
+            return turn.role === "user" ? { inlineData: { mimeType: part.mime, data: part.data } } : null;
         }
       })
       .filter((p): p is Record<string, unknown> => p !== null);

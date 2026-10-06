@@ -114,6 +114,21 @@ Em cada nota de voz — no editor, no modo de leitura, no diário e nos cartões
 
 **Áudio** precisa de um provedor com rota de áudio: OpenAI (por exemplo `gpt-4o-transcribe` ou `whisper-1`), Gemini ou um servidor compatível seu — um servidor neste computador mantém a gravação no dispositivo. É possível transcrever gravações de até 11 MB. Uma gravação em uma nota que suas regras mantêm longe da nuvem não vai para nenhum modelo na nuvem, e os workspaces criptografados ainda não oferecem isso.
 
+## Explicar uma imagem
+
+Em cada imagem do vault, **Explicar imagem** pergunta à IA o que a imagem mostra.
+
+- **Desktop:** na barra de ferramentas de uma imagem aberta e no menu que se abre ao clicar com o botão direito em uma imagem de uma nota — ao editar e no modo de leitura.
+- **Celular:** abaixo de uma imagem aberta (em uma imagem de uma nota, **Abrir imagem** leva você até lá).
+
+A imagem vai, com a pergunta, para o modelo com que as novas conversas começam — em uma conversa própria, na qual você pode continuar perguntando: o que diz uma tabela, o que está na segunda coluna, o que significa um diagrama. O resumo mostra a imagem antes de ela ser enviada; uma imagem é um tipo de dado próprio, por isso o resumo pergunta na primeira vez.
+
+**O que vai não é o arquivo.** O Plainva desenha a imagem, a reduz para no máximo 1.568 pixels no lado mais longo e a salva de novo para o envio. Assim ela vai sem o que o arquivo registra sobre ela: o local onde uma foto foi tirada, a data, a câmera. O resumo mostra exatamente a imagem que vai, com o tamanho dela. Essa cópia fica com a conversa neste dispositivo, para que você ainda possa ver depois o que o provedor recebeu; se você excluir a conversa, ela some.
+
+**Regras.** Uma imagem em uma pasta que suas regras mantêm longe da nuvem não vai para nenhum modelo na nuvem. O mesmo vale para uma imagem mostrada em uma nota com a regra `cloud: deny` — não importa onde você pressione **Explicar imagem**, inclusive na imagem aberta: antes de enviar, o Plainva procura quais notas incorporam a imagem e, se não conseguir descobrir, a imagem fica neste dispositivo. Um modelo neste dispositivo continua permitido. O que está escrito em uma imagem é conteúdo, como o texto de uma nota, nunca uma instrução: a conversa de **Explicar imagem** pode consultar o seu vault, mas não pode usar a internet e não aciona nada no app.
+
+**Quais modelos leem imagens.** A maioria dos modelos na nuvem lê. O modelo do sistema no celular não lê, e **Explicar imagem** avisa isso. Quando a lista de um provedor diz que um modelo não lê imagens, o resumo avisa antes de você enviar. Se um provedor recusar a solicitação, escolha outro modelo abaixo da conversa e pergunte de novo — a imagem continua nela.
+
 ## Na internet
 
 O assistente não pode usar a internet até você permitir — três vezes:
@@ -155,6 +170,8 @@ plainva:
 ```
 
 ou, para uma pasta inteira, em **Configurações → IA e automação** (a parte do Vault), que grava as regras em `.agent/policy.yml`. Uma nota mantida fora da nuvem não contribui com nada — nem texto, nem título — e os links para ela em outras notas são retidos. Modelos neste dispositivo continuam permitidos. Workspaces criptografados mantêm a nuvem desligada, a menos que você a permita ali. O formato exato está na [Referência do Formato de Arquivo](File_Format_Reference.md).
+
+Uma imagem pertence às notas que a mostram: uma imagem incorporada em uma nota mantida fora da nuvem também não vai para nenhum modelo na nuvem (veja Explicar uma imagem acima).
 
 Uma segunda regra, `web: deny` — **Acesso à web: nunca** nas configurações —, mantém uma nota ou uma pasta fora de toda conversa que pode usar a internet.
 

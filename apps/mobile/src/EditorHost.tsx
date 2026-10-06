@@ -49,7 +49,7 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { Banner, decideDirtyExternalUpdate, textDirectionOf, toast } from "@plainva/ui";
+import { Banner, decideDirtyExternalUpdate, imageExplainer, textDirectionOf, toast } from "@plainva/ui";
 import { clearConflict, getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { syncSoon } from "./services/syncService";
@@ -464,8 +464,15 @@ export function EditorHost({
         // The explicit action has its own menu, also usable with a mouse.
         if (!fromAction) return false;
         // An action, not a one-row choice list with an empty ring (E20).
-        void mActions({ title: t("contextMenu.openImage"), options: [{ value: "open", label: t("contextMenu.openImage") }] }).then((choice) => {
-          if (choice === "open") onOpenNote(absolutePath.replace(/^\/+/, ""));
+        // "Explain image" (plan KI-Harness P4-5) is offered while the AI is on: the picture goes with this note's rules in force.
+        const explain = imageExplainer();
+        const picture = absolutePath.replace(/^\/+/, "");
+        void mActions({
+          title: t("contextMenu.openImage"),
+          options: [{ value: "open", label: t("contextMenu.openImage") }, ...(explain ? [{ value: "explain", label: t("ai.image.action") }] : [])],
+        }).then((choice) => {
+          if (choice === "open") onOpenNote(picture);
+          else if (choice === "explain") void explain?.({ path: picture, notePath: path });
         });
         return true;
       },

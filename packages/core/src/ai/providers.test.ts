@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { appendTurn, openToolCalls, startConversation, type Conversation } from "./conversation.js";
+import { appendTurn, openToolCalls, startConversation, type Conversation, type ImagePart } from "./conversation.js";
+import { PICTURE_NOT_VISIBLE } from "./platform.js";
 import { BUILTIN_ENDPOINTS, buildRequest, type HttpRequestSpec, type ProviderEndpoint } from "./providers.js";
 import { coreTools } from "./tools.js";
 
@@ -186,5 +187,88 @@ describe("provider specifics", () => {
       (first!.turns[0]!.parts as unknown as Array<{ text: string }>)[0]!.text = "rewritten";
     }).toThrow();
     expect(openToolCalls(conversationFor("anthropic")[1]!).map((c) => c.id)).toEqual(["call_1"]);
+  });
+});
+
+/**
+ * Pictures (plan KI-Harness P4-5): a user turn may carry one. Each dialect
+ * has its own place for it; what goes is the encoding and the bytes.
+ */
+describe("a picture in a user turn", () => {
+  const byId = (id: string) => BUILTIN_ENDPOINTS.find((e) => e.id === id)!;
+  const picture: ImagePart = { type: "image", mime: "image/jpeg", data: "QUJDRA==", name: "Whiteboard kickoff.jpg", width: 1568, height: 1045, path: "Projects/Assets/Whiteboard kickoff.jpg" };
+
+  function withPicture(provider: string): Conversation[] {
+    let c = startConversation("c2", "You are Plainva's vault assistant.", tools.map((t) => t.name));
+    const steps: Conversation[] = [];
+    c = appendTurn(c, { role: "user", at, parts: [{ type: "text", text: "The picture below is a file of the vault.", context: [] }, picture, { type: "text", text: "Explain this picture." }] });
+    steps.push(c);
+    c = appendTurn(c, { role: "assistant", provider, model: "m", at, parts: [{ type: "text", text: "A whiteboard with three columns." }] });
+    steps.push(c);
+    c = appendTurn(c, { role: "user", at, parts: [{ type: "text", text: "What stands in the second column?" }] });
+    steps.push(c);
+    return steps;
+  }
+
+  it("goes where each API takes pictures, between the words around it", () => {
+    const anthropic = buildRequest(byId("anthropic"), { model: "m", conversation: withPicture("anthropic")[0]!, tools, maxOutputTokens: 100 }).body!.messages as Array<{ content: Record<string, unknown>[] }>;
+    expect(anthropic[0]!.content.map((b) => b.type)).toEqual(["text", "image", "text"]);
+    expect(anthropic[0]!.content[1]).toEqual({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: "QUJDRA==" } });
+
+    const openai = buildRequest(byId("openai"), { model: "m", conversation: withPicture("openai")[0]!, tools, maxOutputTokens: 100 }).body!.input as Array<{ role: string; content: Record<string, unknown>[] }>;
+    expect(openai).toHaveLength(1);
+    expect(openai[0]!.content.map((b) => b.type)).toEqual(["input_text", "input_image", "input_text"]);
+    expect(openai[0]!.content[1]).toEqual({ type: "input_image", image_url: "data:image/jpeg;base64,QUJDRA==" });
+
+    const chat = buildRequest(byId("openrouter"), { model: "m", conversation: withPicture("openrouter")[0]!, tools, maxOutputTokens: 100 }).body!.messages as Array<{ role: string; content: unknown }>;
+    expect(chat.map((m) => m.role)).toEqual(["system", "user"]);
+    expect(chat[1]!.content).toEqual([
+      { type: "text", text: "The picture below is a file of the vault." },
+      { type: "image_url", image_url: { url: "data:image/jpeg;base64,QUJDRA==" } },
+      { type: "text", text: "Explain this picture." },
+    ]);
+
+    const gemini = buildRequest(byId("gemini"), { model: "m", conversation: withPicture("gemini")[0]!, tools, maxOutputTokens: 100 }).body!.contents as Array<{ parts: Record<string, unknown>[] }>;
+    expect(gemini[0]!.parts).toEqual([{ text: "The picture below is a file of the vault." }, { inlineData: { mimeType: "image/jpeg", data: "QUJDRA==" } }, { text: "Explain this picture." }]);
+  });
+
+  it.each(cases)("%s: nothing of it goes but its encoding and its bytes", (_id, endpoint) => {
+    const body = JSON.stringify(buildRequest(endpoint, { model: "m", conversation: withPicture(endpoint.id)[2]!, tools, maxOutputTokens: 100 }).body);
+    expect(body).toContain("QUJDRA==");
+    // The name, the vault path and the size are the reader's.
+    expect(body).not.toContain("Whiteboard");
+    expect(body).not.toContain("Projects/Assets");
+    expect(body).not.toContain("1568");
+    expect(body).not.toContain("1045");
+  });
+
+  it.each(cases)("%s: stays where it was sent — the next request starts with the same history", (_id, endpoint) => {
+    const [first, , third] = withPicture(endpoint.id).map((conversation) => JSON.stringify(history(buildRequest(endpoint, { model: "m", conversation, tools, maxOutputTokens: 100, cache: true }))));
+    expect(third!.startsWith(first!.slice(0, -1))).toBe(true);
+  });
+
+  it("a message without a picture keeps the plain form every compatible server takes", () => {
+    const chat = buildRequest(byId("ollama"), { model: "m", conversation: withPicture("ollama")[2]!, tools, maxOutputTokens: 100 }).body!.messages as Array<{ role: string; content: unknown }>;
+    expect(Array.isArray(chat[1]!.content)).toBe(true);
+    expect(chat[3]!.content).toBe("What stands in the second column?");
+  });
+
+  it("only the user sends pictures: one in an answer goes nowhere", () => {
+    let c = startConversation("c3", "s", tools.map((t) => t.name));
+    c = appendTurn(c, { role: "user", at, parts: [{ type: "text", text: "Hello" }] });
+    c = appendTurn(c, { role: "assistant", provider: "x", model: "m", at, parts: [{ type: "text", text: "Hi" }, picture] });
+    c = appendTurn(c, { role: "user", at, parts: [{ type: "text", text: "Again" }] });
+    for (const [, endpoint] of cases) {
+      expect(JSON.stringify(buildRequest(endpoint, { model: "m", conversation: c, tools, maxOutputTokens: 100 }).body)).not.toContain("QUJDRA==");
+    }
+  });
+
+  it("a model of the system reads that a picture stood there, and gets none", () => {
+    const apple = BUILTIN_ENDPOINTS.find((e) => e.id === "apple")!;
+    let c = startConversation("c4", "s", []);
+    for (const turn of withPicture("anthropic")[2]!.turns) c = appendTurn(c, turn);
+    const body = JSON.stringify(buildRequest(apple, { model: "system", conversation: c, tools: [], maxOutputTokens: 400 }).body);
+    expect(body).toContain(PICTURE_NOT_VISIBLE);
+    expect(body).not.toContain("QUJDRA==");
   });
 });

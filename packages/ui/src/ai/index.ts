@@ -33,6 +33,8 @@ export * from "./skillRuntime";
 export * from "./skillsWorkshop";
 export * from "./SkillTestParts";
 export * from "./aiTranscribe";
+export * from "./aiImage";
+export * from "./AiPicture";
 export * from "./localModels";
 export * from "./localEmbeddings";
 export * from "./SemanticSearch";

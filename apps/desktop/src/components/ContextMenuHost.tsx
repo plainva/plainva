@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Scissors, Copy, ClipboardPaste, Download, TextSelect, ExternalLink } from "lucide-react";
-import { ICON, MenuItem, MenuSurface } from "@plainva/ui";
+import { Scissors, Copy, ClipboardPaste, Download, Sparkles, TextSelect, ExternalLink } from "lucide-react";
+import { ICON, MenuItem, MenuSurface, useImageExplainer } from "@plainva/ui";
 import { useContextMenu, closeContextMenu, type ImageContextTarget } from "../services/contextMenuStore";
 import { insertIntoEditable, deleteEditableSelection, selectAllInEditable } from "@plainva/ui";
 import { toast } from "@plainva/ui";
@@ -14,9 +14,12 @@ import { toast } from "@plainva/ui";
 export function ContextMenuHost() {
   const { t } = useTranslation();
   const state = useContextMenu();
+  // The AI's door at a picture (plan KI-Harness P4-5): null while the AI is off.
+  const explain = useImageExplainer();
   if (!state) return null;
   const { selection, editable, image } = state;
   const hasSelection = selection.length > 0;
+  const place = image?.place;
 
   const onCopy = () => {
     writeClipboard(selection).catch(() => toast.error(t("contextMenu.copyFailed")));
@@ -62,6 +65,11 @@ export function ContextMenuHost() {
           <MenuItem icon={<Download size={ICON.ui} />} onSelect={onSaveImageAs}>
             {t("contextMenu.saveImageAs", { defaultValue: "Bild speichern unter…" })}
           </MenuItem>
+          {explain && place && (
+            <MenuItem icon={<Sparkles size={ICON.ui} />} data-testid="image-explain-menu" onSelect={() => void explain(place)}>
+              {t("ai.image.action")}
+            </MenuItem>
+          )}
         </>
       ) : editable ? (
         <>

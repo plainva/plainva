@@ -2503,10 +2503,21 @@ export const Editor: React.FC<{
         resolveByName: (name) => vaultContext.queryService?.findByFileName(name, activePath ?? undefined) ?? Promise.resolve(null),
       }),
       onOpenImage: (absolutePath: string) => { const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/"; if (absolutePath.startsWith(root)) onOpenPath?.(absolutePath.slice(root.length), false); },
-      onImageContext: (e, absolutePath) => openContextMenu({
-        x: e.clientX, y: e.clientY, selection: "", editable: null,
-        image: { open: () => { const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/"; if (absolutePath.startsWith(root)) onOpenPath?.(absolutePath.slice(root.length), false); }, loadBytes: () => readFile(absolutePath), filename: absolutePath.split(/[/\\]/).pop() ?? "image", mime: imageMimeType(absolutePath) },
-      }),
+      onImageContext: (e, absolutePath) => {
+        const root = (vaultPath ?? "").replace(/\\/g, "/").replace(/\/$/, "") + "/";
+        // The picture's place in the vault, for "Explain image" (plan KI-Harness P4-5): its path, and this note.
+        const relative = absolutePath.startsWith(root) ? absolutePath.slice(root.length) : null;
+        return openContextMenu({
+          x: e.clientX, y: e.clientY, selection: "", editable: null,
+          image: {
+            open: () => { if (relative) onOpenPath?.(relative, false); },
+            loadBytes: () => readFile(absolutePath),
+            filename: absolutePath.split(/[/\\]/).pop() ?? "image",
+            mime: imageMimeType(absolutePath),
+            ...(relative ? { place: { path: relative, ...(activePath ? { notePath: activePath } : {}) } } : {}),
+          },
+        });
+      },
       buildNoteEmbedExtension: (context, isLive) => noteEmbedPlugin(context, isLive),
     };
   });

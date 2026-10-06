@@ -38,8 +38,10 @@ import { questionTerms } from "./terms.js";
  * `audio`: a recording, sent to be transcribed (plan P1.5, E28) — never part of a chat's context.
  * `comments`: the remarks of a comment thread the assistant was addressed in (plan P3-6) — other
  * people's words about a note, which the notes themselves never carry.
+ * `images`: a picture of the vault the user asked about ("Explain image", plan P4-5) — never
+ * picked by the context package, only ever sent at the user's own request.
  */
-export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio" | "searches" | "comments";
+export type DataClass = "situation" | "notes" | "selection" | "tasks" | "calendar" | "audio" | "searches" | "comments" | "images";
 
 export interface SituationTask {
   title: string;

@@ -50,10 +50,18 @@ export function contextBudgetFor(contextTokens: number | undefined): Partial<Con
   };
 }
 
+/**
+ * What a platform model reads where a picture stood (plan P4-5): these models
+ * take text only, and a conversation that began with another provider may
+ * carry one. Said plainly, so the model can say that it does not see it
+ * instead of describing a picture it never got.
+ */
+export const PICTURE_NOT_VISIBLE = "[A picture stood here. This model cannot see pictures.]";
+
 /** The words of a turn, without the context Plainva added to it. */
 function wordsOf(turn: Turn): string {
   return turn.parts
-    .map((part) => (part.type === "text" && !part.context ? part.text : ""))
+    .map((part) => (part.type === "text" && !part.context ? part.text : part.type === "image" ? PICTURE_NOT_VISIBLE : ""))
     .filter(Boolean)
     .join("\n\n")
     .trim();
@@ -62,7 +70,7 @@ function wordsOf(turn: Turn): string {
 /** Everything a turn carries as text: the latest message goes whole, with its context. */
 function textOf(turn: Turn): string {
   return turn.parts
-    .map((part) => (part.type === "text" ? part.text : ""))
+    .map((part) => (part.type === "text" ? part.text : part.type === "image" ? PICTURE_NOT_VISIBLE : ""))
     .filter(Boolean)
     .join("\n\n")
     .trim();

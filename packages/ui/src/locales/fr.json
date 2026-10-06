@@ -275,7 +275,8 @@
         "notes": "notes",
         "audio": "un enregistrement",
         "searches": "vos questions de recherche",
-        "comments": "un fil de commentaires"
+        "comments": "un fil de commentaires",
+        "images": "une image"
       },
       "keptBack": "Retenu",
       "keptNotes_one": "{{count}} note bloquée par vos règles",
@@ -323,7 +324,8 @@
       "webSearches": "Recherches effectuées",
       "further": "Autres outils",
       "furtherMail": "e-mail — demande avant la première lecture",
-      "reading": "E-mail et calendrier"
+      "reading": "E-mail et calendrier",
+      "evidenceImage": "image, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
       "open": "Voir le contexte",
@@ -523,6 +525,27 @@
       "descriptions_other": "{{count}} descriptions de rendez-vous lues",
       "byDevice": "Le texte a été lu par {{reader}} sur cet appareil ; seul son rapport a été transmis.",
       "byProvider": "Le texte a été lu par {{provider}}, dans des requêtes à part, sans outils."
+    },
+    "image": {
+      "action": "Expliquer l'image",
+      "ask": "Expliquez cette image.",
+      "title": "Image : {{name}}",
+      "sentLine_one": "{{count}} image",
+      "sentLine_many": "{{count}} images",
+      "sentLine_other": "{{count}} images",
+      "asSent": "Elle part telle qu'elle apparaît ici : réduite et enregistrée à nouveau — sans le lieu, la date ni l'appareil photo que le fichier consigne.",
+      "blind": "Selon la liste du fournisseur, {{model}} ne lit pas les images. Vous pouvez quand même envoyer l'image.",
+      "refusedHint": "Ce modèle ne sait peut-être pas lire les images. Choisissez-en un autre ci-dessous et posez de nouveau la question.",
+      "refused": {
+        "off": "L'IA est désactivée.",
+        "no-model": "Choisissez d'abord un modèle, dans les réglages de l'IA.",
+        "no-route": "{{provider}} ne lit pas les images. Choisissez un autre modèle pour les nouvelles conversations.",
+        "denied": "Vos règles tiennent cette image à l'écart de ce modèle : celles de son dossier ou celles d'une note qui l'affiche.",
+        "unchecked": "Plainva n'a pas pu vérifier quelles notes affichent cette image ; elle n'a donc pas été envoyée.",
+        "unreadable": "L'image n'a pas pu être lue.",
+        "too-large": "L'image est trop volumineuse pour être envoyée, même réduite (au plus {{max}}).",
+        "failed": "L'image n'a pas pu être expliquée : {{reason}}"
+      }
     },
     "lint": {
       "defused": "Les nouvelles adresses web ont été neutralisées : lisibles, mais sans lien."

@@ -25,6 +25,7 @@ import {
   type ParsedPolicyFile,
   type SituationInput,
 } from "@plainva/core";
+import { notesEmbedding } from "./aiImage";
 import type { AiInstructionsHost, AiVaultHost } from "./aiSession";
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
 import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
@@ -196,6 +197,12 @@ export interface CandidateRetrieval {
   semanticCandidates?(question: string, limit: number, options: { cloudQuestion: boolean }): Promise<{ path: string; ordinal: number; hash: string; score: number }[]>;
   /** Note sizes as the index knows them, for what a naive request would have sent (plan P2b-5). */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
+  /**
+   * The notes whose text contains one of these spellings literally (plan
+   * P4-5, `VaultQueryService.notesContaining`): how "which notes embed this
+   * picture" starts. Absent, nobody can tell — and a picture then goes to no cloud.
+   */
+  notesContaining?(needles: readonly string[]): Promise<{ paths: string[]; truncated: boolean }>;
 }
 
 const noteTitle = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
@@ -246,6 +253,11 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.propose ? { propose: input.propose } : {}),
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
     ...(input.reply ? { reply: input.reply } : {}),
+    // Which notes embed a picture (plan P4-5): their rules decide with the picture's own. Without an index nobody can tell — `null`, never "none".
+    embedders: (path) => {
+      const containing = input.retrieval?.notesContaining?.bind(input.retrieval);
+      return containing ? notesEmbedding(path, { containing, read: async (note) => (await input.readNote(note))?.text ?? null }) : Promise.resolve(null);
+    },
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
     tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean, narrowed?: () => readonly string[] | null) {
       if (!input.toolDeps) return null;

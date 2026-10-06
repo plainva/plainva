@@ -73,6 +73,40 @@ thinking blocks are involved).
 9. **"Today" is the app's today.** Dates come from `today.ts`
    (`calendarDay`, `journalDay` with the day boundary); the model computes no
    date of its own.
+10. **A picture goes at the user's own request, and never as the file**
+    (built with P4-5). "Explain image" at a picture of the vault sends it,
+    with a question, in a conversation of its own.
+    - *Never picked.* The context package chooses notes; it never chooses a
+      picture. A picture is in a request only because the user pressed the
+      door at that picture — and it is a data class of its own (`images`), so
+      the overview asks the first time and shows the picture itself.
+    - *What goes is drawn anew.* The shell decodes the file, scales it down
+      (longer edge 1,568 pixels) and encodes the canvas: PNG where the file's
+      format says "sharp edges" and that stays small, JPEG otherwise. The
+      file's own bytes never leave, so nothing of its metadata does — no
+      place, no date, no camera. The overview shows exactly that copy with
+      its size; the same copy is the image part of the conversation, kept in
+      the record like every part that was sent (decision 7).
+    - *The gate is the note's gate.* A picture has no frontmatter: its
+      folder's rules and the vault's defaults decide. And a note's rule
+      covers what the note shows — a picture goes to no cloud model when a
+      note the rules keep from it embeds the picture. The viewer no longer
+      knows which note a picture was opened from, so the embedding notes are
+      looked up (the notes whose text names the file, then their embeds, in
+      either syntax); when that cannot be answered, the picture stays —
+      "cannot tell" is never "none". A model on the device needs no lookup.
+      Nothing is read or drawn before the gate has decided.
+    - *Read by the conversation's model.* A picture is tier 3 like a note's
+      text, and reaches the model the same way a note does: with the
+      conversation's read tools in reach, the run classed as carrying private
+      and untrusted content, and a sentence beside the picture saying that
+      what is written in it is content. The door's conversation has no tool
+      with an outside effect, no app commands and no tool search.
+    - *A model that reads none.* The protocols of the systems' own models
+      have no place for a picture: the door says so before anything is read.
+      Elsewhere the provider answers; where its own model list names a
+      model's input kinds, the overview says beforehand that the model reads
+      no pictures, and sends all the same if the user wants.
 
 ## Consequences
 
@@ -84,6 +118,13 @@ thinking blocks are involved).
   the answer.
 - Append-only transcripts cost tokens on long conversations; compaction
   appends a summary turn instead of editing.
+- A conversation that carries a picture carries it in every later request
+  and in its record on the device; one picture is a few hundred kilobytes.
+  Deleting the conversation deletes the copy.
+- Looking up the notes that embed a picture is a scan of the note texts — a
+  moment on a large vault, once per press of the door, and only for a cloud
+  model. Two pictures of one file name count as one there: that can keep a
+  picture back, never let one go.
 
 ## Alternatives
 
@@ -94,8 +135,29 @@ thinking blocks are involved).
 - **Policy only in a central file.** Rejected for notes: a policy that
   travels with the note survives moves and exports; folders use the central
   file because Plainva does not write marker files into user folders.
+- **Sending the picture's file as it is.** Rejected: a photo's file names
+  where and when it was taken. Drawing it anew costs a moment and nothing of
+  what a model reads from a picture.
+- **A reader in quarantine for pictures** (ADR 0019, decisions 9 and 10).
+  Rejected: the reader exists for what strangers send — a web page, a mail.
+  A picture in the vault is the user's own file, like a note, and a
+  description of a picture is not the picture: the user asks on about
+  details no first report would have kept. The run is classed like one that
+  read a note instead, and the door carries nothing with an outside effect.
+- **Deciding by the picture's own path alone.** Rejected: attachments often
+  sit in one folder for the whole vault, so a note's "never to the cloud"
+  would not have covered the scan the note shows.
+- **A storage of references instead of the copy that went.** Rejected: the
+  file can change or go, and the record would then no longer say what a
+  provider got.
 
 ## Links
 
 - ADR 0009 (`plainva:` namespace and OKF write path), ADR 0014 (encrypted
   workspaces), ADR 0017, ADR 0019.
+- Pictures: `packages/core/src/ai/images.ts`, the image part in
+  `packages/core/src/ai/conversation.ts` and the request codecs in
+  `providers.ts`; `packages/ui/src/ai/aiImage.ts` (drawing anew, the lookup
+  of embedding notes), `explainImage` in `packages/ui/src/ai/aiSession.ts`;
+  `VaultQueryService.notesContaining`; `docs/engineering/AI_Threat_Model.md`
+  (T20, T21).

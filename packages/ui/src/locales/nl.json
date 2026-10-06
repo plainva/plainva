@@ -271,7 +271,8 @@
         "notes": "notities",
         "audio": "een opname",
         "searches": "je zoekvragen",
-        "comments": "een discussie in de opmerkingen"
+        "comments": "een discussie in de opmerkingen",
+        "images": "een afbeelding"
       },
       "keptBack": "Achtergehouden",
       "keptNotes_one": "{{count}} notitie die je regels blokkeren",
@@ -313,7 +314,8 @@
       "webSearches": "Gezocht naar",
       "further": "Andere hulpmiddelen",
       "furtherMail": "e-mail — vraagt eerst, voordat er voor het eerst wordt gelezen",
-      "reading": "E-mail en agenda"
+      "reading": "E-mail en agenda",
+      "evidenceImage": "afbeelding, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
       "open": "Context bekijken",
@@ -504,6 +506,26 @@
       "descriptions_other": "{{count}} afspraakbeschrijvingen gelezen",
       "byDevice": "De tekst is gelezen door {{reader}} op dit apparaat; alleen het verslag ging verder.",
       "byProvider": "De tekst is gelezen door {{provider}}, in aparte verzoeken zonder hulpmiddelen."
+    },
+    "image": {
+      "action": "Afbeelding uitleggen",
+      "ask": "Leg deze afbeelding uit.",
+      "title": "Afbeelding: {{name}}",
+      "sentLine_one": "{{count}} afbeelding",
+      "sentLine_other": "{{count}} afbeeldingen",
+      "asSent": "Ze wordt verzonden zoals ze hier te zien is: verkleind en opnieuw opgeslagen — zonder de plaats, de datum of de camera die het bestand vastlegt.",
+      "blind": "Volgens de lijst van de provider leest {{model}} geen afbeeldingen. Je kunt de afbeelding toch verzenden.",
+      "refusedHint": "Dit model kan misschien geen afbeeldingen lezen. Kies hieronder een ander model en vraag het opnieuw.",
+      "refused": {
+        "off": "De AI staat uit.",
+        "no-model": "Kies eerst een model, in de AI-instellingen.",
+        "no-route": "{{provider}} leest geen afbeeldingen. Kies een ander model voor nieuwe gesprekken.",
+        "denied": "Je regels houden deze afbeelding weg van dit model: de regels van haar map of die van een notitie die haar toont.",
+        "unchecked": "Plainva kon niet controleren welke notities deze afbeelding tonen, dus ze is niet verzonden.",
+        "unreadable": "De afbeelding kon niet worden gelezen.",
+        "too-large": "De afbeelding is te groot om te verzenden, ook verkleind (hooguit {{max}}).",
+        "failed": "De afbeelding kon niet worden uitgelegd: {{reason}}"
+      }
     },
     "lint": {
       "defused": "Nieuwe webadressen zijn onschadelijk gemaakt: leesbaar, maar geen link."

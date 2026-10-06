@@ -1,8 +1,8 @@
 import { ZoomableImage } from "../components/ZoomableImage";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Share2 } from "lucide-react";
-import { Button, ICON, imageMimeType, toast } from "@plainva/ui";
+import { Share2, Sparkles } from "lucide-react";
+import { Button, ICON, imageMimeType, toast, useImageExplainer } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { MissingFileState } from "../components/MissingFileState";
 import { shareVaultFile } from "../services/shareFile";
@@ -26,6 +26,9 @@ export function ImageViewerScreen({
   const { t } = useTranslation();
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  // The AI's door at a picture (plan KI-Harness P4-5): null while the AI is off.
+  const explain = useImageExplainer();
+  const [explaining, setExplaining] = useState(false);
   const name = path.split("/").pop() ?? path;
   // Moved or deleted outside Plainva (issue 110, E9): looked for by its
   // content hash and followed when the move is proven, else "Moved?" or the
@@ -70,6 +73,21 @@ export function ImageViewerScreen({
         url && <ZoomableImage key={`${path}:${url}`} url={url} name={name} onError={() => setFailed(true)} />
       )}
       <div className="m-sync-actions">
+        {/* "Explain image" (plan KI-Harness P4-5): there while the AI is on. */}
+        {explain && (
+          <Button
+            disabled={!url || failed || missing.lookup !== null || explaining}
+            onClick={() => {
+              setExplaining(true);
+              void explain({ path }).finally(() => setExplaining(false));
+            }}
+            variant="tonal"
+            data-testid="image-explain"
+          >
+            <Sparkles size={ICON.ui} />
+            {t("ai.image.action")}
+          </Button>
+        )}
         <Button
           disabled={!url || failed || missing.lookup !== null}
           onClick={() => {

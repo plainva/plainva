@@ -271,7 +271,8 @@
         "notes": "Notizen",
         "audio": "eine Aufnahme",
         "searches": "Deine Suchfragen",
-        "comments": "ein Kommentar-Faden"
+        "comments": "ein Kommentar-Faden",
+        "images": "ein Bild"
       },
       "keptBack": "Zurückgehalten",
       "keptNotes_one": "{{count}} Notiz, die Deine Regeln sperren",
@@ -313,7 +314,8 @@
       "webSearches": "Gesucht nach",
       "further": "Weitere Werkzeuge",
       "furtherMail": "E-Mail — fragt, bevor sie zum ersten Mal gelesen wird",
-      "reading": "E-Mail und Kalender"
+      "reading": "E-Mail und Kalender",
+      "evidenceImage": "Bild, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
       "open": "Kontext einsehen",
@@ -504,6 +506,26 @@
       "descriptions_other": "{{count}} Terminbeschreibungen gelesen",
       "byDevice": "Den Text hat {{reader}} auf diesem Gerät gelesen; weitergegangen ist nur der Bericht.",
       "byProvider": "Den Text hat {{provider}} gelesen, in eigenen Anfragen ohne Werkzeuge."
+    },
+    "image": {
+      "action": "Bild erklären",
+      "ask": "Erkläre dieses Bild.",
+      "title": "Bild: {{name}}",
+      "sentLine_one": "{{count}} Bild",
+      "sentLine_other": "{{count}} Bilder",
+      "asSent": "Es geht so, wie es hier steht: verkleinert und neu gespeichert — ohne Ort, Datum und Kamera, die die Datei festhält.",
+      "blind": "Laut der Liste des Anbieters liest {{model}} keine Bilder. Senden kannst Du trotzdem.",
+      "refusedHint": "Vielleicht kann dieses Modell keine Bilder lesen. Wähle unten ein anderes und frag noch einmal.",
+      "refused": {
+        "off": "Die KI ist aus.",
+        "no-model": "Wähle zuerst ein Modell — in den KI-Einstellungen.",
+        "no-route": "{{provider}} liest keine Bilder. Wähle für neue Gespräche ein anderes Modell.",
+        "denied": "Deine Regeln halten dieses Bild von diesem Modell fern: die seines Ordners oder die einer Notiz, die es zeigt.",
+        "unchecked": "Plainva konnte nicht prüfen, welche Notizen dieses Bild zeigen. Es wurde deshalb nicht gesendet.",
+        "unreadable": "Das Bild ließ sich nicht lesen.",
+        "too-large": "Das Bild ist auch verkleinert zu groß zum Senden (höchstens {{max}}).",
+        "failed": "Das Bild ließ sich nicht erklären: {{reason}}"
+      }
     },
     "lint": {
       "defused": "Neue Internetadressen sind entschärft: lesbar, aber kein Link."

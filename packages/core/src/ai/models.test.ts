@@ -15,7 +15,7 @@ describe("model list (connection test)", () => {
   });
 
   it("reads every provider's shape and never throws on a strange one", () => {
-    expect(parseModelList(endpoint("anthropic"), { data: [{ id: "m-a", display_name: "Model A" }] })).toEqual([{ id: "m-a", label: "Model A", contextTokens: undefined, price: undefined, chat: true, transcribe: false, embed: false }]);
+    expect(parseModelList(endpoint("anthropic"), { data: [{ id: "m-a", display_name: "Model A" }] })).toEqual([{ id: "m-a", label: "Model A", contextTokens: undefined, price: undefined, chat: true, transcribe: false, embed: false, vision: true }]);
     const gemini = parseModelList(endpoint("gemini"), {
       models: [
         { name: "models/m-g", displayName: "G", inputTokenLimit: 1000, outputTokenLimit: 100, supportedGenerationMethods: ["generateContent"] },
@@ -23,7 +23,7 @@ describe("model list (connection test)", () => {
       ],
     });
     expect(gemini).toEqual([
-      { id: "m-g", label: "G", contextTokens: 1000, outputTokens: 100, chat: true, transcribe: true, embed: false },
+      { id: "m-g", label: "G", contextTokens: 1000, outputTokens: 100, chat: true, transcribe: true, embed: false, vision: true },
       { id: "e-g", label: undefined, contextTokens: undefined, outputTokens: undefined, chat: false, transcribe: false, embed: true },
     ]);
     const router = parseModelList(endpoint("openrouter"), { data: [{ id: "vendor/model", name: "Vendor Model", context_length: 200000, pricing: { prompt: "0.000003", completion: "0.000015" } }] });
@@ -36,6 +36,32 @@ describe("model list (connection test)", () => {
       expect(parseModelList(endpoint("openai"), junk)).toEqual([]);
       expect(parseModelList(endpoint("gemini"), junk)).toEqual([]);
     }
+  });
+
+  it("says that a model reads pictures only where the list says so (plan P4-5)", () => {
+    const router = parseModelList(endpoint("openrouter"), {
+      data: [
+        { id: "vendor/sees", architecture: { input_modalities: ["text", "image"], modality: "text+image->text" } },
+        { id: "vendor/blind", architecture: { input_modalities: ["text"], modality: "text->text" } },
+        { id: "vendor/old-list", architecture: { modality: "text+image->text" } },
+        { id: "vendor/old-blind", architecture: { modality: "text->text" } },
+        // An image on the output side is a model that draws, not one that reads.
+        { id: "vendor/draws", architecture: { modality: "text->text+image" } },
+        { id: "vendor/silent" },
+      ],
+    });
+    expect(router.map((m) => [m.id, m.vision])).toEqual([
+      ["vendor/sees", true],
+      ["vendor/blind", false],
+      ["vendor/old-list", true],
+      ["vendor/old-blind", false],
+      ["vendor/draws", false],
+      ["vendor/silent", undefined],
+    ]);
+    // A list that names no modalities says nothing: neither that a model sees nor that it does not.
+    expect(parseModelList(endpoint("openai"), { data: [{ id: "chat-9" }] })[0]!.vision).toBeUndefined();
+    expect(parseModelList(endpoint("ollama"), { data: [{ id: "llama3.2:3b" }] })[0]!.vision).toBeUndefined();
+    expect(parseModelList(endpoint("gemini"), { models: [{ name: "models/e-g", supportedGenerationMethods: ["embedContent"] }] })[0]!.vision).toBeUndefined();
   });
 });
 

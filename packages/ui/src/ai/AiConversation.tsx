@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, Check, CircleAlert, Eye, FileText, Globe, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
-import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, comparableAddress, hasWebTools, knownAddresses, providerById, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
+import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, comparableAddress, hasImages, hasWebTools, knownAddresses, providerById, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -15,6 +15,7 @@ import { toast } from "../services/toastStore";
 import { AiAnswer } from "./AiAnswer";
 import { AiContextLens } from "./AiContextLens";
 import { AiEffectApproval } from "./AiEffectApproval";
+import { AiPicture } from "./AiPicture";
 import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAction, type SelectionReader } from "./aiSelectionActions";
 import { startableSkills } from "./aiSkills";
 import { AiSendOverview } from "./AiSendOverview";
@@ -64,6 +65,9 @@ const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
 
 /** Failures the settings can fix: the notice offers the way there. */
 const SETUP_FAILURES = new Set<ModelFailure["kind"]>(["no_key", "invalid_key", "not_found", "unknown_endpoint", "platform_unavailable"]);
+
+/** How a provider answers a picture its model cannot read (plan P4-5): it turns the request down. */
+const PICTURE_REFUSALS = new Set<ModelFailure["kind"]>(["refused_by_provider", "provider_error"]);
 
 export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpenSettings, onPickNote, selection }: AiConversationProps) {
   const { t, i18n } = useTranslation();
@@ -206,6 +210,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
     const tokens = run.usage.inputTokens + run.usage.cacheReadTokens + run.usage.cacheWriteTokens + run.usage.outputTokens;
     const parts = [t("ai.sentLine", { provider: providerLabel(run.providerId), count: run.sent.length, tokens: number.format(tokens) })];
     if (run.kept.length) parts.push(t("ai.keptLine", { count: run.kept.length }));
+    // The pictures the message brought (plan P4-5).
+    const pictures = run.manifest?.sources.filter((source) => source.image).length ?? 0;
+    if (pictures) parts.push(t("ai.image.sentLine", { count: pictures }));
     if (run.web?.pages.length) parts.push(t("ai.web.runPages", { count: run.web.pages.length }));
     if (run.web?.searches.length) parts.push(t("ai.web.runSearches", { count: run.web.searches.length }));
     // What it read of the user's mail (plan P4-4): a number, never a subject.
@@ -256,6 +263,13 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
                 <span>{item.context.map((path) => path.replace(/^.*\//, "").replace(/\.md$/i, "")).join(", ")}</span>
               </div>
             )}
+            {/* The pictures the message carried (plan P4-5), as they went. */}
+            {item.images?.map((picture, i) => (
+              <figure key={i} className="pv-ai-figure">
+                <AiPicture picture={picture} alt={picture.name} />
+                <figcaption>{picture.name}</figcaption>
+              </figure>
+            ))}
             {item.text && <div className="pv-ai-usertext">{item.text}</div>}
           </div>
         );
@@ -284,9 +298,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
         const manifest = item.run.manifest;
         const open = openRun === item.key && Boolean(manifest);
         const answer = answerBefore(index);
-        const uncited = Boolean(manifest && manifest.sources.some((s) => s.tier === "evidence") && answer !== null && !answer.includes("[["));
+        // A picture is no note an answer could cite (plan P4-5): what counts is the text that went.
+        const noteSources = manifest ? manifest.sources.filter((s) => !s.image) : [];
+        const uncited = Boolean(noteSources.some((s) => s.tier === "evidence") && answer !== null && !answer.includes("[["));
         // Coverage after the answer (plan P2b-5): only where notes went, so a statement could have named one.
-        const coverage = manifest && manifest.sources.some((s) => s.tier === "evidence" || s.tier === "card") && answer !== null ? answerCoverage(answer) : null;
+        const coverage = noteSources.some((s) => s.tier === "evidence" || s.tier === "card") && answer !== null ? answerCoverage(answer) : null;
         // The pages the run read (plan P4), whatever the answer says of them: the app's own list, so no source goes unnamed.
         const pagesRead = (item.run.web?.pages ?? []).filter((page) => page.read);
         return (
@@ -333,6 +349,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
   const notice = shownNotice?.stop ?? null;
   // No answer came back (plan §19.4): the notes that match the question best stand in for it.
   const related = notice?.kind === "failed" ? (shownNotice?.related ?? []) : [];
+  // A provider that turns a request down says so in its own words; where the conversation carries a picture, a model that reads none is the usual reason.
+  const pictureRefused = notice?.kind === "failed" && PICTURE_REFUSALS.has(notice.failure.kind) && Boolean(active && hasImages(active.conversation));
   const noticeText = notice
     ? notice.kind === "failed"
       ? aiFailureText(t, notice.failure, provider.label, choice.model)
@@ -428,6 +446,12 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
             }
           >
             {noticeText}
+            {/* The provider turned a message with a picture down (plan P4-5): often the model reads none. */}
+            {pictureRefused && (
+              <span className="pv-ai-overview-hint" data-testid="ai-picture-refused">
+                {t("ai.image.refusedHint")}
+              </span>
+            )}
           </Banner>
         )}
         {related.length > 0 && (
@@ -449,6 +473,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
           <AiSendOverview
             manifest={consent.manifest}
             growth={consent.growth}
+            images={consent.images}
+            blind={consent.blind}
             onSend={() => session.answerConsent(true)}
             onCancel={() => session.answerConsent(false)}
             onLeaveOut={(path) => session.leaveOutOfConsent(path)}

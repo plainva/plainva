@@ -6,10 +6,12 @@ import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
 import {
   aiNavigationCommands,
   createAudioTranscriber,
+  createImageExplainer,
   getPlatformServices,
   noteDisplayName,
   resolveAudioPath,
   setAudioTranscriber,
+  setImageExplainer,
   situationEvents,
   startableSkills,
   useStableHandler,
@@ -172,6 +174,13 @@ export function useDesktopAi(input: DesktopAiInput) {
     );
     return () => setAudioTranscriber(null);
   }, [session, enabled, vaultAdapter, queryService]);
+
+  // "Explain image" at every picture of the vault (plan P4-5): the door exists while the AI is on for the open vault.
+  useEffect(() => {
+    if (!session || !enabled || !vaultAdapter) return;
+    setImageExplainer(createImageExplainer(session, (key, vars) => i18n.t(key, vars), { readBinary: (path) => vaultAdapter.readBinaryFile(path) }));
+    return () => setImageExplainer(null);
+  }, [session, enabled, vaultAdapter]);
 
   // Switching the AI off closes the companion; the conversation stays stored.
   useEffect(() => {

@@ -54,7 +54,34 @@ export interface ReasoningPart {
   data: unknown;
 }
 
-export type Part = TextPart | ToolCallPart | ToolResultPart | ReasoningPart;
+/** The two encodings a picture is ever sent in: every provider with an image route takes both. */
+export type ImageMediaType = "image/jpeg" | "image/png";
+
+/**
+ * A picture in a user turn (plan KI-Harness P4-5). `data` is the picture as
+ * it is sent — scaled down and encoded anew, so nothing of the file but its
+ * pixels goes along: no EXIF, no place, no camera. It stays in the record
+ * like every part that was sent: the next request of the conversation carries
+ * it again, and the reader can see what went.
+ *
+ * A request codec sends `mime` and `data` and nothing else. Only user turns
+ * carry pictures; a model's answer never does.
+ */
+export interface ImagePart {
+  type: "image";
+  mime: ImageMediaType;
+  /** Base64, without a `data:` prefix. */
+  data: string;
+  /** For the reader of the conversation. Never sent. */
+  name: string;
+  /** The size of what is sent, in pixels. */
+  width: number;
+  height: number;
+  /** Where it came from in the vault. Never sent as part of the picture. */
+  path?: string;
+}
+
+export type Part = TextPart | ToolCallPart | ToolResultPart | ReasoningPart | ImagePart;
 
 export interface Turn {
   role: "user" | "assistant";

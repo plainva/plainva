@@ -34,6 +34,14 @@ export interface ModelInfo {
    * for the profile "Embeddings" (plan P2a-5).
    */
   embed?: boolean;
+  /**
+   * Reads pictures (plan P4-5) — only where the list itself says so: by a
+   * model's input modalities (OpenRouter), for Gemini's content models, for
+   * every model of the Anthropic API. Absent where a list does not tell
+   * (OpenAI, local servers). A hint for "Explain image", never a lock: a
+   * model the list calls blind can still be asked, and the provider answers.
+   */
+  vision?: boolean;
 }
 
 export function modelListSpec(endpoint: ProviderEndpoint): HttpRequestSpec {
@@ -94,6 +102,20 @@ function records(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.filter((v): v is Record<string, unknown> => Boolean(v) && typeof v === "object") : [];
 }
 
+/**
+ * Whether a list entry says the model reads pictures: its input modalities
+ * (`input_modalities: ["text", "image"]`, or the left side of
+ * `modality: "text+image->text"`). Undefined where the entry says nothing.
+ */
+function seesImages(architecture: Record<string, unknown> | undefined): boolean | undefined {
+  if (!architecture) return undefined;
+  const inputs = architecture.input_modalities;
+  if (Array.isArray(inputs) && inputs.length) return inputs.some((kind) => typeof kind === "string" && kind.toLowerCase() === "image");
+  const modality = str(architecture.modality);
+  if (!modality || !modality.includes("->")) return undefined;
+  return /image/i.test(modality.slice(0, modality.indexOf("->")));
+}
+
 /** Parses a model list answer; unknown shapes give an empty list, never a throw. */
 export function parseModelList(endpoint: ProviderEndpoint, json: unknown): ModelInfo[] {
   const root = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
@@ -111,6 +133,8 @@ export function parseModelList(endpoint: ProviderEndpoint, json: unknown): Model
         chat: methods.includes("generateContent") || methods.includes("streamGenerateContent"),
         transcribe: methods.includes("generateContent"),
         embed: methods.includes("embedContent") || methods.includes("batchEmbedContents"),
+        // Gemini's content models take pictures as they take audio.
+        ...(methods.includes("generateContent") ? { vision: true } : {}),
       });
     }
   } else {
@@ -120,7 +144,9 @@ export function parseModelList(endpoint: ProviderEndpoint, json: unknown): Model
       const pricing = m.pricing && typeof m.pricing === "object" ? (m.pricing as Record<string, unknown>) : undefined;
       const input = num(pricing?.prompt);
       const output = num(pricing?.completion);
-      const modality = m.architecture && typeof m.architecture === "object" ? str((m.architecture as Record<string, unknown>).modality) : undefined;
+      const architecture = m.architecture && typeof m.architecture === "object" ? (m.architecture as Record<string, unknown>) : undefined;
+      const modality = architecture ? str(architecture.modality) : undefined;
+      const vision = endpoint.api === "anthropic-messages" ? true : seesImages(architecture);
       out.push({
         id,
         label: str(m.display_name) ?? str(m.name),
@@ -129,6 +155,7 @@ export function parseModelList(endpoint: ProviderEndpoint, json: unknown): Model
         chat: modality ? /->.*text/.test(modality) && !NOT_CHAT.test(id) : !NOT_CHAT.test(id),
         transcribe: TRANSCRIBES.test(id),
         embed: EMBEDS.test(id) || /->.*embedding/i.test(modality ?? ""),
+        ...(vision !== undefined ? { vision } : {}),
       });
     }
   }

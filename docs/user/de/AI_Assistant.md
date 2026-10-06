@@ -114,6 +114,21 @@ An jeder Sprachnotiz — im Editor, im Lesemodus, im Journal und auf Karten — 
 
 **Audio** braucht einen Anbieter mit Audio-Weg: OpenAI (etwa `gpt-4o-transcribe` oder `whisper-1`), Gemini oder einen eigenen kompatiblen Server — einer auf diesem Rechner behält die Aufnahme auf dem Gerät. Aufnahmen bis 11 MB lassen sich transkribieren. Eine Aufnahme in einer Notiz, die Deine Regeln von der Cloud fernhalten, geht an kein Cloud-Modell, und verschlüsselte Workspaces bieten es noch nicht an.
 
+## Ein Bild erklären
+
+An jedem Bild im Vault fragt **Bild erklären** die KI, was es zeigt.
+
+- **Desktop:** in der Werkzeugleiste eines geöffneten Bildes und im Menü, das ein Rechtsklick auf ein Bild in einer Notiz öffnet — beim Bearbeiten wie im Lesemodus.
+- **Telefon:** unter einem geöffneten Bild (an einem Bild in einer Notiz führt **Bild öffnen** dorthin).
+
+Das Bild geht mit der Frage an das Modell, mit dem neue Gespräche beginnen — in einem eigenen Gespräch, in dem Du weiterfragen kannst: was in einer Tabelle steht, was in der zweiten Spalte steht, was ein Diagramm bedeutet. Die Übersicht zeigt das Bild, bevor es gesendet wird; ein Bild ist eine eigene Art von Daten, deshalb fragt die Übersicht beim ersten Mal.
+
+**Was geht, ist nicht die Datei.** Plainva zeichnet das Bild, verkleinert es auf höchstens 1.568 Pixel an der längeren Seite und speichert es zum Senden neu. So geht es ohne das, was die Datei über es festhält: den Ort einer Aufnahme, das Datum, die Kamera. Die Übersicht zeigt genau das Bild, das geht, mit seiner Größe. Diese Kopie bleibt beim Gespräch auf diesem Gerät, damit Du auch später siehst, was der Anbieter bekommen hat; löschst Du das Gespräch, ist sie weg.
+
+**Regeln.** Ein Bild in einem Ordner, den Deine Regeln von der Cloud fernhalten, geht an kein Cloud-Modell. Ebenso wenig ein Bild, das eine Notiz mit der Regel `cloud: deny` zeigt — egal, wo Du **Bild erklären** drückst, auch am geöffneten Bild: Plainva schlägt vor dem Senden nach, welche Notizen das Bild einbetten, und lässt es hier, wenn sich das nicht herausfinden lässt. Ein Modell auf diesem Gerät bleibt erlaubt. Was in einem Bild geschrieben steht, ist Inhalt wie der Text einer Notiz, nie eine Anweisung: Das Gespräch von **Bild erklären** kann in Deinem Vault nachschlagen, aber es kann nicht ins Internet und löst in der App nichts aus.
+
+**Welche Modelle Bilder lesen.** Die meisten Cloud-Modelle tun es. Das Modell des Systems am Telefon nicht — **Bild erklären** sagt das dann. Wo die Liste eines Anbieters sagt, dass ein Modell keine Bilder liest, steht es in der Übersicht, bevor Du sendest. Lehnt ein Anbieter die Anfrage ab, wähle unter dem Gespräch ein anderes Modell und frag noch einmal — das Bild ist noch darin.
+
 ## Im Internet
 
 Der Assistent kann das Internet erst benutzen, wenn Du es erlaubst — und zwar dreimal:
@@ -155,6 +170,8 @@ plainva:
 ```
 
 oder, für einen ganzen Ordner, in **Einstellungen → KI & Automatisierung** (dem Vault-Teil), das die Regeln in `.agent/policy.yml` schreibt. Eine von der Cloud ferngehaltene Notiz trägt nichts bei — weder Text noch Titel —, und Links auf sie in anderen Notizen werden zurückgehalten. Modelle auf diesem Gerät bleiben erlaubt. Verschlüsselte Workspaces halten die Cloud aus, solange Du sie dort nicht erlaubst. Das genaue Format steht in der [Dateiformat-Referenz](File_Format_Reference.md).
+
+Ein Bild gehört zu den Notizen, die es zeigen: Eines, das eine von der Cloud ferngehaltene Notiz einbettet, geht ebenfalls an kein Cloud-Modell (siehe Ein Bild erklären weiter oben).
 
 Eine zweite Regel, `web: deny` — in den Einstellungen **Webzugriff: nie** —, hält eine Notiz oder einen Ordner aus jedem Gespräch heraus, das ins Internet darf.
 

@@ -759,6 +759,27 @@ export class VaultQueryService {
   }
 
   /**
+   * The notes whose text contains one of `needles` literally — a scan of the
+   * stored note texts, not a search: no tokens, no operators, punctuation as
+   * it stands; ASCII letters in either case, as LIKE compares them. For
+   * questions the link table cannot answer, such as "which notes name this
+   * file": a Markdown image (`![](a.png)`) is no link there, and an
+   * attachment is no link target (see `getBacklinks`). `truncated` says that
+   * there were more than `limit` — the answer is then incomplete, and a
+   * caller that must not miss a note has to treat it as "cannot tell".
+   */
+  async notesContaining(needles: readonly string[], limit = 200): Promise<{ paths: string[]; truncated: boolean }> {
+    const wanted = [...new Set(needles.filter((needle) => needle.length > 0))].slice(0, 8);
+    if (wanted.length === 0) return { paths: [], truncated: false };
+    const rows = await this.db.query<{ path: string }>(
+      `SELECT path FROM fts_notes WHERE ${wanted.map(() => "content LIKE ? ESCAPE '\\'").join(" OR ")} ORDER BY path LIMIT ?`,
+      [...wanted.map((needle) => `%${needle.replace(/[\\%_]/g, "\\$&")}%`), limit + 1],
+    );
+    const paths = [...new Set(rows.map((row) => row.path))];
+    return { paths: paths.slice(0, limit), truncated: paths.length > limit };
+  }
+
+  /**
    * Finds all files that link to the given path (Backlinks).
    */
   async getBacklinks(targetPath: string): Promise<LinkRecord[]> {

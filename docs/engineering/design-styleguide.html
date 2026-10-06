@@ -1145,6 +1145,29 @@
         <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't allow</button><button class="pvbtn primary">Allow</button></div>
       </section>
     </div>
+    <p class="sec-sub">AI harness P4-5 (2026-10-06): “Explain image”. The door is a ghost Button with the AI mark in the image viewer's toolbar (desktop) and a tonal Button below the picture (phone), and an entry in the menu of a picture in a note. The send overview lists the picture as a source — its name, then “image, width × height px, size” as the form, without the “leave out” control — and, while it asks, draws the picture itself under the list (<code>.pv-ai-overview-pictures</code>, at most 7rem high) with one hint line: it goes as shown, scaled down and saved anew. In the conversation the picture stands in the user's message as a figure with its name as the caption (<code>.pv-ai-figure</code>, <code>.pv-ai-picture</code>, at most 14rem high), above the question. Both are drawn from the copy that was sent, never from the file. Where the provider's list says the model reads no images, the overview adds the warning line of the sensitivity hint.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Send to Anthropic?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⛨</span><span>Send to Anthropic?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Goes to</dt>
+          <dd>Anthropic · m-1</dd>
+          <dt>Notes</dt>
+          <dd>
+            <ul class="pv-ai-overview-sources"><li><button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-overview-note">Whiteboard kickoff.jpg</button><span class="pv-ai-overview-form">image, 1,568 × 980 px, 305 KB</span></li></ul>
+            <div class="pv-ai-overview-pictures"><svg class="pv-ai-picture" viewBox="0 0 160 100" width="160" height="100" role="img" aria-label="Whiteboard kickoff.jpg"><rect width="160" height="100" fill="var(--surface-container)"/><rect x="10" y="22" width="40" height="18" fill="var(--warning-bg)"/><rect x="60" y="22" width="40" height="18" fill="var(--accent-container)"/><rect x="110" y="22" width="40" height="18" fill="var(--success-bg)"/></svg></div>
+            <span class="pv-ai-overview-hint">It goes as shown here: scaled down and saved anew — without the place, the date or the camera the file records.</span>
+          </dd>
+          <dt>Also goes</dt>
+          <dd>date and time · an image</dd>
+        </dl>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Cancel</button><button class="pvbtn primary">Send</button></div>
+      </section>
+      <div class="pv-ai-msg pv-ai-msg--user">
+        <figure class="pv-ai-figure"><svg class="pv-ai-picture" viewBox="0 0 160 100" width="160" height="100" role="img" aria-label="Whiteboard kickoff.jpg"><rect width="160" height="100" fill="var(--surface-container)"/><rect x="10" y="22" width="40" height="18" fill="var(--warning-bg)"/><rect x="60" y="22" width="40" height="18" fill="var(--accent-container)"/><rect x="110" y="22" width="40" height="18" fill="var(--success-bg)"/></svg><figcaption>Whiteboard kickoff.jpg</figcaption></figure>
+        <div class="pv-ai-usertext">Explain this image.</div>
+      </div>
+    </div>
     <p class="sec-sub">AI harness P3-5 (2026-10-01): the skills workshop. What waits for an approval on this device stands first; the review names what a skill may do in words and what changed since the approved version as a line comparison (<code>LineCompare</code>, <code>.pv-linecompare</code>), in a facts list (<code>.pv-skill-facts</code>).</p>
     <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
       <dl class="pv-skill-facts">

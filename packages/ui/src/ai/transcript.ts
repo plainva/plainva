@@ -1,4 +1,4 @@
-import { calledToolName, EFFECT_DECLINED, type ConversationRecord, type RunMeta } from "@plainva/core";
+import { calledToolName, EFFECT_DECLINED, imagesOf, type ConversationRecord, type ImagePart, type RunMeta } from "@plainva/core";
 
 /**
  * What a reader sees of a conversation (P1a): the user's words, the answers,
@@ -7,7 +7,8 @@ import { calledToolName, EFFECT_DECLINED, type ConversationRecord, type RunMeta 
  * second copy of the conversation.
  */
 export type TranscriptItem =
-  | { kind: "user"; key: string; text: string; context: string[] }
+  /** `images`: the pictures the message carried (plan KI-Harness P4-5), as they were sent. */
+  | { kind: "user"; key: string; text: string; context: string[]; images?: ImagePart[] }
   | { kind: "answer"; key: string; text: string }
   | { kind: "steps"; key: string; steps: { id: string; name: string; state: StepState }[] }
   | { kind: "run"; key: string; run: RunMeta };
@@ -46,9 +47,10 @@ export function transcriptOf(record: ConversationRecord): TranscriptItem[] {
       }
       const context = texts.flatMap((p) => (p.context ? p.context.map(stampPath) : []));
       const words = texts.filter((p) => !p.context).map((p) => p.text).join("\n\n");
-      if (words || context.length) {
+      const images = imagesOf(turn.parts);
+      if (words || context.length || images.length) {
         steps = null;
-        items.push({ kind: "user", key: `u${index}`, text: words, context });
+        items.push({ kind: "user", key: `u${index}`, text: words, context, ...(images.length ? { images } : {}) });
       }
     } else {
       const text = turn.parts.filter((p) => p.type === "text").map((p) => p.text).join("");

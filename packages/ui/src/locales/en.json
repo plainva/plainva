@@ -271,7 +271,8 @@
         "notes": "notes",
         "audio": "a recording",
         "searches": "your search questions",
-        "comments": "a comment thread"
+        "comments": "a comment thread",
+        "images": "an image"
       },
       "keptBack": "Kept back",
       "keptNotes_one": "{{count}} note your rules block",
@@ -313,7 +314,8 @@
       "webSearches": "Searched for",
       "further": "Further tools",
       "furtherMail": "mail — asks before it is read for the first time",
-      "reading": "Mail and calendar"
+      "reading": "Mail and calendar",
+      "evidenceImage": "image, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
       "open": "View context",
@@ -504,6 +506,26 @@
       "descriptions_other": "{{count}} appointment descriptions read",
       "byDevice": "The text was read by {{reader}} on this device; only its report went on.",
       "byProvider": "The text was read by {{provider}}, in requests of their own without tools."
+    },
+    "image": {
+      "action": "Explain image",
+      "ask": "Explain this image.",
+      "title": "Image: {{name}}",
+      "sentLine_one": "{{count}} image",
+      "sentLine_other": "{{count}} images",
+      "asSent": "It goes as shown here: scaled down and saved anew — without the place, the date or the camera the file records.",
+      "blind": "According to the provider's list, {{model}} reads no images. You can send it all the same.",
+      "refusedHint": "This model may not be able to read images. Choose another one below and ask again.",
+      "refused": {
+        "off": "The AI is off.",
+        "no-model": "Choose a model first — in the AI settings.",
+        "no-route": "{{provider}} reads no images. Choose another model for new conversations.",
+        "denied": "Your rules keep this image from this model: its own folder's, or those of a note that shows it.",
+        "unchecked": "Plainva could not check which notes show this image, so it was not sent.",
+        "unreadable": "The image could not be read.",
+        "too-large": "The image is too large to send, even scaled down (at most {{max}}).",
+        "failed": "The image could not be explained: {{reason}}"
+      }
     },
     "lint": {
       "defused": "New web addresses were defused: readable, but not links."

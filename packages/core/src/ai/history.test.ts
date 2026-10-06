@@ -107,6 +107,39 @@ describe("conversation records", () => {
     expect(startConversation("c", "s", ["search_vault"])).not.toHaveProperty("more");
   });
 
+  it("keeps a picture with the turn that sent it, and its size with the run's overview", () => {
+    const r = record();
+    const picture = { type: "image" as const, mime: "image/jpeg" as const, data: "QUJDRA==", name: "Whiteboard.jpg", width: 1568, height: 1045, path: "Assets/Whiteboard.jpg" };
+    r.conversation = appendTurn(startConversation("c1", "system", ["search_vault"]), { role: "user", parts: [{ type: "text", text: "lead", context: [] }, picture, { type: "text", text: "Explain this picture." }], at });
+    const manifest = {
+      providerId: "anthropic",
+      providerLabel: "Anthropic",
+      model: "m",
+      local: false,
+      sources: [{ path: "Assets/Whiteboard.jpg", title: "Whiteboard.jpg", tier: "evidence" as const, chars: 0, reasons: ["active" as const], image: { width: 1568, height: 1045, bytes: 4 } }],
+      dataClasses: ["situation" as const, "images" as const],
+      folders: ["Assets"],
+      withheld: { notes: 0, links: 0, places: 0, moodProperties: 0 },
+      excluded: [],
+      estimatedTokens: 2300,
+      tools: ["search_vault"],
+      web: false,
+    };
+    r.runs[0] = { ...r.runs[0]!, manifest };
+    const read = readConversationRecord(JSON.parse(JSON.stringify(r)))!;
+    expect(read.conversation.turns[0]!.parts[1]).toEqual(picture);
+    expect(read.runs[0]!.manifest).toEqual(manifest);
+    // The history search reads words, never a picture's bytes.
+    expect(conversationMatches(read, "explain this")).toBe(true);
+    expect(conversationMatches(read, "QUJD")).toBe(false);
+    expect(conversationMatches(read, "whiteboard")).toBe(false);
+
+    // A size that is none is no picture row: the source stays, as a plain one.
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].manifest.sources[0].image = { width: "wide", height: 1045, bytes: 4 };
+    expect(readConversationRecord(tampered)!.runs[0]!.manifest!.sources[0]).not.toHaveProperty("image");
+  });
+
   it("titles, summaries, search and retention", () => {
     expect(conversationTitleFrom("  Where   is\nit? ", "x")).toBe("Where is it?");
     expect(conversationTitleFrom("", "Fallback")).toBe("Fallback");

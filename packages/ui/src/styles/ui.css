@@ -3999,6 +3999,10 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 }
 .pv-ai-usertext { white-space: pre-wrap; }
 .pv-ai-ctxline { display: flex; align-items: center; gap: var(--space-1); margin-bottom: var(--space-1); font-size: var(--text-xs); opacity: 0.85; }
+/* A picture in a message (AI harness P4-5): shown as it was sent — the scaled copy that went, never the file. */
+.pv-ai-figure { display: flex; flex-direction: column; gap: var(--space-1); margin: 0 0 var(--space-1); }
+.pv-ai-figure > figcaption { font-size: var(--text-xs); opacity: 0.85; overflow-wrap: anywhere; }
+.pv-ai-picture { display: block; width: auto; max-width: 100%; height: auto; max-height: 14rem; border-radius: var(--radius-sm); object-fit: contain; }
 .pv-ai-answer > :last-child { margin-bottom: 0; }
 .pv-ai-answer p,
 .pv-ai-answer ul,
@@ -4089,6 +4093,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-overview-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
 .pv-ai-overview-every { display: flex; align-items: center; gap: var(--space-2); margin-right: auto; font-size: var(--text-xs); color: var(--text-muted); }
 .pv-ai-overview-hint { display: block; font-size: var(--text-xs); color: var(--text-muted); }
+/* The pictures a request would carry (AI harness P4-5), in the overview that asks: small, and exactly what goes. */
+.pv-ai-overview-pictures { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+.pv-ai-overview-pictures > .pv-ai-picture { max-height: 7rem; border: 1px solid var(--border-color-light); }
 /* The approval of one page or one search (AI harness P4) is built from the overview's parts; its warning names an address the model composed. */
 .pv-ai-effect-warn { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-xs); color: var(--warning-text); }
 .pv-ai-effect-warn > svg { flex: none; }

@@ -8,6 +8,7 @@ import {
   SITUATION_SOURCE,
   type AnswerCoverage,
   type EgressManifest,
+  type ImagePart,
   type ManifestSource,
   type RunReading,
   type RunWeb,
@@ -20,6 +21,8 @@ import { Switch } from "../components/ui/Switch";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
 import { megabytes } from "./aiTranscribe";
+import { pictureSize } from "./aiImage";
+import { AiPicture } from "./AiPicture";
 import { useSensitiveKinds } from "./sensitiveKinds";
 import { appSkillOf } from "./appSkills";
 
@@ -54,6 +57,10 @@ export interface AiSendOverviewProps {
   reading?: RunReading | null;
   /** Opens one of those pages; the shell asks before it does. */
   onOpenUrl?: (url: string) => void;
+  /** Before sending: the pictures the request would carry (plan P4-5), exactly as they would go. */
+  images?: readonly ImagePart[];
+  /** The provider's own list says the chosen model reads no pictures: said, never a lock. */
+  blind?: boolean;
 }
 
 /** A page as a row names it: without the scheme every address shares. */
@@ -68,7 +75,7 @@ function useSkillTitle(): (id: string, name: string) => string {
   };
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
   // The dispatcher is the search's other half, not a tool of its own to a reader.
   const shownTools = manifest.tools.filter((tool) => tool !== DISPATCH_TOOL);
@@ -140,7 +147,9 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
     </span>
   );
   const form = (source: ManifestSource) =>
-    source.audioBytes !== undefined
+    source.image
+      ? t("ai.overview.evidenceImage", { width: number.format(source.image.width), height: number.format(source.image.height), size: pictureSize(source.image.bytes) })
+      : source.audioBytes !== undefined
       ? t("ai.overview.evidenceAudio", { size: megabytes(source.audioBytes) })
       : source.comments !== undefined
       ? source.comments > 0
@@ -219,8 +228,8 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
                     <span className="pv-ai-overview-note">{source.title}</span>
                   )}
                   <span className="pv-ai-overview-form">{form(source)}</span>
-                  {/* The thread is what was asked about: it goes, or the request is cancelled. */}
-                  {onLeaveOut && source.comments === undefined && (
+                  {/* The thread, or the picture, is what was asked about: it goes, or the request is cancelled. */}
+                  {onLeaveOut && source.comments === undefined && !source.image && (
                     <IconButton size="sm" label={t("ai.overview.leaveOut", { note: source.title })} onClick={() => onLeaveOut(source.path)}>
                       <Minus size={ICON.meta} />
                     </IconButton>
@@ -229,6 +238,23 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
                 </li>
               ))}
             </ul>
+          )}
+          {/* Before sending: the pictures as they would go — scaled down, encoded anew, without what the file knows of place and time. */}
+          {asking && images && images.length > 0 && (
+            <>
+              <div className="pv-ai-overview-pictures" data-testid="ai-overview-pictures">
+                {images.map((picture, index) => (
+                  <AiPicture key={index} picture={picture} alt={picture.name} />
+                ))}
+              </div>
+              <span className="pv-ai-overview-hint">{t("ai.image.asSent")}</span>
+              {blind && (
+                <span className="pv-ai-overview-sensitive" data-testid="ai-overview-blind">
+                  <ShieldAlert size={ICON.meta} aria-hidden="true" />
+                  <span>{t("ai.image.blind", { model: manifest.model })}</span>
+                </span>
+              )}
+            </>
           )}
         </dd>
         {standing && manifest.folders.length > 0 && (

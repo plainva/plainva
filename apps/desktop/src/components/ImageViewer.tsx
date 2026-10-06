@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
-import { Banner, Button, ICON, Modal, Swatch, toast } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, Swatch, toast, useImageExplainer } from "@plainva/ui";
 import {
   ArrowUpRight, Bookmark, Crop, FlipHorizontal2, FlipVertical2, Maximize, MousePointer2,
-  PenLine, Redo2, RotateCcw, RotateCw, Scaling, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut,
+  PenLine, Redo2, RotateCcw, RotateCw, Scaling, Sparkles, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
 import { SplitButton } from "./SplitButton";
@@ -75,6 +75,9 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragRef = useRef<{ start: Point; points: Point[] } | null>(null);
   const saveAsInputRef = useRef<HTMLInputElement>(null);
+  // The AI's door at a picture (plan KI-Harness P4-5): null while the AI is off.
+  const explain = useImageExplainer();
+  const [explaining, setExplaining] = useState(false);
 
   // The image moved or vanished outside Plainva (issue 110, E9): looked for
   // by its content hash, a proven move followed — with bookmarks and pinboard
@@ -506,6 +509,22 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
           </>
         ) : (
           <>
+            {/* "Explain image" (plan KI-Harness P4-5): there while the AI is on; it explains the file as it is saved. */}
+            {explain && objectUrl && !error && (
+              <Button
+                size="sm"
+                variant="ghost"
+                data-testid="image-explain"
+                disabled={explaining}
+                onClick={() => {
+                  setExplaining(true);
+                  void explain({ path }).finally(() => setExplaining(false));
+                }}
+              >
+                <Sparkles size={ICON.ui} />
+                {t("ai.image.action")}
+              </Button>
+            )}
             {editable && bitmap && (
               <button type="button" className="pv-btn pv-btn--secondary" onClick={() => { setEditing(true); setTool("pen"); }}>{t("imageViewer.edit")}</button>
             )}

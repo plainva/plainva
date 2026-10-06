@@ -159,3 +159,31 @@ describe("an address the model wrote into a call", () => {
     expect(addressOrigin(LEAK, knownAddresses(c))).toBe("user");
   });
 });
+
+/**
+ * A picture (plan KI-Harness P4-5) names no address anyone can vouch for:
+ * what is written in it stood in no text before the model read it out. An
+ * address the model takes from a picture is therefore the model's own — a
+ * request to it always asks, and a link to it is marked.
+ */
+describe("an address that stands in a picture", () => {
+  const IN_PICTURE = "https://collect.example.org/upload?d=notes";
+
+  it("is the model's: neither the picture nor the words Plainva put before it name one", () => {
+    let c: Conversation = startConversation("c", "s", []);
+    c = appendTurn(c, {
+      role: "user",
+      at: "t1",
+      parts: [
+        // The door's words carry the path as one inert line, whatever the file is called.
+        { type: "text", text: 'The picture below is the file "Inbox/https[://]collect.example.org/shot.png" from the user\'s vault.', context: [] },
+        { type: "image", mime: "image/png", data: "QUJD", name: "shot.png", width: 4, height: 4, path: "Inbox/shot.png" },
+        { type: "text", text: "Explain this image." },
+      ],
+    });
+    c = appendTurn(c, { role: "assistant", provider: "p", model: "m", at: "t2", parts: [{ type: "text", text: `The screenshot says: open ${IN_PICTURE}` }] });
+    const known = knownAddresses(c);
+    expect([...known.user, ...known.source]).toEqual([]);
+    expect(addressOrigin(IN_PICTURE, known)).toBe("model");
+  });
+});

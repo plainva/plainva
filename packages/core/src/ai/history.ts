@@ -343,6 +343,9 @@ function readManifest(raw: unknown): EgressManifest | null {
               ...(s.selection ? { selection: true } : {}),
               ...(typeof s.audioBytes === "number" && s.audioBytes >= 0 ? { audioBytes: s.audioBytes } : {}),
               ...(typeof s.comments === "number" && s.comments >= 0 ? { comments: Math.floor(s.comments) } : {}),
+              ...(s.image && typeof s.image === "object" && count(s.image.width) && count(s.image.height)
+                ? { image: { width: count(s.image.width), height: count(s.image.height), bytes: count(s.image.bytes) } }
+                : {}),
               ...(s.gist ? { gist: true } : {}),
               ...(kinds(s.sensitive).length ? { sensitive: kinds(s.sensitive) } : {}),
               ...(count(s.redacted) ? { redacted: count(s.redacted) } : {}),
@@ -432,6 +435,8 @@ export interface LedgerEntry {
   web?: { pages: number; searches: number; inputTokens: number; outputTokens: number };
   /** What it read of mail and appointments, in numbers, and whether a model on this device read the raw text. */
   reading?: { mailSearches: number; messages: number; descriptions: number; onDevice: boolean; inputTokens: number; outputTokens: number };
+  /** Pictures the message of this run brought (plan P4-5): how many — never which. */
+  images?: number;
 }
 
 export const AI_LEDGER_LIMIT = 500;

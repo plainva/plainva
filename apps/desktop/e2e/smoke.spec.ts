@@ -4045,3 +4045,99 @@ test('AI app commands: the assistant opens a view through the palette, and canno
   expect(sent[2]).toContain('Done: Open the journal.');
   expect(sent[2]).toContain('Unknown command. Available commands:');
 });
+
+// "Explain image" (AI harness P4-5): a picture of the vault goes, with a
+// question, to the model — after the overview showed it exactly as it would
+// go. The web view's own decoder and canvas prepare it, as in the app: what
+// leaves is a picture drawn anew, never the file. And a picture that a note
+// kept from the cloud shows stays, also when it is opened by itself.
+test('AI explain image: the picture goes drawn anew and only after the overview showed it; a note kept from the cloud keeps its picture', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const script = [says('A small red square.'), says('The same red square, in the note Board.')];
+  await serveImages(page);
+  await page.addInitScript(({ script, png }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    Object.assign((window as any).mockFs, {
+      '/test-vault/red.png': `png:${png}`,
+      '/test-vault/secret.png': `png:${png}`,
+      '/test-vault/Board.md': '# Board\n\n![[red.png]]\n\nAfter the picture.\n',
+      '/test-vault/Private.md': '---\nplainva:\n  ai:\n    cloud: deny\n---\n# Private\n\n![[secret.png]]\n',
+    });
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, png: RED_PNG });
+
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+
+  // 1. The door stands at the opened picture, because the AI is on.
+  await aside.getByText('red.png', { exact: true }).click();
+  await expect(page.getByTestId('image-viewer')).toBeVisible();
+  await page.getByTestId('image-explain').click();
+
+  // 2. The companion comes with the overview: the picture as it would go, its size, and nothing sent yet.
+  const companion = page.getByTestId('ai-companion');
+  const overview = companion.getByTestId('ai-consent');
+  await expect(overview).toBeVisible();
+  const shown = overview.getByTestId('ai-overview-pictures').locator('img');
+  await expect(shown).toHaveCount(1);
+  expect(await shown.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
+  await expect(overview).toContainText(/(image|Bild), 2 × 2 px/);
+  expect(await requests()).toEqual([]);
+  await companion.getByTestId('ai-consent-send').click();
+
+  // 3. Answered, in a conversation of its own that shows the picture and the question.
+  await expect(companion.getByText('A small red square.')).toBeVisible();
+  await expect(companion.locator('.pv-ai-figure img')).toHaveCount(1);
+  await expect(companion.locator('.pv-ai-figure figcaption')).toHaveText('red.png');
+  const [first] = await requests();
+  // What left: a picture block, encoded anew by this web view — not the bytes of the file.
+  expect(first).toContain('"type":"image"');
+  expect(first).toContain('"media_type":"image/png"');
+  expect(first).not.toContain(RED_PNG);
+  expect(first).toContain('the file \\"red.png\\" from the user\'s vault');
+  // A door reads the vault and moves nothing: no command tool, no tool search, no internet.
+  expect(first).toContain('"name":"read_note"');
+  expect(first).not.toMatch(/"name":"(run_command|find_tools|call_tool|fetch_url|web_search)"/);
+
+  // 4. A picture a note kept from the cloud shows stays — opened by itself, where no note is named.
+  await aside.getByText('secret.png', { exact: true }).click();
+  await expect(page.getByTestId('image-viewer')).toBeVisible();
+  await page.getByTestId('image-explain').click();
+  await expect(page.getByText(/Your rules keep this image from this model|Deine Regeln halten dieses Bild von diesem Modell fern/)).toBeVisible();
+  expect(await requests()).toHaveLength(1);
+
+  // 5. The same door in a note: the menu of a right-click on the picture, with the note named to the model.
+  await page.locator('[data-tree-path="Board.md"]').click();
+  await page.locator('.pv-image-embed img').first().click({ button: 'right' });
+  await page.getByTestId('image-explain-menu').click();
+  // Another folder's note goes along now, so the overview may ask again; either way the answer comes.
+  const again = companion.getByTestId('ai-consent-send');
+  await Promise.race([again.waitFor({ state: 'visible', timeout: 8000 }).then(() => again.click()), companion.getByText('The same red square, in the note Board.').waitFor({ state: 'visible', timeout: 8000 })]).catch(() => undefined);
+  await expect(companion.getByText('The same red square, in the note Board.')).toBeVisible();
+  const sent = await requests();
+  expect(sent).toHaveLength(2);
+  expect(sent[1]).toContain('embedded in the note [[Board]]');
+});

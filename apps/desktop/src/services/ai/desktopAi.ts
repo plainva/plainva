@@ -296,6 +296,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       semanticCandidates: async (question, limit, options) => (await input.semantic?.()?.semanticCandidates(question, limit, options)) ?? [],
       // What sending without a selection would cost (plan P2b-5): the index's sizes, no note read.
       noteSizes: async (paths) => new Map([...(await input.query.fileRecords(paths))].map(([path, record]) => [path, record.size_bytes])),
+      // Which notes name a file (plan P4-5): a picture embedded in a note kept from the cloud stays with it.
+      notesContaining: (needles) => input.query.notesContaining(needles),
     },
     toolDeps: {
       async search(query, limit, offset) {

@@ -114,6 +114,21 @@ At every voice note — in the editor, in reading mode, in the journal and on ca
 
 **Audio** needs a provider with an audio route: OpenAI (for example `gpt-4o-transcribe` or `whisper-1`), Gemini, or a compatible server of your own — one on this computer keeps the recording on the device. Recordings up to 11 MB can be transcribed. A recording in a note your rules keep from the cloud goes to no cloud model, and encrypted workspaces do not offer it yet.
 
+## Explaining an image
+
+At every picture of the vault, **Explain image** asks the AI what it shows.
+
+- **Desktop:** in the toolbar of an open image, and in the menu a right-click on a picture in a note opens — while editing and in reading mode.
+- **Phone:** below an open image (at a picture in a note, **Open image** takes you there).
+
+The picture goes, with the question, to the model new conversations start with — in a conversation of its own, where you can ask on: what a table says, what stands in the second column, what a diagram means. The overview shows the picture before it is sent; a picture is a kind of data of its own, so the overview asks the first time.
+
+**What goes is not the file.** Plainva draws the picture, scales it down to at most 1,568 pixels on its longer side and saves it anew for sending. So it goes without what the file records about it: the place a photo was taken, the date, the camera. The overview shows exactly the picture that goes, with its size. That copy stays with the conversation on this device, so you can still see later what the provider got; delete the conversation and it is gone.
+
+**Rules.** A picture in a folder your rules keep from the cloud goes to no cloud model. Neither does a picture that a note with the rule `cloud: deny` shows — wherever you press **Explain image**, also at the open image: before sending, Plainva looks up which notes embed the picture, and if it cannot find that out, the picture stays. A model on this device stays allowed. What is written in a picture is content, like a note's text, never an instruction: the conversation of **Explain image** can look things up in your vault, but it cannot use the internet and triggers nothing in the app.
+
+**Which models read pictures.** Most cloud models do. The system's own model on the phone does not, and **Explain image** says so. Where a provider's list says that a model reads no images, the overview tells you before you send. If a provider turns the request down, choose another model below the conversation and ask again — the picture is still in it.
+
 ## On the internet
 
 The assistant cannot use the internet until you allow it — three times over:
@@ -155,6 +170,8 @@ plainva:
 ```
 
 or, for a whole folder, in **Settings → AI & automation** (the Vault part), which writes the rules to `.agent/policy.yml`. A note kept from the cloud contributes nothing — neither text nor title — and links to it in other notes are withheld. Models on this device stay allowed. Encrypted workspaces keep the cloud off unless you allow it there. The exact format is in the [File Format Reference](File_Format_Reference.md).
+
+A picture belongs to the notes that show it: one that a note kept from the cloud embeds goes to no cloud model either (see Explaining an image above).
 
 A second rule, `web: deny` — **Web access: never** in the settings — keeps a note or a folder out of every conversation that may use the internet.
 

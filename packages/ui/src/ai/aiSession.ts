@@ -3,6 +3,7 @@ import { APP_SKILL_SOURCES, appSkillOf, appSkillScenarios } from "./appSkills";
 import type { InstructionApprovalStore, SkillTestStore, WebSettingsStore } from "./aiStores";
 import { createWebExecutor, newRunWeb, webToolNames } from "./webTools";
 import { createPrivateDataExecutor, newRunReading, readSomething, type QuarantineReader } from "./privateData";
+import type { PreparedImage, PrepareFailure } from "./aiImage";
 import { createSkillExecutor, newSkillRunState, skillScope, type SkillRunState } from "./skillRuntime";
 import {
   PASSAGE_ONLY,
@@ -85,6 +86,12 @@ import {
   sensitiveKinds,
   withholdDeniedLinks,
   withholdPlaces,
+  IMAGE_MAX_BYTES,
+  imageLead,
+  imageRoute,
+  imagesOf,
+  imageTokens,
+  isAiHiddenPath,
   TRANSCRIPTION_MAX_BYTES,
   transcriptBlock,
   transcriptionRequest,
@@ -141,6 +148,7 @@ import {
   type PackageGists,
   type Part,
   type TextPart,
+  type ImagePart,
   type ProviderInfo,
   type RunMeta,
   type RunStop,
@@ -228,6 +236,13 @@ export interface AiVaultHost {
   keepOnDevice?(path: string): Promise<void>;
   /** Checked gists of the model on this computer (plan P2b-3), read when a message is built; null while there are none. */
   gists?(): PackageGists | null;
+  /**
+   * The notes that embed a file (plan P4-5): their rules decide whether a
+   * picture may go to a cloud. `null` when that cannot be found out — which
+   * is not "none", and neither is a host that cannot be asked at all: either
+   * way the picture stays on the device.
+   */
+  embedders?(path: string): Promise<string[] | null>;
   /** Writes a suggestion round into a note's comments (plan P1.5); nothing enters the note until someone accepts. */
   propose?(round: { path: string; base: string; chunks: readonly SuggestionChunk[]; note: string; author: SuggestionAuthor }): Promise<void>;
   /** True inside an encrypted workspace: its sealed comments cannot carry an author yet (E32). */
@@ -365,6 +380,34 @@ export type TranscriptionOutcome =
     };
 
 /**
+ * A picture of the vault to explain (plan P4-5, §10.7): where it stands, and
+ * how to get it ready. `load` is called only once the rules let the picture
+ * go to the chosen model — nothing is read or drawn for a picture that stays.
+ */
+export interface ImageRequest {
+  path: string;
+  /** The note it is embedded in, where the door stood on an embed: that note's rules decide too. */
+  notePath?: string;
+  load(): Promise<PreparedImage | PrepareFailure>;
+}
+
+export type ImageOutcome =
+  | { kind: "answered"; conversationId: string }
+  | {
+      kind: "refused";
+      /**
+       * `no-route`: the chosen model's protocol has no place for a picture (a model of the system).
+       * `denied`: the rules keep the picture, or a note that shows it, from this model.
+       * `unchecked`: which notes show the picture could not be found out, so it stays.
+       */
+      reason: "off" | "no-model" | "no-route" | "busy" | "denied" | "unchecked" | "unreadable" | "too-large" | "cancelled" | "failed";
+      provider?: string;
+      /** Set once a conversation exists: it shows the question and why no answer came. */
+      conversationId?: string;
+      message?: string;
+    };
+
+/**
  * A remark that addresses the assistant in a comment thread (plan P3-6): the
  * note, the thread so far, and what was asked.
  */
@@ -482,9 +525,11 @@ export interface AiState {
   hasVault: boolean;
   /**
    * The send overview waiting for the user's answer (plan §13.3): shown before
-   * the first request of the session and whenever the scope grows.
+   * the first request of the session and whenever the scope grows. `images`:
+   * the pictures the request would carry, exactly as they would go (plan
+   * P4-5). `blind`: the provider's own list says this model reads none.
    */
-  consent: { manifest: EgressManifest; growth: ScopeGrowth[] } | null;
+  consent: { manifest: EgressManifest; growth: ScopeGrowth[]; images?: readonly ImagePart[]; blind?: boolean } | null;
   skills: AiSkillsState;
   skillTests: AiSkillTestsState;
   /** The vault's internet settings on this device (plan KI-Harness P4): off until the user decides. */
@@ -528,11 +573,13 @@ interface DoorStart {
   title: string;
   /** Notes that go along whatever is open. */
   pins: string[];
-  /** What the door brings, before the user's words — fenced where it is not the user's own. */
-  lead: TextPart[];
+  /** What the door brings, before the user's words — fenced where it is not the user's own; a picture, for "Explain image". */
+  lead: (TextPart | ImagePart)[];
   /** Names in the send overview what `lead` carries. */
   disclose(manifest: EgressManifest): EgressManifest;
   limits?: RunLimits;
+  /** The provider's own list says the chosen model reads no pictures (plan P4-5): the overview says so, and sends all the same. */
+  blind?: boolean;
 }
 
 /**
@@ -1652,6 +1699,97 @@ export class AiSession {
   }
 
   /**
+   * "Explain image" at a picture of the vault (plan P4-5, §10.7): the picture
+   * goes, with a question, to the model a new conversation would get — in a
+   * conversation of its own that the history keeps, where the user can ask
+   * on. It runs like a message typed in the composer: the gate first (the
+   * picture's own rules, and those of the note it stands in), the context of
+   * the question, the send overview with the picture in it as it would go.
+   *
+   * What goes is never the file: `load` hands in the picture scaled down and
+   * encoded anew, so nothing of the file's metadata leaves the device. A
+   * picture is data like a note's text and untrusted like it — the run is
+   * classed that way, and a door carries no tool with an outside effect.
+   */
+  async explainImage(request: ImageRequest): Promise<ImageOutcome> {
+    type Refusal = Extract<ImageOutcome, { kind: "refused" }>;
+    const refused = (reason: Refusal["reason"], extra: Omit<Refusal, "kind" | "reason"> = {}): ImageOutcome => ({ kind: "refused", reason, ...extra });
+    const vault = this.vault;
+    if (!this.state.settings.enabled || !vault) return refused("off");
+    // A door starts a conversation of its own: with the model a new one would get, not the open one's.
+    const choice = this.newConversationChoice();
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
+    if (!choice || !provider) return refused("no-model");
+    if (!imageRoute(provider.endpoint)) return refused("no-route", { provider: provider.label });
+    if (this.state.live || this.sending) return refused("busy");
+    const { path } = request;
+    if (isAiHiddenPath(path)) return refused("denied");
+    const recipient: EgressRecipient = recipientOf(provider, choice.model);
+    const run = { recipient, webTools: false };
+
+    // Set before the first wait: two quick presses never start two runs.
+    this.sending = true;
+    let conversationId: string | undefined;
+    try {
+      // A picture has no front matter: its folder's rules and the vault's decide.
+      if (!gateDecision(await vault.policy.policyOf(path, ""), run).allowed) return refused("denied");
+      // A note's rule covers what the note shows, so the notes that embed the picture decide too — the one the door
+      // stood in, and every other one: the viewer no longer knows which note a picture was opened from.
+      const showing = new Set<string>(request.notePath ? [request.notePath] : []);
+      if (isCloudRecipient(recipient)) {
+        const embedders = vault.embedders ? await vault.embedders(path).catch(() => null) : null;
+        // Not knowing is not "none": without an answer the picture stays.
+        if (embedders === null) return refused("unchecked");
+        for (const note of embedders) showing.add(note);
+      }
+      for (const notePath of showing) {
+        const note = await vault.readNote(notePath);
+        if (!gateDecision(await vault.policy.policyOf(notePath, note?.text), run).allowed) return refused("denied");
+      }
+      const noteTitle = request.notePath ? request.notePath.slice(request.notePath.lastIndexOf("/") + 1).replace(/\.md$/i, "") : undefined;
+      const prepared = await request.load().catch((): PrepareFailure => "unreadable");
+      if (this.vault !== vault) return refused("cancelled");
+      if (typeof prepared === "string") return refused(prepared);
+      if (prepared.bytes > IMAGE_MAX_BYTES) return refused("too-large");
+      const name = path.slice(path.lastIndexOf("/") + 1);
+      const picture: ImagePart = { type: "image", mime: prepared.mime, data: prepared.data, name, width: prepared.width, height: prepared.height, path };
+      const lead: TextPart = { type: "text", text: imageLead({ path, ...(noteTitle ? { noteTitle } : {}) }), context: [] };
+      const folder = path.includes("/") ? path.slice(0, path.indexOf("/")) : "";
+      const price = this.priceOf(choice);
+      const disclose = (manifest: EgressManifest): EgressManifest => {
+        const estimatedTokens = manifest.estimatedTokens + imageTokens(prepared.width, prepared.height) + estimateTokens(lead.text);
+        return {
+          ...manifest,
+          estimatedTokens,
+          ...(price ? { estimatedCostUsd: (estimatedTokens / 1_000_000) * price.input } : {}),
+          sources: [{ path, title: name, tier: "evidence", chars: 0, reasons: ["active"], image: { width: prepared.width, height: prepared.height, bytes: prepared.bytes } }, ...manifest.sources],
+          dataClasses: manifest.dataClasses.includes("images") ? manifest.dataClasses : [...manifest.dataClasses, "images"],
+          folders: manifest.folders.includes(folder) ? manifest.folders : [...manifest.folders, folder].sort(),
+        };
+      };
+      // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
+      const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+      // The provider's own list, where this session has it, says whether the model reads pictures.
+      const listed = this.state.tests[choice.providerId]?.models?.find((model) => model.id === choice.model)?.vision;
+      // The answer is read in the conversation: it comes on screen before anything is asked.
+      if (this.surfaces === 0) this.reveal?.();
+      const outcome = await this.runMessage(t("ai.image.ask"), vault, choice, {
+        door: { title: t("ai.image.title", { name }), pins: [], lead: [lead, picture], disclose, ...(listed === false ? { blind: true } : {}) },
+      });
+      if (!outcome) return refused("cancelled");
+      conversationId = outcome.record?.id;
+      if (outcome.stop.kind === "answered") return { kind: "answered", conversationId: conversationId ?? "" };
+      return refused(outcome.stop.kind === "cancelled" ? "cancelled" : "failed", conversationId ? { conversationId } : {});
+    } catch (error) {
+      this.abort = null;
+      if (this.state.live) this.set({ live: null });
+      return refused("failed", { ...(conversationId ? { conversationId } : {}), message: error instanceof Error ? error.message : String(error) });
+    } finally {
+      this.sending = false;
+    }
+  }
+
+  /**
    * "@AI" in a comment thread (plan P3-6, §19.1 D): the user's remark is the
    * question, the thread and the passage it hangs on go along as data, and
    * the answer comes back as a reply in the thread, authored "Plainva AI ·
@@ -2000,11 +2138,11 @@ export class AiSession {
     settle?.(answer);
   }
 
-  private askConsent(manifest: EgressManifest, growth: ScopeGrowth[]): Promise<ConsentAnswer> {
+  private askConsent(manifest: EgressManifest, growth: ScopeGrowth[], pictures: { images: readonly ImagePart[]; blind?: boolean } | null = null): Promise<ConsentAnswer> {
     this.settleConsent("cancel");
     return new Promise((resolve) => {
       this.consentAnswer = resolve;
-      this.set({ consent: { manifest, growth } });
+      this.set({ consent: { manifest, growth, ...(pictures?.images.length ? { images: pictures.images, ...(pictures.blind ? { blind: true } : {}) } : {}) } });
       // Asked from a door while no conversation is on screen: the shell shows one, or nobody could answer.
       if (this.surfaces === 0) this.reveal?.();
     });
@@ -2182,6 +2320,8 @@ export class AiSession {
     };
     const leaveOut = new Set<string>(apart ? [] : this.state.leaveOutNext);
     let { pack, manifest } = await build(leaveOut, redact);
+    // A picture the door brings is shown in the overview as it would go (plan P4-5).
+    const pictures = door ? { images: imagesOf(door.lead), ...(door.blind ? { blind: true } : {}) } : null;
     // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the strict.
     // Once the user reviews the overview, it stays until they send or cancel:
     // leaving a note out never sends on its own.
@@ -2189,7 +2329,7 @@ export class AiSession {
     for (;;) {
       const growth = scopeGrowth(manifest, this.scope);
       if (!reviewing && growth.length === 0 && !(this.state.settings.confirmEveryRequest && !manifest.local)) break;
-      const answer = await this.askConsent(manifest, growth);
+      const answer = await this.askConsent(manifest, growth, pictures);
       if (this.vault !== vault || answer === "cancel") return null;
       if (answer === "send") break;
       reviewing = true;
@@ -2465,6 +2605,8 @@ export class AiSession {
           ...(reading
             ? { reading: { mailSearches: reading.mailSearches, messages: reading.messages, descriptions: reading.descriptions, onDevice: reading.reader === "device", inputTokens: reading.inputTokens, outputTokens: reading.outputTokens } }
             : {}),
+          // How many pictures the message brought — never which.
+          ...(imagesOf(input.parts).length ? { images: imagesOf(input.parts).length } : {}),
         }),
       );
     } catch {

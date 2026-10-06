@@ -114,6 +114,21 @@ Bij elke spraaknotitie — in de editor, in de leesmodus, in het journaal en op 
 
 **Audio** vereist een provider met een audioroute: OpenAI (bijvoorbeeld `gpt-4o-transcribe` of `whisper-1`), Gemini of een eigen compatibele server — een server op deze computer houdt de opname op het apparaat. Opnamen tot 11 MB kunnen worden uitgeschreven. Een opname in een notitie die je regels bij de cloud weghouden, gaat naar geen enkel cloudmodel, en versleutelde workspaces bieden het nog niet aan.
 
+## Een afbeelding uitleggen
+
+Bij elke afbeelding in de vault vraagt **Afbeelding uitleggen** de AI wat erop te zien is.
+
+- **Desktop:** in de werkbalk van een geopende afbeelding en in het menu dat een rechtsklik op een afbeelding in een notitie opent — tijdens het bewerken en in de leesmodus.
+- **Telefoon:** onder een geopende afbeelding (bij een afbeelding in een notitie brengt **Afbeelding openen** je erheen).
+
+De afbeelding gaat, met de vraag, naar het model waarmee nieuwe gesprekken beginnen — in een eigen gesprek, waarin je verder kunt vragen: wat een tabel zegt, wat er in de tweede kolom staat, wat een diagram betekent. Het overzicht toont de afbeelding voordat ze wordt verzonden; een afbeelding is een eigen soort gegevens, dus het overzicht vraagt het de eerste keer.
+
+**Wat meegaat is niet het bestand.** Plainva tekent de afbeelding, verkleint haar tot hooguit 1.568 pixels aan de langste zijde en slaat haar opnieuw op om te verzenden. Zo gaat ze zonder wat het bestand erover vastlegt: de plaats waar een foto is genomen, de datum, de camera. Het overzicht toont precies de afbeelding die meegaat, met haar grootte. Die kopie blijft bij het gesprek op dit apparaat, zodat je later nog kunt zien wat de provider heeft gekregen; verwijder je het gesprek, dan is ze weg.
+
+**Regels.** Een afbeelding in een map die je regels bij de cloud weghouden, gaat naar geen enkel cloudmodel. Dat geldt ook voor een afbeelding die in een notitie met de regel `cloud: deny` staat — waar je ook op **Afbeelding uitleggen** drukt, ook bij de geopende afbeelding: voordat ze wordt verzonden, zoekt Plainva uit welke notities de afbeelding insluiten, en als dat niet te achterhalen is, blijft de afbeelding hier. Een model op dit apparaat blijft toegestaan. Wat er in een afbeelding geschreven staat, is inhoud, net als de tekst van een notitie, nooit een instructie: het gesprek van **Afbeelding uitleggen** kan dingen opzoeken in je vault, maar kan internet niet gebruiken en zet in de app niets in gang.
+
+**Welke modellen afbeeldingen lezen.** De meeste cloudmodellen doen dat. Het model van het systeem op de telefoon niet, en **Afbeelding uitleggen** zegt dat. Zegt de lijst van een provider dat een model geen afbeeldingen leest, dan vertelt het overzicht je dat voordat je verzendt. Wijst een provider het verzoek af, kies dan onder het gesprek een ander model en vraag het opnieuw — de afbeelding zit er nog in.
+
 ## Op internet
 
 De assistent kan internet pas gebruiken als jij dat toestaat — en wel drie keer:
@@ -155,6 +170,8 @@ plainva:
 ```
 
 of, voor een hele map, in **Instellingen → AI & automatisering** (het Vault-deel), dat de regels naar `.agent/policy.yml` schrijft. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe in andere notities worden achtergehouden. Modellen op dit apparaat blijven toegestaan. Versleutelde workspaces sluiten de cloud uit, tenzij je die daar toestaat. Het exacte formaat staat in de [Bestandsformaat-referentie](File_Format_Reference.md).
+
+Een afbeelding hoort bij de notities die haar tonen: een afbeelding die is ingesloten in een notitie die van de cloud wordt weggehouden, gaat ook naar geen enkel cloudmodel (zie Een afbeelding uitleggen hierboven).
 
 Een tweede regel, `web: deny` — in de instellingen **Webtoegang: nooit** —, houdt een notitie of map buiten elk gesprek dat internet mag gebruiken.
 

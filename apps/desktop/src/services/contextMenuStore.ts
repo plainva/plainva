@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { EditableTarget } from "@plainva/ui";
+import type { EditableTarget, ImagePlace } from "@plainva/ui";
 
 /**
  * Tiny store for the app's own right-click menu (webview hardening, 2026-07-07).
@@ -18,6 +18,12 @@ export interface ImageContextTarget {
   /** Image MIME type. */
   mime: string;
   open?: () => void;
+  /**
+   * Where the picture stands in the vault — its path, and the note it is
+   * embedded in. With it the menu offers "Explain image" while the AI is on
+   * (plan KI-Harness P4-5); a picture from a web address has none.
+   */
+  place?: ImagePlace;
 }
 
 export interface ContextMenuState {

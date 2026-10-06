@@ -267,7 +267,8 @@
         "notes": "笔记",
         "audio": "一段录音",
         "searches": "你的搜索问题",
-        "comments": "一段评论讨论"
+        "comments": "一段评论讨论",
+        "images": "一张图片"
       },
       "keptBack": "未发送",
       "keptNotes_other": "{{count}}条被规则屏蔽的笔记",
@@ -303,7 +304,8 @@
       "webSearches": "搜索过的内容",
       "further": "其他工具",
       "furtherMail": "邮件——首次读取前会先询问",
-      "reading": "邮件和日历"
+      "reading": "邮件和日历",
+      "evidenceImage": "图片，{{width}} × {{height}} px，{{size}}"
     },
     "lens": {
       "open": "查看上下文",
@@ -485,6 +487,25 @@
       "descriptions_other": "已读取{{count}}条日程描述",
       "byDevice": "文本由{{reader}}在此设备上读取，继续传递的只有它写的报告。",
       "byProvider": "文本由{{provider}}在单独的、不带工具的请求中读取。"
+    },
+    "image": {
+      "action": "解释图片",
+      "ask": "请解释这张图片。",
+      "title": "图片：{{name}}",
+      "sentLine_other": "{{count}}张图片",
+      "asSent": "按这里显示的样子发送：已缩小并重新保存——不含文件记录的拍摄地点、日期和相机。",
+      "blind": "服务商的列表显示，{{model}}无法读取图片。你仍然可以发送这张图片。",
+      "refusedHint": "此模型可能无法读取图片。请在下方选择另一个模型，然后再问一次。",
+      "refused": {
+        "off": "AI已关闭。",
+        "no-model": "请先在AI设置中选择模型。",
+        "no-route": "{{provider}}无法读取图片。请为新对话选择另一个模型。",
+        "denied": "你的规则不允许将这张图片发送给此模型：可能是它所在文件夹的规则，也可能是显示它的笔记的规则。",
+        "unchecked": "Plainva无法检查哪些笔记显示了这张图片，因此没有发送。",
+        "unreadable": "无法读取图片。",
+        "too-large": "图片太大，即使缩小后也无法发送（最多{{max}}）。",
+        "failed": "无法解释图片：{{reason}}"
+      }
     },
     "lint": {
       "defused": "新出现的网址已被处理为无效：可以阅读，但不是链接。"

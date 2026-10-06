@@ -33,6 +33,8 @@ export interface ManifestSource {
   audioBytes?: number;
   /** The remarks of a comment thread on the note went, this many (plan P3-6). */
   comments?: number;
+  /** A picture that went (plan P4-5), as it was sent: scaled down and encoded anew, by its size in pixels and bytes. */
+  image?: { width: number; height: number; bytes: number };
   /** A gist by the model on this computer went for it (plan P2b-3). */
   gist?: boolean;
   /** What the local patterns saw in what it sends (plan P2b-6). */

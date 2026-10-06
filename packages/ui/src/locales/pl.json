@@ -279,7 +279,8 @@
         "notes": "notatki",
         "audio": "nagranie",
         "searches": "Twoje pytania wyszukiwania",
-        "comments": "wątek komentarzy"
+        "comments": "wątek komentarzy",
+        "images": "obraz"
       },
       "keptBack": "Zatrzymano",
       "keptNotes_one": "{{count}} notatka zablokowana przez Twoje reguły",
@@ -333,7 +334,8 @@
       "webSearches": "Szukane frazy",
       "further": "Dodatkowe narzędzia",
       "furtherMail": "e-mail — pyta przed pierwszym odczytem",
-      "reading": "E-mail i kalendarz"
+      "reading": "E-mail i kalendarz",
+      "evidenceImage": "obraz, {{width}} × {{height}} px, {{size}}"
     },
     "lens": {
       "open": "Pokaż kontekst",
@@ -542,6 +544,28 @@
       "descriptions_other": "{{count}} przeczytanego opisu spotkania",
       "byDevice": "Tekst odczytał {{reader}} na tym urządzeniu; dalej poszedł tylko jego raport.",
       "byProvider": "Tekst odczytał {{provider}}, w osobnych zapytaniach, bez narzędzi."
+    },
+    "image": {
+      "action": "Wyjaśnij obraz",
+      "ask": "Wyjaśnij ten obraz.",
+      "title": "Obraz: {{name}}",
+      "sentLine_one": "{{count}} obraz",
+      "sentLine_few": "{{count}} obrazy",
+      "sentLine_many": "{{count}} obrazów",
+      "sentLine_other": "{{count}} obrazu",
+      "asSent": "Obraz idzie tak, jak tu widać: pomniejszony i zapisany od nowa — bez miejsca, daty i aparatu odnotowanych w pliku.",
+      "blind": "Według listy dostawcy {{model}} nie czyta obrazów. Mimo to możesz wysłać obraz.",
+      "refusedHint": "Ten model może nie umieć czytać obrazów. Wybierz poniżej inny i zapytaj jeszcze raz.",
+      "refused": {
+        "off": "AI jest wyłączona.",
+        "no-model": "Najpierw wybierz model w ustawieniach AI.",
+        "no-route": "{{provider}} nie czyta obrazów. Wybierz inny model dla nowych rozmów.",
+        "denied": "Twoje reguły trzymają ten obraz z dala od tego modelu: reguły jego folderu albo notatki, która go pokazuje.",
+        "unchecked": "Plainva nie mogła sprawdzić, które notatki pokazują ten obraz, więc nie został wysłany.",
+        "unreadable": "Nie udało się odczytać obrazu.",
+        "too-large": "Obraz jest za duży do wysłania, nawet po pomniejszeniu (najwyżej {{max}}).",
+        "failed": "Nie udało się wyjaśnić obrazu: {{reason}}"
+      }
     },
     "lint": {
       "defused": "Nowe adresy internetowe zostały unieszkodliwione: da się je przeczytać, ale nie są linkami."

@@ -114,6 +114,21 @@ Przy każdej notatce głosowej — w edytorze, w trybie czytania, w dzienniku i 
 
 **Audio** wymaga dostawcy z obsługą audio: OpenAI (na przykład `gpt-4o-transcribe` lub `whisper-1`), Gemini albo własnego zgodnego serwera — serwer na tym komputerze zatrzymuje nagranie na urządzeniu. Można transkrybować nagrania do 11 MB. Nagranie w notatce, którą Twoje reguły trzymają z dala od chmury, nie trafia do żadnego modelu w chmurze, a zaszyfrowane obszary robocze jeszcze tego nie oferują.
 
+## Wyjaśnianie obrazu
+
+Przy każdym obrazie w vaulcie **Wyjaśnij obraz** pyta AI, co ten obraz przedstawia.
+
+- **Desktop:** na pasku narzędzi otwartego obrazu oraz w menu, które otwiera kliknięcie prawym przyciskiem myszy na obrazie w notatce — podczas edycji i w trybie czytania.
+- **Telefon:** pod otwartym obrazem (przy obrazie w notatce prowadzi tam **Otwórz obraz**).
+
+Obraz trafia wraz z pytaniem do modelu, którym zaczynają się nowe rozmowy — w osobnej rozmowie, w której można pytać dalej: co mówi tabela, co stoi w drugiej kolumnie, co oznacza diagram. Przegląd pokazuje obraz przed wysłaniem; obraz to osobny rodzaj danych, więc przegląd pyta za pierwszym razem.
+
+**To, co idzie, to nie ten plik.** Plainva rysuje obraz, pomniejsza go do najwyżej 1 568 pikseli na dłuższym boku i zapisuje od nowa na potrzeby wysłania. Dlatego idzie bez tego, co plik o nim zapisuje: miejsca wykonania zdjęcia, daty, aparatu. Przegląd pokazuje dokładnie ten obraz, który idzie, wraz z jego rozmiarem. Ta kopia zostaje przy rozmowie na tym urządzeniu, więc później nadal widać, co dostał dostawca; po usunięciu rozmowy kopia znika.
+
+**Reguły.** Obraz w folderze, który Twoje reguły trzymają z dala od chmury, nie trafia do żadnego modelu w chmurze. Nie trafia tam też obraz pokazywany w notatce z regułą `cloud: deny` — niezależnie od tego, gdzie naciśniesz **Wyjaśnij obraz**, także przy otwartym obrazie: przed wysłaniem Plainva sprawdza, które notatki osadzają ten obraz, a jeśli nie może tego ustalić, obraz zostaje na tym urządzeniu. Model na tym urządzeniu pozostaje dozwolony. To, co jest napisane na obrazie, jest treścią — jak tekst notatki — a nie instrukcją: rozmowa, którą rozpoczyna **Wyjaśnij obraz**, może coś sprawdzić w Twoim vaulcie, ale nie może korzystać z internetu i niczego nie wywołuje w aplikacji.
+
+**Które modele czytają obrazy.** Większość modeli w chmurze to potrafi. Model systemu na telefonie nie, a **Wyjaśnij obraz** o tym informuje. Gdy lista dostawcy mówi, że model nie czyta obrazów, przegląd daje o tym znać przed wysłaniem. Jeśli dostawca odrzuci zapytanie, wybierz inny model pod rozmową i zapytaj jeszcze raz — obraz nadal w niej jest.
+
 ## W internecie
 
 Asystent nie może korzystać z internetu, dopóki tego nie dopuścisz — i to trzykrotnie:
@@ -155,6 +170,8 @@ plainva:
 ```
 
 albo, dla całego folderu, w **Ustawienia → AI & automatyzacja** (część vaultu), skąd reguły trafiają do `.agent/policy.yml`. Notatka trzymana z dala od chmury nie wnosi niczego — ani tekstu, ani tytułu — a linki do niej w innych notatkach są wstrzymywane. Modele na tym urządzeniu pozostają dozwolone. Zaszyfrowane obszary robocze trzymają chmurę z dala, chyba że zostanie tam dopuszczona. Dokładny format znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md).
+
+Obraz należy do notatek, które go pokazują: obraz osadzony w notatce trzymanej z dala od chmury również nie trafia do żadnego modelu w chmurze (zob. Wyjaśnianie obrazu wyżej).
 
 Druga reguła, `web: deny` — w ustawieniach **Dostęp do sieci: nigdy** —, trzyma notatkę lub folder poza każdą rozmową, która może korzystać z internetu.
 
