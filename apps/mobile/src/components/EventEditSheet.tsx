@@ -281,6 +281,7 @@ export function EventEditSheet({
           aria-label={t("pim.groupAttendees")}
           onChange={(e) => set({ attendees: e.target.value, attendeesTouched: true })}
           placeholder={t("pim.attendeesHint")}
+          purpose="address"
           rows={2}
           value={form.attendees}
         />
