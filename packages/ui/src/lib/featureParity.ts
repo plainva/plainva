@@ -478,6 +478,26 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-19",
   },
   {
+    id: "blockers-follow-their-event",
+    title: "Blockers follow their event, and a moved or changed blocker asks",
+    area: "pim",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The rule is one file for both shells (pim/blockFollow.ts): the chain mark, " +
+      "what a blocker takes over, the message with its way back, and the two " +
+      "questions. Two differences in shape, none in result. The phone's time grid " +
+      "has no drag for an event (a horizontal drag pages, a vertical one scrolls), " +
+      "so a blocker asks when it is saved from the edit sheet, not when it is " +
+      "dropped. And the question at a deletion is two action rows - the event with " +
+      "its blockers, or the event alone - where the desktop ticks a box: the " +
+      "phone's form for one decision with two outcomes (useEventEditor.tsx). " +
+      "Blockers written into the device's own calendars carry no link on either " +
+      "side: DevicePimTarget has no place to store one (plan Befunde 2026-10-06, E4).",
+    verified: "2026-10-06",
+  },
+  {
     id: "calendar-all-day-row-limit",
     title: "The all-day row of the time grid: five rows, a count, and opening it",
     area: "pim",

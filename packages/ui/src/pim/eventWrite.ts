@@ -37,7 +37,12 @@ export function draftToRow(
     description: draft.description,
     color: draft.color,
     attendees: draft.attendees,
-    blockOf: draft.blockOf,
+    // Only where the draft says something about the linkage (K3). The views
+    // lay this row over the one they hold, and a key that is merely absent
+    // from an ordinary edit took the blocker's link off the row until the
+    // next pull — the chain mark went, and so did everything that reads it.
+    ...(draft.blockOf !== undefined ? { blockOf: draft.blockOf ?? undefined } : {}),
+    ...(draft.blocks !== undefined ? { blocks: draft.blocks.length > 0 ? draft.blocks : undefined } : {}),
   };
 }
 

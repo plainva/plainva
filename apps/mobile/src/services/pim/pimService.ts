@@ -8,6 +8,7 @@ import {
   GraphPimTarget,
   type IPimTarget,
   type PimAccountRow,
+  type PimBlockRef,
   type PimEventRow,
   type PimCalendar,
   type PimTaskList,
@@ -33,8 +34,20 @@ import {
   buildDailyNotePath,
   calendarPickerOptions,
   createCalendarEvent,
-  deleteCalendarEvent,
   applyPendingEventWrites,
+  deleteEventWithBlockers,
+  detachBlockerAndUpdate,
+  linkCalendarBlocks,
+  mayChangeEvent,
+  recordBlockers,
+  resolveBlockers,
+  sourceOfBlocker,
+  updateEventWithBlockers,
+  type BlockFollowDeps,
+  type BlockFollowReport,
+  type EventWriteOutcome,
+  type FollowedWriteOutcome,
+  type ResolvedBlocker,
   draftToRow,
   pendingEventRow,
   type ShownEventRow,
@@ -47,7 +60,6 @@ import {
   resolveOrCreateMeetingNote,
   setPendingTemplateCaret,
   splitCalendarKey,
-  updateCalendarEvent,
   verifiedProviderIdentityOf,
   VERIFIED_PROVIDER_IDENTITY_KEY,
   writableCalendarsOf,
@@ -172,9 +184,12 @@ export async function listPimEvents(rangeStartTs: number, rangeEndTs: number): P
 export async function listShownPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<ShownEventRow[]> {
   const cached = await listPimEvents(rangeStartTs, rangeEndTs);
   const shown = applyPendingEventWrites(cached, pendingEventWrites.snapshot());
-  if (shown === cached) return shown;
+  // The chain mark of a blocker and of an event that has blockers is drawn
+  // from the linkage (K3) — derived here, once, for every screen that lists
+  // events. Until then the phone had the action and no sign of its result.
+  if (shown === cached) return linkCalendarBlocks(shown);
   // A created event comes from the overlay, not from the range query.
-  return shown.filter((row) => cached.includes(row) || (row.start.ts < rangeEndTs && row.end.ts >= rangeStartTs));
+  return linkCalendarBlocks(shown.filter((row) => cached.includes(row) || (row.start.ts < rangeEndTs && row.end.ts >= rangeStartTs)));
 }
 
 /**
@@ -536,27 +551,84 @@ export async function createPimEvent(calendarKey: string, draft: PimEventDraft) 
   return out;
 }
 
+/**
+ * What the shared blocker rules need from the phone (K3): the targets and two
+ * questions to the cache. The rules themselves — what follows what, when a
+ * blocker asks, what a deletion takes along — are the desktop's, in one file.
+ */
+function followDeps(): BlockFollowDeps {
+  return {
+    targets: eventTargets,
+    blockersOf: async (uids) => (await runtime?.cache.listBlockersOf(uids)) ?? [],
+    eventsByUid: async (uid) => (await runtime?.cache.findEventsByUid(uid)) ?? [],
+    busyLabel: i18n.t("pim.busyTitle"),
+  };
+}
+
+/**
+ * Updates an event; its blockers follow (K3). `loaded` are the rows the screen
+ * holds — the blockers among them move with the event, before the provider is
+ * asked.
+ */
 export async function updatePimEvent(
   event: PimEventRow,
   draft: PimEventDraft,
   moveToCalendarKey?: string | null,
-) {
+  loaded: readonly PimEventRow[] = [],
+): Promise<FollowedWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
-  const moving = !!move && (move.accountId !== event.accountId || move.calendarId !== event.calendarId);
-  const { uid: _uid, ...patch } = draftToRow(moving ? move.accountId : event.accountId, moving ? move.calendarId : event.calendarId, event.uid, draft);
-  const out = await writeEventOptimistically(
-    pendingEventWrites,
-    { kind: "update", ref: event, patch },
-    () => updateCalendarEvent(eventTargets, event, draft, move),
-    (result) => {
-      if (result.kind === "conflict") return [];
-      if (!moving) return undefined;
-      const created = result.rows.map((row) => ({ kind: "create" as const, row }));
-      return result.kind === "written" ? [...created, { kind: "delete" as const, ref: event }] : created;
-    },
-  );
+  const out = await updateEventWithBlockers(followDeps(), event, draft, { moveTo: move, loaded });
   if (out.kind !== "conflict") pimSyncNow();
   return out;
+}
+
+/** The blockers of an event, for the question a deletion asks about them. */
+export async function pimBlockersOf(event: PimEventRow, loaded: readonly PimEventRow[] = []): Promise<ResolvedBlocker[]> {
+  try {
+    return (await resolveBlockers(followDeps(), event, loaded)).blockers;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The event a blocker mirrors, where it can be found, and whether the user may
+ * change it — an invitation of somebody else is not theirs to move.
+ */
+export async function pimSourceOfBlocker(blocker: PimEventRow): Promise<{ source: PimEventRow; canChange: boolean } | null> {
+  if (!runtime || !blocker.blockOf) return null;
+  try {
+    const source = await sourceOfBlocker(followDeps(), blocker);
+    if (!source) return null;
+    const [accounts, calendars] = await Promise.all([runtime.cache.listAccounts(), runtime.cache.listCalendars()]);
+    const enabled = new Set(accounts.filter((a) => a.enabled).map((a) => a.id));
+    const writable = new Set(writableCalendarsOf(calendars, enabled).map((c) => `${c.accountId} ${c.id}`));
+    return { source, canChange: mayChangeEvent(source, writable) };
+  } catch {
+    return null;
+  }
+}
+
+/** "Only this blocker": it is written and stops being one. */
+export async function detachPimBlocker(
+  blocker: PimEventRow,
+  draft: PimEventDraft,
+  moveToCalendarKey: string | null | undefined,
+  source: PimEventRow | null,
+): Promise<EventWriteOutcome> {
+  const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
+  const out = await detachBlockerAndUpdate(followDeps(), blocker, draft, { moveTo: move, source });
+  if (out.kind !== "conflict") pimSyncNow();
+  return out;
+}
+
+/** After "Block in other calendars": the event's own list gains the new blockers. */
+export async function recordPimBlockers(source: PimEventRow, created: readonly PimBlockRef[]): Promise<void> {
+  if (!runtime || created.length === 0) return;
+  const [accounts, calendars] = await Promise.all([runtime.cache.listAccounts(), runtime.cache.listCalendars()]);
+  const enabled = new Set(accounts.filter((a) => a.enabled).map((a) => a.id));
+  const writable = new Set(writableCalendarsOf(calendars, enabled).map((c) => `${c.accountId} ${c.id}`));
+  if (mayChangeEvent(source, writable)) await recordBlockers(followDeps(), source, created);
 }
 
 /**
@@ -630,9 +702,11 @@ export async function openMeetingNoteFor(
   return { path: res.path, created: res.created };
 }
 
-export async function deletePimEvent(event: PimEventRow): Promise<void> {
-  await writeEventOptimistically(pendingEventWrites, { kind: "delete", ref: event }, () => deleteCalendarEvent(eventTargets, event));
+/** Deletes an event and — where the user said so — the blockers that mirror it (K3). */
+export async function deletePimEvent(event: PimEventRow, blockers: readonly ResolvedBlocker[] = []): Promise<BlockFollowReport> {
+  const report = await deleteEventWithBlockers(followDeps(), event, blockers);
   pimSyncNow();
+  return report;
 }
 
 /** Responds to an invitation (accept/decline/tentative) via the account's target. */

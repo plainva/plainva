@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Diamond, Link2, RefreshCw, CalendarPlus, CalendarCog } from "lucide-react";
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
 import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge, CalendarSyncNotice, hiddenBeyondDots} from "@plainva/ui";
@@ -734,6 +734,8 @@ export function PimCalendarScreen({
                   <button key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`} type="button" className="m-row" data-testid="pim-event" data-state={eventVisualState(e)} onClick={() => void editor.openEvent(e)} style={{ width: "100%", textAlign: "left", ["--evt-color" as string]: colorOf(e) }}>
                     <span className={`m-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `m-evt-mark--${eventVisualState(e)}`}`} style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", flexShrink: 0 }} />
                     <span className={`m-evt-title ${eventVisualState(e) === "cancelled" ? "m-evt--cancelled" : ""}`} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
+                    {/* The chain mark of a blocker and of an event that has blockers (K3). */}
+                    {e.blockOf || e.blockedIn?.length ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock")} data-testid="pim-event-linked" style={{ flexShrink: 0, verticalAlign: "text-bottom", marginRight: "var(--space-1)" }} /> : null}
                     {stateLabel(e) ? <span className="m-evt-state">{stateLabel(e)}</span> : null}
                     <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", flexShrink: 0 }}>
                       {e.allDay ? t("pim.allDay", { defaultValue: "Ganztägig" }) : new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" }).format(new Date(e.start.ts))}
@@ -831,6 +833,7 @@ export function PimCalendarScreen({
                       style={{ ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: "var(--space-1)", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: 1.15, whiteSpace: "nowrap", textOverflow: "ellipsis" }}
                       type="button"
                     >
+                      {e.blockOf || e.blockedIn?.length ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock")} data-testid="pim-event-linked" style={{ flexShrink: 0, verticalAlign: "text-bottom", marginRight: "var(--space-1)" }} /> : null}
                       <span className="m-evt-title">{e.title}</span>
                     </button>
                   ))}
@@ -897,6 +900,7 @@ export function PimCalendarScreen({
                         onClick={() => void editor.openEvent(e)}
                         style={{ position: "absolute", top, height, left: `calc(${l.lane * laneWidthPct}% + 1px)`, width: `calc(${widthPct}% - 2px)`, ["--evt-color" as string]: colorOf(e), border: "none", borderRadius: "var(--radius-xs)", padding: compact ? "0 4px" : "1px 4px", textAlign: "left", overflow: "hidden", fontSize: "var(--text-xs)", fontWeight: 600, lineHeight: compact ? 1 : 1.15 }}
                       >
+                        {e.blockOf || e.blockedIn?.length ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock")} data-testid="pim-event-linked" style={{ flexShrink: 0, verticalAlign: "text-bottom", marginRight: "var(--space-1)" }} /> : null}
                         <span className="m-evt-title">{e.title}</span>
                       </button>
                     );

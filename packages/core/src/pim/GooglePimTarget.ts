@@ -6,9 +6,11 @@ import type {
   PimAttendee,
   PimAttendeeStatus,
   PimAuthProvider,
+  PimBlockRef,
   PimCalendar,
   PimEvent,
   PimEventDraft,
+  PimEventLinks,
   PimEventRef,
   PimTask,
   PimTaskDraft,
@@ -21,6 +23,7 @@ import type {
 import { PimConflictError } from "./types.js";
 import { normalizeDescription } from "./htmlToMarkdown.js";
 import { sortedMinutes } from "./eventFields.js";
+import { decodeBlockRef, encodeBlockRef, uniqueBlockRefs } from "./blockLinks.js";
 
 /**
  * Google read adapter (stage 2): Calendar API v3 + Tasks API v1. Recurring
@@ -338,6 +341,22 @@ export class GooglePimTarget implements IPimTarget {
     return { etag: data.etag };
   }
 
+  async linkEvent(ref: PimEventRef, links: PimEventLinks): Promise<{ etag?: string }> {
+    const res = await this.request(
+      `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(ref.etag ? { "If-Match": ref.etag } : {}) },
+        // Private properties only: a PATCH leaves every other field alone.
+        body: JSON.stringify(googleLinkProperties(links)),
+      }
+    );
+    if (res.status === 412) throw new PimConflictError();
+    if (!res.ok) throw await pimRequestError("google link event", res);
+    const data = (await res.json()) as { etag?: string };
+    return { etag: data.etag };
+  }
+
   async deleteEvent(ref: PimEventRef): Promise<void> {
     const res = await this.request(
       `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`,
@@ -430,6 +449,7 @@ function mapGoogleEvent(item: GoogleEventItem, calendarId: string): PimEvent | n
     seriesMaster: item.recurringEventId,
     color: item.colorId ? GOOGLE_EVENT_COLORS[item.colorId] : undefined,
     blockOf: item.extendedProperties?.private?.["plainva-block-of"] || undefined,
+    blocks: googleBlocks(item.extendedProperties?.private),
     reminders: googleReminders(item.reminders),
     // Google's default is "opaque", and it usually omits the field entirely for
     // ordinary appointments — absence therefore means busy, not unknown.
@@ -486,8 +506,45 @@ function googleEventBody(draft: PimEventDraft): Record<string, unknown> {
     // undefined leaves the rule, null clears it ([]), an object sets it — so an
     // existing rule CAN now be edited (the drag path leaves recurrence unset).
     ...(draft.recurrence !== undefined ? { recurrence: draft.recurrence ? [`RRULE:${recurrenceToRRule(draft.recurrence)}`] : [] } : {}),
-    ...(draft.blockOf ? { extendedProperties: { private: { "plainva-block-of": draft.blockOf } } } : {}),
+    ...googleLinkProperties(draft),
   };
+}
+
+/**
+ * The reverse blocker list at Google (K3): one private property per blocker.
+ *
+ * Not one property holding the list, because Google caps a private property at
+ * 1024 characters with its key, and a single blocker in a Microsoft calendar
+ * already brings some 300 of them (the calendar id and the event id). A fixed
+ * number of slots keeps a write complete in itself: a PATCH merges private
+ * properties key by key, so the slots a shorter list no longer fills are sent
+ * as `null`, which is how the API removes one.
+ */
+export const GOOGLE_BLOCK_SLOTS = 12;
+const googleBlockSlot = (index: number): string => `plainva-block-${index}`;
+
+function googleBlocks(properties: Record<string, string> | undefined): PimBlockRef[] | undefined {
+  if (!properties) return undefined;
+  const refs: PimBlockRef[] = [];
+  for (let index = 0; index < GOOGLE_BLOCK_SLOTS; index++) {
+    const ref = decodeBlockRef(properties[googleBlockSlot(index)]);
+    if (ref) refs.push(ref);
+  }
+  return refs.length > 0 ? uniqueBlockRefs(refs) : undefined;
+}
+
+/** `blockOf` and `blocks` of a draft as private properties; nothing when the draft sets neither. */
+function googleLinkProperties(draft: PimEventLinks): Record<string, unknown> {
+  const properties: Record<string, string | null> = {};
+  // `null` detaches a blocker; an absent key leaves the link alone.
+  if (draft.blockOf !== undefined) properties["plainva-block-of"] = draft.blockOf || null;
+  if (draft.blocks !== undefined) {
+    const refs = uniqueBlockRefs(draft.blocks).slice(0, GOOGLE_BLOCK_SLOTS);
+    for (let index = 0; index < GOOGLE_BLOCK_SLOTS; index++) {
+      properties[googleBlockSlot(index)] = index < refs.length ? encodeBlockRef(refs[index]) : null;
+    }
+  }
+  return Object.keys(properties).length > 0 ? { extendedProperties: { private: properties } } : {};
 }
 
 /** The device's IANA zone; UTC where the runtime cannot say (headless tests). */

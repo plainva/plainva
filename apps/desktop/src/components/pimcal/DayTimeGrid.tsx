@@ -467,7 +467,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   className={eventStateClass("pv-evt", eventVisualState(e), e)}
                   style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", ["--evt-color" as string]: colorOf(e), fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
                 >
-                  {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ marginRight: 3, verticalAlign: "text-bottom" }} /> : null}
+                  {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })} style={{ marginRight: 3, verticalAlign: "text-bottom" }} /> : null}
                   <span className="pv-evt-title">{eventDisplayTitle(e.title, untitledLabel)}</span>
                 </button>
               ))}
@@ -711,7 +711,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                     >
                       <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--text-xs)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: compact ? 1 : undefined }}>
                         {b.ev.seriesMaster ? <Repeat size={ICON.meta} style={{ flexShrink: 0 }} /> : null}
-                        {(b.ev.blockOf || b.ev.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
+                        {(b.ev.blockOf || b.ev.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
                         <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                           {eventDisplayTitle(b.ev.title, untitledLabel)}
                         </span>

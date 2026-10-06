@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, FilePlus2, MapPin, MoreVertical, Pencil, Repeat, Users, X } from "lucide-react";
+import { Check, FilePlus2, Link2, MapPin, MoreVertical, Pencil, Repeat, Users, X } from "lucide-react";
 import {
   Button,
   EventDescription,
@@ -168,6 +168,14 @@ export function EventPeek({
         </div>
 
         <EventJoinButton meetingUrl={event.meetingUrl} onOpenUrl={onOpenUrl} />
+
+        {/* A blocker, or an event that has blockers (K3): the preview says what the chain mark on the grid means. */}
+        {event.blockOf || event.blockedIn?.length ? (
+          <p style={{ margin: 0, display: "flex", gap: "var(--space-2)", alignItems: "center", fontSize: "var(--text-xs)", color: "var(--text-muted)" }} data-testid="event-peek-linked">
+            <Link2 size={ICON.meta} style={{ flexShrink: 0 }} />
+            {t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })}
+          </p>
+        ) : null}
 
         {isSeries(event) ? (
           <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center" }} data-testid="event-peek-series">

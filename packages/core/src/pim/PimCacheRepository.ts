@@ -1,6 +1,7 @@
 import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import type { PimAttendee, PimAttendeeStatus, PimCalendar, PimEvent, PimProviderId, PimTask, PimTaskList } from "./types.js";
 import { isSignInFailure, type SyncErrorKind } from "../sync/errorKind.js";
+import { decodeBlockRefs, encodeBlockRefs } from "./blockLinks.js";
 
 /**
  * SQL layer of the PIM cache (index DB, appData — never the vault). Events are
@@ -97,6 +98,44 @@ const ACCOUNT_CACHE_TABLES: ReadonlyArray<{
 ];
 
 const CHUNK = 80;
+
+/** The event columns every read selects — one list, so a new field cannot reach one query and miss another. */
+const EVENT_COLUMNS =
+  "e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day, " +
+  "e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of, e.blocks, " +
+  "e.reminders, e.busy, e.meeting_url, e.categories, e.status_kind, e.working_loc";
+
+function eventRowOf(r: Record<string, unknown>): PimEventRow {
+  return {
+    accountId: String(r.account_id),
+    calendarId: String(r.cal_id),
+    uid: String(r.uid),
+    title: String(r.title ?? ""),
+    start: { ts: Number(r.start_ts), date: r.start_date ? String(r.start_date) : undefined },
+    end: { ts: Number(r.end_ts), date: r.end_date ? String(r.end_date) : undefined },
+    allDay: Number(r.all_day) !== 0,
+    location: r.location ? String(r.location) : undefined,
+    description: r.description ? String(r.description) : undefined,
+    attendees: r.attendees ? (safeJson(String(r.attendees)) as string[] | null) ?? undefined : undefined,
+    status: (r.status as PimEvent["status"]) ?? undefined,
+    etag: r.etag ? String(r.etag) : undefined,
+    seriesMaster: r.series_master ? String(r.series_master) : undefined,
+    recurrence: r.recurrence ? String(r.recurrence) : undefined,
+    href: r.href ? String(r.href) : undefined,
+    color: r.color ? String(r.color) : undefined,
+    blockOf: r.block_of ? String(r.block_of) : undefined,
+    blocks: r.blocks ? decodeBlockRefs(String(r.blocks)) : undefined,
+    // `r.reminders` is NULL only when the event said nothing; "[]" round-trips
+    // as the empty array, which means "no reminder" (S9).
+    reminders: r.reminders != null ? (safeJson(String(r.reminders)) as number[] | null) ?? undefined : undefined,
+    busy: (r.busy as PimEvent["busy"]) ?? undefined,
+    meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
+    categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
+    statusKind: (r.status_kind as PimEvent["statusKind"]) ?? undefined,
+    workingLocation: r.working_loc ? String(r.working_loc) : undefined,
+    ...rsvpFields(r.rsvps),
+  };
+}
 
 /**
  * Something the calendar is not showing fresh, for the line above it (K1).
@@ -449,6 +488,7 @@ export class PimCacheRepository {
           e.color ?? null,
           e.rsvps && e.rsvps.length > 0 ? JSON.stringify(e.rsvps) : null,
           e.blockOf ?? null,
+          e.blocks && e.blocks.length > 0 ? encodeBlockRefs(e.blocks) : null,
           // `[]` is stored as "[]", not as NULL: the event said "no reminder",
           // which is a different statement from "the event said nothing".
           e.reminders ? JSON.stringify(e.reminders) : null,
@@ -461,8 +501,8 @@ export class PimCacheRepository {
       }
       statements.push({
         sql:
-          `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of, reminders, busy, meeting_url, categories, status_kind, working_loc) VALUES ` +
-          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
+          `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of, blocks, reminders, busy, meeting_url, categories, status_kind, working_loc) VALUES ` +
+          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
         params: values,
       });
     }
@@ -474,9 +514,7 @@ export class PimCacheRepository {
    * (they exist purely to carry the recurrence text). */
   async listEvents(rangeStartTs: number, rangeEndTs: number): Promise<PimEventRow[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of,
-              e.reminders, e.busy, e.meeting_url, e.categories, e.status_kind, e.working_loc
+      `SELECT ${EVENT_COLUMNS}
        FROM pim_events e
        JOIN pim_calendars c ON c.account_id = e.account_id AND c.cal_id = e.cal_id
        JOIN pim_accounts a ON a.id = e.account_id
@@ -487,34 +525,7 @@ export class PimCacheRepository {
        ORDER BY e.start_ts`,
       [rangeStartTs, rangeEndTs]
     );
-    return rows.map((r) => ({
-      accountId: String(r.account_id),
-      calendarId: String(r.cal_id),
-      uid: String(r.uid),
-      title: String(r.title ?? ""),
-      start: { ts: Number(r.start_ts), date: r.start_date ? String(r.start_date) : undefined },
-      end: { ts: Number(r.end_ts), date: r.end_date ? String(r.end_date) : undefined },
-      allDay: Number(r.all_day) !== 0,
-      location: r.location ? String(r.location) : undefined,
-      description: r.description ? String(r.description) : undefined,
-      attendees: r.attendees ? (safeJson(String(r.attendees)) as string[] | null) ?? undefined : undefined,
-      status: (r.status as PimEvent["status"]) ?? undefined,
-      etag: r.etag ? String(r.etag) : undefined,
-      seriesMaster: r.series_master ? String(r.series_master) : undefined,
-      recurrence: r.recurrence ? String(r.recurrence) : undefined,
-      href: r.href ? String(r.href) : undefined,
-      color: r.color ? String(r.color) : undefined,
-      blockOf: r.block_of ? String(r.block_of) : undefined,
-      // `r.reminders` is NULL only when the event said nothing; "[]" round-trips
-      // as the empty array, which means "no reminder" (S9).
-      reminders: r.reminders != null ? (safeJson(String(r.reminders)) as number[] | null) ?? undefined : undefined,
-      busy: (r.busy as PimEvent["busy"]) ?? undefined,
-      meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
-      categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
-      statusKind: (r.status_kind as PimEvent["statusKind"]) ?? undefined,
-      workingLocation: r.working_loc ? String(r.working_loc) : undefined,
-      ...rsvpFields(r.rsvps),
-    }));
+    return rows.map(eventRowOf);
   }
 
   // ---- task lists / tasks (read cache; the note reconcile is stage 3) ------
@@ -615,41 +626,57 @@ export class PimCacheRepository {
    * need the MASTER row (etag/href for the write), which listEvents excludes. */
   async getEventByUid(accountId: string, calId: string, uid: string): Promise<PimEventRow | null> {
     const r = await this.db.queryOne<Record<string, unknown>>(
-      `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of,
-              e.reminders, e.busy, e.meeting_url, e.categories, e.status_kind, e.working_loc
+      `SELECT ${EVENT_COLUMNS}
        FROM pim_events e WHERE e.account_id = ? AND e.cal_id = ? AND e.uid = ?`,
       [accountId, calId, uid]
     );
-    if (!r) return null;
-    return {
-      accountId: String(r.account_id),
-      calendarId: String(r.cal_id),
-      uid: String(r.uid),
-      title: String(r.title ?? ""),
-      start: { ts: Number(r.start_ts), date: r.start_date ? String(r.start_date) : undefined },
-      end: { ts: Number(r.end_ts), date: r.end_date ? String(r.end_date) : undefined },
-      allDay: Number(r.all_day) !== 0,
-      location: r.location ? String(r.location) : undefined,
-      description: r.description ? String(r.description) : undefined,
-      attendees: r.attendees ? (safeJson(String(r.attendees)) as string[] | null) ?? undefined : undefined,
-      status: (r.status as PimEvent["status"]) ?? undefined,
-      etag: r.etag ? String(r.etag) : undefined,
-      seriesMaster: r.series_master ? String(r.series_master) : undefined,
-      recurrence: r.recurrence ? String(r.recurrence) : undefined,
-      href: r.href ? String(r.href) : undefined,
-      color: r.color ? String(r.color) : undefined,
-      blockOf: r.block_of ? String(r.block_of) : undefined,
-      // `r.reminders` is NULL only when the event said nothing; "[]" round-trips
-      // as the empty array, which means "no reminder" (S9).
-      reminders: r.reminders != null ? (safeJson(String(r.reminders)) as number[] | null) ?? undefined : undefined,
-      busy: (r.busy as PimEvent["busy"]) ?? undefined,
-      meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
-      categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
-      statusKind: (r.status_kind as PimEvent["statusKind"]) ?? undefined,
-      workingLocation: r.working_loc ? String(r.working_loc) : undefined,
-      ...rsvpFields(r.rsvps),
-    };
+    return r ? eventRowOf(r) : null;
+  }
+
+  /**
+   * Every cached row that names one of `uids` as the event it blocks (K3).
+   *
+   * Deliberately NOT narrowed to shown calendars or to a time window: a
+   * blocker follows its event wherever it is, and the question "what points
+   * at this event" has nothing to do with what the grid shows. Masters are
+   * included — a series is followed at its series. Only enabled accounts: a
+   * switched-off account has no target to write through.
+   */
+  async listBlockersOf(uids: readonly string[]): Promise<PimEventRow[]> {
+    const wanted = [...new Set(uids.filter(Boolean))];
+    const out: PimEventRow[] = [];
+    for (const group of chunk(wanted, CHUNK)) {
+      if (group.length === 0) continue;
+      const rows = await this.db.query<Record<string, unknown>>(
+        `SELECT ${EVENT_COLUMNS}
+         FROM pim_events e
+         JOIN pim_accounts a ON a.id = e.account_id
+         WHERE a.enabled = 1 AND e.block_of IN (${group.map(() => "?").join(", ")})
+         ORDER BY e.start_ts`,
+        group
+      );
+      out.push(...rows.map(eventRowOf));
+    }
+    return out;
+  }
+
+  /**
+   * The cached rows of one provider event id in whatever calendar holds it:
+   * the row itself and, for a series, its occurrences (K3). A blocker names
+   * its event by id alone — the calendar it lives in is not part of the link,
+   * and after a move it is a different one.
+   */
+  async findEventsByUid(uid: string): Promise<PimEventRow[]> {
+    if (!uid) return [];
+    const rows = await this.db.query<Record<string, unknown>>(
+      `SELECT ${EVENT_COLUMNS}
+       FROM pim_events e
+       JOIN pim_accounts a ON a.id = e.account_id
+       WHERE a.enabled = 1 AND (e.uid = ? OR e.series_master = ?)
+       ORDER BY e.start_ts`,
+      [uid, uid]
+    );
+    return rows.map(eventRowOf);
   }
 
   // ---- task <-> note reconcile state (stage 3) ----------------------------

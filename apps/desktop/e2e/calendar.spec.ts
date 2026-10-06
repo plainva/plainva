@@ -125,6 +125,26 @@ test.beforeEach(async ({ page }) => {
                   attendees: null, status: null, etag: `e-ad-${i}`, series_master: null, recurrence: null, href: null,
                 }))
               : []),
+            // Opt-in (K3): an event and its blocker in the second calendar.
+            ...((window as any).__pimBlockers
+              ? [
+                  {
+                    account_id: 'acc1', cal_id: 'cal1', uid: 'ev-board', title: 'Vorstandssitzung',
+                    start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 0).getTime(),
+                    end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0).getTime(),
+                    start_date: null, end_date: null, all_day: 0, location: null, description: null,
+                    attendees: null, status: 'confirmed', etag: 'e-board', series_master: null, recurrence: null, href: null,
+                  },
+                  {
+                    account_id: 'acc1', cal_id: 'cal2', uid: 'ev-board-block', title: 'Beschäftigt',
+                    start_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 0).getTime(),
+                    end_ts: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0).getTime(),
+                    start_date: null, end_date: null, all_day: 0, location: null, description: null,
+                    attendees: null, status: 'confirmed', etag: 'e-block', series_master: null, recurrence: null, href: null,
+                    block_of: 'ev-board',
+                  },
+                ]
+              : []),
           ];
 
     (window as any).__TAURI_INTERNALS__ = {
@@ -174,6 +194,16 @@ test.beforeEach(async ({ page }) => {
           const q = String(args.query);
           // PIM cache tables (order matters: listEvents joins pim_calendars).
           if (q.includes('FROM pim_events')) {
+            // listBlockersOf (K3): the rows that name one of the ids as their event.
+            if (q.includes('e.block_of IN')) {
+              const ids = (args.values ?? []).map(String);
+              return pimEvents().filter((e: any) => e.block_of && ids.includes(e.block_of));
+            }
+            // findEventsByUid (K3): an event by its id alone, with its occurrences.
+            if (q.includes('e.series_master = ?')) {
+              const uid = String(args.values?.[0] ?? '');
+              return pimEvents().filter((e: any) => e.uid === uid || e.series_master === uid);
+            }
             // getEventByUid (queryOne travels as a normal select; first row wins).
             if (q.includes('e.uid = ?')) {
               const uid = String(args.values?.[2] ?? '');
@@ -744,6 +774,94 @@ test('an existing event can be dragged to reschedule and resized; a tiny drag st
   }
   // A tiny drag is still a click — and a click now opens the preview (S2).
   await expect(page.getByTestId('event-peek-title')).toHaveText('Standup');
+});
+
+test('blockers: the chain mark, a dragged blocker asks before it is written, a deletion asks about them (K3)', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    (window as any).__twoCalendars = true;
+    (window as any).__pimBlockers = true;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-calendar').click();
+  await page.getByTestId('calendar-mode-day').click();
+  const todayKey = await page.evaluate(() => (window as any).__todayKey);
+  const col = page.getByTestId(`calendar-timecol-${todayKey}`);
+  await expect(col).toBeVisible();
+  const chain = /Verknüpfter Kalenderblock|Linked calendar block/;
+  const blocker = col.getByTestId('calendar-timed-event').filter({ hasText: /Beschäftigt/ });
+  const board = col.getByTestId('calendar-timed-event').filter({ hasText: 'Vorstandssitzung' });
+  await blocker.scrollIntoViewIfNeeded();
+
+  // The mark: on the blocker and on the event that has one, on nothing else.
+  await expect(blocker.getByLabel(chain)).toHaveCount(1);
+  await expect(board.getByLabel(chain)).toHaveCount(1);
+  await expect(col.getByTestId('calendar-timed-event').filter({ hasText: 'Standup' }).getByLabel(chain)).toHaveCount(0);
+
+  // Drag the blocker up an hour. It asks before anything is written — and
+  // stays where it was dropped while the question is open.
+  await blocker.hover({ position: { x: 12, y: 8 } });
+  const before = await blocker.boundingBox();
+  expect(before).not.toBeNull();
+  if (!before) return;
+  const dragUp = async () => {
+    const box = (await blocker.boundingBox())!;
+    await page.mouse.move(box.x + 12, box.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 12, box.y + 8 - 22, { steps: 4 });
+    await page.mouse.move(box.x + 12, box.y + 8 - 46, { steps: 4 });
+    await page.mouse.up();
+  };
+  await dragUp();
+  const ask = page.getByTestId('blocker-ask');
+  await expect(ask).toBeVisible();
+  await expect(ask).toContainText('Vorstandssitzung');
+  await expect(ask).toContainText('Arbeit');
+  await expect(ask).toContainText('Privat');
+  await expect(ask).not.toContainText('{{');
+  // Preselected: the answer that changes nothing the user did not touch.
+  await expect(page.getByTestId('blocker-ask-only')).toBeChecked();
+  await expect(page.getByTestId('blocker-ask-source')).not.toBeChecked();
+  await expect.poll(async () => (await blocker.boundingBox())?.y ?? 0).toBeLessThan(before.y - 20);
+  // The event has not moved: the question is still open.
+  expect(Math.abs(((await board.boundingBox())?.y ?? 0) - before.y)).toBeLessThan(2);
+  await page.screenshot({ path: testInfo.outputPath('blocker-question.png') });
+
+  // Cancel: nothing was written, the blocker is back where the cache has it.
+  await page.getByRole('dialog').getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+  await expect(ask).toHaveCount(0);
+  await expect.poll(async () => Math.abs(((await blocker.boundingBox())?.y ?? 0) - before.y)).toBeLessThan(2);
+  await expect(page.locator('.pv-toast--error')).toHaveCount(0);
+
+  // Again, and this time "the event": the write goes to the EVENT, so it moves
+  // with its blocker at once — and, with no provider in the mock, is refused
+  // and both are taken back.
+  await dragUp();
+  await expect(ask).toBeVisible();
+  await page.getByTestId('blocker-ask-source').check();
+  await page.getByTestId('blocker-ask-confirm').click();
+  await expect(ask).toHaveCount(0);
+  const refused = page.locator('.pv-toast--error').filter({ hasText: /nicht gespeichert|was not saved/ });
+  await expect(refused).toBeVisible({ timeout: 15000 });
+  await expect.poll(async () => Math.abs(((await blocker.boundingBox())?.y ?? 0) - before.y)).toBeLessThan(2);
+  await expect.poll(async () => Math.abs(((await board.boundingBox())?.y ?? 0) - before.y)).toBeLessThan(2);
+
+  // The preview says what the mark means.
+  await board.click();
+  await expect(page.getByTestId('event-peek-linked')).toHaveText(chain);
+  // Deleting an event that has blockers asks about them, ticked.
+  await page.getByTestId('event-peek-more').click();
+  await page.getByTestId('ctx-delete').click();
+  const del = page.getByTestId('delete-blockers');
+  await expect(del).toBeVisible();
+  await expect(del).toContainText('Vorstandssitzung');
+  await expect(del).toContainText('(1)');
+  await expect(del).toContainText('Arbeit');
+  await expect(page.getByTestId('delete-blockers-also')).toBeChecked();
+  await page.screenshot({ path: testInfo.outputPath('blocker-delete-question.png') });
+  await page.getByRole('dialog').getByRole('button', { name: /Abbrechen|Cancel/ }).click();
+  await expect(del).toHaveCount(0);
+  await expect(board).toBeVisible();
+  await expect(blocker).toBeVisible();
 });
 
 const CAL_TASK_DB_YAML = `properties:

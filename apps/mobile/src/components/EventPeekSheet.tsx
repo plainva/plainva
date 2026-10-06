@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, FilePlus2, MapPin, Pencil, Repeat, Trash2, Users, CopyPlus } from "lucide-react";
+import { Check, FilePlus2, Link2, MapPin, Pencil, Repeat, Trash2, Users, CopyPlus } from "lucide-react";
 import {
   EventDescription,
   EventJoinButton,
@@ -114,6 +114,16 @@ export function EventPeekSheet({
         </div>
 
         <EventJoinButton meetingUrl={event.meetingUrl} onOpenUrl={onOpenUrl} className="m-evtpeek-join" size="md" />
+
+        {/* A blocker, or an event that has blockers (K3): said here as on the desktop. */}
+        {event.blockOf || event.blockedIn?.length ? (
+          <p className="m-evtpeek-chips" data-testid="event-peek-linked">
+            <span className="m-evtpeek-chip">
+              <Link2 size={ICON.meta} />
+              {t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })}
+            </span>
+          </p>
+        ) : null}
 
         {isSeries(event) ? (
           <p className="m-evtpeek-chips" data-testid="event-peek-series">

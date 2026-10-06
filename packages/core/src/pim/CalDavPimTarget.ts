@@ -1,5 +1,5 @@
 import { parseDavListing } from "../sync/xmlListing.js";
-import { pimRequestError } from "./requestError.js";
+import { pimRequestError, PimRequestError } from "./requestError.js";
 import { splitAtWordTags, tagAttributeWords, wordTagContent } from "./davTagScan.js";
 import { trimEndChars } from "../textScan.js";
 import ICAL from "ical.js";
@@ -9,9 +9,11 @@ import type {
   IPimTarget,
   PimAttendee,
   PimAttendeeStatus,
+  PimBlockRef,
   PimCalendar,
   PimEvent,
   PimEventDraft,
+  PimEventLinks,
   PimEventRef,
   PimTask,
   PimTaskDraft,
@@ -26,6 +28,7 @@ import { PimConflictError } from "./types.js";
 import { htmlToMarkdown } from "./htmlToMarkdown.js";
 import { normalizeTitle } from "./seriesTitle.js";
 import { sortedMinutes } from "./eventFields.js";
+import { decodeBlockRefs, encodeBlockRefs } from "./blockLinks.js";
 
 /**
  * CalDAV read adapter (stage 2): RFC 4791 on top of the WebDAV conventions the
@@ -414,6 +417,19 @@ export class CalDavPimTarget implements IPimTarget {
     return this.readModifyPut(ref.href, ref.etag, "vevent", (comp) => applyEventDraft(comp, draft));
   }
 
+  /**
+   * The linkage lives on the series, never on a single occurrence: an
+   * occurrence ref is answered on its master component. No SEQUENCE bump —
+   * nothing an attendee would care about has changed.
+   */
+  async linkEvent(ref: PimEventRef, links: PimEventLinks): Promise<{ etag?: string }> {
+    return this.readModifyPutObject(ref.href, ref.etag, (cal) => {
+      const master = findComponent(cal, "vevent", null);
+      if (!master) throw new Error("caldav object has no vevent");
+      applyEventLinks(master, links);
+    });
+  }
+
   async deleteEvent(ref: PimEventRef): Promise<void> {
     if (!ref.href) throw new Error("caldav delete needs the object href");
     const recurrenceId = instanceRecurrenceId(ref.uid);
@@ -496,7 +512,9 @@ export class CalDavPimTarget implements IPimTarget {
   ): Promise<{ etag?: string }> {
     if (!href) throw new Error("caldav update needs the object href");
     const getRes = await this.rawRequest(href, { method: "GET", headers: {} });
-    if (!getRes.ok) throw new Error(`caldav read ${getRes.status} before update`);
+    // With its status (K3): a blocker that is gone answers 404 here, and the
+    // caller has to tell "gone" from "refused".
+    if (!getRes.ok) throw new PimRequestError(`caldav read ${getRes.status} before update`, getRes.status);
     const currentEtag = getRes.headers.get("ETag") ?? undefined;
     if (knownEtag && currentEtag && knownEtag !== currentEtag) throw new PimConflictError();
 
@@ -637,7 +655,56 @@ function applyEventDraft(vevent: InstanceType<typeof ICAL.Component>, draft: Pim
     if (draft.recurrence === null) vevent.removeAllProperties("rrule");
     else vevent.updatePropertyWithValue("rrule", ICAL.Recur.fromString(recurrenceToRRule(draft.recurrence)));
   }
-  if (draft.blockOf) vevent.updatePropertyWithValue("x-plainva-block-of", draft.blockOf);
+  applyEventLinks(vevent, draft);
+}
+
+function applyEventLinks(vevent: InstanceType<typeof ICAL.Component>, links: PimEventLinks): void {
+  // `undefined` leaves the link, `null` removes it (a detached blocker).
+  if (links.blockOf) vevent.updatePropertyWithValue("x-plainva-block-of", links.blockOf);
+  else if (links.blockOf === null) vevent.removeAllProperties("x-plainva-block-of");
+  // The reverse half (K3): the event's own list of its blockers.
+  if (links.blocks !== undefined) {
+    if (links.blocks.length > 0) vevent.updatePropertyWithValue("x-plainva-blocks", icalBlocksValue(links.blocks));
+    else vevent.removeAllProperties("x-plainva-blocks");
+  }
+}
+
+/**
+ * The blocker list as an iCalendar property value. Percent-encoded: the list
+ * is JSON, full of commas, colons, quotes and — in a CalDAV href — slashes,
+ * and an `X-` property has no declared value type, so neither ical.js nor a
+ * server in between would know how to escape it. What is left is plain ASCII
+ * that every line folder leaves alone.
+ */
+function icalBlocksValue(refs: PimBlockRef[]): string {
+  return encodeURIComponent(encodeBlockRefs(refs));
+}
+
+type IcalComponent = InstanceType<typeof ICAL.Component>;
+
+/**
+ * Both halves of the blocker linkage of a component. An occurrence that has
+ * its own override component (a single moved occurrence) does not repeat the
+ * series' `X-` properties, so `fallback` — the master — answers for it:
+ * the link belongs to the series.
+ */
+function icalLinks(component: IcalComponent, fallback?: IcalComponent): Pick<PimEvent, "blockOf" | "blocks"> {
+  const read = (name: string): string | undefined => {
+    const own = component.getFirstPropertyValue(name);
+    if (typeof own === "string" && own) return own;
+    const inherited = fallback?.getFirstPropertyValue(name);
+    return typeof inherited === "string" && inherited ? inherited : undefined;
+  };
+  const stored = read("x-plainva-blocks");
+  let blocks: PimBlockRef[] | undefined;
+  if (stored) {
+    try {
+      blocks = decodeBlockRefs(decodeURIComponent(stored));
+    } catch {
+      blocks = undefined; // not ours, or mangled on the way: no blockers known
+    }
+  }
+  return { blockOf: read("x-plainva-block-of"), blocks };
 }
 
 function applyTaskDraft(vtodo: InstanceType<typeof ICAL.Component>, draft: PimTaskDraft): void {
@@ -739,7 +806,7 @@ export function expandIcsEvents(
       etag,
       seriesMaster: uid,
       href,
-      blockOf: (details.item.component.getFirstPropertyValue("x-plainva-block-of") as string | null) ?? undefined,
+      ...icalLinks(details.item.component, master),
       // An occurrence without an override IS the master component here, so it
       // inherits the series' alarms and transparency — which is what a calendar
       // means by a recurring reminder.
@@ -778,7 +845,7 @@ function mapVevent(ev: InstanceType<typeof ICAL.Event>, uid: string, calendarId:
     etag,
     href,
     color: (ev.component.getFirstPropertyValue("color") as string | null) ?? undefined,
-    blockOf: (ev.component.getFirstPropertyValue("x-plainva-block-of") as string | null) ?? undefined,
+    ...icalLinks(ev.component),
     ...veventExtras(ev.component),
   };
 }

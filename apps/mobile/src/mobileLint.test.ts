@@ -989,8 +989,13 @@ describe("the calendar can be written into", () => {
 
   it("uses the shared write rules", () => {
     expect(src()).toMatch(/createCalendarEvent\(/);
-    expect(src()).toMatch(/updateCalendarEvent\(/);
-    expect(src()).toMatch(/deleteCalendarEvent\(/);
+    // Updating and deleting go through the shared blocker rule since K3 (plan
+    // Befunde 2026-10-06), which calls `updateCalendarEvent` and
+    // `deleteCalendarEvent` itself and passes the change on to the blockers —
+    // one layer further up, the same rules underneath.
+    expect(src()).toMatch(/updateEventWithBlockers\(/);
+    expect(src()).toMatch(/deleteEventWithBlockers\(/);
+    expect(src()).not.toMatch(/updateCalendarEvent\(|deleteCalendarEvent\(/);
   });
 
   it("does not call the provider targets directly for events", () => {

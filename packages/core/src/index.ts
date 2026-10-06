@@ -105,6 +105,7 @@ export * from "./db/Schema.js";
 export { migratePathIdentity, PATH_IDENTITY_VERSION, type PathIdentityReport } from "./db/pathIdentityMigration.js";
 export * from "./db/batch.js";
 export * from "./pim/types.js";
+export * from "./pim/blockLinks.js";
 export * from "./pim/requestError.js";
 export * from "./pim/recurrence.js";
 export * from "./pim/PimCacheRepository.js";

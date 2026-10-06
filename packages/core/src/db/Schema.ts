@@ -322,6 +322,7 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       color         TEXT,
       rsvps         TEXT,
       block_of      TEXT,
+      blocks        TEXT,
       reminders     TEXT,
       busy          TEXT,
       meeting_url   TEXT,
@@ -563,6 +564,17 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   } catch {
     // Column might already exist
   }
+
+  try {
+    // The reverse half of the blocker linkage (2026-10-06, K3): the event's own
+    // list of its blockers, as the provider stores it. Cache-only and fully
+    // rebuildable; the next pull fills it.
+    await db.execute(`ALTER TABLE pim_events ADD COLUMN blocks TEXT;`);
+  } catch {
+    // Column might already exist
+  }
+  // Finding the blockers of an event is a lookup by this column (K3).
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_pim_events_block_of ON pim_events(block_of);`);
 
   // What every provider carries but Plainva threw away (2026-08-09, S9):
   // reminders, busy/free, the online-meeting link and categories. All four are

@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { applyEventChanges, buildBlockDraft, describeEventChanges, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, resolveDefaultCalendarKey, runCalendarBlocks, toast } from "@plainva/ui";
-import { parseRRule, type PimEventRow } from "@plainva/core";
+import { applyEventChanges, buildBlockDraft, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker } from "@plainva/ui";
+import { parseRRule, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
   createPimEvent,
   deletePimEvent,
+  detachPimBlocker,
+  listPimCalendars,
   openMeetingNoteFor,
+  pimBlockersOf,
   pimSeriesMaster,
+  pimSourceOfBlocker,
+  recordPimBlockers,
   pimSyncNow,
   pimTargetForAccount,
   respondToPimEvent,
@@ -50,7 +55,7 @@ export function useEventEditor({
    *  is the honest answer when the window is not known. */
   rows?: readonly PimEventRow[];
 } = {}) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [calendars, setCalendars] = useState<Array<{ value: string; label: string }>>([]);
   /**
    * Whether that list has been read yet (plan Befunde 2026-09-24, E28). A
@@ -101,18 +106,62 @@ export function useEventEditor({
     toast.error(t("pim.eventWriteRefused", { reason }), { label: t("pim.eventWriteRetry"), run: retry });
   };
 
+  /** The names of the calendars some blockers lie in, for a sentence that names them. */
+  const calendarNames = async (refs: readonly Pick<PimBlockRef, "accountId" | "calendarId">[]): Promise<string[]> => {
+    const all = await listPimCalendars().catch(() => []);
+    const name = new Map(all.map((c) => [`${c.accountId} ${c.id}`, c.name]));
+    // One name per ref, in order: a caller that lists them drops the repeats itself.
+    return refs.map((ref) => name.get(`${ref.accountId} ${ref.calendarId}`) || ref.calendarId);
+  };
+
+  /**
+   * What the blockers did, said once (K3): how many went along — with the way
+   * back — and, by calendar, which did not. Never passed over in silence.
+   */
+  const reportBlockers = async (report: BlockFollowReport, message: string | null, undo?: () => void) => {
+    if (message && report.followed.length > 0) toast.info(message, undo ? { label: t("common.undo"), run: undo } : undefined);
+    if (report.failed.length === 0) return;
+    const names = await calendarNames(report.failed.map((failure) => failure.ref));
+    const cals = report.failed
+      .map((failure, index) => `${names[index] ?? failure.ref.calendarId} (${failure.hidden ? t("pim.blockCalendarHidden") : failure.reason})`)
+      .join(", ");
+    toast.error(t("pim.blocksNotFollowed", { cals }));
+  };
+
   const confirmDelete = async (target: PimEventRow) => {
-    const ok = await mConfirm({
-      title: t("pim.deleteEvent"),
-      message: target.title,
-      danger: true,
-      confirmLabel: t("common.delete"),
-    });
-    if (!ok) return false;
+    // An event with blockers asks about them in the same breath (K3). The
+    // desktop ticks a box; the phone's shape for one decision with two
+    // outcomes is two rows, the usual one first.
+    const blockers = await pimBlockersOf(target, rows);
+    let also: ResolvedBlocker[] = [];
+    if (blockers.length > 0) {
+      const names = await calendarNames(blockers.map((blocker) => blocker.ref));
+      const choice = await mActions({
+        title: t("pim.deleteEvent"),
+        message: target.title,
+        options: [
+          { value: "all", label: t("pim.deleteWithBlockers", { n: blockers.length }), desc: t("pim.deleteBlockersIn", { cals: [...new Set(names)].join(", ") }), danger: true },
+          { value: "event", label: t("pim.deleteOnlyEvent"), danger: true },
+        ],
+      });
+      if (choice === null) return false;
+      if (choice === "all") also = blockers;
+    } else {
+      const ok = await mConfirm({
+        title: t("pim.deleteEvent"),
+        message: target.title,
+        danger: true,
+        confirmLabel: t("common.delete"),
+      });
+      if (!ok) return false;
+    }
     // Gone from the screen with the confirmation (issue 119); a refusal
     // brings the event back and says why.
     const run = () => {
-      void deletePimEvent(target).catch((err) => reportRefused(err, run));
+      void deletePimEvent(target, also).then(
+        (report) => void reportBlockers(report, null),
+        (err) => reportRefused(err, run),
+      );
     };
     run();
     return true;
@@ -209,8 +258,9 @@ export function useEventEditor({
     const source = master ?? e;
     const recurrence = master ? parseRRule(master.recurrence) : null;
     const draft = buildBlockDraft(source, mode, t("pim.busyTitle", { defaultValue: "Beschäftigt" }), recurrence);
-    const { ok, failed } = await runCalendarBlocks({
+    const { ok, failed, created } = await runCalendarBlocks({
       keys: picked,
+      mode,
       labelFor: (key) => options.find((o) => o.value === key)?.label ?? key,
       targetFor: async (accountId) => {
         try {
@@ -224,6 +274,8 @@ export function useEventEditor({
     });
     if (ok > 0) {
       toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));
+      // The event learns of its blockers (K3): its own list at the provider.
+      await recordPimBlockers(source, created);
       pimSyncNow();
     }
     if (failed.length > 0) {
@@ -248,21 +300,79 @@ export function useEventEditor({
     }
   };
 
-  /** Writes an edited form against ONE event — the occurrence or the master. */
-  const writeTo = async (target: PimEventRow, values: EventEditValues) => {
-    // The sheet closes with the save; the change is on screen already and the
-    // provider's answer arrives on the event itself.
-    setSheet(null);
+  /**
+   * ONE update of one event, with its blockers (K3): the event and the
+   * blockers on screen are at their new place before the provider is asked,
+   * and the message afterwards says how many went along, with the way back.
+   */
+  const applyWrite = async (e: PimEventRow, draft: PimEventDraft, calendarKey: string | null, announce: boolean) => {
     try {
-      const out = await updatePimEvent(target, values.draft, values.calendarKey);
+      const out = await updatePimEvent(e, draft, calendarKey, rows);
       if (out.kind === "conflict") {
         toast.info(t("pim.eventConflict"));
         return;
       }
       if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
+      const followed = out.blockers.followed;
+      const n = followed.length;
+      const message = !announce
+        ? null
+        : movedInTime(e, draft)
+          ? t("pim.blocksMoved", { time: describeNewStart(e, draft, i18n.language), n })
+          : t("pim.blocksUpdated", { n });
+      // The way back is the same write in reverse, offered only where that
+      // is the whole truth (see `undoDraftFor`).
+      const back = announce && n > 0 ? undoDraftFor(e, draft) : null;
+      const row = out.rows[0];
+      const moved = !!row && (row.accountId !== e.accountId || row.calendarId !== e.calendarId);
+      const after: PimEventRow | null = row ? { ...(moved ? row : { ...e, ...row }), etag: undefined, blocks: followed } : null;
+      await reportBlockers(
+        out.blockers,
+        message,
+        back && after ? () => void applyWrite(after, back, moved ? `${e.accountId} ${e.calendarId}` : null, false) : undefined,
+      );
     } catch (err) {
-      reportRefused(err, () => void writeTo(target, values));
+      reportRefused(err, () => void applyWrite(e, draft, calendarKey, announce));
     }
+  };
+
+  /** Writes an edited form against ONE event — the occurrence or the master. */
+  const writeTo = async (target: PimEventRow, values: EventEditValues) => {
+    // A BLOCKER that was changed asks once what was meant (K3) — the phone's
+    // shape for the desktop's dialog. The sheet stays open under the
+    // question: backing out of it must not cost the edit.
+    const mirrored = target.blockOf ? await pimSourceOfBlocker(target) : null;
+    if (mirrored) {
+      const moved = movedInTime(target, values.draft);
+      const [blockerCalendar, sourceCalendar] = [await calendarNames([target]), await calendarNames([mirrored.source])];
+      const choice = await mActions({
+        title: t("pim.blockerAskTitle"),
+        message: t("pim.blockerAskBody", { calendar: blockerCalendar[0] ?? "", title: mirrored.source.title, sourceCalendar: sourceCalendar[0] ?? "" }),
+        options: [
+          { value: "blocker", label: t(moved ? "pim.blockerOnlyMove" : "pim.blockerOnlyEdit"), desc: t("pim.blockerOnlyHint") },
+          // Not for an invitation of somebody else: that event is not the user's to move.
+          ...(mirrored.canChange ? [{ value: "source", label: t(moved ? "pim.blockerSourceMove" : "pim.blockerSourceEdit"), desc: t("pim.blockerSourceHint") }] : []),
+        ],
+      });
+      if (choice === null) return;
+      setSheet(null);
+      if (choice === "source") {
+        await applyWrite(mirrored.source, sourceDraftFromBlockerEdit(mirrored.source, target, values.draft), null, true);
+        return;
+      }
+      try {
+        const out = await detachPimBlocker(target, values.draft, values.calendarKey, mirrored.source);
+        if (out.kind === "conflict") toast.info(t("pim.eventConflict"));
+        else if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
+      } catch (err) {
+        reportRefused(err, () => void writeTo(target, values));
+      }
+      return;
+    }
+    // The sheet closes with the save; the change is on screen already and the
+    // provider's answer arrives on the event itself.
+    setSheet(null);
+    await applyWrite(target, values.draft, values.calendarKey, true);
   };
 
   const save = async (values: EventEditValues) => {
