@@ -147,4 +147,42 @@ describe("FixtureSqliteAdapter", () => {
     const db = new FixtureSqliteAdapter("test");
     expect(await db.queryOne("SELECT 1")).toBeNull();
   });
+
+  it("takes over a database whose last page died inside a transaction", async () => {
+    // The runner's database outlives the page. The bridge here answers as
+    // SQLite does: a second BEGIN is refused, and so is a COMMIT or ROLLBACK
+    // with no transaction open.
+    let open = false;
+    (globalThis as Record<string, unknown>)[BRIDGE_KEY] = {
+      exec: async (_db: string, sql: string) => {
+        if (sql === "BEGIN") {
+          if (open) throw new Error("cannot start a transaction within a transaction");
+          open = true;
+        } else if (sql === "COMMIT" || sql === "ROLLBACK") {
+          if (!open) throw new Error(`cannot ${sql.toLowerCase()} - no transaction is active`);
+          open = false;
+        }
+      },
+      all: async () => [],
+    };
+
+    // A fresh database: nothing to roll back, and opening it says nothing about that.
+    const first = new FixtureSqliteAdapter("test");
+    await expect(first.initialize()).resolves.toBeUndefined();
+    // Its index pass begins — and the page is reloaded before it commits.
+    void first.transaction(() => new Promise<void>(() => {}));
+    expect(open).toBe(true);
+
+    // The next page opens the same database. Its own pass must be able to
+    // begin: left as it was, BEGIN failed, the boot swallowed the error and
+    // the app ran on without an index — one run in three of a spec that
+    // reloads right after the start.
+    const second = new FixtureSqliteAdapter("test");
+    await second.initialize();
+    expect(open).toBe(false);
+    await second.transaction(async () => {
+      await second.execute("INSERT INTO files VALUES (?)", ["a.md"]);
+    });
+    expect(open).toBe(false);
+  });
 });

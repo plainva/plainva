@@ -613,7 +613,70 @@
         "metadata-not-map": "Les métadonnées ne sont pas une liste de champs.",
         "plainva-value": "Un champ Plainva n'a pas pu être lu et est ignoré : {{detail}}"
       },
-      "writeFailed": "La compétence n'a pas pu être écrite dans le vault."
+      "test": {
+        "title": "Tester",
+        "run": "Tester avec {{model}}",
+        "open": "Tester…",
+        "start": "Lancer le test",
+        "never": "Pas encore testé. Les scénarios de test des compétences s'exécutent avec le modèle choisi — à la main, avec un plafond.",
+        "last": "Dernier test le {{when}} — réussis : {{passed}} sur {{total}}.",
+        "modelChanged_one": "{{count}} compétence n'a pas encore été testée avec le modèle choisi maintenant ({{model}}).",
+        "modelChanged_many": "{{count}} compétences n'ont pas encore été testées avec le modèle choisi maintenant ({{model}}).",
+        "modelChanged_other": "{{count}} compétences n'ont pas encore été testées avec le modèle choisi maintenant ({{model}}).",
+        "row": {
+          "current": "testée : {{passed}} sur {{total}}",
+          "model-changed": "testée avec {{model}}, pas avec le modèle choisi",
+          "skill-changed": "modifiée depuis le test"
+        },
+        "model": "Modèle",
+        "what": "Étendue",
+        "scope": "{{scenarios}} de {{skills}}",
+        "scenarios_one": "{{count}} scénario",
+        "scenarios_many": "{{count}} scénarios",
+        "scenarios_other": "{{count}} scénarios",
+        "skillsCount_one": "{{count}} compétence",
+        "skillsCount_many": "{{count}} compétences",
+        "skillsCount_other": "{{count}} compétences",
+        "nothing": "Aucune compétence active n'apporte de scénario valable dans ce vault.",
+        "elsewhere_one": "{{count}} autre scénario est écrit pour un autre vault et ne s'exécute pas ici.",
+        "elsewhere_many": "{{count}} autres scénarios sont écrits pour un autre vault et ne s'exécutent pas ici.",
+        "elsewhere_other": "{{count}} autres scénarios sont écrits pour un autre vault et ne s'exécutent pas ici.",
+        "ceiling": "Plafond",
+        "ceilingAmount": "Plafond en dollars américains",
+        "ceilingHint": "En dollars américains. Le test s'arrête entre deux scénarios dès que le plafond est atteint.",
+        "ceilingTokens": "Aucun prix n'est connu pour ce modèle : le test s'arrête après {{tokens}} jetons au plus.",
+        "ceilingLocal": "Aucun : le modèle fonctionne sur cet appareil. Rien n'en sort, rien n'est facturé.",
+        "how": "Chaque scénario est une exécution ordinaire de sa compétence : il lit votre vault comme une exécution à la main, passe par le même aperçu avant l'envoi, compte dans la consommation et laisse sa conversation dans l'historique.",
+        "progress": "Scénario {{done}} sur {{total}} en cours : {{scenario}}",
+        "pass": "réussi",
+        "notRun": "non exécuté",
+        "notApplicable": "ne s'applique pas ici — il manque dans ce vault : {{names}}",
+        "check": {
+          "answered": "pas de réponse",
+          "required": "n'a pas utilisé : {{names}}",
+          "forbidden": "a utilisé ce qu'il ne doit pas : {{names}}",
+          "cites": "ne cite pas : {{names}}",
+          "never_one": "montre {{count}} élément qui ne doit jamais apparaître",
+          "never_many": "montre {{count}} éléments qui ne doivent jamais apparaître",
+          "never_other": "montre {{count}} éléments qui ne doivent jamais apparaître"
+        },
+        "done": "Réussis : {{passed}} sur {{ran}}.",
+        "stopped": {
+          "ceiling": "Le plafond a été atteint ; le reste n'a pas été exécuté.",
+          "cancelled": "Arrêté ; le reste n'a pas été exécuté.",
+          "failed": "Interrompu parce qu'une requête a échoué : {{reason}}"
+        },
+        "refused": {
+          "off": "L'IA est désactivée.",
+          "no-model": "Choisissez d'abord un modèle.",
+          "busy": "L'IA répond encore — attendez ou arrêtez-la.",
+          "nothing": "Aucune compétence active n'apporte de scénario valable dans ce vault."
+        },
+        "cost": "≈ {{cost}} · {{tokens}} jetons",
+        "tokens": "{{tokens}} jetons",
+        "conversation": "Essai · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"La compétence n'a pas pu être écrite dans le vault."
     },
     "mcp": {
       "title": "Apps d'IA sur cet ordinateur",

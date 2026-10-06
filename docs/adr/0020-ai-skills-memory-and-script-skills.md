@@ -30,7 +30,12 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    output schema, model profile, token and cost budget, tests and fixtures,
    origin, version, signature, local or cloud suitability — lives in
    `metadata` under the prefix `plainva.`, so the skills stay readable by the
-   roughly forty harnesses that implement the format.
+   roughly forty harnesses that implement the format. What a skill consists
+   of is decided in the core, not by a shell's file listing: hidden entries
+   inside a skill's folder — names that start with a dot — and the operating
+   system's bookkeeping are not part of it. The scan and the import leave them
+   out, so both shells hash the same files, the user approves what the dialog
+   can show, and a leftover of an interrupted write lifts no approval.
 2. **Nothing becomes active by arriving.** A skill, script, routine, memory
    **rule** or a vault-root `AGENTS.md` that appears new or **changed** through
    sync, import, publication or a vault switch is inactive until the user
@@ -49,9 +54,12 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    status, meeting preparation, task triage, research with source capture,
    writing and summarising, mail and calendar capture, knowledge upkeep, link
    cleanup, memory curation, a privacy check before cloud egress, reflection
-   on explicitly released personal notes without diagnosis). Three to five of
-   them start as prompt templates in the beta and move into the registry
-   later.
+   on explicitly released personal notes without diagnosis). Ten of them ship
+   with the beta as real skills in the format, read-only: day orientation,
+   weekly review, project status, meeting preparation, task triage, writing
+   and rewriting, knowledge upkeep, link cleanup, the privacy check and
+   reflection. Research, mail and calendar capture and memory curation follow
+   with the tools they need.
 5. **Self-improvement is proposal-first.** A reviewer analyses a run, proposes
    memory or skill changes with evidence, shows diff, origin, new rights, cost
    and tests; the user applies, revises or rejects; a new version runs
@@ -76,6 +84,32 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    the policy system. A conversation note (Markdown summary) is opt-in per
    session and, once written, an ordinary vault file under sync and policy
    rules; the transition is shown.
+8. **A skill is tested against a model, by hand.** A skill can bring
+   scenarios (`tests/scenarios.json`, at most eight): a message that starts
+   it, the tools a good run uses and those it must leave alone, the notes its
+   answer names, text that must not appear. The regression run in the skills
+   workshop runs each scenario as an **ordinary run of its skill** against the
+   model a new conversation would use — the same gate, the same send overview,
+   the same tools, the same usage ledger — and judges what the run did, never
+   its wording. Four rules bound it:
+   - **Never by itself.** The run starts from a dialog that first says how
+     many scenarios would run against which model. A changed model or a
+     changed skill starts nothing; the workshop only says that the last
+     result no longer counts.
+   - **A ceiling.** An amount in US dollars where the model's price is known,
+     a token ceiling always; a model on this device has none, because nothing
+     leaves the device and nothing is billed. The ceiling is checked between
+     two scenarios — one scenario is bounded by its run limits — and what did
+     not run is recorded as not run, not as failed.
+   - **A result is about one model and one version.** It is stored per
+     device in app data, next to the approvals, with the provider, the model
+     and a hash over the skill's files and its scenarios. For another model or
+     another version it says nothing, and is shown as that.
+   - **Not applicable is not failed.** A scenario that names a note or a path
+     the vault does not have was written for another vault — the scenarios of
+     the skills that come with the app are written against the test vault. It
+     does not run and is counted apart, so a real vault shows neither false
+     failures nor false passes.
 
 ## Consequences
 
@@ -85,6 +119,13 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
   list of pending approvals keeps that visible rather than silent.
 - Plainva skills are portable to other harnesses, and theirs to Plainva, but
   only through the same approval.
+- `.agent/` is ordinary vault content to the index and the sync — the shared
+  rule for internal paths does not exclude it, and the phone's index carries
+  the skills' files (`apps/mobile/e2e-prod/ai-skills.spec.ts`). Skills
+  therefore travel with the vault like notes, which is exactly why arriving
+  activates nothing.
+- A test result does not travel: each device tests against the model it uses,
+  and pays for it there.
 
 ## Alternatives
 

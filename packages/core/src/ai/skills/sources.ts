@@ -22,6 +22,23 @@ export const AGENTS_MAX_BYTES = 16_384;
 /** How deep a skill's own folders go: `references/`, `assets/` and one level below. */
 const SKILL_MAX_DEPTH = 4;
 
+/**
+ * What of a skill's folder is NOT the skill: the operating system's
+ * bookkeeping, and every hidden entry — a name that starts with a dot.
+ *
+ * The rule is the core's because the shells list a folder differently: the
+ * phone's listing leaves dot-names out, the desktop's shows them. A skill that
+ * carried a `.gitignore` therefore hashed to different files on the two, and
+ * an import that brought one could never be confirmed on the phone — the
+ * scan after the write did not find what had just been written (finding
+ * 2026-10-06). One rule for the scan and the import closes that: the user
+ * approves what the dialog can show, and a temp file an interrupted write
+ * left behind does not lift an approval.
+ */
+export function isSkillEntryLeftOut(name: string): boolean {
+  return name.startsWith(".") || isSystemJunkName(name);
+}
+
 export type InstructionKind = "skill" | "agents";
 export type InstructionOrigin = "plainva" | "vault";
 
@@ -89,7 +106,7 @@ export function appSkillSource(folder: string, text: string): InstructionSource 
 
 async function walk(io: InstructionIO, folder: string, prefix: string, depth: number, into: string[]): Promise<boolean> {
   for (const entry of await io.list(folder)) {
-    if (isSystemJunkName(entry.name)) continue;
+    if (isSkillEntryLeftOut(entry.name)) continue;
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.folder) {
       if (depth >= SKILL_MAX_DEPTH) return false;
@@ -131,7 +148,7 @@ export async function scanSkillFolder(io: InstructionIO, folder: string): Promis
 /** The vault's own instructions: every skill folder and a root `AGENTS.md`. */
 export async function scanVaultInstructions(io: InstructionIO): Promise<InstructionSource[]> {
   const sources: InstructionSource[] = [];
-  const folders = (await io.list(SKILLS_FOLDER).catch(() => [])).filter((e) => e.folder && !isSystemJunkName(e.name)).map((e) => e.name);
+  const folders = (await io.list(SKILLS_FOLDER).catch(() => [])).filter((e) => e.folder && !isSkillEntryLeftOut(e.name)).map((e) => e.name);
   for (const folder of folders.sort()) sources.push(await scanSkillFolder(io, folder).catch(() => brokenSkill(folder)));
   const agents = await scanAgents(io);
   if (agents) sources.push(agents);
@@ -153,8 +170,9 @@ async function scanAgents(io: InstructionIO): Promise<InstructionSource | null> 
 export async function scanInstruction(io: InstructionIO, id: string): Promise<InstructionSource | null> {
   if (id === AGENTS_FILE) return scanAgents(io);
   const prefix = `${SKILLS_FOLDER}/`;
-  if (!id.startsWith(prefix) || id.slice(prefix.length).includes("/")) return null;
-  const source = await scanSkillFolder(io, id.slice(prefix.length)).catch(() => null);
+  const folder = id.startsWith(prefix) ? id.slice(prefix.length) : "";
+  if (!folder || folder.includes("/") || isSkillEntryLeftOut(folder)) return null;
+  const source = await scanSkillFolder(io, folder).catch(() => null);
   return source && (source.files.length || source.tooLarge) ? source : null;
 }
 

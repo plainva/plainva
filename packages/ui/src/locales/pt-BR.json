@@ -613,7 +613,70 @@
         "metadata-not-map": "Os metadados não são uma lista de campos.",
         "plainva-value": "Um campo do Plainva não pôde ser lido e fica de fora: {{detail}}"
       },
-      "writeFailed": "Não foi possível gravar a habilidade no vault."
+      "test": {
+        "title": "Testar",
+        "run": "Testar com {{model}}",
+        "open": "Testar…",
+        "start": "Iniciar o teste",
+        "never": "Ainda não testado. Os cenários de teste das habilidades rodam com o modelo escolhido — à mão, com um teto.",
+        "last": "Último teste em {{when}} — aprovados: {{passed}} de {{total}}.",
+        "modelChanged_one": "{{count}} habilidade ainda não foi testada com o modelo escolhido agora ({{model}}).",
+        "modelChanged_many": "{{count}} habilidades ainda não foram testadas com o modelo escolhido agora ({{model}}).",
+        "modelChanged_other": "{{count}} habilidades ainda não foram testadas com o modelo escolhido agora ({{model}}).",
+        "row": {
+          "current": "testada: {{passed}} de {{total}}",
+          "model-changed": "testada com {{model}}, não com o modelo escolhido",
+          "skill-changed": "alterada desde o teste"
+        },
+        "model": "Modelo",
+        "what": "Abrangência",
+        "scope": "{{scenarios}} de {{skills}}",
+        "scenarios_one": "{{count}} cenário",
+        "scenarios_many": "{{count}} cenários",
+        "scenarios_other": "{{count}} cenários",
+        "skillsCount_one": "{{count}} habilidade",
+        "skillsCount_many": "{{count}} habilidades",
+        "skillsCount_other": "{{count}} habilidades",
+        "nothing": "Nenhuma habilidade ativa traz cenários que valham neste vault.",
+        "elsewhere_one": "Mais {{count}} cenário foi escrito para outro vault e não roda aqui.",
+        "elsewhere_many": "Mais {{count}} cenários foram escritos para outro vault e não rodam aqui.",
+        "elsewhere_other": "Mais {{count}} cenários foram escritos para outro vault e não rodam aqui.",
+        "ceiling": "Teto",
+        "ceilingAmount": "Teto em dólares americanos",
+        "ceilingHint": "Em dólares americanos. O teste termina entre dois cenários assim que o teto é atingido.",
+        "ceilingTokens": "Não há preço conhecido para este modelo: o teste termina após no máximo {{tokens}} tokens.",
+        "ceilingLocal": "Nenhum: o modelo roda neste dispositivo. Nada sai dele, nada é cobrado.",
+        "how": "Cada cenário é uma execução comum da sua habilidade: lê seu vault como uma execução à mão, passa pelo mesmo resumo antes do envio, conta no consumo e deixa sua conversa no histórico.",
+        "progress": "Cenário {{done}} de {{total}} em andamento: {{scenario}}",
+        "pass": "aprovado",
+        "notRun": "não executado",
+        "notApplicable": "não vale aqui — neste vault falta: {{names}}",
+        "check": {
+          "answered": "sem resposta",
+          "required": "não usou: {{names}}",
+          "forbidden": "usou o que não deve: {{names}}",
+          "cites": "não cita: {{names}}",
+          "never_one": "mostra {{count}} dado que nunca deve aparecer",
+          "never_many": "mostra {{count}} dados que nunca devem aparecer",
+          "never_other": "mostra {{count}} dados que nunca devem aparecer"
+        },
+        "done": "Aprovados: {{passed}} de {{ran}}.",
+        "stopped": {
+          "ceiling": "O teto foi atingido; o restante não foi executado.",
+          "cancelled": "Interrompido; o restante não foi executado.",
+          "failed": "Encerrado porque uma solicitação falhou: {{reason}}"
+        },
+        "refused": {
+          "off": "A IA está desativada.",
+          "no-model": "Escolha primeiro um modelo.",
+          "busy": "A IA ainda está respondendo — espere ou pare-a.",
+          "nothing": "Nenhuma habilidade ativa traz cenários que valham neste vault."
+        },
+        "cost": "≈ {{cost}} · {{tokens}} tokens",
+        "tokens": "{{tokens}} tokens",
+        "conversation": "Teste · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"Não foi possível gravar a habilidade no vault."
     },
     "mcp": {
       "title": "Apps de IA neste computador",

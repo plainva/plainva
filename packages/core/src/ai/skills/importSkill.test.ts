@@ -40,6 +40,29 @@ describe("importing a skill", () => {
     expect(lower.files.map((f) => [f.path, f.sha256])).toEqual([["SKILL.md", flat.files[0]!.sha256]]);
   });
 
+  it("leaves hidden entries inside the skill out, wherever the archive kept the skill", () => {
+    const plain = readSkillImport(files({ "meeting-minutes/SKILL.md": SKILL(), "meeting-minutes/references/a.md": "a" }));
+    // A repository's zip: its own bookkeeping lies beside and inside the skill.
+    const repo = readSkillImport(
+      files({
+        "repo-main/.gitignore": "node_modules",
+        "repo-main/skills/meeting-minutes/SKILL.md": SKILL(),
+        "repo-main/skills/meeting-minutes/references/a.md": "a",
+        "repo-main/skills/meeting-minutes/.gitignore": "*.log",
+        "repo-main/skills/meeting-minutes/.github/workflows/check.yml": "on: push",
+        "repo-main/skills/meeting-minutes/references/.keep": "",
+      }),
+    );
+    expect(repo.blocked).toBeNull();
+    // What is written is what the scan finds afterwards — on the phone too, whose listing shows no dot-names.
+    expect(repo.files.map((f) => f.path)).toEqual(["SKILL.md", "references/a.md"]);
+    expect(repo.contentHash).toBe(plain.contentHash);
+    // A vault's own skills folder, zipped: the hidden folders lead to the skill and are not it.
+    const vault = readSkillImport(files({ ".agent/skills/meeting-minutes/SKILL.md": SKILL(), ".agent/skills/meeting-minutes/references/a.md": "a" }));
+    expect(vault.blocked).toBeNull();
+    expect(vault.contentHash).toBe(plain.contentHash);
+  });
+
   it("refuses what is no single, safe, small skill", () => {
     expect(readSkillImport(files({ "README.md": "no skill" })).blocked).toBe("no-skill");
     expect(readSkillImport(files({ "a/SKILL.md": SKILL("a"), "b/SKILL.md": SKILL("b") })).blocked).toBe("several-skills");

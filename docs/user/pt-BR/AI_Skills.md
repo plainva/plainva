@@ -1,6 +1,6 @@
 # Habilidades (Beta)
 
-Última revisão: 2026-10-01
+Última revisão: 2026-10-06
 
 Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz dez, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
 
@@ -31,13 +31,38 @@ Todas apenas leem: nenhuma altera uma nota, envia algo ou acessa a internet. Ver
 
 **Nova habilidade** pede um nome, uma descrição — é por ela que a IA escolhe a habilidade — e as instruções. O Plainva as grava como `.agent/skills/<nome>/SKILL.md` no seu vault, onde viajam com ele como qualquer nota. **Editar** abre o arquivo como uma nota.
 
-**Importar…** aceita uma habilidade como arquivo `.zip` ou `.skill`. Antes de gravar qualquer coisa, o Plainva a verifica: exatamente uma habilidade no formato, nenhum caminho fora da pasta dela, os limites de tamanho. Ele informa a licença, os scripts que não executará e as ferramentas que não tem.
+**Importar…** aceita uma habilidade como arquivo `.zip` ou `.skill`. Antes de gravar qualquer coisa, o Plainva a verifica: exatamente uma habilidade no formato, nenhum caminho fora da pasta dela, os limites de tamanho. Ele informa a licença, os scripts que não executará e as ferramentas que não tem. Arquivos ocultos — nomes que começam com um ponto — não fazem parte de uma habilidade e ficam de fora.
 
 ## Nada roda antes da sua aprovação
 
 Uma habilidade do seu vault que é nova ou foi alterada — pela sincronização, por uma importação ou por uma edição neste ou em outro dispositivo — só roda quando você a aprova **neste dispositivo**. Essas habilidades aguardam no topo de **Habilidades**, em **Aguardando sua aprovação**, e em **Configurações → IA e automação** (a parte do vault). **Revisar e aprovar** mostra o que a habilidade pode fazer, o que mudou desde a sua última aprovação, as instruções, os arquivos e onde ela fica. A aprovação vale exatamente para esta versão; qualquer alteração a anula. As aprovações ficam neste dispositivo, nunca no vault.
 
 O mesmo vale para um `AGENTS.md` no topo do seu vault: depois de aprovado, suas instruções permanentes vão em toda nova conversa. Nem uma habilidade nem o `AGENTS.md` podem suspender suas regras de privacidade, e uma habilidade nunca recebe mais do que uma conversa tem — ela só pode restringir.
+
+## Testar habilidades com um modelo
+
+Uma habilidade pode trazer cenários de teste: uma mensagem que a inicia e o que uma boa execução faz. As habilidades incluídas os têm; para as suas, escreva-os em `tests/scenarios.json`, na pasta da habilidade:
+
+```json
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "rates",
+      "message": "Check the offer against last year's rates.",
+      "tools": { "required": ["read_note"], "forbidden": ["run_command"] },
+      "cites": ["Offer"],
+      "never": ["internal margin"]
+    }
+  ]
+}
+```
+
+`tools` indica as ferramentas que uma boa execução usa e as que ela não deve tocar; `cites`, as notas que a resposta cita; `never`, texto que não deve aparecer nela. Uma habilidade tem no máximo oito cenários.
+
+**Testar com ⟨modelo⟩** — no fim de **Habilidades** ou no menu de uma habilidade — roda os cenários com o modelo que uma nova conversa usaria. Nada começa sozinho: o diálogo primeiro diz quantos cenários rodariam e com qual modelo, e você define um **Teto** em dólares americanos; o teste termina entre dois cenários assim que ele é atingido. Se não há preço conhecido para o modelo, o teste termina após um número fixo de tokens; um modelo neste dispositivo não precisa de teto.
+
+Cada cenário é uma execução comum da sua habilidade: lê seu vault como uma execução à mão, passa pelo mesmo resumo antes do envio, conta no seu consumo e deixa sua conversa no histórico, onde a próxima execução a substitui. Depois, cada cenário mostra seu resultado em palavras, e a linha da habilidade diz como foi sua última execução. Um resultado vale para um modelo e uma versão da habilidade: se você escolher outro modelo ou alterar a habilidade, a linha diz isso em vez de mostrar um resultado que não conta mais. Alguns cenários incluídos perguntam sobre notas do vault de testes do Plainva; no seu vault eles não valem, e o diálogo os conta à parte em vez de reprová-los.
 
 ## O que vai para o provedor
 

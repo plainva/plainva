@@ -73,7 +73,7 @@ export function SkillImportModal({ label, imported, onClose }: { label: string; 
           {t("ai.workshop.importDialog.replace")}
         </Checkbox>
       )}
-      {facts.lands && <p className="pv-modal-note">{facts.lands}</p>}
+      {facts.lands && <p className="pv-modal-hint">{facts.lands}</p>}
       {error && (
         <Banner kind="error" rounded>
           {error}

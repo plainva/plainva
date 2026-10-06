@@ -1,12 +1,13 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Download, Plus } from "lucide-react";
+import { ChevronRight, Download, FlaskConical, Plus } from "lucide-react";
 import type { InstructionEntry, SkillImport } from "@plainva/core";
-import { Button, GroupCard, ICON, Row, RowList, SectionLabel, skillRowActions, skillView, Switch, toast, workshopSections, type SkillRowCaps } from "@plainva/ui";
+import { Button, GroupCard, ICON, Row, RowList, SectionLabel, skillRowActions, skillRowDescription, skillTestOverview, skillTestPlanFor, skillView, Switch, toast, useSkillTestPlan, workshopSections, type SkillRowCaps } from "@plainva/ui";
 import { RowActionSheet } from "./RowActionSheet";
 import { NewSkillSheet } from "./NewSkillSheet";
 import { SkillApprovalSheet } from "./SkillApprovalSheet";
 import { SkillImportSheet } from "./SkillImportSheet";
+import { SkillTestSheet } from "./SkillTestSheet";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { pickSkillArchive } from "../services/ai/skillImport";
 import { mConfirm } from "../services/mobileDialogs";
@@ -18,13 +19,16 @@ import { mConfirm } from "../services/mobileDialogs";
  * (`workshopSections`, `approvalFacts`); nothing here decides on its own.
  */
 export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote: (path: string) => void; onRun: () => void; review?: string | null }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const [open, setOpen] = useState<string | null>(review ?? null);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState<{ label: string; imported: SkillImport } | null>(null);
   const [sheet, setSheet] = useState<{ title: string; caps: SkillRowCaps } | null>(null);
+  /** The regression run's sheet: for some skills, or (null) for all that bring scenarios. */
+  const [testing, setTesting] = useState<{ ids: string[] | null } | null>(null);
+  const plan = useSkillTestPlan(session, state);
 
   useEffect(() => {
     void session.refreshSkills();
@@ -32,10 +36,9 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
 
   const sections = workshopSections(state.skills.entries);
   const titleOf = (entry: InstructionEntry) => (entry.source.kind === "agents" ? "AGENTS.md" : skillView(t, entry).title);
-  const describe = (entry: InstructionEntry) => {
-    const about = entry.source.kind === "agents" ? t("ai.workshop.mayAgents") : skillView(t, entry).description;
-    return entry.status === "active" ? about : `${t(`ai.workshop.status.${entry.status}`)} · ${about}`;
-  };
+  const describe = (entry: InstructionEntry) => skillRowDescription(t, entry, state.skillTests.records, plan);
+  const testable = (entry: InstructionEntry) => plan?.targets.some((target) => target.id === entry.source.id && target.scenarios > 0) === true;
+  const overview = skillTestOverview(t, state.skillTests.records, plan, i18n.language);
   const mainPath = (entry: InstructionEntry) => (entry.source.kind === "agents" ? "AGENTS.md" : `${entry.source.root}/SKILL.md`);
   const capsFor = (entry: InstructionEntry): SkillRowCaps => {
     const vault = entry.source.origin === "vault";
@@ -48,6 +51,9 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
               void session.runSkill(view.id, view.start);
             },
           }
+        : {}),
+      ...(entry.status === "active" && entry.source.kind === "skill" && plan && testable(entry)
+        ? { test: () => setTesting({ ids: [entry.source.id] }), testLabel: t("ai.workshop.test.run", { model: plan.choice.model }) }
         : {}),
       ...(!vault ? { showInstructions: () => setOpen(entry.source.id) } : {}),
       ...(vault ? { edit: () => onOpenNote(mainPath(entry)) } : {}),
@@ -132,6 +138,22 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       <GroupCard>
         <RowList>{sections.app.map(switchRow)}</RowList>
       </GroupCard>
+      <SectionLabel>{t("ai.workshop.test.title")}</SectionLabel>
+      <GroupCard>
+        <RowList>
+          <Row
+            title={plan ? t("ai.workshop.test.run", { model: plan.choice.model }) : t("ai.workshop.test.title")}
+            subtitle={overview.summary}
+            wrap
+            disabled={!plan || plan.total === 0}
+            onClick={() => setTesting({ ids: null })}
+            end={<FlaskConical size={ICON.ui} />}
+            data-testid="ai-skills-test"
+          />
+        </RowList>
+        {overview.hint && <p className="m-hint">{overview.hint}</p>}
+      </GroupCard>
+      {testing && <SkillTestSheet ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
       {open && <SkillApprovalSheet id={open} onClose={() => setOpen(null)} />}
       {creating && <NewSkillSheet onClose={() => setCreating(false)} />}
       {importing && <SkillImportSheet label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}

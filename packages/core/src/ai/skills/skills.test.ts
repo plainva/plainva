@@ -15,7 +15,7 @@ import {
 import { catalogEntry, pendingInstructions, resolveInstructions, skillCatalog, SKILL_CATALOG_MAX_CHARS } from "./catalog.js";
 import { skillGrant, withinFolders } from "./narrowing.js";
 import { blockingProblems, parseSkillFile, serializeSkillFile, type SkillDefinition } from "./skillFile.js";
-import { appSkillSource, scanVaultInstructions, SKILL_MAX_FILES, type InstructionIO } from "./sources.js";
+import { appSkillSource, scanInstruction, scanVaultInstructions, SKILL_MAX_FILES, type InstructionIO } from "./sources.js";
 
 const skillText = (front: string, body = "Do the thing.") => `---\n${front}\n---\n\n${body}\n`;
 const codes = (text: string, folder?: string) => parseSkillFile(text, folder).problems.map((p) => p.code);
@@ -243,6 +243,31 @@ describe("instructions in the vault, approved on this device", () => {
     expect(sources[0]!.skill!.name).toBe("offer-check");
     expect(sources[0]!.files[0]!.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(sources[1]!.text).toBe("Answer briefly.");
+  });
+
+  it("leaves hidden entries out, so both shells hash the same skill", async () => {
+    const files = {
+      ".agent/skills/offer-check/SKILL.md": OFFER,
+      ".agent/skills/offer-check/references/rates.md": "2025: 1850",
+      // What a repository brings along, and what an interrupted write leaves behind.
+      ".agent/skills/offer-check/.gitignore": "*.log",
+      ".agent/skills/offer-check/.github/workflows/check.yml": "on: push",
+      ".agent/skills/offer-check/references/.plainva-tmp-1": "half a file",
+      // A hidden folder beside the skills is no skill.
+      ".agent/skills/.drafts/SKILL.md": OFFER,
+    };
+    // The desktop lists every name; the phone's listing leaves dot-names out.
+    const desktop = memoryIO(files);
+    const phone: InstructionIO = { read: desktop.read, list: async (folder) => (await desktop.list(folder)).filter((entry) => !entry.name.startsWith(".")) };
+    const [onDesktop, onPhone] = [await scanVaultInstructions(desktop), await scanVaultInstructions(phone)];
+    expect(onDesktop.map((s) => [s.id, s.files.map((f) => f.path)])).toEqual([[".agent/skills/offer-check", ["SKILL.md", "references/rates.md"]]]);
+    expect(onPhone).toEqual(onDesktop);
+    // An approval binds these files only: a hidden one coming or going lifts nothing.
+    const approved = approveInstruction(EMPTY_INSTRUCTION_APPROVALS, onDesktop[0]!, "2026-10-06T10:00:00.000Z", "review");
+    desktop.files.set(".agent/skills/offer-check/.plainva-tmp-2", "another");
+    desktop.files.delete(".agent/skills/offer-check/.gitignore");
+    expect(instructionStatus((await scanVaultInstructions(desktop))[0]!, approved)).toBe("active");
+    expect(await scanInstruction(desktop, ".agent/skills/.drafts")).toBeNull();
   });
 
   it("refuses what is too large and reports a folder without SKILL.md", async () => {

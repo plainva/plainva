@@ -598,7 +598,65 @@
         "metadata-not-map": "The metadata are no list of fields.",
         "plainva-value": "A Plainva field could not be read and is left out: {{detail}}"
       },
-      "writeFailed": "The skill could not be written into the vault."
+      "test": {
+        "title": "Testing",
+        "run": "Test with {{model}}",
+        "open": "Test…",
+        "start": "Start the run",
+        "never": "Not tested yet. The skills' test scenarios run against the chosen model — by hand, with a ceiling.",
+        "last": "Last tested on {{when}} — passed: {{passed}} of {{total}}.",
+        "modelChanged_one": "{{count}} skill has not been tested with the model chosen now ({{model}}).",
+        "modelChanged_other": "{{count}} skills have not been tested with the model chosen now ({{model}}).",
+        "row": {
+          "current": "tested: {{passed}} of {{total}}",
+          "model-changed": "tested with {{model}}, not with the chosen model",
+          "skill-changed": "changed since it was tested"
+        },
+        "model": "Model",
+        "what": "Scope",
+        "scope": "{{scenarios}} from {{skills}}",
+        "scenarios_one": "{{count}} scenario",
+        "scenarios_other": "{{count}} scenarios",
+        "skillsCount_one": "{{count}} skill",
+        "skillsCount_other": "{{count}} skills",
+        "nothing": "No active skill brings scenarios that apply in this vault.",
+        "elsewhere_one": "{{count}} more scenario was written for another vault and does not run here.",
+        "elsewhere_other": "{{count}} more scenarios were written for another vault and do not run here.",
+        "ceiling": "Ceiling",
+        "ceilingAmount": "Ceiling in US dollars",
+        "ceilingHint": "In US dollars. The run ends between two scenarios once the ceiling is reached.",
+        "ceilingTokens": "No price is known for this model: the run ends after {{tokens}} tokens at most.",
+        "ceilingLocal": "None: the model runs on this device. Nothing leaves it, nothing is billed.",
+        "how": "Each scenario is an ordinary run of its skill: it reads your vault like a run by hand, passes the same overview before sending, counts towards usage and leaves its conversation in the history.",
+        "progress": "Scenario {{done}} of {{total}} is running: {{scenario}}",
+        "pass": "passed",
+        "notRun": "did not run",
+        "notApplicable": "does not apply here — this vault lacks: {{names}}",
+        "check": {
+          "answered": "no answer",
+          "required": "did not use: {{names}}",
+          "forbidden": "used what it must not: {{names}}",
+          "cites": "does not name: {{names}}",
+          "never_one": "shows {{count}} piece of text that must never appear",
+          "never_other": "shows {{count}} pieces of text that must never appear"
+        },
+        "done": "Passed: {{passed}} of {{ran}}.",
+        "stopped": {
+          "ceiling": "The ceiling was reached; the rest did not run.",
+          "cancelled": "Stopped; the rest did not run.",
+          "failed": "Ended because a request failed: {{reason}}"
+        },
+        "refused": {
+          "off": "The AI is off.",
+          "no-model": "Choose a model first.",
+          "busy": "The AI is still answering — wait for it or stop it.",
+          "nothing": "No active skill brings scenarios that apply in this vault."
+        },
+        "cost": "≈ {{cost}} · {{tokens}} tokens",
+        "tokens": "{{tokens}} tokens",
+        "conversation": "Test · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"The skill could not be written into the vault."
     },
     "mcp": {
       "title": "AI apps on this computer",

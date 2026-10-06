@@ -613,7 +613,70 @@
         "metadata-not-map": "I metadati non sono un elenco di campi.",
         "plainva-value": "Un campo di Plainva non è leggibile ed è omesso: {{detail}}"
       },
-      "writeFailed": "Impossibile scrivere la competenza nel vault."
+      "test": {
+        "title": "Verifica",
+        "run": "Verifica con {{model}}",
+        "open": "Verifica…",
+        "start": "Avvia la verifica",
+        "never": "Non ancora verificato. Gli scenari di prova delle competenze girano con il modello scelto — a mano, con un tetto.",
+        "last": "Ultima verifica il {{when}} — superati: {{passed}} su {{total}}.",
+        "modelChanged_one": "{{count}} competenza non è ancora stata verificata con il modello scelto ora ({{model}}).",
+        "modelChanged_many": "{{count}} competenze non sono ancora state verificate con il modello scelto ora ({{model}}).",
+        "modelChanged_other": "{{count}} competenze non sono ancora state verificate con il modello scelto ora ({{model}}).",
+        "row": {
+          "current": "verificata: {{passed}} su {{total}}",
+          "model-changed": "verificata con {{model}}, non con il modello scelto",
+          "skill-changed": "modificata dopo la verifica"
+        },
+        "model": "Modello",
+        "what": "Ambito",
+        "scope": "{{scenarios}} da {{skills}}",
+        "scenarios_one": "{{count}} scenario",
+        "scenarios_many": "{{count}} scenari",
+        "scenarios_other": "{{count}} scenari",
+        "skillsCount_one": "{{count}} competenza",
+        "skillsCount_many": "{{count}} competenze",
+        "skillsCount_other": "{{count}} competenze",
+        "nothing": "Nessuna competenza attiva porta scenari validi in questo vault.",
+        "elsewhere_one": "{{count}} altro scenario è scritto per un altro vault e qui non gira.",
+        "elsewhere_many": "{{count}} altri scenari sono scritti per un altro vault e qui non girano.",
+        "elsewhere_other": "{{count}} altri scenari sono scritti per un altro vault e qui non girano.",
+        "ceiling": "Tetto",
+        "ceilingAmount": "Tetto in dollari statunitensi",
+        "ceilingHint": "In dollari statunitensi. La verifica termina tra due scenari appena il tetto è raggiunto.",
+        "ceilingTokens": "Per questo modello non è noto alcun prezzo: la verifica termina dopo al massimo {{tokens}} token.",
+        "ceilingLocal": "Nessuno: il modello gira su questo dispositivo. Nulla ne esce, nulla viene addebitato.",
+        "how": "Ogni scenario è un'esecuzione normale della sua competenza: legge il tuo vault come un'esecuzione a mano, passa dallo stesso riepilogo prima dell'invio, conta nel consumo e lascia la sua conversazione nella cronologia.",
+        "progress": "Scenario {{done}} di {{total}} in corso: {{scenario}}",
+        "pass": "superato",
+        "notRun": "non eseguito",
+        "notApplicable": "qui non vale — in questo vault manca: {{names}}",
+        "check": {
+          "answered": "nessuna risposta",
+          "required": "non ha usato: {{names}}",
+          "forbidden": "ha usato ciò che non deve: {{names}}",
+          "cites": "non nomina: {{names}}",
+          "never_one": "mostra {{count}} dato che non deve mai comparire",
+          "never_many": "mostra {{count}} dati che non devono mai comparire",
+          "never_other": "mostra {{count}} dati che non devono mai comparire"
+        },
+        "done": "Superati: {{passed}} su {{ran}}.",
+        "stopped": {
+          "ceiling": "Il tetto è stato raggiunto; il resto non è stato eseguito.",
+          "cancelled": "Interrotta; il resto non è stato eseguito.",
+          "failed": "Terminata perché una richiesta è fallita: {{reason}}"
+        },
+        "refused": {
+          "off": "L'IA è disattivata.",
+          "no-model": "Scegli prima un modello.",
+          "busy": "L'IA sta ancora rispondendo: attendi o fermala.",
+          "nothing": "Nessuna competenza attiva porta scenari validi in questo vault."
+        },
+        "cost": "≈ {{cost}} · {{tokens}} token",
+        "tokens": "{{tokens}} token",
+        "conversation": "Prova · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"Impossibile scrivere la competenza nel vault."
     },
     "mcp": {
       "title": "App di IA su questo computer",

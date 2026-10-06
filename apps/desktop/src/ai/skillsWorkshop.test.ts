@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
-import { approveInstruction, EMPTY_INSTRUCTION_APPROVALS, readSkillImport, resolveInstructions, scanVaultInstructions, utf8Encode, type InstructionIO } from "@plainva/core";
-import { APP_SKILL_SOURCES, approvalFacts, importFacts, workshopSections } from "@plainva/ui";
+import { approveInstruction, EMPTY_INSTRUCTION_APPROVALS, readSkillImport, resolveInstructions, scanVaultInstructions, utf8Encode, type InstructionIO, type SkillTestRecord } from "@plainva/core";
+import {
+  APP_SKILL_SOURCES,
+  approvalFacts,
+  importFacts,
+  skillRowDescription,
+  skillTestFacts,
+  skillTestGroups,
+  skillTestNote,
+  skillTestOutcomeText,
+  skillTestOverview,
+  skillTestPlanFor,
+  workshopSections,
+  type SkillTestPlan,
+} from "@plainva/ui";
 
 /** The skills workshop's one model for both shells (plan KI-Harness P3-5). */
 
@@ -90,5 +103,133 @@ describe("the skills workshop", () => {
     ]);
     expect(facts.exists).toBe(true);
     expect(importFacts(t, readSkillImport([]), false, "en")).toMatchObject({ ok: null, blocked: "No SKILL.md found — this is no skill.", lands: null });
+  });
+});
+
+/** The regression run in the workshop (plan KI-Harness P3-8): one model in words for both shells. */
+describe("the regression run in the workshop", () => {
+  const DAILY = "plainva:daily-orientation";
+  const PROJECT = "plainva:project-status";
+  const entries = resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS);
+  const plan = (over: Partial<SkillTestPlan> = {}): SkillTestPlan => ({
+    choice: { providerId: "p", model: "m-2" },
+    providerLabel: "Provider",
+    local: false,
+    priced: true,
+    targets: [
+      { id: DAILY, version: "v1", scenarios: 2, notApplicable: 0, problems: [] },
+      { id: PROJECT, version: "v1", scenarios: 0, notApplicable: 2, problems: [] },
+    ],
+    total: 2,
+    ...over,
+  });
+  const daily = (over: Partial<SkillTestRecord> = {}): SkillTestRecord => ({
+    id: DAILY,
+    version: "v1",
+    providerId: "p",
+    model: "m-2",
+    at: "2026-10-06T10:00:00.000Z",
+    scenarios: [
+      { id: "today", passed: true, checks: [{ id: "answered", ok: true }], stop: "answered", tokens: 1200, costUsd: 0.004 },
+      { id: "next-step", passed: false, checks: [{ id: "answered", ok: true }, { id: "required", ok: false, missing: ["get_tasks"] }, { id: "never", ok: false, missing: ["a", "b"] }], stop: "answered", tokens: 800, costUsd: 0.002 },
+    ],
+    ...over,
+  });
+
+  it("says before the run what would run, against which model, and where it ends", async () => {
+    await i18n.changeLanguage("en");
+    expect(skillTestFacts(t, plan(), "en")).toEqual({
+      model: "Provider · m-2",
+      scope: "2 scenarios from 1 skill",
+      elsewhere: "2 more scenarios were written for another vault and do not run here.",
+      // A price is known: the user sets an amount.
+      ceiling: null,
+      canRun: true,
+    });
+    expect(skillTestFacts(t, plan({ priced: false }), "en").ceiling).toBe("No price is known for this model: the run ends after 400,000 tokens at most.");
+    expect(skillTestFacts(t, plan({ local: true, priced: false }), "en").ceiling).toBe("None: the model runs on this device. Nothing leaves it, nothing is billed.");
+    expect(skillTestFacts(t, plan({ targets: [], total: 0 }), "en")).toMatchObject({ scope: "No active skill brings scenarios that apply in this vault.", elsewhere: null, canRun: false });
+  });
+
+  it("hands the dialog its part of the plan the workshop holds: one skill's scenarios, the same model and ceiling", () => {
+    const all = plan();
+    // Opened for everything: the plan as it is.
+    expect(skillTestPlanFor(all, null)).toBe(all);
+    // Opened from one skill's row: that skill only, counted again.
+    expect(skillTestPlanFor(all, [DAILY])).toEqual({ ...all, targets: [all.targets[0]], total: 2 });
+    // A skill whose scenarios were written for another vault: nothing to run, and the dialog says so.
+    const elsewhere = skillTestPlanFor(all, [PROJECT])!;
+    expect(elsewhere).toMatchObject({ choice: all.choice, priced: true, total: 0 });
+    expect(skillTestFacts(t, elsewhere, "en").canRun).toBe(false);
+    // Not read yet: nothing to show yet.
+    expect(skillTestPlanFor(null, [DAILY])).toBeNull();
+  });
+
+  it("leads a row's line with its state and its last run: a phone's row shows one line and cuts off the end", async () => {
+    await i18n.changeLanguage("en");
+    const entry = entries.find((candidate) => candidate.source.id === DAILY)!;
+    const about = "What matters today: due tasks, appointments and what you worked on lately.";
+    expect(skillRowDescription(t, entry, [], plan())).toBe(about);
+    expect(skillRowDescription(t, entry, [daily()], plan())).toBe(`tested: 1 of 2 · ${about}`);
+    expect(skillRowDescription(t, { ...entry, status: "off" }, [daily()], plan())).toBe(`${t("ai.workshop.status.off")} · tested: 1 of 2 · ${about}`);
+  });
+
+  it("says on a skill's row what its last run still says: how it went, or why that no longer counts", async () => {
+    await i18n.changeLanguage("en");
+    expect(skillTestNote(t, daily(), plan())).toBe("tested: 1 of 2");
+    expect(skillTestNote(t, daily({ model: "m-1" }), plan())).toBe("tested with m-1, not with the chosen model");
+    expect(skillTestNote(t, daily({ version: "v0" }), plan())).toBe("changed since it was tested");
+    // Never tested here, or the plan is not read yet: the row says nothing rather than something stale.
+    expect(skillTestNote(t, undefined, plan())).toBeNull();
+    expect(skillTestNote(t, daily(), null)).toBeNull();
+  });
+
+  it("sums the runs up for the workshop and hints once another model is chosen", async () => {
+    await i18n.changeLanguage("en");
+    expect(skillTestOverview(t, [], plan(), "en")).toEqual({ summary: "Not tested yet. The skills' test scenarios run against the chosen model — by hand, with a ceiling.", hint: null });
+    const current = skillTestOverview(t, [daily()], plan(), "en");
+    expect(current.summary).toMatch(/^Last tested on .+ — passed: 1 of 2\.$/);
+    expect(current.hint).toBeNull();
+    expect(skillTestOverview(t, [daily({ model: "m-1" })], plan(), "en").hint).toBe("1 skill has not been tested with the model chosen now (m-2).");
+  });
+
+  it("lists each scenario's verdict in words, without repeating what must never appear", async () => {
+    await i18n.changeLanguage("en");
+    const project: SkillTestRecord = {
+      id: PROJECT,
+      version: "v1",
+      providerId: "p",
+      model: "m-2",
+      at: "2026-10-06T10:05:00.000Z",
+      scenarios: [
+        { id: "named-project", passed: false, checks: [], skipped: ["Harbour Bridge Lighting"], stop: "not-applicable", tokens: 0 },
+        { id: "decision", passed: false, checks: [], stop: "not-run", tokens: 0 },
+      ],
+    };
+    const groups = skillTestGroups(t, entries, [project, daily()], null, "en");
+    // In the order of the lists, not of the runs.
+    expect(groups.map((group) => [group.id, group.title])).toEqual([[DAILY, "Daily orientation"], [PROJECT, "Project status"]]);
+    expect(groups[0]!.note).toMatch(/· m-2 · ≈ \$0\.006 · 2,000 tokens$/);
+    expect(groups[0]!.lines).toEqual([
+      { id: "today", mark: "pass", text: "passed" },
+      { id: "next-step", mark: "fail", text: `did not use: ${t("ai.tool.get_tasks")} · shows 2 pieces of text that must never appear` },
+    ]);
+    expect(groups[1]!.note).toMatch(/· m-2 · 0 tokens$/);
+    expect(groups[1]!.lines).toEqual([
+      { id: "named-project", mark: "skip", text: "does not apply here — this vault lacks: Harbour Bridge Lighting" },
+      { id: "decision", mark: "skip", text: "did not run" },
+    ]);
+    expect(skillTestGroups(t, entries, [project, daily()], [PROJECT], "en").map((group) => group.id)).toEqual([PROJECT]);
+  });
+
+  it("says in one line how a run ended", async () => {
+    await i18n.changeLanguage("en");
+    expect(skillTestOutcomeText(t, { kind: "done", ran: 2, passed: 2, failed: 0, stopped: null }, "Provider")).toEqual({ tone: "success", text: "Passed: 2 of 2." });
+    expect(skillTestOutcomeText(t, { kind: "done", ran: 2, passed: 1, failed: 1, stopped: null }, "Provider")).toEqual({ tone: "info", text: "Passed: 1 of 2." });
+    expect(skillTestOutcomeText(t, { kind: "done", ran: 1, passed: 1, failed: 0, stopped: "ceiling" }, "Provider")).toEqual({ tone: "info", text: "Passed: 1 of 1. The ceiling was reached; the rest did not run." });
+    expect(skillTestOutcomeText(t, { kind: "done", ran: 0, passed: 0, failed: 0, stopped: "failed", failure: { kind: "invalid_key", status: 401 } }, "Provider").text).toBe(
+      `Ended because a request failed: ${t("ai.error.invalidKey", { provider: "Provider" })}`,
+    );
+    expect(skillTestOutcomeText(t, { kind: "refused", reason: "busy" }, "Provider")).toEqual({ tone: "error", text: "The AI is still answering — wait for it or stop it." });
   });
 });

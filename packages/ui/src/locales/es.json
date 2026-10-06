@@ -613,7 +613,70 @@
         "metadata-not-map": "Los metadatos no son una lista de campos.",
         "plainva-value": "Un campo de Plainva no se pudo leer y se omite: {{detail}}"
       },
-      "writeFailed": "No se pudo escribir la habilidad en el vault."
+      "test": {
+        "title": "Probar",
+        "run": "Probar con {{model}}",
+        "open": "Probar…",
+        "start": "Iniciar la prueba",
+        "never": "Aún sin probar. Los escenarios de prueba de las habilidades se ejecutan con el modelo elegido — a mano y con un límite.",
+        "last": "Última prueba el {{when}} — superados: {{passed}} de {{total}}.",
+        "modelChanged_one": "{{count}} habilidad aún no se ha probado con el modelo elegido ahora ({{model}}).",
+        "modelChanged_many": "{{count}} habilidades aún no se han probado con el modelo elegido ahora ({{model}}).",
+        "modelChanged_other": "{{count}} habilidades aún no se han probado con el modelo elegido ahora ({{model}}).",
+        "row": {
+          "current": "probada: {{passed}} de {{total}}",
+          "model-changed": "probada con {{model}}, no con el modelo elegido",
+          "skill-changed": "cambió desde la prueba"
+        },
+        "model": "Modelo",
+        "what": "Alcance",
+        "scope": "{{scenarios}} de {{skills}}",
+        "scenarios_one": "{{count}} escenario",
+        "scenarios_many": "{{count}} escenarios",
+        "scenarios_other": "{{count}} escenarios",
+        "skillsCount_one": "{{count}} habilidad",
+        "skillsCount_many": "{{count}} habilidades",
+        "skillsCount_other": "{{count}} habilidades",
+        "nothing": "Ninguna habilidad activa trae escenarios que valgan en este vault.",
+        "elsewhere_one": "{{count}} escenario más está escrito para otro vault y no se ejecuta aquí.",
+        "elsewhere_many": "{{count}} escenarios más están escritos para otro vault y no se ejecutan aquí.",
+        "elsewhere_other": "{{count}} escenarios más están escritos para otro vault y no se ejecutan aquí.",
+        "ceiling": "Límite",
+        "ceilingAmount": "Límite en dólares estadounidenses",
+        "ceilingHint": "En dólares estadounidenses. La prueba termina entre dos escenarios en cuanto se alcanza el límite.",
+        "ceilingTokens": "No se conoce el precio de este modelo: la prueba termina tras {{tokens}} tokens como máximo.",
+        "ceilingLocal": "Ninguno: el modelo funciona en este dispositivo. Nada sale de él y nada se factura.",
+        "how": "Cada escenario es una ejecución normal de su habilidad: lee tu vault como una ejecución a mano, pasa por el mismo resumen antes de enviar, cuenta para el consumo y deja su conversación en el historial.",
+        "progress": "Escenario {{done}} de {{total}} en curso: {{scenario}}",
+        "pass": "superado",
+        "notRun": "no se ejecutó",
+        "notApplicable": "no vale aquí — en este vault falta: {{names}}",
+        "check": {
+          "answered": "sin respuesta",
+          "required": "no usó: {{names}}",
+          "forbidden": "usó lo que no debe: {{names}}",
+          "cites": "no nombra: {{names}}",
+          "never_one": "muestra {{count}} dato que nunca debe aparecer",
+          "never_many": "muestra {{count}} datos que nunca deben aparecer",
+          "never_other": "muestra {{count}} datos que nunca deben aparecer"
+        },
+        "done": "Superados: {{passed}} de {{ran}}.",
+        "stopped": {
+          "ceiling": "Se alcanzó el límite; el resto no se ejecutó.",
+          "cancelled": "Detenida; el resto no se ejecutó.",
+          "failed": "Terminó porque una solicitud falló: {{reason}}"
+        },
+        "refused": {
+          "off": "La IA está desactivada.",
+          "no-model": "Elige primero un modelo.",
+          "busy": "La IA todavía está respondiendo: espera o detenla.",
+          "nothing": "Ninguna habilidad activa trae escenarios que valgan en este vault."
+        },
+        "cost": "≈ {{cost}} · {{tokens}} tokens",
+        "tokens": "{{tokens}} tokens",
+        "conversation": "Prueba · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"No se pudo escribir la habilidad en el vault."
     },
     "mcp": {
       "title": "Apps de IA en este ordenador",

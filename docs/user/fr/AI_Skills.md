@@ -1,6 +1,6 @@
 # Compétences (Bêta)
 
-Dernière mise à jour : 2026-10-01
+Dernière mise à jour : 2026-10-06
 
 Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit dix, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
 
@@ -31,13 +31,38 @@ Toutes ne font que lire : aucune ne modifie une note, n'envoie quoi que ce soit 
 
 **Nouvelle compétence** demande un nom, une description — l'IA choisit la compétence d'après elle — et les instructions. Plainva les écrit dans `.agent/skills/<nom>/SKILL.md` de votre vault, où elles voyagent avec lui comme n'importe quelle note. **Modifier** ouvre le fichier comme une note.
 
-**Importer…** accepte une compétence sous forme de fichier `.zip` ou `.skill`. Avant d'écrire quoi que ce soit, Plainva la vérifie : exactement une compétence au format, aucun chemin hors de son dossier, les limites de taille. Il indique la licence, les scripts qu'il n'exécutera pas et les outils qu'il n'a pas.
+**Importer…** accepte une compétence sous forme de fichier `.zip` ou `.skill`. Avant d'écrire quoi que ce soit, Plainva la vérifie : exactement une compétence au format, aucun chemin hors de son dossier, les limites de taille. Il indique la licence, les scripts qu'il n'exécutera pas et les outils qu'il n'a pas. Les fichiers cachés — dont le nom commence par un point — ne font pas partie d'une compétence et sont laissés de côté.
 
 ## Rien ne s'exécute avant votre approbation
 
 Une compétence de votre vault qui est nouvelle ou modifiée — par la synchronisation, une importation ou une modification sur cet appareil ou un autre — ne s'exécute pas tant que vous ne l'avez pas approuvée **sur cet appareil**. Ces compétences attendent en haut de **Compétences**, sous **En attente de votre approbation**, et dans **Paramètres → IA & automatisation** (la partie Vault). **Vérifier et approuver** montre ce que la compétence peut faire, ce qui a changé depuis votre dernière approbation, ses instructions, ses fichiers et où elle se trouve. L'approbation vaut exactement pour cette version ; toute modification l'annule. Les approbations sont enregistrées sur cet appareil, jamais dans le vault.
 
 Il en va de même pour un `AGENTS.md` à la racine de votre vault : une fois approuvé, ses instructions permanentes accompagnent chaque nouvelle conversation. Ni une compétence ni `AGENTS.md` ne peuvent lever vos règles de confidentialité, et une compétence n'obtient jamais plus que ce dont dispose une conversation — elle ne peut que le restreindre.
+
+## Tester des compétences avec un modèle
+
+Une compétence peut apporter des scénarios de test : un message qui la lance, et ce que fait une bonne exécution. Les compétences fournies en ont ; pour les vôtres, écrivez-les dans `tests/scenarios.json`, dans le dossier de la compétence :
+
+```json
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "rates",
+      "message": "Check the offer against last year's rates.",
+      "tools": { "required": ["read_note"], "forbidden": ["run_command"] },
+      "cites": ["Offer"],
+      "never": ["internal margin"]
+    }
+  ]
+}
+```
+
+`tools` nomme les outils qu'une bonne exécution utilise et ceux qu'elle ne doit pas toucher ; `cites`, les notes que sa réponse cite ; `never`, du texte qui ne doit pas y apparaître. Une compétence a au plus huit scénarios.
+
+**Tester avec ⟨modèle⟩** — en bas de **Compétences**, ou dans le menu d'une compétence — exécute les scénarios avec le modèle qu'utiliserait une nouvelle conversation. Rien ne démarre tout seul : la boîte de dialogue indique d'abord combien de scénarios s'exécuteraient et avec quel modèle, et vous fixez un **Plafond** en dollars américains ; le test s'arrête entre deux scénarios dès qu'il est atteint. Si aucun prix n'est connu pour le modèle, le test s'arrête après un nombre fixe de jetons ; un modèle sur cet appareil n'a pas besoin de plafond.
+
+Chaque scénario est une exécution ordinaire de sa compétence : il lit votre vault comme une exécution à la main, passe par le même aperçu avant l'envoi, compte dans votre consommation et laisse sa conversation dans l'historique, où sa prochaine exécution la remplace. Ensuite, chaque scénario affiche son résultat en toutes lettres, et la ligne de la compétence indique comment s'est passée sa dernière exécution. Un résultat vaut pour un modèle et une version de la compétence : si vous choisissez un autre modèle ou modifiez la compétence, la ligne le dit au lieu d'afficher un résultat qui ne compte plus. Certains scénarios fournis portent sur des notes du vault de test de Plainva ; dans votre vault ils ne s'appliquent pas, et la boîte de dialogue les compte à part au lieu de les considérer comme échoués.
 
 ## Ce qui part chez le fournisseur
 

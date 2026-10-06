@@ -108,7 +108,7 @@ export function SkillApprovalModal({ id, onClose }: { id: string; onClose: () =>
           {facts.problems.join(" ")}
         </Banner>
       )}
-      {facts.canApprove && <p className="pv-modal-note">{t("ai.workshop.approvalHint")}</p>}
+      {facts.canApprove && <p className="pv-modal-hint">{t("ai.workshop.approvalHint")}</p>}
     </Modal>
   );
 }

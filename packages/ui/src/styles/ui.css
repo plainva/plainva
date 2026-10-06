@@ -3810,6 +3810,14 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-skill-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); }
 .pv-skill-facts dt { color: var(--text-muted); }
 .pv-skill-facts dd { display: grid; gap: var(--space-1); min-width: 0; margin: 0; overflow-wrap: anywhere; }
+/* A scenario's verdict in the skills' regression run (AI harness P3-8): a mark
+   and words. The mark carries the tone through tokens; a scenario that did not
+   run or does not apply here is quiet. */
+.pv-skill-test-line { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.pv-skill-test-line > svg { flex: none; align-self: center; }
+.pv-skill-test-line[data-mark="pass"] > svg { color: var(--success-text); }
+.pv-skill-test-line[data-mark="fail"] > svg { color: var(--error-text); }
+.pv-skill-test-line[data-mark="skip"] { color: var(--text-muted); }
 
 /* Pinboard loading retains a readable file identity, independently of content. */
 .pv-pinboard-placeholder {

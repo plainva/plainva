@@ -1,6 +1,6 @@
 # Competenze (Beta)
 
-Ultimo aggiornamento: 2026-10-01
+Ultimo aggiornamento: 2026-10-06
 
 Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include dieci e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
@@ -31,13 +31,38 @@ Tutte si limitano a leggere: nessuna cambia una nota, invia qualcosa o va su int
 
 **Nuova competenza** chiede un nome, una descrizione — in base a questa l'IA sceglie la competenza — e le istruzioni. Plainva le scrive come `.agent/skills/<nome>/SKILL.md` nel tuo vault, dove viaggiano con lui come qualsiasi nota. **Modifica** apre il file come una nota.
 
-**Importa…** accetta una competenza come file `.zip` o `.skill`. Prima di scrivere qualcosa, Plainva la controlla: esattamente una competenza nel formato, nessun percorso fuori dalla sua cartella, i limiti di dimensione. Indica la licenza, gli script che non eseguirà e gli strumenti che non ha.
+**Importa…** accetta una competenza come file `.zip` o `.skill`. Prima di scrivere qualcosa, Plainva la controlla: esattamente una competenza nel formato, nessun percorso fuori dalla sua cartella, i limiti di dimensione. Indica la licenza, gli script che non eseguirà e gli strumenti che non ha. I file nascosti — nomi che iniziano con un punto — non fanno parte di una competenza e vengono tralasciati.
 
 ## Nulla si esegue prima che tu lo approvi
 
 Una competenza del tuo vault che è nuova o modificata — tramite la sincronizzazione, un'importazione o una modifica su questo o un altro dispositivo — non si esegue finché non la approvi **su questo dispositivo**. Queste competenze aspettano in alto in **Competenze**, sotto **In attesa della tua approvazione**, e in **Impostazioni → IA e automazione** (la parte Vault). **Controlla e approva** mostra cosa può fare la competenza, cosa è cambiato dalla tua ultima approvazione, le sue istruzioni, i suoi file e dove si trova. L'approvazione vale esattamente per questa versione; qualsiasi modifica la annulla. Le approvazioni sono salvate su questo dispositivo, mai nel vault.
 
 Lo stesso vale per un `AGENTS.md` in cima al tuo vault: una volta approvato, le sue istruzioni permanenti accompagnano ogni nuova conversazione. Né una competenza né `AGENTS.md` possono annullare le tue regole sulla privacy, e una competenza non ottiene mai più di quanto ha una conversazione: può solo restringerlo.
+
+## Verificare le competenze con un modello
+
+Una competenza può portare scenari di prova: un messaggio che la avvia e ciò che fa una buona esecuzione. Le competenze fornite li hanno; per le tue, scrivili in `tests/scenarios.json` nella cartella della competenza:
+
+```json
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "rates",
+      "message": "Check the offer against last year's rates.",
+      "tools": { "required": ["read_note"], "forbidden": ["run_command"] },
+      "cites": ["Offer"],
+      "never": ["internal margin"]
+    }
+  ]
+}
+```
+
+`tools` indica gli strumenti che una buona esecuzione usa e quelli che non deve toccare; `cites`, le note che la sua risposta nomina; `never`, testo che non deve comparirvi. Una competenza ha al massimo otto scenari.
+
+**Verifica con ⟨modello⟩** — in fondo a **Competenze** o nel menu di una competenza — esegue gli scenari con il modello che userebbe una nuova conversazione. Nulla parte da solo: la finestra dice prima quanti scenari girerebbero e con quale modello, e tu imposti un **Tetto** in dollari statunitensi; la verifica termina tra due scenari appena viene raggiunto. Se per il modello non è noto alcun prezzo, la verifica termina dopo un numero fisso di token; un modello su questo dispositivo non ha bisogno di un tetto.
+
+Ogni scenario è un'esecuzione normale della sua competenza: legge il tuo vault come un'esecuzione a mano, passa dallo stesso riepilogo prima dell'invio, conta nel tuo consumo e lascia la sua conversazione nella cronologia, dove la sua prossima esecuzione la sostituisce. Poi ogni scenario mostra il suo esito a parole, e la riga della competenza dice com'è andata la sua ultima esecuzione. Un esito vale per un modello e una versione della competenza: se scegli un altro modello o modifichi la competenza, la riga lo dice invece di mostrare un esito che non conta più. Alcuni scenari forniti chiedono di note del vault di prova di Plainva; nel tuo vault non valgono, e la finestra li conta a parte invece di considerarli falliti.
 
 ## Cosa va al fornitore
 

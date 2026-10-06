@@ -1,6 +1,6 @@
 import type { ToolScope } from "./vaultTools";
-import { APP_SKILL_SOURCES } from "./appSkills";
-import type { InstructionApprovalStore } from "./aiStores";
+import { APP_SKILL_SOURCES, appSkillOf, appSkillScenarios } from "./appSkills";
+import type { InstructionApprovalStore, SkillTestStore } from "./aiStores";
 import { createSkillExecutor, newSkillRunState, skillScope, type SkillRunState } from "./skillRuntime";
 import {
   PASSAGE_ONLY,
@@ -27,10 +27,23 @@ import {
   SKILLS_FOLDER,
   utf8Encode,
   EMPTY_INSTRUCTION_APPROVALS,
+  EMPTY_SKILL_TESTS,
+  pruneSkillTests,
+  readSkillScenarios,
+  recordSkillTest,
   resolveInstructions,
   revokeInstruction,
+  scenarioGaps,
+  scenarioNotApplicable,
+  scenarioNotRun,
+  scenarioResult,
+  SKILL_SCENARIOS_FILE,
+  SKILL_TEST_MAX_TOKENS,
+  SKILL_TEST_RUN_LIMITS,
   skillCatalog,
   skillGrant,
+  skillTestBudgetLeft,
+  skillTestVersion,
   switchInstruction,
   aiMonthlyTotals,
   allProviders,
@@ -89,6 +102,10 @@ import {
   type InstructionEntry,
   type SkillImport,
   type SkillProblem,
+  type SkillRunTrace,
+  type SkillScenario,
+  type SkillScenarioResult,
+  type SkillTestRecord,
   type InstructionSource,
   type ManifestInstructions,
   type RunLimits,
@@ -175,6 +192,8 @@ export interface AiVaultHost {
    * Absent where the shell has no comments to write.
    */
   reply?(reply: { path: string; parentCommentId: string; body: string; author: SuggestionAuthor }): Promise<void>;
+  /** What the regression runs of the skills found on this device (plan P3-8); absent, results are not kept. */
+  skillTests?: SkillTestStore;
   /**
    * The vault's own instructions — skills in `.agent/skills/` and a root
    * `AGENTS.md` — and their approvals on this device (plan KI-Harness P3);
@@ -208,6 +227,59 @@ export interface AiSkillsState {
   /** Active skills the catalog had no room for — still startable by hand. */
   omitted: string[];
 }
+
+/** A skill as the regression run sees it (plan KI-Harness P3-8). */
+export interface SkillTestTarget {
+  id: string;
+  /** The skill's files and scenarios as they are now: what a result is bound to. */
+  version: string;
+  /** Scenarios that apply in this vault. */
+  scenarios: number;
+  /** Scenarios written for another vault: they name notes this one does not have. */
+  notApplicable: number;
+  /** What did not read in the scenario file. */
+  problems: string[];
+}
+
+/** What a regression run would do, before it does it. */
+export interface SkillTestPlan {
+  choice: ModelChoice;
+  providerLabel: string;
+  /** A model on this device: nothing leaves it, and nothing is billed. */
+  local: boolean;
+  /** The model's price is known, so the ceiling can be an amount. */
+  priced: boolean;
+  targets: SkillTestTarget[];
+  /** Scenarios that would run. */
+  total: number;
+}
+
+export interface SkillTestProgress {
+  skill: string;
+  scenario: string;
+  /** Scenarios finished so far, and how many the run has. */
+  done: number;
+  total: number;
+}
+
+export interface AiSkillTestsState {
+  /** The newest result per skill on this device. */
+  records: SkillTestRecord[];
+  /** The scenario running right now; null while no regression run is under way. */
+  running: SkillTestProgress | null;
+}
+
+export type SkillTestOutcome =
+  | {
+      kind: "done";
+      ran: number;
+      passed: number;
+      failed: number;
+      /** Why the run ended before its last scenario: the ceiling, the user, or a request that failed (`failure`). */
+      stopped: null | "ceiling" | "cancelled" | "failed";
+      failure?: ModelFailure;
+    }
+  | { kind: "refused"; reason: "off" | "no-model" | "busy" | "nothing" };
 
 /** An action at a selection (plan P1.5): the passage, where it stands, and what to do with it. */
 export interface SelectionRequest {
@@ -338,6 +410,7 @@ export interface AiState {
    */
   consent: { manifest: EgressManifest; growth: ScopeGrowth[] } | null;
   skills: AiSkillsState;
+  skillTests: AiSkillTestsState;
 }
 
 type Listener = () => void;
@@ -378,6 +451,16 @@ interface DoorStart {
   limits?: RunLimits;
 }
 
+/**
+ * A run started apart from the composer without being a door — a scenario of
+ * the skills' regression run (plan P3-8): a conversation of its own under a
+ * title of its own, bound to its skill like a run by hand.
+ */
+interface DetachedStart {
+  title: string;
+  limits?: RunLimits;
+}
+
 /** How a run ended; with the conversation it left and the answer's text once a request went out. */
 interface RunOutcome {
   stop: RunStop;
@@ -407,6 +490,15 @@ function lastAnswerText(conversation: ConversationRecord["conversation"]): strin
     return turn.parts.map((part) => (part.type === "text" ? part.text : "")).join("");
   }
   return "";
+}
+
+/** What a run did since `fromTurn`, for the regression run's verdict: the tools it called and its answer. */
+function runTrace(record: ConversationRecord, fromTurn: number, stop: RunStop, answer: string): SkillRunTrace {
+  const calls: SkillRunTrace["calls"] = [];
+  for (const turn of record.conversation.turns.slice(fromTurn)) {
+    for (const part of turn.parts) if (part.type === "tool_result") calls.push({ name: part.name, ok: !part.isError });
+  }
+  return { stop: stop.kind, calls, answer };
 }
 
 /** How the send overview was answered: send, send nothing, or build it again without one note or with one redacted (or no longer). */
@@ -451,6 +543,7 @@ export class AiSession {
       hasVault: false,
       consent: null,
       skills: { entries: APP_ENTRIES(), omitted: [] },
+      skillTests: { records: [], running: null },
     };
   }
 
@@ -627,7 +720,19 @@ export class AiSession {
     this.stop();
     this.answerConsent(false);
     this.vault = vault;
-    this.set({ summaries: [], active: null, live: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, notice: null, hasVault: Boolean(vault), skills: { entries: APP_ENTRIES(), omitted: [] } });
+    this.set({
+      summaries: [],
+      active: null,
+      live: null,
+      excludeActive: false,
+      draftPins: [],
+      draftRedact: [],
+      draftChoice: null,
+      notice: null,
+      hasVault: Boolean(vault),
+      skills: { entries: APP_ENTRIES(), omitted: [] },
+      skillTests: { records: [], running: null },
+    });
     if (!vault) return;
     void this.refreshSkills();
     const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
@@ -664,7 +769,9 @@ export class AiSession {
     const vault = this.vault;
     if (!vault) return this.state.skills.entries;
     const { entries } = await this.instructionEntries(vault);
-    if (this.vault === vault) this.set({ skills: { entries, omitted: skillCatalog(entries).omitted } });
+    // What the regression runs found goes with the list: the workshop shows both.
+    const tests = vault.skillTests ? await vault.skillTests.load().catch(() => EMPTY_SKILL_TESTS) : EMPTY_SKILL_TESTS;
+    if (this.vault === vault) this.set({ skills: { entries, omitted: skillCatalog(entries).omitted }, skillTests: { ...this.state.skillTests, records: tests.records } });
     return entries;
   }
 
@@ -807,6 +914,193 @@ export class AiSession {
       return stop;
     } finally {
       this.sending = false;
+    }
+  }
+
+  // ------------------------------------------------- skills: the regression run
+
+  /** The provider and model a new conversation starts with — what a skill started from the workshop runs on. */
+  newConversationChoice(): ModelChoice | null {
+    return this.state.draftChoice ?? initialModelChoice(this.state.settings);
+  }
+
+  /**
+   * The active skills that bring scenarios, with what of them applies in this
+   * vault: a scenario that names a note or a path the vault does not have was
+   * written for another vault and is not run here.
+   */
+  private async skillTestTargets(
+    vault: AiVaultHost,
+    entries: readonly InstructionEntry[],
+    ids: readonly string[] | null,
+  ): Promise<{ target: SkillTestTarget; entry: InstructionEntry; scenarios: SkillScenario[]; gaps: Map<string, string[]> }[]> {
+    const found: { target: SkillTestTarget; entry: InstructionEntry; scenarios: SkillScenario[]; gaps: Map<string, string[]> }[] = [];
+    const notes = new Map<string, boolean>();
+    const paths = new Map<string, boolean>();
+    for (const entry of entries) {
+      const skill = entry.source.skill;
+      if (!skill || entry.status !== "active" || (ids && !ids.includes(entry.source.id))) continue;
+      let raw: string | null;
+      if (entry.source.origin === "plainva") raw = appSkillScenarios(entry.source.id);
+      else {
+        const rel = skill.plainva.tests ?? SKILL_SCENARIOS_FILE;
+        raw = vault.instructions && entry.source.files.some((f) => f.path === rel) ? await vault.instructions.readFile(entry.source, rel).catch(() => null) : null;
+      }
+      if (raw === null) continue;
+      const { scenarios, problems } = readSkillScenarios(raw);
+      if (!scenarios.length && !problems.length) continue;
+      for (const scenario of scenarios) {
+        for (const title of scenario.cites ?? []) if (!notes.has(title)) notes.set(title, Boolean(await vault.policy.resolveLink(title, "").catch(() => null)));
+        for (const path of scenario.reaches ?? []) if (!paths.has(path)) paths.set(path, Boolean(await vault.readNote(path).catch(() => null)));
+      }
+      const lookup = { hasNote: (title: string) => notes.get(title) === true, hasPath: (path: string) => paths.get(path) === true };
+      const gaps = new Map(scenarios.map((scenario) => [scenario.id, scenarioGaps(scenario, lookup)]));
+      const notApplicable = scenarios.filter((scenario) => (gaps.get(scenario.id) ?? []).length > 0).length;
+      found.push({
+        entry,
+        scenarios,
+        gaps,
+        target: { id: entry.source.id, version: skillTestVersion(entry.source.files, raw), scenarios: scenarios.length - notApplicable, notApplicable, problems },
+      });
+    }
+    return found;
+  }
+
+  /**
+   * What a regression run would do (plan KI-Harness P3-8), for the dialog that
+   * starts it: the model, whether its price is known, and per skill how many
+   * scenarios would run. `ids` narrows it to some skills; null means all.
+   */
+  async skillTestPlan(ids: readonly string[] | null = null): Promise<SkillTestPlan | null> {
+    const vault = this.vault;
+    const choice = this.newConversationChoice();
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
+    if (!vault || !choice || !provider || !this.state.settings.enabled) return null;
+    const { entries } = await this.instructionEntries(vault);
+    const targets = (await this.skillTestTargets(vault, entries, ids)).map((found) => found.target);
+    return {
+      choice,
+      providerLabel: provider.label,
+      local: !isCloudRecipient(recipientOf(provider, choice.model)),
+      priced: Boolean(this.priceOf(choice)),
+      targets,
+      total: targets.reduce((sum, target) => sum + target.scenarios, 0),
+    };
+  }
+
+  /**
+   * The regression run (plan KI-Harness P3-8, § 11.7): every scenario of the
+   * chosen skills as one ordinary run of its skill against the model a new
+   * conversation starts with — the same gate, the same send overview, the
+   * same tools — judged for what it did, not for its wording. Started by
+   * hand, never by itself.
+   *
+   * The run has a ceiling: an amount where the model's price is known, tokens
+   * always. It is checked between scenarios (one scenario is bounded by its
+   * run limits), and what did not run is recorded as not run. Each scenario
+   * leaves its conversation in the history, replacing the one of its last
+   * run; the composer's open conversation and drafts are untouched.
+   */
+  async testSkills(ids: readonly string[] | null, ceiling: { maxCostUsd: number | null; maxTokens?: number }): Promise<SkillTestOutcome> {
+    const vault = this.vault;
+    if (!this.state.settings.enabled || !vault) return { kind: "refused", reason: "off" };
+    const choice = this.newConversationChoice();
+    if (!choice || !providerById(choice.providerId, this.state.settings.custom)) return { kind: "refused", reason: "no-model" };
+    if (this.state.live || this.sending) return { kind: "refused", reason: "busy" };
+    this.sending = true;
+    const before = this.state.active;
+    let ran = 0;
+    let passed = 0;
+    let stopped: null | "ceiling" | "cancelled" | "failed" = null;
+    let failure: ModelFailure | undefined;
+    try {
+      const { entries } = await this.instructionEntries(vault);
+      const found = this.vault === vault ? await this.skillTestTargets(vault, entries, ids) : [];
+      const total = found.reduce((sum, f) => sum + f.target.scenarios, 0);
+      if (total === 0) return { kind: "refused", reason: "nothing" };
+      const budget = { maxCostUsd: this.priceOf(choice) ? ceiling.maxCostUsd : null, maxTokens: ceiling.maxTokens ?? SKILL_TEST_MAX_TOKENS };
+      const spent = { tokens: 0, costUsd: 0 };
+      let tests = vault.skillTests ? await vault.skillTests.load().catch(() => EMPTY_SKILL_TESTS) : EMPTY_SKILL_TESTS;
+      // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
+      const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+      for (const { entry, target, scenarios, gaps } of found) {
+        const skill = entry.source.skill!;
+        const app = appSkillOf(target.id);
+        const title = app ? t(`ai.skills.${app.key}.title`) : skill.plainva.title || skill.name;
+        const previous = tests.records.find((r) => r.id === target.id);
+        const results: SkillScenarioResult[] = [];
+        for (const scenario of scenarios) {
+          const missing = gaps.get(scenario.id) ?? [];
+          if (missing.length) {
+            results.push(scenarioNotApplicable(scenario, missing));
+            continue;
+          }
+          if (!stopped && !skillTestBudgetLeft(spent, budget)) stopped = "ceiling";
+          if (stopped) {
+            results.push(scenarioNotRun(scenario));
+            continue;
+          }
+          this.set({ skillTests: { ...this.state.skillTests, running: { skill: target.id, scenario: scenario.id, done: ran, total } } });
+          // The history keeps one conversation per scenario: the one of its last run makes room.
+          const old = previous?.scenarios.find((s) => s.id === scenario.id)?.conversationId;
+          if (old) await this.remove(old).catch(() => undefined);
+          this.set({ active: null, notice: null });
+          const outcome = await this.runMessage(scenario.message, vault, choice, {
+            skills: { entries, bind: target.id },
+            detached: { title: t("ai.workshop.test.conversation", { skill: title, scenario: scenario.id }), limits: SKILL_TEST_RUN_LIMITS },
+          });
+          // Stopped by the user, the send overview declined, the vault gone — or the request itself failed, which
+          // says nothing about the skill: the run ends here, and the unfinished scenario leaves no conversation.
+          const broke = outcome?.stop.kind === "failed" ? outcome.stop.failure : null;
+          if (this.vault !== vault || !outcome || !outcome.record || outcome.stop.kind === "cancelled" || broke) {
+            stopped = broke ? "failed" : "cancelled";
+            if (broke) failure = broke;
+            if (outcome?.record && this.vault === vault) await this.remove(outcome.record.id).catch(() => undefined);
+            results.push(scenarioNotRun(scenario));
+            continue;
+          }
+          const run = outcome.record.runs[outcome.record.runs.length - 1];
+          const tokens = run ? run.usage.inputTokens + run.usage.outputTokens : 0;
+          spent.tokens += tokens;
+          spent.costUsd += run?.costUsd ?? 0;
+          const result = scenarioResult(scenario, runTrace(outcome.record, run?.userTurn ?? 0, outcome.stop, outcome.answer ?? ""), {
+            tokens,
+            ...(run?.costUsd !== undefined ? { costUsd: run.costUsd } : {}),
+            conversationId: outcome.record.id,
+          });
+          results.push(result);
+          ran += 1;
+          if (result.passed) passed += 1;
+        }
+        // A skill none of whose scenarios ran keeps the result it had.
+        if (this.vault === vault && results.some((r) => r.checks.length > 0)) {
+          const record: SkillTestRecord = { id: target.id, version: target.version, providerId: choice.providerId, model: choice.model, at: this.host.now().toISOString(), scenarios: results };
+          tests = recordSkillTest(tests, record);
+          await vault.skillTests?.save(tests).catch(() => undefined);
+          this.set({ skillTests: { ...this.state.skillTests, records: tests.records } });
+        }
+      }
+      // Results of skills that are gone go with them.
+      if (this.vault === vault && vault.skillTests && ids === null && !stopped) {
+        const pruned = pruneSkillTests(tests, new Set(entries.map((e) => e.source.id)));
+        if (pruned !== tests) {
+          await vault.skillTests.save(pruned).catch(() => undefined);
+          this.set({ skillTests: { ...this.state.skillTests, records: pruned.records } });
+        }
+      }
+      return { kind: "done", ran, passed, failed: ran - passed, stopped, ...(failure ? { failure } : {}) };
+    } catch (error) {
+      // Whatever broke on the way (a vault read, the store) ends the run as a failure that is said, never as a spinner.
+      this.abort = null;
+      if (this.state.live) this.set({ live: null });
+      return { kind: "done", ran, passed, failed: ran - passed, stopped: "failed", failure: { kind: "offline", message: error instanceof Error ? error.message : String(error) } };
+    } finally {
+      this.sending = false;
+      if (this.vault === vault) {
+        // The conversation that was open before is open again; the scenarios' own are in the history.
+        const kept = before && this.state.summaries.some((s) => s.id === before.id) ? before : null;
+        this.set({ active: kept, notice: null, skillTests: { ...this.state.skillTests, running: null } });
+      }
     }
   }
 
@@ -1389,7 +1683,7 @@ export class AiSession {
     provider: ProviderInfo,
     pins: readonly string[],
     turns: ConversationRecord["conversation"]["turns"],
-    conversation: { tools: readonly string[]; instructions?: ManifestInstructions },
+    conversation: { tools: readonly string[]; instructions?: ManifestInstructions; withoutActive?: boolean },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // The system's own model takes no tools, and a small window a smaller package (plan P2c).
@@ -1398,7 +1692,7 @@ export class AiSession {
     // The tools the conversation carries — what the model may call, as the overview lists them.
     const tools = platform ? [] : conversation.tools;
     const situation = await vault.situation().catch(() => this.bareSituation());
-    const seen = this.state.excludeActive ? { ...situation, active: null } : situation;
+    const seen = this.state.excludeActive || conversation.withoutActive ? { ...situation, active: null } : situation;
     const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
     const gists = vault.gists?.() ?? null;
     const build = async (leaveOut: ReadonlySet<string>, redact: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
@@ -1556,9 +1850,11 @@ export class AiSession {
     message: string,
     vault: AiVaultHost,
     choice: ModelChoice,
-    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart } = {},
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart } = {},
   ): Promise<RunOutcome | null> {
-    const { skills, door } = options;
+    const { skills, door, detached } = options;
+    // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
+    const apart = door ?? detached ?? null;
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
@@ -1569,13 +1865,13 @@ export class AiSession {
     // Redacted for the whole conversation (P2b-6): in its context, and in what the model reads itself through the tools.
     // One set for both: a choice in the overview below reaches the tools of this run too.
     // A door starts a conversation of its own: what the composer's next message was given is not its to use.
-    const redact = new Set<string>(door ? [] : this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
+    const redact = new Set<string>(apart ? [] : this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
     // The system's own model takes no tools (plan P2c).
     const platform = provider.endpoint.api === "platform";
     const now = this.host.now().toISOString();
 
     let record: ConversationRecord;
-    if (this.state.active && !door) {
+    if (this.state.active && !apart) {
       record = this.state.active;
     } else {
       // A new conversation: its system prompt and its tools are fixed from here on (append-only).
@@ -1588,7 +1884,7 @@ export class AiSession {
       record = {
         version: 1 as const,
         id,
-        title: door?.title ?? conversationTitleFrom(message, message),
+        title: apart?.title ?? conversationTitleFrom(message, message),
         createdAt: now,
         updatedAt: now,
         providerId: choice.providerId,
@@ -1596,7 +1892,7 @@ export class AiSession {
         conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, ...start.prompt }), start.tools),
         usage: EMPTY_USAGE,
         runs: [],
-        pins: door ? door.pins : this.state.draftPins,
+        pins: door ? door.pins : detached ? [] : this.state.draftPins,
         ...(start.instructions ? { instructions: start.instructions } : {}),
       };
     }
@@ -1606,17 +1902,30 @@ export class AiSession {
     const toolNames = platform ? [] : record.conversation.tools;
     const base = toolNames.length ? vault.tools(recipient, skillScope(bound?.folders, skillState), redact) : null;
     const tools = base ? { names: toolNames, executor: createSkillExecutor(base.executor, this.skillRuntime(vault, record), toolNames, skillState) } : null;
-    const limits: RunLimits | undefined = door?.limits ?? (bound?.maxOutputTokens ? { ...DEFAULT_RUN_LIMITS, maxOutputTokens: bound.maxOutputTokens } : undefined);
+    // A skill's own budget narrows whatever limits the start brings; it never widens them.
+    const own = bound?.maxOutputTokens;
+    const limits: RunLimits | undefined =
+      door?.limits ??
+      (detached?.limits
+        ? { ...detached.limits, maxOutputTokens: Math.min(detached.limits.maxOutputTokens, own ?? detached.limits.maxOutputTokens) }
+        : own
+          ? { ...DEFAULT_RUN_LIMITS, maxOutputTokens: own }
+          : undefined);
 
     // The context of this message: what "View context" showed, without the notes left out there.
-    const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, { tools: toolNames, instructions: manifestInstructionsOf(record.instructions) });
+    const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, {
+      tools: toolNames,
+      instructions: manifestInstructionsOf(record.instructions),
+      // A regression run measures the skill, not whatever note happens to be open.
+      ...(detached ? { withoutActive: true } : {}),
+    });
     const { seen } = context;
     // What a door brings goes into the overview with everything else: the user sees it before it is sent.
     const build = async (out: ReadonlySet<string>, red: ReadonlySet<string>) => {
       const built = await context.build(out, red);
       return door ? { pack: built.pack, manifest: door.disclose(built.manifest) } : built;
     };
-    const leaveOut = new Set<string>(door ? [] : this.state.leaveOutNext);
+    const leaveOut = new Set<string>(apart ? [] : this.state.leaveOutNext);
     let { pack, manifest } = await build(leaveOut, redact);
     // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the strict.
     // Once the user reviews the overview, it stays until they send or cancel:
@@ -1647,8 +1956,8 @@ export class AiSession {
       executor: tools?.executor ?? null,
       // Rule of Two (§13.4): vault text is private and untrusted at once.
       carriesVault: Boolean(door) || pack.refs.length > 0 || pack.dataClasses.length > 1 || Boolean(seen.active),
-      // A message typed in the composer used the drafts; a door leaves them for the next one.
-      usedDrafts: !door,
+      // A message typed in the composer used the drafts; a door or a regression run leaves them for the next one.
+      usedDrafts: !apart,
       skillState,
       ...(limits ? { limits } : {}),
     });

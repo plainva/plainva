@@ -628,7 +628,75 @@
         "metadata-not-map": "Metadane nie są listą pól.",
         "plainva-value": "Pola Plainva nie udało się odczytać i zostaje pominięte: {{detail}}"
       },
-      "writeFailed": "Nie udało się zapisać umiejętności w vaulcie."
+      "test": {
+        "title": "Sprawdzanie",
+        "run": "Sprawdź z {{model}}",
+        "open": "Sprawdź…",
+        "start": "Rozpocznij sprawdzanie",
+        "never": "Jeszcze nie sprawdzono. Scenariusze testowe umiejętności działają z wybranym modelem — ręcznie i z limitem.",
+        "last": "Ostatnie sprawdzenie: {{when}} — zaliczone: {{passed}} z {{total}}.",
+        "modelChanged_one": "{{count}} umiejętność nie została jeszcze sprawdzona z wybranym teraz modelem ({{model}}).",
+        "modelChanged_few": "{{count}} umiejętności nie zostały jeszcze sprawdzone z wybranym teraz modelem ({{model}}).",
+        "modelChanged_many": "{{count}} umiejętności nie zostało jeszcze sprawdzonych z wybranym teraz modelem ({{model}}).",
+        "modelChanged_other": "{{count}} umiejętności nie zostało jeszcze sprawdzonych z wybranym teraz modelem ({{model}}).",
+        "row": {
+          "current": "sprawdzona: {{passed}} z {{total}}",
+          "model-changed": "sprawdzona z {{model}}, nie z wybranym modelem",
+          "skill-changed": "zmieniona od sprawdzenia"
+        },
+        "model": "Model",
+        "what": "Zakres",
+        "scope": "{{scenarios}} z {{skills}}",
+        "scenarios_one": "{{count}} scenariusz",
+        "scenarios_few": "{{count}} scenariusze",
+        "scenarios_many": "{{count}} scenariuszy",
+        "scenarios_other": "{{count}} scenariusza",
+        "skillsCount_one": "{{count}} umiejętności",
+        "skillsCount_few": "{{count}} umiejętności",
+        "skillsCount_many": "{{count}} umiejętności",
+        "skillsCount_other": "{{count}} umiejętności",
+        "nothing": "Żadna aktywna umiejętność nie ma scenariuszy, które pasują do tego vaultu.",
+        "elsewhere_one": "Jeszcze {{count}} scenariusz jest napisany dla innego vaultu i tutaj nie działa.",
+        "elsewhere_few": "Jeszcze {{count}} scenariusze są napisane dla innego vaultu i tutaj nie działają.",
+        "elsewhere_many": "Jeszcze {{count}} scenariuszy jest napisanych dla innego vaultu i tutaj nie działa.",
+        "elsewhere_other": "Jeszcze {{count}} scenariusza jest napisane dla innego vaultu i tutaj nie działa.",
+        "ceiling": "Limit",
+        "ceilingAmount": "Limit w dolarach amerykańskich",
+        "ceilingHint": "W dolarach amerykańskich. Sprawdzanie kończy się między dwoma scenariuszami, gdy limit zostanie osiągnięty.",
+        "ceilingTokens": "Cena tego modelu nie jest znana: sprawdzanie kończy się najpóźniej po {{tokens}} tokenach.",
+        "ceilingLocal": "Brak: model działa na tym urządzeniu. Nic go nie opuszcza i nic nie jest naliczane.",
+        "how": "Każdy scenariusz to zwykłe uruchomienie swojej umiejętności: czyta vault jak uruchomienie ręczne, przechodzi przez ten sam przegląd przed wysłaniem, liczy się do zużycia i zostawia swoją rozmowę w historii.",
+        "progress": "Trwa scenariusz {{done}} z {{total}}: {{scenario}}",
+        "pass": "zaliczony",
+        "notRun": "nie uruchomiono",
+        "notApplicable": "tutaj nie dotyczy — w tym vaulcie brakuje: {{names}}",
+        "check": {
+          "answered": "brak odpowiedzi",
+          "required": "nie użyto: {{names}}",
+          "forbidden": "użyto tego, czego nie wolno: {{names}}",
+          "cites": "nie wymienia: {{names}}",
+          "never_one": "pokazuje {{count}} informację, która nigdy nie może się pojawić",
+          "never_few": "pokazuje {{count}} informacje, które nigdy nie mogą się pojawić",
+          "never_many": "pokazuje {{count}} informacji, które nigdy nie mogą się pojawić",
+          "never_other": "pokazuje {{count}} informacji, które nigdy nie mogą się pojawić"
+        },
+        "done": "Zaliczone: {{passed}} z {{ran}}.",
+        "stopped": {
+          "ceiling": "Limit został osiągnięty; reszty nie uruchomiono.",
+          "cancelled": "Zatrzymano; reszty nie uruchomiono.",
+          "failed": "Zakończono, bo żądanie się nie powiodło: {{reason}}"
+        },
+        "refused": {
+          "off": "AI jest wyłączona.",
+          "no-model": "Najpierw wybierz model.",
+          "busy": "AI jeszcze odpowiada — poczekaj lub ją zatrzymaj.",
+          "nothing": "Żadna aktywna umiejętność nie ma scenariuszy, które pasują do tego vaultu."
+        },
+        "cost": "≈ {{cost}} · {{tokens}} tokenów",
+        "tokens": "{{tokens}} tokenów",
+        "conversation": "Sprawdzenie · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"Nie udało się zapisać umiejętności w vaulcie."
     },
     "mcp": {
       "title": "Aplikacje AI na tym komputerze",

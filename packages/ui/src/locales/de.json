@@ -598,7 +598,65 @@
         "metadata-not-map": "Die Metadaten sind keine Liste von Feldern.",
         "plainva-value": "Ein Plainva-Feld ließ sich nicht lesen und bleibt weg: {{detail}}"
       },
-      "writeFailed": "Der Skill ließ sich nicht in den Vault schreiben."
+      "test": {
+        "title": "Prüfen",
+        "run": "Mit {{model}} prüfen",
+        "open": "Prüfen …",
+        "start": "Lauf starten",
+        "never": "Noch nicht geprüft. Die Testszenarien der Skills laufen gegen das gewählte Modell — von Hand, mit einer Obergrenze.",
+        "last": "Zuletzt geprüft am {{when}} — bestanden: {{passed}} von {{total}}.",
+        "modelChanged_one": "Mit dem jetzt gewählten Modell ({{model}}) ist {{count}} Skill noch nicht geprüft.",
+        "modelChanged_other": "Mit dem jetzt gewählten Modell ({{model}}) sind {{count}} Skills noch nicht geprüft.",
+        "row": {
+          "current": "geprüft: {{passed}} von {{total}}",
+          "model-changed": "geprüft mit {{model}}, nicht mit dem gewählten Modell",
+          "skill-changed": "seit der Prüfung geändert"
+        },
+        "model": "Modell",
+        "what": "Umfang",
+        "scope": "{{scenarios}} aus {{skills}}",
+        "scenarios_one": "{{count}} Szenario",
+        "scenarios_other": "{{count}} Szenarien",
+        "skillsCount_one": "{{count}} Skill",
+        "skillsCount_other": "{{count}} Skills",
+        "nothing": "Kein aktiver Skill bringt Szenarien mit, die in diesem Vault gelten.",
+        "elsewhere_one": "{{count}} weiteres Szenario ist für einen anderen Vault geschrieben und läuft hier nicht.",
+        "elsewhere_other": "{{count}} weitere Szenarien sind für einen anderen Vault geschrieben und laufen hier nicht.",
+        "ceiling": "Obergrenze",
+        "ceilingAmount": "Obergrenze in US-Dollar",
+        "ceilingHint": "In US-Dollar. Der Lauf endet zwischen zwei Szenarien, sobald die Obergrenze erreicht ist.",
+        "ceilingTokens": "Für dieses Modell ist kein Preis bekannt: der Lauf endet nach höchstens {{tokens}} Token.",
+        "ceilingLocal": "Keine: das Modell läuft auf diesem Gerät. Nichts verlässt es, nichts wird berechnet.",
+        "how": "Jedes Szenario ist ein gewöhnlicher Lauf seines Skills: es liest Deinen Vault wie ein Lauf von Hand, geht durch dieselbe Übersicht vor dem Senden, zählt zum Verbrauch und hinterlässt sein Gespräch im Verlauf.",
+        "progress": "Szenario {{done}} von {{total}} läuft: {{scenario}}",
+        "pass": "bestanden",
+        "notRun": "nicht gelaufen",
+        "notApplicable": "gilt hier nicht — in diesem Vault fehlt: {{names}}",
+        "check": {
+          "answered": "keine Antwort",
+          "required": "nicht benutzt: {{names}}",
+          "forbidden": "benutzt, was es nicht soll: {{names}}",
+          "cites": "nennt nicht: {{names}}",
+          "never_one": "zeigt {{count}} Angabe, die nie erscheinen darf",
+          "never_other": "zeigt {{count}} Angaben, die nie erscheinen dürfen"
+        },
+        "done": "Bestanden: {{passed}} von {{ran}}.",
+        "stopped": {
+          "ceiling": "Die Obergrenze war erreicht; der Rest ist nicht gelaufen.",
+          "cancelled": "Angehalten; der Rest ist nicht gelaufen.",
+          "failed": "Abgebrochen, weil eine Anfrage scheiterte: {{reason}}"
+        },
+        "refused": {
+          "off": "Die KI ist aus.",
+          "no-model": "Wähle zuerst ein Modell.",
+          "busy": "Die KI antwortet noch — warte oder halte sie an.",
+          "nothing": "Kein aktiver Skill bringt Szenarien mit, die in diesem Vault gelten."
+        },
+        "cost": "≈ {{cost}} · {{tokens}} Token",
+        "tokens": "{{tokens}} Token",
+        "conversation": "Prüfung · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"Der Skill ließ sich nicht in den Vault schreiben."
     },
     "mcp": {
       "title": "KI-Apps auf diesem Rechner",

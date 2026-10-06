@@ -583,7 +583,60 @@
         "metadata-not-map": "元数据不是字段列表。",
         "plainva-value": "无法读取某个Plainva字段，已省略：{{detail}}"
       },
-      "writeFailed": "无法将技能写入仓库。"
+      "test": {
+        "title": "测试",
+        "run": "用{{model}}测试",
+        "open": "测试…",
+        "start": "开始测试",
+        "never": "尚未测试。技能的测试场景会用所选模型运行——由你手动启动，并设有上限。",
+        "last": "上次测试：{{when}}——通过 {{passed}}/{{total}}。",
+        "modelChanged_other": "有{{count}}个技能尚未用当前所选模型（{{model}}）测试。",
+        "row": {
+          "current": "已测试：{{passed}}/{{total}}",
+          "model-changed": "已用{{model}}测试，而非当前所选模型",
+          "skill-changed": "测试后已更改"
+        },
+        "model": "模型",
+        "what": "范围",
+        "scope": "{{skills}}中的{{scenarios}}",
+        "scenarios_other": "{{count}}个场景",
+        "skillsCount_other": "{{count}}个技能",
+        "nothing": "没有启用的技能带有适用于此仓库的场景。",
+        "elsewhere_other": "另有{{count}}个场景是为其他仓库编写的，不会在这里运行。",
+        "ceiling": "上限",
+        "ceilingAmount": "上限（美元）",
+        "ceilingHint": "以美元计。达到上限后，测试会在两个场景之间结束。",
+        "ceilingTokens": "此模型的价格未知：测试最多使用{{tokens}}个Token后结束。",
+        "ceilingLocal": "无：模型在此设备上运行。没有内容离开设备，也不产生费用。",
+        "how": "每个场景都是其技能的一次普通运行：它像手动运行一样读取你的仓库，经过同一份发送前的概览，计入用量，并把对话留在历史记录中。",
+        "progress": "正在运行场景 {{done}}/{{total}}：{{scenario}}",
+        "pass": "通过",
+        "notRun": "未运行",
+        "notApplicable": "此处不适用——此仓库缺少：{{names}}",
+        "check": {
+          "answered": "没有回答",
+          "required": "未使用：{{names}}",
+          "forbidden": "使用了不该用的：{{names}}",
+          "cites": "未提及：{{names}}",
+          "never_other": "显示了{{count}}处绝不能出现的内容"
+        },
+        "done": "通过：{{passed}}/{{ran}}。",
+        "stopped": {
+          "ceiling": "已达到上限；其余未运行。",
+          "cancelled": "已停止；其余未运行。",
+          "failed": "因请求失败而结束：{{reason}}"
+        },
+        "refused": {
+          "off": "AI已关闭。",
+          "no-model": "请先选择模型。",
+          "busy": "AI仍在回答——请等待或停止它。",
+          "nothing": "没有启用的技能带有适用于此仓库的场景。"
+        },
+        "cost": "约{{cost}} · {{tokens}}个Token",
+        "tokens": "{{tokens}}个Token",
+        "conversation": "测试 · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"无法将技能写入仓库。"
     },
     "mcp": {
       "title": "此电脑上的AI应用",

@@ -583,7 +583,60 @@
         "metadata-not-map": "メタデータがフィールドの一覧になっていません。",
         "plainva-value": "Plainvaのフィールドを読み取れなかったため、省きます: {{detail}}"
       },
-      "writeFailed": "スキルを保管庫に書き込めませんでした。"
+      "test": {
+        "title": "テスト",
+        "run": "{{model}} でテスト",
+        "open": "テスト…",
+        "start": "テストを開始",
+        "never": "まだテストしていません。スキルのテストシナリオを、選んだモデルで実行します。手動で開始し、上限があります。",
+        "last": "最終テスト: {{when}} — 合格 {{passed}} / {{total}}",
+        "modelChanged_other": "現在選んでいるモデル（{{model}}）では、{{count}} 件のスキルがまだテストされていません。",
+        "row": {
+          "current": "テスト済み: {{passed}} / {{total}}",
+          "model-changed": "{{model}} でテスト済み（選択中のモデルではありません）",
+          "skill-changed": "テスト後に変更されています"
+        },
+        "model": "モデル",
+        "what": "範囲",
+        "scope": "{{skills}}の{{scenarios}}",
+        "scenarios_other": "シナリオ {{count}} 件",
+        "skillsCount_other": "スキル {{count}} 件",
+        "nothing": "この保管庫に当てはまるシナリオを持つ有効なスキルがありません。",
+        "elsewhere_other": "ほかに {{count}} 件のシナリオは別の保管庫向けに書かれており、ここでは実行されません。",
+        "ceiling": "上限",
+        "ceilingAmount": "上限（米ドル）",
+        "ceilingHint": "米ドルで指定します。上限に達すると、次のシナリオの前でテストを終了します。",
+        "ceilingTokens": "このモデルの価格は不明です。テストは最大 {{tokens}} トークンで終了します。",
+        "ceilingLocal": "なし。モデルはこのデバイスで動作します。何も外に出ず、料金もかかりません。",
+        "how": "各シナリオは、そのスキルの通常の実行です。手動で実行したときと同じように保管庫を読み、送信前の同じ概要を通り、使用量に加算され、会話が履歴に残ります。",
+        "progress": "シナリオ {{done}} / {{total}} を実行中: {{scenario}}",
+        "pass": "合格",
+        "notRun": "未実行",
+        "notApplicable": "ここでは対象外 — この保管庫にありません: {{names}}",
+        "check": {
+          "answered": "回答なし",
+          "required": "使われていません: {{names}}",
+          "forbidden": "使ってはいけないものを使用: {{names}}",
+          "cites": "言及なし: {{names}}",
+          "never_other": "決して表示してはいけない内容が {{count}} 件表示されました"
+        },
+        "done": "合格: {{passed}} / {{ran}}",
+        "stopped": {
+          "ceiling": "上限に達しました。残りは実行されていません。",
+          "cancelled": "停止しました。残りは実行されていません。",
+          "failed": "リクエストが失敗したため終了しました: {{reason}}"
+        },
+        "refused": {
+          "off": "AIはオフです。",
+          "no-model": "先にモデルを選んでください。",
+          "busy": "AIはまだ回答中です。待つか停止してください。",
+          "nothing": "この保管庫に当てはまるシナリオを持つ有効なスキルがありません。"
+        },
+        "cost": "約 {{cost}} · {{tokens}} トークン",
+        "tokens": "{{tokens}} トークン",
+        "conversation": "テスト · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"スキルを保管庫に書き込めませんでした。"
     },
     "mcp": {
       "title": "このコンピューターのAIアプリ",

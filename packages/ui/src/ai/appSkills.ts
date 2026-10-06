@@ -50,6 +50,14 @@ export const APP_SKILL_SOURCES: readonly InstructionSource[] = APP_SKILLS.flatMa
   return text === undefined ? [] : [appSkillSource(skill.name, text)];
 });
 
+// The scenarios of the regression run (plan KI-Harness P3-8), bundled as text like the skills themselves.
+const SCENARIOS = import.meta.glob<string>("./skills/*/tests/scenarios.json", { query: "?raw", import: "default", eager: true });
+
+/** The test scenarios an app skill brings, as written; null when it has none. */
+export function appSkillScenarios(id: string): string | null {
+  return id.startsWith("plainva:") ? (SCENARIOS[`./skills/${id.slice("plainva:".length)}/tests/scenarios.json`] ?? null) : null;
+}
+
 /** The app's skill behind a source id (`plainva:<name>`); null for the vault's own. */
 export function appSkillOf(id: string): AppSkill | null {
   return id.startsWith("plainva:") ? (APP_SKILLS.find((s) => s.name === id.slice("plainva:".length)) ?? null) : null;

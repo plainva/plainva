@@ -144,6 +144,20 @@ describe("class existence (referenced pv-/m-/base-cfg- classes are defined)", ()
   });
 });
 
+describe("the dialog's header note stays in the header", () => {
+  it("leaves pv-modal-note to the Modal primitive", () => {
+    // `pv-modal-note` is the one line beside a dialog's title: at most 40% of
+    // the header, never wrapped, cut off with an ellipsis. Four dialogs used
+    // it for a paragraph in their body (finding 2026-10-06), and their
+    // explanations ended in "…" after the first third of a sentence. A hint
+    // in a dialog's body is `pv-modal-hint`.
+    const users = codeSources()
+      .filter((f) => /\bpv-modal-note\b/.test(f.text))
+      .map((f) => f.rel);
+    expect(users).toEqual(["packages/ui/src/components/ui/Modal.tsx"]);
+  });
+});
+
 /** Deliberate double definitions in the app layer (each needs a reason). */
 const DUPLICATE_ALLOW = new Set<string>([
   // ui.css keeps all entrance animations in ONE motion section at the end of
@@ -349,6 +363,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-skills": "layout only — SettingCards and Buttons the themes already restyle",
   "pv-skills-actions": "layout only — see pv-skills",
   "pv-skill-facts": "a definition list in --text-muted and --text-main; the themes override those tokens",
+  "pv-skill-test-line": "a text line whose mark is toned in --success-text, --error-text or --text-muted; the themes override those tokens",
   "pv-related-row": "layout only — see pv-related",
   "pv-related-head": "layout only — see pv-related",
   "pv-related-main": "a placement class on a ghost Button the themes already restyle",

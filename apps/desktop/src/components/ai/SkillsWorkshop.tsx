@@ -1,6 +1,6 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, MoreHorizontal, Plus } from "lucide-react";
+import { Download, FlaskConical, MoreHorizontal, Plus } from "lucide-react";
 import type { InstructionEntry, SkillImport } from "@plainva/core";
 import {
   Button,
@@ -13,11 +13,15 @@ import {
   SettingCardNote,
   SettingRow,
   skillRowActions,
+  skillRowDescription,
+  skillTestOverview,
+  skillTestPlanFor,
   skillView,
   Switch,
   toast,
   useAiSession,
   useAiState,
+  useSkillTestPlan,
   workshopSections,
   type SkillRowCaps,
 } from "@plainva/ui";
@@ -26,6 +30,7 @@ import { pickSkillArchive } from "../../services/ai/skillImport";
 import { NewSkillModal } from "./NewSkillModal";
 import { SkillApprovalModal } from "./SkillApprovalModal";
 import { SkillImportModal } from "./SkillImportModal";
+import { SkillTestModal } from "./SkillTestModal";
 
 /**
  * The skills workshop in the AI tab (plan KI-Harness P3-5, mockup chapter
@@ -36,13 +41,16 @@ import { SkillImportModal } from "./SkillImportModal";
  * `approvalFacts`) is the phone's as well.
  */
 export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { onOpenFile: (path: string) => void; onRun: () => void; review?: string | null; onReviewOpened?: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState<{ label: string; imported: SkillImport } | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: SkillRowCaps } | null>(null);
+  /** The regression run's dialog: for some skills, or (null) for all that bring scenarios. */
+  const [testing, setTesting] = useState<{ ids: string[] | null } | null>(null);
+  const plan = useSkillTestPlan(session, state);
 
   useEffect(() => {
     void session?.refreshSkills();
@@ -57,11 +65,9 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
   if (!session || !state) return null;
   const sections = workshopSections(state.skills.entries);
   const titleOf = (entry: InstructionEntry) => (entry.source.kind === "agents" ? "AGENTS.md" : skillView(t, entry).title);
-  const describe = (entry: InstructionEntry) => {
-    const status = t(`ai.workshop.status.${entry.status}`);
-    const about = entry.source.kind === "agents" ? t("ai.workshop.mayAgents") : skillView(t, entry).description;
-    return entry.status === "active" ? about : `${status} · ${about}`;
-  };
+  const describe = (entry: InstructionEntry) => skillRowDescription(t, entry, state.skillTests.records, plan);
+  const testable = (entry: InstructionEntry) => plan?.targets.some((target) => target.id === entry.source.id && target.scenarios > 0) === true;
+  const overview = skillTestOverview(t, state.skillTests.records, plan, i18n.language);
   const mainPath = (entry: InstructionEntry) => (entry.source.kind === "agents" ? "AGENTS.md" : `${entry.source.root}/SKILL.md`);
 
   const capsFor = (entry: InstructionEntry): SkillRowCaps => {
@@ -77,6 +83,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
             },
           }
         : {}),
+      ...(startable && plan && testable(entry) ? { test: () => setTesting({ ids: [entry.source.id] }), testLabel: t("ai.workshop.test.run", { model: plan.choice.model }) } : {}),
       ...(!vault ? { showInstructions: () => setOpen(entry.source.id) } : {}),
       ...(vault ? { edit: () => onOpenFile(mainPath(entry)) } : {}),
       ...(!vault && entry.source.kind === "skill"
@@ -171,6 +178,15 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           </SettingRow>
         ))}
       </SettingCard>
+      <SettingCard label={t("ai.workshop.test.title")}>
+        <SettingRow label={plan ? t("ai.workshop.test.run", { model: plan.choice.model }) : t("ai.workshop.test.title")} desc={overview.summary}>
+          <Button size="sm" variant="tonal" icon={<FlaskConical size={ICON.ui} />} disabled={!plan || plan.total === 0} onClick={() => setTesting({ ids: null })} data-testid="ai-skills-test">
+            {t("ai.workshop.test.open")}
+          </Button>
+        </SettingRow>
+        {overview.hint && <SettingCardNote>{overview.hint}</SettingCardNote>}
+      </SettingCard>
+      {testing && <SkillTestModal ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
       {open && <SkillApprovalModal id={open} onClose={() => setOpen(null)} />}
       {creating && <NewSkillModal onClose={() => setCreating(false)} />}
       {importing && <SkillImportModal label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}

@@ -598,7 +598,65 @@
         "metadata-not-map": "De metadata zijn geen lijst van velden.",
         "plainva-value": "Een Plainva-veld kon niet worden gelezen en blijft weg: {{detail}}"
       },
-      "writeFailed": "De vaardigheid kon niet in de vault worden geschreven."
+      "test": {
+        "title": "Testen",
+        "run": "Testen met {{model}}",
+        "open": "Testen…",
+        "start": "Test starten",
+        "never": "Nog niet getest. De testscenario's van de vaardigheden draaien tegen het gekozen model — met de hand, met een plafond.",
+        "last": "Laatst getest op {{when}} — geslaagd: {{passed}} van {{total}}.",
+        "modelChanged_one": "{{count}} vaardigheid is nog niet getest met het nu gekozen model ({{model}}).",
+        "modelChanged_other": "{{count}} vaardigheden zijn nog niet getest met het nu gekozen model ({{model}}).",
+        "row": {
+          "current": "getest: {{passed}} van {{total}}",
+          "model-changed": "getest met {{model}}, niet met het gekozen model",
+          "skill-changed": "gewijzigd sinds de test"
+        },
+        "model": "Model",
+        "what": "Omvang",
+        "scope": "{{scenarios}} uit {{skills}}",
+        "scenarios_one": "{{count}} scenario",
+        "scenarios_other": "{{count}} scenario's",
+        "skillsCount_one": "{{count}} vaardigheid",
+        "skillsCount_other": "{{count}} vaardigheden",
+        "nothing": "Geen actieve vaardigheid brengt scenario's mee die in deze vault gelden.",
+        "elsewhere_one": "{{count}} ander scenario is voor een andere vault geschreven en draait hier niet.",
+        "elsewhere_other": "{{count}} andere scenario's zijn voor een andere vault geschreven en draaien hier niet.",
+        "ceiling": "Plafond",
+        "ceilingAmount": "Plafond in Amerikaanse dollars",
+        "ceilingHint": "In Amerikaanse dollars. De test eindigt tussen twee scenario's zodra het plafond is bereikt.",
+        "ceilingTokens": "Voor dit model is geen prijs bekend: de test eindigt na hoogstens {{tokens}} tokens.",
+        "ceilingLocal": "Geen: het model draait op dit apparaat. Niets verlaat het, niets wordt berekend.",
+        "how": "Elk scenario is een gewone uitvoering van zijn vaardigheid: het leest je vault zoals een uitvoering met de hand, gaat door hetzelfde overzicht vóór het verzenden, telt mee in het verbruik en laat zijn gesprek achter in de geschiedenis.",
+        "progress": "Scenario {{done}} van {{total}} loopt: {{scenario}}",
+        "pass": "geslaagd",
+        "notRun": "niet uitgevoerd",
+        "notApplicable": "geldt hier niet — in deze vault ontbreekt: {{names}}",
+        "check": {
+          "answered": "geen antwoord",
+          "required": "niet gebruikt: {{names}}",
+          "forbidden": "gebruikt wat niet mag: {{names}}",
+          "cites": "noemt niet: {{names}}",
+          "never_one": "toont {{count}} gegeven dat nooit mag verschijnen",
+          "never_other": "toont {{count}} gegevens die nooit mogen verschijnen"
+        },
+        "done": "Geslaagd: {{passed}} van {{ran}}.",
+        "stopped": {
+          "ceiling": "Het plafond was bereikt; de rest is niet uitgevoerd.",
+          "cancelled": "Gestopt; de rest is niet uitgevoerd.",
+          "failed": "Beëindigd omdat een verzoek mislukte: {{reason}}"
+        },
+        "refused": {
+          "off": "De AI staat uit.",
+          "no-model": "Kies eerst een model.",
+          "busy": "De AI antwoordt nog — wacht of stop hem.",
+          "nothing": "Geen actieve vaardigheid brengt scenario's mee die in deze vault gelden."
+        },
+        "cost": "≈ {{cost}} · {{tokens}} tokens",
+        "tokens": "{{tokens}} tokens",
+        "conversation": "Controle · {{skill}} · {{scenario}}"
+      },
+      "writeFailed":"De vaardigheid kon niet in de vault worden geschreven."
     },
     "mcp": {
       "title": "AI-apps op deze computer",

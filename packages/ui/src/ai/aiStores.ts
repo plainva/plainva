@@ -2,8 +2,11 @@ import {
   conversationSummaryOf,
   readConversationRecord,
   readInstructionApprovals,
+  readSkillTests,
   serializeInstructionApprovals,
+  serializeSkillTests,
   type InstructionApprovals,
+  type SkillTestRecords,
   type ConversationRecord,
   type ConversationRepository,
   type ConversationSummary,
@@ -78,6 +81,17 @@ export interface InstructionApprovalStore {
   save(approvals: InstructionApprovals): Promise<void>;
 }
 
+/**
+ * What the regression runs of the skills found on this device (plan
+ * KI-Harness P3-8): per vault, in the app's data. A result is about one model
+ * and one version of a skill on this device — nothing a vault's writers
+ * should be able to state. A damaged file is no result.
+ */
+export interface SkillTestStore {
+  load(): Promise<SkillTestRecords>;
+  save(tests: SkillTestRecords): Promise<void>;
+}
+
 export const RELATED_DISMISSED_CAP = 500;
 export const RELATED_PAUSED_CAP = 200;
 
@@ -150,6 +164,7 @@ export function createAiVaultStores(
   approvals: StandingApprovalStore;
   related: RelatedFeedbackStore;
   instructionApprovals: InstructionApprovalStore;
+  skillTests: SkillTestStore;
 } {
   if (!SAFE_ID.test(vaultKey)) throw new Error("invalid vault key");
   const dir = vaultKey;
@@ -231,7 +246,12 @@ export function createAiVaultStores(
     save: (value) => files.write(`${dir}/instructions.json`, serializeInstructionApprovals(value)),
   };
 
-  return { conversations, ledger, approvals, related, instructionApprovals };
+  const skillTests: SkillTestStore = {
+    load: async () => readSkillTests(await files.read(`${dir}/skill-tests.json`)),
+    save: (value) => files.write(`${dir}/skill-tests.json`, serializeSkillTests(value)),
+  };
+
+  return { conversations, ledger, approvals, related, instructionApprovals, skillTests };
 }
 
 /** A stable, file-name-safe handle for a vault (FNV-1a over its path or id). */

@@ -84,6 +84,20 @@ export class FixtureSqliteAdapter implements IDatabaseAdapter {
   async initialize(): Promise<void> {
     // The runner opens the database; a round trip proves it answers.
     await this.conn().all(this.dbName, "SELECT 1", []);
+    // The database outlives the page (see `close`), and so did a transaction
+    // that a page left open when it was reloaded or closed in the middle of an
+    // index pass: the next page's BEGIN failed with "cannot start a
+    // transaction within a transaction", and the app ran on without an index —
+    // the silent hole described above, through another door (seen on
+    // 2026-10-06: one run in three of a spec that reloads right after start;
+    // the desktop's mock lives in the page and goes with it, so it has no such
+    // door). A process that dies takes its open transaction with it; opening
+    // the database does the same here.
+    await this.conn()
+      .exec(this.dbName, "ROLLBACK", [])
+      .catch(() => {
+        /* nothing was open */
+      });
   }
 
   async close(): Promise<void> {

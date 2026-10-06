@@ -52,17 +52,17 @@ export function NewSkillModal({ onClose }: { onClose: () => void }) {
         {t("ai.workshop.form.name")}
       </label>
       <TextInput id="pv-skill-name" value={name} spellCheck={false} onChange={(event) => setName(event.target.value.toLowerCase())} data-testid="ai-skill-name" />
-      <p className="pv-modal-note">{t("ai.workshop.form.nameHint")}</p>
+      <p className="pv-modal-hint">{t("ai.workshop.form.nameHint")}</p>
       <label className="pv-modal-label" htmlFor="pv-skill-description">
         {t("ai.workshop.form.description")}
       </label>
       <TextArea id="pv-skill-description" rows={3} value={description} onChange={(event) => setDescription(event.target.value)} data-testid="ai-skill-description" />
-      <p className="pv-modal-note">{t("ai.workshop.form.descriptionHint")}</p>
+      <p className="pv-modal-hint">{t("ai.workshop.form.descriptionHint")}</p>
       <label className="pv-modal-label" htmlFor="pv-skill-body">
         {t("ai.workshop.form.body")}
       </label>
       <TextArea id="pv-skill-body" rows={10} value={body} onChange={(event) => setBody(event.target.value)} data-testid="ai-skill-body" />
-      <p className="pv-modal-note">{t("ai.workshop.form.bodyHint")}</p>
+      <p className="pv-modal-hint">{t("ai.workshop.form.bodyHint")}</p>
       {error && (
         <Banner kind="error" rounded>
           {error}

@@ -1,6 +1,6 @@
 # Skills (Beta)
 
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-06
 
 A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with ten of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
 
@@ -31,13 +31,38 @@ All of them only read: none changes a note, sends anything or goes on the intern
 
 **New skill** asks for a name, a description — the AI chooses a skill by it — and the instructions. Plainva writes them as `.agent/skills/<name>/SKILL.md` into your vault, where they travel with it like any note. **Edit** opens the file like a note.
 
-**Import…** takes a skill as a `.zip` or `.skill` file. Before anything is written, Plainva checks it: exactly one skill in the format, no path outside its folder, the size limits. It names the licence, scripts it will not run and tools it does not have.
+**Import…** takes a skill as a `.zip` or `.skill` file. Before anything is written, Plainva checks it: exactly one skill in the format, no path outside its folder, the size limits. It names the licence, scripts it will not run and tools it does not have. Hidden files — names that begin with a dot — are not part of a skill and are left out.
 
 ## Nothing runs before you approve it
 
 A skill in your vault that is new or changed — through sync, an import, or an edit on this or another device — does not run until you approve it **on this device**. Such skills wait at the top of **Skills** under **Waiting for your approval**, and in **Settings → AI & automation** (the Vault part). **Review and approve** shows what the skill may do, what changed since your last approval, its instructions, files and where it lies. The approval holds for exactly this version; any change lifts it again. Approvals are stored on this device, never in the vault.
 
 The same holds for an `AGENTS.md` at the top of your vault: once approved, its standing instructions go into every new conversation. Neither a skill nor `AGENTS.md` can lift your privacy rules, and a skill never gets more than a conversation has — it can only narrow it.
+
+## Testing skills with a model
+
+A skill can bring test scenarios: a message that starts it, and what a good run does. The skills that come with Plainva have them; for your own, write them into `tests/scenarios.json` in the skill's folder:
+
+```json
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "rates",
+      "message": "Check the offer against last year's rates.",
+      "tools": { "required": ["read_note"], "forbidden": ["run_command"] },
+      "cites": ["Offer"],
+      "never": ["internal margin"]
+    }
+  ]
+}
+```
+
+`tools` names the tools a good run uses and those it must leave alone, `cites` the notes its answer names, `never` text that must not appear in it. A skill has at most eight scenarios.
+
+**Test with ⟨model⟩** — at the bottom of **Skills**, or in a skill's menu — runs the scenarios against the model a new conversation would use. Nothing starts by itself: the dialog first says how many scenarios would run and against which model, and you set a **Ceiling** in US dollars; the run ends between two scenarios once it is reached. Where no price is known for the model, the run ends after a fixed number of tokens instead; a model on this device needs no ceiling.
+
+Each scenario is an ordinary run of its skill: it reads your vault like a run by hand, passes the same overview before sending, counts towards your usage and leaves its conversation in the history, where its next run replaces it. Afterwards every scenario shows its verdict in words, and the skill's row says how its last run went. A result is about one model and one version of the skill: once you choose another model or change the skill, the row says so instead of showing a result that no longer counts. Some scenarios that come with Plainva ask about notes of Plainva's own test vault; in your vault they do not apply, and the dialog counts them apart instead of failing them.
 
 ## What goes to the provider
 

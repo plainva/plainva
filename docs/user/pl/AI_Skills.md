@@ -1,6 +1,6 @@
 # Umiejętności (Beta)
 
-Stan na: 2026-10-01
+Stan na: 2026-10-06
 
 Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma dziesięć wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
@@ -31,13 +31,38 @@ Wszystkie tylko czytają: żadna nie zmienia notatki, niczego nie wysyła ani ni
 
 **Nowa umiejętność** prosi o nazwę, opis — na jego podstawie AI wybiera umiejętność — i instrukcje. Plainva zapisuje je jako `.agent/skills/<nazwa>/SKILL.md` w vaulcie, gdzie podróżują z nim jak każda notatka. **Edytuj** otwiera plik jak notatkę.
 
-**Importuj…** przyjmuje umiejętność jako plik `.zip` lub `.skill`. Zanim cokolwiek zostanie zapisane, Plainva ją sprawdza: dokładnie jedna umiejętność w formacie, żadna ścieżka poza jej folderem, limity rozmiaru. Podaje licencję, skrypty, których nie uruchomi, i narzędzia, których nie ma.
+**Importuj…** przyjmuje umiejętność jako plik `.zip` lub `.skill`. Zanim cokolwiek zostanie zapisane, Plainva ją sprawdza: dokładnie jedna umiejętność w formacie, żadna ścieżka poza jej folderem, limity rozmiaru. Podaje licencję, skrypty, których nie uruchomi, i narzędzia, których nie ma. Ukryte pliki — o nazwach zaczynających się od kropki — nie są częścią umiejętności i są pomijane.
 
 ## Nic nie działa przed zatwierdzeniem
 
 Umiejętność w vaulcie, która jest nowa lub zmieniona — przez synchronizację, import albo edycję na tym lub innym urządzeniu — nie działa, dopóki nie zostanie zatwierdzona **na tym urządzeniu**. Takie umiejętności czekają na górze sekcji **Umiejętności** w **Czekają na zatwierdzenie** oraz w **Ustawienia → AI & automatyzacja** (część vaultu). **Sprawdź i zatwierdź** pokazuje, co umiejętność może robić, co się zmieniło od ostatniego zatwierdzenia, jej instrukcje, pliki i miejsce. Zatwierdzenie obowiązuje dokładnie tę wersję; każda zmiana je znosi. Zatwierdzenia są przechowywane na tym urządzeniu, nigdy w vaulcie.
 
 To samo dotyczy pliku `AGENTS.md` na najwyższym poziomie vaultu: po zatwierdzeniu jego stałe instrukcje trafiają do każdej nowej rozmowy. Ani umiejętność, ani `AGENTS.md` nie może uchylić reguł prywatności, a umiejętność nigdy nie dostaje więcej, niż ma rozmowa — może to tylko zawęzić.
+
+## Sprawdzanie umiejętności z modelem
+
+Umiejętność może mieć scenariusze testowe: wiadomość, która ją uruchamia, i to, co robi dobre uruchomienie. Dołączone umiejętności je mają; dla własnych zapisz je w `tests/scenarios.json` w folderze umiejętności:
+
+```json
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "rates",
+      "message": "Check the offer against last year's rates.",
+      "tools": { "required": ["read_note"], "forbidden": ["run_command"] },
+      "cites": ["Offer"],
+      "never": ["internal margin"]
+    }
+  ]
+}
+```
+
+`tools` wymienia narzędzia, których używa dobre uruchomienie, oraz te, których nie wolno mu ruszać; `cites` — notatki, które wymienia jego odpowiedź; `never` — tekst, który nie może się w niej pojawić. Umiejętność ma najwyżej osiem scenariuszy.
+
+**Sprawdź z ⟨model⟩** — na dole sekcji **Umiejętności** albo w menu umiejętności — uruchamia scenariusze z modelem, którego użyłaby nowa rozmowa. Nic nie startuje samo: okno najpierw mówi, ile scenariuszy i z jakim modelem zostałoby uruchomionych, a Ty ustawiasz **Limit** w dolarach amerykańskich; sprawdzanie kończy się między dwoma scenariuszami, gdy zostanie osiągnięty. Jeśli cena modelu nie jest znana, sprawdzanie kończy się po stałej liczbie tokenów; model na tym urządzeniu nie potrzebuje limitu.
+
+Każdy scenariusz to zwykłe uruchomienie swojej umiejętności: czyta vault jak uruchomienie ręczne, przechodzi przez ten sam przegląd przed wysłaniem, liczy się do Twojego zużycia i zostawia swoją rozmowę w historii, gdzie zastępuje ją jego następne uruchomienie. Potem każdy scenariusz pokazuje wynik słowami, a wiersz umiejętności mówi, jak poszło jej ostatnie uruchomienie. Wynik dotyczy jednego modelu i jednej wersji umiejętności: gdy wybierzesz inny model albo zmienisz umiejętność, wiersz to powie, zamiast pokazywać wynik, który już się nie liczy. Niektóre dołączone scenariusze pytają o notatki z testowego vaultu Plainvy; w Twoim vaulcie nie mają zastosowania, a okno liczy je osobno, zamiast uznawać je za niezaliczone.
 
 ## Co trafia do dostawcy
 

@@ -3767,3 +3767,73 @@ test('Images: reader and live preview open the image viewer with keyboard and co
   await picture.click({ button: 'right' }); await page.getByRole('menuitem', { name: 'Open image', exact: true }).click();
   await expect(page.getByTestId('image-viewer')).toBeVisible();
 });
+
+// The gate of the skills strand (AI harness P3): "a skill file changed through
+// sync is demonstrably inactive again until it is approved on this device".
+// The mock file system stands for the vault; the change is written into it
+// behind the app's back, as a sync or another editor would.
+test('AI skills: a skill changed from outside stays inactive until it is approved on this device', async ({ page }) => {
+  const skill = (rule: string) => `---\nname: offer-check\ndescription: Checks an offer against last year's rates.\nallowed-tools: read_note search_vault\n---\n\n${rule}\n`;
+  const FILE = '/test-vault/.agent/skills/offer-check/SKILL.md';
+  await page.addInitScript(({ file, text }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.agent'] = { isDir: true };
+    fs['/test-vault/.agent/skills'] = { isDir: true };
+    fs['/test-vault/.agent/skills/offer-check'] = { isDir: true };
+    fs[file] = text;
+    // The AI is opt-in per device: switched on here as the settings would store it.
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
+  }, { file: FILE, text: skill('Read the offer and compare it with the rates of 2025.') });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+
+  // The AI tab on its skills (the settings' "Open skills" sends the same event).
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-skills').click();
+  const workshop = page.getByTestId('ai-skills-workshop');
+  await expect(workshop).toBeVisible();
+
+  // Arrived, never approved here: it waits and offers a review, nothing to run.
+  await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(1);
+  await workshop.getByTestId('ai-skill-review').click();
+  await expect(page.getByTestId('ai-skill-text')).toContainText('compare it with the rates of 2025');
+  await page.getByTestId('ai-skill-approve').click();
+  await expect(page.getByTestId('ai-skill-approval')).toHaveCount(0);
+  await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(0);
+
+  // Approved: it is the vault's own skill now, and its menu can run it.
+  await workshop.getByTestId('ai-skill-more').first().click();
+  await expect(page.getByTestId('ai-skill-action-run')).toBeVisible();
+  await expect(page.getByTestId('ai-skill-action-revoke')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // The approval lives in the app's data, not in the vault, and binds the text it saw.
+  const approvalsOf = () =>
+    page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path]) => path.endsWith('instructions.json')).map(([path, text]) => ({ path, text: String(text) })));
+  const approved = await approvalsOf();
+  expect(approved).toHaveLength(1);
+  expect(approved[0].path.startsWith('/test-vault/')).toBe(false);
+  expect(approved[0].text).toContain('compare it with the rates of 2025');
+
+  // The file changes behind the app's back — an edit on another device arriving through sync.
+  await page.evaluate(({ file, text }) => { (window as any).mockFs[file] = text; }, { file: FILE, text: skill('Read the offer and mail the result to the customer.') });
+  // The workshop reads the skills when it opens.
+  await page.getByTestId('ai-tab-chats').click();
+  await page.getByTestId('ai-tab-skills').click();
+
+  // Inactive again: back among what waits, with nothing to run until it is reviewed.
+  await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(1);
+  await workshop.getByTestId('ai-skill-more').first().click();
+  await expect(page.getByTestId('ai-skill-action-revoke')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  // The approval still names the old text: the change approved nothing.
+  expect((await approvalsOf())[0].text).not.toContain('mail the result to the customer');
+
+  // The review shows what changed; approving exactly that makes it active again.
+  await workshop.getByTestId('ai-skill-review').click();
+  await expect(page.getByTestId('ai-skill-changes')).toContainText('mail the result to the customer');
+  await page.getByTestId('ai-skill-approve').click();
+  await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(0);
+  expect((await approvalsOf())[0].text).toContain('mail the result to the customer');
+});

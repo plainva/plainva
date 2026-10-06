@@ -163,6 +163,7 @@ describe("the settings model", () => {
     hasVault: true,
     consent: null,
     skills: { entries: [], omitted: [] },
+    skillTests: { records: [], running: null },
     ...patch,
   });
 

@@ -2,7 +2,7 @@ import { isSystemJunkName } from "../../vault/systemJunk.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
 import { toolByName } from "../tools.js";
 import { blockingProblems, parseSkillFile, type SkillDefinition, type SkillProblem } from "./skillFile.js";
-import { SKILL_MAIN_MAX_BYTES, SKILL_MAX_BYTES, SKILL_MAX_FILES } from "./sources.js";
+import { isSkillEntryLeftOut, SKILL_MAIN_MAX_BYTES, SKILL_MAX_BYTES, SKILL_MAX_FILES } from "./sources.js";
 
 /**
  * A skill from outside — a folder or an archive (`.zip`, `.skill`) the user
@@ -86,7 +86,12 @@ export function readSkillImport(entries: readonly ImportedFile[]): SkillImport {
   const main = mains[0]!;
   // The folder that holds SKILL.md is the skill, however deep the archive put it (a repository's zip: repo-main/skills/name/).
   const root = main.path.includes("/") ? main.path.slice(0, main.path.lastIndexOf("/") + 1) : "";
-  const own = files.filter((f) => f.path.startsWith(root)).map((f) => ({ path: f.path.slice(root.length), bytes: f.bytes }));
+  // Hidden entries inside the skill's folder are not the skill — the same rule as the scan's, so what is written is
+  // what the scan finds afterwards. The folders that lead to it may well be hidden (`.agent/skills/name/` in a vault's zip).
+  const own = files
+    .filter((f) => f.path.startsWith(root))
+    .map((f) => ({ path: f.path.slice(root.length), bytes: f.bytes }))
+    .filter((f) => !f.path.split("/").some(isSkillEntryLeftOut));
   const total = own.reduce((sum, f) => sum + f.bytes.length, 0);
   if (own.length > SKILL_MAX_FILES || total > SKILL_MAX_BYTES || main.bytes.length > SKILL_MAIN_MAX_BYTES) return empty("too-large");
 
