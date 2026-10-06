@@ -3,7 +3,7 @@ import { readFrontmatterPath } from "../../frontmatter-surgical.js";
 import type { EgressRecipient } from "../egressGate.js";
 import { readConversationRecord } from "../history.js";
 import { DEFAULT_AI_POLICY, effectivePolicy, notePolicyFrom, parsePolicyFile } from "../policy.js";
-import { manifestOf, scopeGrowth, widenScope } from "./manifest.js";
+import { approveToolData, manifestOf, scopeGrowth, toolDataApproved, widenScope } from "./manifest.js";
 import { buildContextPackage, sentStamps, type ContextBuildHost, type SituationInput } from "./package.js";
 import { mergeCandidates, rankCandidates, recencySignal, urgencySignal } from "./ranking.js";
 import { sectionAt, sectionOf } from "./sections.js";
@@ -236,6 +236,27 @@ describe("the send overview", () => {
     expect(scopeGrowth({ ...manifest, tools: ["search_vault", "read_note"] }, scope)).toEqual([{ kind: "tools", tools: ["read_note"] }]);
     expect(scopeGrowth({ ...manifest, estimatedTokens: scope.maxTokens * 4 + 5000 }, scope)[0]!.kind).toBe("size");
     expect(scopeGrowth({ ...manifest, local: true }, null)).toEqual([]);
+  });
+
+  it("keeps an approval given in a conversation for the recipient it was given for, and for no other", async () => {
+    const pack = await buildContextPackage({ question: "hourly rate", recipient: cloud, situation: situation(), candidates: [], pins: [] }, host());
+    const manifest = manifestOf(pack, { id: "p", label: "Provider", local: false }, "m", { tools: ["search_vault"] });
+    let scope = widenScope(null, manifest);
+    expect(toolDataApproved(scope, "mail", "p/m")).toBe(false);
+    expect(toolDataApproved(null, "mail", "p/m")).toBe(false);
+    scope = approveToolData(scope, "mail", "p/m");
+    expect(toolDataApproved(scope, "mail", "p/m")).toBe(true);
+    // Another model, another provider, another kind of data: each its own question.
+    expect([toolDataApproved(scope, "mail", "p/m2"), toolDataApproved(scope, "mail", "q/m"), toolDataApproved(scope, "calendar", "p/m")]).toEqual([false, false, false]);
+    // Approving twice changes nothing, and the next request's overview neither withdraws nor widens it.
+    expect(approveToolData(scope, "mail", "p/m")).toBe(scope);
+    const later = widenScope(scope, { ...manifest, model: "m2" });
+    expect(later.recipients).toEqual(["p/m", "p/m2"]);
+    expect([toolDataApproved(later, "mail", "p/m"), toolDataApproved(later, "mail", "p/m2")]).toEqual([true, false]);
+    // It is no growth of a request's scope: the overview has nothing to show for it.
+    expect(scopeGrowth(manifest, scope)).toEqual([]);
+    // Asked before any request was approved, it starts a scope of its own.
+    expect(approveToolData(null, "mail", "p/m")).toMatchObject({ recipients: [], toolData: ["mail>p/m"] });
   });
 
   it("names the internet where the conversation may use it, with the sites that need no asking — and asks when it is new", async () => {

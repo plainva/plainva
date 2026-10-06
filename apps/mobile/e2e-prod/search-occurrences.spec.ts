@@ -63,6 +63,13 @@ test("the phone's search field reaches the sort button", async ({ page, context 
     // The main job first, in the placeholder too.
     await expect(input).toHaveAttribute("placeholder", "Suchen oder > für Befehle");
     const sort = page.getByTestId("search-sort");
+    // Measured once the row has settled: read in the frame the search page mounts in, the field can still overlap the button.
+    await expect
+      .poll(async () => {
+        const [field0, sort0] = [await field.boundingBox(), await sort.boundingBox()];
+        return field0 && sort0 ? sort0.x - (field0.x + field0.width) : -1;
+      })
+      .toBeGreaterThanOrEqual(0);
     const [f, s, viewport] = [await field.boundingBox(), await sort.boundingBox(), page.viewportSize()];
     expect(f && s && viewport).toBeTruthy();
     // Up to the sort button, less the row's gap — not a few percent short of it.

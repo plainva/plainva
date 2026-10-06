@@ -67,6 +67,12 @@ export interface EgressManifest {
   estimatedCostUsd?: number;
   /** The tools the model may call in this run; each call is listed with the answer. */
   tools: string[];
+  /**
+   * Further tools the conversation reaches through its tool search (ADR
+   * 0019): not part of what was approved here — a kind of data among them
+   * that no overview named, like mail, asks at its first call.
+   */
+  more?: string[];
   /** The conversation may use the internet (plan KI-Harness P4): read pages, search. Each request asks while notes are in it. */
   web: boolean;
   /** Sites whose pages are read without asking when the address was named by the user or a source. */
@@ -114,7 +120,7 @@ export function manifestOf(
   pack: ContextPackage,
   provider: { id: string; label: string; local: boolean },
   model: string,
-  options: { tools: readonly string[]; web?: boolean; webHosts?: readonly string[]; priceUsdPerMillionInput?: number; questionChars?: number; instructions?: ManifestInstructions },
+  options: { tools: readonly string[]; more?: readonly string[]; web?: boolean; webHosts?: readonly string[]; priceUsdPerMillionInput?: number; questionChars?: number; instructions?: ManifestInstructions },
 ): EgressManifest {
   const sources: ManifestSource[] = pack.refs.map((ref) => ({
     path: ref.path,
@@ -152,6 +158,7 @@ export function manifestOf(
     estimatedTokens,
     ...(options.priceUsdPerMillionInput !== undefined ? { estimatedCostUsd: (estimatedTokens / 1_000_000) * options.priceUsdPerMillionInput } : {}),
     tools: [...options.tools],
+    ...(options.more?.length ? { more: [...options.more] } : {}),
     web: options.web ?? false,
     ...(options.web && options.webHosts?.length ? { webHosts: [...options.webHosts] } : {}),
     ...(options.instructions && (options.instructions.skill || options.instructions.catalog || options.instructions.vault) ? { instructions: options.instructions } : {}),
@@ -200,6 +207,27 @@ export interface ApprovedScope {
   sensitive?: SensitiveKind[];
   /** The vault's own instructions approved to go (plan KI-Harness P3), by id. */
   instructions?: string[];
+  /**
+   * Kinds of data a tool brings into a run that no overview named — mail,
+   * reached through the tool search (plan KI-Harness P4-4) —, each approved
+   * for one recipient: `mail>provider/model`. Asked in the conversation, at
+   * the first call; never implied by another recipient's approval.
+   */
+  toolData?: string[];
+}
+
+const toolDataKey = (dataClass: string, recipient: string) => `${dataClass}>${recipient}`;
+
+/** Whether this session approved a kind of tool data for a recipient (`providerId/model`). */
+export function toolDataApproved(scope: ApprovedScope | null, dataClass: string, recipient: string): boolean {
+  return scope?.toolData?.includes(toolDataKey(dataClass, recipient)) ?? false;
+}
+
+/** The scope after the user allowed a kind of tool data to go to a recipient. */
+export function approveToolData(scope: ApprovedScope | null, dataClass: string, recipient: string): ApprovedScope {
+  const base: ApprovedScope = scope ?? { recipients: [], dataClasses: [], folders: [], tools: [], web: false, maxTokens: 0 };
+  const key = toolDataKey(dataClass, recipient);
+  return base.toolData?.includes(key) ? base : { ...base, toolData: [...(base.toolData ?? []), key] };
 }
 
 export type ScopeGrowth =
@@ -257,5 +285,7 @@ export function widenScope(scope: ApprovedScope | null, manifest: EgressManifest
     maxTokens: Math.max(base.maxTokens, manifest.estimatedTokens),
     ...(vaultInstructionIds(manifest.instructions).length || base.instructions ? { instructions: union(base.instructions ?? [], vaultInstructionIds(manifest.instructions)) } : {}),
     ...(base.sensitive || manifest.sensitive ? { sensitive: union(base.sensitive ?? [], manifest.sensitive ?? []) } : {}),
+    // Approvals given in a conversation stay: another request's overview neither grants nor withdraws them.
+    ...(base.toolData ? { toolData: base.toolData } : {}),
   };
 }

@@ -1,12 +1,15 @@
 import {
+  findToolsText,
   gateDecision,
   isAiHiddenPath,
   isCloudRecipient,
+  MAIL_TOOL_NAMES,
   outlineOf,
   redactSensitive,
   sectionOf,
   sensitiveFindings,
   SITUATION_SOURCE,
+  toolByName,
   VaultQueryService,
   withholdDeniedLinks,
   withholdPlaces,
@@ -23,11 +26,14 @@ import { backlinkContexts, contextChain, groupBacklinks, type BacklinkOccurrence
 import { addDaysToKey, buildPlanner, type PlannerRow } from "../lib/taskPlanner";
 import { stripFrontmatter } from "../services/docMeta";
 import { notePropertiesOf, type SituationEventInput } from "./aiSituation";
+import { eventHandle, eventLine, eventReport, parseEventHandle } from "./eventDetails";
+import { mailToolOutcome, type MailSource } from "./mailTools";
 
 /**
  * The vault tools of the chat (ADR 0019), one implementation for both shells:
- * search, read, outline, databases, tasks, links, recent notes, appointments
- * and app navigation. All of them read; none of them changes anything.
+ * search, read, outline, databases, tasks, links, recent notes, appointments,
+ * mail, the tool search and app navigation. All of them read or show; none
+ * of them changes anything.
  *
  * Every result passes the hard gate first. A note the policy keeps from this
  * recipient is answered exactly like a note that does not exist — so not even
@@ -68,6 +74,18 @@ export interface VaultToolDeps {
   queryDatabase?(config: unknown): Promise<unknown[]>;
   /** The property the vault rates its days in; it stays behind like the usual mood names. */
   moodKey?(): Promise<string | null>;
+  /** The vault's mail accounts (plan KI-Harness P4-4); absent in a shell without mail. */
+  mail?: MailSource;
+}
+
+/**
+ * What the tool search of a conversation lists (ADR 0019): the names of its
+ * further tools, and — while a skill the model loaded narrows the run — the
+ * tools that skill leaves.
+ */
+export interface FurtherTools {
+  more: readonly string[];
+  narrowed?(): readonly string[] | null;
 }
 
 /**
@@ -92,10 +110,29 @@ export const CHAT_TOOL_NAMES = [
   "graph_neighborhood",
   "get_recent",
   "get_calendar",
+  "get_event",
   "run_command",
 ] as const;
 
+/**
+ * The further tools a shell can serve (ADR 0019): reached through the tool
+ * search, never part of a conversation's own list. Mail, where the shell has
+ * a mail client — whether an account is connected is asked when it is used.
+ */
+export function furtherToolNames(deps: Pick<VaultToolDeps, "mail">): string[] {
+  return deps.mail ? [...MAIL_TOOL_NAMES] : [];
+}
+
+/**
+ * Every tool a skill can leave a run: a conversation's own, and the further
+ * ones it reaches. What the workshop holds a skill against when it says what
+ * the skill may do — so a skill that names a mail tool, or names none and
+ * leaves everything, is approved with mail in view.
+ */
+export const SKILL_TOOL_NAMES: readonly string[] = [...CHAT_TOOL_NAMES, ...MAIL_TOOL_NAMES];
+
 const NOT_FOUND = "No note is available at this path.";
+const NO_EVENT = "No appointment with this handle. get_calendar lists appointments with their handles.";
 /**
  * An excerpt is cut at arbitrary places: a link cut in half ("…as in [[Finance/Sal")
  * is no link the gate can recognise, yet it carries part of a note's name. The
@@ -169,7 +206,7 @@ function dayStart(key: string): Date | null {
  * the model reads from them itself goes redacted as well; the situation's
  * choice covers tasks and appointments.
  */
-export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope, redact?: ReadonlySet<string>): ToolExecutor {
+export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope, redact?: ReadonlySet<string>, further?: FurtherTools): ToolExecutor {
   const cloud = isCloudRecipient(run.recipient);
   const decisions = new Map<string, boolean>();
   const allowed = async (path: string, text?: string): Promise<boolean> => {
@@ -410,15 +447,39 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           if ((end.getTime() - from.getTime()) / 86_400_000 > CALENDAR_MAX_DAYS + 0.5) return { content: `At most ${CALENDAR_MAX_DAYS} days per call.`, isError: true };
           const limit = Number(a.limit) || 50;
           const events = (await deps.events(from, end)).filter((e) => e.start < end && (e.end ?? e.start) >= from).sort((x, y) => x.start.getTime() - y.start.getTime());
-          const lines: string[] = [];
-          for (const e of events.slice(0, limit)) {
-            const when = e.allDay ? `${dayOf(e.start)}, all day` : `${dayOf(e.start)} ${clockOf(e.start)}${e.end ? `–${dayOf(e.end) === dayOf(e.start) ? clockOf(e.end) : `${dayOf(e.end)} ${clockOf(e.end)}`}` : ""}`;
-            lines.push(`- ${when}: ${e.title || "(no title)"}`);
-          }
+          // Each line is capped and carries no live address: whoever sends an invitation writes its title and its place.
+          const lines = events.slice(0, limit).map((e) => eventLine(e, a.details === true));
           // Appointment titles are the user's words like a note's: the same text rules apply.
           const listed = lines.length ? await withhold(lines.join("\n"), "", true) : "";
           const more = events.length > limit ? `\n\n${events.length - limit} more; ask for a shorter range.` : "";
-          return result(tool.name, listed ? `${listed}${more}` : "No appointments in this range.");
+          return { content: listed ? `${listed}${more}` : "No appointments in this range.", origin: { kind: "calendar" } };
+        }
+        case "get_event": {
+          if (!deps.events) return unavailable(tool);
+          const at = typeof a.event === "string" ? parseEventHandle(a.event) : null;
+          const from = at ? dayStart(at.day) : null;
+          if (!at || !from) return { content: NO_EVENT, isError: true };
+          const end = dayStart(addDaysToKey(at.day, 1))!;
+          const event = (await deps.events(from, end)).find((e) => eventHandle(e) === `${at.day}/${at.id}`);
+          if (!event) return { content: NO_EVENT, isError: true };
+          // The description is not this model's to read: it is handed over, and a reader without tools reports on it.
+          const report = eventReport(event, typeof a.question === "string" ? a.question : "");
+          return { content: await withhold(report.lines.join("\n"), "", true), origin: { kind: "calendar" }, ...(report.quarantine ? { quarantine: report.quarantine } : {}) };
+        }
+        case "search_mail":
+        case "read_mail":
+          return (await mailToolOutcome(deps.mail, tool, a)) ?? unavailable(tool);
+        case "find_tools": {
+          // While a loaded skill narrows the run, the search lists only what that skill leaves.
+          const narrowed = further?.narrowed?.() ?? null;
+          const left = (name: string) => !narrowed || narrowed.includes(name);
+          const pool = (further?.more ?? []).filter(left).flatMap((name) => toolByName(name) ?? []);
+          const mail = pool.some((t) => MAIL_TOOL_NAMES.includes(t.name));
+          const connected = mail && deps.mail ? (await deps.mail.accounts().catch(() => [])).length > 0 : false;
+          const usable = pool.filter((t) => connected || !MAIL_TOOL_NAMES.includes(t.name));
+          const commands = left("run_command") ? deps.commands().map((c) => ({ id: c.id, label: c.label })) : [];
+          const note = mail && !connected ? "\n\nNo mail account is connected in this vault, so there are no mail tools." : "";
+          return { content: `${findToolsText(String(a.query ?? ""), usable, commands)}${note}` };
         }
         case "open_in_app": {
           // An outside client shows the user what it is talking about: the note opens in Plainva, through the same gate as a read.

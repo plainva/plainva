@@ -33,8 +33,13 @@
       "get_calendar": "Liest Termine",
       "open_in_app": "Öffnet eine Notiz in Plainva",
       "use_skill": "Lädt einen Skill",
-      "fetch_url": "Webseite lesen",
-      "web_search": "Im Web suchen"
+      "fetch_url": "Liest eine Webseite",
+      "web_search": "Sucht im Web",
+      "get_event": "Liest einen Termin",
+      "search_mail": "Durchsucht E-Mails",
+      "read_mail": "Liest eine E-Mail",
+      "find_tools": "Sucht weitere Werkzeuge",
+      "call_tool": "Nutzt ein weiteres Werkzeug"
     },
     "stopped": {
       "cancelled": "Angehalten.",
@@ -305,7 +310,10 @@
       "webHosts": "ohne Nachfrage, für Adressen, die Du oder eine Quelle genannt haben: {{hosts}}",
       "webPages": "Im Web angefragt",
       "webNotRead": "nicht gelesen",
-      "webSearches": "Gesucht nach"
+      "webSearches": "Gesucht nach",
+      "further": "Weitere Werkzeuge",
+      "furtherMail": "E-Mail — fragt, bevor sie zum ersten Mal gelesen wird",
+      "reading": "E-Mail und Kalender"
     },
     "lens": {
       "open": "Kontext einsehen",
@@ -473,6 +481,29 @@
         "siteInvalid": "Das ist keine Website im öffentlichen Internet.",
         "removeSite": "{{host}} entfernen"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "E-Mails lesen?",
+        "what": "Aus Deinen E-Mails",
+        "heads": "Absender, Betreff und Datum der gefundenen Nachrichten",
+        "text": "Text einer Nachricht",
+        "textProvider": "liest {{provider}}, in einer eigenen Anfrage ohne Werkzeuge",
+        "textDevice": "liest {{reader}} auf diesem Gerät — an {{provider}} geht nur der Bericht",
+        "scope": "Gilt für {{provider}}, bis Du Plainva beendest. In Deinem Postfach wird nichts geändert und nichts als gelesen markiert.",
+        "allow": "Erlauben",
+        "deny": "Nicht erlauben"
+      }
+    },
+    "reading": {
+      "searches_one": "{{count}} E-Mail-Suche",
+      "searches_other": "{{count}} E-Mail-Suchen",
+      "messages_one": "{{count}} E-Mail gelesen",
+      "messages_other": "{{count}} E-Mails gelesen",
+      "descriptions_one": "{{count}} Terminbeschreibung gelesen",
+      "descriptions_other": "{{count}} Terminbeschreibungen gelesen",
+      "byDevice": "Den Text hat {{reader}} auf diesem Gerät gelesen; weitergegangen ist nur der Bericht.",
+      "byProvider": "Den Text hat {{provider}} gelesen, in eigenen Anfragen ohne Werkzeuge."
     },
     "lint": {
       "defused": "Neue Internetadressen sind entschärft: lesbar, aber kein Link."

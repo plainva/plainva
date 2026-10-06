@@ -32,7 +32,12 @@
       "open_in_app": "正在Plainva中打开笔记",
       "use_skill": "正在加载技能",
       "fetch_url": "正在读取网页",
-      "web_search": "正在搜索网络"
+      "web_search": "正在搜索网络",
+      "get_event": "正在读取一个日程",
+      "search_mail": "正在搜索邮件",
+      "read_mail": "正在读取一封邮件",
+      "find_tools": "正在查找其他工具",
+      "call_tool": "正在使用另一个工具"
     },
     "stopped": {
       "cancelled": "已停止。",
@@ -295,7 +300,10 @@
       "webHosts": "无需询问，适用于你或某个来源提到过的地址：{{hosts}}",
       "webPages": "在网络上请求的内容",
       "webNotRead": "未读取",
-      "webSearches": "搜索过的内容"
+      "webSearches": "搜索过的内容",
+      "further": "其他工具",
+      "furtherMail": "邮件——首次读取前会先询问",
+      "reading": "邮件和日历"
     },
     "lens": {
       "open": "查看上下文",
@@ -457,6 +465,26 @@
         "siteInvalid": "这不是公共互联网上的网站。",
         "removeSite": "移除{{host}}"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "读取你的邮件？",
+        "what": "来自你的邮件",
+        "heads": "找到的邮件的发件人、主题和日期",
+        "text": "邮件正文",
+        "textProvider": "由{{provider}}在单独的、不带工具的请求中读取",
+        "textDevice": "由{{reader}}在此设备上读取——只有它写的报告会发送给{{provider}}",
+        "scope": "适用于{{provider}}，直到你关闭Plainva。不会更改你邮箱中的任何内容，也不会把邮件标记为已读。",
+        "allow": "允许",
+        "deny": "不允许"
+      }
+    },
+    "reading": {
+      "searches_other": "{{count}}次邮件搜索",
+      "messages_other": "已读取{{count}}封邮件",
+      "descriptions_other": "已读取{{count}}条日程描述",
+      "byDevice": "文本由{{reader}}在此设备上读取，继续传递的只有它写的报告。",
+      "byProvider": "文本由{{provider}}在单独的、不带工具的请求中读取。"
     },
     "lint": {
       "defused": "新出现的网址已被处理为无效：可以阅读，但不是链接。"

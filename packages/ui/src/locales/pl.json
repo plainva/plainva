@@ -38,7 +38,12 @@
       "open_in_app": "Otwieranie notatki w Plainva",
       "use_skill": "Wczytywanie umiejętności",
       "fetch_url": "Odczytywanie strony internetowej",
-      "web_search": "Przeszukiwanie sieci"
+      "web_search": "Przeszukiwanie sieci",
+      "get_event": "Odczytywanie spotkania",
+      "search_mail": "Przeszukiwanie e-maili",
+      "read_mail": "Odczytywanie wiadomości",
+      "find_tools": "Szukanie dodatkowych narzędzi",
+      "call_tool": "Korzystanie z dodatkowego narzędzia"
     },
     "stopped": {
       "cancelled": "Zatrzymano.",
@@ -325,7 +330,10 @@
       "webHosts": "bez pytania, dla adresów wskazanych przez Ciebie lub przez źródło: {{hosts}}",
       "webPages": "Zapytania do sieci",
       "webNotRead": "nie odczytano",
-      "webSearches": "Szukane frazy"
+      "webSearches": "Szukane frazy",
+      "further": "Dodatkowe narzędzia",
+      "furtherMail": "e-mail — pyta przed pierwszym odczytem",
+      "reading": "E-mail i kalendarz"
     },
     "lens": {
       "open": "Pokaż kontekst",
@@ -505,6 +513,35 @@
         "siteInvalid": "To nie jest witryna w publicznym internecie.",
         "removeSite": "Usuń {{host}}"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "Czytać Twoje e-maile?",
+        "what": "Z Twoich e-maili",
+        "heads": "nadawca, temat i data znalezionych wiadomości",
+        "text": "Tekst wiadomości",
+        "textProvider": "czyta go {{provider}}, w osobnym zapytaniu, bez narzędzi",
+        "textDevice": "czyta go {{reader}} na tym urządzeniu — do {{provider}} trafia tylko jego raport",
+        "scope": "Obowiązuje dla {{provider}} do zamknięcia Plainvy. W Twojej skrzynce pocztowej nic nie jest zmieniane ani oznaczane jako przeczytane.",
+        "allow": "Zezwól",
+        "deny": "Nie zezwalaj"
+      }
+    },
+    "reading": {
+      "searches_one": "{{count}} wyszukiwanie w e-mailach",
+      "searches_few": "{{count}} wyszukiwania w e-mailach",
+      "searches_many": "{{count}} wyszukiwań w e-mailach",
+      "searches_other": "{{count}} wyszukiwania w e-mailach",
+      "messages_one": "{{count}} przeczytana wiadomość",
+      "messages_few": "{{count}} przeczytane wiadomości",
+      "messages_many": "{{count}} przeczytanych wiadomości",
+      "messages_other": "{{count}} przeczytanej wiadomości",
+      "descriptions_one": "{{count}} przeczytany opis spotkania",
+      "descriptions_few": "{{count}} przeczytane opisy spotkań",
+      "descriptions_many": "{{count}} przeczytanych opisów spotkań",
+      "descriptions_other": "{{count}} przeczytanego opisu spotkania",
+      "byDevice": "Tekst odczytał {{reader}} na tym urządzeniu; dalej poszedł tylko jego raport.",
+      "byProvider": "Tekst odczytał {{provider}}, w osobnych zapytaniach, bez narzędzi."
     },
     "lint": {
       "defused": "Nowe adresy internetowe zostały unieszkodliwione: da się je przeczytać, ale nie są linkami."

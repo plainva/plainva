@@ -1,4 +1,4 @@
-import { EFFECT_DECLINED, type ConversationRecord, type RunMeta } from "@plainva/core";
+import { calledToolName, EFFECT_DECLINED, type ConversationRecord, type RunMeta } from "@plainva/core";
 
 /**
  * What a reader sees of a conversation (P1a): the user's words, the answers,
@@ -62,7 +62,8 @@ export function transcriptOf(record: ConversationRecord): TranscriptItem[] {
           steps = { kind: "steps", key: `s${index}`, steps: [] };
           items.push(steps);
         }
-        const step = { id: part.id, name: part.name, state: "open" as StepState };
+        // A call through the dispatcher is shown as the tool it meant (ADR 0019).
+        const step = { id: part.id, name: calledToolName(part), state: "open" as StepState };
         steps.steps.push(step);
         stepIndex.set(part.id, step);
       }

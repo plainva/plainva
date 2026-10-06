@@ -3,6 +3,7 @@ import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import i18n from "@plainva/ui/i18n";
 import {
   aiDefaultSettings,
+  aiNavigationCommands,
   AiSession,
   aiVaultKey,
   calendarDay,
@@ -26,9 +27,10 @@ import {
   situationEvents,
   situationFrom,
   startableSkills,
+  vaultMailSource,
   withCloudDenied,
   type AiFileStore,
-  type AiNavigationCommand,
+  type AppCommand,
   type AreaOrder,
   type VaultPolicyHost,
   GRAPH_TRAIL_EVENT,
@@ -213,18 +215,13 @@ export interface MobileAiNavigation {
   openNote: (path: string) => void;
   /** The AI settings screen (the conversation's "set up" leads there). */
   openSettings?: () => void;
-  /** Named areas the assistant may open; absent ones are not offered. */
-  areas: Partial<Record<"tasks" | "calendar" | "journal" | "graph" | "comments" | "mail", () => void>>;
+  /**
+   * The palette's commands as the shell built them (plan KI-Harness P4-4):
+   * what `run_command` can do is what the command registry holds on this
+   * shell, never a list of its own.
+   */
+  commands: readonly AppCommand[];
 }
-
-const AREA_COMMANDS: Record<keyof MobileAiNavigation["areas"], [id: string, label: string]> = {
-  tasks: ["open-tasks", "Open the task list"],
-  calendar: ["open-calendar", "Open the calendar"],
-  journal: ["open-journal", "Open the journal"],
-  graph: ["open-graph", "Open the graph view"],
-  comments: ["open-comments", "Open the open comments"],
-  mail: ["open-mail", "Open mail"],
-};
 
 /**
  * The shell side in one hook: attaches the open vault, follows the sheet
@@ -263,10 +260,10 @@ export function useMobileAi(vault: MobileVault | null) {
     return () => s.setReveal(null);
   }, [s]);
 
-  const navRef = useRef<MobileAiNavigation>({ openNote: () => undefined, areas: {} });
+  const navRef = useRef<MobileAiNavigation>({ openNote: () => undefined, commands: [] });
   // The AI's trail (plan KI-Harness P2b-5): the graph opens for it, and the graph screen takes the trail.
   useEffect(() => {
-    const onTrail = () => navRef.current.areas.graph?.();
+    const onTrail = () => navRef.current.commands.find((command) => command.id === "open-graph")?.run();
     window.addEventListener(GRAPH_TRAIL_EVENT, onTrail);
     return () => window.removeEventListener(GRAPH_TRAIL_EVENT, onTrail);
   }, []);
@@ -295,26 +292,14 @@ export function useMobileAi(vault: MobileVault | null) {
       resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from),
       encrypted: () => vault.workspaceRuntime !== null,
     });
-    const commands = (): AiNavigationCommand[] => {
-      const list: AiNavigationCommand[] = [];
-      for (const [key, [id, label]] of Object.entries(AREA_COMMANDS) as Array<[keyof MobileAiNavigation["areas"], [string, string]]>) {
-        const run = navRef.current.areas[key];
-        if (run) list.push({ id, label, run: () => (run(), true) });
-      }
-      list.push({
-        id: "open-note",
-        label: "Open a note; args: { path: vault-relative path }",
-        run: async (args) => {
-          const target = typeof args?.path === "string" ? args.path : "";
-          // Only a note that exists: an unknown path would open an empty editor.
-          const resolved = target ? await vaultOps.resolveWikiTarget(vault, target, "") : null;
-          if (!resolved) return false;
-          navRef.current.openNote(resolved);
-          return true;
-        },
+    // What `run_command` can do: the palette's commands that show something, and the three that take a note or a day.
+    const commands = () =>
+      aiNavigationCommands({
+        commands: () => navRef.current.commands,
+        openNote: (path) => navRef.current.openNote(path),
+        resolveNote: (target) => vaultOps.resolveWikiTarget(vault, target, ""),
+        neighbors: (path, limit) => query.getLinkNeighbors(path, limit),
       });
-      return list;
-    };
     /** Checkbox tasks and the task database, as every task view reads them. */
     const taskRows = async () => {
       const db = getMobileSettings().taskDatabase.trim();
@@ -406,6 +391,8 @@ export function useMobileAi(vault: MobileVault | null) {
         queryDatabase: (config) => query.queryDatabaseFiles(config),
         events,
         moodKey,
+        // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
+        mail: vaultMailSource(vault.vaultId, () => vault.db),
       },
     });
     currentPolicy = vaultPolicy;

@@ -45,6 +45,8 @@ Een zesde plek, **Embeddings**, bevat het model waarmee zoeken op betekenis reke
 
 De notitie die je open hebt staan, gaat automatisch mee; verwijder haar met het kruisje ✕ uit de context als je wilt. **Notitie vastzetten…** voegt nog meer notities toe. De assistent kan ook zelf dingen opzoeken: hij doorzoekt de vault, leest notities en de secties ervan, databases, backlinks en gelinkte notities, somt taken, afspraken en de onlangs geopende of gewijzigde notities op en opent notities en weergaven. Hij kan niets veranderen, aanmaken of verwijderen.
 
+De assistent kan je ook dingen laten zien: een notitie openen bij een kop, een notitie in de graaf tonen, de kalender op een dag zetten, weergaven openen, de zijbalken tonen en verbergen. Hij gebruikt daarvoor de opdrachten van het opdrachtenpalet — en daarvan alleen die iets tonen: wat iets aanmaakt, wijzigt, verwijdert, exporteert of een venster opent, kan hij niet in gang zetten.
+
 Elk gesprek begint met de regel “Antwoorden worden geschreven door een AI — ⟨model⟩ via ⟨provider⟩”. Onder elk antwoord staat een regel die zegt wat waarheen is verzonden: hoeveel notities, ongeveer hoeveel tokens en — waar de provider prijzen publiceert — de geschatte kosten. **Stoppen** beëindigt een antwoord op elk moment.
 
 Een link in een antwoord opent pas nadat je het adres ervan hebt bevestigd, en afbeeldingen in antwoorden worden nooit geladen.
@@ -131,6 +133,16 @@ De assistent kan internet pas gebruiken als jij dat toestaat — en wel drie kee
 **Notities die erbuiten blijven.** Een notitie of map met **Webtoegang: nooit** (zie Privacyregels hieronder) bestaat niet voor een gesprek dat internet mag gebruiken: niet in de context, niet voor de hulpmiddelen, en links ernaartoe worden achtergehouden.
 
 Een link in een antwoord waarvan het model het adres zelf heeft samengesteld, is gemarkeerd, en de vraag voordat hij opent, zegt dat. Komt er helemaal geen antwoord terug — geen verbinding, de provider reageert niet —, dan toont het gesprek in plaats daarvan de notities die het best bij je vraag passen.
+
+## E-mail en afspraken
+
+**Afspraken.** De assistent somt afspraken uit je verbonden agenda's op — dag, tijd en titel, op verzoek ook de locatie en wie er deelneemt — en leest één afspraak in detail: de organisator, de deelnemers met hun antwoorden en jouw eigen antwoord. De link van een onlinevergadering krijgt hij nooit; die blijft in de agenda.
+
+**E-mail.** Zijn er in deze vault mailaccounts verbonden, dan kan de assistent berichten zoeken en lezen. E-mail hoort niet bij de hulpmiddelen waarmee een gesprek begint: de assistent zoekt er pas naar wanneer je vraag dat nodig heeft, en bij de eerste toegang vraagt Plainva — **Je e-mail lezen?** **Toestaan** geldt voor deze provider totdat je Plainva sluit; een ander model of een andere provider vraagt opnieuw. **Niet toestaan** laat de toegang achterwege, en de assistent gaat zonder verder. Een model op dit apparaat vraagt niet, omdat er voor dat model niets het apparaat verlaat.
+
+**Wat de assistent ervan leest.** Van een zoekopdracht ziet hij de datum, de afzender en het onderwerp van de berichten — nooit hun tekst. De tekst van een bericht en de beschrijving van een afspraak leest hij nooit zelf: anderen hebben ze geschreven, en wie een e-mail of een uitnodiging schrijft, kan die precies voor deze lezer schrijven. Een tweede lezer zonder enig hulpmiddel leest ze en schrijft een kort verslag — een samenvatting, uitspraken met de passage waarop ze berusten, en links die er echt in staan. Is onder **Modellen en profielen** een model op dit apparaat ingesteld als **Lokaal**, dan is dat model die lezer, en verlaat de tekst zelf het apparaat niet; alleen het verslag gaat naar de provider. Anders leest de provider van het gesprek, in een apart verzoek zonder hulpmiddelen. De vraag zegt je vooraf wie er leest.
+
+**Wat niet verandert.** De assistent leest alleen: een bericht dat hij las, blijft ongelezen, er wordt niets verplaatst, beantwoord of verwijderd, en bijlagen opent hij niet — hij noemt alleen hun namen. Onder het antwoord zie je hoeveel berichten zijn gelezen, en de regel eronder zegt wie de tekst las.
 
 ## Privacyregels
 

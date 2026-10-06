@@ -4,7 +4,7 @@ import { retryDelayMs } from "../sync/httpRetry.js";
 import type { ProviderEndpoint } from "./providers.js";
 import { isEffectTool, ruleOfTwo, runTraits, type RunContextTraits } from "./ruleOfTwo.js";
 import type { StreamEvent } from "./streams.js";
-import { parseToolInput, toolByName, type ToolManifest } from "./tools.js";
+import { DISPATCH_TOOL, dispatchedArgs, FIND_TOOL, META_TOOL_NAMES, parseToolInput, toolByName, type ToolManifest } from "./tools.js";
 import { fenceUntrusted, payload, type PayloadOrigin } from "./trust.js";
 
 /**
@@ -19,13 +19,47 @@ import { fenceUntrusted, payload, type PayloadOrigin } from "./trust.js";
  * A run never ends with an unanswered tool call: whatever stops it, every
  * call of the last assistant turn gets a result ("not run: …" for those that
  * did not run), so the conversation stays valid for the next message.
+ *
+ * Further tools (ADR 0019): a conversation's tool list is fixed, so a tool it
+ * names in `more` is called through `call_tool`. The call is resolved here,
+ * before anything else looks at it — its arguments are validated against the
+ * tool it names, and every rule that holds for a tool called directly (the
+ * Rule of Two, a skill's narrowing, the approval of an outside effect) meets
+ * that tool and not the dispatcher. The dispatcher is a spelling, never a way
+ * around a rule.
  */
+
+/**
+ * Raw third-party text a tool hands over instead of showing it to the model
+ * (plan §13.4, the quarantined processor): a message's body, an appointment's
+ * description. A reader without tools reports on it, further out in the
+ * executor chain; a chain that has no such reader drops it. It never reaches
+ * a conversation and never leaves the run loop in an event.
+ */
+export interface QuarantinedText {
+  title: string;
+  text: string;
+  /** Addresses the text names, each once: only these can come back in a report. */
+  links: { text: string; url: string }[];
+  /** What the caller wants to know of it. */
+  question: string;
+  origin: PayloadOrigin;
+  /** The text is the beginning of something longer. */
+  truncated?: boolean;
+}
 
 export interface ToolOutcome {
   content: string;
   isError?: boolean;
   /** Where the content came from; tier 3 results are fenced as data. */
   origin?: PayloadOrigin;
+  /**
+   * The user was asked and said no — to a kind of data this session had not
+   * approved yet, for instance. An answer, not a tool that failed: it does not
+   * count towards the circuit breaker.
+   */
+  declined?: boolean;
+  quarantine?: QuarantinedText;
 }
 
 export interface ToolExecutor {
@@ -145,12 +179,42 @@ function notRun(call: ToolCallPart, why: string): ToolResultPart {
   return { type: "tool_result", callId: call.id, name: call.name, content: `Not run: ${why}.`, isError: true };
 }
 
+export type ResolvedCall = { tool: ToolManifest; args: unknown; dispatched: boolean } | { error: string };
+
+/**
+ * The tool a call means: one of the conversation's own, or — through
+ * `call_tool` — one of its further tools. Anything else is answered with what
+ * the model can do instead, never run.
+ */
+export function resolveToolCall(call: Pick<ToolCallPart, "name" | "args">, tools: readonly ToolManifest[], more: readonly ToolManifest[]): ResolvedCall {
+  const own = tools.find((t) => t.name === call.name);
+  if (!own) {
+    // A further tool called by its own name: say how it is called.
+    if (more.some((t) => t.name === call.name) && tools.some((t) => t.name === DISPATCH_TOOL)) {
+      return { error: `${call.name} is called through ${DISPATCH_TOOL}, with its name and its arguments as ${DISPATCH_TOOL}'s arguments.` };
+    }
+    return { error: `Unknown tool "${call.name}". Available: ${tools.map((t) => t.name).join(", ")}.` };
+  }
+  if (own.name !== DISPATCH_TOOL) return { tool: own, args: call.args, dispatched: false };
+  const parsed = parseToolInput(own, call.args);
+  if (!parsed.ok) return { error: `Invalid arguments: ${parsed.error}` };
+  const name = (parsed.value as { name: string }).name.trim();
+  // One of the conversation's own tools named here runs as well: the same tool, the same rules.
+  const target = more.find((t) => t.name === name) ?? tools.find((t) => t.name === name && !META_TOOL_NAMES.includes(t.name));
+  if (!target) return { error: `No tool "${name}" can be called here. ${tools.some((t) => t.name === FIND_TOOL) ? `${FIND_TOOL} lists what there is.` : `Available: ${tools.map((t) => t.name).join(", ")}.`}` };
+  return { tool: target, args: dispatchedArgs(parsed.value), dispatched: true };
+}
+
 export async function runAgent(input: RunInput): Promise<RunResult> {
   const limits = input.limits ?? DEFAULT_RUN_LIMITS;
   const now = input.now ?? (() => new Date().toISOString());
   const newId = input.newRequestId ?? (() => `ai-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
-  const tools = input.conversation.tools.map((name) => toolByName(name)).filter((t): t is ToolManifest => Boolean(t));
-  const verdict = ruleOfTwo(runTraits(tools, input.context));
+  const known = (names: readonly string[] | undefined) => (names ?? []).map((name) => toolByName(name)).filter((t): t is ToolManifest => Boolean(t));
+  const tools = known(input.conversation.tools);
+  // Further tools are only reachable where the dispatcher is one of the conversation's tools.
+  const more = tools.some((t) => t.name === DISPATCH_TOOL) ? known(input.conversation.more).filter((t) => !tools.includes(t)) : [];
+  // What the run can reach decides its class, however a tool is spelled.
+  const verdict = ruleOfTwo(runTraits([...tools, ...more], input.context));
   const usage: RunUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, toolCalls: 0, steps: 0 };
   const warned = new Set<keyof RunLimits>();
   const seenCalls = new Map<string, number>();
@@ -265,36 +329,52 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
       usage.toolCalls++;
       warn("maxToolCalls", usage.toolCalls);
 
-      input.onEvent?.({ type: "tool_start", call });
+      const resolved = resolveToolCall(call, tools, more);
+      // What ran, as everything outside the wire sees it: a dispatched call under the name and arguments of its tool.
+      const meant: ToolCallPart = "tool" in resolved && resolved.dispatched ? { ...call, name: resolved.tool.name, args: resolved.args } : call;
+      input.onEvent?.({ type: "tool_start", call: meant });
       const started = Date.now();
-      const tool = tools.find((t) => t.name === call.name);
       let outcome: ToolOutcome;
       // A "no" from the user is an answer, not a tool that failed: it does not count towards the circuit breaker.
       let declined = false;
-      if (!tool) {
-        outcome = { content: `Unknown tool "${call.name}". Available: ${tools.map((t) => t.name).join(", ")}.`, isError: true };
+      if ("error" in resolved) {
+        outcome = { content: resolved.error, isError: true };
       } else {
-        const parsed = parseToolInput(tool, call.args);
+        const tool = resolved.tool;
+        const parsed = parseToolInput(tool, resolved.args);
         if (!parsed.ok) {
-          outcome = { content: `Invalid arguments: ${parsed.error}`, isError: true };
-        } else if (isEffectTool(tool) && verdict.approvalPerEffect && !(await input.approveEffect?.({ ...call, args: parsed.value }, tool))) {
+          outcome = { content: `Invalid arguments${resolved.dispatched ? ` for ${tool.name}` : ""}: ${parsed.error}`, isError: true };
+        } else if (isEffectTool(tool) && verdict.approvalPerEffect && !(await input.approveEffect?.({ ...meant, args: parsed.value }, tool))) {
           declined = true;
           outcome = { content: EFFECT_DECLINED, isError: true };
         } else {
           try {
-            outcome = await input.executor.execute(tool, parsed.value, call, input.signal);
+            outcome = await input.executor.execute(tool, parsed.value, meant, input.signal);
           } catch (error) {
             outcome = { content: `The tool failed: ${error instanceof Error ? error.message : String(error)}`, isError: true };
           }
         }
       }
+      // Text handed over for a reader in quarantine stays behind here, whoever did or did not read it.
+      if (outcome.quarantine) {
+        outcome = { ...outcome };
+        delete outcome.quarantine;
+      }
+      if (outcome.declined) declined = true;
       if (!declined) failuresInRow = outcome.isError ? failuresInRow + 1 : 0;
-      input.onEvent?.({ type: "tool_done", call, outcome, ms: Date.now() - started });
+      input.onEvent?.({ type: "tool_done", call: meant, outcome, ms: Date.now() - started });
       const content = outcome.origin && !outcome.isError ? fenceUntrusted(payload(outcome.content, outcome.origin)) : outcome.content;
-      results.push({ type: "tool_result", callId: call.id, name: call.name, content, ...(outcome.isError ? { isError: true } : {}) });
+      results.push({
+        type: "tool_result",
+        callId: call.id,
+        name: call.name,
+        content,
+        ...(outcome.isError ? { isError: true } : {}),
+        ...(meant.name !== call.name ? { tool: meant.name } : {}),
+      });
       if (failuresInRow >= 3) {
         answerAll(calls, results, "three tools in a row failed");
-        return { conversation, stop: { kind: "circuit_breaker", tool: call.name }, usage };
+        return { conversation, stop: { kind: "circuit_breaker", tool: meant.name }, usage };
       }
     }
     answerAll(calls, results, "");

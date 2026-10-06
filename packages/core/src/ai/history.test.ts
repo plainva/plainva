@@ -88,6 +88,25 @@ describe("conversation records", () => {
     expect(readConversationRecord(tampered)!.runs[0]!.web).toBeUndefined();
   });
 
+  it("keeps what a run read of mail and appointments as numbers and who read, and its further tools", () => {
+    const r = record();
+    const reading = { mailSearches: 2, messages: 1, descriptions: 1, reader: "device" as const, readerModel: "granite3.3:8b", inputTokens: 900, outputTokens: 120 };
+    r.runs[0] = { ...r.runs[0]!, reading };
+    r.conversation = appendTurn(startConversation("c1", "system", ["search_vault", "find_tools", "call_tool"], ["search_mail", "read_mail"]), { role: "user", parts: [{ type: "text", text: "Mail?" }], at });
+    const read = readConversationRecord(JSON.parse(JSON.stringify(r)))!;
+    expect(read.runs[0]!.reading).toEqual(reading);
+    expect(read.conversation.more).toEqual(["search_mail", "read_mail"]);
+
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].reading = { mailSearches: "many", messages: 3, descriptions: -1, reader: "somewhere", readerModel: 7, subject: "never kept", inputTokens: 5, outputTokens: null };
+    expect(readConversationRecord(tampered)!.runs[0]!.reading).toEqual({ mailSearches: 0, messages: 3, descriptions: 0, reader: "provider", inputTokens: 5, outputTokens: 0 });
+    // Nothing read is no record at all.
+    tampered.runs[0].reading = { mailSearches: 0, messages: 0, descriptions: 0, reader: "device", inputTokens: 9, outputTokens: 9 };
+    expect(readConversationRecord(tampered)!.runs[0]!.reading).toBeUndefined();
+    // A conversation without further tools carries no empty list.
+    expect(startConversation("c", "s", ["search_vault"])).not.toHaveProperty("more");
+  });
+
   it("titles, summaries, search and retention", () => {
     expect(conversationTitleFrom("  Where   is\nit? ", "x")).toBe("Where is it?");
     expect(conversationTitleFrom("", "Fallback")).toBe("Fallback");

@@ -17,9 +17,8 @@ import { loadCalendarOverlays, saveCalendarOverlays } from "../../services/pim/c
 import { loadTaskOverlay, type DueTask } from "../../services/pim/taskOverlay";
 import { toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
-import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { usePageWheel } from "./pageWheel";
-import { calendarDay, consumePendingNew, setPendingTemplateCaret } from "@plainva/ui";
+import { CALENDAR_GOTO_EVENT, calendarDay, consumePendingCalendarDay, consumePendingNew, setPendingTemplateCaret } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";

@@ -36,7 +36,12 @@
       "open_in_app": "Apro una nota in Plainva",
       "use_skill": "Carico una competenza",
       "fetch_url": "Sta leggendo una pagina web",
-      "web_search": "Sta cercando sul web"
+      "web_search": "Sta cercando sul web",
+      "get_event": "Sta leggendo un appuntamento",
+      "search_mail": "Sta cercando nelle e-mail",
+      "read_mail": "Sta leggendo un messaggio",
+      "find_tools": "Sta cercando altri strumenti",
+      "call_tool": "Sta usando un altro strumento"
     },
     "stopped": {
       "cancelled": "Interrotto.",
@@ -315,7 +320,10 @@
       "webHosts": "senza chiedere, per gli indirizzi indicati da te o da una fonte: {{hosts}}",
       "webPages": "Richiesto sul web",
       "webNotRead": "non letta",
-      "webSearches": "Termini cercati"
+      "webSearches": "Termini cercati",
+      "further": "Altri strumenti",
+      "furtherMail": "e-mail — chiede prima di essere letta per la prima volta",
+      "reading": "E-mail e calendario"
     },
     "lens": {
       "open": "Vedi contesto",
@@ -489,6 +497,32 @@
         "siteInvalid": "Non è un sito pubblico su Internet.",
         "removeSite": "Rimuovi {{host}}"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "Leggere le tue e-mail?",
+        "what": "Dalle tue e-mail",
+        "heads": "mittente, oggetto e data dei messaggi che trova",
+        "text": "Testo di un messaggio",
+        "textProvider": "letto da {{provider}}, in una richiesta a parte e senza strumenti",
+        "textDevice": "letto da {{reader}} su questo dispositivo — a {{provider}} va solo il suo rapporto",
+        "scope": "Vale per {{provider}} finché non chiudi Plainva. Nella tua casella di posta non cambia nulla e nulla viene contrassegnato come letto.",
+        "allow": "Consenti",
+        "deny": "Non consentire"
+      }
+    },
+    "reading": {
+      "searches_one": "{{count}} ricerca nelle e-mail",
+      "searches_many": "{{count}} di ricerche nelle e-mail",
+      "searches_other": "{{count}} ricerche nelle e-mail",
+      "messages_one": "{{count}} messaggio letto",
+      "messages_many": "{{count}} di messaggi letti",
+      "messages_other": "{{count}} messaggi letti",
+      "descriptions_one": "{{count}} descrizione di appuntamento letta",
+      "descriptions_many": "{{count}} di descrizioni di appuntamenti lette",
+      "descriptions_other": "{{count}} descrizioni di appuntamenti lette",
+      "byDevice": "Il testo è stato letto da {{reader}} su questo dispositivo; è stato trasmesso solo il suo rapporto.",
+      "byProvider": "Il testo è stato letto da {{provider}}, in richieste a parte e senza strumenti."
     },
     "lint": {
       "defused": "I nuovi indirizzi web sono stati disinnescati: leggibili, ma non sono link."

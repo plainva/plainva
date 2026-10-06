@@ -3957,3 +3957,91 @@ test('AI internet: a fresh vault has none; switched on, a page is read only afte
   expect(sent[2]).not.toMatch(/"name":"(fetch_url|search_vault|read_note)"/);
   expect(sent[3]).toContain('Summary: The day rate for 2026 is 1,900 euros.');
 });
+
+// What the assistant can do in the app (AI harness P4-4): `run_command` runs
+// commands of the palette's own registry — in the real shell, with the real
+// wiring — and of those only the ones that show something. The tool search
+// lists them; a command that would create something is not on the list and
+// does not run. Mail is found only where an account is connected.
+test('AI app commands: the assistant opens a view through the palette, and cannot run what creates', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (...list: Array<[id: string, name: string, input: unknown]>) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ...list.flatMap(([id, name, input], index): Array<[string, unknown]> => [
+      ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name, input: {} } }],
+      ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }],
+      ['content_block_stop', { type: 'content_block_stop', index }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const script = [
+    calls(['c1', 'find_tools', { query: 'commands' }], ['c2', 'find_tools', { query: 'mail' }]),
+    calls(['c3', 'run_command', { id: 'open-journal' }], ['c4', 'run_command', { id: 'new-note' }]),
+    says('The journal is open. I cannot create notes.'),
+  ];
+  await page.addInitScript(({ script }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const notes = () => page.evaluate(() => Object.keys((window as any).mockFs as Record<string, unknown>).filter((path) => path.startsWith('/test-vault/') && path.endsWith('.md')).sort());
+  const before = await notes();
+
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Show me my journal, and make a new note.');
+  await companion.getByTestId('ai-send').click();
+  // The overview names the tool search with the tools, and mail as within reach — not as approved.
+  await expect(companion.getByTestId('ai-overview-further')).toBeVisible();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('The journal is open. I cannot create notes.')).toBeVisible();
+
+  // The command ran in the shell: the journal is a tab now.
+  await expect(page.getByTestId('journal-view')).toBeVisible();
+  // Nothing was created, and no question about mail was ever asked.
+  expect(await notes()).toEqual(before);
+  await expect(companion.getByTestId('ai-effect')).toHaveCount(0);
+
+  const sent = await requests();
+  expect(sent).toHaveLength(3);
+  // The model's own list holds the two tools that reach the rest — and no mail tool.
+  expect(sent[0]).toContain('"name":"find_tools"');
+  expect(sent[0]).toContain('"name":"call_tool"');
+  expect(sent[0]).not.toContain('"name":"search_mail"');
+  // What the search listed: the palette's commands that show something, by the registry's ids.
+  expect(sent[1]).toContain('- open-journal — Open the journal');
+  expect(sent[1]).toContain('- toggle-left-sidebar — Show or hide the left sidebar');
+  expect(sent[1]).toContain('- open-note — Open a note or a database');
+  expect(sent[1]).not.toContain('- new-note —');
+  expect(sent[1]).not.toContain('- export-markdown —');
+  // This vault has no mail account: the search says so instead of listing tools that could only fail.
+  expect(sent[1]).toContain('No mail account is connected in this vault, so there are no mail tools.');
+  // The answer to the two commands: one done, one that is not on the list.
+  expect(sent[2]).toContain('Done: Open the journal.');
+  expect(sent[2]).toContain('Unknown command. Available commands:');
+});

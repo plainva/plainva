@@ -45,6 +45,8 @@ Un sixième emplacement, **Embeddings**, contient le modèle avec lequel la rech
 
 La note que vous avez ouverte est jointe automatiquement ; retirez-la du contexte avec son ✕ si vous le souhaitez. **Épingler une note…** ajoute d'autres notes. L'assistant peut aussi chercher par lui-même : il parcourt le vault, lit des notes et leurs sections, des bases de données, des backlinks et des notes liées, liste des tâches, des rendez-vous et les notes ouvertes ou modifiées récemment, et ouvre des notes et des vues. Il ne peut rien modifier, créer ou supprimer.
 
+L'assistant peut aussi vous montrer des choses : ouvrir une note à un titre, afficher une note dans le graphe, placer le calendrier sur un jour, ouvrir des vues, afficher et masquer les barres latérales. Il utilise pour cela les commandes de la palette de commandes — et, parmi elles, seulement celles qui montrent quelque chose : il ne peut pas déclencher celles qui créent, modifient, suppriment, exportent ou ouvrent une fenêtre.
+
 Chaque conversation commence par la ligne « Les réponses sont rédigées par une IA — ⟨modèle⟩ via ⟨fournisseur⟩ ». Sous chaque réponse, une ligne indique ce qui a été envoyé où : combien de notes, environ combien de jetons et — là où le fournisseur publie ses prix — le coût approximatif. **Arrêter** met fin à une réponse à tout moment.
 
 Un lien dans une réponse ne s'ouvre qu'après confirmation de son adresse, et les images dans les réponses ne sont jamais chargées.
@@ -131,6 +133,16 @@ L'assistant ne peut pas utiliser Internet tant que vous ne l'autorisez pas — e
 **Notes qui restent dehors.** Une note ou un dossier avec **Accès web: jamais** (voir Règles de confidentialité plus bas) n'existe pas pour une conversation qui peut utiliser Internet : ni dans son contexte, ni pour ses outils, et les liens vers elle sont retenus.
 
 Un lien dans une réponse dont l'adresse a été construite par le modèle lui-même est signalé, et la question avant l'ouverture le dit. Si aucune réponse ne revient — pas de connexion, le fournisseur ne répond pas —, la conversation liste à la place les notes qui correspondent le mieux à votre question.
+
+## E-mails et rendez-vous
+
+**Rendez-vous.** L'assistant liste les rendez-vous de vos calendriers connectés — jour, heure et titre, sur demande aussi le lieu et les participants — et lit un rendez-vous précis en détail : l'organisateur, les participants avec leurs réponses, et la vôtre. Il ne reçoit jamais le lien d'une réunion en ligne ; celui-ci reste dans le calendrier.
+
+**E-mail.** Si des comptes de messagerie sont connectés dans ce vault, l'assistant peut chercher et lire des messages. L'e-mail ne fait pas partie des outils avec lesquels une conversation commence : l'assistant ne le cherche que lorsque votre question en a besoin, et au premier accès Plainva demande — **Lire vos e-mails ?** **Autoriser** vaut pour ce fournisseur jusqu'à ce que vous fermiez Plainva ; un autre modèle ou un autre fournisseur redemande. **Ne pas autoriser** laisse l'accès de côté, et l'assistant continue sans lui. Un modèle sur cet appareil ne demande pas, car rien ne quitte l'appareil pour lui.
+
+**Ce que l'assistant en lit.** D'une recherche, il voit la date, l'expéditeur et l'objet des messages — jamais leur texte. Il ne lit jamais lui-même le texte d'un message ni la description d'un rendez-vous : d'autres personnes les ont écrits, et celui qui écrit un e-mail ou une invitation peut l'écrire précisément pour ce lecteur. Un second lecteur sans aucun outil les lit et rédige un court rapport — un résumé, des affirmations avec le passage sur lequel elles reposent, et des liens qui figurent réellement dedans. Si un modèle sur cet appareil est défini comme **Local** sous **Modèles et profils**, c'est ce modèle qui lit, et le texte lui-même ne quitte pas l'appareil ; seul le rapport part vers le fournisseur. Sinon, c'est le fournisseur de la conversation qui lit, dans une requête à part et sans outils. La question vous dit d'avance qui lit.
+
+**Ce qui ne change pas.** L'assistant ne fait que lire : un message qu'il a lu reste non lu, il ne déplace rien, ne répond à rien et ne supprime rien, et il n'ouvre pas les pièces jointes — il se contente de les nommer. Sous la réponse, vous voyez combien de messages ont été lus, et la ligne en dessous dit qui a lu le texte.
 
 ## Règles de confidentialité
 

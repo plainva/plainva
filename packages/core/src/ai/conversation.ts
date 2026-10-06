@@ -38,10 +38,13 @@ export interface ToolCallPart {
 export interface ToolResultPart {
   type: "tool_result";
   callId: string;
+  /** The name of the call this answers, as the provider made it. */
   name: string;
   /** Already rendered for the model: tier 3 content arrives fenced. */
   content: string;
   isError?: boolean;
+  /** The tool that ran, where the call went through the dispatcher (`call_tool`) and names another. Never sent. */
+  tool?: string;
 }
 
 /** Opaque reasoning (thinking blocks, encrypted reasoning items). */
@@ -67,6 +70,12 @@ export interface Conversation {
   system: string;
   /** Tool names, fixed for the whole conversation. */
   tools: readonly string[];
+  /**
+   * Further tools the conversation can reach through `call_tool`, fixed like
+   * `tools`. They are never part of a request's tool list — the prefix a
+   * provider caches stays the same whatever is found later (ADR 0018).
+   */
+  more?: readonly string[];
   turns: readonly Turn[];
 }
 
@@ -78,8 +87,8 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-export function startConversation(id: string, system: string, tools: readonly string[]): Conversation {
-  return deepFreeze({ id, system, tools: [...tools], turns: [] });
+export function startConversation(id: string, system: string, tools: readonly string[], more: readonly string[] = []): Conversation {
+  return deepFreeze({ id, system, tools: [...tools], ...(more.length ? { more: [...more] } : {}), turns: [] });
 }
 
 /**

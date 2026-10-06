@@ -114,6 +114,7 @@ export * from "./lib/outline";
 export * from "./lib/linkAnchor";
 export * from "./lib/headingAnchor";
 export * from "./lib/anchorJump";
+export * from "./lib/calendarNav";
 export * from "./lib/palette";
 export * from "./lib/recentsFile";
 export * from "./lib/renameNote";

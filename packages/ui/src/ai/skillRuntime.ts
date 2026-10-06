@@ -1,4 +1,4 @@
-import { estimateTokens, instructionBlock, skillGrant, stripInvisible, withinFolders, type InstructionEntry, type ToolExecutor } from "@plainva/core";
+import { estimateTokens, FIND_TOOL, instructionBlock, skillGrant, stripInvisible, withinFolders, type InstructionEntry, type ToolExecutor } from "@plainva/core";
 import type { ToolScope } from "./vaultTools";
 
 /**
@@ -42,12 +42,18 @@ export function skillScope(bound: readonly string[] | null | undefined, state: S
   };
 }
 
-export function createSkillExecutor(inner: ToolExecutor, runtime: SkillRuntime, conversationTools: readonly string[], state: SkillRunState): ToolExecutor {
+/**
+ * `more`: the conversation's further tools (ADR 0019). A call through the
+ * dispatcher arrives here under the name of the tool it means, so a loaded
+ * skill narrows it like any other; the tool search itself stays, and lists
+ * only what the skill leaves.
+ */
+export function createSkillExecutor(inner: ToolExecutor, runtime: SkillRuntime, conversationTools: readonly string[], state: SkillRunState, more: readonly string[] = []): ToolExecutor {
   return {
     async execute(tool, args, call, signal) {
       if (tool.name !== "use_skill") {
         const loaded = state.loaded;
-        if (loaded && !loaded.tools.includes(tool.name)) {
+        if (loaded && tool.name !== FIND_TOOL && !loaded.tools.includes(tool.name)) {
           return { content: `The skill "${loaded.name}" does not use ${tool.name}. Work with its tools, or answer with what you have.`, isError: true };
         }
         return inner.execute(tool, args, call, signal);
@@ -72,7 +78,8 @@ export function createSkillExecutor(inner: ToolExecutor, runtime: SkillRuntime, 
         return { content };
       }
 
-      const grant = skillGrant(skill, conversationTools);
+      // What the conversation can reach is the upper bound: its own tools and its further ones.
+      const grant = skillGrant(skill, [...conversationTools, ...more.filter((name) => !conversationTools.includes(name))]);
       state.loaded = { id: listed.id, name: key, tools: [...grant.tools, "use_skill"], folders: grant.folders };
       const files = entry.source.files.map((f) => f.path).filter((path) => READABLE.test(path));
       const others = conversationTools.filter((name) => name !== "use_skill");

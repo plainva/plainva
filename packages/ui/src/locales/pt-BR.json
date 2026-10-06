@@ -36,7 +36,12 @@
       "open_in_app": "Abrindo uma nota no Plainva",
       "use_skill": "Carregando uma habilidade",
       "fetch_url": "Lendo uma página da web",
-      "web_search": "Pesquisando na web"
+      "web_search": "Pesquisando na web",
+      "get_event": "Lendo um compromisso",
+      "search_mail": "Pesquisando no e-mail",
+      "read_mail": "Lendo uma mensagem",
+      "find_tools": "Procurando outras ferramentas",
+      "call_tool": "Usando outra ferramenta"
     },
     "stopped": {
       "cancelled": "Parado.",
@@ -315,7 +320,10 @@
       "webHosts": "sem perguntar, para endereços citados por você ou por uma fonte: {{hosts}}",
       "webPages": "Solicitado na web",
       "webNotRead": "não lida",
-      "webSearches": "Termos pesquisados"
+      "webSearches": "Termos pesquisados",
+      "further": "Outras ferramentas",
+      "furtherMail": "e-mail — pergunta antes de ser lido pela primeira vez",
+      "reading": "E-mail e calendário"
     },
     "lens": {
       "open": "Ver contexto",
@@ -489,6 +497,32 @@
         "siteInvalid": "Isso não é um site da internet pública.",
         "removeSite": "Remover {{host}}"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "Ler seu e-mail?",
+        "what": "Do seu e-mail",
+        "heads": "remetente, assunto e data das mensagens que encontra",
+        "text": "Texto de uma mensagem",
+        "textProvider": "lido por {{provider}}, em uma solicitação à parte, sem ferramentas",
+        "textDevice": "lido por {{reader}} neste dispositivo — para {{provider}} vai só o relatório dele",
+        "scope": "Aplica-se a {{provider}} até você fechar o Plainva. Nada na sua caixa de correio é alterado nem marcado como lido.",
+        "allow": "Permitir",
+        "deny": "Não permitir"
+      }
+    },
+    "reading": {
+      "searches_one": "{{count}} pesquisa no e-mail",
+      "searches_many": "{{count}} de pesquisas no e-mail",
+      "searches_other": "{{count}} pesquisas no e-mail",
+      "messages_one": "{{count}} mensagem lida",
+      "messages_many": "{{count}} de mensagens lidas",
+      "messages_other": "{{count}} mensagens lidas",
+      "descriptions_one": "{{count}} descrição de compromisso lida",
+      "descriptions_many": "{{count}} de descrições de compromissos lidas",
+      "descriptions_other": "{{count}} descrições de compromissos lidas",
+      "byDevice": "O texto foi lido por {{reader}} neste dispositivo; só o relatório dele seguiu adiante.",
+      "byProvider": "O texto foi lido por {{provider}}, em solicitações à parte, sem ferramentas."
     },
     "lint": {
       "defused": "Os novos endereços da web foram neutralizados: legíveis, mas não são links."

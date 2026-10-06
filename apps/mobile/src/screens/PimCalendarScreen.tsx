@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Diamond, RefreshCw, CalendarPlu
 import { SheetGrip } from "../components/SheetGrip";
 import { haptics } from "../services/haptics";
 import { chunkWeeks, eventDayKeys, existingDailyNoteDays, layoutSpanningEvents, buildContiguousDays, Button, DateJumpPicker, EmptyState, eventStateClass, eventStateLabelKey, eventVisualState, ICON, IconButton, blockHeightPx, layoutDayEvents, minutesInDay, nextLaneStartMin, minutesToHHMM, minutesToPx, pxToMinutes, Segmented, snapMinutes, startOfMonth, useWeekStartDay, buildMonthCells, buildWeekCells, toast, Chip, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry , partitionStatus, statusLabel, ScrollEdge} from "@plainva/ui";
+import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -107,6 +108,18 @@ export function PimCalendarScreen({
   const status = useSyncExternalStore(subscribePimStatus, getPimStatus);
   const [view, setView] = useState<PimView>(storedView);
   const [anchor, setAnchor] = useState(() => (focus ? new Date(focus.startTs) : new Date()));
+  // "Show this day" from elsewhere — the assistant's open-calendar with a date (plan KI-Harness P4-4): parked for a
+  // calendar that mounts now, announced to one that shows already. The desktop's calendar takes the same hand-off.
+  useEffect(() => {
+    const show = (dayKey: unknown) => {
+      const m = typeof dayKey === "string" ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey) : null;
+      if (m) setAnchor(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+    };
+    show(consumePendingCalendarDay());
+    const onGoto = (event: Event) => show((event as CustomEvent<{ dayKey?: string }>).detail?.dayKey);
+    window.addEventListener(CALENDAR_GOTO_EVENT, onGoto);
+    return () => window.removeEventListener(CALENDAR_GOTO_EVENT, onGoto);
+  }, []);
   useEffect(() => {
     try {
       localStorage.setItem(VIEW_KEY, view);

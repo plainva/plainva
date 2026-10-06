@@ -20,6 +20,73 @@ export interface SituationEventInput {
   end?: Date | null;
   allDay?: boolean;
   calendar?: string | null;
+  /**
+   * What the calendar tools read of an appointment beyond its day, time and
+   * title (plan KI-Harness P4-4). The situation never sends any of it: its
+   * own lines are built from the fields above.
+   */
+  details?: EventDetails;
+}
+
+/** An attendee as a tool lists them: the name (or the address where there is none) and the answer. */
+export interface EventAttendee {
+  name: string;
+  status?: "accepted" | "declined" | "tentative" | "needsAction";
+  self?: boolean;
+  organizer?: boolean;
+}
+
+export interface EventDetails {
+  /** What tells this appointment from every other: account, calendar and the provider's id. Never shown; the handle is made of it. */
+  key: string;
+  location?: string;
+  /** The organiser's free text — read only by a reader without tools. */
+  description?: string;
+  attendees?: EventAttendee[];
+  /** The user's own answer, where they are invited. */
+  response?: EventAttendee["status"];
+  status?: "confirmed" | "tentative" | "cancelled";
+  /** One of a series. */
+  recurring?: boolean;
+  /** It has a link to join online. The link itself stays in the calendar. */
+  online?: boolean;
+}
+
+/** A calendar row as the PIM cache holds it — the fields the tools read. */
+export interface CalendarRowInput {
+  title: string;
+  start: { ts: number; date?: string };
+  end: { ts: number; date?: string };
+  allDay: boolean;
+  uid?: string;
+  calendarId?: string;
+  accountId?: string;
+  location?: string;
+  description?: string;
+  attendees?: string[];
+  rsvps?: { name: string; email?: string; status: NonNullable<EventAttendee["status"]>; self?: boolean; organizer?: boolean }[];
+  selfResponse?: EventAttendee["status"];
+  status?: "confirmed" | "tentative" | "cancelled";
+  seriesMaster?: string;
+  recurrence?: string;
+  meetingUrl?: string;
+}
+
+function detailsOf(row: CalendarRowInput): EventDetails | undefined {
+  if (!row.uid) return undefined;
+  const attendees: EventAttendee[] = row.rsvps?.length
+    ? row.rsvps.map((a) => ({ name: a.name.trim() || a.email?.trim() || "", status: a.status, ...(a.self ? { self: true } : {}), ...(a.organizer ? { organizer: true } : {}) })).filter((a) => a.name)
+    : (row.attendees ?? []).map((name) => ({ name: name.trim() })).filter((a) => a.name);
+  return {
+    key: `${row.accountId ?? ""}|${row.calendarId ?? ""}|${row.uid}`,
+    ...(row.location?.trim() ? { location: row.location.trim() } : {}),
+    ...(row.description?.trim() ? { description: row.description } : {}),
+    ...(attendees.length ? { attendees } : {}),
+    ...(row.selfResponse ? { response: row.selfResponse } : {}),
+    ...(row.status && row.status !== "confirmed" ? { status: row.status } : {}),
+    ...(row.seriesMaster || row.recurrence ? { recurring: true } : {}),
+    ...(row.meetingUrl ? { online: true } : {}),
+  };
 }
 
 export interface SituationSources {
@@ -34,13 +101,17 @@ export interface SituationSources {
 }
 
 /** Calendar rows (the PIM cache) as the situation's appointments: all-day ones keep their civil date. */
-export function situationEvents(rows: readonly { title: string; start: { ts: number; date?: string }; end: { ts: number; date?: string }; allDay: boolean }[]): SituationEventInput[] {
-  return rows.map((row) => ({
-    title: row.title,
-    start: row.allDay && row.start.date ? new Date(`${row.start.date}T00:00:00`) : new Date(row.start.ts),
-    end: row.allDay ? null : new Date(row.end.ts),
-    allDay: row.allDay,
-  }));
+export function situationEvents(rows: readonly CalendarRowInput[]): SituationEventInput[] {
+  return rows.map((row) => {
+    const details = detailsOf(row);
+    return {
+      title: row.title,
+      start: row.allDay && row.start.date ? new Date(`${row.start.date}T00:00:00`) : new Date(row.start.ts),
+      end: row.allDay ? null : new Date(row.end.ts),
+      allDay: row.allDay,
+      ...(details ? { details } : {}),
+    };
+  });
 }
 
 const titleOf = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.(md|base)$/i, "");

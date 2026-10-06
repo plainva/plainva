@@ -34,7 +34,12 @@
       "open_in_app": "Opening a note in Plainva",
       "use_skill": "Loading a skill",
       "fetch_url": "Reading a web page",
-      "web_search": "Searching the web"
+      "web_search": "Searching the web",
+      "get_event": "Reading an appointment",
+      "search_mail": "Searching mail",
+      "read_mail": "Reading a message",
+      "find_tools": "Looking for further tools",
+      "call_tool": "Using a further tool"
     },
     "stopped": {
       "cancelled": "Stopped.",
@@ -305,7 +310,10 @@
       "webHosts": "without asking, for addresses you or a source named: {{hosts}}",
       "webPages": "Asked for on the web",
       "webNotRead": "not read",
-      "webSearches": "Searched for"
+      "webSearches": "Searched for",
+      "further": "Further tools",
+      "furtherMail": "mail — asks before it is read for the first time",
+      "reading": "Mail and calendar"
     },
     "lens": {
       "open": "View context",
@@ -473,6 +481,29 @@
         "siteInvalid": "That is not a site on the public internet.",
         "removeSite": "Remove {{host}}"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "Read your mail?",
+        "what": "From your mail",
+        "heads": "sender, subject and date of the messages it finds",
+        "text": "A message's text",
+        "textProvider": "read by {{provider}}, in a request of its own without tools",
+        "textDevice": "read by {{reader}} on this device — only its report goes to {{provider}}",
+        "scope": "Applies to {{provider}} until you close Plainva. Nothing in your mailbox is changed or marked as read.",
+        "allow": "Allow",
+        "deny": "Don't allow"
+      }
+    },
+    "reading": {
+      "searches_one": "{{count}} mail search",
+      "searches_other": "{{count}} mail searches",
+      "messages_one": "{{count}} message read",
+      "messages_other": "{{count}} messages read",
+      "descriptions_one": "{{count}} appointment description read",
+      "descriptions_other": "{{count}} appointment descriptions read",
+      "byDevice": "The text was read by {{reader}} on this device; only its report went on.",
+      "byProvider": "The text was read by {{provider}}, in requests of their own without tools."
     },
     "lint": {
       "defused": "New web addresses were defused: readable, but not links."

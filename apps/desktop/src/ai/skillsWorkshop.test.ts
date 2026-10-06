@@ -74,6 +74,20 @@ describe("the skills workshop", () => {
     expect(facts.origin.some((line) => line.startsWith("Approved on this device on"))).toBe(true);
   });
 
+  it("names mail among what a skill may use — where the skill names it, or names nothing and leaves everything", async () => {
+    await i18n.changeLanguage("en");
+    const skill = (tools: string) => `---\nname: mail-digest\ndescription: Sums up new mail.\n${tools}---\n\nList the newest messages.\n`;
+    const factsOf = async (tools: string) => approvalFacts(t, resolveInstructions(await scanVaultInstructions(io({ ".agent/skills/mail-digest/SKILL.md": skill(tools) })), EMPTY_INSTRUCTION_APPROVALS)[0]!, "en");
+    // What is approved is what a conversation bound to the skill carries: the review must show mail before the yes.
+    expect((await factsOf("allowed-tools: search_mail read_mail read_note\n")).may[0]).toBe("Uses: Reading a note · Searching mail · Reading a message");
+    const everything = (await factsOf("")).may[0]!;
+    expect(everything).toContain("Searching the vault");
+    expect(everything).toContain("Searching mail · Reading a message");
+    // The tool search is the conversation's, never a skill's: a skill is held against tools, not against a way to find more.
+    expect(everything).not.toContain("Looking for further tools");
+    expect((await factsOf("allowed-tools: read_note\n")).may[0]).toBe("Uses: Reading a note");
+  });
+
   it("shows the app's own skills read only, and an invalid one with its problems", async () => {
     await i18n.changeLanguage("en");
     const [daily] = resolveInstructions(APP_SKILL_SOURCES.slice(0, 1), EMPTY_INSTRUCTION_APPROVALS);

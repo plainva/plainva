@@ -36,7 +36,12 @@
       "open_in_app": "Ouverture d'une note dans Plainva",
       "use_skill": "Chargement d'une compétence",
       "fetch_url": "Lecture d'une page web",
-      "web_search": "Recherche sur le web"
+      "web_search": "Recherche sur le web",
+      "get_event": "Lecture d'un rendez-vous",
+      "search_mail": "Recherche dans les e-mails",
+      "read_mail": "Lecture d'un message",
+      "find_tools": "Recherche d'autres outils",
+      "call_tool": "Utilisation d'un autre outil"
     },
     "stopped": {
       "cancelled": "Arrêté.",
@@ -315,7 +320,10 @@
       "webHosts": "sans demander, pour les adresses nommées par vous ou par une source : {{hosts}}",
       "webPages": "Demandé sur le web",
       "webNotRead": "non lue",
-      "webSearches": "Recherches effectuées"
+      "webSearches": "Recherches effectuées",
+      "further": "Autres outils",
+      "furtherMail": "e-mail — demande avant la première lecture",
+      "reading": "E-mail et calendrier"
     },
     "lens": {
       "open": "Voir le contexte",
@@ -489,6 +497,32 @@
         "siteInvalid": "Ce n'est pas un site de l'Internet public.",
         "removeSite": "Retirer {{host}}"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "Lire vos e-mails ?",
+        "what": "De vos e-mails",
+        "heads": "expéditeur, objet et date des messages trouvés",
+        "text": "Texte d'un message",
+        "textProvider": "lu par {{provider}}, dans une requête à part, sans outils",
+        "textDevice": "lu par {{reader}} sur cet appareil — seul son rapport part vers {{provider}}",
+        "scope": "S'applique à {{provider}} jusqu'à ce que vous fermiez Plainva. Rien n'est modifié ni marqué comme lu dans votre boîte aux lettres.",
+        "allow": "Autoriser",
+        "deny": "Ne pas autoriser"
+      }
+    },
+    "reading": {
+      "searches_one": "{{count}} recherche dans les e-mails",
+      "searches_many": "{{count}} de recherches dans les e-mails",
+      "searches_other": "{{count}} recherches dans les e-mails",
+      "messages_one": "{{count}} message lu",
+      "messages_many": "{{count}} de messages lus",
+      "messages_other": "{{count}} messages lus",
+      "descriptions_one": "{{count}} description de rendez-vous lue",
+      "descriptions_many": "{{count}} de descriptions de rendez-vous lues",
+      "descriptions_other": "{{count}} descriptions de rendez-vous lues",
+      "byDevice": "Le texte a été lu par {{reader}} sur cet appareil ; seul son rapport a été transmis.",
+      "byProvider": "Le texte a été lu par {{provider}}, dans des requêtes à part, sans outils."
     },
     "lint": {
       "defused": "Les nouvelles adresses web ont été neutralisées : lisibles, mais sans lien."

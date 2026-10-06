@@ -45,6 +45,8 @@ Un sesto posto, **Embedding**, contiene il modello con cui calcola la ricerca pe
 
 La nota che hai aperta viene inclusa automaticamente; rimuovila dal contesto con la sua ✕ se vuoi. **Fissa una nota…** aggiunge altre note. L'assistente può anche cercare da solo: consulta il vault, legge le note e le loro sezioni, i database, i backlink e le note collegate, elenca le attività, gli appuntamenti e le note aperte o modificate di recente, e apre note e viste. Non può cambiare, creare o eliminare nulla.
 
+L'assistente può anche mostrarti delle cose: aprire una nota a un titolo, mostrare una nota nel grafo, portare il calendario su un giorno, aprire viste, mostrare e nascondere le barre laterali. Per farlo usa i comandi della palette dei comandi — e tra questi solo quelli che mostrano qualcosa: non può attivare quelli che creano, modificano, eliminano, esportano o aprono una finestra.
+
 Ogni conversazione inizia con la riga «Le risposte sono scritte da un'IA — ⟨modello⟩ tramite ⟨provider⟩». Sotto ogni risposta una riga indica cosa è stato inviato e dove: quante note, all'incirca quanti token e — dove il provider pubblica i prezzi — il costo approssimativo. **Interrompi** termina una risposta in qualsiasi momento.
 
 Un link in una risposta si apre solo dopo che ne hai confermato l'indirizzo, e le immagini nelle risposte non vengono mai caricate.
@@ -131,6 +133,16 @@ L'assistente non può usare Internet finché non lo consenti — e lo consenti t
 **Note che restano fuori.** Una nota o una cartella con **Accesso web: mai** (vedi Regole sulla privacy più sotto) non esiste per una conversazione che può usare Internet: non nel suo contesto, non per i suoi strumenti, e i link ad essa vengono trattenuti.
 
 Un link in una risposta il cui indirizzo è stato costruito dal modello stesso è contrassegnato, e la domanda prima dell'apertura lo dice. Se non torna nessuna risposta — nessuna connessione, il provider non risponde —, la conversazione elenca invece le note che corrispondono meglio alla tua domanda.
+
+## E-mail e appuntamenti
+
+**Appuntamenti.** L'assistente elenca gli appuntamenti dei tuoi calendari collegati — giorno, ora e titolo, su richiesta anche il luogo e chi partecipa — e legge un singolo appuntamento nel dettaglio: l'organizzatore, i partecipanti con le loro risposte e la tua. Non riceve mai il link di una riunione online; quello resta nel calendario.
+
+**E-mail.** Se in questo vault sono collegati account di posta, l'assistente può cercare e leggere messaggi. L'e-mail non fa parte degli strumenti con cui inizia una conversazione: l'assistente la cerca solo quando la tua domanda ne ha bisogno, e al primo accesso Plainva chiede — **Leggere le tue e-mail?** **Consenti** vale per questo provider finché non chiudi Plainva; un altro modello o un altro provider chiede di nuovo. **Non consentire** lascia fuori l'accesso, e l'assistente prosegue senza. Un modello su questo dispositivo non chiede, perché per lui non esce nulla dal dispositivo.
+
+**Cosa ne legge l'assistente.** Di una ricerca vede la data, il mittente e l'oggetto dei messaggi — mai il loro testo. Il testo di un messaggio e la descrizione di un appuntamento non li legge mai da solo: li hanno scritti altre persone, e chi scrive un'e-mail o un invito può scrivere proprio per questo lettore. Un secondo lettore senza alcuno strumento li legge e scrive un breve rapporto — un riepilogo, affermazioni con il passaggio su cui si basano e link che si trovano davvero lì dentro. Se un modello su questo dispositivo è impostato come **Locale** in **Modelli e profili**, quel modello è il lettore, e il testo in sé non lascia il dispositivo; al provider va solo il rapporto. Altrimenti legge il provider della conversazione, in una richiesta a parte e senza strumenti. La domanda ti dice prima chi legge.
+
+**Cosa non cambia.** L'assistente legge soltanto: un messaggio che ha letto resta non letto, non sposta, non risponde e non elimina nulla, e non apre gli allegati — li nomina soltanto. Sotto la risposta vedi quanti messaggi sono stati letti, e la riga sotto dice chi ne ha letto il testo.
 
 ## Regole sulla privacy
 

@@ -45,6 +45,8 @@ Un sexto espacio, **Embeddings**, guarda el modelo con el que calcula la búsque
 
 La nota que tienes abierta se incluye automáticamente; quítala del contexto con su ✕ si quieres. **Fijar una nota…** añade más notas. El asistente también puede buscar por su cuenta: busca en el vault, lee notas y sus secciones, bases de datos, retroenlaces y notas enlazadas, enumera tareas, citas y las notas abiertas o cambiadas hace poco, y abre notas y vistas. No puede cambiar, crear ni eliminar nada.
 
+El asistente también puede mostrarte cosas: abrir una nota en un encabezado, mostrar una nota en el grafo, llevar el calendario a un día, abrir vistas, mostrar y ocultar las barras laterales. Para ello usa los comandos de la paleta de comandos — y de ellos solo los que muestran algo: no puede activar los que crean, cambian, eliminan, exportan o abren una ventana.
+
 Cada conversación empieza con la línea «Las respuestas las escribe una IA — ⟨modelo⟩ a través de ⟨proveedor⟩». Debajo de cada respuesta, una línea indica qué se envió adónde: cuántas notas, aproximadamente cuántos tokens y — donde el proveedor publica precios — el coste aproximado. **Detener** termina una respuesta en cualquier momento.
 
 Un enlace en una respuesta se abre solo después de que confirmes su dirección, y las imágenes en las respuestas nunca se cargan.
@@ -131,6 +133,16 @@ El asistente no puede usar Internet hasta que lo permitas — tres veces:
 **Notas que se quedan fuera.** Una nota o carpeta con **Acceso web: nunca** (ver Reglas de privacidad más abajo) no existe para una conversación que puede usar Internet: ni en su contexto, ni para sus herramientas, y los enlaces hacia ella se retienen.
 
 Un enlace en una respuesta cuya dirección compuso el propio modelo está marcado, y la pregunta antes de abrirlo lo dice. Si no llega ninguna respuesta — sin conexión, el proveedor no responde —, la conversación enumera en su lugar las notas que mejor encajan con tu pregunta.
+
+## Correo y citas
+
+**Citas.** El asistente enumera las citas de tus calendarios conectados — día, hora y título, si lo pides también el lugar y quiénes participan — y lee una cita concreta en detalle: el organizador, los asistentes con sus respuestas y la tuya. Nunca recibe el enlace de una reunión en línea; ese se queda en el calendario.
+
+**Correo.** Si hay cuentas de correo conectadas en este vault, el asistente puede buscar y leer mensajes. El correo no es una de las herramientas con las que empieza una conversación: el asistente lo busca solo cuando tu pregunta lo necesita, y en el primer acceso Plainva pregunta — **¿Leer tu correo?** **Permitir** vale para este proveedor hasta que cierres Plainva; otro modelo u otro proveedor vuelve a preguntar. **No permitir** deja el acceso fuera, y el asistente continúa sin él. Un modelo en este dispositivo no pregunta, porque para él no sale nada del dispositivo.
+
+**Lo que el asistente lee del correo.** De una búsqueda ve la fecha, el remitente y el asunto de los mensajes — nunca su texto. El texto de un mensaje y la descripción de una cita no los lee nunca por sí mismo: los escribieron otras personas, y quien escribe un correo o una invitación puede escribirlo justo para este lector. Un segundo lector sin ninguna herramienta los lee y escribe un informe breve — un resumen, afirmaciones con el pasaje en el que se basan y enlaces que realmente están ahí. Si un modelo de este dispositivo está configurado como **Local** en **Modelos y perfiles**, ese modelo es el lector, y el texto en sí no sale del dispositivo; al proveedor solo va el informe. En caso contrario, lo lee el proveedor de la conversación, en una solicitud aparte y sin herramientas. La pregunta te dice de antemano quién lee.
+
+**Lo que no cambia.** El asistente solo lee: un mensaje que ha leído sigue sin leer, no mueve, responde ni elimina nada, y no abre archivos adjuntos — solo los nombra. Bajo la respuesta ves cuántos mensajes se leyeron, y la línea de debajo dice quién leyó el texto.
 
 ## Reglas de privacidad
 

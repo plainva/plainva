@@ -1,8 +1,8 @@
 import { appendTurn, startConversation, type Conversation } from "../conversation.js";
-import { runModelCall, type AiEgress, type ModelFailure } from "../egress.js";
+import { runModelCall, type AiEgress, type ModelCallResult, type ModelFailure } from "../egress.js";
 import { preWriteLint } from "../preWriteLint.js";
 import type { ProviderEndpoint } from "../providers.js";
-import { fenceUntrusted, payload, stripInvisible } from "../trust.js";
+import { fenceUntrusted, payload, stripInvisible, type PayloadOrigin } from "../trust.js";
 import type { PageContent, PageLink } from "./extract.js";
 import { checkWebUrl } from "./rules.js";
 
@@ -26,6 +26,11 @@ import { checkWebUrl } from "./rules.js";
  * something untrue into a summary, and nothing else: it cannot call a tool
  * (there is none), cannot introduce an address (it is checked), and what it
  * writes reaches the planner inside a data fence like any other tier 3 text.
+ *
+ * The same reader takes the other raw texts strangers write for the user
+ * (plan KI-Harness P4-4): the body of a mail and the description of an
+ * appointment. They are private as well as untrusted, so where a model on
+ * this device is set up it is the reader, and only its checked report goes on.
  */
 
 export const PROCESSOR_SYSTEM = [
@@ -71,13 +76,27 @@ export interface PageExtract {
   links: PageLink[];
 }
 
+/** What the processor reads: a page, a message, a description — a title, text, and the addresses it names. */
+export type ReadableDocument = Pick<PageContent, "title" | "text" | "links">;
+
+/** One document to read in quarantine, wherever it came from. */
+export interface DocumentTask {
+  origin: PayloadOrigin;
+  question: string;
+  document: ReadableDocument;
+}
+
 /** The processor's whole input: one question, one fenced document. No tools, ever. */
-export function pageTaskConversation(task: PageTask, id: string, at: string): Conversation {
-  const listed = task.page.links.slice(0, LISTED_LINKS).map((link, i) => `${i + 1}. ${link.text || "(no text)"} — ${link.url}`);
-  const document = [task.page.title ? `Title: ${task.page.title}` : "", task.page.text, listed.length ? `Links:\n${listed.join("\n")}` : ""].filter(Boolean).join("\n\n");
+export function documentTaskConversation(task: DocumentTask, id: string, at: string): Conversation {
+  const listed = task.document.links.slice(0, LISTED_LINKS).map((link, i) => `${i + 1}. ${link.text || "(no text)"} — ${link.url}`);
+  const document = [task.document.title ? `Title: ${task.document.title}` : "", task.document.text, listed.length ? `Links:\n${listed.join("\n")}` : ""].filter(Boolean).join("\n\n");
   const question = oneLine(task.question, QUESTION_MAX) || "What is this document about?";
-  const text = `Question: ${question}\n\nDocument:\n${fenceUntrusted(payload(document, { kind: "web", url: task.url }))}`;
+  const text = `Question: ${question}\n\nDocument:\n${fenceUntrusted(payload(document, task.origin))}`;
   return appendTurn(startConversation(id, PROCESSOR_SYSTEM, []), { role: "user", parts: [{ type: "text", text }], at });
+}
+
+export function pageTaskConversation(task: PageTask, id: string, at: string): Conversation {
+  return documentTaskConversation({ origin: { kind: "web", url: task.url }, question: task.question, document: task.page }, id, at);
 }
 
 function oneLine(text: string, max: number): string {
@@ -131,7 +150,7 @@ function jsonObject(answer: string): unknown {
  * Nothing is taken on trust: fields are read one by one, cut to their limits,
  * and compared with the page.
  */
-export function readPageExtract(answer: string, page: PageContent): PageExtract | null {
+export function readPageExtract(answer: string, page: Pick<PageContent, "text" | "links">): PageExtract | null {
   const value = jsonObject(answer);
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
@@ -164,19 +183,39 @@ export function readPageExtract(answer: string, page: PageContent): PageExtract 
   return { relevant: typeof record.relevant === "boolean" ? record.relevant : Boolean(summary || facts.length), summary, facts, links };
 }
 
-/** The extract as the planner reads it. The orchestrator fences it as web data; the address is in the fence's origin. */
-export function pageExtractText(extract: PageExtract, source: { url: string; title: string; truncated: boolean; fetchedAt: string }): string {
-  const lines = [`Page: ${source.title ? `${oneLine(source.title, 200)} — ` : ""}${source.url}`, `Read: ${source.fetchedAt}${source.truncated ? " (a long page: only its beginning was read)" : ""}`, `Says something about the question: ${extract.relevant ? "yes" : "no"}`];
+/** What was read, as a report names it: "the page says …", "links in the message". */
+export type DocumentNoun = "page" | "message" | "description";
+
+const LINK_PLACE: Record<DocumentNoun, string> = { page: "on the page", message: "in the message", description: "in the description" };
+
+/** The checked part of a report — summary, facts, links — in the words of what was read. */
+export function extractLines(extract: PageExtract, noun: DocumentNoun): string[] {
+  const where = LINK_PLACE[noun];
+  const lines = [`Says something about the question: ${extract.relevant ? "yes" : "no"}`];
   if (extract.summary) lines.push(`Summary: ${extract.summary}`);
   if (extract.facts.length) {
     lines.push("Facts:");
-    for (const fact of extract.facts) lines.push(fact.quote ? `- ${fact.text} — the page says: "${fact.quote}"` : `- ${fact.text} — (no matching passage was found on the page)`);
+    for (const fact of extract.facts) lines.push(fact.quote ? `- ${fact.text} — the ${noun} says: "${fact.quote}"` : `- ${fact.text} — (no matching passage was found ${where})`);
   }
   if (extract.links.length) {
-    lines.push("Links on the page:");
+    lines.push(`Links ${where}:`);
     for (const link of extract.links) lines.push(`- ${link.text || "(no text)"} — ${link.url}`);
   }
-  return lines.join("\n");
+  return lines;
+}
+
+/** The extract as the planner reads it. The orchestrator fences it as web data; the address is in the fence's origin. */
+export function pageExtractText(extract: PageExtract, source: { url: string; title: string; truncated: boolean; fetchedAt: string }): string {
+  return [
+    `Page: ${source.title ? `${oneLine(source.title, 200)} — ` : ""}${source.url}`,
+    `Read: ${source.fetchedAt}${source.truncated ? " (a long page: only its beginning was read)" : ""}`,
+    ...extractLines(extract, "page"),
+  ].join("\n");
+}
+
+/** One line of a stranger's words for a report's head — a subject, a sender, a place: no line break, nothing invisible, no address to follow. */
+export function inertLine(text: unknown, max: number): string {
+  return inert(text, max);
 }
 
 export interface ProcessorUsage {
@@ -189,26 +228,48 @@ export type PageProcessorResult =
   /** `no-record`: the model answered, but not with a record — nothing of the answer is passed on. */
   | { ok: false; reason: "failed" | "cancelled" | "no-record"; failure?: ModelFailure; usage: ProcessorUsage };
 
+export interface ProcessorCall {
+  egress: AiEgress;
+  endpoint: ProviderEndpoint;
+  model: string;
+  requestId: string;
+  at: string;
+  signal?: AbortSignal;
+  /** The reader's window, where it is small (the system's own model): the request is cut to it. */
+  contextTokens?: number;
+}
+
 /**
- * Runs the processor on one page. The call carries no tools — `conversation.tools`
+ * Runs the processor on one document. The call carries no tools — `conversation.tools`
  * is empty, so no codec sends any — and whatever the model writes that is not
  * the record is dropped here.
  */
-export async function runPageProcessor(input: { egress: AiEgress; endpoint: ProviderEndpoint; model: string; task: PageTask; requestId: string; at: string; signal?: AbortSignal }): Promise<PageProcessorResult> {
-  const conversation = pageTaskConversation(input.task, input.requestId, input.at);
+export async function runDocumentProcessor(input: ProcessorCall & { task: DocumentTask }): Promise<PageProcessorResult> {
+  const conversation = documentTaskConversation(input.task, input.requestId, input.at);
   let answer = "";
   const result = await runModelCall(
     input.egress,
     input.endpoint,
-    { model: input.model, conversation, tools: [], maxOutputTokens: PROCESSOR_MAX_OUTPUT_TOKENS },
+    { model: input.model, conversation, tools: [], maxOutputTokens: PROCESSOR_MAX_OUTPUT_TOKENS, ...(input.contextTokens ? { contextTokens: input.contextTokens } : {}) },
     (event) => {
       if (event.type === "text") answer += event.text;
     },
     { requestId: input.requestId, signal: input.signal },
-  );
+  ).catch((error: unknown): ModelCallResult => ({
+    // A reader that cannot be reached is a failed read, never a run that throws.
+    stop: null,
+    failure: { kind: "offline", message: error instanceof Error ? error.message : String(error) },
+    usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  }));
   const usage = { inputTokens: result.usage.inputTokens + result.usage.cacheReadTokens, outputTokens: result.usage.outputTokens };
   if (result.stop === "cancelled") return { ok: false, reason: "cancelled", usage };
   if (result.failure) return { ok: false, reason: "failed", failure: result.failure, usage };
-  const extract = readPageExtract(answer, input.task.page);
+  const extract = readPageExtract(answer, input.task.document);
   return extract ? { ok: true, extract, usage } : { ok: false, reason: "no-record", usage };
+}
+
+/** Runs the processor on one fetched page. */
+export function runPageProcessor(input: ProcessorCall & { task: PageTask }): Promise<PageProcessorResult> {
+  const { task, ...call } = input;
+  return runDocumentProcessor({ ...call, task: { origin: { kind: "web", url: task.url }, question: task.question, document: task.page } });
 }

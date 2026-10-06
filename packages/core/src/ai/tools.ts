@@ -29,7 +29,11 @@ export interface ToolManifest {
   dataClasses: readonly ToolDataClass[];
   /** Results carry vault or third-party content: tier 3, fenced as data. */
   untrustedResult: boolean;
-  /** One of the always-loaded core tools; everything else is found by search. */
+  /**
+   * Loaded in every conversation whose vault can serve it. A tool that is not
+   * is either chosen when a conversation starts (the internet, the skills) or
+   * found with `find_tools` and called through `call_tool`.
+   */
   core: boolean;
   surfaces: readonly ToolSurface[];
   /**
@@ -56,6 +60,42 @@ export const WEB_TOOL_NAMES: readonly string[] = ["fetch_url", "web_search"];
 /** Whether a list of tool names — a conversation's — reaches the internet. */
 export function hasWebTools(names: readonly string[]): boolean {
   return names.some((name) => WEB_TOOL_NAMES.includes(name));
+}
+
+/**
+ * The two tools behind which further tools wait (ADR 0019): `find_tools`
+ * lists them with their arguments, `call_tool` calls one. A conversation's
+ * own tool list never changes (ADR 0018), so a tool that is rarely needed —
+ * or that reaches another kind of data, like mail — is not part of it; the
+ * conversation carries its name in `more` instead.
+ */
+export const FIND_TOOL = "find_tools";
+export const DISPATCH_TOOL = "call_tool";
+export const META_TOOL_NAMES: readonly string[] = [FIND_TOOL, DISPATCH_TOOL];
+
+/** The tools that read the user's mail; found with `find_tools` where a mail account is connected. */
+export const MAIL_TOOL_NAMES: readonly string[] = ["search_mail", "read_mail"];
+
+/**
+ * The tool a call runs, by name: for a call through the dispatcher the tool
+ * it names, otherwise the call's own. What a transcript, a ledger and a
+ * skill's scenario say was used.
+ */
+export function calledToolName(call: { name: string; args?: unknown }): string {
+  if (call.name !== DISPATCH_TOOL) return call.name;
+  const target = (call.args as { name?: unknown } | null | undefined)?.name;
+  return typeof target === "string" && TOOL_NAME_PATTERN.test(target.trim()) ? target.trim() : call.name;
+}
+
+/** The arguments a dispatched call hands to its tool: an object, or JSON text of one. */
+export function dispatchedArgs(args: unknown): unknown {
+  const inner = (args as { args?: unknown } | null | undefined)?.args;
+  if (typeof inner !== "string") return inner ?? {};
+  try {
+    return JSON.parse(inner) as unknown;
+  } catch {
+    return inner;
+  }
 }
 
 const path = z.string().min(1).max(1024).describe("Vault-relative path, forward slashes, e.g. Projects/Offer.md");
@@ -149,7 +189,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
   {
     name: "run_command",
     description:
-      "Runs one of Plainva's app commands to navigate or show something: open a note, open a view, focus the graph, open today's note. Changes no data. An unknown id returns the list of command ids.",
+      "Runs one of Plainva's app commands to show or arrange something: open a note (at a section) or a database, open a view (graph, tasks, calendar, journal, mail), show a note in the graph, show or hide a sidebar. Changes no data. An unknown id returns the commands this device offers.",
     risk: "ui",
     input: z.object({
       id: z.string().min(1).max(128).describe("Command id from the command list"),
@@ -164,15 +204,31 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
   },
   {
     name: "find_tools",
-    description: "Finds further tools by what they do (for example 'backlinks', 'calendar', 'recent', 'commands') and makes them available in this conversation.",
+    description:
+      "Lists further tools and the app's commands by what they do (for example 'mail', 'commands'), each with its arguments. A tool it lists is called through call_tool, a command through run_command.",
     risk: "read",
-    input: z.object({ query: z.string().min(1).max(200) }),
+    input: z.object({ query: z.string().min(1).max(200).describe("What you want to do, in a few words") }),
     dataClasses: [],
     untrustedResult: false,
-    core: false,
+    core: true,
     surfaces: ["harness"],
     native: null,
     pageLimit: 10,
+  },
+  {
+    name: "call_tool",
+    description: "Calls a tool that find_tools listed, with the arguments find_tools described for it. The tools of this list are called directly, never through call_tool.",
+    risk: "read",
+    input: z.object({
+      name: z.string().min(1).max(64).describe("The tool's name as find_tools wrote it"),
+      args: z.union([z.record(z.string(), z.unknown()), z.string().max(8000)]).optional().describe("The tool's arguments, as an object"),
+    }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: true,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
   },
   {
     name: "get_backlinks",
@@ -181,7 +237,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     input: z.object({ path, limit: limit(50, 20), cursor }),
     dataClasses: ["notes", "structure"],
     untrustedResult: true,
-    core: false,
+    core: true,
     surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 50,
@@ -193,26 +249,44 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     input: z.object({ path, depth: z.number().int().min(1).max(2).default(1), limit: limit(50, 30) }),
     dataClasses: ["structure"],
     untrustedResult: true,
-    core: false,
+    core: true,
     surfaces: ["harness"],
     native: null,
     pageLimit: 50,
   },
   {
     name: "get_calendar",
-    description: "Lists appointments in a date range (at most 31 days) from the connected calendars: day, time and title.",
+    description:
+      "Lists appointments in a date range (at most 31 days) from the connected calendars: day, time, title and a handle per appointment; with details also the place and who takes part.",
     risk: "read",
     input: z.object({
       from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("First day, YYYY-MM-DD"),
       to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Last day, YYYY-MM-DD"),
+      details: z.boolean().default(false).describe("Also the place and the attendees"),
       limit: limit(100, 50),
     }),
     dataClasses: ["calendar"],
     untrustedResult: true,
-    core: false,
+    core: true,
     surfaces: ["harness"],
     native: null,
     pageLimit: 100,
+  },
+  {
+    name: "get_event",
+    description:
+      "Returns one appointment in detail: time, place, organiser, the attendees with their answers and the user's own — and, where it has a description, a report of what the description says about your question.",
+    risk: "read",
+    input: z.object({
+      event: z.string().min(3).max(64).describe("The appointment's handle from get_calendar"),
+      question: z.string().max(500).optional().describe("What you want to know from the description"),
+    }),
+    dataClasses: ["calendar"],
+    untrustedResult: true,
+    core: true,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
   },
   {
     name: "get_recent",
@@ -221,10 +295,44 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     input: z.object({ kind: z.enum(["opened", "edited"]).default("opened"), limit: limit(20, 10) }),
     dataClasses: ["notes"],
     untrustedResult: true,
-    core: false,
+    core: true,
     surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 20,
+  },
+  {
+    name: "search_mail",
+    description:
+      "Lists messages from the user's connected mail accounts: the newest of a folder, or those that match search terms. Returns date, sender, subject and a handle per message — never a message's text. Read one with read_mail.",
+    risk: "read",
+    input: z.object({
+      query: z.string().max(200).optional().describe("Search terms; omit for the newest messages"),
+      folder: z.string().max(200).optional().describe("Folder name as the account writes it; the inbox when omitted"),
+      account: z.string().max(200).optional().describe("Only this account, by its name or address; every account when omitted"),
+      limit: limit(25, 10),
+    }),
+    dataClasses: ["mail"],
+    untrustedResult: true,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 25,
+  },
+  {
+    name: "read_mail",
+    description:
+      "Reads one message and reports what it says about your question: a short summary, facts with quotes from the message, and links it contains. You receive a report, not the message's text. The message stays unread and unchanged in the mailbox.",
+    risk: "read",
+    input: z.object({
+      message: z.string().min(3).max(1024).describe("The message's handle from search_mail"),
+      question: z.string().min(1).max(500).describe("What you want to know from the message"),
+    }),
+    dataClasses: ["mail"],
+    untrustedResult: true,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
   },
   {
     name: "parse_task",
@@ -312,25 +420,36 @@ export function toolsFor(surface: ToolSurface): ToolManifest[] {
   return TOOL_MANIFESTS.filter((tool) => tool.surfaces.includes(surface));
 }
 
-/** The always-loaded core set of a surface (six for the harness). */
+/** The tools of a surface that every conversation loads, where its vault can serve them. */
 export function coreTools(surface: ToolSurface = "harness"): ToolManifest[] {
   return toolsFor(surface).filter((tool) => tool.core);
 }
 
+/** Words that say nothing about what is looked for: every description holds them. */
+const FILLER_WORDS = new Set(["the", "and", "for", "with", "from", "that", "this", "what", "how", "are", "you", "can", "any", "all", "its", "into", "about", "one", "tool", "tools"]);
+
+/** The words a search compares: lower case, three letters or more, without the fillers. */
+export function searchWords(query: string): string[] {
+  return query.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2 && !FILLER_WORDS.has(w));
+}
+
+/** How many of the words a text holds. */
+export function wordScore(words: readonly string[], text: string): number {
+  const hay = text.toLowerCase();
+  return words.filter((w) => hay.includes(w)).length;
+}
+
 /**
- * Plainva's own tool search: non-core tools whose name or description share a
- * word with the query, best overlap first. Used where the provider has no tool
- * search of its own.
+ * Plainva's own tool search (ADR 0019): the tools of `pool` — a
+ * conversation's further tools — whose name or description share a word with
+ * the query, best overlap first. Used where the provider has no tool search
+ * of its own.
  */
-export function findTools(query: string, surface: ToolSurface = "harness", max = 5): ToolManifest[] {
-  const words = query.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
+export function findTools(query: string, pool: readonly ToolManifest[], max = 5): ToolManifest[] {
+  const words = searchWords(query);
   if (words.length === 0) return [];
-  return toolsFor(surface)
-    .filter((tool) => !tool.core)
-    .map((tool) => {
-      const hay = `${tool.name.replace(/_/g, " ")} ${tool.description}`.toLowerCase();
-      return { tool, score: words.filter((w) => hay.includes(w)).length };
-    })
+  return pool
+    .map((tool) => ({ tool, score: wordScore(words, `${tool.name.replace(/_/g, " ")} ${tool.description}`) }))
     .filter((hit) => hit.score > 0)
     .sort((a, b) => b.score - a.score || a.tool.name.localeCompare(b.tool.name))
     .slice(0, max)
@@ -342,6 +461,45 @@ export function toolInputJsonSchema(tool: ToolManifest): Record<string, unknown>
   const schema = z.toJSONSchema(tool.input, { target: "draft-2020-12", io: "input" }) as Record<string, unknown>;
   delete schema.$schema;
   return schema;
+}
+
+/** An app command as the tool search lists it: its id for `run_command`, and what it does. */
+export interface ListedCommand {
+  id: string;
+  label: string;
+}
+
+const COMMAND_WORDS = /\b(commands?|app|navigat\w*|views?)\b/i;
+
+/**
+ * What `find_tools` answers (ADR 0019): the further tools and the app
+ * commands that match the query, each with what it takes — a tool with the
+ * schema of its arguments, exactly as a tool of the conversation's own list
+ * would have it. A query that matches nothing gets everything: the catalog is
+ * small, and a model that asked in another language still finds its way.
+ */
+export function findToolsText(query: string, pool: readonly ToolManifest[], commands: readonly ListedCommand[]): string {
+  const words = searchWords(query);
+  let tools = findTools(query, pool, 6);
+  let listed = COMMAND_WORDS.test(query) ? [...commands] : commands.filter((command) => wordScore(words, `${command.id.replace(/-/g, " ")} ${command.label}`) > 0);
+  const nothing = tools.length === 0 && listed.length === 0;
+  if (nothing) {
+    tools = [...pool];
+    listed = [...commands];
+  }
+  if (tools.length === 0 && listed.length === 0) return "There are no further tools and no app commands in this conversation.";
+  const lines: string[] = [];
+  if (nothing) lines.push(`Nothing matches "${query.trim().slice(0, 80)}" by name. Everything there is:`, "");
+  if (tools.length) {
+    lines.push(`Tools — call one through ${DISPATCH_TOOL}, with its name and its arguments:`);
+    for (const tool of tools) lines.push(`- ${tool.name} — ${tool.description}`, `  arguments: ${JSON.stringify(toolInputJsonSchema(tool))}`);
+  }
+  if (listed.length) {
+    if (tools.length) lines.push("");
+    lines.push("App commands — run one through run_command, with its id:");
+    for (const command of listed) lines.push(`- ${command.id} — ${command.label}`);
+  }
+  return lines.join("\n");
 }
 
 /** Validates and completes tool arguments (defaults applied); never throws. */

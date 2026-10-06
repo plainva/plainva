@@ -27,7 +27,7 @@ import {
 } from "@plainva/core";
 import type { AiInstructionsHost, AiVaultHost } from "./aiSession";
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
-import { CHAT_TOOL_NAMES, createVaultToolExecutor, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
+import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
 
 /**
  * The vault side of the AI session, built the same way in both shells: the
@@ -247,7 +247,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
     ...(input.reply ? { reply: input.reply } : {}),
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
-    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean) {
+    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean, narrowed?: () => readonly string[] | null) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;
       const deps: VaultToolDeps = {
@@ -257,8 +257,12 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
         policyOf: input.policy.policyOf,
         resolveLink: input.policy.resolveLink,
       };
+      // What this shell serves beyond a conversation's own list: found with the tool search, never loaded on its own.
+      const more = furtherToolNames(deps);
+      // A shell without appointments does not offer the tools that read them.
+      const names = deps.events ? CHAT_TOOL_NAMES : CHAT_TOOL_NAMES.filter((name) => name !== "get_calendar" && name !== "get_event");
       // In a conversation with the internet a note whose rules say `web: deny` does not exist for the tools either.
-      return { names: CHAT_TOOL_NAMES, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact) };
+      return { names, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}) }) };
     },
   };
 }

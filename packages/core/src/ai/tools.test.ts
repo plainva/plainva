@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { coreTools, findTools, parseToolInput, TOOL_DESCRIPTION_LIMIT, TOOL_MANIFESTS, TOOL_NAME_PATTERN, toolByName, toolInputJsonSchema, toolsFor, WEB_TOOL_NAMES } from "./tools.js";
+import {
+  calledToolName,
+  coreTools,
+  dispatchedArgs,
+  findTools,
+  findToolsText,
+  MAIL_TOOL_NAMES,
+  META_TOOL_NAMES,
+  parseToolInput,
+  TOOL_DESCRIPTION_LIMIT,
+  TOOL_MANIFESTS,
+  TOOL_NAME_PATTERN,
+  toolByName,
+  toolInputJsonSchema,
+  toolsFor,
+  WEB_TOOL_NAMES,
+} from "./tools.js";
 import { isEffectTool, ruleOfTwo, runTraits } from "./ruleOfTwo.js";
 
 describe("tool manifests", () => {
@@ -16,8 +32,25 @@ describe("tool manifests", () => {
     }
   });
 
-  it("the harness always loads exactly the six core tools", () => {
-    expect(coreTools().map((t) => t.name)).toEqual(["search_vault", "read_note", "get_outline", "query_base", "get_tasks", "run_command"]);
+  it("a conversation loads the tools an answer about the vault usually needs, and the two that reach the rest", () => {
+    expect(coreTools().map((t) => t.name)).toEqual([
+      "search_vault",
+      "read_note",
+      "get_outline",
+      "query_base",
+      "get_tasks",
+      "run_command",
+      "find_tools",
+      "call_tool",
+      "get_backlinks",
+      "graph_neighborhood",
+      "get_calendar",
+      "get_event",
+      "get_recent",
+    ]);
+    // Mail is never loaded on its own: it is found, and its first call asks.
+    for (const name of MAIL_TOOL_NAMES) expect(toolByName(name), name).toMatchObject({ core: false, risk: "read", untrustedResult: true, dataClasses: ["mail"], surfaces: ["harness"] });
+    expect(META_TOOL_NAMES).toEqual(["find_tools", "call_tool"]);
   });
 
   it("the MCP surface is small and read-only", () => {
@@ -34,7 +67,7 @@ describe("tool manifests", () => {
   });
 
   it("results with vault or third-party content are marked untrusted", () => {
-    for (const name of ["search_vault", "read_note", "get_outline", "query_base", "get_tasks", "get_backlinks", "get_calendar", "get_recent"]) {
+    for (const name of ["search_vault", "read_note", "get_outline", "query_base", "get_tasks", "get_backlinks", "get_calendar", "get_event", "get_recent", "search_mail", "read_mail"]) {
       expect(toolByName(name)?.untrustedResult, name).toBe(true);
     }
   });
@@ -55,11 +88,54 @@ describe("tool manifests", () => {
     expect(parseToolInput(toolByName("get_calendar")!, { from: "2026-09-01", to: "tomorrow" }).ok).toBe(false);
   });
 
-  it("finds further tools by what they do", () => {
-    expect(findTools("backlinks to this note").map((t) => t.name)).toContain("get_backlinks");
-    expect(findTools("calendar appointments").map((t) => t.name)[0]).toBe("get_calendar");
-    expect(findTools("xx")).toEqual([]);
-    expect(findTools("search").every((t) => !t.core)).toBe(true);
+  it("finds further tools by what they do, among the tools it is given", () => {
+    const pool = MAIL_TOOL_NAMES.map((name) => toolByName(name)!);
+    expect(findTools("read a message from the mail", pool).map((t) => t.name)).toEqual(["read_mail", "search_mail"]);
+    expect(findTools("newest messages of a folder", pool)[0]?.name).toBe("search_mail");
+    expect(findTools("xx", pool)).toEqual([]);
+    // Nothing outside the pool is ever found, whatever the words.
+    expect(findTools("backlinks calendar web page", pool)).toEqual([]);
+    expect(findTools("mail", [])).toEqual([]);
+  });
+
+  it("the tool search answers with what a call needs: the name, what it does, the arguments", () => {
+    const pool = MAIL_TOOL_NAMES.map((name) => toolByName(name)!);
+    const commands = [
+      { id: "open-graph", label: "Open the graph view" },
+      { id: "open-note", label: "Open a note or a database; args: { path }" },
+    ];
+    const mail = findToolsText("mail", pool, commands);
+    expect(mail).toContain("- search_mail — ");
+    expect(mail).toContain("- read_mail — ");
+    expect(mail).toContain('"required":["message","question"]');
+    expect(mail).toContain("call one through call_tool");
+    expect(mail).not.toContain("open-graph");
+
+    const graph = findToolsText("show the graph", pool, commands);
+    expect(graph).toContain("- open-graph — Open the graph view");
+    expect(graph).toContain("through run_command");
+    expect(graph).not.toContain("search_mail");
+
+    // "commands" lists them all; a query in another language lists everything rather than nothing.
+    expect(findToolsText("commands", pool, commands)).toContain("- open-note — ");
+    const other = findToolsText("Postfach", pool, commands);
+    expect(other).toContain("Nothing matches");
+    expect(other).toContain("- search_mail — ");
+    expect(other).toContain("- open-graph — ");
+    expect(findToolsText("anything", [], [])).toBe("There are no further tools and no app commands in this conversation.");
+  });
+
+  it("a dispatched call is known by the tool it names", () => {
+    expect(calledToolName({ name: "call_tool", args: { name: "search_mail", args: { query: "offer" } } })).toBe("search_mail");
+    expect(calledToolName({ name: "search_vault", args: { query: "x" } })).toBe("search_vault");
+    // A name that is none stays the dispatcher's: nothing made up is shown as a tool.
+    expect(calledToolName({ name: "call_tool", args: { name: "Search Mail!" } })).toBe("call_tool");
+    expect(calledToolName({ name: "call_tool", args: null })).toBe("call_tool");
+    expect(dispatchedArgs({ name: "x", args: { a: 1 } })).toEqual({ a: 1 });
+    expect(dispatchedArgs({ name: "x", args: '{"a":1}' })).toEqual({ a: 1 });
+    expect(dispatchedArgs({ name: "x" })).toEqual({});
+    // Text that is no JSON goes on as it is, and fails the tool's own validation.
+    expect(dispatchedArgs({ name: "x", args: "a=1" })).toBe("a=1");
   });
 });
 

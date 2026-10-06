@@ -45,6 +45,8 @@ A sixth slot, **Embeddings**, holds the model search by meaning computes with wh
 
 The note you have open goes along automatically; remove it from the context with its ✕ if you want to. **Pin a note…** adds further notes. The assistant can also look things up itself: it searches the vault, reads notes and their sections, databases, backlinks and linked notes, lists tasks, appointments and the notes opened or changed lately, and opens notes and views. It cannot change, create or delete anything.
 
+The assistant can also show you things: open a note at a heading, show a note in the graph, turn the calendar to a day, open views, show and hide the sidebars. It uses the commands of the command palette for that — and of those only the ones that show something: whatever creates, changes, deletes, exports or opens a window is not its to trigger.
+
 Every conversation starts with the line "Answers are written by an AI — ⟨model⟩ via ⟨provider⟩". Under each answer a line says what was sent where: how many notes, roughly how many tokens and — where the provider publishes prices — the approximate cost. **Stop** ends an answer at any time.
 
 A link in an answer opens only after you confirmed its address, and images in answers are never loaded.
@@ -131,6 +133,16 @@ The assistant cannot use the internet until you allow it — three times over:
 **Notes that stay out.** A note or folder with **Web access: never** (see Privacy rules below) does not exist for a conversation that may use the internet: not in its context, not for its tools, and links to it are withheld.
 
 A link in an answer whose address the model composed itself is marked, and the question before it opens says so. If no answer comes back at all — no connection, the provider does not respond — the conversation lists the notes that match your question best instead.
+
+## Mail and appointments
+
+**Appointments.** The assistant lists appointments from your connected calendars — day, time and title, on request also the place and who takes part — and reads a single appointment in detail: the organiser, the attendees with their answers, and your own. It never gets the link of an online meeting; that stays in the calendar.
+
+**Mail.** Where mail accounts are connected in this vault, the assistant can search and read messages. Mail is not one of the tools a conversation starts with: the assistant looks for it only when your question needs it, and at the first access Plainva asks — **Read your mail?** **Allow** holds for this provider until you close Plainva; another model or another provider asks again. **Don't allow** leaves the access out, and the assistant carries on without it. A model on this device does not ask, because nothing leaves the device for it.
+
+**What the assistant reads of it.** Of a search it sees the date, the sender and the subject of the messages — never their text. It never reads the text of a message or the description of an appointment itself: other people wrote them, and whoever writes a mail or an invitation can write it for exactly this reader. A second reader without any tools reads them and writes a short report — a summary, statements with the passage they rest on, and links that are really in there. If a model on this device is set up as **Local** under **Models and profiles**, it is that reader, and the text itself does not leave the device; only the report goes to the provider. Otherwise the conversation's provider reads it, in a request of its own without tools. The question tells you beforehand who reads.
+
+**What does not change.** The assistant only reads: a message it read stays unread, nothing is moved, answered or deleted, and it does not open attachments — it only names them. Below the answer you see how many messages were read, and the line below it says who read the text.
 
 ## Privacy rules
 

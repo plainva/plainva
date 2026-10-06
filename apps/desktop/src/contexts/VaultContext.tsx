@@ -39,7 +39,7 @@ import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, cl
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
 import { startBackupScheduler } from "../services/backupScheduler";
 import { startReminderScheduler } from "../services/reminderScheduler";
-import { requestCalendarDay } from "../services/pim/calendarNav";
+import { requestCalendarDay } from "@plainva/ui";
 import { forgetTrayNext, reportTrayNext } from "../services/trayNext";
 import { showContentInVaultWindow } from "../services/windowManager";
 import { CALENDAR_TAB_PATH } from "../components/graph/virtualPaths";

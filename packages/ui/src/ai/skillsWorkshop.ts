@@ -21,7 +21,7 @@ import { appSkillOf } from "./appSkills";
 import type { SkillTestOutcome, SkillTestPlan } from "./aiSession";
 import { aiFailureText } from "./aiSettingsModel";
 import { skillView } from "./aiSkills";
-import { CHAT_TOOL_NAMES } from "./vaultTools";
+import { SKILL_TOOL_NAMES } from "./vaultTools";
 
 /**
  * The skills workshop (plan KI-Harness P3-5, mockup chapter 12): one model
@@ -101,8 +101,8 @@ export function approvalFacts(t: Translate, entry: InstructionEntry, language: s
   if (source.kind === "agents") {
     may.push(t("ai.workshop.mayAgents"));
   } else if (skill) {
-    // The tools a conversation carries are the upper bound; the skill can only narrow them.
-    const grant = skillGrant(skill, CHAT_TOOL_NAMES);
+    // What a conversation can reach is the upper bound — its own tools and the further ones (mail); the skill can only narrow it.
+    const grant = skillGrant(skill, SKILL_TOOL_NAMES);
     may.push(grant.tools.length ? t("ai.workshop.mayTools", { tools: grant.tools.map((name) => t(`ai.tool.${name}`, { defaultValue: name })).join(" · ") }) : t("ai.workshop.mayNoTools"));
     may.push(grant.folders ? t("ai.workshop.mayFolders", { folders: grant.folders.join(", ") || "—" }) : t("ai.workshop.mayWholeVault"));
     if (grant.maxOutputTokens !== null) may.push(t("ai.workshop.mayBudget", { tokens: new Intl.NumberFormat(language).format(grant.maxOutputTokens) }));

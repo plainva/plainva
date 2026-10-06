@@ -33,6 +33,27 @@ export interface RunWeb {
   outputTokens: number;
 }
 
+/**
+ * What a run read through its tools of the texts other people wrote for the
+ * user (plan KI-Harness P4-4) — mail, the descriptions of appointments — in
+ * numbers, and who read the raw text: a model on this device, or the
+ * conversation's own provider. Never a subject, a sender or a word of it.
+ */
+export interface RunReading {
+  mailSearches: number;
+  /** Messages a reader reported on. */
+  messages: number;
+  /** Descriptions of appointments a reader reported on. */
+  descriptions: number;
+  /** Where the raw text was read. */
+  reader: "device" | "provider";
+  /** The reader's model as the settings name it, when it read on this device. */
+  readerModel?: string;
+  /** Tokens of the reader's calls; part of the run's usage only when the provider read. */
+  inputTokens: number;
+  outputTokens: number;
+}
+
 /** What one run sent and cost — the line under its answer, and the audit's source. */
 export interface RunMeta {
   /** Index of the user turn that started the run. */
@@ -58,6 +79,8 @@ export interface RunMeta {
   skillCatalog?: { count: number; tokens: number };
   /** What the run asked of the internet; absent when it asked nothing. */
   web?: RunWeb;
+  /** What the run read of mail and appointments; absent when it read none. */
+  reading?: RunReading;
 }
 
 /** The skill a conversation runs, bound when it started (plan KI-Harness P3). */
@@ -246,8 +269,25 @@ function readRun(raw: unknown): RunMeta[] {
         : {}),
       ...(r.skillCatalog && typeof r.skillCatalog === "object" ? { skillCatalog: { count: count(r.skillCatalog.count), tokens: count(r.skillCatalog.tokens) } } : {}),
       ...(readRunWeb(r.web) ? { web: readRunWeb(r.web)! } : {}),
+      ...(readRunReading(r.reading) ? { reading: readRunReading(r.reading)! } : {}),
     },
   ];
+}
+
+/** A run's record of what it read of mail and appointments, read defensively: numbers, and who read. */
+function readRunReading(raw: unknown): RunReading | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<Record<keyof RunReading, unknown>>;
+  const reading: RunReading = {
+    mailSearches: count(r.mailSearches),
+    messages: count(r.messages),
+    descriptions: count(r.descriptions),
+    reader: r.reader === "device" ? "device" : "provider",
+    ...(typeof r.readerModel === "string" && r.readerModel ? { readerModel: r.readerModel.slice(0, 120) } : {}),
+    inputTokens: count(r.inputTokens),
+    outputTokens: count(r.outputTokens),
+  };
+  return reading.mailSearches || reading.messages || reading.descriptions ? reading : null;
 }
 
 const WEB_RECORD_MAX = 64;
@@ -327,6 +367,7 @@ function readManifest(raw: unknown): EgressManifest | null {
     estimatedTokens: count(m.estimatedTokens),
     ...(typeof m.estimatedCostUsd === "number" && m.estimatedCostUsd >= 0 ? { estimatedCostUsd: m.estimatedCostUsd } : {}),
     tools: strings(m.tools),
+    ...(strings(m.more).length ? { more: strings(m.more) } : {}),
     web: m.web === true,
     ...(m.web === true && strings(m.webHosts).length ? { webHosts: strings(m.webHosts) } : {}),
     ...(readManifestInstructions(m.instructions) ? { instructions: readManifestInstructions(m.instructions)! } : {}),
@@ -389,6 +430,8 @@ export interface LedgerEntry {
   skillTokens?: number;
   /** What it asked of the internet, in numbers: pages, searches, and the tokens of the calls that read and searched (part of `usage`). */
   web?: { pages: number; searches: number; inputTokens: number; outputTokens: number };
+  /** What it read of mail and appointments, in numbers, and whether a model on this device read the raw text. */
+  reading?: { mailSearches: number; messages: number; descriptions: number; onDevice: boolean; inputTokens: number; outputTokens: number };
 }
 
 export const AI_LEDGER_LIMIT = 500;

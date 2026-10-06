@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "@plainva/ui/i18n";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
 import {
+  aiNavigationCommands,
   createAudioTranscriber,
   getPlatformServices,
   noteDisplayName,
@@ -16,6 +17,7 @@ import {
   type AiSession,
   type AiState,
   type AiVaultHost,
+  type AppCommand,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
@@ -39,24 +41,29 @@ export interface DesktopAiInput {
   layout: { panes: readonly { tabs: readonly { history: readonly string[]; historyIndex: number }[] }[] };
   openView: (path: string) => void;
   openNote: (path: string) => void;
-  /** Named navigation targets of the shell; absent ones are not offered. */
-  navigation: Partial<Record<"graph" | "tasks" | "calendar" | "journal" | "mail" | "comments" | "leftSidebar" | "rightSidebar", () => void>>;
   /** The vault's search by meaning (plan P2b): the context package ranks with it. */
   embeddings?: LocalEmbeddings | null;
   /** The vault's gists (plan P2b-3): the context package sends them for its cards. */
   gists?: LocalGists | null;
 }
 
-const NAVIGATION_LABELS: Record<keyof DesktopAiInput["navigation"], [id: string, label: string]> = {
-  graph: ["open-graph", "Open the graph view"],
-  tasks: ["open-tasks", "Open the task list"],
-  calendar: ["open-calendar", "Open the calendar"],
-  journal: ["open-journal", "Open the journal"],
-  mail: ["open-mail", "Open mail"],
-  comments: ["open-comments", "Open the open comments"],
-  leftSidebar: ["toggle-left-sidebar", "Show or hide the left sidebar"],
-  rightSidebar: ["toggle-right-sidebar", "Show or hide the right sidebar"],
-};
+/** Where the shell leaves its palette's commands for the assistant: built late in a render, asked for when a command runs. */
+export type AiCommandSource = { current: (() => readonly AppCommand[]) | null };
+
+/**
+ * Hands the palette's commands to the assistant (plan KI-Harness P4-4): what
+ * `run_command` can do is what the command registry holds, never a list of
+ * its own. Rendered where the shell has built them.
+ */
+export function AiCommandSourceLink({ sourceRef, build }: { sourceRef: AiCommandSource; build: () => readonly AppCommand[] }) {
+  useEffect(() => {
+    sourceRef.current = build;
+    return () => {
+      sourceRef.current = null;
+    };
+  }, [sourceRef, build]);
+  return null;
+}
 
 const NOOP_SUBSCRIBE = () => () => {};
 const NULL_STATE = (): AiState | null => null;
@@ -75,7 +82,7 @@ export function useDesktopAi(input: DesktopAiInput) {
   });
   // Appointments come from the PIM cache of the open vault, when it has one;
   // an AI suggestion round goes through its comment service (plan P1.5).
-  const { pimRuntime, commentOperations } = useVault();
+  const { pimRuntime, commentOperations, dbAdapter } = useVault();
   const comments = useRef(commentOperations);
   useLayoutEffect(() => {
     comments.current = commentOperations;
@@ -84,29 +91,22 @@ export function useDesktopAi(input: DesktopAiInput) {
   useLayoutEffect(() => {
     pim.current = pimRuntime;
   });
-
-  const commands = useStableHandler((): AiNavigationCommand[] => {
-    const nav = latest.current.navigation;
-    const list: AiNavigationCommand[] = [];
-    for (const [key, [id, label]] of Object.entries(NAVIGATION_LABELS) as Array<[keyof DesktopAiInput["navigation"], [string, string]]>) {
-      const run = nav[key];
-      if (run) list.push({ id, label, run: () => (run(), true) });
-    }
-    list.push({
-      id: "open-note",
-      label: "Open a note; args: { path: vault-relative path }",
-      run: async (args) => {
-        const path = typeof args?.path === "string" ? args.path : "";
-        const query = latest.current.queryService;
-        // Only a note that exists: opening an unknown path would make a new tab of it.
-        const resolved = path && query ? await query.resolveNotePath(path) : null;
-        if (!resolved) return false;
-        latest.current.openNote(resolved);
-        return true;
-      },
-    });
-    return list;
+  // The index database: the mail client's offline copy lives there, and the assistant's mail tools read it when an account does not answer.
+  const db = useRef(dbAdapter);
+  useLayoutEffect(() => {
+    db.current = dbAdapter;
   });
+
+  // What `run_command` can do (plan KI-Harness P4-4): the palette's commands that show or arrange something, and the three that take a note or a day.
+  const commandSourceRef = useRef<AiCommandSource["current"]>(null);
+  const commands = useStableHandler((): AiNavigationCommand[] =>
+    aiNavigationCommands({
+      commands: () => commandSourceRef.current?.() ?? [],
+      openNote: (path) => latest.current.openNote(path),
+      resolveNote: async (target) => (await latest.current.queryService?.resolveNotePath(target)) ?? null,
+      neighbors: async (path, limit) => (await latest.current.queryService?.getLinkNeighbors(path, limit)) ?? [],
+    }),
+  );
 
   const { vaultPath, vaultAdapter, queryService } = input;
   /** The vault host of the open vault: the MCP server's calls run on it too (plan §17.3). */
@@ -134,6 +134,7 @@ export function useDesktopAi(input: DesktopAiInput) {
       openPaths: () => latest.current.layout.panes.flatMap((pane) => pane.tabs.map((tab) => tab.history[tab.historyIndex]).filter((p): p is string => Boolean(p))),
       events: async (from, to) => situationEvents((await pim.current?.cache.listEvents(from.getTime(), to.getTime())) ?? []),
       commands,
+      db: () => db.current,
       commentOperations: () => comments.current,
       semantic: () => latest.current.embeddings ?? null,
       gists: () => latest.current.gists ?? null,
@@ -244,5 +245,5 @@ ${i18n.t("ai.openLinkBuilt")}` : url;
     [activePath],
   );
 
-  return { session, enabled, companionOpen, openCompanion, closeCompanion, toggleCompanion, runSkill, skills, openAsTab, openNoteTarget, openUrl, activeNote };
+  return { session, enabled, companionOpen, openCompanion, closeCompanion, toggleCompanion, runSkill, skills, openAsTab, openNoteTarget, openUrl, activeNote, commandSourceRef };
 }

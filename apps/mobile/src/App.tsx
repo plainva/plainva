@@ -424,7 +424,6 @@ export default function App() {
     void vaultOps.noteOpened(vault, path); // real MRU (B2) + next cold start (T6)
     push({ kind: "note", path });
   };
-  const aiNavigation = <MobileAiNavigation navRef={ai.navRef} nav={{ openNote, openSettings: () => push({ kind: "settingsArea", path: "ai" }), areas: { tasks: () => setNav((st) => tapTab(st, "tasks")), calendar: () => setNav((st) => tapTab(st, "calendar")), journal: () => setNav((st) => tapTab(st, "journal")), graph: () => setNav((st) => tapTab(st, "graph")) } }} />;
   const openBase = (path: string) => {
     // Databases join the "Zuletzt" carousel too (mockup 1 shows one).
     void vaultOps.pushRecent(vault, path);
@@ -675,7 +674,7 @@ export default function App() {
     <LocalModelsProvider embeddings={ai.embeddings} gists={ai.gists}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
-      {aiNavigation}
+      <MobileAiNavigation navRef={ai.navRef} nav={{ openNote, openSettings: () => push({ kind: "settingsArea", path: "ai" }), commands }} />
       <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
       {!onboarded && (
         <div className="m-onboarding">

@@ -36,7 +36,12 @@
       "open_in_app": "Abriendo una nota en Plainva",
       "use_skill": "Cargando una habilidad",
       "fetch_url": "Leyendo una página web",
-      "web_search": "Buscando en la web"
+      "web_search": "Buscando en la web",
+      "get_event": "Leyendo una cita",
+      "search_mail": "Buscando en el correo",
+      "read_mail": "Leyendo un mensaje",
+      "find_tools": "Buscando otras herramientas",
+      "call_tool": "Usando otra herramienta"
     },
     "stopped": {
       "cancelled": "Detenido.",
@@ -315,7 +320,10 @@
       "webHosts": "sin preguntar, para direcciones nombradas por ti o por una fuente: {{hosts}}",
       "webPages": "Solicitado en la web",
       "webNotRead": "no leída",
-      "webSearches": "Se buscó"
+      "webSearches": "Se buscó",
+      "further": "Otras herramientas",
+      "furtherMail": "correo — pregunta antes de leerlo por primera vez",
+      "reading": "Correo y calendario"
     },
     "lens": {
       "open": "Ver contexto",
@@ -489,6 +497,32 @@
         "siteInvalid": "Eso no es un sitio público de Internet.",
         "removeSite": "Quitar {{host}}"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "¿Leer tu correo?",
+        "what": "De tu correo",
+        "heads": "remitente, asunto y fecha de los mensajes que encuentra",
+        "text": "Texto de un mensaje",
+        "textProvider": "lo lee {{provider}}, en una solicitud aparte y sin herramientas",
+        "textDevice": "lo lee {{reader}} en este dispositivo — solo su informe va a {{provider}}",
+        "scope": "Se aplica a {{provider}} hasta que cierres Plainva. En tu buzón no se cambia nada ni se marca nada como leído.",
+        "allow": "Permitir",
+        "deny": "No permitir"
+      }
+    },
+    "reading": {
+      "searches_one": "{{count}} búsqueda en el correo",
+      "searches_many": "{{count}} de búsquedas en el correo",
+      "searches_other": "{{count}} búsquedas en el correo",
+      "messages_one": "{{count}} mensaje leído",
+      "messages_many": "{{count}} de mensajes leídos",
+      "messages_other": "{{count}} mensajes leídos",
+      "descriptions_one": "{{count}} descripción de cita leída",
+      "descriptions_many": "{{count}} de descripciones de citas leídas",
+      "descriptions_other": "{{count}} descripciones de citas leídas",
+      "byDevice": "El texto lo leyó {{reader}} en este dispositivo; solo se transmitió su informe.",
+      "byProvider": "El texto lo leyó {{provider}}, en solicitudes aparte y sin herramientas."
     },
     "lint": {
       "defused": "Las direcciones web nuevas se han desactivado: se leen, pero no son enlaces."

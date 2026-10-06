@@ -45,6 +45,8 @@ Szóste miejsce, **Embeddingi**, zawiera model, którym liczy wyszukiwanie po zn
 
 Otwarta notatka jest dołączana automatycznie; można ją usunąć z kontekstu jej ✕, jeśli trzeba. **Przypnij notatkę…** dodaje kolejne notatki. Asystent potrafi też sam czegoś poszukać: przeszukuje vault, czyta notatki i ich sekcje, bazy danych, linki zwrotne i powiązane notatki, wyświetla listę zadań, spotkań oraz notatek niedawno otwartych lub zmienionych, a także otwiera notatki i widoki. Nie potrafi niczego zmienić, utworzyć ani usunąć.
 
+Asystent potrafi też coś Ci pokazać: otworzyć notatkę przy nagłówku, pokazać notatkę na grafie, ustawić kalendarz na wybrany dzień, otworzyć widoki, pokazać i ukryć paski boczne. Korzysta w tym celu z poleceń z palety poleceń — i to tylko z tych, które coś pokazują: tych, które tworzą, zmieniają, usuwają, eksportują albo otwierają okno, wywołać nie może.
+
 Każda rozmowa zaczyna się od wiersza „Odpowiedzi pisze AI — ⟨model⟩ przez ⟨dostawca⟩”. Pod każdą odpowiedzią widnieje wiersz z informacją, co dokąd zostało wysłane: ile notatek, w przybliżeniu ile tokenów i — tam, gdzie dostawca publikuje ceny — przybliżony koszt. **Zatrzymaj** kończy odpowiedź w każdej chwili.
 
 Link w odpowiedzi otwiera się dopiero po potwierdzeniu jego adresu, a obrazy w odpowiedziach nigdy nie są wczytywane.
@@ -131,6 +133,16 @@ Asystent nie może korzystać z internetu, dopóki tego nie dopuścisz — i to 
 **Notatki, które zostają poza rozmową.** Notatka lub folder z ustawieniem **Dostęp do sieci: nigdy** (zob. Zasady prywatności niżej) nie istnieje dla rozmowy, która może korzystać z internetu: nie ma jej ani w kontekście, ani w narzędziach, a linki do niej są wstrzymywane.
 
 Link w odpowiedzi, którego adres model zbudował sam, jest oznaczony, a pytanie przed otwarciem mówi o tym. Jeśli odpowiedź w ogóle nie nadejdzie — brak połączenia, dostawca nie odpowiada —, rozmowa wymienia zamiast niej notatki, które najlepiej pasują do Twojego pytania.
+
+## E-mail i spotkania
+
+**Spotkania.** Asystent wymienia spotkania z Twoich połączonych kalendarzy — dzień, godzinę i tytuł, na życzenie także miejsce i uczestników — oraz odczytuje pojedyncze spotkanie ze szczegółami: organizatora, uczestników wraz z ich odpowiedziami i Twoją własną. Nigdy nie dostaje linku do spotkania online; ten zostaje w kalendarzu.
+
+**E-mail.** Jeśli w tym vaulcie połączone są konta e-mail, asystent może wyszukiwać i czytać wiadomości. E-mail nie należy do narzędzi, z którymi zaczyna się rozmowa: asystent szuka go dopiero wtedy, gdy Twoje pytanie tego wymaga, a przy pierwszym dostępie Plainva pyta — **Czytać Twoje e-maile?** **Zezwól** obowiązuje dla tego dostawcy do zamknięcia Plainvy; inny model albo inny dostawca pyta ponownie. **Nie zezwalaj** pomija dostęp, a asystent działa dalej bez niego. Model na tym urządzeniu nie pyta, ponieważ w jego przypadku nic nie opuszcza urządzenia.
+
+**Co z tego czyta asystent.** Z wyszukiwania widzi datę, nadawcę i temat wiadomości — nigdy ich tekst. Tekstu wiadomości ani opisu spotkania nigdy nie czyta sam: napisały je inne osoby, a kto pisze e-mail albo zaproszenie, może to napisać właśnie dla tego czytelnika. Drugi czytelnik, bez żadnych narzędzi, czyta je i pisze krótki raport — streszczenie, stwierdzenia z fragmentem, na którym się opierają, oraz linki, które naprawdę w nich są. Jeśli model na tym urządzeniu jest ustawiony jako **Lokalny** w **Modele i profile**, to on jest tym czytelnikiem, a sam tekst nie opuszcza urządzenia; do dostawcy trafia tylko raport. W przeciwnym razie czyta dostawca rozmowy, w osobnym zapytaniu, bez narzędzi. Pytanie mówi Ci z góry, kto czyta.
+
+**Co się nie zmienia.** Asystent tylko czyta: wiadomość, którą przeczytał, pozostaje nieprzeczytana, nic nie jest przenoszone, odpisywane ani usuwane, a załączników nie otwiera — podaje tylko ich nazwy. Pod odpowiedzią widzisz, ile wiadomości przeczytano, a wiersz pod nią mówi, kto przeczytał tekst.
 
 ## Zasady prywatności
 

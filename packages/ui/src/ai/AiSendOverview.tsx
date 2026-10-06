@@ -1,7 +1,19 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Minus, ShieldAlert, ShieldCheck } from "lucide-react";
-import { REDACTABLE, SITUATION_SOURCE, type AnswerCoverage, type EgressManifest, type ManifestSource, type RunWeb, type ScopeGrowth, type SensitiveKind } from "@plainva/core";
+import {
+  DISPATCH_TOOL,
+  MAIL_TOOL_NAMES,
+  REDACTABLE,
+  SITUATION_SOURCE,
+  type AnswerCoverage,
+  type EgressManifest,
+  type ManifestSource,
+  type RunReading,
+  type RunWeb,
+  type ScopeGrowth,
+  type SensitiveKind,
+} from "@plainva/core";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { Switch } from "../components/ui/Switch";
@@ -38,6 +50,8 @@ export interface AiSendOverviewProps {
   coverage?: AnswerCoverage | null;
   /** After the answer: what the run asked of the internet (plan P4) — every page and every search, read or not. */
   web?: RunWeb | null;
+  /** After the answer: what the run read of mail and appointments (plan P4-4), in numbers, and who read the raw text. */
+  reading?: RunReading | null;
   /** Opens one of those pages; the shell asks before it does. */
   onOpenUrl?: (url: string) => void;
 }
@@ -54,8 +68,22 @@ function useSkillTitle(): (id: string, name: string) => string {
   };
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, onOpenUrl }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
+  // The dispatcher is the search's other half, not a tool of its own to a reader.
+  const shownTools = manifest.tools.filter((tool) => tool !== DISPATCH_TOOL);
+  const further = manifest.more ?? [];
+  const furtherLines = [
+    further.some((name) => MAIL_TOOL_NAMES.includes(name)) ? t("ai.overview.furtherMail") : "",
+    ...further.filter((name) => !MAIL_TOOL_NAMES.includes(name)).map((name) => t(`ai.tool.${name}`, { defaultValue: name })),
+  ].filter(Boolean);
+  const readingLines = reading
+    ? [
+        reading.mailSearches ? t("ai.reading.searches", { count: reading.mailSearches }) : "",
+        reading.messages ? t("ai.reading.messages", { count: reading.messages }) : "",
+        reading.descriptions ? t("ai.reading.descriptions", { count: reading.descriptions }) : "",
+      ].filter(Boolean)
+    : [];
   const kindList = useSensitiveKinds();
   const skillTitle = useSkillTitle();
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
@@ -73,7 +101,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
       case "folder":
         return t("ai.overview.why.folder", { folder: g.folder || "/" });
       case "tools":
-        return t("ai.overview.why.tools", { tools: g.tools.map((tool) => t(`ai.tool.${tool}`, { defaultValue: tool })).join(", ") });
+        return t("ai.overview.why.tools", { tools: g.tools.filter((tool) => tool !== DISPATCH_TOOL).map((tool) => t(`ai.tool.${tool}`, { defaultValue: tool })).join(", ") });
       case "web":
         return t("ai.overview.why.web");
       case "size":
@@ -233,10 +261,17 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
             </dd>
           </>
         )}
-        {manifest.tools.length > 0 && (
+        {shownTools.length > 0 && (
           <>
             <dt>{t("ai.overview.tools")}</dt>
-            <dd>{manifest.tools.map((tool) => t(`ai.tool.${tool}`, { defaultValue: tool })).join(" · ")}</dd>
+            <dd>{shownTools.map((tool) => t(`ai.tool.${tool}`, { defaultValue: tool })).join(" · ")}</dd>
+          </>
+        )}
+        {/* What the tool search reaches (ADR 0019): in the conversation's reach, but not approved here — each kind asks first. */}
+        {furtherLines.length > 0 && (
+          <>
+            <dt>{t("ai.overview.further")}</dt>
+            <dd data-testid="ai-overview-further">{furtherLines.join(" · ")}</dd>
           </>
         )}
         {/* Before sending: that the conversation may use the internet, and for which sites it will not ask. */}
@@ -275,6 +310,20 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           <>
             <dt>{t("ai.overview.webSearches")}</dt>
             <dd data-testid="ai-overview-web-searches">{web.searches.map((search) => search.query).join(" · ")}</dd>
+          </>
+        )}
+        {/* Afterwards: what the run read of mail and appointments — in numbers — and who read the raw text. */}
+        {readingLines.length > 0 && reading && (
+          <>
+            <dt>{t("ai.overview.reading")}</dt>
+            <dd data-testid="ai-overview-reading">
+              {readingLines.join(" · ")}
+              {reading.messages + reading.descriptions > 0 && (
+                <span className="pv-ai-overview-hint">
+                  {reading.reader === "device" ? t("ai.reading.byDevice", { reader: reading.readerModel ?? "" }) : t("ai.reading.byProvider", { provider: manifest.providerLabel })}
+                </span>
+              )}
+            </dd>
           </>
         )}
         <dt>{t("ai.overview.size")}</dt>

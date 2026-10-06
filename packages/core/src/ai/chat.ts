@@ -1,7 +1,7 @@
 import type { Conversation, TextPart } from "./conversation.js";
 import { gateDecision, isCloudRecipient, redactDeniedLinks, type EgressRecipient, type GateDecision } from "./egressGate.js";
 import type { EffectivePolicy } from "./policy.js";
-import { hasWebTools } from "./tools.js";
+import { DISPATCH_TOOL, FIND_TOOL, hasWebTools, MAIL_TOOL_NAMES } from "./tools.js";
 import { fenceUntrusted, payload, stripInvisible, UNTRUSTED_DATA_RULE } from "./trust.js";
 
 /**
@@ -17,6 +17,8 @@ export interface SystemPromptInput {
   today: string;
   /** Names of the tools the conversation carries (fixed for its lifetime). */
   tools: readonly string[];
+  /** Names of the further tools it reaches through `call_tool` (fixed as well). */
+  more?: readonly string[];
   /** The vault owner's standing instructions (`AGENTS.md`), approved on this device (plan KI-Harness P3). */
   vaultInstructions?: string;
   /** The catalog of skills the model may load with `use_skill` — level 1 of the progressive loading. */
@@ -35,9 +37,24 @@ const TOOL_LINES: Record<string, string> = {
   graph_neighborhood: "graph_neighborhood shows the notes linked with a note",
   get_recent: "get_recent lists the notes opened or changed lately",
   get_calendar: "get_calendar lists appointments",
+  get_event: "get_event returns one appointment in detail",
+  search_mail: "search_mail lists messages from the user's mail",
+  read_mail: "read_mail reports what one message says",
   run_command: "run_command opens notes and views in the app (an unknown id returns the list of commands)",
   use_skill: "use_skill loads the instructions of a skill from the list below",
 };
+
+/**
+ * What a conversation is told about the tools it reaches through the tool
+ * search (ADR 0019): which kinds there are — so it knows to look — and how
+ * one is called. The kinds are those of its `more` list, fixed like the list.
+ */
+function furtherTools(more: readonly string[]): string | null {
+  if (!more.length) return null;
+  const kinds = [more.some((name) => MAIL_TOOL_NAMES.includes(name)) ? "the user's mail" : ""].filter(Boolean);
+  const what = kinds.length ? `Further tools exist, for example for ${kinds.join(", ")}` : "Further tools exist";
+  return `${what}: ${FIND_TOOL} lists them and the app's commands with their arguments, and ${DISPATCH_TOOL} calls a tool it listed.`;
+}
 
 /**
  * Approved instructions as one delimited block (plan KI-Harness P3): tier 1,
@@ -90,6 +107,8 @@ export function assistantSystemPrompt(input: SystemPromptInput): string {
   ];
   const tools = input.tools.map((name) => TOOL_LINES[name]).filter(Boolean);
   if (tools.length) lines.push(`Look things up with the tools before you answer questions about the vault: ${tools.join("; ")}.`);
+  const further = input.tools.includes(DISPATCH_TOOL) && input.tools.includes(FIND_TOOL) ? furtherTools(input.more ?? []) : null;
+  if (further) lines.push(further);
   if (web) lines.push(webRules(input.tools));
   if (input.vaultInstructions?.trim()) {
     lines.push(

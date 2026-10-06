@@ -45,6 +45,8 @@ Ein sechster Platz, **Einbettungen**, hält das Modell, mit dem die Suche nach B
 
 Die Notiz, die Du offen hast, geht automatisch mit; nimm sie mit ihrem ✕ aus dem Kontext, wenn Du willst. **Notiz anheften …** fügt weitere Notizen hinzu. Der Assistent kann auch selbst nachsehen: er durchsucht den Vault, liest Notizen und ihre Abschnitte, Datenbanken, Backlinks und verlinkte Notizen, listet Aufgaben, Termine und die zuletzt geöffneten oder geänderten Notizen und öffnet Notizen und Ansichten. Ändern, anlegen oder löschen kann er nichts.
 
+Der Assistent kann Dir auch etwas zeigen: eine Notiz an einer Überschrift öffnen, eine Notiz im Graphen zeigen, den Kalender auf einen Tag stellen, Ansichten öffnen, die Seitenleisten ein- und ausblenden. Er benutzt dafür die Befehle der Befehlspalette — und davon nur die, die etwas zeigen: was anlegt, ändert, löscht, exportiert oder ein Fenster öffnet, kann er nicht auslösen.
+
 Jedes Gespräch beginnt mit der Zeile „Antworten schreibt eine KI — ⟨Modell⟩ über ⟨Anbieter⟩“. Unter jeder Antwort steht, was wohin gesendet wurde: wie viele Notizen, ungefähr wie viele Token und — wo der Anbieter Preise veröffentlicht — die ungefähren Kosten. **Stopp** beendet eine Antwort jederzeit.
 
 Ein Link in einer Antwort öffnet sich erst, nachdem Du seine Adresse bestätigt hast, und Bilder in Antworten werden nie geladen.
@@ -131,6 +133,16 @@ Der Assistent kann das Internet erst benutzen, wenn Du es erlaubst — und zwar 
 **Notizen, die draußen bleiben.** Eine Notiz oder ein Ordner mit **Webzugriff: nie** (siehe Datenschutzregeln weiter unten) gibt es für ein Gespräch, das ins Internet darf, nicht: nicht in seinem Kontext, nicht für seine Werkzeuge, und Links auf sie werden zurückgehalten.
 
 Ein Link in einer Antwort, dessen Adresse das Modell selbst gebildet hat, ist markiert, und die Frage vor dem Öffnen sagt es. Kommt gar keine Antwort zurück — keine Verbindung, der Anbieter antwortet nicht —, listet das Gespräch stattdessen die Notizen, die am besten zu Deiner Frage passen.
+
+## E-Mail und Termine
+
+**Termine.** Der Assistent listet Termine aus Deinen verbundenen Kalendern — Tag, Uhrzeit und Titel, auf Wunsch auch Ort und Teilnehmer — und liest einen einzelnen Termin im Einzelnen: den Organisator, die Teilnehmer mit ihren Antworten und Deine eigene. Den Link einer Online-Besprechung bekommt er nie; der bleibt im Kalender.
+
+**E-Mail.** Sind in diesem Vault Mail-Konten verbunden, kann der Assistent Nachrichten suchen und lesen. E-Mail gehört nicht zu den Werkzeugen, mit denen ein Gespräch beginnt: der Assistent sucht sie erst, wenn Deine Frage sie braucht, und beim ersten Zugriff fragt Plainva — **E-Mails lesen?** **Erlauben** gilt für diesen Anbieter, bis Du Plainva beendest; ein anderes Modell oder ein anderer Anbieter fragt neu. **Nicht erlauben** lässt den Zugriff weg, und der Assistent macht ohne ihn weiter. Ein Modell auf diesem Gerät fragt nicht, weil dafür nichts das Gerät verlässt.
+
+**Was der Assistent davon liest.** Von einer Suche sieht er Datum, Absender und Betreff der Nachrichten — nie ihren Text. Den Text einer Nachricht und die Beschreibung eines Termins liest er nie selbst: andere haben sie geschrieben, und wer eine Mail oder eine Einladung schreibt, kann sie für genau diesen Leser schreiben. Ein zweiter Leser ohne jedes Werkzeug liest sie und schreibt einen kurzen Bericht — eine Zusammenfassung, Aussagen mit der Stelle, auf der sie beruhen, und Links, die wirklich darin stehen. Ist unter **Modelle und Profile** ein Modell auf diesem Gerät als **Lokal** eingerichtet, ist es dieser Leser, und der Text selbst verlässt das Gerät nicht; an den Anbieter geht nur der Bericht. Sonst liest der Anbieter des Gesprächs, in einer eigenen Anfrage ohne Werkzeuge. Die Frage sagt Dir vorher, wer liest.
+
+**Was sich nicht ändert.** Der Assistent liest nur: eine Nachricht, die er gelesen hat, bleibt ungelesen, nichts wird verschoben, beantwortet oder gelöscht, und Anhänge öffnet er nicht — er nennt nur ihre Namen. Unter der Antwort siehst Du, wie viele Nachrichten gelesen wurden, und die Zeile darunter sagt, wer den Text gelesen hat.
 
 ## Datenschutzregeln
 

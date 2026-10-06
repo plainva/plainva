@@ -208,6 +208,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
     if (run.kept.length) parts.push(t("ai.keptLine", { count: run.kept.length }));
     if (run.web?.pages.length) parts.push(t("ai.web.runPages", { count: run.web.pages.length }));
     if (run.web?.searches.length) parts.push(t("ai.web.runSearches", { count: run.web.searches.length }));
+    // What it read of the user's mail (plan P4-4): a number, never a subject.
+    if (run.reading?.messages) parts.push(t("ai.reading.messages", { count: run.reading.messages }));
     if (run.costUsd !== undefined) parts.push(`≈ ${money.format(run.costUsd)}`);
     if (coverage?.level) parts.push(t(`ai.coverage.${coverage.level}`));
     return parts.join(" · ");
@@ -318,7 +320,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
             ) : (
               <span className="pv-ai-runline">{runLine(item.run, coverage)}</span>
             )}
-            {open && manifest && <AiSendOverview manifest={manifest} onOpenNote={onOpenNote} touch={touch} coverage={coverage} web={item.run.web ?? null} onOpenUrl={(url) => onOpenUrl(url)} />}
+            {open && manifest && (
+              <AiSendOverview manifest={manifest} onOpenNote={onOpenNote} touch={touch} coverage={coverage} web={item.run.web ?? null} reading={item.run.reading ?? null} onOpenUrl={(url) => onOpenUrl(url)} />
+            )}
           </div>
         );
       }

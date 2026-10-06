@@ -102,4 +102,20 @@ describe("system prompt", () => {
     expect(reading).toContain("This conversation may use the internet: fetch_url reads one page");
     expect(reading).not.toContain("web_search");
   });
+
+  it("tells a conversation of its further tools only where it can reach them", () => {
+    const base = { language: "English", today: "2026-10-06" };
+    const own = ["search_vault", "find_tools", "call_tool"];
+    const withMail = assistantSystemPrompt({ ...base, tools: own, more: ["search_mail", "read_mail"] });
+    expect(withMail).toContain("Further tools exist, for example for the user's mail: find_tools lists them and the app's commands with their arguments, and call_tool calls a tool it listed.");
+    // The mail tools are not this conversation's own: they are not listed as if they were.
+    expect(withMail).not.toContain("search_mail lists messages");
+    // Nothing further, or no dispatcher to call it with: nothing is promised.
+    expect(assistantSystemPrompt({ ...base, tools: own })).not.toContain("Further tools");
+    expect(assistantSystemPrompt({ ...base, tools: ["search_vault"], more: ["search_mail"] })).not.toContain("Further tools");
+    // A conversation that carries them itself — one bound to a skill that names them — reads them as its tools.
+    const bound = assistantSystemPrompt({ ...base, tools: ["search_mail", "read_mail", "get_event"] });
+    expect(bound).toContain("search_mail lists messages from the user's mail; read_mail reports what one message says; get_event returns one appointment in detail");
+    expect(bound).not.toContain("find_tools");
+  });
 });

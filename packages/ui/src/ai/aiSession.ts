@@ -2,6 +2,7 @@ import type { ToolScope } from "./vaultTools";
 import { APP_SKILL_SOURCES, appSkillOf, appSkillScenarios } from "./appSkills";
 import type { InstructionApprovalStore, SkillTestStore, WebSettingsStore } from "./aiStores";
 import { createWebExecutor, newRunWeb, webToolNames } from "./webTools";
+import { createPrivateDataExecutor, newRunReading, readSomething, type QuarantineReader } from "./privateData";
 import { createSkillExecutor, newSkillRunState, skillScope, type SkillRunState } from "./skillRuntime";
 import {
   PASSAGE_ONLY,
@@ -20,12 +21,15 @@ import {
   addUsage,
   allowHost,
   approveInstruction,
+  approveToolData,
   blockingProblems,
   checkWebUrl,
   DEFAULT_RUN_LIMITS,
   DEFAULT_WEB_SETTINGS,
   EFFECT_DECLINED,
   disallowHost,
+  META_TOOL_NAMES,
+  toolDataApproved,
   hasWebTools,
   hostAllowed,
   knownAddresses,
@@ -144,6 +148,7 @@ import {
   type SituationInput,
   type ToolExecutor,
   type AddressOrigin,
+  type RunReading,
   type RunWeb,
   type ToolCallPart,
   type ToolManifest,
@@ -206,9 +211,17 @@ export interface AiVaultHost {
    * The tools of a run for this recipient, optionally narrowed (the MCP
    * server's clients); null when this vault offers none. `web`: the run also
    * carries tools that reach the internet, so a note whose rules say
-   * `web: deny` does not exist for these tools either.
+   * `web: deny` does not exist for these tools either. `more`: the further
+   * tools this shell can serve, reached through the tool search (ADR 0019);
+   * `narrowed` tells that search what a skill the model loaded leaves.
    */
-  tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean): { names: readonly string[]; executor: ToolExecutor } | null;
+  tools(
+    recipient: EgressRecipient,
+    scope?: ToolScope,
+    redact?: ReadonlySet<string>,
+    web?: boolean,
+    narrowed?: () => readonly string[] | null,
+  ): { names: readonly string[]; more?: readonly string[]; executor: ToolExecutor } | null;
   /** Whether the AI may use the internet in this vault, and the sites it need not ask for (plan P4); absent, it may not. */
   web?: WebSettingsStore;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
@@ -380,16 +393,28 @@ export type ThreadReplyOutcome =
     };
 
 /**
- * One request to the internet that waits for the user (plan KI-Harness P4,
- * the Rule of Two): a page to read or a search to make. It carries everything
- * that would leave the device for it — the whole address, or the search words
- * — and, for an address, where it came from.
+ * A step of a run that waits for the user.
+ *
+ * `fetch`, `search` — one request to the internet (plan KI-Harness P4, the
+ * Rule of Two): it carries everything that would leave the device for it —
+ * the whole address, or the search words — and, for an address, where it
+ * came from.
+ *
+ * `data` — a kind of data no send overview named (plan P4-4): mail, reached
+ * through the tool search. Asked at its first call, once for a recipient in
+ * a session. It says who reads the raw text: a model on this device, or the
+ * conversation's provider.
  */
 export type EffectRequest =
   | { id: string; kind: "fetch"; url: string; host: string; question: string; origin: AddressOrigin }
-  | { id: string; kind: "search"; query: string; provider: string };
+  | { id: string; kind: "search"; query: string; provider: string }
+  | { id: string; kind: "data"; dataClass: "mail"; tool: string; provider: string; reader: "provider" | "device"; readerLabel: string };
 
-/** The user's answer: this once, from now on for pages of this site that a source named, or not at all. */
+/**
+ * The user's answer. To a request to the internet: this once, from now on for
+ * pages of this site that a source named, or not at all. To a kind of data:
+ * `always` allows it for this recipient until the app closes.
+ */
 export type EffectAnswer = "once" | "always" | "deny";
 
 /** One request to the model of the profile "Local" on this device (plans P2b-3, P2c): no conversation, no tools, no transcript. */
@@ -488,6 +513,8 @@ function manifestInstructionsOf(instructions: ConversationInstructions | undefin
 /** What a new conversation starts with: its tools, the blocks of its system prompt, and the record of both. */
 interface ConversationStart {
   tools: string[];
+  /** The further tools it reaches through the tool search (ADR 0019); empty where it has no dispatcher. */
+  more: string[];
   prompt: Pick<SystemPromptInput, "skill" | "skillCatalog" | "vaultInstructions">;
   instructions: ConversationInstructions | null;
 }
@@ -556,7 +583,8 @@ function lastAnswerText(conversation: ConversationRecord["conversation"]): strin
 function runTrace(record: ConversationRecord, fromTurn: number, stop: RunStop, answer: string): SkillRunTrace {
   const calls: SkillRunTrace["calls"] = [];
   for (const turn of record.conversation.turns.slice(fromTurn)) {
-    for (const part of turn.parts) if (part.type === "tool_result") calls.push({ name: part.name, ok: !part.isError });
+    // A call through the dispatcher counts as the tool it meant.
+    for (const part of turn.parts) if (part.type === "tool_result") calls.push({ name: part.tool ?? part.name, ok: !part.isError });
   }
   return { stop: stop.kind, calls, answer };
 }
@@ -1263,8 +1291,15 @@ export class AiSession {
    * vault's AGENTS.md when it is active here; a bound skill with its grant —
    * or, with tools, the catalog and `use_skill`. Fixed from the first message
    * on (the conversation is append-only).
+   *
+   * `further`: the tools the shell serves beyond a conversation's own list
+   * (ADR 0019). An open conversation reaches them through the tool search —
+   * `find_tools` and `call_tool` join its list. A conversation bound to a
+   * skill has no search: it carries exactly the tools its skill leaves, the
+   * further ones among them — which is what the workshop showed when the
+   * skill was approved (`SKILL_TOOL_NAMES`).
    */
-  private conversationStart(entries: readonly InstructionEntry[], offered: readonly string[], bind?: string): ConversationStart {
+  private conversationStart(entries: readonly InstructionEntry[], offered: readonly string[], bind?: string, further: readonly string[] = []): ConversationStart {
     const prompt: ConversationStart["prompt"] = {};
     const instructions: ConversationInstructions = {};
     const agents = entries.find((e) => e.source.kind === "agents" && e.status === "active" && e.source.text);
@@ -1272,11 +1307,11 @@ export class AiSession {
       prompt.vaultInstructions = agents.source.text;
       instructions.vaultTokens = estimateTokens(agents.source.text);
     }
-    const result = (tools: string[]): ConversationStart => ({ tools, prompt, instructions: Object.keys(instructions).length ? instructions : null });
+    const result = (tools: string[], more: string[] = []): ConversationStart => ({ tools, more, prompt, instructions: Object.keys(instructions).length ? instructions : null });
     const bound = bind ? entries.find((e) => e.source.id === bind && e.status === "active" && e.source.skill) : undefined;
     if (bound?.source.skill) {
       const skill = bound.source.skill;
-      const grant = skillGrant(skill, offered, DEFAULT_RUN_LIMITS.maxOutputTokens);
+      const grant = skillGrant(skill, [...offered, ...further.filter((name) => !offered.includes(name))], DEFAULT_RUN_LIMITS.maxOutputTokens);
       prompt.skill = { name: skill.name, instructions: skill.body };
       instructions.skill = {
         id: bound.source.id,
@@ -1290,14 +1325,17 @@ export class AiSession {
       instructions.skillTokens = estimateTokens(skill.body);
       return result(grant.tools);
     }
+    // Further tools need the two that reach them — and something to reach.
+    const more = offered.length ? further.filter((name) => !offered.includes(name)) : [];
+    const own = more.length ? [...offered, ...META_TOOL_NAMES] : [...offered];
     const catalog = offered.length ? skillCatalog(entries) : null;
     if (catalog?.entries.length) {
       prompt.skillCatalog = catalog.text;
       instructions.catalog = catalog.entries.map((e) => ({ key: e.key, id: e.id, origin: e.id.startsWith("plainva:") ? ("plainva" as const) : ("vault" as const) }));
       instructions.catalogTokens = catalog.tokens;
-      return result([...offered, "use_skill"]);
+      return result([...own, "use_skill"], more);
     }
-    return result([...offered]);
+    return result(own, more);
   }
 
   /** How a run reaches the skills its conversation lists: read again at the moment, hash checked. */
@@ -1813,10 +1851,14 @@ export class AiSession {
     if (!provider) return null;
     const record = this.state.active;
     // A new conversation shows what it would start with: the catalog, AGENTS.md, the tools — the internet's too, where it is chosen.
-    const start = record ? null : this.conversationStart((await this.instructionEntries(vault)).entries, this.offeredTools(vault, provider, recipientOf(provider, choice.model), this.state.draftWeb && this.state.web.enabled));
+    const recipient = recipientOf(provider, choice.model);
+    const start = record
+      ? null
+      : this.conversationStart((await this.instructionEntries(vault)).entries, this.offeredTools(vault, provider, recipient, this.state.draftWeb && this.state.web.enabled), undefined, this.furtherTools(vault, provider, recipient));
     const tools = record ? record.conversation.tools : (start?.tools ?? []);
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
       tools,
+      more: record ? (record.conversation.more ?? []) : (start?.more ?? []),
       instructions: manifestInstructionsOf(record ? record.instructions : (start?.instructions ?? undefined)),
       web: hasWebTools(tools),
     });
@@ -1839,7 +1881,7 @@ export class AiSession {
     provider: ProviderInfo,
     pins: readonly string[],
     turns: ConversationRecord["conversation"]["turns"],
-    conversation: { tools: readonly string[]; instructions?: ManifestInstructions; withoutActive?: boolean; web?: boolean },
+    conversation: { tools: readonly string[]; more?: readonly string[]; instructions?: ManifestInstructions; withoutActive?: boolean; web?: boolean },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // The system's own model takes no tools, and a small window a smaller package (plan P2c).
@@ -1879,6 +1921,8 @@ export class AiSession {
       );
       const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: !isCloudRecipient(recipient) }, choice.model, {
         tools,
+        // What the tool search reaches is said with the tools: it is in the conversation's reach, though each kind asks first.
+        ...(!platform && conversation.more?.length ? { more: conversation.more } : {}),
         questionChars: message.length,
         // Shown as allowed only while the vault's switch is on: switched off since, the tools answer that it is off.
         ...(web && this.state.web.enabled ? { web: true, webHosts: this.state.web.allow } : {}),
@@ -2041,11 +2085,12 @@ export class AiSession {
       // a regression run or a run bound to a skill. Fixed like every tool: a conversation that began without it
       // may already carry notes that must never meet the internet.
       const withWeb = !apart && !skills?.bind && this.state.draftWeb && this.state.web.enabled;
-      // A door answers where it was asked: it reads the vault, it does not move the app.
+      // A door answers where it was asked: it reads the vault, it does not move the app — and it looks for no further tool.
       const offered = this.offeredTools(vault, provider, recipient, withWeb).filter((name) => !door || name !== "run_command");
+      const further = door ? [] : this.furtherTools(vault, provider, recipient);
       const entries = skills?.entries ?? (await this.instructionEntries(vault)).entries;
       // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
-      const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind);
+      const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further);
       const id = this.host.newId();
       record = {
         version: 1 as const,
@@ -2055,7 +2100,7 @@ export class AiSession {
         updatedAt: now,
         providerId: choice.providerId,
         model: choice.model,
-        conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, ...start.prompt }), start.tools),
+        conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, more: start.more, ...start.prompt }), start.tools, start.more),
         usage: EMPTY_USAGE,
         runs: [],
         pins: door ? door.pins : detached ? [] : this.state.draftPins,
@@ -2069,12 +2114,29 @@ export class AiSession {
     // A conversation that carries the internet's tools (plan P4): its vault tools and its context leave `web: deny` notes out.
     const web = hasWebTools(toolNames);
     const webLog = web ? newRunWeb() : null;
-    const base = toolNames.length ? vault.tools(recipient, skillScope(bound?.folders, skillState), redact, web) : null;
+    // The conversation's further tools (ADR 0019), as fixed as its own.
+    const moreNames = platform ? [] : (record.conversation.more ?? []);
+    const base = toolNames.length ? vault.tools(recipient, skillScope(bound?.folders, skillState), redact, web, () => skillState.loaded?.tools ?? null) : null;
+    // Mail and the descriptions of appointments (plan P4-4): a kind of data no overview named asks first, and raw text goes to a reader without tools.
+    const reading = newRunReading();
+    const guarded = base
+      ? createPrivateDataExecutor(
+          base.executor,
+          {
+            egress: this.host.egress,
+            reader: () => this.quarantineReader(provider, choice),
+            approve: (dataClass, tool, call, signal) => this.approveData(dataClass, tool, call, { provider, choice, recipient, signal }),
+            newRequestId: () => `ai-${this.host.newId()}`,
+            now: () => this.host.now().toISOString(),
+          },
+          reading,
+        )
+      : null;
     // The web tools sit under the skills' wrapper: a loaded skill that does not use them narrows them away like any tool.
     const inner =
-      base && webLog
+      guarded && webLog
         ? createWebExecutor(
-            base.executor,
+            guarded,
             {
               fetcher: this.host.web ?? null,
               egress: this.host.egress,
@@ -2087,8 +2149,8 @@ export class AiSession {
             },
             webLog,
           )
-        : (base?.executor ?? null);
-    const tools = inner ? { names: toolNames, executor: createSkillExecutor(inner, this.skillRuntime(vault, record), toolNames, skillState) } : null;
+        : guarded;
+    const tools = inner ? { names: toolNames, executor: createSkillExecutor(inner, this.skillRuntime(vault, record), toolNames, skillState, moreNames) } : null;
     // A skill's own budget narrows whatever limits the start brings; it never widens them.
     const own = bound?.maxOutputTokens;
     const limits: RunLimits | undefined =
@@ -2102,6 +2164,7 @@ export class AiSession {
     // The context of this message: what "View context" showed, without the notes left out there.
     const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, {
       tools: toolNames,
+      more: moreNames,
       instructions: manifestInstructionsOf(record.instructions),
       // A regression run measures the skill, not whatever note happens to be open.
       ...(detached ? { withoutActive: true } : {}),
@@ -2153,6 +2216,7 @@ export class AiSession {
       skillState,
       ...(limits ? { limits } : {}),
       ...(webLog ? { web: webLog } : {}),
+      ...(guarded ? { reading } : {}),
       ...(related.length ? { related } : {}),
     });
   }
@@ -2163,6 +2227,59 @@ export class AiSession {
     if (provider.endpoint.api === "platform") return [];
     const names = [...(vault.tools(recipient)?.names ?? [])];
     return web && names.length ? [...names, ...webToolNames(this.host.web ?? null, provider.endpoint)] : names;
+  }
+
+  /** The further tools a new conversation with this model reaches through its tool search (ADR 0019). */
+  private furtherTools(vault: AiVaultHost, provider: ProviderInfo, recipient: EgressRecipient): string[] {
+    if (provider.endpoint.api === "platform") return [];
+    return [...(vault.tools(recipient)?.more ?? [])];
+  }
+
+  /** A model that runs on this device: the profile "Local" while it names a server on this computer or the system's own model. */
+  private deviceModel(): { provider: ProviderInfo; model: string } | null {
+    const choice = this.state.settings.profiles.local;
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : null;
+    return choice && provider && (provider.kind === "local" || provider.kind === "platform-device") ? { provider, model: choice.model } : null;
+  }
+
+  /**
+   * Who reads a mail's body or an appointment's description for a run (plan
+   * P4-4, §13.4). They are private as well as a stranger's words, so a model
+   * on this device reads them where there is one — the conversation's own,
+   * when it runs here, otherwise the one of the profile "Local" — and the
+   * text itself does not leave the device. Without one, the conversation's
+   * provider reads it, in a second call without tools.
+   */
+  private quarantineReader(provider: ProviderInfo, choice: ModelChoice): QuarantineReader {
+    const here = provider.kind === "local" || provider.kind === "platform-device" ? { provider, model: choice.model } : this.deviceModel();
+    if (!here) return { endpoint: provider.endpoint, model: choice.model, label: provider.label, onDevice: false };
+    const window = here.provider.endpoint.api === "platform" ? (this.windowOf(here.provider, here.model) ?? PLATFORM_CONTEXT_DEFAULT) : undefined;
+    return { endpoint: here.provider.endpoint, model: here.model, label: `${here.provider.label} · ${here.model}`, onDevice: true, ...(window ? { contextTokens: window } : {}) };
+  }
+
+  /**
+   * Whether a tool that brings a kind of data no send overview named may run
+   * (plan P4-4): mail, reached through the tool search. Asked in the
+   * conversation at its first call — once for a recipient, until the app
+   * closes; another model or provider is another question. Nothing leaves
+   * the device for a model that runs on it, so nothing is asked there.
+   */
+  private async approveData(
+    dataClass: "mail",
+    tool: ToolManifest,
+    call: ToolCallPart,
+    run: { provider: ProviderInfo; choice: ModelChoice; recipient: EgressRecipient; signal?: AbortSignal },
+  ): Promise<boolean> {
+    if (!isCloudRecipient(run.recipient)) return true;
+    const key = `${run.choice.providerId}/${run.choice.model}`;
+    if (toolDataApproved(this.scope, dataClass, key)) return true;
+    const reader = this.quarantineReader(run.provider, run.choice);
+    const request: EffectRequest = { id: call.id, kind: "data", dataClass, tool: tool.name, provider: run.provider.label, reader: reader.onDevice ? "device" : "provider", readerLabel: reader.label };
+    // A run that nobody can stop is not asked a question nobody could withdraw.
+    if (!run.signal) return false;
+    if ((await this.askEffect(request, run.signal)) === "deny") return false;
+    this.scope = approveToolData(this.scope, dataClass, key);
+    return true;
   }
 
   /**
@@ -2222,6 +2339,8 @@ export class AiSession {
     limits?: RunLimits;
     /** The conversation carries the internet's tools (plan P4): what they asked for is gathered here, and each call may need the user. */
     web?: RunWeb;
+    /** What the run's tools read of mail and appointments (plan P4-4), gathered while it runs. */
+    reading?: RunReading;
     /** The notes that match the question best, shown when no answer comes back (plan §19.4). */
     related?: { path: string; title: string }[];
   }): Promise<{ stop: RunStop; record: ConversationRecord; answer: string }> {
@@ -2282,9 +2401,12 @@ export class AiSession {
 
     // The calls that read pages and searched are part of what the run cost.
     const web = input.web && (input.web.pages.length || input.web.searches.length) ? input.web : null;
+    // So are the calls that read a message or a description — where the conversation's provider read them; a model on this device costs nothing.
+    const reading = input.reading && readSomething(input.reading) ? input.reading : null;
+    const readByProvider = reading && reading.reader === "provider" ? reading : null;
     const usage = {
-      inputTokens: result.usage.inputTokens + (web?.inputTokens ?? 0),
-      outputTokens: result.usage.outputTokens + (web?.outputTokens ?? 0),
+      inputTokens: result.usage.inputTokens + (web?.inputTokens ?? 0) + (readByProvider?.inputTokens ?? 0),
+      outputTokens: result.usage.outputTokens + (web?.outputTokens ?? 0) + (readByProvider?.outputTokens ?? 0),
       cacheReadTokens: result.usage.cacheReadTokens,
       cacheWriteTokens: result.usage.cacheWriteTokens,
     };
@@ -2312,6 +2434,7 @@ export class AiSession {
       ...(skillsUsed.length ? { skills: skillsUsed } : {}),
       ...(skillCatalogMeta ? { skillCatalog: skillCatalogMeta } : {}),
       ...(web ? { web } : {}),
+      ...(reading ? { reading } : {}),
     };
     record = {
       ...record,
@@ -2339,6 +2462,9 @@ export class AiSession {
           ...(skillTokens ? { skillTokens } : {}),
           // Numbers only: which pages and which words is the conversation's to say, never the audit's.
           ...(web ? { web: { pages: web.pages.length, searches: web.searches.length, inputTokens: web.inputTokens, outputTokens: web.outputTokens } } : {}),
+          ...(reading
+            ? { reading: { mailSearches: reading.mailSearches, messages: reading.messages, descriptions: reading.descriptions, onDevice: reading.reader === "device", inputTokens: reading.inputTokens, outputTokens: reading.outputTokens } }
+            : {}),
         }),
       );
     } catch {

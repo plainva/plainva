@@ -32,7 +32,12 @@
       "open_in_app": "Plainvaでノートを開いています",
       "use_skill": "スキルを読み込んでいます",
       "fetch_url": "ウェブページの読み取り",
-      "web_search": "ウェブの検索"
+      "web_search": "ウェブの検索",
+      "get_event": "予定の読み取り",
+      "search_mail": "メールの検索",
+      "read_mail": "メッセージの読み取り",
+      "find_tools": "ほかのツールの検索",
+      "call_tool": "ほかのツールの使用"
     },
     "stopped": {
       "cancelled": "停止しました。",
@@ -295,7 +300,10 @@
       "webHosts": "確認なしで、あなたまたは情報源が挙げたアドレスについて: {{hosts}}",
       "webPages": "ウェブで要求したもの",
       "webNotRead": "読み取りなし",
-      "webSearches": "検索した言葉"
+      "webSearches": "検索した言葉",
+      "further": "ほかのツール",
+      "furtherMail": "メール——初めて読み取る前に確認します",
+      "reading": "メールとカレンダー"
     },
     "lens": {
       "open": "コンテキストを見る",
@@ -457,6 +465,26 @@
         "siteInvalid": "公開インターネット上のサイトではありません。",
         "removeSite": "{{host}}を削除"
       }
+    },
+    "mail": {
+      "ask": {
+        "title": "メールを読み取りますか？",
+        "what": "メールから",
+        "heads": "見つかったメッセージの差出人、件名、日付",
+        "text": "メッセージの本文",
+        "textProvider": "{{provider}}が、ツールなしの別のリクエストで読み取ります",
+        "textDevice": "この端末上で{{reader}}が読み取ります——{{provider}}に送られるのは、その報告だけです",
+        "scope": "{{provider}}には、Plainvaを閉じるまで適用されます。メールボックスでは何も変更されず、既読にもされません。",
+        "allow": "許可する",
+        "deny": "許可しない"
+      }
+    },
+    "reading": {
+      "searches_other": "{{count}} 件のメール検索",
+      "messages_other": "{{count}} 件のメッセージを読み取り",
+      "descriptions_other": "{{count}} 件の予定の説明を読み取り",
+      "byDevice": "テキストはこの端末上で{{reader}}が読み取りました。先へ渡ったのは、その報告だけです。",
+      "byProvider": "テキストは{{provider}}が、ツールなしの別のリクエストで読み取りました。"
     },
     "lint": {
       "defused": "新しく加わったウェブアドレスは無効化しました。読めますが、リンクにはなりません。"

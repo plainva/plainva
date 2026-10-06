@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
-import type { AiAppSettings, CommentOperationService, IVaultAdapter, VaultQueryService } from "@plainva/core";
+import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, VaultQueryService } from "@plainva/core";
 import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
   aiDefaultSettings,
@@ -23,6 +23,7 @@ import {
   postThreadReply,
   proposeSuggestionRound,
   situationFrom,
+  vaultMailSource,
   withCloudDenied,
   type AiFileStore,
   type AiNavigationCommand,
@@ -174,6 +175,8 @@ export interface DesktopVaultInput {
   events: (from: Date, to: Date) => Promise<SituationEventInput[]>;
   /** Navigation the assistant may trigger: views and notes, nothing that changes data. */
   commands: () => AiNavigationCommand[];
+  /** The vault's index database, where the mail client keeps its offline copy; null while there is none. */
+  db: () => IDatabaseAdapter | null | undefined;
   /** The vault's comment service: where an AI suggestion round is written (plan P1.5). */
   commentOperations: () => CommentOperationService | null;
   /** The vault's search by meaning, for the context package (plan P2b); null while there is none. */
@@ -307,6 +310,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       queryDatabase: (config) => input.query.queryDatabaseFiles(config),
       events: (from, to) => input.events(from, to),
       moodKey,
+      // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
+      mail: vaultMailSource(input.vaultPath, input.db),
     },
   });
   return { host, policy };
