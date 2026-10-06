@@ -186,15 +186,17 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   };
   /**
    * What any vault text passes: place stamps withheld for everyone, links to
-   * denied notes for a cloud, and for a cloud the numbers and secrets of a
-   * source the reader redacts in this conversation (`situational`: tasks and
-   * appointments, which the situation's choice covers too).
+   * denied notes for a cloud and for a run with the internet (a model on this
+   * device could carry a name out in a search), and for a cloud the numbers
+   * and secrets of a source the reader redacts in this conversation
+   * (`situational`: tasks and appointments, which the situation's choice
+   * covers too).
    */
   const withhold = async (text: string, fromPath: string, situational = false): Promise<string> => {
     const places = withholdPlaces(text).text;
-    if (!cloud) return places;
+    if (!cloud && !run.webTools) return places;
     const linked = (await withholdDeniedLinks(places, fromPath, deps.resolveLink, (path) => allowed(path))).text;
-    if (!redact || !(redact.has(fromPath) || (situational && redact.has(SITUATION_SOURCE)))) return linked;
+    if (!cloud || !redact || !(redact.has(fromPath) || (situational && redact.has(SITUATION_SOURCE)))) return linked;
     return redactSensitive(linked, sensitiveFindings(linked)).text;
   };
   const readAllowed = async (raw: unknown): Promise<{ path: string; text: string } | null> => {

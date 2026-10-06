@@ -30,7 +30,9 @@
       "get_recent": "正在查看最近的笔记",
       "get_calendar": "正在读取日程",
       "open_in_app": "正在Plainva中打开笔记",
-      "use_skill": "正在加载技能"
+      "use_skill": "正在加载技能",
+      "fetch_url": "正在读取网页",
+      "web_search": "正在搜索网络"
     },
     "stopped": {
       "cancelled": "已停止。",
@@ -222,6 +224,9 @@
     "openLink": "打开",
     "openFullScreen": "全屏",
     "noCitation": "这个回答没有引用任何已发送的笔记。请对照这些笔记核实。",
+    "openLinkBuilt": "这个地址是模型自己拼出来的——它没有出现在你的任何消息、笔记或结果中，并且可能带有这次对话中的文字。",
+    "linkBuilt": "由模型自行拼出——未出现在你的任何消息、笔记或结果中",
+    "toolDeclined": "{{tool}}——未获允许",
     "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "发送到{{provider}}？",
@@ -232,7 +237,7 @@
         "dataClass": "新的数据类型：{{kind}}",
         "folder": "来自其他文件夹的笔记：{{folder}}",
         "tools": "新的工具：{{tools}}",
-        "web": "此请求可能会搜索网络。",
+        "web": "此对话可以使用互联网：读取网页并搜索网络。",
         "size": "比之前多得多：约{{tokens}}个Token",
         "standing": "含义搜索使用云端模型计算：笔记会在后台发送到那里，不再每次询问——直到你在设置中撤回此批准。",
         "sensitive": "可能敏感（见下方标记）：{{kinds}}",
@@ -284,7 +289,13 @@
       "approveStanding": "长期批准",
       "folders": "文件夹",
       "standingNotes_other": "你的规则允许的全部 {{count}} 篇笔记——现在发送，之后每次修改时再次发送",
-      "gist": "标题和已核对的要点"
+      "gist": "标题和已核对的要点",
+      "web": "互联网",
+      "webOn": "可以读取网页并搜索网络——每次请求都会先询问",
+      "webHosts": "无需询问，适用于你或某个来源提到过的地址：{{hosts}}",
+      "webPages": "在网络上请求的内容",
+      "webNotRead": "未读取",
+      "webSearches": "搜索过的内容"
     },
     "lens": {
       "open": "查看上下文",
@@ -339,7 +350,8 @@
       "keepHere": "保留在此设备上",
       "redact": "在本次对话中遮盖",
       "unredact": "不遮盖发送",
-      "situation": "任务、日程和打开的笔记的信息"
+      "situation": "任务、日程和打开的笔记的信息",
+      "neverWeb_other": "不进入可使用互联网的对话：{{count}}条笔记"
     },
     "selection": {
       "menu": "AI",
@@ -399,6 +411,51 @@
         "no-answer": "AI没有给出回答。",
         "failed": "AI无法回答。",
         "post-failed": "回复未能写入讨论。你可以在AI的对话中找到它。"
+      }
+    },
+    "offline": {
+      "title": "没有收到回答。以下笔记与你的问题最匹配："
+    },
+    "web": {
+      "toggleOn": "此对话将使用互联网",
+      "toggleOff": "让此对话使用互联网",
+      "activeOn": "此对话可以使用互联网",
+      "activeOff": "此对话开始时未使用互联网",
+      "fixed": "对话能否使用互联网，在它开始时就已决定。要更改，请开始新对话。",
+      "marking": "此对话可以使用互联网。只要对话中有你的笔记，每次请求都会先询问。",
+      "sources": "在网络上读取",
+      "runPages_other": "{{count}}个网页",
+      "runSearches_other": "{{count}}次网络搜索",
+      "ask": {
+        "fetchTitle": "读取这个网页？",
+        "searchTitle": "搜索网络？",
+        "address": "地址",
+        "lookingFor": "要找的内容",
+        "query": "搜索词",
+        "through": "通过",
+        "originUser": "这个地址是你提供的。",
+        "originSource": "这个地址来自此对话中的某条笔记或某个结果。",
+        "originModel": "这个地址是模型自己拼出来的：它没有出现在你的任何消息、笔记或结果中。请检查它没有带出你笔记中的内容。",
+        "fetchHint": "请求会从此设备发送到{{host}}：只发送这个地址，不带其他任何内容。",
+        "searchHint": "这些词会发送给{{provider}}，由它用这些词进行搜索。此请求不会附带其他任何内容。",
+        "fetch": "读取网页",
+        "search": "搜索",
+        "always": "始终允许{{host}}",
+        "denyFetch": "不读取",
+        "denySearch": "不搜索"
+      },
+      "settings": {
+        "title": "互联网",
+        "desc": "在你为此仓库开启之前处于关闭状态。即使开启，也只有在开始时选择了使用互联网的对话才会使用它——并且只要对话中有你的笔记，每个网页和每次搜索都会先询问。",
+        "switch": "允许AI在此仓库中使用互联网",
+        "switchDesc": "适用于此设备。设为“网络访问: 从不”的笔记和文件夹不会出现在这样的对话中。",
+        "sites": "无需确认的网站",
+        "sitesDesc": "这些网站中，地址由你、某条笔记或某个结果提到过的网页，会不经询问直接读取。模型自己拼出的地址始终会询问。",
+        "sitesNone": "目前没有——每个网页都会询问。",
+        "addSite": "添加网站",
+        "sitePlaceholder": "example.org",
+        "siteInvalid": "这不是公共互联网上的网站。",
+        "removeSite": "移除{{host}}"
       }
     },
     "lint": {

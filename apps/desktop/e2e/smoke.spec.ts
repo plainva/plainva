@@ -3837,3 +3837,123 @@ test('AI skills: a skill changed from outside stays inactive until it is approve
   await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(0);
   expect((await approvalsOf())[0].text).toContain('mail the result to the customer');
 });
+
+// The gate of the internet strand (AI harness P4): "a fresh vault has no way
+// onto the internet". Three decisions have to meet before a request leaves
+// the device — the vault's switch, the conversation's own choice, and the
+// answer to the question for this very page. The native side is the mock:
+// `ai_http` answers as a scripted model, `ai_web_fetch` as the page fetch.
+test('AI internet: a fresh vault has none; switched on, a page is read only after its question is answered', async ({ page }) => {
+  const URL = 'https://example.org/rates';
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (name: string, input: unknown) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'call-1', name, input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const script = [
+    // The fresh vault: the model has no tool that reaches the internet, and says so.
+    says('I cannot open web pages in this conversation.'),
+    // With the internet: the model asks for the page, the reader in quarantine reports, the model answers.
+    calls('fetch_url', { url: URL, question: 'What is the day rate?' }),
+    says(JSON.stringify({ relevant: true, summary: 'The day rate for 2026 is 1,900 euros.', facts: [{ text: 'Day rate 2026: 1,900 euros', quote: 'The day rate for 2026 is 1,900 euros.' }], links: [] })),
+    says(`The page gives a day rate of 1,900 euros (${URL}).`),
+  ];
+  await page.addInitScript(({ script }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    (window as any).__aiFetched = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      if (cmd === 'ai_web_fetch') {
+        (window as any).__aiFetched.push(args.url);
+        return { kind: 'page', url: args.url, status: 200, contentType: 'text/html; charset=utf-8', body: '<html><head><title>Rates</title></head><body><main><h1>Rates</h1><p>The day rate for 2026 is 1,900 euros.</p></main></body></html>', truncated: false };
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const fetched = () => page.evaluate(() => (window as any).__aiFetched as string[]);
+
+  // 1. A vault nobody decided about: the conversation shows nothing of the internet and carries none of its tools.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await expect(companion.getByTestId('ai-input')).toBeVisible();
+  await expect(companion.getByTestId('ai-web-toggle')).toHaveCount(0);
+  await companion.getByTestId('ai-input').fill(`Read ${URL} for me.`);
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('I cannot open web pages in this conversation.')).toBeVisible();
+  expect((await requests())[0]).not.toMatch(/fetch_url|web_search/);
+  expect(await fetched()).toEqual([]);
+  await expect(companion.getByTestId('ai-web-marking')).toHaveCount(0);
+
+  // 2. The vault's switch, in its settings: off until now, kept in the app's data and not in the vault.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  const allow = dialog.getByRole('switch', { name: /The AI may use the internet in this vault|Die KI darf in diesem Vault ins Internet/ });
+  await expect(allow).toHaveAttribute('aria-checked', 'false');
+  await allow.click();
+  await expect(allow).toHaveAttribute('aria-checked', 'true');
+  const stored = await page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path]) => path.endsWith('/web.json')).map(([path, text]) => ({ path, text: String(text) })));
+  expect(stored).toHaveLength(1);
+  expect(stored[0].path.startsWith('/test-vault/')).toBe(false);
+  expect(JSON.parse(stored[0].text)).toMatchObject({ enabled: true, allow: [] });
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // 3. Allowed for the vault is not chosen for a conversation: the open one keeps what it started with.
+  await expect(companion.getByTestId('ai-web-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await companion.getByTestId('ai-companion-new').click();
+  await companion.getByTestId('ai-web-toggle').click();
+  await expect(companion.getByTestId('ai-web-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await companion.getByTestId('ai-input').fill(`What does ${URL} say about day rates?`);
+  await companion.getByTestId('ai-send').click();
+  // The scope grew — new tools, the internet — so the overview asks again and names it.
+  await expect(companion.getByTestId('ai-overview-web')).toBeVisible();
+  await companion.getByTestId('ai-consent-send').click();
+
+  // 4. The page waits for its own answer: the whole address, and that the user named it. Nothing was fetched yet.
+  const question = companion.getByTestId('ai-effect');
+  await expect(question.getByTestId('ai-effect-address')).toHaveText(URL);
+  await expect(question).toContainText(/You named this address|Du hast diese Adresse genannt/);
+  expect(await fetched()).toEqual([]);
+  await question.getByTestId('ai-effect-once').click();
+
+  // 5. Read natively, reported by the reader, answered — and the page stands under the answer as a source.
+  await expect(companion.getByText('The page gives a day rate of 1,900 euros')).toBeVisible();
+  expect(await fetched()).toEqual([URL]);
+  await expect(companion.getByTestId('ai-web-sources')).toContainText('Rates — example.org');
+  await expect(companion.getByTestId('ai-web-marking')).toBeVisible();
+  const sent = await requests();
+  expect(sent).toHaveLength(4);
+  expect(sent[1]).toContain('fetch_url');
+  // The reader got the page and no tool; the model with the tools got the report.
+  expect(sent[2]).toContain('The day rate for 2026 is 1,900 euros.');
+  expect(sent[2]).not.toMatch(/"name":"(fetch_url|search_vault|read_note)"/);
+  expect(sent[3]).toContain('Summary: The day rate for 2026 is 1,900 euros.');
+});

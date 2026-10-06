@@ -73,6 +73,18 @@ describe("gists in the package", () => {
     expect(pack.part.text).toContain("- The vault — Notes of a small film studio.");
   });
 
+  it("leaves the gists of areas and of the vault out of a conversation with the internet", async () => {
+    // They are written from every note a cloud may see — among them notes that must never meet the internet.
+    const pack = await buildContextPackage(
+      { question: "what is the rate", recipient: cloud, situation, candidates, pins: [], budget: { cards: 0, evidence: 0 }, webTools: true },
+      host(gistsWith({}, { "Projects/Plan.md": "A plan to shoot in spring." }, { Projects: "Film projects of the studio." }, "Notes of a small film studio.")),
+    );
+    // A note's own gist stands for one note, whose rule was asked.
+    expect(pack.part.text).toContain("- [[Plan]] (Projects/Plan.md) — (gist) A plan to shoot in spring.");
+    expect(pack.part.text).not.toContain("Film projects of the studio.");
+    expect(pack.part.text).not.toContain("Notes of a small film studio.");
+  });
+
   it("sends no gist at all without a model on this computer", async () => {
     const pack = await buildContextPackage({ question: "what is the rate", recipient: cloud, situation, candidates, pins: [], budget: { cards: 1, evidence: 0 } }, host());
     expect(pack.refs.some((r) => r.gist)).toBe(false);

@@ -16,6 +16,8 @@ export * from "./aiSettingsModel";
 export * from "./aiPolicyEditor";
 export * from "./aiSituation";
 export * from "./AiSendOverview";
+export * from "./AiEffectApproval";
+export * from "./webTools";
 export * from "./AiContextLens";
 export * from "./aiSelectionActions";
 export * from "./aiThreadReply";

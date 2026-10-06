@@ -34,7 +34,9 @@
       "get_recent": "Consultation des notes récentes",
       "get_calendar": "Lecture des rendez-vous",
       "open_in_app": "Ouverture d'une note dans Plainva",
-      "use_skill": "Chargement d'une compétence"
+      "use_skill": "Chargement d'une compétence",
+      "fetch_url": "Lecture d'une page web",
+      "web_search": "Recherche sur le web"
     },
     "stopped": {
       "cancelled": "Arrêté.",
@@ -230,6 +232,9 @@
     "openLink": "Ouvrir",
     "openFullScreen": "Plein écran",
     "noCitation": "Cette réponse ne cite aucune des notes envoyées. Vérifiez-la à partir de celles-ci.",
+    "openLinkBuilt": "Le modèle a construit cette adresse lui-même — elle ne figurait dans aucun de vos messages, notes ou résultats, et peut contenir du texte de cette conversation.",
+    "linkBuilt": "Construite par le modèle — dans aucun de vos messages, notes ou résultats",
+    "toolDeclined": "{{tool}} — autorisation refusée",
     "suggestionAuthor": "Plainva IA · {{model}}",
     "overview": {
       "title": "Envoyer à {{provider}} ?",
@@ -240,7 +245,7 @@
         "dataClass": "Un nouveau type de données : {{kind}}",
         "folder": "Des notes d'un autre dossier : {{folder}}",
         "tools": "De nouveaux outils : {{tools}}",
-        "web": "La requête peut chercher sur le web.",
+        "web": "Cette conversation peut utiliser Internet : lire des pages et chercher sur le web.",
         "size": "Bien plus qu'avant : ~{{tokens}} jetons",
         "standing": "La recherche par sens calcule avec un modèle cloud : les notes y partent en arrière-plan, sans demander à chaque fois — jusqu'à ce que vous retiriez cette approbation dans les paramètres.",
         "sensitive": "Peut-être sensible, signalé ci-dessous : {{kinds}}",
@@ -304,7 +309,13 @@
       "standingNotes_one": "La {{count}} note que vos règles laissent passer — maintenant, et de nouveau à chaque modification",
       "standingNotes_many": "Les {{count}} notes que vos règles laissent passer — maintenant, et chacune de nouveau à chaque modification",
       "standingNotes_other": "Les {{count}} notes que vos règles laissent passer — maintenant, et chacune de nouveau à chaque modification",
-      "gist": "titre et un résumé vérifié"
+      "gist": "titre et un résumé vérifié",
+      "web": "Internet",
+      "webOn": "peut lire des pages et chercher sur le web — chaque requête demande d'abord",
+      "webHosts": "sans demander, pour les adresses nommées par vous ou par une source : {{hosts}}",
+      "webPages": "Demandé sur le web",
+      "webNotRead": "non lue",
+      "webSearches": "Recherches effectuées"
     },
     "lens": {
       "open": "Voir le contexte",
@@ -361,7 +372,10 @@
       "keepHere": "Garder sur cet appareil",
       "redact": "Masquer dans cette conversation",
       "unredact": "Envoyer sans masquer",
-      "situation": "Tâches, rendez-vous et détails de la note ouverte"
+      "situation": "Tâches, rendez-vous et détails de la note ouverte",
+      "neverWeb_one": "Pas dans une conversation avec Internet : {{count}} note",
+      "neverWeb_many": "Pas dans une conversation avec Internet : {{count}} notes",
+      "neverWeb_other": "Pas dans une conversation avec Internet : {{count}} notes"
     },
     "selection": {
       "menu": "IA",
@@ -425,6 +439,55 @@
         "no-answer": "L'IA n'a donné aucune réponse.",
         "failed": "L'IA n'a pas pu répondre.",
         "post-failed": "La réponse n'a pas pu être écrite dans le fil. Vous la trouverez parmi les conversations de l'IA."
+      }
+    },
+    "offline": {
+      "title": "Aucune réponse n'est revenue. Ces notes correspondent le mieux à votre question :"
+    },
+    "web": {
+      "toggleOn": "Cette conversation utilisera Internet",
+      "toggleOff": "Laisser cette conversation utiliser Internet",
+      "activeOn": "Cette conversation peut utiliser Internet",
+      "activeOff": "Cette conversation a commencé sans Internet",
+      "fixed": "C'est au début d'une conversation que se décide si elle peut utiliser Internet. Commencez une nouvelle conversation pour le changer.",
+      "marking": "Cette conversation peut utiliser Internet. Tant que vos notes y sont, chaque requête demande d'abord.",
+      "sources": "Lu sur le web",
+      "runPages_one": "{{count}} page web",
+      "runPages_many": "{{count}} pages web",
+      "runPages_other": "{{count}} pages web",
+      "runSearches_one": "{{count}} recherche web",
+      "runSearches_many": "{{count}} recherches web",
+      "runSearches_other": "{{count}} recherches web",
+      "ask": {
+        "fetchTitle": "Lire cette page ?",
+        "searchTitle": "Rechercher sur le web ?",
+        "address": "Adresse",
+        "lookingFor": "À la recherche de",
+        "query": "Rechercher",
+        "through": "Via",
+        "originUser": "Vous avez nommé cette adresse.",
+        "originSource": "L'adresse provient d'une note ou d'un résultat de cette conversation.",
+        "originModel": "Le modèle a construit cette adresse lui-même : elle ne figurait dans aucun de vos messages, notes ou résultats. Vérifiez qu'elle ne contient rien de vos notes.",
+        "fetchHint": "La requête part de cet appareil vers {{host}} : cette adresse et rien d'autre.",
+        "searchHint": "Ces mots partent vers {{provider}}, qui s'en sert pour chercher. Rien d'autre ne part avec cette requête.",
+        "fetch": "Lire la page",
+        "search": "Rechercher",
+        "always": "Toujours pour {{host}}",
+        "denyFetch": "Ne pas lire",
+        "denySearch": "Ne pas rechercher"
+      },
+      "settings": {
+        "title": "Internet",
+        "desc": "Désactivé jusqu'à ce que vous l'activiez pour ce vault. Même alors, seule une conversation que vous commencez avec Internet l'utilise — et tant que vos notes y sont, chaque page et chaque recherche demandent d'abord.",
+        "switch": "L'IA peut utiliser Internet dans ce vault",
+        "switchDesc": "S'applique sur cet appareil. Les notes et dossiers réglés sur « Accès web: jamais » restent hors d'une telle conversation.",
+        "sites": "Sites sans confirmation",
+        "sitesDesc": "Les pages de ces sites dont l'adresse a été nommée par vous, par une note ou par un résultat sont lues sans demander. Une adresse que le modèle a construite lui-même demande toujours.",
+        "sitesNone": "Aucun pour l'instant — chaque page demande.",
+        "addSite": "Ajouter un site",
+        "sitePlaceholder": "example.org",
+        "siteInvalid": "Ce n'est pas un site de l'Internet public.",
+        "removeSite": "Retirer {{host}}"
       }
     },
     "lint": {

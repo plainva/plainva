@@ -112,6 +112,26 @@ Em cada nota de voz — no editor, no modo de leitura, no diário e nos cartões
 
 **Áudio** precisa de um provedor com rota de áudio: OpenAI (por exemplo `gpt-4o-transcribe` ou `whisper-1`), Gemini ou um servidor compatível seu — um servidor neste computador mantém a gravação no dispositivo. É possível transcrever gravações de até 11 MB. Uma gravação em uma nota que suas regras mantêm longe da nuvem não vai para nenhum modelo na nuvem, e os workspaces criptografados ainda não oferecem isso.
 
+## Na internet
+
+O assistente não pode usar a internet até você permitir — três vezes:
+
+1. **Para o vault.** Em **Configurações → IA e automação** (a parte do Vault), ative **A IA pode usar a internet neste vault**. O interruptor fica desligado em todos os vaults até você decidir e vale somente neste dispositivo.
+2. **Para uma conversa.** Antes da primeira mensagem de uma nova conversa, pressione o globo abaixo do campo de entrada — **Deixar esta conversa usar a internet**. Se uma conversa pode ou não usar a internet é decidido quando ela começa; para mudar isso, comece uma nova conversa. Uma conversa que pode usá-la diz isso na primeira linha.
+3. **Para cada solicitação.** Enquanto suas notas estiverem na conversa, cada página que o assistente quer ler e cada pesquisa que ele quer fazer perguntam antes, com o endereço completo ou as palavras da pesquisa — é tudo o que sai do seu dispositivo para isso. **Ler página** ou **Pesquisar** deixa passar esta única solicitação; **Não ler** ou **Não pesquisar** a deixa de lado, e o assistente continua sem ela.
+
+**O que é uma solicitação.** Ler uma página é uma solicitação deste dispositivo ao site, como abrir a página em um navegador — sem cookies, sem login e sem nada das suas notas; como em qualquer visita, o site vê o seu endereço IP. Só páginas públicas via `https` são lidas; endereços da sua rede doméstica ou da empresa são recusados. Uma pesquisa vai para o provedor do seu modelo — Anthropic, OpenAI, Google Gemini ou OpenRouter —, que pesquisa exatamente com as palavras que lhe foram mostradas; os provedores podem cobrar as pesquisas separadamente. Um modelo neste dispositivo pode ler páginas, mas não pode pesquisar, e o modelo do sistema no celular não pode usar a internet de forma alguma.
+
+**De onde vem um endereço.** A pergunta diz se você informou o endereço, se uma nota ou um resultado o citou — ou se o modelo o montou sozinho. Um endereço que o modelo montou poderia levar algo das suas notas: leia-o antes de deixá-lo passar.
+
+**Sites sem confirmação.** Com **Sempre para ⟨site⟩** em uma pergunta, ou em **Sites sem confirmação** nas configurações do vault, as páginas de um site são lidas sem perguntar — desde que o endereço tenha sido citado por você, por uma nota ou por um resultado. Um endereço que o modelo montou sempre pergunta.
+
+**O que o assistente lê.** Nunca a página em si. Uma segunda solicitação ao mesmo modelo, sem ferramentas, lê a página e escreve um relatório curto: um resumo, afirmações com o trecho em que se baseiam e links que realmente estão na página. Uma página que tenta dar instruções ao assistente chega até ele, portanto, como um relatório sobre uma página — nunca como uma página com a qual ele trabalha. Abaixo da resposta, **Lido na web** lista as páginas lidas, e a linha abaixo dela abre tudo o que foi solicitado.
+
+**Notas que ficam de fora.** Uma nota ou pasta com **Acesso à web: nunca** (veja Regras de privacidade abaixo) não existe para uma conversa que pode usar a internet: nem no contexto dela, nem para as ferramentas dela, e os links para ela são retidos.
+
+Um link em uma resposta cujo endereço o próprio modelo montou é marcado, e a pergunta antes de abri-lo diz isso. Se nenhuma resposta chega — sem conexão, o provedor não responde —, a conversa lista, em vez disso, as notas que melhor combinam com sua pergunta.
+
 ## Regras de privacidade
 
 Algumas notas nunca devem chegar a um provedor de nuvem. Uma regra pode ficar no frontmatter de uma nota:
@@ -123,6 +143,8 @@ plainva:
 ```
 
 ou, para uma pasta inteira, em **Configurações → IA e automação** (a parte do Vault), que grava as regras em `.agent/policy.yml`. Uma nota mantida fora da nuvem não contribui com nada — nem texto, nem título — e os links para ela em outras notas são retidos. Modelos neste dispositivo continuam permitidos. Workspaces criptografados mantêm a nuvem desligada, a menos que você a permita ali. O formato exato está na [Referência do Formato de Arquivo](File_Format_Reference.md).
+
+Uma segunda regra, `web: deny` — **Acesso à web: nunca** nas configurações —, mantém uma nota ou uma pasta fora de toda conversa que pode usar a internet.
 
 ## Histórico e uso
 

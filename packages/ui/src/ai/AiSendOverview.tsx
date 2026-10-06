@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Minus, ShieldAlert, ShieldCheck } from "lucide-react";
-import { REDACTABLE, SITUATION_SOURCE, type AnswerCoverage, type EgressManifest, type ManifestSource, type ScopeGrowth, type SensitiveKind } from "@plainva/core";
+import { REDACTABLE, SITUATION_SOURCE, type AnswerCoverage, type EgressManifest, type ManifestSource, type RunWeb, type ScopeGrowth, type SensitiveKind } from "@plainva/core";
 import { Button } from "../components/ui/Button";
 import { IconButton } from "../components/ui/IconButton";
 import { Switch } from "../components/ui/Switch";
@@ -36,7 +36,14 @@ export interface AiSendOverviewProps {
   touch?: boolean;
   /** After the answer: how many of its statements name a note (plan P2b-5). */
   coverage?: AnswerCoverage | null;
+  /** After the answer: what the run asked of the internet (plan P4) — every page and every search, read or not. */
+  web?: RunWeb | null;
+  /** Opens one of those pages; the shell asks before it does. */
+  onOpenUrl?: (url: string) => void;
 }
+
+/** A page as a row names it: without the scheme every address shares. */
+const shortAddress = (url: string) => url.replace(/^https:\/\//, "").replace(/\/$/, "");
 
 /** A skill's title for the overview: the app's in the user's language, the vault's own by its name. */
 function useSkillTitle(): (id: string, name: string) => string {
@@ -47,7 +54,7 @@ function useSkillTitle(): (id: string, name: string) => string {
   };
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, onOpenUrl }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
   const kindList = useSensitiveKinds();
   const skillTitle = useSkillTitle();
@@ -230,6 +237,44 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
           <>
             <dt>{t("ai.overview.tools")}</dt>
             <dd>{manifest.tools.map((tool) => t(`ai.tool.${tool}`, { defaultValue: tool })).join(" · ")}</dd>
+          </>
+        )}
+        {/* Before sending: that the conversation may use the internet, and for which sites it will not ask. */}
+        {manifest.web && asking && (
+          <>
+            <dt>{t("ai.overview.web")}</dt>
+            <dd data-testid="ai-overview-web">
+              {t("ai.overview.webOn")}
+              {manifest.webHosts && manifest.webHosts.length > 0 && <span className="pv-ai-overview-hint">{t("ai.overview.webHosts", { hosts: manifest.webHosts.join(", ") })}</span>}
+            </dd>
+          </>
+        )}
+        {/* Afterwards: what was asked for — whether it gave a page or not, it left the device. */}
+        {web && web.pages.length > 0 && (
+          <>
+            <dt>{t("ai.overview.webPages")}</dt>
+            <dd data-testid="ai-overview-web-pages">
+              <ul className="pv-ai-overview-sources">
+                {web.pages.map((page, index) => (
+                  <li key={`${index}:${page.url}`}>
+                    {onOpenUrl ? (
+                      <Button size="sm" variant="ghost" className="pv-ai-overview-note" onClick={() => onOpenUrl(page.url)}>
+                        {shortAddress(page.url)}
+                      </Button>
+                    ) : (
+                      <span className="pv-ai-overview-note">{shortAddress(page.url)}</span>
+                    )}
+                    {!page.read && <span className="pv-ai-overview-form">{t("ai.overview.webNotRead")}</span>}
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        )}
+        {web && web.searches.length > 0 && (
+          <>
+            <dt>{t("ai.overview.webSearches")}</dt>
+            <dd data-testid="ai-overview-web-searches">{web.searches.map((search) => search.query).join(" · ")}</dd>
           </>
         )}
         <dt>{t("ai.overview.size")}</dt>

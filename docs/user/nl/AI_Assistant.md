@@ -112,6 +112,26 @@ Bij elke spraaknotitie — in de editor, in de leesmodus, in het journaal en op 
 
 **Audio** vereist een provider met een audioroute: OpenAI (bijvoorbeeld `gpt-4o-transcribe` of `whisper-1`), Gemini of een eigen compatibele server — een server op deze computer houdt de opname op het apparaat. Opnamen tot 11 MB kunnen worden uitgeschreven. Een opname in een notitie die je regels bij de cloud weghouden, gaat naar geen enkel cloudmodel, en versleutelde workspaces bieden het nog niet aan.
 
+## Op internet
+
+De assistent kan internet pas gebruiken als jij dat toestaat — en wel drie keer:
+
+1. **Voor de vault.** Zet in **Instellingen → AI & automatisering** (het Vault-deel) **De AI mag internet gebruiken in deze vault** aan. De schakelaar staat voor elke vault uit totdat je beslist, en geldt alleen op dit apparaat.
+2. **Voor een gesprek.** Druk vóór het eerste bericht van een nieuw gesprek op de wereldbol onder het invoerveld — **Laat dit gesprek internet gebruiken**. Of een gesprek internet mag gebruiken, wordt bepaald wanneer het begint; om dat te wijzigen begin je een nieuw gesprek. Een gesprek dat het mag, zegt dat in zijn eerste regel.
+3. **Voor elk verzoek.** Zolang je notities in het gesprek zitten, vraagt elke pagina die de assistent wil lezen en elke zoekopdracht die hij wil doen eerst, met het volledige adres of de zoekwoorden — dat is alles wat daarvoor je apparaat verlaat. **Pagina lezen** of **Zoeken** laat dit ene verzoek door; **Niet lezen** of **Niet zoeken** laat het achterwege, en de assistent gaat zonder verder.
+
+**Wat een verzoek is.** Een pagina lezen is één verzoek van dit apparaat aan de website, zoals het openen van de pagina in een browser — zonder cookies, zonder inlog en zonder iets uit je notities; zoals bij elk bezoek ziet de website je IP-adres. Alleen openbare pagina's via `https` worden gelezen; adressen in je thuis- of bedrijfsnetwerk worden geweigerd. Een zoekopdracht gaat naar de provider van je model — Anthropic, OpenAI, Google Gemini of OpenRouter —, die precies zoekt met de woorden die je te zien kreeg; providers kunnen zoekopdrachten apart in rekening brengen. Een model op dit apparaat kan pagina's lezen maar niet zoeken, en het model van het systeem op de telefoon kan helemaal geen internet gebruiken.
+
+**Waar een adres vandaan komt.** De vraag zegt of jij het adres hebt genoemd, of een notitie of een resultaat het heeft genoemd — of dat het model het zelf heeft samengesteld. Een adres dat het model heeft samengesteld, kan iets uit je notities bevatten: lees het voordat je het doorlaat.
+
+**Websites zonder bevestiging.** Met **Altijd voor ⟨website⟩** in een vraag, of onder **Websites zonder bevestiging** in de instellingen van de vault, worden pagina's van een website gelezen zonder eerst te vragen — zolang het adres door jou, een notitie of een resultaat is genoemd. Een adres dat het model heeft samengesteld, vraagt altijd.
+
+**Wat de assistent leest.** Nooit de pagina zelf. Een tweede verzoek aan hetzelfde model, een verzoek zonder hulpmiddelen, leest de pagina en schrijft een kort verslag: een samenvatting, uitspraken met de passage waarop ze berusten, en links die echt op de pagina staan. Een pagina die de assistent instructies probeert te geven, bereikt hem dus als verslag over een pagina — nooit als pagina waarmee hij werkt. Onder het antwoord toont **Gelezen op het web** de pagina's die zijn gelezen, en de regel eronder opent alles wat is opgevraagd.
+
+**Notities die erbuiten blijven.** Een notitie of map met **Webtoegang: nooit** (zie Privacyregels hieronder) bestaat niet voor een gesprek dat internet mag gebruiken: niet in de context, niet voor de hulpmiddelen, en links ernaartoe worden achtergehouden.
+
+Een link in een antwoord waarvan het model het adres zelf heeft samengesteld, is gemarkeerd, en de vraag voordat hij opent, zegt dat. Komt er helemaal geen antwoord terug — geen verbinding, de provider reageert niet —, dan toont het gesprek in plaats daarvan de notities die het best bij je vraag passen.
+
 ## Privacyregels
 
 Sommige notities mogen nooit bij een cloudprovider terechtkomen. Een regel kan in de frontmatter van een notitie staan:
@@ -123,6 +143,8 @@ plainva:
 ```
 
 of, voor een hele map, in **Instellingen → AI & automatisering** (het Vault-deel), dat de regels naar `.agent/policy.yml` schrijft. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe in andere notities worden achtergehouden. Modellen op dit apparaat blijven toegestaan. Versleutelde workspaces sluiten de cloud uit, tenzij je die daar toestaat. Het exacte formaat staat in de [Bestandsformaat-referentie](File_Format_Reference.md).
+
+Een tweede regel, `web: deny` — in de instellingen **Webtoegang: nooit** —, houdt een notitie of map buiten elk gesprek dat internet mag gebruiken.
 
 ## Geschiedenis en verbruik
 

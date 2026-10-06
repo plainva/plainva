@@ -324,6 +324,12 @@ const VERBATIM_ALLOWED = new Set<string>([
   "ai.toolRunning",
   // Related notes (plan KI-Harness P2b-4): two sections and the arrow between them, nothing to translate.
   "ai.related.pair",
+  // The assistant's way onto the internet (plan KI-Harness P4): "Internet" is the word in de, es, fr, it, nl, pl
+  // and pt-BR too — the row of the send overview and the heading in the vault's settings.
+  "ai.overview.web",
+  "ai.web.settings.title",
+  // A reserved example domain as the field's placeholder: an address, not a word.
+  "ai.web.settings.sitePlaceholder",
   // Two placeholders and a separator; there is no word in it to translate.
   "background.trayNextInVault",
   // The artifact kind and the worker's raw sentence, joined by a colon - the

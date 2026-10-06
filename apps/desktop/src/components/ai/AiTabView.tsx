@@ -42,7 +42,8 @@ export function AiTabView({
 }: {
   activeNote: { path: string; title: string } | null;
   onOpenNote: (target: string) => void;
-  onOpenUrl: (url: string) => void;
+  /** `composed`: the model put the address together itself (plan KI-Harness P4); the question before opening says so. */
+  onOpenUrl: (url: string, composed?: boolean) => void;
   onOpenSettings: () => void;
   onPickNote?: () => void;
   /** Opens a file of the vault in a tab — a skill's SKILL.md from the workshop. */

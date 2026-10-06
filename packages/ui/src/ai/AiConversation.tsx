@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, CircleAlert, Eye, FileText, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
-import { AI_PROFILE_IDS, answerCoverage, providerById, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
+import { Ban, Check, CircleAlert, Eye, FileText, Globe, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
+import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, comparableAddress, hasWebTools, knownAddresses, providerById, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -11,8 +11,10 @@ import { IconButton } from "../components/ui/IconButton";
 import { MenuItem, MenuSurface } from "../components/ui/Menu";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
+import { toast } from "../services/toastStore";
 import { AiAnswer } from "./AiAnswer";
 import { AiContextLens } from "./AiContextLens";
+import { AiEffectApproval } from "./AiEffectApproval";
 import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAction, type SelectionReader } from "./aiSelectionActions";
 import { startableSkills } from "./aiSkills";
 import { AiSendOverview } from "./AiSendOverview";
@@ -38,7 +40,12 @@ export interface AiConversationProps {
   /** The note open in the shell, for the context chip. */
   activeNote: { path: string; title: string } | null;
   onOpenNote: (target: string) => void;
-  onOpenUrl: (url: string) => void;
+  /**
+   * Opens a web address after the shell asked. `composed`: the model put the
+   * address together itself — it stood in none of the user's messages, notes
+   * or results (plan KI-Harness P4), and the question says so.
+   */
+  onOpenUrl: (url: string, composed?: boolean) => void;
   onOpenSettings: () => void;
   /** The shell's note picker; the chosen note is pinned to the conversation. */
   onPickNote?: () => void;
@@ -95,6 +102,10 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
 
   const active = state?.active ?? null;
   const items = useMemo(() => (active ? transcriptOf(active) : []), [active]);
+  // The addresses that stood in front of the model: a link to any other one, the model composed itself (plan P4).
+  const known = useMemo(() => (active ? knownAddresses(active.conversation) : null), [active]);
+  // A page a run already asked for went out with the user's leave: a link to that very address tells nothing new.
+  const requested = useMemo(() => new Set((active?.runs ?? []).flatMap((run) => (run.web?.pages ?? []).map((page) => comparableAddress(page.url) ?? page.url))), [active]);
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const money = useMemo(() => new Intl.NumberFormat(i18n.language, { style: "currency", currency: "USD", maximumFractionDigits: 4 }), [i18n.language]);
 
@@ -103,7 +114,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
   useEffect(() => {
     const el = threadRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [items.length, liveText, state?.live?.tools.length, state?.consent]);
+  }, [items.length, liveText, state?.live?.tools.length, state?.consent, state?.effect]);
 
   // The send overview is answered here: a door outside the conversation relies on the session knowing one is on screen.
   useEffect(() => session?.mountSurface(), [session]);
@@ -134,10 +145,29 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
 
   const live = state.live;
   const running = Boolean(live);
+  // The call that waits for the user's answer has not started: its question stands for it, not a step that claims to run.
+  const liveTools = (live?.tools ?? []).filter((tool) => tool.id !== state.effect?.id);
   const pins = state.active?.pins ?? state.draftPins;
   const showActive = Boolean(activeNote) && !pins.includes(activeNote!.path);
 
   const consent = state.consent;
+  const effect = state.effect;
+  // The internet (plan P4): what a new conversation could do on it, and whether the open one carries it.
+  const webOffer = session.webOffer();
+  const withWeb = active ? hasWebTools(active.conversation.tools) && state.web.enabled : state.draftWeb && Boolean(webOffer);
+  const toggleWeb = () => {
+    // Decided when a conversation starts: an open one may already carry notes that must never meet the internet.
+    if (active) toast.info(t("ai.web.fixed"));
+    else session.setDraftWeb(!state.draftWeb);
+  };
+  /** An address the model put together itself: it stood nowhere before the model wrote it. */
+  const composed = (url: string) => (known ? addressOrigin(url, known) === "model" && !requested.has(comparableAddress(url) ?? "") : false);
+  const urlNote = (url: string) => (composed(url) ? t("ai.linkBuilt") : null);
+  const openAnswerUrl = (url: string) => onOpenUrl(url, composed(url));
+  const hostOf = (url: string) => {
+    const checked = checkWebUrl(url);
+    return checked.ok ? checked.target.host : url;
+  };
   /** A suggest action on the editor's selection: the answer lands in the note as a suggestion round. */
   const suggest = (action: AiSuggestAction, language?: string) => {
     const range = selection?.range();
@@ -156,7 +186,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
   };
   const send = () => {
     const text = draft.trim();
-    if (!text || running || consent || !state.hasVault) return;
+    if (!text || running || consent || effect || !state.hasVault) return;
     setDraft("");
     // Nothing sent (the overview was cancelled): the words come back to the field.
     void session.send(text).then((stop) => {
@@ -176,11 +206,33 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
     const tokens = run.usage.inputTokens + run.usage.cacheReadTokens + run.usage.cacheWriteTokens + run.usage.outputTokens;
     const parts = [t("ai.sentLine", { provider: providerLabel(run.providerId), count: run.sent.length, tokens: number.format(tokens) })];
     if (run.kept.length) parts.push(t("ai.keptLine", { count: run.kept.length }));
+    if (run.web?.pages.length) parts.push(t("ai.web.runPages", { count: run.web.pages.length }));
+    if (run.web?.searches.length) parts.push(t("ai.web.runSearches", { count: run.web.searches.length }));
     if (run.costUsd !== undefined) parts.push(`≈ ${money.format(run.costUsd)}`);
     if (coverage?.level) parts.push(t(`ai.coverage.${coverage.level}`));
     return parts.join(" · ");
   };
   const toolLabel = (name: string) => t(`ai.tool.${name}`, { defaultValue: t("ai.tool.unknown") });
+  /** One tool step as a line: running, done, failed — or not allowed, which is the user's answer and no failure (plan P4). */
+  type StepLook = "running" | "open" | "done" | "failed" | "declined";
+  const stepIcon = (state: StepLook) =>
+    state === "running" ? (
+      <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
+    ) : state === "failed" ? (
+      <CircleAlert size={ICON.meta} aria-hidden="true" />
+    ) : state === "declined" ? (
+      <Ban size={ICON.meta} aria-hidden="true" />
+    ) : (
+      <Check size={ICON.meta} aria-hidden="true" />
+    );
+  const stepText = (name: string, state: StepLook) =>
+    state === "running"
+      ? t("ai.toolRunning", { tool: toolLabel(name) })
+      : state === "failed"
+        ? t("ai.toolFailed", { tool: toolLabel(name) })
+        : state === "declined"
+          ? t("ai.toolDeclined", { tool: toolLabel(name) })
+          : toolLabel(name);
 
   /** The answer a run line closes: a run that sent notes should name one (§21, citation duty). */
   const answerBefore = (index: number) => {
@@ -208,20 +260,24 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
       case "answer":
         return (
           <div key={item.key} className="pv-ai-msg pv-ai-msg--ai">
-            <AiAnswer text={item.text} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
+            <AiAnswer text={item.text} onOpenNote={onOpenNote} onOpenUrl={openAnswerUrl} urlNote={urlNote} />
           </div>
         );
-      case "steps":
+      case "steps": {
+        // A step that is still running is the live run's to show: listed here too, it would stand twice — once as done.
+        const steps = item.steps.filter((step) => step.state !== "open" || !live?.tools.some((tool) => tool.id === step.id));
+        if (steps.length === 0) return null;
         return (
           <ul key={item.key} className="pv-ai-steps">
-            {item.steps.map((step) => (
-              <li key={step.id} className={cx("pv-ai-step", step.state === "failed" && "pv-ai-step--failed")}>
-                {step.state === "failed" ? <CircleAlert size={ICON.meta} aria-hidden="true" /> : <Check size={ICON.meta} aria-hidden="true" />}
-                <span>{step.state === "failed" ? t("ai.toolFailed", { tool: toolLabel(step.name) }) : toolLabel(step.name)}</span>
+            {steps.map((step) => (
+              <li key={step.id} className={cx("pv-ai-step", step.state === "failed" && "pv-ai-step--failed", step.state === "declined" && "pv-ai-step--declined")}>
+                {stepIcon(step.state)}
+                <span>{stepText(step.name, step.state)}</span>
               </li>
             ))}
           </ul>
         );
+      }
       case "run": {
         const manifest = item.run.manifest;
         const open = openRun === item.key && Boolean(manifest);
@@ -229,8 +285,31 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
         const uncited = Boolean(manifest && manifest.sources.some((s) => s.tier === "evidence") && answer !== null && !answer.includes("[["));
         // Coverage after the answer (plan P2b-5): only where notes went, so a statement could have named one.
         const coverage = manifest && manifest.sources.some((s) => s.tier === "evidence" || s.tier === "card") && answer !== null ? answerCoverage(answer) : null;
+        // The pages the run read (plan P4), whatever the answer says of them: the app's own list, so no source goes unnamed.
+        const pagesRead = (item.run.web?.pages ?? []).filter((page) => page.read);
         return (
           <div key={item.key} className="pv-ai-run">
+            {pagesRead.length > 0 && (
+              <p className="pv-ai-websources" data-testid="ai-web-sources">
+                <span className="pv-ai-websources-label">
+                  <Globe size={ICON.meta} aria-hidden="true" />
+                  {t("ai.web.sources")}
+                </span>
+                {pagesRead.map((page, i) => (
+                  <a
+                    key={`${i}:${page.url}`}
+                    href={page.url}
+                    className="pv-ai-link"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      onOpenUrl(page.url);
+                    }}
+                  >
+                    {page.title ? `${page.title} — ${hostOf(page.url)}` : hostOf(page.url)}
+                  </a>
+                ))}
+              </p>
+            )}
             {uncited && <p className="pv-ai-nocite">{t("ai.noCitation")}</p>}
             {manifest ? (
               <Button size="sm" variant="ghost" className="pv-ai-runline" aria-expanded={open} onClick={() => setOpenRun(open ? null : item.key)}>
@@ -239,14 +318,17 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
             ) : (
               <span className="pv-ai-runline">{runLine(item.run, coverage)}</span>
             )}
-            {open && manifest && <AiSendOverview manifest={manifest} onOpenNote={onOpenNote} touch={touch} coverage={coverage} />}
+            {open && manifest && <AiSendOverview manifest={manifest} onOpenNote={onOpenNote} touch={touch} coverage={coverage} web={item.run.web ?? null} onOpenUrl={(url) => onOpenUrl(url)} />}
           </div>
         );
       }
     }
   };
 
-  const notice = state.notice && state.notice.conversationId === (state.active?.id ?? state.notice.conversationId) ? state.notice.stop : null;
+  const shownNotice = state.notice && state.notice.conversationId === (state.active?.id ?? state.notice.conversationId) ? state.notice : null;
+  const notice = shownNotice?.stop ?? null;
+  // No answer came back (plan §19.4): the notes that match the question best stand in for it.
+  const related = notice?.kind === "failed" ? (shownNotice?.related ?? []) : [];
   const noticeText = notice
     ? notice.kind === "failed"
       ? aiFailureText(t, notice.failure, provider.label, choice.model)
@@ -257,7 +339,15 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
 
   return (
     <div ref={setRootEl} className={cx("pv-ai", touch && "pv-ai--touch", `pv-ai--${dress}`, side && "pv-ai--withside")} data-testid="ai-conversation">
-      <p className="pv-ai-marking">{t("ai.marking", { model: choice.model, provider: provider.label })}</p>
+      <p className="pv-ai-marking">
+        {t("ai.marking", { model: choice.model, provider: provider.label })}
+        {/* A conversation that may use the internet says so for as long as it is open (plan P4). */}
+        {active && withWeb && (
+          <span className="pv-ai-marking-web" data-testid="ai-web-marking">
+            {t("ai.web.marking")}
+          </span>
+        )}
+      </p>
 
       {lensOpen && !side ? (
         <div className="pv-ai-thread">
@@ -293,31 +383,31 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
         {items.map((item, index) => renderItem(item, index))}
         {live && (
           <div className="pv-ai-live" aria-live="polite">
-            {live.tools.length > 0 && (
+            {liveTools.length > 0 && (
               <ul className="pv-ai-steps">
-                {live.tools.map((tool) => (
-                  <li key={tool.id} className={cx("pv-ai-step", tool.state === "failed" && "pv-ai-step--failed", tool.state === "running" && "pv-ai-step--open")}>
-                    {tool.state === "running" ? (
-                      <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
-                    ) : tool.state === "failed" ? (
-                      <CircleAlert size={ICON.meta} aria-hidden="true" />
-                    ) : (
-                      <Check size={ICON.meta} aria-hidden="true" />
-                    )}
-                    <span>{tool.state === "running" ? t("ai.toolRunning", { tool: toolLabel(tool.name) }) : toolLabel(tool.name)}</span>
+                {liveTools.map((tool) => (
+                  <li
+                    key={tool.id}
+                    className={cx("pv-ai-step", tool.state === "failed" && "pv-ai-step--failed", tool.state === "declined" && "pv-ai-step--declined", tool.state === "running" && "pv-ai-step--open")}
+                  >
+                    {stepIcon(tool.state)}
+                    <span>{stepText(tool.name, tool.state)}</span>
                   </li>
                 ))}
               </ul>
             )}
             {live.text ? (
               <div className="pv-ai-msg pv-ai-msg--ai">
-                <AiAnswer text={live.text} onOpenNote={onOpenNote} onOpenUrl={onOpenUrl} />
+                <AiAnswer text={live.text} onOpenNote={onOpenNote} onOpenUrl={openAnswerUrl} urlNote={urlNote} />
               </div>
             ) : (
-              <p className="pv-ai-working">
-                <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
-                {t("ai.working")}
-              </p>
+              // While a page or a search waits for its answer, nothing is being thought: the question below is the state.
+              !effect && (
+                <p className="pv-ai-working">
+                  <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
+                  {t("ai.working")}
+                </p>
+              )
             )}
           </div>
         )}
@@ -336,6 +426,20 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
             {noticeText}
           </Banner>
         )}
+        {related.length > 0 && (
+          <section className="pv-ai-overview" aria-label={t("ai.offline.title")} data-testid="ai-related-notes">
+            <span className="pv-ai-overview-hint">{t("ai.offline.title")}</span>
+            <ul className="pv-ai-overview-sources">
+              {related.map((note) => (
+                <li key={note.path}>
+                  <Button size="sm" variant="ghost" className="pv-ai-overview-note" onClick={() => onOpenNote(note.path)}>
+                    {note.title}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {!state.hasVault && <p className="pv-ai-working">{t("ai.empty.noVault")}</p>}
         {consent && (
           <AiSendOverview
@@ -350,6 +454,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
             touch={touch}
           />
         )}
+        {/* One page or one search waits for an answer (plan P4): asked where the send overview is asked. */}
+        {effect && <AiEffectApproval request={effect} onAnswer={(answer) => session.answerEffect(answer)} touch={touch} />}
       </div>
       )}
 
@@ -442,6 +548,20 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenUrl, onOpe
           {!side && (
             <IconButton size="sm" label={t("ai.lens.open")} active={lensOpen} aria-pressed={lensOpen} onClick={() => setLensOpen((open) => !open)} data-testid="ai-lens-open">
               <Eye size={touch ? ICON.ui : ICON.meta} />
+            </IconButton>
+          )}
+          {/* Only where the vault allows the internet: a vault nobody decided about shows nothing of it. */}
+          {(webOffer || withWeb) && (
+            <IconButton
+              size="sm"
+              label={active ? (withWeb ? t("ai.web.activeOn") : t("ai.web.activeOff")) : withWeb ? t("ai.web.toggleOn") : t("ai.web.toggleOff")}
+              active={withWeb}
+              aria-pressed={withWeb}
+              disabled={running}
+              onClick={toggleWeb}
+              data-testid="ai-web-toggle"
+            >
+              <Globe size={touch ? ICON.ui : ICON.meta} />
             </IconButton>
           )}
           <Button ref={modelButton} size="sm" variant="ghost" onClick={() => setMenuOpen(true)} aria-haspopup="menu" disabled={running}>

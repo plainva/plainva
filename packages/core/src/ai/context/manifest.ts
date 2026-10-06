@@ -67,7 +67,10 @@ export interface EgressManifest {
   estimatedCostUsd?: number;
   /** The tools the model may call in this run; each call is listed with the answer. */
   tools: string[];
+  /** The conversation may use the internet (plan KI-Harness P4): read pages, search. Each request asks while notes are in it. */
   web: boolean;
+  /** Sites whose pages are read without asking when the address was named by the user or a source. */
+  webHosts?: string[];
   /**
    * A standing approval instead of one request (plan P2a-5, search by
    * meaning with a cloud model): the notes the rules let go — now and each
@@ -111,7 +114,7 @@ export function manifestOf(
   pack: ContextPackage,
   provider: { id: string; label: string; local: boolean },
   model: string,
-  options: { tools: readonly string[]; web?: boolean; priceUsdPerMillionInput?: number; questionChars?: number; instructions?: ManifestInstructions },
+  options: { tools: readonly string[]; web?: boolean; webHosts?: readonly string[]; priceUsdPerMillionInput?: number; questionChars?: number; instructions?: ManifestInstructions },
 ): EgressManifest {
   const sources: ManifestSource[] = pack.refs.map((ref) => ({
     path: ref.path,
@@ -150,6 +153,7 @@ export function manifestOf(
     ...(options.priceUsdPerMillionInput !== undefined ? { estimatedCostUsd: (estimatedTokens / 1_000_000) * options.priceUsdPerMillionInput } : {}),
     tools: [...options.tools],
     web: options.web ?? false,
+    ...(options.web && options.webHosts?.length ? { webHosts: [...options.webHosts] } : {}),
     ...(options.instructions && (options.instructions.skill || options.instructions.catalog || options.instructions.vault) ? { instructions: options.instructions } : {}),
   };
 }

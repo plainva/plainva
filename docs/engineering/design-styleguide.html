@@ -1112,6 +1112,23 @@
         <dd>Searching the vault · Reading a note</dd>
       </dl>
     </div>
+    <p class="sec-sub">AI harness P4-3 (2026-10-06): one request to the internet waits for its answer (<code>AiEffectApproval</code>). It is built from the send overview's parts and asked at the same place — the whole address or the search words, one line on where the address came from, and the buttons: the refusal as ghost, “Always for ⟨site⟩” as secondary, the primary. An address the model put together itself gets the warning line (<code>.pv-ai-effect-warn</code>) and no “Always”. After the run, the pages that were read stand in one quiet line above the run line (<code>.pv-ai-websources</code>); a link in an answer whose address the model composed is marked (<code>.pv-ai-link--noted</code>).</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Read this page?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">🌐</span><span>Read this page?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Address</dt>
+          <dd>https://rates-check.example.net/check?client=Northwind+GmbH&amp;sum=18500</dd>
+          <dt>Looking for</dt>
+          <dd>Is the offer within the usual range?</dd>
+        </dl>
+        <span class="pv-ai-effect-warn"><span aria-hidden="true">⚠</span><span>The model put this address together itself: it was in none of your messages, notes or results. Check that it carries nothing from your notes.</span></span>
+        <span class="pv-ai-overview-hint">The request goes from this device to rates-check.example.net: this address and nothing else.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't read</button><button class="pvbtn primary">Read page</button></div>
+      </section>
+      <p class="pv-ai-websources"><span class="pv-ai-websources-label"><span aria-hidden="true">🌐</span>Read on the web</span><a class="pv-ai-link" href="#">Rates 2026 — example.org</a></p>
+      <p style="margin: 0">A comparison site I know of is <a class="pv-ai-link pv-ai-link--noted" href="#">https://compare.example.net/rates?q=1900</a>.</p>
+    </div>
     <p class="sec-sub">AI harness P3-5 (2026-10-01): the skills workshop. What waits for an approval on this device stands first; the review names what a skill may do in words and what changed since the approved version as a line comparison (<code>LineCompare</code>, <code>.pv-linecompare</code>), in a facts list (<code>.pv-skill-facts</code>).</p>
     <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
       <dl class="pv-skill-facts">

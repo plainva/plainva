@@ -36,7 +36,9 @@
       "get_recent": "Przeglądanie ostatnich notatek",
       "get_calendar": "Czytanie spotkań",
       "open_in_app": "Otwieranie notatki w Plainva",
-      "use_skill": "Wczytywanie umiejętności"
+      "use_skill": "Wczytywanie umiejętności",
+      "fetch_url": "Odczytywanie strony internetowej",
+      "web_search": "Przeszukiwanie sieci"
     },
     "stopped": {
       "cancelled": "Zatrzymano.",
@@ -234,6 +236,9 @@
     "openLink": "Otwórz",
     "openFullScreen": "Pełny ekran",
     "noCitation": "Ta odpowiedź nie cytuje żadnej z wysłanych notatek. Sprawdź ją z nimi.",
+    "openLinkBuilt": "Model sam zbudował ten adres — nie było go w żadnej z Twoich wiadomości, notatek ani wyników, a może zawierać tekst z tej rozmowy.",
+    "linkBuilt": "Zbudowany przez model — w żadnej z Twoich wiadomości, notatek ani wyników",
+    "toolDeclined": "{{tool}} — nie zezwolono",
     "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "Wysłać do {{provider}}?",
@@ -244,7 +249,7 @@
         "dataClass": "Nowy rodzaj danych: {{kind}}",
         "folder": "Notatki z innego folderu: {{folder}}",
         "tools": "Nowe narzędzia: {{tools}}",
-        "web": "Zapytanie może przeszukiwać sieć.",
+        "web": "Ta rozmowa może korzystać z internetu: czytać strony i przeszukiwać sieć.",
         "size": "Znacznie więcej niż wcześniej: ~{{tokens}} tokenów",
         "standing": "Wyszukiwanie po znaczeniu liczy modelem w chmurze: notatki trafiają tam w tle, bez pytania za każdym razem — dopóki nie wycofasz tej zgody w ustawieniach.",
         "sensitive": "Możliwie wrażliwe, zaznaczone poniżej: {{kinds}}",
@@ -314,7 +319,13 @@
       "standingNotes_few": "{{count}} notatki, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie",
       "standingNotes_many": "{{count}} notatek, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie",
       "standingNotes_other": "{{count}} notatki, które przepuszczają Twoje reguły — teraz i każda ponownie przy każdej zmianie",
-      "gist": "tytuł i sprawdzone streszczenie"
+      "gist": "tytuł i sprawdzone streszczenie",
+      "web": "Internet",
+      "webOn": "może czytać strony i przeszukiwać sieć — każde zapytanie pyta najpierw",
+      "webHosts": "bez pytania, dla adresów wskazanych przez Ciebie lub przez źródło: {{hosts}}",
+      "webPages": "Zapytania do sieci",
+      "webNotRead": "nie odczytano",
+      "webSearches": "Szukane frazy"
     },
     "lens": {
       "open": "Pokaż kontekst",
@@ -372,7 +383,11 @@
       "keepHere": "Zostaw na tym urządzeniu",
       "redact": "Zakryj w tej rozmowie",
       "unredact": "Wyślij bez zakrywania",
-      "situation": "Zadania, spotkania i dane otwartej notatki"
+      "situation": "Zadania, spotkania i dane otwartej notatki",
+      "neverWeb_one": "Nie w rozmowie z internetem: {{count}} notatka",
+      "neverWeb_few": "Nie w rozmowie z internetem: {{count}} notatki",
+      "neverWeb_many": "Nie w rozmowie z internetem: {{count}} notatek",
+      "neverWeb_other": "Nie w rozmowie z internetem: {{count}} notatki"
     },
     "selection": {
       "menu": "AI",
@@ -438,6 +453,57 @@
         "no-answer": "AI nie udzieliła odpowiedzi.",
         "failed": "AI nie mogła odpowiedzieć.",
         "post-failed": "Nie udało się zapisać odpowiedzi w wątku. Znajdziesz ją wśród rozmów z AI."
+      }
+    },
+    "offline": {
+      "title": "Nie nadeszła żadna odpowiedź. Te notatki najlepiej pasują do Twojego pytania:"
+    },
+    "web": {
+      "toggleOn": "Ta rozmowa będzie korzystać z internetu",
+      "toggleOff": "Pozwól tej rozmowie korzystać z internetu",
+      "activeOn": "Ta rozmowa może korzystać z internetu",
+      "activeOff": "Ta rozmowa zaczęła się bez internetu",
+      "fixed": "To, czy rozmowa może korzystać z internetu, rozstrzyga się na jej początku. Zacznij nową rozmowę, aby to zmienić.",
+      "marking": "Ta rozmowa może korzystać z internetu. Dopóki są w niej Twoje notatki, każde zapytanie pyta najpierw.",
+      "sources": "Odczytano w sieci",
+      "runPages_one": "{{count}} strona internetowa",
+      "runPages_few": "{{count}} strony internetowe",
+      "runPages_many": "{{count}} stron internetowych",
+      "runPages_other": "{{count}} strony internetowej",
+      "runSearches_one": "{{count}} wyszukiwanie w sieci",
+      "runSearches_few": "{{count}} wyszukiwania w sieci",
+      "runSearches_many": "{{count}} wyszukiwań w sieci",
+      "runSearches_other": "{{count}} wyszukiwania w sieci",
+      "ask": {
+        "fetchTitle": "Odczytać tę stronę?",
+        "searchTitle": "Przeszukać sieć?",
+        "address": "Adres",
+        "lookingFor": "Czego szuka",
+        "query": "Szukana fraza",
+        "through": "Przez",
+        "originUser": "Ten adres pochodzi od Ciebie.",
+        "originSource": "Adres pochodzi z notatki lub z wyniku w tej rozmowie.",
+        "originModel": "Model sam zbudował ten adres: nie było go w żadnej z Twoich wiadomości, notatek ani wyników. Sprawdź, czy nie zawiera niczego z Twoich notatek.",
+        "fetchHint": "Zapytanie idzie z tego urządzenia do {{host}}: ten adres i nic więcej.",
+        "searchHint": "Te słowa trafiają do {{provider}}, a wyszukiwanie odbywa się właśnie za ich pomocą. Z tym zapytaniem nie idzie nic więcej.",
+        "fetch": "Odczytaj stronę",
+        "search": "Szukaj",
+        "always": "Zawsze dla {{host}}",
+        "denyFetch": "Nie odczytuj",
+        "denySearch": "Nie szukaj"
+      },
+      "settings": {
+        "title": "Internet",
+        "desc": "Wyłączone, dopóki nie włączysz tego dla tego vaultu. Nawet wtedy z internetu korzysta tylko rozmowa, którą rozpoczniesz z dostępem do niego — a dopóki są w niej Twoje notatki, każda strona i każde wyszukiwanie pytają najpierw.",
+        "switch": "AI może korzystać z internetu w tym vaulcie",
+        "switchDesc": "Obowiązuje na tym urządzeniu. Notatki i foldery z ustawieniem „Dostęp do sieci: nigdy” zostają poza taką rozmową.",
+        "sites": "Witryny bez potwierdzenia",
+        "sitesDesc": "Strony z tych witryn, których adres pochodzi od Ciebie, z notatki lub z wyniku, są odczytywane bez pytania. Adres, który model sam zbudował, pyta zawsze.",
+        "sitesNone": "Na razie żadnej — każda strona pyta.",
+        "addSite": "Dodaj witrynę",
+        "sitePlaceholder": "example.org",
+        "siteInvalid": "To nie jest witryna w publicznym internecie.",
+        "removeSite": "Usuń {{host}}"
       }
     },
     "lint": {

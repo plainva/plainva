@@ -164,6 +164,9 @@ describe("the settings model", () => {
     consent: null,
     skills: { entries: [], omitted: [] },
     skillTests: { records: [], running: null },
+    web: { enabled: false, allow: [] },
+    draftWeb: false,
+    effect: null,
     ...patch,
   });
 

@@ -112,6 +112,26 @@ Przy każdej notatce głosowej — w edytorze, w trybie czytania, w dzienniku i 
 
 **Audio** wymaga dostawcy z obsługą audio: OpenAI (na przykład `gpt-4o-transcribe` lub `whisper-1`), Gemini albo własnego zgodnego serwera — serwer na tym komputerze zatrzymuje nagranie na urządzeniu. Można transkrybować nagrania do 11 MB. Nagranie w notatce, którą Twoje reguły trzymają z dala od chmury, nie trafia do żadnego modelu w chmurze, a zaszyfrowane obszary robocze jeszcze tego nie oferują.
 
+## W internecie
+
+Asystent nie może korzystać z internetu, dopóki tego nie dopuścisz — i to trzykrotnie:
+
+1. **Dla vaultu.** W **Ustawienia → AI & automatyzacja** (część vaultu) włącz **AI może korzystać z internetu w tym vaulcie**. Dla każdego vaultu przełącznik jest wyłączony, dopóki nie zdecydujesz, i obowiązuje tylko na tym urządzeniu.
+2. **Dla rozmowy.** Przed pierwszą wiadomością nowej rozmowy naciśnij ikonę globusa pod polem wpisywania — **Pozwól tej rozmowie korzystać z internetu**. To, czy rozmowa może korzystać z internetu, rozstrzyga się na jej początku; aby to zmienić, zacznij nową rozmowę. Rozmowa, która może z niego korzystać, mówi o tym w pierwszym wierszu.
+3. **Dla każdego zapytania.** Dopóki Twoje notatki są w rozmowie, każda strona, którą asystent chce odczytać, i każde wyszukiwanie, które chce wykonać, pytają najpierw — z pełnym adresem lub szukanymi słowami; to wszystko, co w tym celu opuszcza Twoje urządzenie. **Odczytaj stronę** lub **Szukaj** przepuszcza to jedno zapytanie; **Nie odczytuj** lub **Nie szukaj** je pomija, a asystent działa dalej bez niego.
+
+**Czym jest zapytanie.** Odczytanie strony to jedno zapytanie z tego urządzenia do witryny, jak otwarcie strony w przeglądarce — bez ciasteczek, bez logowania i bez niczego z Twoich notatek; jak przy każdej wizycie, witryna widzi Twój adres IP. Odczytywane są tylko publiczne strony przez `https`; adresy w Twojej sieci domowej lub firmowej są odrzucane. Wyszukiwanie idzie do dostawcy Twojego modelu — Anthropic, OpenAI, Google Gemini albo OpenRouter —, który wyszukuje dokładnie tymi słowami, które Ci pokazano; dostawcy mogą naliczać opłaty za wyszukiwania osobno. Model na tym urządzeniu potrafi odczytywać strony, ale nie potrafi wyszukiwać, a model systemu na telefonie w ogóle nie może korzystać z internetu.
+
+**Skąd pochodzi adres.** Pytanie mówi, czy adres pochodzi od Ciebie, czy podała go notatka lub wynik — albo czy model sam go zbudował. Adres zbudowany przez model może zawierać coś z Twoich notatek: przeczytaj go, zanim go przepuścisz.
+
+**Witryny bez potwierdzenia.** Przy **Zawsze dla ⟨witryna⟩** w pytaniu albo w **Witryny bez potwierdzenia** w ustawieniach vaultu strony danej witryny są odczytywane bez pytania — dopóki adres pochodzi od Ciebie, z notatki lub z wyniku. Adres zbudowany przez model pyta zawsze.
+
+**Co czyta asystent.** Nigdy samej strony. Drugie zapytanie do tego samego modelu, bez żadnych narzędzi, czyta stronę i pisze krótki raport: streszczenie, stwierdzenia z fragmentem, na którym się opierają, oraz linki, które naprawdę są na stronie. Strona, która próbuje dawać asystentowi instrukcje, dociera więc do niego jako raport o stronie — nigdy jako strona, z którą pracuje. Pod odpowiedzią **Odczytano w sieci** wymienia odczytane strony, a wiersz pod nią otwiera wszystko, o co zapytano.
+
+**Notatki, które zostają poza rozmową.** Notatka lub folder z ustawieniem **Dostęp do sieci: nigdy** (zob. Zasady prywatności niżej) nie istnieje dla rozmowy, która może korzystać z internetu: nie ma jej ani w kontekście, ani w narzędziach, a linki do niej są wstrzymywane.
+
+Link w odpowiedzi, którego adres model zbudował sam, jest oznaczony, a pytanie przed otwarciem mówi o tym. Jeśli odpowiedź w ogóle nie nadejdzie — brak połączenia, dostawca nie odpowiada —, rozmowa wymienia zamiast niej notatki, które najlepiej pasują do Twojego pytania.
+
 ## Zasady prywatności
 
 Niektóre notatki nigdy nie powinny trafić do dostawcy w chmurze. Reguła może znajdować się we frontmatterze notatki:
@@ -123,6 +143,8 @@ plainva:
 ```
 
 albo, dla całego folderu, w **Ustawienia → AI & automatyzacja** (część vaultu), skąd reguły trafiają do `.agent/policy.yml`. Notatka trzymana z dala od chmury nie wnosi niczego — ani tekstu, ani tytułu — a linki do niej w innych notatkach są wstrzymywane. Modele na tym urządzeniu pozostają dozwolone. Zaszyfrowane obszary robocze trzymają chmurę z dala, chyba że zostanie tam dopuszczona. Dokładny format znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md).
+
+Druga reguła, `web: deny` — w ustawieniach **Dostęp do sieci: nigdy** —, trzyma notatkę lub folder poza każdą rozmową, która może korzystać z internetu.
 
 ## Historia i zużycie
 

@@ -56,6 +56,9 @@ function stubSession() {
     draftChoice: null,
     skills: { entries: resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS), omitted: [] },
     skillTests: { records: [], running: null },
+    web: { enabled: false, allow: [] },
+    draftWeb: false,
+    effect: null,
   } as unknown as AiState;
   const listeners = new Set<() => void>();
   let finish: (outcome: SkillTestOutcome) => void = () => {};

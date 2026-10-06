@@ -22,7 +22,8 @@ export function AiCompanion({
   onClose: () => void;
   onOpenAsTab: () => void;
   onOpenNote: (target: string) => void;
-  onOpenUrl: (url: string) => void;
+  /** `composed`: the model put the address together itself (plan KI-Harness P4); the question before opening says so. */
+  onOpenUrl: (url: string, composed?: boolean) => void;
   onOpenSettings: () => void;
   onPickNote?: () => void;
 }) {

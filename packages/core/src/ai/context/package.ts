@@ -147,6 +147,13 @@ export interface ContextBuildInput {
    */
   redact?: ReadonlySet<string>;
   budget?: Partial<ContextBudget>;
+  /**
+   * The conversation carries tools that reach the internet (plan KI-Harness
+   * P4): a note whose rules say `web: deny` does not go along, whoever the
+   * recipient is — and links to notes that stay back are withheld even for a
+   * model on this device, which could otherwise carry a name out in a search.
+   */
+  webTools?: boolean;
 }
 
 export type PackageTier = "evidence" | "card" | "map";
@@ -298,7 +305,7 @@ function visibleSituation(situation: SituationInput): SituationInput {
 
 export async function buildContextPackage(input: ContextBuildInput, host: ContextBuildHost): Promise<ContextPackage> {
   const budget: ContextBudget = { ...DEFAULT_CONTEXT_BUDGET, ...input.budget };
-  const run = { recipient: input.recipient, webTools: false };
+  const run = { recipient: input.recipient, webTools: input.webTools === true };
   const cloud = isCloudRecipient(input.recipient);
   const situation = visibleSituation(input.situation);
   const terms = questionTerms(input.question);
@@ -328,11 +335,11 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     }
     return decision.allowed;
   };
-  /** What any vault text passes before it goes: place stamps withheld; for a cloud, links to denied notes too. */
+  /** What any vault text passes before it goes: place stamps withheld; for a cloud or a run with the internet, links to denied notes too. */
   const clean = async (text: string, fromPath: string): Promise<string> => {
     const places = withholdPlaces(text);
     redactions.places += places.withheld;
-    if (!cloud) return places.text;
+    if (!cloud && !run.webTools) return places.text;
     const links = await withholdDeniedLinks(places.text, fromPath, host.resolveLink, (path) => allowed(path));
     redactions.withheldLinks += links.redacted;
     return links.text;
@@ -561,7 +568,9 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
   // where the patterns see something in it, it stays back (P2b-6).
   const quiet = (gist: string) => !cloud || sensitiveFindings(gist).length === 0;
   const areaLines: string[] = [];
-  if (host.gists && refs.length) {
+  // They are written from every note a cloud may see — among them notes that must never meet the internet.
+  // No one note's rule governs such a gist, so a conversation with the internet goes without them.
+  if (host.gists && refs.length && !run.webTools) {
     const counts = new Map<string, number>();
     for (const ref of refs) {
       const area = areaOf(ref.path);

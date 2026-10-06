@@ -16,6 +16,8 @@ import {
   SettingCard,
   SettingCardNote,
   SettingRow,
+  Switch,
+  TextInput,
   toast,
   unruledFolders,
   withoutRule,
@@ -66,6 +68,63 @@ function SkillsCard({ onOpenSkills }: { onOpenSkills: (review?: string) => void 
             <Button size="sm" variant="tonal" onClick={() => onOpenSkills(entry.source.id)} data-testid="settings-ai-skill-review">
               {t("ai.workshop.review")}
             </Button>
+          </SettingRow>
+        ))}
+    </SettingCard>
+  );
+}
+
+/**
+ * The internet for this vault (plan KI-Harness P4): off until the user decides
+ * — a setting of this device, kept in the app's data and never in the vault,
+ * whose writers could otherwise switch it on —, and the sites whose pages
+ * need no asking.
+ */
+function InternetCard() {
+  const { t } = useTranslation();
+  const session = getDesktopAiSession();
+  const state = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
+  const [site, setSite] = useState("");
+  if (!session || !state) return null;
+  const web = state.web;
+  const add = () => {
+    void session.allowWebHost(site).then((added) => {
+      if (added) setSite("");
+      else toast.error(t("ai.web.settings.siteInvalid"));
+    });
+  };
+  return (
+    <SettingCard label={t("ai.web.settings.title")}>
+      <SettingCardNote>{t("ai.web.settings.desc")}</SettingCardNote>
+      <SettingRow label={t("ai.web.settings.switch")} desc={t("ai.web.settings.switchDesc")}>
+        <Switch checked={web.enabled} onChange={(enabled) => void session.setWebEnabled(enabled)} label={t("ai.web.settings.switch")} />
+      </SettingRow>
+      {web.enabled && (
+        <SettingRow label={t("ai.web.settings.sites")} desc={t("ai.web.settings.sitesDesc")}>
+          <div className="pv-ai-rowactions">
+            <TextInput
+              value={site}
+              placeholder={t("ai.web.settings.sitePlaceholder")}
+              aria-label={t("ai.web.settings.addSite")}
+              onChange={(event) => setSite(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && site.trim()) add();
+              }}
+              data-testid="settings-ai-web-site"
+            />
+            <Button size="sm" variant="secondary" disabled={!site.trim()} onClick={add} data-testid="settings-ai-web-add">
+              {t("ai.web.settings.addSite")}
+            </Button>
+          </div>
+        </SettingRow>
+      )}
+      {web.enabled && web.allow.length === 0 && <SettingCardNote>{t("ai.web.settings.sitesNone")}</SettingCardNote>}
+      {web.enabled &&
+        web.allow.map((host) => (
+          <SettingRow key={host} label={host}>
+            <IconButton label={t("ai.web.settings.removeSite", { host })} size="sm" onClick={() => void session.disallowWebHost(host)}>
+              <Trash2 size={ICON.ui} />
+            </IconButton>
           </SettingRow>
         ))}
     </SettingCard>
@@ -193,6 +252,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
         <SettingCardNote>{t("ai.policy.localAllowed")}</SettingCardNote>
         {workspaceSecurityStatus !== null && <SettingCardNote>{t("ai.policy.encrypted")}</SettingCardNote>}
       </SettingCard>
+      <InternetCard />
       <SkillsCard onOpenSkills={openSkills} />
     </div>
   );

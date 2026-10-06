@@ -3,8 +3,11 @@ import {
   readConversationRecord,
   readInstructionApprovals,
   readSkillTests,
+  readWebSettings,
   serializeInstructionApprovals,
   serializeSkillTests,
+  serializeWebSettings,
+  type WebSettings,
   type InstructionApprovals,
   type SkillTestRecords,
   type ConversationRecord,
@@ -92,6 +95,17 @@ export interface SkillTestStore {
   save(tests: SkillTestRecords): Promise<void>;
 }
 
+/**
+ * Whether the AI may use the internet in this vault, and the sites it need
+ * not ask for (plan KI-Harness P4): per vault, in the app's data on this
+ * device — never in the vault, whose writers could otherwise switch it on. A
+ * missing or damaged file means off.
+ */
+export interface WebSettingsStore {
+  load(): Promise<WebSettings>;
+  save(settings: WebSettings): Promise<void>;
+}
+
 export const RELATED_DISMISSED_CAP = 500;
 export const RELATED_PAUSED_CAP = 200;
 
@@ -165,6 +179,7 @@ export function createAiVaultStores(
   related: RelatedFeedbackStore;
   instructionApprovals: InstructionApprovalStore;
   skillTests: SkillTestStore;
+  web: WebSettingsStore;
 } {
   if (!SAFE_ID.test(vaultKey)) throw new Error("invalid vault key");
   const dir = vaultKey;
@@ -251,7 +266,12 @@ export function createAiVaultStores(
     save: (value) => files.write(`${dir}/skill-tests.json`, serializeSkillTests(value)),
   };
 
-  return { conversations, ledger, approvals, related, instructionApprovals, skillTests };
+  const web: WebSettingsStore = {
+    load: async () => readWebSettings(await files.read(`${dir}/web.json`)),
+    save: (settings) => files.write(`${dir}/web.json`, serializeWebSettings(settings)),
+  };
+
+  return { conversations, ledger, approvals, related, instructionApprovals, skillTests, web };
 }
 
 /** A stable, file-name-safe handle for a vault (FNV-1a over its path or id). */

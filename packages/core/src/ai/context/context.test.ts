@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath } from "../../frontmatter-surgical.js";
 import type { EgressRecipient } from "../egressGate.js";
+import { readConversationRecord } from "../history.js";
 import { DEFAULT_AI_POLICY, effectivePolicy, notePolicyFrom, parsePolicyFile } from "../policy.js";
 import { manifestOf, scopeGrowth, widenScope } from "./manifest.js";
 import { buildContextPackage, sentStamps, type ContextBuildHost, type SituationInput } from "./package.js";
@@ -172,6 +173,31 @@ describe("the context package", () => {
     expect(forLocal.excluded).toEqual([]);
   });
 
+  it("keeps a note that must never meet the internet out of a conversation with the web tools — for a model on this device too", async () => {
+    const overrides = {
+      "Notes/Draft.md": "---\nplainva:\n  ai:\n    web: deny\n---\n# Draft\n\nnever on the web",
+      "Projects/Offer.md": files["Projects/Offer.md"]!.replace("[[Salaries]]", "[[Draft]]"),
+    };
+    const input = {
+      question: "the open points",
+      situation: situation({ tabs: [], dailyNote: null }),
+      candidates: [[{ path: "Notes/Draft.md", title: "Draft", signals: { lexical: 1 } }]],
+      pins: ["Notes/Draft.md"],
+    };
+    // Without the web tools the rule says nothing: the note goes, to a cloud as well.
+    const plain = await buildContextPackage({ ...input, recipient: cloud }, host(overrides));
+    expect(plain.part.text).toContain("never on the web");
+    expect(plain.excluded).toEqual([]);
+    for (const recipient of [cloud, local]) {
+      const pack = await buildContextPackage({ ...input, recipient, webTools: true }, host(overrides));
+      expect(pack.refs.map((r) => r.path), recipient.kind).not.toContain("Notes/Draft.md");
+      expect(pack.part.text, recipient.kind).not.toMatch(/never on the web|Draft/);
+      expect(pack.excluded, recipient.kind).toMatchObject([{ path: "Notes/Draft.md", reason: "web-denied" }]);
+      // The link to it in the open note is withheld — for a model on this device too, which could carry the name out in a search.
+      expect(pack.part.text, recipient.kind).toContain("Rates as in ⟦withheld note⟧");
+    }
+  });
+
   it("checks the exact text that would go: an unsaved cloud: deny keeps the note out", async () => {
     const editor = { "Projects/Offer.md": "---\nplainva:\n  ai:\n    cloud: deny\n---\n# Offer\n\nhourly rate 95" };
     const pack = await buildContextPackage({ question: "hourly rate", recipient: cloud, situation: situation({ tasks: [] }), candidates: [], pins: [] }, host({}, editor));
@@ -210,5 +236,36 @@ describe("the send overview", () => {
     expect(scopeGrowth({ ...manifest, tools: ["search_vault", "read_note"] }, scope)).toEqual([{ kind: "tools", tools: ["read_note"] }]);
     expect(scopeGrowth({ ...manifest, estimatedTokens: scope.maxTokens * 4 + 5000 }, scope)[0]!.kind).toBe("size");
     expect(scopeGrowth({ ...manifest, local: true }, null)).toEqual([]);
+  });
+
+  it("names the internet where the conversation may use it, with the sites that need no asking — and asks when it is new", async () => {
+    const pack = await buildContextPackage({ question: "hourly rate", recipient: cloud, situation: situation(), candidates: [], pins: [], webTools: true }, host());
+    const provider = { id: "p", label: "Provider", local: false };
+    const without = manifestOf(pack, provider, "m", { tools: ["search_vault"] });
+    expect([without.web, without.webHosts]).toEqual([false, undefined]);
+    // Sites without the internet say nothing.
+    expect(manifestOf(pack, provider, "m", { tools: ["search_vault"], webHosts: ["example.org"] }).webHosts).toBeUndefined();
+    const web = manifestOf(pack, provider, "m", { tools: ["search_vault", "fetch_url"], web: true, webHosts: ["example.org"] });
+    expect(web).toMatchObject({ web: true, webHosts: ["example.org"] });
+    const scope = widenScope(null, without);
+    expect(scopeGrowth(web, scope)).toEqual([{ kind: "tools", tools: ["fetch_url"] }, { kind: "web" }]);
+    expect(scopeGrowth(web, widenScope(scope, web))).toEqual([]);
+    // The record of a run keeps both.
+    const stored = readConversationRecord(
+      JSON.parse(
+        JSON.stringify({
+          version: 1,
+          id: "c1",
+          title: "t",
+          createdAt: "2026-10-06T10:00:00Z",
+          updatedAt: "2026-10-06T10:00:00Z",
+          providerId: "p",
+          model: "m",
+          conversation: { id: "c1", system: "s", tools: ["fetch_url"], turns: [] },
+          runs: [{ userTurn: 0, providerId: "p", model: "m", sent: [], kept: [], steps: 1, stop: "answered", manifest: web }],
+        }),
+      ),
+    )!;
+    expect(stored.runs[0]!.manifest).toMatchObject({ web: true, webHosts: ["example.org"] });
   });
 });

@@ -112,6 +112,26 @@ Su ogni nota vocale — nell'editor, in modalità lettura, nel diario e sulle sc
 
 **Audio** richiede un provider con una via audio: OpenAI (per esempio `gpt-4o-transcribe` o `whisper-1`), Gemini o un tuo server compatibile — uno su questo computer tiene la registrazione sul dispositivo. Si possono trascrivere registrazioni fino a 11 MB. Una registrazione in una nota che le tue regole tengono lontana dal cloud non va a nessun modello cloud, e i workspace cifrati non lo offrono ancora.
 
+## Su Internet
+
+L'assistente non può usare Internet finché non lo consenti — e lo consenti tre volte:
+
+1. **Per il vault.** In **Impostazioni → IA e automazione** (la parte Vault), attiva **L'IA può usare Internet in questo vault**. È disattivato per ogni vault finché non decidi, e vale solo su questo dispositivo.
+2. **Per una conversazione.** Prima del primo messaggio di una nuova conversazione, premi il globo sotto il campo di testo — **Lascia che questa conversazione usi Internet**. Che una conversazione possa usare Internet si decide quando inizia; per cambiarlo, inizia una nuova conversazione. Una conversazione che può usarlo lo dice nella sua prima riga.
+3. **Per ogni richiesta.** Finché le tue note sono nella conversazione, ogni pagina che l'assistente vuole leggere e ogni ricerca che vuole fare chiedono prima, con l'indirizzo completo o le parole di ricerca — è tutto ciò che lascia il tuo dispositivo per questo. **Leggi la pagina** o **Cerca** lascia passare questa singola richiesta; **Non leggere** o **Non cercare** la lascia cadere, e l'assistente prosegue senza di essa.
+
+**Che cos'è una richiesta.** Leggere una pagina è una richiesta da questo dispositivo al sito, come aprire la pagina in un browser — senza cookie, senza accesso e senza nulla delle tue note; come in ogni visita, il sito vede il tuo indirizzo IP. Vengono lette solo pagine pubbliche tramite `https`; gli indirizzi della tua rete domestica o aziendale vengono rifiutati. Una ricerca va al provider del tuo modello — Anthropic, OpenAI, Google Gemini o OpenRouter —, che cerca esattamente con le parole che ti sono state mostrate; i provider possono addebitare le ricerche separatamente. Un modello su questo dispositivo può leggere pagine ma non può cercare, e il modello del sistema sul telefono non può usare Internet affatto.
+
+**Da dove viene un indirizzo.** La domanda dice se hai indicato tu l'indirizzo, se lo ha indicato una nota o un risultato — oppure se il modello lo ha costruito da sé. Un indirizzo costruito dal modello potrebbe contenere qualcosa delle tue note: leggilo prima di lasciarlo passare.
+
+**Siti senza conferma.** Con **Sempre per ⟨sito⟩** in una domanda, oppure sotto **Siti senza conferma** nelle impostazioni del vault, le pagine di un sito vengono lette senza chiedere — finché l'indirizzo è stato indicato da te, da una nota o da un risultato. Un indirizzo costruito dal modello chiede sempre.
+
+**Cosa legge l'assistente.** Mai la pagina stessa. Una seconda richiesta allo stesso modello, senza strumenti, legge la pagina e scrive un breve rapporto: un riepilogo, affermazioni con il passaggio su cui si basano e link che si trovano davvero nella pagina. Una pagina che cerca di dare istruzioni all'assistente gli arriva quindi come rapporto su una pagina — mai come una pagina su cui lavora. Sotto la risposta, **Letto sul web** elenca le pagine lette, e la riga sotto apre tutto ciò che è stato richiesto.
+
+**Note che restano fuori.** Una nota o una cartella con **Accesso web: mai** (vedi Regole sulla privacy più sotto) non esiste per una conversazione che può usare Internet: non nel suo contesto, non per i suoi strumenti, e i link ad essa vengono trattenuti.
+
+Un link in una risposta il cui indirizzo è stato costruito dal modello stesso è contrassegnato, e la domanda prima dell'apertura lo dice. Se non torna nessuna risposta — nessuna connessione, il provider non risponde —, la conversazione elenca invece le note che corrispondono meglio alla tua domanda.
+
 ## Regole sulla privacy
 
 Alcune note non devono mai raggiungere un provider cloud. Una regola può trovarsi nel frontmatter di una nota:
@@ -123,6 +143,8 @@ plainva:
 ```
 
 oppure, per un'intera cartella, in **Impostazioni → IA e automazione** (la parte Vault), che scrive le regole in `.agent/policy.yml`. Una nota tenuta lontana dal cloud non contribuisce con nulla — né testo né titolo — e i link ad essa in altre note vengono trattenuti. I modelli su questo dispositivo restano consentiti. I workspace cifrati tengono il cloud disattivato, a meno che tu non lo consenta lì. Il formato esatto si trova nella [File Format Reference](File_Format_Reference.md).
+
+Una seconda regola, `web: deny` — **Accesso web: mai** nelle impostazioni —, tiene una nota o una cartella fuori da ogni conversazione che può usare Internet.
 
 ## Cronologia e utilizzo
 

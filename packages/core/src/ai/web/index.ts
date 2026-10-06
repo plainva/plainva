@@ -9,3 +9,4 @@ export * from "./extract.js";
 export * from "./fetch.js";
 export * from "./processor.js";
 export * from "./search.js";
+export * from "./provenance.js";

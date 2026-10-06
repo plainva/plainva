@@ -1,6 +1,7 @@
 import type { Conversation } from "./conversation.js";
 import type { EgressManifest } from "./context/manifest.js";
 import { isSensitiveKind, type SensitiveKind } from "./context/sensitiveHints.js";
+import { checkWebUrl } from "./web/rules.js";
 
 /**
  * Conversation history and the run ledger (§16 of the plan).
@@ -16,6 +17,20 @@ export interface ConversationUsage {
   outputTokens: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
+}
+
+/**
+ * What a run did on the internet (plan KI-Harness P4): the pages it asked for
+ * and the searches it made — addresses, titles, queries and numbers, never a
+ * page's text. `read` is false for a page that was asked for and gave no
+ * report (an error, no text, a redirect to another site).
+ */
+export interface RunWeb {
+  pages: { url: string; title: string; at: string; read: boolean }[];
+  searches: { query: string; at: string; hits: number }[];
+  /** Tokens of the calls that read pages and searched; they are part of the run's usage. */
+  inputTokens: number;
+  outputTokens: number;
 }
 
 /** What one run sent and cost — the line under its answer, and the audit's source. */
@@ -41,6 +56,8 @@ export interface RunMeta {
   skills?: { id: string; how: "bound" | "loaded"; tokens: number }[];
   /** The catalog the request carried: how many skills, how many tokens. */
   skillCatalog?: { count: number; tokens: number };
+  /** What the run asked of the internet; absent when it asked nothing. */
+  web?: RunWeb;
 }
 
 /** The skill a conversation runs, bound when it started (plan KI-Harness P3). */
@@ -228,8 +245,35 @@ function readRun(raw: unknown): RunMeta[] {
           }
         : {}),
       ...(r.skillCatalog && typeof r.skillCatalog === "object" ? { skillCatalog: { count: count(r.skillCatalog.count), tokens: count(r.skillCatalog.tokens) } } : {}),
+      ...(readRunWeb(r.web) ? { web: readRunWeb(r.web)! } : {}),
     },
   ];
+}
+
+const WEB_RECORD_MAX = 64;
+
+/**
+ * A run's web record, read defensively. An address is kept only as the public
+ * https address it is: the record is shown as links, and a stored file is not
+ * a reason to open anything else.
+ */
+function readRunWeb(raw: unknown): RunWeb | null {
+  if (!raw || typeof raw !== "object") return null;
+  const w = raw as { pages?: unknown; searches?: unknown; inputTokens?: unknown; outputTokens?: unknown };
+  const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  const pages: RunWeb["pages"] = [];
+  for (const item of Array.isArray(w.pages) ? w.pages.slice(0, WEB_RECORD_MAX) : []) {
+    const p = item as { url?: unknown; title?: unknown; at?: unknown; read?: unknown } | null;
+    const checked = p && typeof p.url === "string" ? checkWebUrl(p.url) : null;
+    if (checked?.ok) pages.push({ url: checked.target.url, title: text(p!.title, 200), at: text(p!.at, 40), read: p!.read === true });
+  }
+  const searches: RunWeb["searches"] = [];
+  for (const item of Array.isArray(w.searches) ? w.searches.slice(0, WEB_RECORD_MAX) : []) {
+    const s = item as { query?: unknown; at?: unknown; hits?: unknown } | null;
+    if (s && typeof s.query === "string" && s.query) searches.push({ query: text(s.query, 200), at: text(s.at, 40), hits: count(s.hits) });
+  }
+  if (!pages.length && !searches.length) return null;
+  return { pages, searches, inputTokens: count(w.inputTokens), outputTokens: count(w.outputTokens) };
 }
 
 /** A stored send overview, read defensively: anything malformed drops the overview, never the run. */
@@ -284,6 +328,7 @@ function readManifest(raw: unknown): EgressManifest | null {
     ...(typeof m.estimatedCostUsd === "number" && m.estimatedCostUsd >= 0 ? { estimatedCostUsd: m.estimatedCostUsd } : {}),
     tools: strings(m.tools),
     web: m.web === true,
+    ...(m.web === true && strings(m.webHosts).length ? { webHosts: strings(m.webHosts) } : {}),
     ...(readManifestInstructions(m.instructions) ? { instructions: readManifestInstructions(m.instructions)! } : {}),
   };
 }
@@ -342,6 +387,8 @@ export interface LedgerEntry {
   skills?: string[];
   /** Tokens of the instructions it carried: the skill, the ones the model loaded, the catalog. */
   skillTokens?: number;
+  /** What it asked of the internet, in numbers: pages, searches, and the tokens of the calls that read and searched (part of `usage`). */
+  web?: { pages: number; searches: number; inputTokens: number; outputTokens: number };
 }
 
 export const AI_LEDGER_LIMIT = 500;

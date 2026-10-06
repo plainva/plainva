@@ -224,9 +224,16 @@ export function useDesktopAi(input: DesktopAiInput) {
       if (path) latest.current.openNote(path);
     });
   });
-  /** A link in an answer is untrusted: it opens only after the reader saw where it goes. */
-  const openUrl = useStableHandler((url: string) => {
-    void appConfirm({ title: i18n.t("ai.openLinkTitle"), message: url, confirmLabel: i18n.t("ai.openLink") }).then((ok) => {
+  /**
+   * A link in an answer is untrusted: it opens only after the reader saw where
+   * it goes — and, for an address the model put together itself (plan P4),
+   * read that it did.
+   */
+  const openUrl = useStableHandler((url: string, composed?: boolean) => {
+    const message = composed ? `${url}
+
+${i18n.t("ai.openLinkBuilt")}` : url;
+    void appConfirm({ title: i18n.t("ai.openLinkTitle"), message, confirmLabel: i18n.t("ai.openLink") }).then((ok) => {
       if (ok) void getPlatformServices().openExternal(url);
     });
   });

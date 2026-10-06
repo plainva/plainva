@@ -112,6 +112,26 @@ Sur chaque note vocale — dans l'éditeur, en mode lecture, dans le journal et 
 
 **Audio** nécessite un fournisseur avec une voie audio : OpenAI (par exemple `gpt-4o-transcribe` ou `whisper-1`), Gemini ou votre propre serveur compatible — un serveur sur cet ordinateur garde l'enregistrement sur l'appareil. Les enregistrements jusqu'à 11 Mo peuvent être transcrits. Un enregistrement dans une note que vos règles tiennent à l'écart du cloud ne part vers aucun modèle cloud, et les espaces chiffrés ne le proposent pas encore.
 
+## Sur Internet
+
+L'assistant ne peut pas utiliser Internet tant que vous ne l'autorisez pas — et il faut l'autoriser trois fois :
+
+1. **Pour le vault.** Dans **Paramètres → IA & automatisation** (la partie Vault), activez **L'IA peut utiliser Internet dans ce vault**. Cet interrupteur est désactivé pour chaque vault tant que vous n'avez pas décidé, et il ne vaut que pour cet appareil.
+2. **Pour une conversation.** Avant le premier message d'une nouvelle conversation, appuyez sur le globe sous le champ de saisie — **Laisser cette conversation utiliser Internet**. C'est au début d'une conversation que se décide si elle peut utiliser Internet ; pour le changer, commencez une nouvelle conversation. Une conversation qui peut l'utiliser le dit dans sa première ligne.
+3. **Pour chaque requête.** Tant que vos notes sont dans la conversation, chaque page que l'assistant veut lire et chaque recherche qu'il veut faire demandent d'abord, avec l'adresse complète ou les mots recherchés — c'est tout ce qui quitte votre appareil pour cela. **Lire la page** ou **Rechercher** laisse passer cette seule requête ; **Ne pas lire** ou **Ne pas rechercher** l'écarte, et l'assistant continue sans elle.
+
+**Ce qu'est une requête.** Lire une page est une requête de cet appareil vers le site, comme ouvrir la page dans un navigateur — sans cookies, sans connexion et sans rien de vos notes ; comme pour toute visite, le site voit votre adresse IP. Seules les pages publiques en `https` sont lues ; les adresses de votre réseau domestique ou d'entreprise sont refusées. Une recherche part vers le fournisseur de votre modèle — Anthropic, OpenAI, Google Gemini ou OpenRouter —, qui cherche exactement avec les mots qui vous ont été montrés ; les fournisseurs peuvent facturer les recherches séparément. Un modèle sur cet appareil peut lire des pages mais ne peut pas chercher, et le modèle du système sur le téléphone ne peut pas du tout utiliser Internet.
+
+**D'où vient une adresse.** La question indique si vous avez nommé l'adresse, si une note ou un résultat l'a nommée — ou si le modèle l'a construite lui-même. Une adresse construite par le modèle pourrait contenir quelque chose de vos notes : lisez-la avant de la laisser passer.
+
+**Sites sans confirmation.** Avec **Toujours pour ⟨site⟩** dans une question, ou sous **Sites sans confirmation** dans les paramètres du vault, les pages d'un site sont lues sans demander — tant que l'adresse a été nommée par vous, par une note ou par un résultat. Une adresse construite par le modèle demande toujours.
+
+**Ce que lit l'assistant.** Jamais la page elle-même. Une seconde requête au même modèle, sans aucun outil, lit la page et rédige un court rapport : un résumé, des affirmations avec le passage sur lequel elles reposent, et des liens qui figurent réellement sur la page. Une page qui tente de donner des instructions à l'assistant lui parvient donc comme un rapport sur une page — jamais comme une page avec laquelle il travaille. Sous la réponse, **Lu sur le web** liste les pages lues, et la ligne en dessous ouvre tout ce qui a été demandé.
+
+**Notes qui restent dehors.** Une note ou un dossier avec **Accès web: jamais** (voir Règles de confidentialité plus bas) n'existe pas pour une conversation qui peut utiliser Internet : ni dans son contexte, ni pour ses outils, et les liens vers elle sont retenus.
+
+Un lien dans une réponse dont l'adresse a été construite par le modèle lui-même est signalé, et la question avant l'ouverture le dit. Si aucune réponse ne revient — pas de connexion, le fournisseur ne répond pas —, la conversation liste à la place les notes qui correspondent le mieux à votre question.
+
 ## Règles de confidentialité
 
 Certaines notes ne doivent jamais atteindre un fournisseur cloud. Une règle peut se trouver dans le frontmatter d'une note :
@@ -123,6 +143,8 @@ plainva:
 ```
 
 ou, pour un dossier entier, dans **Paramètres → IA & automatisation** (la partie Vault), qui écrit les règles dans `.agent/policy.yml`. Une note tenue à l'écart du cloud n'apporte rien — ni texte, ni titre —, et les liens vers elle dans d'autres notes sont retenus. Les modèles sur cet appareil restent autorisés. Les espaces chiffrés tiennent le cloud à l'écart, sauf si vous l'y autorisez. Le format exact se trouve dans la [Référence du format de fichier](File_Format_Reference.md).
+
+Une seconde règle, `web: deny` — **Accès web: jamais** dans les paramètres —, tient une note ou un dossier à l'écart de toute conversation qui peut utiliser Internet.
 
 ## Historique et utilisation
 

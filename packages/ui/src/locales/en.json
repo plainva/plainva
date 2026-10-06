@@ -32,7 +32,9 @@
       "get_recent": "Looking at recent notes",
       "get_calendar": "Reading appointments",
       "open_in_app": "Opening a note in Plainva",
-      "use_skill": "Loading a skill"
+      "use_skill": "Loading a skill",
+      "fetch_url": "Reading a web page",
+      "web_search": "Searching the web"
     },
     "stopped": {
       "cancelled": "Stopped.",
@@ -226,6 +228,9 @@
     "openLink": "Open",
     "openFullScreen": "Full screen",
     "noCitation": "This answer cites none of the notes that were sent. Check it against them.",
+    "openLinkBuilt": "The model put this address together itself — it was in none of your messages, notes or results, and may carry text from this conversation.",
+    "linkBuilt": "Put together by the model — in none of your messages, notes or results",
+    "toolDeclined": "{{tool}} — not allowed",
     "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "Send to {{provider}}?",
@@ -236,7 +241,7 @@
         "dataClass": "A new kind of data: {{kind}}",
         "folder": "Notes from another folder: {{folder}}",
         "tools": "New tools: {{tools}}",
-        "web": "The request may search the web.",
+        "web": "This conversation may use the internet: read pages and search the web.",
         "size": "Much more than before: ~{{tokens}} tokens",
         "standing": "Search by meaning computes with a cloud model: notes go there in the background, without asking each time — until you withdraw this approval in the settings.",
         "sensitive": "Possibly sensitive, marked below: {{kinds}}",
@@ -294,7 +299,13 @@
       "folders": "Folders",
       "standingNotes_one": "The {{count}} note your rules let go — now, and again whenever it changes",
       "standingNotes_other": "All {{count}} notes your rules let go — now, and each again whenever it changes",
-      "gist": "title and a checked gist"
+      "gist": "title and a checked gist",
+      "web": "Internet",
+      "webOn": "may read pages and search the web — every request asks first",
+      "webHosts": "without asking, for addresses you or a source named: {{hosts}}",
+      "webPages": "Asked for on the web",
+      "webNotRead": "not read",
+      "webSearches": "Searched for"
     },
     "lens": {
       "open": "View context",
@@ -350,7 +361,9 @@
       "keepHere": "Keep on this device",
       "redact": "Redact in this conversation",
       "unredact": "Send unredacted",
-      "situation": "Tasks, appointments and the open note's details"
+      "situation": "Tasks, appointments and the open note's details",
+      "neverWeb_one": "Not in a conversation with the internet: {{count}} note",
+      "neverWeb_other": "Not in a conversation with the internet: {{count}} notes"
     },
     "selection": {
       "menu": "AI",
@@ -412,6 +425,53 @@
         "no-answer": "The AI gave no answer.",
         "failed": "The AI could not answer.",
         "post-failed": "The reply could not be written into the thread. You'll find it among the AI conversations."
+      }
+    },
+    "offline": {
+      "title": "No answer came back. These notes match your question best:"
+    },
+    "web": {
+      "toggleOn": "This conversation will use the internet",
+      "toggleOff": "Let this conversation use the internet",
+      "activeOn": "This conversation may use the internet",
+      "activeOff": "This conversation started without the internet",
+      "fixed": "Whether a conversation may use the internet is decided when it starts. Start a new conversation to change it.",
+      "marking": "This conversation may use the internet. While your notes are in it, every request asks first.",
+      "sources": "Read on the web",
+      "runPages_one": "{{count}} web page",
+      "runPages_other": "{{count}} web pages",
+      "runSearches_one": "{{count}} web search",
+      "runSearches_other": "{{count}} web searches",
+      "ask": {
+        "fetchTitle": "Read this page?",
+        "searchTitle": "Search the web?",
+        "address": "Address",
+        "lookingFor": "Looking for",
+        "query": "Search for",
+        "through": "Through",
+        "originUser": "You named this address.",
+        "originSource": "The address comes from a note or a result in this conversation.",
+        "originModel": "The model put this address together itself: it was in none of your messages, notes or results. Check that it carries nothing from your notes.",
+        "fetchHint": "The request goes from this device to {{host}}: this address and nothing else.",
+        "searchHint": "These words go to {{provider}}, which searches with them. Nothing else goes with this request.",
+        "fetch": "Read page",
+        "search": "Search",
+        "always": "Always for {{host}}",
+        "denyFetch": "Don't read",
+        "denySearch": "Don't search"
+      },
+      "settings": {
+        "title": "Internet",
+        "desc": "Off until you switch it on for this vault. Even then only a conversation you start with it uses the internet — and while your notes are in it, every page and every search asks first.",
+        "switch": "The AI may use the internet in this vault",
+        "switchDesc": "Applies on this device. Notes and folders set to “Web access: never” stay out of such a conversation.",
+        "sites": "Sites that need no asking",
+        "sitesDesc": "Pages of these sites that you, a note or a result named are read without asking. An address the model put together itself always asks.",
+        "sitesNone": "None yet — every page asks.",
+        "addSite": "Add site",
+        "sitePlaceholder": "example.org",
+        "siteInvalid": "That is not a site on the public internet.",
+        "removeSite": "Remove {{host}}"
       }
     },
     "lint": {

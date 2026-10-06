@@ -41,6 +41,12 @@ export interface RunLimits {
 export const DEFAULT_RUN_LIMITS: RunLimits = { maxSteps: 12, maxToolCalls: 24, maxOutputTokens: 32_000 };
 
 /**
+ * What the model is told when the user said no to an outside effect. A "no" is an answer, not a tool that
+ * failed: it does not count towards the circuit breaker, and a transcript shows the step as not allowed.
+ */
+export const EFFECT_DECLINED = "The user did not approve this action.";
+
+/**
  * A rate limit or an overloaded provider is the provider asking to come back
  * later, not a failed request: the call is tried up to three times before the
  * run fails, as the providers' own SDKs do. Never when the provider asks for
@@ -273,7 +279,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
           outcome = { content: `Invalid arguments: ${parsed.error}`, isError: true };
         } else if (isEffectTool(tool) && verdict.approvalPerEffect && !(await input.approveEffect?.({ ...call, args: parsed.value }, tool))) {
           declined = true;
-          outcome = { content: "The user did not approve this action.", isError: true };
+          outcome = { content: EFFECT_DECLINED, isError: true };
         } else {
           try {
             outcome = await input.executor.execute(tool, parsed.value, call, input.signal);

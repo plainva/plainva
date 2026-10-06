@@ -36,6 +36,7 @@ import {
 import { atomicWriteText } from "../../platform/atomicFile";
 import { mConfirm } from "../mobileDialogs";
 import { createMobileAiEgress } from "../../platform/aiNet";
+import { createMobileWebFetcher } from "../../platform/aiWeb";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
@@ -120,6 +121,8 @@ export function getMobileAiSession(): AiSession {
       now: () => new Date(),
       newId: () => crypto.randomUUID(),
       label: (key, vars) => i18n.t(key, vars),
+      // The assistant's page fetch (plan KI-Harness P4): the plugin of its own, apart from the egress.
+      web: createMobileWebFetcher(),
     });
     void session.load();
   }
@@ -172,9 +175,16 @@ export function openAiSheet(path: string | null): void {
   window.dispatchEvent(new CustomEvent(SHEET_EVENT, { detail: { path } }));
 }
 
-/** A link in an answer is untrusted: it opens only after the reader saw where it goes. */
-export function openAiLink(url: string): void {
-  void mConfirm({ title: i18n.t("ai.openLinkTitle"), message: url, confirmLabel: i18n.t("ai.openLink") }).then((ok) => {
+/**
+ * A link in an answer is untrusted: it opens only after the reader saw where
+ * it goes — and, for an address the model put together itself (plan P4), read
+ * that it did.
+ */
+export function openAiLink(url: string, composed?: boolean): void {
+  const message = composed ? `${url}
+
+${i18n.t("ai.openLinkBuilt")}` : url;
+  void mConfirm({ title: i18n.t("ai.openLinkTitle"), message, confirmLabel: i18n.t("ai.openLink") }).then((ok) => {
     if (ok) void getPlatformServices().openExternal(url);
   });
 }

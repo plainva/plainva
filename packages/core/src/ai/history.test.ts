@@ -55,6 +55,39 @@ describe("conversation records", () => {
     expect(read.pins).toEqual(["a.md"]);
   });
 
+  it("keeps what a run asked of the internet, and reads it back as public addresses only", () => {
+    const r = record();
+    const web = {
+      pages: [
+        { url: "https://example.org/rates", title: "Rates", at, read: true },
+        { url: "https://example.org/gone", title: "", at, read: false },
+      ],
+      searches: [{ query: "day rates 2026", at, hits: 3 }],
+      inputTokens: 2100,
+      outputTokens: 140,
+    };
+    r.runs[0] = { ...r.runs[0]!, web };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.web).toEqual(web);
+
+    // A stored file is not a reason to open anything: what is no public https address is not kept.
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].web = {
+      pages: [{ url: "javascript:alert(1)", title: "x", at, read: true }, { url: "https://192.168.1.1/", title: "router", at, read: true }, { url: "https://Example.org/ok#frag", title: 7, at, read: "yes" }, null],
+      searches: [{ query: "", at, hits: 1 }, { query: "kept", at, hits: -4 }, "nonsense"],
+      inputTokens: "many",
+      outputTokens: 5,
+    };
+    expect(readConversationRecord(tampered)!.runs[0]!.web).toEqual({
+      pages: [{ url: "https://example.org/ok", title: "", at, read: false }],
+      searches: [{ query: "kept", at, hits: 0 }],
+      inputTokens: 0,
+      outputTokens: 5,
+    });
+    // Nothing asked for is no record at all.
+    tampered.runs[0].web = { pages: [], searches: [], inputTokens: 9, outputTokens: 9 };
+    expect(readConversationRecord(tampered)!.runs[0]!.web).toBeUndefined();
+  });
+
   it("titles, summaries, search and retention", () => {
     expect(conversationTitleFrom("  Where   is\nit? ", "x")).toBe("Where is it?");
     expect(conversationTitleFrom("", "Fallback")).toBe("Fallback");

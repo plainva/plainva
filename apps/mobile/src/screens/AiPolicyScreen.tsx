@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus } from "lucide-react";
+import { Globe, Plus } from "lucide-react";
 import { parsePolicyFile, serializePolicyFile, type AiPolicyDimension, type FolderPolicyRule } from "@plainva/core";
 import {
   AI_POLICY_FILE,
@@ -12,6 +12,7 @@ import {
   ruleOf,
   SectionLabel,
   skillView,
+  Switch,
   toast,
   waitingCount,
   workshopSections,
@@ -22,7 +23,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { currentMobileAiPolicy, getMobileAiSession } from "../services/ai/mobileAi";
-import { mActions, mSelect, mTargets } from "../services/mobileDialogs";
+import { mActions, mPrompt, mSelect, mTargets } from "../services/mobileDialogs";
 import type { MobileVault } from "../services/vaultService";
 
 /**
@@ -101,6 +102,18 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileV
     if (value) void save(withRuleValue(rules, folder, dimension, value as PolicyChoice));
   };
 
+  const web = aiState.web;
+  /** A site whose pages need no asking: typed as a name or an address, kept as the name. */
+  const addSite = async () => {
+    const typed = await mPrompt({ title: t("ai.web.settings.addSite"), message: t("ai.web.settings.sitesDesc"), placeholder: t("ai.web.settings.sitePlaceholder") });
+    if (typed.cancelled || !typed.value.trim()) return;
+    if (!(await session.allowWebHost(typed.value))) toast.error(t("ai.web.settings.siteInvalid"));
+  };
+  const removeSite = async (host: string) => {
+    const pick = await mActions({ title: host, options: [{ value: "remove", label: t("ai.web.settings.removeSite", { host }), danger: true }] });
+    if (pick === "remove") void session.disallowWebHost(host);
+  };
+
   const free = unruledFolders(rules, folders);
   return (
     <div className="m-page" data-testid="settings-ai-vault">
@@ -132,6 +145,25 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileV
         </GroupCard>
         <p className="m-hint">{t("ai.policy.localAllowed")}</p>
         {vault.workspaceRuntime !== null && <p className="m-hint">{t("ai.policy.encrypted")}</p>}
+        {/* The internet for this vault (plan KI-Harness P4): off until the user decides, on this device — as on the desktop. */}
+        <SectionLabel>{t("ai.web.settings.title")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              wrap
+              title={t("ai.web.settings.switch")}
+              subtitle={t("ai.web.settings.switchDesc")}
+              end={<Switch checked={web.enabled} label={t("ai.web.settings.switch")} onChange={(enabled) => void session.setWebEnabled(enabled)} />}
+              data-testid="settings-ai-web"
+            />
+            {web.enabled &&
+              web.allow.map((host) => (
+                <Row key={host} icon={<Globe size={ICON.ui} />} title={host} onClick={() => void removeSite(host)} data-testid="settings-ai-web-site" />
+              ))}
+            {web.enabled && <Row icon={<Plus size={ICON.ui} />} title={t("ai.web.settings.addSite")} onClick={() => void addSite()} data-testid="settings-ai-web-add" />}
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{web.enabled ? t("ai.web.settings.sitesDesc") : t("ai.web.settings.desc")}</p>
         <SectionLabel>{t("ai.workshop.settingsTitle")}</SectionLabel>
         <GroupCard>
           <RowList>

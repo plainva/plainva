@@ -112,6 +112,26 @@ An jeder Sprachnotiz — im Editor, im Lesemodus, im Journal und auf Karten — 
 
 **Audio** braucht einen Anbieter mit Audio-Weg: OpenAI (etwa `gpt-4o-transcribe` oder `whisper-1`), Gemini oder einen eigenen kompatiblen Server — einer auf diesem Rechner behält die Aufnahme auf dem Gerät. Aufnahmen bis 11 MB lassen sich transkribieren. Eine Aufnahme in einer Notiz, die Deine Regeln von der Cloud fernhalten, geht an kein Cloud-Modell, und verschlüsselte Workspaces bieten es noch nicht an.
 
+## Im Internet
+
+Der Assistent kann das Internet erst benutzen, wenn Du es erlaubst — und zwar dreimal:
+
+1. **Für den Vault.** Schalte in **Einstellungen → KI & Automatisierung** (dem Vault-Teil) **Die KI darf in diesem Vault ins Internet** ein. Der Schalter ist für jeden Vault aus, bis Du entscheidest, und gilt nur auf diesem Gerät.
+2. **Für ein Gespräch.** Drücke vor der ersten Nachricht eines neuen Gesprächs die Weltkugel unter dem Eingabefeld — **Dieses Gespräch ins Internet lassen**. Ob ein Gespräch ins Internet darf, entscheidet sich bei seinem Beginn; um es zu ändern, beginne ein neues Gespräch. Ein Gespräch, das es darf, sagt das in seiner ersten Zeile.
+3. **Für jede Anfrage.** Solange Deine Notizen im Gespräch sind, fragt jede Seite, die der Assistent lesen will, und jede Suche vorher — mit der ganzen Adresse oder den Suchwörtern, denn das ist alles, was Dein Gerät dafür verlässt. **Seite lesen** oder **Suchen** lässt diese eine Anfrage durch; **Nicht lesen** oder **Nicht suchen** lässt sie weg, und der Assistent macht ohne sie weiter.
+
+**Was eine Anfrage ist.** Eine Seite zu lesen ist eine Anfrage von diesem Gerät an die Website, wie das Öffnen der Seite im Browser — ohne Cookies, ohne Anmeldung und ohne etwas aus Deinen Notizen; wie bei jedem Besuch sieht die Website Deine Internet-Adresse. Gelesen werden nur öffentliche Seiten über `https`; Adressen in Deinem Heim- oder Firmennetz werden abgelehnt. Eine Suche geht an den Anbieter Deines Modells — Anthropic, OpenAI, Google Gemini oder OpenRouter —, der genau mit den Wörtern sucht, die Dir gezeigt wurden; Anbieter können Suchen gesondert berechnen. Ein Modell auf diesem Gerät kann Seiten lesen, aber nicht suchen, und das Modell des Systems am Telefon kann das Internet gar nicht benutzen.
+
+**Woher eine Adresse kommt.** Die Frage sagt, ob Du die Adresse genannt hast, ob eine Notiz oder ein Ergebnis sie genannt hat — oder ob das Modell sie selbst zusammengesetzt hat. Eine Adresse, die das Modell gebildet hat, könnte etwas aus Deinen Notizen enthalten: lies sie, bevor Du sie durchlässt.
+
+**Websites ohne Nachfrage.** Mit **Immer für ⟨Website⟩** in einer Frage oder unter **Websites ohne Nachfrage** in den Einstellungen des Vaults werden Seiten einer Website ohne Nachfrage gelesen — solange Du, eine Notiz oder ein Ergebnis die Adresse genannt haben. Eine Adresse, die das Modell selbst gebildet hat, fragt immer.
+
+**Was der Assistent liest.** Nie die Seite selbst. Eine zweite Anfrage an dasselbe Modell, die keine Werkzeuge hat, liest die Seite und schreibt einen kurzen Bericht: eine Zusammenfassung, Aussagen mit der Stelle, auf der sie beruhen, und Links, die wirklich auf der Seite stehen. Eine Seite, die dem Assistenten Anweisungen geben will, erreicht ihn so als Bericht über eine Seite — nie als Seite, mit der er arbeitet. Unter der Antwort listet **Im Web gelesen** die gelesenen Seiten, und die Zeile darunter öffnet alles, was angefragt wurde.
+
+**Notizen, die draußen bleiben.** Eine Notiz oder ein Ordner mit **Webzugriff: nie** (siehe Datenschutzregeln weiter unten) gibt es für ein Gespräch, das ins Internet darf, nicht: nicht in seinem Kontext, nicht für seine Werkzeuge, und Links auf sie werden zurückgehalten.
+
+Ein Link in einer Antwort, dessen Adresse das Modell selbst gebildet hat, ist markiert, und die Frage vor dem Öffnen sagt es. Kommt gar keine Antwort zurück — keine Verbindung, der Anbieter antwortet nicht —, listet das Gespräch stattdessen die Notizen, die am besten zu Deiner Frage passen.
+
 ## Datenschutzregeln
 
 Manche Notizen sollen nie zu einem Cloud-Anbieter. Eine Regel kann im Frontmatter einer Notiz stehen:
@@ -123,6 +143,8 @@ plainva:
 ```
 
 oder, für einen ganzen Ordner, in **Einstellungen → KI & Automatisierung** (dem Vault-Teil), das die Regeln in `.agent/policy.yml` schreibt. Eine von der Cloud ferngehaltene Notiz trägt nichts bei — weder Text noch Titel —, und Links auf sie in anderen Notizen werden zurückgehalten. Modelle auf diesem Gerät bleiben erlaubt. Verschlüsselte Workspaces halten die Cloud aus, solange Du sie dort nicht erlaubst. Das genaue Format steht in der [Dateiformat-Referenz](File_Format_Reference.md).
+
+Eine zweite Regel, `web: deny` — in den Einstellungen **Webzugriff: nie** —, hält eine Notiz oder einen Ordner aus jedem Gespräch heraus, das ins Internet darf.
 
 ## Verlauf und Verbrauch
 

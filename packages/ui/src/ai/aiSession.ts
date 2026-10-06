@@ -1,6 +1,7 @@
 import type { ToolScope } from "./vaultTools";
 import { APP_SKILL_SOURCES, appSkillOf, appSkillScenarios } from "./appSkills";
-import type { InstructionApprovalStore, SkillTestStore } from "./aiStores";
+import type { InstructionApprovalStore, SkillTestStore, WebSettingsStore } from "./aiStores";
+import { createWebExecutor, newRunWeb, webToolNames } from "./webTools";
 import { createSkillExecutor, newSkillRunState, skillScope, type SkillRunState } from "./skillRuntime";
 import {
   PASSAGE_ONLY,
@@ -15,10 +16,24 @@ import {
 import { defuseNewAddresses } from "./aiWriteLint";
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
+  addressOrigin,
   addUsage,
+  allowHost,
   approveInstruction,
   blockingProblems,
+  checkWebUrl,
   DEFAULT_RUN_LIMITS,
+  DEFAULT_WEB_SETTINGS,
+  EFFECT_DECLINED,
+  disallowHost,
+  hasWebTools,
+  hostAllowed,
+  knownAddresses,
+  mergeCandidates,
+  normalizeAllowedHost,
+  rankCandidates,
+  searchQuery,
+  searchSupported,
   instructionFileHash,
   parseSkillFile,
   pruneInstructionApprovals,
@@ -128,6 +143,12 @@ import {
   type ScopeGrowth,
   type SituationInput,
   type ToolExecutor,
+  type AddressOrigin,
+  type RunWeb,
+  type ToolCallPart,
+  type ToolManifest,
+  type WebFetcher,
+  type WebSettings,
 } from "@plainva/core";
 
 /**
@@ -160,6 +181,11 @@ export interface AiSessionHost {
   newId(): string;
   /** A text of the app in its language (conversation titles and round notes of the selection actions). */
   label?(key: string, vars?: Record<string, string>): string;
+  /**
+   * The shell's native page fetch (plan KI-Harness P4): the desktop's
+   * `ai_web_fetch`, the phone's `AiWeb` plugin. Absent, no page is read.
+   */
+  web?: WebFetcher;
 }
 
 export interface AiVaultHost {
@@ -176,8 +202,15 @@ export interface AiVaultHost {
   /** Note sizes as the index knows them (plan P2b-5); absent, the lens leaves the naive comparison out. */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   policy: ContextPolicyHost;
-  /** The tools of a run for this recipient, optionally narrowed (the MCP server's clients); null when this vault offers none. */
-  tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>): { names: readonly string[]; executor: ToolExecutor } | null;
+  /**
+   * The tools of a run for this recipient, optionally narrowed (the MCP
+   * server's clients); null when this vault offers none. `web`: the run also
+   * carries tools that reach the internet, so a note whose rules say
+   * `web: deny` does not exist for these tools either.
+   */
+  tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean): { names: readonly string[]; executor: ToolExecutor } | null;
+  /** Whether the AI may use the internet in this vault, and the sites it need not ask for (plan P4); absent, it may not. */
+  web?: WebSettingsStore;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
   keepOnDevice?(path: string): Promise<void>;
   /** Checked gists of the model on this computer (plan P2b-3), read when a message is built; null while there are none. */
@@ -346,6 +379,19 @@ export type ThreadReplyOutcome =
       message?: string;
     };
 
+/**
+ * One request to the internet that waits for the user (plan KI-Harness P4,
+ * the Rule of Two): a page to read or a search to make. It carries everything
+ * that would leave the device for it — the whole address, or the search words
+ * — and, for an address, where it came from.
+ */
+export type EffectRequest =
+  | { id: string; kind: "fetch"; url: string; host: string; question: string; origin: AddressOrigin }
+  | { id: string; kind: "search"; query: string; provider: string };
+
+/** The user's answer: this once, from now on for pages of this site that a source named, or not at all. */
+export type EffectAnswer = "once" | "always" | "deny";
+
 /** One request to the model of the profile "Local" on this device (plans P2b-3, P2c): no conversation, no tools, no transcript. */
 export interface LocalCompletion {
   providerId: string;
@@ -372,7 +418,8 @@ export interface LiveRun {
   conversationId: string;
   /** The text of the step that is streaming right now. */
   text: string;
-  tools: { id: string; name: string; state: "running" | "done" | "failed" }[];
+  /** `declined`: the user said no to this call (a page, a search) — an answer, not a failure. */
+  tools: { id: string; name: string; state: "running" | "done" | "failed" | "declined" }[];
   steps: number;
 }
 
@@ -399,8 +446,12 @@ export interface AiState {
   /** Sources a new conversation sends redacted, chosen before its first message (P2b-6); afterwards the conversation keeps them. */
   draftRedact: string[];
   live: LiveRun | null;
-  /** The last run's end, when it ended in a way the reader must see. */
-  notice: { conversationId: string; stop: RunStop } | null;
+  /**
+   * The last run's end, when it ended in a way the reader must see. `related`:
+   * when no answer came back, the notes that match the question best (plan
+   * §19.4) — found on this device, shown on this device.
+   */
+  notice: { conversationId: string; stop: RunStop; related?: { path: string; title: string }[] } | null;
   dress: AiDress | null;
   /** A vault is attached (AI v1 runs only where a vault is open). */
   hasVault: boolean;
@@ -411,6 +462,12 @@ export interface AiState {
   consent: { manifest: EgressManifest; growth: ScopeGrowth[] } | null;
   skills: AiSkillsState;
   skillTests: AiSkillTestsState;
+  /** The vault's internet settings on this device (plan KI-Harness P4): off until the user decides. */
+  web: WebSettings;
+  /** The next new conversation starts with the internet. Chosen per conversation, never kept as a default. */
+  draftWeb: boolean;
+  /** A page or a search waiting for the user's answer. */
+  effect: EffectRequest | null;
 }
 
 type Listener = () => void;
@@ -482,6 +539,9 @@ const THREAD_REPLY_RULES =
 
 const APP_ENTRIES = (): InstructionEntry[] => resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS);
 
+/** How many notes a run that got no answer shows instead (plan §19.4). */
+const RELATED_ON_FAILURE = 6;
+
 /** The text of the conversation's last answer. */
 function lastAnswerText(conversation: ConversationRecord["conversation"]): string {
   for (let i = conversation.turns.length - 1; i >= 0; i--) {
@@ -518,6 +578,8 @@ export class AiSession {
   /** What the user approved in this app session (E25); a server on this computer needs none. */
   private scope: ApprovedScope | null = null;
   private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
+  /** The request to the internet that waits for an answer, if one does. */
+  private effectAnswer: ((answer: EffectAnswer) => void) | null = null;
   /** Conversations on screen right now: the places where the send overview can be answered. */
   private surfaces = 0;
   /** How the shell puts a conversation on screen (the companion, the AI sheet). */
@@ -544,6 +606,9 @@ export class AiSession {
       consent: null,
       skills: { entries: APP_ENTRIES(), omitted: [] },
       skillTests: { records: [], running: null },
+      web: DEFAULT_WEB_SETTINGS,
+      draftWeb: false,
+      effect: null,
     };
   }
 
@@ -732,9 +797,13 @@ export class AiSession {
       hasVault: Boolean(vault),
       skills: { entries: APP_ENTRIES(), omitted: [] },
       skillTests: { records: [], running: null },
+      // Another vault's switch says nothing about this one: off until its own settings are read.
+      web: DEFAULT_WEB_SETTINGS,
+      draftWeb: false,
     });
     if (!vault) return;
     void this.refreshSkills();
+    void this.loadWebSettings(vault);
     const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
     const old = expiredConversations(summaries, this.state.settings.historyDays, this.host.now());
     for (const id of old) await vault.conversations.remove(id).catch(() => undefined);
@@ -751,7 +820,92 @@ export class AiSession {
 
   newConversation(): void {
     if (this.state.live) return;
-    this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, notice: null });
+    this.set({ active: null, excludeActive: false, draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, notice: null });
+  }
+
+  // --------------------------------------------------------------- internet
+
+  private async loadWebSettings(vault: AiVaultHost): Promise<void> {
+    const web = vault.web ? await vault.web.load().catch(() => DEFAULT_WEB_SETTINGS) : DEFAULT_WEB_SETTINGS;
+    if (this.vault === vault) this.set({ web, draftWeb: this.state.draftWeb && web.enabled });
+  }
+
+  private async saveWebSettings(next: WebSettings): Promise<void> {
+    const vault = this.vault;
+    if (!vault?.web) return;
+    this.set({ web: next, draftWeb: this.state.draftWeb && next.enabled });
+    await vault.web.save(next);
+  }
+
+  /**
+   * Lets the AI use the internet in this vault on this device, or no longer
+   * (plan KI-Harness P4). Off is immediate: a conversation that carries the
+   * web tools keeps them, and every call of them answers that it is off.
+   */
+  async setWebEnabled(enabled: boolean): Promise<void> {
+    if (!enabled) this.settleEffect("deny");
+    await this.saveWebSettings({ ...this.state.web, enabled });
+  }
+
+  /** Adds a site whose pages need no asking; false when what was typed names none. */
+  async allowWebHost(raw: string): Promise<boolean> {
+    if (!normalizeAllowedHost(raw)) return false;
+    const next = allowHost(this.state.web, raw);
+    if (next !== this.state.web) await this.saveWebSettings(next);
+    return true;
+  }
+
+  async disallowWebHost(host: string): Promise<void> {
+    const next = disallowHost(this.state.web, host);
+    if (next !== this.state.web) await this.saveWebSettings(next);
+  }
+
+  /**
+   * What a new conversation with the model chosen now could do on the
+   * internet; null where it could do nothing — the vault's switch is off, the
+   * model takes no tools, or neither reading nor searching exists here.
+   */
+  webOffer(): { fetch: boolean; search: boolean } | null {
+    const choice = this.choice();
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
+    if (!this.vault || !this.state.web.enabled || !provider || provider.endpoint.api === "platform") return null;
+    const names = webToolNames(this.host.web ?? null, provider.endpoint);
+    return names.length ? { fetch: names.includes("fetch_url"), search: names.includes("web_search") } : null;
+  }
+
+  /** Starts the next new conversation with the internet, or without. An open conversation keeps what it started with. */
+  setDraftWeb(on: boolean): void {
+    if (this.state.active) return;
+    this.set({ draftWeb: on && this.state.web.enabled });
+  }
+
+  /** The user's answer to a page or a search that waits. */
+  answerEffect(answer: EffectAnswer): void {
+    this.settleEffect(answer);
+  }
+
+  private settleEffect(answer: EffectAnswer): void {
+    const settle = this.effectAnswer;
+    this.effectAnswer = null;
+    if (this.state.effect) this.set({ effect: null });
+    settle?.(answer);
+  }
+
+  private askEffect(request: EffectRequest, signal: AbortSignal): Promise<EffectAnswer> {
+    this.settleEffect("deny");
+    return new Promise((resolve) => {
+      if (signal.aborted) return resolve("deny");
+      // STOP is a "no" to whatever waits.
+      const onAbort = () => this.settleEffect("deny");
+      signal.addEventListener("abort", onAbort, { once: true });
+      this.effectAnswer = (answer) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(answer);
+      };
+      this.set({ effect: request });
+      // Asked while no conversation is on screen: the shell shows one, or nobody could answer.
+      if (this.surfaces === 0) this.reveal?.();
+    });
   }
 
   // ----------------------------------------------------------------- skills
@@ -1658,11 +1812,13 @@ export class AiSession {
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) return null;
     const record = this.state.active;
-    // A new conversation shows what it would start with: the catalog, AGENTS.md, the tools.
-    const start = record ? null : this.conversationStart((await this.instructionEntries(vault)).entries, provider.endpoint.api === "platform" ? [] : (vault.tools(recipientOf(provider, choice.model))?.names ?? []));
+    // A new conversation shows what it would start with: the catalog, AGENTS.md, the tools — the internet's too, where it is chosen.
+    const start = record ? null : this.conversationStart((await this.instructionEntries(vault)).entries, this.offeredTools(vault, provider, recipientOf(provider, choice.model), this.state.draftWeb && this.state.web.enabled));
+    const tools = record ? record.conversation.tools : (start?.tools ?? []);
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
-      tools: record ? record.conversation.tools : (start?.tools ?? []),
+      tools,
       instructions: manifestInstructionsOf(record ? record.instructions : (start?.instructions ?? undefined)),
+      web: hasWebTools(tools),
     });
     const built = await context.build(new Set(this.state.leaveOutNext), new Set(record ? (record.redact ?? []) : this.state.draftRedact));
     if (this.vault !== vault) return null;
@@ -1683,11 +1839,13 @@ export class AiSession {
     provider: ProviderInfo,
     pins: readonly string[],
     turns: ConversationRecord["conversation"]["turns"],
-    conversation: { tools: readonly string[]; instructions?: ManifestInstructions; withoutActive?: boolean },
+    conversation: { tools: readonly string[]; instructions?: ManifestInstructions; withoutActive?: boolean; web?: boolean },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // The system's own model takes no tools, and a small window a smaller package (plan P2c).
     const platform = provider.endpoint.api === "platform";
+    // A conversation that carries the internet's tools (plan P4): notes whose rules say `web: deny` stay out of it.
+    const web = !platform && conversation.web === true;
     const budget = contextBudgetFor(this.windowOf(provider, choice.model));
     // The tools the conversation carries — what the model may call, as the overview lists them.
     const tools = platform ? [] : conversation.tools;
@@ -1709,6 +1867,7 @@ export class AiSession {
           originals: new Set(this.state.originalsNext),
           redact,
           ...(budget ? { budget } : {}),
+          ...(web ? { webTools: true } : {}),
         },
         {
           policyOf: vault.policy.policyOf,
@@ -1721,6 +1880,8 @@ export class AiSession {
       const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: !isCloudRecipient(recipient) }, choice.model, {
         tools,
         questionChars: message.length,
+        // Shown as allowed only while the vault's switch is on: switched off since, the tools answer that it is off.
+        ...(web && this.state.web.enabled ? { web: true, webHosts: this.state.web.allow } : {}),
         ...(conversation.instructions ? { instructions: conversation.instructions } : {}),
         ...(this.priceOf(choice) ? { priceUsdPerMillionInput: this.priceOf(choice)!.input } : {}),
       });
@@ -1770,6 +1931,7 @@ export class AiSession {
   stop(): void {
     this.abort?.abort();
     this.answerConsent(false);
+    this.settleEffect("deny");
   }
 
   /** The user's answer to the send overview: send within the shown scope, or send nothing. */
@@ -1875,8 +2037,12 @@ export class AiSession {
       record = this.state.active;
     } else {
       // A new conversation: its system prompt and its tools are fixed from here on (append-only).
+      // The internet is chosen for one conversation, in the composer, where the vault allows it — never by a door,
+      // a regression run or a run bound to a skill. Fixed like every tool: a conversation that began without it
+      // may already carry notes that must never meet the internet.
+      const withWeb = !apart && !skills?.bind && this.state.draftWeb && this.state.web.enabled;
       // A door answers where it was asked: it reads the vault, it does not move the app.
-      const offered = platform ? [] : (vault.tools(recipient)?.names ?? []).filter((name) => !door || name !== "run_command");
+      const offered = this.offeredTools(vault, provider, recipient, withWeb).filter((name) => !door || name !== "run_command");
       const entries = skills?.entries ?? (await this.instructionEntries(vault)).entries;
       // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
       const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind);
@@ -1900,8 +2066,29 @@ export class AiSession {
     const skillState = newSkillRunState();
     const bound = record.instructions?.skill;
     const toolNames = platform ? [] : record.conversation.tools;
-    const base = toolNames.length ? vault.tools(recipient, skillScope(bound?.folders, skillState), redact) : null;
-    const tools = base ? { names: toolNames, executor: createSkillExecutor(base.executor, this.skillRuntime(vault, record), toolNames, skillState) } : null;
+    // A conversation that carries the internet's tools (plan P4): its vault tools and its context leave `web: deny` notes out.
+    const web = hasWebTools(toolNames);
+    const webLog = web ? newRunWeb() : null;
+    const base = toolNames.length ? vault.tools(recipient, skillScope(bound?.folders, skillState), redact, web) : null;
+    // The web tools sit under the skills' wrapper: a loaded skill that does not use them narrows them away like any tool.
+    const inner =
+      base && webLog
+        ? createWebExecutor(
+            base.executor,
+            {
+              fetcher: this.host.web ?? null,
+              egress: this.host.egress,
+              endpoint: provider.endpoint,
+              model: choice.model,
+              providerLabel: provider.label,
+              enabled: () => this.vault === vault && this.state.web.enabled,
+              newRequestId: () => `ai-${this.host.newId()}`,
+              now: () => this.host.now().toISOString(),
+            },
+            webLog,
+          )
+        : (base?.executor ?? null);
+    const tools = inner ? { names: toolNames, executor: createSkillExecutor(inner, this.skillRuntime(vault, record), toolNames, skillState) } : null;
     // A skill's own budget narrows whatever limits the start brings; it never widens them.
     const own = bound?.maxOutputTokens;
     const limits: RunLimits | undefined =
@@ -1918,8 +2105,13 @@ export class AiSession {
       instructions: manifestInstructionsOf(record.instructions),
       // A regression run measures the skill, not whatever note happens to be open.
       ...(detached ? { withoutActive: true } : {}),
+      web,
     });
     const { seen } = context;
+    // Should no answer come back: the notes that match the question best, as the sources proposed them (plan §19.4).
+    const related = rankCandidates(mergeCandidates(context.candidates))
+      .slice(0, RELATED_ON_FAILURE)
+      .map((candidate) => ({ path: candidate.path, title: candidate.title }));
     // What a door brings goes into the overview with everything else: the user sees it before it is sent.
     const build = async (out: ReadonlySet<string>, red: ReadonlySet<string>) => {
       const built = await context.build(out, red);
@@ -1960,7 +2152,53 @@ export class AiSession {
       usedDrafts: !apart,
       skillState,
       ...(limits ? { limits } : {}),
+      ...(webLog ? { web: webLog } : {}),
+      ...(related.length ? { related } : {}),
     });
+  }
+
+  /** The tools a new conversation with this model is offered: the vault's, and the internet's where it was chosen for it. */
+  private offeredTools(vault: AiVaultHost, provider: ProviderInfo, recipient: EgressRecipient, web: boolean): string[] {
+    // The system's own model takes no tools (plan P2c).
+    if (provider.endpoint.api === "platform") return [];
+    const names = [...(vault.tools(recipient)?.names ?? [])];
+    return web && names.length ? [...names, ...webToolNames(this.host.web ?? null, provider.endpoint)] : names;
+  }
+
+  /**
+   * Whether a call that reaches the internet may go out (plan KI-Harness P4,
+   * the Rule of Two): asked for each such call while private data is in the
+   * run. What would not go out anyway needs no question — the tool says why.
+   * A page of a site the user allowed goes without asking when its address
+   * stood in front of the model; an address the model composed always asks,
+   * because it is the one that could carry something out of the notes.
+   */
+  private async approveWebCall(
+    call: ToolCallPart,
+    tool: ToolManifest,
+    run: { provider: ProviderInfo; signal: AbortSignal; conversation(): ConversationRecord["conversation"]; skillState?: SkillRunState },
+  ): Promise<boolean> {
+    if (!this.state.web.enabled) return true;
+    const loaded = run.skillState?.loaded;
+    if (loaded && !loaded.tools.includes(tool.name)) return true;
+    const args = (call.args ?? {}) as { url?: unknown; question?: unknown; query?: unknown };
+    if (tool.name === "fetch_url") {
+      const checked = checkWebUrl(typeof args.url === "string" ? args.url : "");
+      if (!checked.ok || !this.host.web) return true;
+      const { url, host } = checked.target;
+      const origin = addressOrigin(url, knownAddresses(run.conversation()));
+      if (origin !== "model" && hostAllowed(host, this.state.web.allow)) return true;
+      const answer = await this.askEffect({ id: call.id, kind: "fetch", url, host, question: typeof args.question === "string" ? args.question : "", origin }, run.signal);
+      if (answer === "always" && origin !== "model") await this.allowWebHost(host).catch(() => false);
+      return answer !== "deny";
+    }
+    if (tool.name === "web_search") {
+      const query = searchQuery(typeof args.query === "string" ? args.query : "");
+      if (!query || !searchSupported(run.provider.endpoint)) return true;
+      return (await this.askEffect({ id: call.id, kind: "search", query, provider: run.provider.label }, run.signal)) !== "deny";
+    }
+    // No other tool has an outside effect yet (the writes come with plan P5): nobody could be asked, so it does not happen.
+    return false;
   }
 
   /**
@@ -1982,6 +2220,10 @@ export class AiSession {
     /** The skills of the run (plan KI-Harness P3): what the model loaded, for the measurement. */
     skillState?: SkillRunState;
     limits?: RunLimits;
+    /** The conversation carries the internet's tools (plan P4): what they asked for is gathered here, and each call may need the user. */
+    web?: RunWeb;
+    /** The notes that match the question best, shown when no answer comes back (plan §19.4). */
+    related?: { path: string; title: string }[];
   }): Promise<{ stop: RunStop; record: ConversationRecord; answer: string }> {
     const { vault, choice, provider, pack, manifest } = input;
     const now = this.host.now().toISOString();
@@ -1993,7 +2235,7 @@ export class AiSession {
     this.abort = controller;
     const toolLog: LedgerEntry["tools"] = [];
     // A message typed in the composer used the drafts; an action at a selection leaves them for the next one.
-    const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
+    const drafts = input.usedDrafts ? { draftPins: [], draftRedact: [], draftChoice: null, draftWeb: false, excludeActive: false, leaveOutNext: [], originalsNext: [] } : {};
     this.set({ active: record, ...drafts, notice: null, live: { conversationId: record.id, text: "", tools: [], steps: 0 } });
 
     const carriesVault = input.carriesVault;
@@ -2006,6 +2248,13 @@ export class AiSession {
       context: { privateContext: carriesVault, untrustedContext: carriesVault },
       signal: controller.signal,
       ...(input.limits ? { limits: input.limits } : {}),
+      // Asked by the run for each call with an outside effect while private data is in it (the Rule of Two).
+      ...(input.web
+        ? {
+            approveEffect: (call: ToolCallPart, tool: ToolManifest) =>
+              this.approveWebCall(call, tool, { provider, signal: controller.signal, conversation: () => record.conversation, ...(input.skillState ? { skillState: input.skillState } : {}) }),
+          }
+        : {}),
       cache: true,
       ...(provider.endpoint.api === "platform" ? { contextTokens: this.windowOf(provider, choice.model) ?? PLATFORM_CONTEXT_DEFAULT } : {}),
       newRequestId: () => `ai-${this.host.newId()}`,
@@ -2019,7 +2268,8 @@ export class AiSession {
           this.set({ live: { ...live, tools: [...live.tools, { id: event.call.id, name: event.call.name, state: "running" }] } });
         } else if (event.type === "tool_done") {
           toolLog.push({ name: event.call.name, ok: !event.outcome.isError, ms: event.ms });
-          this.set({ live: { ...live, tools: live.tools.map((t) => (t.id === event.call.id ? { ...t, state: event.outcome.isError ? "failed" : "done" } : t)) } });
+          const state = !event.outcome.isError ? ("done" as const) : event.outcome.content === EFFECT_DECLINED ? ("declined" as const) : ("failed" as const);
+          this.set({ live: { ...live, tools: live.tools.map((t) => (t.id === event.call.id ? { ...t, state } : t)) } });
         } else if (event.type === "turn") {
           record = { ...record, conversation: event.conversation };
           this.set({ active: this.state.active?.id === record.id ? record : this.state.active, live: { ...live, text: "", steps: live.steps + 1 } });
@@ -2027,8 +2277,17 @@ export class AiSession {
       },
     });
     if (this.abort === controller) this.abort = null;
+    // Whatever still waits for an answer belongs to a run that is over.
+    this.settleEffect("deny");
 
-    const usage = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, cacheReadTokens: result.usage.cacheReadTokens, cacheWriteTokens: result.usage.cacheWriteTokens };
+    // The calls that read pages and searched are part of what the run cost.
+    const web = input.web && (input.web.pages.length || input.web.searches.length) ? input.web : null;
+    const usage = {
+      inputTokens: result.usage.inputTokens + (web?.inputTokens ?? 0),
+      outputTokens: result.usage.outputTokens + (web?.outputTokens ?? 0),
+      cacheReadTokens: result.usage.cacheReadTokens,
+      cacheWriteTokens: result.usage.cacheWriteTokens,
+    };
     const costUsd = usageCostUsd(usage, this.priceOf(choice));
     // What the skills cost (gate "token cost of skill selection measurable"): the bound one, the loaded ones, the catalog.
     const instructions = record.instructions;
@@ -2052,6 +2311,7 @@ export class AiSession {
       manifest,
       ...(skillsUsed.length ? { skills: skillsUsed } : {}),
       ...(skillCatalogMeta ? { skillCatalog: skillCatalogMeta } : {}),
+      ...(web ? { web } : {}),
     };
     record = {
       ...record,
@@ -2077,6 +2337,8 @@ export class AiSession {
           ...(result.stop.kind === "failed" ? { failure: result.stop.failure.kind } : {}),
           ...(skillsUsed.length ? { skills: [...new Set(skillsUsed.map((s) => s.id))] } : {}),
           ...(skillTokens ? { skillTokens } : {}),
+          // Numbers only: which pages and which words is the conversation's to say, never the audit's.
+          ...(web ? { web: { pages: web.pages.length, searches: web.searches.length, inputTokens: web.inputTokens, outputTokens: web.outputTokens } } : {}),
         }),
       );
     } catch {
@@ -2088,7 +2350,9 @@ export class AiSession {
     this.set({
       active: shown ? record : this.state.active,
       live: null,
-      notice: result.stop.kind === "answered" ? null : { conversationId: record.id, stop: result.stop },
+      // No answer from the model is never a dead end (plan §19.4): the notes that match the question best go with the notice.
+      notice:
+        result.stop.kind === "answered" ? null : { conversationId: record.id, stop: result.stop, ...(result.stop.kind === "failed" && input.related?.length ? { related: input.related } : {}) },
       summaries: sortSummaries([conversationSummaryOf(record), ...this.state.summaries.filter((s) => s.id !== record.id)]),
     });
     return { stop: result.stop, record, answer };

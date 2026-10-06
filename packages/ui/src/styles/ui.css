@@ -3967,6 +3967,8 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+/* A conversation that may use the internet says so in its first line, for as long as it is open (AI harness P4). */
+.pv-ai-marking-web { display: block; font-weight: 600; }
 .pv-ai-thread {
   display: flex;
   flex: 1;
@@ -4028,6 +4030,8 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-table th,
 .pv-ai-table td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border-color-light); text-align: left; vertical-align: top; }
 .pv-ai-link { color: var(--accent-color); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+/* An address the model put together itself (AI harness P4): marked, because it is the one that could carry something out. */
+.pv-ai-link--noted { color: var(--warning-text); text-decoration-style: dashed; }
 /* A task box in an answer is drawn, never operated: an answer ticks nothing. */
 .pv-ai-box {
   display: inline-block;
@@ -4044,10 +4048,16 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-step > svg { flex: none; color: var(--success-text); }
 .pv-ai-step--failed > svg { color: var(--error-text); }
 .pv-ai-step--open > svg { color: var(--text-faint); }
+/* A step the user did not allow (AI harness P4): an answer, not a failure — quiet, like a step that waits. */
+.pv-ai-step--declined > svg { color: var(--text-faint); }
 .pv-ai-run { font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--text-faint); }
 /* The run line opens the record of what went: it reads as the faint line it replaces. */
 .pv-ai-run .pv-ai-runline { height: auto; padding: 0 var(--space-1); font-size: inherit; font-weight: 400; color: inherit; text-align: left; white-space: normal; }
 .pv-ai-nocite { margin: 0 0 var(--space-1); color: var(--warning-text); }
+/* The pages a run read on the web (AI harness P4): one quiet line above the line that says what was sent. */
+.pv-ai-websources { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); margin: 0 0 var(--space-1); color: var(--text-muted); }
+.pv-ai-websources-label { display: inline-flex; align-items: center; gap: var(--space-1); }
+.pv-ai-websources-label > svg { flex: none; align-self: center; }
 /* The send overview (plan §13.3): the approval above the composer, the record under a run line. */
 .pv-ai-overview {
   display: flex;
@@ -4079,6 +4089,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-overview-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2); }
 .pv-ai-overview-every { display: flex; align-items: center; gap: var(--space-2); margin-right: auto; font-size: var(--text-xs); color: var(--text-muted); }
 .pv-ai-overview-hint { display: block; font-size: var(--text-xs); color: var(--text-muted); }
+/* The approval of one page or one search (AI harness P4) is built from the overview's parts; its warning names an address the model composed. */
+.pv-ai-effect-warn { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-xs); color: var(--warning-text); }
+.pv-ai-effect-warn > svg { flex: none; }
 .pv-ai-overview--touch .pv-ai-overview-list { grid-template-columns: minmax(0, 1fr); }
 .pv-ai-overview--touch .pv-ai-overview-list dd { margin-bottom: var(--space-1); }
 /* "View context" (plan §13.3): what the next request would carry, before it goes. */

@@ -32,7 +32,9 @@
       "get_recent": "Recente notities bekijken",
       "get_calendar": "Afspraken lezen",
       "open_in_app": "Een notitie openen in Plainva",
-      "use_skill": "Een vaardigheid laden"
+      "use_skill": "Een vaardigheid laden",
+      "fetch_url": "Leest een webpagina",
+      "web_search": "Zoekt op het web"
     },
     "stopped": {
       "cancelled": "Gestopt.",
@@ -226,6 +228,9 @@
     "openLink": "Openen",
     "openFullScreen": "Volledig scherm",
     "noCitation": "Dit antwoord noemt geen van de verzonden notities. Controleer het daaraan.",
+    "openLinkBuilt": "Het model heeft dit adres zelf samengesteld — het stond in geen van je berichten, notities of resultaten en kan tekst uit dit gesprek bevatten.",
+    "linkBuilt": "Door het model samengesteld — in geen van je berichten, notities of resultaten",
+    "toolDeclined": "{{tool}} — niet toegestaan",
     "suggestionAuthor": "Plainva AI · {{model}}",
     "overview": {
       "title": "Verzenden naar {{provider}}?",
@@ -236,7 +241,7 @@
         "dataClass": "Een nieuw soort gegevens: {{kind}}",
         "folder": "Notities uit een andere map: {{folder}}",
         "tools": "Nieuwe hulpmiddelen: {{tools}}",
-        "web": "Het verzoek mag op het web zoeken.",
+        "web": "Dit gesprek mag internet gebruiken: pagina's lezen en op het web zoeken.",
         "size": "Veel meer dan eerder: ~{{tokens}} tokens",
         "standing": "Zoeken op betekenis rekent met een cloudmodel: notities gaan daar op de achtergrond naartoe, zonder telkens te vragen — tot je deze goedkeuring in de instellingen intrekt.",
         "sensitive": "Mogelijk gevoelig, hieronder gemarkeerd: {{kinds}}",
@@ -294,7 +299,13 @@
       "folders": "Mappen",
       "standingNotes_one": "De {{count}} notitie die je regels doorlaten — nu, en opnieuw bij elke wijziging",
       "standingNotes_other": "Alle {{count}} notities die je regels doorlaten — nu, en elk opnieuw bij elke wijziging",
-      "gist": "titel en een gecontroleerde samenvatting"
+      "gist": "titel en een gecontroleerde samenvatting",
+      "web": "Internet",
+      "webOn": "mag pagina's lezen en op het web zoeken — elk verzoek vraagt eerst",
+      "webHosts": "zonder vragen, voor adressen die door jou of door een bron zijn genoemd: {{hosts}}",
+      "webPages": "Opgevraagd op het web",
+      "webNotRead": "niet gelezen",
+      "webSearches": "Gezocht naar"
     },
     "lens": {
       "open": "Context bekijken",
@@ -350,7 +361,9 @@
       "keepHere": "Op dit apparaat houden",
       "redact": "In dit gesprek weglakken",
       "unredact": "Zonder weglakken versturen",
-      "situation": "Taken, afspraken en gegevens van de open notitie"
+      "situation": "Taken, afspraken en gegevens van de open notitie",
+      "neverWeb_one": "Niet in een gesprek met internet: {{count}} notitie",
+      "neverWeb_other": "Niet in een gesprek met internet: {{count}} notities"
     },
     "selection": {
       "menu": "AI",
@@ -412,6 +425,53 @@
         "no-answer": "De AI gaf geen antwoord.",
         "failed": "De AI kon niet antwoorden.",
         "post-failed": "Het antwoord kon niet in de discussie worden geschreven. Je vindt het bij de AI-gesprekken."
+      }
+    },
+    "offline": {
+      "title": "Er kwam geen antwoord terug. Deze notities passen het best bij je vraag:"
+    },
+    "web": {
+      "toggleOn": "Dit gesprek gebruikt internet",
+      "toggleOff": "Laat dit gesprek internet gebruiken",
+      "activeOn": "Dit gesprek mag internet gebruiken",
+      "activeOff": "Dit gesprek is zonder internet begonnen",
+      "fixed": "Of een gesprek internet mag gebruiken, wordt bepaald wanneer het begint. Begin een nieuw gesprek om het te wijzigen.",
+      "marking": "Dit gesprek mag internet gebruiken. Zolang je notities erin zitten, vraagt elk verzoek eerst.",
+      "sources": "Gelezen op het web",
+      "runPages_one": "{{count}} webpagina",
+      "runPages_other": "{{count}} webpagina's",
+      "runSearches_one": "{{count}} zoekopdracht op het web",
+      "runSearches_other": "{{count}} zoekopdrachten op het web",
+      "ask": {
+        "fetchTitle": "Deze pagina lezen?",
+        "searchTitle": "Op het web zoeken?",
+        "address": "Adres",
+        "lookingFor": "Op zoek naar",
+        "query": "Zoeken naar",
+        "through": "Via",
+        "originUser": "Jij hebt dit adres genoemd.",
+        "originSource": "Het adres komt uit een notitie of een resultaat in dit gesprek.",
+        "originModel": "Het model heeft dit adres zelf samengesteld: het stond in geen van je berichten, notities of resultaten. Controleer dat er niets uit je notities in zit.",
+        "fetchHint": "Het verzoek gaat van dit apparaat naar {{host}}: dit adres en niets anders.",
+        "searchHint": "Deze woorden gaan naar {{provider}}, die ermee zoekt. Er gaat niets anders mee met dit verzoek.",
+        "fetch": "Pagina lezen",
+        "search": "Zoeken",
+        "always": "Altijd voor {{host}}",
+        "denyFetch": "Niet lezen",
+        "denySearch": "Niet zoeken"
+      },
+      "settings": {
+        "title": "Internet",
+        "desc": "Uit totdat je het voor deze vault aanzet. Ook dan maakt alleen een gesprek dat je met internet begint er gebruik van — en zolang je notities erin zitten, vraagt elke pagina en elke zoekopdracht eerst.",
+        "switch": "De AI mag internet gebruiken in deze vault",
+        "switchDesc": "Geldt op dit apparaat. Notities en mappen met “Webtoegang: nooit” blijven buiten zo'n gesprek.",
+        "sites": "Websites zonder bevestiging",
+        "sitesDesc": "Pagina's van deze websites waarvan het adres door jou, een notitie of een resultaat is genoemd, worden gelezen zonder eerst te vragen. Een adres dat het model zelf heeft samengesteld, vraagt altijd.",
+        "sitesNone": "Nog geen — elke pagina vraagt.",
+        "addSite": "Website toevoegen",
+        "sitePlaceholder": "example.org",
+        "siteInvalid": "Dat is geen website op het openbare internet.",
+        "removeSite": "{{host}} verwijderen"
       }
     },
     "lint": {

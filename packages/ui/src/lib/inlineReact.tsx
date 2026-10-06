@@ -13,6 +13,17 @@ export interface InlineReactHandlers {
   onOpenNote?: (target: string) => void;
   /** External http(s) URL the reader clicked. */
   onOpenUrl?: (url: string) => void;
+  /**
+   * A remark on an external address the reader should see before following
+   * it: its tooltip, and a mark on the link. Null for none. The AI answer
+   * marks addresses the model composed itself (plan KI-Harness P4).
+   */
+  urlNote?: (url: string) => string | null;
+}
+
+/** The class and tooltip of an external link: marked where the surface has a remark on its address. */
+function noted(linkClass: string, note: string | null | undefined): { className: string; "data-tip"?: string } {
+  return note ? { className: `${linkClass} ${linkClass}--noted`, "data-tip": note } : { className: linkClass };
 }
 
 export function renderInlineNodes(nodes: InlineNode[], keyPrefix: string, handlers: InlineReactHandlers, linkClass: string): React.ReactNode[] {
@@ -63,7 +74,7 @@ export function renderInlineNodes(nodes: InlineNode[], keyPrefix: string, handle
           <a
             key={key}
             href={node.href}
-            className={linkClass}
+            {...noted(linkClass, node.external ? handlers.urlNote?.(node.href) : null)}
             onClick={(event) => {
               stop(event);
               if (node.external) handlers.onOpenUrl?.(node.href);
@@ -78,7 +89,7 @@ export function renderInlineNodes(nodes: InlineNode[], keyPrefix: string, handle
           <a
             key={key}
             href={node.href}
-            className={linkClass}
+            {...noted(linkClass, handlers.urlNote?.(node.href))}
             onClick={(event) => {
               stop(event);
               handlers.onOpenUrl?.(node.href);

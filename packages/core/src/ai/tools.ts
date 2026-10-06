@@ -53,6 +53,11 @@ export interface ToolManifest {
 /** The tools that reach the internet. A conversation carries them only while its vault allows the internet. */
 export const WEB_TOOL_NAMES: readonly string[] = ["fetch_url", "web_search"];
 
+/** Whether a list of tool names — a conversation's — reaches the internet. */
+export function hasWebTools(names: readonly string[]): boolean {
+  return names.some((name) => WEB_TOOL_NAMES.includes(name));
+}
+
 const path = z.string().min(1).max(1024).describe("Vault-relative path, forward slashes, e.g. Projects/Offer.md");
 const limit = (max: number, fallback: number) => z.number().int().min(1).max(max).default(fallback);
 const cursor = z.string().max(256).optional().describe("Opaque cursor from the previous page");

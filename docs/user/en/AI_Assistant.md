@@ -112,6 +112,26 @@ At every voice note — in the editor, in reading mode, in the journal and on ca
 
 **Audio** needs a provider with an audio route: OpenAI (for example `gpt-4o-transcribe` or `whisper-1`), Gemini, or a compatible server of your own — one on this computer keeps the recording on the device. Recordings up to 11 MB can be transcribed. A recording in a note your rules keep from the cloud goes to no cloud model, and encrypted workspaces do not offer it yet.
 
+## On the internet
+
+The assistant cannot use the internet until you allow it — three times over:
+
+1. **For the vault.** In **Settings → AI & automation** (the Vault part), switch on **The AI may use the internet in this vault**. It is off for every vault until you decide, and it applies on this device only.
+2. **For a conversation.** Before the first message of a new conversation, press the globe under the input field — **Let this conversation use the internet**. Whether a conversation may use the internet is decided when it starts; to change it, start a new conversation. A conversation that may use it says so in its first line.
+3. **For every request.** While your notes are in the conversation, every page the assistant wants to read and every search it wants to make asks first, with the whole address or the search words — that is everything that leaves your device for it. **Read page** or **Search** lets this one request through; **Don't read** or **Don't search** leaves it, and the assistant goes on without it.
+
+**What a request is.** Reading a page is one request from this device to the site, like opening the page in a browser — without cookies, without a login and with nothing from your notes; as with any visit, the site sees your internet address. Only public pages over `https` are read; addresses in your home or company network are refused. A search goes to the provider of your model — Anthropic, OpenAI, Google Gemini or OpenRouter — which searches with exactly the words you were shown; providers may charge for searches separately. A model on this device can read pages but cannot search, and the system's own model on the phone cannot use the internet at all.
+
+**Where an address comes from.** The question says whether you named the address, whether a note or a result named it — or whether the model put it together itself. An address the model composed could carry something from your notes in it: read it before you let it through.
+
+**Sites that need no asking.** With **Always for ⟨site⟩** in a question, or under **Sites that need no asking** in the vault's settings, pages of a site are read without asking — as long as you, a note or a result named the address. An address the model composed always asks.
+
+**What the assistant reads.** Never the page itself. A second request to the same model, one that has no tools, reads the page and writes a short report: a summary, statements with the passage they rest on, and links that really are on the page. A page that tries to give the assistant instructions therefore reaches it as a report about a page — never as a page it works on. Under the answer, **Read on the web** lists the pages that were read, and the line under it opens everything that was asked for.
+
+**Notes that stay out.** A note or folder with **Web access: never** (see Privacy rules below) does not exist for a conversation that may use the internet: not in its context, not for its tools, and links to it are withheld.
+
+A link in an answer whose address the model composed itself is marked, and the question before it opens says so. If no answer comes back at all — no connection, the provider does not respond — the conversation lists the notes that match your question best instead.
+
 ## Privacy rules
 
 Some notes should never reach a cloud provider. A rule can sit in a note's frontmatter:
@@ -123,6 +143,8 @@ plainva:
 ```
 
 or, for a whole folder, in **Settings → AI & automation** (the Vault part), which writes the rules to `.agent/policy.yml`. A note kept from the cloud contributes nothing — neither text nor title — and links to it in other notes are withheld. Models on this device stay allowed. Encrypted workspaces keep the cloud off unless you allow it there. The exact format is in the [File Format Reference](File_Format_Reference.md).
+
+A second rule, `web: deny` — **Web access: never** in the settings — keeps a note or a folder out of every conversation that may use the internet.
 
 ## History and usage
 

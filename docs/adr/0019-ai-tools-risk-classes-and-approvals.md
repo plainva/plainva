@@ -92,6 +92,56 @@ a write or an outside effect.
    when it is saved, not when it runs. The same set is what a paired MCP or
    ACP client receives (ADR 0022): one capability model for every run without
    a person in front of it.
+9. **The internet: three decisions, a native fetch, a reader in quarantine**
+   (built with P4). The assistant reaches the internet through two tools,
+   `fetch_url` and `web_search`. Both are read tools whose call is itself a
+   request to a third party (`outward` in the manifest), so the Rule of Two
+   counts them as outside effects.
+   - *Three decisions.* The vault allows it: a switch per vault that is off
+     until the user decides and lives in the app's data on the device, never
+     in the vault, whose writers could otherwise switch it on. The
+     conversation was started with it: chosen in the composer for one
+     conversation, never kept as a default, and fixed like every tool — a
+     conversation that began without it may already carry notes whose rules
+     say `web: deny`, so it cannot gain the tools later. And the request
+     itself is approved: while private data is in the run, every page and
+     every search asks, with the whole address or query, because that is
+     everything that leaves the device for it. A refusal is an answer to the
+     model, not a failed tool; with nobody to ask, the call does not happen.
+   - *Where an address came from.* The approval says whether the address
+     stood in the conversation before the model wrote it — in the user's
+     words, in a note, in a result — or whether the model composed it. Only a
+     composed address can carry data out. A standing approval ("always for
+     this site", per vault and device) therefore covers addresses that were
+     named, never composed ones; the same distinction marks a link in an
+     answer. "The same address" is the whole address: accepting its host
+     would let a model hang data onto a host a note merely mentions.
+     And a source is only what the model did not write first: a tool can
+     repeat its arguments in its result, so what the model wrote into an
+     answer or a call never counts as a source afterwards, and a result that
+     reports an error names none.
+   - *`web: deny`.* In a conversation that carries the web tools, a note
+     whose rules say `web: deny` contributes nothing — context, tools, link
+     anchors — whoever the recipient is, a model on the device included; the
+     gists of folders and of the vault, which stand for many notes, stay out
+     as well.
+   - *The fetch is native.* One GET over https to port 443, without
+     credentials, cookies or a body; every address the name resolves to must
+     be public, or nothing is sent; redirects are followed inside the site
+     only, each hop checked like the first; at most five hops, two megabytes
+     and twenty seconds; text only. The rules are plain functions with one
+     set of test vectors, mirrored in TypeScript, Rust, Java and Swift. On
+     every platform the fetch is code of its own, apart from the egress that
+     holds the provider keys.
+   - *Planner and reader.* The model that holds the tools never reads a
+     page. A second call without any tool reads it, and what returns is a
+     record whose fields are checked against the page: a quote must be on it,
+     a link too, free text carries no live address. A page can make the
+     report say something untrue, and nothing else.
+   - *Search.* Through the model provider's own web search, as a call of its
+     own that carries the query and nothing of the conversation; only the
+     pages the provider reports are passed on. A model on the device reads
+     pages and cannot search; the system's own models take no tools at all.
 
 ## Consequences
 
@@ -101,6 +151,10 @@ a write or an outside effect.
   tier-3 wrapper from the first package on.
 - Tools that would need a blanket scope are not built; the model gets
   navigation (`ui`) rather than raw access.
+- The internet is never ambient. A conversation without the web tools cannot
+  be talked into a request, and one with them asks per request while notes
+  are in it. The price is a question per page; standing approvals per site
+  pay it down for addresses that were named.
 
 ## Alternatives
 
@@ -109,9 +163,22 @@ a write or an outside effect.
 - **Direct writes with undo.** Rejected: an injected write that is undone
   later has already been synced, rendered and possibly exfiltrated; proposals
   keep the human in the one approval grammar Plainva already has.
+- **A web switch per message.** Rejected: a conversation that began without
+  the internet may already carry notes that must never meet it, and what the
+  model read cannot be taken back. The choice belongs to the start of a
+  conversation, like its other tools.
+- **A standing approval that covers every address of a site.** Rejected: an
+  address the model composes is the one way data leaves in a GET. Asking for
+  exactly those keeps the standing approval safe to give.
+- **A search API of Plainva's own choosing, with its own key.** Rejected for
+  now: a second account and a second key for every user. Specialised sources
+  come through the MCP client instead.
 
 ## Links
 
 - ADR 0017, ADR 0018, ADR 0022; `packages/ui/src/services/commandRegistry.ts`;
   `packages/core/src/comments/commentActions.ts`;
   `packages/core/src/okf-trust.ts`.
+- `packages/core/src/ai/web/` (rules, reader, search, provenance) and the
+  native fetch: `apps/desktop/src-tauri/src/ai_web.rs`, `AiWebPlugin.java`,
+  `AiWebPlugin.swift`; `docs/engineering/AI_Threat_Model.md` (T2, T17).

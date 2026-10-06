@@ -320,20 +320,25 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
             </div>
           )}
 
-          {excluded.length > 0 && (
-            <div className="pv-ai-lens-group">
-              <h5>{t("ai.lens.never", { count: excluded.length })}</h5>
-              <p className="pv-ai-lens-note">{t("ai.lens.neverHint")}</p>
-              <ul className="pv-ai-lens-list">
-                {excluded.map((e) => (
-                  <li key={e.path} className="pv-ai-lens-row pv-ai-lens-row--quiet">
-                    <span className="pv-ai-overview-note">{titleOf(e.path)}</span>
-                    <span className="pv-ai-overview-form">{why(e)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* Kept back by a rule, each under the rule that kept it: never to the cloud, or never in a conversation with the internet (P4). */}
+          {(["cloud-denied", "web-denied"] as const).map((reason) => {
+            const kept = excluded.filter((e) => e.reason === reason);
+            if (kept.length === 0) return null;
+            return (
+              <div key={reason} className="pv-ai-lens-group" data-testid={`ai-lens-kept-${reason}`}>
+                <h5>{reason === "web-denied" ? t("ai.lens.neverWeb", { count: kept.length }) : t("ai.lens.never", { count: kept.length })}</h5>
+                <p className="pv-ai-lens-note">{t("ai.lens.neverHint")}</p>
+                <ul className="pv-ai-lens-list">
+                  {kept.map((e) => (
+                    <li key={e.path} className="pv-ai-lens-row pv-ai-lens-row--quiet">
+                      <span className="pv-ai-overview-note">{titleOf(e.path)}</span>
+                      <span className="pv-ai-overview-form">{why(e)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </>
       )}
 

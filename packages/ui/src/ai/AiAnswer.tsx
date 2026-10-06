@@ -7,7 +7,9 @@ import { parseAnswer, type AnswerBlock } from "./answerBlocks";
  * An AI answer as the reader sees it (P1a). Untrusted text: blocks and inline
  * nodes become React elements, never HTML; an image is a link that loads
  * nothing; a web address opens only through `onOpenUrl`, which the shell
- * routes through its confirmation.
+ * routes through its confirmation. `urlNote` marks an address the model
+ * composed itself (plan KI-Harness P4): it is the one that could carry
+ * something from the conversation with it.
  */
 export interface AiAnswerProps extends InlineReactHandlers {
   text: string;
@@ -83,8 +85,8 @@ function block(b: AnswerBlock, key: string, handlers: InlineReactHandlers): Reac
   }
 }
 
-export function AiAnswer({ text, onOpenNote, onOpenUrl }: AiAnswerProps) {
+export function AiAnswer({ text, onOpenNote, onOpenUrl, urlNote }: AiAnswerProps) {
   const blocks = useMemo(() => parseAnswer(text), [text]);
-  const handlers = { onOpenNote, onOpenUrl };
+  const handlers = { onOpenNote, onOpenUrl, urlNote };
   return <div className="pv-ai-answer">{blocks.map((b, i) => block(b, `b${i}`, handlers))}</div>;
 }

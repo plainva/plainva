@@ -247,7 +247,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
     ...(input.reply ? { reply: input.reply } : {}),
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
-    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>) {
+    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;
       const deps: VaultToolDeps = {
@@ -257,7 +257,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
         policyOf: input.policy.policyOf,
         resolveLink: input.policy.resolveLink,
       };
-      return { names: CHAT_TOOL_NAMES, executor: createVaultToolExecutor(deps, { recipient, webTools: false }, scope, redact) };
+      // In a conversation with the internet a note whose rules say `web: deny` does not exist for the tools either.
+      return { names: CHAT_TOOL_NAMES, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact) };
     },
   };
 }

@@ -38,6 +38,7 @@ import { getSettingsStore } from "../settingsStore";
 import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
 import { createDesktopAiEgress } from "./desktopAiEgress";
+import { createDesktopWebFetcher } from "./desktopAiWeb";
 
 /**
  * The desktop's AI session (plan KI-Harness P1a). AI v1 runs in the central
@@ -150,6 +151,8 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
       now: () => new Date(),
       newId: () => crypto.randomUUID(),
       label: (key, vars) => i18n.t(key, vars),
+      // The assistant's page fetch (plan KI-Harness P4): native, like the egress.
+      web: createDesktopWebFetcher(),
     });
     void session.load();
   }
