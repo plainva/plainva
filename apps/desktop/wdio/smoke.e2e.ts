@@ -54,7 +54,10 @@ describe("Plainva native smoke", () => {
     const editor = await $(".cm-content");
     await editor.waitForExist({ timeout: 10_000 });
     await editor.click();
-    await browser.keys(marker);
+    // Sent to the element, not to "whatever has the focus": on WebKitGTK the
+    // global key actions went nowhere (fifth run, 2026-10-06 — the note file
+    // was created and stayed empty, while the same steps passed on Windows).
+    await editor.addValue(marker);
 
     // Autosave runs about a second after the last key; give the atomic write
     // its time and then read what is actually in the vault.
