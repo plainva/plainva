@@ -24,6 +24,8 @@
  * the organisation put in front of the target is not ours to skip.
  */
 
+import { describeHttpLink, shortenUrl } from "../lib/linkTarget";
+
 export type EventDescInline =
   | { kind: "text"; text: string }
   | { kind: "strong" | "em"; children: EventDescInline[] }
@@ -46,44 +48,20 @@ export interface EventLinkView {
   viaSafeLinks: boolean;
 }
 
-const MAX_TIP = 96;
 const MAX_DEPTH = 3;
 /** Far beyond any invitation; what is longer is cut rather than laid out. */
 const MAX_TEXT = 200_000;
 
-/** Hosts of Microsoft's Safe Links rewriter (commercial and US government clouds). */
-const SAFE_LINK_SUFFIXES = [".safelinks.protection.outlook.com", ".safelinks.protection.office365.us"];
-
-function httpUrl(raw: string): URL | null {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return null;
-  }
-  return url.protocol === "http:" || url.protocol === "https:" ? url : null;
-}
-
-/** Cuts a long address to a readable tooltip, keeping its start. */
-export function shortenUrl(url: string, max = MAX_TIP): string {
-  return url.length > max ? `${url.slice(0, max - 1)}…` : url;
-}
-
 /**
  * How a link is shown — or `null` when it is not an http(s) address and must
- * stay text (`javascript:`, `data:`, `file:`, `mailto:` …).
+ * stay text (`javascript:`, `data:`, `file:`, `mailto:` …). The reading of the
+ * address (host, Safe Links) is the shared link block's (`lib/linkTarget.ts`),
+ * which mail uses too.
  */
 export function describeEventLink(href: string): EventLinkView | null {
-  const url = httpUrl(href.trim());
-  if (!url) return null;
-  const host = url.hostname.toLowerCase();
-  if (SAFE_LINK_SUFFIXES.some((suffix) => host.endsWith(suffix))) {
-    const target = httpUrl(url.searchParams.get("url") ?? "");
-    if (target) {
-      return { href: href.trim(), host: target.hostname, tip: shortenUrl(target.href), viaSafeLinks: true };
-    }
-  }
-  return { href: href.trim(), host: url.hostname, tip: shortenUrl(url.href), viaSafeLinks: false };
+  const link = describeHttpLink(href);
+  if (!link) return null;
+  return { href: link.href, host: link.host, tip: shortenUrl(link.address), viaSafeLinks: link.viaSafeLinks };
 }
 
 /** Which online-meeting service a join link belongs to, by the host it leads to. */

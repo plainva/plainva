@@ -477,7 +477,13 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+/* The junk folder's hint is a sentence, not three words: it wraps, and the
+   icon and the release button keep their size beside it. */
+.pv-mail-blocked > svg {
+  flex: none;
+}
 .pv-mail-blocked button {
+  flex: none;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -486,11 +492,56 @@
   font-size: var(--text-sm);
   text-decoration: underline;
 }
+/* The reading area and, pinned to its bottom-left corner, the link bar (plan
+   Befunde 06.10., M1). The wrap does not scroll - the body inside it does - so
+   the bar stays in its corner while a long message moves. */
+.pv-mail-bodywrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .pv-mail-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding: 12px 18px;
+}
+/* Where the link under the pointer (or holding the keyboard focus) leads: the
+   place every browser shows it. Never takes a click - it lies over the text. */
+.pv-mail-linkbar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  max-width: 92%;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  border-top: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  border-top-right-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  pointer-events: none;
+}
+.pv-mail-linkbar > svg {
+  flex: none;
+  margin-top: 2px;
+}
+.pv-mail-linkbar > .pv-linktarget {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.pv-mail-linkbar[data-warn] {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
 }
 .pv-mail-body--frame {
   padding: 0;

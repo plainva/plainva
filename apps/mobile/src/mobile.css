@@ -4257,6 +4257,35 @@ textarea {
   font-family: var(--font-content);
   font-size: var(--text-md);
 }
+/* A held link opens the app's sheet (M1) - not the system's link preview. */
+.m-mailtext .pv-maillink {
+  -webkit-touch-callout: none;
+}
+/* Where a held mail link leads: the target in full above the sheet's two
+   rows. A link whose text names another host takes the warning tokens. */
+.m-linksheet-target {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1.4;
+  user-select: text;
+}
+.m-linksheet-target > svg {
+  flex: none;
+  margin-top: var(--space-1);
+}
+.m-linksheet-target[data-warn] {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
 
 .m-sheet--folders { max-height: 70vh; overflow-y: auto; }
 

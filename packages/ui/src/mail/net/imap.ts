@@ -3,7 +3,7 @@ import type { MailboxInfo, RawImapEnvelope, RawImapEnvelopePage, RawImapMessage 
 import type { AppendDraftArgs, ImapCreds } from "../transport";
 import { LineSocket } from "./socket";
 import { decodeWords, headerAddresses, headerDate, parseHeaders, parseMessage, previewFromBodyPrefix } from "./mime";
-import { classifyFolderRole, decodeImapUtf7 } from "../mailOut";
+import { decodeImapUtf7, mailboxRoles } from "../mailOut";
 import { MAIL_OAUTH_REJECTED, xoauth2Payload } from "./xoauth2";
 import { validatedUids, type ImapBulkArgs, type ImapBulkResult } from "../bulkActions";
 import { bodyStructureAttachments } from "./bodyStructure";
@@ -241,13 +241,13 @@ export class ImapConnection {
     }
   }
 
-  /** LIST → the mailbox list with delimiter and guessed role. */
+  /** LIST → the mailbox list with delimiter and role (stated, else guessed). */
   async listMailboxes(): Promise<MailboxInfo[]> {
     const res = await this.command('LIST "" "*"');
     if (!res.ok) throw new Error(res.text || "could not list the mailboxes");
-    const out: MailboxInfo[] = [];
+    const out: Array<{ name: string; delimiter?: string; attributes: string[] }> = [];
     for (const line of res.lines) {
-      // * LIST (\HasNoChildren) "/" "INBOX"
+      // * LIST (\HasNoChildren \Junk) "/" "[Gmail]/Spam"
       const m = imapListFields(line.replace(LITERAL_MARK_RE, ""));
       if (!m) continue;
       const flags = m[0].toLowerCase();
@@ -256,9 +256,11 @@ export class ImapConnection {
       let rawName = m[2].trim();
       if (rawName.startsWith('"') && rawName.endsWith('"')) rawName = rawName.slice(1, -1);
       const name = decodeImapUtf7(rawName);
-      out.push({ name, delimiter, role: classifyFolderRole(name, delimiter) ?? undefined });
+      out.push({ name, delimiter, attributes: flags.split(" ").filter(Boolean) });
     }
-    return out;
+    // The server's special-use attributes first, the name second (M2): the
+    // name list knows a dozen languages, the attribute is the server's word.
+    return mailboxRoles(out);
   }
 
   /** EXAMINE (read-only) → message count and unseen count. */

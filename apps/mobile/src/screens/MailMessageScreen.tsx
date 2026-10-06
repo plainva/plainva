@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, BellOff, FileText, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from "lucide-react";
+import { Ban, BellOff, Copy, ExternalLink, FileText, Link2, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, PenLine, Reply, ReplyAll, Forward, Star, Trash2, TriangleAlert } from "lucide-react";
 import { hasEmlWikiLink } from "@plainva/core";
-import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, ICON, IconButton, plainvaProducer, safeFileStem, toast } from "@plainva/ui";
+import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, safeFileStem, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
 import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import { Browser } from "@capacitor/browser";
 import {
   applyFrameFit,
+  attachMailLinks,
+  LinkTargetText,
+  MailPlainText,
+  messageJunkState,
+  remoteImagesDecision,
   buildMailFrameDoc,
   buildReplyBody,
   buildForwardBody,
@@ -37,6 +42,8 @@ import {
 /** No hold — hoisted so the effect below does not allocate on every render. */
 const EMPTY_HOLD: ReadonlySet<string> = new Set();
 import { mConfirm } from "../services/mobileDialogs";
+import { LONG_PRESS_MS } from "../lib/useLongPress";
+import { haptics } from "../services/haptics";
 import { runJunkAction } from "./mail/junkAction";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
@@ -139,16 +146,49 @@ export function MailMessageScreen({
     };
   }, [vaultId, account, vault, accountId, mailbox, messageId, reload, t]);
 
+  /**
+   * The folder list. Needed for three answers the name alone cannot give:
+   * whether THIS folder is the junk one (Graph localizes it to names no word
+   * list matches — it states the role instead), where a reported message goes,
+   * and — since M2 — whether remote images may load here at all. Loaded once
+   * and kept, so the ⋮ label is right the first time it opens.
+   */
+  const [boxes, setBoxes] = useState<MailboxInfo[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (!vaultId || !account) return;
+    void listMailboxesFor(vaultId, account)
+      .then((list) => alive && setBoxes(list))
+      .catch(() => {
+        /* The junk action asks again and reports properly when it fails. */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [vaultId, account]);
+
+  // ONE rule for both shells (plan Befunde 06.10., M2): "always" does not
+  // reach into the junk folder, and a folder that is not known yet — the list
+  // above has not arrived — counts as junk.
   const alwaysRemote = getMobileSettings().mailRemoteImages === true;
+  const remoteImages = useMemo(
+    () =>
+      remoteImagesDecision({
+        always: alwaysRemote,
+        once: showRemote,
+        folder: messageJunkState({ accountId, mailbox }, { accountId, boxes }),
+      }),
+    [alwaysRemote, showRemote, accountId, mailbox, boxes]
+  );
   const frame = useMemo(() => {
     if (!message) return null;
     if (message.html) {
-      const allowRemote = showRemote || alwaysRemote;
+      const allowRemote = remoteImages.allow;
       const clean = sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote });
       return { doc: buildMailFrameDoc(clean.html, { allowRemoteImages: allowRemote }), blocked: clean.blockedRemote };
     }
     return null;
-  }, [message, showRemote, alwaysRemote]);
+  }, [message, remoteImages.allow]);
 
   /**
    * Fit the message into the width it was given (P5). Mail is written for a
@@ -163,6 +203,66 @@ export function MailMessageScreen({
     const el = frameRef.current;
     if (el) applyFrameFit(el, { growHeight: true });
   }, []);
+
+  /**
+   * What a link in a message does on the phone (plan Befunde 06.10., M1).
+   * Until now: nothing the app had decided — the WebView did whatever it does
+   * with a link inside a sandboxed frame, and a plain-text mail had no links.
+   *
+   *  - a TAP opens the link through the app's own opener: a web address in the
+   *    browser, a mail address in the composer;
+   *  - a HOLD shows where it leads first — the same line the desktop shows in
+   *    its link bar — with the two things one may want from an address.
+   */
+  const [linkSheet, setLinkSheet] = useState<LinkTarget | null>(null);
+  const openLink = useStableHandler((link: LinkTarget) => {
+    if (link.kind === "mailto") {
+      let to = "";
+      let subject = "";
+      let body = "";
+      try {
+        const url = new URL(link.href);
+        to = decodeURIComponent(url.pathname);
+        subject = url.searchParams.get("subject") ?? "";
+        body = url.searchParams.get("body") ?? "";
+      } catch {
+        /* an address the parser refuses opens an empty draft */
+      }
+      onReply({ accountId, to, subject, body });
+      return;
+    }
+    void getPlatformServices()
+      .openExternal(link.href)
+      .catch(() => toast.error(t("mail.linkOpenFailed")));
+  });
+  const holdLink = useStableHandler((link: LinkTarget, _at?: { x: number; y: number }) => {
+    // A hold can start a native text selection; clear it so the sheet does not
+    // open over marked text (same as every other hold, `useLongPress`).
+    window.getSelection?.()?.removeAllRanges();
+    frameRef.current?.contentWindow?.getSelection?.()?.removeAllRanges();
+    haptics.medium();
+    setLinkSheet(link);
+  });
+  const linkEvents = useMemo(() => ({ onOpen: openLink, onHold: holdLink, holdMs: LONG_PRESS_MS }), [openLink, holdLink]);
+  const detachFrameLinks = useRef<(() => void) | null>(null);
+  useEffect(() => () => detachFrameLinks.current?.(), []);
+  const onFrameLoad = useCallback(() => {
+    fitFrame();
+    // A new document per message (and per image release): the listeners of
+    // the previous one go with it.
+    detachFrameLinks.current?.();
+    const doc = frameRef.current?.contentDocument;
+    detachFrameLinks.current = doc ? attachMailLinks(doc, linkEvents) : null;
+  }, [fitFrame, linkEvents]);
+
+  const copyLink = async (link: LinkTarget) => {
+    try {
+      await navigator.clipboard.writeText(link.href);
+      toast.success(t("mail.linkCopied"));
+    } catch (e) {
+      toast.error(describe(e, t));
+    }
+  };
 
   // Rotating the phone changes the frame's width; without this the message
   // would stay at the scale it was measured at in the other orientation.
@@ -205,27 +305,7 @@ export function MailMessageScreen({
     void setMessageSeen(vaultId, account, mailbox, messageId, next).catch((e) => toast.error(describe(e, t)));
   };
 
-  /**
-   * Spam / not spam (S12). The folder list is needed for two answers the name
-   * alone cannot give: whether THIS folder is the junk one (Graph localizes it
-   * to names no word list matches — it states the role instead), and where the
-   * message goes. Loaded once and kept, so the ⋮ label is right the first time
-   * it opens rather than after a round trip.
-   */
-  const [boxes, setBoxes] = useState<MailboxInfo[]>([]);
-  useEffect(() => {
-    let alive = true;
-    if (!vaultId || !account) return;
-    void listMailboxesFor(vaultId, account)
-      .then((list) => alive && setBoxes(list))
-      .catch(() => {
-        /* The junk action asks again and reports properly when it fails. */
-      });
-    return () => {
-      alive = false;
-    };
-  }, [vaultId, account]);
-
+  /** Spam / not spam (S12) — the folder list is loaded above. */
   const junkLabel = isJunkFolder(mailbox, boxes) ? t("mail.notJunk") : t("mail.reportJunk");
 
   const reportJunk = async () => {
@@ -515,6 +595,36 @@ export function MailMessageScreen({
         <RowActionSheet actions={menuActions} onClose={() => setMenu(false)} title={message?.subject ?? ""} />
       )}
 
+      {/* Where a held link leads (M1): the target in full, its host
+          emphasised, then what one may do with it. What opens — and what is
+          copied — is the address as written, a Safe Link included. */}
+      {linkSheet && (
+        <RowActionSheet
+          actions={[
+            {
+              icon: linkSheet.kind === "mailto" ? <PenLine size={ICON.head} /> : <ExternalLink size={ICON.head} />,
+              label: linkSheet.kind === "web" ? t("mail.linkOpenBrowser") : linkSheet.kind === "mailto" ? t("mail.newMessage") : t("mail.linkOpen"),
+              testId: "mail-link-open",
+              onClick: () => { const link = linkSheet; setLinkSheet(null); openLink(link); },
+            },
+            {
+              icon: <Copy size={ICON.head} />,
+              label: t("mail.linkCopy"),
+              testId: "mail-link-copy",
+              onClick: () => { const link = linkSheet; setLinkSheet(null); void copyLink(link); },
+            },
+          ]}
+          detail={
+            <p className="m-linksheet-target" data-testid="mail-link-sheet" data-warn={linkSheet.textHost ? "" : undefined}>
+              {linkSheet.textHost ? <TriangleAlert size={ICON.ui} aria-hidden /> : <Link2 size={ICON.ui} aria-hidden />}
+              <LinkTargetText link={linkSheet} />
+            </p>
+          }
+          onClose={() => setLinkSheet(null)}
+          title=""
+        />
+      )}
+
       {error ? (
         /* Fetching a message fails for reasons that pass — no network, a
            sleeping server. The state said so and offered nothing; going back
@@ -563,10 +673,27 @@ export function MailMessageScreen({
             </Button>
           )}
 
-          {frame?.blocked ? (
-            <Button variant="ghost" onClick={() => setShowRemote(true)}>
-              {t("mail.showImages")}
-            </Button>
+          {/* In the junk folder the hint names the REASON (M2): "always load"
+              is on and still nothing loaded — without the reason that reads as
+              a setting that does not work. Elsewhere the one button stays. */}
+          {frame?.blocked && !remoteImages.allow ? (
+            remoteImages.blockedAsJunk ? (
+              <Banner
+                actions={
+                  <Button data-testid="mail-show-images" onClick={() => setShowRemote(true)} size="sm" variant="ghost">
+                    {t("mail.showImagesOnce")}
+                  </Button>
+                }
+                kind="info"
+                rounded
+              >
+                <span data-testid="mail-blocked-junk">{t("mail.remoteBlockedJunk", { n: frame.blocked })}</span>
+              </Banner>
+            ) : (
+              <Button data-testid="mail-show-images" variant="ghost" onClick={() => setShowRemote(true)}>
+                {t("mail.showImages")}
+              </Button>
+            )
           ) : null}
 
           {frame ? (
@@ -580,12 +707,12 @@ export function MailMessageScreen({
                  Without that reach a newsletter built on a fixed 600px table
                  showed its left third and the rest was unreachable. */
               sandbox="allow-same-origin"
-              onLoad={fitFrame}
+              onLoad={onFrameLoad}
               srcDoc={frame.doc}
               title={message.subject || "E-Mail"}
             />
           ) : (
-            <pre className="m-mailtext">{message.text ?? ""}</pre>
+            <MailPlainText className="m-mailtext" data-testid="mail-text" events={linkEvents} text={message.text ?? ""} />
           )}
 
           {message.attachments.length > 0 && (

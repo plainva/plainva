@@ -3580,6 +3580,17 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-evtdesc__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pv-evtdesc__host { color: var(--text-faint); font-size: var(--text-xs); }
 .pv-evtdesc__via { display: block; margin-top: var(--space-1); font-size: var(--text-xs); color: var(--text-faint); }
+/* Where a link leads (plan Befunde 06.10., M1): the destination as one line,
+   its host emphasised - the desktop's link bar under a message and the phone's
+   link sheet draw the same line. The address wraps instead of hiding its end:
+   a host is read to its last label. A warning surface sets data-warn, and the
+   line then takes the surface's colour. */
+.pv-linktarget { min-width: 0; overflow-wrap: anywhere; color: var(--text-muted); }
+.pv-linktarget__url b { color: var(--text-main); font-weight: 600; }
+.pv-linktarget__note::before { content: " · "; }
+[data-warn] > .pv-linktarget, [data-warn] > .pv-linktarget .pv-linktarget__url b { color: inherit; }
+/* An address in a plain-text mail (M1) - a link like the ones of an HTML body. */
+.pv-maillink { color: var(--accent-color); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 /* "Join · Teams" sits under the time, as wide as its words, not as the column. */
 .pv-evtjoin { align-self: flex-start; }
 .pv-comment-card__state { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-faint); font-size: var(--text-sm); }

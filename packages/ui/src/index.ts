@@ -83,6 +83,7 @@ export * from "./pim/pendingEventWrites";
 export * from "./pim/meetingNote";
 export * from "./pim/calendarForm";
 export * from "./pim/eventPeek";
+export * from "./lib/linkTarget";
 export * from "./pim/eventDescription";
 export * from "./pim/spanLayout";
 export * from "./pim/eventDays";

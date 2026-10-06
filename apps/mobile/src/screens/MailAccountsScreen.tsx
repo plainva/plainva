@@ -73,6 +73,7 @@ export function MailAccountsScreen({
   const runSecrets = family ? getConnectSecrets() : {};
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   const [mailFolder, setMailFolder] = useState(() => getMobileSettings().mailFolder);
+  const [remoteImages, setRemoteImages] = useState(() => getMobileSettings().mailRemoteImages === true);
   const [pickMailFolder, setPickMailFolder] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [signIn, setSignIn] = useState<Map<string, DeviceSignInState>>(new Map());
@@ -481,6 +482,28 @@ export function MailAccountsScreen({
             />
           </RowList>
         </GroupCard>}
+
+        {/* "Always load remote images" (plan Befunde 06.10., E12). The value
+            has always travelled with the profile and the reader has always
+            obeyed it — but the phone had no switch, so it could only ever hold
+            what the desktop had set. Same words as the desktop, and the same
+            note that it does not reach into the spam folder. */}
+        {!mailRun && <>
+          <GroupCard>
+            <RowList>
+              <Row
+                data-testid="mail-remote-images"
+                end={<Switch
+                  checked={remoteImages}
+                  label={t("mail.loadRemoteImages")}
+                  onChange={(next) => { setRemoteImages(next); void updateMobileSettings({ mailRemoteImages: next }); }}
+                />}
+                title={t("mail.loadRemoteImages")}
+              />
+            </RowList>
+          </GroupCard>
+          <p className="m-hint" data-testid="mail-remote-images-note">{t("mail.loadRemoteImagesHint")} {t("mail.loadRemoteImagesJunk")}</p>
+        </>}
 
         {!mailRun && accounts.length === 0 && <p className="m-hint">{t("mail.noAccounts")}</p>}
         {/* The way in, ALWAYS. It lived inside the non-empty branch, so the one

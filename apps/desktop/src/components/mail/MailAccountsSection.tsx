@@ -463,7 +463,10 @@ export function MailAccountsSection({ onOpenCloudAccounts }: { onOpenCloudAccoun
           {t("mail.loadRemoteImagesHint", {
             defaultValue:
               "Beim Laden externer Bilder sieht der Absender Deine IP-Adresse und wann Du die Mail geöffnet hast (Tracking). Standardmäßig blockiert Plainva sie — pro Nachricht lassen sie sich über „Bilder anzeigen“ einblenden.",
-          })}
+          })}{" "}
+          {/* The switch does not reach into the spam folder (plan Befunde
+              06.10., E6) — said here, where the switch is, on both shells. */}
+          <span data-testid="mail-remote-images-junk-note">{t("mail.loadRemoteImagesJunk")}</span>
         </SettingCardNote>
       </SettingCard>
 

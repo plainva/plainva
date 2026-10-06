@@ -84,6 +84,8 @@ test.beforeEach(async ({ page }) => {
           if (args.key === 'whatsNewSeenVersion') return ['9.9.9', true];
           if (String(args.key || '').startsWith('okfPromptDismissed_')) return [true, true];
           if (String(args.key || '').startsWith('backupZipEnabled_')) return [false, true];
+          // "Always load remote images" (plan Befunde 06.10., M2) — off unless a test turns it on.
+          if (String(args.key || '').startsWith('mailRemoteImages_')) return [(window as any).__remoteAlways === true, (window as any).__remoteAlways === true];
           if (String(args.key || '').startsWith('mailRules_')) return [(window as any).__mailRules ?? null, !!(window as any).__mailRules];
           if (String(args.key || '').startsWith('mailAccounts_')) {
             if ((window as any).__noMailAccounts) return [null, false];
@@ -207,6 +209,10 @@ test.beforeEach(async ({ page }) => {
           // while the refresh is still running.
           if ((window as any).__slowList) await new Promise((r) => setTimeout(r, (window as any).__slowList));
           const own = String(args.user || '').includes('zweit') ? ['Archiv', 'Posteingang'] : ['INBOX', 'Entwürfe', 'Sent', 'Trash'];
+          // The junk folder holds one message of its own (M2), where the account has one.
+          if ((window as any).__withJunk && String(args.mailbox) === 'Junk') {
+            return { total: 1, unseen: 1, messages: [{ uidValidity: 5, hasAttachments: false, uid: 7, subject: 'Sie haben gewonnen', from: 'Gluecksrad <gewinn@lotterie.example>', dateTs: NOW, seen: false, messageId: 'spam@x' }] };
+          }
           if (!own.includes(String(args.mailbox))) {
             await new Promise((r) => setTimeout(r, 400)); // a SLOW failure, like a real server
             throw new Error('examine failed: No Response: [NONEXISTENT] Unknown Mailbox: ' + args.mailbox + ' (Failure)');
@@ -223,8 +229,22 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'mail_fetch_message') {
           ((window as any).__loadOrder ||= []).push('network-body');
           if ((window as any).__failFetch) throw new Error('offline');
+          if (String(args.mailbox) === 'Junk') {
+            return {
+              ...fullMessage,
+              uid: 7,
+              subject: 'Sie haben gewonnen',
+              from: 'Gluecksrad <gewinn@lotterie.example>',
+              attachments: [],
+              html: '<p>Klicken Sie hier.</p><img src="https://spam-tracker.example/a.gif"><img src="https://spam-tracker.example/b.gif"><img src="https://spam-tracker.example/c.gif">',
+            };
+          }
+          // A test can swap the body (M1: links in HTML and in plain text).
+          if ((window as any).__fullMessage) return { ...fullMessage, ...(window as any).__fullMessage };
           return fullMessage;
         }
+        // The system browser (M1): a link is opened by the app, never by the frame.
+        if (cmd === 'plugin:opener|open_url') { ((window as any).__openedUrls ||= []).push(args?.url); return null; }
         if (cmd === 'mail_fetch_raw') return btoa('From: anna@example.org\r\nSubject: Rechnung Q3\r\n\r\nBody');
         if (cmd === 'plugin:dialog|ask' || cmd === 'plugin:dialog|confirm') return true;
         if (cmd === 'plugin:dialog|message') return String(args?.buttons) === 'OkCancel' ? 'Ok' : 'Yes';
@@ -1564,4 +1584,182 @@ test('conversations: the arrow keys read INTO a folded conversation instead of s
   await page.keyboard.press('ArrowDown');
   await expect(thread).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('mail-thread-message').nth(0)).toBeFocused();
+});
+
+/**
+ * Where a link leads (plan Befunde 06.10., M1). The message stands in a frame
+ * without scripts; until now the app only caught the click there — no hover,
+ * no focus, nothing that said where a link goes before it was followed.
+ */
+const SAFE_TARGET = 'https://nordlicht.example/kunden/rechnungen/2026-10';
+const SAFE_LINK = 'https://nam12.safelinks.protection.outlook.com/?url=' + encodeURIComponent(SAFE_TARGET) + '&data=05%7C02&reserved=0';
+
+/** Moves the real pointer onto an element inside the message frame. The parent
+ *  may read the frame's document (same origin, no scripts), so the position
+ *  comes from there. */
+async function hoverInFrame(page: any, selector: string) {
+  const frame = page.getByTestId('mail-frame');
+  const box = await frame.boundingBox();
+  const rect = await frame.evaluate((el: HTMLIFrameElement, sel: string) => {
+    const target = el.contentDocument!.querySelector(sel)!;
+    const r = target.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }, selector);
+  const at = { x: box.x + rect.x, y: box.y + rect.y };
+  await page.mouse.move(at.x, at.y);
+  return at;
+}
+
+test('a link in a message shows where it leads, on hover and on keyboard focus', async ({ page }, testInfo) => {
+  await page.addInitScript(({ safe }) => {
+    (window as any).__fullMessage = {
+      html:
+        '<p>Ihre Rechnung liegt bereit.</p>' +
+        '<p><a id="plain" href="https://nordlicht.example/kunden/rechnungen/2026-10?ref=mail">Rechnung ansehen</a></p>' +
+        '<p><a id="safe" href="' + safe + '">Rechnung ansehen</a></p>' +
+        '<p><a id="odd" href="https://nordlicht-rechnung.example/login">https://nordlicht.example/rechnung</a></p>',
+    };
+  }, { safe: SAFE_LINK });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-frame')).toBeVisible();
+  await expect.poll(() => page.getByTestId('mail-frame').evaluate((el: HTMLIFrameElement) => !!el.contentDocument?.querySelector('#plain'))).toBe(true);
+
+  // Nothing is pointed at: no bar.
+  const bar = page.getByTestId('mail-link-target');
+  await expect(bar).toHaveCount(0);
+
+  // Hover: the destination, its host singled out.
+  await hoverInFrame(page, '#plain');
+  await expect(bar).toBeVisible();
+  await expect(bar.getByTestId('link-target-host')).toHaveText('nordlicht.example');
+  await expect(bar.getByTestId('link-target-url')).toHaveText('https://nordlicht.example/kunden/rechnungen/2026-10?ref=mail');
+  await expect(bar).not.toHaveAttribute('data-warn', '');
+  // It sits in the bottom-left corner of the READING AREA, not in the app's status bar.
+  const wrap = await page.locator('.pv-mail-bodywrap').boundingBox();
+  const barBox = await bar.boundingBox();
+  expect(Math.abs(barBox!.x - wrap!.x)).toBeLessThan(2);
+  expect(Math.abs(barBox!.y + barBox!.height - (wrap!.y + wrap!.height))).toBeLessThan(2);
+  await page.screenshot({ path: testInfo.outputPath('mail-link-bar.png') });
+
+  // The pointer leaves the link: the bar goes.
+  await page.mouse.move(5, 5);
+  await expect(bar).toHaveCount(0);
+
+  // Keyboard focus shows it as well — a Safe Link names its real target.
+  await page.getByTestId('mail-frame').evaluate((el: HTMLIFrameElement) => (el.contentDocument!.querySelector('#safe') as HTMLElement).focus());
+  await expect(bar).toBeVisible();
+  await expect(bar.getByTestId('link-target-host')).toHaveText('nordlicht.example');
+  await expect(bar.getByTestId('link-target-url')).toHaveText(SAFE_TARGET);
+  await expect(bar.getByTestId('link-target-safelinks')).toHaveText('via Microsoft Safe Links');
+  await page.getByTestId('mail-frame').evaluate((el: HTMLIFrameElement) => (el.contentDocument!.querySelector('#safe') as HTMLElement).blur());
+  await expect(bar).toHaveCount(0);
+
+  // The visible text names another host than the link leads to: warning tone.
+  await hoverInFrame(page, '#odd');
+  await expect(bar).toHaveAttribute('data-warn', '');
+  await expect(bar.getByTestId('link-target-host')).toHaveText('nordlicht-rechnung.example');
+  await expect(bar.getByTestId('link-target-mismatch')).toHaveText('the text names a different address');
+  await expect(bar).toContainText('Leads to:');
+  await page.screenshot({ path: testInfo.outputPath('mail-link-bar-warning.png') });
+
+  // What OPENS is the address as written — the Safe Link itself, not its target.
+  await page.getByTestId('mail-frame').evaluate((el: HTMLIFrameElement) => (el.contentDocument!.querySelector('#safe') as HTMLElement).click());
+  await expect.poll(() => page.evaluate(() => (window as any).__openedUrls ?? [])).toEqual([SAFE_LINK]);
+
+  // A right click offers what the phone offers behind a hold: open, or copy the address.
+  const at = await hoverInFrame(page, '#plain');
+  await page.mouse.click(at.x, at.y, { button: 'right' });
+  await expect(page.getByTestId('mail-link-copy')).toHaveText('Copy address');
+  await expect(page.getByTestId('mail-link-open')).toHaveText('Open in browser');
+  await page.getByTestId('mail-link-open').click();
+  await expect(page.getByTestId('mail-link-open')).toHaveCount(0);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__openedUrls ?? []))
+    .toEqual([SAFE_LINK, 'https://nordlicht.example/kunden/rechnungen/2026-10?ref=mail']);
+});
+
+test('a plain-text message has links, with the same bar', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = { html: null, text: 'Hallo,\n\ndie Rechnung: https://nordlicht.example/r?id=1.\n<b>kein Markup</b>\n' };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+
+  const text = page.getByTestId('mail-text');
+  // The text is unchanged, character for character — and never read as HTML.
+  expect(await text.evaluate((el: HTMLElement) => el.textContent)).toBe('Hallo,\n\ndie Rechnung: https://nordlicht.example/r?id=1.\n<b>kein Markup</b>\n');
+  await expect(text.locator('b')).toHaveCount(0);
+  const link = text.locator('a.pv-maillink');
+  await expect(link).toHaveCount(1);
+  await expect(link).toHaveText('https://nordlicht.example/r?id=1');
+
+  await link.hover();
+  const bar = page.getByTestId('mail-link-target');
+  await expect(bar.getByTestId('link-target-host')).toHaveText('nordlicht.example');
+  await page.mouse.move(5, 5);
+  await expect(bar).toHaveCount(0);
+  await link.focus();
+  await expect(bar).toBeVisible();
+
+  await link.click();
+  await expect.poll(() => page.evaluate(() => (window as any).__openedUrls ?? [])).toEqual(['https://nordlicht.example/r?id=1']);
+  // The app did not navigate away.
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+});
+
+test('spam: "always load remote images" does not reach into the junk folder, and the release holds for one view', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    (window as any).__withJunk = true;
+    (window as any).__remoteAlways = true;
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+
+  // In the inbox the setting does what it says: the pictures load, nothing to release.
+  await page.getByTestId('mail-envelope').first().click();
+  await expect.poll(() => page.getByTestId('mail-frame').getAttribute('srcdoc')).toContain('tracker.example.org');
+  await expect(page.getByTestId('mail-show-images')).toHaveCount(0);
+
+  // The junk folder: the same setting, and nothing loads.
+  await page.locator('.pv-mail-folder-label', { hasText: 'Junk' }).click();
+  const rows = page.getByTestId('mail-envelope');
+  await expect(rows).toHaveCount(1);
+  await rows.first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Sie haben gewonnen');
+  await expect.poll(() => page.getByTestId('mail-frame').getAttribute('srcdoc')).toContain('Klicken Sie hier');
+  expect(await page.getByTestId('mail-frame').getAttribute('srcdoc')).not.toContain('spam-tracker.example');
+  expect(await page.getByTestId('mail-frame').getAttribute('srcdoc')).toContain('img-src data:;');
+
+  // The hint names the reason and counts what it held back.
+  const hint = page.getByTestId('mail-blocked-hint');
+  await expect(hint).toHaveAttribute('data-junk', '');
+  await expect(hint).toContainText('In the spam folder Plainva loads no remote images, even if they are otherwise always loaded. 3 blocked.');
+  await expect(page.getByTestId('mail-show-images')).toHaveText('Show for this message');
+  await page.screenshot({ path: testInfo.outputPath('mail-junk-images.png') });
+
+  // The release applies to this view ...
+  await page.getByTestId('mail-show-images').click();
+  await expect.poll(() => page.getByTestId('mail-frame').getAttribute('srcdoc')).toContain('spam-tracker.example');
+  await expect(page.getByTestId('mail-show-images')).toHaveCount(0);
+
+  // ... and only once: opening the message again blocks them again.
+  await rows.first().click();
+  await expect.poll(() => page.getByTestId('mail-frame').getAttribute('srcdoc')).not.toContain('spam-tracker.example');
+  await expect(page.getByTestId('mail-show-images')).toBeVisible();
+  await expect(hint).toHaveAttribute('data-junk', '');
+});
+
+test('remote images outside the junk folder keep the plain hint', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).__withJunk = true; });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  const hint = page.getByTestId('mail-blocked-hint');
+  await expect(hint).toBeVisible();
+  await expect(hint).not.toHaveAttribute('data-junk', '');
+  await expect(hint).toContainText('Remote content blocked (1)');
+  await expect(page.getByTestId('mail-show-images')).toHaveText('Show images');
 });
