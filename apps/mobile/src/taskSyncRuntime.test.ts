@@ -51,6 +51,9 @@ vi.mock("@plainva/ui", () => ({
   // OKF 0.2 provenance (plan P3b): the runtime asks the shared helper for the
   // producer name; the real helper reads the app version from PlatformServices.
   plainvaProducer: async (component: string) => `plainva-${component}/test`,
+  // The reconcile line of the diagnostics log (T4) - not what this file tests.
+  formatTaskSync: () => null,
+  logDiagnostic: () => {},
 }));
 
 let settings = { taskDatabase: "Aufgaben.base", defaultNoteType: "Task" };

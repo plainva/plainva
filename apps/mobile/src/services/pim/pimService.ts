@@ -24,7 +24,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, timedDevicePimPort, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -100,7 +100,12 @@ export {
 async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null> {
   // The device account has no credential — the permission is the sign-in
   // (EventKit plan E5/E6), so it is answered before the secret store is asked.
-  if (account.provider === "device") return isDevicePimSupported() ? new DevicePimTarget(devicePimPort()) : null;
+  // Every write to the device's store and every read of a reminder list is
+  // timed into the diagnostics log (plan Befunde 2026-10-06, T4): what the
+  // system answered and how long it took - no title, no list name.
+  if (account.provider === "device") {
+    return isDevicePimSupported() ? new DevicePimTarget(timedDevicePimPort(devicePimPort(), (line) => logDiagnostic("device", line))) : null;
+  }
   const creds = await getPimCredentials(vaultId, account.id);
   if (!creds) return null;
   if (creds.kind === "caldav") {
@@ -122,6 +127,8 @@ export async function startPim(vault: MobileVault): Promise<void> {
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
     parkedMessage: i18n.t("pim.signInRequired"),
     onCycle: (info) => logDiagnostic("pim", formatPimCycle(info)),
+    // The other half of "did a change made in Reminders arrive here" (T4).
+    onDeviceChanged: () => logDiagnostic("device", "store changed, cycle requested"),
   });
 }
 

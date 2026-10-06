@@ -20,7 +20,7 @@ import {
 import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, isExternalVault, type VaultEntry } from "./services/vaultRegistry";
-import { currentVaultFolderPlatform, getVaultFolderPlugin, type VaultFolderAccess } from "./platform/vaultFolder";
+import { currentVaultFolderPlatform, getVaultFolderPlugin, pickVaultFolder, type VaultFolderAccess } from "./platform/vaultFolder";
 import { deleteVault, reloadActiveMobileVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
 import { backupFolderFor, backupState, backupVaultNow, dismissUnreadableBackups, listBackups } from "./services/vaultBackup";
@@ -184,7 +184,7 @@ export function VaultDetailScreen({
     void (async () => {
       const platform = currentVaultFolderPlatform();
       if (!platform || !externalRef) return;
-      const picked = await getVaultFolderPlugin().pickFolder();
+      const picked = await pickVaultFolder();
       if (!picked.picked) return;
       setBusy(true);
       try {

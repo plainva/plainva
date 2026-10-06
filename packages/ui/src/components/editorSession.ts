@@ -30,6 +30,7 @@ import { listKeymap } from "./listKeymap";
 import { listIndentPlugin } from "./listIndent";
 import { textDirectionExtension } from "./textDirectionExtension";
 import { markdownFolding } from "./foldingExtension";
+import { searchPanelOpen } from "@codemirror/search";
 import { searchSetup } from "./searchSetup";
 import { blockHandles } from "./blockHandles";
 import { minimalDocChange } from "../lib/textDiff";
@@ -177,6 +178,12 @@ export interface EditorSessionDeps {
    * new comment would attach to, and only re-renders when that quote changes).
    */
   onSelectionRange?: (range: { from: number; to: number } | null) => void;
+  /**
+   * The find panel opened or closed. The phone's reader floats its controls
+   * over the text; the panel stands at the top of the editor, so the host has
+   * to know it is there and make room (TestFlight 2026-09-27).
+   */
+  onFindPanel?: (open: boolean) => void;
   onPickIcon: (anchor: { x: number; y: number }) => void;
   onPickColor: (anchor: { x: number; y: number }) => void;
   /**
@@ -413,6 +420,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     if (update.docChanged && !update.transactions.some((tr) => tr.annotation(ExternalChange))) {
       deps.current.onDocChanged(update.view);
     }
+    const finding = searchPanelOpen(update.state);
+    if (finding !== searchPanelOpen(update.startState)) deps.current.onFindPanel?.(finding);
     // Floating formatting toolbar over a non-empty selection (#5) — same
     // conditions as the previous inline listener in Editor.tsx.
     if (!(update.selectionSet || update.docChanged || update.focusChanged || update.geometryChanged || update.viewportChanged)) return;

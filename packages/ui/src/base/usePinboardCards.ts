@@ -1,8 +1,20 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { NoteCardData } from "@plainva/core";
 import { cardRevision, pinboardCache, type CardRow, type CardSource, type PinboardCache } from "./pinboardCache";
+import { scrollerOf } from "../lib/scrollerOf";
 
-/** Loads indexed text only for visible cards (plus one screen of overscan). */
+/**
+ * Loads indexed text only for visible cards (plus one screen of overscan).
+ *
+ * "Visible" is measured against the element that really scrolls the board
+ * (`scrollerOf`), not against `root` as handed in: on the phone `root` is as
+ * tall as its cards, so every card of a large board counted as visible, the
+ * whole board was read at once - and with notes of real length the cache then
+ * threw out the first cards to make room for the last ones. The cards on
+ * screen were left as placeholders until something else re-ran the load
+ * (TestFlight 2026-10-04). What is on screen is also reported to the cache
+ * (`keep`), so no budget can take a card away while it is shown.
+ */
 export function usePinboardCards(owner: object, source: CardSource | null | undefined, rows: CardRow[], root: RefObject<HTMLElement | null>) {
   const cache = useMemo(() => pinboardCache(owner), [owner]);
   const [visible, setVisible] = useState<Set<string>>(() => new Set());
@@ -29,14 +41,16 @@ export function usePinboardCards(owner: object, source: CardSource | null | unde
         }
         return next.size === old.size && [...next].every((path) => old.has(path)) ? old : next;
       });
-    }, { root: root.current, rootMargin: "400px 0px" });
+    }, { root: scrollerOf(root.current), rootMargin: "400px 0px" });
     observer.current = io;
     for (const el of elements.current.values()) io.observe(el);
     return () => { io.disconnect(); observer.current = null; };
   }, [root]);
   useEffect(() => {
     let alive = true;
-    const needed = rows.filter((row) => visible.has(String(row["file.path"])) && !cache.get(row));
+    const shown = rows.filter((row) => visible.has(String(row["file.path"])));
+    cache.keep(shown.map((row) => String(row["file.path"])));
+    const needed = shown.filter((row) => !cache.get(row));
     if (!needed.length) return;
     const complete = (failed: boolean) => {
       if (!alive) return;
@@ -74,7 +88,9 @@ export function usePinboardCards(owner: object, source: CardSource | null | unde
 export function usePinboardScroll(root: RefObject<HTMLElement | null>, cache: PinboardCache, key: string) {
   useLayoutEffect(() => {
     const session = cache.session(key);
-    const el = root.current;
+    // The element whose scrollTop means something (see `scrollerOf`); a board
+    // short enough not to scroll has no position to keep.
+    const el = scrollerOf(root.current) ?? root.current;
     if (!el) return;
     el.scrollTo({ top: session.scrollTop });
     if (session.anchor) {

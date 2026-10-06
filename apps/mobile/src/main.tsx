@@ -10,7 +10,7 @@ import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import "./mobile.css";
-import { logDiagnostic, removeRetiredStorage, setPlatformServices, ToastHost } from "@plainva/ui";
+import { installCompositionEnterGuard, logDiagnostic, removeRetiredStorage, setPlatformServices, ToastHost } from "@plainva/ui";
 import { initMobileSettings } from "./services/mobileSettings";
 import { initWindowClass } from "./services/windowClass";
 import { capacitorSettingsStore } from "./platform/capacitorPlatform";
@@ -152,6 +152,9 @@ async function boot(): Promise<void> {
   // Before the first paint: a stylesheet keyed on the window class must not
   // see a phone layout for one frame on a tablet.
   initWindowClass();
+  // The Enter that confirms a Japanese/Chinese/Korean composition is the input
+  // method's, not a "submit" (lib/compositionEnter.ts).
+  installCompositionEnterGuard();
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
       <FatalBoundary>

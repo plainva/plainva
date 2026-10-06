@@ -36,6 +36,29 @@ describe("pinboard navigation cache", () => {
     expect(cache.session("board#one")).toMatchObject({ labels: ["one"], search: "word", scrollTop: 700, anchor: { path: "c", offset: -30 } });
     expect(cache.session("board#one").heights.get("c")).toBe(222);
   });
+  it("never takes a card away while the board shows it, whatever the budget says", async () => {
+    // TestFlight 2026-10-04: a board of long notes read its last cards and
+    // dropped its first to stay under the byte budget - the first were the
+    // ones on screen, and they stood as placeholders.
+    const source = { getCardData: async (paths: string[]) => Object.fromEntries(paths.map((path) => [path, data("x".repeat(1000))])) };
+    const byCount = new PinboardCache(2);
+    byCount.keep(["a", "b"]);
+    await byCount.load(source, [row("a"), row("b"), row("c"), row("d")]);
+    expect(byCount.get(row("a"))).toBeDefined();
+    expect(byCount.get(row("b"))).toBeDefined();
+    // What is not on screen still pays for the budget.
+    expect(byCount.get(row("c"))).toBeUndefined();
+    const byBytes = new PinboardCache(384, 3000);
+    byBytes.keep(["a", "b"]);
+    await byBytes.load(source, [row("a"), row("b"), row("c"), row("d")]);
+    expect(byBytes.get(row("a"))?.content.length).toBe(1000);
+    expect(byBytes.get(row("b"))).toBeDefined();
+    // Once the board has moved on, the next load makes room again.
+    byBytes.keep(["e"]);
+    await byBytes.load(source, [row("e")]);
+    expect(byBytes.get(row("e"))).toBeDefined();
+    expect(byBytes.get(row("a"))).toBeUndefined();
+  });
   it("rejects old completions after a newer revision and after vault disposal", async () => {
     const owner = {};
     const cache = pinboardCache(owner);

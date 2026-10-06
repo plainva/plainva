@@ -30,6 +30,8 @@ export class PinboardCache {
   private baseBytes = 0;
   private bytes = 0;
   private generation = 0;
+  /** Paths of the cards a board shows right now; the budget never takes these. */
+  private kept = new Set<string>();
   constructor(private maxCards = 384, private maxBytes = 8 * 1024 * 1024) {}
   get(row: CardRow): NoteCardData | undefined {
     const entry = this.cards.get(String(row["file.path"]));
@@ -43,6 +45,23 @@ export class PinboardCache {
       while (this.sessions.size > 20) this.sessions.delete(this.sessions.keys().next().value!);
     }
     return value;
+  }
+  /**
+   * Says which cards are on screen. The two budgets (count and bytes) exist to
+   * bound what is remembered of cards that scrolled AWAY; applied to the cards
+   * being shown they turn a full screen back into placeholders - a board of
+   * long notes loaded its last cards and dropped its first, which were the
+   * ones on screen (TestFlight 2026-10-04).
+   */
+  keep(paths: Iterable<string>) { this.kept = new Set(paths); }
+  /** Drops the oldest cards that are not on screen until both budgets hold. */
+  private trim() {
+    if (this.cards.size <= this.maxCards && this.bytes <= this.maxBytes) return;
+    for (const [path, entry] of this.cards) {
+      if (this.kept.has(path)) continue;
+      this.bytes -= entry.bytes; this.cards.delete(path);
+      if (this.cards.size <= this.maxCards && this.bytes <= this.maxBytes) return;
+    }
   }
   updateSession(key: string, patch: Partial<PinboardSession>) { Object.assign(this.session(key), patch); }
   base<T>(key: string): T | undefined { return this.bases.get(key)?.value as T | undefined; }
@@ -85,10 +104,7 @@ export class PinboardCache {
           const bytes = card.content.length * 2 + JSON.stringify(card.tags).length * 2 + 128;
           this.cards.delete(path);
           this.cards.set(path, { revision, data: card, bytes }); this.bytes += bytes;
-          while (this.cards.size > this.maxCards || this.bytes > this.maxBytes) {
-            const oldest = this.cards.keys().next().value!;
-            this.bytes -= this.cards.get(oldest)!.bytes; this.cards.delete(oldest);
-          }
+          this.trim();
         }
       }).finally(() => {
         for (const row of batch) {
@@ -101,7 +117,7 @@ export class PinboardCache {
     }
     await Promise.all(waiting);
   }
-  clear() { this.generation++; this.cards.clear(); this.pending.clear(); this.sessions.clear(); this.bases.clear(); this.baseBytes = 0; this.bytes = 0; }
+  clear() { this.generation++; this.kept.clear(); this.cards.clear(); this.pending.clear(); this.sessions.clear(); this.bases.clear(); this.baseBytes = 0; this.bytes = 0; }
 }
 export function pinboardCache(owner: object): PinboardCache {
   let cache = caches.get(owner);

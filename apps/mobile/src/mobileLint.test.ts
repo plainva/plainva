@@ -1937,7 +1937,9 @@ describe("the navigation capsule and the FAB", () => {
     // runs the full height, so without this its first icon sits under the
     // status bar, and on a notched tablet under the camera (finding 2).
     const rail = rule(css(), ".m-tabbar--rail {");
-    expect(rail).toMatch(/padding:[^;]*env\(safe-area-inset-top\)/s);
+    // The inset is read through the one token since 2026-10-06 (see the
+    // safe-area guard at the end of this file), no longer from the environment.
+    expect(rail).toMatch(/padding:[^;]*var\(--m-safe-top\)/s);
     expect(rail).toMatch(/padding:[^;]*env\(safe-area-inset-bottom\)/s);
   });
 
@@ -3279,5 +3281,47 @@ describe("a name the phone invents follows the app's language (issue 105)", () =
       offenders,
       `these invent a German name in every language — use a catalog key: ${offenders.join(", ")}`,
     ).toEqual([]);
+  });
+});
+
+/**
+ * The strip the system draws over the top of the screen has ONE name
+ * (TestFlight 2026-09-27: the note's find panel under the Dynamic Island).
+ * Every rule that keeps clear of it reads `--m-safe-top`; the environment
+ * value is read once, where the token is defined. That is what lets
+ * `e2e-prod/safe-top.spec.ts` give a browser a notch and walk the screens -
+ * a rule that read the environment itself would stay at 0 there and look fine.
+ */
+describe("the top safe area is one token", () => {
+  const css = readFileSync(join(SRC, "mobile.css"), "utf8");
+
+  it("reads the environment value exactly once, in the token", () => {
+    const uses = css.split("\n").filter((line) => line.includes("env(safe-area-inset-top"));
+    expect(uses.map((line) => line.trim())).toEqual(["--m-safe-top: env(safe-area-inset-top, 0px);"]);
+  });
+
+  it("is what the app bar, the rail and the share notice keep clear of", () => {
+    expect(css).toMatch(/--m-header-safe-top: var\(--m-safe-top\);/);
+    expect(css).toMatch(/\.m-share-notice \{[^}]*var\(--m-safe-top\)/);
+    expect(css).toMatch(/\.m-tabbar--rail \{[^}]*var\(--m-safe-top\)/s);
+  });
+
+  it("no screen sets the inset inline either", () => {
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) && readFileSync(full, "utf8").includes("safe-area-inset-top")) offenders.push(name);
+      }
+    };
+    walk(SRC);
+    expect(offenders).toEqual([]);
+  });
+
+  it("the find panel takes the note out of the floating-bar mode", () => {
+    const screen = readFileSync(join(SRC, "screens", "NoteScreen.tsx"), "utf8");
+    expect(screen).toMatch(/const readerOverlay = [^;]*&& !finding;/);
+    expect(screen).toContain("onFindPanelChange={setFinding}");
   });
 });

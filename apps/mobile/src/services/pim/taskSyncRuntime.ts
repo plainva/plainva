@@ -8,6 +8,8 @@ import {
   cancelInFlightTaskDeletion,
   plainvaProducer,
   afterTaskSyncResume,
+  formatTaskSync,
+  logDiagnostic,
   type TaskDeletionOrder,
 } from "@plainva/ui";
 import type { PimAccountRow, PimCacheRepository, IPimTarget } from "@plainva/core";
@@ -86,7 +88,14 @@ export async function runMobileTaskSync(): Promise<void> {
     const taskDbPath = getMobileSettings().taskDatabase.trim();
     if (!taskDbPath) return;
     const query = w.vault.queryService;
-    if (!query) return;
+    if (!query) {
+      // Identical lines collapse in the log, so a vault that is still opening
+      // leaves one line, not one per cycle.
+      logDiagnostic("tasks", "reconcile skipped: no index yet");
+      return;
+    }
+    const started = performance.now();
+    const mayCreateNotes = firstSyncSettled() && w.vault.indexSettled();
 
     const res = await runTaskSync({
       // Through the sync chain, not the raw adapter: a note written raw would
@@ -113,7 +122,7 @@ export async function runMobileTaskSync(): Promise<void> {
       generatedBy: await plainvaProducer("task-sync"),
       // One query instead of reading every note once per task.
       anchorsByUid: await query.getTaskAnchors(),
-      mayCreateNotes: firstSyncSettled() && w.vault.indexSettled(),
+      mayCreateNotes,
       // Deletions the reader confirmed here whose provider task should follow.
       // The reconciler owns the call — it has the target, the etag and the
       // CalDAV href, and it retries next cycle.
@@ -130,11 +139,16 @@ export async function runMobileTaskSync(): Promise<void> {
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     }
     for (const err of res.errors) console.warn("[mobile] task sync:", err);
+    // What the reconcile did, for the diagnostics export (T4): until now the
+    // way from a task to the provider left nothing a tester could send.
+    const line = formatTaskSync(res, performance.now() - started, mayCreateNotes);
+    if (line) logDiagnostic("tasks", `reconcile: ${line}`);
     // The task screens listen for this to re-query — the index diff alone is
     // not a reliable refresh signal for them.
     window.dispatchEvent(new CustomEvent("m-task-sync-done"));
   } catch (e) {
     console.warn("[mobile] task sync failed", e);
+    logDiagnostic("tasks", `reconcile failed: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
     running = false;
     if (queued) {

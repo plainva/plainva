@@ -1,5 +1,5 @@
 import { openContextMenu } from "./contextMenuStore";
-import { findEditable, selectedText, wantsSystemTextMenu } from "@plainva/ui";
+import { findEditable, installCompositionEnterGuard, selectedText, wantsSystemTextMenu } from "@plainva/ui";
 
 /**
  * Webview hardening (2026-07-07): make the shipped app feel like a native
@@ -89,6 +89,8 @@ function onContextMenu(e: MouseEvent): void {
   openContextMenu({ x: e.clientX, y: e.clientY, selection, editable });
 }
 
+let uninstallCompositionGuard: (() => void) | null = null;
+
 export function initWebviewHardening(): void {
   if (installed) return;
   installed = true;
@@ -96,11 +98,17 @@ export function initWebviewHardening(): void {
   window.addEventListener("keydown", onKeyDown, true);
   // Bubble phase so app context menus (which run first) can opt out via preventDefault.
   document.addEventListener("contextmenu", onContextMenu);
+  // The Enter that confirms a Japanese/Chinese/Korean composition is the input
+  // method's, not a "submit" (lib/compositionEnter.ts). The phone installs the
+  // same guard at start.
+  uninstallCompositionGuard = installCompositionEnterGuard();
 }
 
 /** Test hook. */
 export function resetWebviewHardeningForTests(): void {
   installed = false;
+  uninstallCompositionGuard?.();
+  uninstallCompositionGuard = null;
   window.removeEventListener("keydown", onKeyDown, true);
   document.removeEventListener("contextmenu", onContextMenu);
 }

@@ -35,7 +35,7 @@ import {
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
-import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, type VaultFolderAccess } from "../platform/vaultFolder";
+import { currentVaultFolderPlatform, getVaultFolderPlugin, isVaultFolderSupported, pickVaultFolder, type VaultFolderAccess } from "../platform/vaultFolder";
 import { CapacitorSqliteAdapter } from "../adapters/CapacitorSqliteAdapter";
 import { FixtureSqliteAdapter, isFixtureSqliteAvailable } from "../adapters/FixtureSqliteAdapter";
 import { Directory, Filesystem } from "@capacitor/filesystem";
@@ -382,7 +382,7 @@ export async function chooseVaultPlace(): Promise<VaultPlace | null> {
 export async function createVaultInPickedFolder(): Promise<string | null> {
   const platform = currentVaultFolderPlatform();
   if (!platform) return null;
-  const picked = await getVaultFolderPlugin().pickFolder();
+  const picked = await pickVaultFolder();
   if (!picked.picked) {
     if (picked.reason === "notPickable") toast.error(i18n.t("mobile.vaultFolderNotPickable"));
     return null;

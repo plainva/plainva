@@ -3,7 +3,7 @@ import { devicePermissionKey } from "../services/pim/devicePermission";
 import { devicePimAuthorization, isDevicePimSupported, openDevicePimSettings, type DevicePimStatus } from "../platform/devicePim";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
-import { Banner, Button, calendarTargetForFamily, classifyAuthError, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, calendarTargetForFamily, classifyAuthError, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { serviceConnectionMessage } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
@@ -476,7 +476,8 @@ export function PimAccountsScreen({
   const reconnectFor = (provider: string) => (reconnect?.provider === provider ? reconnect : null);
 
   const connectCaldav = async () => {
-    const u = url.trim();
+    // An address as a machine reads it (lib/machineText.ts).
+    const u = foldMachineText(url);
     if (!u || !user.trim() || !pass) return;
     setBusy(true);
     try {
@@ -1017,7 +1018,7 @@ export function PimAccountsScreen({
               <>
                 <p className="m-hint">{t("pim.connectCaldavHint", { defaultValue: "CalDAV mit einem App-Passwort verbinden (z. B. Fastmail, Nextcloud, iCloud). Google/Microsoft folgen über die Anmeldung im Browser." })}</p>
                 <SettingField label={t("pim.caldavUrl", { defaultValue: "CalDAV-URL" })}>
-                  <TextInput onChange={(e) => setUrl(e.target.value)} value={url} placeholder="https://caldav.fastmail.com/dav/calendars/user/name/" />
+                  <TextInput purpose="address" inputMode="url" onChange={(e) => setUrl(e.target.value)} value={url} placeholder="https://caldav.fastmail.com/dav/calendars/user/name/" />
                 </SettingField>
                 <SettingField label={t("mobile.syncUser", { defaultValue: "Benutzer" })}>
                   <TextInput onChange={(e) => setUser(e.target.value)} value={user} />

@@ -10,6 +10,7 @@ import {
 import { cx } from "./cx";
 import { fitFieldHeight } from "../../lib/growingField";
 import { useSpellcheck, type WritingPurpose } from "../../lib/spellcheck";
+import { machineFieldProps } from "../../lib/machineText";
 
 /**
  * Form fields (plan Designsprache P2; metric roles sweep 2026-07-19, E10):
@@ -40,8 +41,10 @@ export const TextInput = forwardRef<
   Omit<InputHTMLAttributes<HTMLInputElement>, "spellCheck"> & FieldRole & FieldPurpose
 >(function TextInput({ className, compact, purpose = "name", ...rest }, ref) {
   const spellCheck = useSpellcheck(purpose);
+  // An address, a key or code is not a word: the keyboard must not capitalise
+  // or correct it (lib/machineText.ts). A call site may still say otherwise.
   return (
-    <input ref={ref} className={cx("pv-field", compact && "pv-field--compact", className)} spellCheck={spellCheck} {...rest} />
+    <input ref={ref} className={cx("pv-field", compact && "pv-field--compact", className)} spellCheck={spellCheck} {...machineFieldProps(purpose)} {...rest} />
   );
 });
 

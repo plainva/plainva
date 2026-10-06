@@ -1039,6 +1039,8 @@ export function NoteScreen({
   };
 
   const [readerBlocked, setReaderBlocked] = useState(false);
+  /** The editor's find panel is open (see `readerOverlay`). */
+  const [finding, setFinding] = useState(false);
   const readerConflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
   /** The load failed: no text on this screen, only its states ("Moved?", not found). */
   const loadFailed = doc === null && loadError;
@@ -1046,7 +1048,13 @@ export function NoteScreen({
   // flow below the bar instead — laid under it, they lost their icon and
   // title (issue 110: "Moved?" was the part that was hidden) — and so does a
   // vanished file's question, which must not scroll away with the bar.
-  const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince;
+  //
+  // The find panel is the third case (TestFlight 2026-09-27): it stands at the
+  // top of the EDITOR, and a floating bar means the editor starts at the top
+  // of the screen. The panel was drawn over the bar and under the clock and
+  // the Dynamic Island, its field and its close button out of reach. While it
+  // is open the bar stands in the flow and the panel directly under it.
+  const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince && !finding;
   const { chromeRef, away: chromeAway, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview);
   const page = (
     <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
@@ -1221,6 +1229,7 @@ export function NoteScreen({
       {doc !== null && (
         <EditorHost
           onReaderBlockedChange={setReaderBlocked}
+          onFindPanelChange={setFinding}
           onVanished={noticeVanished}
           editable={(editing && workspaceCanWrite && !managedIndex) || suggesting}
           initialDoc={doc}

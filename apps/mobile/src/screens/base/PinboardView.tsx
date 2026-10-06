@@ -3,12 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Pin } from "lucide-react";
 import type { NoteCardData } from "@plainva/core";
 import { mimeTypeForPath, readFrontmatterPath, setFrontmatterPath, deleteFrontmatterPath } from "@plainva/core";
-import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
+import { AudioEmbed, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, Button, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, NoteCardBody, noteDisplayName, toast, toggleTaskAtIndex, orderCards, PALETTE_SWATCH, type ParsedNoteCard, type PinboardDropSlot, ScrollEdge, scrollerOf, SectionLabel, spliceIntoSequence, splitMultiValue } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { mActions, mMultiSelect, mSelect } from "../../services/mobileDialogs";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { vaultOps, type MobileVault } from "../../services/vaultService";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
+import { holdGestureEnd, holdMoved } from "../../lib/holdGesture";
 
 /**
  * Mobile pinboard view (plan Pinboard P6): the Keep-style board over the SAME
@@ -19,7 +20,6 @@ import { LONG_PRESS_MS } from "../../lib/useLongPress";
  * pattern); checkboxes toggle right on the card.
  */
 
-const MOVE_SLOP_PX = 8;
 
 interface CardVM {
   path: string;
@@ -470,7 +470,7 @@ export function PinboardView({
   }, [sections, order, pinnedList, presentSet, persistSections, editLabels, pickColor, vault, t, onMutated]);
 
   // ── Long-press: no movement = action sheet, movement = drag reorder ──
-  const [drag, setDrag] = useState<{ path: string; x: number; y: number } | null>(null);
+  const [drag, setDrag] = useState<{ path: string; x: number; y: number; moved: boolean } | null>(null);
   const [dropSlot, setDropSlot] = useState<{ section: "pinned" | "unpinned"; slot: PinboardDropSlot } | null>(null);
   const canDrag = !hasSort;
   const slotAt = useCallback((x: number, y: number): { section: "pinned" | "unpinned"; slot: PinboardDropSlot } | null => {
@@ -523,43 +523,48 @@ export function PinboardView({
       d.timer = window.setTimeout(() => {
         d.armed = true;
         haptics.medium();
-        setDrag({ path: d.path, x: d.startX, y: d.startY });
+        setDrag({ path: d.path, x: d.startX, y: d.startY, moved: false });
       }, LONG_PRESS_MS);
     };
     const onMove = (e: PointerEvent) => {
       if (!d.armed) {
         // Real movement before the arm = a scroll; give the gesture back.
-        if (d.timer !== null && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > MOVE_SLOP_PX) {
+        if (d.timer !== null && holdMoved(d.startX, d.startY, e.clientX, e.clientY)) {
           window.clearTimeout(d.timer);
           d.timer = null;
         }
         return;
       }
+      // Movement is recorded BEFORE asking whether this board can be
+      // reordered: on a sorted board there is nothing to carry, but a finger
+      // that left its place still did not ask for the menu.
+      if (!d.moved && !holdMoved(d.startX, d.startY, e.clientX, e.clientY)) return;
+      d.moved = true;
       if (!canDrag) return;
-      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > MOVE_SLOP_PX) d.moved = true;
-      setDrag((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : prev));
+      setDrag((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY, moved: true } : prev));
       const hit = slotAt(e.clientX, e.clientY);
       setDropSlot(hit && hit.section === d.section ? hit : null);
-      // Auto-scroll the page near its vertical edges.
-      const rect = el.getBoundingClientRect();
-      if (e.clientY < rect.top + 56) el.scrollTop -= 12;
-      else if (e.clientY > rect.bottom - 56) el.scrollTop += 12;
+      // Auto-scroll near the vertical edges - of the element that scrolls,
+      // which is the database page, not this board (see `scrollerOf`).
+      const scroller = scrollerOf(el) ?? el;
+      const rect = scroller.getBoundingClientRect();
+      if (e.clientY < rect.top + 56) scroller.scrollTop -= 12;
+      else if (e.clientY > rect.bottom - 56) scroller.scrollTop += 12;
     };
     const onTouchMove = (e: TouchEvent) => {
       if (d.armed && e.cancelable) e.preventDefault();
     };
     const onUp = (e: PointerEvent) => {
-      const wasArmed = d.armed;
-      const moved = d.moved;
+      const outcome = holdGestureEnd({ armed: d.armed, moved: d.moved, cancelled: false });
       const path = d.path;
       const section = d.section;
-      const hit = wasArmed && moved ? slotAt(e.clientX, e.clientY) : null;
+      const hit = outcome === "move" && canDrag ? slotAt(e.clientX, e.clientY) : null;
       clear();
-      if (!wasArmed) return; // plain tap — the card's click opens the note
-      if (!moved) {
+      if (outcome === "menu") {
         void openActions(path);
         return;
       }
+      // "tap": the card's click opens the note. "move" without a slot: nothing.
       if (!hit || hit.section !== section) return;
       haptics.light();
       const next = spliceIntoSequence(sections[section], [path], hit.slot);
@@ -745,7 +750,7 @@ export function PinboardView({
         </>
       )}
       {renderSection("unpinned", columns.unpinned)}
-      {drag && (
+      {drag?.moved && (
         <div aria-hidden className="m-board-ghost" style={{ left: drag.x + 10, top: drag.y + 10 }}>
           {cards.get(drag.path)?.title ?? noteDisplayName(drag.path.split("/").pop() ?? drag.path)}
         </div>

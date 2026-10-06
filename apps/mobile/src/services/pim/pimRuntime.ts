@@ -31,6 +31,8 @@ export interface PimRuntimeWiring {
   parkedMessage: string;
   /** One line per finished cycle for the diagnostics log. */
   onCycle(info: PimCycleInfo): void;
+  /** The device's calendar/reminder store reported a change (diagnostics only). */
+  onDeviceChanged?(): void;
 }
 
 type PimUiStatus = "off" | "idle" | "syncing" | "error";
@@ -116,7 +118,7 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
     worker.start();
     // "Something changed" from the device's store is the trigger the plan
     // names instead of a change feed: the next cycle runs now, not in N minutes.
-    if (isDevicePimSupported()) stopDeviceTrigger = onDevicePimChanged(() => void worker.triggerImmediate());
+    if (isDevicePimSupported()) stopDeviceTrigger = onDevicePimChanged(() => { wiring.onDeviceChanged?.(); void worker.triggerImmediate(); });
   } else {
     setPimState({ status: "off", message: null });
   }
