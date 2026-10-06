@@ -31,7 +31,7 @@ From a checkout (or git worktree) of the branch:
 pnpm --filter desktop tauri:labs
 ```
 
-Vite serves the Labs build on port 1450 (`dev:labs`); the dev build keeps 1440, and 1420 stays free for the pre-push E2E. Release, dev build and Labs run at the same time. Only one of them can use the fixed Dropbox loopback port 41953 or the global quick capture shortcut at a time.
+Vite serves the Labs build on port 1450 (`dev:labs`); the dev build keeps 1440, and 1420 stays free for the local Playwright E2E, which starts its own server there and runs only when started by hand (`pnpm --filter desktop test:e2e`, also part of `pnpm run test:all`). Release, dev build and Labs run at the same time. Only one of them can use the fixed Dropbox loopback port 41953 or the global quick capture shortcut at a time.
 
 ## Guards on main
 
@@ -58,6 +58,6 @@ gh workflow run labs-mobile.yml --ref feature/ai-harness
 
 ## Working with two trees
 
-- Always push with `CI=1 git push`. Without `CI`, Playwright reuses a server it finds on 1420, 4173 or 4174 — possibly the other tree's — and tests the wrong code; with `CI=1` it fails loudly instead. Push the two trees one after the other.
+- Push with a plain `git push`; `CI=1` is no longer needed. The pre-push hook (`.husky/pre-push`) runs lint, typecheck and the unit tests of the packages that differ from `origin/main`, plus everything that depends on them, and starts no Playwright server. The full suite runs in CI, and `main` only accepts a commit whose CI is green. That leaves a suite started by hand (`pnpm run test:all`): without `CI`, Playwright reuses a server it finds on 1420, 4173 or 4174 — possibly the other tree's — and tests the wrong code; with `CI=1` it fails loudly instead.
 - A new worktree has no git hooks until `pnpm install` has run in it (`core.hooksPath=.husky/_`).
 - Bring `main` into a long-lived branch by merge, never by rebase, so logged commit hashes stay valid.
