@@ -107,10 +107,12 @@ jobs:
 
       # A test that failed once and passed on its retry used to leave nothing
       # behind but a line in the log (E27, Befunde 2026-09-24). Every Playwright
-      # config above records a trace on the first retry of a test
-      # (`trace: "on-first-retry"`), each run into its own folder under
-      # test-results/, so a trace exists exactly when a run failed or had to
-      # retry — and then the results of all three runs go up as one artifact,
+      # config above traces the FIRST run of each test in CI and keeps the
+      # trace when that run fails (`trace: "retain-on-first-failure"`; until
+      # 2026-10-06 it was the retry that was traced, i.e. the attempt that
+      # passed). Each run writes into its own folder under test-results/, so a
+      # trace exists exactly when a first attempt failed — and then the
+      # results of all three runs go up as one artifact,
       # kept for a week. Open a trace with `npx playwright show-trace <trace.zip>`.
       # A green run without a retry uploads nothing.
       - name: Look for Playwright traces

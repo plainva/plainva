@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openProbePage } from "./fixtures/openProbePage";
 import type { PropertyProbeWindow } from "./fixtures/propertyProbe";
 
 test.use({ hasTouch: true });
@@ -10,8 +11,7 @@ async function open(page: Page) {
     window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;
     await import('/e2e/fixtures/propertyProbe.tsx');</script></body></html>` }));
   page.on("pageerror", error => console.log("Property probe:", error.message));
-  await page.goto("/__property_probe");
-  await page.waitForFunction(() => !!(window as PropertyProbeWindow).propertyProbe);
+  await openProbePage(page, "/__property_probe", () => !!(window as PropertyProbeWindow).propertyProbe);
 }
 
 for (const shell of ["desktop", "mobile"] as const) {

@@ -27,7 +27,8 @@ export default defineConfig({
   outputDir: 'test-results/prod',
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    // See playwright.config.ts: the trace of the attempt that FAILED is the one worth keeping.
+    trace: process.env.CI ? 'retain-on-first-failure' : 'on-first-retry',
   },
   projects: [
     {

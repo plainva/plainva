@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openProbePage } from "./fixtures/openProbePage";
 import type { ListProbeWindow } from "./fixtures/listProbe";
 
 async function loadProbe(page: Page) {
@@ -8,8 +9,7 @@ async function loadProbe(page: Page) {
     import RefreshRuntime from '/@react-refresh'; RefreshRuntime.injectIntoGlobalHook(window);
     window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;
     await import('/e2e/fixtures/listProbe.ts');</script></body></html>` }));
-  await page.goto("/__list_geometry");
-  await page.waitForFunction(() => !!(window as ListProbeWindow).listProbe);
+  await openProbePage(page, "/__list_geometry", () => !!(window as ListProbeWindow).listProbe);
 }
 async function quiet(page: Page) {
   // Compare idle windows after layout, rather than using total startup updates.
