@@ -73,6 +73,12 @@ credentials from the environment".
 
 ### Client
 
+*The client was built in October 2026 and is recorded in
+[ADR 0024](0024-mcp-client-foreign-servers.md), which replaces the three
+points below where they differ: an own protocol client behind native ports
+instead of the SDK (§8), the pin checked before every use (§9), and OAuth as
+the part that follows (§10).*
+
 8. Official TypeScript SDK, specification 2026-07-28 (also 2025-11-25
    servers); stdio and Streamable HTTP; Roots, Sampling and Logging are
    deprecated and not offered. Deny by default; no stdio process starts

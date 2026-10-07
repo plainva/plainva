@@ -2,7 +2,7 @@
 
 Status: built in three layers. The rules and the protocol client are in `packages/core/src/ai/mcp/`; the native side is in the three shells; the stores, the session and the surfaces are in `packages/ui/src/ai/` (`mcpStores`, `mcpRuntime`, `mcpSession`, `mcpTools`, `externalTools`, `externalReview`, `AiExternalReview`, `AiExternalPrompt`). The layers above the rules apply them and add none of their own. Signing in to a remote server with OAuth is the part that follows.
 
-Plainva speaks MCP in two directions. As a **server** it lets AI apps on the same computer read the vault ([ADR 0022](../adr/0022-mcp-server-without-a-network-port.md)). As a **client**, described here, it lets the assistant use tools of servers the user added: an issue tracker, a calendar service, a search API. The two share the tool manifest idea and nothing else; the trust runs in opposite directions.
+Plainva speaks MCP in two directions. As a **server** it lets AI apps on the same computer read the vault ([ADR 0022](../adr/0022-mcp-server-without-a-network-port.md)). As a **client**, described here, it lets the assistant use tools of servers the user added: an issue tracker, a calendar service, a search API. The two share the tool manifest idea and nothing else; the trust runs in opposite directions. The decisions are recorded in [ADR 0024](../adr/0024-mcp-client-foreign-servers.md); what was checked, found and left unverified is in the [security review](MCP_Client_Security_Review.md).
 
 ## Where a foreign server stands
 

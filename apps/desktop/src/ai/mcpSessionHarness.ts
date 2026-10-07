@@ -187,17 +187,21 @@ export interface McpSessionOptions {
   /** The server behind the tracker's address; `tracker()` where none is given. */
   server?: ScriptedMcpServer;
   profiles?: Record<string, { providerId: string; model: string }>;
-  /** Further servers, by address. */
+  /** Further servers: a remote one by its address, a program by its command line. */
   others?: Record<string, ScriptedMcpServer>;
+  /** The shell starts programs, as the desktop does. */
+  programs?: boolean;
 }
 
 /** A session in an open vault, with the scripted model's answers and a scripted server behind the native side. */
 export async function mcpSession(script: EgressChunk[][], options: McpSessionOptions = {}) {
   const server = options.server ?? tracker();
-  const native = scriptedNative((target) => (target === TRACKER_URL ? server : (options.others?.[target] ?? null)));
+  const native = scriptedNative((target) => (target === TRACKER_URL ? server : (options.others?.[target] ?? null)), { programs: options.programs });
   const files = memoryFiles();
   const vault = vaultHost(files);
   const fake = fakeEgress(script);
+  /** The session's clock: a test moves it by hand. */
+  const clock = { at: Date.parse("2026-10-07T10:00:00Z") };
   let ids = 0;
   let stored: unknown = { ...DEFAULT_AI_APP_SETTINGS, enabled: true, providers: ["anthropic", "ollama"], profiles: options.profiles ?? { balanced: CLOUD } };
   const s = new AiSession({
@@ -211,7 +215,7 @@ export async function mcpSession(script: EgressChunk[][], options: McpSessionOpt
     defaults: DEFAULT_AI_APP_SETTINGS,
     language: () => "English",
     today: () => "2026-10-07",
-    now: () => new Date("2026-10-07T10:00:00Z"),
+    now: () => new Date(clock.at),
     newId: () => `id${++ids}`,
     mcp: { native: native.native, store: createMcpDeviceStore(files), version: async () => "0.9.0" },
   });
@@ -222,16 +226,22 @@ export async function mcpSession(script: EgressChunk[][], options: McpSessionOpt
   await s.load();
   await s.attachVault(vault.host);
   await new Promise((resolve) => setTimeout(resolve, 0));
-  return { s, fake, server, native, files, vault };
+  return { s, fake, server, native, files, vault, clock };
 }
 
-/** Adds the tracker, approves what it lists and lets this vault use it — as the settings would. */
+/** Adds a remote server, approves what it lists and lets this vault use it — as the settings would. Answers its id. */
+export async function connectServer(s: AiSession, label: string, url: string, grant: Partial<McpServerGrant>, enabled = true): Promise<string> {
+  const added = await s.mcp.addHttp(label, url, "", CONFIRM);
+  if (!added.ok) throw new Error(`${label} was not added`);
+  const look = await s.mcp.inspect(added.id);
+  if (!(await s.mcp.approve(added.id, look.listing))) throw new Error(`${label} was not approved`);
+  await s.mcp.setVault(added.id, { enabled, grant: { ...EMPTY_MCP_GRANT, ...grant } });
+  return added.id;
+}
+
+/** The tracker, connected: added, approved as it lists itself, and used by this vault. */
 export async function connect(s: AiSession, grant: Partial<McpServerGrant> = { tools: ["search_issues"] }, enabled = true): Promise<void> {
-  const added = await s.mcp.addHttp("Tracker", TRACKER_URL, "", CONFIRM);
-  if (!added.ok || added.id !== "tracker") throw new Error("the tracker was not added");
-  const look = await s.mcp.inspect("tracker");
-  if (!(await s.mcp.approve("tracker", look.listing))) throw new Error("the tracker was not approved");
-  await s.mcp.setVault("tracker", { enabled, grant: { ...EMPTY_MCP_GRANT, ...grant } });
+  if ((await connectServer(s, "Tracker", TRACKER_URL, grant, enabled)) !== "tracker") throw new Error("the tracker got another id");
 }
 
 /** Answers every question as it comes and keeps what was asked. */
