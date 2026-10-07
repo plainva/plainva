@@ -357,3 +357,23 @@ export function captureVocabularyFrom(
     edgeOnly,
   };
 }
+
+/**
+ * The vocabulary of a language from its locale file, through whatever
+ * translator the caller has. The capture field's hook and a capture without a
+ * field — a task somebody dictated to the system's assistant — build the
+ * same one, so a line means the same task wherever it was said.
+ */
+export function captureVocabularyOf(t: (key: string) => string, language: string): CaptureVocabulary {
+  return captureVocabularyFrom(
+    {
+      today: t("tasks.captureToday"), tomorrow: t("tasks.captureTomorrow"), dayAfterTomorrow: t("tasks.captureDayAfterTomorrow"),
+      nextWeek: t("tasks.captureNextWeek"), inDays: t("tasks.captureInDays"), inWeeks: t("tasks.captureInWeeks"),
+      daily: t("tasks.captureDaily"), weekly: t("tasks.captureWeekly"), monthly: t("tasks.captureMonthly"), yearly: t("tasks.captureYearly"),
+      every: t("tasks.captureEvery"), everyNDays: t("tasks.captureEveryNDays"), everyNWeeks: t("tasks.captureEveryNWeeks"),
+      oclock: t("tasks.captureOclock"), at: t("tasks.captureAt"),
+    },
+    language,
+    t("tasks.captureWeekdays"),
+  );
+}

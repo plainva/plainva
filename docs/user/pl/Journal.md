@@ -1,6 +1,6 @@
 # Dziennik
 
-Stan na: 2026-09-22
+Stan na: 2026-10-07
 
 Dziennik to szybki sposób na zapisanie czegoś bez otwierania notatki: myśl, telefon, zdanie o dniu. Każdy wpis to zwykły wiersz listy z godziną — `- 14:05 Router stoi w piwnicy` — pod nagłówkiem **dzisiejszej notatki dziennej**. Nie ma nowego formatu pliku ani bazy danych: wpisy żyją w Twoich notatkach dziennych, czytelne w dowolnym edytorze i zgodne z wtyczkami Obsidian do prowadzenia dziennika (Thino, Knomo).
 
@@ -11,6 +11,7 @@ Jedno pole, jeden **Enter**. Godzinę stempluje Plainva; Ty wpisujesz tylko teks
 - **Na komputerze:** `Ctrl+Shift+J` otwiera pole **Wpis dziennika** z dowolnego miejsca w Plainvie. To samo pole znajduje się w menu **＋** paska bocznego, w palecie poleceń i w menu zasobnika systemowego (**Wpis dziennika**). `Enter` zapisuje, `Shift+Enter` zaczyna nowy wiersz, `Esc` odrzuca.
 - **Na telefonie:** przycisk **＋** oferuje **Wpis dziennika**; ekran dziennika ma własny przycisk pióra. Długie przytrzymanie ikony aplikacji również oferuje **Wpis dziennika** — na Androidzie jako skrót aplikacji, na iOS jako szybka akcja. `Enter` pozostaje tam złamaniem wiersza; **Zapisz wpis** zapisuje.
 - **Z arkusza udostępniania (telefon):** wybierz Plainva i zaznacz **Do dziennika** — tekst i link stają się wpisem, udostępnione pliki trafiają do folderu załączników i zostają osadzone.
+- **Przez Siri i Skróty (iPhone, iPad):** powiedz „Dodaj wpis do dziennika w Plainva” albo użyj czynności **Dodaj wpis do dziennika**. Plainva zapisze wpis przy następnym otwarciu, z minutą, w której został powiedziany — zob. [Aplikacja mobilna](Mobile_App.md).
 - **Ze zdjęciem:** pole na telefonie ma przycisk **Dodaj zdjęcie**; na komputerze wklejasz obraz ze schowka do pola. Zdjęcie trafia tam, gdzie inne załączniki, i zostaje osadzone we wpisie.
 
 Jeśli dzisiejsza notatka dzienna jeszcze nie istnieje, zostaje utworzona po drodze — z Twojego szablonu notatki dziennej, bez zadawania jego pytań. Po zapisaniu komunikat mówi **Wpis zapisany** i oferuje **Cofnij**.

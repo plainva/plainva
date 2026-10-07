@@ -211,6 +211,8 @@ Uma imagem pertence às notas que a mostram: uma imagem incorporada em uma nota 
 
 Uma segunda regra, `web: deny` — **Acesso à web: nunca** nas configurações —, mantém uma nota ou uma pasta fora de toda conversa que pode usar a internet.
 
+No iPhone e no iPad, as mesmas duas regras decidem quais títulos de notas a Siri e os Atalhos podem encontrar, depois que você ativa isso: uma nota mantida fora da nuvem ou do acesso à web nunca é informada a eles. Veja “Siri e Atalhos” em [O app mobile](Mobile_App.md).
+
 ## Histórico e uso
 
 As conversas ficam neste dispositivo, por vault — nunca no vault e nunca sincronizadas. **Manter conversas** decide por quanto tempo; você pode excluir conversas individuais na lista ou todas as de um vault de uma vez. **Uso neste mês** soma os tokens por provedor e modelo.

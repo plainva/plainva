@@ -1,6 +1,6 @@
 # Journal
 
-Stand: 2026-09-22
+Stand: 2026-10-07
 
 Das Journal ist der schnelle Weg, etwas festzuhalten, ohne eine Notiz zu öffnen: ein Gedanke, ein Telefonat, eine Zeile zum Tag. Jeder Eintrag ist eine gewöhnliche Listenzeile mit Uhrzeit — `- 14:05 Router steht im Keller` — unter einer Überschrift der **heutigen Tagesnotiz**. Es gibt kein neues Dateiformat und keine Datenbank: Die Einträge leben in Deinen Tagesnotizen, lesbar in jedem Editor und verträglich mit den Journal-Plugins von Obsidian (Thino, Knomo).
 
@@ -11,6 +11,7 @@ Ein Feld, ein **Enter**. Die Uhrzeit setzt Plainva; Du tippst nur den Text. Tags
 - **Am Desktop:** `Strg+Umschalt+J` öffnet das Feld **Journal-Eintrag** von überall in Plainva. Dasselbe Feld steht im **＋**-Menü der Seitenleiste, in der Befehlspalette und im Menü des Infobereichs (**Journal-Eintrag**). `Enter` speichert, `Umschalt+Enter` beginnt eine neue Zeile, `Esc` verwirft.
 - **Am Telefon:** Der **＋**-Knopf bietet **Journal-Eintrag** an; der Journal-Bildschirm hat einen eigenen Stift-Knopf. Auch ein langer Druck auf das App-Symbol bietet **Journal-Eintrag** an — unter Android als App-Verknüpfung, unter iOS als Schnellaktion. `Enter` bleibt dort ein Zeilenumbruch; **Eintrag speichern** speichert.
 - **Aus dem Teilen-Menü (Telefon):** Wähle Plainva und setze **Ins Journal** — Text und Link werden der Eintrag, geteilte Dateien landen im Anhang-Ordner und werden eingebettet.
+- **Über Siri und Kurzbefehle (iPhone, iPad):** Sag „Journal-Eintrag in Plainva hinzufügen“ oder nutze die Aktion **Journal-Eintrag hinzufügen**. Plainva schreibt den Eintrag beim nächsten Öffnen auf, mit der Minute, in der Du ihn gesagt hast — siehe [Die mobile App](Mobile_App.md).
 - **Mit Bild:** Das Feld am Telefon hat **Foto hinzufügen**; am Desktop fügst Du ein Bild aus der Zwischenablage in das Feld ein. Das Bild kommt dorthin, wo Anhänge liegen, und wird im Eintrag eingebettet.
 
 Gibt es die heutige Tagesnotiz noch nicht, wird sie auf dem Weg angelegt — aus Deiner Tagesnotiz-Vorlage, ohne deren Abfragen zu stellen. Nach dem Speichern meldet ein Hinweis **Eintrag gespeichert** und bietet **Rückgängig** an.

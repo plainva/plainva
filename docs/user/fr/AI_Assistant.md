@@ -211,6 +211,8 @@ Une image appartient aux notes qui l'affichent : une image intégrée dans une n
 
 Une seconde règle, `web: deny` — **Accès web: jamais** dans les paramètres —, tient une note ou un dossier à l'écart de toute conversation qui peut utiliser Internet.
 
+Sur un iPhone ou un iPad, les deux mêmes règles décident des titres de notes que Siri et Raccourcis peuvent trouver, une fois que vous l'avez activé : une note tenue à l'écart du cloud ou de l'accès web ne leur est jamais nommée. Voir « Siri et Raccourcis » dans [L'application mobile](Mobile_App.md).
+
 ## Historique et utilisation
 
 Les conversations restent sur cet appareil, par vault — jamais dans le vault et jamais synchronisées. **Conserver les conversations** détermine la durée ; vous pouvez supprimer une conversation isolée dans la liste, ou toutes celles d'un vault d'un coup. **Utilisation ce mois-ci** additionne les jetons par fournisseur et par modèle.

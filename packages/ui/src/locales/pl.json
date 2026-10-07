@@ -1254,6 +1254,18 @@
         "added": "Dodano: {{agent}}."
       }
     },
+    "system": {
+      "title": "Siri i Skróty",
+      "find": "Pozwól Siri i Skrótom znajdować notatki otwartego vaultu",
+      "findDesc": "Wyłączone, dopóki tego nie włączysz. Plainva prowadzi wtedy listę tytułów notatek, którą system może czytać — tylko notatki, którym Twoje zasady prywatności zezwalają zarówno na chmurę, jak i na dostęp do sieci, nigdy zaszyfrowany obszar roboczy i nigdy tekst notatki. Tego, co system robi z tytułem, Plainva nie kontroluje.",
+      "captureHint": "Dodanie wpisu do dziennika lub zadania przez Siri albo Skróty działa bez tego przełącznika: system niczego się przy tym nie dowiaduje. Plainva zapisze to przy następnym otwarciu.",
+      "filed": "Z Siri i Skrótów — wpisy do dziennika: {{journal}}, zadania: {{tasks}}.",
+      "waiting": "Jeszcze niezapisane, nadal czeka: {{count}}.",
+      "known": "Tytuły notatek, które system może teraz czytać: {{count}}",
+      "noneSealed": "Otwarty vault to zaszyfrowany obszar roboczy. Żaden z jego tytułów nie jest przekazywany.",
+      "noneRules": "Plainva nie rozumie niektórych wierszy .agent/policy.yml albo nie może odczytać pliku. Dopóki nie zostanie to naprawione, żaden tytuł nie jest przekazywany.",
+      "noneEmpty": "W tej chwili żaden tytuł nie jest przekazywany."
+    },
     "transcribe": {
       "action": "Transkrybuj",
       "running": "Trwa transkrypcja…",

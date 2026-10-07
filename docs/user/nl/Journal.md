@@ -1,6 +1,6 @@
 # Journaal
 
-Laatst bijgewerkt: 2026-09-22
+Laatst bijgewerkt: 2026-10-07
 
 Het journaal is de snelle manier om iets vast te leggen zonder een notitie te openen: een gedachte, een telefoongesprek, een regel over de dag. Elk item is een gewone lijstregel met een tijdstip — `- 14:05 Router staat in de kelder` — onder een kop van de **dagnotitie van vandaag**. Er is geen nieuw bestandsformaat en geen database: de items leven in je dagnotities, leesbaar in elke editor en verenigbaar met de journaal-plugins van Obsidian (Thino, Knomo).
 
@@ -11,6 +11,7 @@ Eén veld, één **Enter**. Plainva zet het tijdstip; jij typt alleen de tekst. 
 - **Op de desktop:** `Ctrl+Shift+J` opent het veld **Journaalitem** vanaf overal in Plainva. Hetzelfde veld staat in het **＋**-menu van de zijbalk, in de opdrachtenpalet en in het systeemvakmenu (**Journaalitem**). `Enter` slaat op, `Shift+Enter` begint een nieuwe regel, `Esc` verwerpt.
 - **Op de telefoon:** de **＋**-knop biedt **Journaalitem** aan; het journaalscherm heeft een eigen pen-knop. Ook een lange druk op het app-pictogram biedt **Journaalitem** aan — als app-snelkoppeling onder Android, als snelle actie onder iOS. `Enter` blijft daar een regeleinde; **Item opslaan** slaat op.
 - **Vanuit het deelvenster (telefoon):** kies Plainva en vink **Naar het Journaal** aan — tekst en link worden het item, gedeelde bestanden komen in de bijlagenmap terecht en worden ingesloten.
+- **Via Siri en Opdrachten (iPhone, iPad):** zeg “Voeg een journaalitem toe in Plainva”, of gebruik de actie **Journaalitem toevoegen**. Plainva schrijft het item op zodra je de app de volgende keer opent, met de minuut waarop je het zei — zie [De mobiele app](Mobile_App.md).
 - **Met een foto:** het veld op de telefoon heeft **Foto toevoegen**; op de desktop plak je een afbeelding uit het klembord in het veld. De foto komt terecht waar bijlagen komen en wordt in het item ingesloten.
 
 Bestaat de dagnotitie van vandaag nog niet, dan wordt ze onderweg aangemaakt — vanuit je dagnotitie-sjabloon, zonder de vragen ervan te stellen. Na het opslaan meldt een melding **Item opgeslagen** en biedt **Ongedaan maken** aan.

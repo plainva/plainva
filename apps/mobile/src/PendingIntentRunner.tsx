@@ -4,9 +4,9 @@ import { runReminderIntent, type CalendarFocus } from "./services/reminderAction
 
 /**
  * Runs the intents that arrive from outside the app — a launcher shortcut, a
- * tapped reminder (S11). They are parked as state while the vault is
- * still booting and executed here, once the closures that can act on them
- * exist.
+ * tapped reminder (S11), a widget row, a place the system's assistant was
+ * asked for. They are parked as state while the vault is still booting and
+ * executed here, once the closures that can act on them exist.
  *
  * Its own module since S11: App.tsx is under a structural ratchet, and the
  * notification routing is a third kind of outside intent — exactly the sort of
@@ -21,6 +21,7 @@ export function PendingIntentRunner({
   onOpenToday,
   onOpenNote,
   onOpenCalendar,
+  onSearch,
 }: {
   pendingShortcut: string | null;
   setPendingShortcut: (v: string | null) => void;
@@ -32,6 +33,8 @@ export function PendingIntentRunner({
   onOpenToday: () => void;
   onOpenNote: (path: string) => void;
   onOpenCalendar: (focus?: CalendarFocus) => void;
+  /** Opens the search screen (the system's assistant was asked to search, AI harness P4.7). */
+  onSearch: () => void;
 }) {
   // A tapped reminder can arrive on a COLD start: the OS wakes the process and
   // the vault is not open yet. The scheduler therefore parks the intent and
@@ -62,6 +65,31 @@ export function PendingIntentRunner({
     window.addEventListener("m-widget-open", run);
     run();
     return () => window.removeEventListener("m-widget-open", run);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Somewhere the system's assistant was asked to take the user (AI harness
+  // P4.7): a note, or the search with the words that were said. Parked by the
+  // service for the same reason — the intent can be what started the app.
+  useEffect(() => {
+    const run = () => {
+      void import("./services/intentService")
+        .then(async ({ consumeIntentNavigation, seedIntentSearch }) => {
+          const target = consumeIntentNavigation();
+          if (!target) return;
+          if (target.kind === "open") {
+            onOpenNote(target.path);
+            return;
+          }
+          // The search screen starts from the session the vault remembers: the words go there, then the screen opens.
+          const { getActiveVaultEntry } = await import("./services/vaultRegistry");
+          seedIntentSearch((await getActiveVaultEntry()).id, target.query);
+          onSearch();
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("m-intent-nav", run);
+    run();
+    return () => window.removeEventListener("m-intent-nav", run);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {

@@ -1,6 +1,6 @@
 # Zadania
 
-Stan na: 2026-09-30
+Stan na: 2026-10-07
 
 Widok Zadania zbiera w jednym miejscu każde pole wyboru w Twoim vaulcie: wszystkie elementy list `- [ ]` i `- [x]` ze wszystkich Twoich notatek, pogrupowane według notatki, w której się znajdują. To widok „co jeszcze muszę zrobić?" na zwykłym Markdownie — bez wtyczki, bez specjalnego pliku.
 
@@ -167,7 +167,7 @@ Nad listami znajduje się pole szybkiego dodawania; na telefonie **+ Nowe zadani
 
 `- [/]` (**W toku**) i `- [-]` (**Anulowane**) to również zadania. W edytorze, w trybie czytania i na każdej liście dostają własne pole; w toku liczy się jako otwarte, anulowane jako zamknięte. Kliknięcie nadal przełącza tylko między otwartym a ukończonym — kończy zadanie w toku i otwiera ponownie anulowane. **Ustaw stan** w menu wiersza ustawia te dwa stany; Plainva nigdy nie zapisuje ich samodzielnie.
 
-Więcej sposobów: **Nowe zadanie** w menu zasobnika systemowego na komputerze (gdy Plainva działa dalej w tle), w Androidzie skrót w launcherze **Nowe zadanie** (przytrzymanie ikony aplikacji), oraz na telefonie **Utwórz jako zadanie**, gdy udostępnisz coś Plainvie — tekst i załączniki trafiają do notatki zadania. To, jak przypomina zadanie z godziną, opisano w [Kalendarz i zadania zewnętrzne](Calendar_and_Tasks.md).
+Więcej sposobów: **Nowe zadanie** w menu zasobnika systemowego na komputerze (gdy Plainva działa dalej w tle), w Androidzie skrót w launcherze **Nowe zadanie** (przytrzymanie ikony aplikacji), oraz na telefonie **Utwórz jako zadanie**, gdy udostępnisz coś Plainvie — tekst i załączniki trafiają do notatki zadania. To, jak przypomina zadanie z godziną, opisano w [Kalendarz i zadania zewnętrzne](Calendar_and_Tasks.md). Na iPhonie i iPadzie zadanie przyjmują także Siri i Skróty (**Dodaj zadanie**); Plainva utworzy je przy następnym otwarciu — zob. [Aplikacja mobilna](Mobile_App.md).
 
 <!-- widgets-2026-09-23 -->
 ## Odhaczanie z widgetu

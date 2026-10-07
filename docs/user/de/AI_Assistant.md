@@ -211,6 +211,8 @@ Ein Bild gehört zu den Notizen, die es zeigen: Eines, das eine von der Cloud fe
 
 Eine zweite Regel, `web: deny` — in den Einstellungen **Webzugriff: nie** —, hält eine Notiz oder einen Ordner aus jedem Gespräch heraus, das ins Internet darf.
 
+Am iPhone und iPad entscheiden dieselben zwei Regeln, welche Notiztitel Siri und Kurzbefehle finden dürfen, sobald Du das eingeschaltet hast: Eine von der Cloud oder vom Webzugriff ferngehaltene Notiz wird ihnen nie genannt. Siehe „Siri und Kurzbefehle“ in [Die mobile App](Mobile_App.md).
+
 ## Verlauf und Verbrauch
 
 Gespräche bleiben auf diesem Gerät, je Vault — nie im Vault und nie synchronisiert. **Gespräche aufbewahren** legt fest, wie lange; einzelne Gespräche löschst Du in der Liste, alle eines Vaults auf einmal in den Einstellungen. **Verbrauch diesen Monat** fasst die Token je Anbieter und Modell zusammen.

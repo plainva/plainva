@@ -3276,3 +3276,54 @@ describe("a name the phone invents follows the app's language (issue 105)", () =
     ).toEqual([]);
   });
 });
+
+describe("the system's assistant reaches the app on the phone (AI harness P4.7)", () => {
+  const read = (...rel: string[]) => stripComments(readFileSync(join(SRC, ...rel), "utf8"));
+  const service = read("services", "intentService.ts");
+
+  // @parity-mobile ai-system-intents
+  it("is started with the app, caught up on every return and written as the app leaves", () => {
+    expect(read("main.tsx")).toMatch(/initIntentService\(\);/);
+    const lifecycle = read("services", "appLifecycle.ts");
+    const front = lifecycle.slice(lifecycle.indexOf("export function onAppForeground"), lifecycle.indexOf("export function onAppBackground"));
+    const back = lifecycle.slice(lifecycle.indexOf("export function onAppBackground"));
+    // Redeem and write on return; write — not debounced — on the way out, because the list is read while the app is closed.
+    expect(front).toMatch(/import\("\.\/intentService"\)\.then\(\(m\) => m\.catchUpIntents\(\)\)/);
+    expect(back).toMatch(/import\("\.\/intentService"\)\.then\(\(m\) => m\.refreshIntentDirectory\(\)\)/);
+    expect(service).toMatch(/await redeemIntentOrders\(\);\s*await refreshIntentDirectory\(\);/);
+  });
+
+  it("hears a saved note by the event the save raises", () => {
+    // The listener names the event as a string, so that the service does not pull the vault in at startup.
+    expect(read("services", "vaultService.ts")).toMatch(/export const NOTE_INDEXED_EVENT = "m-note-indexed";/);
+    expect(service).toContain('"m-note-indexed"');
+    // …and the folder rules by the event their screen raises after saving them.
+    expect(read("screens", "AiPolicyScreen.tsx")).toMatch(/dispatchEvent\(new CustomEvent\("m-ai-policy-changed"\)\)/);
+    expect(service).toContain('"m-ai-policy-changed"');
+  });
+
+  it("asks the privacy gate with the assistant as a cloud that may use the internet", () => {
+    expect(service).toMatch(/SYSTEM_ASSISTANT: EgressRecipient = \{ kind: "cloud", provider: "system-assistant", model: "" \}/);
+    expect(service).toMatch(/SYSTEM_ASSISTANT_RUN = \{ recipient: SYSTEM_ASSISTANT, webTools: true \}/);
+    // One gate: the directory asks the core's rules, it does not read a rule itself.
+    expect(service).toMatch(/gateDecision\(effectivePolicy\(path, notePolicyFrom\(/);
+  });
+
+  it("writes what was dictated through the paths the app's own surfaces use", () => {
+    // The journal's planned entry (idempotent), the task database's creator, the provider's list after the note.
+    expect(service).toMatch(/appendPlannedJournalEntry\(vault, \{/);
+    const created = service.indexOf("createTaskInDatabase({");
+    const sent = service.indexOf("sendTaskToProviderList(");
+    expect(created).toBeGreaterThan(-1);
+    expect(sent, "the note is the deliverable and must exist first").toBeGreaterThan(created);
+    // No write of its own into the vault: every change goes through one of the two.
+    expect(service).not.toMatch(/files\.writeTextFile\(/);
+  });
+
+  it("offers its one switch only where the platform has such an assistant", () => {
+    const section = read("components", "MobileSystemAssistantSection.tsx");
+    expect(section).toMatch(/if \(!systemIntentsAvailable\(\)\) return null;/);
+    expect(read("screens", "AiSettingsScreen.tsx")).toMatch(/\{settings\.enabled && <MobileSystemAssistantSection session=\{session\} \/>\}/);
+    expect(read("platform", "intentBridge.ts")).toMatch(/Capacitor\.getPlatform\(\) === "ios" \? nativeBridge : null/);
+  });
+});

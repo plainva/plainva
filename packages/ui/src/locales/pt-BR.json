@@ -1227,6 +1227,18 @@
         "added": "{{agent}} foi adicionado."
       }
     },
+    "system": {
+      "title": "Siri e Atalhos",
+      "find": "Deixar a Siri e os Atalhos encontrarem notas do vault aberto",
+      "findDesc": "Desativado até você ativar. O Plainva mantém então uma lista de títulos de notas que o sistema pode ler — só notas às quais suas regras de privacidade permitem tanto a nuvem quanto o acesso à web, nunca um workspace criptografado e nunca o texto de uma nota. O que o sistema faz com um título, o Plainva não controla.",
+      "captureHint": "Adicionar uma entrada do diário ou uma tarefa pela Siri ou pelos Atalhos funciona sem este interruptor: o sistema não fica sabendo de nada. O Plainva anota na próxima vez que for aberto.",
+      "filed": "Da Siri e dos Atalhos — entradas do diário: {{journal}}, tarefas: {{tasks}}.",
+      "waiting": "Ainda não escrito, continua esperando: {{count}}.",
+      "known": "Títulos de notas que o sistema pode ler agora: {{count}}",
+      "noneSealed": "O vault aberto é um workspace criptografado. Nenhum dos seus títulos é repassado.",
+      "noneRules": "O Plainva não entende algumas linhas de .agent/policy.yml ou não consegue ler o arquivo. Até isso ser corrigido, nenhum título é repassado.",
+      "noneEmpty": "No momento, nenhum título é repassado."
+    },
     "transcribe": {
       "action": "Transcrever",
       "running": "Transcrevendo…",

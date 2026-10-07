@@ -4,7 +4,7 @@ import { CalendarDays, Clock, Flag, Hash, Repeat } from "lucide-react";
 import { Chip } from "./ui/Chip";
 import { TextInput } from "./ui/Field";
 import { ICON } from "../lib/iconSizes";
-import { captureVocabularyFrom, parseTaskCapture, type CaptureBrick, type CaptureResult, type CaptureVocabulary } from "../lib/taskCapture";
+import { captureVocabularyOf, parseTaskCapture, type CaptureBrick, type CaptureResult, type CaptureVocabulary } from "../lib/taskCapture";
 import { describeRule } from "../lib/taskRecurrence";
 
 /**
@@ -25,21 +25,7 @@ import { describeRule } from "../lib/taskRecurrence";
 
 export function useCaptureVocabulary(): CaptureVocabulary {
   const { t, i18n } = useTranslation();
-  return useMemo(
-    () =>
-      captureVocabularyFrom(
-        {
-          today: t("tasks.captureToday"), tomorrow: t("tasks.captureTomorrow"), dayAfterTomorrow: t("tasks.captureDayAfterTomorrow"),
-          nextWeek: t("tasks.captureNextWeek"), inDays: t("tasks.captureInDays"), inWeeks: t("tasks.captureInWeeks"),
-          daily: t("tasks.captureDaily"), weekly: t("tasks.captureWeekly"), monthly: t("tasks.captureMonthly"), yearly: t("tasks.captureYearly"),
-          every: t("tasks.captureEvery"), everyNDays: t("tasks.captureEveryNDays"), everyNWeeks: t("tasks.captureEveryNWeeks"),
-          oclock: t("tasks.captureOclock"), at: t("tasks.captureAt"),
-        },
-        i18n.language,
-        t("tasks.captureWeekdays"),
-      ),
-    [t, i18n.language],
-  );
+  return useMemo(() => captureVocabularyOf((key) => t(key), i18n.language), [t, i18n.language]);
 }
 
 export interface TaskCaptureApi {

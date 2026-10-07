@@ -1200,6 +1200,18 @@
         "added": "{{agent}} is toegevoegd."
       }
     },
+    "system": {
+      "title": "Siri & Opdrachten",
+      "find": "Siri en Opdrachten notities van de geopende vault laten vinden",
+      "findDesc": "Uit totdat je het aanzet. Plainva houdt dan een lijst met notitietitels bij die het systeem kan lezen — alleen notities waarvoor je privacyregels zowel de cloud als webtoegang toestaan, nooit een versleutelde workspace en nooit de tekst van een notitie. Wat het systeem met een titel doet, beheerst Plainva niet.",
+      "captureHint": "Een journaalitem of een taak toevoegen via Siri of Opdrachten werkt zonder deze schakelaar: het systeem komt daarbij niets te weten. Plainva schrijft het op zodra het de volgende keer wordt geopend.",
+      "filed": "Van Siri en Opdrachten — journaalitems: {{journal}}, taken: {{tasks}}.",
+      "waiting": "Nog niet geschreven, wacht nog: {{count}}.",
+      "known": "Notitietitels die het systeem nu kan lezen: {{count}}",
+      "noneSealed": "De geopende vault is een versleutelde workspace. Geen van de titels wordt doorgegeven.",
+      "noneRules": "Plainva begrijpt sommige regels van .agent/policy.yml niet of kan het bestand niet lezen. Totdat dat is opgelost, wordt geen enkele titel doorgegeven.",
+      "noneEmpty": "Op dit moment wordt geen enkele titel doorgegeven."
+    },
     "transcribe": {
       "action": "Uitschrijven",
       "running": "Bezig met uitschrijven…",

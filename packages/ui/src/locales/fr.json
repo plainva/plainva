@@ -1227,6 +1227,18 @@
         "added": "{{agent}} a été ajouté."
       }
     },
+    "system": {
+      "title": "Siri & Raccourcis",
+      "find": "Laisser Siri et Raccourcis trouver les notes du vault ouvert",
+      "findDesc": "Désactivé jusqu'à ce que vous l'activiez. Plainva tient alors une liste de titres de notes que le système peut lire — uniquement les notes auxquelles vos règles de confidentialité autorisent à la fois le cloud et l'accès web, jamais un espace chiffré et jamais le texte d'une note. Ce que le système fait d'un titre, Plainva ne le contrôle pas.",
+      "captureHint": "Ajouter une entrée de journal ou une tâche avec Siri ou Raccourcis fonctionne sans cet interrupteur : le système n'apprend rien. Plainva l'écrit à sa prochaine ouverture.",
+      "filed": "De Siri et Raccourcis — entrées de journal : {{journal}}, tâches : {{tasks}}.",
+      "waiting": "Pas encore écrit, toujours en attente : {{count}}.",
+      "known": "Titres de notes que le système peut lire en ce moment : {{count}}",
+      "noneSealed": "Le vault ouvert est un espace chiffré. Aucun de ses titres n'est transmis.",
+      "noneRules": "Plainva ne comprend pas certaines lignes de .agent/policy.yml ou ne peut pas lire le fichier. Tant que ce n'est pas corrigé, aucun titre n'est transmis.",
+      "noneEmpty": "Aucun titre n'est transmis pour le moment."
+    },
     "transcribe": {
       "action": "Transcrire",
       "running": "Transcription…",

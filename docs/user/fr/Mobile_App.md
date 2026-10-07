@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-07
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -305,3 +305,14 @@ Un widget ne calcule rien lui-même. Rien de Plainva ne tourne quand l’applica
 Cocher une tâche dans le widget est une demande, pas une modification. La coche apparaît aussitôt et la ligne **appliqué à l’ouverture de Plainva** dit ce qui manque encore ; la note change à la prochaine ouverture, avec sa récurrence et sa synchronisation. Une tâche terminée entre-temps ailleurs est laissée telle quelle. Sur iPhone, cela demande iOS 17 ; en dessous, un appui sur la ligne ouvre la tâche.
 
 Dans **Réglages → Démarrage et comportement → Widgets**, deux interrupteurs décident de ce qui peut quitter l’application : **Afficher les titres dans le widget** et **Afficher les rendez-vous dans le widget**. Ils ne valent que pour cet appareil. Un espace chiffré verrouillé n’affiche rien de toute façon : Plainva vide le widget au verrouillage.
+
+<!-- siri-shortcuts-2026-10-07 -->
+## Siri et Raccourcis
+
+Sur un iPhone ou un iPad, Siri et l'app Raccourcis peuvent utiliser Plainva au moyen de quatre actions : **Ajouter une entrée de journal**, **Ajouter une tâche**, **Ouvrir une note** et **Rechercher des notes**. Dites « Ajoute une entrée de journal dans Plainva », ou intégrez les actions à vos propres raccourcis. Android n'a pas encore d'équivalent ouvert à toutes les apps.
+
+**Entrées de journal et tâches.** Ce que vous dites est conservé avec la minute à laquelle vous l'avez dit. Rien de Plainva ne tourne quand l'application est fermée : Plainva l'écrit donc à la prochaine ouverture et vous dit ce qu'il a écrit. Une entrée de journal arrive dans la note quotidienne de ce jour-là, à cette heure-là. Une tâche va dans votre base de tâches, lue comme une ligne de la feuille de saisie : dans `Envoyer offre demain`, « demain » compte à partir du jour où vous l'avez dit. Sans base de tâches, elle devient une ligne avec une case à cocher dans le journal. Si le vault ne peut pas la prendre à ce moment-là — un espace chiffré encore verrouillé —, elle attend et est écrite plus tard. Rien de tout cela ne demande de réglage : le système n'apprend rien sur votre vault.
+
+**Ouvrir et rechercher.** **Rechercher des notes** ouvre la recherche de Plainva avec vos mots. Pour **Ouvrir une note**, le système doit savoir quelles notes existent, et c'est désactivé tant que vous ne l'avez pas choisi. Dans **Paramètres → IA & automatisation** (la partie Application), une fois **Utiliser l'IA sur cet appareil** activé, la section **Siri & Raccourcis** contient l'interrupteur **Laisser Siri et Raccourcis trouver les notes du vault ouvert**. Plainva tient alors une liste que le système peut lire : le titre d'une note et le nom de son dossier, pour 2 000 notes au plus, les dernières modifiées — jamais le texte d'une note, jamais son chemin. La ligne sous l'interrupteur indique combien de titres le système peut lire en ce moment, ou pourquoi il n'y en a aucun.
+
+**Ce qui n'est jamais dans la liste.** Une note que vos règles de confidentialité tiennent à l'écart du cloud ou de l'accès web (voir [Assistant IA](AI_Assistant.md)) ; tout ce qui appartient à un espace chiffré, verrouillé ou ouvert ; et aucun titre tant que `.agent/policy.yml` contient une ligne que Plainva ne comprend pas. Ouvrir un autre vault, verrouiller un espace ou désactiver le réglage vide la liste aussitôt. Ce que le système fait d'un titre qu'il a reçu — sur l'appareil, dans le cloud d'Apple, dans un autre assistant auquel Siri le transmet — Plainva ne le contrôle pas ; c'est pourquoi la liste n'existe que là où vous l'avez activée. Une note que vous venez de marquer comme privée peut encore y figurer jusqu'à ce que Plainva ait réécrit la liste : un instant après chaque enregistrement, et chaque fois que l'application passe en arrière-plan.

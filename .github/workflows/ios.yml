@@ -98,6 +98,15 @@ jobs:
           swiftc Shared/AiMcpRules.swift Shared/AiWebRules.swift Shared/AiMcpOAuthRules.swift tests/AiMcpOAuthRulesTests.swift -o "$RUNNER_TEMP/ai-mcp-oauth-rules-tests"
           "$RUNNER_TEMP/ai-mcp-oauth-rules-tests"
 
+      # The system's assistant: what counts as a directory of titles, which
+      # rows somebody means by what they said, and what an order may hold are
+      # rules in Swift that nothing else would exercise.
+      - name: Test the store of the App Intents
+        working-directory: apps/mobile/ios/App
+        run: |
+          swiftc Shared/IntentStore.swift tests/IntentStoreTests.swift -o "$RUNNER_TEMP/intent-store-tests"
+          "$RUNNER_TEMP/intent-store-tests"
+
       - name: Build for simulator
         working-directory: apps/mobile/ios/App
         run: |

@@ -1,6 +1,6 @@
 # Diário
 
-Última revisão: 2026-09-22
+Última revisão: 2026-10-07
 
 O diário é o jeito rápido de anotar algo sem abrir uma nota: um pensamento, um telefonema, uma linha sobre o dia. Cada entrada é uma linha de lista comum com uma hora — `- 14:05 O roteador fica no porão` — sob um título da **nota diária de hoje**. Não há um novo formato de arquivo nem um banco de dados: as entradas vivem nas suas notas diárias, legíveis em qualquer editor e compatíveis com os plugins de diário do Obsidian (Thino, Knomo).
 
@@ -11,6 +11,7 @@ Um campo, um **Enter**. O Plainva carimba a hora; você só digita o texto. Tags
 - **No desktop:** `Ctrl+Shift+J` abre o campo **Entrada de diário** de qualquer lugar no Plainva. O mesmo campo está no menu **＋** da barra lateral, na paleta de comandos e no menu da área de notificação (**Entrada de diário**). `Enter` salva, `Shift+Enter` começa uma nova linha, `Esc` descarta.
 - **No telefone:** o botão **＋** oferece **Entrada de diário**; a tela do diário tem seu próprio botão de caneta. Um toque longo no ícone do aplicativo também oferece **Entrada de diário** — como atalho do aplicativo no Android, como ação rápida no iOS. Ali, `Enter` continua sendo uma quebra de linha; **Salvar entrada** salva.
 - **Pela folha de compartilhamento (telefone):** escolha o Plainva e marque **Para o diário** — o texto e o link viram a entrada, arquivos compartilhados vão para a pasta de anexos e são incorporados.
+- **Pela Siri e pelos Atalhos (iPhone, iPad):** diga “Adicione uma entrada do diário no Plainva” ou use a ação **Adicionar entrada do diário**. O Plainva anota a entrada na próxima vez que for aberto, com o minuto em que você a disse — veja [O app mobile](Mobile_App.md).
 - **Com uma imagem:** o campo do telefone tem **Adicionar foto**; no desktop você cola uma imagem da área de transferência no campo. A imagem vai para onde os anexos ficam e é incorporada na entrada.
 
 Se a nota diária de hoje ainda não existir, ela é criada no caminho — a partir do seu modelo de nota diária, sem fazer as perguntas dele. Depois de salvar, um aviso diz **Entrada salva** e oferece **Desfazer**.

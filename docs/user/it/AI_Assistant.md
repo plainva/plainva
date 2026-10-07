@@ -211,6 +211,8 @@ Un'immagine appartiene alle note che la mostrano: anche un'immagine incorporata 
 
 Una seconda regola, `web: deny` — **Accesso web: mai** nelle impostazioni —, tiene una nota o una cartella fuori da ogni conversazione che può usare Internet.
 
+Su iPhone e iPad, le stesse due regole decidono quali titoli di note Siri e Comandi Rapidi possono trovare, una volta che l'hai attivato: una nota tenuta lontana dal cloud o dall'accesso web non viene mai nominata loro. Vedi «Siri e Comandi Rapidi» in [L'app mobile](Mobile_App.md).
+
 ## Cronologia e utilizzo
 
 Le conversazioni restano su questo dispositivo, per vault — mai nel vault e mai sincronizzate. **Conserva le conversazioni** stabilisce per quanto tempo; puoi eliminare singole conversazioni nell'elenco o tutte quelle di un vault in una volta. **Utilizzo di questo mese** somma i token per provider e modello.

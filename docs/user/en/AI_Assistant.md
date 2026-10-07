@@ -211,6 +211,8 @@ A picture belongs to the notes that show it: one that a note kept from the cloud
 
 A second rule, `web: deny` — **Web access: never** in the settings — keeps a note or a folder out of every conversation that may use the internet.
 
+On an iPhone or iPad, the same two rules decide which note titles Siri and Shortcuts may find, once you have switched that on: a note kept from the cloud or from web access is never named to them. See “Siri and Shortcuts” in [The mobile app](Mobile_App.md).
+
 ## History and usage
 
 Conversations stay on this device, per vault — never in the vault and never synced. **Keep conversations** decides how long; you can delete single conversations in the list or all of a vault at once. **Usage this month** sums up the tokens per provider and model.

@@ -1173,6 +1173,18 @@
         "added": "已添加 {{agent}}。"
       }
     },
+    "system": {
+      "title": "Siri与快捷指令",
+      "find": "允许Siri和快捷指令查找已打开仓库中的笔记",
+      "findDesc": "在你开启之前处于关闭状态。开启后，Plainva会保留一份系统可以读取的笔记标题列表——只包含你的隐私规则同时允许云端和网络访问的笔记，绝不包含加密工作区的内容，也绝不包含笔记正文。系统如何使用标题，Plainva无法控制。",
+      "captureHint": "通过Siri或快捷指令添加日志条目或任务不需要这个开关：系统不会因此得知任何内容。Plainva会在下次打开时把它写下来。",
+      "filed": "来自Siri和快捷指令——日志条目：{{journal}}，任务：{{tasks}}。",
+      "waiting": "尚未写入，仍在等待：{{count}}。",
+      "known": "系统当前可以读取的笔记标题：{{count}}",
+      "noneSealed": "已打开的仓库是加密工作区，它的标题一个也不会传出。",
+      "noneRules": "Plainva无法理解.agent/policy.yml中的部分行，或无法读取该文件。在修复之前，不会传出任何标题。",
+      "noneEmpty": "目前没有传出任何标题。"
+    },
     "transcribe": {
       "action": "转写",
       "running": "正在转写…",

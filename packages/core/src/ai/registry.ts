@@ -265,6 +265,15 @@ export interface AiAppSettings {
    * profile "Local" only when it runs on this computer; off until chosen.
    */
   gists: boolean;
+  /**
+   * Let the system's assistant find and open notes of the open vault (plan
+   * P4.7; iPhone and iPad). On: the app keeps a list of titles for the
+   * system — only notes the privacy rules allow for both the cloud and web
+   * access, never an encrypted workspace. Off until chosen, per device;
+   * capturing through the system's assistant does not depend on it, because
+   * it tells the system nothing.
+   */
+  systemFind: boolean;
 }
 
 export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
@@ -281,6 +290,7 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   searchMode: DEFAULT_SEARCH_MODE,
   relatedNotes: true,
   gists: false,
+  systemFind: false,
 };
 
 /** Reads stored settings defensively: a damaged value falls back field by field. */
@@ -333,6 +343,7 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
     searchMode: isSearchMode(value.searchMode) ? value.searchMode : defaults.searchMode,
     relatedNotes: typeof value.relatedNotes === "boolean" ? value.relatedNotes : defaults.relatedNotes,
     gists: typeof value.gists === "boolean" ? value.gists : defaults.gists,
+    systemFind: typeof value.systemFind === "boolean" ? value.systemFind : defaults.systemFind,
   };
 }
 

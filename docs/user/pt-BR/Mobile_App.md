@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-09-30
+Última atualização: 2026-10-07
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -305,3 +305,14 @@ Um widget não calcula nada sozinho. Com o aplicativo fechado nada do Plainva ro
 Marcar uma tarefa no widget é um pedido, não uma alteração. A marca aparece na hora e a linha **será aplicado ao abrir o Plainva** diz o que ainda falta; a nota muda na próxima vez que você abrir o aplicativo, com a recorrência e a sincronização correspondentes. Uma tarefa concluída em outro lugar nesse meio-tempo fica intocada. No iPhone isso exige iOS 17; abaixo disso, um toque na linha abre a tarefa.
 
 Em **Configurações → Inicialização e comportamento → Widgets**, dois botões decidem o que pode sair do aplicativo: **Mostrar títulos no widget** e **Mostrar compromissos no widget**. Valem apenas para este aparelho. Um espaço criptografado bloqueado não mostra nada de qualquer forma — o Plainva esvazia o widget ao bloquear.
+
+<!-- siri-shortcuts-2026-10-07 -->
+## Siri e Atalhos
+
+No iPhone e no iPad, a Siri e o app Atalhos podem usar o Plainva por meio de quatro ações: **Adicionar entrada do diário**, **Adicionar tarefa**, **Abrir nota** e **Buscar notas**. Diga “Adicione uma entrada do diário no Plainva” ou inclua as ações nos seus próprios atalhos. O Android ainda não tem um equivalente aberto a todos os aplicativos.
+
+**Entradas do diário e tarefas.** O que você diz fica guardado junto com o minuto em que foi dito. Com o aplicativo fechado nada do Plainva roda, então o Plainva anota na próxima vez que você abrir e avisa o que escreveu. Uma entrada do diário vai para a nota diária daquele dia, naquele horário. Uma tarefa vai para o seu banco de tarefas e é lida como uma linha da folha de captura: em `Enviar oferta amanhã`, “amanhã” conta a partir do dia em que você disse. Sem um banco de tarefas, ela vira uma linha com caixa de seleção no diário. Se o vault não puder recebê-la naquele momento — um workspace criptografado ainda bloqueado —, ela espera e é escrita depois. Nada disso precisa de uma configuração: o sistema não fica sabendo de nada sobre o seu vault.
+
+**Abrir e buscar.** **Buscar notas** abre a busca do Plainva com as suas palavras. Para **Abrir nota**, o sistema precisa saber quais notas existem, e isso fica desativado até você escolher. Em **Configurações → IA e automação** (a parte do App), com **Usar IA neste dispositivo** ativado, a seção **Siri e Atalhos** traz o interruptor **Deixar a Siri e os Atalhos encontrarem notas do vault aberto**. O Plainva mantém então uma lista que o sistema pode ler: o título de uma nota e o nome da pasta dela, para até 2.000 notas, as modificadas por último — nunca o texto de uma nota, nunca o caminho dela. A linha abaixo do interruptor diz quantos títulos o sistema pode ler agora, ou por que não há nenhum.
+
+**O que nunca está na lista.** Uma nota que suas regras de privacidade mantêm fora da nuvem ou do acesso à web (veja [Assistente de IA](AI_Assistant.md)); nada de um workspace criptografado, bloqueado ou aberto; e nenhum título enquanto `.agent/policy.yml` tiver uma linha que o Plainva não entende. Abrir outro vault, bloquear um workspace ou desativar a configuração esvazia a lista na hora. O que o sistema faz com um título que recebeu — no dispositivo, na nuvem da Apple, em outro assistente para o qual a Siri o repassa — o Plainva não controla; por isso a lista só existe onde você a ativou. Uma nota que você acabou de marcar como privada ainda pode estar nela até o Plainva escrever a lista de novo: um instante depois de cada salvamento e sempre que o aplicativo vai para o segundo plano.

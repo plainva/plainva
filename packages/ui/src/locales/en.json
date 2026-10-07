@@ -1200,6 +1200,18 @@
         "added": "{{agent}} was added."
       }
     },
+    "system": {
+      "title": "Siri & Shortcuts",
+      "find": "Let Siri and Shortcuts find notes of the open vault",
+      "findDesc": "Off until you switch it on. Plainva then keeps a list of note titles where the system can read it — only notes your privacy rules allow for both the cloud and web access, never an encrypted workspace, and never a note's text. What the system does with a title is not Plainva's to control.",
+      "captureHint": "Adding a journal entry or a task through Siri or Shortcuts works without this switch: it tells the system nothing. Plainva writes it down the next time it is opened.",
+      "filed": "From Siri and Shortcuts — journal entries: {{journal}}, tasks: {{tasks}}.",
+      "waiting": "Not written yet, still waiting: {{count}}.",
+      "known": "Note titles the system can read right now: {{count}}",
+      "noneSealed": "The open vault is an encrypted workspace. None of its titles are passed on.",
+      "noneRules": "Plainva does not understand some lines of .agent/policy.yml, or cannot read the file. Until that is fixed, no title is passed on.",
+      "noneEmpty": "No title is passed on right now."
+    },
     "transcribe": {
       "action": "Transcribe",
       "running": "Transcribing…",

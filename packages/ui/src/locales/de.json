@@ -1200,6 +1200,18 @@
         "added": "{{agent}} wurde hinzugefügt."
       }
     },
+    "system": {
+      "title": "Siri & Kurzbefehle",
+      "find": "Siri und Kurzbefehle dürfen Notizen des offenen Vaults finden",
+      "findDesc": "Aus, bis Du es einschaltest. Plainva führt dann eine Liste von Notiztiteln, die das System lesen kann — nur Notizen, denen Deine Datenschutzregeln sowohl die Cloud als auch den Webzugriff erlauben, nie ein verschlüsselter Workspace und nie der Text einer Notiz. Was das System mit einem Titel macht, kontrolliert Plainva nicht.",
+      "captureHint": "Ein Journal-Eintrag oder eine Aufgabe über Siri oder Kurzbefehle geht ohne diesen Schalter: Das System erfährt dabei nichts. Plainva schreibt es auf, sobald es das nächste Mal geöffnet wird.",
+      "filed": "Von Siri und Kurzbefehlen — Journal-Einträge: {{journal}}, Aufgaben: {{tasks}}.",
+      "waiting": "Noch nicht geschrieben, wartet weiter: {{count}}.",
+      "known": "Notiztitel, die das System gerade lesen kann: {{count}}",
+      "noneSealed": "Der offene Vault ist ein verschlüsselter Workspace. Keiner seiner Titel wird weitergegeben.",
+      "noneRules": "Plainva versteht einige Zeilen von .agent/policy.yml nicht oder kann die Datei nicht lesen. Bis das behoben ist, wird kein Titel weitergegeben.",
+      "noneEmpty": "Gerade wird kein Titel weitergegeben."
+    },
     "transcribe": {
       "action": "Transkribieren",
       "running": "Transkribiere …",

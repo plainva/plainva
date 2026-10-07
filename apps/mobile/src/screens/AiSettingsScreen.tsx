@@ -22,6 +22,7 @@ import {
 import { AppBar } from "../components/AppBar";
 import { MobileSemanticSection } from "../components/MobileSemanticSection";
 import { MobileGistsSection } from "../components/MobileGistsSection";
+import { MobileSystemAssistantSection } from "../components/MobileSystemAssistantSection";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { PlatformModel } from "../platform/platformModel";
 import { mActions, mConfirm, mPrompt, mSelect } from "../services/mobileDialogs";
@@ -271,6 +272,7 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
 
         {settings.enabled && <MobileSemanticSection session={session} onChooseModel={() => void chooseModel(AI_EMBEDDING_PROFILE)} />}
         {settings.enabled && <MobileGistsSection session={session} />}
+        {settings.enabled && <MobileSystemAssistantSection session={session} />}
 
         <SectionLabel>{t("ai.settings.sending")}</SectionLabel>
         <GroupCard>

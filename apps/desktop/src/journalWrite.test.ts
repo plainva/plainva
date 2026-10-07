@@ -148,6 +148,23 @@ describe("appendPlannedJournalEntry — the share target plans before it writes"
     expect(parseJournal(await vault.readTextFile(PATH)).entries.map((e) => e.text.split("\n")[0])).toEqual(["Agenda", "Something else"]);
   });
 
+  it("writes a planned task as a line with an open box — once, however often it is asked", async () => {
+    // What somebody dictated as a task where no task database takes it (AI harness P4.7).
+    const files = filesOf(vault, { ...CONFIG, template: "" });
+    const task = { date: "2026-09-20", time: "14:05", heading: "Journal", text: "Buy milk", task: true };
+    expect(await appendPlannedJournalEntry(files, task)).toBe(PATH);
+    const once = await vault.readTextFile(PATH);
+    expect(once).toContain("- [ ] 14:05 Buy milk\n");
+    expect(await appendPlannedJournalEntry(files, task)).toBe(PATH);
+    expect(await vault.readTextFile(PATH)).toBe(once);
+    // The same words in the same minute as a plain entry are another thing that was said — in either order.
+    await appendPlannedJournalEntry(files, { ...task, task: false });
+    expect(parseJournal(await vault.readTextFile(PATH)).entries.map((e) => [e.task, e.text])).toEqual([["open", "Buy milk"], [null, "Buy milk"]]);
+    await vault.writeTextFile(PATH, "## Journal\n- 14:05 Call back\n");
+    await appendPlannedJournalEntry(files, { ...task, text: "Call back" });
+    expect(await vault.readTextFile(PATH)).toBe("## Journal\n- 14:05 Call back\n- [ ] 14:05 Call back\n");
+  });
+
   it("resolves with null for an entry that cannot be written", async () => {
     expect(await appendPlannedJournalEntry(filesOf(vault), { ...planned, time: "25:00" })).toBeNull();
     expect(await appendPlannedJournalEntry({ ...filesOf(vault), ensureDailyNote: async () => null }, planned)).toBeNull();

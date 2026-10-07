@@ -73,6 +73,8 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileV
     try {
       await vault.files.writeTextFile(AI_POLICY_FILE, serializePolicyFile(next));
       currentMobileAiPolicy()?.invalidate();
+      // The rules decide which titles the system's assistant may know (AI harness P4.7): that list is written again.
+      window.dispatchEvent(new CustomEvent("m-ai-policy-changed"));
       toast.success(t("ai.policy.saved"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));

@@ -1,6 +1,6 @@
 # Diario
 
-Ultimo aggiornamento: 2026-09-22
+Ultimo aggiornamento: 2026-10-07
 
 Il diario è il modo rapido per annotare qualcosa senza aprire una nota: un pensiero, una telefonata, una riga sulla giornata. Ogni voce è una normale riga di elenco con un orario — `- 14:05 Il router è in cantina` — sotto un'intestazione della **nota giornaliera di oggi**. Non c'è un nuovo formato di file né un database: le voci vivono nelle tue note giornaliere, leggibili in qualsiasi editor e compatibili con i plugin di diario di Obsidian (Thino, Knomo).
 
@@ -11,6 +11,7 @@ Un campo, un **Invio**. Plainva registra l'orario; tu scrivi solo il testo. Tag,
 - **Al desktop:** `Ctrl+Shift+J` apre il campo **Voce di diario** da qualsiasi punto di Plainva. Lo stesso campo si trova nel menu **＋** della barra laterale, nella palette dei comandi e nel menu del vassoio di sistema (**Voce di diario**). `Invio` salva, `Shift+Enter` inizia una nuova riga, `Esc` scarta.
 - **Al telefono:** il pulsante **＋** offre **Voce di diario**; la schermata del diario ha un pulsante a penna tutto suo. Anche una pressione prolungata sull'icona dell'app offre **Voce di diario** — su Android come scorciatoia dell'app, su iOS come azione rapida. Lì `Invio` resta un'interruzione di riga; **Salva voce** salva.
 - **Dal foglio di condivisione (telefono):** scegli Plainva e attiva **Nel diario** — testo e link diventano la voce, i file condivisi finiscono nella cartella degli allegati e vengono incorporati.
+- **Con Siri e Comandi Rapidi (iPhone, iPad):** di' «Aggiungi una voce di diario in Plainva», oppure usa l'azione **Aggiungi voce di diario**. Plainva scrive la voce alla prossima apertura, con il minuto in cui l'hai detta — vedi [L'app mobile](Mobile_App.md).
 - **Con un'immagine:** il campo del telefono ha **Aggiungi foto**; al desktop incolli un'immagine dagli appunti nel campo. L'immagine va dove vanno gli allegati e viene incorporata nella voce.
 
 Se la nota giornaliera di oggi non esiste ancora, viene creata al momento — dal tuo modello di nota giornaliera, senza porre le sue domande. Dopo il salvataggio, un avviso dice **Voce salvata** e offre **Annulla**.

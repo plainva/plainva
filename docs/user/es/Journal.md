@@ -1,6 +1,6 @@
 # Diario
 
-Última actualización: 2026-09-22
+Última actualización: 2026-10-07
 
 El diario es la forma rápida de anotar algo sin abrir una nota: un pensamiento, una llamada, una línea sobre el día. Cada entrada es una línea de lista normal con una hora — `- 14:05 El router está en el sótano` — bajo un encabezado de la **nota diaria de hoy**. No hay ningún formato de archivo nuevo ni una base de datos: las entradas viven en tus notas diarias, legibles en cualquier editor y compatibles con los plugins de diario de Obsidian (Thino, Knomo).
 
@@ -11,6 +11,7 @@ Un campo, un **Enter**. Plainva pone la hora; tú solo escribes el texto. Las et
 - **En el escritorio:** `Ctrl+Shift+J` abre el campo **Entrada de diario** desde cualquier lugar de Plainva. El mismo campo está en el menú **＋** de la barra lateral, en la paleta de comandos y en el menú de la bandeja del sistema (**Entrada de diario**). `Enter` guarda, `Shift+Enter` empieza una nueva línea, `Esc` descarta.
 - **En el teléfono:** el botón **＋** ofrece **Entrada de diario**; la pantalla del diario tiene su propio botón de lápiz. Un toque largo sobre el icono de la app también ofrece **Entrada de diario** — como acceso directo de la app en Android, como acción rápida en iOS. Ahí, `Enter` sigue siendo un salto de línea; **Guardar entrada** guarda.
 - **Desde el panel para compartir (teléfono):** elige Plainva y marca **Al diario** — el texto y el enlace se convierten en la entrada, los archivos compartidos van a la carpeta de adjuntos y se incrustan.
+- **Con Siri y Atajos (iPhone, iPad):** di «Añade una entrada de diario en Plainva» o usa la acción **Añadir entrada de diario**. Plainva anota la entrada la próxima vez que la abres, con el minuto en que la dijiste — consulta [La aplicación móvil](Mobile_App.md).
 - **Con una imagen:** el campo del teléfono tiene **Añadir foto**; en el escritorio pegas una imagen desde el portapapeles en el campo. La imagen va a donde van los adjuntos y se incrusta en la entrada.
 
 Si la nota diaria de hoy todavía no existe, se crea sobre la marcha — a partir de tu plantilla de nota diaria, sin hacer sus preguntas. Después de guardar, un aviso dice **Entrada guardada** y ofrece **Deshacer**.

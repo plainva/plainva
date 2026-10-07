@@ -131,6 +131,30 @@ the usual one.
 | zh-CN | 外部智能体 | 会话 | ⟨名称⟩（外部智能体） | 登录 |
 | ja | 外部エージェント | セッション | ⟨名前⟩（外部エージェント） | サインイン |
 
+**Siri and Shortcuts** (`ai.system.*`, and the two string catalogs of the iOS app,
+`PlainvaIntents.xcstrings` and `AppShortcuts.xcstrings`): the system's assistant on
+an iPhone or iPad. *Siri* is never translated; *Shortcuts* takes the name the system
+itself shows in that language. What the system may read is a **list of note titles**
+— never "index" (the search's) and never "directory" (a folder); a title is
+**passed on**, not "sent" (that is a message to a provider) and not "shared" (that is
+a workspace). The four actions are named as the catalog names them, and the user
+guide quotes them from there: they are the only UI terms of the guide that do not
+come from a locale file. A spoken phrase must contain the app's name unchanged, so
+it stays undeclined where the language would decline it (pl *w Plainva*).
+
+| Language | Shortcuts | Add Journal Entry | Add Task | Open Note | Search Notes |
+|---|---|---|---|---|---|
+| en | Shortcuts | Add Journal Entry | Add Task | Open Note | Search Notes |
+| de | Kurzbefehle | Journal-Eintrag hinzufügen | Aufgabe hinzufügen | Notiz öffnen | Notizen durchsuchen |
+| fr | Raccourcis | Ajouter une entrée de journal | Ajouter une tâche | Ouvrir une note | Rechercher des notes |
+| es | Atajos | Añadir entrada de diario | Añadir tarea | Abrir nota | Buscar notas |
+| pt-BR | Atalhos | Adicionar entrada do diário | Adicionar tarefa | Abrir nota | Buscar notas |
+| it | Comandi Rapidi | Aggiungi voce di diario | Aggiungi attività | Apri nota | Cerca note |
+| nl | Opdrachten | Journaalitem toevoegen | Taak toevoegen | Notitie openen | Notities doorzoeken |
+| pl | Skróty | Dodaj wpis do dziennika | Dodaj zadanie | Otwórz notatkę | Szukaj notatek |
+| zh-CN | 快捷指令 | 写日志 | 添加任务 | 打开笔记 | 搜索笔记 |
+| ja | ショートカット | ジャーナルに記入 | タスクを追加 | ノートを開く | ノートを検索 |
+
 Two terms that must not borrow a word the app already uses for something else
 (`ai.capture.action`, `ai.skills.research.title`): **Keep as a note** — an AI
 answer kept as a note — is never the label of the mail-to-note action ("Save

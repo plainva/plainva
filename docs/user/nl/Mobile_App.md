@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-07
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -305,3 +305,14 @@ Een widget rekent zelf niets uit. Met de app dicht draait er niets van Plainva, 
 Een taak afvinken in de widget is een verzoek, geen wijziging. Het vinkje verschijnt meteen en de regel **wordt toegepast bij het openen van Plainva** zegt wat nog ontbreekt; de notitie verandert bij het volgende openen, met de herhaling en de synchronisatie die erbij horen. Een taak die je intussen elders hebt afgerond blijft ongemoeid. Op de iPhone vereist dit iOS 17; daaronder opent een tik op de regel de taak.
 
 Onder **Instellingen → Opstarten en gedrag → Widgets** bepalen twee schakelaars wat de app mag verlaten: **Titels in de widget tonen** en **Afspraken in de widget tonen**. Ze gelden alleen voor dit apparaat. Een vergrendelde versleutelde werkruimte toont sowieso niets — Plainva leegt de widget bij het vergrendelen.
+
+<!-- siri-shortcuts-2026-10-07 -->
+## Siri en Opdrachten
+
+Op een iPhone of iPad kunnen Siri en de app Opdrachten Plainva gebruiken via vier acties: **Journaalitem toevoegen**, **Taak toevoegen**, **Notitie openen** en **Notities doorzoeken**. Zeg “Voeg een journaalitem toe in Plainva”, of bouw de acties in je eigen opdrachten in. Android heeft nog geen tegenhanger die voor elke app openstaat.
+
+**Journaalitems en taken.** Wat je zegt, wordt bewaard samen met de minuut waarop je het zei. Met de app dicht draait er niets van Plainva, dus schrijft Plainva het op zodra je de app de volgende keer opent, en zegt het wat het geschreven heeft. Een journaalitem komt in de dagnotitie van die dag, op dat tijdstip. Een taak gaat naar je takendatabase en wordt gelezen als een regel in het invoerblad: in `Offerte versturen morgen` telt “morgen” vanaf de dag waarop je het zei. Zonder takendatabase wordt het een regel met een selectievakje in het journaal. Kan de vault het op dat moment niet aannemen — een versleutelde workspace die nog vergrendeld is —, dan wacht het en wordt het later geschreven. Niets hiervan vraagt om een instelling: het systeem komt daarbij niets over je vault te weten.
+
+**Openen en zoeken.** **Notities doorzoeken** opent de zoekfunctie van Plainva met jouw woorden. Voor **Notitie openen** moet het systeem weten welke notities er zijn, en dat staat uit totdat jij ervoor kiest. Onder **Instellingen → AI & automatisering** (het App-deel) heeft de sectie **Siri & Opdrachten**, zodra **AI op dit apparaat gebruiken** aanstaat, de schakelaar **Siri en Opdrachten notities van de geopende vault laten vinden**. Plainva houdt dan een lijst bij die het systeem kan lezen: de titel van een notitie en de naam van haar map, voor hoogstens 2.000 notities, de laatst gewijzigde — nooit de tekst van een notitie, nooit haar pad. De regel onder de schakelaar zegt hoeveel titels het systeem nu kan lezen, of waarom er geen zijn.
+
+**Wat nooit op de lijst staat.** Een notitie die je privacyregels van de cloud of van webtoegang weghouden (zie [AI-assistent](AI_Assistant.md)); alles uit een versleutelde workspace, vergrendeld of open; en helemaal geen titel zolang `.agent/policy.yml` een regel bevat die Plainva niet begrijpt. Een andere vault openen, een workspace vergrendelen of de instelling uitzetten maakt de lijst meteen leeg. Wat het systeem doet met een titel die het gekregen heeft — op het apparaat, in de cloud van Apple, in een andere assistent waaraan Siri het doorgeeft — beheerst Plainva niet; daarom bestaat de lijst alleen waar jij haar hebt aangezet. Een notitie die je zojuist als privé hebt gemarkeerd, kan er nog op staan totdat Plainva de lijst opnieuw geschreven heeft: een ogenblik na elke keer opslaan, en telkens wanneer de app naar de achtergrond gaat.

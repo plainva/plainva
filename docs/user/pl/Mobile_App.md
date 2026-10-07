@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-09-30
+Stan na: 2026-10-07
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -305,3 +305,14 @@ Widget niczego sam nie wylicza. Przy zamkniętej aplikacji nic z Plainvy nie dzi
 Odhaczenie zadania w widgecie to prośba, nie zmiana. Ptaszek pojawia się od razu, a wiersz **zostanie zastosowane po otwarciu Plainvy** mówi, czego brakuje; sama notatka zmienia się przy następnym otwarciu aplikacji, razem z powtarzaniem i synchronizacją. Zadanie ukończone w międzyczasie gdzie indziej zostaje nietknięte. Na iPhonie wymaga to iOS 17; poniżej dotknięcie wiersza otwiera zadanie.
 
 W **Ustawienia → Uruchamianie i zachowanie → Widgety** dwa przełączniki decydują, co może opuścić aplikację: **Pokaż tytuły w widgecie** i **Pokaż wydarzenia w widgecie**. Działają tylko na tym urządzeniu. Zablokowana zaszyfrowana przestrzeń i tak nie pokazuje niczego — Plainva opróżnia widget przy blokowaniu.
+
+<!-- siri-shortcuts-2026-10-07 -->
+## Siri i Skróty
+
+Na iPhonie i iPadzie Siri oraz aplikacja Skróty mogą korzystać z Plainvy przez cztery czynności: **Dodaj wpis do dziennika**, **Dodaj zadanie**, **Otwórz notatkę** i **Szukaj notatek**. Powiedz „Dodaj wpis do dziennika w Plainva” albo wbuduj te czynności we własne skróty. Android nie ma jeszcze odpowiednika otwartego dla każdej aplikacji.
+
+**Wpisy dziennika i zadania.** To, co powiesz, zostaje zachowane razem z minutą, w której to zostało powiedziane. Przy zamkniętej aplikacji nic z Plainvy nie działa, więc Plainva zapisuje to przy następnym otwarciu i mówi, co zapisała. Wpis dziennika trafia do notatki dziennej tamtego dnia, o tamtej godzinie. Zadanie trafia do Twojej bazy zadań i jest czytane jak wiersz w arkuszu zapisu: w `Wysłać ofertę jutro` „jutro” liczy się od dnia, w którym to zostało powiedziane. Bez bazy zadań staje się wierszem z polem wyboru w dzienniku. Jeśli vault nie może tego w danej chwili przyjąć — zaszyfrowany obszar roboczy, który jest jeszcze zablokowany — czeka i zostaje zapisane później. Nic z tego nie wymaga ustawienia: system niczego się przy tym nie dowiaduje o Twoim vaulcie.
+
+**Otwieranie i szukanie.** **Szukaj notatek** otwiera wyszukiwanie Plainvy z Twoimi słowami. Do **Otwórz notatkę** system musi wiedzieć, jakie notatki istnieją, a to jest wyłączone, dopóki tego nie wybierzesz. W **Ustawienia → AI & automatyzacja** (część aplikacji), gdy **Używaj AI na tym urządzeniu** jest włączone, sekcja **Siri i Skróty** ma przełącznik **Pozwól Siri i Skrótom znajdować notatki otwartego vaultu**. Plainva prowadzi wtedy listę, którą system może czytać: tytuł notatki i nazwę jej folderu, dla najwyżej 2000 notatek, tych ostatnio zmienionych — nigdy tekst notatki, nigdy jej ścieżkę. Wiersz pod przełącznikiem mówi, ile tytułów system może teraz czytać albo dlaczego nie ma żadnego.
+
+**Czego nigdy nie ma na liście.** Notatki, którą Twoje zasady prywatności trzymają z dala od chmury lub od dostępu do sieci (zob. [Asystent AI](AI_Assistant.md)); niczego z zaszyfrowanego obszaru roboczego, zablokowanego czy otwartego; i żadnego tytułu, dopóki `.agent/policy.yml` zawiera wiersz, którego Plainva nie rozumie. Otwarcie innego vaultu, zablokowanie obszaru roboczego albo wyłączenie ustawienia natychmiast opróżnia listę. Tego, co system robi z tytułem, który dostał — na urządzeniu, w chmurze Apple, w innym asystencie, któremu Siri go przekazuje — Plainva nie kontroluje; dlatego lista istnieje tylko tam, gdzie ją włączysz. Notatka oznaczona przed chwilą jako prywatna może jeszcze na niej być, dopóki Plainva nie zapisze listy na nowo: chwilę po każdym zapisie i zawsze, gdy aplikacja przechodzi w tło.

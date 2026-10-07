@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-09-30
+Stand: 2026-10-07
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -305,3 +305,14 @@ Ein Widget rechnet nichts selbst. Bei geschlossener App läuft nichts von Plainv
 Eine Aufgabe im Widget abzuhaken ist ein Auftrag, keine Änderung. Der Haken erscheint sofort, die Zeile **wird beim Öffnen übernommen** sagt, was noch fehlt; die Notiz selbst ändert sich beim nächsten Öffnen der App, mitsamt Wiederholung und Abgleich. Eine Aufgabe, die Du inzwischen anderswo erledigt hast, bleibt still unberührt. Am iPhone braucht das iOS 17; darunter öffnet ein Tipp auf die Zeile die Aufgabe.
 
 Unter **Einstellungen → Start & Verhalten → Widgets** entscheiden zwei Schalter, was die App verlassen darf: **Titel im Widget zeigen** und **Termine im Widget zeigen**. Sie gelten nur für dieses Gerät. Ein gesperrter verschlüsselter Workspace zeigt ohnehin nichts — Plainva leert das Widget beim Sperren.
+
+<!-- siri-shortcuts-2026-10-07 -->
+## Siri und Kurzbefehle
+
+Am iPhone und iPad können Siri und die Kurzbefehle-App Plainva über vier Aktionen nutzen: **Journal-Eintrag hinzufügen**, **Aufgabe hinzufügen**, **Notiz öffnen** und **Notizen durchsuchen**. Sag „Journal-Eintrag in Plainva hinzufügen“ oder bau die Aktionen in eigene Kurzbefehle ein. Unter Android gibt es dafür noch kein Gegenstück, das jeder App offensteht.
+
+**Journal-Einträge und Aufgaben.** Was Du sagst, wird mit der Minute festgehalten, in der Du es gesagt hast. Bei geschlossener App läuft nichts von Plainva, also schreibt Plainva es beim nächsten Öffnen auf und sagt Dir, was es geschrieben hat. Ein Journal-Eintrag landet in der Tagesnotiz jenes Tages, zu jener Uhrzeit. Eine Aufgabe kommt in Deine Aufgaben-Datenbank und wird gelesen wie eine Zeile im Erfassungsblatt: In `Angebot abschicken morgen` zählt „morgen“ ab dem Tag, an dem Du es gesagt hast. Ohne Aufgaben-Datenbank wird daraus eine Zeile mit Kästchen im Journal. Kann der Vault es in dem Moment nicht annehmen — ein verschlüsselter Workspace, der noch gesperrt ist —, wartet es und wird später geschrieben. Nichts davon braucht eine Einstellung: Das System erfährt dabei nichts über Deinen Vault.
+
+**Öffnen und Suchen.** **Notizen durchsuchen** öffnet Plainvas Suche mit Deinen Worten. Für **Notiz öffnen** muss das System wissen, welche Notizen es gibt, und das ist aus, bis Du es wählst. Unter **Einstellungen → KI & Automatisierung** (dem App-Teil) steht, sobald **KI auf diesem Gerät nutzen** eingeschaltet ist, im Abschnitt **Siri & Kurzbefehle** der Schalter **Siri und Kurzbefehle dürfen Notizen des offenen Vaults finden**. Plainva führt dann eine Liste, die das System lesen kann: den Titel einer Notiz und den Namen ihres Ordners, für bis zu 2.000 Notizen, die zuletzt geänderten — nie den Text einer Notiz, nie ihren Pfad. Die Zeile unter dem Schalter sagt, wie viele Titel das System gerade lesen kann oder warum es keine sind.
+
+**Was nie auf der Liste steht.** Eine Notiz, die Deine Datenschutzregeln von der Cloud oder vom Webzugriff fernhalten (siehe [KI-Assistent](AI_Assistant.md)); alles aus einem verschlüsselten Workspace, gesperrt oder offen; und gar kein Titel, solange `.agent/policy.yml` eine Zeile enthält, die Plainva nicht versteht. Einen anderen Vault zu öffnen, einen Workspace zu sperren oder die Einstellung auszuschalten leert die Liste sofort. Was das System mit einem Titel macht, den es bekommen hat — auf dem Gerät, in Apples Cloud, in einem anderen Assistenten, an den Siri weitergibt —, kontrolliert Plainva nicht; deshalb gibt es die Liste nur dort, wo Du sie eingeschaltet hast. Eine Notiz, die Du eben erst als privat markiert hast, kann noch darauf stehen, bis Plainva die Liste neu geschrieben hat: einen Moment nach jedem Speichern und immer, wenn die App in den Hintergrund geht.

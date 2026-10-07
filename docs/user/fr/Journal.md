@@ -1,6 +1,6 @@
 # Journal
 
-Dernière mise à jour : 2026-09-22
+Dernière mise à jour : 2026-10-07
 
 Le journal est le moyen le plus rapide de noter quelque chose sans ouvrir de note : une pensée, un appel téléphonique, une ligne sur la journée. Chaque entrée est une simple ligne de liste avec une heure — `- 14:05 Le routeur est au sous-sol` — sous un titre de la **note quotidienne d'aujourd'hui**. Il n'y a ni nouveau format de fichier ni base de données : les entrées vivent dans vos notes quotidiennes, lisibles dans n'importe quel éditeur et compatibles avec les plugins de journal d'Obsidian (Thino, Knomo).
 
@@ -11,6 +11,7 @@ Un champ, une touche **Entrée**. Plainva horodate l'entrée ; vous ne tapez que
 - **Sur le bureau :** `Ctrl+Shift+J` ouvre le champ **Entrée de journal** depuis n'importe où dans Plainva. Le même champ se trouve dans le menu **＋** de la barre latérale, dans la palette de commandes et dans le menu de la zone de notification (**Entrée de journal**). `Entrée` enregistre, `Shift+Entrée` commence une nouvelle ligne, `Esc` annule.
 - **Sur le téléphone :** le bouton **＋** propose **Entrée de journal** ; l'écran du journal a son propre bouton crayon. Un appui long sur l'icône de l'application propose aussi **Entrée de journal** — comme raccourci d'application sous Android, comme action rapide sous iOS. `Entrée` y reste un saut de ligne ; **Enregistrer l'entrée** enregistre.
 - **Depuis la feuille de partage (téléphone) :** choisissez Plainva et cochez **Vers le journal** — le texte et le lien deviennent l'entrée, les fichiers partagés atterrissent dans le dossier des pièces jointes et sont intégrés.
+- **Avec Siri et Raccourcis (iPhone, iPad) :** dites « Ajoute une entrée de journal dans Plainva », ou utilisez l'action **Ajouter une entrée de journal**. Plainva écrit l'entrée à sa prochaine ouverture, avec la minute à laquelle vous l'avez dite — voir [L'application mobile](Mobile_App.md).
 - **Avec une image :** le champ du téléphone a **Ajouter une photo** ; sur le bureau, vous collez une image depuis le presse-papiers dans le champ. L'image va là où vont les pièces jointes et s'intègre dans l'entrée.
 
 Si la note quotidienne d'aujourd'hui n'existe pas encore, elle est créée au passage — à partir de votre modèle de note quotidienne, sans poser ses questions. Après l'enregistrement, un avis indique **Entrée enregistrée** et propose **Annuler**.

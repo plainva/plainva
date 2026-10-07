@@ -211,6 +211,8 @@ Obraz należy do notatek, które go pokazują: obraz osadzony w notatce trzymane
 
 Druga reguła, `web: deny` — w ustawieniach **Dostęp do sieci: nigdy** —, trzyma notatkę lub folder poza każdą rozmową, która może korzystać z internetu.
 
+Na iPhonie i iPadzie te same dwie reguły decydują, które tytuły notatek mogą znaleźć Siri i Skróty, gdy to włączysz: notatka trzymana z dala od chmury lub od dostępu do sieci nigdy nie jest im podawana. Zob. „Siri i Skróty” w [Aplikacja mobilna](Mobile_App.md).
+
 ## Historia i zużycie
 
 Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i nigdy niesynchronizowane. **Przechowuj rozmowy** decyduje, jak długo; pojedyncze rozmowy można usuwać na liście, a wszystkie rozmowy danego vaultu naraz. **Zużycie w tym miesiącu** sumuje tokeny według dostawcy i modelu.

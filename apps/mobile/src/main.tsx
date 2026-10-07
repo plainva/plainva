@@ -4,6 +4,7 @@ import { TransferReviewHost } from "./components/TransferReviewHost";
 import { i18nReady } from "@plainva/ui/i18n";
 import { initReminderScheduler } from "./services/reminderScheduler";
 import { initWidgetService } from "./services/widgetService";
+import { initIntentService } from "./services/intentService";
 import { initMobileCommentNotifier } from "./services/commentNotifier";
 import "@plainva/ui/styles/base-colors.css";
 import "@plainva/ui/styles/tokens.css";
@@ -149,6 +150,10 @@ async function boot(): Promise<void> {
   // file loaded would leave raw keys on the home screen until the next
   // write -- which, on a phone left alone, can be days.
   initWidgetService();
+  // What the system's assistant may know and what it asked for (AI harness
+  // P4.7) — after i18nReady for the same reason: a task somebody dictated is
+  // read with the capture words of the app's language.
+  initIntentService();
   // Before the first paint: a stylesheet keyed on the window class must not
   // see a phone layout for one frame on a tablet.
   initWindowClass();

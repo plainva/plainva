@@ -1227,6 +1227,18 @@
         "added": "{{agent}} è stato aggiunto."
       }
     },
+    "system": {
+      "title": "Siri e Comandi Rapidi",
+      "find": "Consenti a Siri e Comandi Rapidi di trovare le note del vault aperto",
+      "findDesc": "Disattivato finché non lo attivi. Plainva tiene allora un elenco di titoli di note che il sistema può leggere — solo note a cui le tue regole sulla privacy consentono sia il cloud sia l'accesso web, mai un workspace cifrato e mai il testo di una nota. Che cosa il sistema fa con un titolo non lo controlla Plainva.",
+      "captureHint": "Aggiungere una voce di diario o un'attività con Siri o Comandi Rapidi funziona senza questo interruttore: il sistema non viene a sapere nulla. Plainva la scrive alla prossima apertura.",
+      "filed": "Da Siri e Comandi Rapidi — voci di diario: {{journal}}, attività: {{tasks}}.",
+      "waiting": "Non ancora scritto, ancora in attesa: {{count}}.",
+      "known": "Titoli di note che il sistema può leggere ora: {{count}}",
+      "noneSealed": "Il vault aperto è un workspace cifrato. Nessuno dei suoi titoli viene trasmesso.",
+      "noneRules": "Plainva non capisce alcune righe di .agent/policy.yml o non riesce a leggere il file. Finché non viene corretto, non viene trasmesso alcun titolo.",
+      "noneEmpty": "Al momento non viene trasmesso alcun titolo."
+    },
     "transcribe": {
       "action": "Trascrivi",
       "running": "Trascrizione…",

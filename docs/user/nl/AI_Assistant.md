@@ -211,6 +211,8 @@ Een afbeelding hoort bij de notities die haar tonen: een afbeelding die is inges
 
 Een tweede regel, `web: deny` — in de instellingen **Webtoegang: nooit** —, houdt een notitie of map buiten elk gesprek dat internet mag gebruiken.
 
+Op een iPhone of iPad bepalen dezelfde twee regels welke notitietitels Siri en Opdrachten mogen vinden, zodra je dat hebt aangezet: een notitie die van de cloud of van webtoegang wordt weggehouden, wordt hun nooit genoemd. Zie “Siri en Opdrachten” in [De mobiele app](Mobile_App.md).
+
 ## Geschiedenis en verbruik
 
 Gesprekken blijven op dit apparaat, per vault — nooit in de vault en nooit gesynchroniseerd. **Gesprekken bewaren** bepaalt hoe lang; je kunt losse gesprekken in de lijst verwijderen, of alle gesprekken van een vault in één keer. **Verbruik deze maand** telt de tokens per provider en model op.

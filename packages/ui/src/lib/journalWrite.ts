@@ -127,24 +127,33 @@ export interface PlannedJournalEntry {
   time: string;
   heading: string;
   text: string;
+  /**
+   * The entry is a task with an open box — what somebody asked to have noted
+   * as a task where no task database takes it (AI harness P4.7). Additive: a
+   * plan made without it is a plain entry.
+   */
+  task?: boolean;
 }
 
 /**
  * Writes a planned entry and resolves with the note it went to — or `null` when
  * it cannot be written. IDEMPOTENT: a retry after a crash finds the entry a
  * finished attempt left behind (same time, same text as the writer spells it)
- * and writes nothing.
+ * and writes nothing. A planned task is found only in a task and a plain entry
+ * only in a plain one: the same words in the same minute, once as a task and
+ * once as a note, are two things somebody said.
  */
 export async function appendPlannedJournalEntry(files: JournalFiles, planned: PlannedJournalEntry): Promise<string | null> {
   const [year, month, day] = planned.date.split("-").map(Number);
   const date = new Date(year, month - 1, day);
-  const probe = insertJournalEntry("", { heading: planned.heading, time: planned.time, text: planned.text });
+  const probe = insertJournalEntry("", { heading: planned.heading, time: planned.time, text: planned.text, task: planned.task ? "open" : null });
   if (!probe.ok) return null;
   const note = await files.ensureDailyNote(date);
   if (!note) return null;
   const existing = parseJournal(await files.readTextFile(note.path), { heading: planned.heading }).entries;
-  if (existing.some((entry) => entry.time === probe.entry.time && entry.text === probe.entry.text)) return note.path;
-  const result = await appendJournalEntry(files, { date, text: planned.text, heading: planned.heading, time: planned.time });
+  const asTask = planned.task === true;
+  if (existing.some((entry) => entry.time === probe.entry.time && entry.text === probe.entry.text && (entry.task !== null) === asTask)) return note.path;
+  const result = await appendJournalEntry(files, { date, text: planned.text, heading: planned.heading, time: planned.time, ...(planned.task ? { task: true } : {}) });
   return result.ok ? result.path : null;
 }
 

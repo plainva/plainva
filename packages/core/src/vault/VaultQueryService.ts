@@ -1175,6 +1175,45 @@ export class VaultQueryService {
   }
 
   /**
+   * Path -> the `plainva` namespace of every note that carries an AI rule of
+   * its own (`plainva.ai`), straight from the index — the whole namespace is
+   * one row of JSON, so one query answers it.
+   *
+   * For a caller that has to decide the privacy gate for MANY notes at once
+   * and cannot read each of them: the list of titles the system's assistant
+   * may know (AI harness P4.7). A note without an entry here has no rule of
+   * its own; its folder's rules and the default decide. The index follows a
+   * file by one pass — a caller that must not be wrong about ONE note reads
+   * that note, as every other door of the assistant does.
+   *
+   * Malformed rows are skipped rather than throwing, like getDocumentIcons;
+   * `ai` that is no object is returned as it is, for the policy's parser to
+   * ignore.
+   */
+  async getOwnAiRules(): Promise<Map<string, { ai: unknown }>> {
+    const rows = await this.db.query(
+      `SELECT f.path AS path, p.value AS value
+       FROM properties p
+       JOIN files f ON f.id = p.file_id
+       WHERE p.key = ?`,
+      [PLAINVA_NAMESPACE_KEY],
+    );
+    const rules = new Map<string, { ai: unknown }>();
+    for (const row of rows as any[]) {
+      const path = String(row.path ?? row.PATH ?? "");
+      const raw = row.value ?? row.VALUE;
+      if (!path || typeof raw !== "string") continue;
+      try {
+        const namespace = JSON.parse(raw);
+        if (namespace && typeof namespace === "object" && "ai" in namespace) rules.set(path, { ai: (namespace as Record<string, unknown>).ai });
+      } catch {
+        /* malformed namespace JSON — no rule of its own for this file */
+      }
+    }
+    return rules;
+  }
+
+  /**
    * Path -> document icon (value + optional tint) from the `plainva`
    * frontmatter namespace. Powers icon display in tabs and the file tree
    * straight from the index (no file reads). The namespace is stored as a

@@ -1,6 +1,6 @@
 # Attività
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-07
 
 La vista Attività raccoglie in un unico posto ogni casella di controllo del tuo vault: tutte le voci di elenco `- [ ]` e `- [x]` in tutte le tue note, raggruppate per la nota in cui si trovano. È la vista "cosa devo ancora fare?" sul puro Markdown — nessun plugin, nessun file speciale.
 
@@ -167,7 +167,7 @@ Sopra gli elenchi si trova il campo di cattura; sul telefono, **+ Nuova attivit�
 
 `- [/]` (**In corso**) e `- [-]` (**Annullata**) sono anch'esse attività. Ricevono una propria casella nell'editor, in modalità lettura e in ogni elenco; in corso conta come aperta, annullata come chiusa. Un clic continua a spostarsi solo tra aperta e completata — completa un'attività in corso e riapre una annullata. **Imposta stato** nel menu della riga imposta i due stati; Plainva non li scrive mai da sola.
 
-Altri modi per crearle: **Nuova attività** nel menu del vassoio di sistema sul desktop (quando Plainva continua a girare in background), su Android la scorciatoia del launcher **Nuova attività** (tocco prolungato sull'icona dell'app), e sul telefono **Crea come attività** quando condividi qualcosa con Plainva — il testo e gli allegati finiscono nella nota dell'attività. Come un'attività con orario te lo ricorda è descritto in [Calendario e attività esterne](Calendar_and_Tasks.md).
+Altri modi per crearle: **Nuova attività** nel menu del vassoio di sistema sul desktop (quando Plainva continua a girare in background), su Android la scorciatoia del launcher **Nuova attività** (tocco prolungato sull'icona dell'app), e sul telefono **Crea come attività** quando condividi qualcosa con Plainva — il testo e gli allegati finiscono nella nota dell'attività. Come un'attività con orario te lo ricorda è descritto in [Calendario e attività esterne](Calendar_and_Tasks.md). Su iPhone e iPad anche Siri e Comandi Rapidi accettano un'attività (**Aggiungi attività**); Plainva la crea alla prossima apertura — vedi [L'app mobile](Mobile_App.md).
 
 <!-- widgets-2026-09-23 -->
 ## Spuntare da un widget

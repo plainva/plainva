@@ -461,6 +461,7 @@ export default function App() {
       onJournal={() => setJournalCapture({ text: "" })}
       onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
       onOpenNote={openNote}
+      onSearch={() => setNav((n) => pushEntry(n, { kind: "search", path: "" }))}
       onOpenToday={() => openDaily(journalTodayKey())}
       pendingShortcut={pendingShortcut}
       setPendingShortcut={setPendingShortcut}

@@ -359,6 +359,31 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-10-01",
   },
   {
+    id: "ai-system-intents",
+    title: "The system's assistant finds notes and takes down entries (Siri and Shortcuts; plan KI-Harness P4.7)",
+    area: "ai",
+    kind: "gap",
+    desktop: null,
+    desktopReason:
+      "Not the gap of this entry. The desktop's way for another program to use " +
+      "the vault is the MCP server (entry ai-mcp-server), and these intents are " +
+      "its counterpart on the phone. Windows and Linux have no assistant of the " +
+      "system that takes actions from apps; on macOS the intents would have to " +
+      "be compiled into the app by Xcode's build, and the desktop bundle is made " +
+      "by Tauri's bundler.",
+    mobile: "partial",
+    mobileReason:
+      "iPhone and iPad only (App Intents: open a note, search, a journal entry, " +
+      "a task). The gap is Android: its counterpart, AppFunctions (Android 16), " +
+      "is an experimental preview - the library is an alpha, and only apps " +
+      "Google admits to its early access program reach the assistant (Android " +
+      "developer documentation, read 2026-10-07). Until that opens, an Android " +
+      "phone captures through the launcher shortcuts, the widgets and the share " +
+      "target, and no assistant finds a note. In the maintainer's open-items " +
+      "plan since 2026-10-07.",
+    verified: "2026-10-07",
+  },
+  {
     id: "ai-web-fetch-pinned-address",
     title: "A page the assistant fetches comes from exactly the address that was checked (plan KI-Harness P4)",
     area: "ai",

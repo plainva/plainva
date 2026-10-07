@@ -1,6 +1,6 @@
 # Journal
 
-Last updated: 2026-09-22
+Last updated: 2026-10-07
 
 The journal is the quick way to write something down without opening a note: a thought, a phone call, a line about the day. Every entry is a plain list line with a time — `- 14:05 Router is in the basement` — under a heading of **today's daily note**. There is no new file format and no database: the entries live in your daily notes, readable in any editor and compatible with the journal plugins of Obsidian (Thino, Knomo).
 
@@ -11,6 +11,7 @@ One field, one **Enter**. Plainva stamps the time; you only type the text. Tags,
 - **On the desktop:** `Ctrl+Shift+J` opens the **Journal entry** field from anywhere in Plainva. The same field is in the **＋** menu of the sidebar, in the command palette and in the tray menu (**Journal entry**). `Enter` saves, `Shift+Enter` starts a new line, `Esc` discards.
 - **On the phone:** the **＋** button offers **Journal entry**; the journal screen has its own pen button. A long press on the app icon offers **Journal entry** as well — as an app shortcut on Android, as a quick action on iOS. `Enter` stays a line break there; **Save entry** saves.
 - **From the share sheet (phone):** choose Plainva and tick **Into the journal** — text and link become the entry, shared files land in the attachments folder and are embedded.
+- **Through Siri and Shortcuts (iPhone, iPad):** say “Add a journal entry in Plainva”, or use the action **Add Journal Entry**. Plainva writes the entry down the next time you open it, with the minute you said it — see [The mobile app](Mobile_App.md).
 - **With a picture:** the phone's field has **Add a photo**; on the desktop you paste an image from the clipboard into the field. The picture goes where attachments go and is embedded in the entry.
 
 If today's daily note does not exist yet, it is created on the way — from your daily-note template, without asking its questions. After saving, a notice says **Entry saved** and offers **Undo**.
