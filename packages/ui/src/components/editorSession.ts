@@ -30,12 +30,15 @@ import { listKeymap } from "./listKeymap";
 import { listIndentPlugin } from "./listIndent";
 import { textDirectionExtension } from "./textDirectionExtension";
 import { markdownFolding } from "./foldingExtension";
+import { searchPanelOpen } from "@codemirror/search";
 import { searchSetup } from "./searchSetup";
 import { blockHandles } from "./blockHandles";
 import { minimalDocChange } from "../lib/textDiff";
 import { countWords } from "../lib/wordCount";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { markdownToHtml } from "../lib/markdownToHtml";
+import { spellcheckAttr, spellcheckFor, subscribeSpellcheck, type WritingPurpose } from "../lib/spellcheck";
+import { spellcheckExemptions } from "./spellcheckExemptions";
 import type { EditorTriggerDeps } from "./editorTriggers";
 import {
   toggleInlineMark,
@@ -175,6 +178,12 @@ export interface EditorSessionDeps {
    * new comment would attach to, and only re-renders when that quote changes).
    */
   onSelectionRange?: (range: { from: number; to: number } | null) => void;
+  /**
+   * The find panel opened or closed. The phone's reader floats its controls
+   * over the text; the panel stands at the top of the editor, so the host has
+   * to know it is there and make room (TestFlight 2026-09-27).
+   */
+  onFindPanel?: (open: boolean) => void;
   onPickIcon: (anchor: { x: number; y: number }) => void;
   onPickColor: (anchor: { x: number; y: number }) => void;
   /**
@@ -231,9 +240,15 @@ export interface EditorSessionConfig {
    * (2) the contentDOM re-enables the virtual keyboard's smartness
    *     (autocapitalize / autocorrect / writing suggestions) that CM6
    *     hard-disables by default — auto-capitalization after a sentence and
-   *     GBoard suggestions did nothing in the app. Spellcheck stays off by
-   *     decision (no squiggles under Markdown syntax). Desktop leaves this
+   *     GBoard suggestions did nothing in the app. Desktop leaves this
    *     unset and keeps CM's defaults.
+   *
+   * Spell checking is NOT part of this profile. It stayed off here by decision
+   * on 2026-07-16 ("no squiggles under Markdown syntax"); that decision was
+   * reversed on 2026-10-06 (plan Befunde, E3): it is a device switch now, off
+   * by default, the same on both profiles, and the session follows it through
+   * its own compartment (see `spellExtensions` below). The objection of July
+   * is answered by spellcheckExemptions, not by keeping the feature away.
    */
   touchInput?: boolean;
 }
@@ -278,6 +293,23 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   const deps = cfg.deps;
   const modeComp = new Compartment();
   const editableComp = new Compartment();
+  // The spell-checking switch (lib/spellcheck.ts). CodeMirror hard-codes
+  // spellcheck="false" on its content element; a facet value overrides it, and
+  // keeping that value in a compartment lets an OPEN editor follow the switch:
+  // the swap touches one attribute (and the exemption marks), never the
+  // document, so caret, scroll position and undo history stay where they are.
+  const spellComp = new Compartment();
+  // A note is prose. A text file is prose unless its name picks a grammar: a
+  // `.txt` or a log reads as language, a `.py` or a `.json` does not.
+  const spellPurpose: WritingPurpose =
+    cfg.plainTextFile && LanguageDescription.matchFilename(codeLanguages, cfg.plainTextFile.split("/").pop() ?? cfg.plainTextFile)
+      ? "code"
+      : "prose";
+  const spellExtensions = (): Extension => [
+    EditorView.contentAttributes.of({ spellcheck: spellcheckAttr(spellPurpose) }),
+    // Code, URLs, HTML and the frontmatter inside a note stay unchecked.
+    spellcheckFor(spellPurpose) && !cfg.plainTextFile ? spellcheckExemptions() : [],
+  ];
   const suggestMode = createSuggestMode();
   // A grammar arrives after the session may already be gone (file switched,
   // pane closed): dispatching into a destroyed view throws.
@@ -388,6 +420,8 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     if (update.docChanged && !update.transactions.some((tr) => tr.annotation(ExternalChange))) {
       deps.current.onDocChanged(update.view);
     }
+    const finding = searchPanelOpen(update.state);
+    if (finding !== searchPanelOpen(update.startState)) deps.current.onFindPanel?.(finding);
     // Floating formatting toolbar over a non-empty selection (#5) — same
     // conditions as the previous inline listener in Editor.tsx.
     if (!(update.selectionSet || update.docChanged || update.focusChanged || update.geometryChanged || update.viewportChanged)) return;
@@ -473,6 +507,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // three callers, one style, no fourth palette to keep in step.
     Prec.highest(syntaxHighlighting(markdownHighlightStyle)),
     editableComp.of(editableExtensions(cfg.editable !== false)),
+    spellComp.of(spellExtensions()),
   ] : [
     EditorView.contentAttributes.of({ "aria-label": "Markdown Editor" }),
     // Touch profile (see EditorSessionConfig.touchInput): later facet values
@@ -567,6 +602,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     anchorHighlightExtension((commentId) => deps.current.onAnchorActivate?.(commentId)),
     editableComp.of(editableExtensions(cfg.editable !== false)),
     modeComp.of(modeExtensions(cfg.mode)),
+    spellComp.of(spellExtensions()),
     suggestMode.extension,
   ];
 
@@ -578,6 +614,10 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
   let currentMode = cfg.mode;
   let currentEditable = cfg.editable !== false;
   let suggesting = false;
+  // The switch point: the device setting changes, this editor follows.
+  const stopSpellcheck = subscribeSpellcheck(() => {
+    if (!destroyed) view.dispatch({ effects: spellComp.reconfigure(spellExtensions()) });
+  });
 
   return {
     view,
@@ -615,6 +655,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     },
     destroy() {
       destroyed = true;
+      stopSpellcheck();
       view.destroy();
     },
   };

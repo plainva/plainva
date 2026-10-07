@@ -8,6 +8,7 @@ import type {
   PimCalendar,
   PimEvent,
   PimEventDraft,
+  PimEventLinks,
   PimRecurrence,
   PimEventRef,
   PimTask,
@@ -21,6 +22,7 @@ import type {
 } from "./types.js";
 import { PimConflictError } from "./types.js";
 import { htmlToMarkdown } from "./htmlToMarkdown.js";
+import { decodeBlockRefs, encodeBlockRefs } from "./blockLinks.js";
 
 /**
  * Microsoft read adapter (stage 2): Graph calendars + To Do. `calendarView`
@@ -63,7 +65,12 @@ interface GraphEventItem {
 
 /** Stable named-property id used for Plainva blocker linkage. */
 export const GRAPH_BLOCK_OF_PROPERTY_ID = "String {4F21D2AE-7A5A-4B66-9E47-7F2B96AB0C31} Name plainva-block-of";
-const GRAPH_BLOCK_EXPAND = `$expand=singleValueExtendedProperties($filter=id eq '${GRAPH_BLOCK_OF_PROPERTY_ID}')`;
+/** The reverse half (K3): the event's own list of its blockers, in the same property set. */
+export const GRAPH_BLOCKS_PROPERTY_ID = "String {4F21D2AE-7A5A-4B66-9E47-7F2B96AB0C31} Name plainva-blocks";
+const GRAPH_BLOCK_EXPAND =
+  `$expand=singleValueExtendedProperties($filter=id eq '${GRAPH_BLOCK_OF_PROPERTY_ID}' or id eq '${GRAPH_BLOCKS_PROPERTY_ID}')`;
+/** How many single-event reads one delta step may spend on the link properties. */
+const GRAPH_DELTA_LINK_READS = 4;
 
 /** Graph attendee response -> normalised PARTSTAT. */
 function graphResponseToStatus(r: string | undefined): PimAttendeeStatus {
@@ -222,9 +229,55 @@ export class GraphPimTarget implements IPimTarget {
       nextCursor = data["@odata.deltaLink"] ?? "";
       url = data["@odata.nextLink"];
     }
+    // A `null` cursor only asks for a fresh one; its events are thrown away.
+    if (cursor !== null) await this.readDeltaLinks(calendarId, events);
     // No deltaLink means the feed did not finish a round. Returning "" makes the
     // caller keep refreshing fully rather than store a cursor it cannot resume.
     return { events, deletedUids, nextCursor };
+  }
+
+  /**
+   * The blocker linkage of the events a delta step returned (K3).
+   *
+   * `calendarView/delta` takes no `$expand`, so its events arrive WITHOUT the
+   * two extended properties — and the cache, which upserts whole rows, then
+   * wrote "no link" over a blocker that had merely been moved. The link came
+   * back with the next full refresh, up to an hour later.
+   *
+   * So each changed event is read once more with the expand the full pull
+   * uses. Occurrences share their series: one read of the master answers for
+   * all of them. A delta step is small (it carries what changed since the last
+   * cycle), which is what makes single reads affordable here.
+   *
+   * An event that is gone again by the time it is read simply has no link. Any
+   * other failure is thrown, like every failure of a delta step: the worker
+   * drops the cursor and the next cycle is a full refresh.
+   */
+  private async readDeltaLinks(calendarId: string, events: PimEvent[]): Promise<void> {
+    const byKey = new Map<string, PimEvent[]>();
+    for (const event of events) {
+      const key = event.seriesMaster ?? event.uid;
+      const list = byKey.get(key);
+      if (list) list.push(event);
+      else byKey.set(key, [event]);
+    }
+    const keys = [...byKey.keys()];
+    for (let index = 0; index < keys.length; index += GRAPH_DELTA_LINK_READS) {
+      await Promise.all(
+        keys.slice(index, index + GRAPH_DELTA_LINK_READS).map(async (key) => {
+          const res = await this.request(
+            `${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(key)}?$select=id&${GRAPH_BLOCK_EXPAND}`
+          );
+          if (res.status === 404 || res.status === 410) return;
+          if (!res.ok) throw await pimRequestError("graph request", res);
+          const links = graphLinks((await res.json()) as GraphEventItem);
+          for (const event of byKey.get(key) ?? []) {
+            event.blockOf = links.blockOf;
+            event.blocks = links.blocks;
+          }
+        })
+      );
+    }
   }
 
   async listTaskLists(): Promise<PimTaskList[]> {
@@ -294,6 +347,19 @@ export class GraphPimTarget implements IPimTarget {
     });
     if (res.status === 412) throw new PimConflictError();
     if (!res.ok) throw await pimRequestError("graph update event", res);
+    const data = (await res.json()) as { "@odata.etag"?: string };
+    return { etag: data["@odata.etag"] };
+  }
+
+  async linkEvent(ref: PimEventRef, links: PimEventLinks): Promise<{ etag?: string }> {
+    const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(ref.etag ? { "If-Match": ref.etag } : {}) },
+      // Extended properties only: a PATCH leaves every other field alone.
+      body: JSON.stringify(graphLinkProperties(links)),
+    });
+    if (res.status === 412) throw new PimConflictError();
+    if (!res.ok) throw await pimRequestError("graph link event", res);
     const data = (await res.json()) as { "@odata.etag"?: string };
     return { etag: data["@odata.etag"] };
   }
@@ -375,9 +441,30 @@ function graphEventBody(draft: PimEventDraft): Record<string, unknown> {
     // undefined leaves the rule, null clears it, an object sets/replaces it —
     // so an existing series' rule CAN now be edited from the field dialog.
     ...(draft.recurrence !== undefined ? { recurrence: draft.recurrence ? graphRecurrence(draft.recurrence, draft) : null } : {}),
-    ...(draft.blockOf
-      ? { singleValueExtendedProperties: [{ id: GRAPH_BLOCK_OF_PROPERTY_ID, value: draft.blockOf }] }
-      : {}),
+    ...graphLinkProperties(draft),
+  };
+}
+
+/**
+ * `blockOf` and `blocks` of a draft as extended properties; nothing when the
+ * draft sets neither. Graph has no way to remove an extended property through
+ * the event, so "none" is written as an empty value — which the reader below
+ * takes for what it means.
+ */
+function graphLinkProperties(draft: PimEventLinks): Record<string, unknown> {
+  const properties: Array<{ id: string; value: string }> = [];
+  if (draft.blockOf !== undefined) properties.push({ id: GRAPH_BLOCK_OF_PROPERTY_ID, value: draft.blockOf ?? "" });
+  if (draft.blocks !== undefined) {
+    properties.push({ id: GRAPH_BLOCKS_PROPERTY_ID, value: draft.blocks.length > 0 ? encodeBlockRefs(draft.blocks) : "" });
+  }
+  return properties.length > 0 ? { singleValueExtendedProperties: properties } : {};
+}
+
+function graphLinks(item: GraphEventItem): Pick<PimEvent, "blockOf" | "blocks"> {
+  const value = (id: string) => item.singleValueExtendedProperties?.find((p) => p.id === id)?.value;
+  return {
+    blockOf: value(GRAPH_BLOCK_OF_PROPERTY_ID) || undefined,
+    blocks: decodeBlockRefs(value(GRAPH_BLOCKS_PROPERTY_ID)),
   };
 }
 
@@ -467,7 +554,7 @@ function mapGraphEvent(item: GraphEventItem, calendarId: string): PimEvent | nul
     status: item.isCancelled ? "cancelled" : item.showAs === "tentative" ? "tentative" : "confirmed",
     etag: item["@odata.etag"],
     seriesMaster: item.seriesMasterId,
-    blockOf: item.singleValueExtendedProperties?.find((p) => p.id === GRAPH_BLOCK_OF_PROPERTY_ID)?.value || undefined,
+    ...graphLinks(item),
     // Graph says both halves separately: whether it reminds at all, and how far
     // ahead. "Reminder off" is a statement — an empty list, not silence.
     reminders:

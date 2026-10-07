@@ -745,13 +745,20 @@ html[data-theme-name="lcars"][data-tag-colors="on"] [data-tag-color] { backgroun
   letter-spacing: 0.06em;
 }
 [data-theme-name="lcars"] .pv-dbbar-crumb { text-transform: uppercase; letter-spacing: 0.04em; }
-[data-theme-name="lcars"] .pv-kv-key { color: var(--text-main); letter-spacing: 0.1em; }
-/* Entry inspector: Okuda squares off the position pill; the label column
-   follows the same uppercase grammar as the rest of the console. */
+/* Database section: Okuda squares off the position pill. */
 [data-theme-name="lcars"] .pv-dbinsp-nav { border-radius: 0 var(--radius-pill) var(--radius-pill) 0; background: var(--surface-container); }
 [data-theme-name="lcars"] .pv-dbinsp-pos { color: var(--text-main); letter-spacing: 0.08em; }
-[data-theme-name="lcars"] .pv-dbinsp-disclose { text-transform: uppercase; letter-spacing: 0.04em; }
-[data-theme-name="lcars"] .pv-dbinsp-grid { row-gap: 4px; }
+[data-theme-name="lcars"] .pv-dbinsp-open > small { letter-spacing: 0.04em; }
+/* The context column's row (icon · name · value · edge): the grid is the
+   shared one and stays untouched — the theme only squares the value's frame
+   and the actions, and gives the group head the console's wide tracking. A
+   name is NOT upper-cased: it is a frontmatter key, and keys are case-
+   sensitive. */
+[data-theme-name="lcars"] .pv-prow-value,
+[data-theme-name="lcars"] .pv-prow-actions,
+[data-theme-name="lcars"] .pv-prow-toggle { border-radius: 0; }
+[data-theme-name="lcars"] .pv-prow[data-frame="quiet"] > .pv-prow-value:focus-within { background: #0A0A0A; box-shadow: inset 0 -2px 0 var(--lcars-4); }
+[data-theme-name="lcars"] .pv-prow-group { color: var(--text-main); letter-spacing: 0.1em; }
 
 /* Formatting toolbar over a selection: a floating Okuda console strip. */
 [data-theme-name="lcars"] .pv-seltoolbar {

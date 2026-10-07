@@ -84,3 +84,18 @@ Notes:
 - [ ] macOS — needs the embedded driver, i.e. `tauri-plugin-wdio-webdriver` in
   a smoke-only build (a decision, see "Tooling decision"), and a `macos-latest`
   job in the workflow.
+
+## State on 2026-10-06: green on Linux and Windows
+
+Run 37462811787 was the first in which both jobs passed. Six dispatches got there, and each one answered one question:
+
+- **The spec addresses the ribbon by test id.** "New note" was the only ribbon entry without one and was searched by its label; it now carries `data-testid="ribbon-new"`.
+- **A fresh profile opens with a dialog over the ribbon.** The click was intercepted; the spec closes dialogs with Escape before it starts.
+- **"New note" asks for the name first**, in a field in the file tree. The spec names the note; before that no editor ever appeared.
+- **On WebKitGTK, global key actions do not reach the editor.** The note file was created and stayed empty while the same steps passed on Windows. The marker is sent to the editor element (`addValue`).
+- **The proof is the file on disk, not the window after a restart.** `browser.reloadSession()` never came back on the first run that reached it. The cause is not established — a second launch meeting the first one's single-instance lock is a suspicion. The spec asserts what only a native run can show, that the typed bytes are in the vault; session restore stays with the mocked suites.
+- **Windows needs a smoke build.** `session not created: DevToolsActivePort file doesn't exist` had one cause, measured by starting the binary the way the driver does and printing the WebView's command line: the WebView library (wry) always sets the browser arguments itself, so the `--remote-debugging-port` the Edge driver passes through `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` never reached the browser process (its user data folder, passed the same way, did). The Windows job therefore builds with `src-tauri/tauri.smoke.conf.json`, which puts the port into the window's `additionalBrowserArgs`. No release build uses that overlay, and it must stay that way: a release binary with an open debugging port would hand the WebView to any local process.
+
+Still in the workflow: a step that starts the Windows binary on its own and reports what it finds (never fails the job), a screenshot and the page source of a failed step, and the driver log — all uploaded when a run fails.
+
+**macOS:** unchanged, not covered. Only the embedded driver reaches WKWebView and it needs `tauri-plugin-wdio-webdriver` in the binary; decided on 2026-10-06 not to add that until this workflow has been green for a while.

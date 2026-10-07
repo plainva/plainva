@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { removeBookmarksOnDisk, toggleBookmarkOnDisk, toast, type BookmarkEntry, type BookmarksIO } from "@plainva/ui";
+import { moveBookmark as moveBookmarkEntries, moveBookmarkOnDisk, removeBookmarksOnDisk, toggleBookmarkOnDisk, toast, type BookmarkEntry, type BookmarksIO } from "@plainva/ui";
 import { getWindowBus } from "../services/windowBus";
 import { isOwnerWindow } from "../services/windowContext";
 import { loadDesktopBookmarks, publishBookmarks } from "../services/bookmarks";
@@ -45,5 +45,28 @@ export function useWindowBookmarks(io: BookmarksIO | null, vaultPath: string | n
       if (generation.current === epoch) setBookmarks(next);
     } catch { if (generation.current === epoch) toast.error(t("sidebar.bookmarkSaveFailed")); }
   };
-  return { bookmarks, toggleBookmark: (path: string, type: BookmarkEntry["type"] = "file") => { void mutate("toggle", [path], type); }, removeBookmarks: (paths: string[]) => { void mutate("remove", paths); } };
+  /** One entry in front of another, or to the end (plan Befunde 2026-10-06, W6). The owner writes; every window follows. */
+  const moveBookmark = async (key: string, beforeKey: string | null) => {
+    if (!io || !vaultPath) return;
+    const epoch = generation.current;
+    // The row is where it was dropped at once; the file's answer replaces this.
+    setBookmarks((current) => moveBookmarkEntries(current, key, beforeKey));
+    try {
+      const next = isOwnerWindow()
+        ? await moveBookmarkOnDisk(io, key, beforeKey)
+        : await (await getWindowBus()).request("move-bookmark", { key, beforeKey }, { vaultPath });
+      if (isOwnerWindow()) publishBookmarks(vaultPath, next);
+      if (generation.current === epoch) setBookmarks(next);
+    } catch {
+      if (generation.current !== epoch) return;
+      toast.error(t("sidebar.bookmarkSaveFailed"));
+      window.dispatchEvent(new CustomEvent("plainva-bookmarks-changed"));
+    }
+  };
+  return {
+    bookmarks,
+    toggleBookmark: (path: string, type: BookmarkEntry["type"] = "file") => { void mutate("toggle", [path], type); },
+    removeBookmarks: (paths: string[]) => { void mutate("remove", paths); },
+    moveBookmark: (key: string, beforeKey: string | null) => { void moveBookmark(key, beforeKey); },
+  };
 }

@@ -128,12 +128,12 @@ function AgentAddDialog({ session, confirmText, onClose }: { session: AiSession;
       <label className="pv-modal-label" htmlFor="pv-agent-program">
         {t("ai.agent.add.program")}
       </label>
-      <TextInput id="pv-agent-program" value={program} spellCheck={false} autoComplete="off" onChange={(event) => setProgram(event.target.value)} data-testid="ai-agent-add-program" />
+      <TextInput id="pv-agent-program" value={program} purpose="code" autoComplete="off" onChange={(event) => setProgram(event.target.value)} data-testid="ai-agent-add-program" />
       <p className="pv-modal-hint">{t("ai.agent.add.programHint")}</p>
       <label className="pv-modal-label" htmlFor="pv-agent-args">
         {t("ai.agent.add.args")}
       </label>
-      <TextArea id="pv-agent-args" rows={3} value={args} spellCheck={false} onChange={(event) => setArgs(event.target.value)} data-testid="ai-agent-add-args" />
+      <TextArea id="pv-agent-args" rows={3} value={args} purpose="code" onChange={(event) => setArgs(event.target.value)} data-testid="ai-agent-add-args" />
       <p className="pv-modal-hint">{t("ai.agent.add.argsHint")}</p>
       {problem && (
         <Banner kind="error" rounded>

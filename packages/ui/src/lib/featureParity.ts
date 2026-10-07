@@ -214,10 +214,12 @@ export interface ParityGuardMarker {
  * not quietly get built. A `gap` is the entry that rots, because the work
  * happens and the line stays.
  *
- * The one gap written back since (`palette-command-reach`, 2026-09-24) is held
- * from the code's side instead: MOBILE_ABSENT_COMMANDS points at it command by
- * command, and mobileCommands.test.ts wants a line deleted as soon as the phone
- * offers that command, and the entry deleted once no line points at it.
+ * The one gap written back since (`palette-command-reach`, 2026-09-24) was held
+ * from the code's side instead: MOBILE_ABSENT_COMMANDS pointed at it command by
+ * command, and mobileCommands.test.ts wanted a line deleted as soon as the
+ * phone offered that command, and the entry deleted once no line pointed at
+ * it. That is how it went on 2026-10-06 — the twelve lines and the entry left
+ * in one change — and the same mechanism waits for the next such gap.
  */
 export function findGuardContradictions(
   features: readonly ParityFeatureDef[],
@@ -591,6 +593,27 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-16",
   },
   {
+    id: "spell-checking",
+    title: "Spell checking in the writing surfaces",
+    area: "editor",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "One device switch and one rule serve both shells (lib/spellcheck.ts); what " +
+      "checks the text is the platform. On Windows (WebView2) and macOS (WKWebView) " +
+      "the WebView checks with the system's languages, on a phone the keyboard and " +
+      "the system do. On Linux nothing checks: wry 0.57 never switches WebKitGTK's " +
+      "spell checker on (no call in its source), and WebKitGTK has it off until an " +
+      "application enables it on the WebKitWebContext and names the languages. " +
+      "Closing this needs a Linux-only step in src-tauri (enable it and pass the " +
+      "system's languages) plus a check that the AppImage finds the system's " +
+      "dictionaries - neither could be built or run on the machine this was " +
+      "written on, so the settings page says so on Linux instead of pretending " +
+      "(plan Befunde 2026-10-06, S1).",
+    mobile: "yes",
+    verified: "2026-10-06",
+  },
+  {
     id: "tag-pill-open-while-editing",
     title: "Opening a tag from its pill while the note is being edited",
     area: "editor",
@@ -604,6 +627,43 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "to put it inside a word - so the pill opens while the note is being read, which is " +
       "how the phone treats every link in a note.",
     verified: "2026-09-19",
+  },
+  {
+    id: "blockers-follow-their-event",
+    title: "Blockers follow their event, and a moved or changed blocker asks",
+    area: "pim",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The rule is one file for both shells (pim/blockFollow.ts): the chain mark, " +
+      "what a blocker takes over, the message with its way back, and the two " +
+      "questions. Two differences in shape, none in result. The phone's time grid " +
+      "has no drag for an event (a horizontal drag pages, a vertical one scrolls), " +
+      "so a blocker asks when it is saved from the edit sheet, not when it is " +
+      "dropped. And the question at a deletion is two action rows - the event with " +
+      "its blockers, or the event alone - where the desktop ticks a box: the " +
+      "phone's form for one decision with two outcomes (useEventEditor.tsx). " +
+      "Blockers written into the device's own calendars carry no link on either " +
+      "side: DevicePimTarget has no place to store one (plan Befunde 2026-10-06, E4).",
+    verified: "2026-10-06",
+  },
+  {
+    id: "calendar-all-day-row-limit",
+    title: "The all-day row of the time grid: five rows, a count, and opening it",
+    area: "pim",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "On the desktop the all-day row is pinned above a time grid that fills the pane, " +
+      "so it grows to five rows, counts the rest per day and opens for all days on a " +
+      "click (DayTimeGrid.tsx). On the phone the row is not pinned: it scrolls away " +
+      "with the grid (PimCalendarScreen.tsx), so it shows every entry at once and has " +
+      "nothing to hide or to open - a limit there would add a tap without saving " +
+      "space. Status entries are bands in both rows, and the phone's month grid " +
+      "counts what lies beyond its dots (plan Befunde 2026-10-06, E8).",
+    verified: "2026-10-06",
   },
   {
     id: "device-pim-accounts",
@@ -690,6 +750,28 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "to merge does it at the desk (feedback round 2026-09-01, P2 / mockup " +
       "\"Zwei Fassungen auf 375 Pixeln\").",
       verified: "2026-09-11",
+  },
+  {
+    id: "context-column-layout",
+    title: "The context column's layout: one row grammar, width steps, collapsible section heads",
+    area: "platform",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "What the column SHOWS is the same on both shells and comes from shared " +
+      "code: which properties are rows, the trust group, the lifecycle rows " +
+      "(propertyPanelModel), and for a note that is a row of a database its " +
+      "membership, position and the columns the database computes " +
+      "(computedFieldKind). How it is laid out is the desktop's alone - a row of " +
+      "icon, name, value and edge whose value is edited in place and whose " +
+      "actions a pointer reveals in the edge, three width steps of a draggable " +
+      "panel, and section heads that collapse. The phone's context sheet has one " +
+      "width class, tabs instead of sections, and touch rows: a row is the button " +
+      "that opens the shared cell editor in a sheet, a long press opens its " +
+      "actions. The width rule, the fixed head grid and the edge column have " +
+      "nothing to act on there (findings 2026-10-06, plan Teil R).",
+    verified: "2026-10-06",
   },
   {
     id: "editor-tabs",
@@ -832,25 +914,6 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "snapshot in a separate window. Mobile uses its full comparison screen " +
       "with the same line-change counts. Permanent by platform, not a backlog item.",
     verified: "2026-09-14",
-  },
-  {
-    id: "palette-command-reach",
-    title: "Reaching screen actions through the command palette",
-    area: "platform",
-    kind: "gap",
-    desktop: "yes",
-    mobile: "partial",
-    mobileReason:
-      "Each of these works on the phone, on a screen of its own, but the phone's " +
-      "palette does not list them yet: the comment overview (Comments), import, the " +
-      "index rebuild and the index.md overviews (Maintenance), backup now (the " +
-      "vault's detail screen), a new template (New from template), version history " +
-      "(the note's context), and from the note menu Markdown source, insert " +
-      "template, save as template, mailto and compose. Closing it takes a handler " +
-      "per command in mobileCommands.ts - for the note ones an event the note " +
-      "screen listens for, as rename does. MOBILE_ABSENT_COMMANDS names them one by " +
-      "one; in the maintainer's open-items plan since 2026-09-24.",
-    verified: "2026-09-24",
   },
   {
     id: "process-exit-diagnostics",

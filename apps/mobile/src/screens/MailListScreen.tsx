@@ -8,6 +8,7 @@ import { applyMailBulk, MailBulkReport, type MailBulkReportItem, type MailBulkAc
 import { mailListView } from "./mail/mailListView";
 import { useFloatingSelectionSpace } from "../hooks/useFloatingSelectionSpace";
 import { mailStatus } from "./mail/mailStatus";
+import { forgetMailSearch, keepMailSearch, keptMailSearch } from "../services/mail/mailSearchSession";
 import { undoMoveToTrash } from "./mail/undoMove";
 import { SwipeRow } from "../components/SwipeRow";
 import { RowActionSheet, type RowAction } from "../components/RowActionSheet";
@@ -162,9 +163,28 @@ export function MailListScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
-  const [query, setQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searching, setSearching] = useState(false);
+  /**
+   * The search (TestFlight 02.10.2026, "the search field does not seem to
+   * work"). Its hits have their OWN list: they used to be written into `rows`,
+   * the folder's list, and the next background reload of the folder — every
+   * sync run and every index update bumps this screen — put the folder back
+   * while the screen still believed it was showing a search. A search that is
+   * showing is also kept across the rebuild after a message was opened
+   * (`mailSearchSession.ts`): the first hit used to cost the whole search.
+   */
+  const [kept] = useState(() => {
+    const place = rememberedMailPlace();
+    return keptMailSearch(place.accountId, place.mailbox);
+  });
+  const [query, setQuery] = useState(() => kept?.query ?? "");
+  const [searchOpen, setSearchOpen] = useState(() => kept !== null);
+  /** A search brought back with its hits is not waiting for input: the
+   *  keyboard would cover the list one came back to read. */
+  const [focusSearch, setFocusSearch] = useState(() => kept === null);
+  const [searchRows, setSearchRows] = useState<MailEnvelope[] | null>(() => kept?.rows ?? null);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const searchSeq = useRef(0);
+  const searching = searchRows !== null;
   const [stale, setStale] = useState(false);
   // A refresh running while a cached page is already on screen: the banner then
   // says "updating" instead of "offline" (F4a).
@@ -445,29 +465,72 @@ export function MailListScreen({
 
   /** Server-side search (G3): the phone holds one page, so filtering locally
    *  would only ever find what is already on screen. */
-  const runSearch = async () => {
+  const runSearch = async (termOverride?: string) => {
     const account = accountById(accountId);
-    const term = query.trim();
+    const term = (termOverride ?? query).trim();
     if (!vault || !account || !mailbox || !term) return;
-    setSearching(true);
-    setLoading(true);
-    setError(null);
+    // Only the newest question may answer: a slow first search must not
+    // overwrite the hits of the one typed after it.
+    const seq = ++searchSeq.current;
+    setSearchBusy(true);
     try {
       const hits = await searchEnvelopes(vault, account, mailbox, term);
-      setRows(hits);
-      setTotal(hits.length);
+      if (seq !== searchSeq.current) return;
+      setSearchRows(hits);
+      keepMailSearch({ accountId: account.id, mailbox, query: term, rows: hits });
     } catch (e) {
-      setError(describeError(e));
-      setRows([]);
+      // The folder stays on screen: a failed search is said, not shown as an
+      // empty mailbox.
+      if (seq === searchSeq.current) toast.error(describeError(e));
     } finally {
-      setLoading(false);
+      if (seq === searchSeq.current) setSearchBusy(false);
     }
   };
 
+  /** Ends the search. The folder's own list was never touched, so there is
+   *  nothing to load again. */
   const clearSearch = () => {
+    searchSeq.current++;
     setQuery("");
-    setSearching(false);
-    void load();
+    setSearchRows(null);
+    setSearchBusy(false);
+    forgetMailSearch();
+  };
+
+  /** Leaving the folder or the account ends the search: it asked ONE folder. */
+  const leaveSearch = () => {
+    clearSearch();
+    setSearchOpen(false);
+  };
+
+  // A search brought back after a message was opened shows its kept hits at
+  // once — and asks again, because the message just read may have been
+  // moved, deleted or marked in between. Once per mount, when the account is
+  // there to ask.
+  const refreshedKept = useRef(false);
+  const refreshKeptSearch = useStableHandler(() => {
+    if (!kept || searchRows === null) return;
+    // The remembered folder may be gone (the list fell back to the inbox):
+    // hits of another folder must not stand under this one's name.
+    if (account?.id !== kept.accountId || mailbox !== kept.mailbox) {
+      leaveSearch();
+      return;
+    }
+    void runSearch(kept.query);
+  });
+  useEffect(() => {
+    if (refreshedKept.current || !kept || !account || !mailbox) return;
+    refreshedKept.current = true;
+    refreshKeptSearch();
+  }, [kept, account, mailbox, refreshKeptSearch]);
+
+  /** One change for every list a message can be in on this screen — the
+   *  folder, the search hits, the flagged messages. Patching only the folder
+   *  left a deleted message standing under a search. */
+  const patchRows = (change: (rows: MailEnvelope[]) => MailEnvelope[]) => {
+    setRows(change);
+    setSearchRows((prev) => (prev ? change(prev) : prev));
+    setFlaggedRows((prev) => (prev ? change(prev) : prev));
   };
 
   const folderNames = useMemo(
@@ -520,10 +583,15 @@ export function MailListScreen({
   /** Every message the list can act on, by selection id. */
   const selectable = useMemo(() => {
     const out = new Map<string, MailEnvelope>();
+    // The folder's page AND a server answer standing in for it: a search hit
+    // or a starred message further down than the loaded page is not in `rows`,
+    // and could be ticked but not acted on.
     for (const m of rows) out.set(selId(m, mailbox), m);
+    for (const m of searchRows ?? []) out.set(selId(m, mailbox), m);
+    for (const m of flaggedRows ?? []) out.set(selId(m, mailbox), m);
     if (threadMode) for (const m of sentRows) out.set(selId(m, sentBox), m);
     return out;
-  }, [rows, sentRows, threadMode, mailbox, sentBox, selId]);
+  }, [rows, searchRows, flaggedRows, sentRows, threadMode, mailbox, sentBox, selId]);
   const chosen = useMemo(
     () => (selection ? [...selection].map((id) => selectable.get(id)).filter((m): m is MailEnvelope => !!m) : []),
     [selection, selectable],
@@ -578,16 +646,20 @@ export function MailListScreen({
   const view = mailListView({
     unified,
     unifiedRows,
-    rows: flaggedRows ?? rows,
+    rows,
+    searchRows,
+    flaggedRows,
     total,
-    loading,
-    searching: searching || flaggedRows !== null,
+    loading: loading || searchBusy,
     error,
     unreadOnly,
     isUnread: (m: MailEnvelope) => !m.seen,
     attachmentsOnly,
     hasAttachment: (m: MailEnvelope) => m.hasAttachments === true,
   });
+  // Search hits and the flagged messages stay flat — grouping them would hide
+  // the very mail that matched — and in the merged view neither is on screen.
+  const answerShown = view.replaced;
   // Snoozed messages leave the list until their time (S22). Only in the folder
   // they were put aside in — a snooze says "not in my way", not "gone".
   const listRows = useMemo(
@@ -604,7 +676,7 @@ export function MailListScreen({
 
   const threads = useMemo(
     () =>
-      threadMode && !searching
+      threadMode && !answerShown
         ? unified
           ? // Merged list: every row carries its origin, and Sent is not read
             // along (five accounts would mean five extra pages for a browse
@@ -624,9 +696,9 @@ export function MailListScreen({
               { anchorMailbox: mailbox ?? "" },
             )
         : [],
-    [threadMode, searching, rows, sentRows, mailbox, sentBox, account, unified, unifiedRows]
+    [threadMode, answerShown, rows, sentRows, mailbox, sentBox, account, unified, unifiedRows]
   );
-  const showThreads = !attachmentsOnly && threadMode && !searching && threads.length > 0;
+  const showThreads = !attachmentsOnly && threadMode && !answerShown && threads.length > 0;
 
   /**
    * Flagged is a QUERY, not a filter: it replaces the list with everything the
@@ -745,7 +817,7 @@ export function MailListScreen({
       { kind: "seen", value: target },
       (done) => {
         const set = new Set(done);
-        setRows((prev) => prev.map((m) => (set.has(selId(m, mailbox)) ? { ...m, seen: target } : m)));
+        patchRows((prev) => prev.map((m) => (set.has(selId(m, mailbox)) ? { ...m, seen: target } : m)));
         setSentRows((prev) => prev.map((m) => (set.has(selId(m, sentBox)) ? { ...m, seen: target } : m)));
         const changed = rows.filter(m => set.has(selId(m, mailbox)) && m.seen !== target).length;
         setUnseen(n => Math.max(0, n + (target ? -changed : changed)));
@@ -801,7 +873,7 @@ export function MailListScreen({
   };
 
   const swipeJunk = (m: MailEnvelope) =>
-    reportJunk([m], (ids) => setRows((prev) => prev.filter((r) => !ids.includes(r.id))));
+    reportJunk([m], (ids) => patchRows((prev) => prev.filter((r) => !ids.includes(r.id))));
 
   /** Where a row's message lives: its own folder in the conversation view, the screen's otherwise. */
   const originOf = (m: MailEnvelope) => ({
@@ -816,7 +888,7 @@ export function MailListScreen({
     if (!vault || !account || !box) return;
     try {
       await setMessageSeen(vault, account, box, uid, seen);
-      setRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
+      patchRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
       setSentRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, seen } : r)));
       if (m.seen !== seen) setUnseen((n) => Math.max(0, seen ? n - 1 : n + 1));
     } catch (e) {
@@ -830,7 +902,7 @@ export function MailListScreen({
     if (!vault || !account || !box) return;
     try {
       await setMessageFlagged(vault, account, box, uid, flagged);
-      setRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, flagged } : r)));
+      patchRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, flagged } : r)));
       setSentRows((prev) => prev.map((r) => (r.id === m.id ? { ...r, flagged } : r)));
     } catch (e) {
       toast.error(describeError(e));
@@ -851,7 +923,7 @@ export function MailListScreen({
     if (!target) return;
     try {
       await moveMessage(vault, account, box, uid, target);
-      setRows((prev) => prev.filter((r) => r.id !== m.id));
+      patchRows((prev) => prev.filter((r) => r.id !== m.id));
       setSentRows((prev) => prev.filter((r) => r.id !== m.id));
     } catch (e) {
       toast.error(describeError(e));
@@ -902,7 +974,7 @@ export function MailListScreen({
     const until = snoozeUntil(chosenPreset, new Date());
     const next = addSnooze(snoozed, { account: account.id, id: m.id, folder: mailbox ?? "", until });
     setSnoozed(next);
-    setRows((prev) => prev.filter((r) => r.id !== m.id));
+    patchRows((prev) => prev.filter((r) => r.id !== m.id));
     await persistSnoozed(next);
     toast.info(
       t("mail.snoozedUntil", {
@@ -915,7 +987,7 @@ export function MailListScreen({
     setBulkBusy(true);
     try {
       await reportJunk(chosen, (ids) => {
-        setRows((prev) => prev.filter((m) => !ids.includes(m.id)));
+        patchRows((prev) => prev.filter((m) => !ids.includes(m.id)));
         setSentRows((prev) => prev.filter((m) => !ids.includes(m.id)));
       });
     } finally {
@@ -936,7 +1008,7 @@ export function MailListScreen({
     void runOnSelection(
       { kind: "move", target },
       (done) => {
-        setRows((prev) => prev.filter((m) => !done.includes(selId(m, mailbox))));
+        patchRows((prev) => prev.filter((m) => !done.includes(selId(m, mailbox))));
         setSentRows((prev) => prev.filter((m) => !done.includes(selId(m, sentBox))));
       },
     );
@@ -957,7 +1029,7 @@ export function MailListScreen({
     void runOnSelection(
       inTrash ? { kind: "delete" } : { kind: "move", target: trash! },
       (done) => {
-        setRows((prev) => prev.filter((m) => !done.includes(selId(m, mailbox))));
+        patchRows((prev) => prev.filter((m) => !done.includes(selId(m, mailbox))));
         setSentRows((prev) => prev.filter((m) => !done.includes(selId(m, sentBox))));
       },
     );
@@ -988,7 +1060,7 @@ export function MailListScreen({
       if (!(await mConfirm({ title: t("mail.deleteForeverConfirm"), message: m.subject, danger: true }))) return;
       try {
         await deleteMessagePermanently(vault, account, box, uid);
-        setRows((prev) => prev.filter((r) => r.id !== m.id));
+        patchRows((prev) => prev.filter((r) => r.id !== m.id));
         toast.success(t("mail.deleted"));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
@@ -997,7 +1069,7 @@ export function MailListScreen({
     }
     try {
       await moveMessage(vault, account, box, uid, trash);
-      setRows((prev) => prev.filter((r) => r.id !== m.id));
+      patchRows((prev) => prev.filter((r) => r.id !== m.id));
       toast.success(t("mail.movedToTrash"), {
         label: t("common.undo"),
         run: () =>
@@ -1012,7 +1084,7 @@ export function MailListScreen({
               box,
             ).catch(() => "notFound" as const);
             if (out === "ok") {
-              setRows((prev) => [m, ...prev.filter((r) => r.id !== m.id)]);
+              patchRows((prev) => [m, ...prev.filter((r) => r.id !== m.id)]);
               toast.success(t("mail.undone"));
             } else {
               toast.info(t("mail.undoNotFound"));
@@ -1056,7 +1128,7 @@ export function MailListScreen({
       try {
         if (box === trash) await deleteMessagePermanently(vault, account, box, uid);
         else await moveMessage(vault, account, box, uid, trash);
-        setRows((prev) => prev.filter((r) => r.id !== m.id));
+        patchRows((prev) => prev.filter((r) => r.id !== m.id));
         setSentRows((prev) => prev.filter((r) => r.id !== m.id));
         done += 1;
       } catch (e) {
@@ -1128,7 +1200,7 @@ export function MailListScreen({
           that state, saying it twice makes the offer harder to find, not the
           warning louder. */}
       <MailBulkReport items={bulkReport} busy={bulkRunning} onCancel={() => bulkAbort.current?.abort()} onDismiss={() => setBulkReport([])} />
-      {attachmentsOnly && <Banner kind="info">{t("mail.attachmentsLoaded", { known: (unified ? unifiedRows : flaggedRows ?? rows).filter(m => m.hasAttachments !== undefined).length, loaded: (unified ? unifiedRows : flaggedRows ?? rows).length })}</Banner>}
+      {attachmentsOnly && <Banner kind="info">{t("mail.attachmentsLoaded", { known: view.sourceRows.filter(m => m.hasAttachments !== undefined).length, loaded: view.sourceRows.length })}</Banner>}
       {status && !error && (
         <Banner kind={status.kind === "info" ? "info" : status.kind} rounded>
           {status.raw ?? t(status.key, status.values)}
@@ -1177,31 +1249,53 @@ export function MailListScreen({
         >
           <MessagesSquare size={ICON.head} />
         </IconButton>
-        <IconButton
-          label={t("mail.search")}
-          data-testid="mail-search-toggle"
-          onClick={() => {
-            if (searchOpen && searching) clearSearch();
-            setSearchOpen((v) => !v);
-          }}
-        >
-          <Search size={ICON.head} />
-        </IconButton>
+        {/* The search asks ONE folder on the server; in the merged list it
+            would answer a question nobody asked — and its hits could not be
+            shown there. Same rule, same place as the desktop (P9.3b). */}
+        {!unified && (
+          <IconButton
+            label={t("mail.search")}
+            active={searchOpen}
+            data-testid="mail-search-toggle"
+            onClick={() => {
+              if (searchOpen) clearSearch();
+              setFocusSearch(true);
+              setSearchOpen((v) => !v);
+            }}
+          >
+            <Search size={ICON.head} />
+          </IconButton>
+        )}
       </div>
 
       {/* Behind the magnifier on purpose: an always-visible field sat directly
           under the shell's vault-search pill — two search boxes doing different
           things, stacked (device report B3). */}
-      {searchOpen && (
+      {searchOpen && !unified && (
         <SearchField
-          autoFocus
+          autoFocus={focusSearch}
           clearLabel={t("sidebar.clearSearch")}
-          onKeyDown={(e) => e.key === "Enter" && void runSearch()}
+          data-testid="mail-search"
+          /* The key that starts the search says so ("Search" instead of a
+             bare return) — the field has no button of its own. */
+          enterKeyHint="search"
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            // The on-screen keyboard has done its job; the hits are below it.
+            e.currentTarget.blur();
+            void runSearch();
+          }}
           /* Escape on an EMPTY field leaves the search — the field's own first
              Escape clears, which is the app-wide contract. Leaving the mail
              search open with nothing in it is a dead end. */
-          onEscapeWhenEmpty={clearSearch}
-          onValueChange={setQuery}
+          onEscapeWhenEmpty={leaveSearch}
+          /* Emptying the field ends the search (the clear button, or deleting
+             the text): hits for a question that is no longer in the field
+             would be a list nobody can account for. */
+          onValueChange={(next) => {
+            setQuery(next);
+            if (!next.trim() && searching) clearSearch();
+          }}
           placeholder={t("mail.search")}
           value={query}
         />
@@ -1252,7 +1346,7 @@ export function MailListScreen({
           }
           icon={<Mail size={ICON.head} />}
         >
-          {view.isEmptyByFilter ? t(attachmentsOnly ? "mail.noAttachmentMatches" : "mail.noUnread") : t("mail.folderEmpty")}
+          {view.isEmptyByFilter ? t(attachmentsOnly ? "mail.noAttachmentMatches" : "mail.noUnread") : view.isEmptyBySearch ? t("mail.noSearchResults") : t("mail.folderEmpty")}
         </EmptyState>
       ) : (
         <>
@@ -1560,6 +1654,7 @@ export function MailListScreen({
                     data-testid="mail-all-inboxes"
                     onClick={() => {
                       setUnified(true);
+                      leaveSearch();
                       setSelection(null);
                       // The filter names ONE mailbox, and this mode has no such
                       // thing — its own comment says so. It must not survive
@@ -1582,6 +1677,7 @@ export function MailListScreen({
                     className={name === mailbox ? "m-row is-active" : "m-row"}
                     onClick={() => {
                       setUnified(false);
+                      if (name !== mailbox) leaveSearch();
                       setMailbox(name);
                       setRows([]);
                       // S21: the flagged filter is a SERVER answer about one
@@ -1607,6 +1703,7 @@ export function MailListScreen({
                         className={a.id === accountId ? "m-row is-active" : "m-row"}
                         onClick={() => {
                           setUnified(false);
+                          leaveSearch();
                           setAccountId(a.id);
                           setMailbox(null);
                           setRows([]);

@@ -1,10 +1,10 @@
 # Importing from another app
 
-Last reviewed: 2026-09-17
+Last reviewed: 2026-10-06
 
 Plainva imports notes from other apps into a new vault or a newly named subfolder of the open vault. The rest of the vault stays unchanged; you can then move or delete the import folder.
 
-**Import runs on both devices, with the same sources.** On the desktop the start screen, the command palette and a folder's context menu lead into it; on the phone you find it under **Settings → Maintenance → Import from another app**. Sources that need an account with a service — Notion through its API — are available there too.
+**Import runs on both devices, with the same sources.** On the desktop the start screen, the command palette and a folder's context menu lead into it; on the phone you find it under **Settings → Maintenance → Import from another app**. Sources that need an account with a service — Notion through its API — are available there too. The phone's command palette (`>` in the search field) leads into it too.
 
 ## Starting an import
 

@@ -31,9 +31,11 @@ Las notas se abren **renderizadas y de solo lectura**; el lápiz de arriba a la 
 
 Mantén pulsada una palabra para seleccionar texto. La barra de selección ofrece **Copiar** y **Seleccionar todo**, también para copiar el texto completo de una nota larga. No se copian las propiedades YAML ocultas ni los marcadores de formato Markdown. **Editar** permite escribir en el pasaje seleccionado si tienes permiso para editar la nota.
 
+**La paleta de comandos** es el campo de búsqueda: toca la lupa y escribe `>`; en lugar de notas aparecen comandos, entre ellos la importación, una copia de seguridad, la reconstrucción del índice y los comentarios abiertos. Desde una nota abierta, el menú **⋮** tiene **Comandos**; la paleta muestra entonces también lo que actúa sobre esa nota: renombrar, historial de versiones, código Markdown, plantillas y el envío por correo.
+
 Las carpetas se pueden **buscar** y **ordenar** desde la barra sobre la lista: por **Título**, **Última modificación** o **Creación**; elegir de nuevo invierte la dirección, y el orden se recuerda en el dispositivo. En un arranque en frío la app abre lo que tenías abierto por última vez — nota, carpeta o vista de base de datos, pestaña incluida — y cada nota se abre donde la dejaste; los asistentes de configuración y un correo sin terminar no se restauran. Las listas con subelementos se pliegan y despliegan con un toque en su viñeta.
 
-El botón **Detalles de la nota** en la cabecera (entre el marcador y el menú ⋮) abre la ficha contextual de la nota: propiedades (editables directamente), retroenlaces, esquema, grafo y el **historial de versiones** — cada edición crea automáticamente snapshots que puedes revisar, comparar y restaurar. El código fuente Markdown y la búsqueda en la nota están en el menú ⋮.
+El botón **Detalles de la nota** en la cabecera (entre el marcador y el menú ⋮) abre la ficha contextual de la nota: propiedades (editables directamente), retroenlaces, esquema, grafo y el **historial de versiones** — cada edición crea automáticamente snapshots que puedes revisar, comparar y restaurar. El código fuente Markdown y la búsqueda en la nota están en el menú ⋮. La pestaña **Bases de datos** muestra a qué bases de datos pertenece la nota, su posición en ellas con flechas a las vecinas y los campos que la base de datos calcula para ella (agregaciones, relaciones inversas).
 
 En una pantalla ancha (una tableta a partir de 1024 px) esa ficha puede permanecer abierta como una **tercera columna** junto a la nota, en lugar de abrirse y cerrarse cada vez. El interruptor se llama **Anclar el panel de contexto** y vive en **Ajustes → Apariencia → Diseño**; se aplica a este dispositivo. Con él desactivado — o en una ventana más estrecha —, el mismo botón abre la ficha como antes.
 
@@ -128,6 +130,8 @@ El área **Calendario** muestra tus calendarios conectados en las vistas **Día*
 Tocar un recordatorio de evento abre el propio evento: la vista de día en su fecha, con el evento abierto. La vista que tenías por última vez (día, 3 días, agenda) se recuerda en el dispositivo, como en el escritorio.
 
 **Cuándo mira el teléfono.** En segundo plano, en un teléfono no corre ningún reloj: la sincronización periódica está parada mientras la aplicación no está delante. Por eso Plainva consulta por su cuenta en cuanto **vuelves a la aplicación** y cada vez que abres **Calendarios**, **Tareas** o las **Cuentas de calendario**; como mucho una vez por minuto, para que ir y venir a menudo no desencadene una cadena de sincronizaciones. Al volver también se **replanifican los recordatorios**, aunque no haya llegado nada nuevo: el reloj ha seguido corriendo igualmente. Si no quieres esperar, siguen ahí **Actualizar ahora** y tirar de la lista hacia abajo.
+
+**Lo que no está al día y lo que no cabe.** Cuando una cuenta o un calendario no se sincroniza, el teléfono también lo dice en una línea sobre el calendario —cuál, desde cuándo y por qué— con **Reintentar**; las citas de debajo se quedan como último estado conocido. En la vista **Mes** un día muestra como máximo tres puntos; un número detrás (por ejemplo **+3**) dice cuántas entradas más tiene. El lugar de trabajo, el tiempo de concentración y la ausencia aparecen en la cuadrícula horaria como una banda discreta en la franja de todo el día, no como una cita.
 
 Gestiona las cuentas desde el icono de engranaje en el calendario de eventos: conecta **CalDAV** en el dispositivo con una contraseña de aplicación (p. ej. Fastmail, Nextcloud, iCloud); Google y Microsoft se conectan mediante inicio de sesión en el navegador. Por cuenta puedes mostrar u ocultar calendarios individuales.
 
@@ -285,6 +289,8 @@ El icono seleccionado mantiene su separación del borde en la barra compacta. La
 ## Espacio de lectura e imágenes
 
 En **Editor y notas** puedes desactivar **Ocultar controles automáticamente al leer**. De forma predeterminada, la cabecera y el lápiz se ocultan al bajar. Vuelven al subir, al principio de la nota, al seleccionar texto, abrir un control o el teclado, o mostrar un aviso de conflicto. El área desplazable mantiene su tamaño y se respeta la preferencia de movimiento. La barra de la tableta sigue visible; en el escritorio puedes usar el modo de concentración.
+
+La **Corrección ortográfica**, en la misma área, está desactivada de forma predeterminada. Activada, tu teclado y tu sistema revisan con sus propios idiomas las notas, celdas de tabla, correos, comentarios, entradas del diario y tareas; el código, las claves y las contraseñas, nunca. El ajuste pertenece a este dispositivo.
 
 **Abrir imagen** está disponible para imágenes locales en lectura, vista previa y el menú contextual. En el visor móvil, amplía con dos dedos, un doble toque o los botones; **Restablecer zoom** muestra la imagen completa. Atrás vuelve a la nota. La pulsación larga conserva las acciones del sistema y sigue siendo posible seleccionar una región para comentarla.
 

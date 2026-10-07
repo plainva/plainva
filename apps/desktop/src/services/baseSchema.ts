@@ -76,16 +76,58 @@ type MinimalQueryService = {
 };
 type MinimalAdapter = { readTextFile: (path: string) => Promise<string> };
 
-const cache = new Map<string, GoverningBase | null>();
+/**
+ * Two things are kept per note, and they are not the same thing (finding
+ * 2026-10-06):
+ *
+ *  - whether the answer is CURRENT — it is until the index moves, because a
+ *    `.base` may have been edited or the note may have left the query;
+ *  - what the answer WAS — which stays true enough to draw with until the new
+ *    one has arrived.
+ *
+ * There used to be one map that was emptied on every index update. A reader
+ * that asked in between got nothing, and the properties panel drew "no
+ * database" for a moment on every save and every sync cycle.
+ */
+const cache = new Map<string, { epoch: number; value: GoverningBase | null }>();
+let epoch = 0;
 
-/** Drop cached resolutions (call after a `.base` is edited so the panel re-resolves). */
+/**
+ * The last known answer per note. Read by the properties panel so a row keeps
+ * its rendering while a new lookup runs, and so a note that is opened again is
+ * drawn right on its first frame.
+ */
+export const governingBaseMemory = new Map<string, GoverningBase | null>();
+
+/**
+ * The index moved: answers have to be looked up again. What was known stays
+ * known (`governingBaseMemory`) until the lookup replaces it.
+ */
 export function clearGoverningBaseCache(): void {
+  epoch += 1;
+}
+
+/** Another vault: nothing that was known applies. */
+export function forgetGoverningBases(): void {
+  epoch += 1;
   cache.clear();
+  governingBaseMemory.clear();
+}
+
+let knownVault: string | null = null;
+/**
+ * Says which vault the answers are for. The maps are keyed by note path, and a
+ * path means something else in another vault — so the first reader after a
+ * vault switch empties them. Calling it again for the same vault does nothing.
+ */
+export function governingBasesBelongTo(vault: string): void {
+  if (knownVault !== null && knownVault !== vault) forgetGoverningBases();
+  knownVault = vault;
 }
 
 /**
  * Resolve which `.base` governs `notePath` and return its column schema, or null.
- * Cached per note path (cleared via clearGoverningBaseCache on base edits).
+ * Cached per note path until the index moves (`clearGoverningBaseCache`).
  */
 export async function resolveGoverningBase(
   notePath: string,
@@ -93,7 +135,9 @@ export async function resolveGoverningBase(
   vaultAdapter: MinimalAdapter | null | undefined,
 ): Promise<GoverningBase | null> {
   if (!notePath || !queryService || !vaultAdapter) return null;
-  if (cache.has(notePath)) return cache.get(notePath) ?? null;
+  const hit = cache.get(notePath);
+  if (hit && hit.epoch === epoch) return hit.value;
+  const asked = epoch;
 
   let result: GoverningBase | null = null;
   try {
@@ -116,9 +160,12 @@ export async function resolveGoverningBase(
       }
     }
   } catch {
-    result = null;
+    // The index could not be asked. That is not "no database": what was known
+    // stays, and the next caller asks again.
+    return governingBaseMemory.get(notePath) ?? null;
   }
 
-  cache.set(notePath, result);
+  cache.set(notePath, { epoch: asked, value: result });
+  governingBaseMemory.set(notePath, result);
   return result;
 }

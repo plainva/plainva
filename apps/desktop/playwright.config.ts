@@ -29,9 +29,12 @@ export default defineConfig({
   outputDir: 'test-results/e2e',
   use: {
     baseURL,
-    // A retried test leaves its trace; a failed or retried CI run uploads the
-    // traces as the `playwright-*` artifact (.github/workflows/ci.yml).
-    trace: 'on-first-retry',
+    // Every first run is traced in CI and the trace is kept when that run
+    // fails (`retain-on-first-failure`). `on-first-retry` kept the trace of the
+    // RETRY, which is the attempt that passed: of three flaky tests examined on
+    // 2026-10-06 none had a trace of the attempt that failed. The CI workflow
+    // uploads whatever trace exists as the `playwright-*` artifact.
+    trace: process.env.CI ? 'retain-on-first-failure' : 'on-first-retry',
   },
   projects: [
     {

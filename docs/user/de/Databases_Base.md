@@ -1,6 +1,6 @@
 # Datenbanken (.base)
 
-Stand: 2026-09-24
+Stand: 2026-10-06
 
 Mit `.base`-Dateien verwandelst Du Notizen in Datenbanken: Tabellen, Boards, Kalender — mit Filtern, typisierten Eigenschaften und Relationen zwischen Datenbanken. Das Konzept ähnelt Notion-Datenbanken, mit einem entscheidenden Unterschied: **Die Daten liegen nicht in der Datenbank, sondern in Deinen Notizen.**
 
@@ -131,9 +131,9 @@ blockedBy:
 Öffnest Du einen Datenbank-Eintrag direkt — aus dem Dateibaum, über die Suche oder einen `[[Link]]` —, sagt Dir Plainva jetzt, in welchem Zusammenhang die Notiz steht:
 
 - Über der Notiz steht eine **Kontextzeile**: die Datenbanken, zu denen die Notiz gehört, als anklickbare Chips (ein Klick öffnet die Datenbank), gefolgt vom Pfad `Eltern-Eintrag / diese Notiz`, wenn die Datenbank Unterelemente nutzt. Gehört die Notiz zu **mehreren** Datenbanken, erscheinen alle — die Zeile bricht dann um, statt eine wegzulassen.
-- In der rechten Seitenleiste ist der Bereich **Datenbanken** der **Eintrags-Inspektor**: Er zeigt die Notiz so, wie ihre Datenbank sie sieht — die Spalten der ersten Ansicht in deren Reihenfolge, mit den Typen und Optionsfarben der `.base`, und **bearbeitbar** wie in der Tabelle. Ein Status lässt sich also ändern, ohne die Datenbank zu öffnen. Darüber steht die Position in der Ansicht (**12 / 34**) mit Pfeilen zum vorigen und nächsten Eintrag. Gehört die Notiz zu mehreren Datenbanken, bekommt jede ihren eigenen Block. Darunter folgen der **Eltern-Eintrag**, die **Unterelemente** (aufklappbar) und die über Relationen **verknüpften Einträge** — jeweils direkt anklickbar.
+- In der rechten Seitenleiste zeigt der Bereich **Datenbanken**, was nur die Datenbank über die Notiz weiß. Jede Datenbank, zu der sie gehört, bekommt eine Zeile mit Name und Ansicht — ein Klick öffnet sie — und der Position in der Ansicht (**12 / 34**) mit Pfeilen zum vorigen und nächsten Eintrag. Darunter stehen die Felder, die die Datenbank für diese Notiz **berechnet** und die in keiner Datei stehen: Auswertungen, Rückwärtsrelationen und Angaben zur Datei wie der Zeitpunkt der letzten Änderung. Spalten, die die Notiz selbst trägt, werden nicht wiederholt: Eine Zeile nennt sie (**Unter Eigenschaften: …**), bearbeitet werden sie einmal, im Bereich **Eigenschaften**. Gehört die Notiz zu mehreren Datenbanken, bekommt jede ihren eigenen Block. Darunter folgen der **Eltern-Eintrag**, die **Unterelemente** (aufklappbar) und die über Relationen **verknüpften Einträge** — jeweils direkt anklickbar. Am Telefon steht dasselbe im Reiter **Datenbanken** im Kontext-Blatt der Notiz.
 - Die Position erscheint nur, wenn die Notiz in der Ansicht auch **steht**: Die Zugehörigkeit zu einer Datenbank hängt bewusst nicht von den Filtern einer Ansicht ab, beides kann also auseinandergehen.
-- Das **Eigenschaften**-Panel bleibt daneben nützlich: Es zeigt das rohe Frontmatter — alle Felder, ohne Reihenfolge, Typen und Filter der Datenbank.
+- Der Bereich **Eigenschaften** ist der Ort dieser Werte: jedes Feld des Frontmatters der Notiz als eine Zeile, direkt bearbeitbar.
 - Gehört eine Notiz zu keiner Datenbank, erscheint weder Zeile noch Bereich. Nichts davon wird in die Notiz geschrieben: Der Kontext wird bei jedem Öffnen aus den `.base`-Dateien und Deinen Links neu berechnet, die Notiz selbst bleibt unverändertes Markdown.
 
 ## Neue Einträge anlegen
@@ -164,7 +164,7 @@ Hinweis für synchronisierte Vaults: Ordnen zwei Geräte das Brett gleichzeitig 
 
 ## Bedienung im Alltag
 
-- **Inline-Editing**: Ein Einfach-Klick in eine Zelle (oder auf einen Karten-Wert) macht sie editierbar — in allen Ansichten.
+- **Inline-Editing**: Ein Einfach-Klick in eine Zelle (oder auf einen Karten-Wert) macht sie editierbar — in allen Ansichten. Ein Textwert öffnet sich in einem Feld, das mit dem Text wächst und umbricht – auch ein langer Wert bleibt beim Ändern ganz lesbar. Er bleibt ein einzelner Wert: **Eingabe** speichert, und ein eingefügter Zeilenumbruch wird zu einem Leerzeichen.
 - **Öffnen**: Ein Klick auf den Eintragstitel öffnet die Notiz im Peek-Fenster — einem frei beweglichen Fenster, das Du an der Titelleiste verschieben und an der Ecke in der Größe anpassen kannst. Es hat eine eigene **Zurück**/**Vorwärts**-Historie für die darin geöffneten Notizen, einen Umschalter, der eine **Eigenschaften**-Spalte für die gezeigte Notiz einblendet, sowie **Als Tab öffnen** und **Im Split öffnen**. `Strg`+Klick öffnet direkt im Split; alternativ ziehst Du eine Karte auf die Drop-Zone **Hier ablegen: im Split öffnen**. Die Eigenschaften-Spalte lässt sich an ihrem linken Rand breiter oder schmaler ziehen (mindestens 232 px); unter 280 px stellt sie die Beschriftung über den Wert, so wie die rechte Seitenleiste.
 - **Drag**: Beim Ziehen von Karten (Board, Kalender, Zeitleiste) folgt eine Ghost-Karte dem Mauszeiger. In einem **Board** kannst Du außerdem eine **Spaltenüberschrift** ziehen, um die Spalten umzuordnen — bei **Auswahl**/**Status**-Boards ordnet das die Optionen der Eigenschaft um (die Dropdowns überall folgen), Relations- und Freitext-Boards merken sich die Reihenfolge pro Ansicht.
 - **Spaltenfarbe**: In den **Ansicht**-Einstellungen eines Boards lässt **Spaltenfarbe** eine Spalte die Farbe ihrer Gruppe annehmen — entweder **Ganze Liste** (die ganze Spalte wird eingefärbt) oder **Nur Chip** (nur der Chip in der Überschrift, Standard). Gilt für Auswahl-/Status-/Mehrfachauswahl-Gruppen.

@@ -8,6 +8,7 @@ import {
   GraphPimTarget,
   type IPimTarget,
   type PimAccountRow,
+  type PimBlockRef,
   type PimEventRow,
   type PimCalendar,
   type PimTaskList,
@@ -23,7 +24,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
+import { assertConnectionIdentity, formatPimCycle, logDiagnostic, ServiceConnectionError, timedDevicePimPort, withAccountCredentialLock, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -33,7 +34,25 @@ import {
   buildDailyNotePath,
   calendarPickerOptions,
   createCalendarEvent,
-  deleteCalendarEvent,
+  applyPendingEventWrites,
+  deleteEventWithBlockers,
+  detachBlockerAndUpdate,
+  linkCalendarBlocks,
+  mayChangeEvent,
+  recordBlockers,
+  resolveBlockers,
+  sourceOfBlocker,
+  updateEventWithBlockers,
+  type BlockFollowDeps,
+  type BlockFollowReport,
+  type EventWriteOutcome,
+  type FollowedWriteOutcome,
+  type ResolvedBlocker,
+  draftToRow,
+  pendingEventRow,
+  type ShownEventRow,
+  pendingEventWrites,
+  writeEventOptimistically,
   type EventTargets,
   parseGoogleUserInfo,
   type VerifiedProviderProfile,
@@ -41,7 +60,6 @@ import {
   resolveOrCreateMeetingNote,
   setPendingTemplateCaret,
   splitCalendarKey,
-  updateCalendarEvent,
   verifiedProviderIdentityOf,
   VERIFIED_PROVIDER_IDENTITY_KEY,
   writableCalendarsOf,
@@ -82,7 +100,12 @@ export {
 async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null> {
   // The device account has no credential — the permission is the sign-in
   // (EventKit plan E5/E6), so it is answered before the secret store is asked.
-  if (account.provider === "device") return isDevicePimSupported() ? new DevicePimTarget(devicePimPort()) : null;
+  // Every write to the device's store and every read of a reminder list is
+  // timed into the diagnostics log (plan Befunde 2026-10-06, T4): what the
+  // system answered and how long it took - no title, no list name.
+  if (account.provider === "device") {
+    return isDevicePimSupported() ? new DevicePimTarget(timedDevicePimPort(devicePimPort(), (line) => logDiagnostic("device", line))) : null;
+  }
   const creds = await getPimCredentials(vaultId, account.id);
   if (!creds) return null;
   if (creds.kind === "caldav") {
@@ -97,12 +120,15 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
  * sign-in store, provider clients and diagnostics log. No-op without an index
  * DB (web dev server). */
 export async function startPim(vault: MobileVault): Promise<void> {
+  wirePendingEventWrites();
   return startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     accountAuthRevision: async (vaultId, account) =>
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
     parkedMessage: i18n.t("pim.signInRequired"),
     onCycle: (info) => logDiagnostic("pim", formatPimCycle(info)),
+    // The other half of "did a change made in Reminders arrive here" (T4).
+    onDeviceChanged: () => logDiagnostic("device", "store changed, cycle requested"),
   });
 }
 
@@ -155,6 +181,57 @@ export async function setPimCalendarSelected(accountId: string, calId: string, s
 
 export async function listPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<PimEventRow[]> {
   return (await runtime?.cache.listEvents(rangeStartTs, rangeEndTs)) ?? [];
+}
+
+/**
+ * The events a SCREEN shows: what the cache holds, with the writes that are on
+ * their way laid over it (issue 119). Reminders and the widget keep reading
+ * {@link listPimEvents} — they act on what the provider confirmed.
+ */
+export async function listShownPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<ShownEventRow[]> {
+  const cached = await listPimEvents(rangeStartTs, rangeEndTs);
+  const shown = applyPendingEventWrites(cached, pendingEventWrites.snapshot());
+  // The chain mark of a blocker and of an event that has blockers is drawn
+  // from the linkage (K3) — derived here, once, for every screen that lists
+  // events. Until then the phone had the action and no sign of its result.
+  if (shown === cached) return linkCalendarBlocks(shown);
+  // A created event comes from the overlay, not from the range query.
+  return linkCalendarBlocks(shown.filter((row) => cached.includes(row) || (row.start.ts < rangeEndTs && row.end.ts >= rangeStartTs)));
+}
+
+/**
+ * Lets settled writes go once the cache agrees with them. Asked per event and
+ * not per screen range: a screen that shows today must not conclude that an
+ * event deleted from next week is gone from the cache.
+ */
+async function reconcilePendingEventWrites(): Promise<void> {
+  const cache = runtime?.cache;
+  const writes = pendingEventWrites.snapshot();
+  if (!cache || writes.length === 0) return;
+  const found: PimEventRow[] = [];
+  for (const write of writes) {
+    const ref = write.kind === "create" ? write.row : write.ref;
+    const row = await cache.getEventByUid(ref.accountId, ref.calendarId, ref.uid).catch(() => null);
+    if (row) found.push(row);
+  }
+  pendingEventWrites.reconcile(found);
+}
+
+let pendingWritesWired = false;
+/**
+ * A write that begins, settles or is refused changes what the screens show;
+ * they already reload on `m-pim-changed`. A finished cycle fires it too, which
+ * is the moment the cache may have caught up with a settled write.
+ *
+ * Wired when the runtime starts, not when this module loads: at load time the
+ * shared package this store comes from may not have run yet (the modules
+ * import each other), and the app then did not start at all.
+ */
+function wirePendingEventWrites(): void {
+  if (pendingWritesWired || typeof window === "undefined") return;
+  pendingWritesWired = true;
+  pendingEventWrites.subscribe(() => window.dispatchEvent(new CustomEvent("m-pim-changed")));
+  window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
 }
 
 let idCounter = 0;
@@ -458,23 +535,107 @@ const eventTargets: EventTargets = {
   },
 };
 
+/*
+ * Every write below shows on screen from the moment it is made (issue 119):
+ * the change is laid over the cached rows by the shared overlay and stays
+ * there until the cache agrees. Before, the phone waited for the provider and
+ * then for a whole cycle over every account before the new event appeared —
+ * the row the shared writer hands back was thrown away.
+ */
 export async function createPimEvent(calendarKey: string, draft: PimEventDraft) {
   const key = splitCalendarKey(calendarKey);
   if (!key) throw new Error("no writable calendar selected");
-  const out = await createCalendarEvent(eventTargets, key.accountId, key.calendarId, draft);
+  const id = pendingEventWrites.reserve();
+  const { uid: _uid, ...shown } = draftToRow(key.accountId, key.calendarId, "", draft);
+  const out = await writeEventOptimistically(
+    pendingEventWrites,
+    { kind: "create", row: pendingEventRow(id, shown) },
+    () => createCalendarEvent(eventTargets, key.accountId, key.calendarId, draft),
+    (written) => written.rows.map((row) => ({ kind: "create" as const, row })),
+    id,
+  );
   pimSyncNow();
   return out;
 }
 
+/**
+ * What the shared blocker rules need from the phone (K3): the targets and two
+ * questions to the cache. The rules themselves — what follows what, when a
+ * blocker asks, what a deletion takes along — are the desktop's, in one file.
+ */
+function followDeps(): BlockFollowDeps {
+  return {
+    targets: eventTargets,
+    blockersOf: async (uids) => (await runtime?.cache.listBlockersOf(uids)) ?? [],
+    eventsByUid: async (uid) => (await runtime?.cache.findEventsByUid(uid)) ?? [],
+    busyLabel: i18n.t("pim.busyTitle"),
+  };
+}
+
+/**
+ * Updates an event; its blockers follow (K3). `loaded` are the rows the screen
+ * holds — the blockers among them move with the event, before the provider is
+ * asked.
+ */
 export async function updatePimEvent(
   event: PimEventRow,
   draft: PimEventDraft,
   moveToCalendarKey?: string | null,
-) {
+  loaded: readonly PimEventRow[] = [],
+): Promise<FollowedWriteOutcome> {
   const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
-  const out = await updateCalendarEvent(eventTargets, event, draft, move);
+  const out = await updateEventWithBlockers(followDeps(), event, draft, { moveTo: move, loaded });
   if (out.kind !== "conflict") pimSyncNow();
   return out;
+}
+
+/** The blockers of an event, for the question a deletion asks about them. */
+export async function pimBlockersOf(event: PimEventRow, loaded: readonly PimEventRow[] = []): Promise<ResolvedBlocker[]> {
+  try {
+    return (await resolveBlockers(followDeps(), event, loaded)).blockers;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The event a blocker mirrors, where it can be found, and whether the user may
+ * change it — an invitation of somebody else is not theirs to move.
+ */
+export async function pimSourceOfBlocker(blocker: PimEventRow): Promise<{ source: PimEventRow; canChange: boolean } | null> {
+  if (!runtime || !blocker.blockOf) return null;
+  try {
+    const source = await sourceOfBlocker(followDeps(), blocker);
+    if (!source) return null;
+    const [accounts, calendars] = await Promise.all([runtime.cache.listAccounts(), runtime.cache.listCalendars()]);
+    const enabled = new Set(accounts.filter((a) => a.enabled).map((a) => a.id));
+    const writable = new Set(writableCalendarsOf(calendars, enabled).map((c) => `${c.accountId} ${c.id}`));
+    return { source, canChange: mayChangeEvent(source, writable) };
+  } catch {
+    return null;
+  }
+}
+
+/** "Only this blocker": it is written and stops being one. */
+export async function detachPimBlocker(
+  blocker: PimEventRow,
+  draft: PimEventDraft,
+  moveToCalendarKey: string | null | undefined,
+  source: PimEventRow | null,
+): Promise<EventWriteOutcome> {
+  const move = moveToCalendarKey ? splitCalendarKey(moveToCalendarKey) : null;
+  const out = await detachBlockerAndUpdate(followDeps(), blocker, draft, { moveTo: move, source });
+  if (out.kind !== "conflict") pimSyncNow();
+  return out;
+}
+
+/** After "Block in other calendars": the event's own list gains the new blockers. */
+export async function recordPimBlockers(source: PimEventRow, created: readonly PimBlockRef[]): Promise<void> {
+  if (!runtime || created.length === 0) return;
+  const [accounts, calendars] = await Promise.all([runtime.cache.listAccounts(), runtime.cache.listCalendars()]);
+  const enabled = new Set(accounts.filter((a) => a.enabled).map((a) => a.id));
+  const writable = new Set(writableCalendarsOf(calendars, enabled).map((c) => `${c.accountId} ${c.id}`));
+  if (mayChangeEvent(source, writable)) await recordBlockers(followDeps(), source, created);
 }
 
 /**
@@ -548,9 +709,11 @@ export async function openMeetingNoteFor(
   return { path: res.path, created: res.created };
 }
 
-export async function deletePimEvent(event: PimEventRow): Promise<void> {
-  await deleteCalendarEvent(eventTargets, event);
+/** Deletes an event and — where the user said so — the blockers that mirror it (K3). */
+export async function deletePimEvent(event: PimEventRow, blockers: readonly ResolvedBlocker[] = []): Promise<BlockFollowReport> {
+  const report = await deleteEventWithBlockers(followDeps(), event, blockers);
   pimSyncNow();
+  return report;
 }
 
 /** Responds to an invitation (accept/decline/tentative) via the account's target. */
@@ -560,6 +723,9 @@ export async function respondToPimEvent(event: PimEventRow, response: "accepted"
   if (!account) throw new Error("account not found");
   const target = await runtime.buildTarget(account);
   if (!target?.respondToEvent) throw new Error("responding is not supported for this account");
-  await target.respondToEvent({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response);
+  const respond = target.respondToEvent.bind(target);
+  await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: event, patch: { selfResponse: response } }, () =>
+    respond({ calendarId: event.calendarId, uid: event.uid, etag: event.etag, href: event.href }, response),
+  );
   pimSyncNow();
 }

@@ -31,9 +31,7 @@ export function ExternalAddSheet({ onClose, onAdded }: { onClose: () => void; on
         <p className="m-hint">{t("ai.ext.add.nameHint")}</p>
         <TextInput
           value={form.url}
-          spellCheck={false}
-          autoCapitalize="none"
-          autoCorrect="off"
+          purpose="address"
           autoComplete="off"
           inputMode="url"
           placeholder={t("ai.ext.add.address")}
@@ -45,7 +43,7 @@ export function ExternalAddSheet({ onClose, onAdded }: { onClose: () => void; on
         <TextInput
           type="password"
           autoComplete="off"
-          spellCheck={false}
+          purpose="secret"
           value={form.token}
           placeholder={t("ai.ext.add.token")}
           aria-label={t("ai.ext.add.token")}

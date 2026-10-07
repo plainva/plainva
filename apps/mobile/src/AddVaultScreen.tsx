@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLeaveGuard } from "./hooks/useLeaveGuard";
 import { ChevronRight, CloudOff } from "lucide-react";
-import { Banner, Button, EmptyState, filesTargetForFamily, ICON, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, serviceConnectionMessage, type CloudProviderFamily } from "@plainva/ui";
+import { Banner, Button, EmptyState, filesTargetForFamily, foldMachineText, ICON, Row, Switch, TextInput, familyLabel, getVaultTemplates, isInsecurePublicUrl, serviceConnectionMessage, type CloudProviderFamily } from "@plainva/ui";
 import { mSelect } from "./services/mobileDialogs";
 import type { S3Credentials, WebDavCredentials } from "@plainva/core";
 import {
@@ -84,6 +84,9 @@ export function AddVaultScreen({
     accessKeyId: "",
     secretAccessKey: "",
     prefix: "",
+    // Path-style is what most S3-compatible stores expect; the switch below
+    // turns it off for the ones that only answer on the bucket's own host.
+    forcePathStyle: true,
   });
   // OAuth extras: folders for all three, BYO client for Google Drive.
   const [driveClientId, setDriveClientId] = useState("");
@@ -156,14 +159,17 @@ export function AddVaultScreen({
     }
     const p: MobileSyncProvider =
       provider === "webdav"
-        ? { provider: "webdav", creds: { ...webdav, url: webdav.url.trim() } }
+        ? { provider: "webdav", creds: { ...webdav, url: foldMachineText(webdav.url) } }
         : {
             provider: "s3",
             creds: {
               ...s3,
-              endpoint: s3.endpoint.trim(),
-              region: s3.region.trim() || "us-east-1",
-              bucket: s3.bucket.trim(),
+              // Addresses and key ids as a machine reads them: a keyboard
+              // set to Japanese types them in full-width forms (lib/machineText.ts).
+              endpoint: foldMachineText(s3.endpoint),
+              region: foldMachineText(s3.region) || "us-east-1",
+              bucket: foldMachineText(s3.bucket),
+              accessKeyId: foldMachineText(s3.accessKeyId),
               prefix: s3.prefix?.trim() || undefined,
             },
           };
@@ -280,6 +286,9 @@ export function AddVaultScreen({
               <label className="m-field">
                 <span>{t("mobile.syncUrl")}</span>
                 <TextInput
+                  purpose="address"
+                  inputMode="url"
+                  data-testid="sync-webdav-url"
                   onChange={(e) => setWebdav({ ...webdav, url: e.target.value })}
                   placeholder="https://cloud.example.com/remote.php/dav/files/user/vault"
                   value={webdav.url}
@@ -288,6 +297,8 @@ export function AddVaultScreen({
               <label className="m-field">
                 <span>{t("mobile.syncUser")}</span>
                 <TextInput
+                  autoCapitalize="none"
+                  autoCorrect="off"
                   onChange={(e) => setWebdav({ ...webdav, user: e.target.value })}
                   value={webdav.user}
                 />
@@ -311,6 +322,9 @@ export function AddVaultScreen({
               <label className="m-field">
                 <span>{t("mobile.s3Endpoint")}</span>
                 <TextInput
+                  purpose="address"
+                  inputMode="url"
+                  data-testid="sync-s3-endpoint"
                   onChange={(e) => setS3({ ...s3, endpoint: e.target.value })}
                   placeholder="https://<account>.r2.cloudflarestorage.com"
                   value={s3.endpoint}
@@ -319,6 +333,7 @@ export function AddVaultScreen({
               <label className="m-field">
                 <span>{t("mobile.s3Region")}</span>
                 <TextInput
+                  purpose="address"
                   onChange={(e) => setS3({ ...s3, region: e.target.value })}
                   placeholder="us-east-1 / auto"
                   value={s3.region}
@@ -327,6 +342,8 @@ export function AddVaultScreen({
               <label className="m-field">
                 <span>{t("mobile.s3Bucket")}</span>
                 <TextInput
+                  purpose="address"
+                  data-testid="sync-s3-bucket"
                   onChange={(e) => setS3({ ...s3, bucket: e.target.value })}
                   value={s3.bucket}
                 />
@@ -334,6 +351,8 @@ export function AddVaultScreen({
               <label className="m-field">
                 <span>{t("mobile.s3AccessKeyId")}</span>
                 <TextInput
+                  purpose="secret"
+                  data-testid="sync-s3-key"
                   onChange={(e) => setS3({ ...s3, accessKeyId: e.target.value })}
                   value={s3.accessKeyId}
                 />
@@ -353,6 +372,14 @@ export function AddVaultScreen({
                   value={s3.prefix ?? ""}
                 />
               </label>
+              {/* The desktop's form has had this switch from the start; the
+                  phone's had none, so a store that only answers on the
+                  bucket's own host (virtual-hosted style) could not be set up
+                  here at all (Play feedback 2026-09-30). */}
+              <Row
+                title={t("settings.s3PathStyle")}
+                end={<Switch checked={s3.forcePathStyle !== false} label={t("settings.s3PathStyle")} onChange={(on) => setS3({ ...s3, forcePathStyle: on })} />}
+              />
             </>
           )}
 

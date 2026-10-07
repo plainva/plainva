@@ -5,9 +5,27 @@ import { CalendarRange, CheckSquare, ChevronLeft, Diamond, ChevronRight, Link2, 
 import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts } from "@plainva/ui/mail";
-import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, updateCalendarEvent, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
-import { PimConflictError, parseRRule, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft } from "@plainva/core";
-import type { EventChange } from "@plainva/ui";
+import { errorText, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, layoutSpanningEvents, sameEventRef, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
+import {
+  blockLinkKey,
+  deleteEventWithBlockers,
+  describeNewStart,
+  detachBlockerAndUpdate,
+  mayChangeEvent,
+  movedInTime,
+  recordBlockers,
+  resolveBlockers,
+  sourceDraftFromBlockerEdit,
+  sourceOfBlocker,
+  undoDraftFor,
+  updateEventWithBlockers,
+  type BlockFollowDeps,
+  type BlockFollowReport,
+  type EventWriteOutcome,
+  type ResolvedBlocker,
+} from "@plainva/ui";
+import { CalendarSyncNotice, type EventChange } from "@plainva/ui";
 import { useVault, defaultCalendarKey } from "../../contexts/VaultContext";
 import { getSettingsStore } from "../../services/settingsStore";
 import { listExistingDailyNotes } from "../../services/dailyNotes";
@@ -44,6 +62,7 @@ import { EventEditModal } from "./EventEditModal";
 import { EventContextMenu } from "./EventContextMenu";
 import { EventPeek } from "./EventPeek";
 import { BlockCalendarsModal } from "./BlockCalendarsModal";
+import { BlockerChangeModal, DeleteWithBlockersModal } from "./BlockerModals";
 import { SeriesScopeModal } from "./SeriesScopeModal";
 import { DayTimeGrid } from "./DayTimeGrid";
 import { QuickCreatePopover, type QuickCreateValues } from "./QuickCreatePopover";
@@ -131,8 +150,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const closeJump = useCallback(() => setJumpOpen(false), []);
   const [accounts, setAccounts] = useState<PimAccountRow[]>([]);
   const [calendars, setCalendars] = useState<CalRow[]>([]);
-  const [events, setEvents] = useState<PimEventRow[]>([]);
+  // What the cache holds, and on top of it what the user just did (issue 119):
+  // a write shows from the moment it is made, not from the provider's answer.
+  const [cachedEvents, setEvents] = useState<PimEventRow[]>([]);
+  const events = useShownEvents(cachedEvents);
   const [status, setStatus] = useState<{ status: string; message?: string }>({ status: "idle" });
+  // Accounts and calendars that are not being synced — the line above the grid.
+  const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
   const [tick, setTick] = useState(0);
   // Optional: overlay the standard task database's due-dated tasks (device-local
   // view preference, like the graph pins). Only offered when a task DB exists.
@@ -207,34 +231,60 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   }, [applyDay]);
 
   // Cache re-query: worker cycles announce fresh data over the window event.
+  //
+  // And the END of every cycle re-reads too (plan Befunde 2026-10-06, K1) —
+  // also one that failed or wrote nothing. `plainva-pim-changed` only fires
+  // when a cycle wrote, so after a failed cycle the view stayed on whatever it
+  // had read last, and nothing told it that an account had stopped syncing.
+  // Coming back to the window does the same: a calendar in a background window
+  // is not a reason to show what it knew an hour ago.
   useEffect(() => {
     const onChanged = () => setTick((v) => v + 1);
     const onStatus = (e: Event) => {
       const d = (e as CustomEvent).detail;
-      if (d && typeof d.status === "string") setStatus({ status: d.status, message: d.message });
+      if (d && typeof d.status === "string") {
+        setStatus({ status: d.status, message: d.message });
+        if (d.status !== "syncing") onChanged();
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") onChanged();
     };
     window.addEventListener("plainva-pim-changed", onChanged);
     window.addEventListener("plainva-pim-status", onStatus);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
       window.removeEventListener("plainva-pim-changed", onChanged);
       window.removeEventListener("plainva-pim-status", onStatus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
   }, []);
+  // The pane becoming the active one is the third occasion: a calendar that
+  // sat in the other half of a split is read again when it is turned to.
+  useEffect(() => {
+    if (isActivePane) setTick((v) => v + 1);
+  }, [isActivePane]);
 
   useEffect(() => {
     let stale = false;
     (async () => {
       if (!pimRuntime) return;
       try {
-        const [acc, cals, evs] = await Promise.all([
+        const [acc, cals, evs, notFresh] = await Promise.all([
           pimRuntime.cache.listAccounts(),
           pimRuntime.cache.listCalendars(),
           pimRuntime.cache.listEvents(rangeStartTs, rangeEndTs),
+          // Its own catch: the line above the calendar must never cost the
+          // calendar its events.
+          pimRuntime.cache.listSyncProblems().catch(() => [] as PimSyncProblem[]),
         ]);
         if (stale) return;
         setAccounts(acc);
         setCalendars(cals);
         setEvents(evs);
+        setSyncProblems(notFresh);
       } catch {
         /* cache unreadable — leave the previous state */
       }
@@ -643,10 +693,11 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // accounts), regardless of visibility (`selected`). Blocking into a calendar
   // you don't currently display is valid, so the block action / dialog must not
   // hide it — the visibility toggle is not a write-permission gate.
-  const writableAnyCount = useMemo(
-    () => calendars.filter((c) => !c.readOnly && enabledAccounts.has(c.accountId)).length,
+  const writableAnyKeys = useMemo(
+    () => new Set(calendars.filter((c) => !c.readOnly && enabledAccounts.has(c.accountId)).map((c) => `${c.accountId} ${c.id}`)),
     [calendars, enabledAccounts]
   );
+  const writableAnyCount = writableAnyKeys.size;
   const accountLabel = useMemo(() => new Map(accounts.map((a) => [a.id, a.label])), [accounts]);
   const calendarOptions = useMemo(
     () =>
@@ -702,6 +753,152 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [accounts, pimRuntime]
   );
 
+  // A retry calls the write it belongs to — and a callback cannot name itself.
+  // The current set of writes is kept here and read when the user asks again.
+  const retryWrites = useRef<{
+    save(e: PimEventRow, values: EventFormValues): void;
+    reschedule(e: PimEventRow, startMs: number, endMs: number): void;
+    color(e: PimEventRow, color: string): void;
+    remove(e: PimEventRow, blockers: readonly ResolvedBlocker[]): void;
+    /** The reverse of a write that took blockers along (K3): no second "undo" for the undo. */
+    apply(e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form"): void;
+    write(e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form"): void;
+  } | null>(null);
+
+  // What the blocker rules need from this view (K3): the targets and two
+  // questions to the cache. The rules themselves are shared with the phone.
+  const followDeps = useMemo<BlockFollowDeps>(
+    () => ({
+      targets: { targetFor },
+      blockersOf: async (uids) => (pimRuntime ? pimRuntime.cache.listBlockersOf(uids) : []),
+      eventsByUid: async (uid) => (pimRuntime ? pimRuntime.cache.findEventsByUid(uid) : []),
+      busyLabel: t("pim.busyTitle", { defaultValue: "Beschäftigt" }),
+    }),
+    [targetFor, pimRuntime, t]
+  );
+  // The loaded rows as a write finds them: read when it starts, never in render.
+  const loadedEvents = useRef<readonly PimEventRow[]>([]);
+  useEffect(() => {
+    loadedEvents.current = cachedEvents;
+  }, [cachedEvents]);
+
+  /** A blocker that was moved or changed, while the question about it is open. */
+  const [blockerPrompt, setBlockerPrompt] = useState<{
+    blocker: PimEventRow;
+    source: PimEventRow;
+    draft: PimEventDraft;
+    moveTo: { accountId: string; calendarId: string } | null;
+    shape: "time" | "form";
+    /** The overlay that keeps the blocker where it was put until the answer. */
+    hold: number;
+  } | null>(null);
+  /** An event with blockers that is about to be deleted. */
+  const [deletePrompt, setDeletePrompt] = useState<{ event: PimEventRow; blockers: ResolvedBlocker[] } | null>(null);
+
+  /**
+   * What the blockers did, said once (K3): how many went along — with the way
+   * back — and, by calendar, which did not. A blocker the provider would not
+   * change is named, never passed over in silence.
+   */
+  const reportBlockers = useCallback(
+    (report: BlockFollowReport, message: string | null, undo?: () => void) => {
+      if (message && report.followed.length > 0) {
+        toast.info(message, undo ? { label: t("common.undo", { defaultValue: "Rückgängig" }), run: undo } : undefined);
+      }
+      if (report.failed.length > 0) {
+        const cals = report.failed
+          .map((failure) => {
+            const name = calName.get(`${failure.ref.accountId} ${failure.ref.calendarId}`) || failure.ref.calendarId;
+            const reason = failure.hidden ? t("pim.blockCalendarHidden", { defaultValue: "Kalender wird nicht angezeigt" }) : failure.reason;
+            return `${name} (${reason})`;
+          })
+          .join(", ");
+        toast.error(t("pim.blocksNotFollowed", { cals, defaultValue: "Blocker in {{cals}} nicht angepasst." }));
+      }
+    },
+    [calName, t]
+  );
+
+  /** The loaded row after a write: a drag changed when it is, a form what it says too. */
+  const landWrite = useCallback(
+    (e: PimEventRow, out: Exclude<EventWriteOutcome, { kind: "conflict" }>, moved: boolean, shape: "time" | "form") => {
+      const rows = out.rows;
+      setEvents((prev) => {
+        // Moved: the old row is gone, the new one takes its place. In place:
+        // keep the row's identity, take the edited fields.
+        if (moved) return [...prev.filter((ev) => !sameEventRef(ev, e)), ...rows];
+        const row = rows[0];
+        if (!row) return prev;
+        return prev.map((ev) => {
+          if (!sameEventRef(ev, e)) return ev;
+          return shape === "time" ? { ...ev, start: row.start, end: row.end, allDay: row.allDay } : { ...ev, ...row };
+        });
+      });
+    },
+    []
+  );
+
+  /**
+   * ONE update of one event, with its blockers (K3). The event and every
+   * blocker on screen are at their new place before anything is awaited; the
+   * shared rule decides what a blocker takes over and writes the event's list.
+   */
+  const applyEventWrite = useCallback(
+    async (e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form", announce: boolean) => {
+      const out = await updateEventWithBlockers(followDeps, e, draft, { moveTo, loaded: loadedEvents.current });
+      if (out.kind === "conflict") {
+        toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
+        refresh();
+        return;
+      }
+      if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
+      const moved = !!moveTo && (moveTo.accountId !== e.accountId || moveTo.calendarId !== e.calendarId);
+      landWrite(e, out, moved, shape);
+      const followed = out.blockers.followed;
+      const n = followed.length;
+      const message = !announce
+        ? null
+        : movedInTime(e, draft)
+          ? t("pim.blocksMoved", { time: describeNewStart(e, draft, i18n.language), n, defaultValue: "Auf {{time}} verschoben, {{n}} Blocker mit verschoben" })
+          : t("pim.blocksUpdated", { n, defaultValue: "Gespeichert, {{n}} Blocker angepasst" });
+      // The way back is the same write in reverse: the event as it was, and
+      // its blockers follow it there. Offered only where that is the whole
+      // truth — see `undoDraftFor`.
+      const back = announce && n > 0 ? undoDraftFor(e, draft) : null;
+      const row = out.rows[0];
+      const after: PimEventRow | null = !row ? null : { ...(moved ? row : { ...e, ...row }), etag: undefined, blocks: followed };
+      reportBlockers(
+        out.blockers,
+        message,
+        back && after ? () => retryWrites.current?.apply(after, back, moved ? { accountId: e.accountId, calendarId: e.calendarId } : null, shape) : undefined,
+      );
+      refresh();
+    },
+    [followDeps, landWrite, reportBlockers, refresh, t, i18n.language]
+  );
+
+  /**
+   * The gate every update passes (K3). An ordinary event is written. A BLOCKER
+   * whose event can be found asks first what was meant — and stands where it
+   * was put while the question is open, instead of springing back.
+   */
+  const writeEvent = useCallback(
+    async (e: PimEventRow, draft: PimEventDraft, moveTo: { accountId: string; calendarId: string } | null, shape: "time" | "form") => {
+      if (e.blockOf) {
+        const hold = pendingEventWrites.begin({ kind: "update", ref: e, patch: { start: draft.start, end: draft.end, allDay: draft.allDay } });
+        const source = await sourceOfBlocker(followDeps, e).catch(() => null);
+        if (source) {
+          setBlockerPrompt({ blocker: e, source, draft, moveTo, shape, hold });
+          return;
+        }
+        // Its event is gone or out of reach: an ordinary entry as far as anyone can tell.
+        pendingEventWrites.drop(hold);
+      }
+      await applyEventWrite(e, draft, moveTo, shape, true);
+    },
+    [followDeps, applyEventWrite]
+  );
+
   /**
    * Writes an edited form against ONE event — the occurrence or the series
    * master, whichever the caller decided on. Split out of `submitEventForm` in
@@ -711,49 +908,53 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const writeEventForm = useCallback(
     async (e: PimEventRow, values: EventFormValues) => {
       const draft = eventFormToDraft(values);
-      // The three rules around the provider calls (move = create+delete, a
-      // moved remote means re-pull, a written event shows at once) are SHARED
-      // since S24 — a second shell guessing at them produces duplicates and
+      // The rules around the provider calls (move = create+delete, a moved
+      // remote means re-pull, a written event shows at once, blockers follow)
+      // are SHARED — a second shell guessing at them produces duplicates and
       // lost edits on somebody's real calendar.
-      const targets = { targetFor };
-      {
-        const currentKey = `${e.accountId} ${e.calendarId}`;
-        const newKey = values.calendarKey.trim();
-        const [moveAcc, ...moveRest] = newKey.split(" ");
-        const moveCal = moveRest.join(" ");
-        const moveTo = newKey && newKey !== currentKey && moveAcc && moveCal ? { accountId: moveAcc, calendarId: moveCal } : null;
-        // A move carries the fields the form does not edit; the copy has to be
-        // faithful, not a stripped-down version of the event.
-        const writeDraft: PimEventDraft = moveTo
-          ? {
-              ...draft,
-              description: draft.description ?? e.description ?? undefined,
-              descriptionHtml: draft.descriptionHtml ?? (e.description ? markdownToHtml(e.description) : undefined),
-              attendees: draft.attendees ?? (e.attendees && e.attendees.length ? [...e.attendees] : undefined),
-            }
-          : draft;
-        const out = await updateCalendarEvent(targets, e, writeDraft, moveTo);
-        if (out.kind === "conflict") {
-          setEditState(null);
-          toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
-          refresh();
-          return;
-        }
-        if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
-        // `conflict` returned above; what is left carries rows.
-        const rows = out.kind === "written" || out.kind === "duplicate" ? out.rows : [];
-        setEvents((prev) => {
-          // In place: keep the row's identity, take the edited fields. Moved:
-          // the old row is gone, the new one takes its place.
-          if (moveTo) return [...prev.filter((ev) => !sameEventRef(ev, e)), ...rows];
-          return prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, ...rows[0] } : ev));
-        });
-      }
+      const currentKey = `${e.accountId} ${e.calendarId}`;
+      const newKey = values.calendarKey.trim();
+      const [moveAcc, ...moveRest] = newKey.split(" ");
+      const moveCal = moveRest.join(" ");
+      const moveTo = newKey && newKey !== currentKey && moveAcc && moveCal ? { accountId: moveAcc, calendarId: moveCal } : null;
+      // A move carries the fields the form does not edit; the copy has to be
+      // faithful, not a stripped-down version of the event.
+      const writeDraft: PimEventDraft = moveTo
+        ? {
+            ...draft,
+            description: draft.description ?? e.description ?? undefined,
+            descriptionHtml: draft.descriptionHtml ?? (e.description ? markdownToHtml(e.description) : undefined),
+            attendees: draft.attendees ?? (e.attendees && e.attendees.length ? [...e.attendees] : undefined),
+          }
+        : draft;
+      // The dialog closes with the save; the provider's answer arrives on the
+      // event itself, and a refusal comes back as a message with a retry.
       setEditState(null);
       setCreateInitial(null);
-      refresh();
+      await writeEvent(e, writeDraft, moveTo, "form");
     },
-    [targetFor, refresh, t]
+    [writeEvent]
+  );
+
+  /** A refused write, said once, with the way to try it again. */
+  const reportWriteFailure = useCallback(
+    (error: unknown, retry: () => void) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      logDiagnostic("calendar", `event write refused: ${reason}`);
+      toast.error(t("pim.eventWriteRefused", { reason, defaultValue: "Der Termin wurde nicht gespeichert: {{reason}}" }), {
+        label: t("pim.eventWriteRetry", { defaultValue: "Erneut versuchen" }),
+        run: retry,
+      });
+    },
+    [t]
+  );
+
+  /** `writeEventForm` in the background: the form is already closed. */
+  const saveEventForm = useCallback(
+    (e: PimEventRow, values: EventFormValues) => {
+      void writeEventForm(e, values).catch((error) => reportWriteFailure(error, () => retryWrites.current?.save(e, values)));
+    },
+    [writeEventForm, reportWriteFailure]
   );
 
   /**
@@ -776,20 +977,35 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           setSavePrompt({ event: e, values, before, changes });
           return;
         }
-        await writeEventForm(e, values);
+        saveEventForm(e, values);
         return;
       }
       const draft = eventFormToDraft(values);
       const [accountId, ...rest] = values.calendarKey.split(" ");
       const calId = rest.join(" ");
       if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));
-      const out = await createCalendarEvent({ targetFor }, accountId, calId, draft);
-      setEvents((prev) => [...prev, ...out.rows]);
       setEditState(null);
       setCreateInitial(null);
-      refresh();
+      const create = () => {
+        const id = pendingEventWrites.reserve();
+        const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
+        void writeEventOptimistically(
+          pendingEventWrites,
+          { kind: "create", row: pendingEventRow(id, shown) },
+          () => createCalendarEvent({ targetFor }, accountId, calId, draft),
+          (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
+          id,
+        ).then(
+          (out) => {
+            setEvents((prev) => [...prev, ...out.rows]);
+            refresh();
+          },
+          (error) => reportWriteFailure(error, create),
+        );
+      };
+      create();
     },
-    [editState, writeEventForm, targetFor, refresh, t]
+    [editState, saveEventForm, reportWriteFailure, targetFor, refresh, t]
   );
 
   // ---- drag reschedule (move/resize existing single events) ----------------
@@ -797,6 +1013,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const canEditEvent = useCallback(
     (e: PimEventRow) => {
       if (e.seriesMaster) return false; // series instances stay read-only (v1)
+      if (isPendingEventUid(e.uid)) return false; // no provider id yet: nothing to write against
       const key = `${e.accountId} ${e.calendarId}`;
       return writableCalendars.some((c) => `${c.accountId} ${c.id}` === key);
     },
@@ -805,11 +1022,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
 
   const rescheduleEvent = useCallback(
     async (e: PimEventRow, newStartMs: number, newEndMs: number) => {
-      const target = await targetFor(e.accountId);
-      if (!target) {
-        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        return;
-      }
       // Direct draft from the event's current fields with new times; the
       // adapter GET-modify-PUTs, so attendees/alarms/color are preserved.
       const draft: PimEventDraft = {
@@ -824,21 +1036,15 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         color: e.color,
       };
       try {
-        await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+        // The block lands at its new time with the drop — before anything is
+        // awaited — and so do the blockers that mirror it (K3). A blocker that
+        // is dragged asks first; a moved remote is said inside.
+        await writeEvent(e, draft, null, "time");
       } catch (err) {
-        if (err instanceof PimConflictError) {
-          toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
-          refresh();
-          return;
-        }
-        toast.error(err instanceof Error ? err.message : String(err));
-        return;
+        reportWriteFailure(err, () => retryWrites.current?.reschedule(e, newStartMs, newEndMs));
       }
-      // Optimistic: land the block at the new time immediately.
-      setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, start: draft.start, end: draft.end, allDay: false } : ev)));
-      refresh();
     },
-    [targetFor, refresh, t]
+    [writeEvent, reportWriteFailure]
   );
 
   const onEventMove = useCallback(
@@ -857,8 +1063,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       if (!target?.respondToEvent) {
         throw new Error(t("pim.rsvpUnsupported", { defaultValue: "Zu-/Absagen wird für dieses Konto nicht unterstützt." }));
       }
-      await target.respondToEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response);
-      // Optimistic: reflect the new self-response at once (worker re-query confirms).
+      const respond = target.respondToEvent.bind(target);
+      await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { selfResponse: response } }, () =>
+        respond({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, response),
+      );
       setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, selfResponse: response } : ev)));
       refresh();
     },
@@ -871,11 +1079,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // color:"" clears back to the calendar colour (same contract as the dialog).
   const setEventColor = useCallback(
     async (e: PimEventRow, color: string) => {
-      const target = await targetFor(e.accountId);
-      if (!target) {
-        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        return;
-      }
       const draft: PimEventDraft = {
         title: e.title,
         allDay: e.allDay,
@@ -885,20 +1088,24 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         color,
       };
       try {
-        await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+        await writeEventOptimistically(pendingEventWrites, { kind: "update", ref: e, patch: { color } }, async () => {
+          const target = await targetFor(e.accountId);
+          if (!target) throw new Error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+          await target.updateEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href }, draft);
+        });
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
           refresh();
           return;
         }
-        toast.error(err instanceof Error ? err.message : String(err));
+        reportWriteFailure(err, () => retryWrites.current?.color(e, color));
         return;
       }
       setEvents((prev) => prev.map((ev) => (sameEventRef(ev, e) ? { ...ev, color } : ev)));
       refresh();
     },
-    [targetFor, refresh, t]
+    [targetFor, refresh, reportWriteFailure, t]
   );
 
   // ---- quick create (feedback round 3: click/drag on an empty slot) --------
@@ -949,42 +1156,108 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     [quickCreate, timedForm]
   );
 
-  /** Provider delete WITHOUT its own confirmation (callers confirm). */
+  /** Provider delete WITHOUT its own confirmation (callers confirm) — the
+   * event and, where the user left the box ticked, its blockers (K3). */
   const performDelete = useCallback(
-    async (e: PimEventRow) => {
-      const target = await targetFor(e.accountId);
-      if (!target) {
-        toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
-        return;
-      }
+    async (e: PimEventRow, blockers: readonly ResolvedBlocker[] = []) => {
       try {
-        await target.deleteEvent({ calendarId: e.calendarId, uid: e.uid, etag: e.etag, href: e.href });
-        // Optimistic: drop it from view at once (worker re-query confirms).
-        setEvents((prev) => prev.filter((ev) => !sameEventRef(ev, e)));
+        // Gone from view with the confirmation; a refusal brings it back.
+        const report = await deleteEventWithBlockers(followDeps, e, blockers);
+        const gone = [e, ...report.followed];
+        setEvents((prev) => prev.filter((ev) => !gone.some((ref) => sameEventRef(ev, ref))));
+        reportBlockers(report, null);
       } catch (err) {
         if (err instanceof PimConflictError) {
           toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
         } else {
-          toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
+          reportWriteFailure(err, () => retryWrites.current?.remove(e, blockers));
         }
       }
       refresh();
     },
-    [targetFor, refresh, t]
+    [followDeps, reportBlockers, refresh, reportWriteFailure, t]
   );
 
-  const deleteEvent = useCallback(
-    async (e: PimEventRow) => {
-      const ok = await appConfirm({
-        title: t("pim.deleteEvent", { defaultValue: "Termin löschen" }),
-        message: t("pim.deleteEventMsg", { defaultValue: "„{{title}}“ wird im Kalender des Anbieters gelöscht.", title: e.title }),
-        kind: "danger",
-      });
-      if (!ok) return;
+  useEffect(() => {
+    retryWrites.current = {
+      save: saveEventForm,
+      reschedule: (e, startMs, endMs) => void rescheduleEvent(e, startMs, endMs),
+      color: (e, color) => void setEventColor(e, color),
+      remove: (e, blockers) => void performDelete(e, blockers),
+      apply: (e, draft, moveTo, shape) =>
+        void applyEventWrite(e, draft, moveTo, shape, false).catch((error) => reportWriteFailure(error, () => retryWrites.current?.apply(e, draft, moveTo, shape))),
+      write: (e, draft, moveTo, shape) =>
+        void writeEvent(e, draft, moveTo, shape).catch((error) => reportWriteFailure(error, () => retryWrites.current?.write(e, draft, moveTo, shape))),
+    };
+  }, [saveEventForm, rescheduleEvent, setEventColor, performDelete, applyEventWrite, writeEvent, reportWriteFailure]);
+
+  /**
+   * Deletes after asking what a deletion has to ask. An event with blockers
+   * gets the dialog that also asks about them (K3); one without keeps the
+   * plain confirmation — or none, where the series question already was it.
+   */
+  const deleteAsking = useCallback(
+    async (e: PimEventRow, confirmed: boolean) => {
+      const found = await resolveBlockers(followDeps, e, loadedEvents.current).catch(() => null);
+      if (found && found.blockers.length > 0) {
+        setDeletePrompt({ event: e, blockers: found.blockers });
+        return;
+      }
+      if (!confirmed) {
+        const ok = await appConfirm({
+          title: t("pim.deleteEvent", { defaultValue: "Termin löschen" }),
+          message: t("pim.deleteEventMsg", { defaultValue: "„{{title}}“ wird im Kalender des Anbieters gelöscht.", title: e.title }),
+          kind: "danger",
+        });
+        if (!ok) return;
+      }
       await performDelete(e);
     },
-    [performDelete, t]
+    [followDeps, performDelete, t]
   );
+
+  const deleteEvent = useCallback((e: PimEventRow) => deleteAsking(e, false), [deleteAsking]);
+
+  /** The answer to the question a moved or changed blocker asked (K3). */
+  const onBlockerChoice = useCallback(
+    async (choice: "blocker" | "source") => {
+      const prompt = blockerPrompt;
+      setBlockerPrompt(null);
+      if (!prompt) return;
+      const { blocker, source, draft, moveTo, shape, hold } = prompt;
+      try {
+        if (choice === "source") {
+          // The event takes the change and every blocker — this one included —
+          // follows it. Started before the hold is let go, so nothing flickers.
+          const run = applyEventWrite(source, sourceDraftFromBlockerEdit(source, blocker, draft), null, shape, true);
+          pendingEventWrites.drop(hold);
+          await run;
+          return;
+        }
+        const run = detachBlockerAndUpdate(followDeps, blocker, draft, { moveTo, source });
+        pendingEventWrites.drop(hold);
+        const out = await run;
+        if (out.kind === "conflict") {
+          toast.info(t("pim.eventConflict", { defaultValue: "Der Termin wurde extern geändert — Ansicht aktualisiert." }));
+        } else {
+          if (out.kind === "duplicate") toast.error(out.error instanceof Error ? out.error.message : String(out.error));
+          landWrite(blocker, out, !!moveTo && (moveTo.accountId !== blocker.accountId || moveTo.calendarId !== blocker.calendarId), shape);
+        }
+        refresh();
+      } catch (error) {
+        reportWriteFailure(error, () => retryWrites.current?.write(blocker, draft, moveTo, shape));
+      }
+    },
+    [blockerPrompt, followDeps, applyEventWrite, landWrite, refresh, reportWriteFailure, t]
+  );
+
+  const cancelBlockerPrompt = useCallback(() => {
+    setBlockerPrompt((prompt) => {
+      // Back to where the cache says it is: nothing was written.
+      if (prompt) pendingEventWrites.drop(prompt.hold);
+      return null;
+    });
+  }, []);
 
   // ---- series scope (stage 4): "only this event" vs. "all events" ---------
 
@@ -995,7 +1268,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   const [ctxMenu, setCtxMenu] = useState<{ event: PimEventRow; x: number; y: number } | null>(null);
   const [peekEvent, setPeekEvent] = useState<PimEventRow | null>(null);
   const openEventContextMenu = useCallback(
-    (e: PimEventRow, at: { x: number; y: number }) => setCtxMenu({ event: e, x: at.x, y: at.y }),
+    (e: PimEventRow, at: { x: number; y: number }) => {
+      if (isPendingEventUid(e.uid)) return;
+      setCtxMenu({ event: e, x: at.x, y: at.y });
+    },
     []
   );
 
@@ -1025,9 +1301,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         return;
       }
       // The scope dialog already confirmed the deletion.
-      await performDelete(subject);
+      await deleteAsking(subject, true);
     },
-    [seriesPrompt, resolveSeriesMaster, performDelete, t]
+    [seriesPrompt, resolveSeriesMaster, deleteAsking, t]
   );
 
   /**
@@ -1041,7 +1317,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       setSavePrompt(null);
       if (!prompt) return;
       if (scope === "this") {
-        await writeEventForm(prompt.event, prompt.values);
+        saveEventForm(prompt.event, prompt.values);
         return;
       }
       const master = await resolveSeriesMaster(prompt.event);
@@ -1049,9 +1325,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
         return;
       }
-      await writeEventForm(master, applyEventChanges(eventFormFromEvent(master), prompt.values, prompt.changes));
+      saveEventForm(master, applyEventChanges(eventFormFromEvent(master), prompt.values, prompt.changes));
     },
-    [savePrompt, resolveSeriesMaster, writeEventForm, t]
+    [savePrompt, resolveSeriesMaster, saveEventForm, t]
   );
 
   /**
@@ -1071,7 +1347,13 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
    * What a CLICK does (S2): open the preview. Reading an event is not editing
    * it, and a series is named rather than questioned.
    */
-  const requestPreview = useCallback((e: PimEventRow) => setPeekEvent(e), []);
+  const requestPreview = useCallback((e: PimEventRow) => {
+    // An event the provider has not named yet has nothing to open: every
+    // action in the preview writes against an id it does not have. It gets
+    // one within the moment it takes the write to return.
+    if (isPendingEventUid(e.uid)) return;
+    setPeekEvent(e);
+  }, []);
 
   const requestDelete = useCallback(
     (e: PimEventRow) => {
@@ -1186,7 +1468,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       // target builder swallowed any error into null and the write was caught
       // without binding the error - a missing scope, a calendar that is gone
       // and a dead network all read "could not block in X".
-      const { ok, failed } = await runCalendarBlocks({
+      const { ok, failed, created } = await runCalendarBlocks({
         keys: selectedKeys,
         labelFor: (key) => calName.get(key) || key,
         targetFor: async (accountId) => {
@@ -1199,6 +1481,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           }
         },
         draft: bd,
+        mode,
         onCreated: (accountId, calId, res) => {
           // Optimistic for a one-off block (a recurring block expands server-side,
           // so we let the worker re-query bring its instances).
@@ -1209,6 +1492,17 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       });
       if (ok > 0) {
         toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));
+        // The event learns of its blockers (K3): written to its own list at
+        // the provider — not for an invitation of somebody else, which is not
+        // the user's to write — and shown on the loaded rows at once.
+        if (mayChangeEvent(source, writableAnyKeys)) void recordBlockers(followDeps, source, created);
+        setEvents((prev) =>
+          prev.map((ev) =>
+            ev.accountId === source.accountId && ev.calendarId === source.calendarId && !ev.blockOf && blockLinkKey(ev) === source.uid
+              ? { ...ev, blocks: uniqueBlockRefs([...(ev.blocks ?? []), ...created]) }
+              : ev
+          )
+        );
         refresh();
       }
       if (failed.length > 0) {
@@ -1230,7 +1524,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         toast.error(t("pim.eventWriteFailed", { defaultValue: "Speichern beim Anbieter fehlgeschlagen." }));
       }
     },
-    [resolveSeriesMaster, accounts, pimRuntime, refresh, calName, t]
+    [resolveSeriesMaster, accounts, pimRuntime, refresh, calName, followDeps, writableAnyKeys, t]
   );
 
   /** The OTHER writable calendars (never the event's own) for the block dialog.
@@ -1255,7 +1549,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   /** The one-word state ("Abgesagt", "Offen", "Vielleicht") where a row has room
    * for it — the agenda. Confirmed events say nothing (report 2026-07-29 F7/F8). */
   const stateLabel = (e: PimEventRow) => {
-    const key = eventStateLabelKey(eventVisualState(e));
+    const key = eventStateLabelKey(eventVisualState(e), e);
     return key ? t(key) : null;
   };
 
@@ -1275,7 +1569,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
       data-testid="calendar-event"
       data-state={eventVisualState(e)}
-      className={`pv-rowhover ${eventStateClass("pv-evt", eventVisualState(e))}`}
+      className={`pv-rowhover ${eventStateClass("pv-evt", eventVisualState(e), e)}`}
       style={{
         ["--evt-color" as string]: colorOf(e),
         display: "grid",
@@ -1308,7 +1602,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
             style={{ width: 4, height: 15, borderRadius: "var(--radius-pill)", flex: "0 0 auto" }}
           />
           {e.seriesMaster ? <Repeat size={ICON.meta} aria-label={t("pim.seriesTitle", { defaultValue: "Serientermin" })} style={{ flexShrink: 0 }} /> : null}
-          {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
+          {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
           <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
           {stateLabel(e) ? <span className="pv-evt-state" data-testid="calendar-event-state">{stateLabel(e)}</span> : null}
         </span>
@@ -1591,6 +1885,10 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         </IconButton>
       </div>
 
+      {/* Who is not being synced, since when and why (K1). The events stay
+          where they are — this line is what tells them apart from fresh ones. */}
+      <CalendarSyncNotice problems={syncProblems} onRetry={refresh} busy={status.status === "syncing"} />
+
       {showTasks && taskError && (
         <p
           data-testid="calendar-tasks-error"
@@ -1739,7 +2037,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                       key={`${e.accountId}-${e.calendarId}-${e.uid}-${e.start.ts}`}
                       data-testid="calendar-month-event"
                       data-state={eventVisualState(e)}
-                      className={eventStateClass("pv-evt", eventVisualState(e))}
+                      className={eventStateClass("pv-evt", eventVisualState(e), e)}
                       onClick={(ev) => { ev.stopPropagation(); requestPreview(e); }}
                       onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                       style={{
@@ -1771,7 +2069,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                         className={`pv-evt-mark ${eventVisualState(e) === "confirmed" ? "" : `pv-evt-mark--${eventVisualState(e)}`}`}
                         style={{ width: 6, height: 6, borderRadius: "var(--radius-pill)", flexShrink: 0 }}
                       />
-                      {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
+                      {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
                       <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{eventDisplayTitle(e.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}</span>
                     </button>
                   ))}
@@ -1868,7 +2166,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                   data-clipped-start={bar.clippedStart ? "1" : undefined}
                   data-clipped-end={bar.clippedEnd ? "1" : undefined}
                   data-state={eventVisualState(bar.event)}
-                  className={eventStateClass("pv-evt", eventVisualState(bar.event))}
+                  className={eventStateClass("pv-evt", eventVisualState(bar.event), bar.event)}
                   data-tip={eventDisplayTitle(bar.event.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}
                   onClick={(ev) => { ev.stopPropagation(); requestPreview(bar.event); }}
                   onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); openEventContextMenu(bar.event, { x: ev.clientX, y: ev.clientY }); }}
@@ -1991,7 +2289,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
                               onContextMenu={(ev) => { ev.preventDefault(); openEventContextMenu(e, { x: ev.clientX, y: ev.clientY }); }}
                               data-testid="agenda-allday"
                               data-state={eventVisualState(e)}
-                              className={`pv-evt pv-evt--soft ${eventVisualState(e) === "confirmed" ? "" : `pv-evt--${eventVisualState(e)}`}`}
+                              className={`${eventStateClass("pv-evt", eventVisualState(e), e)} pv-evt--soft`}
                               style={{
                                 fontSize: "var(--text-xs)",
                                 padding: "2px 9px",
@@ -2090,6 +2388,30 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           eventTitle={seriesPrompt.event.title}
           onPick={(scope) => void onSeriesScope(scope)}
           onCancel={() => setSeriesPrompt(null)}
+        />
+      )}
+      {blockerPrompt && (
+        <BlockerChangeModal
+          kind={blockerPrompt.shape === "time" ? "move" : "edit"}
+          blockerCalendar={calNameOf(blockerPrompt.blocker)}
+          sourceTitle={eventDisplayTitle(blockerPrompt.source.title, t("pim.untitledEvent", { defaultValue: "(ohne Titel)" }))}
+          sourceCalendar={calNameOf(blockerPrompt.source)}
+          canChangeSource={mayChangeEvent(blockerPrompt.source, writableAnyKeys)}
+          onPick={(choice) => void onBlockerChoice(choice)}
+          onCancel={cancelBlockerPrompt}
+        />
+      )}
+      {deletePrompt && (
+        <DeleteWithBlockersModal
+          eventTitle={deletePrompt.event.title}
+          blockerCount={deletePrompt.blockers.length}
+          blockerCalendars={[...new Set(deletePrompt.blockers.map((b) => calName.get(`${b.ref.accountId} ${b.ref.calendarId}`) || b.ref.calendarId))].join(", ")}
+          onConfirm={(alsoBlockers) => {
+            const prompt = deletePrompt;
+            setDeletePrompt(null);
+            void performDelete(prompt.event, alsoBlockers ? prompt.blockers : []);
+          }}
+          onCancel={() => setDeletePrompt(null)}
         />
       )}
       {blockEvent && (

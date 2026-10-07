@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-06
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -45,11 +45,12 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 - **`@`-vermeldingen** — typ `@` ergens in de tekst om een **Datum** (Vandaag, Morgen, Gisteren of **Kies een datum…**, opgeslagen als ISO-datum), een link naar een **Notitie** of een **Database**-insluiting toe te voegen.
 - **Emoji** — het slash-commando **Emoji** (`/emoji`) opent een emojikiezer bij de cursor; of typ `:name` (bijvoorbeeld `:rocket`) voor inline-suggesties. In beide gevallen voegt Plainva het eigenlijke **emojiteken** in (draagbare Unicode), nooit een `:shortcode:` — zodat de notitie leesbaar blijft in Obsidian, op GitHub en overal elders. (Dit is iets anders dan het **Documenticoon** van de notitie, dat wordt opgeslagen in de frontmatter.)
 - **Blokgrepen** — bij het overgaan met de muis verschijnt links van elke alinea een greep: sleep hem om het blok te verplaatsen, klik erop om **Blokacties** te openen (**Omzetten in** Tekst/Kop/Lijst/To-do/Citaat/Codeblok, **Dupliceren**, **Omhoog**/**Omlaag**, **Blok verwijderen**). Als je een lijst naast een andere lijst van hetzelfde soort sleept, voegt Plainva een onzichtbare scheidingsregel `<!-- -->` toe zodat beide lijsten gescheiden blijven — in Markdown zouden gelijksoortige lijsten anders ondanks de lege regel samensmelten (ook in Obsidian).
-- **Tabellen** — weergegeven als widget met klik-om-te-bewerken-cellen. De celweergave rendert opmaak (**vet**, *cursief*, `code`, markering), klikbare links (`[[Interne link]]`, webadressen) en `<br>` als regeleinde; tijdens het bewerken zie je de ruwe tekst. Het tabelmenu biedt rijen/kolommen invoegen en verwijderen plus uitlijning (**Links uitlijnen**/**Centreren**/**Rechts uitlijnen**).
+- **Tabellen** — weergegeven als widget met klik-om-te-bewerken-cellen. De celweergave rendert opmaak (**vet**, *cursief*, `code`, markering), klikbare links (`[[Interne link]]`, webadressen) en `<br>` als regeleinde; tijdens het bewerken zie je de ruwe tekst. Het tabelmenu biedt rijen/kolommen invoegen en verwijderen plus uitlijning (**Links uitlijnen**/**Centreren**/**Rechts uitlijnen**). De cel opent in een veld dat met de tekst meegroeit en afbreekt: **Enter** slaat op, **Shift+Enter** voegt een regeleinde toe (geschreven als `<br>`), **Esc** verwerpt.
 - **Lijsten zetten zichzelf voort** (Enter voegt het volgende lijstteken in), codeblokken krijgen taalbewuste kleuraccentuering (ook in de leesmodus), geplakte inhoud wordt omgezet naar Markdown (smart paste), en koppen kunnen worden ingeklapt.
 - **Lijsten invouwen** — een klik op het opsommingsteken van een item met subitems vouwt ze in; het teken krijgt de accentkleur en een „…” markeert de plek, een tweede klik vouwt weer uit. Het bestand verandert nooit. De tekens wisselen per niveau (• ◦ ▪) en vervolgregels staan precies onder de tekst van hun item — ook op de telefoon, waar het teken de enige vouwknop is.
 - **Scrollpositie** — elke notitie opent waar je haar verliet; per apparaat onthouden, niet gesynchroniseerd.
 - **Zoeken & vervangen** binnen de huidige notitie: `Ctrl+F` (zie [Zoeken](Search.md)).
+- **Spellingcontrole** — standaard uit. Schakel ze in onder **Instellingen → App → Editor en notities** en verkeerd gespelde woorden worden onderstreept in notities, tabelcellen, e-mails, opmerkingen, journaalitems en taken; code, webadressen, sleutels en wachtwoorden worden nooit gecontroleerd. Plainva gebruikt de spellingcontrole van je systeem en de talen daarvan en brengt geen eigen woordenboeken mee. Zolang ze aan staat, opent een rechtsklik in zulke tekst het menu van het systeem met de suggesties in plaats van dat van Plainva; een tabelcel houdt haar tabelmenu. De instelling hoort bij dit apparaat. Op Linux schakelt Plainva de controle van de systeem-WebView nog niet in; daar heeft ze geen effect.
 
 ## Links en backlinks
 
@@ -62,7 +63,7 @@ Typ `/` aan het begin van een regel om het invoegmenu te openen. Het is gegroepe
 
 ## Eigenschappen (frontmatter)
 
-De sectie **Eigenschappen** in de rechterzijbalk toont de frontmatter van de notitie als formulier. Met **Eigenschap toevoegen** maak je nieuwe aan; elke eigenschap heeft een **Veldtype**:
+De sectie **Eigenschappen** in de rechterzijbalk toont de frontmatter van de notitie als formulier. Elke eigenschap is één rij: type-icoon, naam, waarde en aan de rechterrand wat de rij kan — een slot bij beschermde velden, en bij aanwijzen **Eigenschap verwijderen** en de opmerkingsballon. Waarden bewerk je ter plekke; ze lopen door naar een nieuwe regel in plaats van te worden afgekapt. Met **Eigenschap toevoegen** maak je nieuwe aan; elke eigenschap heeft een **Veldtype**:
 
 | Groep | Typen |
 |---|---|
@@ -129,7 +130,7 @@ Als een sjabloon iets vraagt, stelt Plainva **alle** vragen in één dialoogvens
 
 **Sjablonen per map**: onder **Instellingen → Vault → Inhoud en structuur → Sjablonen** koppel je een map aan een sjabloon — elke nieuwe notitie die daar wordt aangemaakt, start dan vanuit dat sjabloon, zonder dat je iets hoeft te kiezen. De koppeling geldt ook voor submappen; komen er meerdere overeen, dan wint het langste pad (`Projecten/Klanten` wint van `Projecten`). Op dezelfde manier koppel je een sjabloon aan een **notitietype**; dat geldt wanneer geen enkele mapregel de notitie dekt — map wint van type. **Nieuwe notitie vanuit sjabloon …** (rechtsklik in de bestandsboom, het opdrachtenpalet of de snelkiezer) laat je er expliciet één kiezen — dat wint van elke koppeling. De koppelingen leven in de instellingen, niet in de notities, en reizen via de instellingensynchronisatie mee naar je andere apparaten.
 
-Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw sjabloon maken** (een nieuw sjabloon opent om te bewerken) en **Huidige notitie opslaan als sjabloon** (kopieert de open notitie naar de sjablonenmap). Sjablonen zijn gewone Markdown-bestanden — bewerk, hernoem of verwijder ze direct in de bestandsboom.
+Sjablonen maken kan overal vandaan: de opdrachtenpalet (`Ctrl+P`) biedt **Nieuw sjabloon maken** (een nieuw sjabloon opent om te bewerken) en **Huidige notitie opslaan als sjabloon** (kopieert de open notitie naar de sjablonenmap). Sjablonen zijn gewone Markdown-bestanden — bewerk, hernoem of verwijder ze direct in de bestandsboom. Op de telefoon staan beide ook in het opdrachtenpalet (`>` in het zoekveld); voor de tweede open je het vanuit het **⋮**-menu van de notitie → **Opdrachten**.
 
 ## Dagelijkse notities
 

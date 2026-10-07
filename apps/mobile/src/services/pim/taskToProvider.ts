@@ -48,7 +48,14 @@ export async function sendTaskToProviderList(
     ...(dueDate ? { dueDate } : {}),
     runtime: pimTaskListRuntime(),
   });
-  if (outcome === "createFailed") toast.error(i18n.t("tasks.providerCreateFailed"));
+  // Nothing exists at the provider yet, so trying again is safe — unlike the
+  // case below, where a second attempt would create a second remote task.
+  if (outcome === "createFailed") {
+    toast.error(i18n.t("tasks.providerCreateFailed"), {
+      label: i18n.t("pim.eventWriteRetry"),
+      run: () => void sendTaskToProviderList(adapter, dbPath, notePath, title, dueDate).then(() => window.dispatchEvent(new CustomEvent("m-task-sync-done"))),
+    });
+  }
   // The expensive one: the task exists remotely without a note pointing at it,
   // so the next sync imports a SECOND note for it.
   else if (outcome === "notAnchored") toast.error(i18n.t("tasks.providerAnchorFailed"));

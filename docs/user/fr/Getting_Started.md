@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-06
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -188,10 +188,10 @@ Via **Ctrl/Cmd+Shift+G** (ou la section **Graphe** dans la barre latérale droit
 
 Les sections qui n'ont rien à montrer pour la note ouverte — **Plan**, **Backlinks**, **Propriétés**, **Bases de données** — n'apparaissent pas du tout, plutôt que de rester grisées. Toute la barre latérale droite mémorise une seule préférence globale pour les notes ; les vues plein écran sans contexte de note ne la ferment que temporairement.
 
-**Quand vous réduisez le panneau en le faisant glisser**, il change en trois étapes, pour que rien ne se casse :
+**Quand vous réduisez le panneau en le faisant glisser**, il change en trois étapes, pour que rien ne se casse. C'est la largeur du panneau lui-même qui compte — que son contenu défile ou non n'y change rien — et une nouvelle fenêtre l'ouvre à 300 px :
 
 - **280 px et plus** — comme d'habitude.
-- **232–280 px** — les propriétés placent le nom au-dessus de la valeur plutôt qu'à côté, les valeurs longues passent à la ligne, les sections se resserrent.
+- **232–280 px** — chaque ligne place le nom au-dessus de la valeur plutôt qu'à côté (les propriétés comme les champs de la base de données), les valeurs longues passent à la ligne, les sections se resserrent.
 - **en dessous de 232 px** — le calendrier affiche **une semaine au lieu du mois** (sept jours, numéro de semaine en bas à droite) ; une grille mensuelle aurait ici des cellules de 14 pixels et cesserait d'être un calendrier. Le graphe devient plus court, et les backlinks affichent le nom du fichier sans la ligne de chemin.
 
 La barre latérale droite ne peut pas descendre en dessous de **200 px** — aucune section n'y est utilisable. La gauche descend quant à elle encore jusqu'à 150 px, car les noms de fichiers se tronquent simplement.
@@ -208,7 +208,7 @@ Dans une fenêtre séparée ou une seconde fenêtre complète, faites un clic dr
 
 ## Favoris de dossiers
 
-Ajoutez un favori depuis le menu contextuel d’un fichier ou d’un dossier. Les favoris de dossiers portent une icône de dossier : le mobile ouvre le dossier et le bureau le déplie dans l’arborescence. Déplacer ou renommer un élément dans Plainva met aussi à jour les favoris des sous-dossiers et fichiers. Les cibles introuvables restent indiquées ; supprimez ces favoris explicitement.
+Ajoutez un favori depuis le menu contextuel d’un fichier ou d’un dossier. Les favoris de dossiers portent une icône de dossier : le mobile ouvre le dossier et le bureau le déplie dans l’arborescence. Déplacer ou renommer un élément dans Plainva met aussi à jour les favoris des sous-dossiers et fichiers. Les cibles introuvables restent indiquées ; supprimez ces favoris explicitement. Pour changer l'ordre, faites glisser un signet à sa place dans la barre latérale — ou appuyez sur `Alt+↑` / `Alt+↓` sur la ligne qui a le focus ; sur le téléphone, **Ordonner les signets** à côté du titre **Signets** ouvre la liste, où vous faites glisser la poignée au bout d'une ligne.
 
 À l’ouverture d’un coffre, Plainva importe automatiquement les favoris de fichiers et dossiers d’Obsidian, groupes compris. Le type et le chemin évitent les doublons. Le fichier Obsidian reste intact. Les profils transportent les dossiers séparément ; un ancien profil sans ce champ conserve les favoris de dossiers existants.
 

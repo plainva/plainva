@@ -51,7 +51,7 @@ export function NewSkillModal({ onClose }: { onClose: () => void }) {
       <label className="pv-modal-label" htmlFor="pv-skill-name">
         {t("ai.workshop.form.name")}
       </label>
-      <TextInput id="pv-skill-name" value={name} spellCheck={false} onChange={(event) => setName(event.target.value.toLowerCase())} data-testid="ai-skill-name" />
+      <TextInput id="pv-skill-name" value={name} onChange={(event) => setName(event.target.value.toLowerCase())} data-testid="ai-skill-name" />
       <p className="pv-modal-hint">{t("ai.workshop.form.nameHint")}</p>
       <label className="pv-modal-label" htmlFor="pv-skill-description">
         {t("ai.workshop.form.description")}

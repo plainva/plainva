@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckSquare, Diamond, Link2, MapPin, Repeat, Square } from "lucide-react";
-import { ICON, blockHeightPx, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, nextLaneStartMin, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
+import { Button, ICON, blockHeightPx, layoutDayEvents, layoutSpanningEvents, minutesInDay, minutesToHHMM, minutesToPx, moveEventMinutes, nextLaneStartMin, planAllDayRows, pxToMinutes, resizeEventEndMinutes, snapMinutes } from "@plainva/ui";
 import { eventStateClass, eventVisualState, partitionStatus, statusLabel } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 import { localIsoKey } from "@plainva/ui";
@@ -216,6 +216,53 @@ export function DayTimeGrid(props: DayTimeGridProps) {
     [perDay],
   );
 
+  /**
+   * What each day puts under the bars, in the order it is drawn: status
+   * bands, single-day appointments, tasks, database entries. One list, so the
+   * row can count what it shows and what it does not (E8).
+   */
+  const allDayItems = useMemo(
+    () =>
+      perDay.map((d) => {
+        const split = partitionStatus(d.allDay);
+        return {
+          status: split.status,
+          appointments: split.appointments.filter((e) => !allDaySpans.spanned.has(e)),
+          tasks: d.tasks,
+          overlay: d.overlay,
+        };
+      }),
+    [perDay, allDaySpans],
+  );
+  // The row grows to five rows on its own; beyond that a day counts the rest
+  // and one click opens the row for every day (plan Befunde 2026-10-06, K2).
+  const [allDayOpen, setAllDayOpen] = useState(false);
+  const allDayPlan = useMemo(() => {
+    const input = {
+      laneCount: allDaySpans.laneCount,
+      bars: allDaySpans.bars,
+      itemCounts: allDayItems.map((d) => d.status.length + d.appointments.length + d.tasks.length + d.overlay.length),
+    };
+    const closed = planAllDayRows({ ...input, expanded: false });
+    const shown = allDayOpen ? planAllDayRows({ ...input, expanded: true }) : closed;
+    const days = allDayItems.map((d, i) => {
+      const room = shown.days[i]?.visibleItems ?? 0;
+      const afterStatus = Math.max(0, room - d.status.length);
+      const afterAppointments = Math.max(0, afterStatus - d.appointments.length);
+      const afterTasks = Math.max(0, afterAppointments - d.tasks.length);
+      return {
+        status: d.status.slice(0, room),
+        appointments: d.appointments.slice(0, afterStatus),
+        tasks: d.tasks.slice(0, afterAppointments),
+        overlay: d.overlay.slice(0, afterTasks),
+        hidden: shown.days[i]?.hidden ?? 0,
+        // Open, the days that had a count offer the way back in its place.
+        canClose: allDayOpen && (closed.days[i]?.hidden ?? 0) > 0,
+      };
+    });
+    return { visibleLanes: shown.visibleLanes, days };
+  }, [allDaySpans, allDayItems, allDayOpen]);
+
   // Pointer capture on the column keeps drag robust (move/up land on the same
   // element even outside its bounds) and free of the state/effect race a window
   // listener would have — so a plain click reliably fires create.
@@ -372,8 +419,8 @@ export function DayTimeGrid(props: DayTimeGridProps) {
             flexShrink: 0,
             borderBottom: "1px solid var(--border-color-light)",
             background: "var(--bg-secondary)",
-            maxHeight: 84,
-            overflow: "auto",
+            // No fixed height and no scrollbar (E8): the row is as tall as
+            // what `allDayPlan` lets it show, and says what it leaves out.
           }}
         >
           {/* Gutter label: the gutter (76) is wide enough for the widest
@@ -393,11 +440,11 @@ export function DayTimeGrid(props: DayTimeGridProps) {
               onDrop={overlayDragActive ? (ev) => { ev.preventDefault(); onOverlayDropDay?.(d.key); } : undefined}
               style={{ gridRow: 1, gridColumn: dayIndex + 2, minWidth: 0, borderLeft: "1px solid var(--border-color-light)", padding: 3, display: "flex", flexDirection: "column", gap: 2 }}
             >
-              {allDaySpans.laneCount > 0 ? <span aria-hidden style={{ height: allDaySpans.laneCount * ALLDAY_BAR_H, flexShrink: 0 }} /> : null}
+              {allDayPlan.visibleLanes > 0 ? <span aria-hidden style={{ height: allDayPlan.visibleLanes * ALLDAY_BAR_H, flexShrink: 0 }} /> : null}
               {/* Status entries (S24) are a quiet band, not a block: a working
                   location is not a meeting, and a day with three of them and one
                   appointment must not look like four appointments. */}
-              {partitionStatus(d.allDay).status.map((e) => (
+              {allDayPlan.days[dayIndex].status.map((e) => (
                 <span
                   key={`st-${e.accountId}-${e.calendarId}-${e.uid}`}
                   className={`pv-status-band pv-status-band--${e.statusKind}`}
@@ -408,7 +455,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   {statusLabel(e, t)}
                 </span>
               ))}
-              {partitionStatus(d.allDay).appointments.filter((e) => !allDaySpans.spanned.has(e)).map((e) => (
+              {allDayPlan.days[dayIndex].appointments.map((e) => (
                 <button
                   key={`${e.accountId}-${e.calendarId}-${e.uid}`}
                   type="button"
@@ -417,14 +464,14 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   data-testid="calendar-allday-event"
                   data-state={eventVisualState(e)}
                   data-tip={`${eventDisplayTitle(e.title, untitledLabel)}${calName(e) ? ` · ${calName(e)}` : ""}`}
-                  className={eventStateClass("pv-evt", eventVisualState(e))}
+                  className={eventStateClass("pv-evt", eventVisualState(e), e)}
                   style={{ display: "block", textAlign: "left", border: "none", borderRadius: "var(--radius-xs)", padding: "2px 6px", cursor: "pointer", ["--evt-color" as string]: colorOf(e), fontSize: "var(--text-xs)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: e.end.ts <= nowTs ? 0.5 : 1 }}
                 >
-                  {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ marginRight: 3, verticalAlign: "text-bottom" }} /> : null}
+                  {(e.blockOf || e.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })} style={{ marginRight: 3, verticalAlign: "text-bottom" }} /> : null}
                   <span className="pv-evt-title">{eventDisplayTitle(e.title, untitledLabel)}</span>
                 </button>
               ))}
-              {d.tasks.map((task) => {
+              {allDayPlan.days[dayIndex].tasks.map((task) => {
                 const tone = taskTone?.(task) ?? { color: task.done ? "var(--text-muted)" : "var(--text-main)", opacity: 1 };
                 // A container with role="button", not a <button>: the checkbox
                 // inside is itself a button (nesting them is invalid HTML).
@@ -453,7 +500,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   </div>
                 );
               })}
-              {d.overlay.map((entry) => (
+              {allDayPlan.days[dayIndex].overlay.map((entry) => (
                 // A database entry, drawn as a note: dashed edge, diamond, and
                 // the view it came from in the tooltip. Never an event chip.
                 <div
@@ -479,12 +526,24 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</span>
                 </div>
               ))}
+              {/* The day's last row when it holds more than fits: the count,
+                  and — opened — the way back. Opening is for every day at
+                  once; a row that is tall for one day is tall for all. */}
+              {allDayPlan.days[dayIndex].hidden > 0 ? (
+                <Button variant="ghost" size="sm" className="pv-allday-more" data-testid="calendar-allday-more" aria-expanded={false} onClick={() => setAllDayOpen(true)}>
+                  {t("pim.allDayMore", { n: allDayPlan.days[dayIndex].hidden })}
+                </Button>
+              ) : allDayPlan.days[dayIndex].canClose ? (
+                <Button variant="ghost" size="sm" className="pv-allday-more" data-testid="calendar-allday-less" aria-expanded onClick={() => setAllDayOpen(false)}>
+                  {t("pim.allDayLess")}
+                </Button>
+              ) : null}
             </div>
           ))}
           {/* One bar per multi-day event, spanning the days it covers. It is a
               later grid sibling than the columns, so it paints above them
               without needing a stacking order of its own. */}
-          {allDaySpans.bars.map((bar) => (
+          {allDaySpans.bars.filter((bar) => bar.lane < allDayPlan.visibleLanes).map((bar) => (
             <button
               key={`span-${bar.event.accountId}-${bar.event.calendarId}-${bar.event.uid}-${bar.event.start.ts}`}
               type="button"
@@ -495,7 +554,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
               data-clipped-end={bar.clippedEnd ? "1" : undefined}
               data-state={eventVisualState(bar.event)}
               data-tip={`${eventDisplayTitle(bar.event.title, untitledLabel)}${calName(bar.event) ? ` · ${calName(bar.event)}` : ""}`}
-              className={eventStateClass("pv-evt", eventVisualState(bar.event))}
+              className={eventStateClass("pv-evt", eventVisualState(bar.event), bar.event)}
               style={{
                 gridRow: 1,
                 gridColumn: `${bar.startCol + 2} / span ${bar.endCol - bar.startCol + 1}`,
@@ -609,7 +668,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                       data-testid="calendar-timed-event"
                       data-state={eventVisualState(b.ev)}
                       data-compact={compact ? "true" : undefined}
-                      className={eventStateClass("pv-evt", eventVisualState(b.ev))}
+                      className={eventStateClass("pv-evt", eventVisualState(b.ev), b.ev)}
                       onPointerDown={(e) => {
                         // Clear a stale suppression left by a prior drag that
                         // ended off the block (resize) so this click still works.
@@ -652,7 +711,7 @@ export function DayTimeGrid(props: DayTimeGridProps) {
                     >
                       <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "var(--text-xs)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: compact ? 1 : undefined }}>
                         {b.ev.seriesMaster ? <Repeat size={ICON.meta} style={{ flexShrink: 0 }} /> : null}
-                        {(b.ev.blockOf || b.ev.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "VerknÃ¼pfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
+                        {(b.ev.blockOf || b.ev.blockedIn?.length) ? <Link2 size={ICON.meta} aria-label={t("pim.linkedBlock", { defaultValue: "Verknüpfter Kalenderblock" })} style={{ flexShrink: 0 }} /> : null}
                         <span className="pv-evt-title" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                           {eventDisplayTitle(b.ev.title, untitledLabel)}
                         </span>

@@ -31,9 +31,11 @@ Notizen öffnen **gerendert und schreibgeschützt**; der Stift oben rechts wechs
 
 Halte ein Wort gedrückt, um Text zu markieren. Die Auswahlleiste bietet **Kopieren** und **Alles auswählen**; damit lässt sich auch eine lange Notiz vollständig kopieren. Verborgene YAML-Eigenschaften und Markdown-Formatzeichen werden dabei nicht mitkopiert. **Bearbeiten** wechselt genau an der markierten Stelle ins Schreiben, sofern Du die Notiz bearbeiten darfst.
 
+**Die Befehlspalette** ist das Suchfeld: Tippe auf die Lupe und gib `>` ein — statt Notizen stehen dort Befehle, darunter der Import, eine Sicherung, der Neuaufbau des Index und die offenen Kommentare. Aus einer offenen Notiz führt das **⋮**-Menü mit **Befehle** dorthin; dann listet die Palette auch, was diese Notiz betrifft: Umbenennen, Versionsverlauf, Markdown-Quelltext, Vorlagen und den Versand per E-Mail.
+
 Ordner lassen sich über die Werkzeugzeile über der Liste **durchsuchen** und **sortieren** — nach **Titel**, **Zuletzt geändert** oder **Erstellt**, die zweite Wahl kehrt die Richtung um; die Sortierung merkt sich das Gerät. Beim Kaltstart öffnet die App, was Du zuletzt offen hattest — Notiz, Ordner oder Datenbank-Ansicht samt Reiter — und jede Notiz öffnet an der Stelle, an der Du sie verlassen hast; Einrichtungs-Assistenten und eine angefangene Mail werden nicht wiederhergestellt. Listen mit Untereinträgen klappst Du mit einem Tipp auf ihren Punkt ein und wieder aus.
 
-Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Menü) öffnet das Kontext-Blatt der Notiz: Eigenschaften (direkt editierbar), Backlinks, Gliederung, Graph und der **Versionsverlauf** — jede Bearbeitung erzeugt automatisch Snapshots, die Du ansehen, vergleichen und wiederherstellen kannst. Markdown-Quelltext und die Suche in der Notiz erreichst Du über das ⋮-Menü.
+Das **Notiz-Details**-Symbol in der Kopfzeile (zwischen Lesezeichen und ⋮-Menü) öffnet das Kontext-Blatt der Notiz: Eigenschaften (direkt editierbar), Backlinks, Gliederung, Graph und der **Versionsverlauf** — jede Bearbeitung erzeugt automatisch Snapshots, die Du ansehen, vergleichen und wiederherstellen kannst. Markdown-Quelltext und die Suche in der Notiz erreichst Du über das ⋮-Menü. Der Reiter **Datenbanken** zeigt, zu welchen Datenbanken die Notiz gehört, ihre Position dort mit Pfeilen zu den Nachbarn und die Felder, die die Datenbank für sie berechnet (Auswertungen, Rückwärtsrelationen).
 
 Auf einem breiten Bildschirm (Tablet ab 1024 px) kann dieses Blatt als **dritte Spalte** neben der Notiz stehenbleiben, statt sich jedes Mal zu öffnen und zu schließen. Der Schalter dafür heißt **Kontext-Panel andocken** und steht unter **Einstellungen → Erscheinungsbild → Layout**; er gilt für dieses Gerät. Ist er aus — oder ist das Fenster schmaler —, öffnet derselbe Knopf wie bisher das Blatt.
 
@@ -128,6 +130,8 @@ Der Bereich **Kalender** zeigt Deine verbundenen Kalender in den Ansichten **Tag
 Ein Tipp auf eine Termin-Erinnerung öffnet den Termin selbst — die Tagesansicht an seinem Tag, den Termin geöffnet. Welche Ansicht Du zuletzt hattest (Tag, 3 Tage, Agenda), merkt sich das Gerät, wie am Desktop.
 
 **Wann das Telefon nachsieht.** Im Hintergrund läuft auf einem Telefon keine Uhr — der regelmäßige Abgleich steht also still, solange die App weg ist. Deshalb fragt Plainva von sich aus nach, sobald Du **in die App zurückkehrst** und sobald Du **Kalender**, **Aufgaben** oder die **Kalenderkonten** öffnest; höchstens einmal pro Minute, damit häufiges Hin- und Herwechseln keine Kette von Abgleichen auslöst. Beim Zurückkehren werden zugleich die **Erinnerungen neu geplant**, auch wenn nichts Neues dazugekommen ist — die Uhr ist ja trotzdem weitergelaufen. Willst Du nicht warten, gibt es weiterhin **Jetzt aktualisieren** und das Herunterziehen der Liste.
+
+**Was nicht aktuell ist und was nicht passt.** Wird ein Konto oder ein Kalender nicht abgeglichen, steht das auch am Telefon in einer Zeile über dem Kalender – wer, seit wann und warum – mit **Erneut versuchen**; die Termine darunter bleiben als letzter Stand stehen. In der Ansicht **Monat** zeigt ein Tag höchstens drei Punkte; eine Zahl dahinter (etwa **+3**) sagt, wie viele Einträge er darüber hinaus hat. Arbeitsort, Fokuszeit und Abwesenheit stehen im Zeitraster als ruhiges Band in der Ganztägig-Zeile, nicht als Termin.
 
 Konten verwaltest Du über das Zahnrad-Symbol im Termin-Kalender: **CalDAV** verbindest Du direkt auf dem Gerät mit einem App-Passwort (z. B. Fastmail, Nextcloud, iCloud); Google und Microsoft folgen über die Browser-Anmeldung. Je Konto lassen sich einzelne Kalender ein- und ausblenden.
 
@@ -285,6 +289,8 @@ Das ausgewählte Symbol behält auch in der kompakten Leiste Abstand zum Rand. D
 ## Lesefläche und Bilder
 
 Unter **Editor & Notizen** kannst Du **Beim Lesen Leisten automatisch ausblenden** abschalten. Standardmäßig fahren Kopfzeile und Bleistift beim Herunterscrollen ein. Die erste Aufwärtsbewegung, der Notizanfang, eine Textauswahl, eine offene Bedienfläche, die Tastatur oder ein Konflikthinweis holen die Bedienelemente zurück. Die Scrollfläche bleibt gleich groß; die Bewegungseinstellung wird berücksichtigt. Das Tablet-Rail bleibt sichtbar. Am Desktop blendet der Fokusmodus die umgebenden Leisten aus.
+
+Die **Rechtschreibprüfung** im selben Bereich ist in der Voreinstellung aus. Eingeschaltet prüfen Deine Tastatur und Dein System – mit ihren Sprachen – Notizen, Tabellenzellen, E-Mails, Kommentare, Journal-Einträge und Aufgaben; Code, Schlüssel und Passwörter nie. Die Einstellung gehört zu diesem Gerät.
 
 **Bild öffnen** steht bei lokalen Bildern in der Lesedarstellung und Live-Vorschau sowie im Bild-Kontextmenü bereit. Mobil vergrößerst Du im Bildbetrachter mit zwei Fingern, einem Doppeltipp oder den Zoomknöpfen; **Zoom zurücksetzen** zeigt das ganze Bild. Zurück führt zur Notiz. Langes Drücken auf das eingebettete Bild bleibt für die Bildaktionen des Betriebssystems erhalten, ebenso die Markierung einer Bildregion für Kommentare.
 

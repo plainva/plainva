@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { logDiagnostic } from "@plainva/ui";
 
 /**
  * A folder the USER picked on the device, held through an opaque handle
@@ -62,6 +63,25 @@ export function isVaultFolderSupported(): boolean {
 
 export function getVaultFolderPlugin(): VaultFolderNative {
   return VaultFolder;
+}
+
+/**
+ * Opens the system's folder picker and leaves what came of it in the
+ * diagnostics log - the outcome only, never the folder's name. "The system
+ * refused the folder" used to be a toast and nothing else, so a report like
+ * "no access to external folders" (TestFlight 2026-10-02, the iPad app on a
+ * Mac) could not be told apart from a cancelled picker or a picker that never
+ * answered.
+ */
+export async function pickVaultFolder(): Promise<PickFolderResult> {
+  try {
+    const picked = await VaultFolder.pickFolder();
+    logDiagnostic("folder", picked.picked ? "pick: granted" : `pick: ${picked.reason === "notPickable" ? "refused by the system" : "cancelled"}`);
+    return picked;
+  } catch (e) {
+    logDiagnostic("folder", `pick failed: ${e instanceof Error ? e.message : String(e)}`);
+    throw e;
+  }
 }
 
 /** Which platform issued a handle — a bookmark cannot be resolved on Android and vice versa. */

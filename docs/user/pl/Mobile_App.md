@@ -31,9 +31,11 @@ Notatki otwierają się **wyrenderowane i tylko do odczytu**; ikona pióra w pra
 
 Przytrzymaj słowo, aby zaznaczyć tekst. Pasek zaznaczenia oferuje **Kopiuj** i **Zaznacz wszystko**, także do kopiowania całego tekstu długiej notatki. Ukryte właściwości YAML i znaczniki formatowania Markdown nie są kopiowane. **Edytuj** przełącza do pisania w zaznaczonym miejscu, jeśli masz uprawnienia do edycji notatki.
 
+**Paleta poleceń** to pole wyszukiwania: dotknij lupy i wpisz `>` — zamiast notatek pojawią się polecenia, między innymi import, kopia zapasowa, przebudowa indeksu i otwarte komentarze. Z otwartej notatki prowadzi tam menu **⋮** z pozycją **Polecenia**; paleta pokazuje wtedy także to, co dotyczy tej notatki: zmianę nazwy, historię wersji, źródło Markdown, szablony i wysyłkę e-mailem.
+
 Foldery można **przeszukiwać** i **sortować** z paska narzędzi nad listą — według **Tytułu**, **Ostatniej zmiany** lub **Utworzenia**; ponowny wybór odwraca kierunek, a sortowanie jest zapamiętywane na urządzeniu. Przy zimnym starcie aplikacja otwiera to, co było ostatnio otwarte — notatkę, folder lub widok bazy danych wraz z kartą — a każda notatka otwiera się tam, gdzie ją zostawiono; asystenci konfiguracji i nieukończona wiadomość nie są przywracane. Listy z podelementami zwija się i rozwija dotknięciem ich punktora.
 
-Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) otwiera arkusz kontekstowy notatki: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, graf oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać. Źródło Markdown i wyszukiwanie w notatce znajdziesz w menu ⋮.
+Przycisk **Szczegóły notatki** w nagłówku (między zakładką a menu ⋮) otwiera arkusz kontekstowy notatki: właściwości (bezpośrednio edytowalne), linki zwrotne, konspekt, graf oraz **historię wersji** — każda edycja automatycznie tworzy migawki, które możesz przeglądać, porównywać i przywracać. Źródło Markdown i wyszukiwanie w notatce znajdziesz w menu ⋮. Karta **Bazy danych** pokazuje, do których baz danych należy notatka, jej pozycję w nich ze strzałkami do sąsiednich wpisów oraz pola, które baza danych dla niej oblicza (agregacje, relacje odwrotne).
 
 Na szerokim ekranie (tablet od 1024 px) ten arkusz może pozostawać otwarty jako **trzecia kolumna** obok notatki, zamiast otwierać się i zamykać za każdym razem. Przełącznik nazywa się **Przypnij panel kontekstu** i znajduje się w **Ustawienia → Wygląd → Układ**; dotyczy tylko tego urządzenia. Gdy jest wyłączony — albo w węższym oknie — ten sam przycisk otwiera arkusz jak dotychczas.
 
@@ -128,6 +130,8 @@ Chip **Porządki** otwiera listę porządkowania: **sieroty** (notatki, na któr
 Dotknięcie przypomnienia o wydarzeniu otwiera samo wydarzenie — widok dnia w jego dacie, z otwartym wydarzeniem. Ostatnio używany widok (dzień, 3 dni, agenda) jest zapamiętywany na urządzeniu, jak na komputerze.
 
 **Kiedy telefon sprawdza.** W tle na telefonie nie chodzi żaden zegar — regularna synchronizacja stoi więc tak długo, jak długo aplikacja jest odłożona. Dlatego Plainva sprawdza sama z siebie, gdy tylko **wracasz do aplikacji** i gdy otwierasz **Kalendarze**, **Zadania** albo **Konta kalendarza**; najwyżej raz na minutę, żeby częste przełączanie nie wyzwalało łańcucha synchronizacji. Powrót **planuje też na nowo przypomnienia**, nawet jeśli nic nowego nie doszło — zegar i tak szedł dalej. Jeśli nie chcesz czekać, nadal są **Odśwież teraz** i ściągnięcie listy w dół.
+
+**Co nie jest aktualne i co się nie mieści.** Gdy konto lub kalendarz nie jest synchronizowane, telefon także mówi to w wierszu nad kalendarzem — które, od kiedy i dlaczego — z przyciskiem **Spróbuj ponownie**; spotkania poniżej zostają jako ostatni znany stan. W widoku **Miesiąc** dzień pokazuje najwyżej trzy kropki; liczba za nimi (na przykład **+3**) mówi, ile wpisów ma ponad to. Miejsce pracy, czas skupienia i nieobecność widnieją w siatce godzin jako spokojny pasek w wierszu całodniowym, a nie jako spotkanie.
 
 Kontami zarządzasz z poziomu ikony koła zębatego w kalendarzu wydarzeń: **CalDAV** łączysz bezpośrednio na urządzeniu za pomocą hasła aplikacji (np. Fastmail, Nextcloud, iCloud); Google i Microsoft łączysz przez logowanie w przeglądarce. Dla każdego konta możesz pokazywać lub ukrywać poszczególne kalendarze.
 
@@ -285,6 +289,8 @@ Wybrana ikona zachowuje odstęp od krawędzi w kompaktowym pasku. Obszary dotyku
 ## Miejsce do czytania i obrazy
 
 W **Edytor i notatki** możesz wyłączyć **Automatycznie ukrywaj elementy sterujące podczas czytania**. Domyślnie nagłówek i ołówek chowają się przy przewijaniu w dół. Wracają przy ruchu w górę, na początku notatki, przy zaznaczeniu tekstu, otwartym panelu, klawiaturze lub komunikacie o konflikcie. Obszar przewijania zachowuje rozmiar i respektuje ustawienia ruchu. Pasek tabletu pozostaje widoczny; komputer ma tryb skupienia.
+
+**Sprawdzanie pisowni** w tym samym obszarze jest domyślnie wyłączone. Po włączeniu Twoja klawiatura i Twój system sprawdzają – w swoich językach – notatki, komórki tabel, e-maile, komentarze, wpisy dziennika i zadania; kodu, kluczy i haseł nigdy. Ustawienie należy do tego urządzenia.
 
 **Otwórz obraz** jest dostępne dla lokalnych obrazów w trybie czytania, podglądzie i menu kontekstowym. W mobilnej przeglądarce użyj dwóch palców, podwójnego stuknięcia lub przycisków; **Resetuj powiększenie** pokazuje cały obraz. Wstecz wraca do notatki. Przytrzymanie zachowuje akcje systemu, a zaznaczanie regionu do komentarza nadal działa.
 

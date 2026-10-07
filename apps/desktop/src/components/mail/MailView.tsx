@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactElement, type SyntheticEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, Ban, BellOff, Clock, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, X } from "lucide-react";
-import { Banner, Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, type MailRowCaps } from "@plainva/ui";
+import { Archive, Ban, BellOff, Clock, Copy, ExternalLink, FilePlus2, FileText, Folder, FolderInput, Forward, Inbox, Link2, ListChecks, Mail, MailOpen, MessagesSquare, Paperclip, Pencil, RefreshCw, Reply, ReplyAll, Search, Send, ShieldOff, Star, Trash2, TriangleAlert, X } from "lucide-react";
+import { Banner, Button, EmptyState, ICON, IconButton, mailRowActions, MenuItem, MenuLabel, MenuSeparator, MenuSurface, RowActionList, SelectionBar, plainvaProducer, toast, type LinkTarget, type MailRowCaps } from "@plainva/ui";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { firstAngleValue, nameBeforeAngle, trimChars } from "@plainva/core";
 import "./mail.css";
@@ -30,6 +30,7 @@ import { listMailAccounts, mailAccountKind, releaseMailSessions, type MailAccoun
 import { accountRowState, deviceSignInState, type DeviceSignInState } from "../../services/deviceSignIn";
 import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCachedMessages, listEnvelopes, listMailboxesFor, fetchMessage, fetchRawMessage, setMessageSeen, setMessageFlagged, listFlaggedEnvelopes, moveMessage, setMessageJunk, createMailbox, searchEnvelopes, type MailEnvelope, type MailMessage, type MailboxInfo } from "@plainva/ui/mail";
 import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
+import { attachMailLinks, LinkTargetText, MailPlainText, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
@@ -127,6 +128,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const selectMailbox = useCallback((name: string) => setMailboxSel({ accountId, name }), [accountId]);
   /** The account's mailboxes in display order (with their backend role). */
   const [boxes, setBoxes] = useState<MailboxInfo[]>([]);
+  /** WHOSE mailboxes `boxes` are. The list of the account that was open a
+   *  moment ago says nothing about a message of another one (M2). */
+  const [boxesAccount, setBoxesAccount] = useState("");
   const folders = useMemo(() => boxes.map((b) => b.name), [boxes]);
   /** Server-stated hierarchy delimiter, so folder labels split at the real
    * separator instead of guessing "." vs "/". */
@@ -153,6 +157,17 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState<MailMessage | null>(null);
+  /**
+   * Where the open message LIVES (plan Befunde 06.10., M2): its account and
+   * its folder. In conversation mode a message can come from another folder
+   * than the open one, and whether remote images may load is a question about
+   * the message's folder — spam stays spam when it is read from a thread.
+   */
+  const [openOrigin, setOpenOrigin] = useState<{ accountId: string; mailbox: string } | null>(null);
+  /** The link under the pointer or holding the keyboard focus (M1). */
+  const [pointedLink, setPointedLink] = useState<LinkTarget | null>(null);
+  /** The link that was right-clicked, and where: open it, or copy its address. */
+  const [linkMenu, setLinkMenu] = useState<{ link: LinkTarget; x: number; y: number } | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(false);
   // Remote https images: global per-vault opt-in (settings) or a one-shot
   // per-message reveal — default stays blocked (loading = tracking beacon).
@@ -485,6 +500,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         const order = sortMailFolders(valid.map((b) => b.name), delim);
         const sorted = order.map((n) => valid.find((b) => b.name === n)).filter((b): b is MailboxInfo => !!b);
         setBoxes(sorted);
+        setBoxesAccount(forAccount);
         setMailboxSel((prev) =>
           prev.accountId === forAccount && order.includes(prev.name)
             ? prev
@@ -703,6 +719,9 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       setSelectedId(rowId);
       setLoadingMessage(true);
       setMessage(null);
+      setOpenOrigin({ accountId: acct.id, mailbox: box });
+      setPointedLink(null);
+      setLinkMenu(null);
       setShowRemoteOnce(false);
       // Same as the list: a message read once shows INSTANTLY from the cache
       // while the fetch runs (F4a). Remote images stay blocked either way.
@@ -734,7 +753,18 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [vaultPath, account, accounts, accountId, mailbox, dbAdapter, t]
   );
 
-  const allowRemote = remoteOptIn || showRemoteOnce;
+  // ONE rule for both shells (M2): "always" does not reach into the junk
+  // folder, and a folder that is not known yet counts as junk.
+  const remoteImages = useMemo(
+    () =>
+      remoteImagesDecision({
+        always: remoteOptIn,
+        once: showRemoteOnce,
+        folder: messageJunkState(openOrigin, { accountId: boxesAccount, boxes }),
+      }),
+    [remoteOptIn, showRemoteOnce, openOrigin, boxesAccount, boxes]
+  );
+  const allowRemote = remoteImages.allow;
   const sanitized = useMemo(
     () => (message?.html ? sanitizeEmailHtml(message.html, { allowRemoteImages: allowRemote }) : null),
     [message, allowRemote]
@@ -1161,6 +1191,24 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   const fitObserver = useRef<ResizeObserver | null>(null);
   useEffect(() => () => fitObserver.current?.disconnect(), []);
 
+  /**
+   * What a link in a message does (M1) — the same answers for the HTML frame
+   * and for a plain-text body: a click goes to the system browser, and the
+   * link under the pointer or holding the keyboard focus is shown in the bar
+   * at the foot of the reading area.
+   */
+  const linkEvents = useMemo(
+    () => ({
+      onOpen: (link: LinkTarget) => void openUrl(link.href).catch(() => {}),
+      onPoint: setPointedLink,
+      // A right click on a link: what the phone offers behind a hold.
+      onHold: (link: LinkTarget, at: { x: number; y: number }) => setLinkMenu({ link, ...at }),
+    }),
+    []
+  );
+  const detachFrameLinks = useRef<(() => void) | null>(null);
+  useEffect(() => () => detachFrameLinks.current?.(), []);
+
   const handleFrameLoad = useCallback((ev: SyntheticEvent<HTMLIFrameElement>) => {
     const frame = ev.currentTarget;
     const doc = frame.contentDocument;
@@ -1175,19 +1223,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       fitObserver.current = observer;
     }
 
-    doc.addEventListener(
-      "click",
-      (e) => {
-        const a = (e.target as Element | null)?.closest?.("a[href]");
-        const href = a?.getAttribute("href") ?? "";
-        if (a && /^(https?:|mailto:|tel:)/i.test(href)) {
-          e.preventDefault();
-          void openUrl(href).catch(() => {});
-        }
-      },
-      true
-    );
-  }, []);
+    // A new document per message (and per image release): the listeners of
+    // the previous one go with it.
+    detachFrameLinks.current?.();
+    detachFrameLinks.current = attachMailLinks(doc, linkEvents);
+  }, [linkEvents]);
 
   const removeFromList = useCallback(
     (uid: string) => {
@@ -2211,17 +2251,25 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               </div>
             )}
             {sanitized && sanitized.blockedRemote > 0 && (
-              <div className="pv-mail-blocked" data-testid="mail-blocked-hint">
+              <div className="pv-mail-blocked" data-testid="mail-blocked-hint" data-junk={remoteImages.blockedAsJunk ? "" : undefined}>
                 <ShieldOff size={ICON.meta} />
-                {t("mail.remoteBlocked", { defaultValue: "Externe Inhalte blockiert ({{n}})", n: sanitized.blockedRemote })}
+                {/* In the junk folder the hint names the REASON (M2): "always
+                    load" is on, and still nothing loaded — without the reason
+                    that reads as a setting that does not work. */}
+                <span>
+                  {remoteImages.blockedAsJunk
+                    ? t("mail.remoteBlockedJunk", { n: sanitized.blockedRemote })
+                    : t("mail.remoteBlocked", { defaultValue: "Externe Inhalte blockiert ({{n}})", n: sanitized.blockedRemote })}
+                </span>
                 {!allowRemote && (
                   <button type="button" onClick={() => setShowRemoteOnce(true)} data-testid="mail-show-images">
-                    {t("mail.showImages", { defaultValue: "Bilder anzeigen" })}
+                    {remoteImages.blockedAsJunk ? t("mail.showImagesOnce") : t("mail.showImages", { defaultValue: "Bilder anzeigen" })}
                   </button>
                 )}
               </div>
             )}
 
+            <div className="pv-mail-bodywrap">
             <div className={`pv-mail-body${sanitized ? " pv-mail-body--frame" : ""}`}>
               {sanitized ? (
                 <iframe
@@ -2237,10 +2285,22 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
                   className="pv-mail-frame"
                 />
               ) : (
-                <pre data-testid="mail-text" className="pv-mail-text">
-                  {message.text ?? ""}
-                </pre>
+                <MailPlainText text={message.text ?? ""} events={linkEvents} className="pv-mail-text" data-testid="mail-text" />
               )}
+            </div>
+            {/* Where the link leads — bottom-left of the message, where every
+                browser shows it; not the app's status bar (decision E5). */}
+            {pointedLink && (
+              <div
+                className="pv-mail-linkbar"
+                data-testid="mail-link-target"
+                data-warn={pointedLink.textHost ? "" : undefined}
+                role="status"
+              >
+                {pointedLink.textHost ? <TriangleAlert size={ICON.meta} aria-hidden /> : <Link2 size={ICON.meta} aria-hidden />}
+                <LinkTargetText link={pointedLink} />
+              </div>
+            )}
             </div>
 
             {/* Vault-capture bar — Plainva's differentiator over any mail client */}
@@ -2279,6 +2339,24 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             {mailFolderLabel(f, delimiter)}
           </MenuItem>
         ))}
+      </MenuSurface>
+    )}
+    {linkMenu && (
+      <MenuSurface open at={{ x: linkMenu.x, y: linkMenu.y }} onClose={() => setLinkMenu(null)} ariaLabel={`${linkMenu.link.before}${linkMenu.link.host}${linkMenu.link.after}`}>
+        <MenuItem
+          icon={<ExternalLink size={ICON.ui} />}
+          data-testid="mail-link-open"
+          onSelect={() => void openUrl(linkMenu.link.href).catch(() => {})}
+        >
+          {linkMenu.link.kind === "web" ? t("mail.linkOpenBrowser") : t("mail.linkOpen")}
+        </MenuItem>
+        <MenuItem
+          icon={<Copy size={ICON.ui} />}
+          data-testid="mail-link-copy"
+          onSelect={() => void navigator.clipboard.writeText(linkMenu.link.href).then(() => toast.success(t("mail.linkCopied")))}
+        >
+          {t("mail.linkCopy")}
+        </MenuItem>
       </MenuSurface>
     )}
     {snoozeMenu && (

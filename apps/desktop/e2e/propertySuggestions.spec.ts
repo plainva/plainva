@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openProbePage } from "./fixtures/openProbePage";
 import type { PropertyProbeWindow } from "./fixtures/propertyProbe";
 
 test.use({ hasTouch: true });
@@ -10,8 +11,7 @@ async function open(page: Page) {
     window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;
     await import('/e2e/fixtures/propertyProbe.tsx');</script></body></html>` }));
   page.on("pageerror", error => console.log("Property probe:", error.message));
-  await page.goto("/__property_probe");
-  await page.waitForFunction(() => !!(window as PropertyProbeWindow).propertyProbe);
+  await openProbePage(page, "/__property_probe", () => !!(window as PropertyProbeWindow).propertyProbe);
 }
 
 for (const shell of ["desktop", "mobile"] as const) {
@@ -42,7 +42,9 @@ for (const shell of ["desktop", "mobile"] as const) {
     await expect(page.getByTestId("property-value")).toHaveText('["Other folder"]');
     await expect(page.getByTestId("property-type")).toHaveText("list");
     await page.evaluate(shell => (window as PropertyProbeWindow).propertyProbe.mount({ shell, mode: "value", type: "text" }), shell);
-    const field = page.locator(shell === "desktop" ? ".pv-property-text input" : ".m-sheet-inputrow input");
+    // A text property is edited in the growing field on both shells since
+    // 2026-10-06 (a long value wraps instead of running out of a one-line input).
+    const field = page.locator(shell === "desktop" ? ".pv-property-text textarea" : ".m-sheet-inputrow textarea");
     await field.fill("A freely written sentence");
     if (shell === "desktop") await field.press("Enter"); else await page.getByRole("button", { name: "OK", exact: true }).click();
     await expect(page.getByTestId("property-value")).toHaveText('"A freely written sentence"');
@@ -50,10 +52,10 @@ for (const shell of ["desktop", "mobile"] as const) {
   });
   test(`${shell}: delayed old-note results and empty curated vocabularies never leak`, async ({ page }) => {
     await open(page); await page.evaluate(shell => (window as PropertyProbeWindow).propertyProbe.mount({ shell, mode: "value", path: "Old/a.md" }), shell);
-    if (shell === "desktop") await page.locator(".pv-property-text input").focus();
+    if (shell === "desktop") await page.locator(".pv-property-text textarea").focus();
     await expect.poll(() => page.evaluate(() => (window as PropertyProbeWindow).propertyProbe.requests.length)).toBeGreaterThan(0);
     await page.getByTestId("change-note").dispatchEvent("click");
-    if (shell === "desktop") await page.locator(".pv-property-text input").focus();
+    if (shell === "desktop") await page.locator(".pv-property-text textarea").focus();
     await expect(page.getByRole("button", { name: "Fresh", exact: true })).toBeVisible();
     await page.evaluate(() => (window as PropertyProbeWindow).propertyProbe.flush());
     await expect(page.getByRole("button", { name: "Stale", exact: true })).toHaveCount(0);

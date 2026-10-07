@@ -122,10 +122,12 @@ jobs:
 
       # A test that failed once and passed on its retry used to leave nothing
       # behind but a line in the log (E27, Befunde 2026-09-24). Every Playwright
-      # config above records a trace on the first retry of a test
-      # (`trace: "on-first-retry"`), each run into its own folder under
-      # test-results/, so a trace exists exactly when a run failed or had to
-      # retry — and then the results of all three runs go up as one artifact,
+      # config above traces the FIRST run of each test in CI and keeps the
+      # trace when that run fails (`trace: "retain-on-first-failure"`; until
+      # 2026-10-06 it was the retry that was traced, i.e. the attempt that
+      # passed). Each run writes into its own folder under test-results/, so a
+      # trace exists exactly when a first attempt failed — and then the
+      # results of all three runs go up as one artifact,
       # kept for a week. Open a trace with `npx playwright show-trace <trace.zip>`.
       # A green run without a retry uploads nothing.
       - name: Look for Playwright traces
@@ -146,6 +148,27 @@ jobs:
             apps/mobile/test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  # The core is the part that touches a real file system, and macOS answers
+  # differently from Linux there: APFS folds the composed and the decomposed
+  # spelling of a name into one file. Until 2026-10 only the release workflow
+  # ran anything on macOS, so that difference surfaced during release 0.8.4
+  # and cost a rebuild. Not a required check until it has run quietly for a
+  # while — a red macOS runner must not hold `main` on its first week.
+  core-macos:
+    name: Core tests (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.0.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @plainva/core test
 
   webkit:
     name: WebKit editor regression

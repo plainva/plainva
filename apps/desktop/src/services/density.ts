@@ -42,9 +42,15 @@ export async function setStoredDensity(density: Density): Promise<void> {
   notifyAppearanceChanged();
 }
 
-/** Applies the default immediately (avoids a flash), then the stored value. */
+/**
+ * Applies the stored value — and nothing before it (finding 2026-10-06, the
+ * same shape as `initTagColors`). The default is "no attribute", which a cold
+ * start has already. Writing it first only mattered on the SECOND call: this
+ * also runs whenever another window reports an appearance change, and in a
+ * compact window it took the attribute away and put it back a tick later —
+ * every row of the window jumped to the comfortable metric and back.
+ */
 export function initDensity(): void {
-  applyDensity(DEFAULT_DENSITY);
   getStoredDensity()
     .then((d) => applyDensity(d))
     .catch(() => {});

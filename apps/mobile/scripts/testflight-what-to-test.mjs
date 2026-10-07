@@ -12,8 +12,13 @@
 //   ASC_KEY_ID=… ASC_ISSUER_ID=… ASC_KEY_PATH=…/AuthKey_X.p8 \
 //   node apps/mobile/scripts/testflight-what-to-test.mjs <whatsnew-dir> [--public-group]
 //
-// `--public-group` additionally adds the build to every beta group that has a
-// public link enabled. That is deliberately opt-in: an interim build exists
+// `--public-group` additionally hands the build to the testers outside the
+// team: it is added to every external beta group and submitted for Apple's
+// beta review. Both, because the first without the second does nothing — a
+// build in an external group that was never submitted sits at
+// READY_FOR_BETA_SUBMISSION and reaches nobody (release 0.8.4: build 125 was
+// in the public group and had to be submitted by hand). That is deliberately
+// opt-in: an interim build exists
 // for the maintainer's devices, and the public group should see a build
 // somebody chose to give it.
 //
@@ -23,6 +28,7 @@
 import { createPrivateKey, sign } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const API = "https://api.appstoreconnect.apple.com/v1";
 // The store app, or Plainva Labs when labs-mobile.yml sets PLAINVA_BUNDLE_BASE
@@ -142,20 +148,54 @@ async function main() {
     console.log(`what to test: ${locale} (${[...whatsNew].length} chars)`);
   }
 
-  if (publicGroup) {
-    const groups = await call(jwt, "GET", `/betaGroups?filter[app]=${appId}&filter[isInternalGroup]=false`);
-    const targets = (groups?.data ?? []).filter((g) => g.attributes?.publicLinkEnabled);
-    for (const g of targets) {
-      await call(jwt, "POST", `/betaGroups/${g.id}/relationships/builds`, {
-        data: [{ type: "builds", id: build.id }],
-      });
-      console.log(`added build ${buildNumber} to the public group "${g.attributes.name}"`);
-    }
-    if (targets.length === 0) console.log("no beta group with a public link — nothing added");
-  }
+  if (publicGroup) await releaseToExternalTesters((method, path, body) => call(jwt, method, path, body), appId, build.id, buildNumber);
 }
 
-main().catch((e) => {
-  console.error(e.message ?? e);
-  process.exit(1);
-});
+/**
+ * Hands a processed build to the testers outside the team.
+ *
+ * Order matters: the groups first, then the submission. Apple reviews a build
+ * for the groups it is in, and a build submitted before it is in any external
+ * group is approved for nobody.
+ *
+ * A build is submitted only from READY_FOR_BETA_SUBMISSION. Every other state
+ * means there is nothing to submit — it is already waiting, in review or
+ * approved (a later build of the same version usually needs no new review),
+ * or Apple has not finished with it — and is reported instead of forced.
+ *
+ * `request(method, path, body)` is the App Store Connect call; passed in so
+ * the order can be tested without a network.
+ */
+export async function releaseToExternalTesters(request, appId, buildId, buildNumber, log = console.log) {
+  const groups = await request("GET", `/betaGroups?filter[app]=${appId}&filter[isInternalGroup]=false`);
+  const targets = groups?.data ?? [];
+  if (targets.length === 0) {
+    log("no external beta group — nothing added, nothing submitted");
+    return { groups: [], submitted: false, state: null };
+  }
+  for (const g of targets) {
+    await request("POST", `/betaGroups/${g.id}/relationships/builds`, {
+      data: [{ type: "builds", id: buildId }],
+    });
+    log(`added build ${buildNumber} to the external group "${g.attributes?.name}"${g.attributes?.publicLinkEnabled ? " (public link)" : ""}`);
+  }
+  const detail = await request("GET", `/builds/${buildId}/buildBetaDetail`);
+  const state = detail?.data?.attributes?.externalBuildState ?? null;
+  if (state !== "READY_FOR_BETA_SUBMISSION") {
+    log(`build ${buildNumber} is ${state ?? "in an unknown state"} — not submitted for beta review`);
+    return { groups: targets.map((g) => g.id), submitted: false, state };
+  }
+  await request("POST", `/betaAppReviewSubmissions`, {
+    data: { type: "betaAppReviewSubmissions", relationships: { build: { data: { type: "builds", id: buildId } } } },
+  });
+  log(`submitted build ${buildNumber} for beta review`);
+  return { groups: targets.map((g) => g.id), submitted: true, state };
+}
+
+// Only when run as a script: the test imports this file for the function above.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e) => {
+    console.error(e.message ?? e);
+    process.exit(1);
+  });
+}

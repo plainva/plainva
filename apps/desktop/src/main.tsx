@@ -25,6 +25,7 @@ import { currentWindowParams } from "./services/windowContext";
 import { initTheme } from "./services/theme";
 import { initDensity } from "./services/density";
 import { initTagColors } from "./services/tagColors";
+import { initSpellcheck } from "./services/spellcheck";
 import { initDefaultViewMode } from "./services/viewModeDefault";
 import { initAppFonts } from "./services/appFonts";
 import { initUiZoom } from "./services/uiZoom";
@@ -44,6 +45,8 @@ initTheme();
 // Apply the persisted UI density (comfortable/compact chrome metrics).
 initDensity();
 initTagColors();
+// The device's spell-checking switch (off until the store says otherwise).
+initSpellcheck();
 // Fill the sync cache for the default editor view mode (read/live/source).
 initDefaultViewMode();
 // Apply the persisted content font size/family (issue #5, a11y).

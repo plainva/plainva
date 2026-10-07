@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-09-30
+Last updated: 2026-10-06
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -45,11 +45,12 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 - **`@` mentions** — type `@` anywhere in the text to insert a **Date** (Today, Tomorrow, Yesterday, or **Pick a date…**, stored as an ISO date), a link to a **Note**, or a **Database** embed.
 - **Emoji** — the **Emoji** slash command (`/emoji`) opens an emoji picker at the cursor; or type `:name` (for example `:rocket`) for inline suggestions. Either way Plainva inserts the actual emoji **character** (portable Unicode), never a `:shortcode:` — so the note stays readable in Obsidian, on GitHub and everywhere else. (This is separate from the note's **Document icon**, which is stored in the frontmatter.)
 - **Block handles** — a handle appears to the left of each paragraph on hover: drag it to move the block, click it to open **Block actions** (**Turn into** Text/Heading/List/To-do/Quote/Code block, **Duplicate**, **Move up**/**Move down**, **Delete block**). If you drag a list next to another list of the same kind, Plainva inserts an invisible separator line `<!-- -->` so both lists stay separate — in Markdown, same-style lists would otherwise merge despite the blank line (in Obsidian too).
-- **Tables** — rendered as a widget with click-to-edit cells. The cell display renders formatting (**bold**, *italic*, `code`, highlight), clickable links (`[[Internal Link]]`, web addresses) and `<br>` as a line break; while editing you see the raw text. The table menu offers inserting/deleting rows and columns plus alignment (**Align left**/**Align center**/**Align right**).
+- **Tables** — rendered as a widget with click-to-edit cells. The cell display renders formatting (**bold**, *italic*, `code`, highlight), clickable links (`[[Internal Link]]`, web addresses) and `<br>` as a line break; while editing you see the raw text. The table menu offers inserting/deleting rows and columns plus alignment (**Align left**/**Align center**/**Align right**). The cell opens in a field that grows and wraps with its text: **Enter** saves, **Shift+Enter** adds a line break (written as `<br>`), **Esc** discards.
 - **Lists continue themselves** (Enter inserts the next list marker), code blocks get language-aware highlighting (in the reading view as well), pasted content is converted to Markdown (smart paste), and headings can be folded.
 - **Fold lists** — clicking the bullet of a list item with nested items folds them; the bullet turns accent-colored and a “…” marks the spot, a second click unfolds. The file never changes. Bullets alternate per level (• ◦ ▪), continuation lines sit exactly under their item's text — on the phone too, where the bullet is the only fold control.
 - **Scroll position** — every note opens where you left it; remembered per device, not synchronized.
 - **Find & replace** inside the current note: `Ctrl+F` (see [Search](Search.md)).
+- **Spell checking** — off by default. Switch it on under **Settings → App → Editor & notes** and misspelled words are underlined in notes, table cells, emails, comments, journal entries and tasks; code, web addresses, keys and passwords are never checked. Plainva uses your system's spell checker and its languages and brings no dictionaries of its own. While it is on, a right-click in such text opens the system's menu with the suggestions instead of Plainva's own; a table cell keeps its table menu. The setting belongs to this device. On Linux, Plainva does not switch on the system WebView's checker yet, so it has no effect there.
 
 ## Links and backlinks
 
@@ -62,7 +63,7 @@ Type `/` at the start of a line to open the insert menu. It is grouped into sect
 
 ## Properties (frontmatter)
 
-The **Properties** section in the right sidebar shows the note's frontmatter as a form. **Add property** creates new ones; every property has a **Field type**:
+The **Properties** section in the right sidebar shows the note's frontmatter as a form. Every property is one row: type icon, name, value, and at the right edge what the row can do — a lock on protected fields, on hover **Delete property** and the comment bubble. Values are edited in place and wrap instead of being cut off. **Add property** creates new ones; every property has a **Field type**:
 
 | Group | Types |
 |---|---|
@@ -129,7 +130,7 @@ When a template asks something, Plainva asks **everything** in one dialog before
 
 **Templates per folder**: under **Settings → Vault → Content & structure → Templates** you map a folder to a template — every new note there then starts from it, without you choosing anything. The mapping also covers subfolders; when several match, the longest path wins (`Projects/Clients` beats `Projects`). You map a template to a **note type** the same way; it applies when no folder rule covers the note — folder beats type. **New note from template …** (right-click in the file tree, the command palette or the quick switcher) lets you pick one explicitly — that beats every mapping. The mappings live in the settings, not in the notes, and travel to your other devices through the settings sync.
 
-Creating templates works from anywhere: the command palette (`Ctrl+P`) offers **Create new template** (a fresh template opens for editing) and **Save current note as template** (copies the open note into the template folder). Templates are ordinary Markdown files — edit, rename or delete them right in the file tree.
+Creating templates works from anywhere: the command palette (`Ctrl+P`) offers **Create new template** (a fresh template opens for editing) and **Save current note as template** (copies the open note into the template folder). Templates are ordinary Markdown files — edit, rename or delete them right in the file tree. On the phone both are in the command palette as well (`>` in the search field); for the second one, open it from the note's **⋮** menu → **Commands**.
 
 ## Daily notes
 

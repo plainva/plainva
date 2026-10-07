@@ -1,4 +1,4 @@
-import { PimRequestError, type IPimTarget, type PimEventDraft, type PimEventRow, type PimRecurrence, type PimWriteResult } from "@plainva/core";
+import { PimRequestError, type IPimTarget, type PimBlockRef, type PimEventDraft, type PimEventRow, type PimRecurrence, type PimWriteResult } from "@plainva/core";
 import { markdownToHtml } from "../lib/markdownToHtml";
 
 /**
@@ -24,6 +24,8 @@ export interface CalendarBlockFailure {
 export interface CalendarBlockOutcome {
   ok: number;
   failed: CalendarBlockFailure[];
+  /** The blockers that now exist, as their event will list them (K3). */
+  created: PimBlockRef[];
 }
 
 export interface RunCalendarBlocksInput {
@@ -33,6 +35,8 @@ export interface RunCalendarBlocksInput {
   /** The account's target, or the reason there is none. */
   targetFor: (accountId: string) => Promise<{ target: IPimTarget | null; reason?: string }>;
   draft: PimEventDraft;
+  /** Busy placeholder or a copy with details — recorded with each blocker, because only the second follows its event's title and place. */
+  mode?: "busy" | "details";
   onCreated?: (accountId: string, calendarId: string, result: PimWriteResult) => void;
 }
 
@@ -54,6 +58,7 @@ export function isAuthorizationFailure(failure: CalendarBlockFailure): boolean {
 export async function runCalendarBlocks(input: RunCalendarBlocksInput): Promise<CalendarBlockOutcome> {
   let ok = 0;
   const failed: CalendarBlockFailure[] = [];
+  const created: PimBlockRef[] = [];
   for (const key of input.keys) {
     const [accountId, ...rest] = key.split(" ");
     const calendarId = rest.join(" ");
@@ -67,12 +72,13 @@ export async function runCalendarBlocks(input: RunCalendarBlocksInput): Promise<
     try {
       const result = await found.target.createEvent(calendarId, input.draft);
       input.onCreated?.(accountId, calendarId, result);
+      created.push({ accountId, calendarId, uid: result.uid, ...(result.href ? { href: result.href } : {}), ...(input.mode ? { mode: input.mode } : {}) });
       ok += 1;
     } catch (error) {
       failed.push({ key, accountId, label, reason: blockFailureReason(error), status: blockFailureStatus(error) });
     }
   }
-  return { ok, failed };
+  return { ok, failed, created };
 }
 
 /** Builds a draft that mirrors an event into ANOTHER calendar as a blocker

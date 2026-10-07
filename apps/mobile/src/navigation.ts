@@ -292,6 +292,20 @@ export function activeNotePath(top?: NavEntry): string | null {
   return top?.kind === "note" ? top.path : null;
 }
 
+/**
+ * The note a palette command acts on: the open one — or, while the palette
+ * (the search surface) is up, the note it was opened OVER.
+ *
+ * Asking only for the top answered "none" every time the question was put:
+ * the palette is itself the top while it lists commands, so rename,
+ * reading/editing and export were never listed on the phone (found 2026-10-06,
+ * when the remaining note commands joined them).
+ */
+export function commandNotePath(state: NavState): string | null {
+  const top = navTop(state);
+  return activeNotePath(top?.kind === "search" ? navTop(popTop(state)) : top);
+}
+
 export function hidesTabBar(top?: NavEntry): boolean {
   return !!top && (INPUT_KINDS.has(top.kind) || IMMERSIVE_KINDS.has(top.kind));
 }

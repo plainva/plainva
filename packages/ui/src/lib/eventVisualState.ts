@@ -46,13 +46,24 @@ export function eventVisualState(event: EventStateInput): EventVisualState {
   return "confirmed";
 }
 
-/** Class suffix per shell: `pv-evt--cancelled`, `m-evt--cancelled`, … */
-export function eventStateClass(prefix: "pv-evt" | "m-evt", state: EventVisualState): string {
-  return state === "confirmed" ? prefix : `${prefix} ${prefix}--${state}`;
+/**
+ * Class suffix per shell: `pv-evt--cancelled`, `m-evt--cancelled`, …
+ *
+ * `row` adds `--sending` while the event's write is still on its way to the
+ * provider (issue 119). That is not a fifth state but a mark ON a state: a
+ * tentative appointment being moved is still tentative, and still on its way.
+ */
+export function eventStateClass(prefix: "pv-evt" | "m-evt", state: EventVisualState, row?: object): string {
+  const base = state === "confirmed" ? prefix : `${prefix} ${prefix}--${state}`;
+  // Any row shape may be passed; only an overlaid one carries the mark.
+  return (row as { pending?: boolean } | undefined)?.pending ? `${base} ${prefix}--sending` : base;
 }
 
 /** i18n key of the one-word label a state carries where there is room for it. */
-export function eventStateLabelKey(state: EventVisualState): string | null {
+export function eventStateLabelKey(state: EventVisualState, row?: object): string | null {
+  // On its way to the provider: said first, because it is the one thing about
+  // the event that is about to change by itself.
+  if ((row as { pending?: boolean } | undefined)?.pending) return "pim.eventSending";
   if (state === "cancelled") return "pim.stateCancelled";
   if (state === "declined") return "pim.stateDeclined";
   if (state === "unanswered") return "pim.stateUnanswered";

@@ -2,6 +2,7 @@ import { sameStoredValue } from "@plainva/core";
 import {
   applyAppFonts,
   applyTagColors,
+  setSpellcheckOn,
   migrateCustomThemeFont,
   type AppFonts,
   applyResolved,
@@ -125,6 +126,14 @@ export interface MobileSettings extends VaultScopedSettings {
    */
   tagColors: boolean;
   /**
+   * "Spell checking" (plan Befunde 2026-10-06, E3): the device switch behind
+   * the one rule in @plainva/ui's lib/spellcheck.ts. Device-local and OFF by
+   * default, exactly as on the desktop, and not part of the synced settings
+   * profile: the keyboard, its languages and its dictionaries are the
+   * device's.
+   */
+  spellcheck: boolean;
+  /**
    * Fold the navigator away so the working surface has the tablet to itself.
    *
    * The two-column layout gave the navigator a permanent 280-380 px, which is
@@ -206,6 +215,7 @@ function defaults(): MobileSettings {
     readerAutoHide: true,
     contextPanelDocked: false,
     tagColors: false,
+    spellcheck: false,
     navSidebarCollapsed: false,
     widgetShowTitles: true,
     widgetShowEvents: true,
@@ -318,6 +328,8 @@ function followThemeWithStatusBar(): void {
 function applySettings(): void {
   applyTheme();
   setDayBoundary(live().dayEndsAt);
+  // Open editors and mounted fields follow the switch at once.
+  setSpellcheckOn(live().spellcheck === true);
 }
 
 export async function initMobileSettings(): Promise<void> {

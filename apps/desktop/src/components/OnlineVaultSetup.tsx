@@ -22,7 +22,7 @@ import {
 } from "../services/syncTargets";
 import { SyncFolderPickerModal } from "./SyncFolderPickerModal";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
-import { ICON, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
+import { foldMachineText, ICON, PLAINVA_DROPBOX_APP_KEY, PLAINVA_ONEDRIVE_CLIENT_ID } from "@plainva/ui";
 import {
   scaffoldVaultTemplate,
   applyVaultTemplateSettings,
@@ -118,7 +118,8 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
     setError(null);
     try {
       if (provider === "webdav") {
-        const creds = { url: webdavUrl.trim(), user: webdavUser.trim(), pass: webdavPass };
+        // Addresses as a machine reads them (lib/machineText.ts).
+        const creds = { url: foldMachineText(webdavUrl), user: webdavUser.trim(), pass: webdavPass };
         // Connection probe: a wrong host/credential pair (401, network, HTML
         // landing page) must surface HERE, not in the picker.
         await buildWebDavTarget(creds).listFolders("");
@@ -136,10 +137,10 @@ export const OnlineVaultSetup: React.FC<Props> = ({ provider, mode = "open", tem
         credsRef.current = {
           provider: "s3",
           s3: {
-            endpoint: s3Endpoint.trim(),
-            region: s3Region.trim() || "us-east-1",
-            bucket: s3Bucket.trim(),
-            accessKeyId: s3AccessKeyId.trim(),
+            endpoint: foldMachineText(s3Endpoint),
+            region: foldMachineText(s3Region) || "us-east-1",
+            bucket: foldMachineText(s3Bucket),
+            accessKeyId: foldMachineText(s3AccessKeyId),
             secretAccessKey: s3SecretKey,
             forcePathStyle: s3PathStyle,
           },

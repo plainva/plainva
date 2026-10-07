@@ -79,6 +79,23 @@ export function EditorAreaScreen({ onBack }: { onBack: () => void }) {
           <Row title={t("mobile.readerAutoHide")} end={<Switch checked={settings.readerAutoHide} label={t("mobile.readerAutoHide")} onChange={(readerAutoHide) => update({ readerAutoHide })} />} />
         </RowList></GroupCard>
 
+        {/* Spell checking (plan Befunde 2026-10-06, E3): the same device switch
+            as on the desktop. What checks is the keyboard and the system. */}
+        <SectionLabel>{t("settings.groupWriting")}</SectionLabel>
+        <GroupCard>
+          <RowList>
+            <Row
+              end={<Switch
+                checked={settings.spellcheck === true}
+                label={t("settings.spellcheck")}
+                onChange={(next) => update({ spellcheck: next })}
+              />}
+              title={t("settings.spellcheck")}
+            />
+          </RowList>
+        </GroupCard>
+        <p className="m-hint">{t("settings.spellcheckDesc")}</p>
+
         {/* S39: the desktop has had this since the unresolved-links work; the
             phone created the note without asking because the toggle had no
             mobile control, not because anyone decided it should differ. */}

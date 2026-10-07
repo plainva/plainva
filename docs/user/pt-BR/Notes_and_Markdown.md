@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-09-30
+Última revisão: 2026-10-06
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -45,11 +45,12 @@ Digite `/` no início de uma linha para abrir o menu de inserção. Ele é agrup
 - **Menções com `@`** — digite `@` em qualquer lugar do texto para inserir uma **Data** (Hoje, Amanhã, Ontem ou **Escolher data…**, armazenada como data ISO), um link para uma **Nota**, ou uma incorporação de **Banco de dados**.
 - **Emoji** — o comando de barra **Emoji** (`/emoji`) abre um seletor de emojis no cursor; ou digite `:name` (por exemplo, `:rocket`) para sugestões em linha. De qualquer forma, o Plainva insere o **caractere** real do emoji (Unicode portátil), nunca um `:shortcode:` — assim a nota continua legível no Obsidian, no GitHub e em qualquer outro lugar. (Isso é diferente do **Ícone do documento** da nota, que é armazenado no frontmatter.)
 - **Alças de bloco** — uma alça aparece à esquerda de cada parágrafo ao passar o mouse: arraste-a para mover o bloco, clique nela para abrir **Ações do bloco** (**Transformar em** Texto/Título/Lista/Tarefa/Citação/Bloco de código, **Duplicar**, **Mover para cima**/**Mover para baixo**, **Excluir bloco**). Se você arrastar uma lista para o lado de outra lista do mesmo tipo, o Plainva insere uma linha separadora invisível `<!-- -->` para que as duas listas continuem separadas — em Markdown, listas do mesmo estilo normalmente se fundiriam apesar da linha em branco (também no Obsidian).
-- **Tabelas** — renderizadas como um widget com edição por clique em cada célula. A exibição da célula renderiza formatação (**negrito**, *itálico*, `código`, destaque), links clicáveis (`[[Link Interno]]`, endereços da web) e `<br>` como quebra de linha; ao editar, você vê o texto bruto. O menu da tabela oferece inserir/excluir linhas e colunas, além do alinhamento (**Alinhar à esquerda**/**Centralizar**/**Alinhar à direita**).
+- **Tabelas** — renderizadas como um widget com edição por clique em cada célula. A exibição da célula renderiza formatação (**negrito**, *itálico*, `código`, destaque), links clicáveis (`[[Link Interno]]`, endereços da web) e `<br>` como quebra de linha; ao editar, você vê o texto bruto. O menu da tabela oferece inserir/excluir linhas e colunas, além do alinhamento (**Alinhar à esquerda**/**Centralizar**/**Alinhar à direita**). A célula abre em um campo que cresce e quebra junto com o texto: **Enter** salva, **Shift+Enter** adiciona uma quebra de linha (escrita como `<br>`), **Esc** descarta.
 - **Listas continuam sozinhas** (Enter insere o próximo marcador de lista), blocos de código recebem destaque de sintaxe conforme a linguagem (também no modo de leitura), o conteúdo colado é convertido para Markdown (colagem inteligente), e os títulos podem ser recolhidos.
 - **Dobrar listas** — um clique no marcador de um item com subitens os dobra; o marcador fica na cor de destaque e um “…” marca o lugar, um segundo clique desdobra. O arquivo nunca muda. Os marcadores alternam por nível (• ◦ ▪) e as linhas de continuação ficam exatamente sob o texto do item — também no celular, onde o marcador é o único controle de dobra.
 - **Posição de rolagem** — cada nota abre onde você a deixou; lembrada por dispositivo, não sincronizada.
 - **Localizar e substituir** dentro da nota atual: `Ctrl+F` (veja [Busca](Search.md)).
+- **Verificação ortográfica** — desativada por padrão. Ative-a em **Configurações → App → Editor e notas** e as palavras escritas incorretamente são sublinhadas em notas, células de tabela, e-mails, comentários, entradas do diário e tarefas; código, endereços da web, chaves e senhas nunca são verificados. O Plainva usa o corretor ortográfico do seu sistema e os idiomas dele e não traz dicionários próprios. Enquanto estiver ativada, um clique com o botão direito nesse texto abre o menu do sistema com as sugestões, em vez do menu do Plainva; uma célula de tabela mantém o menu da tabela. A configuração pertence a este dispositivo. No Linux, o Plainva ainda não ativa o corretor do WebView do sistema, então lá ela não tem efeito.
 
 ## Links e backlinks
 
@@ -62,7 +63,7 @@ Digite `/` no início de uma linha para abrir o menu de inserção. Ele é agrup
 
 ## Propriedades (frontmatter)
 
-A seção **Propriedades** na barra lateral direita mostra o frontmatter da nota como um formulário. **Adicionar propriedade** cria novas; cada propriedade tem um **Tipo de campo**:
+A seção **Propriedades** na barra lateral direita mostra o frontmatter da nota como um formulário. Cada propriedade é uma linha: ícone do tipo, nome, valor e, na borda direita, o que a linha permite — um cadeado nos campos protegidos e, ao passar o mouse, **Excluir propriedade** e o balão de comentário. Os valores são editados no lugar e quebram a linha em vez de serem cortados. **Adicionar propriedade** cria novas; cada propriedade tem um **Tipo de campo**:
 
 | Grupo | Tipos |
 |---|---|
@@ -129,7 +130,7 @@ Quando um modelo pergunta algo, o Plainva faz **todas** as perguntas em um únic
 
 **Modelos por pasta**: em **Configurações → Vault → Conteúdo e estrutura → Modelos** você associa uma pasta a um modelo — toda nova nota criada ali parte então dele, sem que você escolha nada. A associação também cobre subpastas; quando várias correspondem, vence o caminho mais longo (`Projects/Clients` vence `Projects`). Você associa um modelo a um **tipo de nota** da mesma forma; aplica-se quando nenhuma regra de pasta cobre a nota — a pasta vence o tipo. **Nova nota a partir de modelo …** (clique com o botão direito na árvore de arquivos, a paleta de comandos ou o alternador rápido) permite escolher um explicitamente — isso vence qualquer associação. As associações vivem nas configurações, não nas notas, e viajam para seus outros dispositivos através da sincronização das configurações.
 
-Criar modelos funciona de qualquer lugar: a paleta de comandos (`Ctrl+P`) oferece **Criar novo modelo** (um modelo novo abre para edição) e **Salvar a nota atual como modelo** (copia a nota aberta para a pasta de modelos). Modelos são arquivos Markdown comuns — edite, renomeie ou exclua-os diretamente na árvore de arquivos.
+Criar modelos funciona de qualquer lugar: a paleta de comandos (`Ctrl+P`) oferece **Criar novo modelo** (um modelo novo abre para edição) e **Salvar a nota atual como modelo** (copia a nota aberta para a pasta de modelos). Modelos são arquivos Markdown comuns — edite, renomeie ou exclua-os diretamente na árvore de arquivos. No telefone, os dois também estão na paleta de comandos (`>` no campo de busca); para o segundo, abra-a pelo menu **⋮** da nota → **Comandos**.
 
 ## Notas diárias
 

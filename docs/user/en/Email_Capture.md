@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-10-06
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -24,9 +24,10 @@ Connecting validates the login before anything is saved; the credentials go into
 
 Open the mail tab from the left action rail (mail icon) or the command palette (**Open email**). The list shows your inbox newest-first (unread in bold, **Load more** pages further). Selecting a message opens it in a **sandboxed viewer**:
 
-- **Remote content is blocked** — tracking pixels, remote images and style loaders are removed and counted ("Remote content blocked (n)"). Only self-contained inline images display. **Show images** next to the counter reveals a message's https images once; **Always load remote images** in the mail settings turns that into a standing opt-in. Be aware: loading remote images lets the sender see your IP address and when you opened the mail — that is why blocked is the default.
+- **Remote content is blocked** — tracking pixels, remote images and style loaders are removed and counted ("Remote content blocked (n)"). Only self-contained inline images display. **Show images** next to the counter reveals a message's https images once; **Always load remote images** in the mail settings turns that into a standing opt-in. Be aware: loading remote images lets the sender see your IP address and when you opened the mail — that is why blocked is the default. In the **spam folder** the standing setting does not apply: Plainva never loads there on its own, the hint names the reason, and **Show for this message** holds for that one view only. The switch **Always load remote images** is on the phone as well, in the mail settings.
 - **Read means read** — a message you open counts as read after three seconds. If you mark it **unread by hand** while it is open, it stays unread for as long as it is open; the countdown only starts again once you leave it and open it again. The same on both devices — before, the desktop timer took the marking back three seconds later, and the phone marked a message read the instant it opened.
-- Links are shown as plain text and are not clickable inside the viewer.
+- **Where a link leads** — is shown before you follow it. On the desktop a bar at the bottom left of the message shows the target while the pointer is over a link or a link has the keyboard focus; the domain is emphasised. A Microsoft Safe Link shows its real target with the note "via Microsoft Safe Links" — what opens is still the Safe Link. If the link text itself names a different address than the target, the bar says so in the warning colour. A click opens the link in the browser; a right-click also offers **Copy address**. On the phone a tap opens the link; a long press shows the target first, with **Open in browser** and **Copy address**. Addresses in plain-text mails are links too.
+- **Search** — **Search this folder** asks the server about the whole open folder, not just the loaded rows; Enter (on the phone the keyboard's search key) starts the search. The hits stay while the folder refreshes in the background, and also when you open a hit and come back; emptying the field ends the search. **All inboxes** has no search — it always asks exactly one folder.
 - Scripts and forms never run. The message is rendered in an isolated frame with a strict content policy.
 - **Wide messages are fitted** — many newsletters are built for a fixed column width and cannot be reflowed. Rather than cutting such a message off at the left edge, Plainva scales it down to the width of the frame; on the phone the frame grows with it, so you scroll the page as usual.
 - **Conversations** — the switch above the list (speech-bubble icon) folds related messages into one row: participants, count and the subject the exchange started with. A tap unfolds it; every message keeps its folder and names it when that is not the open one. Plainva reads **Sent** along for this, so your own replies are part of the conversation. Switched off, everything stays as it was — a flat list — and the switch is remembered per vault, on both devices. Grouping follows the messages' own reply chain (on Microsoft, the conversation the provider itself keeps); only when a reply fails to carry that chain does the subject help out, and then only for a recognisable reply (“Re:”, “Fwd:”) within 30 days, so two mails that merely share a subject do not merge.
@@ -74,7 +75,7 @@ You don't have to send from within Plainva. These work on any note and need no S
 
 - **Reply as note** (on a message): creates a note addressed at the sender (`to:` in the frontmatter) with the original quoted — write your reply in Plainva. When you later send that note (or save it as a draft), the `to:` address is filled into the **To** field automatically.
 - **Save note as email draft in the mailbox** (command palette, on any open note): stores the note as a **draft in your own mailbox** via IMAP — pick the account, recipient and drafts folder, then open your regular mail program, review and send from there. Formatting is preserved.
-- **Send note via email (mailto)** (command palette): opens your default mail program with the note as plain text (long notes are shortened).
+- **Send note via email (mailto)** (command palette): opens your default mail program with the note as plain text (long notes are shortened). On the phone, the note's **⋮** menu → **Commands** lists this command and the draft one too; the draft opens in the composer with the note already in it.
 - **Copy note as email text** (command palette): puts the note on the clipboard with formatting — paste it into any composer.
 
 ## Signature and sender addresses

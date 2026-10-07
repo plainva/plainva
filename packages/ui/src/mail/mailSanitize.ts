@@ -119,7 +119,9 @@ export function buildMailFrameDoc(sanitizedHtml: string, options?: SanitizeEmail
     // Never leak the referrer if a link ever does navigate.
     `<meta name="referrer" content="no-referrer">` +
     `<style>body{font-family:system-ui,sans-serif;font-size:14px;line-height:1.5;margin:12px;word-break:break-word;color:#222;background:#fff}` +
-    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline;cursor:pointer}</style>` +
+    // -webkit-touch-callout: a held link shows the APP's sheet with its target
+    // (mailLinks.ts), not the system's link preview — which would load the page.
+    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline;cursor:pointer;-webkit-touch-callout:none}</style>` +
     `</head><body>${sanitizedHtml}</body></html>`
   );
 }

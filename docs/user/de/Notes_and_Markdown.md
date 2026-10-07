@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-09-30
+Stand: 2026-10-06
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -45,11 +45,12 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 - **`@`-Mentions** — tippe `@` mitten im Text: fügt **Datum** (Heute, Morgen, Gestern oder **Datum wählen…**, gespeichert als ISO-Datum), Links auf **Notizen** oder **Datenbanken** ein.
 - **Emoji** — der Slash-Befehl **Emoji** (`/emoji`) öffnet an der Schreibmarke einen Emoji-Picker; oder tippe `:name` (zum Beispiel `:rocket`) für Inline-Vorschläge. In beiden Fällen fügt Plainva das echte Emoji-**Zeichen** ein (portables Unicode), nie einen `:shortcode:` — so bleibt die Notiz in Obsidian, auf GitHub und überall sonst lesbar. (Das ist unabhängig vom **Dokument-Icon** der Notiz, das im Frontmatter liegt.)
 - **Block-Griffe** — links neben jedem Absatz erscheint beim Überfahren ein Griff: per Drag verschiebst Du den Block, per Klick öffnet sich das Menü **Block-Aktionen** (**Umwandeln in** Text/Überschrift/Liste/Aufgabe/Zitat/Code-Block, **Duplizieren**, **Nach oben**/**Nach unten**, **Block löschen**). Ziehst Du eine Liste neben eine gleichartige Liste, fügt Plainva eine unsichtbare Trennzeile `<!-- -->` ein, damit beide Listen getrennt bleiben — in Markdown verschmelzen gleichartige Listen sonst trotz Leerzeile (auch in Obsidian).
-- **Tabellen** — als Widget mit Klick-Editing in jeder Zelle. Die Zellen-Anzeige rendert Formatierung (**fett**, *kursiv*, `Code`, Markierung), klickbare Links (`[[Interner Link]]`, Web-Adressen) und `<br>` als Zeilenumbruch; beim Bearbeiten siehst Du den Rohtext. Das Tabellen-Menü bietet Zeilen/Spalten einfügen und löschen sowie die Ausrichtung (**Linksbündig**/**Zentriert**/**Rechtsbündig**).
+- **Tabellen** — als Widget mit Klick-Editing in jeder Zelle. Die Zellen-Anzeige rendert Formatierung (**fett**, *kursiv*, `Code`, Markierung), klickbare Links (`[[Interner Link]]`, Web-Adressen) und `<br>` als Zeilenumbruch; beim Bearbeiten siehst Du den Rohtext. Das Tabellen-Menü bietet Zeilen/Spalten einfügen und löschen sowie die Ausrichtung (**Linksbündig**/**Zentriert**/**Rechtsbündig**). Die Zelle öffnet sich in einem Feld, das mit dem Text wächst und umbricht: **Eingabe** speichert, **Umschalt+Eingabe** setzt einen Zeilenumbruch (geschrieben als `<br>`), **Esc** verwirft.
 - **Listen** schreiben sich weiter (Enter setzt das nächste Listenzeichen), Code-Blöcke werden je Sprache farbig hervorgehoben (auch im Lesemodus), eingefügte Inhalte werden als Markdown übernommen (Smart-Paste), Überschnitte lassen sich einklappen (Faltung).
 - **Listen falten** — ein Klick auf den Punkt eines Listeneintrags mit Untereinträgen klappt sie ein; der Punkt wird zur Akzentfarbe und ein „…“ markiert die Stelle, ein zweiter Klick klappt wieder auf. Die Datei ändert sich dabei nie. Die Punkte wechseln je Ebene (• ◦ ▪), Folgezeilen stehen exakt unter dem Text ihres Eintrags — auch am Telefon, wo der Punkt die einzige Falt-Fläche ist.
 - **Scrollposition** — jede Notiz öffnet dort, wo Du sie verlassen hast; gemerkt wird das je Gerät, nicht synchronisiert.
 - **Suchen & Ersetzen** in der aktuellen Notiz: `Strg+F` (siehe [Suche](Search.md)).
+- **Rechtschreibprüfung** — in der Voreinstellung aus. Schalte sie unter **Einstellungen → App → Editor & Notizen** ein, und falsch geschriebene Wörter werden in Notizen, Tabellenzellen, E-Mails, Kommentaren, Journal-Einträgen und Aufgaben unterstrichen; Code, Web-Adressen, Schlüssel und Passwörter werden nie geprüft. Plainva nutzt die Rechtschreibprüfung Deines Systems und dessen Sprachen und bringt keine eigenen Wörterbücher mit. Solange sie an ist, öffnet ein Rechtsklick in solchem Text das Menü des Systems mit den Korrekturvorschlägen statt Plainvas eigenem; eine Tabellenzelle behält ihr Tabellenmenü. Die Einstellung gehört zu diesem Gerät. Unter Linux schaltet Plainva die Prüfung der System-WebView noch nicht ein; dort bleibt sie ohne Wirkung.
 
 ## Links und Backlinks
 
@@ -62,7 +63,7 @@ Tippe `/` am Zeilenanfang, um das Einfüge-Menü zu öffnen. Es ist in Sektionen
 
 ## Eigenschaften (Frontmatter)
 
-Der Abschnitt **Eigenschaften** in der rechten Seitenleiste zeigt das Frontmatter der Notiz als Formular. Mit **Eigenschaft hinzufügen** legst Du neue an; jede Eigenschaft hat einen **Feldtyp**:
+Der Abschnitt **Eigenschaften** in der rechten Seitenleiste zeigt das Frontmatter der Notiz als Formular. Jede Eigenschaft ist eine Zeile: Typ-Symbol, Name, Wert und am rechten Rand, was die Zeile kann — ein Schloss bei geschützten Feldern, beim Überfahren **Eigenschaft löschen** und die Kommentar-Blase. Werte bearbeitest Du an Ort und Stelle; sie brechen um, statt abgeschnitten zu werden. Mit **Eigenschaft hinzufügen** legst Du neue an; jede Eigenschaft hat einen **Feldtyp**:
 
 | Gruppe | Typen |
 |---|---|
@@ -129,7 +130,7 @@ Fragt eine Vorlage etwas, stellt Plainva **alle** Fragen zusammen in einem Dialo
 
 **Vorlagen je Ordner**: Unter **Einstellungen → Vault → Inhalt & Struktur → Vorlagen** ordnest Du einem Ordner eine Vorlage zu — jede neue Notiz dort startet dann aus ihr, ohne dass Du etwas wählst. Die Zuordnung gilt auch für Unterordner; passen mehrere, gewinnt der längste Pfad (`Projekte/Kunden` schlägt `Projekte`). Genauso ordnest Du eine Vorlage einem **Notiztyp** zu; sie greift, wenn für den Ordner nichts hinterlegt ist — Ordner schlägt Typ. Über **Neue Notiz aus Vorlage …** (Rechtsklick im Dateibaum, Befehls-Palette oder Schnellöffner) wählst Du eine Vorlage ausdrücklich — das schlägt jede Zuordnung. Die Zuordnungen liegen in den Einstellungen, nicht in den Notizen, und reisen über die Einstellungs-Synchronisation auf Deine anderen Geräte.
 
-Vorlagen erstellen geht von überall: Die Befehls-Palette (`Strg+P`) bietet **Neue Vorlage erstellen** (eine frische Vorlage öffnet sich zum Bearbeiten) und **Aktuelle Notiz als Vorlage speichern** (kopiert die offene Notiz in den Vorlagen-Ordner). Vorlagen sind gewöhnliche Markdown-Dateien — bearbeite, benenne oder lösche sie direkt im Dateibaum.
+Vorlagen erstellen geht von überall: Die Befehls-Palette (`Strg+P`) bietet **Neue Vorlage erstellen** (eine frische Vorlage öffnet sich zum Bearbeiten) und **Aktuelle Notiz als Vorlage speichern** (kopiert die offene Notiz in den Vorlagen-Ordner). Vorlagen sind gewöhnliche Markdown-Dateien — bearbeite, benenne oder lösche sie direkt im Dateibaum. Auf dem Telefon stehen beide ebenfalls in der Befehlspalette (`>` im Suchfeld); für den zweiten öffnest Du sie aus dem **⋮**-Menü der Notiz → **Befehle**.
 
 ## Tägliche Notizen
 

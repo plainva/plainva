@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckSquare, Square, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
+import { CheckSquare, RefreshCw, CalendarClock, FileText, EyeOff, Eye, Database, Table, CalendarPlus, Repeat, Flag } from "lucide-react";
 import { isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setFrontmatterPath, setTasksPriority, deleteFrontmatterPath, type ChecklistMutationResult, type TaskBoxState, type TaskRecord, trimEndChars } from "@plainva/core";
 import { errorText, TaskMetadataDetails, TaskMutationGate, useTaskViewState, filterTaskDbRows, filterTasks, groupTasksByNote, Button, Chip, EmptyState, ICON, IconButton, MenuItem, MenuLabel, MenuSurface, noteDisplayName, parseBaseConfig, parseInlineMarkdown, Segmented, setNoteTaskExclusion, setPendingSearchJump, toast, toggleTaskAtIndex, type InlineNode } from "@plainva/ui";
 import { Select } from "../Select";
@@ -32,6 +32,7 @@ import { formatDueLabel } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
+import { applyTaskDueChanges, DateJumpPicker, DateJumpPopover, formatPickedDay, overdueToDayChanges, TaskCheckButton, useWeekStartDay, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
 import { TimeBlockModal } from "../pimcal/TimeBlockModal";
 
 const inlineLinkStyle: React.CSSProperties = { color: "var(--accent-color)" };
@@ -87,6 +88,9 @@ interface Props {
 
 type StatusFilter = "open" | "done" | "all";
 
+/** The date popover's anchor while no task is being moved. */
+const NO_ANCHOR: { current: HTMLElement | null } = { current: null };
+
 
 /**
  * Vault-wide Tasks view (B4) — the file-based aggregation a `.base` cannot do
@@ -112,7 +116,7 @@ function DueLabel({ due }: { due: string }) {
 }
 
 export function TasksView({ onOpenPath, onRenamed }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { queryService, vaultAdapter, vaultPath, fileTreeVersion, indexer, triggerFileTreeUpdate, pimRuntime } = useVault();
   // The list stays on screen while it reloads (finding 2026-09-20): `loading`
   // used to be raised on EVERY index change and the list drew nothing while it
@@ -150,9 +154,14 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
    * here, the list inside `RowActionList` (see there for why).
    */
   const [rowMenu, setRowMenu] = useState<{ at: { x: number; y: number }; caps: TaskRowCaps } | null>(null);
-  const openRowMenu = (e: ReactMouseEvent, caps: TaskRowCaps) => {
+  // The capabilities are built for the point the menu opens at: a follow-up
+  // picker (priority, state, due date) opens where the row was clicked. They
+  // used to read the PREVIOUS menu's point from state, so the first follow-up
+  // of a session opened in the window's top-left corner.
+  const openRowMenu = (e: ReactMouseEvent, caps: (at: { x: number; y: number }) => TaskRowCaps) => {
     e.preventDefault();
-    setRowMenu({ at: { x: e.clientX, y: e.clientY }, caps });
+    const at = { x: e.clientX, y: e.clientY };
+    setRowMenu({ at, caps: caps(at) });
   };
   const [repeatTarget, setRepeatTarget] = useState<{ path: string; title: string; rule: RepeatRule | null; due: string | null } | null>(null);
   const [dbStatusMenu, setDbStatusMenu] = useState<{ path: string; at: { x: number; y: number } } | null>(null);
@@ -355,6 +364,8 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
    * could NOT be anchored is worse still: the next sync finds a remote task
    * with no note and imports a second one.
    */
+  // A retry calls the send it belongs to, and a callback cannot name itself.
+  const retrySend = useRef<((dbPath: string, notePath: string, title: string, dueDate?: string) => void) | null>(null);
   const sendToProvider = useCallback(
     async (dbPath: string, notePath: string, title: string, dueDate?: string) => {
       if (!vaultAdapter) return;
@@ -366,11 +377,18 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         ...(dueDate ? { dueDate } : {}),
         pimRuntime,
       });
-      if (outcome === "createFailed") toast.error(t("tasks.providerCreateFailed"));
-      else if (outcome === "notAnchored") toast.error(t("tasks.providerAnchorFailed"));
+      // Nothing exists at the provider yet, so trying again is safe. A task
+      // that was created but not anchored is the opposite: a second attempt
+      // would create a second remote task, so that message offers no retry.
+      if (outcome === "createFailed") {
+        toast.error(t("tasks.providerCreateFailed"), { label: t("pim.eventWriteRetry"), run: () => retrySend.current?.(dbPath, notePath, title, dueDate) });
+      } else if (outcome === "notAnchored") toast.error(t("tasks.providerAnchorFailed"));
     },
     [vaultAdapter, pimRuntime, t]
   );
+  useEffect(() => {
+    retrySend.current = (dbPath, notePath, title, dueDate) => void sendToProvider(dbPath, notePath, title, dueDate).then(() => setRefreshTick((x) => x + 1));
+  }, [sendToProvider]);
 
   // Promote a checkbox into the task database (default DB on click; any DB via
   // the context menu). The service re-verifies the ordinal against the fresh
@@ -470,8 +488,10 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
         // …and, if the database names a provider list AND the chip stayed on,
         // create it there too (C4, S16). The note is the deliverable and already
         // exists; this is the addition, so its failures are REPORTED and never
-        // cost the note.
-        if (alsoAtProvider) await sendToProvider(taskDb, res.notePath, result.title, result.due ?? undefined);
+        // cost the note. Nor do they hold it back (issue 119): the task is in
+        // the list as soon as its note is written, and the provider's answer
+        // only adds the link to it.
+        if (alsoAtProvider) void sendToProvider(taskDb, res.notePath, result.title, result.due ?? undefined).then(() => setRefreshTick((x) => x + 1));
         setRefreshTick((x) => x + 1);
         toast.success(t("tasks.captureCreated", { name: result.title }), { label: t("tasks.captureOpen"), run: () => onOpenPath(res.notePath, false) });
         // A database from before tasks had times types its due column as a day:
@@ -817,23 +837,109 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
     await mutateCheckbox(task, (fresh, ordinal) => setChecklistTaskState(fresh, ordinal, state), (row) => ({ ...row, done: state === "done", state }));
   };
 
-  const dbRowCaps = (r: (typeof filteredDbRows)[number]): TaskRowCaps => ({
+  /**
+   * The due day (plan Befunde 2026-10-06, W2/W3). A press on a task's date
+   * opens the shared date picker under it; the row menu offers the same picker,
+   * which is also how a task without a date gets one. "All to today" at the
+   * Overdue heading moves the whole section. Every move answers with a toast
+   * that carries Undo — the same write, pointed back at the days that were
+   * there. The phone's twin is the due sheet in TasksScreen.
+   */
+  const weekStart = useWeekStartDay();
+  const [dueTarget, setDueTarget] = useState<{
+    anchorRef: { current: HTMLElement | null };
+    /** The day the task carries now; null for a task without one. */
+    value: string | null;
+    change: (day: string) => TaskDueChange;
+  } | null>(null);
+  const applyDue = useCallback(
+    async (changes: readonly TaskDueChange[]): Promise<TaskDueOutcome | null> => {
+      if (!vaultAdapter || changes.length === 0) return null;
+      taskMutationGate.begin();
+      let outcome: TaskDueOutcome;
+      try {
+        outcome = await applyTaskDueChanges(
+          {
+            readTextFile: (path) => vaultAdapter.readTextFile(path),
+            writeNoteText: (path, content) => vaultAdapter.writeTextFile(path, content),
+            // The task-note chain of the tick: write, index, tree, provider nudge.
+            writeDbNote: async (path, mutate) => { await writeTaskNote(taskWriteDeps(), path, mutate); },
+            dueKey: dbDueKey,
+          },
+          changes,
+        );
+      } catch (error) {
+        taskMutationGate.finish();
+        console.error("[TasksView] moving a due date failed", error);
+        toast.error(errorText(error));
+        setRefreshTick((x) => x + 1);
+        return null;
+      }
+      const moved = new Map(outcome.lines.map((line) => [`${line.path}#${line.ordinal}`, line]));
+      if (moved.size > 0) {
+        setTasks((prev) => prev.map((row) => {
+          const hit = moved.get(`${row.path}#${row.ordinal}`);
+          return hit ? { ...row, text: hit.text, due: hit.day } : row;
+        }));
+      }
+      let reindexed = false;
+      try {
+        if (indexer && outcome.notePaths.length > 0) {
+          await applyIndexChanges(indexer, { added: outcome.notePaths });
+          reindexed = true;
+        }
+      } catch (error) {
+        // The Markdown is written; keep the truthful rows instead of a stale index.
+        console.error("[TasksView] reindexing moved tasks failed", error);
+      } finally {
+        taskMutationGate.finish();
+      }
+      if (reindexed) triggerFileTreeUpdate(outcome.notePaths);
+      setRefreshTick((x) => x + 1);
+      return outcome;
+    },
+    [vaultAdapter, taskMutationGate, taskWriteDeps, dbDueKey, indexer, triggerFileTreeUpdate, setTasks]
+  );
+  /** Applies a move and says what happened; `announce` words the success. */
+  const moveDue = async (changes: readonly TaskDueChange[], announce: (outcome: TaskDueOutcome) => string) => {
+    const outcome = await applyDue(changes);
+    if (!outcome) return;
+    if (outcome.skipped > 0) toast.warning(t("tasks.dueSkipped", { count: outcome.skipped }));
+    if (outcome.moved === 0) return;
+    const undo = outcome.undo;
+    toast.success(announce(outcome), undo.length > 0 ? { label: t("common.undo"), run: () => void applyDue(undo) } : undefined);
+  };
+  const pickDue = (day: string) => {
+    const target = dueTarget;
+    setDueTarget(null);
+    if (!target || day === target.value) return;
+    void moveDue([target.change(day)], () => t("tasks.dueMoved", { date: formatPickedDay(day, i18n.language) }));
+  };
+  const dbDueChange = (path: string) => (day: string): TaskDueChange => ({ source: "database", path, day });
+  const noteDueChange = (task: TaskRecord) => (day: string): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day });
+  /** The element a menu was opened on — the picker of a menu entry hangs there. */
+  const anchorAt = (at: { x: number; y: number }) => ({ current: (document.elementFromPoint(at.x, at.y) as HTMLElement | null) ?? document.body });
+
+  const dbRowCaps = (r: (typeof filteredDbRows)[number], at: { x: number; y: number }): TaskRowCaps => ({
     done: r.done,
     toggle: dbCompletion ? () => toggleDbRowDone(r.path, !r.done) : undefined,
     repeat: r.mirrored ? undefined : () => setRepeatTarget({ path: r.path, title: noteDisplayName(r.title), rule: r.repeat, due: r.due ?? null }),
     block: calendarOptions.length > 0 ? () => setBlockTarget({ title: noteDisplayName(r.title), due: r.due, notePath: r.path, linkPath: r.path }) : undefined,
-    priority: () => setPriorityMenu({ at: rowMenu?.at ?? { x: 0, y: 0 }, target: { kind: "db", path: r.path } }),
+    // Only a database with a date column can carry a due day.
+    due: dbDueKey ? () => setDueTarget({ anchorRef: anchorAt(at), value: r.due ?? null, change: dbDueChange(r.path) }) : undefined,
+    priority: () => setPriorityMenu({ at, target: { kind: "db", path: r.path } }),
   });
-  const noteRowCaps = (task: TaskRecord): TaskRowCaps => ({
+  const noteRowCaps = (task: TaskRecord, at: { x: number; y: number }): TaskRowCaps => ({
     done: !isOpenTaskState(task.state),
     toggle: () => toggle(task),
-    promote: () => (taskDb ? void promote(task) : void openPromoteMenu(task, rowMenu?.at ?? { x: 0, y: 0 })),
+    promote: () => (taskDb ? void promote(task) : void openPromoteMenu(task, at)),
     block:
       calendarOptions.length > 0
         ? () => setBlockTarget({ title: stripTaskMeta(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
         : undefined,
-    priority: () => setPriorityMenu({ at: rowMenu?.at ?? { x: 0, y: 0 }, target: { kind: "note", task } }),
-    state: () => setStateMenu({ at: rowMenu?.at ?? { x: 0, y: 0 }, task }),
+    due: () => setDueTarget({ anchorRef: anchorAt(at), value: task.due ?? null, change: noteDueChange(task) }),
+    priority: () => setPriorityMenu({ at, target: { kind: "note", task } }),
+    state: () => setStateMenu({ at, task }),
   });
 
   const taskOfRow = (row: PlannerRow): TaskRecord | undefined => tasks.find((tk) => tk.path === row.path && tk.ordinal === row.ordinal);
@@ -854,8 +960,22 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
   const onPlannerMenu = (row: PlannerRow, at: { x: number; y: number }) => {
     const dbRow = row.source === "database" ? dbRowOf(row) : undefined;
     const task = row.source === "note" ? taskOfRow(row) : undefined;
-    if (dbRow) setRowMenu({ at, caps: dbRowCaps(dbRow) });
-    else if (task) setRowMenu({ at, caps: noteRowCaps(task) });
+    if (dbRow) setRowMenu({ at, caps: dbRowCaps(dbRow, at) });
+    else if (task) setRowMenu({ at, caps: noteRowCaps(task, at) });
+  };
+  const plannerDueChange = (row: PlannerRow) => {
+    if (row.source === "database") return dbDueKey ? dbDueChange(row.path) : null;
+    const task = taskOfRow(row);
+    return task ? noteDueChange(task) : null;
+  };
+  const onPlannerDue = (row: PlannerRow, anchor: HTMLElement) => {
+    const change = plannerDueChange(row);
+    if (change) setDueTarget({ anchorRef: { current: anchor }, value: row.due ?? null, change });
+  };
+  const overdueToToday = () => {
+    const overdue = planner.sections("today").find((section) => section.kind === "overdue")?.rows ?? [];
+    const changes = overdueToDayChanges(overdue, todayKey, (row) => taskOfRow(row));
+    void moveDue(changes, (outcome) => t("tasks.overdueMoved", { count: outcome.moved }));
   };
   const plannerSections = list === "all" ? [] : planner.sections(list);
   const shownCount = list === "all" ? filtered.length : plannerSections.reduce((n, sec) => n + sec.rows.length, 0);
@@ -971,6 +1091,9 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
               onToggle={onPlannerToggle}
               onOpen={onPlannerOpen}
               onMenu={onPlannerMenu}
+              onDue={onPlannerDue}
+              canDue={(row) => plannerDueChange(row) !== null}
+              onOverdueToToday={overdueToToday}
             />
           )}
         </div>
@@ -1008,30 +1131,41 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
                 </div>
               ) : (
                 filteredDbRows.map((r) => (
-                  <div key={r.path} data-testid="task-db-row" data-done={r.done ? "1" : "0"} onContextMenu={(e) => openRowMenu(e, dbRowCaps(r))} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
-                    <button
-                      type="button"
+                  <div key={r.path} data-testid="task-db-row" data-done={r.done ? "1" : "0"} onContextMenu={(e) => openRowMenu(e, (at) => dbRowCaps(r, at))} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                    <TaskCheckButton
+                      state={r.done ? "done" : "open"}
+                      label={r.done ? t("tasks.open", { defaultValue: "Offen" }) : t("tasks.done", { defaultValue: "Erledigt" })}
                       disabled={!dbCompletion}
-                      onClick={() => toggleDbRowDone(r.path, !r.done)}
-                      aria-label={r.done ? t("tasks.open", { defaultValue: "Offen" }) : t("tasks.done", { defaultValue: "Erledigt" })}
-                      data-testid="task-db-toggle"
-                      style={{ border: "none", background: "transparent", cursor: dbCompletion ? "pointer" : "default", padding: 0, marginTop: 2, color: r.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0, display: "inline-flex" }}
-                    >
-                      {r.done ? <CheckSquare size={ICON.ui} /> : <Square size={ICON.ui} />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpenPath(r.path, false)}
-                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: r.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: r.done ? "line-through" : "none", fontSize: "var(--text-md)", lineHeight: 1.4 }}
-                    >
-                      <TaskPriorityFlag rank={r.priority} />
-                      {noteDisplayName(r.title)}
+                      onToggle={() => toggleDbRowDone(r.path, !r.done)}
+                      testId="task-db-toggle"
+                    />
+                    {/* The line opens the note; the date on it is a control of
+                        its own (W2) and so stands beside the title's button,
+                        not inside it. */}
+                    <div className="pv-taskline" onClick={() => onOpenPath(r.path, false)}>
+                      <button
+                        type="button"
+                        className="pv-taskline-open"
+                        style={{ color: r.done ? "var(--text-muted)" : "var(--text-main)", textDecoration: r.done ? "line-through" : "none" }}
+                      >
+                        <TaskPriorityFlag rank={r.priority} />
+                        {noteDisplayName(r.title)}
+                      </button>
                       {r.due ? (
-                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
-                          <CalendarClock size={ICON.meta} /> <DueLabel due={r.due} />
-                        </span>
+                        <Chip
+                          size="sm"
+                          tone="warning"
+                          icon={<CalendarClock size={ICON.meta} />}
+                          testId="task-db-due"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: r.due ?? null, change: dbDueChange(r.path) });
+                          }}
+                        >
+                          <DueLabel due={r.due} />
+                        </Chip>
                       ) : null}
-                    </button>
+                    </div>
                     <div className="pv-taskacts">
                     {r.repeat && (
                       <span
@@ -1167,36 +1301,43 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
               </div>
               <div style={{ padding: "0.25rem 0 0.35rem" }}>
                 {group.items.map((task) => (
-                  <div onContextMenu={(e) => openRowMenu(e, noteRowCaps(task))} key={task.ordinal} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
-                    <button
-                      type="button"
-                      onClick={() => toggle(task)}
-                      aria-label={t(task.state === "done" ? "tasks.done" : task.state === "progress" ? "tasks.stateProgress" : task.state === "cancelled" ? "tasks.stateCancelled" : "tasks.open")}
-                      data-testid="task-toggle"
-                      data-state={task.state}
-                      style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, marginTop: 2, color: task.done ? "var(--accent-color)" : "var(--text-muted)", flexShrink: 0 }}
-                    >
-                      <TaskStateIcon state={task.state} size={ICON.ui} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => open(task)}
-                      style={{ flex: 1, textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, color: isOpenTaskState(task.state) ? "var(--text-main)" : "var(--text-muted)", fontSize: "var(--text-md)", lineHeight: 1.4 }}
-                    >
-                      <TaskPriorityFlag rank={task.priority} />
-                      <span style={{ textDecoration: isOpenTaskState(task.state) ? "none" : "line-through" }}>{renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}</span>
-                      <TaskMetadataDetails task={task} />
+                  <div onContextMenu={(e) => openRowMenu(e, (at) => noteRowCaps(task, at))} key={task.ordinal} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "0.3rem 0.65rem" }}>
+                    <TaskCheckButton
+                      state={task.state}
+                      label={t(task.state === "done" ? "tasks.done" : task.state === "progress" ? "tasks.stateProgress" : task.state === "cancelled" ? "tasks.stateCancelled" : "tasks.open")}
+                      onToggle={() => void toggle(task)}
+                      testId="task-toggle"
+                    />
+                    <div className="pv-taskline" onClick={() => open(task)}>
+                      <button
+                        type="button"
+                        className="pv-taskline-open"
+                        style={{ color: isOpenTaskState(task.state) ? "var(--text-main)" : "var(--text-muted)" }}
+                      >
+                        <TaskPriorityFlag rank={task.priority} />
+                        <span style={{ textDecoration: isOpenTaskState(task.state) ? "none" : "line-through" }}>{renderTaskText(task.text, t("tasks.empty", { defaultValue: "Keine Aufgaben" }))}</span>
+                        <TaskMetadataDetails task={task} />
+                      </button>
                       {task.due ? (
-                        <span style={{ marginLeft: 6, display: "inline-flex", alignItems: "center", gap: 3, fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "var(--warning-bg)", color: "var(--warning-text)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
-                          <CalendarClock size={ICON.meta} /> <DueLabel due={task.due} />
-                        </span>
+                        <Chip
+                          size="sm"
+                          tone="warning"
+                          icon={<CalendarClock size={ICON.meta} />}
+                          testId="task-due"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDueTarget({ anchorRef: { current: e.currentTarget }, value: task.due ?? null, change: noteDueChange(task) });
+                          }}
+                        >
+                          <DueLabel due={task.due} />
+                        </Chip>
                       ) : null}
                       {task.tags.map((g) => (
-                        <span key={g} style={{ marginLeft: 6, display: "inline-block", fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+                        <span key={g} style={{ display: "inline-block", fontSize: "var(--text-sm)", padding: "0.02rem 0.4rem", borderRadius: "var(--radius-pill)", background: "color-mix(in srgb, var(--accent-color) 16%, transparent)", color: "var(--accent-color)", whiteSpace: "nowrap" }}>
                           #{g}
                         </span>
                       ))}
-                    </button>
+                    </div>
                     <div className="pv-taskacts">
                     {calendarOptions.length > 0 && (
                       <span className="pv-taskacts-slot">
@@ -1250,6 +1391,20 @@ export function TasksView({ onOpenPath, onRenamed }: Props) {
       )}
       </div>
       </div>
+
+      <DateJumpPopover open={dueTarget !== null} anchorRef={dueTarget?.anchorRef ?? NO_ANCHOR} onClose={() => setDueTarget(null)} ariaLabel={t("tasks.dueChange")} testId="task-due-picker">
+        {dueTarget && (
+          <DateJumpPicker
+            value={dueTarget.value ?? todayKey}
+            weekStart={weekStart}
+            onPick={pickDue}
+            onToday={() => pickDue(todayKey)}
+            onClose={() => setDueTarget(null)}
+            autoFocus
+            testId="task-due-grid"
+          />
+        )}
+      </DateJumpPopover>
 
       {rowMenu && (
         <MenuSurface open onClose={() => setRowMenu(null)} at={rowMenu.at} ariaLabel={t("tasks.rowActions", { defaultValue: "Aufgabenaktionen" })}>

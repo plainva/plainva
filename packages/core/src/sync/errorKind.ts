@@ -75,6 +75,66 @@ export function isRequestSendFailure(error: unknown): boolean {
 }
 
 /**
+ * The local database could not take a write right now.
+ *
+ * SQLite answers "database is locked" (SQLITE_BUSY, code 5) or "database table
+ * is locked" (SQLITE_LOCKED, code 6) when another connection holds the write
+ * lock longer than the busy timeout — the indexer in the middle of a large
+ * batch is the ordinary case. Nothing is wrong with the account and nothing is
+ * wrong with the provider; the next attempt finds the lock gone. None of the
+ * network words below appear in the sentence, so it counted as FATAL, and the
+ * calendar worker parked an account on it until someone refreshed by hand.
+ */
+export function isLocalStoreBusy(error: unknown): boolean {
+  const text = syncErrorMessage(error).toLowerCase();
+  return /database (?:table )?is locked|sqlite_busy|sqlite_locked|database is busy/.test(text);
+}
+
+/** The provider's own words for "this sign-in no longer works". */
+const SIGN_IN_WORDS =
+  /invalid[_ -]?grant|invalid[_ -]client|unauthori[sz]ed|unauthenticated|invalid credentials|insufficient ?permissions?|no_stored_sign_in|aadsts(?:50173|700082|900144)|account is not connected|does not grant its required permissions/;
+
+/**
+ * Is the SIGN-IN what failed? (decision E7, plan Befunde 2026-10-06.)
+ *
+ * The calendar worker parks an account only on this: an expired or revoked
+ * authorisation does not heal by being asked again, everything else does or
+ * may. `classifySyncError` cannot answer it — its "fatal" also covers a 403 on
+ * one calendar, a 404 and every sentence it does not recognise, and parking on
+ * those is how a whole account went quiet over one unreadable calendar.
+ *
+ * A 401 counts wherever it comes from; the number is only read outside of
+ * URLs, so `maxResults=401` in an unanswered request does not pass for one.
+ */
+export function isSignInFailure(error: unknown): boolean {
+  if (isRequestSendFailure(error) || isLocalStoreBusy(error)) return false;
+  if ((error as { status?: unknown } | null)?.status === 401) return true;
+  const text = syncErrorMessage(error).toLowerCase();
+  if (SIGN_IN_WORDS.test(text) || tokenGone(text)) return true;
+  return /\b401\b/.test(withoutUrls(text));
+}
+
+function tokenGone(text: string): boolean {
+  return text.split(/[\r\n\u2028\u2029]/).some(line => { const token = line.indexOf("token"); return token >= 0 && /revoked|expired/.test(line.slice(token + 5)); });
+}
+
+/** Drops every `scheme://…` run up to the next whitespace or bracket. Linear. */
+function withoutUrls(text: string): string {
+  let out = "";
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf("://", from);
+    if (at < 0) return out + text.slice(from);
+    let start = at;
+    while (start > from && /[a-z0-9+.-]/.test(text[start - 1]!)) start--;
+    let end = at + 3;
+    while (end < text.length && !/[\s()<>"']/.test(text[end]!)) end++;
+    out += text.slice(from, start);
+    from = end;
+  }
+}
+
+/**
  * Is this failure worth waiting out, or is it an answer?
  *
  * Until round 3 of the mobile rework the worker had no such question: EVERY
@@ -101,7 +161,11 @@ export function classifySyncError(error: unknown): SyncErrorKind {
 
   // Authentication is fatal even when it arrives wrapped in a 5xx-looking
   // sentence: `invalid_grant` means the refresh token is gone for good.
-  if (/invalid[_ -]?grant|unauthori[sz]ed/.test(text) || text.split(/[\r\n\u2028\u2029]/).some(line => { const token = line.indexOf("token"); return token >= 0 && /revoked|expired/.test(line.slice(token + 5)); })) return "fatal";
+  if (/invalid[_ -]?grant|unauthori[sz]ed/.test(text) || tokenGone(text)) return "fatal";
+
+  // The local database being busy is the one failure that has nothing to do
+  // with the other side at all (plan Befunde 2026-10-06, K1).
+  if (isLocalStoreBusy(error)) return "transient";
 
   if (error instanceof AggregateError && error.errors.length > 0)
     return error.errors.every(cause => classifySyncError(cause) === "transient") ? "transient" : "fatal";

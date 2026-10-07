@@ -194,6 +194,26 @@ export function openAiSheet(path: string | null): void {
 }
 
 /**
+ * What the palette gets of the assistant: asking it, and starting a skill —
+ * both about the note the palette was opened over. Nothing while the AI is
+ * off. Built here, and handed out by `useMobileAi` as `palette`: App.tsx is
+ * under a line budget, and the assistant's wiring is the assistant's. The
+ * shell still names the three keys itself — the palette's drift guard reads
+ * them there.
+ */
+export function aiPaletteCommands<Skills>(ai: { enabled: boolean; skills: Skills }, note: () => string | null): { openAi?: () => void; runAiSkill?: (id: string) => void; aiSkills?: Skills } {
+  if (!ai.enabled) return {};
+  return {
+    openAi: () => openAiSheet(note()),
+    runAiSkill: (id) => {
+      openAiSheet(note());
+      runMobileAiSkill(id);
+    },
+    aiSkills: ai.skills,
+  };
+}
+
+/**
  * A link in an answer is untrusted: it opens only after the reader saw where
  * it goes — and, for an address the model put together itself (plan P4), read
  * that it did.
@@ -231,6 +251,8 @@ export interface MobileAiNavigation {
   openNote: (path: string) => void;
   /** The AI settings screen (the conversation's "set up" leads there). */
   openSettings?: () => void;
+  /** The search screen — where the system's assistant leads for "search", and for a note it may no longer name (plan P4.7). */
+  openSearch?: () => void;
   /**
    * The palette's commands as the shell built them (plan KI-Harness P4-4):
    * what `run_command` can do is what the command registry holds on this
@@ -246,7 +268,7 @@ export interface MobileAiNavigation {
  * never follows a return), so the navigation it may trigger arrives later,
  * through `MobileAiNavigation` rendered below the gate.
  */
-export function useMobileAi(vault: MobileVault | null) {
+export function useMobileAi(vault: MobileVault | null, paletteNote: () => string | null = () => null) {
   const s = getMobileAiSession();
   const state = useSyncExternalStore(s.subscribe, s.getState);
   const [sheet, setSheet] = useState<{ path: string | null } | null>(null);
@@ -448,7 +470,9 @@ export function useMobileAi(vault: MobileVault | null) {
   };
   // The skills a person can start now (plan KI-Harness P3): the palette lists them.
   const skills = useMemo(() => startableSkills((key, vars) => i18n.t(key, vars), state.skills.entries), [state.skills]);
-  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef, embeddings, gists, skills };
+  // What the palette gets of the assistant, about the note the shell names for a command.
+  const palette = aiPaletteCommands({ enabled, skills }, paletteNote);
+  return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, policy, navRef, embeddings, gists, skills, palette };
 }
 
 /**

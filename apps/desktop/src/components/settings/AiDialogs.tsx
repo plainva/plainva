@@ -148,7 +148,7 @@ export function AiKeyDialog({ session, provider, onClose }: { session: AiSession
         <TextInput
           type="password"
           autoComplete="off"
-          spellCheck={false}
+          purpose="secret"
           value={key}
           onChange={(e) => setKey(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") save(); }}
@@ -209,7 +209,7 @@ export function AiModelDialog({ session, state, profile, onClose }: { session: A
           options={providers.map((p) => ({ value: p.id, label: p.label }))}
           onChange={(id) => setProviderId(id)}
         />
-        <TextInput value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("ai.settings.modelPlaceholder")} aria-label={t("ai.settings.model")} spellCheck={false} data-testid="ai-model-input" />
+        <TextInput value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("ai.settings.modelPlaceholder")} aria-label={t("ai.settings.model")} purpose="code" data-testid="ai-model-input" />
         <div className="pv-ai-modelhead">
           <span className="pv-ai-tilehint">{t("ai.settings.modelFromList")}</span>
           <Button size="sm" variant="ghost" disabled={!providerId || test?.state === "testing"} onClick={() => void session.testProvider(providerId)}>

@@ -54,6 +54,20 @@ describe("PIM refresh wiring", () => {
     });
   }
 
+  it("the calendar reads the cache again after EVERY cycle, and when the app comes back", () => {
+    // `m-pim-changed` fires only when a cycle wrote. After a cycle that failed
+    // or found nothing the screen stayed on what it had read last — so an
+    // account that stopped syncing never showed (plan Befunde 2026-10-06, K1).
+    // The status store changes at the start and the end of every cycle; the
+    // reload hangs on it, and on the page becoming visible.
+    const src = read("screens/PimCalendarScreen.tsx");
+    expect(src).toMatch(/useEffect\(\(\) => \{ reload\(\); \}, \[reload, bump, status\.status\]\)/);
+    expect(src).toMatch(/addEventListener\("visibilitychange", onVisible\)/);
+    // What it reads then includes who is not being synced — for the shared line.
+    expect(src).toContain("listSyncProblems()");
+    expect(src).toMatch(/<CalendarSyncNotice problems=\{syncProblems\} onRetry=\{pimSyncNow\}/);
+  });
+
   it("the foreground trigger also replans the reminders", () => {
     // The runtime and its triggers live in pimRuntime.ts (Befunde 2026-09-24, Z2).
     const src = read("services/pim/pimRuntime.ts");

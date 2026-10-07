@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { LocalModelsProvider, newEntries, requestNew, type NewHandlers } from "@plainva/ui";
+import { InlineSuggestProvider, LocalModelsProvider, newEntries, requestNew, type NewHandlers } from "@plainva/ui";
 import { NavBar } from "./components/NavBar";
 import { tabTapped } from "./services/tabTap";
 import { useTranslation } from "react-i18next";
@@ -22,6 +22,8 @@ import { makeOpenAttachment, routeVaultPath } from "./services/openAttachment";
 import { vaultOps, getMobileVault, createLocalVault, chooseVaultPlace, createVaultInPickedFolder, type MobileVault } from "./services/vaultService";
 import { startSyncIfConfigured } from "./services/syncService";
 import { useBackupSchedule } from "./services/useBackupSchedule";
+import { backupVaultNow } from "./services/vaultBackup";
+import { rebuildVaultIndex } from "./services/indexMaintenance";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { usePinboardDraftSweep } from "./services/usePinboardDraftSweep";
 import { startPim, stopPim } from "./services/pim/pimService";
@@ -68,7 +70,7 @@ import {
   navTop,
   pushCapturedNote,
   pushEntry,
-  activeNotePath,
+  commandNotePath,
   reservesFabStrip, showsCaptureFab,
   tapTab,
   SCREEN_ENTRY,
@@ -82,8 +84,7 @@ import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
-import { AiSheet } from "./components/AiSheet";
-import { MobileAiNavigation, openAiNoteTarget, openAiSheet, runMobileAiSkill, useMobileAi, withoutAiArea } from "./services/ai/mobileAi";
+import { MobileAiShell, openAiNoteTarget, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
 
 // Tab/stack shell (rebuilt in R2): the bottom bar carries up to four
 // user-chosen screens around the fixed ＋ (M3 navigation bar); search and
@@ -401,7 +402,7 @@ export default function App() {
   // early return: hooks must run in the same order on every render.
 
   useCommentShell(vault, useCallback((entry) => setNav((s) => pushEntry(s, entry)), []));
-  const ai = useMobileAi(vault);
+  const ai = useMobileAi(vault, () => commandNotePath(nav));
   if (!vault) return <div className="m-app" />;
 
   const top = navTop(nav);
@@ -461,7 +462,6 @@ export default function App() {
       onJournal={() => setJournalCapture({ text: "" })}
       onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
       onOpenNote={openNote}
-      onSearch={() => setNav((n) => pushEntry(n, { kind: "search", path: "" }))}
       onOpenToday={() => openDaily(journalTodayKey())}
       pendingShortcut={pendingShortcut}
       setPendingShortcut={setPendingShortcut}
@@ -649,15 +649,16 @@ export default function App() {
     openSettings: () => push({ kind: "settings", path: "" }),
     switchVault: () => push({ kind: "vaults", path: "" }),
     refreshVault: () => setBump((n) => n + 1),
-    activeNote: () => activeNotePath(top),
-    openAi: ai.enabled ? () => openAiSheet(activeNotePath(top) ?? null) : undefined,
-    runAiSkill: ai.enabled
-      ? (id) => {
-          openAiSheet(activeNotePath(top) ?? null);
-          runMobileAiSkill(id);
-        }
-      : undefined,
-    aiSkills: ai.enabled ? ai.skills : undefined,
+    // Six the phone served on a screen of its own and the palette now reaches
+    // too: each leads to that screen or runs the function its row runs.
+    newTemplate: quickCreateTemplate,
+    openComments: () => setNav((st) => tapTab(st, "comments")),
+    openImport: () => push({ kind: "importwizard", path: "" }),
+    backupNow: () => void backupVaultNow(vault, vaultName),
+    rebuildIndex: () => void rebuildVaultIndex(vault),
+    updateIndexes: () => push({ kind: "overviews", path: "" }),
+    activeNote: () => commandNotePath(nav),
+    openAi: ai.palette.openAi, runAiSkill: ai.palette.runAiSkill, aiSkills: ai.palette.aiSkills,
   });
 
   const routeCtx = {
@@ -672,10 +673,11 @@ export default function App() {
 
   const hasFab = onboarded && showsCaptureFab(top, nav.activeTab); // the strip: reservesFabStrip
   return (
+    // `[[` and `#` in the capture fields read this vault's index (W5).
+    <InlineSuggestProvider source={vault.queryService ?? null}>
     <LocalModelsProvider embeddings={ai.embeddings} gists={ai.gists}>
     <div className={`m-app${isKeyboardOpen ? " is-keyboard-open" : ""}${onboarded && reservesFabStrip(top, nav.activeTab) ? " has-fab" : ""}`}>
       {runPendingIntents}
-      <MobileAiNavigation navRef={ai.navRef} nav={{ openNote, openSettings: () => push({ kind: "settingsArea", path: "ai" }), commands }} />
       <ShareInbox key={vault.vaultId} vault={vault} vaultName={vaultName} onChooseVault={() => push({ kind: "vaults", path: "" })} onUnlock={() => push({ kind: "settingsArea", path: "security" })} onImported={(path) => setNav(state => pushCapturedNote(state, slots, path))} />
       {!onboarded && (
         <div className="m-onboarding">
@@ -771,10 +773,7 @@ export default function App() {
           vault={vault}
         />
       )}
-      {ai.sheet && (
-        <AiSheet notePath={ai.sheet.path} onClose={ai.closeSheet} onOpenScreen={() => { ai.closeSheet(); setNav((s) => (slots.includes("ai") ? tapTab(s, "ai") : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY.ai))); }}
-          onOpenNote={(target) => { ai.closeSheet(); openAiNoteTarget(vault, target, openNote); }} onOpenSettings={() => { ai.closeSheet(); push({ kind: "settingsArea", path: "ai" }); }} />
-      )}
+      <MobileAiShell ai={ai} nav={{ openNote, openSearch: () => push({ kind: "search", path: "" }), openSettings: () => push({ kind: "settingsArea", path: "ai" }), commands }} onOpenNote={(target) => openAiNoteTarget(vault, target, openNote)} onOpenScreen={() => setNav((s) => (slots.includes("ai") ? tapTab(s, "ai") : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY.ai)))} />
       {fromTemplate && (
         <TemplatePickSheet
           onClose={() => setFromTemplate(false)}
@@ -786,6 +785,7 @@ export default function App() {
       )}
     </div>
     </LocalModelsProvider>
+    </InlineSuggestProvider>
   );
 }
 

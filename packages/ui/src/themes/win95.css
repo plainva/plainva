@@ -567,8 +567,21 @@
     inset 2px 2px 0 #DFDFDF;
 }
 [data-theme-name="win95"] .pv-dbbar-crumb { border-radius: 0; }
-[data-theme-name="win95"] .pv-kv-key { text-transform: none; letter-spacing: 0; }
-/* Entry inspector: the position stepper is a sunken well, like every other
+/* The context column's row (icon · name · value · edge): the grid is the
+   shared one and stays untouched. A value being edited is a sunken white
+   field, like every text box of the era; nothing rounded survives, and the
+   group head drops the modern uppercase tracking. */
+[data-theme-name="win95"] .pv-prow-value,
+[data-theme-name="win95"] .pv-prow-actions,
+[data-theme-name="win95"] .pv-prow-toggle { border-radius: 0; }
+[data-theme-name="win95"] .pv-prow[data-frame="quiet"] > .pv-prow-value:focus-within {
+  background: #FFFFFF;
+  box-shadow:
+    inset -1px -1px 0 #DFDFDF,
+    inset 1px 1px 0 #808080;
+}
+[data-theme-name="win95"] .pv-prow-group { text-transform: none; letter-spacing: 0; color: var(--text-main); }
+/* Database section: the position stepper is a sunken well, like every other
    read-only value box of the era; nothing rounded survives here. */
 /* Count badges are readouts, not accents: a squared sunken well with the
    system text colour. The shared accent-container pair has no meaning here. */
@@ -590,8 +603,6 @@
     inset 2px 2px 0 #0A0A0A;
 }
 [data-theme-name="win95"] .pv-dbinsp-pos { color: var(--text-main); }
-[data-theme-name="win95"] .pv-dbinsp-disclose { text-transform: none; }
-[data-theme-name="win95"] .pv-dbinsp-grid { row-gap: 1px; }
 
 /* Formatting toolbar over a selection: a raised square strip. */
 [data-theme-name="win95"] .pv-seltoolbar {

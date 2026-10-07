@@ -1,10 +1,10 @@
 # Importeren uit een andere app
 
-Laatst bijgewerkt: 2026-09-17
+Laatst bijgewerkt: 2026-10-06
 
 Plainva importeert notities uit andere apps in een nieuwe vault of een nieuw benoemde submap van de geopende vault. De rest blijft ongewijzigd; je kunt de importmap daarna verplaatsen of verwijderen.
 
-**Importeren werkt op beide apparaten, met dezelfde bronnen.** Op de desktop leiden het startscherm, het opdrachtenpalet en het contextmenu van een map ernaartoe; op de telefoon vind je het onder **Instellingen → Onderhoud → Importeren uit een andere app**. Ook bronnen die toegang tot een dienst nodig hebben — Notion via de API — zijn daar beschikbaar.
+**Importeren werkt op beide apparaten, met dezelfde bronnen.** Op de desktop leiden het startscherm, het opdrachtenpalet en het contextmenu van een map ernaartoe; op de telefoon vind je het onder **Instellingen → Onderhoud → Importeren uit een andere app**. Ook bronnen die toegang tot een dienst nodig hebben — Notion via de API — zijn daar beschikbaar. Ook het opdrachtenpalet van de telefoon (`>` in het zoekveld) leidt ernaartoe.
 
 ## Import starten
 

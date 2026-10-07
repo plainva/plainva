@@ -3,6 +3,7 @@ import { Range, StateField, EditorState, Extension, EditorSelection, Facet } fro
 import { syntaxTree } from "@codemirror/language";
 import { parseCalloutMarker, calloutColorKey, calloutColor, calloutIconPath, calloutLineClass } from "./callouts";
 import { parseMarkdownTable, serializeTable, setCell, type TableModel, type TableAlign } from "./tableModel";
+import { editTextToTableCell, fitFieldHeight, tableCellToEditText } from "../lib/growingField";
 import { renderInlineMarkdown, type InlineLinkHandlers } from "../lib/inlineMarkdown";
 import { formatRelativeDate, DATE_TOKEN_RE } from "../services/dynamicDate";
 import { isEditorInteractive } from "./editorInteractive";
@@ -12,6 +13,7 @@ import { isAnchorMarkerText } from "./anchorMarkerHide";
 import { listDepthAt } from "./listIndent";
 import { editorLineDirection } from "./textDirectionExtension";
 import { textDirectionOf, type TextDirection } from "../lib/textDirection";
+import { spellcheckAttr } from "../lib/spellcheck";
 import { onCompletedTap } from "./completedTap";
 import { scanTasks, setChecklistTaskDone } from "@plainva/core";
 import { minimalDocChange } from "../lib/textDiff";
@@ -289,17 +291,23 @@ function replaceTableRange(view: EditorView, from: number, to: number, model: Ta
   view.dispatch({ changes: { from, to: safeTo, insert: serializeTable(model) }, userEvent: "input" });
 }
 
-// Renders a GFM table as a real <table>. Clicking a cell opens a native <input>
-// editor in place; committing on blur / Enter rewrites the canonical GFM
-// source. Right-clicking a cell opens the row/column context menu (handled in
+// Renders a GFM table as a real <table>. Clicking a cell opens a native field
+// in place; committing on blur / Enter rewrites the canonical GFM source.
+// Right-clicking a cell opens the row/column context menu (handled in
 // Editor.tsx via a window event). The raw markdown stays reachable through
 // Source mode.
 //
-// A native <input> is used (not contenteditable on the cell): the table lives
-// inside CodeMirror's editable contentDOM, and a contenteditable cell would
-// route keystrokes through CM's beforeinput handler and overwrite the document.
-// An <input> has its own input model, so combined with ignoreEvent /
-// ignoreMutation CodeMirror stays entirely out of the cell.
+// A native form field is used (not contenteditable on the cell): the table
+// lives inside CodeMirror's editable contentDOM, and a contenteditable cell
+// would route keystrokes through CM's beforeinput handler and overwrite the
+// document. A form field has its own input model, so combined with
+// ignoreEvent / ignoreMutation CodeMirror stays entirely out of the cell.
+//
+// The field is a <textarea> that is as tall as its text (issue 118): the cell
+// wraps while it is read, and a one-line <input> showed a long cell through a
+// keyhole while it was edited. Shift+Enter adds a line break, written to the
+// source as `<br>` — the only way a GFM cell can hold one, and what the cell
+// display has rendered all along.
 class TableWidget extends WidgetType {
   constructor(
     readonly model: TableModel,
@@ -347,32 +355,50 @@ class TableWidget extends WidgetType {
     };
 
     const openCellEditor = (cell: HTMLTableCellElement, kind: "header" | "body", rowIndex: number, colIndex: number) => {
-      if (cell.querySelector("input")) return; // already editing this cell
+      if (cell.querySelector("textarea")) return; // already editing this cell
       const original = (kind === "header" ? this.model.headers[colIndex] : this.model.rows[rowIndex]?.[colIndex]) ?? "";
-      const input = document.createElement("input");
-      input.type = "text";
+      // What is edited is the cell with its `<br>` as real line breaks. A cell
+      // left as it was is compared in that form too, so opening and closing a
+      // cell never rewrites `<br/>` into `<br>` behind the user's back.
+      const originalText = tableCellToEditText(original);
+      const input = document.createElement("textarea");
+      input.rows = 1;
       input.className = "cm-md-table-input";
-      input.value = original;
+      // A cell holds prose: it follows the spell-checking switch by the one
+      // rule every writing field follows (lib/spellcheck.ts).
+      input.setAttribute("spellcheck", spellcheckAttr("prose"));
+      input.value = originalText;
       input.dir = cellDir(original);
       input.style.textAlign = alignToCss(this.model.aligns[colIndex] ?? null);
+      // A textarea has no width of its own: without this the column would
+      // collapse to its narrowest while the cell is edited and the text would
+      // stand in a tall, thin stack. The cell keeps the width it had.
+      const heldWidth = cell.style.minWidth;
+      cell.style.minWidth = `${cell.getBoundingClientRect().width}px`;
       cell.textContent = "";
       cell.appendChild(input);
+      fitFieldHeight(input);
       input.focus();
       input.select();
       let finished = false;
       const finish = (save: boolean) => {
         if (finished) return;
         finished = true;
-        const value = save ? input.value : original;
-        renderCell(cell, value); // remove the input, restore the rendered cell
-        if (save && value !== original) {
+        const changed = save && input.value !== originalText;
+        const value = changed ? editTextToTableCell(input.value) : original;
+        renderCell(cell, value); // remove the field, restore the rendered cell
+        cell.style.minWidth = heldWidth;
+        if (changed) {
           replaceTableRange(view, this.from, this.to, setCell(this.model, kind, rowIndex, colIndex, value));
         }
       };
+      input.addEventListener("input", () => fitFieldHeight(input));
       input.addEventListener("blur", () => finish(true));
       input.addEventListener("keydown", (e) => {
         e.stopPropagation(); // keep CM keymaps (e.g. select-all) out of the cell
-        if (e.key === "Enter") { e.preventDefault(); finish(true); }
+        // Enter while a word is still being composed confirms the word, not the cell.
+        if (e.isComposing) return;
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); finish(true); }
         else if (e.key === "Escape") { e.preventDefault(); finish(false); }
       });
     };

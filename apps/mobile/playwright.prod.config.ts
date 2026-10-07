@@ -16,7 +16,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: 1,
   reporter: "list",
-  use: { baseURL, trace: "on-first-retry", ...devices["Pixel 7"] },
+  // In CI the first run of every test is traced and the trace kept when it
+  // fails: `on-first-retry` kept the retry, which is the attempt that passed.
+  use: { baseURL, trace: process.env.CI ? "retain-on-first-failure" : "on-first-retry", ...devices["Pixel 7"] },
   projects: [{ name: "mobile-chromium" }],
   ...(process.env.E2E_BASE_URL
     ? {}

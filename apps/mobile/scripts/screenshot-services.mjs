@@ -54,10 +54,23 @@ const MESSAGES = [
 }));
 
 /** Install after the general external-request blocker: Playwright tries the
- * most recently registered matching route first. Unknown requests fail closed. */
-export async function installMailFixture(context) {
+ * most recently registered matching route first. Unknown requests fail closed.
+ *
+ * `extra` adds messages to folders other than the inbox, by folder id
+ * (`junkemail`, `archive` ...) - the inbox itself stays the three messages the
+ * screenshot baseline counts. A list request with `$search` answers with the
+ * messages whose subject or preview contains the term, like the server does;
+ * `observed.searches` records what was asked. */
+export async function installMailFixture(context, { extra = {} } = {}) {
   const messages = structuredClone(MESSAGES);
-  const observed = { lists: 0, bodies: 0, tokenRefreshes: 0, unexpected: [] };
+  const others = Object.fromEntries(Object.entries(structuredClone(extra)).map(([folder, list]) => [folder, list.map((m, i) => ({
+    from: { emailAddress: { name: "Ben Beispiel", address: "ben@example.org" } },
+    toRecipients: [{ emailAddress: { name: "Anna Beispiel", address: "anna@example.org" } }],
+    receivedDateTime: `2026-09-13T0${9 - i}:00:00Z`, flag: { flagStatus: "notFlagged" }, isRead: true, hasAttachments: false,
+    bodyPreview: "", ...m,
+  }))]));
+  const everything = () => [...messages, ...Object.values(others).flat()];
+  const observed = { lists: 0, bodies: 0, searches: [], tokenRefreshes: 0, unexpected: [] };
   await context.route("https://login.microsoftonline.com/**", async (route) => {
     if (!route.request().url().includes("/oauth2/v2.0/token")) return route.abort("blockedbyclient");
     observed.tokenRefreshes++;
@@ -71,20 +84,28 @@ export async function installMailFixture(context) {
       if (path === "/me/mailFolders") return route.fulfill({ json: { value: FOLDERS } });
       const folder = /^\/me\/mailFolders\/([^/]+)$/.exec(path);
       if (folder) return route.fulfill({ json: FOLDERS.find(f => f.id === folder[1]) ?? { id: folder[1], unreadItemCount: 0 } });
-      if (/^\/me\/mailFolders\/[^/]+\/messages$/.test(path)) {
+      const list = /^\/me\/mailFolders\/([^/]+)\/messages$/.exec(path);
+      if (list) {
+        const inFolder = list[1] === "inbox" ? messages : others[list[1]] ?? [];
+        const search = url.searchParams.get("$search");
+        if (search !== null) {
+          const term = search.replace(/^"|"$/g, "").toLowerCase();
+          observed.searches.push({ folder: list[1], term });
+          return route.fulfill({ json: { value: inFolder.filter(m => `${m.subject} ${m.bodyPreview}`.toLowerCase().includes(term)) } });
+        }
         observed.lists++;
-        return route.fulfill({ json: { value: path.includes("/inbox/") ? messages : [], "@odata.count": path.includes("/inbox/") ? messages.length : 0 } });
+        return route.fulfill({ json: { value: inFolder, "@odata.count": inFolder.length } });
       }
       if (path.endsWith("/messageRules")) return route.fulfill({ json: { value: [] } });
       const message = /^\/me\/messages\/([^/]+)$/.exec(path);
       if (message) {
-        const item = messages.find(m => m.id === message[1]);
+        const item = everything().find(m => m.id === message[1]);
         if (item) { observed.bodies++; return route.fulfill({ json: item }); }
       }
       if (path.endsWith("/attachments")) return route.fulfill({ json: { value: [{ id: "attachment-1", name: "Projektübersicht.txt", contentType: "text/plain", size: 36 }] } });
     }
     if (request.method() === "PATCH") {
-      const item = messages.find(m => path === `/me/messages/${m.id}`);
+      const item = everything().find(m => path === `/me/messages/${m.id}`);
       if (item) { Object.assign(item, request.postDataJSON()); return route.fulfill({ status: 204 }); }
     }
     observed.unexpected.push(`${request.method()} ${path}`);

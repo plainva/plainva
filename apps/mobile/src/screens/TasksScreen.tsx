@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { consumePendingNew } from "@plainva/ui";
 import { emptyKeptList, keptListFailed, keptListLoaded, keptListLoading, keptListMap, keptListRows } from "@plainva/ui";
 import { Banner, errorText, useTaskDuplicates } from "@plainva/ui";
-import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, TaskStateIcon, type TaskPriority } from "@plainva/ui";
+import { convertDueColumnToDateTime, setDbTaskPriority, shouldOfferDueTimeColumn, TaskPriorityFlag, type TaskPriority } from "@plainva/ui";
 import { buildPlanner, isOpenState, plannerRowsFromDb, plannerRowsFromTasks, taskDisplayText, TaskPlannerList, TaskPlannerNav, useTodayKey, type CaptureResult, type PlannerRow } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
-import { CalendarPlus, CheckSquare, Database, FileText, RefreshCw, Repeat, Square, Table, Eye, EyeOff} from "lucide-react";
+import { CalendarClock, CalendarPlus, Database, FileText, RefreshCw, Repeat, Table, Eye, EyeOff} from "lucide-react";
+import { formatPickedDay, overdueToDayChanges, TaskCheckButton, type TaskDueChange, type TaskDueOutcome } from "@plainva/ui";
+import { TaskDueSheet } from "../components/TaskDueSheet";
+import { announceTaskDue, moveTaskDueOnPhone } from "../services/taskDueAction";
 import { applyTaskStatusOption, Button, canRepeat, Chip, formatDueLabel, NotePath, createTaskInDatabase, createTaskTimeBlock, describeRule, EmptyState, useTaskViewState, filterTaskDbRows, filterTasks, GroupCard, groupTasksByNote, ICON, IconButton, type InlineNode, isMirroredNamespace, isRecurringAtProviderNamespace, calendarDay, minutesToTime, nextHalfHourMinutes, noteDisplayName, parseBaseConfig, parseInlineMarkdown, promoteTask, repeatFromNamespace, type RepeatRule, resolveDefaultCalendarKey, resolveTaskCompletionModel, Row, RowList, SearchField, SectionLabel, setNoteTaskExclusion, Segmented, setPendingSearchJump, statusModelOf, type TaskBlockValues, type TaskCompletionModel, taskDbDueKey, type TaskDbRow, taskDbRows, TaskMetadataDetails, TaskMutationGate, taskRowActions, toast, toggleTaskAtIndex, writeRepeatRule } from "@plainva/ui";
 import {
   isOpenTaskState, resolveTaskOrdinal, setChecklistTaskPriority, setChecklistTaskState, setTasksPriority, type ChecklistMutationResult, type TaskBoxState,
@@ -59,9 +62,19 @@ const taskLabel = taskDisplayText;
  * muted once it is merely upcoming. That is the inverse of the event rule and
  * deliberate: a past event is over, a past task is the one still wanting doing.
  */
-function DueText({ due, testId }: { due: string; testId: string }) {
+function DueText({ due, testId, onPress }: { due: string; testId: string; onPress?: () => void }) {
   const { t, i18n } = useTranslation();
   const label = formatDueLabel(due, { locale: i18n.language, t });
+  // A date that can be moved is a control (plan Befunde 2026-10-06, W2): the
+  // same chip the planner rows carry, so a tap on it opens the date picker
+  // here too. Colour still does the leaning — warning only while it is due.
+  if (onPress) {
+    return (
+      <Chip testId={testId} tone={label.tone === "due" ? "warning" : "muted"} icon={<CalendarClock size={ICON.meta} />} onClick={onPress}>
+        {label.text}
+      </Chip>
+    );
+  }
   return (
     <span className={label.tone === "due" ? "m-taskdue m-taskdue--due" : "m-taskdue"} data-testid={testId}>
       {label.text}
@@ -132,7 +145,7 @@ export function TasksScreen({
   /** The capture sheet's other kind (plan Journal, J4): the app's journal sheet takes the typed text. */
   onCaptureJournal?: (text: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // The list stays on screen while it reloads (finding 2026-09-20, the
   // desktop's twin in TasksView): the rows remember which query service they
   // came from, only another vault blanks the view, and a failed reload keeps
@@ -498,6 +511,7 @@ export function TasksScreen({
     promote?: () => void;
     repeat?: () => void;
     block?: () => void;
+    due?: () => void;
     priority?: () => void;
     state?: () => void;
   }) =>
@@ -506,7 +520,7 @@ export function TasksScreen({
     taskRowActions(t, a).map((s) => ({ icon: <s.icon size={ICON.head} />, label: s.label, danger: s.danger, onClick: s.run }));
 
   const [taskSheet, setTaskSheet] = useState<
-    | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; repeat?: () => void; block?: () => void; priority?: () => void; state?: () => void }
+    | { title: string; open: () => void; done: boolean; toggle: () => void; promote?: () => void; repeat?: () => void; block?: () => void; due?: () => void; priority?: () => void; state?: () => void }
     | null
   >(null);
   const rowPress = useLongPress<() => void>((show) => show());
@@ -654,6 +668,57 @@ export function TasksScreen({
   );
 
   /**
+   * The due day (plan Befunde 2026-10-06, W2/W3) — the desktop's twin is the
+   * date popover in TasksView. A tap on a task's date opens the shared date
+   * picker in a sheet; the row's sheet offers the same picker, which is also how
+   * a task without a date gets one. "All to today" at the Overdue heading moves
+   * the whole section. Every move answers with a toast that carries Undo — the
+   * same write, pointed back at the days that were there.
+   */
+  const [dueTarget, setDueTarget] = useState<{ value: string | null; change: (day: string) => TaskDueChange } | null>(null);
+  const applyDue = useCallback(
+    async (changes: readonly TaskDueChange[]): Promise<TaskDueOutcome | null> => {
+      if (changes.length === 0) return null;
+      gate.begin();
+      try {
+        const outcome = await moveTaskDueOnPhone(vault, dbDueKey, changes);
+        const moved = new Map(outcome.lines.map((line) => [`${line.path}#${line.ordinal}`, line]));
+        if (moved.size > 0) {
+          setTasks((prev) => prev.map((tk) => {
+            const hit = moved.get(`${tk.path}#${tk.ordinal}`);
+            return hit ? { ...tk, text: hit.text, due: hit.day } : tk;
+          }));
+        }
+        return outcome;
+      } catch (e) {
+        toast.error(errorText(e));
+        return null;
+      } finally {
+        gate.finish();
+        setTick((x) => x + 1);
+      }
+    },
+    [gate, vault, dbDueKey, setTasks]
+  );
+  /** Applies a move and says what happened; `announce` words the success. */
+  const moveDue = async (changes: readonly TaskDueChange[], announce: (outcome: TaskDueOutcome) => string) => {
+    const outcome = await applyDue(changes);
+    if (!outcome) return;
+    announceTaskDue(outcome, { moved: announce(outcome), skipped: (count) => t("tasks.dueSkipped", { count }), undo: t("common.undo") }, (back) => void applyDue(back));
+  };
+  const pickDue = (day: string) => {
+    const target = dueTarget;
+    setDueTarget(null);
+    if (!target || day === target.value) return;
+    void moveDue([target.change(day)], () => t("tasks.dueMoved", { date: formatPickedDay(day, i18n.language) }));
+  };
+  const dbDueChange = (path: string) => (day: string): TaskDueChange => ({ source: "database", path, day });
+  const noteDueChange = (task: TaskRecord) => (day: string): TaskDueChange => ({ source: "note", path: task.path, task: { ordinal: task.ordinal, text: task.text, ...(task.taskId ? { taskId: task.taskId } : {}) }, day });
+  /** Opens the date sheet for a database entry — or not at all when its database has no date column. */
+  const dueOfDb = (row: TaskDbRow) => (dbDueKey ? () => setDueTarget({ value: row.due ?? null, change: dbDueChange(row.path) }) : undefined);
+  const dueOfNote = (task: TaskRecord) => () => setDueTarget({ value: task.due ?? null, change: noteDueChange(task) });
+
+  /**
    * Writes the NEXT occurrence of a repeating task: a copy of the note, open
    * again, with the next due date, beside the completed one. The completed note
    * stays as the record of what was done — that is the point of a generator
@@ -730,7 +795,15 @@ export function TasksScreen({
         toast.error(t(res && res.reason === "noFolder" ? "tasks.promoteNoFolder" : "tasks.promoteFailed"));
         return;
       }
-      if (alsoAtProvider) await sendTaskToProviderList(promotionAdapter, taskDb, res.notePath, result.title);
+      // The task is in the list as soon as its note is written (issue 119);
+      // the provider's answer only adds the link to it. The due day goes
+      // along, as it does on the desktop — it was left out here.
+      if (alsoAtProvider) {
+        void sendTaskToProviderList(promotionAdapter, taskDb, res.notePath, result.title, result.due ?? undefined).then(() => {
+          syncSoon();
+          setTick((x) => x + 1);
+        });
+      }
       syncSoon();
       setTick((x) => x + 1);
       setCapture(null);
@@ -812,6 +885,7 @@ export function TasksScreen({
           calendarOptions.length > 0
             ? () => setBlockTarget({ title: noteDisplayName(dbRow.title), due: dbRow.due, notePath: dbRow.path, linkPath: dbRow.path })
             : undefined,
+        due: dueOfDb(dbRow),
         priority: () => void pickPriority({ kind: "db", path: dbRow.path, rank: dbRow.priority ?? 0 }),
       };
     }
@@ -826,11 +900,17 @@ export function TasksScreen({
           calendarOptions.length > 0
             ? () => setBlockTarget({ title: taskLabel(task.text) || task.text, due: task.due ?? null, linkPath: task.path })
             : undefined,
+        due: dueOfNote(task),
         priority: () => void pickPriority({ kind: "note", task }),
         state: () => void pickState(task),
       };
     }
     return null;
+  };
+  const overdueToToday = () => {
+    const overdue = planner.sections("today").find((section) => section.kind === "overdue")?.rows ?? [];
+    const changes = overdueToDayChanges(overdue, todayKey, (row) => taskOfRow(row));
+    void moveDue(changes, (outcome) => t("tasks.overdueMoved", { count: outcome.moved }));
   };
   /* What the bar cannot otherwise say (N5.1/N7): the list groups by NOTE, so
      how much is shown and how much of it has a deadline cannot be read off it.
@@ -956,6 +1036,9 @@ export function TasksScreen({
               onPointerLeave: rowPress.clear,
               onPointerCancel: rowPress.clear,
             })}
+            onDue={(row) => plannerActs(row)?.due?.()}
+            canDue={(row) => plannerActs(row)?.due !== undefined}
+            onOverdueToToday={overdueToToday}
           />
         )
       ) : (
@@ -985,6 +1068,7 @@ export function TasksScreen({
                       calendarOptions.length > 0
                         ? () => setBlockTarget({ title: row.title, due: row.due ?? null, linkPath: row.path })
                         : undefined,
+                    due: dueOfDb(row),
                     priority: () => void pickPriority({ kind: "db", path: row.path, rank: row.priority ?? 0 }),
                   };
                   return (
@@ -994,18 +1078,13 @@ export function TasksScreen({
                     controls
                     data-testid="task-db-row"
                     icon={
-                      <IconButton
+                      <TaskCheckButton
+                        state={row.done ? "done" : "open"}
                         label={t(row.done ? "tasks.open" : "tasks.done")}
-                        data-testid="task-db-toggle"
+                        testId="task-db-toggle"
                         disabled={!dbCompletion}
-                        onClick={() => toggleDbRow(row)}
-                      >
-                        {row.done ? (
-                          <CheckSquare className="m-accent" size={ICON.head} />
-                        ) : (
-                          <Square size={ICON.head} />
-                        )}
-                      </IconButton>
+                        onToggle={() => toggleDbRow(row)}
+                      />
                     }
                     title={
                       <span className={row.done ? "m-task-done" : undefined}><TaskPriorityFlag rank={row.priority} />{noteDisplayName(row.title)}</span>
@@ -1022,7 +1101,7 @@ export function TasksScreen({
                             {row.status}
                           </Chip>
                         )}
-                        {row.due && <DueText due={row.due} testId="task-db-due" />}
+                        {row.due && <DueText due={row.due} testId="task-db-due" onPress={dueOfDb(row)} />}
                         {/* The reconciler has seen the provider bring this task
                             round again (finding 2026-09-20): a ticked task that
                             reopens is a series, not a sync fault. */}
@@ -1181,6 +1260,7 @@ export function TasksScreen({
                               linkPath: task.path,
                             })
                         : undefined,
+                    due: dueOfNote(task),
                     priority: () => void pickPriority({ kind: "note", task }),
                     state: () => void pickState(task),
                   };
@@ -1193,14 +1273,12 @@ export function TasksScreen({
                     controls
                     data-testid="task-row"
                     icon={
-                      <IconButton
+                      <TaskCheckButton
+                        state={task.state}
                         label={t(isOpenTaskState(task.state) ? "tasks.done" : "tasks.open")}
-                        data-testid="task-toggle"
-                        data-state={task.state}
-                        onClick={() => void toggle(task)}
-                      >
-                        <TaskStateIcon className={task.done ? "m-accent" : undefined} state={task.state} size={ICON.head} />
-                      </IconButton>
+                        testId="task-toggle"
+                        onToggle={() => void toggle(task)}
+                      />
                     }
                     title={
                       <span className={isOpenTaskState(task.state) ? undefined : "m-task-done"}>
@@ -1211,7 +1289,7 @@ export function TasksScreen({
                     subtitle={
                       <>
                         <TaskMetadataDetails task={task} />
-                        {task.due && <DueText due={task.due} testId="task-due" />}
+                        {task.due && <DueText due={task.due} testId="task-due" onPress={dueOfNote(task)} />}
                         {task.tags.map((tag) => (
                           <Chip key={tag}>#{tag}</Chip>
                         ))}
@@ -1308,6 +1386,8 @@ export function TasksScreen({
           title={taskSheet.title}
         />
       )}
+
+      {dueTarget && <TaskDueSheet value={dueTarget.value} onPick={pickDue} onClose={() => setDueTarget(null)} />}
 
       <TaskDuplicatesSheet
         dupes={dupes}

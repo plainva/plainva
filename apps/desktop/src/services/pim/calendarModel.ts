@@ -99,22 +99,10 @@ export {
 } from "@plainva/ui";
 export type { TaskBlockValues } from "@plainva/ui";
 
-/** Adds the derived reverse linkage used by the calendar UI. A block whose
- * original is outside the loaded window remains a normal ungrouped block. */
-export function linkCalendarBlocks(events: PimEventRow[]): PimEventRow[] {
-  const byUid = new Map(events.filter((e) => !e.blockOf).map((e) => [e.uid, e]));
-  const blocked = new Map<string, Array<{ accountId: string; calendarId: string; uid: string }>>();
-  for (const event of events) {
-    if (!event.blockOf || !byUid.has(event.blockOf)) continue;
-    const list = blocked.get(event.blockOf) ?? [];
-    list.push({ accountId: event.accountId, calendarId: event.calendarId, uid: event.uid });
-    blocked.set(event.blockOf, list);
-  }
-  return events.map((event) => {
-    const refs = blocked.get(event.uid);
-    return refs?.length ? { ...event, blockedIn: refs } : event;
-  });
-}
+// The reverse blocker linkage moved to @plainva/ui (K3): the phone draws the
+// same chain mark from it, and it now also reads the list an event carries
+// itself. Re-exported so every existing import path keeps working.
+export { linkCalendarBlocks } from "@plainva/ui";
 
 
 

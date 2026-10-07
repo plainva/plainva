@@ -31,7 +31,7 @@ import {
   MessageSquare,
   FileX,
   X, Search } from "lucide-react";
-import { listPimEvents } from "../../services/pim/pimService";
+import { listShownPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
@@ -68,6 +68,7 @@ import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
+import { holdGestureEnd, holdMoved } from "../../lib/holdGesture";
 import { RowActionSheet } from "../../components/RowActionSheet";
 import { confirmDeleteFile, confirmDeleteFiles } from "../../lib/deleteFile";
 import { mConfirm, mPrompt, mSelect, mTargets } from "../../services/mobileDialogs";
@@ -287,7 +288,7 @@ export function BaseScreen({
     }
     const from = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1).getTime();
     const to = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1).getTime();
-    void listPimEvents(from, to)
+    void listShownPimEvents(from, to)
       .then((rows) => {
         if (!alive) return;
         const map = new Map<string, { count: number }>();
@@ -1137,6 +1138,13 @@ export function BaseScreen({
   // calendar/timeline). The board and the pinboard keep their own, because a
   // hold there already means "drag" — they open the same menu from their own
   // gesture instead of competing for it.
+  //
+  // That sentence was the intent, and for the board it was not the code: a
+  // board card carries `data-row-path` like every row and sits inside this
+  // listener's container, so a hold on it ran BOTH timers - this one opened
+  // the menu under the finger while the board's armed the move, and the card
+  // could then be carried around behind its own menu (TestFlight 2026-09-25:
+  // "menu and moving collide"). A card on the board is left to the board.
   const rowsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = rowsRef.current;
@@ -1150,6 +1158,7 @@ export function BaseScreen({
       const row = (e.target as HTMLElement).closest<HTMLElement>("[data-row-path]");
       const rp = row?.dataset.rowPath;
       if (!rp) return;
+      if (row!.closest("[data-hold-owner]")) return;
       const title = row!.dataset.rowTitle ?? rp;
       d.x = e.clientX;
       d.y = e.clientY;
@@ -1289,6 +1298,8 @@ export function BaseScreen({
   // ghost, dropping on another column rewrites the groupBy value through the
   // same commit path as the cell editor. One delegated listener set on the
   // board container — cards stay scrollable until the press arms.
+  // What the gesture means when the finger lifts is decided by
+  // `holdGestureEnd`, not by where it lifts (TestFlight 2026-09-25).
   const boardRef = useRef<HTMLDivElement>(null);
   // Folded swimlanes (issue #83, P6) — a way of looking, kept for the screen.
   const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(() => new Set());
@@ -1299,9 +1310,11 @@ export function BaseScreen({
     x: number;
     y: number;
     overKey: string | null;
+    /** The finger has left its place: from here on this is a move, never the menu. */
+    moved: boolean;
   } | null>(null);
-  const dragRef = useRef<{ armed: boolean; timer: ReturnType<typeof setTimeout> | null; startX: number; startY: number }>(
-    { armed: false, timer: null, startX: 0, startY: 0 },
+  const dragRef = useRef<{ armed: boolean; moved: boolean; timer: ReturnType<typeof setTimeout> | null; startX: number; startY: number }>(
+    { armed: false, moved: false, timer: null, startX: 0, startY: 0 },
   );
   const boardDragRef = useRef(boardDrag);
   useEffect(() => {
@@ -1316,6 +1329,7 @@ export function BaseScreen({
       if (d.timer) clearTimeout(d.timer);
       d.timer = null;
       d.armed = false;
+      d.moved = false;
       setBoardDrag(null);
     };
     const onDown = (e: PointerEvent) => {
@@ -1323,6 +1337,7 @@ export function BaseScreen({
       if (!card || !card.dataset.rowPath) return;
       d.startX = e.clientX;
       d.startY = e.clientY;
+      d.moved = false;
       const payload = {
         path: card.dataset.rowPath,
         fromKey: card.dataset.groupKey ?? UNGROUPED_KEY,
@@ -1331,23 +1346,26 @@ export function BaseScreen({
       d.timer = setTimeout(() => {
         d.armed = true;
         haptics.medium();
-        setBoardDrag({ ...payload, x: d.startX, y: d.startY, overKey: null });
+        setBoardDrag({ ...payload, x: d.startX, y: d.startY, overKey: null, moved: false });
       }, LONG_PRESS_MS);
     };
     const onMove = (e: PointerEvent) => {
       if (!d.armed) {
         // Real movement before the arm = a scroll; give the gesture back.
-        if (d.timer && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > 8) {
+        if (d.timer && holdMoved(d.startX, d.startY, e.clientX, e.clientY)) {
           clearTimeout(d.timer);
           d.timer = null;
         }
         return;
       }
+      // A finger that merely trembles on the card is still holding it.
+      if (!d.moved && !holdMoved(d.startX, d.startY, e.clientX, e.clientY)) return;
+      d.moved = true;
       const colEl = document
         .elementFromPoint(e.clientX, e.clientY)
         ?.closest<HTMLElement>("[data-board-key]");
       setBoardDrag((prev) =>
-        prev ? { ...prev, x: e.clientX, y: e.clientY, overKey: colEl?.dataset.boardKey ?? null } : prev,
+        prev ? { ...prev, x: e.clientX, y: e.clientY, overKey: colEl?.dataset.boardKey ?? null, moved: true } : prev,
       );
       // Auto-scroll the horizontal board near its edges.
       const rect = el.getBoundingClientRect();
@@ -1358,32 +1376,37 @@ export function BaseScreen({
       // Own the gesture once armed; before that the board scrolls normally.
       if (d.armed && e.cancelable) e.preventDefault();
     };
-    const onUp = () => {
+    const end = (cancelled: boolean) => {
       const drag = boardDragRef.current;
-      if (d.armed && drag && drag.overKey && drag.overKey !== drag.fromKey) {
+      const outcome = holdGestureEnd({ armed: d.armed, moved: d.moved, cancelled });
+      if (outcome === "move" && drag && drag.overKey && drag.overKey !== drag.fromKey) {
         const row = rows.find((r) => rowPath(r) === drag.path);
         if (row) {
           const next = boardDropValue(row[boardGroupBy], drag.fromKey, drag.overKey);
           haptics.light();
           void commitCellValue(vault, drag.path, boardGroupBy, next).then(() => requery(config, viewIndex));
         }
-      } else if (d.armed && drag && !drag.overKey) {
-        // Held without moving to another column: the same entry menu the other
-        // views open on a hold (S20) — the gesture keeps one meaning.
+      } else if (outcome === "menu" && drag) {
+        // Held and released in place: the same entry menu the other views
+        // open on a hold (S20). A card that was carried and let go over no
+        // column - a gap, a lane heading, past the edge - stays where it was
+        // and opens nothing.
         setRowMenu({ path: drag.path, title: drag.title });
       }
       clear();
     };
+    const onUp = () => end(false);
+    const onCancel = () => end(true);
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onUp);
-    el.addEventListener("pointercancel", onUp);
+    el.addEventListener("pointercancel", onCancel);
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     return () => {
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
-      el.removeEventListener("pointercancel", onUp);
+      el.removeEventListener("pointercancel", onCancel);
       el.removeEventListener("touchmove", onTouchMove);
       clear();
     };
@@ -1557,7 +1580,7 @@ export function BaseScreen({
       );
     };
     return (
-      <div className={laneBy ? "m-board-lanes" : "m-board-host"} ref={boardRef}>
+      <div className={laneBy ? "m-board-lanes" : "m-board-host"} ref={boardRef} data-hold-owner="board">
         {laneBy
           ? lanes.map((lane) => {
               const laneKey = lane.key!;
@@ -1581,7 +1604,7 @@ export function BaseScreen({
               );
             })
           : renderStrip(null, all)}
-        {boardDrag && (
+        {boardDrag?.moved && (
           <div aria-hidden className="m-board-ghost" style={{ left: boardDrag.x, top: boardDrag.y }}>
             {boardDrag.title}
           </div>

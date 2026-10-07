@@ -1,4 +1,4 @@
-import { afterTaskSyncResume, clearPinboardCache } from "@plainva/ui";
+import { afterTaskSyncResume, clearPinboardCache, InlineSuggestProvider } from "@plainva/ui";
 import { projectPublicationFeedbackForOwner, sameStoredValue } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
@@ -18,7 +18,7 @@ import { settlePendingWrites } from "../services/pendingWrites";
 import { awaitVaultTeardown, noteVaultTeardown } from "../services/vaultTeardown";
 import { currentWindowParams } from "../services/windowContext";
 import { createContentRefResolver, tauriSyncUploader } from "../services/syncUpload";
-import { createLimiter, formatListingReport, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
+import { createLimiter, formatListingReport, formatTaskSync, logDiagnostic, noteLargeFileTrimmed, plainvaProducer, profileDefault, setExtraTextExtensions, toast, useStableHandler } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../services/appDialogs";
 import i18n from "@plainva/ui/i18n";
 import { workspaceSyncFailureText } from "@plainva/ui";
@@ -1046,6 +1046,7 @@ export const VaultProvider: React.FC<{
           if (taskDbPath) {
             const noteType = ((await store.get<string>(defaultNoteTypeKey(path))) ?? "").trim() || DEFAULT_NOTE_TYPE;
             const allNotePaths = (await queryService.listNotes()).map((n) => n.path);
+            const taskSyncStarted = performance.now();
             const res = await runTaskSync({
               adapter: {
                 readTextFile: (p) => vaultAdapter.readTextFile(p),
@@ -1080,6 +1081,10 @@ export const VaultProvider: React.FC<{
             const touched = [...res.createdNotes, ...res.changedNotes];
             if (touched.length > 0) indexQueue.enqueue(touched);
             for (const err of res.errors) console.warn("[VaultContext] task sync:", err);
+            // The same line the phone writes (plan Befunde 2026-10-06, T4):
+            // what the reconcile did, readable from a diagnostics export.
+            const taskSyncLine = formatTaskSync(res, performance.now() - taskSyncStarted, firstSyncSettled);
+            if (taskSyncLine) logDiagnostic("tasks", `reconcile: ${taskSyncLine}`);
             // The Tasks view listens for this to re-query — the index-diff
             // chain alone is not a reliable refresh signal for it.
             window.dispatchEvent(new CustomEvent("plainva-task-sync-done"));
@@ -3482,7 +3487,8 @@ export const VaultProvider: React.FC<{
 
   return (
     <VaultContext.Provider value={value}>
-      {children}
+      {/* `[[` and `#` in the capture fields read this vault's index (W5). */}
+      <InlineSuggestProvider source={state.queryService}>{children}</InlineSuggestProvider>
     </VaultContext.Provider>
   );
 };

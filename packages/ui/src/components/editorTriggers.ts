@@ -3,6 +3,7 @@ import type { EditorView } from "@codemirror/view";
 import i18n from "../i18n";
 import { searchEmoji } from "./emojiData";
 import { parseHeadings } from "../lib/outline";
+import { searchLinkTargets, searchTags } from "../lib/inlineTriggers";
 
 // `[[` note-link and `#` tag autocomplete (#10), combined into the editor's
 // single autocompletion (see editorCompletion.ts). Both are completion *sources*.
@@ -114,34 +115,23 @@ export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
         return null;
       }
     }
-    const like = `%${term}%`;
     try {
-      const rows = await qs.db.query(
-        // Notes first, then attachments — the ORDER BY carries the ranking, the
-        // section carries the heading. `.base` files stay out: they are opened,
-        // not linked to as text, and `![[…]]` already offers them.
-        `SELECT path, title, (CASE WHEN path LIKE '%.md' THEN 0 ELSE 1 END) AS is_attachment FROM files
-         WHERE (title LIKE ? OR path LIKE ?) AND path NOT LIKE '%.base'
-         ORDER BY is_attachment, (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
-         LIMIT 12`,
-        [like, like, `${term}%`],
+      // Notes first, then attachments — the search carries the ranking (it is
+      // the one the capture fields read too, `lib/inlineTriggers`), the section
+      // carries the heading. `.base` files stay out: they are opened, not
+      // linked to as text, and `![[…]]` already offers them.
+      const found = await searchLinkTargets(qs, term);
+      const options: TriggerCompletion[] = found.map((hit) =>
+        hit.kind === "attachment"
+          ? {
+              label: hit.label,
+              apply: applyLinkText(hit.insert),
+              type: "attachfile",
+              description: hit.detail,
+              section: { name: i18n.t("editor.completionAttachments", { defaultValue: "Anhänge" }), rank: 1 },
+            }
+          : { label: hit.label, apply: applyLinkText(hit.insert), type: "wikilink", description: hit.detail },
       );
-      const options: TriggerCompletion[] = rows.map((r) => {
-        if (r.is_attachment) {
-          // The full file name, extension and all: an attachment has no
-          // frontmatter title, and the bare stem would not resolve.
-          const name = r.path.split(/[/\\]/).pop() || r.path;
-          return {
-            label: name,
-            apply: applyLinkText(`[[${r.path}]]`),
-            type: "attachfile",
-            description: r.path,
-            section: { name: i18n.t("editor.completionAttachments", { defaultValue: "Anhänge" }), rank: 1 },
-          };
-        }
-        const title = r.title || r.path.split(/[/\\]/).pop()?.replace(/\.md$/i, "") || r.path;
-        return { label: title, apply: applyLinkText(`[[${title}]]`), type: "wikilink", description: r.path };
-      });
       if (options.length === 0) return null;
       return { from: word.from, filter: false, options };
     } catch {
@@ -194,16 +184,15 @@ export function tagCompletionSource(deps: EditorTriggerDeps) {
     if (before && !/[\s([{]/.test(before)) return null; // not part of a word
     const qs = deps.getQueryService();
     if (!qs) return null;
-    const term = word.text.slice(1).toLowerCase(); // drop the leading #
+    const term = word.text.slice(1); // drop the leading #
     try {
-      const all = await qs.getAllTags();
-      const options: TriggerCompletion[] = all
-        .filter((t) => t.tag.replace(/^#/, "").toLowerCase().startsWith(term))
-        .slice(0, 20)
-        .map((t) => {
-          const bare = t.tag.replace(/^#/, "");
-          return { label: `#${bare}`, apply: `#${bare}`, type: "tag", description: i18n.t("editor.tagCount", { count: t.count, defaultValue: `${t.count}×` }) };
-        });
+      const found = await searchTags(qs, term);
+      const options: TriggerCompletion[] = found.map((hit) => ({
+        label: hit.label,
+        apply: hit.insert,
+        type: "tag",
+        description: i18n.t("editor.tagCount", { count: hit.count ?? 0, defaultValue: `${hit.count ?? 0}×` }),
+      }));
       if (options.length === 0) return null;
       return { from: word.from, filter: false, options };
     } catch {

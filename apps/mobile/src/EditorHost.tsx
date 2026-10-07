@@ -90,6 +90,7 @@ export function EditorHost({
   onSuggestionApply,
   onSuggestionDecline,
   onReaderBlockedChange,
+  onFindPanelChange,
   onVanished,
 }: {
   vault: MobileVault;
@@ -136,6 +137,12 @@ export function EditorHost({
   onSuggestionApply?: (commentId: string) => void;
   onSuggestionDecline?: (commentId: string) => void;
   onReaderBlockedChange?: (blocked: boolean) => void;
+  /**
+   * The find panel is open. It stands at the top of the editor, and in read
+   * mode the editor starts under the status bar with the note's controls
+   * floating over it - so the page has to give the panel a place of its own.
+   */
+  onFindPanelChange?: (open: boolean) => void;
   /**
    * The file under this editor is gone — moved or deleted outside Plainva, or
    * by sync, while the note was open (issue 110, E9). The screen looks for it.
@@ -206,6 +213,11 @@ export function EditorHost({
   const [selectionAt, setSelectionAt] = useState<SelectionToolbarPosition | null>(null);
   /** The main selection as document offsets — what a passage comment is anchored to (C26). */
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
+  const [finding, setFinding] = useState(false);
+  useEffect(() => {
+    onFindPanelChange?.(finding);
+    return () => onFindPanelChange?.(false);
+  }, [finding, onFindPanelChange]);
   useEffect(() => {
     onReaderBlockedChange?.(!!conflict || conflictDiff || blockMenuFrom !== null || !!selectionRange && selectionRange.from !== selectionRange.to);
     return () => onReaderBlockedChange?.(false);
@@ -454,6 +466,7 @@ export function EditorHost({
       },
       onSelectionToolbar: (at) => setSelectionAt(at),
       onSelectionRange: (range) => setSelectionRange(range),
+      onFindPanel: (open) => setFinding(open),
       onSelectionStats: (stats) => setSelectionStats(stats),
       // C3: the header widget's icon/stripe buttons open the mobile sheets.
       onPickIcon: () => setEmojiPick("icon"),

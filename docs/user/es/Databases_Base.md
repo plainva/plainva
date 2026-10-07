@@ -1,6 +1,6 @@
 # Bases de datos (.base)
 
-Última actualización: 2026-09-24
+Última actualización: 2026-10-06
 
 Con los archivos `.base` conviertes notas en bases de datos: tablas, tableros, calendarios — con filtros, propiedades tipadas y relaciones entre bases de datos. El concepto se parece a las bases de datos de Notion, con una diferencia decisiva: **los datos no viven en la base de datos, viven en tus notas.**
 
@@ -131,9 +131,9 @@ blockedBy:
 Cuando abres directamente una entrada de base de datos — desde el árbol de archivos, desde la búsqueda o mediante un `[[enlace]]` — Plainva ahora te dice de qué forma parte:
 
 - Encima de la nota hay una **línea de contexto**: las bases de datos a las que pertenece la nota, como chips en los que se puede hacer clic (un clic abre la base de datos), seguidas de la ruta `entrada padre / esta nota` cuando la base de datos usa subelementos. Si la nota pertenece a **varias** bases de datos, aparecen todas — la línea se ajusta a varias líneas en lugar de omitir alguna.
-- En la barra lateral derecha, la sección **Bases de datos** es el **inspector de entrada**: muestra la nota tal como la ve su base de datos — las columnas de la primera vista, en el orden de esa vista, con los tipos y los colores de opciones de la `.base`, y **editable** igual que en la tabla. Así se puede cambiar un estado sin abrir la base de datos. Encima está la posición en la vista (**12 / 34**) con flechas a la entrada anterior y siguiente. Una nota que pertenece a varias bases de datos obtiene un bloque por cada una. Debajo siguen la **entrada padre**, los **subelementos** (plegables) y las entradas **enlazadas** mediante relaciones — cada una en la que se puede hacer clic.
+- En la barra lateral derecha, la sección **Bases de datos** muestra lo que solo la base de datos sabe de la nota. Cada base de datos a la que pertenece tiene una línea con su nombre y su vista — un clic la abre — y la posición en la vista (**12 / 34**) con flechas a la entrada anterior y siguiente. Debajo están los campos que la base de datos **calcula** para esta nota y que no figuran en ningún archivo: agregaciones, relaciones inversas y datos del archivo como el momento de la última modificación. Las columnas que la propia nota lleva no se repiten: una línea las nombra (**En Propiedades: …**) y se editan una sola vez, en la sección **Propiedades**. Una nota que pertenece a varias bases de datos obtiene un bloque por cada una. Debajo siguen la **entrada padre**, los **subelementos** (plegables) y las entradas **enlazadas** mediante relaciones — cada una en la que se puede hacer clic. En el teléfono, lo mismo aparece en la pestaña **Bases de datos** de la ficha contextual de la nota.
 - La posición solo aparece cuando la nota realmente **está** en la vista: la pertenencia a una base de datos deliberadamente no depende de los filtros de una vista, así que ambas pueden diferir legítimamente.
-- El panel de **Propiedades** sigue siendo útil junto a esto: muestra el frontmatter en bruto — todos los campos, sin el orden, los tipos ni los filtros de la base de datos.
+- La sección **Propiedades** es el lugar de esos valores: cada campo del frontmatter de la nota como una fila, editable en el sitio.
 - Si una nota no pertenece a ninguna base de datos, no aparece ni la línea ni la sección. Nada de esto se escribe en la nota: el contexto se recalcula a partir de tus archivos `.base` y tus enlaces cada vez que la abres, y la nota en sí sigue siendo Markdown normal.
 
 ## Crear nuevos elementos
@@ -164,7 +164,7 @@ Nota para vaults sincronizados: si dos dispositivos organizan el tablón al mism
 
 ## Uso cotidiano
 
-- **Edición en línea**: un solo clic en una celda (o en el valor de una tarjeta) la hace editable — en todas las vistas.
+- **Edición en línea**: un solo clic en una celda (o en el valor de una tarjeta) la hace editable — en todas las vistas. Un valor de texto se abre en un campo que crece y se ajusta con el texto, de modo que un valor largo sigue siendo legible por completo mientras lo cambias. Sigue siendo un solo valor: **Enter** guarda, y un salto de línea pegado se convierte en un espacio.
 - **Abrir**: un clic en el título de una entrada abre la nota en la ventana de vista previa — una ventana flotante que puedes arrastrar por su barra de título y redimensionar desde la esquina. Mantiene su propio historial de **Atrás**/**Adelante** para las notas que abres dentro de ella, tiene un interruptor que muestra una columna de **Propiedades** para la nota mostrada, y ofrece **Abrir como pestaña** y **Abrir en panel dividido**. `Ctrl`+clic abre directamente en el panel dividido; alternativamente, arrastra una tarjeta a la zona de destino **Suelta aquí: abrir en panel dividido**. La columna de propiedades se puede ensanchar o estrechar arrastrando su borde izquierdo (mínimo 232 px); por debajo de 280 px coloca la etiqueta encima del valor, como la barra lateral derecha.
 - **Arrastrar**: mientras arrastras tarjetas (Tablero, Calendario, Cronología), una tarjeta fantasma sigue al cursor. En un **Tablero** también puedes arrastrar un **encabezado de columna** para reordenar las columnas — en los tableros de **Selección**/**Estado** esto reordena las opciones de la propiedad (así que los desplegables en todas partes lo siguen); los tableros de relación y de texto libre recuerdan el orden por vista.
 - **Color del tablero**: en los ajustes de **Vista** de un tablero, **Color de columna** permite que una columna adopte el color de su grupo — ya sea **Columna completa** (se tiñe toda la columna) o **Solo el chip** (solo el chip de la cabecera, la opción por defecto). Se aplica a los grupos de Selección/Estado/Selección múltiple.

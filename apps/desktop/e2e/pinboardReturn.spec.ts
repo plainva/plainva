@@ -1,4 +1,5 @@
 import type { PinboardProbeWindow } from "./fixtures/pinboardProbe";
+import { openProbePage } from "./fixtures/openProbePage";
 import { test, expect, type Page } from "@playwright/test";
 
 export async function loadPinboardProbe(page: Page) {
@@ -9,8 +10,7 @@ export async function loadPinboardProbe(page: Page) {
     window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;
     await import('/e2e/fixtures/pinboardProbe.tsx');</script></body></html>` }));
   page.on("pageerror", error => console.log("Probe error:", error.message));
-  await page.goto("/__pinboard_probe");
-  await page.waitForFunction(() => !!(window as PinboardProbeWindow).pinboardProbe);
+  await openProbePage(page, "/__pinboard_probe", () => !!(window as PinboardProbeWindow).pinboardProbe);
 }
 // Desktop only since 2026-09-22: the phone's pinboard has no field of its own
 // any more — its screen's head carries the search for every view, and that

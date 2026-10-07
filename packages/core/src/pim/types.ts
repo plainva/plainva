@@ -64,6 +64,21 @@ export interface PimAttendee {
   organizer?: boolean;
 }
 
+/**
+ * One blocker of an event, as the event itself names it (K3).
+ *
+ * `href` is what CalDAV addresses an object by; `mode` says whether the blocker
+ * is the opaque "Busy" placeholder or a copy with details — only the second
+ * follows its event's title, place and description.
+ */
+export interface PimBlockRef {
+  accountId: string;
+  calendarId: string;
+  uid: string;
+  href?: string;
+  mode?: "busy" | "details";
+}
+
 export interface PimEvent {
   /** Instance key: the provider event/instance id; expanded recurrence
    * instances carry their own id (Google/Graph) or `uid#<recurrenceId>`
@@ -101,6 +116,12 @@ export interface PimEvent {
   /** Stable provider-side id of the original event when this event is a
    * Plainva-created blocker in another calendar. */
   blockOf?: string;
+  /**
+   * The blockers of this event as the PROVIDER holds them (K3): the reverse of
+   * `blockOf`, stored on the event itself so a blocker in a calendar that is
+   * not shown can still be found. See `blockLinks.ts`.
+   */
+  blocks?: PimBlockRef[];
   /** Derived by the UI/cache consumer for originals; never written remotely. */
   blockedIn?: Array<{ accountId: string; calendarId: string; uid: string }>;
   /**
@@ -250,9 +271,18 @@ export interface PimEventDraft {
    * scheduling (CalDAV) ignore it; there the caller sends an iMIP email itself. */
   notifyAttendees?: boolean;
   /** Original provider event id for a mirrored blocker. Adapters persist this
-   * in a provider-private/custom property so it survives round-trips. */
-  blockOf?: string;
+   * in a provider-private/custom property so it survives round-trips.
+   * `undefined` leaves the link as it is, `null` removes it — the blocker
+   * becomes an ordinary event (K3: "move only this blocker"). */
+  blockOf?: string | null;
+  /** The event's own list of its blockers (K3). `undefined` leaves the remote
+   * list untouched — every ordinary write — and an array REPLACES it; an empty
+   * one clears it. */
+  blocks?: PimBlockRef[];
 }
+
+/** The two halves of the blocker linkage, as a write: see `PimEventDraft`. */
+export type PimEventLinks = Pick<PimEventDraft, "blockOf" | "blocks">;
 
 /** Addresses an existing event for update/delete. `etag` (when known) arms
  * the optimistic-concurrency guard; CalDAV additionally needs the `href`. */
@@ -346,6 +376,17 @@ export interface IPimTarget {
    * (partial update / read-modify-write). */
   updateEvent(ref: PimEventRef, draft: PimEventDraft): Promise<{ etag?: string }>;
   deleteEvent(ref: PimEventRef): Promise<void>;
+  /**
+   * Writes ONLY the blocker linkage of an event (K3) — `blockOf`, `blocks`,
+   * or both — and nothing else about it.
+   *
+   * Recording that an event has a blocker is bookkeeping, and `updateEvent`
+   * is the wrong tool for it: it takes a whole draft and rewrites title,
+   * times and place from the cached row, which for a series also re-anchors
+   * its start to this device's time zone. A provider without a place for the
+   * link (the phone's own calendar store) leaves this undefined.
+   */
+  linkEvent?(ref: PimEventRef, links: PimEventLinks): Promise<{ etag?: string }>;
   /** RSVP to an invitation as the account user: set the own PARTSTAT and let
    * the provider notify the organiser. Providers without native scheduling
    * (or where the user is not an attendee) may leave this undefined. */

@@ -6,7 +6,7 @@ import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
 import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
-import { parkTreeReveal, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk } from "@plainva/ui";
+import { parkTreeReveal, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk } from "@plainva/ui";
 import {
   findWindowForContent,
   focusAuxWindow,
@@ -468,6 +468,11 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
     await bus.handle("bookmarks-list", () => loadDesktopBookmarks(deps.vaultAdapter), { vaultPath: deps.vaultPath }),
     await bus.handle("remove-bookmarks", async ({ paths }) => {
       const bookmarks = await removeBookmarksOnDisk(deps.vaultAdapter, paths);
+      publishBookmarks(deps.vaultPath, bookmarks);
+      return bookmarks;
+    }, { vaultPath: deps.vaultPath }),
+    await bus.handle("move-bookmark", async ({ key, beforeKey }) => {
+      const bookmarks = await moveBookmarkOnDisk(deps.vaultAdapter, key, beforeKey);
       publishBookmarks(deps.vaultPath, bookmarks);
       return bookmarks;
     }, { vaultPath: deps.vaultPath }),

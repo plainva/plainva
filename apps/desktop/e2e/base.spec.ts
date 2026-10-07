@@ -680,27 +680,36 @@ test('The database context line keeps clear of the toolbar rule above it', async
     .toBeGreaterThanOrEqual(toolbar.y + toolbar.height + 4);
 });
 
-// --- The sidebar's "Databases" section is an entry inspector (plan P2) ------
-// Opening a note that is a row of a database used to say only WHICH database
-// it belonged to. It now shows the note's values for that database's columns,
-// in the database's own order, and steps to the neighbouring entry.
-test('Entry inspector: the sidebar shows the database columns and steps to the neighbour', async ({ page }) => {
-  await page.goto('/');
+// --- The sidebar's "Databases" section (plan Befunde 2026-10-06, R3) --------
+// It used to be an entry inspector: every column of the view with an editor —
+// and for most notes that was the same values the properties section showed
+// directly below, in another form (decision E1, variant A). It now shows what
+// only the database knows: membership, position, and the columns it COMPUTES.
+// A column that is a property of the note is named in one line, not repeated.
+const openTreeNote = async (page: Page, folder: string, note: string) => {
   const aside = page.locator('aside[aria-label="Left Sidebar"]');
-  await expect(aside.locator('[data-tree-path="Projekte"]')).toBeVisible({ timeout: 10000 });
-  await aside.locator('[data-tree-path="Projekte"]').click();
-  await aside.locator('[data-tree-path="Projekte/Beta.md"]').click();
+  await expect(aside.locator(`[data-tree-path="${folder}"]`)).toBeVisible({ timeout: 10000 });
+  await aside.locator(`[data-tree-path="${folder}"]`).click();
+  await aside.locator(`[data-tree-path="${folder}/${note}.md"]`).click();
+};
+
+test('Database section: a property column is named once, not repeated, and the pager steps to the neighbour', async ({ page }) => {
+  await page.goto('/');
+  await openTreeNote(page, 'Projekte', 'Beta');
 
   const right = page.locator('aside[aria-label="Right Sidebar"]');
   // Sidebar sections remember their open state per device; a fresh profile
   // starts them collapsed, so the section has to be opened first.
   await right.getByRole('button', { name: /Datenbanken|Databases/ }).click();
-  const grid = right.locator('.pv-dbinsp-grid').first();
-  await expect(grid).toBeVisible({ timeout: 10000 });
+  const block = right.getByTestId('db-membership').first();
+  await expect(block).toBeVisible({ timeout: 10000 });
 
-  // Beta's own values for the Cockpit's columns \u2014 the properties panel would
-  // list raw frontmatter; this is the row as its database sees it.
-  await expect(grid).toContainText('paused');
+  // Beta's `status: paused` is a property of the note: it stands under
+  // Properties and nowhere in this section. The section says where it went.
+  await expect(right.getByTestId('db-membership').filter({ hasText: 'paused' })).toHaveCount(0);
+  await expect(right.getByTestId('db-under-properties').first()).toContainText(/Status/);
+  // No editor of any kind is left in the section.
+  await expect(right.locator('.pv-dbinsp input, .pv-dbinsp textarea, .pv-dbinsp select')).toHaveCount(0);
 
   // Position in the view, and a step to the neighbour.
   const pos = right.locator('.pv-dbinsp-pos').first();
@@ -710,25 +719,190 @@ test('Entry inspector: the sidebar shows the database columns and steps to the n
   await expect(right.locator('.pv-dbinsp-pos').first()).not.toHaveText(before);
 });
 
-// A 232px sidebar is a real width — the plan calls it out by name. The grid has
-// to give up its second column before the editors get squeezed.
-test('Entry inspector: the key/value grid stacks in a narrow sidebar', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('plainva-right-sidebar-width', '210'));
+test('Database section: the computed columns of the database are rows of the one row grammar', async ({ page }) => {
   await page.goto('/');
-  const aside = page.locator('aside[aria-label="Left Sidebar"]');
-  await expect(aside.locator('[data-tree-path="Projekte"]')).toBeVisible({ timeout: 10000 });
-  await aside.locator('[data-tree-path="Projekte"]').click();
-  await aside.locator('[data-tree-path="Projekte/Beta.md"]').click();
+  // ACME is a row of the customer database, which computes two columns for it:
+  // `projekte` (the notes whose `kunde` points here) and `offen` (a rollup over
+  // those). Neither stands in ACME's file.
+  await openTreeNote(page, 'Kunden', 'ACME');
 
   const right = page.locator('aside[aria-label="Right Sidebar"]');
-  await expect(right.locator('.pv-side-right')).toHaveAttribute('data-side-step', /compact|minimal/);
   await right.getByRole('button', { name: /Datenbanken|Databases/ }).click();
-  const grid = right.locator('.pv-dbinsp-grid').first();
-  await expect(grid).toBeVisible({ timeout: 10000 });
+  const reverse = right.locator('[data-testid="db-computed"][data-column="projekte"]');
+  const rollup = right.locator('[data-testid="db-computed"][data-column="offen"]');
+  await expect(reverse).toBeVisible({ timeout: 10000 });
+  await expect(reverse).toContainText('Alpha');
+  await expect(rollup).toContainText('1');
+  // The same four-part row as a property: icon, name, value, edge.
+  for (const row of [reverse, rollup]) {
+    await expect(row).toHaveClass(/pv-prow/);
+    await expect(row.locator('> .pv-prow-icon, > .pv-prow-name, > .pv-prow-value, > .pv-prow-edge')).toHaveCount(4);
+  }
+  // `file.name` is the note's own title: not a row here.
+  await expect(right.locator('[data-testid="db-computed"][data-column="file.name"]')).toHaveCount(0);
+});
 
-  // One column, not two: the label sits above its value.
-  const cols = await grid.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
-  expect(cols.trim().split(/\s+/).length).toBe(1);
+// --- The right column's mechanics (plan Befunde 2026-10-06, R1/R2, section 6)
+// The same note used to show two layouts depending on whether the panel
+// happened to scroll: the step was measured on the CONTENT box, which a
+// scrollbar narrows by 11 px. And a collapsed section's heading sat 8 px
+// further in than an expanded one's. Both are pinned here at the three widths
+// the plan names: 250 (the old default), 300 (the new one) and 340.
+const longTag = 'typ/ein-sehr-langer-schlagwortname-der-in-keine-zeile-passt';
+const longText = 'Ein Wert, der deutlich länger ist als die Spalte breit und deshalb umbrechen muss, statt abgeschnitten zu werden.';
+
+for (const [width, step] of [[250, 'compact'], [300, 'comfortable'], [340, 'comfortable']] as const) {
+  test(`Right column at ${width}px: one step with and without scrollbar, the heads stay put, no value is cut`, async ({ page }) => {
+    await page.addInitScript(([w, tag, text]) => {
+      localStorage.setItem('plainva-right-sidebar-width', String(w));
+      // A width somebody dragged — otherwise a stored 250 is read as the old
+      // default and replaced by the new one.
+      localStorage.setItem('plainva-right-sidebar-width-chosen', '1');
+      for (const id of ['calendar', 'journal', 'outline', 'graph', 'databases', 'backlinks', 'properties']) {
+        localStorage.setItem(`plainva-right-panel-open-${id}`, 'false');
+      }
+      (window as any).mockFs['/test-vault/Projekte/Beta.md'] = [
+        '---', 'type: Note', 'status: paused', 'prio: 1', `tags:\n  - ${tag}\n  - kurz`, 'date: 2026-09-24',
+        `beschreibung: "${text}"`, 'erledigt: false', 'parent: "[[Alpha]]"', '---', '# Beta', '',
+      ].join('\n');
+    }, [width, longTag, longText] as const);
+    // A short window, so that opening the sections is certain to make the
+    // panel scroll.
+    await page.setViewportSize({ width: 1280, height: 560 });
+    await page.goto('/');
+    await openTreeNote(page, 'Projekte', 'Beta');
+
+    const root = page.locator('.pv-side-right');
+    await expect(root).toHaveAttribute('data-side-step', step, { timeout: 10000 });
+    await expect(root.locator('.pv-side-section-header', { hasText: /Eigenschaften|Properties/ })).toBeVisible({ timeout: 10000 });
+
+    const measure = () => root.evaluate((el) => {
+      const heads: Record<string, { title: number; count: number; left: number }> = {};
+      for (const head of el.querySelectorAll<HTMLElement>('.pv-side-section-header')) {
+        const title = head.querySelector<HTMLElement>('.pv-side-section-title')!;
+        const count = head.querySelector<HTMLElement>('.pv-side-section-count')!;
+        heads[title.textContent ?? ''] = {
+          title: Math.round(title.getBoundingClientRect().left),
+          count: Math.round(count.getBoundingClientRect().right),
+          left: Math.round(head.getBoundingClientRect().left),
+        };
+      }
+      return {
+        step: el.getAttribute('data-side-step'),
+        scrolls: el.scrollHeight > el.clientHeight + 1,
+        contentWidth: el.clientWidth,
+        heads,
+      };
+    });
+
+    // 1) Everything collapsed: the panel does not scroll.
+    const collapsed = await measure();
+    expect(collapsed.scrolls, 'the collapsed panel must fit the window').toBe(false);
+    expect(Object.keys(collapsed.heads).length).toBeGreaterThanOrEqual(3);
+
+    // 2) Sections open: it scrolls.
+    await root.getByRole('button', { name: /Datenbanken|Databases/ }).click();
+    await root.getByRole('button', { name: /Eigenschaften|Properties/ }).click();
+    await expect(root.locator('.pv-props .pv-prow').first()).toBeVisible({ timeout: 10000 });
+    await expect(root.getByTestId('db-membership').first()).toBeVisible({ timeout: 10000 });
+    const open = await measure();
+    expect(open.scrolls, 'the open panel must scroll, or this test proves nothing').toBe(true);
+
+    // The step is the column's: a scrollbar cannot change it, and the rows are
+    // laid out in the same width either way.
+    expect(open.step).toBe(collapsed.step);
+    expect(open.contentWidth).toBe(collapsed.contentWidth);
+    // Every head — title and count slot — stands where it stood collapsed.
+    for (const [name, at] of Object.entries(collapsed.heads)) {
+      expect(open.heads[name], `the head "${name}" moved when sections opened`).toEqual(at);
+    }
+
+    // Name beside the value in the comfortable step, above it below — for every
+    // row of the column at once, the database section's included.
+    const stacked = await root.evaluate((el) => [...el.querySelectorAll<HTMLElement>('.pv-prow')].map((row) => {
+      const name = row.querySelector<HTMLElement>(':scope > .pv-prow-name')!.getBoundingClientRect();
+      const value = row.querySelector<HTMLElement>(':scope > .pv-prow-value')!.getBoundingClientRect();
+      return value.top >= name.bottom - 1;
+    }));
+    expect(stacked.length).toBeGreaterThan(5);
+    expect(new Set(stacked).size, 'rows of one column in two layouts').toBe(1);
+    expect(stacked[0]).toBe(step !== 'comfortable');
+
+    // Every value of the properties starts at the same left edge.
+    const valueEdges = await root.evaluate((el) => [...el.querySelectorAll<HTMLElement>('.pv-props .pv-prow > .pv-prow-value')].map((value) => {
+      const style = getComputedStyle(value);
+      return Math.round(value.getBoundingClientRect().left + parseFloat(style.paddingLeft));
+    }));
+    expect(new Set(valueEdges).size, `value edges: ${valueEdges.join(', ')}`).toBe(1);
+
+    // Nothing is cut without saying so: what is wider than its box and hides
+    // the rest must draw an ellipsis, and the column never scrolls sideways.
+    const cut = await root.evaluate((el) => {
+      const out: string[] = [];
+      if (el.scrollWidth > el.clientWidth + 1) {
+        // Name what sticks out, innermost first — "it scrolls" alone sends
+        // whoever reads this hunting.
+        const edge = el.getBoundingClientRect().left + el.clientLeft + el.clientWidth;
+        const over = [...el.querySelectorAll<HTMLElement>('*')].filter((node) => node.getBoundingClientRect().right > edge + 1);
+        const inner = over.filter((node) => !over.some((other) => other !== node && node.contains(other)));
+        out.push(`the column scrolls sideways: ${inner.slice(0, 5).map((node) => `${node.tagName.toLowerCase()}.${String(node.className)}`).join(' | ')}`);
+      }
+      for (const node of el.querySelectorAll<HTMLElement>('.pv-prow *, .pv-prow-line *, .pv-prow-group *, .pv-side-section-header *')) {
+        const style = getComputedStyle(node);
+        if (style.opacity === '0' || style.display === 'none' || node.clientWidth === 0) continue;
+        if (node.scrollWidth <= node.clientWidth + 1) continue;
+        if (style.overflowX !== 'hidden' && style.overflowX !== 'clip') continue;
+        if (style.textOverflow === 'ellipsis') continue;
+        out.push(`${node.tagName.toLowerCase()}.${node.className} "${(node.textContent || (node as HTMLInputElement).value || '').slice(0, 30)}"`);
+      }
+      return out;
+    });
+    expect(cut, `cut without an ellipsis:\n${cut.join('\n')}`).toEqual([]);
+
+    // The long tag: one chip, shortened with an ellipsis, the whole name in its
+    // tooltip. The long text: all of it on screen, over several lines.
+    const chip = root.locator('.pv-props .pv-chip', { hasText: 'schlagwortname' });
+    await expect(chip).toHaveAttribute('data-tip', longTag);
+    const label = chip.locator('.pv-chip-text');
+    expect(await label.evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis');
+    expect(await label.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    const chipBox = (await chip.boundingBox())!;
+    const rowBox = (await root.locator('.pv-prow[data-prop="tags"] > .pv-prow-value').boundingBox())!;
+    expect(chipBox.x + chipBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
+
+    const text = root.locator('.pv-prow[data-prop="beschreibung"] > .pv-prow-value textarea');
+    await expect(text).toHaveValue(longText);
+    expect(await text.evaluate((el) => el.scrollHeight <= el.clientHeight + 1 && el.clientHeight > 30), 'the text field shows every line').toBe(true);
+
+    // The date in its long form (the year written out, a weekday), not two
+    // letters of it.
+    const date = root.locator('.pv-prow[data-prop="date"] .pv-prow-date');
+    await expect(date).toContainText('2026');
+    expect(await date.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  });
+}
+
+test('Right column: a fresh window opens at 300px, a stored old default follows, a dragged width stays', async ({ page }) => {
+  // Decision E2. The old default (250) was written back on every start, so it
+  // is stored in every existing window without anyone having chosen it.
+  const seeds: Array<[Record<string, string>, number]> = [
+    [{}, 300],
+    [{ 'plainva-right-sidebar-width': '250' }, 300],
+    [{ 'plainva-right-sidebar-width': '250', 'plainva-right-sidebar-width-chosen': '1' }, 250],
+    [{ 'plainva-right-sidebar-width': '410' }, 410],
+  ];
+  for (const [seed, expected] of seeds) {
+    // Init scripts add up over the loop and run in order; each one clears the
+    // two keys first, so the last one registered is the state of this load.
+    await page.addInitScript((entries) => {
+      for (const key of ['plainva-right-sidebar-width', 'plainva-right-sidebar-width-chosen']) localStorage.removeItem(key);
+      for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value);
+    }, seed);
+    await page.goto('/');
+    const aside = page.locator('aside[aria-label="Right Sidebar"]');
+    await expect(aside).toBeVisible({ timeout: 10000 });
+    expect(Math.round((await aside.boundingBox())!.width), JSON.stringify(seed)).toBe(expected);
+  }
 });
 
 test('Base table: rows render, filter row narrows, sort rule flips order', async ({ page }) => {
@@ -989,14 +1163,49 @@ test('Base table: a single click starts inline editing and saves (P3)', async ({
   await openBase(page, 'Cockpit');
   const row = page.locator('tr', { hasText: 'Alpha' });
   await row.getByText('active', { exact: true }).click();
-  // The row now also carries the selection checkbox — say which input is meant.
-  const input = row.locator('td:not(.pv-selcol) input');
+  // The row now also carries the selection checkbox — say which field is meant.
+  // Since issue 118 a text cell is edited in a field that grows with its text.
+  const input = row.locator('td:not(.pv-selcol) textarea');
   await expect(input).toBeVisible();
   await input.fill('review');
   await input.press('Enter');
   await expect
     .poll(async () => await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md']))
     .toContain('status: review');
+});
+
+test('Base table: a long text cell is edited at its full height, and stays one value (issue 118)', async ({ page }) => {
+  const LONG = 'A long value that wraps over several lines while it is read and has to stay just as readable while it is being changed in the table';
+  await page.goto('/');
+  await openBase(page, 'Cockpit');
+  const row = page.locator('tr', { hasText: 'Alpha' });
+  await row.getByText('active', { exact: true }).click();
+  const field = row.locator('td:not(.pv-selcol) textarea');
+  await expect(field).toBeFocused();
+  const oneLine = (await field.boundingBox())!.height;
+
+  // Typed text wraps at the cell's width and the field grows with it — no
+  // scrolling inside the field, no single line cut off at its edge.
+  await field.fill(LONG);
+  await expect.poll(async () => (await field.boundingBox())!.height).toBeGreaterThan(oneLine * 1.8);
+  expect(await field.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+
+  // A pasted paragraph stays ONE value: its line break becomes a space.
+  await field.fill('first line\nsecond line');
+  await expect(field).toHaveValue('first line second line');
+
+  // Escape discards; Enter saves, as it always did.
+  await field.press('Escape');
+  await expect(row.locator('td:not(.pv-selcol) textarea')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md'] as string)).toContain('status: active');
+  await row.getByText('active', { exact: true }).click();
+  await row.locator('td:not(.pv-selcol) textarea').fill(LONG);
+  await row.locator('td:not(.pv-selcol) textarea').press('Enter');
+  // The frontmatter writer folds a long plain scalar at 80 columns (valid YAML,
+  // one value); read it back the way a YAML reader does.
+  await expect
+    .poll(async () => (await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md'] as string)).replace(/\s+/g, ' '))
+    .toContain(`status: ${LONG}`);
 });
 
 /**

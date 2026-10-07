@@ -31,9 +31,11 @@ Notities openen **weergegeven en alleen-lezen**; de pen rechtsboven schakelt ove
 
 Houd een woord ingedrukt om tekst te selecteren. De selectiebalk biedt **Kopiëren** en **Alles selecteren**, ook om de volledige tekst van een lange notitie te kopiëren. Verborgen YAML-eigenschappen en Markdown-opmaaktekens worden niet gekopieerd. **Bewerken** schakelt over naar schrijven op de geselecteerde plek als je de notitie mag bewerken.
 
+**Het opdrachtenpalet** is het zoekveld: tik op het vergrootglas en typ `>`; in plaats van notities staan er opdrachten, waaronder importeren, een back-up, het opnieuw opbouwen van de index en de openstaande opmerkingen. Vanuit een open notitie heeft het **⋮**-menu **Opdrachten**; het palet toont dan ook wat op die notitie werkt: hernoemen, versiegeschiedenis, Markdown-bron, sjablonen en versturen per e-mail.
+
 Mappen kun je vanuit de werkbalk boven de lijst **doorzoeken** en **sorteren** — op **Titel**, **Laatst gewijzigd** of **Aangemaakt**; nogmaals kiezen keert de richting om, en de sortering wordt op het apparaat onthouden. Bij een koude start opent de app wat je het laatst open had — notitie, map of databaseweergave, tabblad inbegrepen — en elke notitie opent waar je haar verliet; installatie-assistenten en een onvoltooide e-mail worden niet hersteld. Lijsten met subitems vouw je in en uit met een tik op hun opsommingsteken.
 
-De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) opent de contextkaart van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, graaf en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen. De Markdown-bron en zoeken binnen de notitie vind je in het ⋮-menu.
+De knop **Notitiedetails** in de kopbalk (tussen de bladwijzer en het ⋮-menu) opent de contextkaart van de notitie: eigenschappen (direct bewerkbaar), backlinks, structuur, graaf en de **versiegeschiedenis** — elke bewerking maakt automatisch snapshots aan die je kunt bekijken, vergelijken en herstellen. De Markdown-bron en zoeken binnen de notitie vind je in het ⋮-menu. Het tabblad **Databases** toont tot welke databases de notitie behoort, haar positie daarin met pijlen naar de buren, en de velden die de database voor haar berekent (aggregaties, omgekeerde relaties).
 
 Op een breed scherm (een tablet vanaf 1024 px) kan die kaart als **derde kolom** naast de notitie open blijven, in plaats van telkens te openen en te sluiten. De schakelaar heet **Contextpaneel vastzetten** en staat onder **Instellingen → Weergave → Indeling**; hij geldt voor dit apparaat. Staat hij uit — of is het venster smaller — dan opent dezelfde knop de kaart zoals voorheen.
 
@@ -128,6 +130,8 @@ Het onderdeel **Kalender** toont je gekoppelde kalenders in de weergaven **Dag**
 Tik op een afspraakherinnering en de afspraak zelf opent — de dagweergave op die dag, de afspraak geopend. De weergave die je het laatst had (dag, 3 dagen, agenda) wordt op het apparaat onthouden, zoals op de desktop.
 
 **Wanneer de telefoon kijkt.** Op de achtergrond loopt op een telefoon geen klok: de regelmatige synchronisatie staat dus stil zolang de app weg is. Daarom kijkt Plainva uit zichzelf zodra je **terugkeert in de app** en zodra je **Agenda's**, **Taken** of de **Agenda-accounts** opent — hoogstens één keer per minuut, zodat veel heen en weer schakelen geen reeks synchronisaties in gang zet. Bij terugkeer worden meteen ook de **herinneringen opnieuw ingepland**, ook als er niets nieuws bij is gekomen: de klok is immers toch doorgelopen. Wil je niet wachten, dan zijn **Nu verversen** en het naar beneden trekken van de lijst er nog steeds.
+
+**Wat niet actueel is en wat niet past.** Wordt een account of een agenda niet gesynchroniseerd, dan staat dat ook op de telefoon in een regel boven de agenda — welke, sinds wanneer en waarom — met **Opnieuw proberen**; de afspraken eronder blijven staan als laatst bekende stand. In de weergave **Maand** toont een dag hooguit drie stippen; een getal erachter (bijvoorbeeld **+3**) zegt hoeveel vermeldingen hij daarnaast heeft. Werklocatie, focustijd en afwezigheid staan in het tijdraster als een rustige band in de strook voor hele dagen, niet als afspraak.
 
 Beheer accounts via het tandwielicoon in de afsprakenkalender: verbind **CalDAV** op het apparaat met een app-wachtwoord (bijv. Fastmail, Nextcloud, iCloud); Google en Microsoft volg je via aanmelden in de browser. Per account kun je losse kalenders tonen of verbergen.
 
@@ -285,6 +289,8 @@ Het geselecteerde pictogram houdt afstand tot de rand in de compacte balk. Aanra
 ## Leesruimte en afbeeldingen
 
 Bij **Editor en notities** kun je **Bediening tijdens het lezen automatisch verbergen** uitschakelen. Standaard verdwijnen kopbalk en potlood bij omlaag scrollen. Ze keren terug bij omhoog scrollen, bovenaan de notitie, bij tekstselectie, een open bedieningselement, het toetsenbord of een conflictmelding. Het schuifgebied houdt dezelfde grootte en de bewegingsvoorkeur wordt gevolgd. De tabletrail blijft zichtbaar; op desktop gebruik je focusmodus.
+
+De **Spellingcontrole** in hetzelfde gebied staat standaard uit. Ingeschakeld controleren je toetsenbord en je systeem met hun eigen talen notities, tabelcellen, e-mails, opmerkingen, journaalitems en taken; code, sleutels en wachtwoorden nooit. De instelling hoort bij dit apparaat.
 
 **Afbeelding openen** is beschikbaar voor lokale afbeeldingen in leesmodus, livevoorbeeld en het contextmenu. Gebruik in de mobiele viewer twee vingers, dubbeltikken of de zoomknoppen; **Zoom herstellen** toont de hele afbeelding. Terug brengt je naar de notitie. Lang drukken behoudt de systeemacties en je kunt nog steeds een gebied selecteren voor een opmerking.
 

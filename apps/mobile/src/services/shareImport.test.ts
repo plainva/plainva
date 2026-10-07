@@ -42,7 +42,7 @@ describe("durable inbound transfers", () => {
       text: `---\nstatus: Offen\n---\n# ${title}\n\n${body}\n`,
     }));
     const path = await importSharedContent(f.port, f.get(), { ...f.context, asTask });
-    expect(path).toBe("Aufgaben/Agenda (aaaaaaaa).md");
+    expect(path).toBe("Aufgaben/Agenda.md");
     expect(asTask).toHaveBeenCalledTimes(1);
     const note = f.contents.get(path) as string;
     expect(note).toContain("status: Offen");
@@ -110,7 +110,7 @@ describe("durable inbound transfers", () => {
   });
   it("reads a file in bounded chunks, verifies storage, and consumes only after the note", async () => {
     const f = fixture(); const path = await importSharedContent(f.port, f.get(), f.context);
-    expect(f.contents.size).toBe(2); expect(path).toBe("Inbox/Agenda (aaaaaaaa).md");
+    expect(f.contents.size).toBe(2); expect(path).toBe("Inbox/Agenda.md");
     expect(f.contents.get(path)).toContain("![[Attachments/Shared/");
     expect(f.contents.get(path)).toContain("https://example.test/agenda");
     expect(vi.mocked(f.port.readFileChunk).mock.calls.map(([a]) => a.length)).toEqual([SHARE_LIMITS.chunkBytes, 300_000 - SHARE_LIMITS.chunkBytes]);
@@ -128,7 +128,7 @@ describe("durable inbound transfers", () => {
     await expect(importSharedContent(f.port, f.get(), f.context)).rejects.toThrow();
     const savedBefore = f.get(); expect((await f.port.listPendingShares()).entries).toHaveLength(1);
     const result = await importSharedContent(f.port, savedBefore, f.context);
-    expect(result).toBe("Inbox/Agenda (aaaaaaaa).md"); expect(f.contents.size).toBe(2);
+    expect(result).toBe("Inbox/Agenda.md"); expect(f.contents.size).toBe(2);
     expect(f.files.writeBinaryFile).toHaveBeenCalledTimes(1); expect(f.files.writeTextFile).toHaveBeenCalledTimes(1);
   });
   it("never writes into a locked vault or acknowledges a failed write", async () => {
@@ -170,7 +170,12 @@ describe("durable inbound transfers", () => {
   it("treats an explicit second share of equal content as a different transfer", async () => {
     const first = fixture(), second = fixture(); const next = second.get(); next.id = "cccccccc-1111-2222-3333-444444444444"; second.set(next);
     const paths = await Promise.all([importSharedContent(first.port, first.get(), first.context), importSharedContent(second.port, second.get(), second.context)]);
-    expect(paths[0]).not.toBe(paths[1]);
+    // Two transfers, each finished on its own. (That they also get two NAMES
+    // when they meet in one vault is shareImportNaming.test.ts; these two
+    // fixtures are two separate vaults, and the name no longer carries the id.)
+    expect(paths).toHaveLength(2);
+    expect(first.port.finishShare).toHaveBeenCalledTimes(1); expect(second.port.finishShare).toHaveBeenCalledTimes(1);
+    expect(first.contents.has(paths[0])).toBe(true); expect(second.contents.has(paths[1])).toBe(true);
   });
   it("rejects malformed metadata, oversized files, bad chunks and changed staging", async () => {
     const f = fixture(), malformed = f.get(); malformed.files[0].size = 26 * 1024 * 1024;

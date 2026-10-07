@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { test, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
+import { returnToApp, waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 import { installShareInbox } from "./shareInbox";
 
 /**
@@ -183,18 +183,6 @@ async function recordShown(context: BrowserContext, testId: string) {
 }
 const shown = (page: Page, testId: string) => page.evaluate((id) => (globalThis as unknown as Record<string, string[]>)[`__shown:${id}`], testId);
 
-/** Away from the app and back: the web shell reports it as a visibility change, and the app catches up. */
-async function returnToApp(page: Page) {
-  await page.evaluate(() => {
-    const set = (hidden: boolean) => {
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
-      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (hidden ? "hidden" : "visible") });
-      document.dispatchEvent(new Event("visibilitychange"));
-    };
-    set(true);
-    set(false);
-  });
-}
 
 /**
  * The app on a vault with these files, under the fixed clock, with the task
@@ -655,6 +643,173 @@ test("Create as a task in the share sheet: the shared text and file become a tas
     await openTasks(page);
     await page.getByTestId("tasks-list-inbox").click();
     await expect(rowTitles(page.getByTestId("task-planner-section-inbox"))).toHaveText([created[0].replace(/\.md$/, ""), "Steuer abgeben"]);
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});
+
+const CHORES = "# Haushalt\n\n- [ ] Drucker einrichten 📅 2026-09-19 #buero\n- [ ] Ohne Datum\n";
+
+test("the due day on the phone: a box a finger can hit, a tap on the date opens the date sheet, All to today moves the overdue ones — and both undo (plan Befunde 2026-10-06, W1-W3)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  const tax = (frist: string) => taskNote("Steuer abgeben", { status: "Offen", frist });
+  const rent = (frist: string) => taskNote("Miete zahlen", { status: "Offen", frist });
+  try {
+    await start(page, context, sql, [
+      ["Aufgaben.base", TASK_BASE],
+      // One with a time of day: only its DAY may change.
+      ["Aufgaben/Steuer abgeben.md", tax("2026-09-18T09:15")],
+      ["Aufgaben/Miete zahlen.md", rent("2026-09-15")],
+      ["Haushalt.md", CHORES],
+    ]);
+    await openTasks(page);
+    const overdue = page.getByTestId("task-planner-section-overdue");
+    const today = page.getByTestId("task-planner-section-today");
+    // Oldest first: the longest-waiting thing leads.
+    await expect(rowTitles(overdue)).toHaveText(["Miete zahlen", "Steuer abgeben", "Drucker einrichten"], { timeout: 20_000 });
+
+    // W1: the box is a 44px target with a 24px glyph — it was a 15px glyph.
+    const box = plannerRow(overdue, "Miete zahlen").getByTestId("task-planner-toggle");
+    const target = (await box.boundingBox())!;
+    expect(target.width).toBeGreaterThanOrEqual(44);
+    expect(target.height).toBeGreaterThanOrEqual(44);
+    expect((await box.locator("svg").boundingBox())!.width).toBe(24);
+
+    // W2: the date is a button. A tap opens the date sheet and does NOT open the note.
+    await plannerRow(overdue, "Miete zahlen").getByTestId("task-planner-due").click();
+    const sheet = page.getByTestId("task-due-sheet");
+    await expect(sheet).toBeVisible();
+    await expect(page.getByTestId("tasks-filters")).toBeVisible();
+    await sheet.getByTestId("task-due-grid-day-2026-09-22").click();
+    await expect(sheet).toHaveCount(0);
+    await expect.poll(() => readFile(page, "Aufgaben/Miete zahlen.md")).toBe(rent("2026-09-22"));
+    await expect(rowTitles(overdue)).toHaveText(["Steuer abgeben", "Drucker einrichten"]);
+    // The notice names the day that was picked and takes the move back.
+    const moved = page.locator(".pv-toast").filter({ hasText: "New due date: Tue, 09/22" });
+    await moved.locator(".pv-toast-action").click();
+    await expect.poll(() => readFile(page, "Aufgaben/Miete zahlen.md")).toBe(rent("2026-09-15"));
+    await expect(rowTitles(overdue)).toHaveText(["Miete zahlen", "Steuer abgeben", "Drucker einrichten"]);
+
+    // W3: one tap for the whole section — database entries and a checkbox alike.
+    await page.getByTestId("task-planner-overdue-today").click();
+    await expect.poll(() => readFile(page, "Aufgaben/Steuer abgeben.md")).toBe(tax("2026-09-20T09:15"));
+    await expect.poll(() => readFile(page, "Aufgaben/Miete zahlen.md")).toBe(rent("2026-09-20"));
+    await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace("2026-09-19", "2026-09-20"));
+    await expect(overdue).toHaveCount(0);
+    await expect(rowTitles(today)).toHaveText(["Steuer abgeben", "Drucker einrichten", "Miete zahlen"]);
+    await page.locator(".pv-toast").filter({ hasText: "Moved to today: 3" }).locator(".pv-toast-action").click();
+    await expect.poll(() => readFile(page, "Aufgaben/Steuer abgeben.md")).toBe(tax("2026-09-18T09:15"));
+    await expect.poll(() => readFile(page, "Aufgaben/Miete zahlen.md")).toBe(rent("2026-09-15"));
+    await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES);
+    await expect(rowTitles(overdue)).toHaveText(["Miete zahlen", "Steuer abgeben", "Drucker einrichten"]);
+
+    // "All": the same box and the same date control in both sections.
+    await page.getByTestId("tasks-list-all").click();
+    const dbRow = page.getByTestId("task-db-row").filter({ hasText: "Steuer abgeben" });
+    expect((await dbRow.getByTestId("task-db-toggle").boundingBox())!.width).toBeGreaterThanOrEqual(44);
+    expect((await dbRow.getByTestId("task-db-toggle").locator("svg").boundingBox())!.width).toBe(24);
+    await dbRow.getByTestId("task-db-due").click();
+    await expect(sheet).toBeVisible();
+    await sheet.getByTestId("task-due-grid-day-2026-09-25").click();
+    await expect.poll(() => readFile(page, "Aufgaben/Steuer abgeben.md")).toBe(tax("2026-09-25T09:15"));
+    const noteRow = page.getByTestId("task-row").filter({ hasText: "Drucker einrichten" });
+    expect((await noteRow.getByTestId("task-toggle").boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await noteRow.getByTestId("task-due").click();
+    await expect(sheet).toBeVisible();
+    await sheet.getByTestId("task-due-grid-day-2026-09-21").click();
+    await expect.poll(() => readFile(page, "Haushalt.md")).toBe(CHORES.replace("2026-09-19", "2026-09-21"));
+
+    // The row's own sheet carries the same picker — the way a task without a date gets one.
+    const undated = page.getByTestId("task-row").filter({ hasText: "Ohne Datum" });
+    const at = (await undated.locator(".pv-grouprow-title").boundingBox())!;
+    const cdp = await page.context().newCDPSession(page);
+    const point = { x: Math.round(at.x + at.width / 2), y: Math.round(at.y + at.height / 2), id: 1 };
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+    await page.waitForTimeout(750);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await cdp.detach();
+    await page.locator(".m-sheet").getByRole("button", { name: "Change due date" }).click();
+    await expect(sheet).toBeVisible();
+    await sheet.getByTestId("task-due-grid-day-2026-09-20").click();
+    await expect.poll(() => readFile(page, "Haushalt.md")).toContain("- [ ] Ohne Datum 📅 2026-09-20\n");
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});
+
+test("the capture sheets offer notes after [[ and tags after # (plan Befunde 2026-10-06, W5)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  try {
+    await start(page, context, sql, [
+      ["Aufgaben.base", TASK_BASE],
+      ["Projekte/Dachsanierung.md", "# Dachsanierung\n\n#kunde #kundentermin\n"],
+      ["Projekte/Garten.md", "# Garten\n\n#privat\n"],
+    ]);
+    await expect.poll(() => sql.count(INDEX, "tags")).toBeGreaterThanOrEqual(3);
+
+    // The task sheet: a tag is completed from the vault's tags and counts as a brick.
+    await page.locator(".m-tabbar .m-tab", { hasText: "Home" }).click();
+    await page.getByTestId("capture-fab").click();
+    await page.locator(".m-fabmenu-item", { hasText: "New task" }).click();
+    const taskSheet = page.getByTestId("task-capture-sheet");
+    const input = taskSheet.getByTestId("task-capture-input");
+    await expect(input).toBeFocused();
+    await input.pressSequentially("Angebot schicken #kun");
+    const options = page.getByTestId("inline-suggest-option");
+    await expect(options).toHaveText([/^#kunde/, /^#kundentermin/]);
+    // A tap takes one — and the keyboard's focus stays in the field.
+    await options.nth(1).click();
+    await expect(input).toHaveValue("Angebot schicken #kundentermin ");
+    await expect(input).toBeFocused();
+    await expect(taskSheet.getByTestId("task-capture-brick-tag")).toContainText("kundentermin");
+    // `[[` lists notes by title; the link stays part of the title.
+    await input.pressSequentially("[[dach");
+    await expect(options).toHaveText(["Dachsanierung"]);
+    await options.first().click();
+    await expect(input).toHaveValue("Angebot schicken #kundentermin [[Dachsanierung]] ");
+    await taskSheet.getByTestId("task-capture-submit").click();
+    await expect(taskSheet).toHaveCount(0);
+    const created = async () => (await readTree(page, "Aufgaben")).find((entry) => entry.text.includes("Dachsanierung"))?.text ?? "";
+    await expect.poll(created).toContain("[[Dachsanierung]]");
+    expect(await created()).toContain("kundentermin");
+    expect(errors).toEqual([]);
+  } finally {
+    sql.close();
+  }
+});
+
+test("the Today screen: a tap on a task's date opens the same date sheet, and the notice takes the move back (W2 on the Today screen)", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+  const sql = await installSqlBridge(context);
+  const offer = (frist: string) => taskNote("Angebot schicken", { status: "Offen", frist });
+  try {
+    await start(page, context, sql, [["Aufgaben.base", TASK_BASE], ["Aufgaben/Angebot schicken.md", offer("2026-09-20T14:00")]]);
+    await page.locator(".m-tabbar .m-tab", { hasText: "Today" }).click();
+    const row = page.getByTestId("today-task-row").filter({ hasText: "Angebot schicken" });
+    await expect(row).toBeVisible({ timeout: 20_000 });
+
+    await row.getByTestId("today-task-due").click();
+    const sheet = page.getByTestId("task-due-sheet");
+    await expect(sheet).toBeVisible();
+    await sheet.getByTestId("task-due-grid-day-2026-09-24").click();
+    // Only the day moved; the task left the day it was listed under.
+    await expect.poll(() => readFile(page, "Aufgaben/Angebot schicken.md")).toBe(offer("2026-09-24T14:00"));
+    await expect(row).toHaveCount(0);
+
+    await page.locator(".pv-toast").filter({ hasText: "New due date: Thu, 09/24" }).locator(".pv-toast-action").click();
+    await expect.poll(() => readFile(page, "Aufgaben/Angebot schicken.md")).toBe(offer("2026-09-20T14:00"));
+    await expect(row).toBeVisible();
+    // A tap beside the date still opens the task.
+    await row.locator(".pv-grouprow-title").click();
+    await expect(page.getByTestId("today-task-row")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Back$/ })).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
     sql.close();

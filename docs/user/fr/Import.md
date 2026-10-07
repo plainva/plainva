@@ -1,10 +1,10 @@
 # Importer depuis une autre application
 
-Dernière mise à jour : 2026-09-17
+Dernière mise à jour : 2026-10-06
 
 Plainva importe les notes d’autres applications dans un nouveau vault ou un sous-dossier nouvellement nommé du vault ouvert. Le reste du vault reste inchangé ; vous pouvez ensuite déplacer ou supprimer le dossier importé.
 
-**L'import fonctionne sur les deux appareils, avec les mêmes sources.** Sur le bureau, l'écran d'accueil, la palette de commandes et le menu contextuel d'un dossier y mènent ; sur le téléphone, vous le trouvez sous **Réglages → Maintenance → Importer depuis une autre application**. Les sources qui nécessitent un accès à un service — Notion via son API — y sont également disponibles.
+**L'import fonctionne sur les deux appareils, avec les mêmes sources.** Sur le bureau, l'écran d'accueil, la palette de commandes et le menu contextuel d'un dossier y mènent ; sur le téléphone, vous le trouvez sous **Réglages → Maintenance → Importer depuis une autre application**. Les sources qui nécessitent un accès à un service — Notion via son API — y sont également disponibles. La palette de commandes du téléphone (`>` dans le champ de recherche) y mène aussi.
 
 ## Démarrer un import
 

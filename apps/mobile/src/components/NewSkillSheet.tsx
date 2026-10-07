@@ -29,7 +29,7 @@ export function NewSkillSheet({ onClose }: { onClose: () => void }) {
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()} data-testid="ai-skill-new-dialog">
         <SheetGrip onClose={onClose} />
         <p className="m-sheet-title">{t("ai.workshop.form.title")}</p>
-        <TextInput value={name} spellCheck={false} autoCapitalize="none" placeholder={t("ai.workshop.form.name")} aria-label={t("ai.workshop.form.name")} onChange={(event) => setName(event.target.value.toLowerCase())} data-testid="ai-skill-name" />
+        <TextInput value={name} autoCapitalize="none" placeholder={t("ai.workshop.form.name")} aria-label={t("ai.workshop.form.name")} onChange={(event) => setName(event.target.value.toLowerCase())} data-testid="ai-skill-name" />
         <p className="m-hint">{t("ai.workshop.form.nameHint")}</p>
         <TextArea rows={3} value={description} placeholder={t("ai.workshop.form.description")} aria-label={t("ai.workshop.form.description")} onChange={(event) => setDescription(event.target.value)} data-testid="ai-skill-description" />
         <p className="m-hint">{t("ai.workshop.form.descriptionHint")}</p>

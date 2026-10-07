@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-09-30
+Última actualización: 2026-10-06
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -45,11 +45,12 @@ Escribe `/` al principio de una línea para abrir el menú de inserción. Está 
 - **Menciones con `@`** — escribe `@` en cualquier parte del texto para insertar una **Fecha** (Hoy, Mañana, Ayer o **Elegir una fecha…**, guardada como fecha ISO), un enlace a una **Nota**, o una incrustación de **Base de datos**.
 - **Emoji** — el comando de barra oblicua **Emoji** (`/emoji`) abre un selector de emojis en el cursor; o escribe `:name` (por ejemplo `:rocket`) para sugerencias en línea. En cualquier caso, Plainva inserta el **carácter** emoji real (Unicode portable), nunca un `:shortcode:` — así la nota se mantiene legible en Obsidian, en GitHub y en cualquier otro sitio. (Esto es independiente del **icono del documento** de la nota, que se guarda en el frontmatter.)
 - **Manejadores de bloque** — al pasar el cursor aparece un manejador a la izquierda de cada párrafo: arrástralo para mover el bloque, haz clic para abrir **Acciones de bloque** (**Convertir en** Texto/Encabezado/Lista/Tarea/Cita/Bloque de código, **Duplicar**, **Mover arriba**/**Mover abajo**, **Eliminar bloque**). Si arrastras una lista junto a otra lista del mismo tipo, Plainva inserta una línea separadora invisible `<!-- -->` para que ambas listas se mantengan separadas — en Markdown, las listas del mismo estilo se fusionarían de otro modo pese a la línea en blanco (también en Obsidian).
-- **Tablas** — se renderizan como un widget con celdas editables con un clic. La vista de la celda renderiza el formato (**negrita**, *cursiva*, `código`, resaltado), enlaces en los que se puede hacer clic (`[[Enlace interno]]`, direcciones web) y `<br>` como salto de línea; al editar ves el texto sin procesar. El menú de la tabla ofrece insertar/eliminar filas y columnas además de alineación (**Alinear a la izquierda**/**Centrar**/**Alinear a la derecha**).
+- **Tablas** — se renderizan como un widget con celdas editables con un clic. La vista de la celda renderiza el formato (**negrita**, *cursiva*, `código`, resaltado), enlaces en los que se puede hacer clic (`[[Enlace interno]]`, direcciones web) y `<br>` como salto de línea; al editar ves el texto sin procesar. El menú de la tabla ofrece insertar/eliminar filas y columnas además de alineación (**Alinear a la izquierda**/**Centrar**/**Alinear a la derecha**). La celda se abre en un campo que crece y se ajusta con el texto: **Enter** guarda, **Shift+Enter** añade un salto de línea (escrito como `<br>`), **Esc** descarta.
 - **Las listas se continúan solas** (Enter inserta el siguiente marcador de lista), los bloques de código reciben resaltado según el lenguaje (también en el modo lectura), el contenido pegado se convierte a Markdown (pegado inteligente) y los encabezados se pueden plegar.
 - **Plegar listas**: un clic en la viñeta de un elemento con subelementos los pliega; la viñeta toma el color de acento y un «…» marca el lugar, un segundo clic los despliega. El archivo nunca cambia. Las viñetas alternan por nivel (• ◦ ▪) y las líneas de continuación quedan justo bajo el texto de su elemento, también en el teléfono, donde la viñeta es el único control de plegado.
 - **Posición de desplazamiento**: cada nota se abre donde la dejaste; se recuerda por dispositivo, sin sincronizar.
 - **Buscar y reemplazar** dentro de la nota actual: `Ctrl+F` (ver [Buscar](Search.md)).
+- **Corrección ortográfica** — desactivada de forma predeterminada. Actívala en **Configuración → App → Editor y notas** y las palabras mal escritas se subrayan en notas, celdas de tabla, correos, comentarios, entradas del diario y tareas; el código, las direcciones web, las claves y las contraseñas nunca se revisan. Plainva usa el corrector ortográfico de tu sistema y sus idiomas y no trae diccionarios propios. Mientras está activada, un clic derecho en ese texto abre el menú del sistema con las sugerencias en lugar del de Plainva; una celda de tabla conserva su menú de tabla. El ajuste pertenece a este dispositivo. En Linux, Plainva todavía no activa el corrector del WebView del sistema, así que allí no tiene efecto.
 
 ## Enlaces y retroenlaces
 
@@ -62,7 +63,7 @@ Escribe `/` al principio de una línea para abrir el menú de inserción. Está 
 
 ## Propiedades (frontmatter)
 
-La sección **Propiedades** de la barra lateral derecha muestra el frontmatter de la nota como un formulario. **Añadir propiedad** crea nuevas; cada propiedad tiene un **Tipo de campo**:
+La sección **Propiedades** de la barra lateral derecha muestra el frontmatter de la nota como un formulario. Cada propiedad es una fila: icono de tipo, nombre, valor y, en el borde derecho, lo que la fila permite — un candado en los campos protegidos y, al pasar el ratón, **Eliminar propiedad** y el bocadillo de comentario. Los valores se editan en el sitio y pasan a la línea siguiente en lugar de cortarse. **Añadir propiedad** crea nuevas; cada propiedad tiene un **Tipo de campo**:
 
 | Grupo | Tipos |
 |---|---|
@@ -129,7 +130,7 @@ Cuando una plantilla pregunta algo, Plainva hace **todas** las preguntas en un �
 
 **Plantillas por carpeta**: en **Configuración → Vault → Contenido y estructura → Plantillas** asignas una plantilla a una carpeta — cada nota nueva creada allí parte entonces de ella, sin que tengas que elegir nada. La asignación también cubre las subcarpetas; cuando coinciden varias, gana la ruta más larga (`Proyectos/Clientes` le gana a `Proyectos`). Asignas una plantilla a un **tipo de nota** de la misma manera; se aplica cuando ninguna regla de carpeta cubre la nota — la carpeta le gana al tipo. **Nueva nota desde plantilla …** (clic derecho en el árbol de archivos, la paleta de comandos o el selector rápido) te permite elegir una explícitamente — eso le gana a cualquier asignación. Las asignaciones viven en la configuración, no en las notas, y viajan a tus otros dispositivos mediante la sincronización de la configuración.
 
-Crear plantillas funciona desde cualquier lugar: la paleta de comandos (`Ctrl+P`) ofrece **Crear nueva plantilla** (se abre una plantilla nueva para editarla) y **Guardar la nota actual como plantilla** (copia la nota abierta en la carpeta de plantillas). Las plantillas son archivos Markdown normales — edítalas, renómbralas o elimínalas directamente en el árbol de archivos.
+Crear plantillas funciona desde cualquier lugar: la paleta de comandos (`Ctrl+P`) ofrece **Crear nueva plantilla** (se abre una plantilla nueva para editarla) y **Guardar la nota actual como plantilla** (copia la nota abierta en la carpeta de plantillas). Las plantillas son archivos Markdown normales — edítalas, renómbralas o elimínalas directamente en el árbol de archivos. En el teléfono ambos están también en la paleta de comandos (`>` en el campo de búsqueda); para el segundo, ábrela desde el menú **⋮** de la nota → **Comandos**.
 
 ## Notas diarias
 

@@ -78,12 +78,12 @@ export function ExternalAddDialog({ session, programs, onClose, onAdded }: { ses
           <label className="pv-modal-label" htmlFor="pv-ext-url">
             {t("ai.ext.add.address")}
           </label>
-          <TextInput id="pv-ext-url" value={form.url} spellCheck={false} autoComplete="off" placeholder="https://…" onChange={(event) => form.setUrl(event.target.value)} data-testid="ai-ext-add-url" />
+          <TextInput id="pv-ext-url" value={form.url} purpose="address" autoComplete="off" placeholder="https://…" onChange={(event) => form.setUrl(event.target.value)} data-testid="ai-ext-add-url" />
           <p className="pv-modal-hint">{form.addressHint ?? t("ai.ext.add.addressHint")}</p>
           <label className="pv-modal-label" htmlFor="pv-ext-token">
             {t("ai.ext.add.token")}
           </label>
-          <TextInput id="pv-ext-token" type="password" autoComplete="off" spellCheck={false} value={form.token} onChange={(event) => form.setToken(event.target.value)} data-testid="ai-ext-add-token" />
+          <TextInput id="pv-ext-token" type="password" autoComplete="off" purpose="secret" value={form.token} onChange={(event) => form.setToken(event.target.value)} data-testid="ai-ext-add-token" />
           <p className="pv-modal-hint">{t("ai.ext.add.tokenHint")}</p>
         </>
       ) : (
@@ -91,16 +91,16 @@ export function ExternalAddDialog({ session, programs, onClose, onAdded }: { ses
           <label className="pv-modal-label" htmlFor="pv-ext-program">
             {t("ai.ext.add.program")}
           </label>
-          <TextInput id="pv-ext-program" value={form.program} spellCheck={false} autoComplete="off" onChange={(event) => form.setProgram(event.target.value)} data-testid="ai-ext-add-program" />
+          <TextInput id="pv-ext-program" value={form.program} purpose="code" autoComplete="off" onChange={(event) => form.setProgram(event.target.value)} data-testid="ai-ext-add-program" />
           <p className="pv-modal-hint">{t("ai.ext.add.programHint")}</p>
           <label className="pv-modal-label" htmlFor="pv-ext-args">
             {t("ai.ext.add.args")}
           </label>
-          <TextArea id="pv-ext-args" rows={3} value={form.args} spellCheck={false} onChange={(event) => form.setArgs(event.target.value)} data-testid="ai-ext-add-args" />
+          <TextArea id="pv-ext-args" rows={3} value={form.args} purpose="code" onChange={(event) => form.setArgs(event.target.value)} data-testid="ai-ext-add-args" />
           <label className="pv-modal-label" htmlFor="pv-ext-env">
             {t("ai.ext.add.env")}
           </label>
-          <TextArea id="pv-ext-env" rows={2} value={form.env} spellCheck={false} onChange={(event) => form.setEnv(event.target.value)} data-testid="ai-ext-add-env" />
+          <TextArea id="pv-ext-env" rows={2} value={form.env} purpose="code" onChange={(event) => form.setEnv(event.target.value)} data-testid="ai-ext-add-env" />
           <p className="pv-modal-hint">{form.envProblem ?? t("ai.ext.add.envHint")}</p>
           <Checkbox checked={form.sandbox} disabled={!form.sandboxInfo?.works} onChange={(event) => form.setSandbox(event.target.checked)} data-testid="ai-ext-add-sandbox">
             {t("ai.ext.add.sandbox")}

@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-06
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -188,10 +188,10 @@ Tramite **Ctrl/Cmd+Shift+G** (o la sezione **Grafo** nella barra laterale destra
 
 Le sezioni che non hanno nulla da mostrare per la nota aperta — **Struttura**, **Backlink**, **Proprietà**, **Database** — non compaiono affatto, invece di restare lì in grigio. L’intera barra laterale destra ricorda un’unica preferenza globale per le note; le viste a schermo intero senza contesto nota la chiudono solo temporaneamente.
 
-**Quando trascini il pannello per restringerlo** cambia in tre passaggi, così niente si rompe:
+**Quando trascini il pannello per restringerlo** cambia in tre passaggi, così niente si rompe. Conta la larghezza del pannello stesso — che il contenuto scorra o no non cambia nulla — e una nuova finestra lo apre a 300 px:
 
 - **280 px e oltre** — come al solito.
-- **232–280 px** — le proprietà mettono il nome sopra il valore invece che accanto, i valori lunghi vanno a capo, le sezioni si stringono.
+- **232–280 px** — ogni riga mette il nome sopra il valore invece che accanto (le proprietà come i campi del database), i valori lunghi vanno a capo, le sezioni si stringono.
 - **sotto i 232 px** — il calendario mostra **una settimana invece del mese** (sette giorni, numero della settimana in basso a destra); una griglia mensile avrebbe qui celle da 14 pixel e smetterebbe di essere un calendario. Il grafo diventa più corto, e i backlink mostrano il nome del file senza la riga del percorso.
 
 La barra laterale destra non può scendere sotto i **200 px** — nessuna sezione è utilizzabile al di sotto. Quella sinistra scende ancora fino a 150 px, perché i nomi dei file si troncano semplicemente.
@@ -208,7 +208,7 @@ In una finestra separata o in una seconda finestra completa, fai clic destro sul
 
 ## Segnalibri di cartelle
 
-Aggiungi un segnalibro dal menu contestuale di un file o una cartella. I segnalibri di cartelle hanno un’icona dedicata: su mobile aprono la cartella, sul desktop la espandono nell’albero. Rinomine e spostamenti in Plainva aggiornano anche i segnalibri di sottocartelle e file. Le destinazioni mancanti restano indicate; rimuovi esplicitamente questi segnalibri.
+Aggiungi un segnalibro dal menu contestuale di un file o una cartella. I segnalibri di cartelle hanno un’icona dedicata: su mobile aprono la cartella, sul desktop la espandono nell’albero. Rinomine e spostamenti in Plainva aggiornano anche i segnalibri di sottocartelle e file. Le destinazioni mancanti restano indicate; rimuovi esplicitamente questi segnalibri. Per cambiare l'ordine, trascina un segnalibro al suo posto nella barra laterale — oppure premi `Alt+↑` / `Alt+↓` sulla riga attiva; sul telefono **Ordina segnalibri** accanto al titolo **Segnalibri** apre l'elenco, dove trascini la maniglia in fondo a una riga.
 
 All’apertura di un vault, Plainva importa automaticamente i segnalibri di file e cartelle da Obsidian, gruppi compresi. Tipo e percorso evitano duplicati. Il file di Obsidian resta invariato. I profili trasportano le cartelle separatamente; un vecchio profilo senza questo campo conserva i segnalibri di cartelle esistenti.
 

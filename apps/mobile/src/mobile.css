@@ -43,6 +43,13 @@ body,
      need their own height — the generic 56px list row made the list read like
      a desktop table (device report B3, 2026-07-26). One role, one place. */
   --m-mailrow-h: 76px;
+  /* The strip the system draws over the top of the screen: clock, camera,
+     Dynamic Island. ONE name for it (TestFlight 2026-09-27): whatever stands
+     at the top of the screen keeps clear of it through this token, and no rule
+     reads the environment value itself (`mobileLint`). That is also what lets
+     a test put a notch on a browser that has none (`e2e-prod/safe-top.spec.ts`)
+     and walk the screens. */
+  --m-safe-top: env(safe-area-inset-top, 0px);
 
   /* The navigation bar floats (rework N1.1 / decision E2), so two values it
      used to derive from the flow now have to be named.
@@ -109,12 +116,12 @@ textarea {
   /* How far the surface stays clear of the bottom bar — the block below
      derives the variants from this base. */
   --m-page-bottom: var(--m-bar-space);
-  --m-header-safe-top: env(safe-area-inset-top);
+  --m-header-safe-top: var(--m-safe-top);
 }
 
 /* A waiting share is the first visible strip and owns the status-bar inset. */
 .m-app:has(.m-share-notice) { --m-header-safe-top: 0px; }
-.m-share-notice { flex-shrink: 0; padding-top: calc(var(--space-2) + env(safe-area-inset-top)); }
+.m-share-notice { flex-shrink: 0; padding-top: calc(var(--space-2) + var(--m-safe-top)); }
 
 .m-screen {
   flex: 1;
@@ -229,7 +236,7 @@ textarea {
   top: 0;
   z-index: 1;
   background: var(--surface);
-  padding: calc(6px + var(--m-header-safe-top, env(safe-area-inset-top))) max(var(--m-edge), env(safe-area-inset-right)) 6px
+  padding: calc(6px + var(--m-header-safe-top, var(--m-safe-top))) max(var(--m-edge), env(safe-area-inset-right)) 6px
     max(var(--m-edge), env(safe-area-inset-left));
   margin: 0 calc(-1 * var(--m-edge));
   transition:
@@ -412,6 +419,12 @@ textarea {
 .m-evt--declined .m-evt-title {
   text-decoration: line-through;
 }
+/* On its way to the provider (issue 119) — the twin of .pv-evt--sending. */
+.m-evt--sending {
+  animation: m-evt-sending var(--dur-progress) ease-in-out infinite;
+}
+@keyframes m-evt-sending { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .m-evt--sending { animation: none; opacity: 0.6; } }
 .m-evt-state {
   flex: 0 0 auto;
   font-size: var(--text-xs);
@@ -607,7 +620,7 @@ textarea {
      runs the full height, so its first icon lands under the status bar (and on
      a notched tablet under the camera) unless it says otherwise. The bottom
      inset stays for the same reason it always did: the home indicator. */
-  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-1)
+  padding: calc(var(--space-3) + var(--m-safe-top)) var(--space-1)
     calc(var(--space-3) + env(safe-area-inset-bottom));
   border-right: 1px solid var(--border-color-light);
   /* Every area lives here now, so the column can outgrow a short window. */
@@ -2085,6 +2098,17 @@ textarea {
   width: 4px;
   height: 4px;
 }
+/* What a month cell does not show as dots (plan Befunde 2026-10-06, K2): the
+   count sits in the row of the dots and reads with them. */
+.m-cal-grid--month .m-cal-dots { align-items: center; }
+.m-cal-more {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+/* Today's cell is filled with the accent: the count takes the cell's own text
+   colour there, or it would be muted grey on petrol. */
+.m-cal-day.is-today .m-cal-more { color: inherit; }
 
 /* P1 onboarding */
 .m-onboarding {
@@ -3732,6 +3756,10 @@ textarea {
 .m-navrow.is-drop-before {
   box-shadow: inset 0 2px 0 var(--accent-color);
 }
+/* A drop behind the last row of a list that is being arranged (bookmarks). */
+.m-row.is-drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent-color);
+}
 
 /* ---- Settings master: active-vault block (redesign P4) ---- */
 
@@ -4255,6 +4283,35 @@ textarea {
   font-family: var(--font-content);
   font-size: var(--text-md);
 }
+/* A held link opens the app's sheet (M1) - not the system's link preview. */
+.m-mailtext .pv-maillink {
+  -webkit-touch-callout: none;
+}
+/* Where a held mail link leads: the target in full above the sheet's two
+   rows. A link whose text names another host takes the warning tokens. */
+.m-linksheet-target {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 var(--space-2) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1.4;
+  user-select: text;
+}
+.m-linksheet-target > svg {
+  flex: none;
+  margin-top: var(--space-1);
+}
+.m-linksheet-target[data-warn] {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
 
 .m-sheet--folders { max-height: 70vh; overflow-y: auto; }
 
@@ -4777,7 +4834,7 @@ textarea {
 /* Focused setup and a stationary comparison context share the sheet rhythm. */
 .m-connect-form { width: 100%; min-width: 0; }
 .m-connect-summary { margin: var(--space-2) 0; }
-.m-conflict-sheet { max-height: calc(100dvh - env(safe-area-inset-top) - var(--space-4)); overflow: hidden; }
+.m-conflict-sheet { max-height: calc(100dvh - var(--m-safe-top) - var(--space-4)); overflow: hidden; }
 .m-conflict-sheet .pv-comparison-context { max-height: 38dvh; overflow: auto; }
 .m-conflict-sheet .m-conflict-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
 

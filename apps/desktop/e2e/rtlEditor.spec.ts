@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openProbePage } from "./fixtures/openProbePage";
 import type { RtlProbeWindow } from "./fixtures/rtlProbe";
 
 /**
@@ -17,8 +18,7 @@ async function loadProbe(page: Page) {
     import RefreshRuntime from '/@react-refresh'; RefreshRuntime.injectIntoGlobalHook(window);
     window.$RefreshReg$=()=>{}; window.$RefreshSig$=()=>type=>type; window.__vite_plugin_react_preamble_installed__=true;
     await import('/e2e/fixtures/rtlProbe.ts');</script></body></html>` }));
-  await page.goto("/__rtl_editor");
-  await page.waitForFunction(() => !!(window as RtlProbeWindow).rtlProbe);
+  await openProbePage(page, "/__rtl_editor", () => !!(window as RtlProbeWindow).rtlProbe);
 }
 const selection = (page: Page) => page.evaluate(() => (window as RtlProbeWindow).rtlProbe.selection());
 

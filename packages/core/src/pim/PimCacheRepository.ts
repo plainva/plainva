@@ -1,6 +1,7 @@
-import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
+import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
 import type { PimAttendee, PimAttendeeStatus, PimCalendar, PimEvent, PimProviderId, PimTask, PimTaskList } from "./types.js";
-import type { SyncErrorKind } from "../sync/errorKind.js";
+import { isSignInFailure, type SyncErrorKind } from "../sync/errorKind.js";
+import { decodeBlockRefs, encodeBlockRefs } from "./blockLinks.js";
 
 /**
  * SQL layer of the PIM cache (index DB, appData — never the vault). Events are
@@ -8,6 +9,15 @@ import type { SyncErrorKind } from "../sync/errorKind.js";
  * refresh keeps reconcile logic trivial and cannot leak deleted remote events.
  * All statements are chunked multi-row inserts (the sqlx pool round-trips per
  * execute — same lesson as the indexer's P2.4 batching).
+ *
+ * **Every replace is ONE atomic step** (plan Befunde 2026-10-06, K1). A replace
+ * used to be a DELETE followed by its INSERTs as separate, individually
+ * committed statements — and the desktop adapter's `transaction()` is a
+ * JavaScript queue, not a database transaction. So a reader that asked between
+ * the two saw an empty calendar, and an insert that failed (a locked database
+ * while the indexer wrote) left it empty for good: the rows were already gone.
+ * The statements of a replace are now built first and handed over together
+ * (`writeAtomic`); a reader sees the old state or the new one.
  */
 
 export interface PimAccountRow {
@@ -89,8 +99,82 @@ const ACCOUNT_CACHE_TABLES: ReadonlyArray<{
 
 const CHUNK = 80;
 
+/** The event columns every read selects — one list, so a new field cannot reach one query and miss another. */
+const EVENT_COLUMNS =
+  "e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day, " +
+  "e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of, e.blocks, " +
+  "e.reminders, e.busy, e.meeting_url, e.categories, e.status_kind, e.working_loc";
+
+function eventRowOf(r: Record<string, unknown>): PimEventRow {
+  return {
+    accountId: String(r.account_id),
+    calendarId: String(r.cal_id),
+    uid: String(r.uid),
+    title: String(r.title ?? ""),
+    start: { ts: Number(r.start_ts), date: r.start_date ? String(r.start_date) : undefined },
+    end: { ts: Number(r.end_ts), date: r.end_date ? String(r.end_date) : undefined },
+    allDay: Number(r.all_day) !== 0,
+    location: r.location ? String(r.location) : undefined,
+    description: r.description ? String(r.description) : undefined,
+    attendees: r.attendees ? (safeJson(String(r.attendees)) as string[] | null) ?? undefined : undefined,
+    status: (r.status as PimEvent["status"]) ?? undefined,
+    etag: r.etag ? String(r.etag) : undefined,
+    seriesMaster: r.series_master ? String(r.series_master) : undefined,
+    recurrence: r.recurrence ? String(r.recurrence) : undefined,
+    href: r.href ? String(r.href) : undefined,
+    color: r.color ? String(r.color) : undefined,
+    blockOf: r.block_of ? String(r.block_of) : undefined,
+    blocks: r.blocks ? decodeBlockRefs(String(r.blocks)) : undefined,
+    // `r.reminders` is NULL only when the event said nothing; "[]" round-trips
+    // as the empty array, which means "no reminder" (S9).
+    reminders: r.reminders != null ? (safeJson(String(r.reminders)) as number[] | null) ?? undefined : undefined,
+    busy: (r.busy as PimEvent["busy"]) ?? undefined,
+    meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
+    categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
+    statusKind: (r.status_kind as PimEvent["statusKind"]) ?? undefined,
+    workingLocation: r.working_loc ? String(r.working_loc) : undefined,
+    ...rsvpFields(r.rsvps),
+  };
+}
+
+/**
+ * Something the calendar is not showing fresh, for the line above it (K1).
+ * Either a whole account (`calendarId` absent) or one calendar of an account
+ * that otherwise syncs.
+ */
+export interface PimSyncProblem {
+  accountId: string;
+  accountLabel: string;
+  provider: PimProviderId;
+  calendarId?: string;
+  calendarName?: string;
+  /** The last time this scope synced without an error; null = never. */
+  since: number | null;
+  /** The provider's or the store's own words. */
+  error: string;
+  /** The account is parked on its sign-in: asking again does not help. */
+  signIn: boolean;
+}
+
 export class PimCacheRepository {
   constructor(private db: IDatabaseAdapter) {}
+
+  /**
+   * Runs the statements of one replace as a unit: the adapter's native batch
+   * where it has one (a real transaction on its own connection on the desktop,
+   * one native call on the phone), a transaction otherwise. Pure writes only —
+   * whatever a replace needs to read, it reads before it builds the list.
+   */
+  private async writeAtomic(statements: BatchStatement[]): Promise<void> {
+    if (statements.length === 0) return;
+    if (this.db.runBatch) {
+      await this.db.runBatch(statements);
+      return;
+    }
+    await this.db.transaction(async () => {
+      for (const s of statements) await this.db.execute(s.sql, s.params ?? []);
+    });
+  }
 
   // ---- accounts -----------------------------------------------------------
 
@@ -241,23 +325,27 @@ export class PimCacheRepository {
     const account = await this.db.queryOne<{ config: string | null }>(`SELECT config FROM pim_accounts WHERE id = ?`, [accountId]);
     const config = safeJson(account?.config ?? null) as Record<string, unknown> | null;
     const pending = config?.plainvaPendingCalendarSelections as Record<string, unknown> | undefined;
-    await this.db.execute(`DELETE FROM pim_calendars WHERE account_id = ?`, [accountId]);
+    const statements: BatchStatement[] = [{ sql: `DELETE FROM pim_calendars WHERE account_id = ?`, params: [accountId] }];
     for (const group of chunk(calendars, CHUNK)) {
       const values: unknown[] = [];
       for (const c of group) {
         const pendingSelected = typeof pending?.[c.id] === "boolean" ? pending[c.id] as boolean : undefined;
         values.push(accountId, c.id, c.name, c.color ?? null, (pendingSelected ?? prevSel.get(c.id) ?? true) ? 1 : 0, c.readOnly ? 1 : 0);
       }
-      await this.db.execute(
-        `INSERT INTO pim_calendars (account_id, cal_id, name, color, selected, read_only) VALUES ` +
+      statements.push({
+        sql:
+          `INSERT INTO pim_calendars (account_id, cal_id, name, color, selected, read_only) VALUES ` +
           group.map(() => `(?, ?, ?, ?, ?, ?)`).join(", "),
-        values
-      );
+        params: values,
+      });
     }
     if (config && pending) {
       delete config.plainvaPendingCalendarSelections;
-      await this.db.execute(`UPDATE pim_accounts SET config = ? WHERE id = ?`, [JSON.stringify(config), accountId]);
+      statements.push({ sql: `UPDATE pim_accounts SET config = ? WHERE id = ?`, params: [JSON.stringify(config), accountId] });
     }
+    // One step: `listEvents` JOINs this table, so a reader between a separate
+    // DELETE and its INSERTs saw a calendar with no events at all.
+    await this.writeAtomic(statements);
   }
 
   async listCalendars(accountId?: string): Promise<Array<PimCalendar & { accountId: string; selected: boolean }>> {
@@ -314,7 +402,9 @@ export class PimCacheRepository {
 
   /** Replaces every cached event of (account, calendar) whose start lies in
    * [windowStartTs, windowEndTs) with the fresh pull — one delete + chunked
-   * inserts. Rows outside the window (older cache) stay untouched. */
+   * inserts, applied as ONE step (see the class comment): a failed insert
+   * leaves the previous window in place. Rows outside the window (older
+   * cache) stay untouched. */
   async replaceEventWindow(
     accountId: string,
     calId: string,
@@ -322,11 +412,13 @@ export class PimCacheRepository {
     windowEndTs: number,
     events: PimEvent[]
   ): Promise<void> {
-    await this.db.execute(
-      `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND start_ts >= ? AND start_ts < ?`,
-      [accountId, calId, windowStartTs, windowEndTs]
-    );
-    await this.upsertEvents(accountId, calId, events);
+    await this.writeAtomic([
+      {
+        sql: `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND start_ts >= ? AND start_ts < ?`,
+        params: [accountId, calId, windowStartTs, windowEndTs],
+      },
+      ...this.eventInsertStatements(accountId, calId, events),
+    ]);
   }
 
   /**
@@ -345,28 +437,33 @@ export class PimCacheRepository {
     deletedUids: string[],
     deletedHrefs: string[] = []
   ): Promise<void> {
-    await this.upsertEvents(accountId, calId, events);
+    const statements = this.eventInsertStatements(accountId, calId, events);
     for (const group of chunk(deletedUids, CHUNK)) {
       if (group.length === 0) continue;
-      await this.db.execute(
-        `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND uid IN (${group.map(() => "?").join(", ")})`,
-        [accountId, calId, ...group]
-      );
+      statements.push({
+        sql: `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND uid IN (${group.map(() => "?").join(", ")})`,
+        params: [accountId, calId, ...group],
+      });
     }
     // A CalDAV resource can hold several VEVENTs (a series and its overrides),
     // so one removed href drops every row that came from it.
     for (const group of chunk(deletedHrefs, CHUNK)) {
       if (group.length === 0) continue;
-      await this.db.execute(
-        `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND href IN (${group.map(() => "?").join(", ")})`,
-        [accountId, calId, ...group]
-      );
+      statements.push({
+        sql: `DELETE FROM pim_events WHERE account_id = ? AND cal_id = ? AND href IN (${group.map(() => "?").join(", ")})`,
+        params: [accountId, calId, ...group],
+      });
     }
+    // One step, like the window replace: half a delta is a state the provider
+    // never had, and the cursor that would repeat it is only stored afterwards.
+    await this.writeAtomic(statements);
   }
 
   /** The insert both paths share — one column list, so a new field cannot
-   * reach a full refresh and miss a delta. */
-  private async upsertEvents(accountId: string, calId: string, events: PimEvent[]): Promise<void> {
+   * reach a full refresh and miss a delta. Built, not run: the caller hands
+   * the statements over together with its deletions. */
+  private eventInsertStatements(accountId: string, calId: string, events: PimEvent[]): BatchStatement[] {
+    const statements: BatchStatement[] = [];
     for (const group of chunk(events, CHUNK)) {
       const values: unknown[] = [];
       for (const e of group) {
@@ -391,6 +488,7 @@ export class PimCacheRepository {
           e.color ?? null,
           e.rsvps && e.rsvps.length > 0 ? JSON.stringify(e.rsvps) : null,
           e.blockOf ?? null,
+          e.blocks && e.blocks.length > 0 ? encodeBlockRefs(e.blocks) : null,
           // `[]` is stored as "[]", not as NULL: the event said "no reminder",
           // which is a different statement from "the event said nothing".
           e.reminders ? JSON.stringify(e.reminders) : null,
@@ -401,12 +499,14 @@ export class PimCacheRepository {
           e.workingLocation ?? null
         );
       }
-      await this.db.execute(
-        `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of, reminders, busy, meeting_url, categories, status_kind, working_loc) VALUES ` +
-          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
-        values
-      );
+      statements.push({
+        sql:
+          `INSERT OR REPLACE INTO pim_events (account_id, cal_id, uid, title, start_ts, end_ts, start_date, end_date, all_day, location, description, attendees, status, etag, series_master, recurrence, href, color, rsvps, block_of, blocks, reminders, busy, meeting_url, categories, status_kind, working_loc) VALUES ` +
+          group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
+        params: values,
+      });
     }
+    return statements;
   }
 
   /** Event instances overlapping [rangeStartTs, rangeEndTs), selected
@@ -414,9 +514,7 @@ export class PimCacheRepository {
    * (they exist purely to carry the recurrence text). */
   async listEvents(rangeStartTs: number, rangeEndTs: number): Promise<PimEventRow[]> {
     const rows = await this.db.query<Record<string, unknown>>(
-      `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of,
-              e.reminders, e.busy, e.meeting_url, e.categories, e.status_kind, e.working_loc
+      `SELECT ${EVENT_COLUMNS}
        FROM pim_events e
        JOIN pim_calendars c ON c.account_id = e.account_id AND c.cal_id = e.cal_id
        JOIN pim_accounts a ON a.id = e.account_id
@@ -427,34 +525,7 @@ export class PimCacheRepository {
        ORDER BY e.start_ts`,
       [rangeStartTs, rangeEndTs]
     );
-    return rows.map((r) => ({
-      accountId: String(r.account_id),
-      calendarId: String(r.cal_id),
-      uid: String(r.uid),
-      title: String(r.title ?? ""),
-      start: { ts: Number(r.start_ts), date: r.start_date ? String(r.start_date) : undefined },
-      end: { ts: Number(r.end_ts), date: r.end_date ? String(r.end_date) : undefined },
-      allDay: Number(r.all_day) !== 0,
-      location: r.location ? String(r.location) : undefined,
-      description: r.description ? String(r.description) : undefined,
-      attendees: r.attendees ? (safeJson(String(r.attendees)) as string[] | null) ?? undefined : undefined,
-      status: (r.status as PimEvent["status"]) ?? undefined,
-      etag: r.etag ? String(r.etag) : undefined,
-      seriesMaster: r.series_master ? String(r.series_master) : undefined,
-      recurrence: r.recurrence ? String(r.recurrence) : undefined,
-      href: r.href ? String(r.href) : undefined,
-      color: r.color ? String(r.color) : undefined,
-      blockOf: r.block_of ? String(r.block_of) : undefined,
-      // `r.reminders` is NULL only when the event said nothing; "[]" round-trips
-      // as the empty array, which means "no reminder" (S9).
-      reminders: r.reminders != null ? (safeJson(String(r.reminders)) as number[] | null) ?? undefined : undefined,
-      busy: (r.busy as PimEvent["busy"]) ?? undefined,
-      meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
-      categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
-      statusKind: (r.status_kind as PimEvent["statusKind"]) ?? undefined,
-      workingLocation: r.working_loc ? String(r.working_loc) : undefined,
-      ...rsvpFields(r.rsvps),
-    }));
+    return rows.map(eventRowOf);
   }
 
   // ---- task lists / tasks (read cache; the note reconcile is stage 3) ------
@@ -468,7 +539,7 @@ export class PimCacheRepository {
     const account = await this.db.queryOne<{ config: string | null }>(`SELECT config FROM pim_accounts WHERE id = ?`, [accountId]);
     const config = safeJson(account?.config ?? null) as Record<string, unknown> | null;
     const pending = config?.plainvaPendingTaskListSelections as Record<string, unknown> | undefined;
-    await this.db.execute(`DELETE FROM pim_tasklists WHERE account_id = ?`, [accountId]);
+    const statements: BatchStatement[] = [{ sql: `DELETE FROM pim_tasklists WHERE account_id = ?`, params: [accountId] }];
     for (const group of chunk(lists, CHUNK)) {
       const values: unknown[] = [];
       for (const l of group) {
@@ -481,16 +552,20 @@ export class PimCacheRepository {
         // code path, one default.
         values.push(accountId, l.id, l.name, (pendingSelected ?? prevSel.get(l.id) ?? true) ? 1 : 0);
       }
-      await this.db.execute(
-        `INSERT INTO pim_tasklists (account_id, list_id, name, selected) VALUES ` +
+      statements.push({
+        sql:
+          `INSERT INTO pim_tasklists (account_id, list_id, name, selected) VALUES ` +
           group.map(() => `(?, ?, ?, ?)`).join(", "),
-        values
-      );
+        params: values,
+      });
     }
     if (config && pending) {
       delete config.plainvaPendingTaskListSelections;
-      await this.db.execute(`UPDATE pim_accounts SET config = ? WHERE id = ?`, [JSON.stringify(config), accountId]);
+      statements.push({ sql: `UPDATE pim_accounts SET config = ? WHERE id = ?`, params: [JSON.stringify(config), accountId] });
     }
+    // Same shape as the calendars, same reason: a list that is briefly gone
+    // reads as "this account has no task lists" to whoever asks in between.
+    await this.writeAtomic(statements);
   }
 
   async listTaskLists(accountId?: string): Promise<Array<PimTaskList & { accountId: string; selected: boolean }>> {
@@ -513,18 +588,20 @@ export class PimCacheRepository {
   }
 
   async replaceTasks(accountId: string, listId: string, tasks: PimTask[]): Promise<void> {
-    await this.db.execute(`DELETE FROM pim_tasks WHERE account_id = ? AND list_id = ?`, [accountId, listId]);
+    const statements: BatchStatement[] = [{ sql: `DELETE FROM pim_tasks WHERE account_id = ? AND list_id = ?`, params: [accountId, listId] }];
     for (const group of chunk(tasks, CHUNK)) {
       const values: unknown[] = [];
       for (const t of group) {
         values.push(accountId, listId, t.uid, t.title, t.notes ?? null, t.due ?? null, t.completed ? 1 : 0, t.etag ?? null, t.updatedTs ?? null, t.href ?? null);
       }
-      await this.db.execute(
-        `INSERT INTO pim_tasks (account_id, list_id, uid, title, notes, due, completed, etag, updated_ts, href) VALUES ` +
+      statements.push({
+        sql:
+          `INSERT INTO pim_tasks (account_id, list_id, uid, title, notes, due, completed, etag, updated_ts, href) VALUES ` +
           group.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).join(", "),
-        values
-      );
+        params: values,
+      });
     }
+    await this.writeAtomic(statements);
   }
 
   async listTasks(accountId: string, listId: string): Promise<PimTask[]> {
@@ -549,41 +626,57 @@ export class PimCacheRepository {
    * need the MASTER row (etag/href for the write), which listEvents excludes. */
   async getEventByUid(accountId: string, calId: string, uid: string): Promise<PimEventRow | null> {
     const r = await this.db.queryOne<Record<string, unknown>>(
-      `SELECT e.account_id, e.cal_id, e.uid, e.title, e.start_ts, e.end_ts, e.start_date, e.end_date, e.all_day,
-              e.location, e.description, e.attendees, e.status, e.etag, e.series_master, e.recurrence, e.href, e.color, e.rsvps, e.block_of,
-              e.reminders, e.busy, e.meeting_url, e.categories, e.status_kind, e.working_loc
+      `SELECT ${EVENT_COLUMNS}
        FROM pim_events e WHERE e.account_id = ? AND e.cal_id = ? AND e.uid = ?`,
       [accountId, calId, uid]
     );
-    if (!r) return null;
-    return {
-      accountId: String(r.account_id),
-      calendarId: String(r.cal_id),
-      uid: String(r.uid),
-      title: String(r.title ?? ""),
-      start: { ts: Number(r.start_ts), date: r.start_date ? String(r.start_date) : undefined },
-      end: { ts: Number(r.end_ts), date: r.end_date ? String(r.end_date) : undefined },
-      allDay: Number(r.all_day) !== 0,
-      location: r.location ? String(r.location) : undefined,
-      description: r.description ? String(r.description) : undefined,
-      attendees: r.attendees ? (safeJson(String(r.attendees)) as string[] | null) ?? undefined : undefined,
-      status: (r.status as PimEvent["status"]) ?? undefined,
-      etag: r.etag ? String(r.etag) : undefined,
-      seriesMaster: r.series_master ? String(r.series_master) : undefined,
-      recurrence: r.recurrence ? String(r.recurrence) : undefined,
-      href: r.href ? String(r.href) : undefined,
-      color: r.color ? String(r.color) : undefined,
-      blockOf: r.block_of ? String(r.block_of) : undefined,
-      // `r.reminders` is NULL only when the event said nothing; "[]" round-trips
-      // as the empty array, which means "no reminder" (S9).
-      reminders: r.reminders != null ? (safeJson(String(r.reminders)) as number[] | null) ?? undefined : undefined,
-      busy: (r.busy as PimEvent["busy"]) ?? undefined,
-      meetingUrl: r.meeting_url ? String(r.meeting_url) : undefined,
-      categories: r.categories ? (safeJson(String(r.categories)) as string[] | null) ?? undefined : undefined,
-      statusKind: (r.status_kind as PimEvent["statusKind"]) ?? undefined,
-      workingLocation: r.working_loc ? String(r.working_loc) : undefined,
-      ...rsvpFields(r.rsvps),
-    };
+    return r ? eventRowOf(r) : null;
+  }
+
+  /**
+   * Every cached row that names one of `uids` as the event it blocks (K3).
+   *
+   * Deliberately NOT narrowed to shown calendars or to a time window: a
+   * blocker follows its event wherever it is, and the question "what points
+   * at this event" has nothing to do with what the grid shows. Masters are
+   * included — a series is followed at its series. Only enabled accounts: a
+   * switched-off account has no target to write through.
+   */
+  async listBlockersOf(uids: readonly string[]): Promise<PimEventRow[]> {
+    const wanted = [...new Set(uids.filter(Boolean))];
+    const out: PimEventRow[] = [];
+    for (const group of chunk(wanted, CHUNK)) {
+      if (group.length === 0) continue;
+      const rows = await this.db.query<Record<string, unknown>>(
+        `SELECT ${EVENT_COLUMNS}
+         FROM pim_events e
+         JOIN pim_accounts a ON a.id = e.account_id
+         WHERE a.enabled = 1 AND e.block_of IN (${group.map(() => "?").join(", ")})
+         ORDER BY e.start_ts`,
+        group
+      );
+      out.push(...rows.map(eventRowOf));
+    }
+    return out;
+  }
+
+  /**
+   * The cached rows of one provider event id in whatever calendar holds it:
+   * the row itself and, for a series, its occurrences (K3). A blocker names
+   * its event by id alone — the calendar it lives in is not part of the link,
+   * and after a move it is a different one.
+   */
+  async findEventsByUid(uid: string): Promise<PimEventRow[]> {
+    if (!uid) return [];
+    const rows = await this.db.query<Record<string, unknown>>(
+      `SELECT ${EVENT_COLUMNS}
+       FROM pim_events e
+       JOIN pim_accounts a ON a.id = e.account_id
+       WHERE a.enabled = 1 AND (e.uid = ? OR e.series_master = ?)
+       ORDER BY e.start_ts`,
+      [uid, uid]
+    );
+    return rows.map(eventRowOf);
   }
 
   // ---- task <-> note reconcile state (stage 3) ----------------------------
@@ -660,6 +753,76 @@ export class PimCacheRepository {
       `INSERT OR REPLACE INTO pim_state (account_id, scope, cursor, last_sync_ts, last_error, last_error_kind, auth_revision) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [accountId, scope, cursor, opts.lastSyncTs ?? Date.now(), opts.lastError ?? null, opts.lastErrorKind ?? null, opts.authRevision ?? null]
     );
+  }
+
+  /**
+   * Records that a scope FAILED, and leaves `last_sync_ts` alone (K1).
+   *
+   * `setScopeState` stamps "now" on every write, failures included, so the
+   * column said when the scope was last *touched* — and nothing on record said
+   * since when a calendar had been showing old data. A failure written through
+   * here keeps the stamp of the last write that got through (null when there
+   * never was one), which is exactly the "since" the calendar's line names.
+   *
+   * `cursor` keeps its three meanings: omitted leaves it, `null` drops it.
+   */
+  async recordScopeFailure(
+    accountId: string,
+    scope: string,
+    opts: { lastError: string; lastErrorKind?: SyncErrorKind | null; authRevision?: string | null; cursor?: string | null }
+  ): Promise<void> {
+    const keepCursor = opts.cursor === undefined;
+    await this.db.execute(
+      `INSERT INTO pim_state (account_id, scope, cursor, last_sync_ts, last_error, last_error_kind, auth_revision) VALUES (?, ?, ?, NULL, ?, ?, ?)
+       ON CONFLICT(account_id, scope) DO UPDATE SET last_error = excluded.last_error, last_error_kind = excluded.last_error_kind,
+         auth_revision = excluded.auth_revision${keepCursor ? "" : ", cursor = excluded.cursor"}`,
+      [accountId, scope, opts.cursor ?? null, opts.lastError, opts.lastErrorKind ?? null, opts.authRevision ?? null]
+    );
+  }
+
+  /**
+   * What the calendar is NOT showing fresh, for the line above it (K1): every
+   * enabled account whose last attempt failed, and — for accounts that
+   * otherwise sync — every selected calendar whose own pull failed.
+   *
+   * An account-level failure always carries a verdict (`last_error_kind`); a
+   * row without one is the summary the worker leaves when only single
+   * calendars failed, and those are reported per calendar instead.
+   */
+  async listSyncProblems(): Promise<PimSyncProblem[]> {
+    const rows = await this.db.query<{
+      account_id: string;
+      scope: string;
+      last_sync_ts: number | null;
+      last_error: string;
+      last_error_kind: string | null;
+      label: string | null;
+      provider: string;
+    }>(
+      `SELECT s.account_id, s.scope, s.last_sync_ts, s.last_error, s.last_error_kind, a.label, a.provider
+       FROM pim_state s JOIN pim_accounts a ON a.id = s.account_id
+       WHERE a.enabled = 1 AND s.last_error IS NOT NULL AND (s.scope = 'account' OR s.scope LIKE 'events:%')
+       ORDER BY a.label, s.scope`
+    );
+    if (rows.length === 0) return [];
+    const failedAccounts = new Set(rows.filter((r) => r.scope === "account" && r.last_error_kind !== null).map((r) => r.account_id));
+    const calendars = rows.some((r) => r.scope !== "account") ? await this.listCalendars() : [];
+    const out: PimSyncProblem[] = [];
+    for (const r of rows) {
+      const base = { accountId: r.account_id, accountLabel: r.label ?? "", provider: r.provider as PimProviderId, since: r.last_sync_ts, error: r.last_error };
+      if (r.scope === "account") {
+        if (failedAccounts.has(r.account_id)) out.push({ ...base, signIn: r.last_error_kind === "fatal" && isSignInFailure(r.last_error) });
+        continue;
+      }
+      // The account's own line already says its calendars are stale.
+      if (failedAccounts.has(r.account_id)) continue;
+      const calId = r.scope.slice("events:".length);
+      const cal = calendars.find((c) => c.accountId === r.account_id && c.id === calId);
+      // A calendar that is switched off or gone is not on screen to be stale.
+      if (!cal?.selected) continue;
+      out.push({ ...base, calendarId: calId, calendarName: cal.name, signIn: false });
+    }
+    return out;
   }
 
   async getScopeState(

@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Laatst bijgewerkt: 2026-09-24
+Laatst bijgewerkt: 2026-10-06
 
 Met `.base`-bestanden verander je notities in databases: tabellen, borden, kalenders — met filters, getypeerde eigenschappen en relaties tussen databases. Het concept lijkt op Notion-databases, met één beslissend verschil: **de data leeft niet in de database, maar in je notities.**
 
@@ -131,9 +131,9 @@ blockedBy:
 Open je een database-item rechtstreeks — vanuit de bestandsboom, via zoeken of via een `[[link]]` — dan vertelt Plainva je nu waar het deel van uitmaakt:
 
 - Boven de notitie staat een **contextregel**: de databases waartoe de notitie behoort, als aanklikbare chips (een klik opent de database), gevolgd door het pad `bovenliggend item / deze notitie` wanneer de database subitems gebruikt. Behoort de notitie tot **meerdere** databases, dan verschijnen ze allemaal — de regel loopt dan door in plaats van er een weg te laten.
-- In de rechterzijbalk is de sectie **Databases** de **item-inspector**: ze toont de notitie zoals haar database die ziet — de kolommen van de eerste weergave, in de volgorde van die weergave, met de types en optiekleuren van de `.base`, en **bewerkbaar** net als in de tabel. Zo kan een status worden gewijzigd zonder de database te openen. Daarboven staat de positie in de weergave (**12 / 34**) met pijlen naar het vorige en volgende item. Een notitie die tot meerdere databases behoort, krijgt per database een eigen blok. Daaronder volgen het **bovenliggend item**, de **subitems** (uitklapbaar) en de via relaties **gekoppelde** items — elk aanklikbaar.
+- In de rechterzijbalk toont de sectie **Databases** wat alleen de database over de notitie weet. Elke database waartoe ze behoort krijgt één regel met naam en weergave — een klik opent die — en de positie in de weergave (**12 / 34**) met pijlen naar het vorige en volgende item. Daaronder staan de velden die de database voor deze notitie **berekent** en die in geen enkel bestand staan: aggregaties, omgekeerde relaties en gegevens over het bestand, zoals het tijdstip van de laatste wijziging. Kolommen die de notitie zelf draagt, worden niet herhaald: één regel noemt ze (**Onder Eigenschappen: …**) en je bewerkt ze één keer, in de sectie **Eigenschappen**. Een notitie die tot meerdere databases behoort, krijgt per database een eigen blok. Daaronder volgen het **bovenliggend item**, de **subitems** (uitklapbaar) en de via relaties **gekoppelde** items — elk aanklikbaar. Op de telefoon staat hetzelfde in het tabblad **Databases** van de contextkaart van de notitie.
 - De positie verschijnt alleen wanneer de notitie ook echt **in** de weergave staat: het behoren tot een database hangt bewust niet af van de filters van een weergave, dus die twee kunnen best uiteenlopen.
-- Het **Eigenschappen**-paneel blijft daarnaast nuttig: het toont de ruwe frontmatter — elk veld, zonder de volgorde, types en filters van de database.
+- De sectie **Eigenschappen** is de plek van die waarden: elk veld van de frontmatter van de notitie als één rij, ter plekke bewerkbaar.
 - Behoort een notitie tot geen enkele database, dan verschijnen noch de regel, noch de sectie. Niets hiervan wordt in de notitie geschreven: de context wordt telkens opnieuw berekend uit je `.base`-bestanden en links wanneer je de notitie opent, en de notitie zelf blijft gewoon Markdown.
 
 ## Nieuwe items aanmaken
@@ -164,7 +164,7 @@ Opmerking voor gesynchroniseerde vaults: als twee apparaten tegelijk het bord or
 
 ## Dagelijks gebruik
 
-- **Inline-editing**: één klik in een cel (of op een kaartwaarde) maakt hem bewerkbaar — in elke weergave.
+- **Inline-editing**: één klik in een cel (of op een kaartwaarde) maakt hem bewerkbaar — in elke weergave. Een tekstwaarde opent in een veld dat met de tekst meegroeit en afbreekt, zodat een lange waarde tijdens het wijzigen helemaal leesbaar blijft. Het blijft één waarde: **Enter** slaat op, en een geplakt regeleinde wordt een spatie.
 - **Openen**: een klik op de titel van een item opent de notitie in het peek-venster — een vrij zwevend venster dat je aan de titelbalk kunt verslepen en vanuit de hoek kunt vergroten of verkleinen. Het houdt een eigen **Terug**/**Vooruit**-geschiedenis bij voor de notities die je erin opent, heeft een schakelaar die een **Eigenschappen**-kolom toont voor de weergegeven notitie, en biedt **Als tabblad openen** en **In split openen**. `Ctrl`+klik opent direct in de split; alternatief sleep je een kaart naar de drop-zone **Hier neerzetten: in split openen**. De eigenschappenkolom kun je aan de linkerrand breder of smaller slepen (minimaal 232 px); onder 280 px zet ze het label boven de waarde, net als de rechter zijbalk.
 - **Slepen**: tijdens het slepen van kaarten (Bord, Kalender, Tijdlijn) volgt een spookkaart de muisaanwijzer. In een **Bord** kun je ook een **kolomkop** slepen om de kolommen opnieuw te ordenen — bij **Selectie**/**Status**-borden herschikt dat de opties van de eigenschap (de dropdowns volgen overal mee); relatie- en vrijetekst-borden onthouden de volgorde per weergave.
 - **Kolomkleur**: in de **Weergave**-instellingen van een bord laat **Kolomkleur** een kolom de kleur van zijn groep aannemen — **Hele kolom** (de hele kolom wordt gekleurd) of **Alleen chip** (alleen de chip in de kop, standaard). Geldt voor Selectie-/Status-/Multiselectie-groepen.

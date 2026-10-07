@@ -11,6 +11,7 @@ import {
   SettingCardNote,
   Banner,
   isInsecurePublicUrl,
+  foldMachineText,
   SettingRow,
   ICON,
   cx,
@@ -186,13 +187,15 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
   };
 
   const buildRequest = (services: CloudServiceId[]): ConnectRequest => {
-    const endpoints = wd.advanced ? { files: wd.filesUrl.trim(), caldav: wd.caldavUrl.trim() } : nextcloudEndpoints(wd.base, wd.user) ?? { files: "", caldav: "" };
+    // Addresses as a machine reads them (lib/machineText.ts): a keyboard set to
+    // Japanese or Chinese types full-width forms no server answers to.
+    const endpoints = wd.advanced ? { files: foldMachineText(wd.filesUrl), caldav: foldMachineText(wd.caldavUrl) } : nextcloudEndpoints(foldMachineText(wd.base), wd.user) ?? { files: "", caldav: "" };
     // Suite families reuse the webdav (files+calendar) and imap (mail) request
     // shapes — one credential, endpoints from the catalog unless edited.
     const suiteDav = suiteDef
       ? {
-          filesUrl: (suite.advanced ? suite.webdavUrl.trim() : suiteDef.endpoints.webdavUrl) ?? "",
-          caldavUrl: (suite.advanced ? suite.caldavUrl.trim() : suiteDef.endpoints.caldavUrl) ?? "",
+          filesUrl: (suite.advanced ? foldMachineText(suite.webdavUrl) : suiteDef.endpoints.webdavUrl) ?? "",
+          caldavUrl: (suite.advanced ? foldMachineText(suite.caldavUrl) : suiteDef.endpoints.caldavUrl) ?? "",
           user: suite.email.trim(),
           pass: suite.pass,
         }
@@ -201,9 +204,9 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       suiteDef && services.includes("mail")
         ? {
             email: suite.email.trim(),
-            host: ((suite.advanced ? suite.imapHost.trim() : suiteDef.endpoints.imapHost) ?? "").trim(),
+            host: ((suite.advanced ? foldMachineText(suite.imapHost) : suiteDef.endpoints.imapHost) ?? "").trim(),
             port: (suite.advanced ? Number(suite.imapPort) : suiteDef.endpoints.imapPort) || 993,
-            smtpHost: ((suite.advanced ? suite.smtpHost.trim() : suiteDef.endpoints.smtpHost) ?? "").trim() || undefined,
+            smtpHost: ((suite.advanced ? foldMachineText(suite.smtpHost) : suiteDef.endpoints.smtpHost) ?? "").trim() || undefined,
             smtpPort: (suite.advanced ? Number(suite.smtpPort) : suiteDef.endpoints.smtpPort) || undefined,
             pass: suite.pass,
           }
@@ -218,10 +221,10 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
       s3:
         family === "s3"
           ? {
-              endpoint: s3.endpoint.trim(),
-              region: s3.region.trim() || "us-east-1",
-              bucket: s3.bucket.trim(),
-              accessKeyId: s3.accessKeyId.trim(),
+              endpoint: foldMachineText(s3.endpoint),
+              region: foldMachineText(s3.region) || "us-east-1",
+              bucket: foldMachineText(s3.bucket),
+              accessKeyId: foldMachineText(s3.accessKeyId),
               secretAccessKey: s3.secretKey,
               prefix: s3.prefix.trim() || undefined,
               forcePathStyle: s3.pathStyle,
@@ -232,9 +235,9 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
         (family === "imap" || (family === "google" && services.includes("mail"))
           ? {
               email: imap.email.trim(),
-              host: imap.host.trim(),
+              host: foldMachineText(imap.host),
               port: Number(imap.port) || 993,
-              smtpHost: imap.smtpHost.trim() || undefined,
+              smtpHost: foldMachineText(imap.smtpHost) || undefined,
               smtpPort: Number(imap.smtpPort) || undefined,
               pass: imap.pass,
             }
@@ -479,17 +482,17 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           )}
           {!wd.advanced && (
             <SettingRow label={t("cloudAccounts.serverAddress")} wide>
-              <TextInput value={wd.base} onChange={(e) => setWd({ ...wd, base: e.target.value })} placeholder="https://cloud.example.com" data-testid="cloudacct-wd-base" />
+              <TextInput purpose="address" value={wd.base} onChange={(e) => setWd({ ...wd, base: e.target.value })} placeholder="https://cloud.example.com" data-testid="cloudacct-wd-base" />
             </SettingRow>
           )}
           {wd.advanced && svc.files && (
             <SettingRow label={t("cloudAccounts.endpointFiles")} wide>
-              <TextInput value={wd.filesUrl} onChange={(e) => setWd({ ...wd, filesUrl: e.target.value })} />
+              <TextInput purpose="address" value={wd.filesUrl} onChange={(e) => setWd({ ...wd, filesUrl: e.target.value })} />
             </SettingRow>
           )}
           {wd.advanced && svc.calendar && (
             <SettingRow label={t("cloudAccounts.endpointCalendar")} wide>
-              <TextInput value={wd.caldavUrl} onChange={(e) => setWd({ ...wd, caldavUrl: e.target.value })} />
+              <TextInput purpose="address" value={wd.caldavUrl} onChange={(e) => setWd({ ...wd, caldavUrl: e.target.value })} />
             </SettingRow>
           )}
           <SettingRow label={t("settings.username")} wide>
@@ -537,24 +540,24 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           </SettingRow>
           {suite.advanced && svc.files && (
             <SettingRow label={t("cloudAccounts.endpointFiles")} wide>
-              <TextInput value={suite.webdavUrl} onChange={(e) => setSuite({ ...suite, webdavUrl: e.target.value })} />
+              <TextInput purpose="address" value={suite.webdavUrl} onChange={(e) => setSuite({ ...suite, webdavUrl: e.target.value })} />
             </SettingRow>
           )}
           {suite.advanced && svc.calendar && (
             <SettingRow label={t("cloudAccounts.endpointCalendar")} wide>
-              <TextInput value={suite.caldavUrl} onChange={(e) => setSuite({ ...suite, caldavUrl: e.target.value })} />
+              <TextInput purpose="address" value={suite.caldavUrl} onChange={(e) => setSuite({ ...suite, caldavUrl: e.target.value })} />
             </SettingRow>
           )}
           {suite.advanced && svc.mail && (
             <>
               <SettingRow label={t("cloudAccounts.imapHost")} wide>
-                <TextInput value={suite.imapHost} onChange={(e) => setSuite({ ...suite, imapHost: e.target.value })} />
+                <TextInput purpose="address" value={suite.imapHost} onChange={(e) => setSuite({ ...suite, imapHost: e.target.value })} />
               </SettingRow>
               <SettingRow label={t("mail.imapPort")}>
                 <TextInput value={suite.imapPort} onChange={(e) => setSuite({ ...suite, imapPort: e.target.value })} style={{ width: 90 }} />
               </SettingRow>
               <SettingRow label={t("cloudAccounts.smtpHost")} wide>
-                <TextInput value={suite.smtpHost} onChange={(e) => setSuite({ ...suite, smtpHost: e.target.value })} />
+                <TextInput purpose="address" value={suite.smtpHost} onChange={(e) => setSuite({ ...suite, smtpHost: e.target.value })} />
               </SettingRow>
               <SettingRow label={t("mail.smtpPort")}>
                 <TextInput value={suite.smtpPort} onChange={(e) => setSuite({ ...suite, smtpPort: e.target.value })} style={{ width: 90 }} />
@@ -594,16 +597,16 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
             </SettingCardNote>
           )}
           <SettingRow label={t("settings.s3Endpoint")} wide>
-            <TextInput value={s3.endpoint} onChange={(e) => setS3({ ...s3, endpoint: e.target.value })} />
+            <TextInput purpose="address" value={s3.endpoint} onChange={(e) => setS3({ ...s3, endpoint: e.target.value })} />
           </SettingRow>
           <SettingRow label={t("settings.s3Bucket")} wide>
-            <TextInput value={s3.bucket} onChange={(e) => setS3({ ...s3, bucket: e.target.value })} />
+            <TextInput purpose="address" value={s3.bucket} onChange={(e) => setS3({ ...s3, bucket: e.target.value })} />
           </SettingRow>
           <SettingRow label={t("settings.s3Region")} wide>
-            <TextInput value={s3.region} onChange={(e) => setS3({ ...s3, region: e.target.value })} />
+            <TextInput purpose="address" value={s3.region} onChange={(e) => setS3({ ...s3, region: e.target.value })} />
           </SettingRow>
           <SettingRow label={t("settings.s3AccessKeyId")} wide>
-            <TextInput value={s3.accessKeyId} onChange={(e) => setS3({ ...s3, accessKeyId: e.target.value })} />
+            <TextInput purpose="secret" value={s3.accessKeyId} onChange={(e) => setS3({ ...s3, accessKeyId: e.target.value })} />
           </SettingRow>
           <SettingRow label={t("settings.s3SecretAccessKey")} wide>
             <TextInput type="password" value={s3.secretKey} onChange={(e) => setS3({ ...s3, secretKey: e.target.value })} />
@@ -642,13 +645,13 @@ export const CloudAccountsWizard: React.FC<WizardProps> = ({ vaultPath, runtime,
           {family !== "google" && (
             <>
               <SettingRow label={t("cloudAccounts.imapHost")} wide>
-                <TextInput value={imap.host} onChange={(e) => setImap({ ...imap, host: e.target.value })} />
+                <TextInput purpose="address" value={imap.host} onChange={(e) => setImap({ ...imap, host: e.target.value })} />
               </SettingRow>
               <SettingRow label={t("mail.imapPort")}>
                 <TextInput value={imap.port} onChange={(e) => setImap({ ...imap, port: e.target.value })} style={{ width: 90 }} />
               </SettingRow>
               <SettingRow label={t("cloudAccounts.smtpHost")} wide>
-                <TextInput value={imap.smtpHost} onChange={(e) => setImap({ ...imap, smtpHost: e.target.value })} />
+                <TextInput purpose="address" value={imap.smtpHost} onChange={(e) => setImap({ ...imap, smtpHost: e.target.value })} />
               </SettingRow>
               <SettingRow label={t("mail.smtpPort")}>
                 <TextInput value={imap.smtpPort} onChange={(e) => setImap({ ...imap, smtpPort: e.target.value })} style={{ width: 90 }} />

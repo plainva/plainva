@@ -989,8 +989,13 @@ describe("the calendar can be written into", () => {
 
   it("uses the shared write rules", () => {
     expect(src()).toMatch(/createCalendarEvent\(/);
-    expect(src()).toMatch(/updateCalendarEvent\(/);
-    expect(src()).toMatch(/deleteCalendarEvent\(/);
+    // Updating and deleting go through the shared blocker rule since K3 (plan
+    // Befunde 2026-10-06), which calls `updateCalendarEvent` and
+    // `deleteCalendarEvent` itself and passes the change on to the blockers —
+    // one layer further up, the same rules underneath.
+    expect(src()).toMatch(/updateEventWithBlockers\(/);
+    expect(src()).toMatch(/deleteEventWithBlockers\(/);
+    expect(src()).not.toMatch(/updateCalendarEvent\(|deleteCalendarEvent\(/);
   });
 
   it("does not call the provider targets directly for events", () => {
@@ -1290,7 +1295,9 @@ describe("today answers the whole day", () => {
   it("merges events and due tasks through the shared rule", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/TodayScreen.tsx"), "utf8"));
     expect(screen).toMatch(/buildDayAgenda\(/);
-    expect(screen).toMatch(/listPimEvents\(/);
+    // The SHOWN events: the cache with the writes that are on their way laid
+    // over it, so an event made on Today is on Today at once (issue 119).
+    expect(screen).toMatch(/listShownPimEvents\(/);
     // Not a second ordering: the sort lives in @plainva/ui, not here.
     expect(screen).not.toMatch(/\.sort\(/);
   });
@@ -1932,7 +1939,9 @@ describe("the navigation capsule and the FAB", () => {
     // runs the full height, so without this its first icon sits under the
     // status bar, and on a notched tablet under the camera (finding 2).
     const rail = rule(css(), ".m-tabbar--rail {");
-    expect(rail).toMatch(/padding:[^;]*env\(safe-area-inset-top\)/s);
+    // The inset is read through the one token since 2026-10-06 (see the
+    // safe-area guard at the end of this file), no longer from the environment.
+    expect(rail).toMatch(/padding:[^;]*var\(--m-safe-top\)/s);
     expect(rail).toMatch(/padding:[^;]*env\(safe-area-inset-bottom\)/s);
   });
 
@@ -3073,7 +3082,10 @@ describe("tasks created on the phone reach the provider list", () => {
     expect(capture).toMatch(/\{providerList && \(/);
     expect(capture).toMatch(/const \[atProvider, setAtProvider\] = useState\(true\)/);
     expect(capture).toMatch(/onSubmit\(result, providerList !== null && atProvider\)/);
-    expect(tasks).toMatch(/if \(alsoAtProvider\) await sendTaskToProviderList\(/);
+    // Sent, but never awaited before the task shows (issue 119): the note is
+    // the task, the provider's answer only adds the link.
+    expect(tasks).toMatch(/if \(alsoAtProvider\) \{\s*void sendTaskToProviderList\(/);
+    expect(tasks).not.toMatch(/await sendTaskToProviderList\(promotionAdapter, taskDb, res\.notePath, result\.title/);
   });
 
   it("lets the phone SET the list, not only read it", () => {
@@ -3325,5 +3337,47 @@ describe("the system's assistant reaches the app on the phone (AI harness P4.7)"
     expect(section).toMatch(/if \(!systemIntentsAvailable\(\)\) return null;/);
     expect(read("screens", "AiSettingsScreen.tsx")).toMatch(/\{settings\.enabled && <MobileSystemAssistantSection session=\{session\} \/>\}/);
     expect(read("platform", "intentBridge.ts")).toMatch(/Capacitor\.getPlatform\(\) === "ios" \? nativeBridge : null/);
+  });
+});
+
+/**
+ * The strip the system draws over the top of the screen has ONE name
+ * (TestFlight 2026-09-27: the note's find panel under the Dynamic Island).
+ * Every rule that keeps clear of it reads `--m-safe-top`; the environment
+ * value is read once, where the token is defined. That is what lets
+ * `e2e-prod/safe-top.spec.ts` give a browser a notch and walk the screens -
+ * a rule that read the environment itself would stay at 0 there and look fine.
+ */
+describe("the top safe area is one token", () => {
+  const css = readFileSync(join(SRC, "mobile.css"), "utf8");
+
+  it("reads the environment value exactly once, in the token", () => {
+    const uses = css.split("\n").filter((line) => line.includes("env(safe-area-inset-top"));
+    expect(uses.map((line) => line.trim())).toEqual(["--m-safe-top: env(safe-area-inset-top, 0px);"]);
+  });
+
+  it("is what the app bar, the rail and the share notice keep clear of", () => {
+    expect(css).toMatch(/--m-header-safe-top: var\(--m-safe-top\);/);
+    expect(css).toMatch(/\.m-share-notice \{[^}]*var\(--m-safe-top\)/);
+    expect(css).toMatch(/\.m-tabbar--rail \{[^}]*var\(--m-safe-top\)/s);
+  });
+
+  it("no screen sets the inset inline either", () => {
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) && readFileSync(full, "utf8").includes("safe-area-inset-top")) offenders.push(name);
+      }
+    };
+    walk(SRC);
+    expect(offenders).toEqual([]);
+  });
+
+  it("the find panel takes the note out of the floating-bar mode", () => {
+    const screen = readFileSync(join(SRC, "screens", "NoteScreen.tsx"), "utf8");
+    expect(screen).toMatch(/const readerOverlay = [^;]*&& !finding;/);
+    expect(screen).toContain("onFindPanelChange={setFinding}");
   });
 });

@@ -9,6 +9,7 @@ import {
   type IncomingRelationRef,
 } from "./baseMembership";
 import { combineFilters } from "./filterExpr";
+import { computedFieldKind, isPropertyColumn, type NoteComputedField } from "./computedFields";
 import { noteDisplayName } from "../lib/noteTitle";
 
 /**
@@ -37,6 +38,18 @@ export interface NoteDatabaseMembership {
   config: unknown;
   /** Visible columns of that view, in the order the table shows them (bare keys). */
   columns: string[];
+  /**
+   * The view's columns that are NOT a property of the note, with this note's
+   * value: rollups, reverse relations, `file.*` facts (decision E1,
+   * 2026-10-06). This is what the database section shows — a column that is a
+   * property stands once, under Properties.
+   */
+  computed: NoteComputedField[];
+  /**
+   * The view's columns this note carries as a property, in view order (bare
+   * keys). Named in the section's hint, so it is clear where they went.
+   */
+  shownAsProperties: string[];
   /** This note as the view sees it: property values plus the `file.*` fields. */
   row: Record<string, unknown> | null;
   /**
@@ -98,9 +111,12 @@ async function inspectFirstView(
   deps: BaseDataDeps,
   base: BaseInfo,
   path: string,
-): Promise<Pick<NoteDatabaseMembership, "columns" | "row" | "index" | "total" | "prevPath" | "nextPath">> {
-  const empty = { columns: [] as string[], row: null, index: 0, total: 0, prevPath: null, nextPath: null };
-  const cfg = base.config as { views?: unknown[]; filters?: unknown } | null;
+): Promise<Pick<NoteDatabaseMembership, "columns" | "computed" | "shownAsProperties" | "row" | "index" | "total" | "prevPath" | "nextPath">> {
+  const empty = {
+    columns: [] as string[], computed: [] as NoteComputedField[], shownAsProperties: [] as string[],
+    row: null, index: 0, total: 0, prevPath: null, nextPath: null,
+  };
+  const cfg = base.config as { views?: unknown[]; filters?: unknown; columns?: Record<string, { rollup?: { fn?: unknown } | null; reverseOf?: { property?: unknown } | null } | undefined> } | null;
   const views = Array.isArray(cfg?.views) ? cfg!.views : [];
   const view = (views[0] ?? {}) as { order?: unknown[] };
 
@@ -115,14 +131,37 @@ async function inspectFirstView(
   const at = rows.findIndex((r) => normBasePath(r["file.path"] ?? r.path) === path);
   // `note.` is the on-disk prefix for a note property; `file.*` columns are
   // derived fields the inspector cannot edit, so they stay out of it.
-  const columns = (Array.isArray(view.order) ? view.order : [])
-    .map((c) => String(c).replace(/^note\./, ""))
-    .filter((c) => c && !c.startsWith("file."));
+  const ordered = (Array.isArray(view.order) ? view.order : []).map((c) => String(c).replace(/^note\./, "")).filter(Boolean);
+  const columns = ordered.filter((c) => !c.startsWith("file."));
 
   if (at < 0) return { ...empty, columns, total: rows.length };
+
+  // Split the view's columns by one question: does the note carry the value
+  // itself? What it carries is a property (shown once, under Properties); what
+  // the database computes when the view is read belongs to this section.
+  const row = rows[at];
+  const schemaOf = (column: string) => (cfg?.columns && !Array.isArray(cfg.columns) ? cfg.columns[column] : undefined);
+  const computed: NoteComputedField[] = [];
+  const shownAsProperties: string[] = [];
+  for (const column of ordered) {
+    const schema = schemaOf(column);
+    const kind = computedFieldKind(column, schema);
+    const value = row[column] ?? row[`note.${column}`];
+    if (kind) {
+      const fn = kind === "rollup" && typeof schema?.rollup?.fn === "string" ? schema.rollup.fn : undefined;
+      computed.push({ column, kind, value, ...(fn ? { rollupFn: fn } : {}) });
+    } else if (isPropertyColumn(column, schema) && value !== undefined && value !== null) {
+      // Only a key the note really has: an empty column is not "under
+      // Properties", it is nowhere yet.
+      shownAsProperties.push(column);
+    }
+  }
+
   return {
     columns,
-    row: rows[at],
+    computed,
+    shownAsProperties,
+    row,
     index: at + 1,
     total: rows.length,
     prevPath: at > 0 ? normBasePath(rows[at - 1]["file.path"] ?? rows[at - 1].path) : null,

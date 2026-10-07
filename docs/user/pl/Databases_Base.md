@@ -1,6 +1,6 @@
 # Bazy danych (.base)
 
-Stan na: 2026-09-24
+Stan na: 2026-10-06
 
 Dzięki plikom `.base` zamieniasz notatki w bazy danych: tabele, tablice, kalendarze — z filtrami, typowanymi właściwościami i relacjami między bazami danych. Koncepcja przypomina bazy danych Notion, z jedną decydującą różnicą: **dane nie znajdują się w bazie danych, lecz w Twoich notatkach.**
 
@@ -131,9 +131,9 @@ blockedBy:
 Gdy otwierasz wpis bazy danych bezpośrednio — z drzewa plików, z wyszukiwania lub przez `[[link]]` — Plainva mówi Ci teraz, czego jest częścią:
 
 - Nad notatką znajduje się **wiersz kontekstu**: bazy danych, do których należy notatka, jako klikalne chipy (kliknięcie otwiera bazę danych), a po nich ścieżka `element nadrzędny / ta notatka`, gdy baza danych korzysta z elementów podrzędnych. Jeśli notatka należy do **kilku** baz danych, pojawiają się wszystkie — wiersz zawija się, zamiast pomijać którąś z nich.
-- W prawym pasku bocznym sekcja **Bazy danych** jest **inspektorem wpisu**: pokazuje notatkę tak, jak widzi ją jej baza danych — kolumny pierwszego widoku, w kolejności tego widoku, z typami i kolorami opcji z `.base`, i **edytowalne** tak samo jak w tabeli. Dzięki temu status można zmienić bez otwierania bazy danych. Nad nimi znajduje się pozycja w widoku (**12 / 34**) ze strzałkami do poprzedniego i następnego wpisu. Notatka należąca do kilku baz danych dostaje osobny blok dla każdej z nich. Poniżej następują **element nadrzędny**, **elementy podrzędne** (rozwijane) oraz wpisy **powiązane** przez relacje — każdy klikalny.
+- W prawym pasku bocznym sekcja **Bazy danych** pokazuje to, co o notatce wie tylko baza danych. Każda baza danych, do której notatka należy, ma jeden wiersz z nazwą i widokiem — kliknięcie ją otwiera — oraz pozycję w widoku (**12 / 34**) ze strzałkami do poprzedniego i następnego wpisu. Poniżej stoją pola, które baza danych **oblicza** dla tej notatki i których nie ma w żadnym pliku: agregacje, relacje odwrotne oraz informacje o pliku, takie jak czas ostatniej zmiany. Kolumny, które notatka niesie sama, nie są powtarzane: jeden wiersz je wymienia (**We Właściwościach: …**), a edytujesz je raz, w sekcji **Właściwości**. Notatka należąca do kilku baz danych dostaje osobny blok dla każdej z nich. Poniżej następują **element nadrzędny**, **elementy podrzędne** (rozwijane) oraz wpisy **powiązane** przez relacje — każdy klikalny. Na telefonie to samo znajduje się na karcie **Bazy danych** w arkuszu kontekstowym notatki.
 - Pozycja pojawia się tylko wtedy, gdy notatka rzeczywiście **jest** w widoku: przynależność do bazy danych celowo nie zależy od filtrów widoku, więc obie te rzeczy mogą się zasadnie różnić.
-- Panel **Właściwości** pozostaje przy tym przydatny: pokazuje surowy frontmatter — każde pole, bez kolejności, typów i filtrów bazy danych.
+- Sekcja **Właściwości** jest miejscem tych wartości: każde pole frontmattera notatki jako jeden wiersz, edytowalne na miejscu.
 - Jeśli notatka nie należy do żadnej bazy danych, nie pojawia się ani wiersz, ani sekcja. Nic z tego nie jest zapisywane w notatce: kontekst jest obliczany na nowo przy każdym otwarciu na podstawie plików `.base` i Twoich linków, a sama notatka pozostaje zwykłym Markdownem.
 
 ## Tworzenie nowych wpisów
@@ -164,7 +164,7 @@ Uwaga dotycząca synchronizowanych vaultów: jeśli dwa urządzenia jednocześni
 
 ## Codzienne użytkowanie
 
-- **Edycja inline**: pojedyncze kliknięcie w komórkę (lub na wartość karty) czyni ją edytowalną — w każdym widoku.
+- **Edycja inline**: pojedyncze kliknięcie w komórkę (lub na wartość karty) czyni ją edytowalną — w każdym widoku. Wartość tekstowa otwiera się w polu, które rośnie i zawija się razem z tekstem, więc długa wartość pozostaje w całości czytelna podczas zmiany. Pozostaje jedną wartością: **Enter** zapisuje, a wklejony podział wiersza staje się spacją.
 - **Otwieranie**: kliknięcie tytułu wpisu otwiera notatkę w oknie podglądu — swobodnie pływającym oknie, które można przeciągać za pasek tytułu i którego rozmiar można zmieniać, chwytając za róg. Zachowuje własną historię **Wstecz**/**Do przodu** dla notatek otwieranych w jego wnętrzu, ma przełącznik pokazujący kolumnę **Właściwości** dla wyświetlanej notatki oraz oferuje **Otwórz jako kartę** i **Otwórz w podziale**. `Ctrl`+klik otwiera bezpośrednio w podziale; alternatywnie przeciągnij kartę na strefę upuszczania **Upuść tutaj: otwórz w podziale**. Kolumnę właściwości można poszerzać lub zwężać, przeciągając jej lewą krawędź (co najmniej 232 px); poniżej 280 px etykieta trafia nad wartość, jak w prawym pasku bocznym.
 - **Przeciąganie**: podczas przeciągania kart (Tablica, Kalendarz, Oś czasu) karta-widmo podąża za kursorem. W **Tablicy** możesz też przeciągnąć **nagłówek kolumny**, aby zmienić kolejność kolumn — w tablicach **Wybór**/**Status** zmienia to kolejność opcji właściwości (dzięki czemu listy rozwijane wszędzie podążają za tą kolejnością); tablice relacji i wolnego tekstu zapamiętują kolejność dla każdego widoku.
 - **Kolor kolumny**: w ustawieniach **Widoku** tablicy opcja **Kolor kolumny** pozwala kolumnie przejąć kolor swojej grupy — albo **Cała kolumna** (cała kolumna zostaje zabarwiona), albo **Tylko etykieta** (tylko etykieta w nagłówku, wartość domyślna). Dotyczy grup Wybór/Status/Wielokrotny wybór.

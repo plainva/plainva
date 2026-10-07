@@ -67,9 +67,30 @@ export const config: WebdriverIO.Config = {
   reporters: ["spec"],
   mochaOpts: { timeout: 180_000 },
   logLevel: "warn",
+  // The drivers' own output (tauri-driver, the Edge and WebKit WebDrivers) goes
+  // to files here, and the workflow uploads them when a run fails. Without
+  // them a session that never starts leaves one line in the job log and no
+  // way to tell which of the three processes gave up.
+  outputDir: "wdio-logs",
+
+  // A failed step leaves what the window looked like: without it the job log
+  // names an element and nothing about what stood in front of it.
+  async afterTest(_test, _context, result) {
+    if (result.passed) return;
+    try {
+      mkdirSync("wdio-logs", { recursive: true });
+      await browser.saveScreenshot(join("wdio-logs", "failed.png"));
+      writeFileSync(join("wdio-logs", "failed.html"), await browser.getPageSource(), "utf8");
+    } catch {
+      /* the session may be gone; the driver log says so */
+    }
+  },
 
   onPrepare() {
     vaultDir = mkdtempSync(join(tmpdir(), "plainva-smoke-vault-"));
+    // The spec reads the note back from disk; the workers start after this
+    // hook and inherit the variable.
+    process.env.PLAINVA_SMOKE_VAULT = vaultDir;
     const dataDir = appDataDir();
     mkdirSync(dataDir, { recursive: true });
     writeFileSync(

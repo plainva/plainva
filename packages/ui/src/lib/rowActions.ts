@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Ban, Bookmark, BookmarkMinus, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
+  Ban, Bookmark, BookmarkMinus, CalendarClock, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
   ExternalLink, Eye, Flag, FlaskConical, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
@@ -132,6 +132,8 @@ export interface TaskRowCaps {
   repeat?: () => void;
   /** Blocks time for it in a calendar. */
   block?: () => void;
+  /** Opens the shell's date picker for the due day — also the way to give an undated task one. */
+  due?: () => void;
   /** Opens the shell's priority picker (high, medium, low, none). */
   priority?: () => void;
   /** Checkbox task: opens the shell's state picker (open, in progress, done, cancelled). */
@@ -153,6 +155,7 @@ export function taskRowActions(t: RowActionT, c: TaskRowCaps): RowActionSpec[] {
     c.promote ? { id: "promote", label: t("tasks.promoteTo", { defaultValue: "In Datenbank verschieben" }), icon: Database, run: c.promote, swipe: true } : null,
     c.repeat ? { id: "repeat", label: t("tasks.repeat", { defaultValue: "Wiederholung" }), icon: Repeat, run: c.repeat } : null,
     c.block ? { id: "block", label: t("pim.blockTime", { defaultValue: "Zeit blocken" }), icon: CalendarPlus, run: c.block, swipe: true } : null,
+    c.due ? { id: "due", label: t("tasks.dueChange", { defaultValue: "Fälligkeit ändern" }), icon: CalendarClock, run: c.due } : null,
     c.priority ? { id: "priority", label: t("tasks.prioritySet", { defaultValue: "Priorität setzen" }), icon: Flag, run: c.priority } : null,
     c.state ? { id: "state", label: t("tasks.setState", { defaultValue: "Zustand setzen" }), icon: SquareSlash, run: c.state } : null,
   ];
@@ -312,7 +315,7 @@ export function fileRowActions(t: RowActionT, c: FileRowCaps): RowActionSpec[] {
  */
 export const ROW_ACTION_IDS = {
   mail: ["open", "read", "unread", "flag", "unflag", "move", "snooze", "unsnooze", "junk", "delete"],
-  task: ["toggle", "promote", "repeat", "block", "priority", "state"],
+  task: ["toggle", "promote", "repeat", "block", "due", "priority", "state"],
   journal: ["toggle", "edit", "copy", "toTask", "toEntry", "showInNote", "delete"],
   file: [
     "openNewTab", "openSplitRight", "openSplitDown", "rename", "duplicate", "move", "overview", "bookmark", "versionHistory",

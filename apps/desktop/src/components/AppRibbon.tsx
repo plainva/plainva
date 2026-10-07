@@ -139,7 +139,7 @@ export function AppRibbon(props: AppRibbonProps) {
     // The four creation entries wear the "New …" catalog's words and icons
     // (Design-Runde E4) — the same the sidebar menu, the palette and the phone's
     // FAB show for the same thing.
-    new: { key: "new", label: t(NEW_ITEMS.note.titleKey, { defaultValue: NEW_ITEMS.note.titleDefault }), icon: <NEW_ITEMS.note.icon size={ICON.head} />, run: props.onNewNote },
+    new: { key: "new", label: t(NEW_ITEMS.note.titleKey, { defaultValue: NEW_ITEMS.note.titleDefault }), icon: <NEW_ITEMS.note.icon size={ICON.head} />, run: props.onNewNote, testId: "ribbon-new" },
     // Same creation family as the "+" menu beside the search field, and the
     // same target rule: the selected folder, the selected file's parent, or the
     // vault root. The daily note ignores all that — it belongs in the folder

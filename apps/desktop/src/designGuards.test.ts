@@ -447,6 +447,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-svcchip": "service chip on the themed accent-container pair",
   "pv-wizsteps": "wizard step header, layout only",
   "pv-taskmeta": "wrapping task metadata text, no surface; shared muted/warning tokens already follow every theme",
+  "pv-bookmark-row": "drag states only (plan Befunde 06.10., W6) — the lifted row dims and an --accent-color line marks the drop; the row itself keeps the sidebar row look both themes already carry",
+  "pv-taskline": "layout only (plan Befunde 06.10., W2) — the title button and the due chip of a task in the 'All' list side by side; the text colours are tokens and the chip is the Chip primitive, which both themes restyle",
   "pv-wizstep": "step chips on token colors; active/done discs use the accent pair",
   "pv-svcline": "service rows inside .pv-setcard — setrow grammar, card carries the theme",
   "pv-svcstat": "status rows inside .pv-setcard on shared status tokens",
@@ -460,6 +462,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-resulthead": "text row above the hits — the label is --text-muted and the ✕ is a themed .pv-iconbtn",
   "pv-basesearch": "layout only — a .pv-searchfield plus the hit counter beside it; both are themed. The row under the head paints --bg-secondary and --border-color, which both themes override",
   "pv-evtdesc": "event description text (plan Befunde 24.09., E25): running text on --text-muted and link chips on --border-color/--bg-primary/--accent-color, all tokens both themes already override",
+  "pv-linktarget": "text run (plan Befunde 06.10., M1): the destination of a mail link on --text-muted with its host on --text-main, or the colour of the warning surface around it - tokens both themes already override",
+  "pv-maillink": "a link inside a plain-text mail body: --accent-color and an underline, nothing else to theme",
   "pv-evtjoin": "layout only — aligns the Join button; the button is a .pv-btn, which both themes restyle",
   "pv-pinentry": "layout only — the pinboard entry window's title field, editor host and line of inherited chips inside .pv-modal; the modal, the field tokens, the Chip primitive and the editor carry every theme",
 };

@@ -402,12 +402,15 @@ describe("PimWorker", () => {
       expect(failing.listCalendars).toHaveBeenCalledTimes(2);
     });
 
-    /** A dropped request is not an answer — parking it would hide a network blip. */
+    /** A dropped request is not an answer — parking it would hide a network blip.
+     *  The next TICK asks again: one interval later, which is what the clock says. */
     it("keeps asking after a temporary failure", async () => {
       const flaky = { ...fakeTarget([]), listCalendars: vi.fn(async () => { throw new Error("network timeout"); }) };
-      const worker = workerFor(flaky as IPimTarget);
+      let clock = NOW;
+      const worker = workerFor(flaky as IPimTarget, { now: () => clock });
       await worker.triggerImmediate();
       expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBe("transient");
+      clock += 2 * 60_000;
       await autoCycle(worker);
       expect(flaky.listCalendars).toHaveBeenCalledTimes(2);
     });
@@ -424,9 +427,11 @@ describe("PimWorker", () => {
           throw new Error("error sending request for url (https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250)");
         }),
       };
-      const worker = workerFor(unreachable as IPimTarget);
+      let clock = NOW;
+      const worker = workerFor(unreachable as IPimTarget, { now: () => clock });
       await worker.triggerImmediate();
       expect((await cache.getScopeState("a1", "account"))?.lastErrorKind).toBe("transient");
+      clock += 2 * 60_000;
       await autoCycle(worker);
       expect(unreachable.listCalendars).toHaveBeenCalledTimes(2);
     });

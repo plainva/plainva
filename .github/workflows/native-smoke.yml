@@ -36,6 +36,14 @@ jobs:
         run: pnpm --filter desktop exec tauri build --debug --no-bundle
       - name: Native smoke
         run: xvfb-run --auto-servernum pnpm --filter desktop test:native
+      - name: Upload driver logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-linux-${{ github.run_attempt }}
+          path: apps/desktop/wdio-logs/
+          if-no-files-found: ignore
+          retention-days: 7
 
   windows:
     runs-on: windows-latest
@@ -53,7 +61,62 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build web assets
         run: pnpm --filter desktop build
+      # With the smoke overlay (src-tauri/tauri.smoke.conf.json): the WebView
+      # library always sets the browser arguments itself, so the debugging port
+      # the Edge driver asks for through the environment never reached the
+      # browser process (measured 2026-10-06: its command line carried the
+      # library's arguments and nothing else). The overlay puts the port into
+      # those arguments. It exists only in this build; no release uses it.
       - name: Build debug binary
-        run: pnpm --filter desktop exec tauri build --debug --no-bundle
+        run: pnpm --filter desktop exec tauri build --debug --no-bundle --config src-tauri/tauri.smoke.conf.json
+      # Before the driver gets the binary: does it start at all, and does it
+      # create its WebView? "session not created: DevToolsActivePort file doesn't
+      # exist" (first runs, 2026-09-29/30) says only that the driver waited a
+      # minute for a browser that never reported in — a binary that exits at
+      # once and a WebView that ignores the driver's debugging port look the
+      # same from there. This step tells them apart and never fails the job.
+      - name: Does the binary start on its own?
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $exe = "apps/desktop/src-tauri/target/debug/plainva-desktop.exe"
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($p.HasExited) { Write-Host "binary exited after start, exit code $($p.ExitCode)" } else { Write-Host "binary is running (pid $($p.Id))" }
+          Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Select-Object Id, StartTime | Format-Table
+          Get-ChildItem "$env:LOCALAPPDATA\com.plainva.desktop" -ErrorAction SilentlyContinue | Select-Object Name | Format-Table
+          (Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue).pv
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
+          # The driver reaches a WebView2 app through two environment variables:
+          # its own user data folder, and a debugging port. If the app's WebView
+          # honours them, the port file appears in THAT folder. If it does not,
+          # the driver waits for a file that is written somewhere else.
+          $probe = Join-Path $env:RUNNER_TEMP "wv2-probe"
+          New-Item -ItemType Directory -Force -Path $probe | Out-Null
+          $env:WEBVIEW2_USER_DATA_FOLDER = $probe
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9333"
+          $q = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 20
+          Write-Host "with the driver's variables: running=$(-not $q.HasExited)"
+          Write-Host "port file in the given folder: $(Test-Path (Join-Path $probe 'EBWebView\DevToolsActivePort'))"
+          Write-Host "port file in the app's own folder: $(Test-Path "$env:LOCALAPPDATA\com.plainva.desktop\EBWebView\DevToolsActivePort")"
+          Get-ChildItem $probe -ErrorAction SilentlyContinue | Select-Object Name | Format-Table
+          # Third run: the folder was taken, the port was not. Did the argument
+          # reach the WebView's browser process at all? Its command line says.
+          Get-CimInstance Win32_Process -Filter "Name = 'msedgewebview2.exe'" | Where-Object { $_.CommandLine -notmatch '--type=' } | ForEach-Object { Write-Host "browser process: $($_.CommandLine)" }
+          try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 http://127.0.0.1:9333/json/version).Content } catch { Write-Host "port 9333 does not answer: $($_.Exception.Message)" }
+          if (-not $q.HasExited) { Stop-Process -Id $q.Id -Force }
+          Get-Process -Name msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Remove-Item Env:WEBVIEW2_USER_DATA_FOLDER; Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
       - name: Native smoke
         run: pnpm --filter desktop test:native
+      - name: Upload driver logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-smoke-windows-${{ github.run_attempt }}
+          path: apps/desktop/wdio-logs/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -94,6 +94,61 @@ export function classifyFolderRole(name: string, delimiter?: string): GuessedFol
   return null;
 }
 
+/**
+ * The role a server STATES for a mailbox through an RFC 6154 special-use
+ * attribute in its LIST reply (`\Junk`, `\Trash`, `\Sent`, `\Drafts`,
+ * `\Archive`; Gmail's older `\Spam` and `\Inbox` spellings included). This is
+ * the server's own word and beats every guess from the name: Gmail calls its
+ * junk folder `[Gmail]/Spam` in English and something else in every other
+ * language, and marks it `\Junk` in all of them. `\All`, `\Flagged` and
+ * `\Important` are views, not places to file mail — they state no role.
+ */
+export function specialUseRole(attributes: readonly string[]): GuessedFolderRole {
+  for (const raw of attributes) {
+    const flag = raw.trim().toLowerCase();
+    // A special-use attribute is a system flag: it starts with a backslash. A
+    // keyword without one ("Junk" as a plain word) is not the server's claim.
+    if (flag.charCodeAt(0) !== 92) continue;
+    switch (flag.slice(1)) {
+      case "junk":
+      case "spam":
+        return "junk";
+      case "trash":
+        return "trash";
+      case "sent":
+        return "sent";
+      case "drafts":
+        return "drafts";
+      case "archive":
+        return "archive";
+      case "inbox":
+        return "inbox";
+      default:
+    }
+  }
+  return null;
+}
+
+/**
+ * Roles for a LIST reply: the stated special-use attribute first, the name
+ * second. A name guess is NOT handed out for a role another mailbox states —
+ * so "the junk folder" is the one the server marked, even when an older folder
+ * called "Junk" sits next to it. (Asked about that older folder directly,
+ * `isJunkFolder` still reads its name: for blocking remote images, one folder
+ * too many is the safe side.)
+ */
+export function mailboxRoles<T extends { name: string; delimiter?: string; attributes: readonly string[] }>(
+  entries: readonly T[]
+): Array<{ name: string; delimiter?: string; role?: Exclude<GuessedFolderRole, null> }> {
+  const stated = entries.map((entry) => specialUseRole(entry.attributes));
+  const claimed = new Set(stated.filter((role): role is Exclude<GuessedFolderRole, null> => role !== null));
+  return entries.map((entry, index) => {
+    const guess = stated[index] === null ? classifyFolderRole(entry.name, entry.delimiter) : null;
+    const role = stated[index] ?? (guess !== null && !claimed.has(guess) ? guess : null);
+    return { name: entry.name, delimiter: entry.delimiter, role: role ?? undefined };
+  });
+}
+
 /** Best-guess Trash mailbox for delete (localized), or null so the caller can
  * fall back to a flag. Matches names, returns the raw (IMAP) name. */
 export function guessTrashMailbox(names: string[], delimiter?: string): string | null {

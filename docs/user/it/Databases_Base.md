@@ -1,6 +1,6 @@
 # Database (.base)
 
-Ultimo aggiornamento: 2026-09-24
+Ultimo aggiornamento: 2026-10-06
 
 Con i file `.base` trasformi le note in database: tabelle, bacheche, calendari — con filtri, proprietà tipizzate e relazioni tra database. Il concetto ricorda i database di Notion, con una differenza decisiva: **i dati non vivono nel database, vivono nelle tue note.**
 
@@ -131,9 +131,9 @@ blockedBy:
 Quando apri direttamente una voce di database — dall'albero dei file, dalla ricerca o tramite un `[[link]]` — Plainva ora ti dice di cosa fa parte:
 
 - Sopra la nota c'è una **riga di contesto**: i database a cui appartiene la nota, come chip cliccabili (un clic apre il database), seguiti dal percorso `voce genitore / questa nota` quando il database usa i sottoelementi. Se la nota appartiene a **più** database, compaiono tutti — la riga va a capo invece di ometterne uno.
-- Nella barra laterale destra, la sezione **Database** è l'**ispettore della voce**: mostra la nota così come la vede il suo database — le colonne della prima vista, nell'ordine di quella vista, con i tipi e i colori delle opzioni del `.base`, e **modificabile** proprio come nella tabella. Così uno stato può essere cambiato senza aprire il database. Sopra si trova la posizione nella vista (**12 / 34**) con le frecce verso la voce precedente e successiva. Una nota che appartiene a più database ottiene un blocco per ciascun database. Sotto seguono la **voce genitore**, i **sottoelementi** (comprimibili) e le voci **collegate** tramite relazioni — ciascuna cliccabile.
+- Nella barra laterale destra, la sezione **Database** mostra ciò che solo il database sa della nota. Ogni database a cui appartiene ha una riga con il suo nome e la sua vista — un clic lo apre — e la posizione nella vista (**12 / 34**) con le frecce verso la voce precedente e successiva. Sotto stanno i campi che il database **calcola** per questa nota e che non si trovano in nessun file: aggregazioni, relazioni inverse e informazioni sul file come il momento dell'ultima modifica. Le colonne che la nota porta con sé non vengono ripetute: una riga le elenca (**In Proprietà: …**) e si modificano una volta sola, nella sezione **Proprietà**. Una nota che appartiene a più database ottiene un blocco per ciascun database. Sotto seguono la **voce genitore**, i **sottoelementi** (comprimibili) e le voci **collegate** tramite relazioni — ciascuna cliccabile. Sul telefono lo stesso si trova nella scheda **Database** del pannello di contesto della nota.
 - La posizione compare solo quando la nota si trova effettivamente **nella** vista: l'appartenenza a un database deliberatamente non dipende dai filtri di una vista, quindi le due cose possono legittimamente divergere.
-- Il pannello **Proprietà** resta comunque utile accanto: mostra il frontmatter grezzo — ogni campo, senza l'ordine, i tipi e i filtri del database.
+- La sezione **Proprietà** è il posto di quei valori: ogni campo del frontmatter della nota come una riga, modificabile sul posto.
 - Se una nota non appartiene a nessun database, non compaiono né la riga né la sezione. Niente di tutto ciò viene scritto nella nota: il contesto viene ricalcolato dai tuoi file `.base` e dai tuoi link ogni volta che la apri, e la nota stessa resta puro Markdown.
 
 ## Creare nuove voci
@@ -164,7 +164,7 @@ Nota per i vault sincronizzati: se due dispositivi dispongono la bacheca nello s
 
 ## Uso quotidiano
 
-- **Modifica in linea**: un singolo clic in una cella (o su un valore della scheda) la rende modificabile — in ogni vista.
+- **Modifica in linea**: un singolo clic in una cella (o su un valore della scheda) la rende modificabile — in ogni vista. Un valore di testo si apre in un campo che cresce e va a capo con il testo, così un valore lungo resta leggibile per intero mentre lo modifichi. Rimane un solo valore: **Enter** salva, e un’interruzione di riga incollata diventa uno spazio.
 - **Apertura**: cliccare sul titolo di una voce apre la nota nella finestra di anteprima — una finestra fluttuante che puoi trascinare dalla barra del titolo e ridimensionare dall'angolo. Mantiene una propria cronologia **Indietro**/**Avanti** per le note che apri al suo interno, ha un interruttore che mostra una colonna **Proprietà** per la nota visualizzata, e offre **Apri come scheda** e **Apri nella vista divisa**. `Ctrl`+clic apre direttamente nella vista divisa; in alternativa trascina una scheda sulla zona di rilascio **Rilascia qui: apri nella vista divisa**. La colonna delle proprietà si allarga o restringe trascinando il bordo sinistro (minimo 232 px); sotto i 280 px mette l'etichetta sopra il valore, come la barra laterale destra.
 - **Trascinamento**: mentre trascini le schede (Bacheca, Calendario, Cronologia) una scheda fantasma segue il puntatore. In una **Bacheca** puoi anche trascinare un'**intestazione di colonna** per riordinare le colonne — per le bacheche **Selezione**/**Stato** questo riordina le opzioni della proprietà (così i menu a tendina in tutta l'app seguono l'ordine); le bacheche per relazione e testo libero ricordano l'ordine per ogni vista.
 - **Colore della colonna**: nelle impostazioni della **Vista** di una bacheca, **Colore della colonna** permette a una colonna di assumere il colore del proprio gruppo — sia come **Intera colonna** (l'intera colonna viene colorata) sia come **Solo chip** (solo il chip nell'intestazione, l'impostazione predefinita). Si applica ai gruppi Selezione/Stato/Selezione multipla.

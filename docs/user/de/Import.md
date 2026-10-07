@@ -1,10 +1,10 @@
 # Aus einer anderen App importieren
 
-Stand: 2026-09-17
+Stand: 2026-10-06
 
 Plainva übernimmt Notizen aus anderen Apps in einen neuen Vault oder einen neu benannten Unterordner des offenen Vaults. Der restliche Vault bleibt unverändert; der Importordner lässt sich anschließend verschieben oder löschen.
 
-**Der Import läuft auf beiden Geräten — mit denselben Quellen.** Am Desktop führen der Startbildschirm, die Befehlspalette und das Kontextmenü eines Ordners hinein; auf dem Telefon findest Du ihn unter **Einstellungen → Wartung → Aus anderer App importieren**. Auch Quellen, die einen Zugang zu einem Dienst brauchen — Notion über die API —, stehen dort zur Verfügung.
+**Der Import läuft auf beiden Geräten — mit denselben Quellen.** Am Desktop führen der Startbildschirm, die Befehlspalette und das Kontextmenü eines Ordners hinein; auf dem Telefon findest Du ihn unter **Einstellungen → Wartung → Aus anderer App importieren**. Auch Quellen, die einen Zugang zu einem Dienst brauchen — Notion über die API —, stehen dort zur Verfügung. Auch die Befehlspalette des Telefons (`>` im Suchfeld) führt hinein.
 
 ## Import starten
 

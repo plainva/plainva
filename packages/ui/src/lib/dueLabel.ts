@@ -74,3 +74,20 @@ export function formatDueLabel(dayKey: string, opts: DueLabelOptions): DueLabelR
   }).format(date);
   return { text, tone };
 }
+
+/**
+ * A day as a sentence names it after it was CHOSEN — "Tue, 10/06" — for the
+ * toast that confirms a moved due date. The weekday is in it because that is
+ * what a person checks a picked date against; `formatDueLabel` is the short
+ * form for a row and says "due today" there, which a confirmation cannot use.
+ */
+export function formatPickedDay(dayKey: string, locale: string, today: Date = new Date()): string {
+  const date = parseDayKey(dayKey);
+  if (!date) return dayKey;
+  return new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    ...(date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
+  }).format(date);
+}

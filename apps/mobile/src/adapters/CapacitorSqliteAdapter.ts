@@ -3,7 +3,7 @@ import {
   SQLiteConnection,
   type SQLiteDBConnection,
 } from "@capacitor-community/sqlite";
-import type { IDatabaseAdapter } from "@plainva/core";
+import type { BatchStatement, IDatabaseAdapter } from "@plainva/core";
 
 /**
  * IDatabaseAdapter over @capacitor-community/sqlite (M2). Unlike the desktop
@@ -60,14 +60,20 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
     return rows.length > 0 ? rows[0] : null;
   }
 
+  /** Open `transaction()` calls. `runBatch` reads it: see there. */
+  private depth = 0;
+
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     const db = this.conn();
     await db.beginTransaction();
+    this.depth += 1;
     try {
       const result = await fn();
+      this.depth -= 1;
       await db.commitTransaction();
       return result;
     } catch (err) {
+      this.depth -= 1;
       try {
         await db.rollbackTransaction();
       } catch {
@@ -75,6 +81,35 @@ export class CapacitorSqliteAdapter implements IDatabaseAdapter {
       }
       throw err;
     }
+  }
+
+  /**
+   * An ordered batch of writes as ONE native call (plan Befunde 2026-10-06,
+   * K1).
+   *
+   * `transaction()` above is a real transaction, but it is not what keeps a
+   * READER out: this is a single connection, and a query that another part of
+   * the app sends between two of the batch's statements runs on that same
+   * connection and sees the half-finished state — a calendar whose events were
+   * deleted and not yet written back. `executeSet` hands the whole list to
+   * the plugin at once; it begins, runs every statement and commits (or rolls
+   * back on the first error) before the next call from JavaScript is served.
+   *
+   * Inside an open `transaction()` — the indexer flushes its batches there —
+   * nothing changes: SQLite has no nested transactions, so the statements run
+   * one by one in the transaction that is open, exactly as they did before
+   * this method existed, and are committed or rolled back with it. That keeps
+   * the indexer's write path untouched; the price is that a batch arriving
+   * from elsewhere while a scan holds its transaction is not a single call.
+   */
+  async runBatch(statements: BatchStatement[]): Promise<void> {
+    if (statements.length === 0) return;
+    if (this.depth > 0) {
+      for (const s of statements) await this.execute(s.sql, s.params);
+      return;
+    }
+    const set = statements.map((s) => ({ statement: s.sql, values: toPositional(s.params) }));
+    await this.conn().executeSet(set, true);
   }
 }
 

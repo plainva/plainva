@@ -4,6 +4,7 @@ import ts from "typescript";
 import { describe, expect, it, vi } from "vitest";
 import { COMMAND_GROUPS, PARITY_FEATURES, commandInventory, type ParityFeatureDef } from "@plainva/ui";
 import { MOBILE_ABSENT_COMMANDS, buildMobileCommands, type MobileCommandHost } from "./mobileCommands";
+import { takeNoteCommand, type NoteCommand } from "./noteCommands";
 
 function host(over: Partial<MobileCommandHost> = {}): MobileCommandHost {
   return {
@@ -74,6 +75,81 @@ describe("mobile commands", () => {
     const share = cmds.find((c) => c.id === "export-markdown")!;
     expect(rename.isAvailable?.()).toBe(false);
     expect(share.isAvailable?.()).toBe(false);
+  });
+
+  /**
+   * The twelve the palette gained when the gap `palette-command-reach` closed
+   * (2026-10-06): six the shell serves, six the open note carries out.
+   */
+  const VAULT_REACH: Array<[string, keyof MobileCommandHost]> = [
+    ["template-new", "newTemplate"],
+    ["open-comments", "openComments"],
+    ["import-pkm", "openImport"],
+    ["backup-now", "backupNow"],
+    ["rebuild-index", "rebuildIndex"],
+    ["update-indexes", "updateIndexes"],
+  ];
+  const NOTE_REACH: Array<[string, NoteCommand]> = [
+    ["version-history", "history"],
+    ["insert-template", "insert-template"],
+    ["template-from-note", "save-as-template"],
+    ["toggle-source", "toggle-source"],
+    ["mail-mailto", "mailto"],
+    ["mail-draft", "compose-mail"],
+  ];
+  const reachHost = () => host(Object.fromEntries(VAULT_REACH.map(([, key]) => [key, vi.fn()])));
+
+  it("offers each of the twelve the phone already served on a screen of its own", () => {
+    const h = reachHost();
+    const cmds = buildMobileCommands(h);
+    for (const [id, key] of VAULT_REACH) {
+      const cmd = cmds.find((c) => c.id === id);
+      expect(cmd, `${id} should be offered`).toBeDefined();
+      expect(cmd!.isAvailable?.() ?? true, `${id} needs no open note`).toBe(true);
+      cmd!.run();
+      expect(h[key], `${id} runs the shell's ${key}`).toHaveBeenCalledOnce();
+    }
+    for (const [id] of NOTE_REACH) {
+      const cmd = cmds.find((c) => c.id === id);
+      expect(cmd, `${id} should be offered`).toBeDefined();
+      expect(cmd!.isAvailable?.(), `${id} is listed while a note is open`).toBe(true);
+    }
+  });
+
+  it("does not offer a shell command whose handler the shell does not pass", () => {
+    const ids = buildMobileCommands(host()).map((c) => c.id);
+    for (const [id] of VAULT_REACH) expect(ids, `${id} without a handler`).not.toContain(id);
+  });
+
+  it("hides the six note commands while no note is open, and asks nothing of nobody", () => {
+    const cmds = buildMobileCommands(reachHost());
+    const closed = buildMobileCommands({ ...reachHost(), activeNote: () => null });
+    for (const [id] of [...NOTE_REACH, ["toggle-read-edit"], ["rename-active"], ["export-markdown"]]) {
+      expect(cmds.find((c) => c.id === id)!.isAvailable?.(), `${id} with a note`).toBe(true);
+      const cmd = closed.find((c) => c.id === id)!;
+      expect(cmd.isAvailable?.(), `${id} without a note`).toBe(false);
+      cmd.run();
+    }
+    expect(takeNoteCommand("Notes/A.md")).toBeNull();
+  });
+
+  it("hands each note command to the note the palette was opened over", () => {
+    // As App.tsx builds it: no override, so each one takes its default route.
+    const cmds = buildMobileCommands({ ...reachHost(), renameActive: undefined, toggleReadEdit: undefined, exportActive: undefined });
+    for (const [id, command] of [...NOTE_REACH, ["rename-active", "rename"], ["toggle-read-edit", "toggle-edit"], ["export-markdown", "export"]] as Array<[string, NoteCommand]>) {
+      cmds.find((c) => c.id === id)!.run();
+      // Parked under the note's path — another note must not pick it up.
+      expect(takeNoteCommand("Notes/Other.md"), `${id} is not for another note`).toBeNull();
+      expect(takeNoteCommand("Notes/A.md"), `${id} asks the note for "${command}"`).toBe(command);
+    }
+  });
+
+  it("leaves Markdown source out for a plain-text file, as the note menu does", () => {
+    const cmds = buildMobileCommands({ ...reachHost(), activeNote: () => "Data/list.csv" });
+    expect(cmds.find((c) => c.id === "toggle-source")!.isAvailable?.()).toBe(false);
+    // The file actions stay: a text file can be renamed, exported and mailed.
+    expect(cmds.find((c) => c.id === "rename-active")!.isAvailable?.()).toBe(true);
+    expect(cmds.find((c) => c.id === "mail-mailto")!.isAvailable?.()).toBe(true);
   });
 
   it("carries the shared groups and icons", () => {

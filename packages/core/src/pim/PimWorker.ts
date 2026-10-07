@@ -1,6 +1,6 @@
 import type { PimCacheRepository, PimAccountRow } from "./PimCacheRepository.js";
-import { classifySyncError, isRequestSendFailure } from "../sync/errorKind.js";
-import type { IPimTarget, PimEvent, PimTaskList } from "./types.js";
+import { classifySyncError, isSignInFailure, type SyncErrorKind } from "../sync/errorKind.js";
+import type { IPimTarget, PimEvent, PimProviderId, PimTaskList } from "./types.js";
 import { eventCalendarsOf } from "./types.js";
 import { inheritSeriesTitles } from "./seriesTitle.js";
 import { decodeEventCursor, encodeEventCursor, needsFullRefresh } from "./eventCursor.js";
@@ -14,6 +14,20 @@ import { decodeEventCursor, encodeEventCursor, needsFullRefresh } from "./eventC
  * isolation — in errors AND in time, one failing or hanging account never
  * blocks the others — and error surfacing through the scope state + status
  * callback.
+ *
+ * **Who is asked, and when** (decision E7, plan Befunde 2026-10-06):
+ *  - Only a failed SIGN-IN parks an account. It stays parked until the
+ *    sign-in changes or the person refreshes by hand — asking a revoked
+ *    authorisation again answers the same way every time.
+ *  - Every other account failure is asked again by the timer on its own,
+ *    with a growing pause (`pimRetryDelayMs`): a server that is down for the
+ *    night is not knocked on every two minutes, and nobody has to press a
+ *    button in the morning.
+ *  - A failure on ONE calendar is that calendar's: the account's other
+ *    calendars sync, the failing one keeps what the cache holds and is
+ *    retried with the same growing pause.
+ *  - A failed write to the local cache is temporary by definition — it says
+ *    nothing about the provider or the sign-in.
  */
 
 export type PimStatus = "idle" | "syncing" | "error";
@@ -58,9 +72,53 @@ export interface PimCycleInfo {
   hadError: boolean;
   /** Manual triggers the cycle answered without a second run (see TRIGGER_COALESCE_MS). */
   coalesced: number;
+  /**
+   * One entry per enabled account, in account order (K1): the cycle line used
+   * to end in "with errors" and nothing on record said which account or why.
+   * Deliberately without the account's label, calendar names or titles — the
+   * provider and the position are enough to tell two accounts apart in a log.
+   */
+  accounts: PimCycleAccount[];
+}
+
+export interface PimCycleAccount {
+  provider: PimProviderId;
+  /** Events the providers handed over in this cycle (full pulls and deltas). */
+  events: number;
+  /** The account-level failure, in the provider's own words. */
+  error?: string;
+  /** How many of its calendars failed or are waiting for their retry. */
+  calendarErrors?: number;
+  /** Not asked this cycle: parked on its sign-in, or waiting for its retry. */
+  skipped?: "parked" | "waiting";
+}
+
+/** A write to the local cache failed. Never the provider's fault and never
+ * the sign-in's — the worker treats it as temporary whatever the text says. */
+export class PimCacheWriteError extends Error {
+  constructor(cause: unknown) {
+    super(`local calendar cache: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = "PimCacheWriteError";
+  }
 }
 
 const DEFAULT_INTERVAL_MS = 2 * 60 * 1000;
+/** The longest pause between two automatic attempts on something that keeps failing. */
+export const PIM_RETRY_CAP_MS = 30 * 60 * 1000;
+
+/**
+ * How long to leave a failing account or calendar alone after its n-th
+ * failure in a row: one interval, then two, four, eight — capped, so even a
+ * permanently broken one is asked twice an hour and heals without a hand.
+ */
+export function pimRetryDelayMs(failures: number, intervalMs: number): number {
+  const doublings = Math.max(0, Math.min(failures, 16) - 1);
+  return Math.min(PIM_RETRY_CAP_MS, intervalMs * 2 ** doublings);
+}
+
+function messageOf(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
 /**
  * A manual trigger this soon after a cycle started is ANSWERED by that cycle:
  * nothing has been read from a provider yet that could be older than the
@@ -92,8 +150,38 @@ export class PimWorker {
   /** When the running cycle began, and how many triggers it absorbed. */
   private cycleStartedAt = 0;
   private coalesced = 0;
+  /**
+   * Accounts (key: account id) and calendars (key: account id + calendar id)
+   * whose last attempts failed for a reason that may pass. In memory on
+   * purpose: a restart is a reason to ask once, and the count that matters is
+   * "in a row, in this run".
+   */
+  private retries = new Map<string, { failures: number; notBefore: number; message: string }>();
 
   constructor(private opts: PimWorkerOptions) {}
+
+  private noteFailure(key: string, message: string): void {
+    const failures = (this.retries.get(key)?.failures ?? 0) + 1;
+    const interval = this.opts.intervalMs ?? DEFAULT_INTERVAL_MS;
+    // Half an interval of slack: the timer ticks a moment later than the
+    // failure it follows, and "one interval" must mean the very next tick.
+    this.retries.set(key, { failures, notBefore: this.clock() + pimRetryDelayMs(failures, interval) - interval / 2, message });
+  }
+
+  /** The stored failure while its pause is still running, else null. */
+  private waitingOn(key: string, now: number): string | null {
+    const retry = this.retries.get(key);
+    return retry && retry.notBefore > now ? retry.message : null;
+  }
+
+  /** A cache write, marked as one: see `PimCacheWriteError`. */
+  private async store<T>(write: () => Promise<T>): Promise<T> {
+    try {
+      return await write();
+    } catch (e) {
+      throw new PimCacheWriteError(e);
+    }
+  }
 
   start(): void {
     if (this.timer) return;
@@ -160,9 +248,10 @@ export class PimWorker {
     this.parkedSkipped = null;
     const gen = ++this.generation;
     const { cache, buildTarget } = this.opts;
-    let hadError = false;
+    let hadError: boolean;
     let firstError: string | undefined;
     let wroteData = false;
+    let report: PimCycleAccount[];
     this.opts.onStatusChange?.("syncing");
     try {
       // Once per run, before anything reads the cache: rows of accounts that no
@@ -192,6 +281,13 @@ export class PimWorker {
        * enough to try) and a fresh sign-in revision, even in a closed vault. A row
        * from before this column existed reads as unknown and is retried — an
        * upgrade must never park a working account.
+       *
+       * "An answer" means the SIGN-IN said no (E7). The stored verdict alone
+       * is not enough: `fatal` is also what a 403 on one calendar, a 404 or an
+       * unrecognised sentence got, and older builds parked on all of them —
+       * and on a request that was never answered (finding 2026-09-24). Reading
+       * the text again releases every such account on the first cycle after
+       * the update.
        */
       // Read HERE, not at the top of the cycle: a manual trigger that arrives
       // while the accounts are still being listed rides along with this cycle
@@ -206,27 +302,47 @@ export class PimWorker {
                 enabled.map(async (a) => {
                   const st = await cache.getScopeState(a.id, "account").catch(() => null);
                   const revision = revisions.get(a.id);
-                  // A verdict written by an older build that read a request
-                  // which never got an answer as final (finding 2026-09-24) is
-                  // not an answer: such an account is asked again from the
-                  // next cycle on, the first one after an update included.
-                  if (st?.lastErrorKind === "fatal" && isRequestSendFailure(st.lastError ?? "")) return null;
-                  return st?.lastErrorKind === "fatal" && (!revision || revision === st.authRevision) ? a.id : null;
+                  if (st?.lastErrorKind !== "fatal" || !isSignInFailure(st.lastError ?? "")) return null;
+                  return !revision || revision === st.authRevision ? a.id : null;
                 })
               )
             ).filter((id): id is string => id !== null)
           );
-      const accounts = enabled.filter((a) => !parked.has(a.id));
-      this.parkedSkipped = parked.size > 0;
-      if (parked.size > 0 && accounts.length === 0) {
-        // Nothing left to ask. Say the standing state rather than "ok", which
-        // would read as though the calendars were fresh. NOT an early return:
-        // the tail below drains a manual trigger that arrived mid-cycle, and
-        // dropping that would make "refresh" a no-op exactly when the user is
-        // trying to get out of this state.
-        hadError = true;
-        firstError = this.opts.parkedMessage ?? "sign-in required";
+      // An account whose last attempts failed for a reason that may pass is
+      // left alone until its pause is over — unless the person asked.
+      const cycleNow = this.clock();
+      const waiting = new Map<string, string>();
+      if (!retryParked) {
+        for (const a of enabled) {
+          const message = parked.has(a.id) ? null : this.waitingOn(a.id, cycleNow);
+          if (message !== null) waiting.set(a.id, message);
+        }
       }
+      const accounts = enabled.filter((a) => !parked.has(a.id) && !waiting.has(a.id));
+      // "Skipped" covers both: a manual refresh promises to ask everyone, and
+      // a cycle that left an account out for either reason cannot answer it.
+      this.parkedSkipped = parked.size > 0 || waiting.size > 0;
+      const parkedMessage = this.opts.parkedMessage ?? "sign-in required";
+      // What the cycle says about each enabled account, in account order: the
+      // ones it does not ask keep saying what is wrong with them. Saying "ok"
+      // would read as though their calendars were fresh. NOT an early return
+      // when nobody is left to ask: the tail below drains a manual trigger
+      // that arrived mid-cycle, and dropping that would make "refresh" a no-op
+      // exactly when the user is trying to get out of this state.
+      const errors = new Map<string, string>();
+      const stats = new Map<string, PimCycleAccount>();
+      for (const a of enabled) {
+        stats.set(a.id, { provider: a.provider, events: 0 });
+        if (parked.has(a.id)) {
+          stats.get(a.id)!.skipped = "parked";
+          errors.set(a.id, enabled.length === 1 ? parkedMessage : `${a.label}: ${parkedMessage}`);
+        } else if (waiting.has(a.id)) {
+          stats.get(a.id)!.skipped = "waiting";
+          stats.get(a.id)!.error = waiting.get(a.id);
+          errors.set(a.id, `${a.label}: ${waiting.get(a.id)}`);
+        }
+      }
+      report = enabled.map((a) => stats.get(a.id)!);
       // Accounts refresh CONCURRENTLY. They share nothing but the cache, and
       // every write inside is scoped to one account, so there is no order to
       // preserve between them — while sequentially a single slow or dead
@@ -234,44 +350,57 @@ export class PimWorker {
       // case: it spends its timeouts and retries before failing, and the next
       // account's calendars only appear afterwards ("the second calendar takes
       // forever", finding 2026-07-30).
-      const errors: Array<string | undefined> = new Array(accounts.length);
       for (let i = 0; i < accounts.length; i += ACCOUNT_CONCURRENCY) {
         if (gen !== this.generation) return; // stopped/superseded mid-cycle
         const batch = accounts.slice(i, i + ACCOUNT_CONCURRENCY);
         const settled = await Promise.all(
-          batch.map(async (account, n) => {
+          batch.map(async (account) => {
+            const stat = stats.get(account.id)!;
             try {
               const target = await buildTarget(account);
-              if (!target) return { at: i + n, wrote: false };
-              return { at: i + n, wrote: await this.refreshAccount(account, target, gen) };
+              if (!target) return false;
+              const done = await this.refreshAccount(account, target, gen, retryParked);
+              stat.events = done.events;
+              if (done.calendarErrors.length > 0) {
+                stat.calendarErrors = done.calendarErrors.length;
+                errors.set(account.id, `${account.label}: ${done.calendarErrors[0]}`);
+              }
+              if (!done.superseded) this.retries.delete(account.id);
+              return done.wrote;
             } catch (e) {
-              if (gen !== this.generation) return { at: i + n, wrote: false };
-              const msg = e instanceof Error ? e.message : String(e);
+              if (gen !== this.generation) return false;
+              const msg = messageOf(e);
+              // The sign-in is the one thing that parks (E7). A failed write
+              // to the local cache is never it, whatever its text contains.
+              const cacheWrite = e instanceof PimCacheWriteError;
+              const signIn = !cacheWrite && isSignInFailure(e);
+              // A failed sign-in is an answer however its sentence classifies
+              // otherwise — a verdict of "transient" would leave it neither
+              // parked nor paused, asked every cycle for good.
+              const kind: SyncErrorKind = cacheWrite ? "transient" : signIn ? "fatal" : classifySyncError(e);
               await cache
-                .setScopeState(account.id, "account", { lastError: msg, lastErrorKind: classifySyncError(e), authRevision: revisions.get(account.id) ?? null })
+                .recordScopeFailure(account.id, "account", { lastError: msg, lastErrorKind: kind, authRevision: revisions.get(account.id) ?? null })
                 .catch(() => {});
-              return { at: i + n, wrote: false, error: `${account.label}: ${msg}` };
+              if (signIn) this.retries.delete(account.id);
+              else this.noteFailure(account.id, msg);
+              stat.error = msg;
+              errors.set(account.id, `${account.label}: ${msg}`);
+              return false;
             }
           })
         );
-        for (const done of settled) {
-          wroteData = done.wrote || wroteData;
-          if (done.error) {
-            hadError = true;
-            errors[done.at] = done.error;
-          }
-        }
+        for (const wrote of settled) wroteData = wrote || wroteData;
       }
       // Report the first failure in ACCOUNT order: which one lost the race must
-      // not decide what the status bar says. A parked-only cycle already set
-      // its own sentence and has no errors to find.
-      firstError = errors.find(Boolean) ?? firstError;
+      // not decide what the status bar says.
+      firstError = enabled.map((a) => errors.get(a.id)).find(Boolean);
+      hadError = firstError !== undefined;
     } finally {
       this.running = false;
     }
     if (gen !== this.generation) return;
     try {
-      this.opts.onCycle?.({ cause, ms: this.clock() - this.cycleStartedAt, wroteData, hadError, coalesced: this.coalesced });
+      this.opts.onCycle?.({ cause, ms: this.clock() - this.cycleStartedAt, wroteData, hadError, coalesced: this.coalesced, accounts: report });
     } catch {
       /* diagnostics are best effort */
     }
@@ -284,17 +413,31 @@ export class PimWorker {
     }
   }
 
-  private async refreshAccount(account: PimAccountRow, target: IPimTarget, gen: number): Promise<boolean> {
+  /**
+   * One account's cycle. THROWS for a failure of the account itself — the
+   * listing, a write to the cache, a sign-in that died mid-cycle; the caller
+   * records the verdict. Failures of single calendars come back in
+   * `calendarErrors` and cost only those calendars.
+   */
+  private async refreshAccount(
+    account: PimAccountRow,
+    target: IPimTarget,
+    gen: number,
+    askEveryone: boolean
+  ): Promise<{ wrote: boolean; events: number; calendarErrors: string[]; superseded: boolean }> {
     const { cache } = this.opts;
     const { startTs, endTs } = this.windowRange;
     let wrote = false;
+    let eventCount = 0;
+    const calendarErrors: string[] = [];
+    const stoppedHere = () => ({ wrote, events: eventCount, calendarErrors, superseded: true });
 
     // ONE collection listing per cycle. CalDAV reminder lists arrive in the same
     // listing as the calendars and are told apart here — a VTODO-only collection
     // must never reach the calendar picker (issue #34).
     const collections = await target.listCalendars();
-    if (gen !== this.generation) return wrote;
-    await cache.replaceCalendars(account.id, eventCalendarsOf(collections));
+    if (gen !== this.generation) return stoppedHere();
+    await this.store(() => cache.replaceCalendars(account.id, eventCalendarsOf(collections)));
     wrote = true;
 
     // Pull the selected calendars CONCURRENTLY (network-bound), in small batches,
@@ -320,11 +463,23 @@ export class PimWorker {
        * leaving it out at the write site would mean "keep the old one". */
       cursor: string | null;
       error?: string;
+      /** The verdict for `error`, and whether it was the sign-in that failed. */
+      kind?: SyncErrorKind;
+      signIn?: boolean;
     };
+    const calKey = (calId: string) => `${account.id}\n${calId}`;
+    // A calendar whose pull keeps failing waits out its own pause (E7): it
+    // keeps what the cache holds, keeps saying why, and the calendars beside
+    // it are pulled as if it were not there.
+    const due = selected.filter((cal) => {
+      const waitingOn = askEveryone ? null : this.waitingOn(calKey(cal.id), now);
+      if (waitingOn !== null) calendarErrors.push(waitingOn);
+      return waitingOn === null;
+    });
     const pulled: Pulled[] = [];
-    for (let i = 0; i < selected.length; i += PULL_CONCURRENCY) {
-      if (gen !== this.generation) return wrote;
-      const batch = selected.slice(i, i + PULL_CONCURRENCY);
+    for (let i = 0; i < due.length; i += PULL_CONCURRENCY) {
+      if (gen !== this.generation) return stoppedHere();
+      const batch = due.slice(i, i + PULL_CONCURRENCY);
       const settled = await Promise.all(
         batch.map(async (cal): Promise<Pulled> => {
           const scope = `events:${cal.id}`;
@@ -370,29 +525,48 @@ export class PimWorker {
             // The cursor goes with it: a rejected or expired token must not park
             // the calendar on a feed it can no longer follow, so the next cycle
             // is a full refresh and heals itself.
-            return { calId: cal.id, full, cursor: null, error: e instanceof Error ? e.message : String(e) };
+            return { calId: cal.id, full, cursor: null, error: messageOf(e), kind: classifySyncError(e), signIn: isSignInFailure(e) };
           }
         })
       );
       pulled.push(...settled);
     }
-    let calendarError: string | undefined;
+    // The failures first: they are bookkeeping only, and recording them must
+    // not depend on a write further down getting through.
+    let signInError: string | undefined;
     for (const r of pulled) {
-      if (gen !== this.generation) return wrote;
-      if (r.error) {
-        calendarError = calendarError ?? r.error;
-        await cache
-          // `cursor` is what the pull decided, never coalesced here: a failed
-          // step returns null, and null means "drop it" while `undefined`
-          // would mean "keep it". Coalescing would hide that distinction.
-          .setScopeState(account.id, `events:${r.calId}`, { cursor: r.cursor, lastError: r.error })
-          .catch(() => {});
-      } else {
+      if (gen !== this.generation) return stoppedHere();
+      if (!r.error) continue;
+      calendarErrors.push(r.error);
+      if (r.signIn) signInError = signInError ?? r.error;
+      else this.noteFailure(calKey(r.calId), r.error);
+      await cache
+        // `cursor` is what the pull decided, never coalesced here: a failed
+        // step returns null, and null means "drop it" while `undefined`
+        // would mean "keep it". Coalescing would hide that distinction.
+        // Through `recordScopeFailure`, so the row keeps saying since when.
+        .recordScopeFailure(account.id, `events:${r.calId}`, { cursor: r.cursor, lastError: r.error, lastErrorKind: r.kind ?? null })
+        .catch(() => {});
+    }
+    for (const r of pulled) {
+      if (gen !== this.generation) return stoppedHere();
+      if (r.error) continue;
+      // A write that fails here THROWS and ends the account's cycle as a
+      // temporary failure. Each replace is one atomic step, so every calendar
+      // not reached keeps exactly what it had; going on would only wait out
+      // the same lock once per calendar.
+      await this.store(async () => {
         if (r.full) await cache.replaceEventWindow(account.id, r.calId, startTs, endTs, r.events!);
         else await cache.applyEventDelta(account.id, r.calId, r.events!, r.deletedUids ?? [], r.deletedHrefs ?? []);
         await cache.setScopeState(account.id, `events:${r.calId}`, { cursor: r.cursor, lastError: null });
-      }
+      });
+      eventCount += r.events!.length;
+      this.retries.delete(calKey(r.calId));
     }
+    // A sign-in that died on a calendar pull is the ACCOUNT's failure: every
+    // other calendar would answer the same way next time. What did get through
+    // is already stored; the caller parks the account.
+    if (signInError) throw new Error(signInError);
 
     // Task lists: a failure here used to be swallowed (`.catch(() => null)`),
     // which silently meant "this account has no task lists" — for good, and
@@ -407,28 +581,33 @@ export class PimWorker {
         .setScopeState(account.id, "tasklists", { lastError: e instanceof Error ? e.message : String(e) })
         .catch(() => {});
     }
-    if (gen !== this.generation) return wrote;
+    if (gen !== this.generation) return stoppedHere();
     if (lists) {
-      await cache.replaceTaskLists(account.id, lists);
+      const fresh = lists;
+      await this.store(() => cache.replaceTaskLists(account.id, fresh));
       for (const list of await cache.listTaskLists(account.id)) {
-        if (gen !== this.generation) return wrote;
+        if (gen !== this.generation) return stoppedHere();
         if (!list.selected) continue;
         const { tasks } = await target.pullTasks(list.id);
-        if (gen !== this.generation) return wrote;
-        await cache.replaceTasks(account.id, list.id, tasks);
-        await cache.setScopeState(account.id, `tasks:${list.id}`, { lastError: null });
+        if (gen !== this.generation) return stoppedHere();
+        await this.store(async () => {
+          await cache.replaceTasks(account.id, list.id, tasks);
+          await cache.setScopeState(account.id, `tasks:${list.id}`, { lastError: null });
+        });
       }
     }
-    await cache.setScopeState(account.id, "account", {
-      // No explicit kind on purpose. A calendar failure is re-thrown two lines
-      // below, and the account-level catch is what records the verdict — one
-      // owner, not two that could disagree. On the success path the repository
-      // default (null) clears the previous verdict, which matters: a cleared
-      // error that kept its kind would park the account on the NEXT failure of
-      // any kind, because the row would still read "fatal".
-      lastError: calendarError ?? null,
-    });
-    if (calendarError) throw new Error(calendarError);
-    return wrote;
+    await this.store(() =>
+      cache.setScopeState(account.id, "account", {
+        // No verdict on purpose: the account itself got through. A calendar
+        // that failed is named here as the account's summary (the settings
+        // show this line) and carries its own verdict on its own row; a row
+        // WITHOUT a verdict is how `listSyncProblems` tells "one calendar"
+        // from "the account". On the clean path the repository default (null)
+        // clears the previous verdict, which matters: a cleared error that
+        // kept its kind would still read "fatal".
+        lastError: calendarErrors[0] ?? null,
+      })
+    );
+    return { wrote, events: eventCount, calendarErrors, superseded: false };
   }
 }

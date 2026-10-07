@@ -22,7 +22,7 @@ on:
         type: boolean
         default: false
       public_group:
-        description: "Also add the build to the beta group with the public TestFlight link"
+        description: "Also add the build to the external beta groups and submit it for beta review"
         type: boolean
         default: false
 

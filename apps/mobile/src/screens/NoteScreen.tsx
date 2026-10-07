@@ -26,6 +26,7 @@ import {
   Trash2,
   FileText,
   PenLine,
+  SquareChevronRight,
 } from "lucide-react";
 import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
@@ -51,6 +52,7 @@ import { CommentsSheet } from "../components/CommentsSheet";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { mobileCommentStore, listMobileComments, listMobileCommentAuthors, mobileCommentSelfId, mobileCommentStoreState, noteWorkspaceCapabilities, postMobileComment, MOBILE_COMMENT_CAPABILITIES } from "../services/mobileComments";
 import { mobileCommentOperations } from "../services/commentOperations";
+import { consumeNoteCommands, type NoteCommand } from "../services/noteCommands";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
 import { aiEnabled, focusAiNote, getMobileAiSession, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAi";
@@ -82,6 +84,7 @@ export function NoteScreen({
   onOpenTag,
   onRenamed,
   onComposeMail,
+  onOpenCommands,
 }: {
   vault: MobileVault;
   path: string;
@@ -93,6 +96,8 @@ export function NoteScreen({
   onRenamed: (newPath: string) => void;
   /** Opens Plainva's own composer with the note in it (S30). */
   onComposeMail?: (draft: { subject: string; body: string; attachments?: MailAttachment[] }) => void;
+  /** Opens the command palette over this note; its note commands then act on it. */
+  onOpenCommands?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   // "AI" in the reading selection, while the AI is on (plan KI-Harness P1.5).
@@ -806,25 +811,62 @@ export function NoteScreen({
     void Browser.open({ url: res.url }).catch(() => toast.error(t("mail.mailtoFailed")));
   };
 
-  // The command surface reaches the open note through events (S16): the
-  // registry is a list of intents, and the screen that owns the note is the
-  // only place that knows how to carry them out.
-  useEffect(() => {
-    const onRename = () => rename();
-    const onToggle = () => setEditing((e) => !e);
-    const onShare = () => share();
-    const onExport = () => exportMarkdown();
-    window.addEventListener("m-note-rename", onRename);
-    window.addEventListener("m-note-toggle-edit", onToggle);
-    window.addEventListener("m-note-share", onShare);
-    window.addEventListener("m-note-export", onExport);
-    return () => {
-      window.removeEventListener("m-note-rename", onRename);
-      window.removeEventListener("m-note-toggle-edit", onToggle);
-      window.removeEventListener("m-note-share", onShare);
-      window.removeEventListener("m-note-export", onExport);
-    };
+  const composeMail = () => onComposeMail?.({ subject: title, body: noteBody() });
+
+  /** Live preview ↔ Markdown source; the editor owns the mode, this screen the label. */
+  const toggleSource = () => {
+    // A text file has one mode (C15/S14) — the menu leaves the entry out for it.
+    if (resolveOpenAction(path) === "text") return;
+    setSource((s) => {
+      window.dispatchEvent(
+        new CustomEvent("m-editor-set-mode", { detail: { vaultId: vault.vaultId, path, mode: s ? "live" : "source" } }),
+      );
+      return !s;
+    });
+  };
+
+  const insertTemplate = () => window.dispatchEvent(new CustomEvent("plainva-open-template-picker"));
+
+  // Parity gap template-authoring: the phone could USE templates but not make
+  // one. The rules are the shared ones — the phone only supplies its own
+  // template folder, because the two shells keep different settings models.
+  const saveAsTemplate = () => {
+    void (async () => {
+      await noteSaver.flush(path, vault).catch(() => {});
+      const saved = await saveNoteAsTemplateIn(
+        vault.adapter,
+        getMobileSettings().templateFolder,
+        path,
+      ).catch(() => null);
+      if (saved) {
+        toast.info(t("editor.templateSaved", { name: saved.split("/").pop() }));
+      } else {
+        toast.warning(t("editor.exportFailed"));
+      }
+    })();
+  };
+
+  // The command surface reaches the note through parked requests (S16,
+  // services/noteCommands): the registry is a list of intents, and the screen
+  // that owns the note is the only place that knows how to carry them out.
+  // Every case calls the function the note's own menu or context button calls.
+  const runNoteCommand = useStableHandler((command: NoteCommand) => {
+    switch (command) {
+      case "rename": return rename();
+      case "toggle-edit": return setEditing((e) => !e);
+      case "export": return exportMarkdown();
+      case "toggle-source": return toggleSource();
+      case "insert-template": return insertTemplate();
+      case "save-as-template": return saveAsTemplate();
+      case "mailto": return sendViaMailto();
+      case "compose-mail": return composeMail();
+      case "history": return setInfo("history");
+    }
   });
+  // Ready once the text is loaded: the editor mounts with it, and its effects
+  // (session, listeners) have run by the time this one does.
+  const commandsReady = doc !== null;
+  useEffect(() => consumeNoteCommands(path, runNoteCommand, commandsReady), [path, runNoteCommand, commandsReady]);
 
 
   /**
@@ -1006,6 +1048,8 @@ export function NoteScreen({
   };
 
   const [readerBlocked, setReaderBlocked] = useState(false);
+  /** The editor's find panel is open (see `readerOverlay`). */
+  const [finding, setFinding] = useState(false);
   const readerConflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
   /** The load failed: no text on this screen, only its states ("Moved?", not found). */
   const loadFailed = doc === null && loadError;
@@ -1013,7 +1057,13 @@ export function NoteScreen({
   // flow below the bar instead — laid under it, they lost their icon and
   // title (issue 110: "Moved?" was the part that was hidden) — and so does a
   // vanished file's question, which must not scroll away with the bar.
-  const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince;
+  //
+  // The find panel is the third case (TestFlight 2026-09-27): it stands at the
+  // top of the EDITOR, and a floating bar means the editor starts at the top
+  // of the screen. The panel was drawn over the bar and under the clock and
+  // the Dynamic Island, its field and its close button out of reach. While it
+  // is open the bar stands in the flow and the panel directly under it.
+  const readerOverlay = !loadFailed && !vanished && !readerConflict && !editing && !suggesting && !draft && !managedIndex && !staleSince && !finding;
   const { chromeRef, away: chromeAway, scroll: chromeScroll, pageStyle: chromeStyle, onFocusCapture: focusChrome, onBlurCapture: blurChrome } = useReaderChrome(vault.vaultId, path, readerOverlay, readerBlocked || menu || moving || !!info || commentsOpen || !!decisionReview);
   const page = (
     <div className="m-page m-page--note" data-reader-overlay={readerOverlay || undefined} style={chromeStyle}>
@@ -1188,6 +1238,7 @@ export function NoteScreen({
       {doc !== null && (
         <EditorHost
           onReaderBlockedChange={setReaderBlocked}
+          onFindPanelChange={setFinding}
           onVanished={noticeVanished}
           editable={(editing && workspaceCanWrite && !managedIndex) || suggesting}
           initialDoc={doc}
@@ -1368,12 +1419,7 @@ export function NoteScreen({
               label: source ? t("editor.livePreview") : t("editor.sourceMode"),
               onClick: () => {
                 setMenu(false);
-                setSource((s) => {
-                  window.dispatchEvent(
-                    new CustomEvent("m-editor-set-mode", { detail: { vaultId: vault.vaultId, path, mode: s ? "live" : "source" } }),
-                  );
-                  return !s;
-                });
+                toggleSource();
               },
             },
             ]),
@@ -1399,6 +1445,22 @@ export function NoteScreen({
                 editorEvent("m-editor-find");
               },
             },
+            /*
+             * The door from an open note to the command palette (2026-10-06).
+             * The palette is the search field, and the search field stood only
+             * on the tab roots — so the commands that act on "the open note"
+             * could be listed nowhere a note was open. The palette opens over
+             * this note and its commands act on it.
+             */
+            ...(onOpenCommands ? [{
+              icon: <SquareChevronRight size={ICON.head} />,
+              label: t("search.commands"),
+              testId: "note-commands",
+              onClick: () => {
+                setMenu(false);
+                onOpenCommands();
+              },
+            }] : []),
             /*
              * Comments live behind the menu, not on a permanent button: on a
              * phone the note itself is the scarce surface, and most readings of
@@ -1442,7 +1504,7 @@ export function NoteScreen({
               label: t("mail.sendNoteViaEmail"),
               onClick: () => {
                 setMenu(false);
-                onComposeMail?.({ subject: title, body: noteBody() });
+                composeMail();
               },
             },
             {
@@ -1478,31 +1540,15 @@ export function NoteScreen({
               label: t("shortcuts.insertTemplate"),
               onClick: () => {
                 setMenu(false);
-                window.dispatchEvent(new CustomEvent("plainva-open-template-picker"));
+                insertTemplate();
               },
             },
             {
-              // Parity gap template-authoring: the phone could USE templates but not
-              // make one. The rules are the shared ones — the phone only supplies
-              // its own template folder, because the two shells keep different
-              // settings models.
               icon: <FilePlus2 size={ICON.head} />,
               label: t("editor.saveAsTemplate"),
               onClick: () => {
                 setMenu(false);
-                void (async () => {
-                  await noteSaver.flush(path, vault).catch(() => {});
-                  const saved = await saveNoteAsTemplateIn(
-                    vault.adapter,
-                    getMobileSettings().templateFolder,
-                    path,
-                  ).catch(() => null);
-                  if (saved) {
-                    toast.info(t("editor.templateSaved", { name: saved.split("/").pop() }));
-                  } else {
-                    toast.warning(t("editor.exportFailed"));
-                  }
-                })();
+                saveAsTemplate();
               },
             },
             {

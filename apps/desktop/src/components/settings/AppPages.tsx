@@ -266,7 +266,17 @@ export interface EditorPageProps {
   /** Ask before creating a note from an unresolved wiki link (default off). */
   askBeforeCreateLink: boolean;
   onAskBeforeCreateLink: (value: boolean) => void;
+  /** The device's spell-checking switch (plan Befunde 2026-10-06, E3): device-local, off by default. */
+  spellcheck: boolean;
+  onSpellcheck: (on: boolean) => void;
 }
+
+/**
+ * wry never switches WebKitGTK's spell checker on, and it is off by default
+ * there, so on Linux the switch changes the attribute and nothing checks. The
+ * page says so instead of offering a control that silently does nothing.
+ */
+const IS_LINUX_DESKTOP = typeof navigator !== "undefined" && /Linux/.test(navigator.userAgent || "") && !/Android/.test(navigator.userAgent || "");
 
 export const EditorPage: React.FC<EditorPageProps> = (p) => {
   const { t } = useTranslation();
@@ -290,6 +300,15 @@ export const EditorPage: React.FC<EditorPageProps> = (p) => {
               ]}
             />
           </div>
+        </SettingRow>
+      </SettingCard>
+
+      <SettingCard label={t("settings.groupWriting")}>
+        <SettingRow
+          label={t("settings.spellcheck")}
+          desc={`${t("settings.spellcheckDesc")} ${t("settings.spellcheckMenuDesc")}${IS_LINUX_DESKTOP ? ` ${t("settings.spellcheckLinux")}` : ""}`}
+        >
+          <Switch checked={p.spellcheck} label={t("settings.spellcheck")} onChange={p.onSpellcheck} />
         </SettingRow>
       </SettingCard>
 

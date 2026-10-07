@@ -20,10 +20,10 @@ import {
 import { SYNC_DIAGNOSTICS_EVENT, loadSyncDiagnostics, isMobileSettingsSyncEnabled, mobileEncryptionStatus } from "./services/mobileSettingsSync";
 import { reconnectVault } from "./services/oauthService";
 import { getVaultEntry, updateVault, LOCAL_VAULT_ID, isExternalVault, type VaultEntry } from "./services/vaultRegistry";
-import { currentVaultFolderPlatform, getVaultFolderPlugin, type VaultFolderAccess } from "./platform/vaultFolder";
+import { currentVaultFolderPlatform, getVaultFolderPlugin, pickVaultFolder, type VaultFolderAccess } from "./platform/vaultFolder";
 import { deleteVault, reloadActiveMobileVault, switchVault, type MobileVault } from "./services/vaultService";
 import { exportVault } from "./services/vaultExport";
-import { backupFolderFor, backupState, dismissUnreadableBackups, listBackups, runVaultBackup } from "./services/vaultBackup";
+import { backupFolderFor, backupState, backupVaultNow, dismissUnreadableBackups, listBackups } from "./services/vaultBackup";
 import type { BackupListing } from "./services/backupListing";
 import { readSyncRootFolder } from "./services/syncRootFolder";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
@@ -184,7 +184,7 @@ export function VaultDetailScreen({
     void (async () => {
       const platform = currentVaultFolderPlatform();
       if (!platform || !externalRef) return;
-      const picked = await getVaultFolderPlugin().pickFolder();
+      const picked = await pickVaultFolder();
       if (!picked.picked) return;
       setBusy(true);
       try {
@@ -626,15 +626,13 @@ export function VaultDetailScreen({
                     icon={<Play size={ICON.ui} />}
                     onClick={() => {
                       setBusy(true);
-                      void runVaultBackup(activeVault, entry.name)
-                        .then((file) => {
-                          // The sub-line reports the last run; leaving it stale
-                          // right after a manual one would be the one moment it
-                          // is provably wrong.
-                          setZipLast(backupState(vaultId).lastRun);
-                          toast.info(file ? t("mobile.backupZipDone", { name: file }) : t("mobile.vaultExportFailed"));
-                        })
-                        .catch(() => toast.warning(t("mobile.vaultExportFailed")))
+                      // The run and its answer are shared with the palette's
+                      // command (services/vaultBackup).
+                      void backupVaultNow(activeVault, entry.name)
+                        // The sub-line reports the last run; leaving it stale
+                        // right after a manual one would be the one moment it
+                        // is provably wrong.
+                        .then(() => setZipLast(backupState(vaultId).lastRun))
                         .finally(() => setBusy(false));
                     }}
                     title={t("settings.backupNowButton")}

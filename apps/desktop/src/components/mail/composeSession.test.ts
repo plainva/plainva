@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
+import { undoDepth } from "@codemirror/commands";
 import { createComposeSession, type ComposeSession } from "@plainva/ui/mail";
+import { resetSpellcheckForTests, setSpellcheckOn } from "@plainva/ui";
+
+afterEach(() => resetSpellcheckForTests());
 
 /**
  * The compose editor's engine, shared by the desktop dialog and the phone
@@ -92,6 +96,41 @@ describe("compose session", () => {
     const phone = mount("", true);
     expect(phone.session.view.contentDOM.getAttribute("autocapitalize")).toBe("sentences");
     expect(phone.session.view.contentDOM.getAttribute("autocorrect")).toBe("on");
+    // Spell checking is not part of the touch profile: it is the device switch
+    // (plan Befunde 2026-10-06, E3), off by default on both profiles.
+    expect(phone.session.view.contentDOM.getAttribute("spellcheck")).toBe("false");
     phone.session.destroy();
+  });
+
+  it("follows the spell-checking switch in an open draft and keeps caret and undo history", () => {
+    const { session } = mount("Hallo");
+    const view = session.view;
+    expect(view.contentDOM.getAttribute("spellcheck")).toBe("false");
+    view.dispatch({ changes: { from: 5, insert: " Welt" }, selection: { anchor: 2 }, userEvent: "input.type" });
+    const depth = undoDepth(view.state);
+    expect(depth).toBeGreaterThan(0);
+
+    setSpellcheckOn(true);
+    expect(session.view).toBe(view);
+    expect(view.contentDOM.getAttribute("spellcheck")).toBe("true");
+    expect(view.state.doc.toString()).toBe("Hallo Welt");
+    expect(view.state.selection.main.head).toBe(2);
+    expect(undoDepth(view.state)).toBe(depth);
+    // The keyboard profile is untouched by the switch.
+    expect(view.contentDOM.getAttribute("autocapitalize")).toBe("off");
+
+    setSpellcheckOn(false);
+    expect(view.contentDOM.getAttribute("spellcheck")).toBe("false");
+    session.destroy();
+    // A closed draft no longer listens.
+    expect(() => setSpellcheckOn(true)).not.toThrow();
+  });
+
+  it("a draft opened while the switch is on starts checked", () => {
+    setSpellcheckOn(true);
+    const { session } = mount("", true);
+    expect(session.view.contentDOM.getAttribute("spellcheck")).toBe("true");
+    expect(session.view.contentDOM.getAttribute("autocorrect")).toBe("on");
+    session.destroy();
   });
 });

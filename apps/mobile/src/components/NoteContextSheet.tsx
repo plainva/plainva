@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { tagColorAttrs, tagSegments } from "@plainva/ui";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { isHiddenPropertyKey, propertyPanelModel, tagColorAttrs, tagSegments, useKeptResolution } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Check, ExternalLink, FileText, ListTree, Lock, MessageSquare, Pencil, Plus } from "lucide-react";
@@ -38,7 +38,7 @@ import {
   type BacklinkSortKey,
   type GroupedBacklink,
 } from "@plainva/ui";
-import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst, parseOkfTrustSignals } from "@plainva/core";
+import { extractFrontmatter, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue, resolveGoverningBaseOf } from "../services/baseOps";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -60,8 +60,18 @@ export type ContextTab = "props" | "backlinks" | "related" | "outline" | "databa
 const LOCKED = new Set(["type", "okf_version"]);
 
 /** plainva:-namespace fields (icon, stripe color) are edited from the note ⋮
- * menu — they are presentation, not user properties. */
-const isHiddenProp = (key: string) => key === "plainva" || key.startsWith("plainva.") || key.startsWith("plainva:");
+ * menu — they are presentation, not user properties. One rule for both
+ * shells: `isHiddenPropertyKey` in the shared property-panel model. */
+const isHiddenProp = isHiddenPropertyKey;
+
+type GoverningBase = NonNullable<Awaited<ReturnType<typeof resolveGoverningBaseOf>>>;
+/**
+ * The last known governing database per note (`<vault>:<path>`), kept beyond
+ * the sheet: opening it again on the same note has the answer on the first
+ * frame, and a lookup that is still running never empties what was known
+ * (plan Befunde 2026-10-06, R5 — the desktop's rule).
+ */
+const governingMemory = new Map<string, GoverningBase | null>();
 
 /**
  * Note context sheet (M3E package C1 + mockup 4): the mobile counterpart of
@@ -144,7 +154,6 @@ export function NoteContextSheet({
   const [backlinkSortOpen, setBacklinkSortOpen] = useState(false);
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [adding, setAdding] = useState(false);
-  const [governing, setGoverning] = useState<Awaited<ReturnType<typeof resolveGoverningBaseOf>>>(null);
   const [edit, setEdit] = useState<CellEditTarget | null>(null);
   const [tick, setTick] = useState(0);
   /* Row actions on touch (E2). A comment dot the way the desktop has it needs
@@ -157,11 +166,19 @@ export function NoteContextSheet({
   const propPress = useLongPress<{ key: string; value: unknown; editable: boolean }>((row) => setPropSheet(row));
 
   useEffect(() => {
-    setEdit(null); setAdding(false); setGoverning(null); setProps([]);
-    let alive = true;
-    void resolveGoverningBaseOf(vault, path).then((g) => { if (alive) setGoverning(g); }).catch(() => {});
-    return () => { alive = false; };
+    setEdit(null); setAdding(false); setProps([]);
   }, [vault, path]);
+
+  // Which database governs this note — it decides which editor a property
+  // opens and what the add sheet suggests. The answer is KEPT while it is
+  // looked up again (R5): this used to start with `setGoverning(null)`, so a
+  // tap on a property in the moment after the sheet opened got the editor of
+  // an untyped value. It is looked up again after every write of the sheet's
+  // own (`tick`) — a property can be what a database's filter asks for — and
+  // an equal answer changes nothing.
+  const governingKey = `${vault.vaultId}:${path}`;
+  const resolveGoverning = useCallback(() => resolveGoverningBaseOf(vault, path), [vault, path]);
+  const governing = useKeptResolution<GoverningBase>(governingKey, tick, resolveGoverning, governingMemory);
 
   useEffect(() => {
     let stale = false;
@@ -224,16 +241,13 @@ export function NoteContextSheet({
   // desktop panel: a foreign-shaped `status` (a task database's `Offen`) keeps
   // its generic row and gets no lifecycle UI; the provenance families render
   // read-only, the two lifecycle keys stay editable.
-  const trust = parseOkfTrustSignals(Object.fromEntries(props));
-  const claimed = new Set(trust.claimedKeys);
-  const showStatusRow = !trust.statusForeign;
-  const showStaleRow = !props.some(([k]) => k === "stale_after") || trust.staleAfter !== null;
-  const genericProps = props.filter(([k]) => {
-    if (claimed.has(k) && (k === "generated" || k === "verified" || k === "sources")) return false;
-    if (k === "status" && showStatusRow) return false;
-    if (k === "stale_after" && showStaleRow) return false;
-    return true;
-  });
+  // Which keys are ordinary rows and which are the pinned lifecycle rows is the
+  // shared `propertyPanelModel` — the same function the desktop panel and its
+  // section count read, so the two shells cannot sort a key differently.
+  const model = useMemo(() => propertyPanelModel(Object.fromEntries(props)), [props]);
+  const { trust, showStatusRow, showStaleRow } = model;
+  const generic = new Set(model.genericKeys);
+  const genericProps = props.filter(([k]) => generic.has(k));
   const trustLevel = trustLevelOf(trust);
   const generatedAt = generatedAtOf(trust);
   const actorWords = { person: t("trust.person"), process: t("trust.process") };

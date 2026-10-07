@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-09-30
+Stan na: 2026-10-06
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -45,11 +45,12 @@ Wpisz `/` na początku wiersza, aby otworzyć menu wstawiania. Jest ono podzielo
 - **Mentions `@`** — wpisz `@` w dowolnym miejscu tekstu, aby wstawić **datę** (Dziś, Jutro, Wczoraj lub **Wybierz datę…**, zapisywaną jako data ISO), link do **notatki** lub osadzenie **bazy danych**.
 - **Emoji** — polecenie slash **Emoji** (`/emoji`) otwiera przy kursorze wybór emoji; możesz też wpisać `:name` (np. `:rocket`), aby zobaczyć podpowiedzi w tekście. W obu przypadkach Plainva wstawia rzeczywisty **znak** emoji (przenośny Unicode), nigdy `:shortcode:` — dzięki temu notatka pozostaje czytelna w Obsidian, na GitHubie i wszędzie indziej. (To coś innego niż **Ikona dokumentu** notatki, która jest zapisywana we frontmatter.)
 - **Uchwyty bloków** — po najechaniu na akapit z lewej strony pojawia się uchwyt: przeciągając go, przenosisz blok, klikając — otwierasz menu **Akcje bloku** (**Przekształć w** Tekst/Nagłówek/Lista/Zadanie/Cytat/Blok kodu, **Duplikuj**, **Przenieś w górę**/**Przenieś w dół**, **Usuń blok**). Jeśli przeciągniesz listę obok innej listy tego samego rodzaju, Plainva wstawia niewidoczną linię separatora `<!-- -->`, aby obie listy pozostały oddzielne — w Markdownie listy tego samego stylu mimo pustej linii zwykle by się scaliły (również w Obsidian).
-- **Tabele** — renderowane jako widget z edytowalnymi klikalnie komórkami. Widok komórki renderuje formatowanie (**pogrubienie**, *kursywę*, `kod`, wyróżnienie), klikalne linki (`[[Link wewnętrzny]]`, adresy internetowe) i `<br>` jako złamanie wiersza; podczas edycji widzisz surowy tekst. Menu tabeli oferuje wstawianie/usuwanie wierszy i kolumn oraz wyrównanie (**Wyrównaj do lewej**/**Wyśrodkuj**/**Wyrównaj do prawej**).
+- **Tabele** — renderowane jako widget z edytowalnymi klikalnie komórkami. Widok komórki renderuje formatowanie (**pogrubienie**, *kursywę*, `kod`, wyróżnienie), klikalne linki (`[[Link wewnętrzny]]`, adresy internetowe) i `<br>` jako złamanie wiersza; podczas edycji widzisz surowy tekst. Menu tabeli oferuje wstawianie/usuwanie wierszy i kolumn oraz wyrównanie (**Wyrównaj do lewej**/**Wyśrodkuj**/**Wyrównaj do prawej**). Komórka otwiera się w polu, które rośnie i zawija się razem z tekstem: **Enter** zapisuje, **Shift+Enter** dodaje podział wiersza (zapisywany jako `<br>`), **Esc** odrzuca.
 - **Listy kontynuują się same** (Enter wstawia kolejny znacznik listy), bloki kodu otrzymują podświetlanie zależne od języka (także w trybie czytania), wklejana zawartość jest konwertowana na Markdown (smart paste), a nagłówki można zwijać (folding).
 - **Zwijanie list** — kliknięcie punktora elementu z podelementami zwija je; punktor przyjmuje kolor akcentu, a „…” oznacza miejsce, drugie kliknięcie rozwija. Plik nigdy się nie zmienia. Punktory zmieniają się na każdym poziomie (• ◦ ▪), a wiersze kontynuacji stoją dokładnie pod tekstem elementu — także na telefonie, gdzie punktor jest jedynym elementem do zwijania.
 - **Pozycja przewijania** — każda notatka otwiera się tam, gdzie ją zostawiono; zapamiętywana na urządzeniu, nie synchronizowana.
 - **Znajdź i zamień** w bieżącej notatce: `Ctrl+F` (patrz [Wyszukiwanie](Search.md)).
+- **Sprawdzanie pisowni** — domyślnie wyłączone. Włącz je w **Ustawienia → Aplikacja → Edytor i notatki**, a błędnie napisane słowa będą podkreślane w notatkach, komórkach tabel, e-mailach, komentarzach, wpisach dziennika i zadaniach; kod, adresy internetowe, klucze i hasła nigdy nie są sprawdzane. Plainva korzysta ze sprawdzania pisowni Twojego systemu i jego języków i nie ma własnych słowników. Gdy jest włączone, kliknięcie prawym przyciskiem w takim tekście otwiera menu systemu z podpowiedziami zamiast menu Plainvy; komórka tabeli zachowuje swoje menu tabeli. Ustawienie należy do tego urządzenia. W systemie Linux Plainva nie włącza jeszcze sprawdzania w systemowym WebView, więc nie ma tam ono żadnego efektu.
 
 ## Linki i linki zwrotne
 
@@ -62,7 +63,7 @@ Wpisz `/` na początku wiersza, aby otworzyć menu wstawiania. Jest ono podzielo
 
 ## Właściwości (frontmatter)
 
-Sekcja **Właściwości** w prawym pasku bocznym pokazuje frontmatter notatki jako formularz. **Dodaj właściwość** tworzy nowe; każda właściwość ma **Typ pola**:
+Sekcja **Właściwości** w prawym pasku bocznym pokazuje frontmatter notatki jako formularz. Każda właściwość to jeden wiersz: ikona typu, nazwa, wartość, a przy prawej krawędzi to, co wiersz potrafi — kłódka przy polach chronionych, a po najechaniu **Usuń właściwość** i dymek komentarza. Wartości edytujesz na miejscu; zawijają się, zamiast być ucinane. **Dodaj właściwość** tworzy nowe; każda właściwość ma **Typ pola**:
 
 | Grupa | Typy |
 |---|---|
@@ -129,7 +130,7 @@ Gdy szablon o coś pyta, Plainva zadaje **wszystkie** pytania w jednym oknie dia
 
 **Szablony dla folderów**: w **Ustawieniach → Vault → Treść i struktura → Szablony** przypisujesz folderowi szablon — każda nowa notatka powstająca tam zaczyna się wtedy od niego, bez żadnego wyboru z Twojej strony. Przypisanie obejmuje też podfoldery; gdy pasuje ich kilka, wygrywa najdłuższa ścieżka (`Projects/Clients` wygrywa z `Projects`). W ten sam sposób przypisujesz szablon do **typu notatki**; obowiązuje, gdy żadna reguła folderu nie obejmuje notatki — folder wygrywa z typem. **Nowa notatka z szablonu …** (kliknięcie prawym przyciskiem myszy w drzewie plików, paleta poleceń lub szybkie przełączanie) pozwala Ci wybrać jeden wprost — to wygrywa z każdym przypisaniem. Przypisania mieszkają w ustawieniach, nie w notatkach, i podróżują na Twoje inne urządzenia przez synchronizację ustawień.
 
-Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) oferuje **Utwórz nowy szablon** (otwiera się nowy szablon do edycji) oraz **Zapisz bieżącą notatkę jako szablon** (kopiuje otwartą notatkę do folderu szablonów). Szablony to zwykłe pliki Markdown — edytuj, zmieniaj nazwę lub usuwaj je bezpośrednio w drzewie plików.
+Tworzenie szablonów działa z dowolnego miejsca: paleta poleceń (`Ctrl+P`) oferuje **Utwórz nowy szablon** (otwiera się nowy szablon do edycji) oraz **Zapisz bieżącą notatkę jako szablon** (kopiuje otwartą notatkę do folderu szablonów). Szablony to zwykłe pliki Markdown — edytuj, zmieniaj nazwę lub usuwaj je bezpośrednio w drzewie plików. W telefonie oba są także w palecie poleceń (`>` w polu wyszukiwania); dla drugiego otwórz ją z menu **⋮** notatki → **Polecenia**.
 
 ## Notatki dzienne
 

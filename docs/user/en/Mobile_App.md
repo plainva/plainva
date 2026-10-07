@@ -31,9 +31,11 @@ Notes open **rendered and read-only**; the pen at the top right switches to edit
 
 Hold a word to select text. The selection bar offers **Copy** and **Select all**, including the entire text of a long note. Hidden YAML properties and Markdown formatting markers are not copied. **Edit** switches to writing at the selected passage when you have permission to edit the note.
 
+**The command palette** is the search field: tap the magnifier and type `>`, and it lists commands instead of notes — importing, a backup, rebuilding the index, the open comments and more. From an open note, the **⋮** menu has **Commands**; the palette then also lists what acts on that note: renaming, version history, Markdown source, templates and sending it by email.
+
 Folders can be **searched** and **sorted** from the toolbar above the list — by **Title**, **Last modified** or **Created**, choosing again reverses the direction; the sort is remembered on the device. On a cold start the app opens what you last had open — note, folder or database view, tab included — and every note opens where you left it; setup assistants and an unfinished mail are not restored. Lists with nested items fold and unfold with a tap on their bullet.
 
-The **Note details** button in the header (between the bookmark and the ⋮ menu) opens the note's context sheet: properties (directly editable), backlinks, outline, graph and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore. The Markdown source and in-note search live in the ⋮ menu.
+The **Note details** button in the header (between the bookmark and the ⋮ menu) opens the note's context sheet: properties (directly editable), backlinks, outline, graph and the **version history** — every edit automatically creates snapshots you can inspect, compare and restore. The Markdown source and in-note search live in the ⋮ menu. The **Databases** tab shows which databases the note belongs to, its position there with arrows to the neighbours, and the fields the database computes for it (rollups, reverse relations).
 
 On a wide screen (a tablet from 1024 px) that sheet can stay open as a **third column** beside the note instead of opening and closing each time. The switch is called **Dock context panel** and lives under **Settings → Appearance → Layout**; it applies to this device. With it off — or in a narrower window — the same button opens the sheet as before.
 
@@ -128,6 +130,8 @@ The **Calendar** area shows your connected calendars in the **Day**, **3 days** 
 Tapping an event reminder opens the event itself — the day view on its day, the event open. The view you last had (day, 3 days, agenda) is remembered on the device, as on the desktop.
 
 **When the phone looks.** A phone runs no clock in the background, so the regular sync stands still for as long as the app is away. Plainva therefore asks of its own accord as soon as you **come back to the app** and whenever you open **Calendars**, **Tasks** or the **Calendar accounts** — at most once a minute, so switching back and forth does not set off a chain of syncs. Coming back also **replans the reminders**, even when nothing new arrived: the clock moved on regardless. If you would rather not wait, **Refresh now** and pulling the list down are still there.
+
+**What is not up to date, and what does not fit.** When an account or a calendar is not being synced, the phone says so in a line above the calendar too — which one, since when and why — with **Try again**; the events below stay as the last known state. In the **Month** view a day shows at most three dots; a number behind them (such as **+3**) says how many more entries it holds. Working location, focus time and out of office sit in the time grid as a quiet band in the all-day strip, not as an appointment.
 
 Manage accounts from the gear icon in the event calendar: connect **CalDAV** on the device with an app password (e.g. Fastmail, Nextcloud, iCloud); Google and Microsoft follow via browser sign-in. Per account you can show or hide individual calendars.
 
@@ -285,6 +289,8 @@ The selected icon keeps its spacing from the edge in the compact bar. Tap target
 ## Reading space and images
 
 In **Editor & notes**, turn off **Automatically hide controls while reading** if you prefer. By default the header and pencil retreat on downward scrolling. The first upward movement, the top of the note, a text selection, an open control, the keyboard or a conflict notice brings them back. The scroll viewport keeps its size and the motion preference is respected. The tablet rail stays visible. On desktop, focus mode hides surrounding controls.
+
+**Spell checking** in the same area is off by default. Switched on, your keyboard and your system check notes, table cells, emails, comments, journal entries and tasks with their own languages; code, keys and passwords never. The setting belongs to this device.
 
 **Open image** is available for local images in reading mode, live preview and the image context menu. In the mobile viewer, use two fingers, a double-tap or the zoom buttons; **Reset zoom** shows the whole image. Back returns to the note. Long-pressing an embedded image keeps the operating system’s image actions, and selecting a region for a comment still works.
 

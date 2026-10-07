@@ -79,13 +79,15 @@ interface Props {
   onOpenInSplit?: (path: string, direction: "vertical" | "horizontal") => void;
   isBookmarked?: (path: string, type?: "file" | "folder") => boolean;
   onToggleBookmarkPath?: (path: string, type?: "file" | "folder") => void;
+  /** Reorders the bookmarks: one entry in front of another, or to the end (keys are `bookmarkKey`s). */
+  onMoveBookmark?: (key: string, beforeKey: string | null) => void;
   /** Drops a path from "Recently opened" (the file itself stays). */
   onForgetRecent?: (path: string) => void;
 }
 
 export function LeftPinnedSections({
   vaultPath, recentPaths, bookmarks, activePath, onOpen, query,
-  onOpenNewTab, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onForgetRecent,
+  onOpenNewTab, onOpenInSplit, isBookmarked, onToggleBookmarkPath, onMoveBookmark, onForgetRecent,
 }: Props) {
   const { t } = useTranslation();
   const { vaultAdapter, queryService, indexer, triggerFileTreeUpdate } = useVault();
@@ -263,8 +265,12 @@ export function LeftPinnedSections({
               >
                 <ChevronDown size={ICON.ui} className="pv-side-section-glyph" style={{ transition: "transform var(--dur-2) var(--ease-1)", transform: isOpen ? "none" : "rotate(-90deg)", flexShrink: 0 }} />
                 <Icon size={ICON.ui} className="pv-side-section-glyph" style={{ flexShrink: 0 }} />
-                <span style={{ flex: 1, textAlign: "left", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title(id)}</span>
-                {count !== undefined && count > 0 && <span className="pv-badge pv-badge--accent">{count}</span>}
+                {/* The head is one fixed grid on both sides of the window: the
+                    count slot is there whether or not a number is. */}
+                <span className="pv-side-section-title">{title(id)}</span>
+                <span className="pv-side-section-count">
+                  {count !== undefined && count > 0 && <span className="pv-badge pv-badge--accent">{count}</span>}
+                </span>
               </button>
             </div>
             {isOpen && (
@@ -275,7 +281,7 @@ export function LeftPinnedSections({
                   </div>
                 ) : (
                   <div className="pv-side-section-rows" data-testid="bookmarks-section">
-                    <BookmarksList bookmarks={bookmarks} query={query} activePath={activePath} onOpen={onOpen} onRowContextMenu={openRowMenu("bookmarks")} />
+                    <BookmarksList bookmarks={bookmarks} query={query} activePath={activePath} onOpen={onOpen} onRowContextMenu={openRowMenu("bookmarks")} onMove={onMoveBookmark} />
                   </div>
                 )}
               </div>

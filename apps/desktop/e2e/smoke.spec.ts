@@ -1701,6 +1701,60 @@ test('Table widget: cells render inline formatting and clickable links', async (
   await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
 });
 
+test('Table widget: a cell is edited in a field as tall as its text; Shift+Enter writes a line break (issue 118)', async ({ page }) => {
+  const LONG = 'Ein langer Zelleninhalt, der in der Anzeige über mehrere Zeilen umbricht und beim Bearbeiten genauso lesbar bleiben soll wie vorher';
+  await page.addInitScript((long) => {
+    (window as any).mockFs['/test-vault/Zellen.md'] =
+      `# Zellen\n\n| Thema | Notiz |\n| --- | --- |\n| kurz | ${long} |\n| zwei | oben<br/>unten |\n`;
+  }, LONG);
+  await page.goto('/');
+  await expect(page.getByText('Zellen', { exact: true })).toBeVisible({ timeout: 10000 });
+  await page.getByText('Zellen', { exact: true }).click();
+  const table = page.locator('.cm-md-table');
+  await expect(table).toBeVisible();
+  const source = () => page.evaluate(() => (window as any).mockFs['/test-vault/Zellen.md'] as string);
+
+  // The long cell wraps while it is read — and the field it is edited in is as
+  // tall as that, not one line of it.
+  const longCell = table.locator('tbody tr').nth(0).locator('td').nth(1);
+  const shownHeight = (await longCell.boundingBox())!.height;
+  await longCell.click();
+  const field = longCell.locator('textarea.cm-md-table-input');
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue(LONG);
+  const lineHeight = await field.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.4);
+  const editHeight = (await field.boundingBox())!.height;
+  expect(editHeight).toBeGreaterThan(lineHeight * 1.8);
+  expect(Math.abs(editHeight - shownHeight)).toBeLessThan(lineHeight * 1.5);
+  expect(await field.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(1);
+
+  // Escape discards, and a cell left as it was writes nothing.
+  await field.press('End');
+  await page.keyboard.type(' VERWORFEN');
+  await page.keyboard.press('Escape');
+  await expect(longCell.locator('textarea')).toHaveCount(0);
+  expect(await source()).not.toContain('VERWORFEN');
+
+  // Enter saves; Shift+Enter adds a line the source carries as <br>.
+  await longCell.click();
+  await longCell.locator('textarea').press('End');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('zweite Zeile');
+  await page.keyboard.press('Enter');
+  await expect(longCell.locator('textarea')).toHaveCount(0);
+  await expect.poll(source).toContain(`${LONG}<br>zweite Zeile |`);
+  await expect(longCell.locator('br')).toHaveCount(1);
+
+  // A cell that already holds a break opens with it as a real line, and
+  // closing it unchanged does not rewrite its `<br/>`.
+  const breakCell = table.locator('tbody tr').nth(1).locator('td').nth(1);
+  await breakCell.click();
+  await expect(breakCell.locator('textarea')).toHaveValue('oben\nunten');
+  await page.keyboard.press('Enter');
+  await expect(breakCell.locator('textarea')).toHaveCount(0);
+  expect(await source()).toContain('| zwei | oben<br/>unten |');
+});
+
 test('Splash: removing a recent vault only forgets it — files stay on disk', async ({ page }) => {
   await page.addInitScript(() => {
     const orig = (window as any).__TAURI_INTERNALS__.invoke;
@@ -2701,9 +2755,28 @@ test('A narrow right sidebar degrades in three named steps, and the calendar bec
   // Measured rather than assumed: a month grid at 210 px has 14 px cells, which
   // is a pattern, not a calendar. Each width is a fresh load because the panel
   // width is restored from localStorage.
+  //
+  // Since 2026-10-06 (plan Befunde, R1) these widths are the COLUMN's: the step
+  // is read from the panel's border box, and the panel reserves its scrollbar's
+  // room at all times. It used to be read from the content box, which a
+  // scrollbar narrows by 11 px — the same note showed two layouts. 320, 260
+  // and 210 mean what they meant before; 285 is the width where the two
+  // measurements differ in the app (its content, 274 px, is below the compact
+  // threshold). This browser hides its scrollbars, so the difference itself
+  // is pinned by the unit test (sidebarStep.test.ts) and only the rule here.
+  // The step of every FRAME is sampled as well: the panel used to paint
+  // "comfortable" once and then jump to its real step.
   const at = async (width: number) => {
     await page.addInitScript((w) => {
       localStorage.setItem('plainva-right-sidebar-width', String(w));
+      const seen: string[] = [];
+      (window as any).__sideSteps = seen;
+      const sample = () => {
+        const step = document.querySelector('.pv-side-right')?.getAttribute('data-side-step');
+        if (step && seen[seen.length - 1] !== step) seen.push(step);
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
     }, width);
     await page.goto('/');
     await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 10000 });
@@ -2711,6 +2784,10 @@ test('A narrow right sidebar degrades in three named steps, and the calendar bec
     await expect(root).toHaveCount(1);
     return {
       step: await root.getAttribute('data-side-step'),
+      frames: await page.evaluate(() => (window as any).__sideSteps as string[]),
+      // The style, not the pixels: this browser runs with its scrollbars
+      // hidden, so the reserved room measures 0 here and 11 px in the app.
+      reservesScrollbar: await root.evaluate((el) => getComputedStyle(el).overflowY === 'scroll'),
       days: await page.locator('[data-testid^="sidecal-day-"]').count(),
       weekLabel: await page.getByTestId('calendar-row-week').count(),
       monthNav: await page.getByTestId('calendar-month-label').isVisible().catch(() => false),
@@ -2720,13 +2797,21 @@ test('A narrow right sidebar degrades in three named steps, and the calendar bec
   const wide = await at(320);
   expect(wide.step).toBe('comfortable');
   expect(wide.days).toBe(42); // six rows of the month grid
+  expect(wide.reservesScrollbar).toBe(true);
+
+  // The column is wide enough; its content, with the scrollbar's room taken
+  // off, is not. The column decides.
+  const edge = await at(285);
+  expect(edge.step).toBe('comfortable');
 
   const mid = await at(260);
   expect(mid.step).toBe('compact');
   expect(mid.days).toBe(42); // still the month, only tighter
+  expect(mid.frames, 'the first frame already has the step').toEqual(['compact']);
 
   const narrow = await at(210);
   expect(narrow.step).toBe('minimal');
+  expect(narrow.frames, 'the first frame already has the step').toEqual(['minimal']);
   expect(narrow.days).toBe(7); // one week
   expect(narrow.weekLabel).toBe(1);
   // The month navigation would be a dead control here: the row follows the open

@@ -93,6 +93,9 @@
   --chip-pad-x: 10px;
   --chip-x-size: 16px;
   --tick-size: 16px;
+  /* The state box of a task row. Its own token: it is a glyph inside a button,
+     not a native tick, and it is the one thing on the row a person aims at. */
+  --taskbox-size: 18px;
   --switch-w: 34px;
   --switch-h: 18px;
   --switch-knob-size: 14px;
@@ -307,6 +310,7 @@
   --chip-pad-x: 14px;
   --chip-x-size: 22px;
   --tick-size: 24px;
+  --taskbox-size: 24px;
   --switch-w: 52px;
   --switch-h: 32px;
   --switch-knob-size: 28px;

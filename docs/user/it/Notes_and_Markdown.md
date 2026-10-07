@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-09-30
+Ultimo aggiornamento: 2026-10-06
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -45,11 +45,12 @@ Digita `/` all'inizio di una riga per aprire il menu di inserimento. È suddivis
 - **Menzioni `@`** — digita `@` ovunque nel testo per inserire una **Data** (Oggi, Domani, Ieri o **Scegli una data…**, memorizzata come data ISO), un link a una **Nota**, o un incorporamento di **Database**.
 - **Emoji** — il comando slash **Emoji** (`/emoji`) apre un selettore di emoji alla posizione del cursore; oppure digita `:name` (ad esempio `:rocket`) per ottenere suggerimenti in linea. In entrambi i casi Plainva inserisce il carattere emoji vero e proprio (Unicode portabile), mai uno `:shortcode:` — così la nota resta leggibile in Obsidian, su GitHub e ovunque altro. (Questa funzione è indipendente dall'**Icona del documento** della nota, memorizzata nel frontmatter.)
 - **Maniglie dei blocchi** — al passaggio del mouse compare una maniglia a sinistra di ogni paragrafo: trascinala per spostare il blocco, clicca per aprire **Azioni sul blocco** (**Trasforma in** Testo/Titolo/Elenco/Da fare/Citazione/Blocco di codice, **Duplica**, **Sposta su**/**Sposta giù**, **Elimina blocco**). Se trascini un elenco accanto a un altro elenco dello stesso tipo, Plainva inserisce una riga separatrice invisibile `<!-- -->` in modo che i due elenchi restino separati — in Markdown, elenchi dello stesso stile si fonderebbero altrimenti nonostante la riga vuota (anche in Obsidian).
-- **Tabelle** — renderizzate come widget con celle modificabili con un clic. La visualizzazione della cella rende la formattazione (**grassetto**, *corsivo*, `codice`, evidenziazione), i link cliccabili (`[[Link interno]]`, indirizzi web) e `<br>` come interruzione di riga; durante la modifica vedi il testo grezzo. Il menu della tabella offre l'inserimento/eliminazione di righe e colonne oltre all'allineamento (**Allinea a sinistra**/**Allinea al centro**/**Allinea a destra**).
+- **Tabelle** — renderizzate come widget con celle modificabili con un clic. La visualizzazione della cella rende la formattazione (**grassetto**, *corsivo*, `codice`, evidenziazione), i link cliccabili (`[[Link interno]]`, indirizzi web) e `<br>` come interruzione di riga; durante la modifica vedi il testo grezzo. Il menu della tabella offre l'inserimento/eliminazione di righe e colonne oltre all'allineamento (**Allinea a sinistra**/**Allinea al centro**/**Allinea a destra**). La cella si apre in un campo che cresce e va a capo con il testo: **Enter** salva, **Shift+Enter** aggiunge un’interruzione di riga (scritta come `<br>`), **Esc** annulla.
 - **Gli elenchi continuano da soli** (Invio inserisce il prossimo marcatore di elenco), i blocchi di codice ottengono un'evidenziazione sensibile al linguaggio (anche in modalità lettura), il contenuto incollato viene convertito in Markdown (incolla intelligente) e i titoli possono essere ripiegati.
 - **Ripiegare gli elenchi**: un clic sul punto di una voce con sottovoci le ripiega; il punto assume il colore di accento e un «…» segna il punto, un secondo clic le riapre. Il file non cambia mai. I punti si alternano per livello (• ◦ ▪) e le righe di continuazione stanno esattamente sotto il testo della voce, anche sul telefono, dove il punto è l’unico comando di ripiegatura.
 - **Posizione di scorrimento**: ogni nota si apre dove l’avevi lasciata; ricordata per dispositivo, non sincronizzata.
 - **Trova e sostituisci** all'interno della nota corrente: `Ctrl+F` (vedi [Ricerca](Search.md)).
+- **Controllo ortografico** — disattivato per impostazione predefinita. Attivalo in **Impostazioni → App → Editor e note** e le parole scritte in modo errato vengono sottolineate in note, celle di tabella, e-mail, commenti, voci del diario e attività; codice, indirizzi web, chiavi e password non vengono mai controllati. Plainva usa il correttore ortografico del tuo sistema e le sue lingue e non porta dizionari propri. Finché è attivo, un clic destro in quel testo apre il menu del sistema con i suggerimenti invece di quello di Plainva; una cella di tabella mantiene il suo menu della tabella. L'impostazione appartiene a questo dispositivo. Su Linux Plainva non attiva ancora il correttore della WebView di sistema, quindi lì non ha effetto.
 
 ## Link e backlink
 
@@ -62,7 +63,7 @@ Digita `/` all'inizio di una riga per aprire il menu di inserimento. È suddivis
 
 ## Proprietà (frontmatter)
 
-La sezione **Proprietà** nella barra laterale destra mostra il frontmatter della nota come un modulo. **Aggiungi proprietà** ne crea di nuove; ogni proprietà ha un **Tipo di campo**:
+La sezione **Proprietà** nella barra laterale destra mostra il frontmatter della nota come un modulo. Ogni proprietà è una riga: icona del tipo, nome, valore e, sul bordo destro, ciò che la riga permette — un lucchetto sui campi protetti e, al passaggio del mouse, **Elimina proprietà** e il fumetto dei commenti. I valori si modificano sul posto e vanno a capo invece di essere tagliati. **Aggiungi proprietà** ne crea di nuove; ogni proprietà ha un **Tipo di campo**:
 
 | Gruppo | Tipi |
 |---|---|
@@ -129,7 +130,7 @@ Quando un modello chiede qualcosa, Plainva pone **tutte** le domande in un unico
 
 **Modelli per cartella**: in **Impostazioni → Vault → Contenuto e struttura → Modelli** associ una cartella a un modello — ogni nuova nota creata lì parte allora da esso, senza che tu debba scegliere nulla. L'associazione copre anche le sottocartelle; quando più corrispondono, vince il percorso più lungo (`Progetti/Clienti` batte `Progetti`). Allo stesso modo associ un modello a un **tipo di nota**; si applica quando nessuna regola di cartella copre la nota — la cartella batte il tipo. **Nuova nota da modello …** (clic destro nell'albero dei file, la palette dei comandi o il selettore rapido) ti permette di sceglierne uno esplicitamente — questo batte ogni associazione. Le associazioni vivono nelle impostazioni, non nelle note, e viaggiano verso i tuoi altri dispositivi tramite la sincronizzazione delle impostazioni.
 
-Creare modelli funziona da qualsiasi punto: la palette dei comandi (`Ctrl+P`) offre **Crea nuovo modello** (si apre un modello nuovo pronto per la modifica) e **Salva la nota corrente come modello** (copia la nota aperta nella cartella dei modelli). I modelli sono normali file Markdown — modificali, rinominali o eliminali direttamente nell'albero dei file.
+Creare modelli funziona da qualsiasi punto: la palette dei comandi (`Ctrl+P`) offre **Crea nuovo modello** (si apre un modello nuovo pronto per la modifica) e **Salva la nota corrente come modello** (copia la nota aperta nella cartella dei modelli). I modelli sono normali file Markdown — modificali, rinominali o eliminali direttamente nell'albero dei file. Sul telefono entrambi sono anche nella palette dei comandi (`>` nel campo di ricerca); per il secondo, aprila dal menu **⋮** della nota → **Comandi**.
 
 ## Note giornaliere
 

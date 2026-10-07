@@ -1,6 +1,6 @@
 # Bancos de Dados (.base)
 
-Última revisão: 2026-09-24
+Última revisão: 2026-10-06
 
 Com arquivos `.base` você transforma notas em bancos de dados: tabelas, quadros, calendários — com filtros, propriedades tipadas e relações entre bancos de dados. O conceito lembra os bancos de dados do Notion, com uma diferença decisiva: **os dados não vivem no banco de dados, eles vivem nas suas notas.**
 
@@ -131,9 +131,9 @@ blockedBy:
 Ao abrir um item de banco de dados diretamente — pela árvore de arquivos, pela busca ou por um `[[link]]` — o Plainva agora mostra do que ele faz parte:
 
 - Acima da nota fica uma **linha de contexto**: os bancos de dados aos quais a nota pertence, como chips clicáveis (um clique abre o banco de dados), seguidos do caminho `item pai / esta nota` quando o banco de dados usa subitens. Se a nota pertencer a **vários** bancos de dados, todos aparecem — a linha se estende em vez de omitir algum.
-- Na barra lateral direita, a seção **Bancos de dados** é o **inspetor de item**: ela mostra a nota do jeito que seu banco de dados a vê — as colunas da primeira visualização, na ordem dessa visualização, com os tipos e as cores de opção do `.base`, e **editável** assim como na tabela. Assim dá para mudar um status sem abrir o banco de dados. Acima delas fica a posição na visualização (**12 / 34**) com setas para o item anterior e o seguinte. Uma nota que pertence a vários bancos de dados ganha um bloco para cada um. Abaixo vêm o **item pai**, os **subitens** (recolhíveis) e as entradas **vinculadas** por relações — cada uma clicável.
+- Na barra lateral direita, a seção **Bancos de dados** mostra o que só o banco de dados sabe sobre a nota. Cada banco de dados ao qual ela pertence ganha uma linha com o nome e a visualização — um clique o abre — e a posição na visualização (**12 / 34**) com setas para o item anterior e o seguinte. Abaixo ficam os campos que o banco de dados **calcula** para esta nota e que não estão em nenhum arquivo: agregações, relações inversas e dados do arquivo, como o momento da última alteração. As colunas que a própria nota carrega não são repetidas: uma linha as nomeia (**Em Propriedades: …**) e elas são editadas uma única vez, na seção **Propriedades**. Uma nota que pertence a vários bancos de dados ganha um bloco para cada um. Abaixo vêm o **item pai**, os **subitens** (recolhíveis) e as entradas **vinculadas** por relações — cada uma clicável. No celular, o mesmo aparece na aba **Bancos de dados** do painel de contexto da nota.
 - A posição só aparece quando a nota realmente **está** na visualização: pertencer a um banco de dados propositalmente não depende dos filtros de uma visualização, então as duas coisas podem legitimamente divergir.
-- O painel de **Propriedades** continua útil ao lado: ele mostra o frontmatter bruto — cada campo, sem a ordem, os tipos e os filtros do banco de dados.
+- A seção **Propriedades** é o lugar desses valores: cada campo do frontmatter da nota como uma linha, editável no lugar.
 - Se uma nota não pertencer a nenhum banco de dados, nem a linha nem a seção aparecem. Nada disso é gravado na nota: o contexto é recalculado a partir dos seus arquivos `.base` e dos links toda vez que você a abre, e a nota em si continua sendo Markdown puro.
 
 ## Criando novos itens
@@ -164,7 +164,7 @@ Observação para vaults sincronizados: se dois dispositivos organizarem o mural
 
 ## Uso no dia a dia
 
-- **Edição inline**: um único clique em uma célula (ou no valor de um cartão) a torna editável — em todas as visualizações.
+- **Edição inline**: um único clique em uma célula (ou no valor de um cartão) a torna editável — em todas as visualizações. Um valor de texto abre em um campo que cresce e quebra junto com o texto, de modo que um valor longo continua totalmente legível enquanto você o altera. Ele continua sendo um único valor: **Enter** salva, e uma quebra de linha colada vira um espaço.
 - **Abrindo**: clicar no título de um item abre a nota na janela de pré-visualização — uma janela flutuante que você pode arrastar pela barra de título e redimensionar pelo canto. Ela mantém seu próprio histórico de **Voltar**/**Avançar** para as notas que você abre dentro dela, tem um alternador que revela uma coluna de **Propriedades** para a nota exibida e oferece **Abrir como aba** e **Abrir na divisão**. `Ctrl`+clique abre diretamente na divisão; alternativamente, arraste um cartão para a zona de soltar **Solte aqui: abrir na divisão**. A coluna de propriedades pode ser alargada ou estreitada arrastando sua borda esquerda (mínimo 232 px); abaixo de 280 px ela coloca o rótulo acima do valor, como a barra lateral direita.
 - **Arrastando**: ao arrastar cartões (Quadro, Calendário, Linha do tempo), um cartão fantasma acompanha o ponteiro. Em um **Quadro** você também pode arrastar um **cabeçalho de coluna** para reordenar as colunas — em quadros de **Seleção**/**Status** isso reordena as opções da propriedade (então os menus suspensos em toda parte passam a seguir essa ordem); quadros de relação e de texto livre lembram a ordem por visualização.
 - **Cor da coluna**: nas configurações de **Visualização** de um quadro, **Cor da coluna** permite que uma coluna assuma a cor do seu grupo — **Coluna inteira** (a coluna inteira fica colorida) ou **Apenas o chip** (apenas o chip do cabeçalho, o padrão). Vale para grupos de Seleção/Status/Seleção múltipla.

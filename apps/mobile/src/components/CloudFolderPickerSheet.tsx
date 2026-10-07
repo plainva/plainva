@@ -5,6 +5,17 @@ import { ChevronRight, CornerLeftUp, Folder, FolderPlus } from "lucide-react";
 import { Banner, Button, ICON, TextInput } from "@plainva/ui";
 
 /**
+ * The folder name a typed text stands for. Names only - a slash would create a
+ * chain the level-by-level descend cannot follow. It is taken out when the
+ * name is USED, not on every key press: a field whose value is rewritten under
+ * the keyboard loses a composition in progress (Japanese, Chinese, Korean)
+ * the moment the rewrite changes anything.
+ */
+export function folderNameOf(typed: string): string {
+  return typed.replace(/[/\\]/g, "").trim();
+}
+
+/**
  * Cloud folder picker (#10): level-by-level navigation over a provider's remote
  * folders at connect time — the mobile sibling of the desktop sync folder
  * picker. Fed by a `listFolders(path)` built from the fresh credentials
@@ -39,7 +50,7 @@ export function CloudFolderPickerSheet({
 
   const handleCreateFolder = async () => {
     if (!createFolder) return;
-    const name = newName.trim();
+    const name = folderNameOf(newName);
     if (!name) return;
     if (folders.some((f) => f.toLowerCase() === name.toLowerCase())) {
       setCreateError(t("webDavPicker.folderExists"));
@@ -99,15 +110,13 @@ export function CloudFolderPickerSheet({
             <div className="m-sheet-inputrow" style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <FolderPlus className="m-accent" size={ICON.head} style={{ flexShrink: 0 }} />
               <TextInput
-                
+                data-testid="cloud-folder-new-name"
                 style={{ flex: 1, minWidth: 0 }}
                 placeholder={t("webDavPicker.newFolder")}
                 value={newName}
                 disabled={creating}
                 onChange={(e) => {
-                  // Names only — a slash would create a chain the level-by-level
-                  // descend cannot follow.
-                  setNewName(e.target.value.replace(/[/\\]/g, ""));
+                  setNewName(e.target.value);
                   setCreateError(null);
                 }}
                 onKeyDown={(e) => {
@@ -116,7 +125,7 @@ export function CloudFolderPickerSheet({
               />
               <Button
                 variant="primary"
-                disabled={creating || newName.trim().length === 0}
+                disabled={creating || folderNameOf(newName).length === 0}
                 onClick={() => void handleCreateFolder()}
               >
                 {t("webDavPicker.createFolder")}

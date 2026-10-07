@@ -51,7 +51,9 @@ describe("the assistant's commands on the phone", () => {
   it("are the palette's that show something — and nothing that creates, exports or changes", async () => {
     const h = host();
     const ids = commandsOf(h).map((c) => c.id);
-    expect(ids).toEqual(["open-file", "open-graph", "open-tasks", "open-calendar", "open-journal", "open-mail", "toggle-read-edit", "open-settings", "open-note", "show-in-graph"]);
+    // Markdown source and the version history joined when the phone's palette learned them (2026-10-06): the assistant
+    // gets what the palette of this shell holds, and both only show something.
+    expect(ids).toEqual(["open-file", "open-graph", "open-tasks", "open-calendar", "open-journal", "open-mail", "toggle-read-edit", "toggle-source", "open-settings", "version-history", "open-note", "show-in-graph"]);
     // Every command the phone's palette has is decided, like the desktop's.
     for (const command of buildMobileCommands(h)) expect(command.id in AI_COMMANDS || command.id in AI_WITHHELD_COMMANDS, command.id).toBe(true);
     await commandsOf(h).find((c) => c.id === "open-tasks")!.run();

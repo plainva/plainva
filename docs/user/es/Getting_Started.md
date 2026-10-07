@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-09-30
+Última actualización: 2026-10-06
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -188,10 +188,10 @@ A través de **Ctrl/Cmd+Shift+G** (o la sección **Grafo** en la barra lateral d
 
 Las secciones que no tienen nada que mostrar para la nota abierta — **Esquema**, **Retroenlaces**, **Propiedades**, **Bases de datos** — no aparecen en absoluto, en lugar de quedarse ahí atenuadas. Toda la barra lateral derecha recuerda una única preferencia global para las notas; las vistas de pantalla completa sin contexto de nota solo la cierran temporalmente.
 
-**Cuando arrastras el panel para estrecharlo** cambia en tres pasos, para que nada se rompa:
+**Cuando arrastras el panel para estrecharlo** cambia en tres pasos, para que nada se rompa. Cuenta el ancho del propio panel — que su contenido se desplace o no no cambia nada — y una ventana nueva lo abre con 300 px:
 
 - **280 px o más** — como siempre.
-- **232–280 px** — las propiedades ponen el nombre encima del valor en lugar de al lado, los valores largos pasan a la línea siguiente, las secciones se comprimen.
+- **232–280 px** — cada fila pone el nombre encima del valor en lugar de al lado (tanto las propiedades como los campos de la base de datos), los valores largos pasan a la línea siguiente, las secciones se comprimen.
 - **por debajo de 232 px** — el calendario muestra **una semana en lugar del mes** (siete días, número de semana abajo a la derecha); una cuadrícula mensual tendría aquí celdas de 14 píxeles y dejaría de ser un calendario. El grafo se vuelve más corto, y los retroenlaces muestran el nombre del archivo sin la línea de ruta.
 
 La barra lateral derecha no puede bajar de **200 px** — ninguna sección es utilizable por debajo de eso. La izquierda sigue bajando hasta 150 px, porque los nombres de archivo simplemente se truncan.
@@ -208,7 +208,7 @@ En una ventana separada o en una segunda ventana completa, haz clic derecho en l
 
 ## Marcadores de carpetas
 
-Añade un marcador desde el menú contextual de un archivo o una carpeta. Los marcadores de carpetas muestran un icono de carpeta: en el móvil abren la carpeta y en el escritorio la expanden en el árbol. Mover o renombrar elementos en Plainva actualiza también los marcadores de subcarpetas y archivos. Los destinos ausentes permanecen señalados; elimina esos marcadores expresamente.
+Añade un marcador desde el menú contextual de un archivo o una carpeta. Los marcadores de carpetas muestran un icono de carpeta: en el móvil abren la carpeta y en el escritorio la expanden en el árbol. Mover o renombrar elementos en Plainva actualiza también los marcadores de subcarpetas y archivos. Los destinos ausentes permanecen señalados; elimina esos marcadores expresamente. Para cambiar el orden, arrastra un marcador a su sitio en la barra lateral — o pulsa `Alt+↑` / `Alt+↓` en la fila enfocada; en el teléfono, **Ordenar marcadores** junto al título **Marcadores** abre la lista, donde arrastras el asa al final de una fila.
 
 Al abrir una bóveda, Plainva importa automáticamente los marcadores de archivos y carpetas de Obsidian, incluidos los grupos. El tipo y la ruta evitan duplicados. El archivo de Obsidian no cambia. Los perfiles de configuración transportan las carpetas por separado; un perfil antiguo sin ese campo conserva los marcadores de carpetas existentes.
 

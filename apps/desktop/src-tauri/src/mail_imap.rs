@@ -34,6 +34,34 @@ pub struct MailboxInfo {
     /// "/" or "." (which mangles names like "mailbox.org Rechnungen").
     #[serde(skip_serializing_if = "Option::is_none")]
     pub delimiter: Option<String>,
+    /// The role the SERVER states through an RFC 6154 special-use attribute
+    /// (`\Junk`, `\Trash`, `\Sent`, `\Drafts`, `\Archive`). Absent when the
+    /// server states none; the UI then guesses from the name. Gmail marks its
+    /// spam folder `\Junk` whatever language the account shows it in.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<&'static str>,
+}
+
+/// The special-use role among a mailbox's LIST attributes, if the server states
+/// one. Mirrors `specialUseRole` in the shared mail code (the phone's socket
+/// client). `\All`, `\Flagged` and `\Important` are views, not places to file
+/// mail, and state no role. Pure.
+fn special_use_role<'a>(attributes: impl IntoIterator<Item = &'a str>) -> Option<&'static str> {
+    for raw in attributes {
+        let Some(flag) = raw.trim().strip_prefix('\\') else {
+            continue;
+        };
+        match flag.to_ascii_lowercase().as_str() {
+            "junk" | "spam" => return Some("junk"),
+            "trash" => return Some("trash"),
+            "sent" => return Some("sent"),
+            "drafts" => return Some("drafts"),
+            "archive" => return Some("archive"),
+            "inbox" => return Some("inbox"),
+            _ => {}
+        }
+    }
+    None
 }
 
 #[derive(Serialize, Clone)]
@@ -434,6 +462,10 @@ pub async fn mail_check_login(host: String, port: u16, user: String, pass: Strin
                 .map(|n| MailboxInfo {
                     name: n.name().to_string(),
                     delimiter: n.delimiter().map(|d| d.to_string()),
+                    role: special_use_role(n.attributes().iter().filter_map(|a| match a {
+                        imap::types::NameAttribute::Custom(custom) => Some(custom.as_ref()),
+                        _ => None,
+                    })),
                 })
                 .collect();
             out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -1011,6 +1043,22 @@ pub async fn mail_list_flagged_envelopes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_the_special_use_role_the_server_states() {
+        // Gmail: the spam folder is `\Junk` in every display language.
+        assert_eq!(special_use_role(["\\HasNoChildren", "\\Junk"]), Some("junk"));
+        assert_eq!(special_use_role(["\\hasnochildren", "\\TRASH"]), Some("trash"));
+        assert_eq!(special_use_role(["\\Sent"]), Some("sent"));
+        assert_eq!(special_use_role(["\\Drafts"]), Some("drafts"));
+        assert_eq!(special_use_role(["\\Archive"]), Some("archive"));
+        // Views, not folders to file into; and a keyword without the backslash
+        // is not a system flag.
+        assert_eq!(special_use_role(["\\All"]), None);
+        assert_eq!(special_use_role(["\\Flagged", "\\Important"]), None);
+        assert_eq!(special_use_role(["Junk"]), None);
+        assert_eq!(special_use_role(Vec::<&str>::new()), None);
+    }
 
     #[test]
     fn rejects_search_command_injection() {

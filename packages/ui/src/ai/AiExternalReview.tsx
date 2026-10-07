@@ -45,7 +45,7 @@ function SecretRow({ secret, onSave }: { secret: ExternalSecret; onSave: (value:
             compact
             type="password"
             autoComplete="off"
-            spellCheck={false}
+            purpose="secret"
             value={value}
             placeholder={t("ai.ext.review.secretPlaceholder")}
             aria-label={label}
@@ -99,7 +99,7 @@ function SignInRow({ signIn }: { signIn: ExternalSignIn }) {
           <TextInput
             compact
             autoComplete="off"
-            spellCheck={false}
+            purpose="code"
             value={signIn.clientId}
             placeholder={t("ai.ext.signIn.client")}
             aria-label={t("ai.ext.signIn.client")}

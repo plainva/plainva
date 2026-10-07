@@ -152,6 +152,8 @@ describe("the assistant's app commands", () => {
       expect(source, name).not.toMatch(/"open-(tasks|graph|journal|mail|comments)"\s*,\s*"/);
     }
     expect(read("src/AppShell.tsx")).toContain("<AiCommandSourceLink sourceRef={ai.commandSourceRef} build={paletteCommands} />");
-    expect(read("../mobile/src/App.tsx")).toMatch(/<MobileAiNavigation navRef=\{ai\.navRef\} nav=\{\{.*\bcommands \}\} \/>/);
+    // The phone's shell names the palette's commands once, for the assistant's place in it, which hands them on.
+    expect(read("../mobile/src/App.tsx")).toMatch(/<MobileAiShell ai=\{ai\} nav=\{\{.*\bcommands \}\} /);
+    expect(read("../mobile/src/components/MobileAiShell.tsx")).toContain("<MobileAiNavigation navRef={ai.navRef} nav={nav} />");
   });
 });
