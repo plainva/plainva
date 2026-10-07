@@ -1,6 +1,6 @@
 # Configurare la sincronizzazione con Google Drive (Bring Your Own Credentials)
 
-Ultimo aggiornamento: 2026-09-15
+Ultimo aggiornamento: 2026-10-07
 
 Per sincronizzare un vault locale con il tuo Google Drive in Plainva, puoi usare le tue credenziali API di Google. Poiché Plainva non è (ancora) passata attraverso la verifica CASA centrale di Google, questo approccio **Bring Your Own Credentials (BYO)** offre un modo sicuro per sincronizzare i tuoi file privati.
 
@@ -67,6 +67,8 @@ Il tuo vault ora si sincronizza in sicurezza con Google Drive tramite le tue cre
 ## Google OAuth — Desktop / Android / iOS
 
 Le istruzioni desktop richiedono un client desktop con ID e relativo secret. Android usa Google Identity Services: registra il pacchetto `com.plainva.app` con il certificato SHA-1 della build installata. Le versioni Play usano il certificato di firma dell’app; una build locale può usarne un altro. Android non usa un reindirizzamento del browser né un client secret. Su iOS, usa un client iOS con bundle ID `com.plainva.app` e URI di ritorno `com.plainva.app:/oauth2redirect`. Un client desktop non sostituisce la registrazione mobile. Per il calendario, abilita anche Google Calendar API e Google Tasks API.
+
+**Android da Plainva 0.8.3:** le versioni precedenti accedevano a Google nel browser con un ID client. Un progetto Google predisposto per questo non ha un client Android, e ora l’accesso fallisce subito dopo la scelta dell’account. Dove aggiungi un account Google, Plainva mostra il **Nome del pacchetto** e l’**Impronta SHA-1 del certificato** della versione installata, ciascuno con **Copia**. Crea nello stesso progetto Google un client OAuth di tipo Android con esattamente questi due valori. Se manca, Plainva segnala che Google non accetta questa installazione; «**Accesso annullato.**» compare solo quando chiudi tu la finestra di Google. Una versione da Google Play e un file di installazione da GitHub possono essere firmati con certificati diversi; in tal caso ognuno ha bisogno del proprio client Android.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

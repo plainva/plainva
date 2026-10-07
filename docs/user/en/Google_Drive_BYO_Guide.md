@@ -1,6 +1,6 @@
 # Setting up Google Drive Sync (Bring Your Own Credentials)
 
-Last updated: 2026-09-15
+Last updated: 2026-10-07
 
 To sync a local vault with your Google Drive in Plainva, you can use your own Google API credentials. Since Plainva has not (yet) gone through Google's central CASA verification, this **Bring Your Own Credentials (BYO)** approach offers a safe way to sync your private files.
 
@@ -67,6 +67,8 @@ Your vault now syncs safely with Google Drive through your own credentials.
 ## Google OAuth — Desktop / Android / iOS
 
 The desktop instructions above require a Desktop client ID and its matching client secret. Android uses Google Identity Services: register package `com.plainva.app` with the SHA-1 certificate of the installed build. Play builds use the app-signing certificate; locally signed builds may use a different certificate. Android uses no browser redirect and no client secret. On iOS, use an iOS client with bundle ID `com.plainva.app` and return URI `com.plainva.app:/oauth2redirect`. A desktop client cannot replace mobile registration. For calendars, also enable Google Calendar API and Google Tasks API.
+
+**Android since Plainva 0.8.3:** earlier versions signed in to Google in the browser with a client ID. A Google project that was set up for that has no Android client, and the sign-in now fails right after you pick the account. Where you add a Google account, Plainva shows the **Package name** and the **SHA-1 certificate fingerprint** of the installed build, each with **Copy**. Create an OAuth client of type Android with exactly these two values in the same Google project. Without it Plainva reports that Google does not accept this installation; “**Sign-in cancelled.**” only appears when you close Google's dialog yourself. A build from Google Play and an installation file from GitHub can be signed with different certificates; then each needs its own Android client.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

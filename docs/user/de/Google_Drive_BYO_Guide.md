@@ -1,6 +1,6 @@
 # Google Drive Sync einrichten (Bring Your Own Credentials)
 
-Stand: 2026-09-15
+Stand: 2026-10-07
 
 Um in Plainva einen lokalen Vault mit Deinem Google Drive zu synchronisieren, kannst Du eigene Google API Zugangsdaten ("Credentials") verwenden. Da Plainva (noch) keine zentrale CASA-Verifizierung durch Google durchlaufen hat, bietet dieser **Bring Your Own Credentials (BYO)** Ansatz eine sichere Methode, um Deine privaten Dateien zu synchronisieren.
 
@@ -67,6 +67,8 @@ Dein Vault wird nun sicher über Deine eigenen Credentials mit Google Drive sync
 ## Google OAuth — Desktop / Android / iOS
 
 Die Desktop-Anleitung oben benötigt einen Desktop-Client mit Client-ID und zugehörigem Client-Secret. Android verwendet Google Identity Services: Registriere das Paket `com.plainva.app` mit dem SHA-1-Zertifikat des tatsächlich installierten Builds. Bei Play-Builds zählt das App-Signing-Zertifikat; ein lokal signierter Build kann ein anderes haben. Android verwendet keinen Browser-Rücksprung und kein Client-Secret. Unter iOS verwende einen iOS-Client mit Bundle-ID `com.plainva.app` und dem Rücksprung `com.plainva.app:/oauth2redirect`. Ein Desktop-Client ersetzt keine mobile Registrierung. Aktiviere für den Kalender auch Google Calendar API und Google Tasks API.
+
+**Android seit Plainva 0.8.3:** Frühere Versionen meldeten sich im Browser mit einer Client-ID bei Google an. Ein Google-Projekt, das dafür eingerichtet wurde, hat keinen Android-Client, und die Anmeldung scheitert jetzt direkt nach der Kontoauswahl. Dort, wo Du ein Google-Konto hinzufügst, zeigt Plainva **Paketname** und **SHA-1-Zertifikatfingerabdruck** des installierten Builds, jeweils mit **Kopieren**. Lege im selben Google-Projekt einen OAuth-Client vom Typ Android mit genau diesen beiden Werten an. Fehlt er, meldet Plainva, dass Google diese Installation nicht akzeptiert; „**Anmeldung abgebrochen.**“ erscheint nur, wenn Du Googles Dialog selbst schließt. Ein Build aus Google Play und eine Installationsdatei von GitHub können mit verschiedenen Zertifikaten signiert sein; dann braucht jeder seinen eigenen Android-Client.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

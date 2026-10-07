@@ -120,6 +120,27 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.get("pim_calendar_original-vault")).toMatchObject({ refreshToken: "old-service" });
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
   });
+  it("leaves nothing behind after a refused Android sign-in: the same button asks Google again and says the same", async () => {
+    state.platform = "android";
+    const { beginPimOAuth, setOAuthPurposeHandler } = await import("./pimOAuth");
+    const { GoogleAuthorizationError, serviceConnectionMessage } = await import("@plainva/ui");
+    const accept = vi.fn(); setOAuthPurposeHandler("calendar", accept);
+    const refused = () => Promise.reject(new GoogleAuthorizationError({ code: "DEVELOPER_ERROR", status: 10, stage: "result", resultCode: 0, hadIntent: true }));
+    state.nativeAuthorize.mockImplementationOnce(refused).mockImplementationOnce(refused);
+    const options = { clientId: "android-client", label: "Person", serviceContext: { vaultId: "original-vault" } };
+    const texts: string[] = [];
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await beginPimOAuth("google", options).catch((error: unknown) => texts.push(serviceConnectionMessage(error, (key) => key)));
+      expect(state.secrets.has("pim_oauth_pending_tx")).toBe(false);
+      expect(state.secrets.has("pim_oauth_received")).toBe(false);
+    }
+    expect(texts).toEqual(["connection.googleBuildNotRegistered", "connection.googleBuildNotRegistered"]);
+    expect(state.nativeAuthorize).toHaveBeenCalledTimes(2);
+    // ...and once Google accepts, the third tap on the same button connects.
+    await beginPimOAuth("google", options);
+    expect(accept).toHaveBeenCalledTimes(1);
+    expect(state.secrets.has("pim_oauth_received")).toBe(false);
+  });
   it("renews an Android calendar through the native SDK and keeps its account identity", async () => {
     state.platform = "android";
     const { registerAccountLoginHandler, beginAccountLogin } = await import("../accountLogin");

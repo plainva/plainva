@@ -2,6 +2,7 @@ import { sameStoredValue } from "@plainva/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GmailSignInButton } from "@plainva/ui";
 import { mobileGmailClient, signInGmail } from "../services/mail/gmailAuth";
+import { toastConnectionFailure } from "../services/connectionToast";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Banner, Button, familyLabel, GroupCard, ICON, IconButton, mailTargetForFamily, Row, RowList, SectionLabel, Segmented, ServiceConnectionError, serviceConnectionMessage, SettingField, Switch, TextArea, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
@@ -134,7 +135,7 @@ export function MailAccountsScreen({
       await signInGmail(vault.vaultId, record);
       reload();
     } catch (e) {
-      toast.error(serviceConnectionMessage(e, t));
+      toastConnectionFailure(e);
     }
   };
 

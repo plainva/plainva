@@ -25,6 +25,7 @@ import { MAIL_CHANGED_EVENT } from "../services/mail/mailRuntime";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { mobilePasswordChangePorts } from "../services/accountPassword";
 import { beginAccountLogin, canUnifyMobileAccount, getAccountLoginStatus, ACCOUNT_LOGIN_STATUS_EVENT, type AccountLoginStatus } from "../services/accountLogin";
+import { toastConnectionFailure } from "../services/connectionToast";
 import { clearAccountToken, getAccountToken } from "../services/accountBroker";
 import { mConfirm } from "../services/mobileDialogs";
 import { DeviceSignInBadge, DeviceSignInCard } from "../components/DeviceSignInRow";
@@ -155,7 +156,7 @@ export function CloudAccountDetailScreen({
         const out = await beginAccountLogin(loginVaultId, card.record!, fallback);
         setNeedClient(out.kind === "needsClientId" ? out.family : null);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toastConnectionFailure(e);
       } finally {
         setSigningIn(false);
       }

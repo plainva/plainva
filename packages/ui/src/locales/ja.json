@@ -4635,6 +4635,13 @@
     "clipboardFailed": "パスをコピーできませんでした。ファイルの詳細でパスを選択してコピーしてください。",
     "retrySaved": "接続を完了",
     "clientSecret": "クライアントシークレット（提供されている場合）",
+    "googleBuildNotRegistered": "GoogleはこのPlainvaのインストールを受け付けません。AndroidではGoogleはクライアント IDではなく、パッケージ名とインストール済みビルドの署名証明書でアプリを識別します。Googleプロジェクトには、このビルドのパッケージ名とSHA-1を登録した「Android」タイプのOAuthクライアントが必要です。どちらもGoogleアカウントを追加する画面に表示されます。手順はGoogleの手順に記載されています。",
+    "googleUnreachable": "Googleに接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
+    "googleAccountNotOnDevice": "Googleによると、このアカウントはこのデバイスでサインインされていません。Androidの設定のアカウントで確認してから、もう一度お試しください。",
+    "googlePlayServicesFailed": "Google Play開発者サービスがサインインを完了できませんでした(コード {{code}})。もう一度お試しください。解消しない場合はGoogle Play開発者サービスを更新してください。",
+    "googleAndroidRegistration": "AndroidではGoogleはクライアント IDではなく、パッケージ名とこのインストール済みビルドの署名証明書でPlainvaを識別します。Googleプロジェクトには、この2つの値を登録した「Android」タイプのOAuthクライアントが必要です。手順はGoogleの手順に記載されています。",
+    "googleAndroidPackage": "パッケージ名",
+    "googleAndroidFingerprint": "SHA-1証明書フィンガープリント",
     "googleClientUnsupported": "Googleの登録設定がこのデバイスの戻り先に対応していません。Googleの手順でクライアントの種類とモバイル設定を確認してください。"
   },
   "connectionFailure": {

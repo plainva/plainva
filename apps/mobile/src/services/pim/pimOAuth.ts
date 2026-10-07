@@ -308,7 +308,12 @@ async function beginPimOAuthFlow(
     } catch (error) {
       pending = null;
       await persistPending(null);
-      await recordConnectOutcome(serviceContext, purpose === "gmail" || purpose === "mail" ? "mail" : "calendar", { state: (error as { code?: string })?.code === "CANCELLED" ? "cancelled" : "failed" }).catch(() => {});
+      // The run keeps WHY (a marker or the provider's words, never a token):
+      // a screen that is opened again must show the same, true sentence the
+      // attempt itself showed, not "could not be completed".
+      const cancelled = (error as { code?: string })?.code === "CANCELLED";
+      await recordConnectOutcome(serviceContext, purpose === "gmail" || purpose === "mail" ? "mail" : "calendar",
+        cancelled ? { state: "cancelled" } : { state: "failed", message: error instanceof Error ? error.message : String(error) }).catch(() => {});
       throw error;
     }
   }

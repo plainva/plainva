@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Check, ChevronRight, Circle, Plus, Trash2 } from "lucide-react";
 import { Banner, Button, calendarTargetForFamily, classifyAuthError, foldMachineText, reviewDuplicatePimRows, familyLabel, GroupCard, ICON, IconButton, listTemplates, MEETING_TEMPLATE_TOKENS, minutesToTime, PLAINVA_ONEDRIVE_CLIENT_ID, reminderDiagnosis, Row, RowList, SectionLabel, Segmented, SettingField, Switch, TextInput, toast, type CloudProviderFamily } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { serviceConnectionMessage } from "@plainva/ui";
+import { isGoogleAuthorizationCancelled, serviceConnectionMessage } from "@plainva/ui";
 import { getReminderState, subscribeReminderState } from "../services/reminderScheduler";
 import type { PimAccountRow, PimCalendar } from "@plainva/core";
 import { mConfirm, mDayTime, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -24,6 +24,9 @@ import {
   getPimCache,
 } from "../services/pim/pimService";
 import { beginPimOAuth } from "../services/pim/pimOAuth";
+import { usesNativeGoogleAuthorization } from "../services/googleNativeAuthorization";
+import { toastConnectionFailure } from "../services/connectionToast";
+import { GoogleAndroidRegistration } from "../components/GoogleAndroidRegistration";
 import { lookupOAuthClientForNewAccount } from "../services/pim/pimClientLookup";
 import { caldavUrlFromFiles, getConnectSecrets, rememberConnectSecrets } from "../services/connectSecrets";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
@@ -80,6 +83,8 @@ export function PimAccountsScreen({
   family?: CloudProviderFamily;
 }) {
   const { t } = useTranslation();
+  // Android signs in to Google through Play services; a client ID has no part in it.
+  const nativeGoogle = usesNativeGoogleAuthorization();
   const run = useConnectionRun();
   const calendarRun = run?.pending[0] === "calendar" && run.context.vaultId === vault.vaultId ? run : null;
   const calendarOutcome = calendarRun?.outcomes.calendar;
@@ -609,7 +614,15 @@ export function PimAccountsScreen({
       }
       return;
     }
-    if (out.kind === "failed") toast.error(out.error);
+    if (out.kind === "failed") {
+      // A cancel is a note. Anything else opens the Google form: it shows the
+      // sentence and, on Android, what the Google project has to register.
+      if (a.provider !== "google" || isGoogleAuthorizationCancelled(out.error)) { toastConnectionFailure(out.error); return; }
+      setAddProvider("google");
+      setLabel(a.label);
+      setConnectionError(out.error);
+      setFormOpen(true);
+    }
   };
 
   const remove = async (a: PimAccountRow) => {
@@ -931,7 +944,7 @@ export function PimAccountsScreen({
         <div className={calendarRun ? "m-connect-form" : "m-sheet-backdrop"} onClick={() => { if (!calendarRun) setFormOpen(false); }}>
           <div className={calendarRun ? "m-settings" : "pv-sheet m-sheet"} onClick={(e) => e.stopPropagation()}>
             {!calendarRun && <SheetGrip onClose={() => setFormOpen(false)} />}
-            {(connectionError || calendarOutcome?.state === "failed") && <Banner kind="warning" rounded>{serviceConnectionMessage(new Error(connectionError ?? (calendarOutcome?.state === "failed" ? calendarOutcome.message : undefined) ?? "loginFailed"), t)}</Banner>}
+            {(connectionError || calendarOutcome?.state === "failed") && <Banner kind={isGoogleAuthorizationCancelled(connectionError) ? "info" : "warning"} rounded>{serviceConnectionMessage(new Error(connectionError ?? (calendarOutcome?.state === "failed" ? calendarOutcome.message : undefined) ?? "loginFailed"), t)}</Banner>}
             <p className="m-sheet-title">
               {family ? familyLabel(family) : t("pim.addAccount", { defaultValue: "Konto hinzufügen" })}
             </p>
@@ -958,7 +971,10 @@ export function PimAccountsScreen({
 
             {addProvider === "google" && (
               <>
-                {clientFromDevice && !editClientId ? (
+                {/* Android: Google goes by package and certificate, so that is
+                    what the form says - before the button, not after it failed. */}
+                <GoogleAndroidRegistration />
+                {nativeGoogle && clientFromDevice ? null : clientFromDevice && !editClientId ? (
                   <p className="m-hint" data-testid="pim-client-from-device">
                     {t("pim.clientFromDevice", { defaultValue: "Client-ID von diesem Gerät übernommen." })}{" "}
                     <Button onClick={() => setEditClientId(true)} size="sm" variant="ghost">

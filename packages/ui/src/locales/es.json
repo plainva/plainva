@@ -4749,6 +4749,13 @@
     "clipboardFailed": "No se pudo copiar la ruta. Selecciónala y cópiala en los detalles del archivo.",
     "retrySaved": "Completar conexión",
     "clientSecret": "Secreto del cliente (si existe)",
+    "googleBuildNotRegistered": "Google no acepta esta instalación de Plainva. En Android, Google reconoce la app por su nombre de paquete y por el certificado de firma de la versión instalada, no por un ID de cliente. El proyecto de Google necesita un cliente OAuth de tipo «Android» con el nombre de paquete y el SHA-1 de esta versión. Plainva muestra ambos donde añades una cuenta de Google. La guía de Google describe los pasos.",
+    "googleUnreachable": "No se pudo contactar con Google. Comprueba la conexión a internet e inténtalo de nuevo.",
+    "googleAccountNotOnDevice": "Google indica que esta cuenta no ha iniciado sesión en este dispositivo. Compruébalo en los ajustes de Android, en cuentas, e inténtalo de nuevo.",
+    "googlePlayServicesFailed": "Los Servicios de Google Play no pudieron completar el inicio de sesión (código {{code}}). Inténtalo de nuevo. Si sigue fallando, actualiza los Servicios de Google Play.",
+    "googleAndroidRegistration": "En Android, Google reconoce Plainva por su nombre de paquete y por el certificado de firma de esta versión instalada, no por un ID de cliente. Tu proyecto de Google necesita un cliente OAuth de tipo «Android» con estos dos valores. La guía de Google describe los pasos.",
+    "googleAndroidPackage": "Nombre del paquete",
+    "googleAndroidFingerprint": "Huella digital SHA-1 del certificado",
     "googleClientUnsupported": "El registro de Google no corresponde al retorno de este dispositivo. Comprueba el tipo de cliente y la configuración móvil en la guía de Google."
   },
   "connectionFailure": {

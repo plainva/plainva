@@ -1,6 +1,6 @@
 # Google Drive Sync instellen (Bring Your Own Credentials)
 
-Laatst bijgewerkt: 2026-09-15
+Laatst bijgewerkt: 2026-10-07
 
 Om in Plainva een lokale vault te synchroniseren met je Google Drive, kun je eigen Google API-toegangsgegevens ("credentials") gebruiken. Omdat Plainva (nog) geen centrale CASA-verificatie door Google heeft doorlopen, biedt deze **Bring Your Own Credentials (BYO)**-aanpak een veilige manier om je privébestanden te synchroniseren.
 
@@ -67,6 +67,8 @@ Je vault synchroniseert nu veilig met Google Drive via je eigen credentials.
 ## Google OAuth — Desktop / Android / iOS
 
 De desktopinstructies vereisen een desktopclient met client-ID en bijbehorend clientgeheim. Android gebruikt Google Identity Services: registreer pakket `com.plainva.app` met het SHA-1-certificaat van de geïnstalleerde build. Play-builds gebruiken het app-ondertekeningscertificaat; een lokale build kan een ander certificaat gebruiken. Android gebruikt geen browserterugkeer en geen clientgeheim. Gebruik op iOS een iOS-client met bundel-ID `com.plainva.app` en retour-URI `com.plainva.app:/oauth2redirect`. Een desktopclient vervangt geen mobiele registratie. Schakel voor de agenda ook Google Calendar API en Google Tasks API in.
+
+**Android sinds Plainva 0.8.3:** eerdere versies meldden zich in de browser met een client-ID aan bij Google. Een Google-project dat daarvoor is ingericht, heeft geen Android-client, en het aanmelden mislukt nu direct na het kiezen van het account. Waar je een Google-account toevoegt, toont Plainva de **Pakketnaam** en de **SHA-1-certificaatvingerafdruk** van de geïnstalleerde build, elk met **Kopiëren**. Maak in hetzelfde Google-project een OAuth-client van het type Android met precies deze twee waarden. Ontbreekt die, dan meldt Plainva dat Google deze installatie niet accepteert; ‘**Aanmelden geannuleerd.**’ verschijnt alleen als je het venster van Google zelf sluit. Een build uit Google Play en een installatiebestand van GitHub kunnen met verschillende certificaten zijn ondertekend; dan heeft elk een eigen Android-client nodig.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

@@ -4692,6 +4692,13 @@
     "clipboardFailed": "Het pad kon niet worden gekopieerd. Selecteer en kopieer het in de bestandsdetails.",
     "retrySaved": "Verbinding voltooien",
     "clientSecret": "Clientgeheim (indien beschikbaar)",
+    "googleBuildNotRegistered": "Google accepteert deze installatie van Plainva niet. Op Android herkent Google de app aan de pakketnaam en aan het ondertekeningscertificaat van de geïnstalleerde build, niet aan een client-ID. Het Google-project heeft een OAuth-client van het type ‘Android’ nodig met de pakketnaam en de SHA-1 van deze build. Plainva toont beide waar je een Google-account toevoegt. De Google-handleiding beschrijft de stappen.",
+    "googleUnreachable": "Google was niet bereikbaar. Controleer de internetverbinding en probeer het opnieuw.",
+    "googleAccountNotOnDevice": "Google meldt dat dit account niet is aangemeld op dit apparaat. Controleer het in de Android-instellingen onder accounts en probeer het daarna opnieuw.",
+    "googlePlayServicesFailed": "Google Play-services kon het aanmelden niet voltooien (code {{code}}). Probeer het opnieuw. Blijft de fout, werk dan Google Play-services bij.",
+    "googleAndroidRegistration": "Op Android herkent Google Plainva aan de pakketnaam en aan het ondertekeningscertificaat van deze geïnstalleerde build, niet aan een client-ID. Je Google-project heeft een OAuth-client van het type ‘Android’ nodig met deze twee waarden. De Google-handleiding beschrijft de stappen.",
+    "googleAndroidPackage": "Pakketnaam",
+    "googleAndroidFingerprint": "SHA-1-certificaatvingerafdruk",
     "googleClientUnsupported": "De Google-registratie past niet bij het terugkeerpad van dit apparaat. Controleer het clienttype en de mobiele instelling in de Google-handleiding."
   },
   "connectionFailure": {

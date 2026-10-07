@@ -1,6 +1,6 @@
 # Configurer la synchronisation Google Drive (avec vos propres identifiants)
 
-Dernière mise à jour : 2026-09-15
+Dernière mise à jour : 2026-10-07
 
 Pour synchroniser un vault local avec votre Google Drive dans Plainva, vous pouvez utiliser vos propres identifiants API Google. Comme Plainva n'a pas (encore) subi la vérification CASA centrale de Google, cette approche **Bring Your Own Credentials (BYO)** offre un moyen sûr de synchroniser vos fichiers privés.
 
@@ -67,6 +67,8 @@ Votre vault se synchronise désormais en toute sécurité avec Google Drive via 
 ## Google OAuth — Desktop / Android / iOS
 
 Les instructions pour ordinateur nécessitent un client de bureau avec son identifiant et son secret correspondant. Android utilise Google Identity Services : enregistre le paquet `com.plainva.app` avec le certificat SHA-1 de la version installée. Les versions Play utilisent le certificat de signature de l’application ; une version locale peut en utiliser un autre. Android n’utilise ni retour par navigateur ni secret client. Sur iOS, utilise un client iOS avec le bundle `com.plainva.app` et l’URI de retour `com.plainva.app:/oauth2redirect`. Un client de bureau ne remplace pas l’inscription mobile. Pour le calendrier, active aussi Google Calendar API et Google Tasks API.
+
+**Android depuis Plainva 0.8.3 :** les versions précédentes se connectaient à Google dans le navigateur avec un ID client. Un projet Google préparé pour cela n’a pas de client Android, et la connexion échoue désormais juste après le choix du compte. Là où tu ajoutes un compte Google, Plainva affiche le **Nom du package** et l’**Empreinte SHA-1 du certificat** de la version installée, chacun avec **Copier**. Crée dans le même projet Google un client OAuth de type Android avec exactement ces deux valeurs. S’il manque, Plainva indique que Google n’accepte pas cette installation ; « **Connexion annulée.** » n’apparaît que si tu fermes toi-même la fenêtre de Google. Une version de Google Play et un fichier d’installation de GitHub peuvent être signés avec des certificats différents ; chacun a alors besoin de son propre client Android.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 
