@@ -85,6 +85,20 @@ export const META_TOOL_NAMES: readonly string[] = [FIND_TOOL, DISPATCH_TOOL];
 export const MAIL_TOOL_NAMES: readonly string[] = ["search_mail", "read_mail"];
 
 /**
+ * The tools that write (plan KI-Harness P5, ADR 0019 §2) — none of them
+ * changes the vault. A proposal lays something down that waits for the user:
+ * a suggestion on a note that is there, a draft of something that is not.
+ * Accepting it is the approval, so the tool itself asks nothing. A plan is
+ * what cannot be reviewed block by block — a rename, a move, a deletion: the
+ * run waits for the user's yes, and the app's own operation carries it out.
+ * All of them are found with `find_tools`, like every tool that is not read
+ * in every conversation.
+ */
+export const PROPOSAL_TOOL_NAMES: readonly string[] = ["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "create_entry"];
+export const PLAN_TOOL_NAMES: readonly string[] = ["rename_note", "move_note", "delete_note"];
+export const WRITE_TOOL_NAMES: readonly string[] = [...PROPOSAL_TOOL_NAMES, ...PLAN_TOOL_NAMES];
+
+/**
  * The tool a call runs, by name: for a call through the dispatcher the tool
  * it names, otherwise the call's own. What a transcript, a ledger and a
  * skill's scenario say was used.
@@ -402,6 +416,151 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     surfaces: ["harness"],
     native: null,
     pageLimit: 8,
+  },
+  // Writing (plan KI-Harness P5, ADR 0019 §2). None of these changes the vault: a proposal waits on its note, a draft
+  // waits in the list of drafts, a plan waits for the user's yes. All are found through the tool search.
+  {
+    name: "propose_edit",
+    description:
+      "Proposes changes to the text of one note. Nothing changes until the user accepts the proposal in Plainva, part by part. With `edits`: each passage exactly as read_note returned it — it has to be in the note once — and what should stand in its place. With `append`: a paragraph to add at the end of the note, or of the section named in `section`. A note's properties are changed with set_property.",
+    risk: "write",
+    input: z.object({
+      path,
+      edits: z
+        .array(
+          z.object({
+            find: z.string().min(1).max(4000).describe("The passage exactly as the note has it"),
+            replace: z.string().max(20000).describe("What should stand there instead; empty removes the passage"),
+          }),
+        )
+        .max(40)
+        .optional(),
+      append: z.string().max(20000).optional().describe("A paragraph to add"),
+      section: z.string().max(512).optional().describe("With append: the section to add it to, as get_outline names it"),
+      note: z.string().max(300).optional().describe("One sentence for the user: what this proposal is for"),
+    }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "set_property",
+    description:
+      "Proposes a value for one property of a note (its frontmatter), or with `value: null` that the property is removed. The user accepts or declines the proposal in Plainva. A value is text, a number, true/false or a list of those; a date is text like 2026-10-07.",
+    risk: "write",
+    input: z.object({
+      path,
+      key: z.string().min(1).max(120).describe("The property's name as the note or its database writes it"),
+      value: z.union([z.string().max(2000), z.number(), z.boolean(), z.array(z.union([z.string().max(2000), z.number(), z.boolean()])).max(50), z.null()]),
+      note: z.string().max(300).optional().describe("One sentence for the user: why this value"),
+    }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "create_note",
+    description:
+      "Drafts a new note. It does not exist until the user creates it from the draft in Plainva. Give its title and its text in Markdown; `folder` only where the user named one — otherwise it goes to the vault's inbox.",
+    risk: "write",
+    input: z.object({
+      title: z.string().min(1).max(200),
+      content: z.string().max(100000).describe("The note's text in Markdown, without a title heading and without frontmatter"),
+      folder: z.string().max(1024).optional().describe("Vault-relative folder"),
+    }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "create_task",
+    description:
+      "Drafts a new task in the user's own words, for example 'Call the roofer tomorrow 9:00 !high #house'. Plainva reads date, time, priority, tags and repetition from the words, as it does when the user captures a task; the task is created when the user says so.",
+    risk: "write",
+    input: z.object({ text: z.string().min(1).max(500).describe("The task as one line") }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "add_journal_entry",
+    description: "Drafts a line for today's journal, the daily note; `task: true` gives it an open checkbox. It is written when the user says so.",
+    risk: "write",
+    input: z.object({ text: z.string().min(1).max(2000), task: z.boolean().optional() }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "create_entry",
+    description:
+      "Drafts a new entry of a database (a .base file): a note in the database's folder with the given properties. It is created when the user says so. query_base shows which properties the database has.",
+    risk: "write",
+    input: z.object({
+      base: z.string().min(1).max(1024).describe("Vault-relative path of the .base file"),
+      title: z.string().min(1).max(200),
+      properties: z.record(z.string().min(1).max(120), z.union([z.string().max(2000), z.number(), z.boolean(), z.array(z.union([z.string().max(2000), z.number(), z.boolean()])).max(50)])).optional(),
+      content: z.string().max(100000).optional().describe("The entry's text in Markdown"),
+    }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "rename_note",
+    description:
+      "Lays out a plan to rename a note; the links that point to it are updated with it. The user sees the plan — the new name and every note whose links change — and confirms it before anything happens.",
+    risk: "critical",
+    input: z.object({ path, title: z.string().min(1).max(200).describe("The new name, without folder and without .md") }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "move_note",
+    description: "Lays out a plan to move a note into another folder of the vault. The user sees the plan and confirms it before anything happens.",
+    risk: "critical",
+    input: z.object({ path, folder: z.string().max(1024).describe("Vault-relative target folder; empty for the vault itself") }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "delete_note",
+    description:
+      "Asks the user to delete a note. Plainva opens its own delete dialog, which shows everything that would go with it; nothing is deleted unless the user confirms there.",
+    risk: "critical",
+    input: z.object({ path }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
   },
   {
     name: "open_in_app",

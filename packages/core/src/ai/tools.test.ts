@@ -8,6 +8,8 @@ import {
   MAIL_TOOL_NAMES,
   META_TOOL_NAMES,
   parseToolInput,
+  PLAN_TOOL_NAMES,
+  PROPOSAL_TOOL_NAMES,
   TOOL_DESCRIPTION_LIMIT,
   TOOL_MANIFESTS,
   TOOL_NAME_PATTERN,
@@ -15,6 +17,7 @@ import {
   toolInputJsonSchema,
   toolsFor,
   WEB_TOOL_NAMES,
+  WRITE_TOOL_NAMES,
 } from "./tools.js";
 import { isEffectTool, ruleOfTwo, runTraits } from "./ruleOfTwo.js";
 
@@ -59,11 +62,47 @@ describe("tool manifests", () => {
     for (const tool of mcp) expect(["read", "ui"], tool.name).toContain(tool.risk);
   });
 
-  it("no tool reads secrets, runs a shell or writes outside the proposal path yet", () => {
+  it("no tool reads secrets or runs a shell, and the only ones that write are the proposals and the plans", () => {
     for (const tool of TOOL_MANIFESTS) {
-      expect(["read", "ui"], `${tool.name} is ${tool.risk}`).toContain(tool.risk);
+      const expected = PROPOSAL_TOOL_NAMES.includes(tool.name) ? "write" : PLAN_TOOL_NAMES.includes(tool.name) ? "critical" : null;
+      if (expected) expect(tool.risk, tool.name).toBe(expected);
+      else expect(["read", "ui"], `${tool.name} is ${tool.risk}`).toContain(tool.risk);
       expect(tool.name).not.toMatch(/keychain|secret|shell|exec|sql/);
     }
+    // Nothing acts outside the vault on its own, and nothing runs a script.
+    expect(TOOL_MANIFESTS.filter((tool) => tool.risk === "external" || tool.risk === "script")).toEqual([]);
+  });
+
+  it("a writing tool is found, never loaded, answers in Plainva's own words and stays off the MCP surface", () => {
+    expect(WRITE_TOOL_NAMES).toEqual([...PROPOSAL_TOOL_NAMES, ...PLAN_TOOL_NAMES]);
+    for (const name of WRITE_TOOL_NAMES) {
+      expect(toolByName(name), name).toMatchObject({ core: false, untrustedResult: false, dataClasses: [], surfaces: ["harness"], native: null });
+      expect(isEffectTool(toolByName(name)!), name).toBe(true);
+    }
+    expect(TOOL_MANIFESTS.filter((tool) => tool.risk === "write" || tool.risk === "critical").map((tool) => tool.name)).toEqual([...WRITE_TOOL_NAMES]);
+    // Found by what the user asks for.
+    const pool = WRITE_TOOL_NAMES.map((name) => toolByName(name)!);
+    expect(findTools("change the text of a note", pool)[0]?.name).toBe("propose_edit");
+    expect(findTools("set a property value", pool)[0]?.name).toBe("set_property");
+    expect(findTools("new task", pool)[0]?.name).toBe("create_task");
+    expect(findTools("rename", pool)[0]?.name).toBe("rename_note");
+    expect(findTools("delete this note", pool)[0]?.name).toBe("delete_note");
+  });
+
+  it("a writing tool takes what its form says and nothing else", () => {
+    const edit = toolByName("propose_edit")!;
+    expect(parseToolInput(edit, { path: "Projects/Offer.md", edits: [{ find: "in May", replace: "in June" }] }).ok).toBe(true);
+    expect(parseToolInput(edit, { path: "Projects/Offer.md", append: "One more line.", section: "Costs" }).ok).toBe(true);
+    expect(parseToolInput(edit, { path: "Projects/Offer.md", edits: [{ find: "", replace: "x" }] }).ok).toBe(false);
+    expect(parseToolInput(edit, { edits: [] }).ok).toBe(false);
+    const property = toolByName("set_property")!;
+    for (const value of ["done", 3, false, ["a", 1], null]) expect(parseToolInput(property, { path: "a.md", key: "status", value }).ok, JSON.stringify(value)).toBe(true);
+    expect(parseToolInput(property, { path: "a.md", key: "status", value: { nested: true } }).ok).toBe(false);
+    expect(parseToolInput(property, { path: "a.md", key: "status" }).ok).toBe(false);
+    expect(parseToolInput(toolByName("create_entry")!, { base: "Costs.base", title: "Tiles", properties: { amount: 4500, tags: ["roof"] } }).ok).toBe(true);
+    expect(parseToolInput(toolByName("create_task")!, { text: "" }).ok).toBe(false);
+    expect(parseToolInput(toolByName("rename_note")!, { path: "a.md", title: "" }).ok).toBe(false);
+    expect(parseToolInput(toolByName("move_note")!, { path: "a.md", folder: "" }).ok).toBe(true);
   });
 
   it("results with vault or third-party content are marked untrusted", () => {
