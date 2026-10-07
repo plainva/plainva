@@ -6,8 +6,9 @@ import Foundation
 /// `AiMcpOAuthRulesTest.java` run too: a case added there is added here.
 @main
 struct AiMcpOAuthRulesTests {
-    static func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
-        if !condition() { throw NSError(domain: message, code: 1) }
+    /// The condition may itself throw: a rule that refuses where the test expects an answer fails the test with the rule's own word.
+    static func require(_ condition: @autoclosure () throws -> Bool, _ message: String) throws {
+        if !(try condition()) { throw NSError(domain: message, code: 1) }
     }
 
     static let issuer = "https://auth.example.org"
