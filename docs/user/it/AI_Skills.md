@@ -41,7 +41,7 @@ Un'esecuzione di prova non usa mai Internet e non chiede mai: le e-mail che in q
 
 ## Proporre modifiche
 
-Una tua competenza propone modifiche solo quando la sua riga `allowed-tools` nomina gli strumenti adatti: `propose_edit` per le proposte su una nota, `create_note`, `create_task` e `add_journal_entry` per le bozze, `rename_note`, `move_note` e `delete_note` per i piani. **Controlla e approva** allora li nomina uno per uno e dice **Può proporre modifiche, lasciare bozze e presentare piani. Nel vault non cambia nulla prima che tu accetti, crei o confermi.** Una competenza che non nomina alcuno strumento non propone nulla — nemmeno una che avevi approvato prima ci guadagna qualcosa —, e un'esecuzione di prova non lascia nulla. Che cosa sono le tre forme: **Proporre modifiche** in [Assistente IA](AI_Assistant.md).
+Una tua competenza propone modifiche solo quando la sua riga `allowed-tools` nomina gli strumenti adatti: `propose_edit` e `set_property` per le proposte sul testo e sulle proprietà di una nota, `create_note`, `create_task` e `add_journal_entry` per le bozze, `rename_note`, `move_note` e `delete_note` per i piani. **Controlla e approva** allora li nomina uno per uno e dice **Può proporre modifiche, lasciare bozze e presentare piani. Nel vault non cambia nulla prima che tu accetti, crei o confermi.** Una competenza che non nomina alcuno strumento non propone nulla — nemmeno una che avevi approvato prima ci guadagna qualcosa —, e un'esecuzione di prova non lascia nulla. Che cosa sono le tre forme: **Proporre modifiche** in [Assistente IA](AI_Assistant.md).
 
 ## Le tue competenze
 

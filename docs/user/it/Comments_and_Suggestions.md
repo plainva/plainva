@@ -1,6 +1,6 @@
 # Commenti e suggerimenti
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Commenti e suggerimenti esistono in **ogni** vault — con o senza sincronizzazione, con o senza cifratura. In un workspace cifrato sono oggetti firmati (vedi [Sicurezza e condivisione](Security_and_Sharing.md)); ovunque altrove portano il nome impostato in **Il tuo nome (annotazioni e revisioni)** nelle impostazioni. Un suggerimento è un commento con un testo sostitutivo: entrambi passano dallo stesso archivio, dalla stessa colonna, dallo stesso foglio. Se il nome manca, Plainva lo chiede una volta al primo commento; senza risposta il dispositivo firma con la propria etichetta (ad esempio «Dispositivo Windows 4f3a»). Le tue annotazioni compaiono come **Tu**.
 
@@ -26,7 +26,7 @@ Le cose si spostano, e la scheda lo dice invece di puntare al posto sbagliato. U
 
 **Crea attività** trasforma un thread in lavoro: Plainva crea l'attività nel **Database attività predefinito** — con il suo modello, la sua cartella di destinazione e la sua colonna «completato», esattamente come vi nasce ogni altra attività. La prima riga del commento diventa il titolo, il passaggio citato compare come citazione nell'attività e un collegamento riporta alla nota. Il commento resta dov'è e riceve una risposta che nomina la nuova attività — e continua a contare come aperto: si è spostato il lavoro, non la conversazione. Senza un database attività predefinito, Plainva lo dice invece di creare una nota da qualche parte. La risposta compare subito, il suo link all'attività è cliccabile e l'avviso offre **Apri**; l'invio a un elenco del provider avviene in secondo piano.
 
-**Proposte dell'IA.** L'IA può proporre modifiche a un passaggio selezionato come giro a sé (vedi [Assistente IA](AI_Assistant.md)). Lo gestisci come qualsiasi altro giro; la riga dell'autore dice **Plainva IA · ⟨modello⟩**, il segno che la proposta l'ha scritta un'IA.
+**Proposte dell'IA.** L'IA può proporre modifiche a un passaggio selezionato come giro a sé (vedi [Assistente IA](AI_Assistant.md)). Lo gestisci come qualsiasi altro giro; la riga dell'autore dice **Plainva IA · ⟨modello⟩**, il segno che la proposta l'ha scritta un'IA. In una conversazione propone allo stesso modo su un'intera nota: sul suo testo o su una delle sue proprietà. Un valore proposto mostra la proprietà con ciò che dice ora barrato e ciò che direbbe; **Accetta** scrive il valore nelle proprietà della nota.
 
 ## Sul telefono
 

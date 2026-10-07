@@ -294,4 +294,32 @@ describe("the question about a plan", () => {
     expect(text(q(card, "ai-effect-deny"))).toBe("Don't delete");
     expect(text(card)).toContain("nothing is gone before you confirm there");
   });
+
+  it("asks about one of the note's own AI rules: which rule, and whether it is written or taken out (plan P5-3)", async () => {
+    const { card, onAnswer } = ask({ plan: "rule", path: "Projects/Brief.md", rule: "cloud", set: true });
+    expect(card.getAttribute("data-plan")).toBe("rule");
+    expect(card.getAttribute("aria-label")).toBe("Change a privacy rule of this note?");
+    expect(rows(card)).toEqual(["Note: Brief · Projects", "Rule: never to the cloud", "Change: is written into the note"]);
+    // A rule that is written restricts: nothing to warn about, and the step is the card's main one.
+    expect(q(card, "ai-effect-loosens")).toBeNull();
+    expect(text(q(card, "ai-effect-once"))).toBe("Set the rule");
+    expect(q(card, "ai-effect-once")!.className).toContain("pv-btn--primary");
+    expect(text(q(card, "ai-effect-deny"))).toBe("Don't change");
+    expect(text(card)).toContain("as when you set the rule yourself. The AI only learns whether it happened.");
+    await click(q(card, "ai-effect-once"));
+    await click(q(card, "ai-effect-deny"));
+    expect(onAnswer.mock.calls).toEqual([["once"], ["deny"]]);
+  });
+
+  it("warns when a rule would be taken out, and does not make that the step the eye lands on", () => {
+    const { card } = ask({ plan: "rule", path: "Brief.md", rule: "cloud", set: false });
+    expect(rows(card)).toEqual(["Note: Brief", "Rule: never to the cloud", "Change: is taken out of the note"]);
+    expect(text(q(card, "ai-effect-loosens"))).toBe("After this the note may go to cloud models again.");
+    expect(text(q(card, "ai-effect-once"))).toBe("Remove the rule");
+    expect(q(card, "ai-effect-once")!.className).not.toContain("pv-btn--primary");
+    act(() => root!.render(<AiEffectApproval request={{ id: "c2", kind: "plan", question: { plan: "rule", path: "Brief.md", rule: "web", set: false } }} onAnswer={() => {}} />));
+    const web = q(host!, "ai-effect")!;
+    expect(rows(web)).toEqual(["Note: Brief", "Rule: never together with the internet", "Change: is taken out of the note"]);
+    expect(text(q(web, "ai-effect-loosens"))).toBe("After this the note may be part of conversations that use the internet again.");
+  });
 });

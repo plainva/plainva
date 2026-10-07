@@ -1,6 +1,6 @@
 # Opmerkingen en voorstellen
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Opmerkingen en voorstellen bestaan in **elke** kluis — met of zonder synchronisatie, met of zonder versleuteling. In een versleutelde workspace zijn het ondertekende objecten (zie [Beveiliging en delen](Security_and_Sharing.md)); overal elders dragen ze de naam uit **Je naam (opmerkingen en controles)** in de instellingen. Een voorstel is een opmerking met een vervangende tekst: beide lopen door dezelfde opslag, dezelfde kolom, hetzelfde blad. Ontbreekt de naam, dan vraagt Plainva er bij de eerste opmerking één keer naar; zonder antwoord ondertekent het apparaat met zijn eigen label (bijvoorbeeld „Windows-apparaat 4f3a”). Je eigen opmerkingen staan er als **Jij**.
 
@@ -26,7 +26,7 @@ Dingen verschuiven, en de kaart zegt dat in plaats van naar de verkeerde plek te
 
 **Taak maken** maakt van een draad werk: Plainva legt de taak aan in de **Standaard takendatabase** — met haar sjabloon, haar opbergmap en haar gereed-kolom, precies zoals daar elke andere taak ontstaat. De eerste regel van de opmerking wordt de titel, het geciteerde stuk staat als citaat in de taak, en een koppeling leidt terug naar de notitie. De opmerking zelf blijft waar ze is en krijgt een antwoord dat de nieuwe taak noemt — en telt nog steeds als open: het werk is verhuisd, het gesprek niet. Is er geen standaard takendatabase ingesteld, dan zegt Plainva dat, in plaats van ergens een notitie aan te leggen. Het antwoord verschijnt meteen, zijn link naar de taak is klikbaar en de melding biedt **Openen** aan; het doorsturen naar een providerlijst gebeurt op de achtergrond.
 
-**Voorstellen van de AI.** De AI kan wijzigingen aan een geselecteerde passage voorstellen als een eigen ronde (zie [AI-assistent](AI_Assistant.md)). Je behandelt die als elke andere ronde; de auteursregel luidt **Plainva AI · ⟨model⟩**, de markering dat een AI het voorstel schreef.
+**Voorstellen van de AI.** De AI kan wijzigingen aan een geselecteerde passage voorstellen als een eigen ronde (zie [AI-assistent](AI_Assistant.md)). Je behandelt die als elke andere ronde; de auteursregel luidt **Plainva AI · ⟨model⟩**, de markering dat een AI het voorstel schreef. In een gesprek stelt ze op dezelfde manier voor aan een hele notitie — aan de tekst of aan een van de eigenschappen. Een voorgestelde waarde toont de eigenschap met wat ze nu zegt doorgestreept en wat ze zou zeggen; **Overnemen** schrijft de waarde in de eigenschappen van de notitie.
 
 ## Op de telefoon
 

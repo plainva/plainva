@@ -32,7 +32,7 @@ import { Share } from "@capacitor/share";
 import { Browser } from "@capacitor/browser";
 import { buildMailtoUrl, type MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { addressesAi, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
+import { addressesAi, suggestedProperties, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
@@ -352,6 +352,9 @@ export function NoteScreen({
     });
     return map;
   }, [comments, propertyAnchorKeys, doc, propertyAliasColumns]);
+  // A suggestion that proposes the value of a property (plan KI-Harness P5-3): what it proposes and whether it still
+  // fits the note — the same answer the desktop's editor gives its column, from the one shared function.
+  const suggestedProps = useMemo(() => suggestedProperties(doc ?? "", comments), [doc, comments]);
   /**
    * Stufe E (E4): resolve every open comment against the text the editor shows.
    *
@@ -414,6 +417,11 @@ export function NoteScreen({
     const out: AnchorHighlight[] = [];
     for (const comment of comments) {
       if (comment.resolvedAt || !comment.anchor) continue;
+      // A property anchor names a key, not a passage (desktop parity): read as text, its quote — a value — would be
+      // found again somewhere in the prose and tint a sentence nobody commented on. A suggestion that proposes a
+      // property is no passage either (plan KI-Harness P5-3): drawn here, a note's first property would stand as raw
+      // YAML above its first line. The card names the property and its values.
+      if (propertyAnchorKey(comment.anchor) || suggestedProps.has(comment.commentId)) continue;
       const resolution = resolveCommentAnchor(doc, comment.anchor);
       if (resolution.status === "orphan") continue;
       const open = comment.suggestion && comment.suggestionDecision?.status !== "conflict" && !comment.suggestion.appliedAt && !comment.suggestion.declinedAt ? comment.suggestion : null;
@@ -427,19 +435,23 @@ export function NoteScreen({
       });
     }
     return out;
-  }, [comments, doc, suggestionsInline, activeCommentId]);
+  }, [comments, doc, suggestionsInline, activeCommentId, suggestedProps]);
   const propertyCommentCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const res of propertyResolutions.values()) {
+    for (const comment of comments) {
+      const res = propertyResolutions.get(comment.commentId);
       // An ORPHAN is left out - its key is gone from the frontmatter, so there
       // is no row to put a number on; the card in the comments sheet still
       // names it. A renamed one counts against the key that exists TODAY,
       // which is the row the reader sees.
-      if (res.status === "orphan") continue;
+      if (!res || res.status === "orphan") continue;
+      // A proposed value that was accepted or declined is closed (plan KI-Harness P5-3): every answered proposal of
+      // an assistant would otherwise leave its number on the row for good.
+      if (comment.suggestion && comment.resolvedAt) continue;
       counts.set(res.key, (counts.get(res.key) ?? 0) + 1);
     }
     return counts;
-  }, [propertyResolutions]);
+  }, [comments, propertyResolutions]);
   /**
    * Starts a comment on a property row.
    *
@@ -1351,6 +1363,7 @@ export function NoteScreen({
           memberNames={commentNames}
           selfMemberId={commentSelfId}
           propertyResolutions={propertyResolutions}
+          suggestedProperties={suggestedProps}
           canComment={canComment}
           canWrite={workspaceCanWrite}
           onClose={() => { setCommentsOpen(false); setPendingPropertyAnchor(null); setPendingRange(null); }}

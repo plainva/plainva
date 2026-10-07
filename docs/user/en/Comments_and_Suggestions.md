@@ -1,6 +1,6 @@
 # Comments & Suggestions
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Comments and suggestions exist in **every** vault — with or without sync, with or without encryption. In an encrypted workspace they are signed objects (see [Security & Sharing](Security_and_Sharing.md)); everywhere else they carry the name from **Your name (remarks and reviews)** in the settings. A suggestion is a comment with a replacement text: both run through the same store, the same column, the same sheet. If the name is missing, Plainva asks for it once at the first comment; without an answer the device signs with its own label (such as “Windows device 4f3a”). Your own remarks read **You**.
 
@@ -26,7 +26,7 @@ Things move, and the card says so rather than pointing at the wrong place. A cel
 
 **Make a task** turns a thread into work: Plainva creates the task in the **Standard task database** — with its template, its storage folder and its done column, exactly the way every other task there comes about. The first line of the comment becomes the title, the quoted passage stands as a quote in the task, and a link leads back to the note. The comment itself stays where it is and gains a reply naming the new task — and it still counts as open: the work moved, the conversation did not. With no standard task database set, Plainva says so rather than creating a note somewhere. The reply appears at once, its link to the task is clickable, and the message offers **Open**; the push to a provider list runs in the background.
 
-**Suggestions from the AI.** The AI can propose changes to a passage you selected as a round of its own (see [AI Assistant](AI_Assistant.md)). You handle it like any other round; its author line reads **Plainva AI · ⟨model⟩**, the marking that an AI wrote the proposal.
+**Suggestions from the AI.** The AI can propose changes to a passage you selected as a round of its own (see [AI Assistant](AI_Assistant.md)). You handle it like any other round; its author line reads **Plainva AI · ⟨model⟩**, the marking that an AI wrote the proposal. In a conversation it proposes the same way on a whole note — on its text or on one of its properties. A proposed value shows the property with what it says now struck through and what it would say; **Accept** writes the value into the note's properties.
 
 ## On the phone
 

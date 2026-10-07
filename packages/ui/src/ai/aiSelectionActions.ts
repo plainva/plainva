@@ -151,19 +151,25 @@ export interface SuggestionAuthor {
   displayName: string;
 }
 
-/** Writes a suggestion round through the shell's comment service: nothing enters the note until someone accepts. */
+/**
+ * Writes a suggestion round through the shell's comment service: nothing enters the note until someone accepts.
+ * A block that proposes the value of a property (plan KI-Harness P5-3) says so at its anchor — it stays the passage
+ * it is, the property's entry, so every build accepts it as the text change it is. `batch` continues a round that
+ * is there: what one run proposes on one note in several steps is one round in the note's margin.
+ */
 export async function proposeSuggestionRound(
   service: CommentOperationService,
-  round: { path: string; base: string; chunks: readonly SuggestionChunk[]; note: string; author: SuggestionAuthor },
+  round: { path: string; base: string; chunks: readonly (SuggestionChunk & { property?: string })[]; note: string; author: SuggestionAuthor; batch?: { id: string; index: number } },
 ): Promise<void> {
-  const batchId = createWorkspaceObjectId();
+  const batchId = round.batch?.id ?? createWorkspaceObjectId();
+  const first = round.batch?.index ?? 0;
   const markers = round.chunks.map((chunk, index) => ({
     path: round.path,
     body: "",
     parentCommentId: null,
-    anchor: buildCommentAnchor(round.base, chunk.fromA, chunk.toA, mintAnchorMarkerId(round.base)),
+    anchor: buildCommentAnchor(round.base, chunk.fromA, chunk.toA, mintAnchorMarkerId(round.base), chunk.property ? { kind: "property" as const, key: chunk.property } : undefined),
     suggestion: { replacement: chunk.replacement },
-    batch: { batchId, index, note: round.note.trim() || null },
+    batch: { batchId, index: first + index, note: round.note.trim() || null },
     author: round.author,
   }));
   await commentActionController(service).execute({ notePath: round.path, kind: "post", markers }, (operation) => runVisibleCommentOperation(service, operation));

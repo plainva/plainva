@@ -15,6 +15,7 @@ import {
   prepareTaskNote,
   profileDefault,
   proposeSuggestionRound,
+  withNoteRule,
   type DraftCreator,
   type OpenProposal,
   type VaultPolicyHost,
@@ -92,6 +93,16 @@ export function mobileWriteDeps(vault: MobileVault, query: VaultQueryService, re
     },
     // The assistant never deletes: this opens the sheet every delete on the phone goes through, and that one decides.
     requestDelete: (path) => confirmDeleteFile(vault, path, noteDisplayName(path), i18n.t.bind(i18n)),
+    // A rule of the note itself, after the user's yes: saved through the conflict-aware chain, synced like any edit.
+    async setRule(path, rule, set) {
+      await flushPendingSave(path);
+      const text = await read(path);
+      if (text === null) return false;
+      const next = withNoteRule(text, rule, set);
+      if (next === text) return false;
+      await vaultOps.save(vault, path, next);
+      return true;
+    },
   };
 }
 

@@ -3,7 +3,8 @@ import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import type { WorkspaceCommentAnchorResolution, WorkspaceCommentRecord } from "@plainva/core";
+import { buildCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord } from "@plainva/core";
+import { suggestedProperties } from "@plainva/ui";
 
 import { WorkspaceCommentsColumn, type PublicationCommentEntry } from "./WorkspaceCommentsColumn";
 import en from "../../../../../packages/ui/src/locales/en.json";
@@ -29,7 +30,8 @@ vi.mock("react-i18next", async () => {
     useTranslation: () => ({
       i18n: { language: "en" },
       t: (key: string, vars?: Record<string, string | number>) => {
-        const value = lookup(key);
+        // A counted string has a form per number; English has two.
+        const value = lookup(typeof vars?.count === "number" && lookup(key) === key ? `${key}_${vars.count === 1 ? "one" : "other"}` : key);
         return vars ? Object.entries(vars).reduce((out, [name, v]) => out.split(`{{${name}}}`).join(String(v)), value) : value;
       },
     }),
@@ -627,7 +629,7 @@ describe("proposal rounds (V3)", () => {
       act(() => { (host.querySelector("[data-testid=comment-kind-suggestions]") as HTMLElement).click(); });
       const round = host.querySelector(".pv-comment-round")!;
       expect(round.textContent).toContain("From the PDF");
-      expect(round.textContent).toContain(tr("comments.suggestRoundCount").replace("{{n}}", "2"));
+      expect(round.textContent).toContain(tr("comments.suggestRoundCount_other").replace("{{count}}", "2"));
       expect(round.querySelectorAll(".pv-comment-card")).toHaveLength(2);
       act(() => { (host.querySelector("[data-testid=round-apply-" + "ab".repeat(16) + "]") as HTMLElement).click(); });
       expect(onApplyRound).toHaveBeenCalledWith("ab".repeat(16));
@@ -826,5 +828,116 @@ describe("the assistant in the threads (P3-6)", () => {
       act(() => { (host.querySelector("[data-testid=comment-delete-confirm]") as HTMLElement).click(); });
       expect(onDelete).toHaveBeenCalledWith(answer);
     } finally { unmount(); }
+  });
+});
+
+/**
+ * A suggestion that proposes the value of a property (plan KI-Harness P5-3).
+ *
+ * Underneath it is a passage like every other suggestion — the property's
+ * entry in the note's properties —, so the card would work without knowing
+ * any of this. What it would show then is a line of YAML, and what it would
+ * not say is that the property has moved on since: a suggestion whose entry is
+ * gone looks exactly like one that still fits.
+ */
+describe("a suggestion that proposes a property (P5-3)", () => {
+  const BRIEF = "---\nstage: open\nowner: Anna\n---\n# Brief\n\nShort.\n";
+  /** A proposal made against BRIEF: the passage it replaces, and the hint where it replaces a property's entry. */
+  const proposal = (commentId: string, from: number, to: number, replacement: string, key?: string, over: Partial<WorkspaceCommentRecord> = {}) =>
+    comment({ commentId, anchor: buildCommentAnchor(BRIEF, from, to, "7f3a", key ? { kind: "property", key } : undefined), suggestion: { replacement, appliedAt: null, appliedBy: null, declinedAt: null }, ...over });
+  /** The column as the editor mounts it: with what the suggestions of this note propose, read against the note as it is. */
+  const column = (comments: WorkspaceCommentRecord[], note = BRIEF) =>
+    render(<WorkspaceCommentsColumn {...props({ comments, suggestedProperties: suggestedProperties(note, comments) })} />);
+  const diffOf = (host: HTMLElement) => host.querySelector("[data-testid=comment-diff]")!;
+  const labelOf = (host: HTMLElement) => host.querySelector("[data-testid=comment-property-label]")?.textContent ?? null;
+  const states = (host: HTMLElement) => [...host.querySelectorAll(".pv-comment-card__state")].map((node) => node.textContent);
+
+  it("says that it is a property and shows it by its name, what it says struck and what it would say — not a line of YAML", () => {
+    const { host, unmount } = column([proposal("p1", 4, 15, "stage: sent", "stage", { body: "Sent on Monday" })]);
+    expect(labelOf(host)).toBe(tr("comments.suggestionProperty"));
+    const diff = diffOf(host);
+    expect(diff.getAttribute("data-property")).toBe("stage");
+    expect(diff.querySelector(".pv-comment-card__prop")!.textContent).toBe("stage");
+    expect(diff.querySelector("del")!.textContent).toBe("open");
+    expect(diff.querySelector("ins")!.textContent).toBe("sent");
+    expect(diff.textContent).not.toContain(":");
+    // While it fits there is nothing more to say, and it is decided like every suggestion.
+    expect(states(host)).toEqual([]);
+    const labels = [...host.querySelectorAll("button")].map((button) => button.textContent?.trim());
+    expect(labels).toContain(tr("comments.suggestionApply"));
+    expect(labels).toContain(tr("comments.suggestionDecline"));
+    unmount();
+  });
+
+  it("counts a round of one as one change — every value an assistant proposes is such a round", () => {
+    const { host, unmount } = column([proposal("p1", 4, 15, "stage: sent", "stage", { suggestionBatchId: "cd".repeat(16), batchIndex: 0, batchNote: "Sent today" })]);
+    act(() => { (host.querySelector("[data-testid=comment-kind-suggestions]") as HTMLElement).click(); });
+    const meta = host.querySelector(".pv-comment-round__meta")!;
+    expect(meta.textContent).toBe(`„Sent today“ · ${tr("comments.suggestRoundCount_one").replace("{{count}}", "1")}`);
+    expect(meta.textContent!.endsWith("1 change")).toBe(true);
+    expect(diffOf(host).getAttribute("data-property")).toBe("stage");
+    unmount();
+  });
+
+  it("names a removal, and a property the note does not have yet", () => {
+    const removal = column([proposal("p1", 15, 27, "", "owner")]);
+    expect(diffOf(removal.host).querySelector(".pv-comment-card__prop")!.textContent).toBe("owner");
+    expect(diffOf(removal.host).querySelector("del")!.textContent).toBe("Anna");
+    expect(diffOf(removal.host).querySelector("ins")).toBeNull();
+    expect(diffOf(removal.host).textContent).toContain(tr("comments.suggestionPropertyRemoves"));
+    removal.unmount();
+
+    // A new property is an entry in front of the line that closes the properties; a list reads as its items.
+    const added = column([proposal("p2", 28, 28, "tags:\n  - roof\n  - house\n")]);
+    expect(diffOf(added.host).getAttribute("data-property")).toBe("tags");
+    expect(diffOf(added.host).querySelector("del")).toBeNull();
+    expect(diffOf(added.host).querySelector("ins")!.textContent).toBe("roof, house");
+    // The label says that the note has no such property yet; no further line is needed for that.
+    expect(labelOf(added.host)).toBe(tr("comments.suggestionPropertyNew"));
+    expect(states(added.host)).toEqual([]);
+    added.unmount();
+  });
+
+  it("says when the property says something else by now, instead of offering it as if nothing had happened", () => {
+    const waiting = proposal("p1", 4, 15, "stage: sent", "stage");
+    const { host, unmount } = column([waiting], BRIEF.replace("stage: open", "stage: closed"));
+    // What it was proposed against stays on the card; the sentence says that it no longer fits.
+    expect(diffOf(host).querySelector("del")!.textContent).toBe("open");
+    expect(states(host)).toEqual([tr("comments.suggestionPropertyChanged").replace("{{key}}", "stage")]);
+    unmount();
+
+    // The note has the property by now: the new one no longer fits either.
+    const added = column([proposal("p2", 28, 28, "effort: 3\n")], BRIEF.replace("owner: Anna\n", "owner: Anna\neffort: 5\n"));
+    expect(states(added.host)).toEqual([tr("comments.suggestionPropertyChanged").replace("{{key}}", "effort")]);
+    added.unmount();
+  });
+
+  it("says what became of a decided one, and nothing about fitting", () => {
+    const applied = proposal("p1", 4, 15, "stage: sent", "stage", { resolvedAt: NOW, suggestion: { replacement: "stage: sent", appliedAt: NOW, appliedBy: "aabbccdd11223344", declinedAt: null } });
+    // The note after accepting: the entry it was made against is gone, as it should be.
+    const { host, unmount } = column([applied], BRIEF.replace("stage: open", "stage: sent"));
+    showAll(host);
+    expect(labelOf(host)).toBe(tr("comments.suggestionProperty"));
+    expect(diffOf(host).getAttribute("data-property")).toBe("stage");
+    expect(states(host).map((text) => text?.trim())).toEqual([tr("comments.suggestionApplied")]);
+    unmount();
+  });
+
+  it("stays a passage where nobody read it against a note, and a line in the text stays text", () => {
+    // Without the editor's reading the card shows the entry as the passage it is: nothing is lost, only less is said.
+    const bare = render(<WorkspaceCommentsColumn {...props({ comments: [proposal("p1", 4, 15, "stage: sent", "stage")] })} />);
+    expect(diffOf(bare.host).hasAttribute("data-property")).toBe(false);
+    expect(diffOf(bare.host).textContent).toContain("stage:");
+    expect(labelOf(bare.host)).toBeNull();
+    bare.unmount();
+
+    // Three dashes also draw a rule in a note's text: a line inserted in front of one is text, whatever it looks like.
+    const ruled = "---\nstage: open\n---\n# Brief\n\nAbove.\n\n---\n\nBelow.\n";
+    const at = ruled.indexOf("---\n\nBelow.");
+    const line = comment({ commentId: "p2", anchor: buildCommentAnchor(ruled, at, at, "7f3a"), suggestion: { replacement: "effort: 3\n", appliedAt: null, appliedBy: null, declinedAt: null } });
+    const text = column([line], ruled);
+    expect(diffOf(text.host).hasAttribute("data-property")).toBe(false);
+    expect(states(text.host)).toEqual([]);
+    text.unmount();
   });
 });

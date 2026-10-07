@@ -1,6 +1,6 @@
 # Commentaires et suggestions
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Les commentaires et les suggestions existent dans **chaque** coffre — avec ou sans synchronisation, avec ou sans chiffrement. Dans un espace chiffré ce sont des objets signés (voir [Sécurité et partage](Security_and_Sharing.md)) ; partout ailleurs ils portent le nom saisi sous **Votre nom (annotations et relectures)** dans les réglages. Une suggestion est un commentaire avec un texte de remplacement : les deux passent par le même stockage, la même colonne, la même feuille. Si le nom manque, Plainva le demande une fois au premier commentaire ; sans réponse, l’appareil signe avec sa propre étiquette (par exemple « Appareil Windows 4f3a »). Vos propres annotations s’affichent comme **Vous**.
 
@@ -26,7 +26,7 @@ Les choses bougent, et la carte le dit au lieu de pointer au mauvais endroit. Un
 
 **Créer une tâche** transforme un fil en travail : Plainva crée la tâche dans la **Base de tâches par défaut** — avec son modèle, son dossier de rangement et sa colonne « terminé », exactement comme y naît toute autre tâche. La première ligne du commentaire devient le titre, le passage cité figure comme citation dans la tâche, et un lien ramène à la note. Le commentaire, lui, reste où il est et reçoit une réponse qui nomme la nouvelle tâche — et il compte toujours comme ouvert : le travail a déménagé, pas la conversation. Sans base de tâches par défaut, Plainva le dit au lieu de créer une note quelque part. La réponse apparaît aussitôt, son lien vers la tâche est cliquable et le message propose **Ouvrir** ; l'envoi vers une liste du fournisseur se fait en arrière-plan.
 
-**Propositions de l'IA.** L'IA peut proposer des modifications d'un passage sélectionné sous forme de série à part (voir [Assistant IA](AI_Assistant.md)). Vous la traitez comme toute autre série ; sa ligne d'auteur indique **Plainva IA · ⟨modèle⟩**, le signe qu'une IA a écrit la proposition.
+**Propositions de l'IA.** L'IA peut proposer des modifications d'un passage sélectionné sous forme de série à part (voir [Assistant IA](AI_Assistant.md)). Vous la traitez comme toute autre série ; sa ligne d'auteur indique **Plainva IA · ⟨modèle⟩**, le signe qu'une IA a écrit la proposition. Dans une conversation, elle propose de la même façon sur une note entière : sur son texte ou sur l'une de ses propriétés. Une valeur proposée montre la propriété avec ce qu'elle dit actuellement, barré, et ce qu'elle dirait ; **Accepter** inscrit la valeur dans les propriétés de la note.
 
 ## Sur le téléphone
 

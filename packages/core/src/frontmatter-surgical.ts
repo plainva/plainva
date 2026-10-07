@@ -19,6 +19,46 @@ export class FrontmatterSurgicalError extends Error {
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 
+/** The properties block at the top of a note, by its offsets. */
+export interface FrontmatterSpan {
+  /** The YAML between the two fences, without the line break that ends it. */
+  yaml: string;
+  /** Where the YAML begins: behind the opening fence. */
+  yamlStart: number;
+  /** Where the line that closes the block begins. */
+  closeAt: number;
+  /** Where the note's text begins: behind the closing fence. */
+  end: number;
+}
+
+/**
+ * Where the properties block of a note is — the block these helpers read and
+ * write —, or null where the note has none. Everything that has to say "this
+ * place lies in the properties" asks here, so there is one answer to what a
+ * properties block is.
+ */
+export function frontmatterSpan(content: string): FrontmatterSpan | null {
+  const match = FRONTMATTER_RE.exec(content);
+  if (!match) return null;
+  const yamlStart = match[0].indexOf("\n") + 1;
+  const yamlEnd = yamlStart + match[1].length;
+  return { yaml: match[1], yamlStart, closeAt: yamlEnd + (content[yamlEnd] === "\r" ? 2 : 1), end: match[0].length };
+}
+
+const RESERVED_PROPERTY_NAMES = ["__proto__", "prototype", "constructor", "type", "okf_version", "generated", "verified", "sources"];
+
+/**
+ * Names nobody adds a property under: Plainva's own namespace, the virtual
+ * columns of a database (`file.…`, `formula.…`), the note's type and format
+ * marker, the trust fields that are trust fields by their name, and the names
+ * that reach into an object's prototype once the properties are read. One
+ * answer for everyone who adds a property — both shells' "add a property",
+ * and a value an assistant proposes.
+ */
+export function isReservedPropertyName(name: string): boolean {
+  return /^(?:file\.|formula\.|plainva(?:$|[.:]))/i.test(name) || RESERVED_PROPERTY_NAMES.includes(name.toLowerCase());
+}
+
 interface SplitDocument {
   doc: Document;
   body: string;

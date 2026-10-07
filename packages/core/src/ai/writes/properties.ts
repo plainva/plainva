@@ -1,6 +1,6 @@
 import { Document, isMap, isScalar, parseDocument } from "yaml";
 import { canonicalJson } from "../../settingsSync/canonicalJson.js";
-import { FrontmatterSurgicalError, deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "../../frontmatter-surgical.js";
+import { FrontmatterSurgicalError, deleteFrontmatterPath, frontmatterSpan, isReservedPropertyName, readFrontmatterPath, setFrontmatterPath } from "../../frontmatter-surgical.js";
 import { OKF_TRUST_KEYS, parseOkfTrustSignals } from "../../okf-trust.js";
 import { MAX_ANCHOR_QUOTE_BYTES, type WorkspaceCommentAnchor } from "../../workspace/commentAnchor.js";
 import { utf8Encode } from "../../workspace/encoding.js";
@@ -41,7 +41,9 @@ export const PROPERTY_WRITE_LIMITS = { key: 120, text: 2000, items: 50 } as cons
  * - `trust` — who made the note and who vouches for it (`generated`,
  *   `verified`, `sources`, a lifecycle `status`, `stale_after`): never an
  *   assistant's to write (ADR 0023).
- * - `reserved` — the rest of Plainva's own namespace.
+ * - `reserved` — the rest of Plainva's own namespace, and every other name
+ *   nobody adds a property under (`isReservedPropertyName`): what the app's
+ *   own "add a property" refuses, a proposed value does not get either.
  * - `invalid` — no property name, or a value that is none.
  */
 export type PropertyWriteClass = "plain" | "rules" | "trust" | "reserved" | "invalid";
@@ -55,6 +57,7 @@ export interface PropertyTarget {
 }
 
 const RULE_PREFIX = "plainva.ai.";
+const TRUST_BY_NAME: readonly string[] = ["generated", "verified", "sources"];
 
 /** A name with a control character or a line break of any kind in it is no property name. */
 function unsafeKey(name: string): boolean {
@@ -75,10 +78,12 @@ function validValue(value: PropertyValue | null): boolean {
 
 /**
  * Where a write to `key` goes and what kind of write it is, judged against
- * the note as it is and the value as it would be. A trust field is one by its
- * form (okf-trust.ts): `status: Done` in a task database is an ordinary
- * property, `status: stable` is the note's lifecycle — so a key counts as a
- * trust field where the note uses it as one now, or would after the write.
+ * the note as it is and the value as it would be. `generated`, `verified` and
+ * `sources` are trust fields by their name. `status` and `stale_after` are
+ * trust fields by their form (okf-trust.ts): `status: Done` in a task
+ * database is an ordinary property, `status: stable` is the note's lifecycle
+ * — so these two count as trust fields where the note uses them as such now,
+ * or would after the write.
  */
 export function propertyTarget(note: string, key: string, value: PropertyValue | null): PropertyTarget {
   const name = key.trim();
@@ -91,7 +96,10 @@ export function propertyTarget(note: string, key: string, value: PropertyValue |
     }
     return { class: "reserved", path: [] };
   }
-  if (name === "plainva" || name.startsWith("plainva.")) return { class: "reserved", path: [] };
+  // Who made a note, who vouches for it and what it rests on are trust fields by their name, whatever stands there.
+  if (TRUST_BY_NAME.includes(name.toLowerCase())) return { class: "trust", path: [name] };
+  // The names nobody adds a property under — the app's own "add a property" takes none of them either.
+  if (isReservedPropertyName(name)) return { class: "reserved", path: [] };
   if ((OKF_TRUST_KEYS as readonly string[]).includes(name)) {
     const now = parseOkfTrustSignals({ [name]: readFrontmatterPath(note, [name]) }).claimedKeys.includes(name);
     const then = value !== null && parseOkfTrustSignals({ [name]: value }).claimedKeys.includes(name);
@@ -121,7 +129,6 @@ export type PropertyChangePlan =
     }
   | { ok: false; problem: "unchanged" | "unreadable" };
 
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 const same = (a: unknown, b: unknown) => canonicalJson(a ?? null) === canonicalJson(b ?? null);
 
 /** The result, or null where getting it failed: the entry-wise way is an offer, and the oracle stands behind it. */
@@ -135,11 +142,11 @@ function attempt<T>(get: () => T): T | null {
 
 /** The properties of a note as plain values; null where there are none to read. */
 function propertiesOf(text: string): { map: Record<string, unknown>; body: string } | null {
-  const match = FRONTMATTER_RE.exec(text);
-  if (!match) return { map: {}, body: text };
-  const doc = parseDocument(match[1]!);
+  const span = frontmatterSpan(text);
+  if (!span) return { map: {}, body: text };
+  const doc = parseDocument(span.yaml);
   if (doc.errors.length > 0 || (doc.contents !== null && !isMap(doc.contents))) return null;
-  return { map: (doc.toJS() ?? {}) as Record<string, unknown>, body: text.slice(match[0].length) };
+  return { map: (doc.toJS() ?? {}) as Record<string, unknown>, body: text.slice(span.end) };
 }
 
 /** Two notes that say the same: the same properties with the same values, the same text. */
@@ -156,16 +163,15 @@ function entryLines(key: string, value: PropertyValue, eol: string): string {
 
 /** The change as one block against the note's own lines, or null where the properties are not written entry by entry. */
 function entryChange(base: string, key: string, value: PropertyValue | null, eol: string): { intended: string; block: PropertyBlock } | null {
-  const match = FRONTMATTER_RE.exec(base);
-  if (!match) {
+  const span = frontmatterSpan(base);
+  if (!span) {
     if (value === null) return null;
     // No properties yet: the whole block is new, at the very top.
     const intended = setFrontmatterPath(base, [key], value);
     if (!intended.endsWith(base)) return null;
     return { intended, block: { from: 0, to: 0, replacement: intended.slice(0, intended.length - base.length) } };
   }
-  const yamlText = match[1]!;
-  const yamlStart = match[0].indexOf("\n") + 1;
+  const { yaml: yamlText, yamlStart, closeAt } = span;
   const doc = parseDocument(yamlText);
   if (doc.errors.length > 0) return null;
   const items = isMap(doc.contents) ? doc.contents.items : doc.contents === null ? [] : null;
@@ -178,7 +184,6 @@ function entryChange(base: string, key: string, value: PropertyValue | null, eol
     starts.push(start);
   }
   const index = items.findIndex((item) => isScalar(item.key) && item.key.value === key);
-  const closeAt = yamlStart + yamlText.length + (base[yamlStart + yamlText.length] === "\r" ? 2 : 1);
 
   if (index < 0) {
     if (value === null) return null;
@@ -250,6 +255,16 @@ export interface ProposedProperty {
   /** The value the suggestion would set; undefined where it removes the property. */
   value: unknown;
   removed: boolean;
+  /** The suggestion adds the property: the note had no entry for it. */
+  added: boolean;
+  /** The value the property had when the suggestion was made; undefined where it had none or its entry cannot be read back. */
+  previous: unknown;
+  /**
+   * How the suggestion is written: the property's `entry` replaced or removed,
+   * an entry `insert`ed in front of the line that closes the properties, or a
+   * whole properties `block` for a note that had none.
+   */
+  form: "entry" | "insert" | "block";
 }
 
 /**
@@ -266,19 +281,104 @@ export interface ProposedProperty {
 export function proposedPropertyOf(anchor: Pick<WorkspaceCommentAnchor, "quote" | "before" | "after" | "display">, replacement: string): ProposedProperty | null {
   const hinted = anchor.display?.kind === "property" ? (anchor.display.key ?? null) : null;
   if (hinted !== null) {
-    if (replacement.trim() === "") return { key: hinted, value: undefined, removed: true };
+    // What the anchor quotes is the entry as it stood: its value then, where it still reads as that property's entry.
+    const quoted = attempt(() => singleEntry(anchor.quote));
+    const previous = quoted && quoted.key === hinted ? quoted.value : undefined;
+    if (replacement.trim() === "") return { key: hinted, value: undefined, removed: true, added: false, previous, form: "entry" };
     const entry = singleEntry(replacement);
-    return entry && entry.key === hinted ? { key: hinted, value: entry.value, removed: false } : null;
+    return entry && entry.key === hinted ? { key: hinted, value: entry.value, removed: false, added: false, previous, form: "entry" } : null;
   }
   if (anchor.quote !== "") return null;
   if (/^---(?:\r?\n|$)/.test(anchor.after) && (anchor.before === "" || anchor.before.endsWith("\n")) && /\n$/.test(replacement)) {
     const entry = singleEntry(replacement);
-    return entry ? { key: entry.key, value: entry.value, removed: false } : null;
+    return entry ? { key: entry.key, value: entry.value, removed: false, added: true, previous: undefined, form: "insert" } : null;
   }
   if (anchor.before === "") {
-    const block = FRONTMATTER_RE.exec(replacement);
-    const entry = block && block[0].length === replacement.length ? singleEntry(block[1]!) : null;
-    return entry ? { key: entry.key, value: entry.value, removed: false } : null;
+    const block = frontmatterSpan(replacement);
+    const entry = block && block.end === replacement.length ? singleEntry(block.yaml) : null;
+    return entry ? { key: entry.key, value: entry.value, removed: false, added: true, previous: undefined, form: "block" } : null;
   }
   return null;
+}
+
+export type ProposedPropertyPlace =
+  | { fits: true; from: number; to: number; replacement: string; property: ProposedProperty }
+  /** The suggestion no longer fits the note: its entry is gone or says something else, or the note has the property by now. */
+  | { fits: false; property: ProposedProperty };
+
+/**
+ * Where a suggestion that proposes a property goes in the note AS IT IS NOW —
+ * or null where the suggestion proposes a passage like any other.
+ *
+ * `found` is where the suggestion's anchor is found by its words
+ * (`resolveCommentAnchor`), null where it is not. A passage is applied where
+ * its words are; a property is applied where the properties are, and only
+ * there:
+ *
+ * - an entry that is replaced or removed has to be found INSIDE the
+ *   properties. The same words further down are another passage: the entry
+ *   itself is gone, or says something else by now.
+ * - A new property goes in front of the line that closes the properties as
+ *   they are now — wherever the place it was proposed at has drifted to —,
+ *   and nowhere once the note has that property: a second entry of one name
+ *   is no property, and the properties with it are no longer readable.
+ * - The first property of a note that had none is the properties block at
+ *   the very top — or, where the note has properties by now, one more entry
+ *   of them. A second block below the first would be a rule, a line of text
+ *   and another rule.
+ *
+ * Everyone who decides about a suggestion asks this (`planCommentDecision`),
+ * and so does every card that shows one, so a card never offers what
+ * accepting would refuse.
+ */
+export function placeProposedProperty(
+  note: string,
+  anchor: Pick<WorkspaceCommentAnchor, "quote" | "before" | "after" | "display">,
+  replacement: string,
+  found: { from: number; to: number } | null,
+): ProposedPropertyPlace | null {
+  const property = proposedPropertyOf(anchor, replacement);
+  if (!property) return null;
+  const block = frontmatterSpan(note);
+  const end = block?.end ?? 0;
+  if (property.form === "entry") {
+    return found && found.to <= end ? { fits: true, from: found.from, to: found.to, replacement, property } : { fits: false, property };
+  }
+  // An insertion is read from where it is: found nowhere, it is a passage that is gone, like any other.
+  if (!found) return null;
+  // In front of three dashes further down, the line is text: three dashes also draw a rule in the middle of a note.
+  if (property.form === "insert" && !(found.from > 0 && found.from < end)) return null;
+  const place = additionPlace(note, property, replacement);
+  return place ? { fits: true, ...place, property } : { fits: false, property };
+}
+
+/**
+ * Where a NEW property goes in the note as it is now: in front of the line
+ * that closes its properties, or — where the note has none — as the
+ * properties block at its very top. Null where it cannot be added: the note
+ * has a property of that name, or its properties cannot be read.
+ */
+function additionPlace(note: string, property: ProposedProperty, replacement: string): { from: number; to: number; replacement: string } | null {
+  const eol = note.includes("\r\n") ? "\r\n" : "\n";
+  const block = frontmatterSpan(note);
+  // The entry's own lines, whichever way it was proposed: a whole block carries one entry between its fences.
+  const entry = (property.form === "block" ? `${frontmatterSpan(replacement)?.yaml ?? ""}\n` : replacement).replace(/\r?\n/g, eol);
+  if (!block) return { from: 0, to: 0, replacement: property.form === "block" ? replacement.replace(/\r?\n/g, eol) : `---${eol}${entry}---${eol}` };
+  const now = propertiesOf(note);
+  if (!now || Object.prototype.hasOwnProperty.call(now.map, property.key)) return null;
+  return { from: block.closeAt, to: block.closeAt, replacement: entry };
+}
+
+/**
+ * The note with a proposed new property added — where the properties are
+ * NOW, without looking for the place it was proposed at again. A decision
+ * that accepts several suggestions at once finds each of them in the note as
+ * it stood, once; the new properties are then written one after the other,
+ * and the words around the place one of them was proposed at may well have
+ * changed with the others. Null where it cannot be added (`additionPlace`).
+ */
+export function addProposedProperty(note: string, property: ProposedProperty, replacement: string): string | null {
+  if (!property.added) return null;
+  const place = additionPlace(note, property, replacement);
+  return place ? note.slice(0, place.from) + place.replacement + note.slice(place.to) : null;
 }

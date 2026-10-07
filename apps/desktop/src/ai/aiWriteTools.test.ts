@@ -1,5 +1,18 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { WRITE_REFUSALS, WRITE_RESULTS, effectivePolicy, notePolicyFrom, parsePolicyFile, toolByName, type AiPolicyDimension, type EgressRecipient, type WriteDraftBody } from "@plainva/core";
+import {
+  WRITE_REFUSALS,
+  WRITE_RESULTS,
+  deleteFrontmatterPath,
+  effectivePolicy,
+  notePolicyFrom,
+  parsePolicyFile,
+  readFrontmatterPath,
+  setFrontmatterPath,
+  toolByName,
+  type AiPolicyDimension,
+  type EgressRecipient,
+  type WriteDraftBody,
+} from "@plainva/core";
 import {
   captureVocabularyOf,
   createVaultToolExecutor,
@@ -18,15 +31,20 @@ import {
 import i18n from "@plainva/ui/i18n";
 
 /**
- * The writing tools of the assistant (plan KI-Harness P5-2), behind the same
- * gate as every read: none of them changes the vault. A change to a note is
- * laid on it as a suggestion round, something new is left as a draft, and a
- * rename, a move and a deletion are a question to the user.
+ * The writing tools of the assistant (plan KI-Harness P5-2, P5-3), behind the
+ * same gate as every read: none of them changes the vault. A change to a note
+ * — its text or one of its properties — is laid on it as a suggestion round,
+ * something new is left as a draft, and a rename, a move, a deletion and one
+ * of the note's own AI rules are a question to the user.
  */
 
 const OFFER = "---\nstatus: draft\n---\n# Offer\n\nThe day rate is 1,800 euros.\n\n## Costs\n\nTravel is extra.\n\n## Notes\n\nlater\n";
+const BRIEF = "---\nstage: open\nowner: Anna\n---\n# Brief\n\nShort.\n";
+const KEPT = "---\nplainva:\n  ai:\n    cloud: deny\n---\n# Kept\n\nStays here.\n";
 const NOTES: Record<string, string> = {
   "Projects/Offer.md": OFFER,
+  "Projects/Brief.md": BRIEF,
+  "Projects/Kept.md": KEPT,
   "Projects/Plan.md": "# Plan\n\nOne line.\n\nOne line.\n",
   "Projects/Board.base": "views: []\n",
   "Private/Client.md": "# Client\n\nsecret\n",
@@ -69,6 +87,10 @@ function vault(over: Partial<VaultWriteDeps> = {}) {
     },
     requestDelete: async (path) => {
       acts.push(`delete dialog ${path}`);
+      return true;
+    },
+    setRule: async (path, rule, set) => {
+      acts.push(`rule ${rule} ${set ? "into" : "out of"} ${path}`);
       return true;
     },
     ...over,
@@ -237,6 +259,228 @@ describe("a change to a note is a suggestion round", () => {
     const w = writer();
     expect(await call(v, w.run, "propose_edit", { path: "Projects/Offer.md", append: "x" })).toEqual(refused("failed"));
     expect(w.run.writes.rounds).toEqual([]);
+  });
+});
+
+describe("a value of a property is a suggestion — or a question, or nobody's to write", () => {
+  const brief = "Projects/Brief.md";
+  const set = (v: Vault, run: WriteRun, args: Record<string, unknown>, recipient: EgressRecipient = cloud) => call(v, run, "set_property", args, recipient);
+
+  it("lays the property's entry and the entry as it would read on the note, and says at the anchor which property", async () => {
+    const v = vault();
+    const w = writer();
+    const out = await set(v, w.run, { path: brief, key: " stage ", value: "sent", note: "Sent on\nMonday" });
+    expect(out).toEqual({ content: WRITE_RESULTS.proposedProperty(brief, "stage", false, 0) });
+    expect(out.content).not.toContain("sent");
+    // One block: the entry as it stands, with the hint that makes the card and the property row read it as a property.
+    expect(v.proposed).toEqual([
+      {
+        path: brief,
+        base: BRIEF,
+        chunks: [{ fromA: 4, toA: 15, replacement: "stage: sent", property: "stage" }],
+        note: "Sent on Monday",
+        author: { id: "plainva-ai/m-1", displayName: "Plainva AI · m-1" },
+        batch: { id: expect.stringMatching(/^[0-9a-f]{32}$/), index: 0 },
+      },
+    ]);
+    expect(accepted(v.proposed[0]!)).toBe(BRIEF.replace("stage: open", "stage: sent"));
+    expect(w.run.writes).toEqual({ rounds: [{ path: brief, blocks: 0, properties: 1 }], drafts: [], plans: [] });
+    // Nothing but the round was handed to the shell, and nobody was asked: it waits in the margin like a passage.
+    expect([v.acts, w.asked]).toEqual([[], []]);
+  });
+
+  it("adds a property in front of the line that closes the properties, a list as its items — and counts with a round on the text", async () => {
+    const v = vault();
+    const w = writer();
+    await call(v, w.run, "propose_edit", { path: brief, append: "More." });
+    expect((await set(v, w.run, { path: brief, key: "effort", value: 3 })).isError).toBeUndefined();
+    expect((await set(v, w.run, { path: brief, key: "tags", value: ["roof", "2026"] })).isError).toBeUndefined();
+    expect((await set(v, w.run, { path: brief, key: "done", value: false })).isError).toBeUndefined();
+    // An insertion carries no hint: an anchor can only say which property where it quotes that property's entry.
+    expect(v.proposed.slice(1).map((round) => round.chunks)).toEqual([
+      [{ fromA: 28, toA: 28, replacement: "effort: 3\n" }],
+      [{ fromA: 28, toA: 28, replacement: 'tags:\n  - roof\n  - "2026"\n' }],
+      [{ fromA: 28, toA: 28, replacement: "done: false\n" }],
+    ]);
+    expect(accepted(v.proposed[2]!)).toBe('---\nstage: open\nowner: Anna\ntags:\n  - roof\n  - "2026"\n---\n# Brief\n\nShort.\n');
+    expect(readFrontmatterPath(accepted(v.proposed[2]!), ["tags"])).toEqual(["roof", "2026"]);
+    expect(w.run.writes.rounds).toEqual([{ path: brief, blocks: 1, properties: 3 }]);
+  });
+
+  it("lays everything one run proposes on one note into ONE round — a passage and a value are accepted with one “accept all”", async () => {
+    const v = vault();
+    const w = writer();
+    await call(v, w.run, "propose_edit", { path: brief, edits: [{ find: "Short.", replace: "Short and sweet." }, { find: "# Brief", replace: "# The brief" }], note: "Tighter" });
+    await set(v, w.run, { path: brief, key: "stage", value: "sent", note: "Sent on Monday" });
+    await set(v, w.run, { path: brief, key: "effort", value: 3 });
+    await call(v, w.run, "propose_edit", { path: "Projects/Offer.md", append: "See you." });
+    const [first, second, third, other] = v.proposed.map((round) => round.batch);
+    // The blocks continue the round where the step before left it; another note is another round.
+    const passages = v.proposed[0]!.chunks.length;
+    expect(passages).toBeGreaterThan(1);
+    expect([first!.index, second!.index, third!.index, other!.index]).toEqual([0, passages, passages + 1, 0]);
+    expect(new Set([first!.id, second!.id, third!.id]).size).toBe(1);
+    expect(other!.id).not.toBe(first!.id);
+    // Another run — the next question of the same conversation — begins a round of its own on the same note.
+    const next = writer();
+    await set(v, next.run, { path: brief, key: "owner", value: "Ben" });
+    expect(v.proposed[4]!.batch).toEqual({ id: expect.stringMatching(/^[0-9a-f]{32}$/), index: 0 });
+    expect(v.proposed[4]!.batch.id).not.toBe(first!.id);
+    // A step that could not be laid down leaves no gap in the round.
+    const laid: ProposalRound[] = [];
+    const flaky = vault({
+      propose: async (round) => {
+        if (round.note === "fails") throw new Error("disk full");
+        laid.push(round);
+      },
+    });
+    const again = writer();
+    await set(flaky, again.run, { path: brief, key: "stage", value: "sent" });
+    expect(await set(flaky, again.run, { path: brief, key: "owner", value: "Ben", note: "fails" })).toEqual(refused("failed"));
+    await set(flaky, again.run, { path: brief, key: "effort", value: 3 });
+    expect(laid.map((round) => round.batch.index)).toEqual([0, 1]);
+  });
+
+  it("gives a note that has no properties its first, at the very top", async () => {
+    const v = vault();
+    const w = writer();
+    expect(await set(v, w.run, { path: "Archive/Old.md", key: "stage", value: "kept" })).toEqual({ content: WRITE_RESULTS.proposedProperty("Archive/Old.md", "stage", false, 0) });
+    expect(v.proposed[0]!.chunks).toEqual([{ fromA: 0, toA: 0, replacement: "---\nstage: kept\n---\n" }]);
+    expect(accepted(v.proposed[0]!)).toBe(setFrontmatterPath("# Old\n", ["stage"], "kept"));
+  });
+
+  it("removes a property with `null`: its entry goes, with the one line break that was its own", async () => {
+    const v = vault();
+    const w = writer();
+    expect(await set(v, w.run, { path: brief, key: "owner", value: null })).toEqual({ content: WRITE_RESULTS.proposedProperty(brief, "owner", true, 0) });
+    await set(v, w.run, { path: brief, key: "stage", value: null });
+    expect(v.proposed.map((round) => round.chunks)).toEqual([
+      // The last property goes with the break in front of it, any other with the one behind it.
+      [{ fromA: 15, toA: 27, replacement: "", property: "owner" }],
+      [{ fromA: 4, toA: 16, replacement: "", property: "stage" }],
+    ]);
+    expect(v.proposed.map(accepted)).toEqual(["---\nstage: open\n---\n# Brief\n\nShort.\n", "---\nowner: Anna\n---\n# Brief\n\nShort.\n"]);
+    // The only property of a note: what is left is the app's own way of writing no properties, found by comparing.
+    const single = vault({ current: async () => "---\nstage: open\n---\n# Single\n" });
+    await set(single, writer().run, { path: brief, key: "stage", value: null });
+    expect(accepted(single.proposed[0]!)).toBe(deleteFrontmatterPath("---\nstage: open\n---\n# Single\n", ["stage"]));
+    expect(readFrontmatterPath(accepted(single.proposed[0]!), ["stage"])).toBeUndefined();
+  });
+
+  it("proposes against the note as it is now, the editor's pending keystrokes included", async () => {
+    const typed = BRIEF.replace("owner: Anna", "owner: Anna Roofer");
+    const v = vault({ current: async (path) => (path === brief ? typed : null) });
+    const w = writer();
+    await set(v, w.run, { path: brief, key: "owner", value: "Ben" });
+    expect(v.proposed[0]!.base).toBe(typed);
+    expect(accepted(v.proposed[0]!)).toBe(typed.replace("owner: Anna Roofer", "owner: Ben"));
+  });
+
+  it("says in one of its own sentences why a value cannot be proposed", async () => {
+    const v = vault();
+    const w = writer();
+    expect(await set(v, w.run, { path: brief, key: "stage", value: "open" })).toEqual(refused("unchanged"));
+    expect(await set(v, w.run, { path: brief, key: "missing", value: null })).toEqual(refused("unchanged"));
+    for (const args of [
+      { path: brief, value: "x" },
+      { path: brief, key: "   ", value: "x" },
+      { path: brief, key: "stage" },
+      { path: brief, key: "stage", value: { deep: 1 } },
+      { path: brief, key: "stage", value: ["a", { deep: 1 }] },
+      { path: brief, key: "stage", value: "x".repeat(2001) },
+      { path: brief, key: "two\nlines", value: "x" },
+      { path: brief, key: "k".repeat(121), value: "x" },
+    ]) {
+      expect(await set(v, w.run, args), JSON.stringify(args).slice(0, 80)).toEqual(refused("bad-property"));
+    }
+    expect(await set(v, w.run, { path: "Projects/Board.base", key: "stage", value: "x" })).toEqual(refused("not-a-note"));
+    // Properties nobody can read as they stand are not rewritten on a guess.
+    const broken = vault({ current: async () => "---\nstage: [open\n---\n# Brief\n" });
+    expect(await set(broken, w.run, { path: brief, key: "owner", value: "Ben" })).toEqual(refused("unreadable"));
+    // A note the rules keep from this recipient is answered like one that is not there.
+    const kept = await set(v, w.run, { path: "Private/Client.md", key: "stage", value: "x" });
+    expect(kept).toEqual(refused("no-note"));
+    expect(kept).toEqual(await set(v, w.run, { path: "Nowhere.md", key: "stage", value: "x" }));
+    // A file with nothing in it has no words a suggestion could be attached to — for a value as for a passage.
+    const blank = vault({ current: async () => "" });
+    expect(await set(blank, w.run, { path: brief, key: "stage", value: "x" })).toEqual(refused("empty-note"));
+    expect(await call(blank, w.run, "propose_edit", { path: brief, append: "A first line." })).toEqual(refused("empty-note"));
+    expect([v.proposed, broken.proposed, blank.proposed, w.asked, w.run.writes.rounds]).toEqual([[], [], [], [], []]);
+    // A rule is the app's own write, so an empty note takes one.
+    expect(await set(blank, w.run, { path: brief, key: "plainva.ai.web", value: "deny" })).toEqual({ content: WRITE_RESULTS.ruleSet(brief, true) });
+  });
+
+  it("writes neither who made a note nor who vouches for it, and nothing of Plainva's own settings", async () => {
+    const v = vault();
+    const w = writer();
+    // A trust field is one by its form: where the note uses the key as one now, or would after the write.
+    expect(await set(v, w.run, { path: "Projects/Offer.md", key: "status", value: "sent" })).toEqual(refused("trust"));
+    expect(await set(v, w.run, { path: "Projects/Offer.md", key: "status", value: null })).toEqual(refused("trust"));
+    expect(await set(v, w.run, { path: brief, key: "status", value: "stable" })).toEqual(refused("trust"));
+    expect(await set(v, w.run, { path: brief, key: "stale_after", value: "2027-01-01" })).toEqual(refused("trust"));
+    expect(await set(v, w.run, { path: brief, key: "verified", value: [] })).toEqual(refused("trust"));
+    for (const key of ["plainva", "plainva.theme", "plainva.ai", "plainva.ai.everything"]) {
+      expect(await set(v, w.run, { path: brief, key, value: "deny" }), key).toEqual(refused("reserved"));
+    }
+    expect([v.proposed, w.asked, v.acts]).toEqual([[], [], []]);
+    // The same key with a value that claims nothing is a property like any other: a task's status, a book's.
+    expect((await set(v, w.run, { path: brief, key: "status", value: "Done" })).isError).toBeUndefined();
+    expect(v.proposed[0]!.chunks).toEqual([{ fromA: 28, toA: 28, replacement: "status: Done\n" }]);
+  });
+
+  it("makes an address the model brought inert in a value too, and leaves the user's own alone", async () => {
+    const v = vault();
+    const w = writer({ userTexts: () => ["Link https://example.org/brief there."] });
+    const out = await set(v, w.run, { path: brief, key: "links", value: ["https://example.org/brief", "https://evil.example/collect?stage=open"] });
+    expect(out).toEqual({ content: WRITE_RESULTS.proposedProperty(brief, "links", false, 1) });
+    expect(readFrontmatterPath(accepted(v.proposed[0]!), ["links"])).toEqual(["https://example.org/brief", "https[://]evil.example/collect?stage=open"]);
+  });
+
+  it("lays no value where the rules of what the conversation read do not hold", async () => {
+    const v = vault();
+    const w = writer({ inherited: async (): Promise<AiPolicyDimension[]> => ["cloud"] });
+    expect(await set(v, w.run, { path: brief, key: "client", value: "pays 1,800" }, local)).toEqual(refused("restricted"));
+    expect(v.proposed).toEqual([]);
+    expect((await set(v, w.run, { path: "Private/Client.md", key: "client", value: "pays 1,800" }, local)).isError).toBeUndefined();
+  });
+
+  it("asks before one of the note's own rules is written or taken out — the app writes it, and only after a yes", async () => {
+    const v = vault();
+    const w = writer();
+    expect(await set(v, w.run, { path: brief, key: "plainva.ai.cloud", value: "deny" })).toEqual({ content: WRITE_RESULTS.ruleSet(brief, true) });
+    // Taking a rule out lets the note go where it could not: a model on this device asks the same way.
+    expect(await set(v, w.run, { path: "Projects/Kept.md", key: "plainva.ai.cloud", value: null }, local)).toEqual({ content: WRITE_RESULTS.ruleSet("Projects/Kept.md", false) });
+    expect(w.asked).toEqual([
+      { plan: "rule", path: brief, rule: "cloud", set: true },
+      { plan: "rule", path: "Projects/Kept.md", rule: "cloud", set: false },
+    ]);
+    expect(v.acts).toEqual([`rule cloud into ${brief}`, "rule cloud out of Projects/Kept.md"]);
+    expect(w.run.writes).toEqual({ rounds: [], drafts: [], plans: [{ kind: "rule", path: brief, outcome: "done" }, { kind: "rule", path: "Projects/Kept.md", outcome: "done" }] });
+    // A rule is never a suggestion: nothing waits in the margin that an "accept all" could take along.
+    expect(v.proposed).toEqual([]);
+  });
+
+  it("asks about no rule that is so already, takes nothing but deny for one, and does nothing after a no", async () => {
+    const v = vault();
+    const w = writer();
+    expect(await set(v, w.run, { path: "Projects/Kept.md", key: "plainva.ai.cloud", value: "deny" }, local)).toEqual(refused("unchanged"));
+    expect(await set(v, w.run, { path: brief, key: "plainva.ai.web", value: null })).toEqual(refused("unchanged"));
+    expect(await set(v, w.run, { path: brief, key: "plainva.ai.cloud", value: "allow" })).toEqual(refused("bad-property"));
+    expect(await set(v, w.run, { path: brief, key: "plainva.ai.cloud", value: true })).toEqual(refused("bad-property"));
+    expect(w.asked).toEqual([]);
+    for (const [answer, reason] of [["no", "declined"], ["nobody", "nobody"]] as const) {
+      const again = writer({ ask: async () => answer });
+      expect(await set(v, again.run, { path: brief, key: "plainva.ai.web", value: "deny" })).toEqual(refused(reason));
+      expect(again.run.writes.plans).toEqual([{ kind: "rule", path: brief, outcome: "declined" }]);
+    }
+    expect(v.acts).toEqual([]);
+    // The app's own write can fail: then the answer says so, whatever went wrong.
+    for (const setRule of [async () => false, async () => Promise.reject(new Error("EACCES: C:\\Users\\someone\\vault"))]) {
+      const failing = vault({ setRule });
+      const third = writer();
+      expect(await set(failing, third.run, { path: brief, key: "plainva.ai.web", value: "deny" })).toEqual(refused("failed"));
+      expect(third.run.writes.plans).toEqual([{ kind: "rule", path: brief, outcome: "failed" }]);
+    }
   });
 });
 
@@ -430,6 +674,8 @@ describe("a rename, a move and a deletion are a question", () => {
 describe("where nothing is written at all", () => {
   const every: [string, Record<string, unknown>][] = [
     ["propose_edit", { path: "Projects/Offer.md", append: "x" }],
+    ["set_property", { path: "Projects/Brief.md", key: "stage", value: "sent" }],
+    ["set_property", { path: "Projects/Brief.md", key: "plainva.ai.cloud", value: "deny" }],
     ["create_note", { title: "Kick-off", content: "x" }],
     ["create_task", { text: "Buy nails" }],
     ["add_journal_entry", { text: "Met Anna" }],
@@ -462,14 +708,13 @@ describe("where nothing is written at all", () => {
     const w = writer();
     for (const [tool, args] of every) expect(await call(bare, w.run, tool, args), tool).toEqual(refused("unavailable"));
     expect(furtherToolNames(bare.deps)).toEqual([]);
-    // The tools of later packages have a name and a risk already, and no hands yet.
-    expect(await call(v, w.run, "set_property", { path: "Projects/Offer.md", key: "status", value: "sent" })).toEqual(refused("unavailable"));
+    // The tool of a later package has a name and a risk already, and no hands yet.
     expect(await call(v, w.run, "create_entry", { base: "Projects/Board.base", properties: {} })).toEqual(refused("unavailable"));
   });
 
   it("offers the writing tools before the mail tools, through the tool search", () => {
     const v = vault();
-    expect(writeToolNames(v.deps.writes)).toEqual(["propose_edit", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"]);
+    expect(writeToolNames(v.deps.writes)).toEqual(["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"]);
     const mail = { accounts: async () => [], folders: async () => [], newest: async () => ({ messages: [], offline: false }), search: async () => [], message: async () => null };
     expect(furtherToolNames({ ...v.deps, mail })).toEqual([...writeToolNames(v.deps.writes), "search_mail", "read_mail"]);
   });

@@ -1,3 +1,4 @@
+import { addProposedProperty, placeProposedProperty, type ProposedProperty } from "../ai/writes/properties.js";
 import { canonicalJson } from "../settingsSync/canonicalJson.js";
 import { buildCommentAnchor, mintAnchorMarkerId, resolveCommentAnchor } from "../workspace/commentAnchor.js";
 import { createWorkspaceObjectId } from "../workspace/identity.js";
@@ -98,16 +99,39 @@ export function planCommentDecision(path: string, before: string, comments: read
   if (comments.some((c) => !c.suggestion || (!reviewed && c.suggestionDecision?.status === "conflict"))) throw new Error("comment-decision-needs-review");
   let intended = before;
   if (outcome === "applied" && !reviewed) {
-    const spans = comments.map((comment) => {
+    // Every suggestion is found ONCE, in the note as it stands before anything is written, and one that does not
+    // fit stops the whole decision. A suggestion that proposes a property (plan KI-Harness P5-3) goes where the
+    // properties are, and nowhere once it no longer fits them: its words found further down, in the text, are
+    // another passage.
+    const spans: { from: number; to: number; replacement: string }[] = [];
+    const additions: { property: ProposedProperty; replacement: string }[] = [];
+    for (const comment of comments) {
       if (!comment.anchor) throw new Error("comment-suggestion-orphan");
+      const replacement = comment.suggestion!.replacement;
       const resolution = resolveCommentAnchor(before, comment.anchor);
-      if (resolution.status === "orphan") throw new Error("comment-suggestion-orphan");
-      return { ...resolution, replacement: comment.suggestion!.replacement };
-    }).sort((a, b) => b.from - a.from || b.to - a.to);
+      const found = resolution.status === "orphan" ? null : { from: resolution.from, to: resolution.to };
+      const property = placeProposedProperty(before, comment.anchor, replacement, found);
+      if (property ? !property.fits : !found) throw new Error("comment-suggestion-orphan");
+      // A new property has no passage of its own: it is written behind everything else, below.
+      if (property?.fits && property.property.added) additions.push({ property: property.property, replacement });
+      else if (property?.fits) spans.push({ from: property.from, to: property.to, replacement: property.replacement });
+      else spans.push({ ...found!, replacement });
+    }
+    // Passages and the entries of properties that are there: two of them on one place are a conflict.
+    spans.sort((a, b) => b.from - a.from || b.to - a.to);
     for (let i = 1; i < spans.length; i++) {
       if (spans[i].to > spans[i - 1].from || spans[i].from === spans[i - 1].from) throw new Error("comment-suggestion-overlap");
     }
     for (const span of spans) intended = intended.slice(0, span.from) + span.replacement + intended.slice(span.to);
+    // The new properties after that, one after the other, in the order they were handed in — each in front of the
+    // line that closes the properties as the ones before it left them, without looking for its place again: the
+    // words around it may have changed with the rest of the decision. The second of two first properties is an
+    // entry of the block the first one made; two values for one new property are a conflict.
+    for (const addition of additions) {
+      const next = addProposedProperty(intended, addition.property, addition.replacement);
+      if (next === null) throw new Error("comment-suggestion-overlap");
+      intended = next;
+    }
   }
   return { notePath: path, kind: outcome === "applied" ? "apply" : "decline",
     text: outcome === "applied" || reviewed ? { before, intended } : null,

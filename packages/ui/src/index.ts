@@ -196,6 +196,7 @@ export * from "./lib/commentNotifierCycle";
 export * from "./lib/commentExport";
 export * from "./lib/commentTask";
 export * from "./lib/commentThreads";
+export * from "./lib/propertySuggestion";
 export * from "./lib/commentAuthor";
 export * from "./lib/relativeTime";
 export * from "./components/CommentCardHead";

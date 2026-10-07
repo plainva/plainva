@@ -231,3 +231,92 @@ test("AI writes: drafts wait on this phone until the reader creates or discards 
     await sql.close();
   }
 });
+
+/**
+ * A proposed value of a property, on the phone (AI harness P5-3). An
+ * assistant proposes it the way it proposes a passage — as a suggestion on
+ * the note's entry for that property —, so it reaches this phone the way every
+ * suggestion does: with the vault's comment files. Here it lies in the file
+ * of another device, as a run on the desktop leaves it and the sync brings it.
+ *
+ * What the test holds is everything on this side: the sheet shows a property
+ * and its two values instead of a line of YAML, a tap on "Accept" writes the
+ * note through the phone's own decision path, and a new property lands in
+ * front of the line that closes the properties.
+ */
+const BRIEF = "---\nstage: open\nowner: Anna\n---\n# Brief\n\nA short brief.\n";
+const hex = (pair: string) => pair.repeat(16);
+const proposal = (id: string, index: number, anchor: Record<string, unknown>, replacement: string, note: string | null) => ({
+  commentId: id, path: "Brief.md", parentCommentId: null, resolvedCommentId: null, suggestionOutcome: null,
+  // One round: what a run proposes on one note in several steps is laid into the same round, block behind block.
+  suggestionBatchId: hex("c3"), batchIndex: index, batchNote: note, authorDeviceId: "laptop-1", authorId: AUTHOR.id,
+  body: "", anchor, suggestion: { replacement }, createdAt: `2026-10-07T10:00:0${index}.000Z`,
+});
+const SENTENCE = BRIEF.indexOf("A short brief.");
+const PROPOSALS = {
+  format: "plainva-comments",
+  version: 1,
+  updatedAt: "2026-10-07T10:00:02.000Z",
+  comments: {
+    // A passage of the text, as every suggestion is.
+    [hex("e5")]: proposal(hex("e5"), 0, { markerId: "7f39", quote: "short", before: BRIEF.slice(SENTENCE - 10, SENTENCE + 2), after: BRIEF.slice(SENTENCE + 7, SENTENCE + 15), approximateOffset: SENTENCE + 2 }, "very short", "Tighter"),
+    // The property's entry as it stands, with the hint that says which property: a value replaced.
+    [hex("a1")]: proposal(hex("a1"), 1, { markerId: "7f3a", quote: "stage: open", before: BRIEF.slice(0, 4), after: BRIEF.slice(15, 55), approximateOffset: 4, display: { kind: "property", key: "stage" } }, "stage: sent", "Sent today"),
+    // A property the note does not have: an entry in front of the line that closes the properties.
+    [hex("b2")]: proposal(hex("b2"), 2, { markerId: "7f3b", quote: "", before: BRIEF.slice(0, 28), after: BRIEF.slice(28, 68), approximateOffset: 28 }, "effort: 3\n", null),
+  },
+  authors: { [AUTHOR.id]: { name: AUTHOR.label, updatedAt: "2026-10-07T10:00:00.000Z" } },
+};
+
+test("AI writes a property: the sheet shows the property and its values, and accepting writes the note", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+  await page.addInitScript(() => {
+    localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
+  });
+  await page.goto("/");
+  await waitForVaultDirectory(page);
+  await page.evaluate(
+    async ({ brief, proposals }) => {
+      const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
+      await fs.writeFile({ path: "vault/Brief.md", data: brief, directory: "DATA", encoding: "utf8", recursive: true });
+      await fs.writeFile({ path: "vault/.plainva/sync/comments.laptop-1.json", data: JSON.stringify(proposals), directory: "DATA", encoding: "utf8", recursive: true });
+    },
+    { brief: BRIEF, proposals: PROPOSALS },
+  );
+  await page.reload();
+  await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
+
+  // Into the note, and to its comments: with nothing but proposals on it the sheet opens on them.
+  await page.locator(".m-swipe-front", { hasText: "Brief" }).first().click();
+  await expect(page.getByTestId("note-menu")).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId("note-menu").click();
+  await page.getByRole("button", { name: /^Comments$/ }).click();
+  const sheet = page.locator(".pv-sheet");
+  await expect(sheet).toBeVisible({ timeout: 10_000 });
+  await sheet.getByRole("radio", { name: /^Suggestions/ }).click();
+
+  // 1. One round, signed with the model that proposed it, with the sentences of its steps: a passage and two properties.
+  const cardOf = (key: string) => sheet.locator(".pv-comment-card", { has: page.locator(`[data-testid="comment-diff"][data-property="${key}"]`) });
+  await expect(sheet.locator(".pv-comment-round")).toHaveCount(1);
+  await expect(sheet.locator(".pv-comment-round__meta")).toHaveText("„Tighter · Sent today“ · 3 changes");
+  await expect(sheet).toContainText(AUTHOR.label);
+  await expect(sheet.locator('[data-testid="comment-diff"]')).toHaveCount(3);
+  // 2. A property says that it is one: its name, what it says struck, what it would say — and no line of YAML to tap.
+  await expect(cardOf("stage").getByTestId("comment-property-label")).toHaveText(/^Property$/i);
+  await expect(cardOf("stage").locator('[data-testid="comment-diff"] del')).toHaveText("open");
+  await expect(cardOf("stage").locator('[data-testid="comment-diff"] ins')).toHaveText("sent");
+  await expect(cardOf("stage").locator(".pv-comment-card__quote--tap")).toHaveCount(0);
+  await expect(cardOf("effort").getByTestId("comment-property-label")).toHaveText(/^New property$/i);
+  await expect(cardOf("effort").locator('[data-testid="comment-diff"] ins')).toHaveText("3");
+  // The passage keeps its line: a tap on it takes to the place in the note.
+  await expect(sheet.locator(".pv-comment-card__quote--tap")).toHaveText("short");
+  expect(await readVaultFile(page, "Brief.md")).toBe(BRIEF);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-property-mobile.png") });
+
+  // 3. "Apply all" is one decision for the round: the passage in the text, the value on its entry, and the new
+  //    property in front of the line that closes the properties — each where it belongs, and nothing else changes.
+  await sheet.getByRole("button", { name: /^Apply all$/ }).click();
+  await expect.poll(() => readVaultFile(page, "Brief.md"), { timeout: 10_000 }).toBe("---\nstage: sent\nowner: Anna\neffort: 3\n---\n# Brief\n\nA very short brief.\n");
+  await expect(sheet.getByRole("button", { name: /^Accept$/ })).toHaveCount(0);
+});

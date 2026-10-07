@@ -103,12 +103,14 @@ function fakeEgress(script: EgressChunk[][]) {
 }
 
 const OFFER = "# Offer\n\nThe day rate is 1,800 euros.\n";
+const BRIEF = "---\nstage: open\nowner: Anna\n---\n# Brief\n\nShort.\n";
 const NOTES: Record<string, string> = {
   "Projects/Offer.md": OFFER,
+  "Projects/Brief.md": BRIEF,
   "Private/Client.md": "# Client\n\nPays 1,800 euros.\n",
 };
 const rules = parsePolicyFile("folders:\n  Private/:\n    cloud: deny\n").rules;
-const WRITE_TOOLS = ["propose_edit", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
+const WRITE_TOOLS = ["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
 
 interface Made {
   kind: "note" | "task" | "journal";
@@ -173,6 +175,10 @@ function writeVault(options: { active?: string; skills?: Record<string, string>;
     },
     requestDelete: async (path) => {
       acts.push(`delete dialog ${path}`);
+      return true;
+    },
+    setRule: async (path, rule, set) => {
+      acts.push(`rule ${rule} ${set ? "into" : "out of"} ${path}`);
       return true;
     },
   };
@@ -306,7 +312,7 @@ describe("the writing tools of a conversation", () => {
     expect(record.conversation.more).toEqual(WRITE_TOOLS);
     expect(toolNames(fake.sent[0])).toEqual([...CHAT_TOOL_NAMES, "find_tools", "call_tool", "use_skill"]);
     expect(body(fake.sent[0])).toContain(
-      "You can propose: a suggestion on a note that is there (its text), a draft of something new (a note, a task or a journal entry) or a plan to rename, move or delete a note.",
+      "You can propose: a suggestion on a note that is there (its text or one of its properties), a draft of something new (a note, a task or a journal entry) or a plan to rename, move or delete a note.",
     );
     expect(body(fake.sent[0])).toContain("Further tools exist, for example to propose a change to the vault");
     expect(body(fake.sent[0])).not.toContain(CANNOT);
@@ -348,6 +354,36 @@ describe("a proposal of a run", () => {
     expect(vault.saved.get(record.id)!.runs[0]!.writes).toEqual(writes);
     expect(transcriptOf(record).flatMap((item) => (item.kind === "steps" ? item.steps : []))).toEqual([{ id: "c1", name: "propose_edit", state: "done" }]);
     expect(s.getState().drafts).toEqual({ drafts: [], done: [] });
+  });
+
+  it("carries a value of a property the same way: the property's entry, with the hint that says which property (plan P5-3)", async () => {
+    const vault = writeVault();
+    const { s } = await session(
+      [
+        turn({ calls: [viaDispatch("c1", "set_property", { path: "Projects/Brief.md", key: "stage", value: "sent", note: "Sent today" }), viaDispatch("c2", "set_property", { path: "Projects/Brief.md", key: "effort", value: 3 })] }),
+        turn({ text: "I proposed both on [[Brief]]; they wait for you." }),
+      ],
+      vault,
+    );
+    const seen = answering(s, () => "deny");
+    expect(await s.send("Mark the brief as sent, effort 3.")).toEqual({ kind: "answered" });
+    // A value of a property changes nothing either, so nothing is asked.
+    expect(seen).toEqual([]);
+    expect(vault.proposed.map((round) => ({ path: round.path, chunks: round.chunks, note: round.note, author: round.author.id }))).toEqual([
+      { path: "Projects/Brief.md", chunks: [{ fromA: 4, toA: 15, replacement: "stage: sent", property: "stage" }], note: "Sent today", author: "plainva-ai/m-1" },
+      // A property the note does not have yet is an entry in front of the line that closes its properties.
+      { path: "Projects/Brief.md", chunks: [{ fromA: 28, toA: 28, replacement: "effort: 3\n" }], note: "", author: "plainva-ai/m-1" },
+    ]);
+    // Two steps of one run on one note: one round in the note's margin, the second block behind the first.
+    expect(vault.proposed.map((round) => round.batch.index)).toEqual([0, 1]);
+    expect(vault.proposed[1]!.batch.id).toBe(vault.proposed[0]!.batch.id);
+    const record = s.getState().active!;
+    const [first, second] = results(record);
+    expect(first).toMatchObject({ name: "call_tool", tool: "set_property", content: WRITE_RESULTS.proposedProperty("Projects/Brief.md", "stage", false, 0) });
+    expect(second).toMatchObject({ tool: "set_property", content: WRITE_RESULTS.proposedProperty("Projects/Brief.md", "effort", false, 0) });
+    // The answers name the property, never the value: what was proposed is the user's to read in Plainva.
+    expect(first!.content).not.toContain("sent");
+    expect(record.runs[0]!.writes).toEqual({ rounds: [{ path: "Projects/Brief.md", blocks: 0, properties: 2 }], drafts: [], plans: [] });
   });
 
   it("is not laid where the rules of what the conversation read do not hold — a draft takes them along instead", async () => {
@@ -522,6 +558,28 @@ describe("a plan of a run", () => {
     expect(seen).toEqual([{ id: "c1", kind: "plan", question: { plan: "delete", path: "Projects/Offer.md" } }]);
     expect(vault.acts).toEqual(["delete dialog Projects/Offer.md"]);
     expect(results(s.getState().active!)[0]).toMatchObject({ tool: "delete_note", content: WRITE_RESULTS.deleted });
+  });
+
+  it("asks the same way before one of a note's own AI rules is written: a rule is never a suggestion (plan P5-3)", async () => {
+    const rule = () => [turn({ calls: [viaDispatch("c1", "set_property", { path: "Projects/Brief.md", key: "plainva.ai.cloud", value: "deny" })] }), turn({ text: "Done as you decided." })];
+    const vault = writeVault();
+    const { s } = await session(rule(), vault);
+    const seen = answering(s, () => "once");
+    expect(await s.send("Keep the brief away from cloud models.")).toEqual({ kind: "answered" });
+    expect(seen).toEqual([{ id: "c1", kind: "plan", question: { plan: "rule", path: "Projects/Brief.md", rule: "cloud", set: true } }]);
+    expect(vault.acts).toEqual(["rule cloud into Projects/Brief.md"]);
+    expect(vault.proposed).toEqual([]);
+    const record = s.getState().active!;
+    expect(results(record)[0]).toMatchObject({ tool: "set_property", content: WRITE_RESULTS.ruleSet("Projects/Brief.md", true) });
+    expect(record.runs[0]!.writes).toEqual({ rounds: [], drafts: [], plans: [{ kind: "rule", path: "Projects/Brief.md", outcome: "done" }] });
+
+    const untouched = writeVault();
+    const second = await session(rule(), untouched);
+    answering(second.s, () => "deny");
+    await second.s.send("Keep the brief away from cloud models.");
+    expect(untouched.acts).toEqual([]);
+    expect(results(second.s.getState().active!)[0]).toMatchObject({ tool: "set_property", content: EFFECT_DECLINED, isError: true });
+    expect(transcriptOf(second.s.getState().active!).flatMap((item) => (item.kind === "steps" ? item.steps : []))).toEqual([{ id: "c1", name: "set_property", state: "declined" }]);
   });
 });
 

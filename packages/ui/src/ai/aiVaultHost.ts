@@ -1,5 +1,6 @@
 import {
   DEFAULT_AI_POLICY,
+  deleteFrontmatterPath,
   EDITED_HALF_LIFE_MS,
   effectivePolicy,
   isCloudRecipient,
@@ -15,6 +16,7 @@ import {
   scanVaultInstructions,
   recencySignal,
   setFrontmatterPath,
+  type AiPolicyDimension,
   type Candidate,
   type ContextNote,
   type ContextPolicyHost,
@@ -197,6 +199,16 @@ function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore
 /** A note's text with its own rule "never to the cloud" (the plainva namespace, ADR 0018). */
 export function withCloudDenied(text: string): string {
   return setFrontmatterPath(text, ["plainva", "ai", "cloud"], "deny");
+}
+
+/**
+ * A note's text with one of its own AI rules written (`set`) or taken out —
+ * what a confirmed plan of the assistant writes (plan KI-Harness P5-3). An
+ * emptied `plainva` namespace goes with its last rule; a note that already
+ * says so comes back unchanged.
+ */
+export function withNoteRule(text: string, rule: AiPolicyDimension, set: boolean): string {
+  return set ? setFrontmatterPath(text, ["plainva", "ai", rule], "deny") : deleteFrontmatterPath(text, ["plainva", "ai", rule]);
 }
 
 /** Where candidates come from (plan §8.1): the index, and what this device opened. */

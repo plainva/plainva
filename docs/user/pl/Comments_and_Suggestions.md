@@ -1,6 +1,6 @@
 # Komentarze i propozycje
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Komentarze i propozycje istnieją w **każdym** sejfie — z synchronizacją lub bez, z szyfrowaniem lub bez. W szyfrowanym workspace są podpisanymi obiektami (zob. [Bezpieczeństwo i udostępnianie](Security_and_Sharing.md)); wszędzie indziej noszą imię z pola **Twoje imię (uwagi i przeglądy)** w ustawieniach. Propozycja to komentarz z tekstem zastępczym: oba przechodzą przez ten sam magazyn, tę samą kolumnę, ten sam arkusz. Jeśli imienia brakuje, Plainva pyta o nie raz przy pierwszym komentarzu; bez odpowiedzi urządzenie podpisuje własną etykietą (np. „Urządzenie Windows 4f3a”). Twoje własne uwagi widnieją jako **Ty**.
 
@@ -26,7 +26,7 @@ Rzeczy się przesuwają, a karta to mówi, zamiast wskazywać niewłaściwe miej
 
 **Utwórz zadanie** zamienia wątek w pracę: Plainva tworzy zadanie w bazie wskazanej jako **Domyślna baza zadań** — z jej szablonem, jej folderem docelowym i jej kolumną ukończenia, dokładnie tak, jak powstaje tam każde inne zadanie. Pierwszy wiersz komentarza staje się tytułem, cytowany fragment trafia do zadania jako cytat, a odnośnik prowadzi z powrotem do notatki. Sam komentarz zostaje na miejscu i otrzymuje odpowiedź wskazującą nowe zadanie — i nadal liczy się jako otwarty: przeniosła się praca, nie rozmowa. Gdy taka baza nie jest ustawiona, Plainva mówi o tym, zamiast tworzyć notatkę gdziekolwiek. Odpowiedź pojawia się od razu, jej link do zadania jest klikalny, a komunikat oferuje **Otwórz**; wysyłka do listy dostawcy odbywa się w tle.
 
-**Propozycje od AI.** AI może zaproponować zmiany w zaznaczonym fragmencie jako osobną rundę (zobacz [Asystent AI](AI_Assistant.md)). Obsługujesz ją jak każdą inną rundę; wiersz autora brzmi **Plainva AI · ⟨model⟩** — to oznaczenie, że propozycję napisała AI.
+**Propozycje od AI.** AI może zaproponować zmiany w zaznaczonym fragmencie jako osobną rundę (zobacz [Asystent AI](AI_Assistant.md)). Obsługujesz ją jak każdą inną rundę; wiersz autora brzmi **Plainva AI · ⟨model⟩** — to oznaczenie, że propozycję napisała AI. W rozmowie proponuje w ten sam sposób zmiany w całej notatce — w jej tekście lub w jednej z jej właściwości. Proponowana wartość pokazuje właściwość z przekreśloną obecną wartością i tą, którą by miała; **Zastosuj** zapisuje wartość we właściwościach notatki.
 
 ## Na telefonie
 

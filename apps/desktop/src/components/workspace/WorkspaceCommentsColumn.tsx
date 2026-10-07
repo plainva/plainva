@@ -6,7 +6,7 @@ import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, Messag
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread, CommentThreadAi } from "@plainva/ui";
-import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, EmptyState, groupSuggestionRounds, ICON, IconButton, isAiAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, Segmented, SuggestionDiff, toAnchorDisplayHint, toast } from "@plainva/ui";
+import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, EmptyState, groupSuggestionRounds, ICON, IconButton, isAiAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type SuggestedProperty } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -37,6 +37,14 @@ export interface WorkspaceCommentsColumnProps {
    * which vocabulary a status belongs to.
    */
   propertyResolutions?: ReadonlyMap<string, WorkspacePropertyAnchorResolution>;
+  /**
+   * commentId -> the property a suggestion proposes a value for (plan
+   * KI-Harness P5-3), with whether the proposal still fits the note. Absent
+   * for a suggestion that proposes a passage. The editor works it out, since
+   * it has the note; the card shows a property by its name and its values
+   * instead of a line of YAML.
+   */
+  suggestedProperties?: ReadonlyMap<string, SuggestedProperty>;
   canComment: boolean;
   /**
    * Whether this member may write the note - which is what accepting a
@@ -136,7 +144,7 @@ export interface WorkspaceCommentsColumnProps {
  * on old comments; anything else would falsify the record.
  */
 export function WorkspaceCommentsColumn({
-  comments, memberNames, selfMemberId, resolutions, propertyResolutions, canComment, canWrite, activeCommentId, selectionQuote,
+  comments, memberNames, selfMemberId, resolutions, propertyResolutions, suggestedProperties, canComment, canWrite, activeCommentId, selectionQuote,
   operationStatus, onSelect, onSubmit, onResolve, onReviewDecision, onApplySuggestion, onDeclineSuggestion, onPromoteToTask, onRetryPending, onDiscardPending, onClose, onOpenNote, onOpenUrl, onDelete, canModerate, inlineSuggestions, onToggleInlineSuggestions, onApplyRound, onDeclineRound,
   publicationComments = [], muted, onToggleMute, locked, legacyLocked, ai = null,
 }: WorkspaceCommentsColumnProps) {
@@ -256,8 +264,14 @@ export function WorkspaceCommentsColumn({
   /** The sending / not-sent line of a queued remark (K6); null once it has landed. */
   const pendingState = (record: WorkspaceCommentRecord, own: boolean) => <CommentDeliveryState comment={record} own={own} onRetry={onRetryPending} onDiscard={onDiscardPending} />;
 
+  /** The property a suggestion proposes a value for (plan KI-Harness P5-3), or null where it proposes a passage. */
+  const proposedProperty = (comment: WorkspaceCommentRecord) => (comment.suggestion ? (suggestedProperties?.get(comment.commentId) ?? null) : null);
+
   const anchorNote = (comment: WorkspaceCommentRecord) => {
     if (!comment.anchor) return null;
+    // A proposed value of a property says everything in its own block (`PropertySuggestionDiff`): which property, that
+    // it is new, that it no longer fits. A decided one says what became of it in the suggestion's state line.
+    if (proposedProperty(comment)) return null;
     // A property comment first: it never reaches `resolutions`, and its own
     // verdict decides whether the card names the original key, the key it was
     // renamed to, or admits the property is gone.
@@ -329,6 +343,14 @@ export function WorkspaceCommentsColumn({
     return null;
   };
 
+  /** A suggestion's before and after: a property by its name and values, a passage by its words. */
+  const suggestionDiff = (root: WorkspaceCommentRecord) => {
+    const property = proposedProperty(root);
+    return property
+      ? <PropertySuggestionDiff view={property} open={!root.resolvedAt} />
+      : <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion?.replacement ?? ""} deletesLabel={t("comments.suggestionDeletes")} />;
+  };
+
   /** One thread as a card - the same card inside a round and on its own. */
   const renderThread = ({ root, replies, addressed }: CommentThread) => (
         <div
@@ -338,7 +360,7 @@ export function WorkspaceCommentsColumn({
           onClick={() => onSelect(activeCommentId === root.commentId ? null : root.commentId)}
         >
           {root.suggestion
-            ? <SuggestionDiff quote={root.anchor?.quote ?? ""} replacement={root.suggestion.replacement} deletesLabel={t("comments.suggestionDeletes")} />
+            ? suggestionDiff(root)
             : root.anchor && !isLegacyTableQuote(root.anchor) && <blockquote className="pv-comment-card__quote">{root.anchor.quote}</blockquote>}
           {addressed && (
             <span className="pv-comment-card__state">
@@ -504,7 +526,7 @@ export function WorkspaceCommentsColumn({
               <CommentCardHead name={roundAuthor(round)} initials={authorInitials(memberNames.get(commentAuthorKey(round.blocks[0].root)) ?? roundAuthor(round))} memberId={commentAuthorKey(round.blocks[0].root)} createdAt={round.createdAt} locale={i18n.language} />
               <p className="pv-comment-round__meta">
                 {round.note ? <em>„{round.note}“ · </em> : null}
-                {t("comments.suggestRoundCount", { n: round.blocks.length })}
+                {t("comments.suggestRoundCount", { count: round.blocks.length })}
               </p>
               {open.length > 1 && !round.blocks.some((block) => block.root.suggestionDecision?.status === "conflict" || block.root.legacyPending || block.root.pending) && (
                 <div className="pv-comment-card__actions">

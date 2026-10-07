@@ -1,3 +1,4 @@
+import { isReservedPropertyName } from "@plainva/core";
 import { baseInputToType, type PropertyType } from "./propertyModel";
 
 export interface KnownProperty { name: string; type: string; count: number }
@@ -7,9 +8,9 @@ export interface PropertySuggestionSource {
   getKnownProperties(query?: string, limit?: number): Promise<KnownProperty[]>;
   getDistinctPropertyValues(key: string, folder?: string, types?: readonly string[]): Promise<ValueSuggestion[]>;
 }
+/** The names nobody adds a property under — the core's one answer, which a value an assistant proposes asks too. */
 export function reservedPropertyName(name: string): boolean {
-  return /^(?:file\.|formula\.|plainva(?:$|[.:]))/i.test(name)
-    || ["__proto__", "prototype", "constructor", "type", "okf_version", "generated", "verified", "sources"].includes(name.toLowerCase());
+  return isReservedPropertyName(name);
 }
 export function propertyFolder(path: string): string {
   const i = path.lastIndexOf("/");

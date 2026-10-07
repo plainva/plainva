@@ -1,6 +1,6 @@
 # Comentários e sugestões
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Comentários e sugestões existem em **todo** cofre — com ou sem sincronização, com ou sem criptografia. Em um workspace criptografado são objetos assinados (veja [Segurança e compartilhamento](Security_and_Sharing.md)); em todos os outros levam o nome de **Seu nome (anotações e revisões)** nas configurações. Uma sugestão é um comentário com um texto de substituição: ambos passam pelo mesmo armazenamento, pela mesma coluna, pela mesma folha. Se o nome faltar, o Plainva pergunta uma vez no primeiro comentário; sem resposta, o dispositivo assina com o próprio rótulo (por exemplo “Dispositivo Windows 4f3a”). Suas próprias anotações aparecem como **Você**.
 
@@ -26,7 +26,7 @@ As coisas se deslocam, e o cartão diz isso em vez de apontar para o lugar errad
 
 **Criar tarefa** transforma um tópico em trabalho: o Plainva cria a tarefa no **Banco de tarefas padrão** — com o modelo dele, a pasta de destino dele e a coluna de concluído dele, exatamente como nasce ali qualquer outra tarefa. A primeira linha do comentário vira o título, o trecho citado fica como citação na tarefa e um link leva de volta à nota. O comentário em si permanece onde está e recebe uma resposta que nomeia a nova tarefa — e continua contando como aberto: o trabalho mudou de lugar, a conversa não. Sem um banco de tarefas padrão definido, o Plainva diz isso em vez de criar uma nota em algum lugar. A resposta aparece na hora, o link dela para a tarefa é clicável e o aviso oferece **Abrir**; o envio para uma lista do provedor acontece em segundo plano.
 
-**Sugestões da IA.** A IA pode propor alterações em um trecho selecionado como uma rodada própria (veja [Assistente de IA](AI_Assistant.md)). Você a trata como qualquer outra rodada; a linha de autor diz **Plainva IA · ⟨modelo⟩**, a marcação de que uma IA escreveu a proposta.
+**Sugestões da IA.** A IA pode propor alterações em um trecho selecionado como uma rodada própria (veja [Assistente de IA](AI_Assistant.md)). Você a trata como qualquer outra rodada; a linha de autor diz **Plainva IA · ⟨modelo⟩**, a marcação de que uma IA escreveu a proposta. Em uma conversa, ela propõe da mesma forma em uma nota inteira — no texto ou em uma das propriedades dela. Um valor proposto mostra a propriedade com o que ela diz agora riscado e o que passaria a dizer; **Aceitar** escreve o valor nas propriedades da nota.
 
 ## No celular
 

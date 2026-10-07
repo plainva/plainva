@@ -167,6 +167,21 @@ describe("groupSuggestionRounds (V3)", () => {
     expect(rounds[0].open).toBe(2);
     expect(rest.map((thread) => thread.root.commentId)).toEqual(["plain"]);
   });
+
+  it("says every sentence of a round that was laid down in steps, once each and in the round's order", () => {
+    // A person's round carries one sentence on all its blocks; an assistant's steps each bring their own (P5-3).
+    const threads = buildCommentThreads([
+      proposal("c3", "r2", 2, { batchNote: "Sent on Monday" }),
+      proposal("c1", "r2", 0, { batchNote: "Tighter" }),
+      proposal("c2", "r2", 1, { batchNote: "Tighter" }),
+      proposal("c4", "r2", 3, { batchNote: null }),
+      proposal("d1", "r3", 0, { batchNote: "From the PDF" }),
+      proposal("d2", "r3", 1, { batchNote: "From the PDF" }),
+      proposal("e1", "r4", 0),
+    ], null, names);
+    const { rounds } = groupSuggestionRounds(threads);
+    expect(Object.fromEntries(rounds.map((round) => [round.batchId, round.note]))).toEqual({ r2: "Tighter · Sent on Monday", r3: "From the PDF", r4: null });
+  });
 });
 
 /**

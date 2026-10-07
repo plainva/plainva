@@ -232,12 +232,19 @@ export function groupSuggestionRounds(threads: readonly CommentThread[]): { roun
     }
     round.blocks.push(thread);
     if (commentCreatedAt(thread.root) < round.createdAt) round.createdAt = commentCreatedAt(thread.root);
-    if (!round.note && thread.root.batchNote) round.note = thread.root.batchNote;
   }
   const rounds = [...byBatch.values()];
   for (const round of rounds) {
     round.blocks.sort((a, b) => (a.root.batchIndex ?? 0) - (b.root.batchIndex ?? 0) || commentCreatedAt(a.root).localeCompare(commentCreatedAt(b.root)));
     round.open = round.blocks.filter((block) => isCommentThreadOpen(block.root)).length;
+    // A person's round has one sentence, said once for all its blocks. An assistant lays a round down in steps
+    // (plan KI-Harness P5-3: a passage, then a value), each with its own sentence: the round says them all, in order.
+    const notes: string[] = [];
+    for (const block of round.blocks) {
+      const note = block.root.batchNote?.trim();
+      if (note && !notes.includes(note)) notes.push(note);
+    }
+    round.note = notes.length ? notes.join(" · ") : null;
   }
   rounds.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return { rounds, threads: rest };

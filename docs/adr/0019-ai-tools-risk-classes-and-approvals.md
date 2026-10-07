@@ -46,10 +46,35 @@ a write or an outside effect.
      property proposal at the property anchor). Provenance through the OKF
      fields (`generated: {by, at}`, `sources`), stamped only at the moment of
      creation.
+     - *A proposed property is a suggestion on the property's entry.* It is
+       stored, synced and decided as every suggestion is: the passage is the
+       entry in the note's properties, the replacement the entry as it would
+       read. Where the anchor quotes the entry it names the property
+       (`display: {kind: "property", key}`); a property the note does not
+       have is an insertion in front of the line that closes the properties,
+       and an insertion carries no hint. An app that knows nothing of this
+       accepts the text change and ends up with the right value.
+     - *It is applied where the properties are, never where its words are.*
+       A decision places it in the note as it is then
+       (`placeProposedProperty`, asked by `planCommentDecision` and by every
+       card): an entry found only in the text is a suggestion that no longer
+       fits, a new property goes in front of the closing line as it stands,
+       and one the note has by now is refused instead of written twice.
    - `critical` — delete, bulk change, vault-wide rename or move, and **any
      write to `plainva.ai.*`, `.agent/` or the OKF trust fields**: dry run and
      confirmation enforced in the tool layer; delete only through the deletion
      guard (sample probe, deletion journal, threshold, backup).
+     - *A note's own AI rule is a plan, never a suggestion.* A margin has an
+       "accept all", and a rule must not ride along with it: `set_property`
+       on `plainva.ai.cloud` or `plainva.ai.web` asks, and the app writes the
+       rule after the yes. Taking a rule out is asked with a warning.
+     - *The trust fields are not written by an assistant at all* (ADR 0023):
+       `generated`, `verified` and `sources` by their name, `status` and
+       `stale_after` where the note uses them as trust fields or would after
+       the write. The same holds for every name the app's own "add a
+       property" refuses (`isReservedPropertyName`): Plainva's namespace, a
+       database's virtual columns, `type`, `okf_version`, and the names that
+       reach into an object's prototype.
    - `external` — mail, RSVP, moving an event, web or API writes, and any write
      into a surface third parties read (events with attendees, provider tasks,
      mail drafts, shared workspaces, publications): separate confirmation

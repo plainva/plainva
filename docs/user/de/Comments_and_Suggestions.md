@@ -1,6 +1,6 @@
 # Kommentare & Vorschläge
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Kommentare und Vorschläge gibt es in **jedem** Vault — mit oder ohne Sync, mit oder ohne Verschlüsselung. In einem verschlüsselten Workspace sind sie signierte Objekte (siehe [Sicherheit & Freigaben](Security_and_Sharing.md)); überall sonst tragen sie den Namen aus **Dein Name (Anmerkungen und Prüfungen)** in den Einstellungen. Ein Vorschlag ist ein Kommentar mit Ersatztext: Beide laufen durch denselben Speicher, dieselbe Spalte, dasselbe Blatt. Fehlt der Name, fragt Plainva beim ersten Kommentar einmal danach; ohne Antwort zeichnet das Gerät mit seiner eigenen Bezeichnung (etwa „Windows-Gerät 4f3a“). Deine eigenen Anmerkungen stehen als **Du** da.
 
@@ -26,7 +26,7 @@ Dinge verschieben sich, und die Karte sagt das, statt auf die falsche Stelle zu 
 
 **Als Aufgabe** macht aus einem Faden Arbeit: Plainva legt die Aufgabe in der **Standard-Aufgabendatenbank** an — mit deren Vorlage, deren Ablageordner und deren Erledigt-Spalte, also genau so, wie dort jede andere Aufgabe entsteht. Die erste Zeile des Kommentars wird der Titel, die zitierte Stelle steht als Zitat in der Aufgabe, und ein Link führt zur Notiz zurück. Der Kommentar selbst bleibt, wo er ist, und bekommt eine Antwort, die die neue Aufgabe nennt — und er zählt weiter als offen: Die Arbeit ist umgezogen, das Gespräch nicht. Ist keine Standard-Aufgabendatenbank festgelegt, sagt Plainva das, statt irgendwo eine Notiz anzulegen. Die Antwort erscheint sofort, ihr Link zur Aufgabe ist klickbar, und die Meldung bietet **Öffnen** an; der Abgleich mit einer Anbieterliste läuft im Hintergrund.
 
-**Vorschläge der KI.** Die KI kann Änderungen an einer markierten Stelle als eigene Runde vorschlagen (siehe [KI-Assistent](AI_Assistant.md)). Du behandelst sie wie jede andere Runde; ihre Autorzeile lautet **Plainva KI · ⟨Modell⟩** — die Kennzeichnung, dass eine KI den Vorschlag geschrieben hat.
+**Vorschläge der KI.** Die KI kann Änderungen an einer markierten Stelle als eigene Runde vorschlagen (siehe [KI-Assistent](AI_Assistant.md)). Du behandelst sie wie jede andere Runde; ihre Autorzeile lautet **Plainva KI · ⟨Modell⟩** — die Kennzeichnung, dass eine KI den Vorschlag geschrieben hat. In einem Gespräch schlägt sie auf dieselbe Weise an einer ganzen Notiz vor — an ihrem Text oder an einer ihrer Eigenschaften. Ein vorgeschlagener Wert zeigt die Eigenschaft mit dem, was sie jetzt sagt, durchgestrichen und dem, was sie sagen würde; **Übernehmen** schreibt den Wert in die Eigenschaften der Notiz.
 
 ## Am Telefon
 

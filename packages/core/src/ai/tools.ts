@@ -449,7 +449,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
   {
     name: "set_property",
     description:
-      "Proposes a value for one property of a note (its frontmatter), or with `value: null` that the property is removed. The user accepts or declines the proposal in Plainva. A value is text, a number, true/false or a list of those; a date is text like 2026-10-07.",
+      "Proposes a value for one property of a note (its frontmatter), or with `value: null` that the property is removed. The user accepts or declines the proposal in Plainva. A value is text, a number, true/false or a list of those; a date is text like 2026-10-07. The note's own privacy rules are the keys `plainva.ai.cloud` and `plainva.ai.web` with the value `deny` (or null to remove one): these are not proposed but asked — the user confirms, and Plainva writes the rule. Who made a note and who vouches for it cannot be set.",
     risk: "write",
     input: z.object({
       path,

@@ -149,7 +149,7 @@ export function CommentsOverview({ onOpenPath }: { onOpenPath(path: string, newT
               >
                 <p className="pv-comment-round__meta">
                   <strong>{t("comments.suggestRound", { name: commentAuthorLabel(round.blocks[0].root, memberNames, selfMemberId, t) })}</strong>
-                  {" · "}{t("comments.suggestRoundCount", { n: round.open })}
+                  {" · "}{t("comments.suggestRoundCount", { count: round.open })}
                   {round.note ? <em> · „{round.note}“</em> : null}
                 </p>
                 <CommentProvenance comment={round.blocks[0].root} />

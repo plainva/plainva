@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { FolderInput, Globe, Mail, PencilLine, Plug, TriangleAlert, Users } from "lucide-react";
+import { FolderInput, Globe, Mail, PencilLine, Plug, ShieldCheck, ShieldOff, TriangleAlert, Users } from "lucide-react";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
 import { cx } from "../components/ui/cx";
@@ -137,13 +137,25 @@ const noteName = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace
 /** The notes a rename's card names; the rest is a count. */
 const PLAN_FILES_SHOWN = 6;
 
+/** The words of each plan: its question, the line that says who does it, and its two buttons. */
+const PLAN_WORDS = {
+  rename: { title: "ai.write.plan.renameTitle", hint: "ai.write.plan.renameHint", deny: "ai.write.plan.noRename", go: "ai.write.plan.rename" },
+  move: { title: "ai.write.plan.moveTitle", hint: "ai.write.plan.moveHint", deny: "ai.write.plan.noMove", go: "ai.write.plan.move" },
+  delete: { title: "ai.write.plan.deleteTitle", hint: "ai.write.plan.deleteHint", deny: "ai.write.plan.noDelete", go: "ai.write.plan.openDelete" },
+  rule: { title: "ai.write.plan.ruleTitle", hint: "ai.write.plan.ruleHint", deny: "ai.write.plan.noRule", go: "ai.write.plan.setRule" },
+} as const;
+
 /**
  * A plan (plan KI-Harness P5, ADR 0019 §2): what cannot be reviewed part by
- * part — a rename, a move, a deletion. The run waits here, above the
- * composer, and the card shows what would happen: the new name with every
- * note whose links change, the folder, or the note that would go. A yes lets
- * the app's own operation do it; for a deletion it opens the app's delete
- * dialog, and nothing is gone before the user confirms there.
+ * part — a rename, a move, a deletion —, and what must never wait in a margin
+ * where "accept all" could take it along: one of the note's own AI rules
+ * (P5-3). The run waits here, above the composer, and the card shows what
+ * would happen: the new name with every note whose links change, the folder,
+ * the note that would go, or the rule and whether it is written or taken
+ * out. A yes lets the app's own operation do it; for a deletion it opens the
+ * app's delete dialog, and nothing is gone before the user confirms there.
+ * Taking a rule out lets the note go where it could not, so that card warns
+ * and its button is not the one the eye lands on.
  *
  * Everything on the card is for the user: the model is told the outcome and
  * nothing else — not which notes link here, not which rule a folder has.
@@ -151,9 +163,12 @@ const PLAN_FILES_SHOWN = 6;
 function AiPlanApproval({ request, onAnswer, touch }: { request: Extract<EffectRequest, { kind: "plan" }>; onAnswer: (answer: EffectAnswer) => void; touch?: boolean }) {
   const { t } = useTranslation();
   const question = request.question;
-  const title = t(question.plan === "rename" ? "ai.write.plan.renameTitle" : question.plan === "move" ? "ai.write.plan.moveTitle" : "ai.write.plan.deleteTitle");
+  const words = PLAN_WORDS[question.plan];
+  const title = t(words.title);
   const folderOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf("/")));
-  const Icon = question.plan === "rename" ? PencilLine : question.plan === "move" ? FolderInput : TriangleAlert;
+  // Taking a rule out lets the note go where it could not: like a deletion, that is no step this card makes look like the obvious one.
+  const loosening = question.plan === "rule" && !question.set;
+  const Icon = question.plan === "rename" ? PencilLine : question.plan === "move" ? FolderInput : question.plan === "rule" ? (question.set ? ShieldCheck : ShieldOff) : TriangleAlert;
   return (
     <section className={cx("pv-ai-overview", "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid="ai-effect" data-kind="plan" data-plan={question.plan}>
       <h4 className="pv-ai-overview-head">
@@ -184,6 +199,14 @@ function AiPlanApproval({ request, onAnswer, touch }: { request: Extract<EffectR
             <dd data-testid="ai-effect-target">{question.folder || t("ai.write.plan.vaultRoot")}</dd>
           </>
         )}
+        {question.plan === "rule" && (
+          <>
+            <dt>{t("ai.write.plan.ruleRow")}</dt>
+            <dd data-testid="ai-effect-rule">{t(`ai.write.plan.rule.${question.rule}`)}</dd>
+            <dt>{t("ai.write.plan.ruleChange")}</dt>
+            <dd data-testid="ai-effect-change">{t(question.set ? "ai.write.plan.ruleSet" : "ai.write.plan.ruleRemove")}</dd>
+          </>
+        )}
       </dl>
       {question.plan === "rename" && question.files.length > 0 && (
         <ul className="pv-ai-overview-sources" data-testid="ai-effect-files">
@@ -206,14 +229,20 @@ function AiPlanApproval({ request, onAnswer, touch }: { request: Extract<EffectR
           <span>{t("ai.write.plan.loosens", { rules: question.loosens.map((rule) => t(`ai.write.plan.rule.${rule}`)).join(" · ") })}</span>
         </span>
       )}
-      <span className="pv-ai-overview-hint">{t(question.plan === "rename" ? "ai.write.plan.renameHint" : question.plan === "move" ? "ai.write.plan.moveHint" : "ai.write.plan.deleteHint")}</span>
+      {loosening && (
+        <span className="pv-ai-effect-warn" data-testid="ai-effect-loosens">
+          <TriangleAlert size={ICON.meta} aria-hidden="true" />
+          <span>{t(question.rule === "cloud" ? "ai.write.plan.ruleLoosensCloud" : "ai.write.plan.ruleLoosensWeb")}</span>
+        </span>
+      )}
+      <span className="pv-ai-overview-hint">{t(words.hint)}</span>
       <div className="pv-ai-overview-actions">
         <Button variant="ghost" onClick={() => onAnswer("deny")} data-testid="ai-effect-deny">
-          {t(question.plan === "rename" ? "ai.write.plan.noRename" : question.plan === "move" ? "ai.write.plan.noMove" : "ai.write.plan.noDelete")}
+          {t(words.deny)}
         </Button>
         {/* A deletion is not this card's to carry out: the button opens the app's own dialog. */}
-        <Button variant={question.plan === "delete" ? "secondary" : "primary"} onClick={() => onAnswer("once")} data-testid="ai-effect-once">
-          {t(question.plan === "rename" ? "ai.write.plan.rename" : question.plan === "move" ? "ai.write.plan.move" : "ai.write.plan.openDelete")}
+        <Button variant={question.plan === "delete" || loosening ? "secondary" : "primary"} onClick={() => onAnswer("once")} data-testid="ai-effect-once">
+          {t(loosening ? "ai.write.plan.removeRule" : words.go)}
         </Button>
       </div>
     </section>

@@ -41,7 +41,7 @@ Ein Testlauf benutzt das Internet nie, und er fragt nie: E-Mails, die er in dies
 
 ## Änderungen vorschlagen
 
-Ein eigener Skill schlägt Änderungen nur vor, wenn seine Zeile `allowed-tools` die Werkzeuge dafür nennt: `propose_edit` für Vorschläge an einer Notiz, `create_note`, `create_task` und `add_journal_entry` für Entwürfe, `rename_note`, `move_note` und `delete_note` für Pläne. **Prüfen und freigeben** nennt dann jedes von ihnen und sagt **Kann Änderungen vorschlagen, Entwürfe hinlegen und Pläne vorlegen. Im Vault ändert sich nichts, bevor Du übernimmst, anlegst oder bestätigst.** Ein Skill, der keine Werkzeuge nennt, schlägt nichts vor — auch einer, den Du früher freigegeben hast, gewinnt nichts dazu —, und ein Testlauf legt nichts hin. Was die drei Formen sind, steht unter **Änderungen vorschlagen** in [KI-Assistent](AI_Assistant.md).
+Ein eigener Skill schlägt Änderungen nur vor, wenn seine Zeile `allowed-tools` die Werkzeuge dafür nennt: `propose_edit` und `set_property` für Vorschläge am Text und an den Eigenschaften einer Notiz, `create_note`, `create_task` und `add_journal_entry` für Entwürfe, `rename_note`, `move_note` und `delete_note` für Pläne. **Prüfen und freigeben** nennt dann jedes von ihnen und sagt **Kann Änderungen vorschlagen, Entwürfe hinlegen und Pläne vorlegen. Im Vault ändert sich nichts, bevor Du übernimmst, anlegst oder bestätigst.** Ein Skill, der keine Werkzeuge nennt, schlägt nichts vor — auch einer, den Du früher freigegeben hast, gewinnt nichts dazu —, und ein Testlauf legt nichts hin. Was die drei Formen sind, steht unter **Änderungen vorschlagen** in [KI-Assistent](AI_Assistant.md).
 
 ## Eigene Skills
 

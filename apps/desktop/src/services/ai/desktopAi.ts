@@ -35,6 +35,7 @@ import {
   situationFrom,
   vaultMailSource,
   withCloudDenied,
+  withNoteRule,
   writeCapturedNote,
   type AiFileStore,
   type AiNavigationCommand,
@@ -335,6 +336,16 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
         move: writes.move,
         // The assistant never deletes: this opens the app's own dialog, and that one decides.
         requestDelete: (path) => requestCascadeDelete({ paths: [path] }),
+        // A rule of the note itself, after the user's yes: written like "keep on this device" writes its rule.
+        async setRule(path, rule, set) {
+          await flushPendingSave(path);
+          const text = await read(path);
+          if (text === null) return false;
+          const next = withNoteRule(text, rule, set);
+          if (next === text) return false;
+          await input.adapter.writeTextFile(path, next);
+          return true;
+        },
       }
     : undefined;
   /** Checkbox tasks and the task database, as every task view reads them. */

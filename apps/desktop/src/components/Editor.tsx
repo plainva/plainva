@@ -36,7 +36,7 @@ import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
 import { Button as UiButton, TextInput } from "@plainva/ui";
-import { IconButton, isCommentThreadOpen, useAiSession, useCommentThreadAi } from "@plainva/ui";
+import { IconButton, isCommentThreadOpen, suggestedProperties, useAiSession, useCommentThreadAi } from "@plainva/ui";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -396,6 +396,12 @@ export const Editor: React.FC<{
     return map;
   }, [workspaceComments, content]);
 
+  // A suggestion that proposes the value of a property (plan KI-Harness P5-3): which ones do, what they propose, and
+  // whether the proposal still fits the note. One that says its property at its anchor belongs to the property
+  // vocabulary above — nothing is drawn for it in the text —, but it IS a passage, the property's entry, and only the
+  // entry can tell that the value changed since. The cards read this instead of showing a line of YAML.
+  const suggestedProps = useMemo(() => suggestedProperties(content, workspaceComments), [workspaceComments, content]);
+
   // The rename trail lives on the `.base` column (plan Stufe E, section 5:
   // "Der Anker zieht mit"), so the alias source is the base governing this note.
   // A note outside any base simply has no trail - a renamed key then orphans,
@@ -447,6 +453,9 @@ export const Editor: React.FC<{
       if (!key) continue;
       const res = propertyResolutions.get(comment.commentId);
       if (!res || res.status === "orphan") continue;
+      // A proposed value that was accepted or declined is closed (plan KI-Harness P5-3): every answered proposal of
+      // an assistant would otherwise leave its number on the row for good.
+      if (comment.suggestion && comment.resolvedAt) continue;
       counts.set(res.key, (counts.get(res.key) ?? 0) + 1);
     }
     return counts;
@@ -2664,6 +2673,9 @@ export const Editor: React.FC<{
     const highlights: AnchorHighlight[] = [];
     for (const comment of workspaceComments) {
       if (comment.resolvedAt) continue;
+      // A suggestion that proposes a property is no passage of the text (plan KI-Harness P5-3): its card names the
+      // property and its values. Drawn here, the first property of a note would stand as raw YAML above its first line.
+      if (suggestedProps.has(comment.commentId)) continue;
       const resolution = anchorResolutions.get(comment.commentId);
       if (!resolution || resolution.status === "orphan") continue;
       // A widget covers the range: the tint would have no text to paint on, so
@@ -2682,7 +2694,7 @@ export const Editor: React.FC<{
       });
     }
     return highlights;
-  }, [workspaceComments, anchorResolutions, activeCommentId, suggestionsInline]);
+  }, [workspaceComments, anchorResolutions, activeCommentId, suggestionsInline, suggestedProps]);
   // Widget anchors written before 2026-09-03 left a marker pair around the
   // whole table or picture, and a pair around a table keeps the parser from
   // seeing a table (finding 2026-09-03, V7). The pair does nothing for such
@@ -3721,6 +3733,7 @@ export const Editor: React.FC<{
           selfMemberId={commentSelfId}
           resolutions={anchorResolutions}
           propertyResolutions={propertyResolutions}
+          suggestedProperties={suggestedProps}
           canComment={workspaceCanComment}
           activeCommentId={activeCommentId}
           selectionQuote={selectionQuote}

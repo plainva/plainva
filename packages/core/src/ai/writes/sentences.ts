@@ -28,6 +28,13 @@ export const WRITE_REFUSALS = {
   restricted:
     "This conversation has read notes that are kept from the cloud or from the internet, and the place this would be written to is not. It would carry what they say to where their rule does not hold, so Plainva does not lay it down. The user can give that place the same rule first.",
   full: "Too many drafts wait for the user. They have to create or discard some of them first.",
+  "bad-property": "This is no property name, or no value a property can have: text, a number, true or false, or a list of those.",
+  // Who made a note and who vouches for it is never an assistant's to write (ADR 0023).
+  trust: "Plainva takes this property from no assistant: it says who made the note or who vouches for it.",
+  reserved: "This property belongs to Plainva's own settings of the note and is not set this way.",
+  unreadable: "The properties of this note cannot be read as they stand, so nothing was proposed.",
+  // A suggestion is attached to the words around it; a file with nothing in it has none.
+  "empty-note": "This note is empty, and a suggestion has to be attached to something that is there. Give the user the text in your answer instead.",
   "no-title": "A title is needed.",
   frontmatter: "Give the note's text without frontmatter.",
   "no-folder": "There is no such folder in the vault.",
@@ -56,6 +63,10 @@ export const WRITE_RESULTS = {
     `Proposed on ${path}: ${changes} change${changes === 1 ? "" : "s"}. ${WAITS} The user accepts or declines each change in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
   drafted: (what: string, defused: number) =>
     `Drafted: ${what}. ${WAITS} It exists once the user creates it from the draft in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  // The property's name is the one the model gave; its value is never repeated.
+  proposedProperty: (path: string, key: string, removed: boolean, defused: number) =>
+    `Proposed on ${path}: ${removed ? `the property ${key} removed` : `a value for the property ${key}`}. ${WAITS} The user accepts or declines it in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  ruleSet: (path: string, set: boolean) => (set ? `Done. The rule is written into ${path}.` : `Done. The rule is removed from ${path}.`),
   renamed: (path: string) => `Renamed. The note is now ${path}.`,
   moved: (path: string) => `Moved. The note is now ${path}.`,
   deleted: "The user deleted the note.",

@@ -6,11 +6,16 @@ import {
   WRITE_RESULTS,
   appendToNote,
   applyNoteEdits,
+  createWorkspaceObjectId,
   editProblemSentence,
   noteBodyStart,
+  planPropertyChange,
+  propertyTarget,
+  readFrontmatterPath,
   type AiPolicyDimension,
   type EffectivePolicy,
   type NoteEdit,
+  type PropertyValue,
   type RunWrites,
   type ToolManifest,
   type ToolOutcome,
@@ -52,6 +57,13 @@ export interface ProposalRound {
   chunks: readonly RoundChunk[];
   note: string;
   author: SuggestionAuthor;
+  /**
+   * The round these blocks belong to, and the place of the first of them in
+   * it. Everything one run proposes on one note is ONE round in its margin —
+   * a passage and a value proposed in two steps are accepted with one "accept
+   * all" —, so the round outlives the single call that lays blocks into it.
+   */
+  batch: { id: string; index: number };
 }
 
 /** What renaming a note would do: where it ends up, and the notes whose links change with it. */
@@ -90,6 +102,12 @@ export interface VaultWriteDeps {
   move(path: string, folder: string): Promise<string | null>;
   /** Opens the app's own delete dialog for the note; true when the user deleted it there. */
   requestDelete(path: string): Promise<boolean>;
+  /**
+   * Writes one of the note's own AI rules into its properties (`set`), or takes
+   * it out — the way the app writes a property: pending keystrokes first, the
+   * shell's own save after. True when the note says it now.
+   */
+  setRule(path: string, rule: AiPolicyDimension, set: boolean): Promise<boolean>;
 }
 
 /**
@@ -128,7 +146,9 @@ export type PlanQuestion =
   | { plan: "rename"; path: string; title: string; target: string; files: { path: string; links: number }[]; links: number }
   /** `loosens`: rules the note's folder gives it now that the target folder would not. */
   | { plan: "move"; path: string; folder: string; target: string; loosens: AiPolicyDimension[] }
-  | { plan: "delete"; path: string };
+  | { plan: "delete"; path: string }
+  /** One of the note's own AI rules, written (`set`) or taken out: taking one out lets the note go where it could not. */
+  | { plan: "rule"; path: string; rule: AiPolicyDimension; set: boolean };
 
 /** What a run brings to its writing tools: who writes, what the conversation rests on, how to ask, where a draft goes. */
 export interface WriteRun {
@@ -162,7 +182,7 @@ export interface WriteToolContext {
 }
 
 /** The writing tools that have hands, in the order the tool search lists them. */
-const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
+const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
 
 /**
  * The writing tools a shell with these deps offers a new conversation. Inside
@@ -205,6 +225,20 @@ function hasControl(text: string): boolean {
   return false;
 }
 
+/** The rounds of each run, by note: a run that proposes on a note twice lays its blocks into one round. */
+const ROUNDS = new WeakMap<WriteRun, Map<string, { id: string; next: number }>>();
+
+/** Lays a run's blocks on a note into the run's round on that note, behind the blocks that are already in it. */
+async function propose(deps: VaultWriteDeps, run: WriteRun, round: Omit<ProposalRound, "batch" | "author">): Promise<void> {
+  let rounds = ROUNDS.get(run);
+  if (!rounds) ROUNDS.set(run, (rounds = new Map()));
+  const state = rounds.get(round.path) ?? { id: createWorkspaceObjectId(), next: 0 };
+  await deps.propose({ ...round, author: run.author, batch: { id: state.id, index: state.next } });
+  // Counted only once the blocks are laid: a call that failed leaves no gap, and no round of nothing.
+  state.next += round.chunks.length;
+  rounds.set(round.path, state);
+}
+
 function recordRound(writes: RunWrites, path: string, blocks: number, properties: number): void {
   const existing = writes.rounds.find((round) => round.path === path);
   if (existing) {
@@ -237,6 +271,8 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   if ((edits.length > 0) === (append.trim().length > 0)) return refuse("edits-or-append");
   // The editor's pending keystrokes land first: the proposal is made against the note as it is.
   const base = (await deps.current(note.path)) ?? note.text;
+  // A suggestion is attached to the words around it; a file with nothing in it has none.
+  if (base.length === 0) return refuse("empty-note");
   const outcome = edits.length ? applyNoteEdits(base, edits) : appendToNote(base, append, typeof a.section === "string" ? a.section : undefined);
   if (!outcome.ok) return { content: editProblemSentence(outcome.problem, outcome.edit), isError: true };
 
@@ -250,9 +286,66 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const chunks = selectionChunks(base, 0, base.length, intended, "replace");
   if (chunks.length === 0) return refuse("unchanged");
   if (chunks.length > MAX_ROUND_BLOCKS) return refuse("too-many");
-  await deps.propose({ path: note.path, base, chunks, note: oneLine(a.note, 300), author: run.author });
+  await propose(deps, run, { path: note.path, base, chunks, note: oneLine(a.note, 300) });
   recordRound(run.writes, note.path, chunks.length, 0);
   return said(WRITE_RESULTS.proposed(note.path, chunks.length, linted.defused));
+}
+
+/**
+ * A value for one property of a note (plan P5-3). What the write is decides
+ * what becomes of it (`propertyTarget`): an ordinary property is a suggestion
+ * like a passage — the property's entry and the entry as it would read, with
+ * the hint at its anchor that says which property —; one of the note's own AI
+ * rules is a plan the user confirms, never a suggestion; and who made a note
+ * or who vouches for it is not an assistant's to write at all.
+ */
+async function setProperty(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
+  const note = await ctx.readAllowed(a.path);
+  if (!note) return refuse("no-note");
+  if (!/\.md$/i.test(note.path)) return refuse("not-a-note");
+  const key = typeof a.key === "string" ? a.key.trim() : "";
+  if (a.value === undefined) return refuse("bad-property");
+  // The editor's pending keystrokes land first: the proposal is made against the note as it is.
+  const base = (await deps.current(note.path)) ?? note.text;
+  // An address the model brings is as inert in a property as in the text: a property can be a link.
+  let defused = 0;
+  const known = [base, ...run.userTexts()];
+  const inert = <T>(item: T): T => {
+    if (typeof item !== "string") return item;
+    const linted = defuseNewAddresses(item, known);
+    defused += linted.defused;
+    return linted.text as T;
+  };
+  const raw = a.value as PropertyValue | null;
+  const value: PropertyValue | null = raw === null ? null : Array.isArray(raw) ? raw.map(inert) : inert(raw);
+  const target = propertyTarget(base, key, value);
+  if (target.class === "invalid") return refuse("bad-property");
+  if (target.class === "trust") return refuse("trust");
+  if (target.class === "reserved") return refuse("reserved");
+  if (target.class === "rules") {
+    const rule = target.rule!;
+    const set = value !== null;
+    const has = readFrontmatterPath(base, target.path) === "deny";
+    if (has === set) return refuse("unchanged");
+    return asked(run, ctx, { plan: "rule", path: note.path, rule, set }, () => deps.setRule(note.path, rule, set), () => WRITE_RESULTS.ruleSet(note.path, set));
+  }
+  // A suggestion is attached to the words around it; a file with nothing in it has none. (A rule is the app's own write.)
+  if (base.length === 0) return refuse("empty-note");
+  const name = target.path[0]!;
+  const plan = planPropertyChange(base, name, value);
+  if (!plan.ok) return refuse(plan.problem);
+  // A round inherits nothing, so it may only go where the rules of what the conversation rests on already hold.
+  if (!(await placeTakes(run, ctx, note.path, base))) return refuse("restricted");
+  // One block where the change is one entry — with the hint, where an anchor can quote the entry in full —;
+  // otherwise the blocks a comparison of the two notes gives.
+  const chunks: RoundChunk[] = plan.block
+    ? [{ fromA: plan.block.from, toA: plan.block.to, replacement: plan.block.replacement, ...(plan.hinted ? { property: name } : {}) }]
+    : selectionChunks(base, 0, base.length, plan.intended, "replace");
+  if (chunks.length === 0) return refuse("unchanged");
+  if (chunks.length > MAX_ROUND_BLOCKS) return refuse("too-many");
+  await propose(deps, run, { path: note.path, base, chunks, note: oneLine(a.note, 300) });
+  recordRound(run.writes, note.path, 0, 1);
+  return said(WRITE_RESULTS.proposedProperty(note.path, name, value === null, defused));
 }
 
 /** The text of a note a model drafted: its addresses inert, its links flat, and no properties block of its own. */
@@ -382,6 +475,8 @@ export async function writeToolOutcome(deps: VaultWriteDeps | undefined, run: Wr
     switch (tool.name) {
       case "propose_edit":
         return await proposeEdit(deps, run, a, ctx);
+      case "set_property":
+        return await setProperty(deps, run, a, ctx);
       case "create_note":
         return await createNote(deps, run, a, ctx);
       case "create_task":

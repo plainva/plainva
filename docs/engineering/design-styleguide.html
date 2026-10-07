@@ -1249,6 +1249,44 @@
         <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't rename</button><button class="pvbtn primary">Rename</button></div>
       </section>
     </div>
+    <p class="sec-sub">AI harness P5-3 (2026-10-07): a proposed value of a property. It is a suggestion like a passage and brings no card of its own — one block both shells render (<code>PropertySuggestionDiff</code>, <code>.pv-comment-card__property</code>): a small label in the app's label style, “Property” or “New property” (<code>.pv-comment-card__proplabel</code>), the card's diff line with the property's name as a chip in front (<code>.pv-comment-card__prop</code>), what it says struck and what it would say inserted, and — only while it waits — the sentence that it no longer fits. What one run proposes on one note in several steps is one round: its head says each step's sentence once and counts the blocks (“1 change”, “3 changes”). One of the note's own AI rules is never a suggestion: it is the plan question (<code>data-plan="rule"</code>) with a shield in its head — and where a rule is taken out, a warning line and a secondary button instead of the primary one.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <p class="pv-comment-round__meta"><em>„Tighter · Sent today“ · </em>3 changes</p>
+      <div class="pv-comment-card">
+        <div class="pv-comment-card__property" data-property="stage">
+          <span class="pv-comment-card__proplabel"><span aria-hidden="true">#</span>Property</span>
+          <p class="pv-comment-card__diff"><span class="pv-comment-card__prop">stage</span><del>open</del> <ins>sent</ins></p>
+        </div>
+        <div class="pv-comment-card__decision"><button class="pvbtn ghost">Accept</button><button class="pvbtn ghost">Decline</button></div>
+      </div>
+      <div class="pv-comment-card">
+        <div class="pv-comment-card__property" data-property="effort">
+          <span class="pv-comment-card__proplabel"><span aria-hidden="true">#</span>New property</span>
+          <p class="pv-comment-card__diff"><span class="pv-comment-card__prop">effort</span><ins>3</ins></p>
+        </div>
+      </div>
+      <div class="pv-comment-card">
+        <div class="pv-comment-card__property" data-property="owner">
+          <span class="pv-comment-card__proplabel"><span aria-hidden="true">#</span>Property</span>
+          <p class="pv-comment-card__diff"><span class="pv-comment-card__prop">owner</span><del>Anna</del><em class="pv-comment-card__diff-note"> removes this property</em></p>
+          <span class="pv-comment-card__state">The property “owner” says something else by now; this suggestion no longer fits.</span>
+        </div>
+      </div>
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Change a privacy rule of this note?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⛨</span><span>Change a privacy rule of this note?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Brief · Projects</dd>
+          <dt>Rule</dt>
+          <dd>never to the cloud</dd>
+          <dt>Change</dt>
+          <dd>is taken out of the note</dd>
+        </dl>
+        <span class="pv-ai-effect-warn"><span aria-hidden="true">⚠</span><span>After this the note may go to cloud models again.</span></span>
+        <span class="pv-ai-overview-hint">Plainva writes it into the note's properties — as when you set the rule yourself. The AI only learns whether it happened.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't change</button><button class="pvbtn secondary">Remove the rule</button></div>
+      </section>
+    </div>
     <p class="sec-sub">AI harness P3-5 (2026-10-01): the skills workshop. What waits for an approval on this device stands first; the review names what a skill may do in words and what changed since the approved version as a line comparison (<code>LineCompare</code>, <code>.pv-linecompare</code>), in a facts list (<code>.pv-skill-facts</code>).</p>
     <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
       <dl class="pv-skill-facts">

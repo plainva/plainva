@@ -1,3 +1,4 @@
+import { frontmatterSpan } from "../../frontmatter-surgical.js";
 import { stripAnchorMarkers } from "../../workspace/commentAnchor.js";
 import { outlineOf } from "../context/sections.js";
 
@@ -49,11 +50,9 @@ export type NoteEditOutcome =
   /** `edit`: which of the edits (0-based), where one of them is the reason. */
   | { ok: false; problem: NoteEditProblem; edit?: number };
 
-const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
-
 /** Where the text of a note begins: behind the properties block, or at 0. */
 export function noteBodyStart(text: string): number {
-  return FRONTMATTER.exec(text)?.[0].length ?? 0;
+  return frontmatterSpan(text)?.end ?? 0;
 }
 
 /** A model writes "\n"; the note may be written with "\r\n". */

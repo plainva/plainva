@@ -4340,6 +4340,151 @@ test('AI writes: a proposal and a draft change nothing until the reader decides;
   expect((await files()).filter((file) => /roofer/i.test(file.path))).toEqual([]);
 });
 
+// A value for a property (AI harness P5-3). The assistant proposes it the way
+// it proposes a passage: it waits with the note's suggestions, shown as the
+// property and its two values, and accepting it is what writes the note. Who
+// vouches for a note is nothing it can propose; and one of the note's own AI
+// rules is never a suggestion — it is a question the reader answers, and the
+// app writes the rule.
+test('AI writes a property: the value waits as a suggestion that names the property; a rule of the note is a question', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (...list: Array<[id: string, name: string, args: unknown]>) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ...list.flatMap(([id, name, args], index): Array<[string, unknown]> => [
+      ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name: 'call_tool', input: {} } }],
+      ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ name, args }) } }],
+      ['content_block_stop', { type: 'content_block_stop', index }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const BRIEF = '---\nstage: open\nowner: Anna\n---\n# Brief\n\nA short brief.\n';
+  const script = [
+    calls(
+      ['c1', 'set_property', { path: 'Brief.md', key: 'stage', value: 'sent', note: 'Sent today' }],
+      ['c2', 'set_property', { path: 'Brief.md', key: 'effort', value: 3 }],
+      ['c3', 'set_property', { path: 'Brief.md', key: 'verified', value: 'by me' }],
+    ),
+    says('I proposed the stage and the effort on the brief. They wait for you.'),
+    calls(['c4', 'set_property', { path: 'Brief.md', key: 'plainva.ai.cloud', value: 'deny' }]),
+    says('As you decided.'),
+  ];
+  await page.addInitScript(({ script, brief }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.plainva/sync'] = { isDir: true };
+    fs['/test-vault/Brief.md'] = brief;
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, brief: BRIEF });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const brief = () => page.evaluate(() => (window as any).mockFs['/test-vault/Brief.md'] as string);
+  const stored = async () => {
+    const fs = await page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path, value]) => typeof value === 'string' && /\/\.plainva\/sync\/comments\.[^/]+\.json$/.test(path)).map(([, value]) => String(value)));
+    return fs.flatMap((text) => Object.values(JSON.parse(text).comments as Record<string, any>)).filter((record) => record.suggestion);
+  };
+
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Mark the brief as sent with effort 3, and note that I verified it.');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('I proposed the stage and the effort on the brief.')).toBeVisible();
+
+  // 1. What the model read back: which property, that it waits — never the value. And what is not an assistant's to write.
+  const sent = await requests();
+  expect(sent[1]).toContain('Proposed on Brief.md: a value for the property stage. Nothing in the vault has changed.');
+  expect(sent[1]).toContain('Proposed on Brief.md: a value for the property effort. Nothing in the vault has changed.');
+  expect(sent[1]).toContain('Plainva takes this property from no assistant');
+  // 2. Nothing was asked and the note is what it was: two suggestions lie with the vault's comments, signed with the model.
+  await expect(companion.getByTestId('ai-effect')).toHaveCount(0);
+  expect(await brief()).toBe(BRIEF);
+  const proposals = await stored();
+  expect(proposals).toHaveLength(2);
+  expect(proposals.map((record) => record.anchor?.display ?? null)).toContainEqual({ kind: 'property', key: 'stage' });
+  expect(JSON.stringify(proposals)).toContain('plainva-ai/m-1');
+  await expect(companion.getByTestId('ai-proposed')).toContainText('Brief');
+
+  // 3. On the note they read as properties: the name, what it says struck, what it would say — not a line of YAML.
+  //    (The companion floats over the margin; it is closed for the look at the note and opened again afterwards.)
+  await companion.getByTestId('ai-companion-close').click();
+  await expect(companion).toHaveCount(0);
+  await page.getByText('Brief', { exact: true }).first().click();
+  await expect(page.getByText('A short brief.')).toBeVisible();
+  const toggle = page.getByTestId('editor-comments-toggle');
+  await expect(toggle).toBeVisible({ timeout: 10000 });
+  const column = page.locator('aside.pv-comment-column');
+  if (!(await column.isVisible())) await toggle.click();
+  // With nothing but proposals on the note the margin opens on them.
+  await expect(page.getByTestId('comment-kind-suggestions')).toHaveAttribute('aria-checked', 'true');
+  const cardOf = (key: string) => column.locator('.pv-comment-card', { has: page.locator(`[data-testid="comment-diff"][data-property="${key}"]`) });
+  await expect(cardOf('stage').getByTestId('comment-property-label')).toHaveText(/^(Property|Eigenschaft)$/i);
+  await expect(cardOf('stage').locator('[data-testid="comment-diff"] del')).toHaveText('open');
+  await expect(cardOf('stage').locator('[data-testid="comment-diff"] ins')).toHaveText('sent');
+  await expect(cardOf('effort').getByTestId('comment-property-label')).toHaveText(/^(New property|Neue Eigenschaft)$/i);
+  await expect(cardOf('effort').locator('[data-testid="comment-diff"] ins')).toHaveText('3');
+  await expect(column.locator('[data-testid="comment-diff"]')).toHaveCount(2);
+  // Two steps of one run on one note are one round in its margin, with both of the steps' sentences.
+  await expect(column.locator('.pv-comment-round')).toHaveCount(1);
+  await expect(column.locator('.pv-comment-round__meta')).toContainText(/Sent today/);
+  await expect(column.locator('.pv-comment-round__meta')).toContainText(/2 (changes|Änderungen)/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-property-cards-desktop.png'), animations: 'disabled' });
+
+  // 4. Accepting is what writes the note: the entry changes, and the new one stands in front of the line that closes the properties.
+  await cardOf('stage').hover();
+  await cardOf('stage').getByRole('button', { name: /^(Accept|Übernehmen)$/ }).first().click();
+  await expect.poll(brief, { timeout: 10000 }).toBe(BRIEF.replace('stage: open', 'stage: sent'));
+  await cardOf('effort').hover();
+  await cardOf('effort').getByRole('button', { name: /^(Accept|Übernehmen)$/ }).first().click();
+  await expect.poll(brief, { timeout: 10000 }).toBe('---\nstage: sent\nowner: Anna\neffort: 3\n---\n# Brief\n\nA short brief.\n');
+
+  // 5. One of the note's own AI rules is a question above the composer; until its yes the note says nothing of it.
+  await page.keyboard.press('Control+j');
+  await expect(companion.getByText('I proposed the stage and the effort on the brief.')).toBeVisible();
+  await companion.getByTestId('ai-input').fill('Keep the brief away from cloud models.');
+  await companion.getByTestId('ai-send').click();
+  const consent = companion.getByTestId('ai-consent-send');
+  const question = companion.getByTestId('ai-effect');
+  await expect(consent.or(question).first()).toBeVisible();
+  if (await consent.isVisible()) await consent.click();
+  await expect(question).toHaveAttribute('data-plan', 'rule');
+  await expect(question.getByTestId('ai-effect-rule')).toBeVisible();
+  await expect(question.getByTestId('ai-effect-loosens')).toHaveCount(0);
+  expect(await brief()).not.toContain('plainva');
+  expect(await stored()).toHaveLength(2);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-property-rule-desktop.png'), animations: 'disabled' });
+  await question.getByTestId('ai-effect-once').click();
+  await expect.poll(brief, { timeout: 10000 }).toContain('plainva:\n  ai:\n    cloud: deny');
+  // The app wrote it, not a suggestion: nothing new waits in the margin, and the model learns only that it happened.
+  await expect.poll(async () => (await requests()).length, { timeout: 10000 }).toBe(4);
+  expect((await requests())[3]).toContain('Done. The rule is written into Brief.md.');
+  expect(await stored()).toHaveLength(2);
+  expect(await brief()).toContain('stage: sent');
+});
+
 // "Explain image" (AI harness P4-5): a picture of the vault goes, with a
 // question, to the model — after the overview showed it exactly as it would
 // go. The web view's own decoder and canvas prepare it, as in the app: what
