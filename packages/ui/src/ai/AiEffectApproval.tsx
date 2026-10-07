@@ -104,12 +104,15 @@ function AiWriteApproval({ request, onAnswer, touch }: { request: Extract<Effect
  */
 function AiExternalCallApproval({ request, onAnswer, touch }: { request: Extract<EffectRequest, { kind: "mcp" }>; onAnswer: (answer: EffectAnswer) => void; touch?: boolean }) {
   const { t } = useTranslation();
-  const title = t("ai.ext.ask.title", { server: request.server });
+  // A call that can change something at the service (plan P5-6) is asked about in other words, says that Plainva
+  // cannot take it back, and its button is not the one the eye lands on. What it sends is shown in full either way.
+  const changes = request.effect !== "reads";
+  const title = t(changes ? "ai.ext.ask.titleChanges" : "ai.ext.ask.title", { server: request.server });
   const empty = request.args.trim() === "{}";
   return (
-    <section className={cx("pv-ai-overview", "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid="ai-effect" data-kind="mcp">
+    <section className={cx("pv-ai-overview", "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid="ai-effect" data-kind="mcp" data-effect={request.effect}>
       <h4 className="pv-ai-overview-head">
-        <Plug size={ICON.ui} aria-hidden="true" />
+        {changes ? <TriangleAlert size={ICON.ui} aria-hidden="true" /> : <Plug size={ICON.ui} aria-hidden="true" />}
         <span>{title}</span>
       </h4>
       <dl className="pv-ai-overview-list">
@@ -120,13 +123,19 @@ function AiExternalCallApproval({ request, onAnswer, touch }: { request: Extract
         <dt>{t("ai.ext.ask.data")}</dt>
         <dd>{empty ? t("ai.ext.ask.nothing") : <LineCompare lines={null} fallback={request.args} testId="ai-effect-args" />}</dd>
       </dl>
+      {changes && (
+        <span className="pv-ai-effect-warn" data-testid="ai-effect-changes">
+          <TriangleAlert size={ICON.meta} aria-hidden="true" />
+          <span>{t(request.effect === "destroys" ? "ai.ext.ask.destroys" : "ai.ext.ask.changes", { server: request.server })}</span>
+        </span>
+      )}
       <span className="pv-ai-overview-hint">{t("ai.ext.ask.hint", { server: request.server })}</span>
       <div className="pv-ai-overview-actions">
         <Button variant="ghost" onClick={() => onAnswer("deny")} data-testid="ai-effect-deny">
           {t("ai.ext.ask.deny")}
         </Button>
-        <Button variant="primary" onClick={() => onAnswer("once")} data-testid="ai-effect-once">
-          {t("ai.ext.ask.send")}
+        <Button variant={changes ? "secondary" : "primary"} onClick={() => onAnswer("once")} data-testid="ai-effect-once">
+          {t(changes ? "ai.ext.ask.run" : "ai.ext.ask.send")}
         </Button>
       </div>
     </section>

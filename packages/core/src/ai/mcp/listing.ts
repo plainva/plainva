@@ -127,3 +127,20 @@ export function readMcpListing(raw: {
 export function mcpDeclaresReadOnly(tool: McpToolDescriptor): boolean {
   return isRecord(tool.annotations) && tool.annotations.readOnlyHint === true;
 }
+
+/**
+ * What a call of a tool can do at its service, as far as the tool says — read
+ * the cautious way round (plan KI-Harness P5-6). A tool that says it only
+ * reads `reads`. One that does not may change something there, and unless it
+ * says it destroys nothing (`destructiveHint: false`) it may also overwrite
+ * or delete: the specification's own default for a tool that says nothing.
+ *
+ * The server's claim, never a fact: it decides which words the user is asked
+ * with, not whether they are asked — every call is.
+ */
+export type McpToolEffect = "reads" | "changes" | "destroys";
+
+export function mcpToolEffect(tool: McpToolDescriptor): McpToolEffect {
+  if (mcpDeclaresReadOnly(tool)) return "reads";
+  return isRecord(tool.annotations) && tool.annotations.destructiveHint === false ? "changes" : "destroys";
+}

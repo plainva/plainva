@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { asMcpError, mcpServerStanding, type McpFailure, type McpListing, type McpOAuthStatus, type McpSandboxInfo, type McpServerGrant, type McpSignInPlan } from "@plainva/core";
+import { asMcpError, mcpServerStanding, withMcpToolGrant, type McpFailure, type McpListing, type McpOAuthStatus, type McpSandboxInfo, type McpServerGrant, type McpSignInPlan } from "@plainva/core";
 import type { AiSession } from "./aiSession";
 import {
   externalAddProblemText,
@@ -374,7 +374,11 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
   const listing = look.state === "ready" ? look.inspection.listing : (server?.snapshot ?? null);
   const needsApproval = look.state === "ready" ? look.inspection.review.status !== "approved" && !approved : server !== null && mcpServerStanding(server) !== "ready" && mcpServerStanding(server) !== "off";
   const canApprove = look.state === "ready" && !look.inspection.tooLarge;
-  const dirty = server !== null && (enabled !== server.enabled || !sameList(grant.tools, server.grant.tools) || !sameList(grant.folders, server.grant.folders));
+  // What a tick covers is part of the choice: a tool ticked again for what it does now is a change to store.
+  const effectsOf = (value: McpServerGrant) => Object.entries(value.effects ?? {}).map(([name, effect]) => `${name}=${effect}`);
+  const dirty =
+    server !== null &&
+    (enabled !== server.enabled || !sameList(grant.tools, server.grant.tools) || !sameList(effectsOf(grant), effectsOf(server.grant)) || !sameList(grant.folders, server.grant.folders));
 
 
   const save = async (): Promise<boolean> => {
@@ -387,7 +391,11 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
       }
       // A grant names tools the listing has: one that left it is not granted again when it comes back.
       const names = new Set((listing?.tools ?? []).map((tool) => tool.name));
-      await session.mcp.setVault(server.id, { enabled, grant: { ...grant, tools: grant.tools.filter((name) => names.has(name)) } });
+      const effects = Object.fromEntries(Object.entries(grant.effects ?? {}).filter(([name]) => names.has(name) && grant.tools.includes(name)));
+      const kept: McpServerGrant = { ...grant, tools: grant.tools.filter((name) => names.has(name)) };
+      if (Object.keys(effects).length) kept.effects = effects;
+      else delete kept.effects;
+      await session.mcp.setVault(server.id, { enabled, grant: kept });
       setEdit({});
       return true;
     } finally {
@@ -406,8 +414,10 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
     folders: edit.choice ?? externalFolders(grant),
     setEnabled: (on) => setEdit((before) => ({ ...before, enabled: on })),
     toggleTool: (name, on) => {
-      const tools = on ? [...new Set([...grant.tools, name])] : grant.tools.filter((entry) => entry !== name);
-      setEdit((before) => ({ ...before, grant: { ...grant, tools } }));
+      // Ticked for what the tool says it does in the listing that is shown — no more, and for nothing it may say later.
+      const tool = listing?.tools.find((entry) => entry.name === name);
+      if (!tool) return;
+      setEdit((before) => ({ ...before, grant: withMcpToolGrant(grant, tool, on) }));
     },
     // "Chosen folders" brings back the folders that were ticked before another choice was tried.
     setFolders: (choice) => {

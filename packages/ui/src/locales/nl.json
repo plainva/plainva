@@ -913,6 +913,10 @@
         "data": "Verstuurt",
         "nothing": "Niets behalve de naam van het hulpmiddel.",
         "hint": "Precies dit gaat naar {{server}}. Wat terugkomt wordt behandeld als de tekst van een vreemde: de AI leest het en neemt er geen instructies uit aan.",
+        "titleChanges": "{{server}} iets laten wijzigen?",
+        "changes": "Deze aanroep kan bij {{server}} iets wijzigen. Plainva kan dat niet ongedaan maken.",
+        "destroys": "Deze aanroep kan bij {{server}} iets wijzigen, overschrijven of verwijderen. Plainva kan dat niet ongedaan maken.",
+        "run": "Uitvoeren",
         "deny": "Niet aanroepen",
         "send": "Aanroepen"
       },
@@ -957,9 +961,13 @@
         "tools": "Hulpmiddelen",
         "toolsHint": "Vink de hulpmiddelen aan die de AI in deze vault mag aanroepen. De beschrijvingen zijn de eigen woorden van de server.",
         "toolsNone": "De server somt geen hulpmiddelen op.",
+        "effect": {
+          "changes": "Kan bij {{server}} iets wijzigen — het zegt niet dat het alleen leest.",
+          "destroys": "Kan bij {{server}} iets wijzigen, overschrijven of verwijderen — het zegt niets anders."
+        },
+        "effectGrew": "Het was aangevinkt toen het zei dat het alleen leest. Vink het opnieuw aan als het dit hier mag doen.",
         "standing": {
           "name": "Niet aangeboden: de naam is niet betrouwbaar te onderscheiden.",
-          "not-read-only": "Niet aangeboden: het zegt niet dat het alleen leest.",
           "header-marks": "Niet aangeboden: het markeert zijn argumenten op een manier die het protocol verbiedt."
         },
         "likeBuiltin": "De naam lijkt op Plainva's eigen hulpmiddel “{{tool}}”.",

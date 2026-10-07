@@ -76,9 +76,24 @@ describe("what is offered of a server's tools", () => {
     const issues = mcpIssuesOf([state]);
     expect(mcpToolStanding(state, search, issues)).toBe("offered");
     expect(mcpToolStanding(state, read, issues)).toBe("not-granted");
-    // A tool that does not say it only reads is not offered, granted or not.
-    expect(mcpToolStanding(state, close, issues)).toBe("not-read-only");
-    expect(mcpToolStanding(state, { name: "no_hint" }, issues)).toBe("not-read-only");
+    // A tool that does not say it only reads is offered once it is ticked FOR that; its name in the list is not enough —
+    // which is all a grant made before such tools could be ticked can hold.
+    expect(mcpToolStanding(state, close, issues)).toBe("not-granted");
+    const allowed = server({ grant: { ...EMPTY_MCP_GRANT, tools: ["close_issue"], effects: { close_issue: "destroys" } } });
+    expect(mcpToolStanding(allowed, close, issues)).toBe("offered");
+    expect(mcpToolStanding(allowed, { name: "no_hint" }, issues)).toBe("not-granted");
+  });
+
+  it("a tool that may change something is an outside effect of its own, and brings what it says of itself to the question", () => {
+    const state = server({ grant: { ...EMPTY_MCP_GRANT, tools: ["search_issues", "close_issue"], effects: { close_issue: "destroys" } } });
+    const offered = mcpOfferedTools([state]);
+    expect(offered.map((tool) => [tool.name, tool.effect])).toEqual([
+      ["search_issues", "reads"],
+      ["close_issue", "destroys"],
+    ]);
+    expect(offered.map((tool) => mcpForeignManifest(tool, state.grant).risk)).toEqual(["read", "external"]);
+    // Either way the call itself leaves the device, and its result is a stranger's text.
+    expect(offered.every((tool) => mcpForeignManifest(tool, state.grant).outward === true && mcpForeignManifest(tool, state.grant).untrustedResult)).toBe(true);
   });
 
   it("withholds a tool whose name cannot be offered, whatever it says and whatever was granted", () => {

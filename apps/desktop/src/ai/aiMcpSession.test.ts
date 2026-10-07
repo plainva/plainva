@@ -87,7 +87,7 @@ describe("a foreign tool in a conversation", () => {
     expect(found!.content).not.toContain("close_issue");
 
     // The question: the server by the user's name for it, the tool, the arguments in full — under the id of the call it stands for.
-    expect(seen).toEqual([{ id: "c2", kind: "mcp", serverId: "tracker", server: "Tracker", tool: "search_issues", title: "Search issues", args: JSON.stringify({ query: "login" }, null, 2) }]);
+    expect(seen).toEqual([{ id: "c2", kind: "mcp", serverId: "tracker", server: "Tracker", tool: "search_issues", title: "Search issues", args: JSON.stringify({ query: "login" }, null, 2), effect: "reads" }]);
     expect(server.calls).toEqual([{ name: "search_issues", args: { query: "login" } }]);
     // What came back is a stranger's text: fenced, with where it came from.
     expect(called).toMatchObject({ name: "call_tool", tool: SEARCH });
@@ -97,6 +97,41 @@ describe("a foreign tool in a conversation", () => {
     // A person reads the step by the tool it meant.
     const steps = transcriptOf(record).flatMap((item) => (item.kind === "steps" ? item.steps : []));
     expect(steps).toContainEqual({ id: "c2", name: SEARCH, state: "done" });
+  });
+
+  // Plan P5-6: a tool that changes something at its service. Ticked on its own, asked about as what it is, every time.
+  it("a tool that may change something there is found only once it is ticked for it, and its call is asked about as that", async () => {
+    const CLOSE = "mcp_tracker_close_issue";
+    const { s, server, files } = await mcpSession([
+      turn({ calls: [{ id: "c1", name: "find_tools", args: { query: "issues" } }] }),
+      turn({ calls: [viaDispatch("c2", CLOSE, { id: 12 })] }),
+      turn({ text: "Issue 12 is closed." }),
+      turn({ calls: [viaDispatch("c3", CLOSE, { id: 13 })] }),
+      turn({ text: "Issue 13 stays open." }),
+    ]);
+    // Ticked by name alone — what a grant from before such tools could be ticked holds: not offered at all.
+    await connect(s, { tools: ["search_issues", "close_issue"] });
+    expect(await s.mcp.offeredNames()).toEqual([SEARCH]);
+    // Ticked for what it says it does (it says nothing: all of it).
+    await s.mcp.setVault("tracker", { enabled: true, grant: { ...EMPTY_MCP_GRANT, tools: ["search_issues", "close_issue"], effects: { close_issue: "destroys" } } });
+    expect(await s.mcp.offeredNames()).toEqual([SEARCH, CLOSE]);
+
+    const answers: Array<"once" | "deny"> = ["once", "deny"];
+    const seen = answering(s, () => answers.shift() ?? "deny");
+    expect(await s.send("Close issue 12.")).toEqual({ kind: "answered" });
+    expect(s.getState().active!.conversation.more).toEqual([SEARCH, CLOSE]);
+    expect(seen).toEqual([{ id: "c2", kind: "mcp", serverId: "tracker", server: "Tracker", tool: "close_issue", title: "close_issue", args: JSON.stringify({ id: 12 }, null, 2), effect: "destroys" }]);
+    expect(server.calls).toEqual([{ name: "close_issue", args: { id: 12 } }]);
+
+    // The next call is asked again — there is no "from now on" — and a no sends nothing.
+    expect(await s.send("And 13.")).toEqual({ kind: "answered" });
+    expect(seen).toHaveLength(2);
+    expect(seen[1]).toMatchObject({ id: "c3", tool: "close_issue", effect: "destroys" });
+    expect(server.calls).toHaveLength(1);
+    expect(audit(files).map((entry) => [entry.tool, entry.outcome])).toEqual([
+      ["close_issue", "answered"],
+      ["close_issue", "declined"],
+    ]);
   });
 
   it("asks every time: a yes for one call says nothing about the next", async () => {

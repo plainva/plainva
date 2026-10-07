@@ -30,7 +30,7 @@ Three constraints came from the rest of the harness. Keys and addresses never li
 
 6. **One call, decided in the order of trust.** The server and the tool as they stand now; the listing against the pin; everything the conversation has read from the vault against the folders the vault allowed this server — none by default — and against the privacy gate, where every foreign server is a cloud recipient, a local program included; and last the user, who sees the server, the tool and the arguments in full. A yes is for one call. There is no "always".
 
-7. **Only reading, for now.** A tool that does not declare itself read-only is not offered. The declaration is the server's own claim: necessary, never sufficient. Writing through a foreign server opens, if at all, with the approval chain of ADR 0019.
+7. **A tick is for what a tool said it does, and a tool that changes something is asked about in other words.** What a tool may do at its service is the server's own claim, read the cautious way round: only `readOnlyHint: true` *reads*; a tool that says nothing may *change, overwrite or delete*; `destructiveHint: false` narrows that to *may change*. Every tool can be ticked in a vault, and none is ticked by default. A tick records the effect the tool declared when it was set, and a call is held to it: a tool that says more later is not offered until it is ticked again, so a yes to reading never becomes a yes to changing. A call of a tool that does not only read passes the same chain (decision 6) and is then asked under a heading of its own, with the sentence that Plainva cannot undo it and a button that is not the dialog's obvious one. The claim decides which words the user reads — never whether they are asked. Nothing a foreign tool does or returns changes the vault. *(First built as "only reading": a tool that did not declare itself read-only was not offered. Opened on 2026-10-07 with the approval chain of ADR 0019, risk class `external`.)*
 
 8. **Nobody's conversation gets none.** A conversation bound to a skill, a door, a regression run and the system's own model reach no foreign tool.
 
@@ -45,6 +45,7 @@ Three constraints came from the rest of the harness. Keys and addresses never li
 - The protocol client is Plainva's to maintain: a new revision of the specification is work in `wire.ts` and its neighbours, with the scripted server as the test bed.
 - A user answers a question for every call. That is the price of not having an "always", and it is why looking for tools asks nothing.
 - A conversation that has read notes outside a server's folders cannot use that server at all, until the user allows the folders or starts a new conversation. The refusal says so.
+- What a foreign tool changes at its service is outside Plainva: there is no undo, no suggestion round and no draft for it, and the question says so. A server that describes a tool as harmless and deletes with it is not caught by a declaration — the user's look at the tool, its description and the arguments is the control, as it is for what a call carries.
 - Signing in depends on one document outside this repository: Plainva's description as a client is part of the project's website (`/oauth/client.json`), and what it lists is pinned by a test here (`mcpClientDocument`). Until it is published, an authorization server that reads it refuses the sign-in in the browser; a registration and an id from the server's operator do not depend on it.
 - Three native implementations hold one contract, the sign-in's rules included: one list of cases per rule runs on all of them and on the reference in TypeScript. A source-level test keeps the rest aligned; only CI compiles all three.
 
@@ -55,6 +56,8 @@ Three constraints came from the rest of the harness. Keys and addresses never li
 - **Approve a server once, by its address.** Rejected: an address says who answers, not what they say. The incident above was a server whose address never changed.
 - **"Always allow" per tool.** Rejected for now: with private notes in a conversation and a stranger's text in the same run, a standing approval for a way out is the third leg of the Rule of Two.
 - **Check only the paths that appear in the arguments.** Rejected: arguments are text a model wrote, and a model can write anything it has read into them. What counts is what the conversation could carry.
+- **One switch per server, "may change things".** Rejected: it would allow tools nobody looked at, and a tool added to an approved listing later would inherit it. The unit of a yes stays the tool, and the effect it declared.
+- **Let the annotations decide more than wording.** Rejected: they are a server's claim about itself. A claim to only read gets the ordinary question, a missing claim counts as the protocol's own default — the worst case —, and no claim removes a question. A server gains nothing by leaving the annotations out.
 
 ## Deferred, and why
 
@@ -65,5 +68,5 @@ Three constraints came from the rest of the harness. Keys and addresses never li
 
 ## Links
 
-- [MCP client architecture](../engineering/MCP_Client_Architecture.md), [MCP client security review](../engineering/MCP_Client_Security_Review.md), [AI threat model](../engineering/AI_Threat_Model.md) T10, T25–T29.
+- [MCP client architecture](../engineering/MCP_Client_Architecture.md), [MCP client security review](../engineering/MCP_Client_Security_Review.md), [AI threat model](../engineering/AI_Threat_Model.md) T10, T25–T29, T36.
 - ADR 0017, 0018, 0019, 0020, 0022; MCP specification 2026-07-28 and 2025-11-25; RFC 7591, 7636, 8252, 8414, 8707, 9207, 9728.

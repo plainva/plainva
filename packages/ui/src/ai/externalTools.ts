@@ -7,6 +7,7 @@ import {
   mcpIssuesOf,
   mcpOfferedTools,
   mcpServerStanding,
+  mcpToolEffect,
   mcpToolStanding,
   validMcpEnvName,
   type McpFailure,
@@ -14,6 +15,7 @@ import {
   type McpNameIssue,
   type McpServerGrant,
   type McpServerReview,
+  type McpToolEffect,
   type McpToolStanding,
 } from "@plainva/core";
 import type { McpAddProblem } from "./mcpRuntime";
@@ -52,10 +54,14 @@ export interface ExternalToolRow {
   /** What the server says the tool does: cleaned, cut — and shown as the server's words. */
   description: string;
   standing: McpToolStanding;
-  /** Granted in this vault (the box is ticked). */
+  /** Granted in this vault (the box is ticked) — for what the tool says it does in this listing. */
   granted: boolean;
-  /** The tool can be granted at all: one that does not say it only reads, or whose name cannot be offered, cannot. */
+  /** The tool can be granted at all: one whose name cannot be offered cannot. */
   grantable: boolean;
+  /** What a call can do at the service, as the tool says it. */
+  effect: McpToolEffect;
+  /** For a tool that does not only read: the sentence that says what a call may do there. Null for one that reads. */
+  warning: string | null;
   /** Why it is not offered, or what a person should notice about its name. */
   notes: string[];
 }
@@ -67,8 +73,11 @@ export function externalToolRows(t: T, server: AiMcpServer, listing: McpListing,
   const issues: McpNameIssue[] = mcpIssuesOf([...all.filter((other) => other.id !== server.id), viewed]);
   return listing.tools.map((tool) => {
     const standing = mcpToolStanding(viewed, tool, issues);
+    const effect = mcpToolEffect(tool);
     const notes: string[] = [];
-    if (standing === "name" || standing === "not-read-only" || standing === "header-marks") notes.push(t(`ai.ext.review.standing.${standing}`));
+    if (standing === "name" || standing === "header-marks") notes.push(t(`ai.ext.review.standing.${standing}`));
+    // Ticked for less than it says it does now: said, so that an unticked box is no riddle.
+    if (standing === "not-granted" && grant.tools.includes(tool.name)) notes.push(t("ai.ext.review.effectGrew"));
     for (const issue of issues) {
       if (issue.kind === "like-builtin" && issue.server === server.id && issue.tool === tool.name) notes.push(t("ai.ext.review.likeBuiltin", { tool: issue.builtin }));
       if (issue.kind === "like-other-server" && issue.servers.includes(server.id) && issue.tool === tool.name) notes.push(t("ai.ext.review.likeOther"));
@@ -78,8 +87,11 @@ export function externalToolRows(t: T, server: AiMcpServer, listing: McpListing,
       title: capMcpText(tool.title, 80).text || tool.name,
       description: capMcpText(tool.description, 600).text,
       standing,
-      granted: grant.tools.includes(tool.name),
+      // Ticked means offered: a tool that was ticked while it only read, and says more now, shows unticked again.
+      granted: standing === "offered",
       grantable: standing === "offered" || standing === "not-granted",
+      effect,
+      warning: effect === "reads" ? null : t(`ai.ext.review.effect.${effect}`, { server: server.label }),
       notes,
     };
   });

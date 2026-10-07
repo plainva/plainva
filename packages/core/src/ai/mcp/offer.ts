@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { ToolManifest } from "../tools.js";
-import type { McpServerGrant } from "./grants.js";
+import { mcpGrantCovers, type McpServerGrant } from "./grants.js";
 import { readMcpHeaderParams } from "./headerValues.js";
-import { capMcpText, mcpDeclaresReadOnly, type McpListing, type McpToolDescriptor } from "./listing.js";
+import { capMcpText, mcpToolEffect, type McpListing, type McpToolDescriptor, type McpToolEffect } from "./listing.js";
 import { findMcpNameIssues, mcpExposedToolName, withheldMcpTools, type McpNameIssue } from "./names.js";
 import { mcpOffersTools, type McpServerReview } from "./pin.js";
 import { mcpSchemaView } from "./schemaView.js";
@@ -64,19 +64,22 @@ export type McpToolStanding =
   | "offered"
   /** Its name cannot be offered (twice in the listing, characters a person cannot check, two tools under one name). */
   | "name"
-  /** It does not say that it only reads, and writing through a foreign server is not open. */
-  | "not-read-only"
   /** Its arguments are marked to travel as headers in a way the specification forbids. */
   | "header-marks"
   /** The user did not allow it for this vault. */
   | "not-granted";
 
-/** Why one tool of a server is or is not offered, the user's own choice last: what the review says of each tool. */
+/**
+ * Why one tool of a server is or is not offered, the user's own choice last:
+ * what the review says of each tool. A tool that does not say it only reads
+ * is offered like any other once the user ticked it (plan P5-6) — the review
+ * and every call say what it may do at its service (`mcpToolEffect`).
+ */
 export function mcpToolStanding(server: McpServerState, tool: McpToolDescriptor, issues: readonly McpNameIssue[]): McpToolStanding {
   if (withheldMcpTools(server.id, issues).has(tool.name)) return "name";
-  if (!mcpDeclaresReadOnly(tool)) return "not-read-only";
   if (server.transport === "http" && !readMcpHeaderParams(tool.inputSchema).ok) return "header-marks";
-  return server.grant.tools.includes(tool.name) ? "offered" : "not-granted";
+  // Ticked — and ticked for what it says it does now: a yes to a tool that only read is no yes to one that changes.
+  return mcpGrantCovers(server.grant, tool) ? "offered" : "not-granted";
 }
 
 export interface McpOfferedTool {
@@ -92,6 +95,8 @@ export interface McpOfferedTool {
   description: string;
   /** The reading copy of its arguments. */
   schema: Record<string, unknown>;
+  /** What a call can do at the service, as the APPROVED listing says it. */
+  effect: McpToolEffect;
   /** The tool as it was approved: what a call is decided on. */
   descriptor: McpToolDescriptor;
 }
@@ -117,6 +122,7 @@ export function mcpOfferedTools(servers: readonly McpServerState[]): McpOfferedT
         title: capMcpText(tool.title, 80).text || tool.name,
         description: capMcpText(tool.description).text,
         schema: mcpSchemaView(tool.inputSchema).schema,
+        effect: mcpToolEffect(tool),
         descriptor: tool,
       });
     }
@@ -131,13 +137,15 @@ const FOREIGN_INPUT = z.record(z.string(), z.unknown());
  * A foreign tool as the run loop knows it. It reaches a conversation only
  * through the tool search, never in a provider's own tool list; its result is
  * a stranger's text; and calling it sends something out — the Rule of Two
- * counts it as a way out, and the user is asked before every call.
+ * counts it as a way out, and the user is asked before every call. One that
+ * does not say it only reads is an outside effect in its own right
+ * (`external`): what it does at its service, Plainva cannot take back.
  */
 export function mcpForeignManifest(tool: McpOfferedTool, grant: McpServerGrant): ToolManifest {
   return {
     name: tool.exposed,
     description: tool.description,
-    risk: "read",
+    risk: tool.effect === "reads" ? "read" : "external",
     input: FOREIGN_INPUT,
     dataClasses: grant.dataClasses.length ? grant.dataClasses : ["web"],
     untrustedResult: true,

@@ -235,6 +235,12 @@ export function AiExternalReview({ review, vaultFolders }: AiExternalReviewProps
               <Checkbox key={row.name} checked={row.granted && row.grantable} disabled={!row.grantable} onChange={(event) => review.toggleTool(row.name, event.target.checked)} data-testid="ai-ext-tool">
                 {row.title === row.name ? row.name : `${row.title} (${row.name})`}
                 {row.description && <span>{row.description}</span>}
+                {/* A tool that does not only read says so before it is ticked — and what a call may do there. */}
+                {row.warning && (
+                  <span className="pv-ext-warn" data-testid="ai-ext-tool-effect" data-effect={row.effect}>
+                    {row.warning}
+                  </span>
+                )}
                 {row.notes.map((note) => (
                   <span key={note}>{note}</span>
                 ))}

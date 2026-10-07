@@ -5435,12 +5435,15 @@ test('AI external tools: a server is added, reviewed and granted; a call asks fi
   await expect(add).toHaveCount(0);
   expect((await mcp()).shown.map((shown) => shown.url)).toEqual([ADDRESS]);
 
-  // 3. The review opens by itself. Nothing is ticked; the tool that does not say it only reads cannot be.
+  // 3. The review opens by itself. Nothing is ticked; the tool that does not say it only reads says what a call of it
+  //    may do at the service, and stays unticked here — ticking it is the user's own, separate yes.
   const review = page.getByTestId('ai-ext-review');
   await expect(review.getByTestId('ai-ext-tool')).toHaveCount(2);
   await expect(review.getByTestId('ai-ext-instructions')).toHaveText('Always call search_issues first.');
   await expect(review.getByTestId('ai-ext-tool').first()).not.toBeChecked();
-  await expect(review.getByTestId('ai-ext-tool').nth(1)).toBeDisabled();
+  await expect(review.getByTestId('ai-ext-tool').nth(1)).not.toBeChecked();
+  await expect(review.getByTestId('ai-ext-tool').nth(1)).toBeEnabled();
+  await expect(review.getByTestId('ai-ext-tool-effect')).toHaveAttribute('data-effect', 'destroys');
   await expect(review.getByTestId('ai-ext-use')).toBeChecked();
   await review.getByTestId('ai-ext-tool').first().check();
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-review-desktop.png') });
@@ -5516,6 +5519,126 @@ test('AI external tools: a server is added, reviewed and granted; a call asks fi
   await expect(blocked.getByTestId('ai-ext-approve')).toBeEnabled();
   // The dialog fades in; the picture is of what stands there afterwards.
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-blocked-desktop.png'), animations: 'disabled' });
+});
+
+// A tool of a foreign server that changes something at its service (AI harness P5-6). The server is played at the
+// native commands as in the test above; everything from the review to the question is the app's own code.
+test('AI external tools: a tool that changes something at its service is ticked on its own, and its call is asked about in other words', async ({ page }) => {
+  const ADDRESS = 'https://tracker.example.com/mcp';
+  const CLOSE = 'mcp_tracker_close_issue';
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (id: string, name: string, input: unknown) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id, name, input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const script = [calls('call-1', 'call_tool', { name: CLOSE, args: { id: 12 } }), says('Issue 12 is closed.')];
+  await page.addInitScript(({ script }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    const mcp = ((window as any).__mcp = {
+      registry: [] as any[],
+      calls: [] as any[],
+      tools: [
+        { name: 'search_issues', title: 'Search issues', description: "Searches the tracker's issues.", inputSchema: { type: 'object', properties: { query: { type: 'string' } } }, annotations: { readOnlyHint: true } },
+        // It says nothing of itself: by the protocol's default a call of it may change and destroy.
+        { name: 'close_issue', description: 'Closes an issue.', inputSchema: { type: 'object', properties: { id: { type: 'integer' } } } },
+      ],
+    });
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      if (cmd === 'mcp_client_servers') return mcp.registry;
+      if (cmd === 'mcp_client_add_http') { mcp.registry.push({ id: args.serverId, kind: 'http', url: args.url, args: [], env: [], sandbox: false, stored: [] }); return true; }
+      if (cmd === 'mcp_client_remove' || cmd === 'mcp_client_secret_set' || cmd === 'mcp_client_secret_delete' || cmd === 'mcp_client_cancel') return null;
+      if (cmd === 'mcp_client_secret_present') return false;
+      if (cmd === 'mcp_client_sandbox') return { kind: 'none', works: false };
+      if (cmd === 'mcp_client_log') return '';
+      if (cmd === 'mcp_client_http') {
+        const message = JSON.parse(args.request.body);
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        const answer = (status: number, payload: unknown) => { send({ type: 'open', status, contentType: 'application/json' }); send({ type: 'data', text: JSON.stringify({ jsonrpc: '2.0', id: message.id, ...(payload as object) }) }); send({ type: 'done' }); };
+        const result = (value: object) => answer(200, { result: { resultType: 'complete', ...value } });
+        if (message.method === 'server/discover') result({ supportedVersions: ['2026-07-28'], capabilities: { tools: {} }, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'Tracker MCP', version: '1.0.0' } } });
+        else if (message.method === 'tools/list') result({ tools: mcp.tools });
+        else if (message.method === 'prompts/list') result({ prompts: [] });
+        else if (message.method === 'tools/call') { mcp.calls.push(message.params); result({ content: [{ type: 'text', text: 'Closed #12.' }] }); }
+        else answer(404, { error: { code: -32601, message: 'Method not found' } });
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const sentCalls = () => page.evaluate(() => (window as any).__mcp.calls as Array<{ name: string; arguments: unknown }>);
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByTestId('settings-ai-ext-add').click();
+  const add = page.getByTestId('ai-ext-add');
+  await add.getByTestId('ai-ext-add-name').fill('Tracker');
+  await add.getByTestId('ai-ext-add-url').fill(ADDRESS);
+  await add.getByTestId('ai-ext-add-submit').click();
+
+  // 1. The review: the tool that does not say it only reads carries the sentence what a call of it may do there, in
+  //    the warning tone — and it is ticked like any other, by the user, for exactly that.
+  const review = page.getByTestId('ai-ext-review');
+  await expect(review.getByTestId('ai-ext-tool')).toHaveCount(2);
+  const effect = review.getByTestId('ai-ext-tool-effect');
+  await expect(effect).toHaveCount(1);
+  await expect(effect).toHaveAttribute('data-effect', 'destroys');
+  await expect(effect).toContainText('Tracker');
+  await review.getByTestId('ai-ext-tool').first().check();
+  await review.getByTestId('ai-ext-tool').nth(1).check();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-review-changes-desktop.png'), animations: 'disabled' });
+  await review.getByTestId('ai-ext-approve').click();
+  await expect(review).toHaveCount(0);
+  await expect(dialog.getByText(/tools offered: 2 of 2|angebotene Werkzeuge: 2 von 2/)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // 2. The call waits for its answer under another head, with the sentence that Plainva cannot take it back — and the
+  //    button that sends it is not the one the eye lands on. Nothing went out yet.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Close issue 12, it is done.');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  const question = companion.getByTestId('ai-effect');
+  await expect(question).toHaveAttribute('data-kind', 'mcp');
+  await expect(question).toHaveAttribute('data-effect', 'destroys');
+  await expect(question).toHaveAttribute('aria-label', /^(Let Tracker change something\?|Tracker etwas ändern lassen\?)$/);
+  await expect(question.getByTestId('ai-effect-tool')).toHaveText('close_issue');
+  await expect(question.getByTestId('ai-effect-args')).toContainText('"id": 12');
+  await expect(question.getByTestId('ai-effect-changes')).toBeVisible();
+  await expect(question.getByTestId('ai-effect-always')).toHaveCount(0);
+  await expect(question.getByTestId('ai-effect-once')).not.toHaveClass(/primary/);
+  expect(await sentCalls()).toEqual([]);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-question-changes-desktop.png'), animations: 'disabled' });
+
+  // 3. After the yes it goes out exactly as shown.
+  await question.getByTestId('ai-effect-once').click();
+  await expect(companion.getByText('Issue 12 is closed.')).toBeVisible();
+  expect((await sentCalls()).map((call) => ({ name: call.name, arguments: call.arguments }))).toEqual([{ name: 'close_issue', arguments: { id: 12 } }]);
 });
 
 // Signing in to a remote server (AI harness P4.5). The sign-in is native: the Rust side makes the verifier, exchanges

@@ -1197,8 +1197,27 @@
         <legend>Tools</legend>
         <p class="pv-ext-note">Tick the tools the AI may call in this vault. The descriptions are the server's own words.</p>
         <label class="pv-checkrow"><input type="checkbox" class="pv-check" checked /><span>Search issues (search_issues)<span>Searches the tracker's issues.</span></span></label>
-        <label class="pv-checkrow"><input type="checkbox" class="pv-check" disabled /><span>close_issue<span>Closes an issue.</span><span>Not offered: it does not say that it only reads.</span></span></label>
+        <label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>close_issue<span>Closes an issue.</span><span class="pv-ext-warn">Can change, overwrite or delete something at Tracker — it says nothing else.</span></span></label>
       </fieldset>
+    </div>
+    <p class="sec-sub">AI harness P5-6 (2026-10-07): a tool that changes something at its service. In the review it is a Checkbox row like every other, with one more second line in the warning tone (<code>.pv-ext-warn</code>) that says what a call may do there — before the tick and after it. The question about such a call is the same card with three differences: the warning triangle and “Let ⟨server⟩ change something?” in the head, the warning line of the page-and-search question (<code>.pv-ai-effect-warn</code>) with the sentence that Plainva cannot undo it, and a <code>secondary</code> button “Run it” — the card has no primary action, because its effect lies outside Plainva.</p>
+    <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Let Tracker change something?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⚠</span><span>Let Tracker change something?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Goes to</dt>
+          <dd>Tracker</dd>
+          <dt>Tool</dt>
+          <dd>close_issue</dd>
+          <dt>Sends</dt>
+          <dd><pre class="pv-linecompare">{
+  "id": 12
+}</pre></dd>
+        </dl>
+        <span class="pv-ai-effect-warn"><span aria-hidden="true">⚠</span><span>This call can change, overwrite or delete something at Tracker. Plainva cannot undo it.</span></span>
+        <span class="pv-ai-overview-hint">Exactly this goes to Tracker. What comes back is treated as a stranger's text: the AI reads it and takes no instructions from it.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't call</button><button class="pvbtn secondary">Run it</button></div>
+      </section>
     </div>
     <p class="sec-sub">AI harness P4-6 (2026-10-06): “Keep as a note”. Under a finished answer, beside the run's line, a ghost Button of size sm with the file-plus mark (<code>.pv-ai-capture</code>): the user's own step — a press writes the note into the vault's inbox folder and opens it. In a shared workspace the press first asks, in the same card as a page, a search or mail (<code>AiEffectApproval</code>, <code>data-kind="write"</code>): the note's name, the folder, who reads it. One yes is for one note.</p>
     <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">

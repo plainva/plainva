@@ -137,10 +137,12 @@ describe("the review", () => {
     await until(() => $("ai-ext-tools") !== null && $("ai-ext-loading") === null);
     expect($("ai-ext-review")!.textContent).toContain("Not reviewed yet");
     const tools = $$<HTMLInputElement>("ai-ext-tool");
+    // Nothing is ticked. The tool that does not say it only reads can be ticked too — and says what a call of it may do there.
     expect(tools.map((box) => [box.checked, box.disabled])).toEqual([
       [false, false],
-      [false, true],
+      [false, false],
     ]);
+    expect($("ai-ext-tool-effect")!.textContent).toContain("Can change, overwrite or delete something at Tracker");
     // A server that was just added is proposed for the vault it was added from.
     expect($<HTMLInputElement>("ai-ext-use")!.checked).toBe(true);
     click(tools[0]);
@@ -153,6 +155,32 @@ describe("the review", () => {
     click($("ai-ext-approve"));
     await until(() => onClose.mock.calls.length === 1);
     expect(s.getState().mcp.servers[0]).toMatchObject({ review: { status: "approved" }, enabled: true, grant: { ...EMPTY_MCP_GRANT, tools: ["search_issues"], folders: ["Projects"] } });
+    expect(await s.mcp.offeredNames()).toEqual(["mcp_tracker_search_issues"]);
+  });
+
+  it("a tool that may change something is ticked on its own, for what it says it does — and unticking takes that back", async () => {
+    const { s } = await mcpSession([]);
+    await connect(s);
+    const onClose = vi.fn();
+    await mount(<Review session={s} onClose={onClose} />);
+    await until(() => $("ai-ext-tools") !== null && $("ai-ext-loading") === null);
+    const boxes = () => $$<HTMLInputElement>("ai-ext-tool");
+    expect(boxes().map((box) => box.checked)).toEqual([true, false]);
+    click(boxes()[1]);
+    expect(boxes()[1]!.checked).toBe(true);
+    click($("ai-ext-save"));
+    await until(() => onClose.mock.calls.length === 1);
+    // The tick is kept with what it covers: this tool said nothing of itself, so it was ticked for all it may do.
+    expect(s.getState().mcp.servers[0]!.grant).toMatchObject({ tools: ["search_issues", "close_issue"], effects: { close_issue: "destroys" } });
+    expect(await s.mcp.offeredNames()).toEqual(["mcp_tracker_search_issues", "mcp_tracker_close_issue"]);
+    // Unticked again — in the dialog as it stands, which now shows what was stored —, nothing of it stays behind.
+    const save = () => $<HTMLButtonElement>("ai-ext-save");
+    await until(() => boxes().length === 2 && boxes()[1]!.checked && save()?.disabled === true);
+    click(boxes()[1]);
+    await until(() => save()?.disabled === false);
+    click(save());
+    await until(() => onClose.mock.calls.length === 2);
+    expect(s.getState().mcp.servers[0]!.grant).toEqual({ ...EMPTY_MCP_GRANT, tools: ["search_issues"] });
     expect(await s.mcp.offeredNames()).toEqual(["mcp_tracker_search_issues"]);
   });
 

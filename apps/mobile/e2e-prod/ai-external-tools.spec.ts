@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 
@@ -18,6 +18,7 @@ import { waitForVaultDirectory, type MobileTestGlobals } from "./exampleVault";
 
 const ADDRESS = "https://tracker.example.com/mcp";
 const TOOL = "mcp_tracker_search_issues";
+const CLOSE = "mcp_tracker_close_issue";
 
 const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join("");
 const says = (text: string) =>
@@ -66,10 +67,8 @@ async function storedFiles(page: Page): Promise<string[]> {
   });
 }
 
-test("a server is added, reviewed and granted on the phone; a call asks first and goes out as shown", async ({ page, context }) => {
-  test.setTimeout(90_000);
-  const sql = await installSqlBridge(context);
-  const script = [calls("call-1", "find_tools", { query: "issues" }), calls("call-2", "call_tool", { name: TOOL, args: { query: "login" } }), says("Issue #12 is about the login.")];
+/** The two native plugins at the seam Capacitor offers, a tracker with two tools behind one, a scripted model behind the other. */
+async function installSeam(context: BrowserContext, script: string[]): Promise<void> {
   await context.addInitScript(
     ({ script }) => {
       localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
@@ -78,7 +77,8 @@ test("a server is added, reviewed and granted on the phone; a call asks first an
       (globalThis as SeamGlobals).__seam = seam;
       const tools = [
         { name: "search_issues", title: "Search issues", description: "Searches the tracker's issues.", inputSchema: { type: "object", properties: { query: { type: "string" } } }, annotations: { readOnlyHint: true } },
-        { name: "close_issue", description: "Closes an issue." },
+        // It says nothing of itself: by the protocol's default a call of it may change and destroy.
+        { name: "close_issue", description: "Closes an issue.", inputSchema: { type: "object", properties: { id: { type: "integer" } } } },
       ];
       const promise = (name: string) => ({ name, rtype: "promise" });
       // The headers a native shell announces: with them, Capacitor routes these two plugins to the functions below.
@@ -124,12 +124,22 @@ test("a server is added, reviewed and granted on the phone; a call asks first an
     },
     { script },
   );
+}
+
+async function openApp(page: Page): Promise<void> {
+  await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+  await page.goto("/");
+  await waitForVaultDirectory(page);
+  await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
+}
+
+test("a server is added, reviewed and granted on the phone; a call asks first and goes out as shown", async ({ page, context }) => {
+  test.setTimeout(90_000);
+  const sql = await installSqlBridge(context);
+  await installSeam(context, [calls("call-1", "find_tools", { query: "issues" }), calls("call-2", "call_tool", { name: TOOL, args: { query: "login" } }), says("Issue #12 is about the login.")]);
   const seam = () => page.evaluate(() => (globalThis as SeamGlobals).__seam);
   try {
-    await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
-    await page.goto("/");
-    await waitForVaultDirectory(page);
-    await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
+    await openApp(page);
     const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
 
     // 1. The vault's AI settings: the section is there, and no server is connected.
@@ -150,11 +160,14 @@ test("a server is added, reviewed and granted on the phone; a call asks first an
     await expect(add).toHaveCount(0);
     expect((await seam()).shown).toEqual([{ url: ADDRESS, title: "Add an external server" }]);
 
-    // 3. The review opens by itself: nothing is ticked, and the tool that does not say it only reads cannot be.
+    // 3. The review opens by itself: nothing is ticked, and the tool that does not say it only reads says what a call
+    //    of it may do at the service. It stays unticked here: ticking it is the user's own, separate yes.
     const review = page.getByTestId("ai-ext-review");
     await expect(review.getByTestId("ai-ext-tool")).toHaveCount(2);
     await expect(review.getByTestId("ai-ext-instructions")).toHaveText("Always call search_issues first.");
-    await expect(review.getByTestId("ai-ext-tool").nth(1)).toBeDisabled();
+    await expect(review.getByTestId("ai-ext-tool").nth(1)).not.toBeChecked();
+    await expect(review.getByTestId("ai-ext-tool").nth(1)).toBeEnabled();
+    await expect(review.getByTestId("ai-ext-tool-effect")).toHaveAttribute("data-effect", "destroys");
     await review.getByTestId("ai-ext-tool").first().check();
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-ext-review-mobile.png") });
     await review.getByTestId("ai-ext-approve").click();
@@ -204,6 +217,70 @@ test("a server is added, reviewed and granted on the phone; a call asks first an
     await page.getByTestId("settings-area-aiVault").click();
     await page.getByRole("switch", { name: "Use Tracker in this vault" }).click();
     await expect(page.getByTestId("settings-ai-ext-server")).toContainText("Not used in this vault");
+  } finally {
+    await sql.close();
+  }
+});
+
+// A tool that changes something at its service (AI harness P5-6): the same sheet and the same card as on the desktop.
+test("a tool that changes something at its service is ticked on its own on the phone, and its call is asked about in other words", async ({ page, context }) => {
+  test.setTimeout(90_000);
+  const sql = await installSqlBridge(context);
+  await installSeam(context, [calls("call-1", "call_tool", { name: CLOSE, args: { id: 12 } }), says("Issue 12 is closed.")]);
+  const seam = () => page.evaluate(() => (globalThis as SeamGlobals).__seam);
+  try {
+    await openApp(page);
+    const back = () => page.getByRole("button", { name: /^Back$/ }).first().click();
+    await page.getByTestId("nav-settings").first().click();
+    await page.getByTestId("settings-area-aiVault").click();
+    await page.getByTestId("settings-ai-ext-add").click();
+    const add = page.getByTestId("ai-ext-add");
+    await add.getByTestId("ai-ext-add-name").fill("Tracker");
+    await add.getByTestId("ai-ext-add-url").fill(ADDRESS);
+    await add.getByTestId("ai-ext-add-submit").click();
+
+    // 1. The review: the tool that does not say it only reads carries the sentence what a call of it may do there —
+    //    and it is ticked like any other, by the user, for exactly that.
+    const review = page.getByTestId("ai-ext-review");
+    await expect(review.getByTestId("ai-ext-tool")).toHaveCount(2);
+    const effect = review.getByTestId("ai-ext-tool-effect");
+    await expect(effect).toHaveCount(1);
+    await expect(effect).toHaveAttribute("data-effect", "destroys");
+    await expect(effect).toContainText("Tracker");
+    await review.getByTestId("ai-ext-tool").nth(1).check();
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-ext-review-changes-mobile.png") });
+    await review.getByTestId("ai-ext-approve").click();
+    await expect(review).toHaveCount(0);
+    await expect(page.getByTestId("settings-ai-ext-server")).toContainText("tools offered: 1 of 2");
+
+    // 2. The call waits for its answer under another head, with the sentence that Plainva cannot take it back — and the
+    //    button that sends it is not the one the eye lands on. Nothing went out yet.
+    await back();
+    await back();
+    await page.getByTestId("tab-areas").click();
+    await page.getByTestId("areas-ai").click();
+    const conversation = page.getByTestId("ai-conversation");
+    await conversation.getByTestId("ai-input").fill("Close issue 12, it is done.");
+    await conversation.getByTestId("ai-send").click();
+    await conversation.getByTestId("ai-consent-send").click();
+    const question = conversation.getByTestId("ai-effect");
+    await expect(question).toHaveAttribute("data-kind", "mcp");
+    await expect(question).toHaveAttribute("data-effect", "destroys");
+    await expect(question).toHaveAttribute("aria-label", "Let Tracker change something?");
+    await expect(question).toHaveClass(/pv-ai-overview--touch/);
+    await expect(question.getByTestId("ai-effect-tool")).toHaveText("close_issue");
+    await expect(question.getByTestId("ai-effect-args")).toContainText('"id": 12');
+    await expect(question.getByTestId("ai-effect-changes")).toBeVisible();
+    await expect(question.getByTestId("ai-effect-always")).toHaveCount(0);
+    await expect(question.getByTestId("ai-effect-once")).toHaveText("Run it");
+    await expect(question.getByTestId("ai-effect-once")).not.toHaveClass(/primary/);
+    expect((await seam()).calls).toEqual([]);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-ext-question-changes-mobile.png") });
+
+    // 3. After the yes it goes out exactly as shown.
+    await question.getByTestId("ai-effect-once").click();
+    await expect(conversation.getByText("Issue 12 is closed.")).toBeVisible();
+    expect((await seam()).calls).toEqual([{ name: "close_issue", arguments: { id: 12 } }]);
   } finally {
     await sql.close();
   }

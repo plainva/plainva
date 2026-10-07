@@ -971,6 +971,10 @@
         "data": "Wysyła",
         "nothing": "Nic poza nazwą narzędzia.",
         "hint": "Dokładnie to trafia do {{server}}. To, co wraca, jest traktowane jak tekst kogoś obcego: AI go czyta i nie przyjmuje z niego żadnych poleceń.",
+        "titleChanges": "Pozwolić {{server}} coś zmienić?",
+        "changes": "To wywołanie może coś zmienić w {{server}}. Plainva nie może tego cofnąć.",
+        "destroys": "To wywołanie może coś zmienić, nadpisać lub usunąć w {{server}}. Plainva nie może tego cofnąć.",
+        "run": "Wykonaj",
         "deny": "Nie wywołuj",
         "send": "Wywołaj"
       },
@@ -1015,9 +1019,13 @@
         "tools": "Narzędzia",
         "toolsHint": "Zaznacz narzędzia, które AI może wywoływać w tym vaulcie. Opisy to własne słowa serwera.",
         "toolsNone": "Serwer nie wymienia żadnych narzędzi.",
+        "effect": {
+          "changes": "Może coś zmienić w {{server}} — nie deklaruje, że tylko czyta.",
+          "destroys": "Może coś zmienić, nadpisać lub usunąć w {{server}} — nie deklaruje niczego innego."
+        },
+        "effectGrew": "Było zaznaczone, gdy deklarowało, że tylko czyta. Zaznacz je ponownie, jeśli może to tutaj robić.",
         "standing": {
           "name": "Nieoferowane: jego nazwy nie da się pewnie odróżnić.",
-          "not-read-only": "Nieoferowane: nie deklaruje, że tylko czyta.",
           "header-marks": "Nieoferowane: oznacza swoje argumenty w sposób, którego protokół zabrania."
         },
         "likeBuiltin": "Jego nazwa przypomina własne narzędzie Plainvy „{{tool}}”.",

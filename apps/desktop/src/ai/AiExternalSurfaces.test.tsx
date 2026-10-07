@@ -46,7 +46,7 @@ function type(el: Element | null, value: string) {
 }
 
 describe("the question before a call to a foreign server", () => {
-  const request = { id: "q1", kind: "mcp" as const, serverId: "tracker", server: "Tracker", tool: "search_issues", title: "Search issues", args: JSON.stringify({ query: "login" }, null, 2) };
+  const request = { id: "q1", kind: "mcp" as const, serverId: "tracker", server: "Tracker", tool: "search_issues", title: "Search issues", args: JSON.stringify({ query: "login" }, null, 2), effect: "reads" as const };
 
   it("names the server, the tool and everything that would be sent — and offers no always", () => {
     const onAnswer = vi.fn();
@@ -62,6 +62,33 @@ describe("the question before a call to a foreign server", () => {
     click(container.querySelector('[data-testid="ai-effect-once"]'));
     click(container.querySelector('[data-testid="ai-effect-deny"]'));
     expect(onAnswer.mock.calls.map((call) => call[0])).toEqual(["once", "deny"]);
+  });
+
+  it("asks about a call that can change something at the service in other words, and its button is not the obvious one", () => {
+    const onAnswer = vi.fn();
+    const change = { ...request, tool: "label_issue", title: "label_issue", args: JSON.stringify({ id: 12 }, null, 2), effect: "changes" as const };
+    const container = mount(<AiEffectApproval request={change} onAnswer={onAnswer} />);
+    const card = container.querySelector('[data-testid="ai-effect"]')!;
+    expect(card.getAttribute("aria-label")).toBe("Let Tracker change something?");
+    expect(card.getAttribute("data-effect")).toBe("changes");
+    expect(container.querySelector('[data-testid="ai-effect-changes"]')!.textContent).toBe("This call can change something at Tracker. Plainva cannot undo it.");
+    // What goes out is shown in full, as for every call — and there is still no always.
+    expect(container.querySelector('[data-testid="ai-effect-args"]')!.textContent).toBe(change.args);
+    expect(container.textContent).toContain("Exactly this goes to Tracker.");
+    expect(buttons(container)).toEqual(["Don't call", "Run it"]);
+    expect(container.querySelector('[data-testid="ai-effect-once"]')!.className).not.toContain("primary");
+    expect(container.querySelector('[data-testid="ai-effect-always"]')).toBeNull();
+    click(container.querySelector('[data-testid="ai-effect-once"]'));
+    expect(onAnswer.mock.calls.map((call) => call[0])).toEqual(["once"]);
+  });
+
+  it("says that a call may also overwrite or delete where the tool does not say otherwise, and nothing of it for one that reads", () => {
+    const destroys = mount(<AiEffectApproval request={{ ...request, tool: "close_issue", title: "close_issue", effect: "destroys" }} onAnswer={() => undefined} />);
+    expect(destroys.querySelector('[data-testid="ai-effect-changes"]')!.textContent).toBe("This call can change, overwrite or delete something at Tracker. Plainva cannot undo it.");
+    const reads = mount(<AiEffectApproval request={request} onAnswer={() => undefined} />);
+    expect(reads.querySelector('[data-testid="ai-effect-changes"]')).toBeNull();
+    expect(reads.querySelector('[data-testid="ai-effect"]')!.getAttribute("data-effect")).toBe("reads");
+    expect(reads.querySelector('[data-testid="ai-effect-once"]')!.className).toContain("primary");
   });
 
   it("says so where a call carries nothing, and names a tool without a title by its name", () => {
@@ -204,13 +231,17 @@ describe("the review of a server", () => {
     expect(container.querySelector('[data-testid="ai-ext-instructions"]')!.textContent).toBe("Always call search_issues first.");
     expect(container.textContent).toContain("For you only: the AI is never given this text.");
     const boxes = Array.from(container.querySelectorAll<HTMLInputElement>('[data-testid="ai-ext-tool"]'));
+    // Nothing is ticked, and both can be: the tool that does not say it only reads carries the sentence what a call may do there.
     expect(boxes.map((box) => [box.checked, box.disabled])).toEqual([
       [false, false],
-      [false, true],
+      [false, false],
     ]);
-    expect(container.querySelector('[data-testid="ai-ext-tools"]')!.textContent).toContain("Not offered: it does not say that it only reads.");
+    const effects = Array.from(container.querySelectorAll<HTMLElement>('[data-testid="ai-ext-tool-effect"]'));
+    expect(effects.map((effect) => [effect.dataset.effect, effect.textContent])).toEqual([["destroys", "Can change, overwrite or delete something at Tracker — it says nothing else."]]);
+    expect(effects[0]!.closest("label")!.textContent).toContain("close_issue");
     click(boxes[0]);
-    expect(calls).toEqual(["tool search_issues true"]);
+    click(boxes[1]);
+    expect(calls).toEqual(["tool search_issues true", "tool close_issue true"]);
     expect(container.querySelector('[data-testid="ai-ext-prompts"]')!.textContent).toBe("Stand-up");
     expect(container.textContent).toContain("The approval holds for exactly the texts shown here");
   });

@@ -19,6 +19,7 @@ import {
   mcpAudience,
   mcpCallDecision,
   mcpExposedToolName,
+  mcpGrantCovers,
   mcpHash,
   mcpHostAllowed,
   mcpOffersTools,
@@ -28,6 +29,7 @@ import {
   mcpServerIdProblem,
   mcpTokenRequestProblem,
   mcpTokenUsableFor,
+  mcpToolEffect,
   NEW_MCP_SERVER,
   pinMcpListing,
   readMcpListing,
@@ -37,6 +39,7 @@ import {
   reviewMcpPromptBody,
   suggestMcpServerId,
   withheldMcpTools,
+  withMcpToolGrant,
   type McpCallRequest,
   type McpListing,
   type McpServerGrant,
@@ -313,7 +316,6 @@ describe("what a server may be asked", () => {
     tool: SEARCH,
     issues: [],
     vaultPaths: [],
-    writesOpen: false,
     ...over,
   });
 
@@ -327,18 +329,59 @@ describe("what a server may be asked", () => {
     expect(mcpCallDecision(request({ review: NEW_MCP_SERVER }))).toEqual({ allowed: false, reason: "server-new" });
     expect(mcpCallDecision(request({ review: blocked }))).toEqual({ allowed: false, reason: "server-blocked" });
     expect(mcpCallDecision(request({ grant: EMPTY_MCP_GRANT }))).toEqual({ allowed: false, reason: "tool-not-granted" });
-    expect(mcpCallDecision(request({ tool: CREATE }))).toEqual({ allowed: false, reason: "not-read-only" });
+    // Ticked by name alone — as every grant was before a tool that changes could be ticked — covers no tool that changes.
+    expect(mcpCallDecision(request({ tool: CREATE }))).toEqual({ allowed: false, reason: "tool-not-granted" });
     expect(mcpCallDecision(request({ vaultPaths: ["Projects/Offer.md", "Private/Diary.md"] }))).toEqual({ allowed: false, reason: "path-outside-grant" });
     const issues = findMcpNameIssues([{ id: "github", tools: ["search_issues", "search_issues"] }]);
     expect(mcpCallDecision(request({ issues }))).toEqual({ allowed: false, reason: "tool-withheld" });
   });
 
-  it("treats the server's read-only claim as necessary, never as sufficient", () => {
-    const claims = { ...CREATE, annotations: { readOnlyHint: true } };
-    // The claim alone grants nothing…
-    expect(mcpCallDecision(request({ tool: claims, grant: { ...grant, tools: [] } }))).toEqual({ allowed: false, reason: "tool-not-granted" });
-    // …and a tool without it waits until writing through MCP opens.
-    expect(mcpCallDecision(request({ tool: CREATE, writesOpen: true }))).toEqual({ allowed: true, preview: true });
+  it("reads what a tool says it can do at its service the cautious way round", () => {
+    expect(mcpToolEffect(SEARCH)).toBe("reads");
+    // A tool that says nothing may change and destroy: the specification's own default.
+    expect(mcpToolEffect(CREATE)).toBe("destroys");
+    expect(mcpToolEffect({ ...CREATE, annotations: { readOnlyHint: false } })).toBe("destroys");
+    expect(mcpToolEffect({ ...CREATE, annotations: { destructiveHint: false } })).toBe("changes");
+    // "Only reads" settles it, whatever else is claimed beside it; anything that is no plain `true` is no claim.
+    expect(mcpToolEffect({ ...CREATE, annotations: { readOnlyHint: true, destructiveHint: true } })).toBe("reads");
+    expect(mcpToolEffect({ ...CREATE, annotations: { readOnlyHint: "true" } as never })).toBe("destroys");
+    expect(mcpToolEffect({ ...CREATE, annotations: "readOnly" as never })).toBe("destroys");
+  });
+
+  it("a tick covers what the tool said it does when it was ticked: a yes to reading is no yes to changing", () => {
+    const mild = { ...CREATE, annotations: { destructiveHint: false } };
+    const reads = { ...CREATE, annotations: { readOnlyHint: true } };
+    // The claim alone grants nothing.
+    expect(mcpCallDecision(request({ tool: reads, grant: { ...grant, tools: [] } }))).toEqual({ allowed: false, reason: "tool-not-granted" });
+    expect(mcpGrantCovers(grant, CREATE)).toBe(false);
+    // Ticked in the review for what it says: covered — and still shown before it goes.
+    const ticked = withMcpToolGrant({ ...grant, tools: ["search_issues"] }, CREATE, true);
+    expect(ticked).toEqual({ ...grant, tools: ["search_issues", "create_issue"], effects: { create_issue: "destroys" } });
+    expect(mcpCallDecision(request({ tool: CREATE, grant: ticked }))).toEqual({ allowed: true, preview: true });
+    // Ticked while it said it destroys nothing: no yes to the same tool once it says that no longer.
+    const forMild = withMcpToolGrant(grant, mild, true);
+    expect(forMild.effects).toEqual({ create_issue: "changes" });
+    expect(mcpGrantCovers(forMild, mild)).toBe(true);
+    expect(mcpGrantCovers(forMild, CREATE)).toBe(false);
+    // Ticked while it only read: no yes to it once it says it does more.
+    const forReading = withMcpToolGrant({ ...grant, tools: [] }, reads, true);
+    expect(forReading).toEqual({ ...grant, tools: ["create_issue"] });
+    expect(mcpGrantCovers(forReading, reads)).toBe(true);
+    expect(mcpGrantCovers(forReading, mild)).toBe(false);
+    // The other way round it holds: a tool that says less than it was ticked for.
+    expect(mcpGrantCovers(ticked, mild)).toBe(true);
+    expect(mcpGrantCovers(ticked, reads)).toBe(true);
+    // Unticking forgets what the tick covered, and leaves every other tool's as it was.
+    const two = withMcpToolGrant(ticked, { name: "close_issue" }, true);
+    expect(withMcpToolGrant(two, CREATE, false)).toEqual({ ...grant, tools: ["search_issues", "close_issue"], effects: { close_issue: "destroys" } });
+    expect(withMcpToolGrant(ticked, CREATE, false)).toEqual({ ...grant, tools: ["search_issues"] });
+  });
+
+  it("a stored grant allows a tool more than reading only by one of the two words, and only while it is ticked", () => {
+    const stored = { tools: ["a", "b", "d"], effects: { a: "destroys", b: "everything", c: "changes", d: "changes" }, folders: [], dataClasses: [], hosts: [] };
+    expect(readMcpServerGrant(stored)).toEqual({ tools: ["a", "b", "d"], effects: { a: "destroys", d: "changes" }, folders: [], dataClasses: [], hosts: [] });
+    expect(readMcpServerGrant({ tools: ["a"], effects: "all" })).toEqual({ tools: ["a"], folders: [], dataClasses: [], hosts: [] });
+    expect(readMcpServerGrant({ tools: ["a"], effects: ["a"] })).toEqual({ tools: ["a"], folders: [], dataClasses: [], hosts: [] });
   });
 
   it("gives vault content to no server by default, and to the whole vault only when the grant says so", () => {

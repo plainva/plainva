@@ -942,6 +942,10 @@
         "data": "Invia",
         "nothing": "Nient'altro che il nome dello strumento.",
         "hint": "Esattamente questo va a {{server}}. Ciò che torna è trattato come il testo di uno sconosciuto: l'IA lo legge e non ne accetta istruzioni.",
+        "titleChanges": "Lasciare che {{server}} modifichi qualcosa?",
+        "changes": "Questa chiamata può modificare qualcosa su {{server}}. Plainva non può annullarlo.",
+        "destroys": "Questa chiamata può modificare, sovrascrivere o eliminare qualcosa su {{server}}. Plainva non può annullarlo.",
+        "run": "Esegui",
         "deny": "Non chiamare",
         "send": "Chiama"
       },
@@ -986,9 +990,13 @@
         "tools": "Strumenti",
         "toolsHint": "Spunta gli strumenti che l'IA può chiamare in questo vault. Le descrizioni sono parole del server stesso.",
         "toolsNone": "Il server non elenca alcuno strumento.",
+        "effect": {
+          "changes": "Può modificare qualcosa su {{server}}: non dice di leggere soltanto.",
+          "destroys": "Può modificare, sovrascrivere o eliminare qualcosa su {{server}}: non dice altro."
+        },
+        "effectGrew": "Era spuntato quando diceva di leggere soltanto. Spuntalo di nuovo se qui può fare questo.",
         "standing": {
           "name": "Non offerto: il suo nome non si distingue in modo affidabile.",
-          "not-read-only": "Non offerto: non dichiara di limitarsi a leggere.",
           "header-marks": "Non offerto: contrassegna i suoi argomenti in un modo che il protocollo vieta."
         },
         "likeBuiltin": "Il suo nome somiglia a quello dello strumento «{{tool}}» di Plainva.",

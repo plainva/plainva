@@ -88,12 +88,35 @@ describe("where a server stands, in one line", () => {
 });
 
 describe("the tools of a review", () => {
-  it("shows each with why it is or is not offered, and lets only a reading tool be granted", () => {
+  it("shows each with what a call of it may do at the service — a tool that does not only read says so before it is ticked", () => {
     const rows = externalToolRows(t, server(), listing, server().grant, [server()]);
     expect(rows).toEqual([
-      { name: "search_issues", title: "Search issues", description: "Searches the tracker's issues.", standing: "offered", granted: true, grantable: true, notes: [] },
-      { name: "close_issue", title: "close_issue", description: "Closes an issue.", standing: "not-read-only", granted: false, grantable: false, notes: ["Not offered: it does not say that it only reads."] },
+      { name: "search_issues", title: "Search issues", description: "Searches the tracker's issues.", standing: "offered", granted: true, grantable: true, effect: "reads", warning: null, notes: [] },
+      // It says nothing of itself: by the protocol's default it may change and destroy. Unticked, and it can be ticked.
+      {
+        name: "close_issue",
+        title: "close_issue",
+        description: "Closes an issue.",
+        standing: "not-granted",
+        granted: false,
+        grantable: true,
+        effect: "destroys",
+        warning: "Can change, overwrite or delete something at Tracker — it says nothing else.",
+        notes: [],
+      },
     ]);
+    const mild = { ...listing, tools: [{ name: "label_issue", description: "Labels an issue.", annotations: { destructiveHint: false } }] };
+    expect(externalToolRows(t, server(), mild, EMPTY_MCP_GRANT, [server()])[0]).toMatchObject({ effect: "changes", warning: "Can change something at Tracker — it does not say that it only reads." });
+  });
+
+  it("a tick holds for what the tool said it does when it was ticked: one that says more now shows unticked, and why", () => {
+    // Ticked by name — all a grant from before such tools could be ticked can hold, and all a tool that only read needed.
+    const byName = { ...EMPTY_MCP_GRANT, tools: ["search_issues", "close_issue"] };
+    const row = externalToolRows(t, server(), listing, byName, [server()])[1]!;
+    expect(row).toMatchObject({ standing: "not-granted", granted: false, grantable: true, notes: ["It was ticked when it said it only reads. Tick it again if it may do this here."] });
+    // Ticked for what it says now: offered, and the sentence stays where it was.
+    const forIt = { ...byName, effects: { close_issue: "destroys" as const } };
+    expect(externalToolRows(t, server(), listing, forIt, [server()])[1]).toMatchObject({ standing: "offered", granted: true, warning: row.warning, notes: [] });
   });
 
   it("follows the choices as they are being made, before anything is stored", () => {

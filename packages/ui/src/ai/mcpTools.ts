@@ -9,6 +9,7 @@ import {
   mcpServerStanding,
   type McpCallRefusal,
   type McpServerState,
+  type McpToolEffect,
   type RunMcp,
   type ToolExecutor,
   type ToolOutcome,
@@ -46,6 +47,8 @@ export interface McpCallQuestion {
   tool: string;
   title: string;
   args: Record<string, unknown>;
+  /** What the call can do at the service, as the approved listing says it: the question's words follow it. */
+  effect: McpToolEffect;
 }
 
 export interface McpToolsHost {
@@ -79,7 +82,6 @@ const REFUSAL: Record<McpCallRefusal, string> = {
   "server-blocked": MCP_BLOCKED,
   "tool-withheld": "This tool cannot be offered under its name. Answer without it.",
   "tool-not-granted": "The user has not allowed this tool. Answer without it.",
-  "not-read-only": "This tool does not say that it only reads, and tools that change something are not available. Answer without it.",
   "path-outside-grant":
     "This service may not be given what this conversation has read from the vault. The user can allow folders for it in the settings. Until then, answer without it and say so.",
 };
@@ -126,15 +128,14 @@ export function createMcpExecutor(inner: ToolExecutor, host: McpToolsHost, log: 
         tool: offered.descriptor,
         issues: mcpIssuesOf(servers),
         vaultPaths: carried.paths,
-        writesOpen: false,
       });
       if (!decision.allowed) return refuse(REFUSAL[decision.reason]);
       // Notes that were read but are not kept by path could lie anywhere and carry any rule: nothing is assumed of them.
       if (carried.more) return refuse(MCP_UNKNOWN);
       if (carried.paths.length > 0 && (await host.keptFromCloud(server.id, carried.paths))) return refuse(MCP_KEPT);
 
-      // 4. The user.
-      const question: McpCallQuestion = { callId: call.id, serverId: server.id, serverLabel: server.label, tool: offered.name, title: offered.title, args: input };
+      // 4. The user — asked in the words of what the call can do there (plan P5-6): reading, changing, or destroying.
+      const question: McpCallQuestion = { callId: call.id, serverId: server.id, serverLabel: server.label, tool: offered.name, title: offered.title, args: input, effect: offered.effect };
       if (!(await host.ask(question, signal))) return done("declined", 0, { content: EFFECT_DECLINED, isError: true, declined: true });
 
       let result: Record<string, unknown>;

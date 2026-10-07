@@ -913,6 +913,10 @@
         "data": "Sends",
         "nothing": "Nothing besides the name of the tool.",
         "hint": "Exactly this goes to {{server}}. What comes back is treated as a stranger's text: the AI reads it and takes no instructions from it.",
+        "titleChanges": "Let {{server}} change something?",
+        "changes": "This call can change something at {{server}}. Plainva cannot undo it.",
+        "destroys": "This call can change, overwrite or delete something at {{server}}. Plainva cannot undo it.",
+        "run": "Run it",
         "deny": "Don't call",
         "send": "Call"
       },
@@ -957,9 +961,13 @@
         "tools": "Tools",
         "toolsHint": "Tick the tools the AI may call in this vault. The descriptions are the server's own words.",
         "toolsNone": "The server lists no tools.",
+        "effect": {
+          "changes": "Can change something at {{server}} — it does not say that it only reads.",
+          "destroys": "Can change, overwrite or delete something at {{server}} — it says nothing else."
+        },
+        "effectGrew": "It was ticked when it said it only reads. Tick it again if it may do this here.",
         "standing": {
           "name": "Not offered: its name cannot be told apart reliably.",
-          "not-read-only": "Not offered: it does not say that it only reads.",
           "header-marks": "Not offered: it marks its arguments in a way the protocol forbids."
         },
         "likeBuiltin": "Its name resembles Plainva's own tool “{{tool}}”.",

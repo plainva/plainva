@@ -4553,6 +4553,8 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ext-group .pv-checkrow { align-items: flex-start; }
 .pv-ext-group .pv-checkrow > span { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
 .pv-ext-group .pv-checkrow > span > span { color: var(--text-muted); font-size: var(--text-sm); }
+/* A tool that does not only read (P5-6): what a call may do at its service, in the warning tone — before the tick. */
+.pv-ext-group .pv-checkrow > span > span.pv-ext-warn { color: var(--warning-text); }
 .pv-ext-note { margin: 0; font-size: var(--text-sm); color: var(--text-muted); overflow-wrap: anywhere; }
 .pv-ext-secret { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
 .pv-ext-secret > .pv-field { flex: 1 1 12rem; min-width: 0; }

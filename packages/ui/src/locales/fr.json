@@ -942,6 +942,10 @@
         "data": "Envoie",
         "nothing": "Rien d'autre que le nom de l'outil.",
         "hint": "Exactement ceci part vers {{server}}. Ce qui revient est traité comme le texte d'un inconnu : l'IA le lit et n'en reçoit aucune instruction.",
+        "titleChanges": "Laisser {{server}} modifier quelque chose ?",
+        "changes": "Cet appel peut modifier quelque chose chez {{server}}. Plainva ne peut pas l'annuler.",
+        "destroys": "Cet appel peut modifier, écraser ou supprimer quelque chose chez {{server}}. Plainva ne peut pas l'annuler.",
+        "run": "Exécuter",
         "deny": "Ne pas appeler",
         "send": "Appeler"
       },
@@ -986,9 +990,13 @@
         "tools": "Outils",
         "toolsHint": "Cochez les outils que l'IA peut appeler dans ce vault. Les descriptions sont les mots du serveur lui-même.",
         "toolsNone": "Le serveur n'énumère aucun outil.",
+        "effect": {
+          "changes": "Peut modifier quelque chose chez {{server}} — il ne dit pas qu'il ne fait que lire.",
+          "destroys": "Peut modifier, écraser ou supprimer quelque chose chez {{server}} — il ne dit rien d'autre."
+        },
+        "effectGrew": "Il était coché lorsqu'il disait ne faire que lire. Cochez-le de nouveau s'il peut faire cela ici.",
         "standing": {
           "name": "Non proposé : son nom ne se distingue pas de façon fiable.",
-          "not-read-only": "Non proposé : il n'indique pas qu'il se contente de lire.",
           "header-marks": "Non proposé : il marque ses arguments d'une manière que le protocole interdit."
         },
         "likeBuiltin": "Son nom ressemble à l'outil « {{tool}} » de Plainva.",

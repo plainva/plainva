@@ -884,6 +884,10 @@
         "data": "发送内容",
         "nothing": "除工具名称外不发送任何内容。",
         "hint": "发送给{{server}}的正是这些内容。返回的内容会被当作陌生人的文字对待：AI会阅读它，但不会听从其中的指令。",
+        "titleChanges": "允许{{server}}进行更改吗？",
+        "changes": "此调用可能会在{{server}}中更改内容。Plainva无法撤销。",
+        "destroys": "此调用可能会在{{server}}中更改、覆盖或删除内容。Plainva无法撤销。",
+        "run": "执行",
         "deny": "不调用",
         "send": "调用"
       },
@@ -928,9 +932,13 @@
         "tools": "工具",
         "toolsHint": "勾选AI在此仓库中可以调用的工具。说明是服务器自己的原话。",
         "toolsNone": "服务器没有列出任何工具。",
+        "effect": {
+          "changes": "可能会在{{server}}中更改内容——它没有声明自己只读取。",
+          "destroys": "可能会在{{server}}中更改、覆盖或删除内容——它没有另作声明。"
+        },
+        "effectGrew": "它是在声明只读取时被勾选的。如果允许它在这里这样做，请重新勾选。",
         "standing": {
           "name": "不提供：它的名称无法可靠地区分。",
-          "not-read-only": "不提供：它没有声明自己只读取。",
           "header-marks": "不提供：它标记参数的方式是协议禁止的。"
         },
         "likeBuiltin": "它的名称与Plainva自带的工具“{{tool}}”相似。",

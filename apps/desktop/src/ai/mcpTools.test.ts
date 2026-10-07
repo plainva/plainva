@@ -106,13 +106,39 @@ describe("a call to a foreign server", () => {
   it("shows the server, the tool and the arguments, and goes out only after a yes", async () => {
     const t = setup();
     const outcome = await t.run({ query: "login" });
-    expect(t.state.asked).toEqual([{ callId: "c1", serverId: "tracker", serverLabel: "Tracker", tool: "search_issues", title: "Search issues", args: { query: "login" } }]);
+    expect(t.state.asked).toEqual([{ callId: "c1", serverId: "tracker", serverLabel: "Tracker", tool: "search_issues", title: "Search issues", args: { query: "login" }, effect: "reads" }]);
     expect(t.state.called).toEqual([{ server: "tracker", tool: "search_issues", args: { query: "login" } }]);
     // What came back is one piece of a stranger's text: it carries where it came from, so that it is fenced.
     expect(outcome).toMatchObject({ content: "3 issues: #1 Login fails", origin: { kind: "tool", tool: "search_issues", server: "tracker" } });
     expect(outcome.isError).toBeUndefined();
     expect(t.log.calls).toEqual([{ server: "tracker", tool: "search_issues", outcome: "answered" }]);
     expect(t.state.logged).toEqual([{ server: "tracker", tool: "search_issues", outcome: "answered", sent: JSON.stringify({ query: "login" }).length, received: "3 issues: #1 Login fails".length }]);
+  });
+
+  it("a tool that may change something at its service is asked about as that, and only while it is ticked for it", async () => {
+    const granted = { ...EMPTY_MCP_GRANT, tools: ["search_issues", "close_issue"], effects: { close_issue: "destroys" as const } };
+    const now = server({ grant: granted });
+    const close = mcpForeignManifest(mcpOfferedTools([now])[1]!, granted);
+    // An outside effect of its own for the Rule of Two, beyond the request that every foreign call is.
+    expect(close).toMatchObject({ risk: "external", outward: true });
+    const t = setup([now]);
+    const call = (args: Record<string, unknown>) => t.executor.execute(close, args, { type: "tool_call", id: "c2", name: close.name, args });
+    expect(await call({ id: 12 })).toMatchObject({ content: "3 issues: #1 Login fails" });
+    expect(t.state.asked).toEqual([{ callId: "c2", serverId: "tracker", serverLabel: "Tracker", tool: "close_issue", title: "close_issue", args: { id: 12 }, effect: "destroys" }]);
+    expect(t.state.called).toEqual([{ server: "tracker", tool: "close_issue", args: { id: 12 } }]);
+    // A no sends nothing.
+    t.state.answer = false;
+    expect(await call({ id: 13 })).toEqual({ content: EFFECT_DECLINED, isError: true, declined: true });
+    expect(t.state.called).toHaveLength(1);
+    // Ticked by name only — all a grant from before such tools could be ticked can hold, and all that is left when the
+    // user unticks it mid-conversation: not offered, so nobody is asked and nothing goes out.
+    t.state.answer = true;
+    t.state.servers = [server({ grant: { ...EMPTY_MCP_GRANT, tools: ["search_issues", "close_issue"] } })];
+    const refused = await call({ id: 14 });
+    expect(refused.isError).toBe(true);
+    expect(refused.content).toContain("The user has not allowed this tool");
+    expect(t.state.asked).toHaveLength(2);
+    expect(t.state.called).toHaveLength(1);
   });
 
   it("takes a no as an answer: nothing was sent", async () => {

@@ -196,6 +196,7 @@ import {
   mcpServerStanding,
   RUN_READ_CAP,
   type GateRun,
+  type McpToolEffect,
   type RunMcp,
 } from "@plainva/core";
 import { AiAcp, type AcpVaultSide, type AiAcpHost, type AiAcpState } from "./acpSession";
@@ -551,9 +552,11 @@ export type EffectRequest =
    * `mcp` — one call to a tool of a foreign server (plan P4.5, §17.2 "before
    * every call visible: server, tool, data"). `server` is the user's name for
    * it, `args` the arguments in full, as they would go. Asked for every call:
-   * there is no "from now on", and `always` means this once.
+   * there is no "from now on", and `always` means this once. `effect`: what the
+   * call can do at the service as the approved listing says it (plan P5-6) —
+   * a call that may change something there is asked about in other words.
    */
-  | { id: string; kind: "mcp"; serverId: string; server: string; tool: string; title: string; args: string }
+  | { id: string; kind: "mcp"; serverId: string; server: string; tool: string; title: string; args: string; effect: McpToolEffect }
   /**
    * `plan` — what cannot be reviewed part by part (plan P5, ADR 0019 §2): a
    * rename with the notes whose links change, a move, a deletion. The run
@@ -3446,7 +3449,7 @@ export class AiSession {
       return false;
     }
     // Under the call's own id, like every question about a call: while it stands, no step claims to be running.
-    const request: EffectRequest = { id: question.callId, kind: "mcp", serverId: question.serverId, server: question.serverLabel, tool: question.tool, title: question.title, args };
+    const request: EffectRequest = { id: question.callId, kind: "mcp", serverId: question.serverId, server: question.serverLabel, tool: question.tool, title: question.title, args, effect: question.effect };
     return (await this.askEffect(request, signal ?? new AbortController().signal)) !== "deny";
   }
 

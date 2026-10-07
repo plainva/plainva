@@ -913,6 +913,10 @@
         "data": "Sendet",
         "nothing": "Nichts außer dem Namen des Werkzeugs.",
         "hint": "Genau das geht an {{server}}. Was zurückkommt, gilt als Text eines Fremden: Die KI liest es und nimmt daraus keine Anweisungen an.",
+        "titleChanges": "{{server}} etwas ändern lassen?",
+        "changes": "Dieser Aufruf kann bei {{server}} etwas ändern. Plainva kann das nicht rückgängig machen.",
+        "destroys": "Dieser Aufruf kann bei {{server}} etwas ändern, überschreiben oder löschen. Plainva kann das nicht rückgängig machen.",
+        "run": "Ausführen",
         "deny": "Nicht aufrufen",
         "send": "Aufrufen"
       },
@@ -957,9 +961,13 @@
         "tools": "Werkzeuge",
         "toolsHint": "Hake die Werkzeuge an, die die KI in diesem Vault aufrufen darf. Die Beschreibungen sind die eigenen Worte des Servers.",
         "toolsNone": "Der Server listet keine Werkzeuge auf.",
+        "effect": {
+          "changes": "Kann bei {{server}} etwas ändern — es sagt nicht, dass es nur liest.",
+          "destroys": "Kann bei {{server}} etwas ändern, überschreiben oder löschen — es sagt nichts anderes."
+        },
+        "effectGrew": "Angehakt war es, als es sagte, dass es nur liest. Hake es neu an, wenn es das hier tun darf.",
         "standing": {
           "name": "Nicht angeboten: Sein Name lässt sich nicht verlässlich unterscheiden.",
-          "not-read-only": "Nicht angeboten: Es sagt nicht, dass es nur liest.",
           "header-marks": "Nicht angeboten: Es kennzeichnet seine Argumente auf eine Weise, die das Protokoll verbietet."
         },
         "likeBuiltin": "Sein Name ähnelt Plainvas eigenem Werkzeug „{{tool}}“.",
