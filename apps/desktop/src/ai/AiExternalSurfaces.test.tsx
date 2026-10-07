@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { approveMcpListing, EMPTY_MCP_GRANT, readMcpListing, reviewMcpListing, type EgressManifest, type McpRegisteredServer } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
-import { AiEffectApproval, AiExternalPrompt, AiExternalReview, AiSendOverview, externalToolRows, type AiMcpServer, type ExternalPrompt, type ExternalReviewModel, type McpInspection } from "@plainva/ui";
+import { AiEffectApproval, AiExternalPrompt, AiExternalReview, AiSendOverview, externalToolRows, type AiMcpServer, type ExternalPrompt, type ExternalReviewModel, type ExternalSignIn, type McpInspection } from "@plainva/ui";
 
 /**
  * The surfaces of external tools (plan KI-Harness P4.5), shared by both
@@ -167,9 +167,32 @@ function model(change: Partial<ExternalReviewModel> = {}) {
     setSecret: async (name, value) => {
       calls.push(`secret ${name ?? "token"} ${value}`);
     },
+    signIn: signIn(calls, { possible: server?.registered.kind === "http" }),
     ...change,
   };
   return { review, calls };
+}
+
+/** Where a sign-in stands, as the hook would hand it over: nothing going on, nothing kept. */
+function signIn(calls: string[], change: Partial<ExternalSignIn> = {}): ExternalSignIn {
+  return {
+    possible: true,
+    status: null,
+    statusHost: "",
+    wanted: false,
+    stage: "idle",
+    host: "",
+    problem: null,
+    clientId: "",
+    setClientId: (value) => calls.push(`client ${value}`),
+    start: () => calls.push("sign in"),
+    proceed: () => calls.push("proceed"),
+    cancel: () => calls.push("stop"),
+    signOut: async () => {
+      calls.push("sign out");
+    },
+    ...change,
+  };
 }
 
 describe("the review of a server", () => {
@@ -264,6 +287,89 @@ describe("the review of a server", () => {
   it("renders nothing for a server that is gone", () => {
     const container = mount(<AiExternalReview review={model({ server: null }).review} vaultFolders={[]} />);
     expect(container.textContent).toBe("");
+  });
+});
+
+describe("signing in to a remote server, in its review", () => {
+  const signedIn = { issuer: "https://auth.example.com", scopes: ["read"], expiresAt: 1_900_000_000, signedIn: true, renewable: true, client: true };
+
+  it("says where things stand, what a sign-in means, and offers the one button that starts it", () => {
+    const { review, calls } = model();
+    const container = mount(<AiExternalReview review={review} vaultFolders={[]} />);
+    expect(container.querySelector('[data-testid="ai-ext-signin-status"]')!.textContent).toBe("Not signed in");
+    expect(container.querySelector('[data-testid="ai-ext-signin"]')!.textContent).toBe("Sign in…");
+    expect(container.querySelector('[data-testid="ai-ext-signout"]')).toBeNull();
+    expect(container.textContent).toContain("it goes only to this server, and the AI never sees it");
+    expect(container.textContent).toContain("A sign-in and a stored access token replace each other.");
+    click(container.querySelector('[data-testid="ai-ext-signin"]'));
+    expect(calls).toEqual(["sign in"]);
+  });
+
+  it("says that the server wants one where the look failed for want of it — once —, and puts the step forward", () => {
+    const calls: string[] = [];
+    const { review } = model({ look: { state: "failed", failure: { kind: "auth", status: 401, challenge: "Bearer" } }, listing: null, rows: [], needsApproval: true, canApprove: false, signIn: signIn(calls, { wanted: true }) });
+    const container = mount(<AiExternalReview review={review} vaultFolders={[]} />);
+    expect(container.querySelector('[data-testid="ai-ext-failure"]')!.textContent).toBe("The server asks for a sign-in.");
+    expect(container.querySelector('[data-testid="ai-ext-signin-status"]')!.textContent).toBe("Not signed in");
+    expect(container.textContent!.split("The server asks for a sign-in.")).toHaveLength(2);
+    // The button that answers the line above is the one that stands out; otherwise it is a quiet one.
+    expect(container.querySelector('[data-testid="ai-ext-signin"]')!.className).toContain("secondary");
+    act(() => root?.unmount());
+    const quiet = mount(<AiExternalReview review={model().review} vaultFolders={[]} />);
+    expect(quiet.querySelector('[data-testid="ai-ext-signin"]')!.className).not.toContain("secondary");
+  });
+
+  it("shows who it is signed in at — a host, never a credential — and lets the user sign out or in again", () => {
+    const calls: string[] = [];
+    const { review } = model({ signIn: signIn(calls, { status: signedIn, statusHost: "auth.example.com" }) });
+    const container = mount(<AiExternalReview review={review} vaultFolders={[]} />);
+    expect(container.querySelector('[data-testid="ai-ext-signin-status"]')!.textContent).toBe("Signed in at auth.example.com");
+    expect(container.querySelector('[data-testid="ai-ext-signin"]')!.textContent).toBe("Sign in again…");
+    click(container.querySelector('[data-testid="ai-ext-signout"]'));
+    expect(calls).toEqual(["sign out"]);
+    act(() => root?.unmount());
+    const ended = mount(<AiExternalReview review={model({ signIn: signIn([], { status: { ...signedIn, signedIn: false, renewable: false }, statusHost: "auth.example.com", wanted: true }) }).review} vaultFolders={[]} />);
+    expect(ended.querySelector('[data-testid="ai-ext-signin-status"]')!.textContent).toBe("The sign-in at auth.example.com has ended");
+  });
+
+  it("says where the browser is while it waits for it, and can stop waiting", () => {
+    const calls: string[] = [];
+    const container = mount(<AiExternalReview review={model({ signIn: signIn(calls, { stage: "waiting", host: "auth.example.com" }) }).review} vaultFolders={[]} />);
+    expect(container.querySelector('[data-testid="ai-ext-signin-waiting"]')!.textContent).toBe("Finish the sign-in in your browser, at auth.example.com. Plainva waits here.");
+    expect(container.querySelector('[data-testid="ai-ext-signin"]')).toBeNull();
+    click(container.querySelector('[data-testid="ai-ext-signin-cancel"]'));
+    expect(calls).toEqual(["stop"]);
+    act(() => root?.unmount());
+    const planning = mount(<AiExternalReview review={model({ signIn: signIn([], { stage: "planning" }) }).review} vaultFolders={[]} />);
+    expect(planning.querySelector('[data-testid="ai-ext-signin-planning"]')!.textContent).toBe("Asking the server how to sign in…");
+  });
+
+  it("asks for a client id where the authorization server offers no other way, and goes on only with one", () => {
+    const calls: string[] = [];
+    const container = mount(<AiExternalReview review={model({ signIn: signIn(calls, { stage: "client", host: "auth.example.com" }) }).review} vaultFolders={[]} />);
+    expect(container.textContent).toContain("auth.example.com does not let apps register themselves.");
+    const go = container.querySelector('[data-testid="ai-ext-signin-continue"]') as HTMLButtonElement;
+    expect(go.disabled).toBe(true);
+    type(container.querySelector('[data-testid="ai-ext-signin-client"]'), "plainva-at-acme");
+    expect(calls).toEqual(["client plainva-at-acme"]);
+    act(() => root?.unmount());
+    const typed = mount(<AiExternalReview review={model({ signIn: signIn(calls, { stage: "client", host: "auth.example.com", clientId: "plainva-at-acme" }) }).review} vaultFolders={[]} />);
+    click(typed.querySelector('[data-testid="ai-ext-signin-continue"]'));
+    expect(calls).toEqual(["client plainva-at-acme", "proceed"]);
+  });
+
+  it("says why a sign-in did not happen", () => {
+    const container = mount(<AiExternalReview review={model({ signIn: signIn([], { problem: t("ai.ext.signIn.problem.declined") }) }).review} vaultFolders={[]} />);
+    const problem = container.querySelector('[data-testid="ai-ext-signin-problem"]')!;
+    expect(problem.textContent).toBe("The sign-in was declined in the browser.");
+    expect(problem.getAttribute("role")).toBe("alert");
+  });
+
+  it("is not offered for a program: it gets its credentials in its environment", () => {
+    const program: McpRegisteredServer = { id: "tracker", kind: "program", program: "npx", args: [], env: [], sandbox: false, stored: [] };
+    const container = mount(<AiExternalReview review={model({ server: { ...fresh, transport: "stdio", registered: program } }).review} vaultFolders={[]} />);
+    expect(container.querySelector('[data-testid="ai-ext-signin"]')).toBeNull();
+    expect(container.textContent).not.toContain("Not signed in");
   });
 });
 

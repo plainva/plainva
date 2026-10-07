@@ -66,6 +66,10 @@ export interface ScriptedMcpServer {
   tools: McpToolDescriptor[];
   prompts: McpPromptDescriptor[];
   ttlMs: number | undefined;
+  /** Over HTTP: which credential the server takes. Null: it wants none. Replace it to script a sign-in that ends. */
+  accepts: ((token: string | undefined) => boolean) | null;
+  /** The line a request without that credential is refused with. */
+  challenge: string;
   /** What a call returns; `count` is the number of this call, from 1. Replace it to script a behaviour. */
   onCall: (name: string, args: Record<string, unknown>, count: number, params: Record<string, unknown>) => Record<string, unknown>;
   /** What a prompt expands to. */
@@ -105,6 +109,8 @@ export function createScriptedMcpServer(options: ScriptedMcpOptions = {}): Scrip
     tools: options.tools ?? [],
     prompts: options.prompts ?? [],
     ttlMs: options.ttlMs,
+    accepts: options.bearer !== undefined ? (token) => token === options.bearer : null,
+    challenge: 'Bearer realm="mcp"',
     onCall: (name, args) => ({ content: [{ type: "text", text: `${name} ${JSON.stringify(args)}` }] }),
     onPrompt: (name) => ({ messages: [{ role: "user", content: { type: "text", text: `Prompt ${name}` } }] }),
     calls: [],
@@ -140,8 +146,9 @@ export function createScriptedMcpServer(options: ScriptedMcpOptions = {}): Scrip
         return result({ [key]: all.slice(from, from + Math.max(size, 1)), ...next, ...fresh });
       };
 
-      if (headers && options.bearer !== undefined && headers.authorization !== `Bearer ${options.bearer}`) {
-        return { status: 401, challenge: 'Bearer realm="mcp"', message: null };
+      if (headers && server.accepts) {
+        const sent = headers.authorization?.startsWith("Bearer ") ? headers.authorization.slice(7) : undefined;
+        if (!server.accepts(sent)) return { status: 401, challenge: server.challenge, message: null };
       }
 
       if (modern) {
@@ -226,8 +233,8 @@ export interface ScriptedHttpOptions {
   keepOpen?: boolean;
   /** Hand the body over in pieces of this many characters. */
   pieces?: number;
-  /** What the native side adds on its own: the credential of this server. */
-  bearer?: string;
+  /** What the native side adds on its own: the credential of this server — a fixed one, or whatever it holds at the moment of a request. */
+  bearer?: string | (() => string | undefined);
 }
 
 export interface ScriptedHttpPort extends McpHttpPort {
@@ -260,7 +267,8 @@ export function scriptedMcpHttpPort(server: ScriptedMcpServer, options: Scripted
         queueMicrotask(() => {
           if (!open.has(id)) return;
           if (port.failWith) return end({ type: "failed", code: port.failWith });
-          const headers = { ...request.headers, ...(options.bearer !== undefined ? { Authorization: `Bearer ${options.bearer}` } : {}) };
+          const bearer = typeof options.bearer === "function" ? options.bearer() : options.bearer;
+          const headers = { ...request.headers, ...(bearer !== undefined ? { Authorization: `Bearer ${bearer}` } : {}) };
           if (request.method === "DELETE") {
             const session = Object.entries(headers).find(([key]) => key.toLowerCase() === "mcp-session-id")?.[1];
             server.endSession(session);

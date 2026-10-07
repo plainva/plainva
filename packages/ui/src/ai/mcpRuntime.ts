@@ -13,8 +13,10 @@ import {
   mcpPromptKey,
   mcpServerIdProblem,
   mcpServerTarget,
+  planMcpSignIn,
   reviewMcpListing,
   reviewMcpPromptBody,
+  runMcpSignIn,
   suggestMcpServerId,
   type EndpointConfirmText,
   type McpAddressProblem,
@@ -24,10 +26,15 @@ import {
   type McpHello,
   type McpListing,
   type McpNativeHost,
+  type McpOAuthBrowser,
+  type McpOAuthRedirect,
+  type McpOAuthStatus,
   type McpProgramSpec,
   type McpRegisteredServer,
   type McpSandboxInfo,
   type McpServerReview,
+  type McpSignInPlan,
+  type McpSignInProblem,
 } from "@plainva/core";
 import { mcpSnapshotFits, type McpDeviceStore, type McpServerRecord } from "./mcpStores";
 
@@ -44,6 +51,14 @@ import { mcpSnapshotFits, type McpDeviceStore, type McpServerRecord } from "./mc
 
 export interface McpRuntimeHost {
   native: McpNativeHost;
+  /** The browser a sign-in is made in, and the way back from it. */
+  browser: McpOAuthBrowser;
+  /**
+   * The address of Plainva's own description as a client — what it is to an
+   * authorization server that takes such an address as an id. Null: this
+   * build has none, and registers where it can.
+   */
+  clientDocument: string | null;
   store: McpDeviceStore;
   /** Who a server is told asks: the app and its version. Asked once, before the first connection; never rejects. */
   client(): Promise<McpClientInfo>;
@@ -248,6 +263,59 @@ export class McpRuntime {
     return value.trim() ? this.host.native.setSecret(id, name, value.trim()) : this.host.native.deleteSecret(id, name);
   }
 
+  /* ---- signing in to a remote server ---------------------------------------------------------- */
+
+  /**
+   * How this server can be signed in to: where it says its sign-in lives and
+   * what that authorization server offers. `challenge` is the line it refused
+   * a request with, where there was one.
+   */
+  async signInPlan(id: string, challenge?: string): Promise<{ ok: true; plan: McpSignInPlan } | { ok: false; problem: McpSignInProblem }> {
+    const server = await this.registered(id).catch(() => null);
+    if (!server || server.kind !== "http" || !server.url) return { ok: false, problem: "not-offered" };
+    return planMcpSignIn(this.host.native.oauth, { id, url: server.url }, challenge, this.host.clientDocument);
+  }
+
+  /**
+   * Makes the sign-in in the browser. The connection is ended either way: the
+   * next use asks the server again, with whatever credential there is now.
+   */
+  async signIn(id: string, plan: McpSignInPlan, clientId?: string, signal?: AbortSignal): Promise<{ ok: true } | { ok: false; problem: McpSignInProblem }> {
+    const result = await runMcpSignIn(this.host.native.oauth, this.host.browser, id, plan, {
+      clientName: "Plainva",
+      documentUrl: this.host.clientDocument,
+      ...(clientId !== undefined ? { clientId } : {}),
+      ...(signal ? { signal } : {}),
+    });
+    this.drop(id);
+    return result;
+  }
+
+  /**
+   * The browser came back while nobody waited for it — a phone ends an app
+   * that is in the background. The native side kept what was begun: it ends
+   * the sign-in, and the answer is the server that is signed in to now.
+   */
+  async finishSignIn(redirect: McpOAuthRedirect): Promise<string | null> {
+    try {
+      const id = await this.host.native.oauth.finish(redirect);
+      this.drop(id);
+      return id;
+    } catch {
+      return null;
+    }
+  }
+
+  /** The sign-in that is kept for a server; null where there is none. */
+  signInStatus(id: string): Promise<McpOAuthStatus | null> {
+    return this.host.native.oauth.status(id).catch(() => null);
+  }
+
+  async signOut(id: string): Promise<void> {
+    this.drop(id);
+    await this.host.native.oauth.signOut(id);
+  }
+
   private drop(id: string): void {
     const link = this.links.get(id);
     if (!link) return;
@@ -274,7 +342,14 @@ export class McpRuntime {
     if (existing) this.drop(server.id);
     let client: McpClient;
     if (server.kind === "http") {
-      client = createMcpClient(createMcpHttpWire(this.host.native.httpPort(server.id), { client: info, newRequestId: () => `mcp-${this.host.newId()}` }));
+      client = createMcpClient(
+        createMcpHttpWire(this.host.native.httpPort(server.id), {
+          client: info,
+          newRequestId: () => `mcp-${this.host.newId()}`,
+          // A sign-in that ran out renews itself natively; this side only learns whether to ask again.
+          renew: () => this.host.native.oauth.renew(server.id),
+        }),
+      );
     } else {
       const programs = this.host.native.programs;
       if (!programs) throw new McpError({ kind: "refused", detail: "no-programs" });

@@ -24,6 +24,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AiNetPlugin.class);
         registerPlugin(AiWebPlugin.class);
         registerPlugin(AiMcpPlugin.class);
+        registerPlugin(AiMcpAuthPlugin.class);
         registerPlugin(PlatformModelPlugin.class);
         super.onCreate(savedInstanceState);
         shareIntentId = savedInstanceState == null ? null : savedInstanceState.getString("plainva.shareIntentId");

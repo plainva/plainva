@@ -51,6 +51,133 @@ export interface McpProgramHost {
   sandbox(): Promise<McpSandboxInfo>;
 }
 
+/** An authorization server as the native side read it from that server's own metadata. Nothing here is a secret. */
+export interface McpOAuthIssuer {
+  issuer: string;
+  /** It takes the address of a client's own description as the client's id (so nothing has to be registered). */
+  document: boolean;
+  /** It lets a client register itself. */
+  dynamic: boolean;
+  /** It says who it is when it sends the browser back (RFC 9207), so an answer of somebody else is noticed. */
+  iss: boolean;
+  scopes: string[];
+}
+
+/**
+ * Who Plainva is to an authorization server: the client it used with this one
+ * before, the address of its own description, a registration it makes now, or
+ * an id the user got from the server's operator.
+ */
+export type McpOAuthClientChoice = { kind: "stored" } | { kind: "document"; id: string } | { kind: "dynamic" } | { kind: "manual"; id: string };
+
+export interface McpOAuthBegin {
+  issuer: string;
+  scopes: string[];
+  /** What the token is for: the server's address, or the part of it the server names as itself. */
+  resource: string;
+  client: McpOAuthClientChoice;
+  /** The name a registration carries. */
+  clientName: string;
+  /** Where the browser comes back to on a computer: a port on this device. A phone comes back through the app's own address. */
+  redirectPort?: number;
+}
+
+/** What the browser came back with. Worth nothing without what the native side kept. */
+export interface McpOAuthRedirect {
+  state: string;
+  code?: string;
+  iss?: string;
+  error?: string;
+}
+
+/** A sign-in as the settings may show it: where, for what, until when — never a token. */
+export interface McpOAuthStatus {
+  issuer: string;
+  scopes: string[];
+  /** Unix time in seconds; null where the server did not say. */
+  expiresAt: number | null;
+  signedIn: boolean;
+  /** A new token can be had without the user. */
+  renewable: boolean;
+  /** A client for this authorization server is kept, so the next sign-in needs none. */
+  client: boolean;
+}
+
+/** Why the native side did not go on with a sign-in — one of a fixed set of words. */
+export const MCP_OAUTH_PROBLEMS = [
+  "oauth-address",
+  "oauth-unreachable",
+  "oauth-no-metadata",
+  "oauth-issuer",
+  "oauth-no-pkce",
+  "oauth-endpoints",
+  "oauth-resource",
+  "oauth-client",
+  "oauth-registration",
+  "oauth-no-flow",
+  "oauth-denied",
+  "oauth-failed",
+  "oauth-token",
+  "oauth-grant",
+] as const;
+export type McpOAuthProblem = (typeof MCP_OAUTH_PROBLEMS)[number];
+
+/** The native side's word for what went wrong; anything it did not name is "the sign-in failed". */
+export function mcpOAuthProblem(error: unknown): McpOAuthProblem {
+  const text = error instanceof Error ? error.message : String(error);
+  return MCP_OAUTH_PROBLEMS.find((known) => text === known) ?? "oauth-failed";
+}
+
+/**
+ * Signing in to a remote server, natively (OAuth 2.1 with PKCE). The web view
+ * opens a browser and hands back what it returned with; everything a token
+ * could be had with or is — the verifier, the exchange, the tokens, their
+ * renewal — stays on the native side, and so does the choice of where a code
+ * or a token is sent: the endpoints come from a document the native side
+ * fetched itself, from the authorization server's own origin.
+ */
+export interface McpOAuthHost {
+  /** A document a server names for its sign-in (its resource metadata), fetched under the native address rules. */
+  document(serverId: string, url: string): Promise<{ status: number; body: string }>;
+  /** Reads an authorization server's metadata from `url` — an address on that server's own origin — and keeps it for the sign-in. */
+  issuer(serverId: string, issuer: string, url: string): Promise<McpOAuthIssuer>;
+  /** Begins a sign-in and answers with the address to open in a browser. */
+  begin(serverId: string, request: McpOAuthBegin): Promise<string>;
+  /** Ends it with what the browser came back with; answers with the server that is signed in now. */
+  finish(redirect: McpOAuthRedirect): Promise<string>;
+  /** Forgets a sign-in that was begun and will not be finished. */
+  cancel(): Promise<void>;
+  /** Gets a new token with the one kept for that. False where there is none, or it was refused. */
+  renew(serverId: string): Promise<boolean>;
+  status(serverId: string): Promise<McpOAuthStatus | null>;
+  signOut(serverId: string): Promise<void>;
+}
+
+/** Reads what the native side answered about an authorization server. */
+export function readMcpOAuthIssuer(raw: unknown): McpOAuthIssuer | null {
+  if (!isRecord(raw) || typeof raw.issuer !== "string") return null;
+  return {
+    issuer: raw.issuer,
+    document: raw.document === true,
+    dynamic: raw.dynamic === true,
+    iss: raw.iss === true,
+    scopes: Array.isArray(raw.scopes) ? raw.scopes.filter((scope): scope is string => typeof scope === "string").slice(0, 100) : [],
+  };
+}
+
+/** Reads what the native side answered about a sign-in; nothing where there is none. */
+export function readMcpOAuthStatus(raw: unknown): McpOAuthStatus | null {
+  if (!isRecord(raw) || typeof raw.issuer !== "string") return null;
+  return {
+    issuer: raw.issuer,
+    scopes: Array.isArray(raw.scopes) ? raw.scopes.filter((scope): scope is string => typeof scope === "string").slice(0, 100) : [],
+    expiresAt: typeof raw.expiresAt === "number" && Number.isFinite(raw.expiresAt) ? raw.expiresAt : null,
+    signedIn: raw.signedIn === true,
+    renewable: raw.renewable === true,
+    client: raw.client === true,
+  };
+}
+
 export interface McpNativeHost {
   servers(): Promise<McpRegisteredServer[]>;
   /** Remembers a remote server after the shell showed its address NATIVELY. False when declined. */
@@ -64,6 +191,8 @@ export interface McpNativeHost {
   httpPort(serverId: string): McpHttpPort;
   /** Programs on this computer; null where the platform starts none (a phone). */
   programs: McpProgramHost | null;
+  /** Signing in to a remote server that wants it. */
+  oauth: McpOAuthHost;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);

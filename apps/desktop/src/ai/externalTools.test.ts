@@ -152,8 +152,10 @@ describe("why a look failed", () => {
     }
     expect(texts[1]).toContain("certificate");
     expect(texts[2]).toContain("no longer where it was");
-    expect(texts[8]).toContain("access token");
+    // A server that wants a sign-in is said to want one — how to give it one stands in its review, below this line.
+    expect(texts[8]).toBe("The server asks for a sign-in.");
     expect(texts[9]).toContain("refused the request");
+    expect(texts[9]).toContain("Its sign-in or its access token");
     expect(texts[10]).toContain("502");
     expect(texts[15]).toContain("-32603");
   });

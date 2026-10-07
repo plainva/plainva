@@ -95,6 +95,8 @@ jobs:
         run: |
           swiftc Shared/AiMcpRules.swift tests/AiMcpRulesTests.swift -o "$RUNNER_TEMP/ai-mcp-rules-tests"
           "$RUNNER_TEMP/ai-mcp-rules-tests"
+          swiftc Shared/AiMcpRules.swift Shared/AiWebRules.swift Shared/AiMcpOAuthRules.swift tests/AiMcpOAuthRulesTests.swift -o "$RUNNER_TEMP/ai-mcp-oauth-rules-tests"
+          "$RUNNER_TEMP/ai-mcp-oauth-rules-tests"
 
       - name: Build for simulator
         working-directory: apps/mobile/ios/App

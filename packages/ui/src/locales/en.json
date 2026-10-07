@@ -956,8 +956,8 @@
         "refused": "The request could not be sent to this server.",
         "timeout": "The server did not answer in time.",
         "cancelled": "The request was cancelled.",
-        "auth": "The server asks for a sign-in. Check its access token.",
-        "forbidden": "The server refused the request. Its access token may not be allowed to do this.",
+        "auth": "The server asks for a sign-in.",
+        "forbidden": "The server refused the request. Its sign-in or its access token may not be allowed to do this.",
         "http": "The server answered with an error ({{status}}).",
         "protocol": "The server answered with something that is not MCP.",
         "version": "The server speaks no version of MCP that Plainva knows.",
@@ -1004,6 +1004,31 @@
           "credentials": "The address must not contain a user name or a password. Enter an access token instead.",
           "programNotFound": "The program was not found.",
           "refused": "The server could not be added."
+        }
+      },
+      "signIn": {
+        "title": "Sign-in",
+        "start": "Sign in…",
+        "again": "Sign in again…",
+        "planning": "Asking the server how to sign in…",
+        "waiting": "Finish the sign-in in your browser, at {{host}}. Plainva waits here.",
+        "signedIn": "Signed in at {{host}}",
+        "ended": "The sign-in at {{host}} has ended",
+        "none": "Not signed in",
+        "signOut": "Sign out",
+        "client": "Client ID",
+        "clientHelp": "{{host}} does not let apps register themselves. Enter the client ID the operator of the server gave you for Plainva.",
+        "continue": "Open the browser",
+        "note": "You sign in in your browser. Plainva keeps what it receives in this device's secure store; it goes only to this server, and the AI never sees it. A sign-in and a stored access token replace each other.",
+        "done": "Signed in to {{server}}.",
+        "problem": {
+          "not-offered": "This server names no place to sign in. If it needs an access token, store one here.",
+          "unreachable": "The sign-in could not be reached. Check your connection and try again.",
+          "unsupported": "Plainva cannot sign in to this server: its sign-in does not offer what Plainva requires.",
+          "client": "The sign-in did not accept Plainva as an app.",
+          "declined": "The sign-in was declined in the browser.",
+          "cancelled": "The sign-in was not finished.",
+          "failed": "The sign-in failed. Nothing was stored."
         }
       }
     },

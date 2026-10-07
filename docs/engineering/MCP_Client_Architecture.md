@@ -1,6 +1,6 @@
 # MCP client architecture
 
-Status: built in three layers. The rules and the protocol client are in `packages/core/src/ai/mcp/`; the native side is in the three shells; the stores, the session and the surfaces are in `packages/ui/src/ai/` (`mcpStores`, `mcpRuntime`, `mcpSession`, `mcpTools`, `externalTools`, `externalReview`, `AiExternalReview`, `AiExternalPrompt`). The layers above the rules apply them and add none of their own. Signing in to a remote server with OAuth is the part that follows.
+Status: built in three layers. The rules and the protocol client are in `packages/core/src/ai/mcp/`; the native side is in the three shells; the stores, the session and the surfaces are in `packages/ui/src/ai/` (`mcpStores`, `mcpRuntime`, `mcpSession`, `mcpTools`, `externalTools`, `externalReview`, `AiExternalReview`, `AiExternalPrompt`). The layers above the rules apply them and add none of their own. Signing in to a remote server (OAuth 2.1 with PKCE) is built the same way: what the web view does of it is `oauth.ts`, what decides is native.
 
 Plainva speaks MCP in two directions. As a **server** it lets AI apps on the same computer read the vault ([ADR 0022](../adr/0022-mcp-server-without-a-network-port.md)). As a **client**, described here, it lets the assistant use tools of servers the user added: an issue tracker, a calendar service, a search API. The two share the tool manifest idea and nothing else; the trust runs in opposite directions. The decisions are recorded in [ADR 0024](../adr/0024-mcp-client-foreign-servers.md); what was checked, found and left unverified is in the [security review](MCP_Client_Security_Review.md).
 
@@ -76,7 +76,7 @@ A result becomes one text of bounded length, tier 3, with server and tool as its
 
 ### Tokens
 
-A remote server that needs the user's account gets a token made for that server: bound to its address, limited to the scopes the user granted, and alive for at most ten minutes. The broker that issues such tokens is the one the account connections use; `McpTokenBroker` is the contract. Two checks do not depend on the implementation: a request is served only for the server's own address and granted scopes, and a token is sent only to its audience and only before it expires — checked at the moment of use, so a redirect carries no token along. This is what keeps a token issued for one server from being accepted by another.
+A remote server that needs the user's account gets a token made for that server: bound to its address, limited to the scopes the user granted, and alive for at most ten minutes. The broker that issues such tokens is the one the account connections use; `McpTokenBroker` is the contract. Two checks do not depend on the implementation: a request is served only for the server's own address and granted scopes, and a token is sent only to its audience and only before it expires — checked at the moment of use, so a redirect carries no token along. This is what keeps a token issued for one server from being accepted by another. No broker issues such tokens yet; what is built is the sign-in a server has of its own (see "Signing in" below), which holds the same two checks natively.
 
 ## The protocol client
 
@@ -91,7 +91,9 @@ How a server is asked is separate from what it may do. The protocol lives in the
 | `client.ts` | what Plainva asks: what the server is, its lists (all pages, bounded), one call, one prompt |
 | `schemaView.ts` | a tool's arguments as a model reads them: cleaned, cut, bounded |
 | `native.ts` | the contract of the shells' native side, and the address rule both sides of it keep |
-| `scripted.ts` | a server in a script, for tests in every package |
+| `oauth.ts` | signing in, as far as the web view does it: what a server's refusal says, which addresses to ask, the steps |
+| `oauthRules.ts` | the rules the native side of a sign-in keeps, written down once more: the reference the three native sides are tested against |
+| `scripted.ts`, `scriptedOAuth.ts` | a server and a sign-in in a script, for tests in every package |
 
 ### Two generations
 
@@ -139,6 +141,30 @@ A remote server's token and the values a program gets in its environment are sto
 ### A request
 
 https, the registered address, no redirect followed — a redirect could carry the token and the arguments of a call to another host; it is reported as the answer it is. The web view sets only protocol headers from a fixed list (`Content-Type`, `Accept`, `MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`, `Mcp-Session-Id`, `Mcp-Param-*`), and only values of visible ASCII. The answer is cut at five megabytes. What comes back is the status, the content type, two response headers, the body, and for a request that got no answer one of a fixed set of words — never a text of the network's own.
+
+### Signing in
+
+A remote server may want a sign-in instead of a fixed token. Plainva signs in the way the protocol's authorization chapter asks for: the server says where its sign-in lives (its resource metadata, RFC 9728), that authorization server says how it works (RFC 8414), the user signs in in the system's browser with PKCE, and the token that comes of it is made out to this one server (RFC 8707).
+
+The steps are split by what they could leak.
+
+- **The web view** (`oauth.ts`) reads the line a server refused a request with, decides which addresses to ask, shows the user where the browser will go, opens it and hands back what it returned with. None of that is a secret, and none of it decides where a secret goes.
+- **The native side** (`mcp_client/oauth.rs`, `AiMcpAuthPlugin` on the phones) makes the verifier and the state, checks what came back, exchanges the code, keeps the tokens, renews them and puts the access token into requests to the registered address. No command answers with a token, a verifier or an endpoint.
+
+Four rules carry it. `oauthRules.ts` writes them down once; the Rust module and the two phones' rule files decide the same, and one list of cases per rule runs on all four (`MCP_OAUTH_*_CASES` in `oauthRules.test.ts`).
+
+1. **Where a code and a token are sent is read natively.** The endpoints come from a document the native side fetched itself, from an address on the authorization server's own origin under `/.well-known/`, whose `issuer` is the one that was asked for, letter for letter. A web view that was taken over cannot pair a real authorization endpoint with a token endpoint of its own.
+2. **An address a server names is asked under a rule.** On the server's own host: what the user confirmed (https, or http to this device). Everywhere else: a public name, https, the default port, resolved to public addresses only. The desktop and Android connect to exactly the addresses they checked; iOS checks before the request and again where the answer came from. No redirect is followed, and an answer is cut at 256 KiB.
+3. **Who answered is who was asked.** The state must be the one that was sent, and the `iss` of the answer (RFC 9207) must be the issuer: a name that differs, or one that is missing where the authorization server promised it, ends the sign-in before anything of the answer is used, an error text included. A sign-in that was begun is used once and waits ten minutes at most.
+4. **A token is for one server.** It is asked for the registered address, or for the part of it the server names as itself (the same origin, and a path that ends where a segment ends); it is kept under the server's id and sent to the registered address only. A server has one credential: a sign-in removes a stored token, a stored token ends a sign-in, and removing or re-registering a server forgets both.
+
+**Who Plainva is to an authorization server**, in this order: the client it used with this one before; the address of its own description (`MCP_OAUTH_CLIENT_DOCUMENT`, a Client ID Metadata Document on the project's website) where the authorization server takes such an address; a registration it makes itself (RFC 7591: a native app without a secret — a secret the server insists on is kept natively and sent the way the registration said); an id the user got from the server's operator. An authorization server that does not say it does PKCE with SHA-256 is not signed in with. The description itself is a file of the website repository (`public/oauth/client.json`, served as `https://plainva.com/oauth/client.json`); `mcpClientDocument()` is what it says, pinned by a test, and the ways back it lists are the ones the shells can name.
+
+**The way back** is the one every account sign-in of the app uses: a port on this computer on the desktop (`http://127.0.0.1:<port>/callback`; port 43117 where it is free, for authorization servers that compare addresses literally), the app's own address on a phone (`<app id>://mcp/oauth`). What arrives there passes through the web view, and is worth nothing without the verifier.
+
+**Running out.** A request that is refused with 401 asks the native side once for a new token and is sent once more (`renew` of the HTTP wire); the native side renews one at a time and not twice within ten seconds. A token for the next that was refused for good ends the sign-in. The approval of the server's texts stands, and the review asks for a new sign-in.
+
+**What is kept.** On the desktop the tokens are in keychain slots (`ai-mcp:<id>#access`, `#refresh`, `#client`; a long value in parts of 1,000 characters, because the Windows credential store takes 2,560 bytes per entry) and everything that is no secret in `ai-mcp-oauth.json` in the app's data. On the phones there is one entry per server in the MCP plugin's own store, and one for a sign-in that was begun — it survives the system ending the app while the browser is open, and whoever gets the way back then ends the sign-in with it.
 
 ### A program (desktop only)
 
@@ -209,7 +235,4 @@ One model, two dresses. `useExternalAdd` and `useExternalReview` hold the state 
 - It answers no question a server asks of the user (elicitation) and keeps no stream open for a server's notifications; a list is loaded again before a use instead.
 - It calls no tool that changes something before writing through MCP opens with the approval chain of [ADR 0019](../adr/0019-ai-tools-risk-classes-and-approvals.md).
 - It never passes `_meta` to a model.
-
-## Decided with the part that follows
-
-One question belongs to a part that is built after this one, and is answered there rather than fixed here: the OAuth flow for remote servers (PKCE, issuer and audience checks, client metadata documents). Until then a remote server is reached without a sign-in or with a token the user stores for it.
+- Around a sign-in: it does not ask an authorization server to revoke a token when the user signs out (the tokens are forgotten on the device), does not ask for more scopes on its own when a server answers that a sign-in does not allow something (the user signs in again), and is never a client with a secret of its own.

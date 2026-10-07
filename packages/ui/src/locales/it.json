@@ -983,8 +983,8 @@
         "refused": "Non è stato possibile inviare la richiesta a questo server.",
         "timeout": "Il server non ha risposto in tempo.",
         "cancelled": "La richiesta è stata annullata.",
-        "auth": "Il server chiede un accesso. Controlla il suo token di accesso.",
-        "forbidden": "Il server ha rifiutato la richiesta. Forse il suo token di accesso non è autorizzato a farlo.",
+        "auth": "Il server chiede un accesso.",
+        "forbidden": "Il server ha rifiutato la richiesta. Forse il suo accesso o il suo token di accesso non è autorizzato a farlo.",
         "http": "Il server ha risposto con un errore ({{status}}).",
         "protocol": "Il server ha risposto con qualcosa che non è MCP.",
         "version": "Il server non parla alcuna versione di MCP che Plainva conosca.",
@@ -1031,6 +1031,31 @@
           "credentials": "L'indirizzo non deve contenere nome utente né password. Inserisci invece un token di accesso.",
           "programNotFound": "Il programma non è stato trovato.",
           "refused": "Non è stato possibile aggiungere il server."
+        }
+      },
+      "signIn": {
+        "title": "Accesso",
+        "start": "Accedi…",
+        "again": "Accedi di nuovo…",
+        "planning": "Sto chiedendo al server come si accede…",
+        "waiting": "Completa l'accesso nel browser, su {{host}}. Plainva aspetta qui.",
+        "signedIn": "Accesso effettuato su {{host}}",
+        "ended": "L'accesso su {{host}} è terminato",
+        "none": "Nessun accesso",
+        "signOut": "Esci",
+        "client": "ID client",
+        "clientHelp": "{{host}} non permette alle app di registrarsi da sole. Inserisci l'ID client che il gestore del server ti ha dato per Plainva.",
+        "continue": "Apri il browser",
+        "note": "Accedi nel tuo browser. Ciò che Plainva riceve resta nell'archivio sicuro di questo dispositivo; va solo a questo server, e l'IA non lo vede mai. Un accesso e un token di accesso salvato si sostituiscono a vicenda.",
+        "done": "Accesso a {{server}} effettuato.",
+        "problem": {
+          "not-offered": "Questo server non indica dove accedere. Se gli serve un token di accesso, salvalo qui.",
+          "unreachable": "Non è stato possibile raggiungere l'accesso. Controlla la connessione e riprova.",
+          "unsupported": "Plainva non può accedere a questo server: il suo accesso non offre ciò che Plainva richiede.",
+          "client": "L'accesso non ha accettato Plainva come app.",
+          "declined": "L'accesso è stato rifiutato nel browser.",
+          "cancelled": "L'accesso non è stato completato.",
+          "failed": "L'accesso non è riuscito. Non è stato salvato nulla."
         }
       }
     },

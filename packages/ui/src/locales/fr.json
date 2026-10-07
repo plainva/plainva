@@ -983,8 +983,8 @@
         "refused": "La requête n'a pas pu être envoyée à ce serveur.",
         "timeout": "Le serveur n'a pas répondu à temps.",
         "cancelled": "La requête a été annulée.",
-        "auth": "Le serveur demande une authentification. Vérifiez son jeton d'accès.",
-        "forbidden": "Le serveur a refusé la requête. Son jeton d'accès n'y est peut-être pas autorisé.",
+        "auth": "Le serveur demande une connexion.",
+        "forbidden": "Le serveur a refusé la requête. Sa connexion ou son jeton d'accès n'y est peut-être pas autorisé.",
         "http": "Le serveur a répondu par une erreur ({{status}}).",
         "protocol": "Le serveur a répondu par quelque chose qui n'est pas du MCP.",
         "version": "Le serveur ne parle aucune version de MCP que Plainva connaît.",
@@ -1031,6 +1031,31 @@
           "credentials": "L'adresse ne doit contenir ni nom d'utilisateur ni mot de passe. Saisissez plutôt un jeton d'accès.",
           "programNotFound": "Le programme est introuvable.",
           "refused": "Le serveur n'a pas pu être ajouté."
+        }
+      },
+      "signIn": {
+        "title": "Connexion",
+        "start": "Se connecter…",
+        "again": "Se reconnecter…",
+        "planning": "Le serveur est interrogé sur la façon de se connecter…",
+        "waiting": "Terminez la connexion dans votre navigateur, sur {{host}}. Plainva attend ici.",
+        "signedIn": "Connecté sur {{host}}",
+        "ended": "La connexion sur {{host}} a pris fin",
+        "none": "Non connecté",
+        "signOut": "Se déconnecter",
+        "client": "ID client",
+        "clientHelp": "{{host}} ne laisse pas les applications s'enregistrer elles-mêmes. Saisissez l'ID client que l'exploitant du serveur vous a donné pour Plainva.",
+        "continue": "Ouvrir le navigateur",
+        "note": "Vous vous connectez dans votre navigateur. Ce que Plainva reçoit alors reste dans le stockage sécurisé de cet appareil ; cela ne va qu'à ce serveur, et l'IA ne le voit jamais. Une connexion et un jeton d'accès enregistré se remplacent l'un l'autre.",
+        "done": "Connecté à {{server}}.",
+        "problem": {
+          "not-offered": "Ce serveur n'indique aucun endroit où se connecter. S'il lui faut un jeton d'accès, enregistrez-le ici.",
+          "unreachable": "Le service de connexion n'a pas pu être joint. Vérifiez le réseau et réessayez.",
+          "unsupported": "Plainva ne peut pas se connecter à ce serveur : sa connexion n'offre pas ce que Plainva exige.",
+          "client": "Le service de connexion n'a pas accepté Plainva comme application.",
+          "declined": "La connexion a été refusée dans le navigateur.",
+          "cancelled": "La connexion n'a pas été terminée.",
+          "failed": "La connexion a échoué. Rien n'a été enregistré."
         }
       }
     },

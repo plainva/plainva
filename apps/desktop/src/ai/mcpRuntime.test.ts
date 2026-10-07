@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createScriptedMcpServer, McpError, type McpClientInfo, type ScriptedMcpServer, type ScriptedStdioPort } from "@plainva/core";
+import { createScriptedMcpServer, McpError, scriptedMcpOAuth, MCP_OAUTH_CLIENT_DOCUMENT, type McpClientInfo, type ScriptedMcpServer, type ScriptedOAuth, type ScriptedStdioPort } from "@plainva/core";
 import { createMcpDeviceStore, MCP_IDLE_MS, McpRuntime } from "@plainva/ui";
 import { CONFIRM, memoryFiles, scriptedNative } from "./mcpTestHost";
 
@@ -13,10 +13,10 @@ import { CONFIRM, memoryFiles, scriptedNative } from "./mcpTestHost";
 const URL = "https://mcp.example.com/mcp";
 const search = { name: "search_issues", title: "Search issues", description: "Searches the tracker's issues.", inputSchema: { type: "object", properties: { query: { type: "string" } } }, annotations: { readOnlyHint: true } };
 
-function setup(options: { server?: ScriptedMcpServer; programs?: boolean } = {}) {
+function setup(options: { server?: ScriptedMcpServer; programs?: boolean; oauth?: ScriptedOAuth } = {}) {
   const server = options.server ?? createScriptedMcpServer({ name: "Tracker MCP", instructions: "Use search_issues.", tools: [search], prompts: [{ name: "standup", description: "What happened yesterday." }] });
   const behind = new Map<string, ScriptedMcpServer>([[URL, server]]);
-  const host = scriptedNative((target) => behind.get(target) ?? null, { programs: options.programs });
+  const host = scriptedNative((target) => behind.get(target) ?? null, { programs: options.programs, oauth: (url) => (url === URL ? (options.oauth ?? null) : null) });
   const files = memoryFiles();
   let now = new Date("2026-10-07T09:00:00Z").getTime();
   let ids = 0;
@@ -25,6 +25,8 @@ function setup(options: { server?: ScriptedMcpServer; programs?: boolean } = {})
   const timers: { run: () => void; ms: number; off: boolean }[] = [];
   const runtime = new McpRuntime({
     native: host.native,
+    browser: host.browser,
+    clientDocument: MCP_OAUTH_CLIENT_DOCUMENT,
     store: createMcpDeviceStore(files),
     client: async () => {
       const info = { name: "Plainva", version: "0.9.0" };
@@ -305,5 +307,37 @@ describe("a call and a prompt", () => {
     expect(t.host.secrets.size).toBe(0);
     expect(JSON.parse(t.files.files.get("mcp/servers.json")!)).toEqual({ version: 1, servers: {} });
     await expect(t.runtime.call(t.id, "search_issues", {}, search.inputSchema)).rejects.toMatchObject({ failure: { kind: "refused", detail: "not-registered" } });
+  });
+});
+
+describe("signing in", () => {
+  it("is offered for a remote server, and for nothing else", async () => {
+    const t = setup({ programs: true, oauth: scriptedMcpOAuth({ serverUrl: URL, dynamic: true }) });
+    await t.runtime.addHttp("Tracker", URL, "", CONFIRM);
+    expect(await t.runtime.signInPlan("tracker")).toMatchObject({ ok: true, plan: { issuer: "https://auth.example.com", host: "auth.example.com", resource: URL, client: "dynamic" } });
+    const local = await t.runtime.addProgram("Local", { program: "npx", args: ["-y", "local-mcp"], env: [], sandbox: false }, {}, CONFIRM);
+    if (!local.ok) throw new Error("not added");
+    // A program gets its credentials in its environment; a server nobody registered gets none at all.
+    expect(await t.runtime.signInPlan(local.id)).toEqual({ ok: false, problem: "not-offered" });
+    expect(await t.runtime.signInPlan("nobody")).toEqual({ ok: false, problem: "not-offered" });
+    expect(await t.runtime.signInStatus("nobody")).toBeNull();
+  });
+
+  it("ends the connection, so that the next use asks the server with the credential there is now", async () => {
+    const oauth = scriptedMcpOAuth({ serverUrl: URL, dynamic: true });
+    const server = createScriptedMcpServer({ name: "Tracker MCP", tools: [search] });
+    server.accepts = (token) => oauth.accepts(token);
+    const t = setup({ server, oauth });
+    await t.runtime.addHttp("Tracker", URL, "", CONFIRM);
+    await expect(t.runtime.inspect("tracker")).rejects.toMatchObject({ failure: { kind: "auth", status: 401 } });
+    const refusedOn = t.host.ports.get("tracker");
+    const made = await t.runtime.signInPlan("tracker");
+    if (!made.ok) throw new Error(made.problem);
+    expect(await t.runtime.signIn("tracker", made.plan)).toEqual({ ok: true });
+    expect((await t.runtime.inspect("tracker")).listing.tools.map((tool) => tool.name)).toEqual(["search_issues"]);
+    expect(t.host.ports.get("tracker")).not.toBe(refusedOn);
+    // Signing out ends it again: the server is asked anew, and refuses.
+    await t.runtime.signOut("tracker");
+    await expect(t.runtime.inspect("tracker")).rejects.toMatchObject({ failure: { kind: "auth", status: 401 } });
   });
 });

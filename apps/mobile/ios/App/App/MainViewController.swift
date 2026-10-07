@@ -19,6 +19,7 @@ class MainViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(AiNetPlugin())
         bridge?.registerPluginInstance(AiWebPlugin())
         bridge?.registerPluginInstance(AiMcpPlugin())
+        bridge?.registerPluginInstance(AiMcpAuthPlugin())
         bridge?.registerPluginInstance(LocalModelPlugin())
         bridge?.registerPluginInstance(PlatformModelPlugin())
     }

@@ -956,8 +956,8 @@
         "refused": "Die Anfrage konnte nicht an diesen Server gesendet werden.",
         "timeout": "Der Server hat nicht rechtzeitig geantwortet.",
         "cancelled": "Die Anfrage wurde abgebrochen.",
-        "auth": "Der Server verlangt eine Anmeldung. Prüfe sein Zugangstoken.",
-        "forbidden": "Der Server hat die Anfrage abgelehnt. Möglicherweise darf sein Zugangstoken das nicht.",
+        "auth": "Der Server verlangt eine Anmeldung.",
+        "forbidden": "Der Server hat die Anfrage abgelehnt. Möglicherweise darf seine Anmeldung oder sein Zugangstoken das nicht.",
         "http": "Der Server hat mit einem Fehler geantwortet ({{status}}).",
         "protocol": "Der Server hat mit etwas geantwortet, das kein MCP ist.",
         "version": "Der Server spricht keine MCP-Version, die Plainva kennt.",
@@ -1004,6 +1004,31 @@
           "credentials": "Die Adresse darf weder Benutzernamen noch Passwort enthalten. Gib stattdessen ein Zugangstoken ein.",
           "programNotFound": "Das Programm wurde nicht gefunden.",
           "refused": "Der Server ließ sich nicht hinzufügen."
+        }
+      },
+      "signIn": {
+        "title": "Anmeldung",
+        "start": "Anmelden…",
+        "again": "Neu anmelden…",
+        "planning": "Der Server wird gefragt, wie man sich anmeldet…",
+        "waiting": "Schließe die Anmeldung in Deinem Browser ab, bei {{host}}. Plainva wartet hier.",
+        "signedIn": "Angemeldet bei {{host}}",
+        "ended": "Die Anmeldung bei {{host}} ist beendet",
+        "none": "Nicht angemeldet",
+        "signOut": "Abmelden",
+        "client": "Client-ID",
+        "clientHelp": "{{host}} lässt Apps sich nicht selbst registrieren. Gib die Client-ID ein, die Dir der Betreiber des Servers für Plainva gegeben hat.",
+        "continue": "Browser öffnen",
+        "note": "Du meldest Dich in Deinem Browser an. Was Plainva dabei erhält, liegt im sicheren Speicher dieses Geräts; es geht nur an diesen Server, und die KI sieht es nie. Eine Anmeldung und ein gespeichertes Zugangstoken ersetzen einander.",
+        "done": "Bei {{server}} angemeldet.",
+        "problem": {
+          "not-offered": "Dieser Server nennt keinen Ort für eine Anmeldung. Braucht er ein Zugangstoken, speichere es hier.",
+          "unreachable": "Die Anmeldung war nicht erreichbar. Prüfe die Verbindung und versuche es erneut.",
+          "unsupported": "Plainva kann sich bei diesem Server nicht anmelden: Seine Anmeldung bietet nicht, was Plainva verlangt.",
+          "client": "Die Anmeldung hat Plainva nicht als App angenommen.",
+          "declined": "Die Anmeldung wurde im Browser abgelehnt.",
+          "cancelled": "Die Anmeldung wurde nicht abgeschlossen.",
+          "failed": "Die Anmeldung ist fehlgeschlagen. Es wurde nichts gespeichert."
         }
       }
     },

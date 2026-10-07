@@ -310,6 +310,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-29",
   },
   {
+    id: "ai-mcp-sign-in-pinned-address",
+    title: "A sign-in to a remote MCP server asks exactly the addresses that were checked (plan KI-Harness P4.5)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Android connects to the checked addresses like the desktop. On iOS, " +
+      "URLSession offers no way to name the address a request connects to, so " +
+      "the check stands on both sides of every request of a sign-in instead: " +
+      "each address of the name is found public before it starts, and the far " +
+      "end the system reports afterwards is checked again before anything of " +
+      "the answer is used. A name server that answers twice differently can " +
+      "make one such request reach a private address there; its answer is " +
+      "thrown away (AiMcpAuthExchange in AiMcpAuthPlugin.swift).",
+    verified: "2026-10-07",
+  },
+  {
     id: "ai-platform-models",
     title: "The system's own AI model on this device (plan KI-Harness P2c)",
     area: "ai",

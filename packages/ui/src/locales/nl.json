@@ -956,8 +956,8 @@
         "refused": "Het verzoek kon niet naar deze server worden gestuurd.",
         "timeout": "De server antwoordde niet op tijd.",
         "cancelled": "Het verzoek is geannuleerd.",
-        "auth": "De server vraagt om aanmelding. Controleer zijn toegangstoken.",
-        "forbidden": "De server weigerde het verzoek. Mogelijk mag zijn toegangstoken dit niet.",
+        "auth": "De server vraagt om aanmelding.",
+        "forbidden": "De server weigerde het verzoek. Mogelijk mag zijn aanmelding of zijn toegangstoken dit niet.",
         "http": "De server antwoordde met een fout ({{status}}).",
         "protocol": "De server antwoordde met iets dat geen MCP is.",
         "version": "De server spreekt geen versie van MCP die Plainva kent.",
@@ -1004,6 +1004,31 @@
           "credentials": "Het adres mag geen gebruikersnaam of wachtwoord bevatten. Voer in plaats daarvan een toegangstoken in.",
           "programNotFound": "Het programma is niet gevonden.",
           "refused": "De server kon niet worden toegevoegd."
+        }
+      },
+      "signIn": {
+        "title": "Aanmelding",
+        "start": "Aanmelden…",
+        "again": "Opnieuw aanmelden…",
+        "planning": "De server wordt gevraagd hoe je je aanmeldt…",
+        "waiting": "Rond de aanmelding af in je browser, bij {{host}}. Plainva wacht hier.",
+        "signedIn": "Aangemeld bij {{host}}",
+        "ended": "De aanmelding bij {{host}} is beëindigd",
+        "none": "Niet aangemeld",
+        "signOut": "Afmelden",
+        "client": "Client-ID",
+        "clientHelp": "{{host}} laat apps zichzelf niet registreren. Voer de client-ID in die de beheerder van de server je voor Plainva heeft gegeven.",
+        "continue": "Browser openen",
+        "note": "Je meldt je aan in je browser. Wat Plainva daarbij krijgt, staat in de beveiligde opslag van dit apparaat; het gaat alleen naar deze server, en de AI ziet het nooit. Een aanmelding en een opgeslagen toegangstoken vervangen elkaar.",
+        "done": "Aangemeld bij {{server}}.",
+        "problem": {
+          "not-offered": "Deze server noemt geen plek om je aan te melden. Heeft hij een toegangstoken nodig, sla dat dan hier op.",
+          "unreachable": "De aanmelding was niet bereikbaar. Controleer de verbinding en probeer het opnieuw.",
+          "unsupported": "Plainva kan zich niet bij deze server aanmelden: zijn aanmelding biedt niet wat Plainva vereist.",
+          "client": "De aanmelding heeft Plainva niet als app geaccepteerd.",
+          "declined": "De aanmelding is in de browser geweigerd.",
+          "cancelled": "De aanmelding is niet afgerond.",
+          "failed": "De aanmelding is mislukt. Er is niets opgeslagen."
         }
       }
     },

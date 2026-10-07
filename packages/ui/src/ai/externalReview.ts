@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { asMcpError, mcpServerStanding, type McpFailure, type McpListing, type McpSandboxInfo, type McpServerGrant } from "@plainva/core";
+import { useEffect, useRef, useState } from "react";
+import { asMcpError, mcpServerStanding, type McpFailure, type McpListing, type McpOAuthStatus, type McpSandboxInfo, type McpServerGrant, type McpSignInPlan } from "@plainva/core";
 import type { AiSession } from "./aiSession";
 import {
   externalAddProblemText,
@@ -162,6 +162,44 @@ export type ExternalLook =
   | { state: "failed"; failure: McpFailure }
   | { state: "ready"; inspection: McpInspection };
 
+/** Where a sign-in stands while it is made: nothing going on, asking the server how, waiting for an id to be typed, waiting for the browser. */
+export type ExternalSignInStage = "idle" | "planning" | "client" | "waiting";
+
+/** Signing in to a remote server, as the review shows it. Nothing here is or holds a credential. */
+export interface ExternalSignIn {
+  /** The server is a remote one: only those are signed in to. */
+  possible: boolean;
+  /** The sign-in that is kept on this device; null where there is none. */
+  status: McpOAuthStatus | null;
+  /** The host of the kept sign-in. */
+  statusHost: string;
+  /** The server refused the look for want of a credential. */
+  wanted: boolean;
+  stage: ExternalSignInStage;
+  /** The host the browser will show, once the server said where its sign-in lives. */
+  host: string;
+  /** Why the last attempt ended without a sign-in. */
+  problem: string | null;
+  /** The client id the user got from the server's operator, where the authorization server offers no other way. */
+  clientId: string;
+  setClientId(value: string): void;
+  /** Finds out how to sign in and — unless an id has to be typed first — opens the browser. */
+  start(): void;
+  /** Goes on with the typed id. */
+  proceed(): void;
+  /** Stops waiting for the browser, or for the id. */
+  cancel(): void;
+  signOut(): Promise<void>;
+}
+
+function hostOf(address: string): string {
+  try {
+    return new URL(address).host;
+  } catch {
+    return "";
+  }
+}
+
 export interface ExternalReviewModel {
   /** The server as it stands now; null once it is gone. */
   server: AiMcpServer | null;
@@ -195,6 +233,7 @@ export interface ExternalReviewModel {
   showLog(): void;
   /** Stores a value in the keychain — an empty one deletes it — and asks the server again. */
   setSecret(name: string | null, value: string): Promise<void>;
+  signIn: ExternalSignIn;
 }
 
 const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && [...a].sort().join("\n") === [...b].sort().join("\n");
@@ -245,6 +284,87 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
     setLook({ state: "loading" });
     setApproved(false);
     setAttempt((count) => count + 1);
+  };
+
+  // Signing in. What the server refused the look with says where its sign-in lives; the rest is asked when the user starts.
+  const remote = server?.registered.kind === "http";
+  const [signStage, setSignStage] = useState<ExternalSignInStage>("idle");
+  const [signPlan, setSignPlan] = useState<McpSignInPlan | null>(null);
+  const [signProblem, setSignProblem] = useState<string | null>(null);
+  const [signStatus, setSignStatus] = useState<McpOAuthStatus | null>(null);
+  const [clientId, setClientId] = useState("");
+  const signing = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!remote) return;
+    let alive = true;
+    void session.mcp.signInStatus(serverId).then((found) => {
+      if (alive) setSignStatus(found);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [session, serverId, remote, attempt]);
+
+  // A review that closes stops waiting for a browser nobody will come back from.
+  useEffect(() => () => signing.current?.abort(), []);
+
+  const refused = look.state === "failed" && look.failure.kind === "auth" ? look.failure : null;
+
+  const makeSignIn = async (plan: McpSignInPlan, id?: string) => {
+    const abort = new AbortController();
+    signing.current = abort;
+    setSignStage("waiting");
+    const result = await session.mcp.signIn(serverId, plan, id, abort.signal);
+    if (signing.current === abort) signing.current = null;
+    setSignStage("idle");
+    if (result.ok) {
+      setSignProblem(null);
+      setClientId("");
+    } else {
+      // Stopping is no problem to report: the user did it.
+      setSignProblem(abort.signal.aborted ? null : t(`ai.ext.signIn.problem.${result.problem}`));
+    }
+    // Either way the server is asked again: with the new credential, or to show where things stand.
+    retry();
+  };
+
+  const signIn: ExternalSignIn = {
+    possible: remote === true,
+    status: signStatus,
+    statusHost: signStatus ? hostOf(signStatus.issuer) : "",
+    wanted: refused?.status === 401,
+    stage: signStage,
+    host: signPlan?.host ?? "",
+    problem: signProblem,
+    clientId,
+    setClientId,
+    start: () => {
+      if (signStage !== "idle") return;
+      setSignProblem(null);
+      setSignStage("planning");
+      void session.mcp.signInPlan(serverId, refused?.challenge).then((made) => {
+        if (!made.ok) {
+          setSignStage("idle");
+          setSignProblem(t(`ai.ext.signIn.problem.${made.problem}`));
+          return;
+        }
+        setSignPlan(made.plan);
+        if (made.plan.client === "manual") setSignStage("client");
+        else void makeSignIn(made.plan);
+      });
+    },
+    proceed: () => {
+      if (signStage === "client" && signPlan && clientId.trim()) void makeSignIn(signPlan, clientId.trim());
+    },
+    cancel: () => {
+      signing.current?.abort();
+      if (signStage === "client") setSignStage("idle");
+    },
+    signOut: async () => {
+      await session.mcp.signOut(serverId);
+      retry();
+    },
   };
 
   // A server nobody approved yet is proposed for this vault: it was added to be used here.
@@ -314,5 +434,6 @@ export function useExternalReview(session: AiSession, servers: readonly AiMcpSer
       await session.mcp.setSecret(serverId, name, value);
       retry();
     },
+    signIn,
   };
 }

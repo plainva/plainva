@@ -1,11 +1,17 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   McpError,
   mcpStartFailure,
+  readMcpOAuthIssuer,
+  readMcpOAuthStatus,
   readMcpRegisteredServers,
+  MCP_OAUTH_LOOPBACK_PORT,
   type McpHttpChunk,
   type McpHttpPort,
   type McpNativeHost,
+  type McpOAuthBrowser,
+  type McpOAuthHost,
   type McpSandboxInfo,
   type McpStdioPort,
 } from "@plainva/core";
@@ -16,6 +22,80 @@ import {
  * id — its address, its command line and its credentials are the native
  * side's, and no command returns a credential.
  */
+
+/** A native command names what went wrong in one of a fixed set of words; it arrives as a plain string. */
+const word = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));
+
+const oauth: McpOAuthHost = {
+  async document(serverId, url) {
+    const answer = await invoke<{ status: number; body: string }>("mcp_client_oauth_document", { serverId, url }).catch((error: unknown) => Promise.reject(word(error)));
+    return { status: Number(answer.status) || 0, body: typeof answer.body === "string" ? answer.body : "" };
+  },
+  async issuer(serverId, issuer, url) {
+    const found = readMcpOAuthIssuer(await invoke<unknown>("mcp_client_oauth_issuer", { serverId, issuer, url }).catch((error: unknown) => Promise.reject(word(error))));
+    if (!found) throw new Error("oauth-no-metadata");
+    return found;
+  },
+  begin(serverId, request) {
+    return invoke<string>("mcp_client_oauth_begin", { serverId, request }).catch((error: unknown) => Promise.reject(word(error)));
+  },
+  finish(redirect) {
+    return invoke<string>("mcp_client_oauth_finish", { redirect }).catch((error: unknown) => Promise.reject(word(error)));
+  },
+  async cancel() {
+    await invoke("mcp_client_oauth_cancel");
+  },
+  renew(serverId) {
+    return invoke<boolean>("mcp_client_oauth_renew", { serverId });
+  },
+  async status(serverId) {
+    return readMcpOAuthStatus(await invoke<unknown>("mcp_client_oauth_status", { serverId }));
+  },
+  async signOut(serverId) {
+    await invoke("mcp_client_oauth_sign_out", { serverId });
+  },
+};
+
+/**
+ * The browser of a sign-in, and the way back from it: the system's browser
+ * and a port on this computer — the listener every account sign-in of the
+ * app comes back through (`oauth_loopback_*`). What arrives there is handed
+ * on as it is; whether it is the answer to what was begun is the native
+ * side's decision.
+ */
+export function createDesktopMcpBrowser(): McpOAuthBrowser {
+  return {
+    async prepare() {
+      // The port authorization servers know from Plainva's description first; any free one where that is taken.
+      const redirectPort = await invoke<number>("oauth_loopback_start", { port: MCP_OAUTH_LOOPBACK_PORT }).catch(() => invoke<number>("oauth_loopback_start"));
+      return { redirectPort };
+    },
+    async open(url) {
+      // The native side built it from an endpoint it checked; a browser is still only ever opened at a web address.
+      if (!/^https?:\/\//i.test(url)) throw new Error("oauth-address");
+      await openUrl(url);
+    },
+    async wait(signal) {
+      const stop = () => void invoke("oauth_loopback_cancel").catch(() => undefined);
+      if (signal?.aborted) {
+        stop();
+        throw new Error("cancelled");
+      }
+      signal?.addEventListener("abort", stop, { once: true });
+      try {
+        const came = await invoke<{ code?: string; state?: string | null; iss?: string | null; error?: string | null }>("oauth_loopback_wait", { timeoutSecs: 300, reportErrors: true });
+        return {
+          state: came.state ?? "",
+          ...(came.code ? { code: came.code } : {}),
+          ...(typeof came.iss === "string" ? { iss: came.iss } : {}),
+          ...(typeof came.error === "string" ? { error: came.error } : {}),
+        };
+      } finally {
+        signal?.removeEventListener("abort", stop);
+      }
+    },
+  };
+}
 
 type PipeEvent = { type: "line"; text: string } | { type: "exit"; code?: number | null };
 
@@ -108,5 +188,6 @@ export function createDesktopMcpHost(): McpNativeHost {
         return invoke<McpSandboxInfo>("mcp_client_sandbox");
       },
     },
+    oauth,
   };
 }

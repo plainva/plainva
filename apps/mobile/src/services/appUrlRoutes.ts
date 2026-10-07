@@ -31,6 +31,14 @@ export async function routeAppUrl(url: string): Promise<void> {
       .catch(() => {});
     return;
   }
+  // The way back from a sign-in to a remote MCP server (plan KI-Harness P4.5). The native side decides
+  // whether it is the answer to what was begun; this only hands it over.
+  if (url.startsWith(`${APP_URL}mcp/`)) {
+    await import("./ai/mobileMcpBrowser")
+      .then((m) => m.handleMcpOAuthRedirect(url))
+      .catch(() => {});
+    return;
+  }
   if (await handlePimOAuthRedirect(url)) return;
   void handleOAuthRedirect(url);
 }

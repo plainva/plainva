@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
+import { MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
 import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, VaultQueryService } from "@plainva/core";
 import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
@@ -43,7 +44,7 @@ import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
 import { createDesktopAiEgress } from "./desktopAiEgress";
 import { createDesktopWebFetcher } from "./desktopAiWeb";
-import { createDesktopMcpHost } from "./desktopMcp";
+import { createDesktopMcpBrowser, createDesktopMcpHost } from "./desktopMcp";
 
 /**
  * The desktop's AI session (plan KI-Harness P1a). AI v1 runs in the central
@@ -159,7 +160,14 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
       // The assistant's page fetch (plan KI-Harness P4): native, like the egress.
       web: createDesktopWebFetcher(),
       // Foreign MCP servers (plan KI-Harness P4.5): the native registry, and what was approved on this device.
-      mcp: { native: createDesktopMcpHost(), store: createMcpDeviceStore(desktopAiFiles), version: async () => (await getPlatformServices().appVersion?.()) ?? "" },
+      mcp: {
+        native: createDesktopMcpHost(),
+        // Signing in to a remote server: the system's browser, and back through a port on this computer.
+        browser: createDesktopMcpBrowser(),
+        clientDocument: MCP_OAUTH_CLIENT_DOCUMENT,
+        store: createMcpDeviceStore(desktopAiFiles),
+        version: async () => (await getPlatformServices().appVersion?.()) ?? "",
+      },
     });
     void session.load();
   }

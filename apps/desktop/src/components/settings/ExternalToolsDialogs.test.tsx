@@ -2,11 +2,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { EMPTY_MCP_GRANT } from "@plainva/core";
+import { EMPTY_MCP_GRANT, scriptedMcpOAuth, type ScriptedOAuthOptions } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import type { AiSession } from "@plainva/ui";
 import { CONFIRM } from "../../ai/mcpTestHost";
-import { TRACKER_URL, close, connect, mcpSession, search } from "../../ai/mcpSessionHarness";
+import { TRACKER_URL, close, connect, mcpSession, search, tracker } from "../../ai/mcpSessionHarness";
 import { ExternalAddDialog, ExternalReviewDialog } from "./ExternalToolsDialogs";
 
 /**
@@ -209,5 +209,93 @@ describe("the review", () => {
     await until(() => onClose.mock.calls.length === 1);
     expect(native.registry).toEqual([]);
     expect(s.getState().mcp.servers).toEqual([]);
+  });
+});
+
+describe("signing in from the review", () => {
+  /** The tracker behind a sign-in: it takes nothing but the token its authorization server handed out. */
+  async function behindSignIn(options: Partial<ScriptedOAuthOptions> = {}) {
+    const oauth = scriptedMcpOAuth({ serverUrl: TRACKER_URL, dynamic: true, ...options });
+    const server = tracker();
+    server.accepts = (token) => oauth.accepts(token);
+    const t = await mcpSession([], { server, oauth });
+    await t.s.mcp.addHttp("Tracker", TRACKER_URL, "", CONFIRM);
+    return { ...t, oauth };
+  }
+
+  it("signs in in the browser when the server refused the look, shows what it lists afterwards — and never a credential", async () => {
+    const { s, oauth } = await behindSignIn();
+    await mount(<Review session={s} onClose={() => undefined} />);
+    await until(() => $("ai-ext-failure") !== null);
+    expect($("ai-ext-failure")!.textContent).toBe("The server asks for a sign-in.");
+    expect($("ai-ext-signin-status")!.textContent).toBe("Not signed in");
+    expect($("ai-ext-tools")).toBeNull();
+
+    click($("ai-ext-signin"));
+    await until(() => $("ai-ext-tools") !== null && $("ai-ext-loading") === null);
+    expect($("ai-ext-failure")).toBeNull();
+    expect($("ai-ext-signin-status")!.textContent).toBe("Signed in at auth.example.com");
+    expect(oauth.opened).toHaveLength(1);
+    expect($$<HTMLInputElement>("ai-ext-tool")).toHaveLength(2);
+    // Nothing a token is or could be had with is anywhere in the page.
+    for (const secret of [oauth.bearer("tracker")!, "rt-1", oauth.tokenRequests[0]!.code_verifier!]) expect(document.body.innerHTML).not.toContain(secret);
+
+    click($("ai-ext-signout"));
+    await until(() => $("ai-ext-failure") !== null);
+    expect($("ai-ext-signin-status")!.textContent).toBe("Not signed in");
+    expect(oauth.bearer("tracker")).toBeUndefined();
+  });
+
+  it("asks for a client id where the authorization server offers no other way, and says why a sign-in did not happen", async () => {
+    const { s, oauth } = await behindSignIn({ dynamic: false, clients: ["plainva-at-acme"] });
+    await mount(<Review session={s} onClose={() => undefined} />);
+    await until(() => $("ai-ext-signin") !== null && $("ai-ext-failure") !== null);
+    click($("ai-ext-signin"));
+    await until(() => $("ai-ext-signin-client") !== null);
+    expect(document.body.textContent).toContain("auth.example.com does not let apps register themselves.");
+    expect(oauth.opened).toEqual([]);
+    expect($<HTMLButtonElement>("ai-ext-signin-continue")!.disabled).toBe(true);
+
+    // The user says no in the browser: nothing is kept, and the review says what happened.
+    oauth.consent = "deny";
+    type($("ai-ext-signin-client"), "plainva-at-acme");
+    click($("ai-ext-signin-continue"));
+    await until(() => $("ai-ext-signin-problem") !== null);
+    expect($("ai-ext-signin-problem")!.textContent).toBe("The sign-in was declined in the browser.");
+    expect(new URL(oauth.opened[0]!).searchParams.get("client_id")).toBe("plainva-at-acme");
+    expect(await s.mcp.signInStatus("tracker")).toBeNull();
+
+    oauth.consent = "allow";
+    click($("ai-ext-signin"));
+    await until(() => $("ai-ext-signin-client") !== null);
+    type($("ai-ext-signin-client"), "plainva-at-acme");
+    click($("ai-ext-signin-continue"));
+    await until(() => $("ai-ext-tools") !== null && $("ai-ext-loading") === null);
+    expect($("ai-ext-signin-status")!.textContent).toBe("Signed in at auth.example.com");
+    expect($("ai-ext-signin-problem")).toBeNull();
+  });
+
+  it("stops waiting when the user says so, and when the review is closed", async () => {
+    const { s, oauth } = await behindSignIn();
+    oauth.consent = "never";
+    await mount(<Review session={s} onClose={() => undefined} />);
+    await until(() => $("ai-ext-signin") !== null && $("ai-ext-failure") !== null);
+    click($("ai-ext-signin"));
+    await until(() => $("ai-ext-signin-waiting") !== null);
+    expect($("ai-ext-signin-waiting")!.textContent).toBe("Finish the sign-in in your browser, at auth.example.com. Plainva waits here.");
+    click($("ai-ext-signin-cancel"));
+    await until(() => $("ai-ext-signin") !== null);
+    // Stopping is the user's own doing: nothing is reported as a problem.
+    expect($("ai-ext-signin-problem")).toBeNull();
+    const state = new URL(oauth.opened[0]!).searchParams.get("state")!;
+    expect(await s.mcp.finishSignIn({ state, code: "late" })).toBeNull();
+
+    await until(() => $("ai-ext-failure") !== null && $("ai-ext-signin") !== null);
+    click($("ai-ext-signin"));
+    await until(() => $("ai-ext-signin-waiting") !== null);
+    act(() => root?.unmount());
+    root = null;
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(await s.mcp.finishSignIn({ state: new URL(oauth.opened[1]!).searchParams.get("state")!, code: "late" })).toBeNull();
   });
 });

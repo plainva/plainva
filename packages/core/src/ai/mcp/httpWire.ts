@@ -44,6 +44,13 @@ import {
 export interface McpHttpWireOptions extends McpWireOptions {
   /** An id for one exchange, so that it can be stopped. */
   newRequestId(): string;
+  /**
+   * The server refused the credential (401): gets a new one where that can
+   * be done without the user — a sign-in that renews itself. True means
+   * "ask again". Asked once per request; the credential itself never comes
+   * through here.
+   */
+  renew?(): Promise<boolean>;
 }
 
 interface HttpAnswer {
@@ -190,14 +197,20 @@ export function createMcpHttpWire(port: McpHttpPort, options: McpHttpWireOptions
   let opened: McpOpened | null = null;
   let session: string | undefined;
 
-  const post = (message: Record<string, unknown>, headers: Record<string, string>, expectId: number | null, timeoutMs: number, signal?: AbortSignal) =>
-    exchange(
-      port,
-      options.newRequestId(),
-      { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers }, body: JSON.stringify(message), timeoutMs },
-      expectId,
-      signal,
-    );
+  const post = async (message: Record<string, unknown>, headers: Record<string, string>, expectId: number | null, timeoutMs: number, signal?: AbortSignal): Promise<HttpAnswer> => {
+    const send = () =>
+      exchange(
+        port,
+        options.newRequestId(),
+        { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers }, body: JSON.stringify(message), timeoutMs },
+        expectId,
+        signal,
+      );
+    const answer = await send();
+    // A sign-in that ran out: one new credential, one more try. What comes of the second try is the answer.
+    if (answer.status !== 401 || !options.renew || signal?.aborted) return answer;
+    return (await options.renew().catch(() => false)) && !signal?.aborted ? send() : answer;
+  };
 
   const modern = (method: string, params: Record<string, unknown>, request: McpRequestOptions, timeoutMs: number) => {
     const id = nextId++;

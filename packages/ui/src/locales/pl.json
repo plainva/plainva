@@ -1010,8 +1010,8 @@
         "refused": "Nie udało się wysłać zapytania do tego serwera.",
         "timeout": "Serwer nie odpowiedział na czas.",
         "cancelled": "Zapytanie zostało anulowane.",
-        "auth": "Serwer wymaga zalogowania. Sprawdź jego token dostępu.",
-        "forbidden": "Serwer odrzucił zapytanie. Być może jego token dostępu na to nie pozwala.",
+        "auth": "Serwer wymaga zalogowania.",
+        "forbidden": "Serwer odrzucił zapytanie. Być może jego logowanie lub token dostępu na to nie pozwala.",
         "http": "Serwer odpowiedział błędem ({{status}}).",
         "protocol": "Serwer odpowiedział czymś, co nie jest MCP.",
         "version": "Serwer nie obsługuje żadnej wersji MCP, którą zna Plainva.",
@@ -1058,6 +1058,31 @@
           "credentials": "Adres nie może zawierać nazwy użytkownika ani hasła. Zamiast tego podaj token dostępu.",
           "programNotFound": "Nie znaleziono programu.",
           "refused": "Nie udało się dodać serwera."
+        }
+      },
+      "signIn": {
+        "title": "Logowanie",
+        "start": "Zaloguj się…",
+        "again": "Zaloguj się ponownie…",
+        "planning": "Pytanie serwera o sposób logowania…",
+        "waiting": "Dokończ logowanie w przeglądarce, w {{host}}. Plainva czeka tutaj.",
+        "signedIn": "Zalogowano w {{host}}",
+        "ended": "Logowanie w {{host}} wygasło",
+        "none": "Nie zalogowano",
+        "signOut": "Wyloguj się",
+        "client": "Identyfikator klienta",
+        "clientHelp": "{{host}} nie pozwala aplikacjom rejestrować się samodzielnie. Wpisz identyfikator klienta, który operator serwera podał Ci do użycia w aplikacji Plainva.",
+        "continue": "Otwórz przeglądarkę",
+        "note": "Logujesz się w przeglądarce. To, co Plainva przy tym otrzymuje, trafia do bezpiecznego magazynu tego urządzenia; jest wysyłane tylko do tego serwera, a AI nigdy tego nie widzi. Logowanie i zapisany token dostępu zastępują się nawzajem.",
+        "done": "Zalogowano w {{server}}.",
+        "problem": {
+          "not-offered": "Ten serwer nie wskazuje miejsca logowania. Jeśli potrzebuje tokenu dostępu, zapisz go tutaj.",
+          "unreachable": "Nie udało się połączyć z usługą logowania. Sprawdź połączenie i spróbuj ponownie.",
+          "unsupported": "Plainva nie może zalogować się na tym serwerze: jego logowanie nie zapewnia tego, czego Plainva wymaga.",
+          "client": "Usługa logowania nie przyjęła aplikacji Plainva.",
+          "declined": "Logowanie zostało odrzucone w przeglądarce.",
+          "cancelled": "Logowanie nie zostało dokończone.",
+          "failed": "Logowanie nie powiodło się. Niczego nie zapisano."
         }
       }
     },

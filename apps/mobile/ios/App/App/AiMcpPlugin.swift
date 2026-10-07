@@ -33,8 +33,9 @@ public class AiMcpPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         CAPPluginMethod(name: "cancel", returnType: CAPPluginReturnPromise),
     ]
 
-    private static let secretService = "com.plainva.app.ai-mcp-secrets"
-    private static let serversDefaultsKey = "plainva.ai.mcp.servers"
+    /// Shared with the sign-in (AiMcpAuthPlugin): it keeps its entries in the same Keychain service.
+    static let secretService = "com.plainva.app.ai-mcp-secrets"
+    static let serversDefaultsKey = "plainva.ai.mcp.servers"
     private static let maxRequestBytes = 1024 * 1024
     /// The protocol code in the WebView stops reading at four megabytes of text.
     private static let maxResponseBytes = 5 * 1024 * 1024
@@ -77,6 +78,13 @@ public class AiMcpPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         guard status == errSecSuccess else { throw NSError(domain: "AiMcp", code: Int(status)) }
     }
 
+    /// A sign-in takes the place of a fixed token: a server has one credential, not two.
+    static func forgetToken(_ serverId: String) {
+        SecItemDelete([kSecClass as String: kSecClassGenericPassword,
+                       kSecAttrService as String: AiMcpPlugin.secretService,
+                       kSecAttrAccount as String: serverId] as CFDictionary)
+    }
+
     /// Stores a server's token. Write-only: no method returns it.
     @objc func setSecret(_ call: CAPPluginCall) {
         guard let serverId = call.getString("serverId"), registry()[serverId] != nil,
@@ -85,6 +93,8 @@ public class AiMcpPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
             call.reject("a registered server and a token required"); return
         }
         secretLock.lock(); defer { secretLock.unlock() }
+        // A fixed token takes the place of a sign-in.
+        AiMcpAuthStore.forget(serverId)
         do { try writeSecret(serverId, value); call.resolve() } catch { call.reject("key store write failed") }
     }
 
@@ -128,8 +138,9 @@ public class AiMcpPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
             let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: call.getString("cancel") ?? "Cancel", style: .cancel) { _ in call.resolve(["added": false]) })
             alert.addAction(UIAlertAction(title: call.getString("confirm") ?? "Add", style: .default) { _ in
-                // A new entry under an old id starts without the old one's token.
+                // A new entry under an old id starts without the old one's token, and without its sign-in.
                 self.secretLock.lock(); try? self.writeSecret(serverId, nil); self.secretLock.unlock()
+                AiMcpAuthStore.forget(serverId)
                 var stored = self.registry()
                 stored[serverId] = address
                 UserDefaults.standard.set(stored, forKey: AiMcpPlugin.serversDefaultsKey)
@@ -145,6 +156,7 @@ public class AiMcpPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         stored.removeValue(forKey: serverId)
         UserDefaults.standard.set(stored, forKey: AiMcpPlugin.serversDefaultsKey)
         secretLock.lock(); try? writeSecret(serverId, nil); secretLock.unlock()
+        AiMcpAuthStore.forget(serverId)
         call.resolve()
     }
 
@@ -188,10 +200,12 @@ public class AiMcpPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         guard body.count <= AiMcpPlugin.maxRequestBytes else {
             call.resolve(AiMcpPlugin.failed("refused", "the request is too large")); return
         }
-        let token: String?
+        let stored: String?
         secretLock.lock()
-        do { token = try readSecret(serverId) } catch { secretLock.unlock(); call.reject("key store unavailable"); return }
+        do { stored = try readSecret(serverId) } catch { secretLock.unlock(); call.reject("key store unavailable"); return }
         secretLock.unlock()
+        // The server's one credential: the token the user stored, or the one a sign-in got.
+        let token = stored ?? AiMcpAuthStore.bearer(serverId)
 
         var request = URLRequest(url: url)
         let isDelete = call.getString("method") == "DELETE"

@@ -49,8 +49,9 @@ import okhttp3.Response;
 @CapacitorPlugin(name = "AiMcp")
 public class AiMcpPlugin extends Plugin {
 
-    private static final Object STORE_LOCK = new Object();
-    private static final String SERVERS_PREFS = "plainva_ai_mcp_servers";
+    /** Shared with the sign-in ({@link AiMcpAuthPlugin}): it keeps its entries in the same box. */
+    static final Object STORE_LOCK = new Object();
+    static final String SERVERS_PREFS = "plainva_ai_mcp_servers";
     private static final int MAX_REQUEST_BYTES = 1024 * 1024;
     /** The protocol code in the WebView stops reading at four megabytes of text. */
     private static final int MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
@@ -141,9 +142,10 @@ public class AiMcpPlugin extends Plugin {
                 .setTitle(title)
                 .setMessage(message + "\n\n" + address)
                 .setPositiveButton(confirm, (d, w) -> {
-                    // A new entry under an old id starts without the old one's token.
+                    // A new entry under an old id starts without the old one's token, and without its sign-in.
                     synchronized (STORE_LOCK) {
                         try { secrets().write(serverId, null); } catch (Exception ignored) { }
+                        AiMcpAuthStore.forget(secrets(), serverId);
                     }
                     boolean ok = servers().edit().putString(serverId, address).commit();
                     JSObject ret = new JSObject();
@@ -171,6 +173,7 @@ public class AiMcpPlugin extends Plugin {
         servers().edit().remove(serverId).commit();
         synchronized (STORE_LOCK) {
             try { secrets().write(serverId, null); } catch (Exception ignored) { }
+            AiMcpAuthStore.forget(secrets(), serverId);
         }
         call.resolve();
     }
@@ -187,6 +190,8 @@ public class AiMcpPlugin extends Plugin {
         }
         synchronized (STORE_LOCK) {
             try {
+                // A fixed token takes the place of a sign-in: a server has one credential, not two.
+                AiMcpAuthStore.forget(secrets(), serverId);
                 secrets().write(serverId, trimmed);
                 call.resolve();
             } catch (Exception e) {
@@ -255,6 +260,8 @@ public class AiMcpPlugin extends Plugin {
                 call.reject("key store unavailable");
                 return;
             }
+            // The server's one credential: the token the user stored, or the one a sign-in got.
+            if (token == null) token = AiMcpAuthStore.bearer(secrets(), serverId);
         }
 
         Request.Builder builder = new Request.Builder().url(url);

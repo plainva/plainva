@@ -983,8 +983,8 @@
         "refused": "La solicitud no se pudo enviar a este servidor.",
         "timeout": "El servidor no respondió a tiempo.",
         "cancelled": "La solicitud se canceló.",
-        "auth": "El servidor pide iniciar sesión. Comprueba su token de acceso.",
-        "forbidden": "El servidor rechazó la solicitud. Puede que su token de acceso no tenga permiso para esto.",
+        "auth": "El servidor pide iniciar sesión.",
+        "forbidden": "El servidor rechazó la solicitud. Puede que su sesión o su token de acceso no tenga permiso para esto.",
         "http": "El servidor respondió con un error ({{status}}).",
         "protocol": "El servidor respondió con algo que no es MCP.",
         "version": "El servidor no habla ninguna versión de MCP que Plainva conozca.",
@@ -1031,6 +1031,31 @@
           "credentials": "La dirección no debe contener nombre de usuario ni contraseña. Introduce en su lugar un token de acceso.",
           "programNotFound": "No se encontró el programa.",
           "refused": "No se pudo añadir el servidor."
+        }
+      },
+      "signIn": {
+        "title": "Inicio de sesión",
+        "start": "Iniciar sesión…",
+        "again": "Iniciar sesión de nuevo…",
+        "planning": "Preguntando al servidor cómo se inicia sesión…",
+        "waiting": "Termina el inicio de sesión en tu navegador, en {{host}}. Plainva espera aquí.",
+        "signedIn": "Sesión iniciada en {{host}}",
+        "ended": "La sesión en {{host}} ha terminado",
+        "none": "Sin sesión iniciada",
+        "signOut": "Cerrar sesión",
+        "client": "ID de cliente",
+        "clientHelp": "{{host}} no deja que las aplicaciones se registren por sí mismas. Introduce el ID de cliente que el responsable del servidor te dio para Plainva.",
+        "continue": "Abrir el navegador",
+        "note": "Inicias sesión en tu navegador. Lo que Plainva recibe queda en el almacén seguro de este dispositivo; solo va a este servidor, y la IA nunca lo ve. Un inicio de sesión y un token de acceso guardado se sustituyen entre sí.",
+        "done": "Sesión iniciada en {{server}}.",
+        "problem": {
+          "not-offered": "Este servidor no indica dónde iniciar sesión. Si necesita un token de acceso, guárdalo aquí.",
+          "unreachable": "No se pudo contactar con el inicio de sesión. Comprueba la conexión e inténtalo de nuevo.",
+          "unsupported": "Plainva no puede iniciar sesión en este servidor: su inicio de sesión no ofrece lo que Plainva exige.",
+          "client": "El inicio de sesión no aceptó a Plainva como aplicación.",
+          "declined": "El inicio de sesión se rechazó en el navegador.",
+          "cancelled": "El inicio de sesión no se completó.",
+          "failed": "El inicio de sesión falló. No se guardó nada."
         }
       }
     },

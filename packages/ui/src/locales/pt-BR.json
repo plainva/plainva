@@ -983,8 +983,8 @@
         "refused": "Não foi possível enviar a solicitação a este servidor.",
         "timeout": "O servidor não respondeu a tempo.",
         "cancelled": "A solicitação foi cancelada.",
-        "auth": "O servidor pede um login. Confira o token de acesso dele.",
-        "forbidden": "O servidor recusou a solicitação. Talvez o token de acesso dele não tenha permissão para isso.",
+        "auth": "O servidor pede um login.",
+        "forbidden": "O servidor recusou a solicitação. Talvez o login ou o token de acesso dele não tenha permissão para isso.",
         "http": "O servidor respondeu com um erro ({{status}}).",
         "protocol": "O servidor respondeu com algo que não é MCP.",
         "version": "O servidor não fala nenhuma versão do MCP que o Plainva conheça.",
@@ -1031,6 +1031,31 @@
           "credentials": "O endereço não pode conter nome de usuário nem senha. Informe um token de acesso em vez disso.",
           "programNotFound": "O programa não foi encontrado.",
           "refused": "Não foi possível adicionar o servidor."
+        }
+      },
+      "signIn": {
+        "title": "Login",
+        "start": "Entrar…",
+        "again": "Entrar novamente…",
+        "planning": "Perguntando ao servidor como fazer login…",
+        "waiting": "Conclua o login no seu navegador, em {{host}}. O Plainva espera aqui.",
+        "signedIn": "Conectado em {{host}}",
+        "ended": "O login em {{host}} terminou",
+        "none": "Sem login",
+        "signOut": "Sair",
+        "client": "ID do cliente",
+        "clientHelp": "{{host}} não permite que aplicativos se registrem sozinhos. Digite o ID do cliente que o responsável pelo servidor deu a você para o Plainva.",
+        "continue": "Abrir o navegador",
+        "note": "Você faz login no seu navegador. O que o Plainva recebe fica no armazenamento seguro deste dispositivo; vai somente para este servidor, e a IA nunca o vê. Um login e um token de acesso armazenado substituem um ao outro.",
+        "done": "Login feito em {{server}}.",
+        "problem": {
+          "not-offered": "Este servidor não indica onde fazer login. Se ele precisar de um token de acesso, armazene-o aqui.",
+          "unreachable": "Não foi possível alcançar o login. Confira a conexão e tente de novo.",
+          "unsupported": "O Plainva não consegue fazer login neste servidor: o login dele não oferece o que o Plainva exige.",
+          "client": "O login não aceitou o Plainva como aplicativo.",
+          "declined": "O login foi recusado no navegador.",
+          "cancelled": "O login não foi concluído.",
+          "failed": "O login falhou. Nada foi armazenado."
         }
       }
     },

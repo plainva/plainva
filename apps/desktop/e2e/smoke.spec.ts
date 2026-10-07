@@ -4540,3 +4540,116 @@ test('AI external tools: a server is added, reviewed and granted; a call asks fi
   // The dialog fades in; the picture is of what stands there afterwards.
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-blocked-desktop.png'), animations: 'disabled' });
 });
+
+// Signing in to a remote server (AI harness P4.5). The sign-in is native: the Rust side makes the verifier, exchanges
+// the code and keeps the tokens. This test stands in for it at the commands — and answers what they answer: a document,
+// what an authorization server offers, an address to open, the id of a server. Everything above is the app's own code:
+// the steps of the sign-in, the browser, the way back through the loopback listener, the review.
+test('AI external tools: a server that wants a sign-in is signed in to in the browser, and the review shows a host and never a credential', async ({ page }) => {
+  const ADDRESS = 'https://tracker.example.com/mcp';
+  await page.addInitScript(() => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    const mcp = ((window as any).__mcp = {
+      registry: [] as any[],
+      asked: [] as string[],
+      begun: [] as any[],
+      opened: [] as string[],
+      waits: [] as any[],
+      finished: [] as any[],
+      signedIn: false,
+      client: false,
+      // The browser comes back: what the loopback listener then hands over.
+      comeBack: null as null | ((value: unknown) => void),
+    });
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'mcp_client_servers') return mcp.registry;
+      if (cmd === 'mcp_client_add_http') { mcp.registry.push({ id: args.serverId, kind: 'http', url: args.url, args: [], env: [], sandbox: false, stored: [] }); return true; }
+      if (cmd === 'mcp_client_secret_present') return false;
+      if (cmd === 'mcp_client_sandbox') return { kind: 'none', works: false };
+      if (cmd === 'mcp_client_cancel' || cmd === 'mcp_client_log') return null;
+      // The server takes nothing without a sign-in, and says where its sign-in is described.
+      if (cmd === 'mcp_client_http') {
+        const message = JSON.parse(args.request.body);
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (!mcp.signedIn) {
+          send({ type: 'open', status: 401, contentType: 'text/plain', challenge: 'Bearer resource_metadata="https://tracker.example.com/.well-known/oauth-protected-resource/mcp"' });
+          send({ type: 'done' });
+          return null;
+        }
+        const result = (value: object) => { send({ type: 'open', status: 200, contentType: 'application/json' }); send({ type: 'data', text: JSON.stringify({ jsonrpc: '2.0', id: message.id, result: { resultType: 'complete', ...value } }) }); send({ type: 'done' }); };
+        if (message.method === 'server/discover') result({ supportedVersions: ['2026-07-28'], capabilities: { tools: {} }, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'Tracker MCP', version: '1.2.0' } } });
+        else if (message.method === 'tools/list') result({ tools: [{ name: 'search_issues', description: "Searches the tracker's issues.", inputSchema: { type: 'object' }, annotations: { readOnlyHint: true } }] });
+        else result({ prompts: [] });
+        return null;
+      }
+      if (cmd === 'mcp_client_oauth_status') return mcp.client ? { issuer: 'https://auth.example.com', scopes: ['issues:read'], expiresAt: null, signedIn: mcp.signedIn, renewable: mcp.signedIn, client: true } : null;
+      if (cmd === 'mcp_client_oauth_renew') return false;
+      if (cmd === 'mcp_client_oauth_document') { mcp.asked.push(args.url); return { status: 200, body: JSON.stringify({ resource: 'https://tracker.example.com/mcp', authorization_servers: ['https://auth.example.com'], scopes_supported: ['issues:read'] }) }; }
+      if (cmd === 'mcp_client_oauth_issuer') { mcp.asked.push(args.url); return { issuer: args.issuer, document: false, dynamic: true, iss: false, scopes: [] }; }
+      if (cmd === 'mcp_client_oauth_begin') { mcp.begun.push(args); return 'https://auth.example.com/authorize?response_type=code&state=s1&code_challenge=abc'; }
+      if (cmd === 'mcp_client_oauth_finish') {
+        mcp.finished.push(args.redirect);
+        if (args.redirect.state !== 's1' || !args.redirect.code) throw 'oauth-no-flow';
+        mcp.signedIn = true;
+        mcp.client = true;
+        return 'tracker';
+      }
+      if (cmd === 'mcp_client_oauth_cancel') return null;
+      if (cmd === 'mcp_client_oauth_sign_out') { mcp.signedIn = false; mcp.client = false; return null; }
+      // The browser and the way back from it: the listener every account sign-in of the app uses.
+      if (cmd === 'oauth_loopback_start') return args?.port ?? 50000;
+      if (cmd === 'plugin:opener|open_url') { mcp.opened.push(args?.url); return null; }
+      if (cmd === 'oauth_loopback_wait') { mcp.waits.push(args); return new Promise((resolve) => { mcp.comeBack = resolve; }); }
+      if (cmd === 'oauth_loopback_cancel') return null;
+      return orig(cmd, args, options);
+    };
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const mcp = () => page.evaluate(() => { const m = (window as any).__mcp; return { asked: m.asked as string[], begun: m.begun as any[], opened: m.opened as string[], waits: m.waits as any[], finished: m.finished as any[] }; });
+
+  // 1. A server is added. Its review cannot show what it lists: the server wants a sign-in, and the review says so.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).last().click();
+  await dialog.getByTestId('settings-ai-ext-add').click();
+  const add = page.getByTestId('ai-ext-add');
+  await add.getByTestId('ai-ext-add-name').fill('Tracker');
+  await add.getByTestId('ai-ext-add-url').fill(ADDRESS);
+  await add.getByTestId('ai-ext-add-submit').click();
+  const review = page.getByTestId('ai-ext-review');
+  await expect(review.getByTestId('ai-ext-failure')).toHaveText(/The server asks for a sign-in\.|Der Server verlangt eine Anmeldung\./);
+  await expect(review.getByTestId('ai-ext-signin-status')).toHaveText(/^(Not signed in|Nicht angemeldet)$/);
+  await expect(review.getByTestId('ai-ext-tool')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-signin-wanted-desktop.png'), animations: 'disabled' });
+
+  // 2. Signing in: the app asks where the sign-in lives, the native side begins, and the system's browser opens at the
+  //    address the native side built. The way back is a port on this computer — the preferred one, which was free.
+  await review.getByTestId('ai-ext-signin').click();
+  await expect(review.getByTestId('ai-ext-signin-waiting')).toContainText('auth.example.com');
+  await expect.poll(async () => (await mcp()).waits.length).toBe(1);
+  let now = await mcp();
+  expect(now.asked).toEqual(['https://tracker.example.com/.well-known/oauth-protected-resource/mcp', 'https://auth.example.com/.well-known/oauth-authorization-server']);
+  expect(now.begun).toEqual([{ serverId: 'tracker', request: { issuer: 'https://auth.example.com', scopes: ['issues:read'], resource: ADDRESS, client: { kind: 'dynamic' }, clientName: 'Plainva', redirectPort: 43117 } }]);
+  expect(now.opened).toEqual(['https://auth.example.com/authorize?response_type=code&state=s1&code_challenge=abc']);
+  expect(now.waits).toEqual([{ timeoutSecs: 300, reportErrors: true }]);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-signin-waiting-desktop.png'), animations: 'disabled' });
+
+  // 3. The browser comes back. What it brought is handed to the native side as it is; the review then shows what the
+  //    server lists — and of the sign-in a host, nothing else.
+  await page.evaluate(() => (window as any).__mcp.comeBack({ code: 'c1', state: 's1' }));
+  await expect(review.getByTestId('ai-ext-tool')).toHaveCount(1);
+  await expect(review.getByTestId('ai-ext-signin-status')).toHaveText(/^(Signed in at auth\.example\.com|Angemeldet bei auth\.example\.com)$/);
+  await expect(review.getByTestId('ai-ext-failure')).toHaveCount(0);
+  now = await mcp();
+  expect(now.finished).toEqual([{ state: 's1', code: 'c1' }]);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-ext-signed-in-desktop.png'), animations: 'disabled' });
+
+  // 4. Signing out: the server is asked again, and refuses.
+  await review.getByTestId('ai-ext-signout').click();
+  await expect(review.getByTestId('ai-ext-signin-status')).toHaveText(/^(Not signed in|Nicht angemeldet)$/);
+  await expect(review.getByTestId('ai-ext-tool')).toHaveCount(0);
+});

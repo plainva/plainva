@@ -38,13 +38,15 @@ Three constraints came from the rest of the harness. Keys and addresses never li
 
 10. **Programs only on the desktop, without a shell.** A stdio server is started from the registry's entry, with a short environment, in a sandbox where a self-test on this computer says it holds, and it ends with the app or after ten minutes without use. A phone starts no programs.
 
+11. **A sign-in is made natively, and a token is for one server.** Where a remote server wants a sign-in, Plainva signs in with OAuth 2.1 and PKCE in the system's browser — ADR 0022 §10 as built. The WebView finds out where the sign-in lives, opens the browser and hands back what it returned with; the verifier, the exchange of the code, the tokens and their renewal are native, and no command answers with any of them. The endpoints a code and a token are sent to come from a document the native side fetched itself, from the authorization server's own origin and with the issuer it was asked as inside — so a WebView that was taken over cannot pair a real authorization endpoint with a token endpoint of its own. Who answered is checked against who was asked (RFC 9207) before anything of the answer is used. A token is asked for the registered address, or for the part of it the server names as itself (RFC 8707), and goes to that address only. To an authorization server Plainva is, in this order: the client it was before, the address of its own description (`https://plainva.com/oauth/client.json`), a registration it makes itself, or an id the user was given. An authorization server that does not say it does PKCE with SHA-256 is refused. A server has one credential: a sign-in and a stored token replace each other.
+
 ## Consequences
 
 - The protocol client is Plainva's to maintain: a new revision of the specification is work in `wire.ts` and its neighbours, with the scripted server as the test bed.
 - A user answers a question for every call. That is the price of not having an "always", and it is why looking for tools asks nothing.
 - A conversation that has read notes outside a server's folders cannot use that server at all, until the user allows the folders or starts a new conversation. The refusal says so.
-- Servers that need a sign-in work only with a token the user stores. OAuth for remote servers (ADR 0022 §10: PKCE, issuer and audience checks, client metadata documents) is the next part; it needs a client metadata document under an https address of the project.
-- Three native implementations hold one contract. A source-level test keeps them aligned; only CI compiles all three.
+- Signing in depends on one document outside this repository: Plainva's description as a client is part of the project's website (`/oauth/client.json`), and what it lists is pinned by a test here (`mcpClientDocument`). Until it is published, an authorization server that reads it refuses the sign-in in the browser; a registration and an id from the server's operator do not depend on it.
+- Three native implementations hold one contract, the sign-in's rules included: one list of cases per rule runs on all of them and on the reference in TypeScript. A source-level test keeps the rest aligned; only CI compiles all three.
 
 ## Alternatives
 
@@ -59,9 +61,9 @@ Three constraints came from the rest of the harness. Keys and addresses never li
 - **Elicitation** (a server asking the user). A server that may put its own words into Plainva's dialogs has a phishing channel; this needs a design of its own, with the approval chain.
 - **Skills offered by a server.** They would go through the content-bound approval of ADR 0020; nothing reads the extension yet.
 - **A stream of notifications.** Reloading before use covers the security case; a stream is an optimisation.
-- **OAuth.** See Consequences.
+- **Around the sign-in.** Asking an authorization server to revoke a token when the user signs out (the tokens are forgotten on the device), asking for more scopes on its own when a server says a sign-in does not allow something (the user signs in again), and a client with a secret of its own.
 
 ## Links
 
-- [MCP client architecture](../engineering/MCP_Client_Architecture.md), [MCP client security review](../engineering/MCP_Client_Security_Review.md), [AI threat model](../engineering/AI_Threat_Model.md) T10, T25–T28.
-- ADR 0017, 0018, 0019, 0020, 0022; MCP specification 2026-07-28 and 2025-11-25.
+- [MCP client architecture](../engineering/MCP_Client_Architecture.md), [MCP client security review](../engineering/MCP_Client_Security_Review.md), [AI threat model](../engineering/AI_Threat_Model.md) T10, T25–T29.
+- ADR 0017, 0018, 0019, 0020, 0022; MCP specification 2026-07-28 and 2025-11-25; RFC 7591, 7636, 8252, 8414, 8707, 9207, 9728.

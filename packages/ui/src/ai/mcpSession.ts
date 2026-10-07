@@ -7,11 +7,16 @@ import {
   type McpFailure,
   type McpListing,
   type McpNativeHost,
+  type McpOAuthBrowser,
+  type McpOAuthRedirect,
+  type McpOAuthStatus,
   type McpProgramSpec,
   type McpRegisteredServer,
   type McpSandboxInfo,
   type McpServerGrant,
   type McpServerState,
+  type McpSignInPlan,
+  type McpSignInProblem,
   type ToolManifest,
 } from "@plainva/core";
 import { McpRuntime, type McpAddResult, type McpCheck, type McpInspection, type McpPromptLook } from "./mcpRuntime";
@@ -31,6 +36,10 @@ import { mcpVaultEntryFor, type McpAuditEntry, type McpDeviceStore, type McpServ
 export interface AiMcpHost {
   /** The shell's native side. */
   native: McpNativeHost;
+  /** The browser a sign-in to a remote server is made in, and the way back from it. */
+  browser: McpOAuthBrowser;
+  /** The address of Plainva's own description as a client of an authorization server; null where this build has none. */
+  clientDocument: string | null;
   /** The device's record of servers and approvals, in the app's data. */
   store: McpDeviceStore;
   /** The app's version, as a server is told who asks. */
@@ -98,6 +107,8 @@ export class AiMcp {
     this.runtime = host
       ? new McpRuntime({
           native: host.native,
+          browser: host.browser,
+          clientDocument: host.clientDocument,
           store: host.store,
           // A build that cannot name its version is still Plainva; a server learns nothing else about this device.
           client: async () => ({ name: "Plainva", version: (await host.version().catch(() => "")) || "0" }),
@@ -204,6 +215,36 @@ export class AiMcp {
 
   async setSecret(id: string, name: string | null, value: string): Promise<void> {
     await this.runtime?.setSecret(id, name, value);
+    await this.refresh();
+  }
+
+  /** How a remote server can be signed in to; `challenge` is the line it refused a request with. */
+  signInPlan(id: string, challenge?: string): Promise<{ ok: true; plan: McpSignInPlan } | { ok: false; problem: McpSignInProblem }> {
+    return this.runtime ? this.runtime.signInPlan(id, challenge) : Promise.resolve({ ok: false, problem: "not-offered" });
+  }
+
+  /** Makes the sign-in in the browser. What comes of it is the native side's; this side learns whether it worked. */
+  async signIn(id: string, plan: McpSignInPlan, clientId?: string, signal?: AbortSignal): Promise<{ ok: true } | { ok: false; problem: McpSignInProblem }> {
+    if (!this.runtime) return { ok: false, problem: "failed" };
+    const result = await this.runtime.signIn(id, plan, clientId, signal);
+    await this.refresh();
+    return result;
+  }
+
+  /** Ends a sign-in whose browser came back while nobody waited. Answers with the server's name, or null where nothing was begun. */
+  async finishSignIn(redirect: McpOAuthRedirect): Promise<string | null> {
+    const id = this.runtime ? await this.runtime.finishSignIn(redirect) : null;
+    if (id === null) return null;
+    await this.refresh();
+    return this.current.servers.find((server) => server.id === id)?.label ?? id;
+  }
+
+  signInStatus(id: string): Promise<McpOAuthStatus | null> {
+    return this.runtime ? this.runtime.signInStatus(id) : Promise.resolve(null);
+  }
+
+  async signOut(id: string): Promise<void> {
+    await this.runtime?.signOut(id);
     await this.refresh();
   }
 

@@ -4,7 +4,7 @@ Last reviewed: 2026-10-07
 
 Status: **internal review, by the people who built it — not an independent one.** It records what was looked at, what was found and changed, what holds and by which proof, and what nobody has checked yet. It replaces no outside review; where it says "holds", it means "holds in the tests named", not "cannot be broken".
 
-Scope: Plainva as an MCP **client** — the assistant using tools and prompts of servers the user connects ([architecture](MCP_Client_Architecture.md), [ADR 0024](../adr/0024-mcp-client-foreign-servers.md), threat model T10 and T25–T28 in [AI_Threat_Model.md](AI_Threat_Model.md)). Plainva as an MCP server is ADR 0022 and not part of this review.
+Scope: Plainva as an MCP **client** — the assistant using tools and prompts of servers the user connects, the sign-in to such a server included ([architecture](MCP_Client_Architecture.md), [ADR 0024](../adr/0024-mcp-client-foreign-servers.md), threat model T10 and T25–T29 in [AI_Threat_Model.md](AI_Threat_Model.md)). Plainva as an MCP server is ADR 0022 and not part of this review.
 
 ## What was reviewed
 
@@ -14,6 +14,7 @@ Scope: Plainva as an MCP **client** — the assistant using tools and prompts of
 | The protocol client | `wire`, `httpWire`, `stdioWire`, `client` | read; tests against a scripted server in both generations over both ports |
 | The native side | `apps/desktop/src-tauri/src/mcp_client/`, `AiMcpPlugin.java`, `AiMcpPlugin.swift` and their rule files | read; Rust and Java unit tests; a source-level contract test over all three (`aiMcpBoundary.test.ts`) |
 | Stores, session, call | `packages/ui/src/ai/mcpStores.ts`, `mcpRuntime.ts`, `mcpSession.ts`, `mcpTools.ts`, the wiring in `aiSession.ts` | read; unit tests; the gate's cases against the whole session (`aiMcpGate.test.ts`) |
+| The sign-in | `oauth.ts`, `oauthRules.ts` (the reference of the native rules), `mcp_client/oauth.rs`, `AiMcpAuthPlugin.java`, `AiMcpAuthPlugin.swift` and their rule files, the two shells' browser ports | read against the protocol's authorization chapter and its security best practices; one list of cases per rule on all four implementations (`MCP_OAUTH_*_CASES`); a scripted authorization server through the whole session (`aiMcpSignIn.test.ts`) |
 | Surfaces | the settings card, both dialogs and sheets, the question card, the prompt card | tests in jsdom with the real session; one end-to-end test per shell |
 
 ## The questions asked, and the answers
@@ -47,6 +48,10 @@ Plainva declares no elicitation capability and answers no such request: a server
 **8. Does a stored approval survive what it should not?**
 An approval and a vault's choice are bound to the registration (address or command line). A server registered anew under an old id is new everywhere. A damaged record reads as "never approved"; a damaged vault entry switches a server off. Records live in the app's data, never in the vault. Proof: `mcpStores.test.ts`, `mcpRuntime.test.ts` ("holds an approval to the registration…").
 
+**9. Can the web view get a token, or decide where one goes?**
+No path was found. A sign-in is OAuth 2.1 with PKCE. The native side makes the verifier and the state, checks what the browser came back with, exchanges the code, keeps the tokens, renews them and puts the access token into requests to the registered address; no command answers with a token, a verifier or an endpoint. The endpoints a code and a token are sent to come from a document the native side fetched itself — from an address on the authorization server's own origin under `/.well-known/`, whose `issuer` is the one it was asked as — so the web view cannot pair a real authorization endpoint with a token endpoint of its own. Who answered is checked against who was asked (RFC 9207) before anything of the answer is used, an error included; a sign-in that was begun is used once. A token is asked for the registered address or the part of it the server names as itself, and is sent there only; a sign-in and a stored token replace each other, and removing or re-registering a server forgets both. Addresses a server names are asked only if they are on its own host or public (https, default port, public addresses); no redirect is followed. Proof: `oauthRules.test.ts` and its three mirrors (`oauth.rs`, `AiMcpOAuthRulesTest.java`, `AiMcpOAuthRulesTests.swift`), `oauth.test.ts`, `aiMcpSignIn.test.ts` ("keeps everything a token is or could be had with on the native side"), `aiMcpBoundary.test.ts`.
+*Limits:* (a) what the browser comes back with passes through the web view: it sees the code and the state. A code cannot be redeemed without the verifier — unless an authorization server says it does PKCE and does not; Plainva refuses the ones that do not even say so, and can do no more. (b) The web view reads the server's description and so chooses which authorization server is asked: a web view that was taken over can make the browser open at a sign-in page of its choosing. It could open any page before; what it cannot have is the token of the real one. (c) A server names its own authorization server — that is the protocol. Plainva shows the host before the browser opens, and the browser shows where the user is. (d) iOS cannot connect to exactly the addresses it checked; it checks before the request and again where the answer came from.
+
 ## Found by the review, and changed
 
 | Finding | Change |
@@ -56,6 +61,9 @@ An approval and a vault's choice are bound to the registration (address or comma
 | The question about a call had an id of its own, so the step it stood for showed as running beside it | the question carries the call's id, like every other question about a call |
 | A step of an earlier run lost its name ("External tool") when its server was switched off or blocked later | labels come from the approved snapshot, whatever the server's standing |
 | The text for one part left out of a result was ungrammatical model-facing English | rewritten |
+| A sign-in's token would not have fitted an entry of the Windows credential store (2,560 bytes) | a long value is kept in parts, and the longest token fits the parts there are (a compile-time assertion) |
+| A lifetime no whole number holds (`expires_in: 1e300`) would have ended the iOS app | capped before it is converted, on every platform; a case of the shared list |
+| The account sign-ins' loopback listener reported a provider's error as a failure without its `state` and `iss` | a caller that asks is told who answered even for an error (`report_errors`); what every account sign-in gets is unchanged |
 
 ## Residual risks, accepted and written down
 
@@ -63,13 +71,17 @@ An approval and a vault's choice are bound to the registration (address or comma
 - **The freshness window.** A server's own promise that its lists are fresh is believed for at most five minutes. Within it a changed listing is not noticed. What a model reads still comes from the snapshot, and every call is still asked; what a server *does* with a call was never visible to a listing anyway.
 - **Behaviour is not text.** A pin covers what a server says, not what it does. A tool that claims to only read can do anything on its own side with what it is sent. The grant of folders and the look at the arguments are the control.
 - **A program is the user's code execution.** A stdio server runs with the user's rights unless the sandbox holds, and on Windows there is none. The command line is shown natively in full; a command that starts a shell is pointed out and not forbidden.
-- **A token is as strong as the server.** A static bearer token the user stores is sent to the registered address on every request. Tokens bound to audience and scope come with OAuth, which is not built yet.
+- **A token is as strong as the server.** A fixed token the user stores is sent to the registered address on every request, whatever it allows. A sign-in's token is made out to this one server and for the scopes the server asked for; what the server does with it on its own side is not Plainva's to see.
+- **The way back on a computer is a local port.** Any program on this computer can send something to it while a sign-in waits. A forged answer is told apart by its state and ends that attempt; it cannot produce a token.
+- **Plainva's description as a client is a document on the project's website.** Whoever can change it can add ways back for "Plainva" at authorization servers that read it. It lists four, and a test pins them.
+- **A sign-in is not revoked at the server.** Signing out forgets the tokens on this device; the authorization server is not asked to end them.
 - **Volume.** Nothing limits how often a model may ask to call; the user's patience is the limit, and the vault's log shows the count.
 
 ## Not verified
 
 - No **real** MCP server was at the other end of any test: the protocol client has only met the scripted server of this repository. Interoperability with deployed servers is unproven.
-- **iOS:** `AiMcpPlugin.swift` and its rules compile only in the iOS workflows; this review has not seen it run.
+- **iOS:** `AiMcpPlugin.swift`, `AiMcpAuthPlugin.swift` and their rules compile only in the iOS workflows; this review has not seen them run.
+- **A real sign-in:** every test signs in to the scripted authorization server of this repository. The round trip through a browser, the port on this computer and the app's own address as a way back have run on no device, and no deployed authorization server has met this client.
 - **Sandbox:** `sandbox-exec` (macOS) and `bwrap` (Linux) were not exercised on those systems by this review; the self-test decides at run time whether "in a sandbox" is said.
 - **On a device:** the native dialogs, the keychain slots and the start of a program have run in no build a person used.
 - **An independent review** has not taken place.

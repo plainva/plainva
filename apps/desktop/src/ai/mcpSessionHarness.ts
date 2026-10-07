@@ -1,6 +1,7 @@
 import {
   createScriptedMcpServer,
   DEFAULT_AI_APP_SETTINGS,
+  MCP_OAUTH_CLIENT_DOCUMENT,
   effectivePolicy,
   EMPTY_INSTRUCTION_APPROVALS,
   EMPTY_MCP_GRANT,
@@ -17,6 +18,7 @@ import {
   type LedgerEntry,
   type McpServerGrant,
   type ScriptedMcpServer,
+  type ScriptedOAuth,
   type ToolResultPart,
 } from "@plainva/core";
 import { AiSession, CHAT_TOOL_NAMES, createMcpDeviceStore, createMcpVaultStore, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type EffectRequest, type VaultToolDeps } from "@plainva/ui";
@@ -191,12 +193,17 @@ export interface McpSessionOptions {
   others?: Record<string, ScriptedMcpServer>;
   /** The shell starts programs, as the desktop does. */
   programs?: boolean;
+  /** The sign-in the tracker has, where it wants one. */
+  oauth?: ScriptedOAuth;
 }
 
 /** A session in an open vault, with the scripted model's answers and a scripted server behind the native side. */
 export async function mcpSession(script: EgressChunk[][], options: McpSessionOptions = {}) {
   const server = options.server ?? tracker();
-  const native = scriptedNative((target) => (target === TRACKER_URL ? server : (options.others?.[target] ?? null)), { programs: options.programs });
+  const native = scriptedNative((target) => (target === TRACKER_URL ? server : (options.others?.[target] ?? null)), {
+    programs: options.programs,
+    oauth: (url) => (url === TRACKER_URL ? (options.oauth ?? null) : null),
+  });
   const files = memoryFiles();
   const vault = vaultHost(files);
   const fake = fakeEgress(script);
@@ -217,7 +224,7 @@ export async function mcpSession(script: EgressChunk[][], options: McpSessionOpt
     today: () => "2026-10-07",
     now: () => new Date(clock.at),
     newId: () => `id${++ids}`,
-    mcp: { native: native.native, store: createMcpDeviceStore(files), version: async () => "0.9.0" },
+    mcp: { native: native.native, browser: native.browser, clientDocument: MCP_OAUTH_CLIENT_DOCUMENT, store: createMcpDeviceStore(files), version: async () => "0.9.0" },
   });
   // The send overview is approved as it comes; what these tests are about is the question about a call.
   s.subscribe(() => {

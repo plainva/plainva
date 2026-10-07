@@ -3810,6 +3810,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-skill-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); }
 .pv-skill-facts dt { color: var(--text-muted); }
 .pv-skill-facts dd { display: grid; gap: var(--space-1); min-width: 0; margin: 0; overflow-wrap: anywhere; }
+/* A notice above the facts of a dialog stands clear of them, and of a second notice (a sheet spaces its own children). */
+.pv-modal-body > .pv-banner + .pv-skill-facts,
+.pv-modal-body > .pv-banner + .pv-banner { margin-top: var(--space-3); }
 /* A scenario's verdict in the skills' regression run (AI harness P3-8): a mark
    and words. The mark carries the tone through tokens; a scenario that did not
    run or does not apply here is quiet. */

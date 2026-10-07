@@ -18,6 +18,10 @@
 //! 4. **The process.** Started without a shell and with a small environment,
 //!    its tree ended with the app (`program.rs`), in a sandbox where this
 //!    computer has one that passed its self-test (`sandbox.rs`).
+//! 5. **The sign-in.** Where a remote server wants one (OAuth 2.1 with PKCE),
+//!    the verifier, the exchange of the code, the tokens and their renewal
+//!    stay here, and the endpoints a code or a token is sent to come from a
+//!    document this module fetched itself (`oauth.rs`).
 //!
 //! Only the central window may call it: the assistant runs in the owner window.
 //!
@@ -27,17 +31,19 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 pub(crate) mod http;
+pub(crate) mod oauth;
 pub(crate) mod program;
 pub(crate) mod registry;
 pub(crate) mod sandbox;
 
-/// Tauri-managed state: the registry, the exchanges that can be hung up on, the running programs, and what the sandbox self-test found.
+/// Tauri-managed state: the registry, the exchanges that can be hung up on, the running programs, what the sandbox self-test found, and the sign-ins.
 #[derive(Default)]
 pub struct McpClientState {
     pub(crate) registry: Mutex<Option<registry::Registry>>,
     pub(crate) exchanges: Mutex<HashMap<String, tokio::sync::oneshot::Sender<()>>>,
     pub(crate) programs: Mutex<HashMap<String, program::Running>>,
     pub(crate) sandbox: Mutex<Option<sandbox::SandboxInfo>>,
+    pub(crate) oauth: oauth::OAuthState,
 }
 
 /// The app is closing: every program it started ends with it.

@@ -363,9 +363,10 @@ pub async fn mcp_client_add_program(
     Ok(true)
 }
 
-/// Everything stored for a server goes with it: a new entry under an old id starts without the old one's values.
+/// Everything stored for a server goes with it: a new entry under an old id starts without the old one's values — and without its sign-in.
 fn forget_secrets(app: &AppHandle, state: &McpClientState, id: &str) -> Result<(), String> {
     let old = server(app, state, id)?;
+    super::oauth::forget(app, state, id)?;
     crate::secure_store::write_slot(app, &secret_slot(id, None), None)?;
     if let Some(Server::Program { env, .. }) = old {
         for name in env {
@@ -406,6 +407,10 @@ pub fn mcp_client_secret_set(window: tauri::Window, app: AppHandle, state: State
     let value = value.trim();
     if value.is_empty() || value.len() > MAX_SECRET || !clean_text(value) {
         return Err("invalid value".into());
+    }
+    // A fixed token takes the place of a sign-in: a server has one credential, not two.
+    if name.is_none() {
+        super::oauth::forget(&app, &state, &server_id)?;
     }
     crate::secure_store::write_slot(&app, &slot, Some(value))
 }

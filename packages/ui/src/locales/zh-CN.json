@@ -929,8 +929,8 @@
         "refused": "无法向这个服务器发送请求。",
         "timeout": "服务器没有及时应答。",
         "cancelled": "请求已取消。",
-        "auth": "服务器要求登录。请检查它的访问令牌。",
-        "forbidden": "服务器拒绝了请求。它的访问令牌可能没有这项权限。",
+        "auth": "服务器要求登录。",
+        "forbidden": "服务器拒绝了请求。它的登录或访问令牌可能没有这项权限。",
         "http": "服务器返回了错误（{{status}}）。",
         "protocol": "服务器返回的内容不是MCP。",
         "version": "服务器使用的MCP版本都不是Plainva所支持的。",
@@ -977,6 +977,31 @@
           "credentials": "地址中不能包含用户名或密码。请改为输入访问令牌。",
           "programNotFound": "找不到这个程序。",
           "refused": "无法添加服务器。"
+        }
+      },
+      "signIn": {
+        "title": "登录",
+        "start": "登录…",
+        "again": "重新登录…",
+        "planning": "正在询问服务器如何登录…",
+        "waiting": "请在浏览器中完成在 {{host}} 的登录。Plainva在此等待。",
+        "signedIn": "已在 {{host}} 登录",
+        "ended": "在 {{host}} 的登录已结束",
+        "none": "未登录",
+        "signOut": "退出登录",
+        "client": "客户端 ID",
+        "clientHelp": "{{host}} 不允许应用自行注册。请输入服务器运营方为Plainva提供的客户端 ID。",
+        "continue": "打开浏览器",
+        "note": "你在浏览器中登录。Plainva收到的内容会存入此设备的安全存储，只发送到这台服务器，AI永远看不到它。登录和已保存的访问令牌会相互替换。",
+        "done": "已登录 {{server}}。",
+        "problem": {
+          "not-offered": "此服务器没有指明登录的位置。如果它需要访问令牌，请在此处保存。",
+          "unreachable": "无法连接到登录服务。请检查连接后重试。",
+          "unsupported": "Plainva无法登录此服务器：它的登录方式不满足Plainva的要求。",
+          "client": "登录服务没有接受Plainva作为应用。",
+          "declined": "登录在浏览器中被拒绝。",
+          "cancelled": "登录没有完成。",
+          "failed": "登录失败。没有保存任何内容。"
         }
       }
     },

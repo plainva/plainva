@@ -7,7 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Checkbox } from "../components/ui/Checkbox";
 import { TextInput } from "../components/ui/Field";
 import { Segmented } from "../components/ui/Segmented";
-import type { ExternalReviewModel } from "./externalReview";
+import type { ExternalReviewModel, ExternalSignIn } from "./externalReview";
 import { externalAuditLines, externalDriftLines, externalFacts, externalFailureText, externalSecrets, type ExternalFolders, type ExternalSecret } from "./externalTools";
 
 /**
@@ -62,6 +62,82 @@ function SecretRow({ secret, onSave }: { secret: ExternalSecret; onSave: (value:
         </Button>
       )}
     </span>
+  );
+}
+
+/**
+ * Signing in to a remote server: where it stands, and the one button that
+ * starts it. The sign-in itself happens in the browser; what comes of it
+ * stays on the native side — this row shows a host and a state, never a
+ * credential.
+ */
+function SignInRow({ signIn }: { signIn: ExternalSignIn }) {
+  const { t } = useTranslation();
+  const { status, stage } = signIn;
+  if (stage === "planning") {
+    return (
+      <p className="pv-ext-note" data-testid="ai-ext-signin-planning">
+        {t("ai.ext.signIn.planning")}
+      </p>
+    );
+  }
+  if (stage === "waiting") {
+    return (
+      <span className="pv-ext-secret">
+        <span data-testid="ai-ext-signin-waiting">{t("ai.ext.signIn.waiting", { host: signIn.host })}</span>
+        <Button size="sm" variant="ghost" onClick={signIn.cancel} data-testid="ai-ext-signin-cancel">
+          {t("common.cancel")}
+        </Button>
+      </span>
+    );
+  }
+  if (stage === "client") {
+    return (
+      <>
+        <span className="pv-ext-note">{t("ai.ext.signIn.clientHelp", { host: signIn.host })}</span>
+        <span className="pv-ext-secret">
+          <TextInput
+            compact
+            autoComplete="off"
+            spellCheck={false}
+            value={signIn.clientId}
+            placeholder={t("ai.ext.signIn.client")}
+            aria-label={t("ai.ext.signIn.client")}
+            onChange={(event) => signIn.setClientId(event.target.value)}
+            data-testid="ai-ext-signin-client"
+          />
+          <Button size="sm" variant="secondary" disabled={!signIn.clientId.trim()} onClick={signIn.proceed} data-testid="ai-ext-signin-continue">
+            {t("ai.ext.signIn.continue")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={signIn.cancel}>
+            {t("common.cancel")}
+          </Button>
+        </span>
+      </>
+    );
+  }
+  // That the server wants a sign-in is said where the look failed, above; this row says where things stand and offers the step.
+  const standing = !status ? t("ai.ext.signIn.none") : t(status.signedIn ? "ai.ext.signIn.signedIn" : "ai.ext.signIn.ended", { host: signIn.statusHost });
+  return (
+    <>
+      <span className="pv-ext-secret">
+        <span data-testid="ai-ext-signin-status">{standing}</span>
+        <Button size="sm" variant={signIn.wanted ? "secondary" : "ghost"} onClick={signIn.start} data-testid="ai-ext-signin">
+          {t(status ? "ai.ext.signIn.again" : "ai.ext.signIn.start")}
+        </Button>
+        {status && (
+          <Button size="sm" variant="ghost" onClick={() => void signIn.signOut()} data-testid="ai-ext-signout">
+            {t("ai.ext.signIn.signOut")}
+          </Button>
+        )}
+      </span>
+      {signIn.problem && (
+        <span className="pv-ext-note" role="alert" data-testid="ai-ext-signin-problem">
+          {signIn.problem}
+        </span>
+      )}
+      <span className="pv-ext-note">{t("ai.ext.signIn.note")}</span>
+    </>
   );
 }
 
@@ -129,6 +205,14 @@ export function AiExternalReview({ review, vaultFolders }: AiExternalReviewProps
               {secrets.map((secret) => (
                 <SecretRow key={secret.name ?? ""} secret={secret} onSave={(value) => review.setSecret(secret.name, value)} />
               ))}
+            </dd>
+          </>
+        )}
+        {review.signIn.possible && (
+          <>
+            <dt>{t("ai.ext.signIn.title")}</dt>
+            <dd>
+              <SignInRow signIn={review.signIn} />
             </dd>
           </>
         )}

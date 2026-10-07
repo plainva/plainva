@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import i18n from "@plainva/ui/i18n";
+import { MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
 import {
   aiDefaultSettings,
   aiNavigationCommands,
@@ -44,6 +45,7 @@ import { mConfirm } from "../mobileDialogs";
 import { createMobileAiEgress } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
 import { createMobileMcpHost } from "../../platform/aiMcp";
+import { createMobileMcpBrowser } from "./mobileMcpBrowser";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
@@ -131,7 +133,14 @@ export function getMobileAiSession(): AiSession {
       // The assistant's page fetch (plan KI-Harness P4): the plugin of its own, apart from the egress.
       web: createMobileWebFetcher(),
       // Foreign MCP servers (plan KI-Harness P4.5): the plugin's registry, and what was approved on this phone.
-      mcp: { native: createMobileMcpHost(), store: createMcpDeviceStore(mobileAiFiles), version: async () => (await getPlatformServices().appVersion?.()) ?? "" },
+      mcp: {
+        native: createMobileMcpHost(),
+        // Signing in to a remote server: the browser of the system, and back through the app's own address.
+        browser: createMobileMcpBrowser(),
+        clientDocument: MCP_OAUTH_CLIENT_DOCUMENT,
+        store: createMcpDeviceStore(mobileAiFiles),
+        version: async () => (await getPlatformServices().appVersion?.()) ?? "",
+      },
     });
     void session.load();
   }

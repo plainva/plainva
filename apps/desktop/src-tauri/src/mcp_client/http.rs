@@ -150,7 +150,11 @@ pub async fn mcp_client_http(window: tauri::Window, app: AppHandle, state: State
     if request.body.len() > MAX_REQUEST_BYTES {
         return answer(refused("the request is too large"));
     }
-    let token = read_secret(&app, &request.server_id, None)?;
+    // The server's one credential: the token the user stored, or the one a sign-in got.
+    let token = match read_secret(&app, &request.server_id, None)? {
+        Some(token) => Some(token),
+        None => super::oauth::access_token(&app, &state, &request.server_id)?,
+    };
 
     let (cancel_tx, mut cancel_rx) = tokio::sync::oneshot::channel::<()>();
     state.exchanges.lock().map_err(|_| "lock failed".to_string())?.insert(request.request_id.clone(), cancel_tx);
