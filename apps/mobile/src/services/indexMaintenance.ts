@@ -13,7 +13,7 @@ import type { MobileVault } from "./vaultService";
 export async function rebuildVaultIndex(vault: MobileVault): Promise<boolean> {
   try {
     if (!vault.indexer) throw new Error("no indexer");
-    await vault.indexer.indexVaultFull();
+    await vault.indexer.indexVaultFull("index rebuild");
     toast.success(i18n.t("settings.rebuildIndexDone"));
     window.dispatchEvent(new CustomEvent("m-index-changed"));
     return true;

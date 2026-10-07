@@ -530,7 +530,7 @@ export default function App() {
         subfoldersHeading: t("indexMd.subfoldersHeading"),
       });
       await applyTemplateSettings(def?.settings);
-      await vault.indexer?.indexVaultFull();
+      await vault.indexer?.indexVaultFull("vault template");
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     })().catch((e) => console.error("template scaffold failed", e));
   };
@@ -567,7 +567,7 @@ export default function App() {
       const nv = await getMobileVault();
       if (def) {
         await applyTemplateSettings(def.settings);
-        await nv.indexer?.indexVaultFull();
+        await nv.indexer?.indexVaultFull("vault template");
       }
       window.dispatchEvent(new CustomEvent("m-vault-changed"));
     })().catch((e) => console.error("create vault failed", e));

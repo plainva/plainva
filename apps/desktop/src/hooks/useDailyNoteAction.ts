@@ -16,7 +16,7 @@ export function useDailyNoteAction(onOpenPath: (path: string) => void) {
         vaultPath,
         adapter: vaultAdapter,
         // A client window writes through the owner adapter, which indexes it.
-        onIndex: async () => { await indexer?.indexVaultFull(); },
+        onIndex: async () => { await indexer?.indexVaultFull("daily note"); },
         confirmCreate: false,
         onCreated: (createdPath) => notifyFileOps([{ type: "create", path: createdPath }]),
         resolveTemplate: async (raw, ctx) => applyTemplateInteractive(raw, {

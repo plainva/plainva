@@ -28,6 +28,11 @@ pub struct WriteRoots(pub Mutex<HashMap<String, PathBuf>>);
 
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// Every temp file of an atomic write starts with this. The same prefix is an
+/// internal-path rule in the frontend (`packages/core/src/vault/internalPath.ts`),
+/// and the watcher drops events for such a name before they cross the bridge.
+pub const TEMP_PREFIX: &str = ".plainva-tmp-";
+
 /// Stable, opaque handle for a canonical root path (FNV-1a; the map value is
 /// authoritative, the id is only a lookup key — no crypto needed).
 fn root_id_for(path: &Path) -> String {
@@ -113,10 +118,12 @@ pub fn write_atomic_impl(root: &Path, rel: &str, bytes: &[u8]) -> Result<(), Str
         .and_then(|n| n.to_str())
         .ok_or_else(|| "invalid file name".to_string())?
         .to_string();
-    // Dot-prefixed temp: the JS directory walker and the watcher filter skip
-    // dot files, so half-written temps never show up in the tree or the sync.
+    // The temp is named so that nothing takes it for a note: `TEMP_PREFIX` is
+    // an internal-path rule (index, tree, sync and both vault walkers skip
+    // it), and the watcher drops its events (vault_watch.rs). A dot alone
+    // would not do — a user's own dot-file is a note like any other.
     let temp_path = canon_parent.join(format!(
-        ".plainva-tmp-{}-{}-{file_name}",
+        "{TEMP_PREFIX}{}-{}-{file_name}",
         std::process::id(),
         TEMP_COUNTER.fetch_add(1, Ordering::Relaxed)
     ));

@@ -175,7 +175,7 @@ export const OkfConversionModal: React.FC<{
     setReport(result);
     // Refresh index + open editors so the new frontmatter is visible everywhere.
     try {
-      await indexer?.indexVaultFull();
+      await indexer?.indexVaultFull("OKF conversion");
       triggerFileTreeUpdate();
       for (const path of result.changed) {
         window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path } }));

@@ -30,7 +30,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use tauri::ipc::Channel;
 
-use crate::atomic_write::WriteRoots;
+use crate::atomic_write::{WriteRoots, TEMP_PREFIX};
 
 /// How long events are gathered before one batch crosses the bridge.
 const GATHER_WINDOW: Duration = Duration::from_millis(150);
@@ -72,6 +72,17 @@ fn path_strings(paths: &[PathBuf]) -> Vec<String> {
     paths.iter().map(|p| p.to_string_lossy().into_owned()).collect()
 }
 
+/// The temp file of the app's own atomic write (atomic_write.rs). It is
+/// created, written and renamed away within milliseconds on every save, and
+/// each of those steps is an event. None of them means anything to the index
+/// — the save's result arrives as events for the note itself — so they are
+/// dropped here instead of crossing the bridge to be dropped there
+/// (issue #122). The frontend holds the same rule for whatever still names
+/// such a file (`isInternalPath`).
+fn is_own_temp(path: &std::path::Path) -> bool {
+    path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(TEMP_PREFIX))
+}
+
 /// Maps one backend event. Access events (reads — the indexer's own) are
 /// dropped: reacting to them re-indexed on every read. Everything else keeps
 /// every path the backend named, including a rename that carries only its
@@ -88,7 +99,13 @@ pub fn classify(event: &notify::Event) -> Option<WatchChange> {
         EventKind::Remove(_) => "remove",
         EventKind::Any | EventKind::Other => "any",
     };
-    Some(WatchChange { kind, paths: path_strings(&event.paths), message: None })
+    // A paired rename (inotify) names the temp and the note in one event:
+    // the note's side stays, the temp's goes.
+    let paths: Vec<PathBuf> = event.paths.iter().filter(|p| !is_own_temp(p)).cloned().collect();
+    if paths.is_empty() && !event.paths.is_empty() {
+        return None;
+    }
+    Some(WatchChange { kind, paths: path_strings(&paths), message: None })
 }
 
 /// A watcher error is reported, never swallowed: it can mean lost events
@@ -259,6 +276,22 @@ mod tests {
         assert_eq!(classify(&ev(EventKind::Any, &["/v/x.md"])).unwrap().kind, "any");
         assert_eq!(classify(&ev(EventKind::Other, &["/v/x.md"])).unwrap().kind, "any");
         assert!(classify(&ev(EventKind::Access(AccessKind::Any), &["/v/x.md"])).is_none());
+    }
+
+    #[test]
+    fn the_apps_own_temp_file_never_crosses_the_bridge() {
+        // Windows: the temp is created and changed on its own.
+        assert!(classify(&ev(EventKind::Create(CreateKind::File), &["/v/Sub/.plainva-tmp-412-7-note.md"])).is_none());
+        assert!(classify(&ev(EventKind::Modify(ModifyKind::Any), &["/v/Sub/.plainva-tmp-412-7-note.md"])).is_none());
+        assert!(classify(&ev(EventKind::Modify(ModifyKind::Name(RenameMode::From)), &["/v/Sub/.plainva-tmp-412-7-note.md"])).is_none());
+        // inotify pairs the rename: the note's side must survive.
+        let both = classify(&ev(EventKind::Modify(ModifyKind::Name(RenameMode::Both)), &["/v/Sub/.plainva-tmp-412-7-note.md", "/v/Sub/note.md"])).unwrap();
+        assert_eq!(both, WatchChange { kind: "rename", paths: vec!["/v/Sub/note.md".into()], message: None });
+        // A user's own dot-file is a note like any other.
+        assert!(classify(&ev(EventKind::Modify(ModifyKind::Any), &["/v/Sub/.env-notes.md"])).is_some());
+        assert!(classify(&ev(EventKind::Modify(ModifyKind::Any), &["/v/Sub/plainva-tmp-notes.md"])).is_some());
+        // A folder that merely contains one is still reported.
+        assert!(classify(&ev(EventKind::Modify(ModifyKind::Any), &["/v/Sub"])).is_some());
     }
 
     #[test]

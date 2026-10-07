@@ -18,6 +18,7 @@ mod mail_sieve;
 mod sync_upload;
 mod tray;
 mod unzip;
+mod vault_walk;
 mod vault_watch;
 
 mod secure_store;
@@ -368,6 +369,7 @@ pub fn run() {
         })
         .manage(atomic_write::WriteRoots::default())
         .manage(vault_watch::VaultWatchers::default())
+        .manage(vault_walk::VaultWalks::default())
         .manage(tray::TrayState::default())
         .setup(|app| {
             // The isolated dev build (tauri.dev.conf.json, identifier
@@ -411,6 +413,8 @@ pub fn run() {
             checked_fs::checked_path_exists,
             checked_fs::checked_read_text_file,
             checked_fs::checked_read_dir,
+            vault_walk::vault_walk,
+            vault_walk::vault_walk_cancel,
             vault_watch::vault_watch_start,
             vault_watch::vault_watch_stop,
             atomic_write::set_file_times,

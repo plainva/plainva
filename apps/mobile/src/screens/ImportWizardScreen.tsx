@@ -217,7 +217,7 @@ export function ImportWizardScreen({ vault, onBack }: { vault: MobileVault; onBa
       if (!into) {
         // The vault gained files the index has never seen. A new vault indexes
         // itself when it is opened, so there is nothing to do for it here.
-        await vault.indexer?.indexVaultFull().catch(() => {});
+        await vault.indexer?.indexVaultFull("import").catch(() => {});
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
       }
     } catch (error) {

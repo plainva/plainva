@@ -112,7 +112,7 @@ export const IndexMdModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
       }
     }
     try {
-      await indexer?.indexVaultFull();
+      await indexer?.indexVaultFull("index.md generation");
       triggerFileTreeUpdate();
     } catch (e) {
       console.warn("[IndexMdModal] re-index failed", e);

@@ -1,6 +1,8 @@
 import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip } from "./IVaultAdapter.js";
 import { BatchStatement, IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName, isSystemJunkName } from "./systemJunk.js";
+import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
+import { isInternalPath, isInternalSegment, INTERNAL_PATH_RULES, type InternalPathRules } from "./internalPath.js";
+import { createYielder } from "./yielder.js";
 import { trimChars } from "../textScan.js";
 import { runStatementsAtomic } from "../db/batch.js";
 import { escapeLikePrefix } from "../db/likeEscape.js";
@@ -34,43 +36,9 @@ async function sha256Bytes(bytes: Uint8Array): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Vault-relative paths that are internal/VCS data and are never tracked or synced.
- * Matched on whole path SEGMENTS (not substrings), so legitimate user files like
- * `notes.plainva.png` or `node_modules_archive/x.png` are not excluded. `.CONFLICT`
- * copies are deliberately NOT excluded here: they are indexed so they stay visible and
- * resolvable in the tree; the sync targets already keep `.CONFLICT` local-only on push.
- */
-const INTERNAL_SEGMENTS = new Set([
-  // Plainva / vault tooling
-  ".plainva", ".obsidian", ".trash", ".smart-env",
-  // version control and package managers
-  ".git", "node_modules",
-  // language and build tooling that lives next to notes in a developer's vault
-  ".venv", "__pycache__", ".tox", ".turbo", ".cache",
-  // editor metadata
-  ".idea", ".vscode",
-]);
-
-export function isInternalPath(path: string): boolean {
-  const segments = path.replace(/\\/g, "/").split("/");
-  return segments.some((s) => {
-    if (INTERNAL_SEGMENTS.has(s)) return true;
-    // Operating-system bookkeeping (`.DS_Store`, `Thumbs.db`, `.Trashes`, …;
-    // issue #110, E10). AppleDouble `._*` is deliberately NOT decided here:
-    // this is a path-only rule, and a note may legitimately be called
-    // `._notes.md` — the indexer reads the header instead (systemJunk.ts).
-    if (isSystemJunkName(s)) return true;
-    if (s.startsWith(".stfolder")) return true;
-    // Tool caches name themselves: .mypy_cache, .pytest_cache, .ruff_cache,
-    // .rumdl_cache (issue #70) — and the next linter will follow the same shape.
-    // Deliberately anchored on a LEADING DOT: a user's own "read_cache" folder of
-    // notes is not tooling, and neither is "Build" or "Target". Only names that
-    // already declare themselves hidden are excluded by pattern.
-    if (s.length > 1 && s.startsWith(".") && s.endsWith("_cache")) return true;
-    return false;
-  });
-}
+// The internal-path rules live in internalPath.ts (as data, shared with the
+// native vault walk); re-exported so the many existing importers keep their path.
+export { isInternalPath, isInternalSegment, INTERNAL_PATH_RULES, type InternalPathRules };
 
 /** Re-exported so the many existing importers keep their path. */
 export { escapeLikePrefix };
@@ -91,6 +59,44 @@ export interface IndexScanReport {
   skipped: VaultWalkSkip[];
   /** Wall-clock duration of the pass in milliseconds. */
   durationMs: number;
+  /** Files the walk saw on disk (after the internal-path filter). */
+  walked: number;
+  /**
+   * The set of folders on disk differs from what the previous full scan of
+   * this indexer saw — the one thing the tree draws from the disk rather than
+   * from the index. True on the first scan: with nothing to compare against,
+   * unknown counts as changed.
+   * Together with the three counts this tells a host whether anything needs
+   * reloading at all (issue #122: an unchanged scan must reload nothing).
+   */
+  foldersChanged: boolean;
+}
+
+/** True when a full scan left the index and the folder list exactly as they were. */
+export function scanChangedNothing(report: IndexScanReport): boolean {
+  return report.added === 0 && report.changed === 0 && report.removed === 0 && !report.foldersChanged;
+}
+
+/**
+ * What a host learns about every full scan (issue #122). A full scan is the
+ * expensive path, and until this existed it left no trace: a user whose typing
+ * stalled could not show us that a scan ran, let alone why. `trigger` is a
+ * short token chosen by the caller of `indexVaultFull` — never a path.
+ */
+export interface FullScanInfo extends IndexScanReport {
+  trigger: string;
+}
+
+/**
+ * One diagnostics line for a full scan — counts and a duration only, no file
+ * names, no paths, no vault name. Shared so both shells write the same line.
+ */
+export function formatFullScan(info: FullScanInfo): string {
+  const outcome = scanChangedNothing(info)
+    ? "nothing changed"
+    : `${info.added} added, ${info.changed} changed, ${info.removed} removed, folders ${info.foldersChanged ? "changed" : "unchanged"}`;
+  const skipped = info.skipped.length > 0 ? `, ${info.skipped.length} skipped` : "";
+  return `full scan (${info.trigger}): ${info.walked} files walked in ${Math.round(info.durationMs)} ms — ${outcome}${skipped}`;
 }
 
 /** What `reconcileFolder` did (issue #110, E8). */
@@ -106,6 +112,14 @@ export interface FolderReconcileReport {
    * draws from the disk changed, which a file-only refresh does not redraw.
    */
   foldersRemoved: boolean;
+  /**
+   * The folders found here differ from what the last full scan knew at this
+   * place: a subfolder appeared or went, indexed files or not. An EMPTY folder
+   * deleted outside the app leaves no file event behind — this is how its
+   * disappearance reaches the tree (issue #122). False while no full scan has
+   * run yet: there is nothing to compare with, and the scan itself reports.
+   */
+  foldersChanged?: boolean;
 }
 
 export interface VaultIndexerOptions {
@@ -135,6 +149,8 @@ export interface VaultIndexerOptions {
    */
   onLocalFileDeleted?: (path: string) => void;
   onProgress?: (current: number, total: number, path: string) => void;
+  /** Called after every completed full scan, changed or not (diagnostics, issue #122). */
+  onFullScan?: (info: FullScanInfo) => void;
 }
 
 /**
@@ -604,6 +620,25 @@ export class VaultIndexer {
    * folders change many paths at once; the caller falls back to the full scan).
    */
   async indexPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "needs-full-scan"> {
+    const outcome = await this.inspectPath(path);
+    return outcome === "directory" || outcome === "folder-gone" ? "needs-full-scan" : outcome;
+  }
+
+  /**
+   * `indexPath`, but saying WHICH folder case it met instead of folding both
+   * into "needs-full-scan" (issue #122). The two are not the same thing:
+   *  - `directory` — the path is a folder that exists. Whether that needs a
+   *    full scan depends on what happened to it: created, renamed or moved in,
+   *    many paths changed at once; merely reported as modified — which Windows
+   *    does for the parent of every file written, the app's own saves
+   *    included — nothing below it moved, and a flat look at the folder is
+   *    enough. Only the caller knows the event, so it decides.
+   *  - `folder-gone` — nothing is on disk, but indexed files still live under
+   *    the path: a folder deleted or moved away outside Plainva. That always
+   *    needs the full scan, which purges the rows and reports every deletion
+   *    to the sync layer.
+   */
+  async inspectPath(path: string): Promise<"indexed" | "removed" | "unchanged" | "directory" | "folder-gone"> {
     if (isInternalPath(path)) return "unchanged";
 
     let info: VaultFileInfo | null = null;
@@ -638,13 +673,13 @@ export class VaultIndexer {
           `SELECT id FROM files WHERE path LIKE ? ESCAPE '\\' LIMIT 1`,
           [escapeLikePrefix(path) + "/%"]
         );
-        if (child) return "needs-full-scan";
+        if (child) return "folder-gone";
         return "unchanged";
       }
       await this.removePathFromIndex(path);
       return "removed";
     }
-    if (info.isDirectory) return "needs-full-scan";
+    if (info.isDirectory) return "directory";
 
     if (await this.isAppleDoubleOnDisk(info)) {
       // macOS metadata, not a note (E10). A row an older version wrote goes,
@@ -805,7 +840,7 @@ export class VaultIndexer {
   async reconcileFolder(folder: string, opts: { recursive?: boolean } = {}): Promise<FolderReconcileReport> {
     const recursive = opts.recursive ?? true;
     const root = trimChars(folder.replace(/\\/g, "/"), "/");
-    const report: FolderReconcileReport = { indexed: [], removed: [], skipped: [], foldersRemoved: false };
+    const report: FolderReconcileReport = { indexed: [], removed: [], skipped: [], foldersRemoved: false, foldersChanged: false };
     if (root && isInternalPath(root)) return report;
 
     let listing: VaultListing;
@@ -827,11 +862,14 @@ export class VaultIndexer {
       }
       listing = { files: [], skipped: [] };
       skipped = [];
+      // The folder itself is gone, and so is its place in the folder list.
+      if (this.lastScanFolders?.delete(root)) report.foldersChanged = true;
     }
     report.skipped = skipped;
 
     const inFolder = root ? `${root}/` : "";
     const diskDirs = new Set(listing.files.filter((f) => f.isDirectory).map((f) => f.path));
+    if (this.syncScanFolders(inFolder, recursive, diskDirs, skipped)) report.foldersChanged = true;
     const diskFiles = listing.files.filter((f) => !f.isDirectory && !isInternalPath(f.path));
     const appleDouble = new Set<string>();
     for (const f of diskFiles) {
@@ -903,6 +941,45 @@ export class VaultIndexer {
     return report;
   }
 
+  /**
+   * Brings the folder list of the last full scan up to date with what a
+   * folder reconcile just saw below `inFolder` ("" for the root, else with a
+   * trailing slash), and says whether it differed. Flat: the folder's direct
+   * subfolders are compared, and a subfolder that is gone takes everything the
+   * list held below it along. Recursive: every folder below is compared.
+   * A folder under an entry the walk could not read is left as it is.
+   */
+  private syncScanFolders(inFolder: string, recursive: boolean, diskDirs: Set<string>, skipped: VaultWalkSkip[]): boolean {
+    const known = this.lastScanFolders;
+    if (!known) return false;
+    const unjudged = (p: string) => skipped.some((s) => !s.path || s.path === p || p.startsWith(`${s.path}/`));
+    let changed = false;
+    const gone: string[] = [];
+    for (const folder of known) {
+      if (!folder.startsWith(inFolder) || diskDirs.has(folder) || unjudged(folder)) continue;
+      const rest = folder.slice(inFolder.length);
+      if (!rest) continue;
+      if (recursive) {
+        gone.push(folder);
+        continue;
+      }
+      const slash = rest.indexOf("/");
+      const child = slash < 0 ? folder : folder.slice(0, inFolder.length + slash);
+      // Flat: a deeper folder goes only together with the direct subfolder it sits in.
+      if (!diskDirs.has(child) && !unjudged(child)) gone.push(folder);
+    }
+    for (const folder of gone) {
+      known.delete(folder);
+      changed = true;
+    }
+    for (const folder of diskDirs) {
+      if (isInternalPath(folder) || known.has(folder)) continue;
+      known.add(folder);
+      changed = true;
+    }
+    return changed;
+  }
+
   /** Fires buffered new-file and external-modification callbacks (post-transaction). */
   private flushCallbacks(): void {
     if (this.options?.onExternalModification) {
@@ -922,9 +999,30 @@ export class VaultIndexer {
    */
   private fullScan: Promise<IndexScanReport> | null = null;
 
-  indexVaultFull(): Promise<IndexScanReport> {
+  /**
+   * The folders the previous full scan saw on disk; null before the first one.
+   * What `IndexScanReport.foldersChanged` is measured against.
+   */
+  private lastScanFolders: Set<string> | null = null;
+
+  /**
+   * `trigger` names why the scan runs, for the diagnostics line (`onFullScan`):
+   * a short token such as "open", "manual refresh" or "watcher: folder
+   * created or renamed" — never a path. A caller that joins a scan already
+   * under way gets that scan's report; its own trigger is not recorded.
+   */
+  indexVaultFull(trigger = "unspecified"): Promise<IndexScanReport> {
     if (this.fullScan) return this.fullScan;
-    const run = this.indexVaultFullInternal().finally(() => { if (this.fullScan === run) this.fullScan = null; });
+    const run = this.indexVaultFullInternal()
+      .then((report) => {
+        try {
+          this.options?.onFullScan?.({ ...report, trigger });
+        } catch (e) {
+          console.warn("[VaultIndexer] onFullScan failed", e);
+        }
+        return report;
+      })
+      .finally(() => { if (this.fullScan === run) this.fullScan = null; });
     this.fullScan = run;
     return run;
   }
@@ -961,30 +1059,61 @@ export class VaultIndexer {
     // used to reach the index — markdown was filtered nowhere, attachments were.
     // The adapter-side skip stays as what it is: an optimisation that avoids
     // descending into the folder at all.
-    const candidates = diskFiles.filter(f => !f.isDirectory && !isInternalPath(f.path));
+    // Everything from here to the report is plain synchronous work over every
+    // file of the vault. It shares its thread with the user's typing, so each
+    // loop lets go once it has run for a frame's worth of time (issue #122).
+    const pause = createYielder();
+    const candidates: VaultFileInfo[] = [];
+    // The folders on disk: the ones the walk listed, plus every folder a
+    // listed file sits in (for an adapter whose listing names files only).
+    const folders = new Set<string>();
+    for (const f of diskFiles) {
+      const p = pause();
+      if (p) await p;
+      if (isInternalPath(f.path)) continue;
+      if (f.isDirectory) {
+        folders.add(f.path);
+        continue;
+      }
+      candidates.push(f);
+      for (let cut = f.path.lastIndexOf("/"); cut > 0; cut = f.path.lastIndexOf("/", cut - 1)) {
+        const parent = f.path.slice(0, cut);
+        if (folders.has(parent)) break;
+        folders.add(parent);
+      }
+    }
     // AppleDouble sidecars (`._Note.md` on SMB/exFAT, E10): the header decides,
-    // read once per `._*` file — a user's own `._notes.md` stays a note.
+    // read once per `._*` file — a user's own `._notes.md` stays a note. Only a
+    // name of that shape is looked at; every other file costs nothing here.
     const appleDouble = new Set<string>();
     for (const f of candidates) {
+      if (!isAppleDoubleName(f.name)) continue;
       if (await this.isAppleDoubleOnDisk(f)) appleDouble.add(f.path);
     }
     signal?.throwIfAborted();
-    const mdFiles = candidates.filter(f => f.name.endsWith(".md") && !appleDouble.has(f.path));
-    // Non-markdown attachments (images, PDFs, …) are tracked for sync too, except
-    // internal/VCS data. Conflict copies ARE indexed (kept visible); push targets skip them.
-    const attachmentFiles = candidates.filter(f => !f.name.endsWith(".md") && !appleDouble.has(f.path));
-    const diskFilePaths = new Set([...mdFiles, ...attachmentFiles].map(f => f.path));
-    const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);
-
-    const changed = (file: VaultFileInfo) => {
+    // Markdown and non-markdown attachments (images, PDFs, …) are both tracked
+    // for sync, except internal/VCS data. Conflict copies ARE indexed (kept
+    // visible); push targets skip them.
+    const diskFilePaths = new Set<string>();
+    const mdToIndex: VaultFileInfo[] = [];
+    const attachmentsToIndex: VaultFileInfo[] = [];
+    let addedCount = 0;
+    for (const file of candidates) {
+      const p = pause();
+      if (p) await p;
+      if (appleDouble.has(file.path)) continue;
+      diskFilePaths.add(file.path);
       const dbMtime = dbFileMap.get(file.path);
       // `!==` instead of `>`: restoring an OLDER file version (Explorer copy,
       // backup restore, sync rollback) keeps the old mtime — a strictly-greater
       // check would never re-index it and the stale content would stick around.
-      return dbMtime === undefined || file.mtime !== dbMtime;
-    };
-    const mdToIndex = mdFiles.filter(changed);
-    const attachmentsToIndex = attachmentFiles.filter(changed);
+      if (dbMtime !== undefined && file.mtime === dbMtime) continue;
+      // Added vs. changed is decided against the pre-pass index snapshot: a file
+      // with no row was created outside Plainva, one with a row just moved on.
+      if (dbMtime === undefined) addedCount++;
+      (file.name.endsWith(".md") ? mdToIndex : attachmentsToIndex).push(file);
+    }
+    const knownOrPresent = (p: string) => dbFileMap.has(p) || diskFilePaths.has(p);
     const filesToDelete: string[] = [];
 
     // Paths that are indexed but no longer on the disk listing. Two very
@@ -996,6 +1125,8 @@ export class VaultIndexer {
     // deletes for a venv and trip the mass-deletion guard on an existing vault.
     const vanishedFromDisk: string[] = [];
     for (const dbPath of dbFileMap.keys()) {
+      const p = pause();
+      if (p) await p;
       if (!diskFilePaths.has(dbPath)) {
         // An incomplete walk cannot prove a deletion. Keep the known index and
         // remote contents until this path's subtree can actually be inspected.
@@ -1008,19 +1139,34 @@ export class VaultIndexer {
         vanishedFromDisk.push(dbPath);
       }
     }
+    signal?.throwIfAborted();
 
-    // Added vs. changed is decided against the pre-pass index snapshot: a file
-    // with no row was created outside Plainva, one with a row just moved on.
-    const isNew = (file: VaultFileInfo) => !dbFileMap.has(file.path);
-    const addedCount = mdToIndex.filter(isNew).length + attachmentsToIndex.filter(isNew).length;
+    const previousFolders = this.lastScanFolders;
+    let foldersChanged = previousFolders === null || previousFolders.size !== folders.size;
+    if (!foldersChanged) {
+      for (const folder of folders) {
+        if (!previousFolders!.has(folder)) {
+          foldersChanged = true;
+          break;
+        }
+      }
+    }
+
     const scannedCount = mdToIndex.length + attachmentsToIndex.length;
-    const report = (): IndexScanReport => ({
-      added: addedCount,
-      changed: scannedCount - addedCount,
-      removed: filesToDelete.length,
-      skipped,
-      durationMs: Date.now() - startedAt,
-    });
+    const report = (): IndexScanReport => {
+      // Remembered only by a scan that ran to its end: an aborted or failed
+      // one must not become the baseline the next scan is compared with.
+      this.lastScanFolders = folders;
+      return {
+        added: addedCount,
+        changed: scannedCount - addedCount,
+        removed: filesToDelete.length,
+        skipped,
+        durationMs: Date.now() - startedAt,
+        walked: candidates.length,
+        foldersChanged,
+      };
+    };
 
     if (mdToIndex.length === 0 && attachmentsToIndex.length === 0 && filesToDelete.length === 0) {
       return report(); // Nothing to do — but the walk still reports what it skipped.

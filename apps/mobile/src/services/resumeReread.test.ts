@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import { planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh } from "@plainva/ui";
+import { scanChangedNothing } from "@plainva/core";
 
 /**
  * Issue 110 (E9): coming back to the app re-read the vault only when it lived
@@ -33,12 +34,21 @@ const bus = new EventTarget();
 type Vault = { vaultId: string; external: unknown; indexer: { indexVaultFull: ReturnType<typeof vi.fn> } | null };
 function load(vault: Vault | null): (now?: number) => Promise<boolean> {
   const bootPromise = vault ? Promise.resolve(vault) : null;
-  return new Function("bootPromise", "planAutoRefresh", "RESUME_REFRESH_LIMITS", "runVaultRefresh", "window", compiled)(
-    bootPromise, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, bus,
+  return new Function("bootPromise", "planAutoRefresh", "RESUME_REFRESH_LIMITS", "runVaultRefresh", "scanChangedNothing", "window", compiled)(
+    bootPromise, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, scanChangedNothing, bus,
   );
 }
-const report = { added: 0, changed: 0, removed: 1, skipped: [], durationMs: 1 };
-const vaultOf = (external: unknown): Vault => ({ vaultId: "v1", external, indexer: { indexVaultFull: vi.fn(async () => report) } });
+const report = { added: 0, changed: 0, removed: 1, skipped: [], durationMs: 1, walked: 3, foldersChanged: false };
+const vaultOf = (external: unknown, scan: () => Promise<unknown> = async () => report): Vault =>
+  ({ vaultId: "v1", external, indexer: { indexVaultFull: vi.fn(scan) } });
+/** How often the lists were told to reload by one return to the app. */
+async function reloadsAfter(vault: Vault): Promise<number> {
+  const changed = vi.fn();
+  bus.addEventListener("m-vault-changed", changed);
+  await load(vault)(100_000);
+  bus.removeEventListener("m-vault-changed", changed);
+  return changed.mock.calls.length;
+}
 
 describe("re-reading the vault on return to the app", () => {
   it("re-reads the app's own vault, not only an external folder", async () => {
@@ -49,6 +59,20 @@ describe("re-reading the vault on return to the app", () => {
     bus.removeEventListener("m-vault-changed", changed);
     expect(vault.indexer!.indexVaultFull).toHaveBeenCalledOnce();
     expect(changed).toHaveBeenCalledOnce();
+  });
+
+  it("leaves every list alone when the vault is as it was (issue 122)", async () => {
+    // Each list reloads on the event; a re-read that changed nothing has nothing to show.
+    const unchanged = { ...report, removed: 0 };
+    const vault = vaultOf(null, async () => unchanged);
+    expect(await reloadsAfter(vault)).toBe(0);
+    expect(vault.indexer!.indexVaultFull).toHaveBeenCalledWith("return to the app");
+  });
+
+  it("reloads the lists for changed files, for a changed folder list, and when the re-read failed", async () => {
+    expect(await reloadsAfter(vaultOf(null, async () => ({ ...report, removed: 0, changed: 1 })))).toBe(1);
+    expect(await reloadsAfter(vaultOf(null, async () => ({ ...report, removed: 0, foldersChanged: true })))).toBe(1);
+    expect(await reloadsAfter(vaultOf(null, async () => { throw new Error("disk went away"); }))).toBe(1);
   });
 
   it("re-reads an external folder the same way", async () => {

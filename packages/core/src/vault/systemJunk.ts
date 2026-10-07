@@ -17,7 +17,7 @@
  */
 
 /** Lower-cased: Windows and a case-insensitive macOS volume do not care about case. */
-const SYSTEM_JUNK_NAMES = new Set([
+export const SYSTEM_JUNK_NAMES: ReadonlySet<string> = new Set([
   ".ds_store",
   "thumbs.db",
   "desktop.ini",
@@ -27,7 +27,7 @@ const SYSTEM_JUNK_NAMES = new Set([
 ]);
 
 /** The custom-folder-icon file: the name really ends in a carriage return. */
-const ICON_CR = "Icon\r";
+export const ICON_CR = "Icon\r";
 
 /** True for a single path SEGMENT that is operating-system bookkeeping. */
 export function isSystemJunkName(name: string): boolean {

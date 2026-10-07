@@ -61,6 +61,25 @@ describe("PathSpellings", () => {
     expect(s.identityOfStored(`${NFD}/c.md`)).toBe(`${NFC}/c.md`);
   });
 
+  it("groups nothing when no path can be spelled two ways: absent from the map means its own identity", () => {
+    // The usual vault. Grouping 20 000 such paths took 30–50 ms in one piece
+    // on the UI thread, per listing (issue #122).
+    const s = new PathSpellings();
+    const plain = ["Projects", "Projects/Sub/note.md", "母/日本語.md".normalize("NFC")];
+    expect(s.observe(plain).size).toBe(0);
+    for (const p of plain) {
+      expect(s.identityOfStored(p)).toBe(p);
+      expect(s.resolveKnown(p)).toBe(p);
+    }
+    // Below a folder whose own spelling differs from its identity nothing is skipped.
+    const below = s.observe([`${NFD}/plain.md`], { raw: NFD, identity: NFC });
+    expect(below.get(`${NFD}/plain.md`)).toBe(`${NFC}/plain.md`);
+    // One path with a variant is enough for the whole listing to be grouped as before.
+    const mixed = new PathSpellings().observe(["Plain/b.md", `${NFD}/a.md`]);
+    expect(mixed.get("Plain/b.md")).toBe("Plain/b.md");
+    expect(mixed.get(`${NFD}/a.md`)).toBe(`${NFC}/a.md`);
+  });
+
   it("keeps two spellings side by side apart: the composed one wins, the other is a twin", () => {
     const s = new PathSpellings();
     const ids = s.observe([`${NFD}/a.md`, `${NFC}/a.md`, `${NFD}/only-decomposed.md`]);

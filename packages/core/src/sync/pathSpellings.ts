@@ -104,8 +104,20 @@ export class PathSpellings {
    * by default). Folders are implied by the paths, so a flat key listing works
    * as well as a walk. Siblings that collapse into one identity are twins: the
    * NFC spelling wins, the others keep their bytes.
+   *
+   * A path that is missing from the returned map is its own identity. When
+   * nothing in the listing can be spelled two ways at all — the usual case:
+   * plain ASCII names, or scripts without composed characters — the map is
+   * empty and nothing was grouped: every path is its own identity, there are
+   * no twins to find, and nothing needs remembering. Grouping 20 000 paths
+   * level by level took 30–50 ms in one piece, on the thread that also
+   * handles typing, for every listing of the vault (issue #122).
    */
-  observe(raws: Iterable<string>, anchor: { raw: string; identity: string } = { raw: "", identity: "" }): Map<string, string> {
+  observe(rawPaths: Iterable<string>, anchor: { raw: string; identity: string } = { raw: "", identity: "" }): Map<string, string> {
+    const raws = Array.isArray(rawPaths) ? (rawPaths as string[]) : [...rawPaths];
+    if (anchor.raw === anchor.identity && !hasSpellingVariants(anchor.raw) && !raws.some(hasSpellingVariants)) {
+      return new Map<string, string>();
+    }
     const all = new Set<string>();
     const anchorDepth = depthOf(anchor.raw);
     for (const raw of raws) {

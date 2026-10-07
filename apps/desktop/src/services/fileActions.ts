@@ -264,7 +264,7 @@ async function followUp(step: () => Promise<unknown>): Promise<string | undefine
 
 /** Minimal indexer surface the incremental-reindex helpers need (VaultIndexer satisfies it). */
 export interface RenameReindexer {
-  indexVaultFull(): Promise<unknown>;
+  indexVaultFull(trigger?: string): Promise<unknown>;
   indexPath(path: string): Promise<unknown>;
   removePathFromIndex(path: string): Promise<void>;
   /** Re-keys the rows of a path the app moved itself; reports no deletion (issue 113). */
@@ -300,7 +300,7 @@ export async function applyIndexChanges(
 ): Promise<void> {
   for (const { from, to } of changes.moved ?? []) await indexer.relocatePathInIndex(from, to);
   if (changes.needsFullScan) {
-    await indexer.indexVaultFull();
+    await indexer.indexVaultFull("folder moved in the app");
     return;
   }
   for (const path of changes.removed ?? []) await indexer.removePathFromIndex(path);

@@ -1,4 +1,4 @@
-import { clearPinboardCache, dailyDayResolver, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
+import { clearPinboardCache, dailyDayResolver, logDiagnostic, planAutoRefresh, RESUME_REFRESH_LIMITS, runVaultRefresh, type AutoRefreshMarks } from "@plainva/ui";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
@@ -31,6 +31,8 @@ import {
   type VaultFileInfo,
   PimCacheRepository,
   toPathIdentity,
+  formatFullScan,
+  scanChangedNothing,
 } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -422,8 +424,11 @@ export async function rereadVaultOnResume(now: number = Date.now()): Promise<boo
   const marks = resumeMarks.get(v.vaultId) ?? { local: 0, cloud: 0 };
   if (!planAutoRefresh(now, marks, RESUME_REFRESH_LIMITS).local) return false;
   resumeMarks.set(v.vaultId, { ...marks, local: now });
-  await runVaultRefresh({ indexer: v.indexer, syncWorker: null, skipCloud: true }).catch(() => {});
-  window.dispatchEvent(new CustomEvent("m-vault-changed"));
+  const result = await runVaultRefresh({ indexer: v.indexer, syncWorker: null, skipCloud: true, trigger: "return to the app" }).catch(() => null);
+  // Every list reloads on this event. A re-read that found the vault as it
+  // was leaves them alone (issue 122) — the desktop's automatic refresh does
+  // the same; a re-read that failed still announces itself, as before.
+  if (!result || !scanChangedNothing(result.local)) window.dispatchEvent(new CustomEvent("m-vault-changed"));
   return true;
 }
 
@@ -436,7 +441,7 @@ export async function rereadVaultOnResume(now: number = Date.now()): Promise<boo
 export async function rereadVault(folder?: string): Promise<void> {
   const v = bootPromise ? await bootPromise.catch(() => null) : null;
   if (!v || !v.indexer) return;
-  if (folder === undefined) await v.indexer.indexVaultFull();
+  if (folder === undefined) await v.indexer.indexVaultFull("manual refresh");
   else await v.indexer.reconcileFolder(folder);
 }
 
@@ -611,6 +616,9 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
 
     indexer = new VaultIndexer(files, db, {
       scanSignal: indexAbort.signal,
+      // One line per full scan (issue 122), the same one the desktop writes:
+      // what set it off, how much it walked, how long it took, what it changed.
+      onFullScan: (info) => logDiagnostic("index", formatFullScan(info)),
       // The app's own save is never a foreign change (P1): a pass reading the
       // file between the write and its hash update asks the adapter first.
       isOwnWrite: (path, sha256) => conflictAware.wasWrittenByUs(path, sha256),
@@ -650,14 +658,14 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
     const warm = ((await db.queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM files"))?.n ?? 0) > 0;
     if (warm) {
       void indexer
-        .indexVaultFull()
+        .indexVaultFull("open")
         .then(() => {
           indexPassSettled = true;
           window.dispatchEvent(new CustomEvent("m-vault-changed"));
         })
         .catch(() => {});
     } else {
-      await indexer.indexVaultFull();
+      await indexer.indexVaultFull("open, empty index");
       indexPassSettled = true;
     }
     searchAvailable = true;
@@ -983,7 +991,7 @@ export const vaultOps = {
       // Rows follow first, so the full pass finds every note at its new place
       // and reports nothing as vanished (issue 113).
       await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
-      await v.indexer.indexVaultFull().catch(() => {});
+      await v.indexer.indexVaultFull("folder moved in the app").catch(() => {});
     }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
@@ -997,7 +1005,7 @@ export const vaultOps = {
     // would recreate it after the folder is gone.
     await noteSaver.flushAll(v);
     await v.files.deleteItem(path, true, confirmation);
-    if (v.indexer) await v.indexer.indexVaultFull().catch(() => {});
+    if (v.indexer) await v.indexer.indexVaultFull("folder deleted in the app").catch(() => {});
     notifyFileOps([{ type: "delete", path, isFolder: true }]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
   },
@@ -1122,7 +1130,7 @@ export const vaultOps = {
     // not describe a note somebody else has since rewritten.
     if (v.external && v.indexer) {
       const outcome = await v.indexer.indexPath(path).catch(() => "unchanged" as const);
-      if (outcome === "needs-full-scan") await v.indexer.indexVaultFull().catch(() => {});
+      if (outcome === "needs-full-scan") await v.indexer.indexVaultFull("note opened in an external folder").catch(() => {});
     }
     // Desktop parity (P1): the content the editor just loaded IS what the app
     // knows about — record its hash so a stale row cannot turn the first save

@@ -1,5 +1,5 @@
 import { checkedPathExists, checkedReadTextFile, checkedReadDirectory, type CheckedDirEntry } from "./checkedFilesystem";
-import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath, trimEndChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
+import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, isInternalPath, INTERNAL_PATH_RULES, createYielder, trimEndChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
 import { readFile, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { Channel, invoke } from "@tauri-apps/api/core";
@@ -456,17 +456,70 @@ export class TauriVaultAdapter implements IVaultAdapter {
     return (await this.listDirReport(path, recursive, options)).files;
   }
 
+  /**
+   * Whether this host has the native walk. Unknown until the first listing;
+   * false for a host that answers the command with nothing (the browser
+   * fixtures and the E2E mock) — the walker above stays in charge there.
+   */
+  private nativeWalk: boolean | null = null;
+
+  /**
+   * The whole listing in ONE native call (issue 122, vault_walk.rs). The
+   * walker above costs two IPC round-trips per folder, each resolved on the
+   * thread that also handles typing; a vault with a few thousand folders kept
+   * that thread busy for the length of the walk. The native walk follows the
+   * same rules — links followed, loops cut and reported, internal folders not
+   * entered, unreadable entries named — and takes the internal-path rules
+   * from here, so there is one list. Returns null when the walker above must
+   * do the work: no native command on this host, or a call that failed.
+   */
+  private async walkNative(
+    raw: string, recursive: boolean, insideInternal: boolean, signal?: AbortSignal,
+  ): Promise<{ found: VaultFileInfo[]; skipped: VaultWalkSkip[] } | null> {
+    if (this.nativeWalk === false) return null;
+    signal?.throwIfAborted();
+    const rootId = await this.rootId();
+    const walkId = nextWalkId();
+    // A walk on a share that stopped answering must not hold a closing vault.
+    const cancel = () => void invoke("vault_walk_cancel", { walkId }).catch(() => {});
+    signal?.addEventListener("abort", cancel, { once: true });
+    let value: unknown;
+    try {
+      value = await invoke<unknown>("vault_walk", { rootId, relPath: raw, recursive, insideInternal, rules: INTERNAL_PATH_RULES, walkId });
+    } catch (e) {
+      signal?.throwIfAborted();
+      console.warn("[TauriVaultAdapter] native walk failed; walking from the frontend instead", e);
+      return null;
+    } finally {
+      signal?.removeEventListener("abort", cancel);
+    }
+    signal?.throwIfAborted();
+    if (value == null) {
+      this.nativeWalk = false;
+      return null;
+    }
+    const parsed = await parseNativeWalk(value);
+    if (!parsed) {
+      console.warn("[TauriVaultAdapter] native walk answered in an unknown shape; walking from the frontend instead");
+      return null;
+    }
+    this.nativeWalk = true;
+    return parsed;
+  }
+
   async listDirReport(path: string = "", recursive: boolean = false, options?: { signal?: AbortSignal }): Promise<VaultListing> {
     const raw = path ? await this.realPath(path) : "";
     const absPath = await this.getAbsolutePath(raw);
-    const skipped: VaultWalkSkip[] = [];
     // The internal-path filter hides `.plainva`, `.git`, … from a walk over the
     // VAULT. It must not fire when the caller deliberately walks INSIDE such a
     // folder — the version history lists `.plainva/backups/...` and would come
     // back empty. Asking for an internal path is an explicit request for it.
-    const found = await this._listDirInternal(
+    const insideInternal = isInternalPath(path);
+    const native = await this.walkNative(raw, recursive, insideInternal, options?.signal);
+    const skipped: VaultWalkSkip[] = native ? native.skipped : [];
+    const found = native ? native.found : await this._listDirInternal(
       raw, absPath, recursive, new Set<string>(), createLimiter(LIST_CONCURRENCY), skipped, 0,
-      isInternalPath(path), options?.signal
+      insideInternal, options?.signal
     );
     // Stored spellings become identities (ADR 0016), the walk's skip list too.
     const anchor = { raw, identity: raw ? this.spellings.identityOfStored(raw) : "" };
@@ -536,6 +589,52 @@ export class TauriVaultAdapter implements IVaultAdapter {
       throw err;
     }
   }
+}
+
+let walkSequence = 0;
+/** Ids for cancellable native walks; unique within this window's lifetime. */
+function nextWalkId(): number {
+  walkSequence = (walkSequence + 1) % 0x7fffffff;
+  return walkSequence;
+}
+
+const isSafeCount = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
+
+/**
+ * Validates and unpacks the native walk's answer (vault_walk.rs): entries as
+ * `[path, isDirectory, mtimeMs, ctimeMs | null, size]` tuples, skips as
+ * `{ path, reason }`. Anything else is not a listing — null, and the caller
+ * walks from the frontend: a listing that cannot be trusted completely is not
+ * used at all, because what is missing from it would read as deleted.
+ * Unpacking tens of thousands of entries lets go of the thread as it goes.
+ */
+export async function parseNativeWalk(value: unknown): Promise<{ found: VaultFileInfo[]; skipped: VaultWalkSkip[] } | null> {
+  const v = value as { entries?: unknown; skipped?: unknown } | null;
+  if (!v || !Array.isArray(v.entries) || !Array.isArray(v.skipped)) return null;
+  const pause = createYielder();
+  const now = Date.now();
+  const found: VaultFileInfo[] = [];
+  for (const entry of v.entries as unknown[]) {
+    const p = pause();
+    if (p) await p;
+    if (!Array.isArray(entry) || entry.length < 5) return null;
+    const [path, isDirectory, mtime, ctime, size] = entry as [unknown, unknown, unknown, unknown, unknown];
+    if (typeof path !== "string" || !path || typeof isDirectory !== "boolean" || !isSafeCount(mtime)
+      || !(ctime === null || isSafeCount(ctime)) || !isSafeCount(size)) return null;
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    if (!name) return null;
+    // A folder carries no times; the frontend walker stamps it with "now" too.
+    found.push(isDirectory
+      ? { name, path, isDirectory: true, mtime: now, ctime: undefined, size: 0 }
+      : { name, path, isDirectory: false, mtime, ctime: ctime ?? undefined, size });
+  }
+  const skipped: VaultWalkSkip[] = [];
+  for (const skip of v.skipped as unknown[]) {
+    const s = skip as { path?: unknown; reason?: unknown } | null;
+    if (!s || typeof s.path !== "string" || (s.reason !== "cycle" && s.reason !== "unreadable")) return null;
+    skipped.push({ path: s.path, reason: s.reason });
+  }
+  return { found, skipped };
 }
 
 /** One change as the native watcher reports it (src-tauri/src/vault_watch.rs). */

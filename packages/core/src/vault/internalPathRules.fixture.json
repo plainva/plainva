@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "exact": [
+      ".plainva", ".obsidian", ".trash", ".smart-env",
+      ".git", "node_modules",
+      ".venv", "__pycache__", ".tox", ".turbo", ".cache",
+      ".idea", ".vscode",
+      "Icon\r"
+    ],
+    "exactIgnoreCase": [".ds_store", "thumbs.db", "desktop.ini", ".spotlight-v100", ".trashes", ".fseventsd"],
+    "prefix": [".stfolder", ".plainva-tmp-"],
+    "dotSuffix": ["_cache"]
+  },
+  "internal": [
+    ".plainva", ".obsidian", ".trash", ".smart-env", ".git", "node_modules", ".venv", "__pycache__",
+    ".tox", ".turbo", ".cache", ".idea", ".vscode", "Icon\r",
+    ".DS_Store", ".ds_store", "Thumbs.db", "THUMBS.DB", "desktop.ini", "Desktop.ini",
+    ".Spotlight-V100", ".Trashes", ".fseventsd",
+    ".stfolder", ".stfolder.removed-20260101",
+    ".plainva-tmp-412-7-note.md", ".plainva-tmp-1234567890.tmp", ".plainva-tmp-6F9619FF-8B86-D011-B42D-00C04FC964FF",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", ".rumdl_cache"
+  ],
+  "user": [
+    "note.md", ".env-notes.md", "._notes.md", ".hidden", ".", "..", "",
+    "Icon", "Icon\n", "icon\r",
+    "notes.plainva.png", "node_modules_archive", "Node_Modules", ".GIT", ".Plainva", "plainva", ".plainvatmp",
+    "plainva-tmp-notes.md", ".plainva-tm", ".plainva-temp-x.md", "x.plainva-tmp-1-2-y.md",
+    "read_cache", "_cache", "cache", ".cache_notes", "my.stfolder", "stfolder",
+    "Thumbs.db.md", "desktop.ini.bak", "Build", "Target", ".CONFLICT", "note.CONFLICT.md"
+  ]
+}

@@ -121,7 +121,7 @@ export function OverviewsScreen({ vault, onBack }: { vault: MobileVault; onBack:
           folder: row.folder,
           prepare: false,
         });
-        await vault.indexer?.indexVaultFull().catch(() => {});
+        await vault.indexer?.indexVaultFull("index.md generation").catch(() => {});
         window.dispatchEvent(new CustomEvent("m-vault-changed"));
         return 1;
       });

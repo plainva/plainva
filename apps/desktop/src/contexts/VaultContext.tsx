@@ -6,7 +6,7 @@ import React, { createContext, useContext, useState, useEffect, useLayoutEffect,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, isInternalPath, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, initializeSchema, BackupVaultAdapter, IVaultAdapter, ConflictAwareVaultAdapter, SyncStateRepository, QueueingVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, SqlWorkspaceStateStore, WorkspaceQueueingVaultAdapter, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, PermissionedVaultAdapter, evaluateWorkspaceAccess, workspaceSliceIdsForObject, loadWorkspaceSliceObjects, previewWorkspaceMoveAccess, workspaceGroupNames, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
@@ -57,8 +57,8 @@ import { appDataDir } from "@tauri-apps/api/path";
 import { readFile, writeFile, exists as fsExists, mkdir } from "@tauri-apps/plugin-fs";
 import { indexDbFileName } from "../services/indexDbPath";
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
+import { createWatchBatchCollector, toEnqueueArgs } from "../services/watchBatch";
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
-import { WATCH_RESCAN_MARKER } from "../adapters/TauriVaultAdapter";
 import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
 import { runEntryEventSync } from "../services/pim/entryEventSync";
 import { runTaskSync } from "../services/pim/taskSync";
@@ -983,6 +983,9 @@ export const VaultProvider: React.FC<{
             syncRepo.deleteSyncState(path).catch(() => {});
           }
         },
+        // One line per full scan (issue 122): what set it off, how much it
+        // walked, how long it took and what it changed. Counts only.
+        onFullScan: (info) => logDiagnostic("index", formatFullScan(info)),
         onProgress: (current, total, msgPath) => {
           // Only the INITIAL vault load reports progress into React state (P3):
           // background re-indexes (watcher echo of our own saves, sync pulls)
@@ -1001,13 +1004,18 @@ export const VaultProvider: React.FC<{
       // Serialized incremental indexing for watcher events and sync pulls (P2.5):
       // one batch at a time, concurrent producers coalesce into one follow-up
       // pass, redundant full scans collapse. Batch results map to the version
-      // bumps here: a full scan may have changed the folder structure (both
-      // versions), a per-path batch is file-only, a pure echo batch bumps nothing.
+      // bumps here: a changed folder list bumps both versions, changed files
+      // the file version only (with the batch's paths; null after a full scan,
+      // which may have touched any), and a batch that changed nothing — a pure
+      // echo, or a full scan that found the vault as it was — bumps nothing
+      // (issue 122: every bump reloads the tree and each view that hangs on it).
       const indexQueue = createIncrementalIndexQueue({
         indexer,
         exists: (p) => tauriVaultAdapter.exists(p),
-        onBatchDone: ({ fullScan, anyChange, paths: batchPaths, structureChanged }) => {
-          if (fullScan || structureChanged) {
+        onEscalation: ({ reason, sources, paths: n }) =>
+          logDiagnostic("index", `batch of ${n} path(s) from ${sources.join("+") || "the app"} escalated to a full scan: ${reason}`),
+        onBatchDone: ({ anyChange, paths: batchPaths, structureChanged }) => {
+          if (structureChanged) {
             setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, treeStructureVersion: s.treeStructureVersion + 1, fileTreeVersionPaths: null }));
           } else if (anyChange) {
             setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: batchPaths }));
@@ -1079,7 +1087,7 @@ export const VaultProvider: React.FC<{
             // Task notes are being renamed in bulk (E12): come back once that is done.
             if (res.paused) afterTaskSyncResume(() => void runTaskSyncNow());
             const touched = [...res.createdNotes, ...res.changedNotes];
-            if (touched.length > 0) indexQueue.enqueue(touched);
+            if (touched.length > 0) indexQueue.enqueue(touched, { source: "tasks" });
             for (const err of res.errors) console.warn("[VaultContext] task sync:", err);
             // The same line the phone writes (plan Befunde 2026-10-06, T4):
             // what the reconcile did, readable from a diagnostics export.
@@ -1106,7 +1114,7 @@ export const VaultProvider: React.FC<{
             window: { startDay: day(-60), endDay: day(400) },
           });
           if (ev.changedNotes.length > 0) {
-            indexQueue.enqueue(ev.changedNotes);
+            indexQueue.enqueue(ev.changedNotes, { source: "tasks" });
             window.dispatchEvent(new CustomEvent("plainva-pim-changed"));
           }
           for (const err of ev.errors) console.warn("[VaultContext] entry event sync:", err);
@@ -1126,7 +1134,7 @@ export const VaultProvider: React.FC<{
       initTaskDeletion({
         writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),
         runTaskSync: () => void runTaskSyncNow(),
-        onRestored: (paths) => indexQueue.enqueue(paths),
+        onRestored: (paths) => indexQueue.enqueue(paths, { source: "tasks" }),
       });
 
       const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
@@ -1159,9 +1167,13 @@ export const VaultProvider: React.FC<{
         // of "new" files — let any genuinely new ones (created while closed) enqueue.
         deferInitialEnqueue = false;
         void indexer
-          .indexVaultFull()
-          .then(() => {
+          .indexVaultFull("open")
+          .then((report) => {
             if (currentAbortSignal.aborted) return;
+            // The tree was drawn from the index before this pass; it only
+            // needs redrawing when the pass changed files. The folder list is
+            // read from the disk once loading ends, so it is current already.
+            if (report.added + report.changed + report.removed === 0) return;
             setState((s) => ({
               ...s,
               fileTreeVersion: s.fileTreeVersion + 1,
@@ -1174,7 +1186,7 @@ export const VaultProvider: React.FC<{
         // Fresh/empty index: block with progress so the tree isn't empty. Every file is
         // "new" here — the deferred enqueue (3c) keeps this from mass-pushing over the
         // remote; the first pull reconciles and onFirstCycleComplete sweeps local-only.
-        await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull());
+        await perfMeasure("initial full index (cold)", () => indexer.indexVaultFull("open, empty index"));
         reportInitialProgress = false;
         deferInitialEnqueue = false;
       }
@@ -1394,7 +1406,7 @@ export const VaultProvider: React.FC<{
                 };
                 worker.onFilesChanged = (paths) => {
                   for (const changedPath of paths) workspaceMaterializedPaths.add(changedPath);
-                  indexQueue.enqueue(paths);
+                  indexQueue.enqueue(paths, { source: "sync" });
                   for (const changedPath of paths) {
                     if (!changedPath.includes(".CONFLICT")) {
                       window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: changedPath } }));
@@ -1501,7 +1513,7 @@ export const VaultProvider: React.FC<{
               // emits in chunks while the cycle runs (and flushes on abort), so the
               // tree fills progressively during a long first sync and an aborted
               // cycle can no longer hide already-written files until a restart.
-              indexQueue.enqueue(paths);
+              indexQueue.enqueue(paths, { source: "sync" });
               for (const p of paths) {
                 if (!p.includes(".CONFLICT")) {
                   window.dispatchEvent(new CustomEvent("plainva-external-update", { detail: { path: p } }));
@@ -1947,12 +1959,10 @@ export const VaultProvider: React.FC<{
     let unwatchFn: (() => void) | undefined;
     let debounceTimer: ReturnType<typeof setTimeout>;
     let commentWatchTimer: ReturnType<typeof setTimeout> | undefined;
-    // Paths accumulated across the debounce window: the timer only sees the
-    // LAST event batch otherwise, and incremental indexing needs all of them.
-    const pendingWatchPaths = new Set<string>();
-    // Paths named by a rename or removal: their parent folder is reconciled
-    // too, once they turn out to have changed the index (issue 110, E8).
-    const pendingMovedPaths = new Set<string>();
+    // Events accumulated across the debounce window, each path with what
+    // happened to it: the timer only sees the LAST delivery otherwise, and the
+    // queue needs all of them — and the kinds (issue 122, watchBatch.ts).
+    const watchBatch = createWatchBatchCollector();
 
     const startWatching = async () => {
       if (!state.vaultAdapter?.watch) return;
@@ -1967,37 +1977,19 @@ export const VaultProvider: React.FC<{
             clearTimeout(commentWatchTimer);
             commentWatchTimer = setTimeout(() => window.dispatchEvent(new CustomEvent("plainva-workspace-comments-changed", { detail: { path: "*" } })), 500);
           }
-          // Only react to real markdown changes. Crucially this excludes writes
-          // inside .plainva (the SQLite db + its -wal/-shm files), which we write
-          // on every index/sync; reacting to them caused an endless
-          // re-index -> db write -> watcher -> re-index feedback loop. The
-          // `.includes` checks are robust even if the path was not relativised.
-          const relevantEvents = events.filter(e => {
-            // React to markdown AND attachment changes, mirroring the indexer's own
-            // SQLite db + -wal/-shm), so we don't re-trigger on our own index writes.
-            // The rescan marker always passes: it means the adapter could NOT
-            // attribute a change, and dropping it would lose the change entirely.
-            if (e.path === WATCH_RESCAN_MARKER) return true;
-            return e.path !== "" && !isInternalPath(e.path);
-          });
-          if (relevantEvents.length > 0) {
-            for (const e of relevantEvents) {
-              // "" is the vault root — indexPath classifies it as a directory and
-              // the queue escalates to a full reconcile (P1d fail-safe).
-              pendingWatchPaths.add(e.path === WATCH_RESCAN_MARKER ? "" : e.path);
-              if ((e.type === "rename" || e.type === "remove") && e.path !== WATCH_RESCAN_MARKER) pendingMovedPaths.add(e.path);
-            }
+          // Internal paths never get further than the collector — crucially
+          // the writes inside .plainva (the SQLite db + its -wal/-shm files),
+          // which the app makes on every index and sync pass, and the temp
+          // file of its own atomic save.
+          if (watchBatch.add(events)) {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-              const batch = Array.from(pendingWatchPaths);
-              const moved = Array.from(pendingMovedPaths);
-              pendingWatchPaths.clear();
-              pendingMovedPaths.clear();
-              console.log("[VaultContext] vault watcher detected changes", batch);
+              const batch = watchBatch.take();
+              console.log("[VaultContext] vault watcher detected changes", batch.paths, batch.modifiedOnly);
               // Incremental per-path indexing (P2.5) — the former full scan
               // walked the ENTIRE vault over IPC after every save echo. The
               // shared queue serializes this with concurrent sync-pull batches.
-              indexQueue.enqueue(batch, { moved });
+              indexQueue.enqueue(...toEnqueueArgs(batch));
             }, 1000);
           }
         });
@@ -2264,7 +2256,7 @@ export const VaultProvider: React.FC<{
   const refreshVault = async (opts?: { silent?: boolean; skipCloud?: boolean }): Promise<VaultRefreshResult> => {
     const indexer = state.indexer;
     if (!indexer) {
-      return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0 }, cloud: "none" };
+      return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0, walked: 0, foldersChanged: false }, cloud: "none" };
     }
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
     const run = (async () => {
@@ -2273,8 +2265,17 @@ export const VaultProvider: React.FC<{
           indexer,
           syncWorker: state.syncWorker,
           skipCloud: opts?.skipCloud,
+          trigger: opts?.silent ? "automatic refresh" : "manual refresh",
         });
-        bumpTree();
+        // The automatic pass (window focus, the interval net) runs while
+        // somebody may be typing: it reloads only what it found changed, and
+        // nothing when the vault is as it was (issue 122). A pass somebody
+        // asked for redraws everything, as it always did.
+        if (!opts?.silent) bumpTree();
+        else if (result.local.foldersChanged) bumpTree();
+        else if (result.local.added + result.local.changed + result.local.removed > 0) {
+          setState(s => ({ ...s, fileTreeVersion: s.fileTreeVersion + 1, fileTreeVersionPaths: null }));
+        }
         if (!opts?.silent) toast.success(buildRefreshToast(result, i18n.t.bind(i18n)));
         return result;
       } catch (e) {
@@ -2331,7 +2332,7 @@ export const VaultProvider: React.FC<{
       // it would make the next cycle re-upload the entire vault.
       await db.execute(`DELETE FROM files`);
       await db.execute(`DELETE FROM fts_notes`);
-      await indexer.indexVaultFull();
+      await indexer.indexVaultFull("index rebuild");
       bumpTree();
       toast.success(i18n.t("refresh.rebuildDone", { defaultValue: "Index vollständig neu aufgebaut." }));
     } catch (e) {
@@ -3460,7 +3461,7 @@ export const VaultProvider: React.FC<{
         await bus.request("reindex", { scope: "refresh" });
         // The owner reports what it found; this window learns of the result
         // through `index-changed`, so there is nothing local to hand back.
-        return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0 }, cloud: "none" };
+        return { local: { added: 0, changed: 0, removed: 0, skipped: [], durationMs: 0, walked: 0, foldersChanged: false }, cloud: "none" };
       },
       rebuildIndex: async () => {
         const bus = await getWindowBus();
