@@ -7,6 +7,7 @@ import {
   isAiHiddenPath,
   isCloudRecipient,
   MAIL_TOOL_NAMES,
+  PIM_DRAFT_TOOL_NAMES,
   WRITE_TOOL_NAMES,
   outlineOf,
   payload,
@@ -34,7 +35,7 @@ import { stripFrontmatter } from "../services/docMeta";
 import { notePropertiesOf, type SituationEventInput } from "./aiSituation";
 import { eventHandle, eventLine, eventReport, parseEventHandle } from "./eventDetails";
 import { mailToolOutcome, type MailSource } from "./mailTools";
-import { writeToolNames, writeToolOutcome, type VaultWriteDeps, type WriteRun } from "./writeTools";
+import { pimDraftReady, writeToolNames, writeToolOutcome, type VaultWriteDeps, type WriteRun } from "./writeTools";
 
 /**
  * The vault tools of the chat (ADR 0019), one implementation for both shells:
@@ -536,7 +537,10 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const pool = (further?.more ?? []).filter(left).flatMap((name) => toolByName(name) ?? []);
           const mail = pool.some((t) => MAIL_TOOL_NAMES.includes(t.name));
           const connected = mail && deps.mail ? (await deps.mail.accounts().catch(() => [])).length > 0 : false;
-          const usable = pool.filter((t) => connected || !MAIL_TOOL_NAMES.includes(t.name));
+          // A draft of an e-mail or an appointment is listed only where it has somewhere to go right now (plan P5-6).
+          const ready = new Map<string, boolean>();
+          for (const name of PIM_DRAFT_TOOL_NAMES) ready.set(name, pool.some((t) => t.name === name) && (await pimDraftReady(deps.writes, name)));
+          const usable = pool.filter((t) => (connected || !MAIL_TOOL_NAMES.includes(t.name)) && (!PIM_DRAFT_TOOL_NAMES.includes(t.name) || ready.get(t.name) === true));
           const commands = left("run_command") ? deps.commands().map((c) => ({ id: c.id, label: c.label })) : [];
           const note = mail && !connected ? "\n\nNo mail account is connected in this vault, so there are no mail tools." : "";
           // The tools of foreign servers (plan P4.5): what a server says of them is a stranger's text, so that part

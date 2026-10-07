@@ -62,8 +62,13 @@ export function EventEditSheet({
 }: {
   /** The event being edited, or null when creating. */
   event: PimEventRow | null;
-  /** Pre-filled start/end (a tapped slot) and the calendar to create in. */
-  initial: { startTs: number; endTs: number; calendarKey: string };
+  /**
+   * Pre-filled start/end (a tapped slot) and the calendar to create in. With
+   * `form`, a new appointment opens with every field as given (AI harness
+   * P5-6: a draft of the assistant's) — title, day, times, place, notes,
+   * invitees —, and what it names counts as typed.
+   */
+  initial: { startTs: number; endTs: number; calendarKey: string; form?: EventFormValues };
   calendars: Array<{ value: string; label: string }>;
   onSave: (values: EventEditValues) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
@@ -75,6 +80,7 @@ export function EventEditSheet({
   // invitation or overwriting a recurrence we could only read half of.
   const [form, setForm] = useState<EventFormValues>(() => {
     if (event) return eventFormFromEvent(event);
+    if (initial.form) return { ...initial.form, calendarKey: initial.form.calendarKey || initial.calendarKey };
     const base = emptyEventForm(localIsoKey(new Date(initial.startTs)), initial.calendarKey);
     return { ...base, startTime: hhmm(initial.startTs), endTime: hhmm(initial.endTs) };
   });

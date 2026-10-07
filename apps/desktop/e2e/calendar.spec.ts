@@ -1616,3 +1616,184 @@ test('the all-day row shows five rows, counts the rest and opens for all days', 
   await page.getByTestId('calendar-next').click();
   await expect(page.getByTestId('calendar-allday-more')).toHaveCount(0);
 });
+
+// An e-mail and an appointment the assistant drafted (AI harness P5-6). Both
+// are things that would leave the vault, so the assistant makes neither: each
+// waits as a draft on this device, names every address it would go to, and
+// opens in the app's own composer and event editor. The draft stays in the
+// list until the mail is really out or the calendar took the appointment — a
+// composer that is closed, a send that is taken back and a calendar that
+// refuses all leave it where it was. (This suite's fixture has a mailbox and a
+// calendar that takes appointments; its provider layer has no credentials, so
+// a save is refused — which is the branch shown here.)
+test('AI drafts an e-mail and an appointment: both wait as drafts, open in the composer and the event editor, and stay until the mail is out', async ({ page }) => {
+  test.setTimeout(90_000);
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  // A found tool is called through the conversation's dispatcher.
+  const calls = (...list: Array<[id: string, name: string, args: unknown]>) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ...list.flatMap(([id, name, args], index): Array<[string, unknown]> => [
+      ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name: 'call_tool', input: {} } }],
+      ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ name, args }) } }],
+      ['content_block_stop', { type: 'content_block_stop', index }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const BODY = 'Hello Ms Okafor,\n\nthe 14th is fixed. We start at nine in Studio 2.\n\nBest regards';
+  const script = [
+    calls(
+      ['c1', 'draft_mail', { to: ['a.okafor@example.org'], cc: ['tom@example.org'], subject: 'Re: Shooting day', body: BODY }],
+      ['c2', 'draft_event', { title: 'Shooting day', day: '2026-11-14', start: '09:00', end: '17:00', location: 'Studio 2', attendees: ['tom@example.org'] }],
+    ),
+    says('I drafted the reply and the appointment. Both wait for you.'),
+  ];
+  await page.addInitScript(({ script }) => {
+    (window as any).__aiRequests = [];
+    (window as any).__mailSends = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:store|get' && args?.key === 'ai') return [{ enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } }, true];
+      if (cmd === 'plugin:path|resolve_directory') return '/appdata';
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      // The mailbox of this suite's fixture, signed in on this device, with the folders a composer asks for.
+      if (cmd === 'keychain_get' && String(args?.key || '').startsWith('mail_m1_')) return JSON.stringify({ pass: 'app-pw' });
+      if (cmd === 'mail_check_login') return [{ name: 'INBOX' }, { name: 'Drafts' }, { name: 'Sent' }, { name: 'Trash' }];
+      if (cmd === 'mail_send') {
+        (window as any).__mailSends.push({ to: args.to, cc: args.cc, bcc: args.bcc, subject: args.subject, text: args.text });
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script });
+
+  await openVault(page);
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const sends = () => page.evaluate(() => (window as any).__mailSends as Array<{ to: string; cc: string; bcc: string; subject: string; text: string }>);
+  const draftsFile = async () => {
+    const stored = await page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path, value]) => typeof value === 'string' && path.endsWith('/drafts.json')).map(([path, value]) => ({ path, text: String(value) })));
+    return stored.length === 1 ? { path: stored[0].path, ...JSON.parse(stored[0].text) } : null;
+  };
+
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Tell Ms Okafor and tom@example.org that the 14th is fixed, and put the shooting day into my calendar.');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('I drafted the reply and the appointment.')).toBeVisible();
+
+  // 1. The conversation was told what such a draft is, and read back that nothing was sent or saved — and that one
+  //    address is not from the reader's own words.
+  const sent = await requests();
+  expect(sent[0]).toContain("a draft for the user's mail or calendar, where one is connected (an e-mail or an appointment)");
+  expect(sent[0]).not.toContain('"name":"draft_mail"');
+  expect(sent[1]).toContain('Nothing was sent or saved.');
+  expect(sent[1]).toContain("One address is not from the user's own words");
+
+  // 2. Nothing left the device, and nothing opened by itself.
+  expect(await sends()).toEqual([]);
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+  const waiting = (await draftsFile())!;
+  expect(waiting.path.startsWith('/test-vault/')).toBe(false);
+  expect(waiting.drafts).toMatchObject([
+    { title: 'Re: Shooting day', author: { id: 'plainva-ai/m-1' }, body: { kind: 'mail', to: ['a.okafor@example.org'], cc: ['tom@example.org'], bcc: [], unnamed: ['a.okafor@example.org'] } },
+    { title: 'Shooting day', body: { kind: 'event', allDay: false, day: '2026-11-14', start: '09:00', end: '17:00', location: 'Studio 2', attendees: ['tom@example.org'], unnamed: [] } },
+  ]);
+
+  // 3. A card per draft: every address it would go to, and a word about the one the reader did not write.
+  const mailCard = companion.locator('[data-testid="ai-draft"][data-kind="mail"]');
+  const eventCard = companion.locator('[data-testid="ai-draft"][data-kind="event"]');
+  await expect(mailCard.getByTestId('ai-draft-title')).toHaveText('Re: Shooting day');
+  await expect(mailCard.getByTestId('ai-draft-to')).toHaveText('a.okafor@example.org');
+  await expect(mailCard.getByTestId('ai-draft-cc')).toHaveText('tom@example.org');
+  await expect(mailCard.getByTestId('ai-draft-bcc')).toHaveCount(0);
+  await expect(mailCard.getByTestId('ai-draft-unnamed')).toContainText('a.okafor@example.org');
+  await expect(mailCard.getByTestId('ai-draft-create')).toHaveText(/Open in Mail/);
+  await expect(eventCard.getByTestId('ai-draft-title')).toHaveText('Shooting day');
+  await expect(eventCard.getByTestId('ai-draft-when')).toContainText('09:00');
+  await expect(eventCard.getByTestId('ai-draft-where')).toHaveText('Studio 2');
+  await expect(eventCard.getByTestId('ai-draft-attendees')).toHaveText('tom@example.org');
+  // Tom's address the reader wrote: no warning on the appointment.
+  await expect(eventCard.getByTestId('ai-draft-unnamed')).toHaveCount(0);
+  await expect(eventCard.getByTestId('ai-draft-create')).toHaveText(/Open in Calendar/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-pim-drafts-desktop.png') });
+
+  // 4. "Open in Mail" opens the app's own composer with every recipient in sight. Nothing was sent by that, and the
+  //    draft still waits: a composer that is closed loses nothing.
+  await mailCard.getByTestId('ai-draft-create').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-to-chip')).toHaveText(/a\.okafor@example\.org/);
+  await expect(page.getByTestId('draft-cc-chip')).toHaveText(/tom@example\.org/);
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Re: Shooting day');
+  await expect(page.getByTestId('draft-body')).toContainText('the 14th is fixed');
+  await expect(page.getByTestId('draft-error')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-pim-composer-desktop.png') });
+  await expect(mailCard).toHaveCount(1);
+  // While it is open with this mail, a second one is not opened over it. (The floating composer lies over the
+  // card here; a reader would have moved it aside — the button is pressed where it is.)
+  await mailCard.getByTestId('ai-draft-create').evaluate((button) => (button as HTMLElement).click());
+  await expect(page.locator('.pv-toast').filter({ hasText: /is already open with an e-mail/ })).toBeVisible();
+  await expect(page.getByTestId('draft-form')).toHaveCount(1);
+  await page.locator('.pv-mail-winfoot').getByRole('button', { name: /Cancel|Abbrechen/ }).click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+  await expect(mailCard).toHaveCount(1);
+  expect(await sends()).toEqual([]);
+
+  // 5. Sent from the composer, the mail goes after its undo window — and only then does the draft leave the list.
+  await mailCard.getByTestId('ai-draft-create').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await page.getByTestId('draft-send').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+  // Queued, and it could still be taken back: the draft is still the reader's.
+  expect(await sends()).toEqual([]);
+  await expect(mailCard).toHaveCount(1);
+  await expect.poll(async () => (await sends()).length, { timeout: 20_000 }).toBe(1);
+  expect((await sends())[0]).toMatchObject({ to: 'a.okafor@example.org', cc: 'tom@example.org', subject: 'Re: Shooting day' });
+  expect((await sends())[0].text).toContain('the 14th is fixed');
+  await expect(mailCard).toHaveCount(0);
+  await expect(companion.locator('[data-testid="ai-draft-done"][data-outcome="sent"]')).toContainText('Re: Shooting day');
+  expect(((await draftsFile())!.done as Array<{ title: string; outcome: string }>).map((entry) => [entry.title, entry.outcome])).toEqual([['Re: Shooting day', 'sent']]);
+
+  // 6. "Open in Calendar" leads to the calendar, where the event editor opens with what was drafted. Nothing is saved
+  //    by that; saved from there, this fixture's provider refuses — and the draft is still in the list.
+  await eventCard.getByTestId('ai-draft-create').click();
+  await expect(page.getByTestId('event-edit-form')).toBeVisible();
+  // The editor is a dialog of the calendar: the floating companion made room for it.
+  await expect(companion).toHaveCount(0);
+  await expect(page.getByTestId('event-title')).toHaveValue('Shooting day');
+  await expect(page.getByTestId('event-start-time')).toHaveValue('09:00');
+  await expect(page.getByTestId('event-end-time')).toHaveValue('17:00');
+  await expect(page.getByTestId('event-location')).toHaveValue('Studio 2');
+  await expect(page.getByTestId('event-attendee-chip')).toHaveText(/tom@example\.org/);
+  await expect(page.getByTestId('event-notify-attendees')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-pim-event-desktop.png') });
+  const waitingTitles = async () => ((await draftsFile())!.drafts as Array<{ title: string }>).map((draft) => draft.title);
+  expect(await waitingTitles()).toEqual(['Shooting day']);
+  await page.getByTestId('event-save').click();
+  await expect(page.getByTestId('event-edit-form')).toHaveCount(0);
+  await expect(page.locator('.pv-toast--error').filter({ hasText: /nicht gespeichert|was not saved/ })).toBeVisible();
+  expect(await waitingTitles()).toEqual(['Shooting day']);
+  // Back in the companion, the same conversation — and the card where it was.
+  await page.keyboard.press('Control+j');
+  await expect(companion.getByText('I drafted the reply and the appointment.')).toBeVisible();
+  await expect(eventCard).toHaveCount(1);
+  // No model was asked for any of it.
+  expect(await requests()).toHaveLength(2);
+});

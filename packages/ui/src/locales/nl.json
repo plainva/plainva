@@ -46,6 +46,8 @@
       "create_task": "Maakt een concept van een taak",
       "add_journal_entry": "Maakt een concept van een journaalitem",
       "create_entry": "Maakt een concept van een database-item",
+      "draft_mail": "Maakt een concept van een e-mail",
+      "draft_event": "Maakt een concept van een afspraak",
       "rename_note": "Legt een plan voor om te hernoemen",
       "move_note": "Legt een plan voor om te verplaatsen",
       "delete_note": "Vraagt om een notitie te verwijderen"
@@ -1271,12 +1273,16 @@
           "note": "Concept · Notitie",
           "task": "Concept · Taak",
           "journal": "Concept · Journaalitem",
+          "mail": "Concept · E-mail",
+          "event": "Concept · Afspraak",
           "entry": "Concept · Database-item"
         },
         "what": {
           "note": "Notitie",
           "task": "Taak",
           "journal": "Item",
+          "mail": "Onderwerp",
+          "event": "Afspraak",
           "entry": "Item"
         },
         "landsIn": "Komt terecht in",
@@ -1300,6 +1306,26 @@
         "createdToast": "Aangemaakt.",
         "failed": "Het concept kon niet worden aangemaakt: {{reason}}",
         "unavailable": "Dit kan op dit apparaat niet worden aangemaakt.",
+        "to": "Aan",
+        "cc": "Cc",
+        "bcc": "Bcc",
+        "when": "Wanneer",
+        "where": "Plaats",
+        "attendees": "Deelnemers",
+        "allDay": "hele dag",
+        "unnamedMail": "Niet door jou in dit gesprek geschreven: {{addresses}}. Controleer dat voordat je verzendt.",
+        "unnamedEvent": "Niet door jou in dit gesprek geschreven: {{addresses}}. Controleer dat voordat je opslaat — deelnemers krijgen een uitnodiging.",
+        "mailHint": "Vanaf hier wordt niets verzonden. De e-mail opent als nieuw bericht dat je nog kunt aanpassen; verzenden is daar jouw stap.",
+        "eventHint": "Vanaf hier wordt niets opgeslagen. De afspraak opent in de afsprakeneditor; daar kies je de agenda en sla je op.",
+        "openMail": "Openen in Mail",
+        "openEvent": "Openen in Agenda",
+        "editorOpen": "“Bericht opstellen” is al open met een e-mail. Verzend of sluit die eerst.",
+        "done": {
+          "sent": "Verzonden: {{name}}",
+          "savedMail": "Opgeslagen als e-mailconcept: {{name}}",
+          "savedEvent": "Opgeslagen in de agenda: {{name}}",
+          "movedMail": "Verplaatst naar een eigen venster: {{name}}"
+        },
         "exists": "Daar staat inmiddels een bestand met deze naam. Verwerp het concept of hernoem het bestand."
       },
       "plan": {

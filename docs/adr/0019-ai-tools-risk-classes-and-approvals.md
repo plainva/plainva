@@ -119,6 +119,35 @@ a write or an outside effect.
      into a surface third parties read (events with attendees, provider tasks,
      mail drafts, shared workspaces, publications): separate confirmation
      every time, shown in the send overview.
+     - *An e-mail and an appointment are drafted, never sent or saved*
+       (`draft_mail`, `draft_event`). The tool's own effect is a draft on
+       this device — class `write` —, and the external act is no tool at
+       all: it is the user's step in the app's own composer or event editor,
+       which "open" fills in. There every recipient is in sight, the text
+       can be changed, and the account or the calendar is chosen. The
+       separate confirmation this class asks for is therefore the app's own
+       Send and Save; what the draft's card adds is what such a surface
+       cannot know — which addresses the user never wrote in this
+       conversation (`unnamed`, read by the app from the user's own turns,
+       never from what a model says about them).
+     - *Nothing of a draft reaches a provider before that step.* A draft in
+       a mailbox and an event with invitees are surfaces third parties read,
+       so the draft lies in the device's own list and nowhere else. A
+       recipient is one plain address (`isDraftAddress`: no display name to
+       hide another address behind, nothing a header could be continued
+       with); the text is linted like everything a model writes, its
+       addresses inert; a drafted mail has no attachment. A conversation
+       that has read a note kept from the cloud or from the internet drafts
+       neither: a note takes its rule along, a mail cannot.
+     - *The tools exist only where they have somewhere to go.* They are
+       served on the harness surface alone — no paired app and no agent
+       reaches them — and only by a shell with a mail account or a calendar
+       that takes appointments; elsewhere there is no tool of that name.
+     - *A draft leaves its list when the step was really taken*: the
+       transport took the mail — after the undo window, so a send that is
+       taken back or refused changes nothing —, the account stored it as a
+       draft, or the calendar took the appointment. An editor that is just
+       closed tells nobody anything, and the draft is where it was.
    - `script` — signed WASM scripts (later package), manifest-bound.
    - `forbidden` — reading the keychain, raw secrets, an unbounded shell,
      direct DB or file writes outside the adapters, raw SQL. Never a tool.
@@ -414,6 +443,19 @@ a write or an outside effect.
 - **Asking in a regression run.** Rejected: a question nobody is there to
   read would hold the run, and a standing yes for runs nobody watches is the
   capability set of decision 8, which comes with the routines.
+- **A tool that sends a mail or saves an appointment after a question.**
+  Rejected: a question shows a summary, the composer shows the mail — every
+  recipient, the whole text — and lets the user change it. A yes on a card
+  is the tap that answers every other question; Send in the composer is the
+  act the user already knows as sending.
+- **Storing a drafted mail in the mailbox's drafts, or a tentative event at
+  the provider.** Rejected: both are surfaces third parties read — another
+  mail program, a delegate, the provider —, an event with invitees invites
+  when it is created, and neither is taken back by discarding a card.
+- **Telling the draft's list "sent" when Send is pressed.** Rejected: Send
+  queues the message for a few seconds in which it can be taken back, and
+  taking it back drops it. A draft that had left the list by then would be
+  lost with it.
 
 ## Links
 
@@ -432,3 +474,11 @@ a write or an outside effect.
   `packages/ui/src/ai/aiSession.ts`; a skill and the internet: `skillNamesWeb`
   in `packages/core/src/ai/skills/narrowing.ts`; ADR 0023 §3;
   `docs/engineering/AI_Threat_Model.md` (T22, T23).
+- A drafted e-mail and appointment: `draftMail` and `draftEvent` in
+  `packages/ui/src/ai/writeTools.ts`, the draft kinds in
+  `packages/core/src/ai/writes/drafts.ts`, `createDraft` in
+  `packages/ui/src/ai/aiSession.ts`, the hand-over to the calendar in
+  `packages/ui/src/pim/eventSeed.ts`; the desktop's send queue
+  (`apps/desktop/src/services/mail/sendQueue.ts`) and the phone's composer
+  (`apps/mobile/src/services/mail/composeDone.ts`) say when a mail is out;
+  `docs/engineering/AI_Threat_Model.md` (T37).

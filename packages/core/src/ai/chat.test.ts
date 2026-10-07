@@ -154,4 +154,22 @@ describe("system prompt", () => {
     expect(bound).not.toContain(cannot);
     expect(bound).not.toContain("Further tools");
   });
+
+  it("names a draft for the user's mail and calendar where a conversation reaches one — and that it never sends or saves it (plan P5-6)", () => {
+    const base = { language: "English", today: "2026-10-07" };
+    const own = ["search_vault", "find_tools", "call_tool"];
+    const both = assistantSystemPrompt({ ...base, tools: own, more: ["create_note", "draft_mail", "draft_event", "delete_note"] });
+    expect(both).toContain(
+      "You can propose: a draft of something new (a note), a draft for the user's mail or calendar, where one is connected (an e-mail or an appointment) or a plan to delete a note.",
+    );
+    expect(both).toContain("You never send or save an e-mail or an appointment: the user opens the draft in Plainva's own editor, reads it and decides there, so never say that something was sent or entered.");
+    expect(both).toContain("an address the user did not write is pointed out to them");
+    const mail = assistantSystemPrompt({ ...base, tools: own, more: ["draft_mail"] });
+    expect(mail).toContain("You can propose: a draft for the user's mail, where one is connected (an e-mail).");
+    expect(mail).toContain("You never send or save an e-mail:");
+    // A conversation without them is told nothing about mail it cannot draft.
+    const none = assistantSystemPrompt({ ...base, tools: own, more: ["create_note"] });
+    expect(none).not.toContain("You never send or save");
+    expect(none).not.toContain("where one is connected");
+  });
 });

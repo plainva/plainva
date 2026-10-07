@@ -48,6 +48,8 @@
       "create_task": "Brouillon d'une tâche",
       "add_journal_entry": "Brouillon d'une entrée de journal",
       "create_entry": "Brouillon d'une entrée de base de données",
+      "draft_mail": "Brouillon d'un e-mail",
+      "draft_event": "Brouillon d'un événement",
       "rename_note": "Plan de renommage",
       "move_note": "Plan de déplacement",
       "delete_note": "Demande de suppression d'une note"
@@ -1302,12 +1304,16 @@
           "note": "Brouillon · Note",
           "task": "Brouillon · Tâche",
           "journal": "Brouillon · Entrée de journal",
+          "mail": "Brouillon · E-mail",
+          "event": "Brouillon · Événement",
           "entry": "Brouillon · Entrée de base de données"
         },
         "what": {
           "note": "Note",
           "task": "Tâche",
           "journal": "Entrée",
+          "mail": "Objet",
+          "event": "Événement",
           "entry": "Entrée"
         },
         "landsIn": "Va dans",
@@ -1332,6 +1338,26 @@
         "createdToast": "Créé.",
         "failed": "Le brouillon n'a pas pu être créé : {{reason}}",
         "unavailable": "Cela ne peut pas être créé sur cet appareil.",
+        "to": "À",
+        "cc": "Cc",
+        "bcc": "Cci",
+        "when": "Quand",
+        "where": "Lieu",
+        "attendees": "Participants",
+        "allDay": "toute la journée",
+        "unnamedMail": "Non écrites par vous dans cette conversation : {{addresses}}. Vérifiez avant d'envoyer.",
+        "unnamedEvent": "Non écrites par vous dans cette conversation : {{addresses}}. Vérifiez avant d'enregistrer : les participants reçoivent une invitation.",
+        "mailHint": "Rien n'est envoyé d'ici. L'e-mail s'ouvre comme un nouveau message que vous pouvez encore modifier ; l'envoi y est votre geste.",
+        "eventHint": "Rien n'est enregistré d'ici. L'événement s'ouvre dans l'éditeur d'événements ; vous y choisissez le calendrier et enregistrez.",
+        "openMail": "Ouvrir dans Mail",
+        "openEvent": "Ouvrir dans le calendrier",
+        "editorOpen": "« Rédiger un message » est déjà ouvert avec un e-mail. Envoyez-le ou fermez-le d'abord.",
+        "done": {
+          "sent": "Envoyé : {{name}}",
+          "savedMail": "Enregistré comme brouillon d'e-mail : {{name}}",
+          "savedEvent": "Enregistré dans le calendrier : {{name}}",
+          "movedMail": "Déplacé dans sa propre fenêtre : {{name}}"
+        },
         "exists": "Un fichier de ce nom s'y trouve désormais. Abandonnez le brouillon ou renommez le fichier."
       },
       "plan": {

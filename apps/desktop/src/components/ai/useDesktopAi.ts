@@ -13,6 +13,7 @@ import {
   parseTaskCapture,
   getPlatformServices,
   noteDisplayName,
+  requestEventSeed,
   resolveAudioPath,
   setAudioTranscriber,
   setImageExplainer,
@@ -38,7 +39,7 @@ import { providerListLabel, sendTaskToProviderList } from "../../services/pim/ta
 import { AI_OPEN_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, createDesktopVaultHost, getDesktopAiSession, requestWaitingView, type DesktopWriteHost } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { mcpPlans } from "../../services/ai/mcpPlans";
-import { AI_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
+import { AI_TAB_PATH, CALENDAR_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
 
 /**
  * Everything the desktop shell needs from the AI harness in one hook: the
@@ -129,7 +130,8 @@ export function useDesktopAi(input: DesktopAiInput) {
   const journalFiles = useJournalFiles();
   const allComments = useRef(listAllWorkspaceComments);
   const authors = useRef(listWorkspaceMembers);
-  const writeHost = useRef<DesktopWriteHost | null>(null);
+  // The ways that need the vault's adapter and index; opening the composer or the calendar needs neither (see below).
+  const writeHost = useRef<Pick<DesktopWriteHost, "rename" | "move" | "createTask" | "taskList" | "addJournal"> | null>(null);
   useLayoutEffect(() => {
     allComments.current = listAllWorkspaceComments;
     authors.current = listWorkspaceMembers;
@@ -267,6 +269,36 @@ export function useDesktopAi(input: DesktopAiInput) {
         createTask: (text, day, atProvider) => (writeHost.current ? writeHost.current.createTask(text, day, atProvider) : Promise.reject(new Error("no vault"))),
         taskList: async () => (await writeHost.current?.taskList()) ?? null,
         addJournal: (entry) => (writeHost.current ? writeHost.current.addJournal(entry) : Promise.reject(new Error("no vault"))),
+        // A drafted e-mail opens in the window's own composer — the event every "write a mail" of the app sends —,
+        // a drafted appointment in the calendar's event editor (plan P5-6). Nothing is sent or saved by either.
+        // Asked as a cancelable event: a composer that is open keeps its mail and says no, so nothing is lost unseen.
+        openMail: (mail, done) =>
+          window.dispatchEvent(
+            new CustomEvent("plainva-compose-mail", {
+              cancelable: true,
+              detail: { subject: mail.subject, markdown: mail.body, to: mail.to.join(", "), cc: mail.cc.join(", "), bcc: mail.bcc.join(", "), onDone: done },
+            }),
+          ),
+        openEvent: (seed, saved) => {
+          requestEventSeed(seed, saved);
+          latest.current.openView(CALENDAR_TAB_PATH);
+          // The event editor is a dialog of the calendar, and the floating companion would lie over it: it makes
+          // room. The conversation is the same one in the AI tab, and the draft waits in the list either way.
+          setCompanionOpen(false);
+        },
+        // Asked when a draft is laid down or listed, so the mail module loads then and not with the window.
+        mailConnected: async () => {
+          const { listMailAccounts } = await import("@plainva/ui/mail");
+          return (await listMailAccounts(vaultPath).catch(() => [])).length > 0;
+        },
+        // The calendars the event editor offers for a new appointment: shown, not read-only, of an account that is on.
+        calendarWritable: async () => {
+          const cache = pim.current?.cache;
+          if (!cache) return false;
+          const [accounts, calendars] = await Promise.all([cache.listAccounts(), cache.listCalendars()]).catch(() => [[], []] as const);
+          const enabled = new Set(accounts.filter((account) => account.enabled).map((account) => account.id));
+          return calendars.some((calendar) => calendar.selected && !calendar.readOnly && enabled.has(calendar.accountId));
+        },
       },
       listComments: () => allComments.current(),
       authorNames: async () => new Map((await authors.current()).map((member) => [member.memberId, member.displayName])),

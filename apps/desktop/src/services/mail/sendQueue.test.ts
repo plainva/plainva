@@ -15,6 +15,10 @@ const sent: Array<{ to: string; subject: string; from?: string }> = [];
 const drafted: Array<{ mailbox: string; subject: string }> = [];
 const requests: Array<{ kind: string; args: unknown }> = [];
 let role: "owner" | "aux" | "compose" = "owner";
+/** The undo toast's one action, as the queue handed it over. */
+let undo: (() => void) | null = null;
+/** The server refuses the message. */
+let refuse = false;
 
 vi.mock("../windowContext", () => ({
   isOwnerWindow: () => role === "owner",
@@ -30,7 +34,10 @@ vi.mock("../windowBus", () => ({
 
 vi.mock("@plainva/ui", () => ({
   toast: {
-    progress: () => 1,
+    progress: (_text: string, action?: { run: () => void }) => {
+      undo = action?.run ?? null;
+      return 1;
+    },
     dismiss: () => {},
     info: () => {},
     error: () => {},
@@ -54,6 +61,7 @@ vi.mock("@plainva/ui/mail", async () => {
       _bcc: string,
       from?: string,
     ) => {
+      if (refuse) throw new Error("550 mailbox unavailable");
       sent.push({ to, subject, from });
     },
     appendDraft: async (
@@ -84,6 +92,8 @@ beforeEach(() => {
   drafted.length = 0;
   requests.length = 0;
   role = "owner";
+  undo = null;
+  refuse = false;
   vi.useFakeTimers();
 });
 
@@ -123,5 +133,46 @@ describe("where the delayed send lives", () => {
   it("says which account it cannot find rather than sending into nothing", async () => {
     await expect(submitSend({ ...REQ, accountId: "nope" })).rejects.toThrow(/nope/);
     expect(sent).toEqual([]);
+  });
+});
+
+/**
+ * Somebody who keeps the text until it is really out — a draft the assistant
+ * wrote stays in its list until then (AI harness P5-6) — must not be told
+ * "sent" for a message that is only waiting in the queue: "undo send" drops
+ * it, and so does a server that refuses.
+ */
+describe("telling whoever keeps the text that the mail is out", () => {
+  it("tells once the transport took the message — not when it was queued", async () => {
+    let told = 0;
+    await submitSend(REQ, () => told++);
+    expect(told).toBe(0);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(sent).toHaveLength(1);
+    expect(told).toBe(1);
+  });
+
+  it("tells nothing for a send that was taken back, or that the server refused", async () => {
+    let told = 0;
+    await submitSend(REQ, () => told++);
+    expect(undo, "the queue offers the one chance to stop it").not.toBeNull();
+    undo!();
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(sent).toEqual([]);
+    expect(told).toBe(0);
+
+    refuse = true;
+    await submitSend(REQ, () => told++);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(sent).toEqual([]);
+    expect(told).toBe(0);
+  });
+
+  it("tells a window that is not the owner once the owner's queue has the message: a function does not cross windows", async () => {
+    role = "compose";
+    let told = 0;
+    await submitSend(REQ, () => told++);
+    expect(requests).toEqual([{ kind: "mail-send", args: REQ }]);
+    expect(told).toBe(1);
   });
 });

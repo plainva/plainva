@@ -50,6 +50,8 @@
       "create_task": "Przygotowywanie szkicu zadania",
       "add_journal_entry": "Przygotowywanie szkicu wpisu dziennika",
       "create_entry": "Przygotowywanie szkicu wpisu bazy danych",
+      "draft_mail": "Przygotowywanie szkicu e-maila",
+      "draft_event": "Przygotowywanie szkicu wydarzenia",
       "rename_note": "Przedstawianie planu zmiany nazwy",
       "move_note": "Przedstawianie planu przeniesienia",
       "delete_note": "Prośba o usunięcie notatki"
@@ -1333,12 +1335,16 @@
           "note": "Szkic · Notatka",
           "task": "Szkic · Zadanie",
           "journal": "Szkic · Wpis dziennika",
+          "mail": "Szkic · E-mail",
+          "event": "Szkic · Wydarzenie",
           "entry": "Szkic · Wpis bazy danych"
         },
         "what": {
           "note": "Notatka",
           "task": "Zadanie",
           "journal": "Wpis",
+          "mail": "Temat",
+          "event": "Wydarzenie",
           "entry": "Wpis"
         },
         "landsIn": "Trafia do",
@@ -1364,6 +1370,26 @@
         "createdToast": "Utworzono.",
         "failed": "Nie udało się utworzyć szkicu: {{reason}}",
         "unavailable": "Na tym urządzeniu nie da się tego utworzyć.",
+        "to": "Do",
+        "cc": "DW",
+        "bcc": "UDW",
+        "when": "Kiedy",
+        "where": "Miejsce",
+        "attendees": "Uczestnicy",
+        "allDay": "cały dzień",
+        "unnamedMail": "Niewpisane przez Ciebie w tej rozmowie: {{addresses}}. Sprawdź przed wysłaniem.",
+        "unnamedEvent": "Niewpisane przez Ciebie w tej rozmowie: {{addresses}}. Sprawdź przed zapisaniem — uczestnicy dostają zaproszenie.",
+        "mailHint": "Stąd nic nie jest wysyłane. E-mail otwiera się jako nowa wiadomość, którą możesz jeszcze zmienić; wysłanie to tam Twój krok.",
+        "eventHint": "Stąd nic nie jest zapisywane. Wydarzenie otwiera się w edytorze wydarzeń; tam wybierasz kalendarz i zapisujesz.",
+        "openMail": "Otwórz w Poczcie",
+        "openEvent": "Otwórz w Kalendarzu",
+        "editorOpen": "Okno „Napisz wiadomość” jest już otwarte z wiadomością. Najpierw ją wyślij albo zamknij.",
+        "done": {
+          "sent": "Wysłano: {{name}}",
+          "savedMail": "Zapisano jako szkic wiadomości: {{name}}",
+          "savedEvent": "Zapisano w kalendarzu: {{name}}",
+          "movedMail": "Przeniesiono do osobnego okna: {{name}}"
+        },
         "exists": "W tym miejscu jest już plik o tej nazwie. Odrzuć szkic albo zmień nazwę pliku."
       },
       "plan": {

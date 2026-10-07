@@ -37,6 +37,7 @@ import {
   noteRenamePlan,
   transcriptOf,
   type AiVaultHost,
+  type DraftCreator,
   type EffectRequest,
   type OpenProposal,
   type ProposalRound,
@@ -128,7 +129,18 @@ interface Made {
 }
 
 /** A vault whose tools are the real ones, with the writing tools behind them; `skills` are files below `.agent/skills/`. */
-function writeVault(options: { active?: string; skills?: Record<string, string>; sealed?: boolean; creates?: false | "failing"; proposals?: OpenProposal[]; taskList?: string } = {}) {
+function writeVault(
+  options: {
+    active?: string;
+    skills?: Record<string, string>;
+    sealed?: boolean;
+    creates?: false | "failing";
+    proposals?: OpenProposal[];
+    taskList?: string;
+    /** A mail account and a calendar that takes appointments: the shell serves the two drafts that leave the vault (P5-6). */
+    pim?: boolean;
+  } = {},
+) {
   const disk = new Map(Object.entries(options.skills ?? {}));
   // The databases as they are now: a test can change one after a draft was laid down.
   const bases = new Map(Object.entries(NOTES).filter(([path]) => path.endsWith(".base")));
@@ -188,6 +200,15 @@ function writeVault(options: { active?: string; skills?: Record<string, string>;
       return true;
     },
     entryPlace,
+    ...(options.pim ? { pim: { mail: async () => true, calendar: async () => true } } : {}),
+  };
+  /** What the app's own composer and event editor were opened with — and how each tells that the user sent or saved. */
+  const editors = {
+    mails: [] as { mail: Parameters<NonNullable<DraftCreator["mail"]>>[0]; done: Parameters<NonNullable<DraftCreator["mail"]>>[1] }[],
+    events: [] as { seed: Parameters<NonNullable<DraftCreator["event"]>>[0]; done: Parameters<NonNullable<DraftCreator["event"]>>[1] }[],
+    /** The composer is already open with a mail; no calendar takes an appointment. */
+    composerTaken: false,
+    noCalendar: false,
   };
   const deps: VaultToolDeps = {
     search: async () => [],
@@ -249,7 +270,21 @@ function writeVault(options: { active?: string; skills?: Record<string, string>;
             },
             placeDenies: async (folder) => (folder === "Private" ? (["cloud"] as const) : []),
             entryPlace,
-          },
+            ...(options.pim
+              ? {
+                  async mail(mail, done) {
+                    if (editors.composerTaken) return false;
+                    editors.mails.push({ mail, done });
+                    return true;
+                  },
+                  async event(seed, done) {
+                    if (editors.noCalendar) return false;
+                    editors.events.push({ seed, done });
+                    return true;
+                  },
+                }
+              : {}),
+          } satisfies DraftCreator,
         }),
     proposals: async () => options.proposals ?? [],
   };
@@ -257,7 +292,7 @@ function writeVault(options: { active?: string; skills?: Record<string, string>;
   const approve = async (id: string) => {
     approvals = approveInstruction(approvals, (await scanInstruction(io, id))!, "2026-10-07T09:00:00Z", "review");
   };
-  return { host, saved, proposed, acts, created, files, approve, bases };
+  return { host, saved, proposed, acts, created, files, approve, bases, editors };
 }
 
 const CLOUD = { providerId: "anthropic", model: "m-1" };
@@ -527,6 +562,113 @@ describe("a draft of a run", () => {
     expect(second.s.canCreateDrafts()).toBe(false);
     expect(await second.s.createDraft(second.s.getState().drafts.drafts[0]!.id)).toEqual({ kind: "refused", reason: "unavailable" });
     expect(second.s.getState().drafts.drafts).toHaveLength(1);
+  });
+});
+
+describe("an e-mail and an appointment of a run (plan P5-6)", () => {
+  const MAIL = { to: ["a.okafor@example.org"], cc: ["tom@example.org"], subject: "Re: Shooting day", body: "Hello Ms Okafor,\n\nthe 14th is fixed." };
+  const EVENT = { title: "Shooting day", day: "2026-05-14", start: "09:00", end: "17:00", location: "Studio 2", attendees: ["tom@example.org"] };
+  const drafting = () => [turn({ calls: [viaDispatch("c1", "draft_mail", MAIL), viaDispatch("c2", "draft_event", EVENT)] }), turn({ text: "Both wait for you as drafts." })];
+
+  it("are within reach where the shell has mail and calendars, and wait as drafts — nothing was sent, nothing saved", async () => {
+    const vault = writeVault({ pim: true });
+    const { s, fake } = await session(drafting(), vault);
+    expect(await s.send("Tell tom@example.org and Ms Okafor that the 14th is fixed, and put the shooting day into my calendar.")).toEqual({ kind: "answered" });
+    // Never in the conversation's own list: found through the tool search, like every writing tool — and it is told what such a draft is.
+    expect(toolNames(fake.sent[0])).not.toContain("draft_mail");
+    expect(s.getState().active!.conversation.more).toEqual([...WRITE_TOOLS.slice(0, 6), "draft_mail", "draft_event", ...WRITE_TOOLS.slice(6)]);
+    expect(body(fake.sent[0])).toContain("a draft for the user's mail or calendar, where one is connected (an e-mail or an appointment)");
+    expect(body(fake.sent[0])).toContain("You never send or save an e-mail or an appointment");
+    const [mail, event] = s.getState().drafts.drafts;
+    expect(mail).toMatchObject({
+      title: "Re: Shooting day",
+      author: { id: "plainva-ai/m-1" },
+      // Tom's address the user wrote; Ms Okafor's the model brought.
+      body: { kind: "mail", to: ["a.okafor@example.org"], cc: ["tom@example.org"], bcc: [], subject: "Re: Shooting day", body: "Hello Ms Okafor,\n\nthe 14th is fixed.", unnamed: ["a.okafor@example.org"] },
+      // A mail and an appointment carry no rule and name no source: they are no notes.
+      inherited: [],
+      sources: [],
+    });
+    expect(event).toMatchObject({ title: "Shooting day", body: { kind: "event", allDay: false, day: "2026-05-14", start: "09:00", end: "17:00", location: "Studio 2", attendees: ["tom@example.org"], unnamed: [] } });
+    expect(s.getState().active!.runs[0]!.writes!.drafts.map((entry) => entry.kind)).toEqual(["mail", "event"]);
+    expect(results(s.getState().active!).map((result) => result.content)).toEqual([
+      WRITE_RESULTS.draftedOut('an e-mail "Re: Shooting day" to 2 recipients', "mail composer", 1, 0),
+      WRITE_RESULTS.draftedOut('an appointment "Shooting day" on 2026-05-14 09:00–17:00 with 1 invitee', "event editor", 0, 0),
+    ]);
+    expect([vault.editors.mails, vault.editors.events, vault.created]).toEqual([[], [], []]);
+  });
+
+  it("open in the app's own composer and stay in the list until the mail was sent — a composer that is just closed changes nothing", async () => {
+    const vault = writeVault({ pim: true });
+    const { s, fake } = await session(drafting(), vault);
+    await s.send("Tell tom@example.org and Ms Okafor that the 14th is fixed, and put the shooting day into my calendar.");
+    const [mail] = s.getState().drafts.drafts;
+    const sentBefore = fake.sent.length;
+    expect(await s.createDraft(mail!.id)).toEqual({ kind: "opened" });
+    // The composer got every recipient and the whole text; no model was asked for anything, and nothing was "created".
+    expect(vault.editors.mails.map((entry) => entry.mail)).toEqual([{ to: ["a.okafor@example.org"], cc: ["tom@example.org"], bcc: [], subject: "Re: Shooting day", body: "Hello Ms Okafor,\n\nthe 14th is fixed." }]);
+    expect(fake.sent).toHaveLength(sentBefore);
+    expect(vault.created).toEqual([]);
+    // Still waiting: the composer is open, and closing it would lose nothing.
+    expect(s.getState().drafts.drafts.map((draft) => draft.id)).toContain(mail!.id);
+    expect(s.getState().drafts.done).toEqual([]);
+    // While it is open with this mail, another one is not opened over it.
+    vault.editors.composerTaken = true;
+    expect(await s.createDraft(mail!.id)).toEqual({ kind: "refused", reason: "editor-open" });
+    expect(s.getState().drafts.drafts.map((draft) => draft.id)).toContain(mail!.id);
+    // The user sent it: now the draft is gone, and what became of it is kept.
+    vault.editors.mails[0]!.done("sent");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(s.getState().drafts.drafts.map((draft) => draft.id)).not.toContain(mail!.id);
+    expect(s.getState().drafts.done).toEqual([{ id: mail!.id, kind: "mail", title: "Re: Shooting day", outcome: "sent", at: "2026-10-07T10:00:00.000Z" }]);
+    // Told twice, it counts once.
+    vault.editors.mails[0]!.done("saved");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(s.getState().drafts.done.map((outcome) => outcome.outcome)).toEqual(["sent"]);
+  });
+
+  it("open in the event editor and leave the list once the calendar took the appointment — or stay where no calendar takes one", async () => {
+    const vault = writeVault({ pim: true });
+    const { s } = await session(drafting(), vault);
+    await s.send("Tell tom@example.org and Ms Okafor that the 14th is fixed, and put the shooting day into my calendar.");
+    const event = s.getState().drafts.drafts[1]!;
+    vault.editors.noCalendar = true;
+    expect(await s.createDraft(event.id)).toEqual({ kind: "refused", reason: "no-calendar" });
+    expect(s.getState().drafts.drafts).toHaveLength(2);
+    vault.editors.noCalendar = false;
+    expect(await s.createDraft(event.id)).toEqual({ kind: "opened" });
+    expect(vault.editors.events.map((entry) => entry.seed)).toEqual([
+      { title: "Shooting day", allDay: false, day: "2026-05-14", endDay: "2026-05-14", start: "09:00", end: "17:00", location: "Studio 2", description: "", attendees: ["tom@example.org"] },
+    ]);
+    expect(s.getState().drafts.drafts).toHaveLength(2);
+    vault.editors.events[0]!.done();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(s.getState().drafts.drafts.map((draft) => draft.body.kind)).toEqual(["mail"]);
+    expect(s.getState().drafts.done).toEqual([{ id: event.id, kind: "event", title: "Shooting day", outcome: "saved", at: "2026-10-07T10:00:00.000Z" }]);
+    // Thrown away, a mail is discarded like every draft.
+    await s.discardDraft(s.getState().drafts.drafts[0]!.id);
+    expect(s.getState().drafts.done.map((outcome) => `${outcome.kind}:${outcome.outcome}`)).toEqual(["event:saved", "mail:discarded"]);
+  });
+
+  it("are not offered by a shell without mail and calendars, and not drafted from a conversation that read a restricted note", async () => {
+    const bare = writeVault();
+    const first = await session(drafting(), bare);
+    await first.s.send("Mail Ms Okafor.");
+    // Such a shell has no tool of that name at all: nothing in the list, nothing said about mail, and a call finds nothing to run.
+    expect(first.s.getState().active!.conversation.more).toEqual(WRITE_TOOLS);
+    expect(body(first.fake.sent[0])).not.toContain("You never send or save");
+    expect(results(first.s.getState().active!).map((result) => result.content)).toEqual([
+      'No tool "draft_mail" can be called here. find_tools lists what there is.',
+      'No tool "draft_event" can be called here. find_tools lists what there is.',
+    ]);
+    expect(first.s.getState().drafts.drafts).toEqual([]);
+
+    // A model on this computer read a note kept from the cloud: what it knows of it does not leave the vault as a mail.
+    const vault = writeVault({ pim: true });
+    const second = await session([chat({ calls: [{ id: "c1", name: "read_note", args: { path: "Private/Client.md" } }] }), chat({ calls: [viaDispatch("c2", "draft_mail", MAIL)] }), chat({ text: "I cannot draft that." })], vault, LOCAL);
+    await second.s.send("Mail Ms Okafor what the client note says.");
+    expect(results(second.s.getState().active!).slice(-1)[0]!.content).toBe(WRITE_REFUSALS["restricted-out"]);
+    expect(second.s.getState().drafts.drafts).toEqual([]);
   });
 
   it("makes a drafted entry a note in the database's folder: the tag its source asks for, the properties the draft names, and who wrote it", async () => {

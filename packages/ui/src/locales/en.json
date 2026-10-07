@@ -46,6 +46,8 @@
       "create_task": "Drafting a task",
       "add_journal_entry": "Drafting a journal entry",
       "create_entry": "Drafting a database entry",
+      "draft_mail": "Drafting an e-mail",
+      "draft_event": "Drafting an event",
       "rename_note": "Laying out a plan to rename",
       "move_note": "Laying out a plan to move",
       "delete_note": "Asking to delete a note"
@@ -1271,12 +1273,16 @@
           "note": "Draft · Note",
           "task": "Draft · Task",
           "journal": "Draft · Journal entry",
+          "mail": "Draft · E-mail",
+          "event": "Draft · Event",
           "entry": "Draft · Database entry"
         },
         "what": {
           "note": "Note",
           "task": "Task",
           "journal": "Entry",
+          "mail": "Subject",
+          "event": "Event",
           "entry": "Entry"
         },
         "landsIn": "Goes into",
@@ -1300,6 +1306,26 @@
         "createdToast": "Created.",
         "failed": "The draft could not be created: {{reason}}",
         "unavailable": "This cannot be created on this device.",
+        "to": "To",
+        "cc": "Cc",
+        "bcc": "Bcc",
+        "when": "When",
+        "where": "Where",
+        "attendees": "Attendees",
+        "allDay": "all day",
+        "unnamedMail": "Not written by you in this conversation: {{addresses}}. Check before you send.",
+        "unnamedEvent": "Not written by you in this conversation: {{addresses}}. Check before you save — attendees get an invitation.",
+        "mailHint": "Nothing is sent from here. The mail opens as a new message that you can still change, and sending is your step there.",
+        "eventHint": "Nothing is saved from here. The event opens in the event editor, where you choose the calendar and save.",
+        "openMail": "Open in Mail",
+        "openEvent": "Open in Calendar",
+        "editorOpen": "“Compose message” is already open with an e-mail. Send or close that one first.",
+        "done": {
+          "sent": "Sent: {{name}}",
+          "savedMail": "Saved as a mail draft: {{name}}",
+          "savedEvent": "Saved to the calendar: {{name}}",
+          "movedMail": "Moved to its own window: {{name}}"
+        },
         "exists": "A file of this name is there by now. Discard the draft, or rename the file."
       },
       "plan": {

@@ -15,6 +15,7 @@ import { migrateFiltersToPerView } from "../base/filterExpr";
 import { buildNewItemContent } from "../lib/newItemContent";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { generatedStamp } from "../lib/okfProvenance";
+import type { EventSeed } from "../pim/eventSeed";
 import { capturedFolder, withInheritedRules } from "./aiCapture";
 import type { AiFileStore } from "./aiStores";
 
@@ -87,6 +88,26 @@ export interface DraftCreator {
    * Absent where the shell hosts no writer that names files.
    */
   noteAt?(input: { path: string; content: string }): Promise<string | null>;
+  /**
+   * Opens the app's own mail composer with this e-mail filled in (plan P5-6).
+   * Nothing is sent and nothing is stored at a provider: sending is the
+   * user's own step there. `done` is called once, when the user took it —
+   * the transport took the mail (`sent`: after the undo window, so a send
+   * that is taken back or refused calls nothing), it was saved as a draft at
+   * its account, or it moved to a window of its own (`opened`) —, and never
+   * when the composer is just closed: the draft then stays where it was.
+   * Resolves with false where the composer is already open with a mail —
+   * nothing was replaced. Absent where the shell has no mail.
+   */
+  mail?(input: { to: string[]; cc: string[]; bcc: string[]; subject: string; body: string }, done: (how: "sent" | "saved" | "opened") => void): Promise<boolean>;
+  /**
+   * Opens the app's own event editor with this appointment filled in (plan
+   * P5-6). Nothing is saved: the user chooses the calendar and saves there,
+   * and `done` is called once when they did. Resolves with false where no
+   * calendar takes an appointment right now — the editor would have nowhere
+   * to save to. Absent where the shell has no calendars.
+   */
+  event?(input: EventSeed, done: () => void): Promise<boolean>;
   /**
    * A task from the words it was asked for in, read with `day` as "today".
    * `atProvider`: also at the provider list the task database names — the
@@ -234,8 +255,10 @@ export function machineProposals(byPath: ReadonlyMap<string, readonly WorkspaceC
 }
 
 /** What a draft says of itself in one line, for a list: its kind's own detail. */
-export function draftDetail(draft: WriteDraft): { folder: string | null; lines: number } | { day: string; time?: string } | { base: string } {
+export function draftDetail(draft: WriteDraft): { folder: string | null; lines: number } | { day: string; time?: string } | { base: string } | Record<string, never> {
   const body = draft.body;
+  // An e-mail and an appointment say what they are in rows of their own (plan P5-6).
+  if (body.kind === "mail" || body.kind === "event") return {};
   if (body.kind === "note") return { folder: body.path ? body.path.slice(0, Math.max(0, body.path.lastIndexOf("/"))) : body.folder, lines: body.content.split("\n").filter((line) => line.trim()).length };
   if (body.kind === "entry") return { base: body.base };
   return body.kind === "journal" ? { day: body.day, time: body.time } : { day: body.day };

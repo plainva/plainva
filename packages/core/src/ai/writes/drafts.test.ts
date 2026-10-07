@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { acpAuthorId } from "../acp/agents.js";
 import { assistantAuthorId, machineAuthorId, machineAuthorKind, machineAuthorSubject, mcpAuthorId } from "./authors.js";
 import {
+  OPENED_DRAFT_KINDS,
   WRITE_DRAFT_DONE_CAP,
   WRITE_DRAFT_LIMITS,
+  draftEndsOf,
+  isCivilDay,
+  isClockTime,
+  isDraftAddress,
   parseWriteDraft,
   parseWriteDraftOutcomes,
   parseWriteDrafts,
@@ -182,5 +187,122 @@ describe("what became of a draft", () => {
     const back = parseWriteDraftOutcomes(JSON.parse(JSON.stringify(serializeWriteDrafts([], many))));
     expect(back).toHaveLength(WRITE_DRAFT_DONE_CAP);
     expect(back[0]!.id).toBe("d-000002");
+  });
+});
+
+describe("an e-mail and an appointment as drafts", () => {
+  const mail = (over: Record<string, unknown> = {}) => ({ kind: "mail", to: ["anna@example.org"], cc: [], bcc: [], subject: "Roof", body: "Hello Anna", unnamed: [], ...over });
+  const event = (over: Record<string, unknown> = {}) => ({
+    kind: "event",
+    title: "Roofer on site",
+    allDay: false,
+    day: "2026-10-14",
+    endDay: "2026-10-14",
+    start: "09:00",
+    end: "10:30",
+    location: "Main street 4",
+    description: "Bring the plan.",
+    attendees: ["tom@example.org"],
+    unnamed: [],
+    ...over,
+  });
+  const body = (raw: unknown) => parseWriteDraft({ ...draft(), body: raw })?.body ?? null;
+
+  it("reads both back as they were laid down", () => {
+    // Laid down one after the other: the list keeps that order.
+    const drafts = [
+      draft({ id: "d-mail01", createdAt: "2026-10-07T09:00:00.000Z", title: "Roof", body: mail() as WriteDraft["body"] }),
+      draft({ id: "d-event1", createdAt: "2026-10-07T09:00:01.000Z", title: "Roofer on site", body: event() as WriteDraft["body"] }),
+    ];
+    expect(parseWriteDrafts(JSON.parse(JSON.stringify(serializeWriteDrafts(drafts))))).toEqual(drafts);
+  });
+
+  it("takes an address only as one plain address — nothing a header or a list could be made of", () => {
+    for (const address of ["anna@example.org", "a.b+c@sub.example.co.uk", "ÄNNA@exämple.org"]) expect(isDraftAddress(address), address).toBe(true);
+    for (const address of [
+      "anna",
+      "anna@example",
+      "@example.org",
+      "anna@",
+      "Anna <anna@example.org>",
+      "anna@example.org, tom@example.org",
+      "anna@example.org;tom@example.org",
+      "anna@example.org\nBcc: eve@example.org",
+      " anna@example.org",
+      "anna @example.org",
+      "anna@exa mple.org",
+      "anna@@example.org",
+      "mailto:anna@example.org",
+      `${"a".repeat(320)}@example.org`,
+      42,
+      null,
+    ])
+      expect(isDraftAddress(address), String(address)).toBe(false);
+    expect(body(mail({ to: ["Anna <anna@example.org>"] }))).toBeNull();
+    expect(body(mail({ cc: "anna@example.org" }))).toBeNull();
+    expect(body(mail({ bcc: Array.from({ length: WRITE_DRAFT_LIMITS.recipients + 1 }, (_, index) => `p${index}@example.org`) }))).toBeNull();
+    // Twice the same counts once.
+    expect(body(mail({ to: ["anna@example.org", "anna@example.org"] }))).toMatchObject({ to: ["anna@example.org"] });
+  });
+
+  it("is no mail without anything to say or anybody to say it to — and one with either", () => {
+    expect(body(mail({ to: [], subject: " ", body: "" }))).toBeNull();
+    expect(body(mail({ to: [], subject: "Roof", body: "" }))).toMatchObject({ kind: "mail", to: [], subject: "Roof" });
+    expect(body(mail({ subject: "", body: "" }))).toMatchObject({ kind: "mail", to: ["anna@example.org"] });
+    expect(body(mail({ subject: "x".repeat(WRITE_DRAFT_LIMITS.subject + 1) }))).toBeNull();
+  });
+
+  it("warns only about somebody the mail goes to, or the appointment invites", () => {
+    expect(body(mail({ cc: ["tom@example.org"], unnamed: ["tom@example.org", "eve@example.org"] }))).toMatchObject({ unnamed: ["tom@example.org"] });
+    expect(body(mail({ unnamed: "anna@example.org" }))).toMatchObject({ unnamed: [] });
+    expect(body(event({ unnamed: ["tom@example.org", "anna@example.org"] }))).toMatchObject({ unnamed: ["tom@example.org"] });
+  });
+
+  it("reads a day that exists and a time of the clock, and nothing else", () => {
+    for (const day of ["2026-10-14", "2028-02-29"]) expect(isCivilDay(day), day).toBe(true);
+    for (const day of ["2026-02-30", "2026-13-01", "2026-10-1", "14.10.2026", "tomorrow", "", 20261014]) expect(isCivilDay(day), String(day)).toBe(false);
+    for (const time of ["00:00", "09:05", "23:59"]) expect(isClockTime(time), time).toBe(true);
+    for (const time of ["24:00", "9:05", "09:60", "9 am", "", 900]) expect(isClockTime(time), String(time)).toBe(false);
+  });
+
+  it("is no appointment without a title, on a day that is none, or one that ends before it begins", () => {
+    expect(body(event({ title: " " }))).toBeNull();
+    expect(body(event({ day: "2026-02-30" }))).toBeNull();
+    expect(body(event({ start: "9:00" }))).toBeNull();
+    expect(body(event({ end: "09:00" }))).toBeNull();
+    expect(body(event({ end: "08:00" }))).toBeNull();
+    expect(body(event({ attendees: ["tom"] }))).toBeNull();
+    expect(body(event({ location: "x".repeat(WRITE_DRAFT_LIMITS.place + 1) }))).toBeNull();
+  });
+
+  it("gives an all-day appointment its days and no times; it ends on its own day or later", () => {
+    expect(body(event({ allDay: true, endDay: "2026-10-16", start: "09:00", end: "10:00" }))).toMatchObject({ allDay: true, day: "2026-10-14", endDay: "2026-10-16", start: "", end: "" });
+    expect(body(event({ allDay: true, endDay: "2026-10-01" }))).toMatchObject({ endDay: "2026-10-14" });
+    expect(body(event({ allDay: true, endDay: "soon" }))).toMatchObject({ endDay: "2026-10-14" });
+    // A timed one is on one day, whatever was written beside it.
+    expect(body(event({ endDay: "2026-10-20" }))).toMatchObject({ allDay: false, endDay: "2026-10-14" });
+  });
+
+  it("ends where the user took the step in the app's own editor — never as something that was created", () => {
+    expect(OPENED_DRAFT_KINDS).toEqual(["mail", "event"]);
+    expect(draftEndsOf("mail")).toEqual(["discarded", "sent", "saved", "opened"]);
+    expect(draftEndsOf("event")).toEqual(["discarded", "saved"]);
+    for (const kind of ["note", "task", "journal", "entry"] as const) expect(draftEndsOf(kind), kind).toEqual(["discarded", "created"]);
+    const at = "2026-10-07T09:05:00.000Z";
+    const stored = {
+      version: 1,
+      done: [
+        { id: "d-sent01", kind: "mail", title: "Roof", outcome: "sent", at },
+        { id: "d-saved1", kind: "mail", title: "Roof", outcome: "saved", at },
+        { id: "d-moved1", kind: "mail", title: "Roof", outcome: "opened", at },
+        { id: "d-event1", kind: "event", title: "Roofer", outcome: "saved", at },
+        // Ends these kinds cannot have: a mail that was "created", an appointment that was "sent", a note that was "saved".
+        { id: "d-wrong1", kind: "mail", title: "Roof", outcome: "created", at },
+        { id: "d-wrong2", kind: "event", title: "Roofer", outcome: "sent", at },
+        { id: "d-wrong3", kind: "event", title: "Roofer", outcome: "opened", at },
+        { id: "d-wrong4", kind: "note", title: "Roof plan", outcome: "saved", at },
+      ],
+    };
+    expect(parseWriteDraftOutcomes(stored).map((outcome) => `${outcome.id}:${outcome.outcome}`)).toEqual(["d-event1:saved", "d-moved1:opened", "d-saved1:saved", "d-sent01:sent"]);
   });
 });

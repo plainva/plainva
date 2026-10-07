@@ -773,7 +773,7 @@ export default function App() {
           vault={vault}
         />
       )}
-      <MobileAiShell ai={ai} nav={{ openNote, openSearch: () => push({ kind: "search", path: "" }), openSettings: () => push({ kind: "settingsArea", path: "ai" }), commands }} onOpenNote={(target) => openAiNoteTarget(vault, target, openNote)} onOpenScreen={() => setNav((s) => (slots.includes("ai") ? tapTab(s, "ai") : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY.ai)))} />
+      <MobileAiShell ai={ai} nav={{ openNote, openSearch: () => push({ kind: "search", path: "" }), openSettings: () => push({ kind: "settingsArea", path: "ai" }), openMailDraft: (mail) => { ai.closeSheet(); push({ kind: "mailcompose", path: JSON.stringify({ accountId: "", ...mail }) }); }, openEventEditor: () => { ai.closeSheet(); void tabTapped("today", setNav); }, commands }} onOpenNote={(target) => openAiNoteTarget(vault, target, openNote)} onOpenScreen={() => setNav((s) => (slots.includes("ai") ? tapTab(s, "ai") : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY.ai)))} />
       {fromTemplate && (
         <TemplatePickSheet
           onClose={() => setFromTemplate(false)}

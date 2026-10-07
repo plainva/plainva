@@ -330,6 +330,9 @@ const VERBATIM_ALLOWED = new Set<string>([
   "ai.web.settings.title",
   // A reserved example domain as the field's placeholder: an address, not a word.
   "ai.web.settings.sitePlaceholder",
+  // The Cc row on the card of a drafted mail (plan KI-Harness P5-6): the abbreviation the composer's own row
+  // carries (`mail.cc`, below) — "Cc" in every Latin-script language but pl, and in ja.
+  "ai.write.draft.cc",
   // Two placeholders and a separator; there is no word in it to translate.
   "background.trayNextInVault",
   // The artifact kind and the worker's raw sentence, joined by a colon - the
@@ -418,7 +421,7 @@ const VERBATIM_ALLOWED = new Set<string>([
   "workspaceSecurity.ruleField.tag",
   "workspaceSecurity.slice",
   "workspaceSecurity.slices",
-// count: 80
+// count: 81
 ]);
 
 describe("verbatim English carry-over (D8)", () => {

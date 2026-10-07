@@ -22,7 +22,18 @@ export interface MailRef {
 export function parseDraft(path: string): MailDraft {
   try {
     const d = JSON.parse(path) as Partial<MailDraft>;
-    return { accountId: d.accountId ?? "", to: d.to ?? "", subject: d.subject ?? "", body: d.body ?? "" };
+    const line = (value: unknown) => (typeof value === "string" ? value : "");
+    // Cc, Bcc and the token of whoever waits to hear that the mail was sent ride along where the draft names them
+    // (AI harness P5-6): a mail the assistant drafted.
+    return {
+      accountId: d.accountId ?? "",
+      to: d.to ?? "",
+      subject: d.subject ?? "",
+      body: d.body ?? "",
+      ...(line(d.cc) ? { cc: line(d.cc) } : {}),
+      ...(line(d.bcc) ? { bcc: line(d.bcc) } : {}),
+      ...(line(d.doneToken) ? { doneToken: line(d.doneToken) } : {}),
+    };
   } catch {
     return { accountId: "", to: "", subject: "", body: "" };
   }

@@ -800,6 +800,142 @@ describe("a rename, a move and a deletion are a question", () => {
   });
 });
 
+describe("an e-mail and an appointment are drafts that send and save nothing", () => {
+  /** A shell with a mail account and a calendar that takes appointments. */
+  const PIM: Partial<VaultWriteDeps> = { pim: { mail: async () => true, calendar: async () => true } };
+  const mailOf = (w: ReturnType<typeof writer>, index = 0) => w.drafts[index]!.body as Extract<WriteDraftBody, { kind: "mail" }>;
+
+  it("drafts a mail with every recipient as one plain address — the answer repeats no word of it", async () => {
+    const v = vault(PIM);
+    const w = writer({ userTexts: () => ["Write to anna@example.org about the roof."] });
+    const result = await call(v, w.run, "draft_mail", { to: ["anna@example.org", "Anna@Example.org"], cc: ["tom@example.org"], subject: "  The roof\n ", body: "Hello Anna,\n\nthe roofer comes on Monday.\n" });
+    // Two recipients: the same address in another case counts once. One of them the user did not write.
+    expect(result).toEqual({ content: WRITE_RESULTS.draftedOut('an e-mail "The roof" to 2 recipients', "mail composer", 1, 0) });
+    expect(result.content).toContain("Nothing was sent or saved.");
+    expect(result.content).not.toContain("Monday");
+    expect(w.drafts).toEqual([
+      { title: "The roof", body: { kind: "mail", to: ["anna@example.org"], cc: ["tom@example.org"], bcc: [], subject: "The roof", body: "Hello Anna,\n\nthe roofer comes on Monday.", unnamed: ["tom@example.org"] }, defused: 0 },
+    ]);
+    expect(w.run.writes.drafts).toEqual([{ id: "d-1", kind: "mail", title: "The roof" }]);
+    // Nothing else happened: no round, no act of the app.
+    expect([v.proposed, v.acts, w.asked]).toEqual([[], [], []]);
+  });
+
+  it("tells an address the user wrote from one that only ends or begins like it", async () => {
+    const v = vault(PIM);
+    const w = writer({ userTexts: () => ["Mail joanna@example.org and tom@example.org. Not tom@example.org.uk."] });
+    await call(v, w.run, "draft_mail", { to: ["anna@example.org", "tom@example.org", "tom@example.org.uk", "JOANNA@example.org"], subject: "x" });
+    // "anna@…" is the tail of "joanna@…": the user never wrote it. A full stop behind an address ends a sentence.
+    expect(mailOf(w).unnamed).toEqual(["anna@example.org"]);
+  });
+
+  it("makes an address the model brought into the text inert, and leaves the user's own alone", async () => {
+    const v = vault(PIM);
+    const w = writer({ userTexts: () => ["Send https://example.org/plan to anna@example.org"] });
+    const result = await call(v, w.run, "draft_mail", { to: ["anna@example.org"], subject: "Plan", body: "See https://example.org/plan and https://evil.example/p?d=secret." });
+    expect(mailOf(w).body).toContain("https://example.org/plan");
+    expect(mailOf(w).body).toContain("https[://]evil.example/p?d=secret");
+    expect(mailOf(w).body).not.toContain("https://evil.example");
+    expect(w.drafts[0]!.defused).toBe(1);
+    expect(result.content).toContain("made inert");
+  });
+
+  it("says in one of its own sentences why a mail is not drafted", async () => {
+    const v = vault(PIM);
+    const w = writer();
+    expect(await call(v, w.run, "draft_mail", { to: ["Anna <anna@example.org>"], subject: "x" })).toEqual(refused("bad-address"));
+    expect(await call(v, w.run, "draft_mail", { to: ["anna@example.org, tom@example.org"], subject: "x" })).toEqual(refused("bad-address"));
+    expect(await call(v, w.run, "draft_mail", { bcc: ["anna@example.org\nCc: eve@example.org"], subject: "x" })).toEqual(refused("bad-address"));
+    expect(await call(v, w.run, "draft_mail", { to: ["anna@example.org"], subject: " ", body: " " })).toEqual(refused("empty"));
+    expect(w.drafts).toEqual([]);
+    // No account is connected: there is no mail to draft. A shell without mail at all answers the same.
+    expect(await call(vault({ pim: { mail: async () => false, calendar: async () => true } }), w.run, "draft_mail", { subject: "x" })).toEqual(refused("no-mail"));
+    expect(await call(vault(), w.run, "draft_mail", { subject: "x" })).toEqual(refused("no-mail"));
+    const full = writer({ draft: async () => ({ ok: false, problem: "full" }) });
+    expect(await call(v, full.run, "draft_mail", { subject: "x" })).toEqual(refused("full"));
+  });
+
+  it("drafts neither from a conversation that read a note kept from the cloud or the internet: it would leave the vault", async () => {
+    const v = vault(PIM);
+    const w = writer({ inherited: async () => ["cloud"] });
+    expect(await call(v, w.run, "draft_mail", { to: ["anna@example.org"], subject: "x" })).toEqual(refused("restricted-out"));
+    expect(await call(v, w.run, "draft_event", { title: "Roofer", day: "2026-10-14", start: "09:00" })).toEqual(refused("restricted-out"));
+    expect(w.drafts).toEqual([]);
+  });
+
+  it("drafts an appointment on a day between two times, or for whole days — and says whom the user did not name", async () => {
+    const v = vault(PIM);
+    const w = writer({ userTexts: () => ["Invite tom@example.org"] });
+    const timed = await call(v, w.run, "draft_event", {
+      title: " Roofer on site ",
+      day: "2026-10-14",
+      start: "09:00",
+      location: "Main street 4",
+      description: "Bring the plan.",
+      attendees: ["tom@example.org", "eve@example.org"],
+    });
+    // Without an end it runs an hour, as a slot the user taps does.
+    expect(timed).toEqual({ content: WRITE_RESULTS.draftedOut('an appointment "Roofer on site" on 2026-10-14 09:00–10:00 with 2 invitees', "event editor", 1, 0) });
+    const days = await call(v, w.run, "draft_event", { title: "Holiday", day: "2026-12-24", all_day: true, end_day: "2026-12-26" });
+    expect(days).toEqual({ content: WRITE_RESULTS.draftedOut('an appointment "Holiday" on 2026-12-24 to 2026-12-26, all day', "event editor", 0, 0) });
+    expect(w.drafts.map((draft) => draft.body)).toEqual([
+      { kind: "event", title: "Roofer on site", allDay: false, day: "2026-10-14", endDay: "2026-10-14", start: "09:00", end: "10:00", location: "Main street 4", description: "Bring the plan.", attendees: ["tom@example.org", "eve@example.org"], unnamed: ["eve@example.org"] },
+      { kind: "event", title: "Holiday", allDay: true, day: "2026-12-24", endDay: "2026-12-26", start: "", end: "", location: "", description: "", attendees: [], unnamed: [] },
+    ]);
+    expect(w.run.writes.drafts.map((draft) => draft.kind)).toEqual(["event", "event"]);
+    expect([v.proposed, v.acts, w.asked]).toEqual([[], [], []]);
+  });
+
+  it("reads a day and a time strictly: what cannot be read is refused, never guessed", async () => {
+    const v = vault(PIM);
+    const w = writer();
+    const unreadable: Record<string, unknown>[] = [
+      { title: "x", day: "2026-10-1x", start: "09:00" },
+      { title: "x", day: "2026-02-30", start: "09:00" },
+      // A timed appointment needs its start.
+      { title: "x", day: "2026-10-14" },
+      { title: "x", day: "2026-10-14", start: "9" },
+      { title: "x", day: "2026-10-14", start: "09:00", end: "08:00" },
+      { title: "x", day: "2026-10-14", start: "09:00", end: "25:00" },
+      { title: "x", day: "2026-10-14", all_day: true, end_day: "2026-10-01" },
+    ];
+    for (const args of unreadable) expect(await call(v, w.run, "draft_event", args), JSON.stringify(args)).toEqual(refused("bad-time"));
+    expect(await call(v, w.run, "draft_event", { title: " ", day: "2026-10-14", start: "09:00" })).toEqual(refused("no-title"));
+    expect(await call(v, w.run, "draft_event", { title: "x", day: "2026-10-14", start: "09:00", attendees: ["tom"] })).toEqual(refused("bad-address"));
+    expect(w.drafts).toEqual([]);
+    // It ends on its own day: late in the evening the hour is cut at midnight.
+    expect(await call(v, w.run, "draft_event", { title: "x", day: "2026-10-14", start: "23:30" })).toEqual({ content: WRITE_RESULTS.draftedOut('an appointment "x" on 2026-10-14 23:30–23:59', "event editor", 0, 0) });
+    // No calendar takes an appointment.
+    expect(await call(vault({ pim: { mail: async () => true, calendar: async () => false } }), w.run, "draft_event", { title: "x", day: "2026-10-14", start: "09:00" })).toEqual(refused("no-calendar"));
+  });
+
+  it("is offered through the tool search only where a draft has somewhere to go", async () => {
+    // A shell without mail and calendars does not name them at all.
+    expect(writeToolNames(vault().deps.writes)).not.toContain("draft_mail");
+    expect(writeToolNames(vault(PIM).deps.writes)).toEqual(["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry", "draft_mail", "draft_event", "rename_note", "move_note", "delete_note"]);
+    const found = async (pim: VaultWriteDeps["pim"]) => {
+      const v = vault({ pim });
+      const more = furtherToolNames(v.deps);
+      const result = await createVaultToolExecutor(v.deps, { recipient: cloud, webTools: false }, undefined, undefined, { more }, writer().run).execute(toolByName("find_tools")!, { query: "draft" }, { type: "tool_call", id: "c1", name: "find_tools", args: {} });
+      return ["draft_mail", "draft_event"].filter((name) => result.content.includes(name));
+    };
+    expect(await found({ mail: async () => true, calendar: async () => true })).toEqual(["draft_mail", "draft_event"]);
+    // A mail account but no calendar that takes an appointment — and the other way round.
+    expect(await found({ mail: async () => true, calendar: async () => false })).toEqual(["draft_mail"]);
+    expect(await found({ mail: async () => false, calendar: async () => true })).toEqual(["draft_event"]);
+    expect(await found({ mail: async () => false, calendar: async () => { throw new Error("offline"); } })).toEqual([]);
+  });
+
+  it("is refused like every write inside an encrypted workspace, and where nobody is there to decide", async () => {
+    const sealed = vault({ ...PIM, sealed: () => true });
+    const w = writer();
+    expect(await call(sealed, w.run, "draft_mail", { subject: "x" })).toEqual(refused("sealed"));
+    expect(await call(sealed, w.run, "draft_event", { title: "x", day: "2026-10-14", start: "09:00" })).toEqual(refused("sealed"));
+    expect(await call(vault(PIM), undefined, "draft_mail", { subject: "x" })).toEqual(refused("nobody"));
+    expect(w.drafts).toEqual([]);
+  });
+});
+
 describe("where nothing is written at all", () => {
   const every: [string, Record<string, unknown>][] = [
     ["propose_edit", { path: "Projects/Offer.md", append: "x" }],

@@ -708,11 +708,18 @@ export type FilterWordsOutcome =
 export type DraftOutcome =
   | { kind: "created"; path: string }
   /**
+   * An e-mail or an appointment: the app's own composer or event editor is open with it. Nothing was sent or saved,
+   * and the draft waits on until the user sends or saves there.
+   */
+  | { kind: "opened" }
+  /**
    * `unavailable`: this shell cannot make that kind of thing. `gone`: the draft is not there any more.
    * `no-entry-folder`: the database an entry was drafted for has no folder for new entries (yet, or any more).
    * `exists`: the draft names its own file, and a file of that name is there by now — nothing is written over.
+   * `editor-open`: the mail composer is already open with a mail, this one or another — it keeps what it has, and the draft stays.
+   * `no-calendar`: no calendar takes an appointment right now — the event editor would have nowhere to save to.
    */
-  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder" | "exists"; message?: string };
+  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder" | "exists" | "editor-open" | "no-calendar"; message?: string };
 
 type Listener = () => void;
 
@@ -1147,7 +1154,8 @@ export class AiSession {
         if (port) {
           this.agents.draftsChanged(port, {
             waiting: new Set(next.drafts.map((draft) => draft.id)),
-            ended: new Map(next.done.map((outcome) => [outcome.id, outcome.outcome])),
+            // A note an agent wrote is created or thrown away; the other ends are those of a mail or an appointment.
+            ended: new Map(next.done.flatMap((outcome) => (outcome.outcome === "created" || outcome.outcome === "discarded" ? [[outcome.id, outcome.outcome] as const] : []))),
           });
         }
         return next;
@@ -1298,6 +1306,28 @@ export class AiSession {
     this.creatingDraft = true;
     try {
       let path: string;
+      if (body.kind === "mail" || body.kind === "event") {
+        // An e-mail and an appointment are never made here (plan P5-6): the draft is handed to the app's own composer
+        // or event editor, filled in. It stays in the list while that is open, and leaves it only when the user took
+        // the step there — sent the mail, saved it or the appointment. An editor that is just closed changes nothing.
+        const taken = (outcome: "sent" | "saved" | "opened") =>
+          void this.changeDrafts(vault, (state) =>
+            state.drafts.some((candidate) => candidate.id === id)
+              ? { drafts: withoutWriteDraft(state.drafts, id), done: withWriteDraftOutcome(state.done, { id, kind: body.kind, title: draft.title, outcome, at: this.host.now().toISOString() }) }
+              : null,
+          ).catch(() => null);
+        if (body.kind === "mail") {
+          if (!creates.mail) return refused("unavailable");
+          // A composer that is already open keeps its mail: this draft stays where it is until that one is free.
+          if (!(await creates.mail({ to: body.to, cc: body.cc, bcc: body.bcc, subject: body.subject, body: body.body }, taken))) return refused("editor-open");
+        } else {
+          if (!creates.event) return refused("unavailable");
+          const seed = { title: body.title, allDay: body.allDay, day: body.day, endDay: body.endDay, start: body.start, end: body.end, location: body.location, description: body.description, attendees: body.attendees };
+          // No calendar takes an appointment any more: the editor would have nowhere to save to.
+          if (!(await creates.event(seed, () => taken("saved")))) return refused("no-calendar");
+        }
+        return { kind: "opened" };
+      }
       if (body.kind === "note" && body.path) {
         // A draft that names its own file is another writer's (an agent, plan P5-6): the note is made exactly there,
         // or not at all — with the writer's whole text and the stamp that says who wrote it (ADR 0023 §3).

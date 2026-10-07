@@ -41,6 +41,7 @@ import type { MailAccountConfig, MailAttachment } from "@plainva/ui/mail";
 import { appendDraft, bytesToBase64, guessAttachmentMime, listMailboxesFor, resolveDraftsMailbox, sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mSelect, mTargets } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
+import { composeDone } from "../services/mail/composeDone";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { AppBar } from "../components/AppBar";
@@ -50,6 +51,19 @@ import type { MobileVault } from "../services/vaultService";
 export interface MailDraft {
   accountId: string;
   to: string;
+  /**
+   * Cc and Bcc, comma-separated like `to` (AI harness P5-6: a mail the
+   * assistant drafted names every recipient). With either set, their rows
+   * open — a recipient that is filled in is never out of sight.
+   */
+  cc?: string;
+  bcc?: string;
+  /**
+   * Who to tell once this mail was sent or saved (`composeDone`): the
+   * assistant's list of drafts keeps a mail until then, and for good when the
+   * composer is left without either.
+   */
+  doneToken?: string;
   subject: string;
   body: string;
   /**
@@ -81,9 +95,9 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
   /** Chosen sender address within that account (an alias, or its own). */
   const [fromAddress, setFromAddress] = useState("");
   const [to, setTo] = useState(draft.to);
-  const [cc, setCc] = useState("");
-  const [bcc, setBcc] = useState("");
-  const [showCcBcc, setShowCcBcc] = useState(false);
+  const [cc, setCc] = useState(draft.cc ?? "");
+  const [bcc, setBcc] = useState(draft.bcc ?? "");
+  const [showCcBcc, setShowCcBcc] = useState(Boolean(draft.cc?.trim() || draft.bcc?.trim()));
   const [subject, setSubject] = useState(draft.subject);
   const [body, setBody] = useState(draft.body);
   const [busy, setBusy] = useState(false);
@@ -148,7 +162,7 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
   // A tap on the navigation bar used to drop the whole draft without a word.
   useLeaveGuard(
     "mail-compose",
-    to !== draft.to || cc !== "" || bcc !== "" || subject !== draft.subject || body !== draft.body,
+    to !== draft.to || cc !== (draft.cc ?? "") || bcc !== (draft.bcc ?? "") || subject !== draft.subject || body !== draft.body,
     t("mobile.leaveCompose", { defaultValue: "Der Entwurf wird nicht gespeichert." }),
   );
 
@@ -222,6 +236,7 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
       }
       await appendDraft(vaultId, account, box, to.trim(), subject, body, attach, cc.trim(), bcc.trim());
       toast.success(t("mail.draftSaved"));
+      composeDone(draft.doneToken, "saved");
       onBack();
     } catch (e) {
       toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : mailErrorText(e, t));
@@ -239,9 +254,13 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
     }
     setBusy(true);
     try {
-      const entry = undoQueue.enqueue(() =>
-        sendMail(vaultId, account, to.trim(), subject, body, attach, undefined, cc.trim(), bcc.trim(), fromAddress)
-      );
+      const doneToken = draft.doneToken;
+      const entry = undoQueue.enqueue(async () => {
+        await sendMail(vaultId, account, to.trim(), subject, body, attach, undefined, cc.trim(), bcc.trim(), fromAddress);
+        // The transport took it: whoever opened this composer for the mail is told now. A send that is undone in
+        // its few seconds, or that the server refuses, tells nothing — and the draft is still theirs to offer.
+        composeDone(doneToken, "sent");
+      });
       onBack();
       undoToastId = toast.progress(t("mail.sendingWithUndo", { seconds: secondsLeft(entry) }), {
         label: t("common.undo"),

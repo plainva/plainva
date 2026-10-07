@@ -16,6 +16,7 @@ import {
   prepareTaskNote,
   profileDefault,
   proposeSuggestionRound,
+  requestEventSeed,
   withNoteRule,
   type DraftCreator,
   type OpenProposal,
@@ -26,6 +27,7 @@ import i18n from "@plainva/ui/i18n";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { mobileCommentOperations } from "../commentOperations";
 import { appendPlannedJournalEntry, journalHeading } from "../journalService";
+import { awaitComposeDone } from "../mail/composeDone";
 import { listAllMobileComments, listMobileCommentAuthors } from "../mobileComments";
 import { getMobileSettings } from "../mobileSettings";
 import { providerListLabel, sendTaskToProviderList } from "../pim/taskToProvider";
@@ -109,14 +111,54 @@ export function mobileWriteDeps(vault: MobileVault, query: VaultQueryService, re
       return true;
     },
     entryPlace: entryPlaceIn(vault),
+    // A draft of an e-mail or an appointment (plan P5-6) is offered only where it has somewhere to go. Asked when one
+    // is laid down or listed, so mail and calendars load then and not with the assistant.
+    pim: { mail: mailConnected, calendar: calendarWritable },
   };
 }
 
-export function mobileDraftCreator(vault: MobileVault, policy: VaultPolicyHost): DraftCreator {
+async function mailConnected(): Promise<boolean> {
+  const { listMobileMailAccounts } = await import("../mail/mailRuntime");
+  return (await listMobileMailAccounts()).length > 0;
+}
+
+/** The calendars the phone's event editor offers for a new appointment — the device's own among them. */
+async function calendarWritable(): Promise<boolean> {
+  const { writablePimCalendarOptions } = await import("../pim/pimService");
+  return (await writablePimCalendarOptions()).length > 0;
+}
+
+/** Where the phone's own composer and event editor are reached from the assistant's surfaces (plan P5-6). */
+export interface MobileDraftNavigation {
+  /** Pushes the mail composer with this mail filled in; `doneToken` is who hears that it was sent or saved (`composeDone`). */
+  openMailDraft?: (mail: { to: string; cc: string; bcc: string; subject: string; body: string; doneToken: string }) => void;
+  /** Leads to the screen whose event editor takes the appointment that was parked for it. */
+  openEventEditor?: () => void;
+}
+
+export function mobileDraftCreator(vault: MobileVault, policy: VaultPolicyHost, navigation: () => MobileDraftNavigation = () => ({})): DraftCreator {
   const journal = async (entry: { text: string; day: string; time: string; task: boolean }): Promise<string> =>
     appendPlannedJournalEntry(vault, { date: entry.day, time: entry.time, heading: journalHeading(), text: entry.text, ...(entry.task ? { task: true } : {}) });
   return {
     note: ({ folder, stem, content }) => vaultOps.createNoteWithContent(vault, folder ?? inboxFolder(), stem, content),
+    // An e-mail and an appointment are opened, never made (plan P5-6): the phone's own composer screen, and the event
+    // sheet of the Today screen. The composer is a screen of its own, so there is never another mail in its way.
+    async mail(mail, done) {
+      const open = navigation().openMailDraft;
+      if (!open) throw new Error("no way to the composer");
+      // The composer tells this list once the mail was sent or saved; left without either, the draft stays.
+      open({ to: mail.to.join(", "), cc: mail.cc.join(", "), bcc: mail.bcc.join(", "), subject: mail.subject, body: mail.body, doneToken: awaitComposeDone(done) });
+      return true;
+    },
+    async event(seed, done) {
+      const open = navigation().openEventEditor;
+      if (!open) throw new Error("no way to the event editor");
+      // Asked again at the moment of opening: a calendar may have gone since the draft was laid down.
+      if (!(await calendarWritable().catch(() => false))) return false;
+      requestEventSeed(seed, done);
+      open();
+      return true;
+    },
     async taskList() {
       const taskDb = getMobileSettings().taskDatabase.trim();
       return taskDb ? providerListLabel({ readTextFile: (path: string) => vaultOps.read(vault, path) }, taskDb) : null;

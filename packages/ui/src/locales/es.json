@@ -48,6 +48,8 @@
       "create_task": "Redactando el borrador de una tarea",
       "add_journal_entry": "Redactando el borrador de una entrada de diario",
       "create_entry": "Redactando el borrador de una entrada de base de datos",
+      "draft_mail": "Redactando el borrador de un correo",
+      "draft_event": "Redactando el borrador de un evento",
       "rename_note": "Presentando un plan para renombrar",
       "move_note": "Presentando un plan para mover",
       "delete_note": "Pidiendo eliminar una nota"
@@ -1302,12 +1304,16 @@
           "note": "Borrador · Nota",
           "task": "Borrador · Tarea",
           "journal": "Borrador · Entrada de diario",
+          "mail": "Borrador · Correo",
+          "event": "Borrador · Evento",
           "entry": "Borrador · Entrada de base de datos"
         },
         "what": {
           "note": "Nota",
           "task": "Tarea",
           "journal": "Entrada",
+          "mail": "Asunto",
+          "event": "Evento",
           "entry": "Entrada"
         },
         "landsIn": "Va a",
@@ -1332,6 +1338,26 @@
         "createdToast": "Creado.",
         "failed": "No se pudo crear el borrador: {{reason}}",
         "unavailable": "Esto no se puede crear en este dispositivo.",
+        "to": "Para",
+        "cc": "Cc",
+        "bcc": "Cco",
+        "when": "Cuándo",
+        "where": "Lugar",
+        "attendees": "Asistentes",
+        "allDay": "todo el día",
+        "unnamedMail": "No escritas por ti en esta conversación: {{addresses}}. Compruébalo antes de enviar.",
+        "unnamedEvent": "No escritas por ti en esta conversación: {{addresses}}. Compruébalo antes de guardar: los asistentes reciben una invitación.",
+        "mailHint": "Desde aquí no se envía nada. El correo se abre como mensaje nuevo que aún puedes cambiar; enviar es tu paso allí.",
+        "eventHint": "Desde aquí no se guarda nada. El evento se abre en el editor de eventos; allí eliges el calendario y guardas.",
+        "openMail": "Abrir en Correo",
+        "openEvent": "Abrir en Calendario",
+        "editorOpen": "«Redactar mensaje» ya está abierto con un correo. Envíalo o ciérralo primero.",
+        "done": {
+          "sent": "Enviado: {{name}}",
+          "savedMail": "Guardado como borrador de correo: {{name}}",
+          "savedEvent": "Guardado en el calendario: {{name}}",
+          "movedMail": "Movido a su propia ventana: {{name}}"
+        },
         "exists": "Ya hay allí un archivo con este nombre. Descarta el borrador o cambia el nombre del archivo."
       },
       "plan": {

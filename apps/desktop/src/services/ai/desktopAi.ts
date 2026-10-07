@@ -4,7 +4,7 @@ import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
 import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
 import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
-import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
+import type { EventSeed, LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
   aiDefaultSettings,
   AiSession,
@@ -271,6 +271,19 @@ export interface DesktopWriteHost {
   /** The name of that provider list, or null where the task database names none. */
   taskList(): Promise<string | null>;
   addJournal(entry: { text: string; day: string; time: string; task: boolean }): Promise<string>;
+  /**
+   * An e-mail and an appointment the assistant drafted (plan P5-6). Opening
+   * one sends and saves nothing: the app's own composer, or the calendar's
+   * event editor, opens with everything filled in, and the rest is the
+   * user's there.
+   */
+  /** False where the composer is already open with a mail — this one or another: it keeps what it has. `done`: the mail went out, was saved, or moved to its own window. */
+  openMail(mail: { to: string[]; cc: string[]; bcc: string[]; subject: string; body: string }, done: (how: "sent" | "saved" | "opened") => void): boolean;
+  /** `saved`: the calendar took the appointment. */
+  openEvent(seed: EventSeed, saved: () => void): void;
+  /** Whether there is a mail account to send from, and a calendar the event editor could save to. */
+  mailConnected(): Promise<boolean>;
+  calendarWritable(): Promise<boolean>;
 }
 
 /** Where an answer kept as a note goes while the vault names no inbox folder of its own. Asked when it is needed: nothing of another package runs while this module loads. */
@@ -372,6 +385,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
           return true;
         },
         entryPlace,
+        // A draft of an e-mail or an appointment (plan P5-6) is offered only where it has somewhere to go.
+        pim: { mail: () => writes.mailConnected(), calendar: () => writes.calendarWritable() },
       }
     : undefined;
   /** Checkbox tasks and the task database, as every task view reads them. */
@@ -473,6 +488,14 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
             task: ({ text, day, atProvider }) => writes.createTask(text, day, atProvider),
             taskList: () => writes.taskList(),
             journal: (entry) => writes.addJournal(entry),
+            // An e-mail and an appointment are opened, never made (plan P5-6): the window's own composer and event editor.
+            mail: async (mail, done) => writes.openMail(mail, done),
+            async event(seed, done) {
+              // Asked again at the moment of opening: a calendar may have gone since the draft was laid down.
+              if (!(await writes.calendarWritable().catch(() => false))) return false;
+              writes.openEvent(seed, done);
+              return true;
+            },
             entryPlace,
             async placeDenies(folder, stem) {
               const effective = await policy.policyOf(capturedNotePath(folder ?? (await inboxFolder()), stem), "");

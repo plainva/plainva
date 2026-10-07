@@ -46,6 +46,8 @@
       "create_task": "Entwirft eine Aufgabe",
       "add_journal_entry": "Entwirft einen Journal-Eintrag",
       "create_entry": "Entwirft einen Datenbank-Eintrag",
+      "draft_mail": "Entwirft eine E-Mail",
+      "draft_event": "Entwirft einen Termin",
       "rename_note": "Legt einen Plan zum Umbenennen vor",
       "move_note": "Legt einen Plan zum Verschieben vor",
       "delete_note": "Bittet darum, eine Notiz zu löschen"
@@ -1271,12 +1273,16 @@
           "note": "Entwurf · Notiz",
           "task": "Entwurf · Aufgabe",
           "journal": "Entwurf · Journal-Eintrag",
+          "mail": "Entwurf · E-Mail",
+          "event": "Entwurf · Termin",
           "entry": "Entwurf · Datenbank-Eintrag"
         },
         "what": {
           "note": "Notiz",
           "task": "Aufgabe",
           "journal": "Eintrag",
+          "mail": "Betreff",
+          "event": "Termin",
           "entry": "Eintrag"
         },
         "landsIn": "Landet in",
@@ -1300,6 +1306,26 @@
         "createdToast": "Angelegt.",
         "failed": "Der Entwurf ließ sich nicht anlegen: {{reason}}",
         "unavailable": "Das lässt sich auf diesem Gerät nicht anlegen.",
+        "to": "An",
+        "cc": "Cc",
+        "bcc": "Bcc",
+        "when": "Wann",
+        "where": "Ort",
+        "attendees": "Teilnehmer",
+        "allDay": "ganztägig",
+        "unnamedMail": "Nicht von Dir in diesem Gespräch genannt: {{addresses}}. Prüfe das, bevor Du sendest.",
+        "unnamedEvent": "Nicht von Dir in diesem Gespräch genannt: {{addresses}}. Prüfe das, bevor Du speicherst — Teilnehmer bekommen eine Einladung.",
+        "mailHint": "Von hier wird nichts gesendet. Die Mail öffnet sich als neue Nachricht, die Du noch ändern kannst; senden ist dort Dein Schritt.",
+        "eventHint": "Von hier wird nichts gespeichert. Der Termin öffnet sich im Termin-Editor; dort wählst Du den Kalender und speicherst.",
+        "openMail": "In Mail öffnen",
+        "openEvent": "Im Kalender öffnen",
+        "editorOpen": "„Nachricht verfassen“ ist schon mit einer E-Mail offen. Sende oder schließe sie zuerst.",
+        "done": {
+          "sent": "Gesendet: {{name}}",
+          "savedMail": "Als Mail-Entwurf gespeichert: {{name}}",
+          "savedEvent": "Im Kalender gespeichert: {{name}}",
+          "movedMail": "In ein eigenes Fenster verschoben: {{name}}"
+        },
         "exists": "Dort liegt inzwischen eine Datei mit diesem Namen. Verwirf den Entwurf oder benenne die Datei um."
       },
       "plan": {

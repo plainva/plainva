@@ -1334,6 +1334,39 @@
         <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Show</button><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Create</button></div>
       </section>
     </div>
+    <p class="sec-sub">AI harness P5-6 (2026-10-08): a draft that would leave the vault — an e-mail, an appointment. The same draft card; it makes nothing, it opens. Its rows name every address in full (To, Cc, Bcc — a row only where it carries one; When, Where, Attendees), the plan's warning line (<code>.pv-ai-effect-warn</code>) names each address the user did not type in this conversation, and one hint line says what the button does not do. The third button reads what happens — <b>Open in Mail</b>, <b>Open in Calendar</b> — and is secondary: a card whose effect ends outside Plainva never carries the primary button. Opening leaves the card where it is; it goes when the mail is out or the calendar took the appointment, and leaves the quiet line of a decided draft as plain text.</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--draft" aria-label="Draft · E-mail: Re: Shooting day">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">✉</span><span>Draft · E-mail</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Subject</dt>
+          <dd>Re: Shooting day</dd>
+          <dt>To</dt>
+          <dd>a.okafor@example.org</dd>
+          <dt>Cc</dt>
+          <dd>tom@example.org</dd>
+        </dl>
+        <span class="pv-ai-effect-warn"><span aria-hidden="true">⚠</span><span>Not written by you in this conversation: a.okafor@example.org. Check before you send.</span></span>
+        <span class="pv-ai-overview-hint">Nothing is sent from here. The mail opens as a new message that you can still change, and sending is your step there.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Show</button><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Open in Mail</button></div>
+      </section>
+      <section class="pv-ai-overview pv-ai-overview--draft" aria-label="Draft · Event: Shooting day">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">▦</span><span>Draft · Event</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Event</dt>
+          <dd>Shooting day</dd>
+          <dt>When</dt>
+          <dd>Sat, Nov 14 · 09:00–17:00</dd>
+          <dt>Where</dt>
+          <dd>Studio 2</dd>
+          <dt>Attendees</dt>
+          <dd>tom@example.org</dd>
+        </dl>
+        <span class="pv-ai-overview-hint">Nothing is saved from here. The event opens in the event editor, where you choose the calendar and save.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Open in Calendar</button></div>
+      </section>
+      <div class="pv-ai-run"><span class="pv-ai-runline pv-ai-capture"><span aria-hidden="true">✓</span>Sent: Re: Shooting day</span></div>
+    </div>
     <p class="sec-sub">AI harness P5-4 (2026-10-07): a column is filled, and a filter in words — the two things the assistant does at a database. The door to a run is the sparkle <code>IconButton</code> in the column's head and in the configuration's list of properties (on the phone a row at the foot of a cell's sheet and a button in the property's sheet). The plan is sentences in a <code>Modal</code> of size <code>sm</code> (<code>.pv-fillplan</code>; on the phone the dialog host's question): the first in text colour, the rest muted. While the run goes, the info <code>Banner</code> stands above the entries with the progress track under its sentence (<code>.pv-banner-run</code>) and a ghost “Stop”. A filter in words is one block on top of the filter list (<code>.pv-filterwords</code>): a compact field and a button, and — never applied by itself — the rules a sentence would be as chips, how many entries they leave, “Discard” and “Apply”.</p>
     <div class="card" style="max-width: 520px; display: grid; gap: var(--space-2)">
       <div style="display: flex; flex-direction: column; gap: var(--space-2)">

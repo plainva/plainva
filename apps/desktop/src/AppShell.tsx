@@ -155,7 +155,12 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // below), so a status flip re-renders only that icon, never the editor.
   // Mail-raus (stage 6) / compose (mail-client E5): the dialog is prefilled
   // from the active note, optionally with the note as an attachment.
-  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string } | null>(null);
+  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; cc?: string; bcc?: string; onDone?: (how: "sent" | "saved" | "opened") => void } | null>(null);
+  /** Whether that composer is open right now, for the listener below — it is registered once. */
+  const composerOpen = useRef(false);
+  useEffect(() => {
+    composerOpen.current = mailDraft !== null;
+  }, [mailDraft]);
   // Version history + deleted-files recovery (Gesamtplan Backups &
   // Versionierung, P5/P6), opened via window events from the file tree,
   // tab context menu and the settings section.
@@ -182,8 +187,20 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     };
     // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as attachment).
     const onComposeMail = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string } | undefined;
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to });
+      // Cc and Bcc ride along since the assistant's drafted mails (AI harness P5-6): a draft names every recipient —
+      // and `onDone` tells its sender once the mail was sent or saved, never when the composer is just closed.
+      const detail = (e as CustomEvent).detail as
+        | { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; cc?: string; bcc?: string; onDone?: (how: "sent" | "saved" | "opened") => void }
+        | undefined;
+      if (!detail) return;
+      // A composer that is open keeps what was typed into it — it reads its fields once, when it opens. A sender who
+      // asks (a cancelable event) is told that this mail was not taken, and can keep it instead of losing it unseen.
+      if (composerOpen.current) {
+        e.preventDefault();
+        return;
+      }
+      composerOpen.current = true;
+      setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, cc: detail.cc, bcc: detail.bcc, onDone: detail.onDone });
     };
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-show-deleted-files", onShowDeleted);
@@ -2004,6 +2021,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
               markdown={mailDraft.markdown}
               attachments={mailDraft.attachments}
               initialTo={mailDraft.to}
+              initialCc={mailDraft.cc}
+              initialBcc={mailDraft.bcc}
+              onDone={mailDraft.onDone}
               onPopOut={vaultPath ? (snap) => void popOutCompose(vaultPath, snap) : undefined}
               onClose={() => setMailDraft(null)}
             />

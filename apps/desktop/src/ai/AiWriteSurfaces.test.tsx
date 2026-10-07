@@ -176,6 +176,123 @@ describe("a draft's card", () => {
   });
 });
 
+describe("the card of an e-mail and of an appointment (plan P5-6)", () => {
+  const mail = draft({
+    id: "d-mail01",
+    title: "Re: Shooting day",
+    body: { kind: "mail", to: ["a.okafor@example.org", "tom@example.org"], cc: ["office@example.org"], bcc: [], subject: "Re: Shooting day", body: "Hello Ms Okafor,\n\nthe 14th is fixed.", unnamed: ["a.okafor@example.org", "office@example.org"] },
+  });
+  const event = draft({
+    id: "d-event1",
+    title: "Shooting day",
+    body: { kind: "event", title: "Shooting day", allDay: false, day: "2026-05-14", endDay: "2026-05-14", start: "09:00", end: "17:00", location: "Studio 2", description: "Bring the lights.", attendees: ["a.okafor@example.org"], unnamed: [] },
+  });
+
+  it("names every recipient in full, says which of them the user did not write, and opens the composer — it creates nothing", async () => {
+    const onCreate = vi.fn();
+    const container = show(<AiDraftCard draft={mail} canCreate busy={false} onCreate={onCreate} onDiscard={() => {}} />);
+    const card = q(container, "ai-draft")!;
+    expect(card.getAttribute("data-kind")).toBe("mail");
+    expect(card.getAttribute("aria-label")).toBe("Draft · E-mail: Re: Shooting day");
+    // To and Cc as they would go; an empty Bcc is no row.
+    expect(rows(card)).toEqual(["Subject: Re: Shooting day", "To: a.okafor@example.org, tom@example.org", "Cc: office@example.org"]);
+    expect(text(q(card, "ai-draft-unnamed"))).toBe("Not written by you in this conversation: a.okafor@example.org, office@example.org. Check before you send.");
+    expect(text(card)).toContain("Nothing is sent from here.");
+    // The text is there on request; the button says where it leads, and is not the card's obvious step.
+    await click(q(card, "ai-draft-show"));
+    expect(text(q(card, "ai-draft-text"))).toBe("Hello Ms Okafor,\n\nthe 14th is fixed.");
+    const open = q(card, "ai-draft-create") as HTMLButtonElement;
+    expect(text(open)).toBe("Open in Mail");
+    expect(open.className).not.toContain("primary");
+    await click(open);
+    expect(onCreate.mock.calls).toEqual([["d-mail01", false]]);
+    expect(q(card, "ai-draft-provider")).toBeNull();
+  });
+
+  it("warns about nobody where the user wrote every address themselves", () => {
+    const own = draft({ id: "d-mail02", title: "Roof", body: { kind: "mail", to: ["anna@example.org"], cc: [], bcc: ["me@example.org"], subject: "Roof", body: "", unnamed: [] } });
+    const card = q(show(<AiDraftCard draft={own} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />), "ai-draft")!;
+    expect(rows(card)).toEqual(["Subject: Roof", "To: anna@example.org", "Bcc: me@example.org"]);
+    expect(q(card, "ai-draft-unnamed")).toBeNull();
+    // Nothing to show where the mail has no text.
+    expect(q(card, "ai-draft-show")).toBeNull();
+  });
+
+  it("says when an appointment is, where, and whom it invites — and opens the event editor", async () => {
+    const onCreate = vi.fn();
+    const container = show(<AiDraftCard draft={event} canCreate busy={false} onCreate={onCreate} onDiscard={() => {}} />);
+    const card = q(container, "ai-draft")!;
+    expect(card.getAttribute("aria-label")).toBe("Draft · Event: Shooting day");
+    expect(rows(card)).toEqual(["Event: Shooting day", "When: Thu, May 14 · 09:00–17:00", "Where: Studio 2", "Attendees: a.okafor@example.org"]);
+    expect(q(card, "ai-draft-unnamed")).toBeNull();
+    expect(text(card)).toContain("Nothing is saved from here.");
+    expect(text(q(card, "ai-draft-create"))).toBe("Open in Calendar");
+    await click(q(card, "ai-draft-create"));
+    expect(onCreate.mock.calls).toEqual([["d-event1", false]]);
+  });
+
+  it("names the days of an all-day appointment, and warns about an invitee the user did not write", () => {
+    const days = draft({
+      id: "d-event2",
+      title: "Trade fair",
+      body: { kind: "event", title: "Trade fair", allDay: true, day: "2026-05-14", endDay: "2026-05-16", start: "", end: "", location: "", description: "", attendees: ["eve@example.org"], unnamed: ["eve@example.org"] },
+    });
+    const card = q(show(<AiDraftCard draft={days} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />), "ai-draft")!;
+    expect(rows(card)).toEqual(["Event: Trade fair", "When: Thu, May 14 – Sat, May 16 · all day", "Attendees: eve@example.org"]);
+    expect(text(q(card, "ai-draft-unnamed"))).toBe("Not written by you in this conversation: eve@example.org. Check before you save — attendees get an invitation.");
+  });
+
+  it("says under the answer what became of each: sent, saved — never “created”", () => {
+    const writes: RunWrites = {
+      rounds: [],
+      drafts: [
+        { id: "d-mail01", kind: "mail", title: "Re: Shooting day" },
+        { id: "d-mail02", kind: "mail", title: "Roof" },
+        { id: "d-mail03", kind: "mail", title: "Lights" },
+        { id: "d-event1", kind: "event", title: "Shooting day" },
+      ],
+      plans: [],
+    };
+    const at = "2026-10-07T09:10:00.000Z";
+    const done: WriteDraftOutcome[] = [
+      { id: "d-mail01", kind: "mail", title: "Re: Shooting day", outcome: "sent", at },
+      { id: "d-mail02", kind: "mail", title: "Roof", outcome: "saved", at },
+      { id: "d-mail03", kind: "mail", title: "Lights", outcome: "opened", at },
+      { id: "d-event1", kind: "event", title: "Shooting day", outcome: "saved", at },
+    ];
+    const container = show(
+      <div className="pv-ai-run">
+        <AiRunWrites writes={writes} state={{ drafts: [], done }} canCreate busy={false} onOpenNote={() => {}} onCreate={() => {}} onDiscard={() => {}} />
+      </div>,
+    );
+    expect([...container.querySelectorAll('[data-testid="ai-draft-done"]')].map((item) => [item.getAttribute("data-outcome"), item.tagName, text(item)])).toEqual([
+      ["sent", "SPAN", "Sent: Re: Shooting day"],
+      ["saved", "SPAN", "Saved as a mail draft: Roof"],
+      ["opened", "SPAN", "Moved to its own window: Lights"],
+      ["saved", "SPAN", "Saved to the calendar: Shooting day"],
+    ]);
+  });
+
+  it("leaves the card where it is when the composer is taken or no calendar takes an appointment, and says so", async () => {
+    const outcomes: DraftOutcome[] = [{ kind: "opened" }, { kind: "refused", reason: "editor-open" }, { kind: "refused", reason: "no-calendar" }];
+    const session = { canCreateDrafts: () => true, draftTaskList: async () => null, createDraft: async () => outcomes.shift()!, discardDraft: async () => undefined };
+    const opened: string[] = [];
+    const container = show(<AiOpenPanel session={session} state={{ drafts: [mail, event], done: [] }} proposals={[]} onOpenNote={() => {}} onOpenCreated={(path) => opened.push(path)} />);
+    await settle();
+    const [first, second] = [...container.querySelectorAll('[data-testid="ai-draft"]')];
+    // Opened: the composer is in front of the user, and nothing is said on top of it — and no note is opened.
+    await click(q(first!, "ai-draft-create"));
+    expect(toastStore.get()).toEqual([]);
+    await click(q(first!, "ai-draft-create"));
+    await click(q(second!, "ai-draft-create"));
+    expect(toastStore.get().map((item) => [item.kind, item.message])).toEqual([
+      ["warning", "“Compose message” is already open with an e-mail. Send or close that one first."],
+      ["warning", "No writable calendar selected."],
+    ]);
+    expect(opened).toEqual([]);
+  });
+});
+
 describe("under an answer", () => {
   const writes: RunWrites = {
     rounds: [

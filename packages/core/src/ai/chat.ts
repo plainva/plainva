@@ -120,11 +120,28 @@ function canPropose(names: readonly string[]): string {
   const on = list([has("propose_edit") && "its text", has("set_property") && "one of its properties"], "or");
   const fresh = list([has("create_note") && "a note", has("create_task") && "a task", has("add_journal_entry") && "a journal entry", has("create_entry") && "an entry of a database"], "or");
   const plan = list([has("rename_note") && "rename", has("move_note") && "move", has("delete_note") && "delete"], "or");
-  const forms = list([on && `a suggestion on a note that is there (${on})`, fresh && `a draft of something new (${fresh})`, plan && `a plan to ${plan} a note`], "or");
+  // What would leave the vault (plan P5-6): a draft for the app's own composer and event editor, where the user has mail or a calendar at all.
+  const out = list([has("draft_mail") && "an e-mail", has("draft_event") && "an appointment"], "or");
+  const editor = list([has("draft_mail") && "mail", has("draft_event") && "calendar"], "or");
+  const forms = list(
+    [
+      on && `a suggestion on a note that is there (${on})`,
+      fresh && `a draft of something new (${fresh})`,
+      out && `a draft for the user's ${editor}, where one is connected (${out})`,
+      plan && `a plan to ${plan} a note`,
+    ],
+    "or",
+  );
   return [
     "You cannot change the vault, send anything or act outside this conversation on your own.",
     `You can propose: ${forms}.`,
     "The user accepts, creates or confirms each of them in Plainva; until then nothing has changed.",
+    ...(out
+      ? [
+          `You never send or save ${out}: the user opens the draft in Plainva's own editor, reads it and decides there, so never say that something was sent or entered.`,
+          "Address it only to people the user named or that a note, a message or an appointment in this conversation names; an address the user did not write is pointed out to them.",
+        ]
+      : []),
     "So say what you proposed and that it waits for the user — never that you changed, created or deleted something. Propose only what the user asked for.",
   ].join(" ");
 }

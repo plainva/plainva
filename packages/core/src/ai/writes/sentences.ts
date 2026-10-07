@@ -27,7 +27,14 @@ export const WRITE_REFUSALS = {
   "no-section": "There is no such section. get_outline lists the sections of a note.",
   restricted:
     "This conversation has read notes that are kept from the cloud or from the internet, and the place this would be written to is not. It would carry what they say to where their rule does not hold, so Plainva does not lay it down. The user can give that place the same rule first.",
+  // An e-mail and an appointment leave the vault: there is no place whose rule they could take along.
+  "restricted-out":
+    "This conversation has read notes that are kept from the cloud or from the internet. An e-mail or an appointment would carry what they say out of the vault, so Plainva drafts neither from it. Give the user the text in your answer instead.",
   full: "Too many drafts wait for the user. They have to create or discard some of them first.",
+  "no-mail": "No mail account is connected in this vault, so there is no e-mail to draft.",
+  "no-calendar": "There is no calendar in this vault an appointment could be written to.",
+  "bad-address": "A recipient or an invitee is no e-mail address. Give each as a plain address like name@example.org, one per entry.",
+  "bad-time": "The day or a time cannot be read. Give the day as YYYY-MM-DD and times as HH:MM in 24 hours; an appointment ends after it begins.",
   "bad-property": "This is no property name, or no value a property can have: text, a number, true or false, or a list of those.",
   // Who made a note and who vouches for it is never an assistant's to write (ADR 0023).
   trust: "Plainva takes this property from no assistant: it says who made the note or who vouches for it.",
@@ -66,6 +73,11 @@ export const WRITE_RESULTS = {
     `Proposed on ${path}: ${changes} change${changes === 1 ? "" : "s"}. ${WAITS} The user accepts or declines each change in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
   drafted: (what: string, defused: number) =>
     `Drafted: ${what}. ${WAITS} It exists once the user creates it from the draft in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  // An e-mail or an appointment: nothing is sent, nothing is saved — the draft opens in the app's own editor, and the rest is the user's.
+  draftedOut: (what: string, where: "mail composer" | "event editor", unnamed: number, defused: number) =>
+    `Drafted: ${what}. Nothing was sent or saved. The user opens the draft in Plainva's own ${where} and ${where === "mail composer" ? "sends" : "saves"} it there themselves.${
+      unnamed ? ` ${unnamed === 1 ? "One address is" : `${unnamed} addresses are`} not from the user's own words: the draft tells the user to check ${unnamed === 1 ? "it" : "them"}.` : ""
+    }${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
   // The property's name is the one the model gave; its value is never repeated.
   proposedProperty: (path: string, key: string, removed: boolean, defused: number) =>
     `Proposed on ${path}: ${removed ? `the property ${key} removed` : `a value for the property ${key}`}. ${WAITS} The user accepts or declines it in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,

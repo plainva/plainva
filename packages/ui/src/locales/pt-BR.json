@@ -48,6 +48,8 @@
       "create_task": "Preparando o rascunho de uma tarefa",
       "add_journal_entry": "Preparando o rascunho de uma entrada de diário",
       "create_entry": "Preparando o rascunho de uma entrada de banco de dados",
+      "draft_mail": "Preparando o rascunho de um e-mail",
+      "draft_event": "Preparando o rascunho de um evento",
       "rename_note": "Apresentando um plano para renomear",
       "move_note": "Apresentando um plano para mover",
       "delete_note": "Pedindo para excluir uma nota"
@@ -1302,12 +1304,16 @@
           "note": "Rascunho · Nota",
           "task": "Rascunho · Tarefa",
           "journal": "Rascunho · Entrada de diário",
+          "mail": "Rascunho · E-mail",
+          "event": "Rascunho · Evento",
           "entry": "Rascunho · Entrada de banco de dados"
         },
         "what": {
           "note": "Nota",
           "task": "Tarefa",
           "journal": "Entrada",
+          "mail": "Assunto",
+          "event": "Evento",
           "entry": "Entrada"
         },
         "landsIn": "Vai para",
@@ -1332,6 +1338,26 @@
         "createdToast": "Criado.",
         "failed": "Não foi possível criar o rascunho: {{reason}}",
         "unavailable": "Não é possível criar isso neste dispositivo.",
+        "to": "Para",
+        "cc": "Cc",
+        "bcc": "Cco",
+        "when": "Quando",
+        "where": "Local",
+        "attendees": "Participantes",
+        "allDay": "o dia todo",
+        "unnamedMail": "Não escritos por você nesta conversa: {{addresses}}. Confira antes de enviar.",
+        "unnamedEvent": "Não escritos por você nesta conversa: {{addresses}}. Confira antes de salvar — os participantes recebem um convite.",
+        "mailHint": "Daqui nada é enviado. O e-mail abre como nova mensagem, que você ainda pode alterar; enviar é um passo seu lá.",
+        "eventHint": "Daqui nada é salvo. O evento abre no editor de eventos; lá você escolhe o calendário e salva.",
+        "openMail": "Abrir no E-mail",
+        "openEvent": "Abrir no Calendário",
+        "editorOpen": "“Redigir mensagem” já está aberto com um e-mail. Envie ou feche esse primeiro.",
+        "done": {
+          "sent": "Enviado: {{name}}",
+          "savedMail": "Salvo como rascunho de e-mail: {{name}}",
+          "savedEvent": "Salvo no calendário: {{name}}",
+          "movedMail": "Movido para uma janela própria: {{name}}"
+        },
         "exists": "Já existe ali um arquivo com este nome. Descarte o rascunho ou renomeie o arquivo."
       },
       "plan": {

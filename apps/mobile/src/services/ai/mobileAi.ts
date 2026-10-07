@@ -52,7 +52,7 @@ import { getMobileSettings } from "../mobileSettings";
 import { mobileCommentOperations } from "../commentOperations";
 import { useMobileEmbeddings } from "./mobileEmbeddings";
 import { useMobileGists } from "./mobileGists";
-import { mobileDraftCreator, mobileProposals, mobileWriteDeps } from "./mobileAiWrites";
+import { mobileDraftCreator, mobileProposals, mobileWriteDeps, type MobileDraftNavigation } from "./mobileAiWrites";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -248,7 +248,7 @@ export function aiEnabled(): boolean {
   return Boolean(state?.loaded && state.settings.enabled);
 }
 
-export interface MobileAiNavigation {
+export interface MobileAiNavigation extends MobileDraftNavigation {
   openNote: (path: string) => void;
   /** The AI settings screen (the conversation's "set up" leads there). */
   openSettings?: () => void;
@@ -442,8 +442,9 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         // The writing tools (plan P5): a proposal, a draft, or a plan the phone's own operation carries out.
         writes: mobileWriteDeps(vault, query, read),
       },
-      // "Create" on a draft (plan P5): a note, a task and a journal line the way the phone makes them.
-      creates: mobileDraftCreator(vault, vaultPolicy),
+      // "Create" on a draft (plan P5): a note, a task and a journal line the way the phone makes them — and, for an
+      // e-mail or an appointment (P5-6), the way to the phone's own composer and event sheet.
+      creates: mobileDraftCreator(vault, vaultPolicy, () => navRef.current),
       proposals: () => mobileProposals(vault),
     });
     currentPolicy = vaultPolicy;

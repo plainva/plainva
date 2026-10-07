@@ -48,6 +48,8 @@
       "create_task": "Sta preparando la bozza di un'attività",
       "add_journal_entry": "Sta preparando la bozza di una voce di diario",
       "create_entry": "Sta preparando la bozza di una voce di database",
+      "draft_mail": "Sta preparando la bozza di un'e-mail",
+      "draft_event": "Sta preparando la bozza di un evento",
       "rename_note": "Sta presentando un piano per rinominare",
       "move_note": "Sta presentando un piano per spostare",
       "delete_note": "Sta chiedendo di eliminare una nota"
@@ -1302,12 +1304,16 @@
           "note": "Bozza · Nota",
           "task": "Bozza · Attività",
           "journal": "Bozza · Voce di diario",
+          "mail": "Bozza · E-mail",
+          "event": "Bozza · Evento",
           "entry": "Bozza · Voce di database"
         },
         "what": {
           "note": "Nota",
           "task": "Attività",
           "journal": "Voce",
+          "mail": "Oggetto",
+          "event": "Evento",
           "entry": "Voce"
         },
         "landsIn": "Finisce in",
@@ -1332,6 +1338,26 @@
         "createdToast": "Creato.",
         "failed": "Non è stato possibile creare la bozza: {{reason}}",
         "unavailable": "Su questo dispositivo non è possibile crearlo.",
+        "to": "A",
+        "cc": "Cc",
+        "bcc": "Ccn",
+        "when": "Quando",
+        "where": "Luogo",
+        "attendees": "Partecipanti",
+        "allDay": "tutto il giorno",
+        "unnamedMail": "Non scritti da te in questa conversazione: {{addresses}}. Controlla prima di inviare.",
+        "unnamedEvent": "Non scritti da te in questa conversazione: {{addresses}}. Controlla prima di salvare: i partecipanti ricevono un invito.",
+        "mailHint": "Da qui non viene inviato nulla. L'e-mail si apre come nuovo messaggio che puoi ancora modificare; inviare lì è un tuo passo.",
+        "eventHint": "Da qui non viene salvato nulla. L'evento si apre nell'editor degli eventi; lì scegli il calendario e salvi.",
+        "openMail": "Apri in Mail",
+        "openEvent": "Apri nel calendario",
+        "editorOpen": "«Scrivi messaggio» è già aperto con un'e-mail. Inviala o chiudila prima.",
+        "done": {
+          "sent": "Inviata: {{name}}",
+          "savedMail": "Salvata come bozza di e-mail: {{name}}",
+          "savedEvent": "Salvato nel calendario: {{name}}",
+          "movedMail": "Spostata in una finestra propria: {{name}}"
+        },
         "exists": "Lì c'è ormai un file con questo nome. Scarta la bozza o rinomina il file."
       },
       "plan": {

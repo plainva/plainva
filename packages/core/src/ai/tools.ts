@@ -94,7 +94,15 @@ export const MAIL_TOOL_NAMES: readonly string[] = ["search_mail", "read_mail"];
  * All of them are found with `find_tools`, like every tool that is not read
  * in every conversation.
  */
-export const PROPOSAL_TOOL_NAMES: readonly string[] = ["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "create_entry"];
+/**
+ * The two drafts that reach other people once the user sends or saves them
+ * (plan P5-6): an e-mail and an appointment. Laying one down sends and saves
+ * nothing — it only waits, like every draft —, so they are proposals; but
+ * they are offered only where there is a mail account or a calendar to write
+ * to, and only in Plainva's own conversations, never to a program outside.
+ */
+export const PIM_DRAFT_TOOL_NAMES: readonly string[] = ["draft_mail", "draft_event"];
+export const PROPOSAL_TOOL_NAMES: readonly string[] = ["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "create_entry", ...PIM_DRAFT_TOOL_NAMES];
 export const PLAN_TOOL_NAMES: readonly string[] = ["rename_note", "move_note", "delete_note"];
 export const WRITE_TOOL_NAMES: readonly string[] = [...PROPOSAL_TOOL_NAMES, ...PLAN_TOOL_NAMES];
 
@@ -532,6 +540,48 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
       title: z.string().min(1).max(200),
       properties: z.record(z.string().min(1).max(120), z.union([z.string().max(2000), z.number(), z.boolean(), z.array(z.union([z.string().max(2000), z.number(), z.boolean()])).max(50)])).optional(),
       content: z.string().max(100000).optional().describe("The entry's text in Markdown, without a title heading and without frontmatter"),
+    }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "draft_mail",
+    description:
+      "Drafts an e-mail: recipients, a subject and the text in Markdown. Nothing is sent. The draft waits for the user, who opens it in Plainva's own mail composer and sends it there themselves. Use only addresses the user gave or that stand in what you read; the draft tells the user which ones they did not write themselves. For a reply, repeat the subject with \"Re: \" and name the sender as recipient.",
+    risk: "write",
+    input: z.object({
+      to: z.array(z.string().min(3).max(320)).max(50).optional().describe("Recipients, one plain address each: name@example.org"),
+      cc: z.array(z.string().min(3).max(320)).max(50).optional(),
+      bcc: z.array(z.string().min(3).max(320)).max(50).optional(),
+      subject: z.string().max(300).optional(),
+      body: z.string().max(100000).optional().describe("The text of the mail in Markdown, without a signature: the composer adds the user's own"),
+    }),
+    dataClasses: [],
+    untrustedResult: false,
+    core: false,
+    surfaces: ["harness"],
+    native: null,
+    pageLimit: 1,
+  },
+  {
+    name: "draft_event",
+    description:
+      "Drafts an appointment for the user's calendar: a title, a day, and either a start and an end time or all_day. Nothing is saved. The draft waits for the user, who opens it in Plainva's own event editor, chooses the calendar and saves it there themselves. Invitees get an invitation from the calendar's provider when the user saves — name them only where the user asked for it.",
+    risk: "write",
+    input: z.object({
+      title: z.string().min(1).max(200),
+      day: z.string().min(10).max(10).describe("The day as YYYY-MM-DD, in the user's own time zone"),
+      start: z.string().max(5).optional().describe("Start as HH:MM in 24 hours; left out for an all-day appointment"),
+      end: z.string().max(5).optional().describe("End as HH:MM on the same day; an hour after the start when left out"),
+      all_day: z.boolean().optional(),
+      end_day: z.string().max(10).optional().describe("All-day only: the last day as YYYY-MM-DD, when it runs over several days"),
+      location: z.string().max(300).optional(),
+      description: z.string().max(20000).optional().describe("Notes for the appointment, in Markdown"),
+      attendees: z.array(z.string().min(3).max(320)).max(50).optional().describe("People to invite, one plain address each"),
     }),
     dataClasses: [],
     untrustedResult: false,

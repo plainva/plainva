@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Database, FilePlus2, ListChecks, NotebookPen, PencilLine, X } from "lucide-react";
+import { CalendarPlus, Check, Database, FilePlus2, ListChecks, Mail, NotebookPen, PencilLine, TriangleAlert, X } from "lucide-react";
 import { machineAuthorKind, machineAuthorSubject, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
@@ -55,12 +55,17 @@ export function useDraftActions(session: Pick<AiSession, "createDraft" | "discar
     void session
       .createDraft(id, { atProvider })
       .then((outcome) => {
+        // "Opened": the composer or the event editor is in front of the user now, and says itself what it is.
+        if (outcome.kind === "opened") return;
         if (outcome.kind === "created") {
           toast.success(t("ai.write.draft.createdToast"));
           onOpenCreated(outcome.path);
         } else if (outcome.reason === "failed") toast.error(t("ai.write.draft.failed", { reason: outcome.message ?? "" }));
         else if (outcome.reason === "unavailable") toast.error(t("ai.write.draft.unavailable"));
         else if (outcome.reason === "exists") toast.error(t("ai.write.draft.exists"));
+        else if (outcome.reason === "editor-open") toast.warning(t("ai.write.draft.editorOpen"));
+        // The calendar's own words for it: the same sentence "New event" says where there is none.
+        else if (outcome.reason === "no-calendar") toast.warning(t("pim.noWritableCalendar"));
         else if (outcome.reason === "no-entry-folder") toast.error(t("ai.write.draft.noEntryFolder"));
       })
       .finally(() => setBusy(null));
@@ -101,15 +106,22 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
   const [atProvider, setAtProvider] = useState(true);
   const body = draft.body;
   const offersList = body.kind === "task" && Boolean(taskList);
-  const Icon = body.kind === "task" ? ListChecks : body.kind === "journal" ? NotebookPen : body.kind === "entry" ? Database : FilePlus2;
+  const Icon = body.kind === "task" ? ListChecks : body.kind === "journal" ? NotebookPen : body.kind === "entry" ? Database : body.kind === "mail" ? Mail : body.kind === "event" ? CalendarPlus : FilePlus2;
   const detail = draftDetail(draft);
+  // An e-mail and an appointment reach other people (plan P5-6): the card names every one of them in full, says which
+  // of them the user did not write in the conversation themselves, and its button makes nothing — it opens the app's
+  // own composer or event editor, where sending and saving are the user's.
+  const outgoing = body.kind === "mail" || body.kind === "event";
+  const unnamed = outgoing ? body.unnamed : [];
   // What a drafted entry would have: said on the card, since "Create" writes exactly that (plan P5-4).
   const properties = body.kind === "entry" ? Object.entries(body.properties) : [];
   const day = (key: string) => {
     const date = new Date(`${key}T12:00:00`);
     return Number.isNaN(date.getTime()) ? key : new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "short" }).format(date);
   };
-  const preview = body.kind === "note" || body.kind === "entry" ? body.content.trim() : "";
+  const preview = body.kind === "note" || body.kind === "entry" ? body.content.trim() : body.kind === "mail" ? body.body.trim() : body.kind === "event" ? body.description.trim() : "";
+  // "Thu, 14 May · 09:00–17:00", or the days of an all-day appointment.
+  const eventWhen = body.kind !== "event" ? "" : body.allDay ? (body.endDay === body.day ? `${day(body.day)} · ${t("ai.write.draft.allDay")}` : `${day(body.day)} – ${day(body.endDay)} · ${t("ai.write.draft.allDay")}`) : `${day(body.day)} · ${body.start}–${body.end}`;
   return (
     <section className={cx("pv-ai-overview", "pv-ai-overview--draft", touch && "pv-ai-overview--touch")} aria-label={`${t(`ai.write.draft.kind.${body.kind}`)}: ${draft.title}`} data-testid="ai-draft" data-kind={body.kind} data-draft={draft.id}>
       <h4 className="pv-ai-overview-head">
@@ -151,6 +163,34 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
             <dd>{body.text}</dd>
           </>
         )}
+        {body.kind === "mail" &&
+          (["to", "cc", "bcc"] as const).map((field) =>
+            body[field].length > 0 ? (
+              <Fragment key={field}>
+                <dt>{t(`ai.write.draft.${field}`)}</dt>
+                {/* Every recipient, in full: this is where the mail would go. */}
+                <dd data-testid={`ai-draft-${field}`}>{body[field].join(", ")}</dd>
+              </Fragment>
+            ) : null,
+          )}
+        {body.kind === "event" && (
+          <>
+            <dt>{t("ai.write.draft.when")}</dt>
+            <dd data-testid="ai-draft-when">{eventWhen}</dd>
+            {body.location && (
+              <>
+                <dt>{t("ai.write.draft.where")}</dt>
+                <dd data-testid="ai-draft-where">{body.location}</dd>
+              </>
+            )}
+            {body.attendees.length > 0 && (
+              <>
+                <dt>{t("ai.write.draft.attendees")}</dt>
+                <dd data-testid="ai-draft-attendees">{body.attendees.join(", ")}</dd>
+              </>
+            )}
+          </>
+        )}
         {showAuthor && (
           <>
             <dt>{t("ai.write.draft.by")}</dt>
@@ -164,6 +204,14 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
         </span>
       )}
       {draft.inherited.length > 0 && (body.kind === "note" || body.kind === "entry") && <span className="pv-ai-overview-hint">{t("ai.write.draft.inherits")}</span>}
+      {unnamed.length > 0 && (
+        // Where a mail goes and whom a provider invites is the one thing on this card a stranger's text could have chosen.
+        <span className="pv-ai-effect-warn" data-testid="ai-draft-unnamed">
+          <TriangleAlert size={ICON.meta} aria-hidden="true" />
+          <span>{t(body.kind === "event" ? "ai.write.draft.unnamedEvent" : "ai.write.draft.unnamedMail", { count: unnamed.length, addresses: unnamed.join(", ") })}</span>
+        </span>
+      )}
+      {outgoing && <span className="pv-ai-overview-hint">{t(body.kind === "mail" ? "ai.write.draft.mailHint" : "ai.write.draft.eventHint")}</span>}
       {draft.defused > 0 && <span className="pv-ai-overview-hint">{t("ai.write.draft.defused")}</span>}
       {offersList && (
         // The one thing "Create" would send out of the vault: said on the card, in the capture field's own words, and the user's to switch off.
@@ -184,7 +232,7 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
           {t("ai.write.draft.discard")}
         </Button>
         <Button variant="secondary" disabled={busy || !canCreate} onClick={() => onCreate(draft.id, offersList && atProvider)} data-testid="ai-draft-create">
-          {t("ai.write.draft.create")}
+          {t(body.kind === "mail" ? "ai.write.draft.openMail" : body.kind === "event" ? "ai.write.draft.openEvent" : "ai.write.draft.create")}
         </Button>
       </div>
     </section>
@@ -194,9 +242,19 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
 /** What became of a draft, in one line: created (with the way to it) or discarded. */
 export function AiDraftDone({ outcome, onOpenNote }: { outcome: WriteDraftOutcome; onOpenNote(path: string): void }) {
   const { t } = useTranslation();
-  const created = outcome.outcome === "created";
+  // A mail and an appointment end where the user took the step in the app's own editor: sent, saved — or, for a mail
+  // whose composer moved to a window of its own, out of this list's sight.
+  const created = outcome.outcome !== "discarded";
   const path = outcome.path;
-  const text = t(created ? "ai.write.draft.created" : "ai.write.draft.discarded", { name: outcome.title });
+  const name = outcome.title;
+  const text =
+    outcome.outcome === "sent"
+      ? t("ai.write.draft.done.sent", { name })
+      : outcome.outcome === "saved"
+        ? t(outcome.kind === "event" ? "ai.write.draft.done.savedEvent" : "ai.write.draft.done.savedMail", { name })
+        : outcome.outcome === "opened"
+          ? t("ai.write.draft.done.movedMail", { name })
+          : t(created ? "ai.write.draft.created" : "ai.write.draft.discarded", { name });
   return created && path ? (
     <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" onClick={() => onOpenNote(path)} data-testid="ai-draft-done" data-outcome="created">
       <Check size={ICON.meta} aria-hidden="true" />

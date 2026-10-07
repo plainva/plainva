@@ -1,5 +1,6 @@
 import {
   AI_POLICY_DIMENSIONS,
+  PIM_DRAFT_TOOL_NAMES,
   PLAN_TOOL_NAMES,
   PROPOSAL_TOOL_NAMES,
   WRITE_DRAFT_LIMITS,
@@ -9,6 +10,9 @@ import {
   applyNoteEdits,
   createWorkspaceObjectId,
   editProblemSentence,
+  isCivilDay,
+  isClockTime,
+  isDraftAddress,
   noteBodyStart,
   planPropertyChange,
   propertyTarget,
@@ -116,6 +120,14 @@ export interface VaultWriteDeps {
    * entry —, or where it cannot be read.
    */
   entryPlace(base: string): Promise<{ folder: string } | null>;
+  /**
+   * Whether an e-mail or an appointment could be written from this vault at
+   * all (plan P5-6): a mail account is connected, a calendar takes
+   * appointments. Asked when a draft of either is laid down and when the tool
+   * search lists what there is. Absent where the shell has neither: then the
+   * two drafts are not offered.
+   */
+  pim?: { mail(): Promise<boolean>; calendar(): Promise<boolean> };
 }
 
 /**
@@ -190,16 +202,25 @@ export interface WriteToolContext {
 }
 
 /** The writing tools that have hands, in the order the tool search lists them. */
-const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
+const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry", "draft_mail", "draft_event", "rename_note", "move_note", "delete_note"];
 
 /**
  * The writing tools a shell with these deps offers a new conversation. Inside
  * an encrypted workspace it offers none (E32): a conversation started there is
  * told, as before, that it changes nothing — instead of being handed tools
- * that all answer no.
+ * that all answer no. The drafts of an e-mail and an appointment are among
+ * them only where the shell has mail or calendars at all; whether an account
+ * is connected is asked when one is used (`pimDraftReady`).
  */
 export function writeToolNames(deps: VaultWriteDeps | undefined): string[] {
-  return deps && !deps.sealed() ? [...SERVED_WRITE_TOOLS] : [];
+  if (!deps || deps.sealed()) return [];
+  return SERVED_WRITE_TOOLS.filter((name) => deps.pim !== undefined || !PIM_DRAFT_TOOL_NAMES.includes(name));
+}
+
+/** Whether a draft of this kind has anywhere to go right now: a mail account, a calendar that takes appointments. */
+export async function pimDraftReady(deps: VaultWriteDeps | undefined, tool: string): Promise<boolean> {
+  if (!deps?.pim || deps.sealed()) return false;
+  return (tool === "draft_mail" ? deps.pim.mail() : deps.pim.calendar()).catch(() => false);
 }
 
 export function isWriteToolName(name: string): boolean {
@@ -464,6 +485,134 @@ async function addJournalEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<st
   return said(WRITE_RESULTS.drafted("a journal entry", linted.defused));
 }
 
+/**
+ * The addresses a model gave for one field, each a plain address; null where
+ * one of them is none. Twice the same counts once.
+ */
+function addressesOf(raw: unknown): string[] | null {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.length > WRITE_DRAFT_LIMITS.recipients) return null;
+  const out: string[] = [];
+  for (const item of raw) {
+    const address = typeof item === "string" ? item.trim() : "";
+    if (!isDraftAddress(address)) return null;
+    if (!out.some((known) => known.toLowerCase() === address.toLowerCase())) out.push(address);
+  }
+  return out;
+}
+
+/**
+ * The addresses the user did not write in this conversation themselves: a
+ * model read them somewhere — in a mail, a note, a page — or made them up.
+ * The draft's card names them, because a recipient is where a mail goes and
+ * an invitee is somebody a provider writes to; the user checks them before
+ * sending. An address the user typed is theirs, in whatever case.
+ */
+function unnamedBy(run: WriteRun, addresses: readonly string[]): string[] {
+  const typed = run.userTexts().join("\n").toLowerCase();
+  return addresses.filter((address) => !typedAddress(typed, address.toLowerCase()));
+}
+
+/** Whether `address` stands in `typed` as an address of its own — not as the tail of a longer one, or the head of one. */
+function typedAddress(typed: string, address: string): boolean {
+  const part = /[a-z0-9._%+\-@]/;
+  for (let at = typed.indexOf(address); at >= 0; at = typed.indexOf(address, at + 1)) {
+    const before = at > 0 ? typed[at - 1]! : " ";
+    const after = typed[at + address.length] ?? " ";
+    // A full stop behind it ends a sentence — unless more of a name follows it.
+    const goesOn = after === "." ? /[a-z0-9]/.test(typed[at + address.length + 1] ?? " ") : part.test(after);
+    if (!part.test(before) && !goesOn) return true;
+  }
+  return false;
+}
+
+/** A text a model wrote that leaves the vault with the user's own hand: its addresses inert, its links flat. */
+function outgoingText(raw: unknown, max: number, run: WriteRun): { text: string; defused: number } {
+  const linted = defuseNewAddresses((typeof raw === "string" ? raw : "").trim().slice(0, max), run.userTexts());
+  return { text: flattenInertLinks(linted.text), defused: linted.defused };
+}
+
+/**
+ * An e-mail as a draft (plan P5-6). Nothing is sent and nothing is stored at
+ * a provider: the draft waits on this device, and "open" hands it to the
+ * app's own composer, where sending is the user's own step with every
+ * recipient in view.
+ *
+ * A mail leaves the vault, so it can take no rule along: a conversation that
+ * has read a note kept from the cloud or from the internet drafts none. An
+ * address the model brings into the text is inert, like in every AI-written
+ * text — a link nobody typed would be one for the recipient to follow, and a
+ * picture's address one their mail program loads.
+ */
+async function draftMail(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>): Promise<ToolOutcome> {
+  if (!(await pimDraftReady(deps, "draft_mail"))) return refuse("no-mail");
+  const to = addressesOf(a.to);
+  const cc = addressesOf(a.cc);
+  const bcc = addressesOf(a.bcc);
+  if (!to || !cc || !bcc) return refuse("bad-address");
+  const subject = oneLine(a.subject, WRITE_DRAFT_LIMITS.subject);
+  const body = outgoingText(a.body, WRITE_DRAFT_LIMITS.content, run);
+  if (!subject && !body.text) return refuse("empty");
+  if ((await run.inherited()).length > 0) return refuse("restricted-out");
+  const recipients = [...to, ...cc, ...bcc];
+  const unnamed = unnamedBy(run, recipients);
+  const title = (subject || recipients[0] || oneLine(body.text, 80)).slice(0, WRITE_DRAFT_LIMITS.title);
+  const left = await run.draft({ title, body: { kind: "mail", to, cc, bcc, subject, body: body.text, unnamed }, defused: body.defused });
+  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
+  run.writes.drafts.push({ id: left.id, kind: "mail", title });
+  return said(WRITE_RESULTS.draftedOut(`an e-mail "${title}" to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}`, "mail composer", unnamed.length, body.defused));
+}
+
+const clockMinutes = (clock: string) => Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
+const clockAt = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+/**
+ * An appointment as a draft (plan P5-6). Nothing is saved: "open" hands it to
+ * the app's own event editor, where the user chooses the calendar and saves.
+ * The day and the times are read strictly — a model that writes "tomorrow at
+ * nine" has to say which day that is, and an appointment that cannot be read
+ * is refused, never guessed.
+ */
+async function draftEvent(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>): Promise<ToolOutcome> {
+  if (!(await pimDraftReady(deps, "draft_event"))) return refuse("no-calendar");
+  const title = oneLine(a.title, WRITE_DRAFT_LIMITS.title);
+  if (!title) return refuse("no-title");
+  const day = typeof a.day === "string" ? a.day.trim() : "";
+  if (!isCivilDay(day)) return refuse("bad-time");
+  const attendees = addressesOf(a.attendees);
+  if (!attendees) return refuse("bad-address");
+  const allDay = a.all_day === true;
+  let endDay = day;
+  let start = "";
+  let end = "";
+  if (allDay) {
+    const last = typeof a.end_day === "string" && a.end_day.trim() ? a.end_day.trim() : day;
+    if (!isCivilDay(last) || last < day) return refuse("bad-time");
+    endDay = last;
+  } else {
+    start = typeof a.start === "string" ? a.start.trim() : "";
+    if (!isClockTime(start)) return refuse("bad-time");
+    const given = typeof a.end === "string" ? a.end.trim() : "";
+    if (given && !isClockTime(given)) return refuse("bad-time");
+    // Without an end it runs an hour, as a slot the user taps does; it ends on its own day.
+    end = given || clockAt(Math.min(23 * 60 + 59, clockMinutes(start) + 60));
+    if (end <= start) return refuse("bad-time");
+  }
+  if ((await run.inherited()).length > 0) return refuse("restricted-out");
+  const location = outgoingText(oneLine(a.location, WRITE_DRAFT_LIMITS.place), WRITE_DRAFT_LIMITS.place, run);
+  const description = outgoingText(a.description, WRITE_DRAFT_LIMITS.description, run);
+  const unnamed = unnamedBy(run, attendees);
+  const left = await run.draft({
+    title,
+    body: { kind: "event", title, allDay, day, endDay, start, end, location: location.text, description: description.text, attendees, unnamed },
+    defused: location.defused + description.defused,
+  });
+  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
+  run.writes.drafts.push({ id: left.id, kind: "event", title });
+  const when = allDay ? (endDay === day ? `${day}, all day` : `${day} to ${endDay}, all day`) : `${day} ${start}–${end}`;
+  return said(WRITE_RESULTS.draftedOut(`an appointment "${title}" on ${when}${attendees.length ? ` with ${attendees.length} invitee${attendees.length === 1 ? "" : "s"}` : ""}`, "event editor", unnamed.length, location.defused + description.defused));
+}
+
 async function asked(run: WriteRun, ctx: WriteToolContext, question: PlanQuestion, act: () => Promise<string | null | boolean>, done: (result: string) => string): Promise<ToolOutcome> {
   const answer = await run.ask(question, ctx.callId);
   const record = (outcome: string) => run.writes.plans.push({ kind: question.plan, path: question.path, outcome });
@@ -540,6 +689,10 @@ export async function writeToolOutcome(deps: VaultWriteDeps | undefined, run: Wr
         return await createTask(deps, run, a, ctx);
       case "add_journal_entry":
         return await addJournalEntry(deps, run, a, ctx);
+      case "draft_mail":
+        return await draftMail(deps, run, a);
+      case "draft_event":
+        return await draftEvent(deps, run, a);
       case "rename_note":
         return await renameNote(deps, run, a, ctx);
       case "move_note":

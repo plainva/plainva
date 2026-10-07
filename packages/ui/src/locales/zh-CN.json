@@ -44,6 +44,8 @@
       "create_task": "正在起草任务",
       "add_journal_entry": "正在起草日志条目",
       "create_entry": "正在起草数据库条目",
+      "draft_mail": "正在起草邮件",
+      "draft_event": "正在起草日程",
       "rename_note": "正在提交重命名计划",
       "move_note": "正在提交移动计划",
       "delete_note": "正在请求删除笔记"
@@ -1240,12 +1242,16 @@
           "note": "草稿 · 笔记",
           "task": "草稿 · 任务",
           "journal": "草稿 · 日志条目",
+          "mail": "草稿 · 邮件",
+          "event": "草稿 · 日程",
           "entry": "草稿 · 数据库条目"
         },
         "what": {
           "note": "笔记",
           "task": "任务",
           "journal": "条目",
+          "mail": "主题",
+          "event": "日程",
           "entry": "条目"
         },
         "landsIn": "存放位置",
@@ -1268,6 +1274,26 @@
         "createdToast": "已创建。",
         "failed": "无法创建草稿：{{reason}}",
         "unavailable": "此设备上无法创建。",
+        "to": "收件人",
+        "cc": "抄送",
+        "bcc": "密送",
+        "when": "时间",
+        "where": "地点",
+        "attendees": "参与者",
+        "allDay": "全天",
+        "unnamedMail": "不是你在这次对话中亲自写下的地址：{{addresses}}。发送前请核对。",
+        "unnamedEvent": "不是你在这次对话中亲自写下的地址：{{addresses}}。保存前请核对——参与者会收到邀请。",
+        "mailHint": "这里不会发送任何内容。邮件会作为新邮件打开，你还可以修改；发送由你在那里完成。",
+        "eventHint": "这里不会保存任何内容。日程会在日程编辑器中打开，你在那里选择日历并保存。",
+        "openMail": "在邮件中打开",
+        "openEvent": "在日历中打开",
+        "editorOpen": "“撰写邮件”已经开着一封邮件。请先发送或关闭它。",
+        "done": {
+          "sent": "已发送：{{name}}",
+          "savedMail": "已存为邮件草稿：{{name}}",
+          "savedEvent": "已保存到日历：{{name}}",
+          "movedMail": "已移到独立窗口：{{name}}"
+        },
         "exists": "那里现在已经有一个同名文件。请放弃草稿，或者重命名该文件。"
       },
       "plan": {
