@@ -1,0 +1,9 @@
+/* What can be said to Siri without setting anything up (PlainvaShortcuts in PlainvaIntents.swift). Every phrase names the app. */
+"Add a journal entry in ${applicationName}" = "Journal-Eintrag in ${applicationName} hinzufügen";
+"New journal entry in ${applicationName}" = "Neuer Journal-Eintrag in ${applicationName}";
+"Add a task in ${applicationName}" = "Aufgabe in ${applicationName} hinzufügen";
+"New task in ${applicationName}" = "Neue Aufgabe in ${applicationName}";
+"Open a note in ${applicationName}" = "Notiz in ${applicationName} öffnen";
+"Open ${note} in ${applicationName}" = "${note} in ${applicationName} öffnen";
+"Search in ${applicationName}" = "In ${applicationName} suchen";
+"Search ${applicationName}" = "${applicationName} durchsuchen";

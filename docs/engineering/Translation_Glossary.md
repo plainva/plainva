@@ -131,9 +131,11 @@ the usual one.
 | zh-CN | 外部智能体 | 会话 | ⟨名称⟩（外部智能体） | 登录 |
 | ja | 外部エージェント | セッション | ⟨名前⟩（外部エージェント） | サインイン |
 
-**Siri and Shortcuts** (`ai.system.*`, and the two string catalogs of the iOS app,
-`PlainvaIntents.xcstrings` and `AppShortcuts.xcstrings`): the system's assistant on
-an iPhone or iPad. *Siri* is never translated; *Shortcuts* takes the name the system
+**Siri and Shortcuts** (`ai.system.*`, and the two tables of the iOS app: the string
+catalog `PlainvaIntents.xcstrings` for what the actions show and answer, and
+`AppShortcuts.strings` per language for the spoken phrases — a catalog is not
+accepted there below iOS 17; `iosIntentStrings.test.ts` holds both against the
+Swift code): the system's assistant on an iPhone or iPad. *Siri* is never translated; *Shortcuts* takes the name the system
 itself shows in that language. What the system may read is a **list of note titles**
 — never "index" (the search's) and never "directory" (a folder); a title is
 **passed on**, not "sent" (that is a message to a provider) and not "shared" (that is

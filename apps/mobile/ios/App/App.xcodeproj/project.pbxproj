@@ -29,7 +29,7 @@
 		B20002000000000000000002 /* PlainvaIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000002 /* PlainvaIntents.swift */; };
 		B20002000000000000000003 /* IntentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000003 /* IntentStore.swift */; };
 		B20002000000000000000004 /* PlainvaIntents.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000004 /* PlainvaIntents.xcstrings */; };
-		B20002000000000000000005 /* AppShortcuts.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B20001000000000000000005 /* AppShortcuts.xcstrings */; };
+		B20002000000000000000005 /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = B20003000000000000000001 /* AppShortcuts.strings */; };
 		8C0002000000000000000001 /* AiNetPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C0001000000000000000001 /* AiNetPlugin.swift */; };
 		A10002000000000000000002 /* AiWebPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000002 /* AiWebPlugin.swift */; };
 		A10002000000000000000004 /* AiMcpPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10001000000000000000004 /* AiMcpPlugin.swift */; };
@@ -114,7 +114,16 @@
 		B20001000000000000000002 /* PlainvaIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainvaIntents.swift; sourceTree = "<group>"; };
 		B20001000000000000000003 /* IntentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/IntentStore.swift; sourceTree = SOURCE_ROOT; };
 		B20001000000000000000004 /* PlainvaIntents.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = PlainvaIntents.xcstrings; sourceTree = "<group>"; };
-		B20001000000000000000005 /* AppShortcuts.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppShortcuts.xcstrings; sourceTree = "<group>"; };
+		B20001000000000000000010 /* en */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000011 /* de */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000012 /* es */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000013 /* fr */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000014 /* it */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000015 /* ja */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000016 /* nl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000017 /* pl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		B20001000000000000000018 /* pt-BR */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/AppShortcuts.strings"; sourceTree = "<group>"; };
+		B20001000000000000000019 /* zh-CN */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = "zh-CN"; path = "zh-CN.lproj/AppShortcuts.strings"; sourceTree = "<group>"; };
 		8C0001000000000000000001 /* AiNetPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiNetPlugin.swift; sourceTree = "<group>"; };
 		A10001000000000000000002 /* AiWebPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiWebPlugin.swift; sourceTree = "<group>"; };
 		A10001000000000000000004 /* AiMcpPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiMcpPlugin.swift; sourceTree = "<group>"; };
@@ -220,7 +229,7 @@
 				B20001000000000000000001 /* IntentBridgePlugin.swift */,
 				B20001000000000000000002 /* PlainvaIntents.swift */,
 				B20001000000000000000004 /* PlainvaIntents.xcstrings */,
-				B20001000000000000000005 /* AppShortcuts.xcstrings */,
+				B20003000000000000000001 /* AppShortcuts.strings */,
 				8C0001000000000000000001 /* AiNetPlugin.swift */,
 				A10001000000000000000002 /* AiWebPlugin.swift */,
 				A10001000000000000000004 /* AiMcpPlugin.swift */,
@@ -354,6 +363,15 @@
 			knownRegions = (
 				en,
 				Base,
+				de,
+				es,
+				fr,
+				it,
+				ja,
+				nl,
+				pl,
+				"pt-BR",
+				"zh-CN",
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
@@ -381,7 +399,7 @@
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				7A0002000000000000000005 /* PrivacyInfo.xcprivacy in Resources */,
 				B20002000000000000000004 /* PlainvaIntents.xcstrings in Resources */,
-				B20002000000000000000005 /* AppShortcuts.xcstrings in Resources */,
+				B20002000000000000000005 /* AppShortcuts.strings in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
@@ -513,6 +531,23 @@
 				504EC3111FED79650016851F /* Base */,
 			);
 			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		B20003000000000000000001 /* AppShortcuts.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				B20001000000000000000010 /* en */,
+				B20001000000000000000011 /* de */,
+				B20001000000000000000012 /* es */,
+				B20001000000000000000013 /* fr */,
+				B20001000000000000000014 /* it */,
+				B20001000000000000000015 /* ja */,
+				B20001000000000000000016 /* nl */,
+				B20001000000000000000017 /* pl */,
+				B20001000000000000000018 /* pt-BR */,
+				B20001000000000000000019 /* zh-CN */,
+			);
+			name = AppShortcuts.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */

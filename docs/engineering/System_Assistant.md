@@ -76,11 +76,12 @@ After every change the bridge calls `updateAppShortcutParameters()`, so that the
 - `systemIntents.test.ts` (desktop suite) — the key and its vectors, the directory's bounds and cleaning, what is and is not an order, the plan, where an order leads.
 - `intentService.test.ts` (mobile suite) — the gate with a note's own rule, a folder's rule in either spelling and the rule about the internet; every "cannot tell"; when the file is written and wiped; redeeming through the app's paths.
 - `ios/App/tests/IntentStoreTests.swift` — compiled and run by `swiftc` in the iOS workflow, against a temporary directory: what counts as a directory, the matcher, the queue.
+- `iosIntentStrings.test.ts` (mobile suite) — the words the system shows and understands are not in the locale files but in two tables of the app bundle, and nothing ties them to the Swift code but a string. The guard reads `PlainvaIntents.swift`: every text the actions name is in `PlainvaIntents.xcstrings` in all ten languages with the same placeholders, and the table holds nothing the code no longer names; every phrase of the App Shortcuts is in each language's `AppShortcuts.strings`, names the app and keeps its parameter. The phrases are `.strings` files on purpose: the build refuses a string catalog for them below iOS 17.
 - `e2e-prod/ai-system-assistant.spec.ts` — the production bundle with a bridge of the test's own (`globalThis.__plainvaFixtureIntents`, honoured only where no native platform answers): no file until the switch is on, no trace of a note a rule keeps back, the switch empties the file, a dictated entry and task are in the daily note after the app opened, a key opens its note, and a key the list no longer names opens the search.
 
 ## Not verified
 
-No intent has run on a device or in a simulator with Siri: what the system understands of the phrases in ten languages, how it asks for the missing words, and what it shows for a note are unseen. The Labs build is called "Plainva Labs", and its phrases carry that name. Whether iOS resolves the string catalogs' `zh-CN` for a device set to Simplified Chinese is the same open question as for the share extension's catalog.
+No intent has run on a device or in a simulator with Siri: what the system understands of the phrases in ten languages, how it asks for the missing words, and what it shows for a note are unseen. The Labs build is called "Plainva Labs", and its phrases carry that name. Whether iOS resolves the tables' `zh-CN` for a device set to Simplified Chinese is the same open question as for the share extension's catalog. The app has been built for the simulator by the iOS workflow, which also extracted the actions' metadata; it has not been started there.
 
 ## Not built
 
