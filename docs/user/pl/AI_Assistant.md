@@ -179,6 +179,10 @@ Asystent może korzystać z narzędzi serwerów podłączanych samodzielnie, prz
 
 Rozmowa rozpoczęta przez umiejętność, działanie na zaznaczeniu i odpowiedź w wątku komentarzy nie sięgają po narzędzia zewnętrzne, podobnie jak model systemowy na telefonie.
 
+## Agenci zewnętrzni
+
+Na komputerze Plainva może też uruchomić agenta AI innego producenta w folderze vaultu — program zainstalowany samodzielnie, do którego logujesz się samodzielnie. Taki agent nie jest asystentem: czyta i wysyła sam, a Twoje zasady prywatności i przegląd przed wysłaniem go nie obejmują. Co Plainva kontroluje w jego sesji, a czego nie: [Agenci zewnętrzni](External_Agents.md).
+
 ## Zachowywanie odpowiedzi jako notatki
 
 Pod każdą gotową odpowiedzią **Zachowaj jako notatkę** zamienia odpowiedź w notatkę w Twoim vaulcie. Ty naciskasz, a notatkę zapisuje Plainva — sam asystent nadal niczego nie zmienia.

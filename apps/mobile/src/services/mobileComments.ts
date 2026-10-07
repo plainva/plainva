@@ -16,6 +16,7 @@ import {
   BundleCommentStore,
   MigratingWorkspaceCommentStore,
   CommentStoreLockedError,
+  commentSignedByPerson,
   createWorkspaceObjectId,
   effectiveWorkspaceCapabilities,
   workspaceSliceIdsForObject,
@@ -94,7 +95,8 @@ const nameAsked = new Set<string>();
 /**
  * The name a remark is signed with, asked for ONCE where it is first needed -
  * the same question, the same field and the same rules as the desktop: only
- * for a remark or a proposal, never for a marker; a declined question is not
+ * for a remark or a proposal of the person's own, never for a marker or for
+ * what a named author writes (`commentSignedByPerson`); a declined question is not
  * asked again this session, and the phone then signs with its own label.
  * "Mark as reviewed" fills the same field the same way.
  */
@@ -198,7 +200,7 @@ export interface PostMobileCommentInput extends CommentPostInput {
 export async function postMobileComment(vault: MobileVault, input: PostMobileCommentInput): Promise<void> {
   const captured = structuredClone(input);
   const store = mobileCommentStore(vault);
-  if (!captured.resolvedCommentId && !captured.retractsCommentId && (captured.body.trim() || captured.suggestion)) await ensureMobileCommentAuthorName(vault);
+  if (commentSignedByPerson(captured)) await ensureMobileCommentAuthorName(vault);
   await store.post({
     ...captured,
     batch: captured.batch ?? (captured.suggestionBatchId ? { batchId: captured.suggestionBatchId, index: captured.batchIndex ?? 0, note: captured.batchNote ?? null } : null),

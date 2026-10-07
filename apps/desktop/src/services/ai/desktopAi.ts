@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
-import { MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
+import { acpToolbox, MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
 import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, VaultQueryService } from "@plainva/core";
 import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
@@ -12,6 +12,7 @@ import {
   calendarDay,
   adapterInstructionIO,
   adapterInstructionWriter,
+  createAcpDeviceStore,
   createAiVaultHost,
   createMcpDeviceStore,
   createVaultPolicy,
@@ -42,9 +43,11 @@ import { readEditorSelection } from "../editorSelection";
 import { getSettingsStore } from "../settingsStore";
 import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
+import { createDesktopAcpHost } from "./desktopAcp";
 import { createDesktopAiEgress } from "./desktopAiEgress";
 import { createDesktopWebFetcher } from "./desktopAiWeb";
 import { createDesktopMcpBrowser, createDesktopMcpHost } from "./desktopMcp";
+import { mcpStatus } from "./mcpBridge";
 
 /**
  * The desktop's AI session (plan KI-Harness P1a). AI v1 runs in the central
@@ -168,6 +171,18 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
         store: createMcpDeviceStore(desktopAiFiles),
         version: async () => (await getPlatformServices().appVersion?.()) ?? "",
       },
+      // External agents (plan KI-Harness P4.6): the native registry and the start of an agent's program in the vault's folder.
+      acp: {
+        native: createDesktopAcpHost(),
+        store: createAcpDeviceStore(desktopAiFiles),
+        version: async () => (await getPlatformServices().appVersion?.()) ?? "",
+        // Plainva's own tools, as the helper every MCP client on this computer starts — only while the user has them switched on.
+        // Handing it over grants nothing: the app asks which folders this client may read, as for every client.
+        async toolbox() {
+          const status = await mcpStatus();
+          return status.running && status.helperPath ? acpToolbox(status.helperPath, status.identifier) : null;
+        },
+      },
     });
     void session.load();
   }
@@ -274,6 +289,40 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       await postThreadReply(service, reply);
     },
     encrypted: input.encrypted,
+    // An external agent's session (plan P4.6): the vault's folder, its files under its rules, and its margin for what the agent proposes.
+    agents: {
+      activeNote: () => input.activePath(),
+      access: {
+        root: input.vaultPath,
+        async read(path) {
+          // The editor's pending keystrokes land first: the agent reads, and is compared with, the note as it is.
+          if (/\.md$/i.test(path)) await flushPendingSave(path);
+          return read(path);
+        },
+        async list(folder) {
+          try {
+            return (await input.adapter.listDir(folder, false)).map((entry) => entry.name);
+          } catch {
+            return null;
+          }
+        },
+        policyOf: (path, text) => policy.policyOf(path, text),
+        async propose(round) {
+          const service = input.commentOperations();
+          if (!service) throw new Error("comments are not available in this vault");
+          await proposeSuggestionRound(service, round);
+        },
+        // Through the adapter chain like any note: indexed, synced and backed up as one the user made.
+        async create(path, content) {
+          if (await input.adapter.exists(path)) throw new Error("a file is there already");
+          const folder = path.slice(0, Math.max(0, path.lastIndexOf("/")));
+          if (folder && !(await input.adapter.exists(folder))) await input.adapter.createDir(folder);
+          await input.adapter.writeTextFile(path, content);
+          await input.noteCreated?.(path);
+        },
+        encrypted: input.encrypted,
+      },
+    },
     // "Keep as a note" (plan P4-6): into the vault's inbox folder, through the adapter chain like any note.
     capture: {
       async folder() {

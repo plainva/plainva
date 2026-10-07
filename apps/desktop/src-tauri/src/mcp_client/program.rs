@@ -31,7 +31,7 @@ use crate::atomic_write::WriteRoots;
 const MAX_LINE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_WRITE_BYTES: usize = 1024 * 1024;
 const STDERR_KEEP: usize = 16 * 1024;
-const EXIT_GRACE: Duration = Duration::from_secs(2);
+pub(crate) const EXIT_GRACE: Duration = Duration::from_secs(2);
 
 static RUNS: AtomicU64 = AtomicU64::new(1);
 
@@ -113,7 +113,7 @@ pub(crate) fn read_lines(mut reader: impl BufRead, mut emit: impl FnMut(String))
 }
 
 /// Keeps the end of what a program wrote to its error stream.
-fn keep_tail(mut reader: impl Read, tail: &Mutex<VecDeque<u8>>) {
+pub(crate) fn keep_tail(mut reader: impl Read, tail: &Mutex<VecDeque<u8>>) {
     let mut buffer = [0u8; 4096];
     loop {
         match reader.read(&mut buffer) {
@@ -138,7 +138,7 @@ pub(crate) fn shown_log(tail: &[u8], scrub: &[String]) -> String {
     text
 }
 
-fn wait_for_exit(child: &Mutex<Child>, limit: Duration) -> Option<Option<i32>> {
+pub(crate) fn wait_for_exit(child: &Mutex<Child>, limit: Duration) -> Option<Option<i32>> {
     let until = Instant::now() + limit;
     loop {
         if let Ok(mut child) = child.lock() {
@@ -320,7 +320,7 @@ pub fn mcp_client_log(window: tauri::Window, state: State<'_, McpClientState>, s
 
 /// The process tree of a program: everything it starts ends with it, and with the app.
 #[cfg(windows)]
-mod tree {
+pub(crate) mod tree {
     use std::os::windows::io::AsRawHandle;
     use std::os::windows::process::CommandExt;
     use std::process::{Child, Command};
@@ -386,7 +386,7 @@ mod tree {
 }
 
 #[cfg(unix)]
-mod tree {
+pub(crate) mod tree {
     use std::os::unix::process::CommandExt;
     use std::process::{Child, Command};
 

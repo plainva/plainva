@@ -338,7 +338,7 @@
       "neverHint": "列出来是为了让你知道缺少什么：从未评分，从未发送。",
       "ruleNote": "笔记自己的规则",
       "ruleFolder": "{{folder}}的规则",
-      "ruleDefault": "保险库的默认设置",
+      "ruleDefault": "仓库的默认设置",
       "sendWith": "使用此上下文发送",
       "never_other": "从不发送到云端：{{count}}条笔记",
       "sent": "已发送",
@@ -778,7 +778,7 @@
     },
     "mcp": {
       "title": "此电脑上的AI应用",
-      "switch": "允许此电脑上的AI应用读取这个保险库",
+      "switch": "允许此电脑上的AI应用读取这个仓库",
       "switchDesc": "默认关闭。Claude Code、Claude Desktop、Cursor或VS Code等应用通过此电脑的私有通道连接Plainva——不使用网络端口。每个应用只询问一次，由你选择它可以读取的文件夹。它不能更改任何内容，并且Plainva必须在运行。",
       "claudeCode": "Claude Code的命令",
       "copy": "复制",
@@ -793,8 +793,8 @@
       "helperMissing": "Plainva旁边缺少辅助程序。请重新安装Plainva。",
       "noClients": "还没有应用询问过。",
       "folders": "文件夹：{{folders}}",
-      "noFolders": "在这个保险库中没有",
-      "wholeVault": "整个保险库",
+      "noFolders": "在这个仓库中没有",
+      "wholeVault": "整个仓库",
       "lastSeen": "最近使用 {{when}}",
       "revokeLabel": "移除{{client}}",
       "revokeConfirm": "移除{{client}}？",
@@ -803,11 +803,11 @@
       "audit": "最近的请求",
       "auditNone": "还没有请求。",
       "refused": "已拒绝",
-      "pairTitle": "{{client}}想要读取你的保险库",
-      "pairKnownTitle": "{{client}}想要读取这个保险库",
+      "pairTitle": "{{client}}想要读取你的仓库",
+      "pairKnownTitle": "{{client}}想要读取这个仓库",
       "pairBody": "启动程序：{{program}}。选择它可以读取的内容——它看不到其他任何内容，也不能更改任何内容。",
       "pairFolders": "文件夹",
-      "pairWhole": "整个保险库",
+      "pairWhole": "整个仓库",
       "pairAllow": "允许",
       "pairDeny": "拒绝",
       "pairNone": "请至少选择一个文件夹以允许。"
@@ -1003,6 +1003,174 @@
           "cancelled": "登录没有完成。",
           "failed": "登录失败。没有保存任何内容。"
         }
+      }
+    },
+    "agent": {
+      "title": "外部智能体",
+      "segment": "智能体",
+      "author": "{{agent}}（外部智能体）",
+      "roundNote": "由外部智能体 {{agent}} 提出的建议。",
+      "none": "这台电脑上还没有添加任何智能体。",
+      "noneAction": "打开设置",
+      "noVault": "请先打开一个仓库，再在其中启动智能体。",
+      "sealed": "Plainva不会在加密工作区中启动外部智能体。",
+      "choose": "智能体",
+      "start": {
+        "title": "启动 {{agent}} 之前",
+        "fact": {
+          "program": "{{agent}} 是其他厂商的程序。它在这台电脑上以你的权限运行，工作目录是这个仓库的文件夹。",
+          "reads": "它会自行读取文件——包括你排除在云端之外的笔记——并把它想发送的内容发送到自己的服务。Plainva的隐私规则管不到它，它发送之前也不会有人询问你。",
+          "direct": "它自行写入的内容会直接进入仓库，不经过建议。当智能体报告这样的更改时，会话会告诉你。",
+          "tools": "Plainva只能管住自己这一侧：一是它的工具——只包含你授予智能体的文件夹，绝不包含被排除在云端之外的笔记；二是智能体通过Plainva写入的内容：更改会变成建议，新笔记会等你确认。",
+          "signIn": "智能体使用你自己的订阅或密钥自行登录。Plainva永远看不到它的凭据。"
+        },
+        "toolsOn": "Plainva的工具会提供给智能体。第一次使用时，Plainva会询问你它可以读取哪些文件夹。",
+        "toolsOff": "Plainva的工具已关闭（设置 → 此电脑上的AI应用）。此时智能体只能直接处理文件。",
+        "confirmTitle": "要启动这个智能体吗？",
+        "confirmMessage": "Plainva会在这个文件夹中用这条命令启动 {{agent}}。它以你的权限运行，自行读取、自行发送，没有任何隔离。",
+        "action": "开始会话"
+      },
+      "sessions": "此仓库中最近的会话",
+      "sessionLine": "{{when}} · {{agent}} · 消息：{{turns}} · 经由Plainva：{{proposed}} · 自行写入：{{direct}}",
+      "marking": "外部智能体 · {{agent}}。它自行读取、自行发送：Plainva的隐私规则对它不适用，发送之前也不会询问。",
+      "markingTools": {
+        "offered": "Plainva的工具：已提供",
+        "off": "Plainva的工具：已关闭"
+      },
+      "end": "结束会话",
+      "starting": "正在启动 {{agent}}…",
+      "working": "{{agent}} 正在工作…",
+      "placeholder": "给 {{agent}} 的消息…",
+      "empty": "告诉 {{agent}} 要做什么。它在这个仓库的文件夹中工作。",
+      "plan": "智能体的计划",
+      "toolOutside": "仓库之外：{{count}}",
+      "kind": {
+        "read": "读取",
+        "edit": "更改文件",
+        "delete": "删除文件",
+        "move": "移动或重命名",
+        "search": "搜索",
+        "execute": "运行命令",
+        "think": "思考",
+        "fetch": "从互联网获取",
+        "switch_mode": "切换模式",
+        "other": "其他步骤"
+      },
+      "option": {
+        "allow_once": "允许",
+        "allow_always": "始终允许",
+        "reject_once": "拒绝",
+        "reject_always": "始终拒绝"
+      },
+      "question": {
+        "title": "{{agent}} 的询问",
+        "files": "文件",
+        "hint": "这些文字是智能体自己的说法。你的回答只会发给智能体——得到同意之后它做什么，是它自己的行为，不是Plainva的行为。"
+      },
+      "auth": {
+        "title": "{{agent}} 要求登录",
+        "body": "你在智能体自己的程序中登录。Plainva看不到其中任何内容，也不保存任何凭据。",
+        "waiting": "请在打开的窗口中登录。Plainva在此等待。",
+        "retry": "重试",
+        "manual": "无法打开终端。请在你自己的终端中运行这条命令并登录，然后重试：",
+        "problem": {
+          "declined": "登录没有完成。",
+          "failed": "智能体未能登录。",
+          "cancelled": "登录已停止。",
+          "no-method": "智能体没有给出从这里登录的方式。请在你自己的终端中登录该智能体，然后重试。",
+          "start": "无法开始登录。"
+        }
+      },
+      "event": {
+        "proposed": "{{note}} 中有建议 · 更改：{{count}}。",
+        "new": "有一篇新笔记等你确认：{{note}}",
+        "created": "已创建：{{note}}",
+        "discarded": "已放弃：{{note}}",
+        "direct": "智能体自行更改了 {{note}}：更改未经建议，已在仓库中。",
+        "noteKept": "没有向智能体提及 {{note}}：这篇笔记被排除在云端之外。",
+        "failed": "智能体未能完成这一步。",
+        "failedSaid": "智能体未能完成这一步。它的说明：{{message}}",
+        "stopped": {
+          "max_tokens": "智能体已停止：它的模型达到了上限。",
+          "max_turn_requests": "智能体已停止：它达到了步骤数上限。",
+          "refusal": "智能体拒绝继续。",
+          "cancelled": "已停止。"
+        },
+        "refused": {
+          "read": "Plainva没有把 {{path}} 交给智能体：{{reason}}。",
+          "write": "Plainva没有接受智能体对 {{path}} 的更改：{{reason}}。"
+        }
+      },
+      "reason": {
+        "not-absolute": "不是完整路径",
+        "outside": "位于此仓库之外",
+        "unsafe": "不是Plainva接受的路径",
+        "hidden": "属于Plainva自己的文件夹",
+        "missing": "没有这个文件",
+        "too-large": "文件太大",
+        "kept": "被排除在云端之外",
+        "not-a-note": "不是Markdown笔记",
+        "sealed": "在此仓库中无法进行",
+        "rules": "包含AI规则或可信度字段",
+        "properties": "会更改笔记的属性",
+        "unreadable": "无法读取其属性",
+        "too-many": "更改太多，无法作为一条建议",
+        "failed": "未能执行"
+      },
+      "pending": {
+        "title": "智能体写的新笔记",
+        "create": "创建",
+        "discard": "放弃",
+        "hint": "只有在你创建时，笔记才会被写入。笔记会标明由谁撰写，智能体带来的网址已被处理为无效。"
+      },
+      "ended": {
+        "closed": "会话已结束。",
+        "exited": "智能体的程序已结束。",
+        "exitedCode": "智能体的程序已结束（代码 {{code}}）。",
+        "version": "智能体使用的协议版本，Plainva无法识别。",
+        "timeout": "智能体没有及时应答。",
+        "protocol": "无法读取智能体的应答。",
+        "agentSaid": "智能体返回了错误：{{message}}",
+        "start": {
+          "not-registered": "这台电脑上已不再设置这个智能体。",
+          "already-running": "智能体已经在运行。",
+          "program-moved": "智能体的程序已不在原来的位置。请重新添加该智能体。",
+          "not-a-vault": "无法在这个文件夹中启动智能体。",
+          "start-failed": "无法启动智能体的程序。"
+        }
+      },
+      "log": "智能体程序最后输出的内容",
+      "logShow": "显示它最后的输出",
+      "logEmpty": "程序没有输出任何内容。",
+      "settings": {
+        "desc": "智能体是其他厂商的程序，由你自己安装、自己登录。当你要求时，Plainva会在仓库的文件夹中启动它。Plainva不会安装任何智能体，也不保存它的任何凭据。",
+        "none": "尚未添加任何智能体。",
+        "found": "已在这台电脑上找到",
+        "add": "添加",
+        "addOwn": "其他智能体",
+        "addOwnDesc": "任何通过输入和输出使用Agent Client Protocol的程序。",
+        "addAction": "添加智能体…",
+        "remove": "移除 {{agent}}",
+        "removeConfirm": "移除 {{agent}}？",
+        "removeBody": "Plainva会忘记如何启动它。程序本身及其登录状态保持不变。",
+        "removeAction": "移除",
+        "seen": "在这里最近一次的记录（{{when}}）：经由Plainva {{proposed}}，自行写入 {{direct}}",
+        "unseen": "这台电脑上还没有记录过它的写入方式"
+      },
+      "add": {
+        "title": "添加智能体",
+        "name": "名称",
+        "nameHint": "你自己给它起的名称。它提出的建议会署上这个名称。",
+        "program": "程序",
+        "programHint": "智能体的程序：系统能找到的名称，或者完整路径。它会被直接启动，不经过shell。",
+        "args": "参数，每行一个",
+        "argsHint": "让程序使用该协议的参数，例如 --acp。具体用哪些，见程序自己的文档。",
+        "confirmTitle": "添加这个智能体？",
+        "confirmMessage": "Plainva会在你启动它时所在仓库的文件夹中，以这些参数启动这个程序，不多不少。它以你的权限运行，没有任何隔离。只添加你信任的智能体。",
+        "confirmAction": "添加",
+        "confirmNote": "在记住之前，系统会再显示一次完整的命令。",
+        "failed": "无法添加智能体。程序是否已安装，名称是否正确？",
+        "added": "已添加 {{agent}}。"
       }
     },
     "transcribe": {

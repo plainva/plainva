@@ -1059,6 +1059,174 @@
         }
       }
     },
+    "agent": {
+      "title": "Agenti esterni",
+      "segment": "Agente",
+      "author": "{{agent}} (agente esterno)",
+      "roundNote": "Proposto dall'agente esterno {{agent}}.",
+      "none": "Su questo computer non è ancora stato aggiunto alcun agente.",
+      "noneAction": "Apri le impostazioni",
+      "noVault": "Apri un vault per avviarvi un agente.",
+      "sealed": "Plainva non avvia alcun agente esterno in un workspace cifrato.",
+      "choose": "Agente",
+      "start": {
+        "title": "Prima di avviare {{agent}}",
+        "fact": {
+          "program": "{{agent}} è un programma di un altro produttore. Viene eseguito su questo computer con i tuoi permessi, nella cartella di questo vault.",
+          "reads": "Legge i file da sé — anche le note che tieni lontane dal cloud — e invia ciò che vuole al proprio servizio. Le regole sulla privacy di Plainva non lo raggiungono, e nessuno ti chiede nulla prima che invii.",
+          "direct": "Ciò che scrive da sé è subito nel vault, senza proposta. La sessione te lo dice quando l'agente segnala una modifica del genere.",
+          "tools": "Plainva controlla solo il proprio lato: i suoi strumenti, con le cartelle che concedi all'agente e mai con una nota tenuta lontana dal cloud — e ciò che l'agente scrive tramite Plainva: una modifica diventa una proposta, una nuova nota ti aspetta.",
+          "signIn": "L'agente accede da sé, con il tuo abbonamento o la tua chiave. Plainva non vede mai le sue credenziali."
+        },
+        "toolsOn": "Gli strumenti di Plainva vengono offerti all'agente. La prima volta, Plainva ti chiede quali cartelle può leggere.",
+        "toolsOff": "Gli strumenti di Plainva sono disattivati (Impostazioni → App di IA su questo computer). L'agente lavora allora con i soli file.",
+        "confirmTitle": "Avviare questo agente?",
+        "confirmMessage": "Plainva avvierà {{agent}} in questa cartella, con questo comando. Viene eseguito con i tuoi permessi, legge e invia da sé, e senza alcun recinto.",
+        "action": "Avvia la sessione"
+      },
+      "sessions": "Ultime sessioni in questo vault",
+      "sessionLine": "{{when}} · {{agent}} · messaggi: {{turns}} · tramite Plainva: {{proposed}} · scritti da sé: {{direct}}",
+      "marking": "Agente esterno · {{agent}}. Legge e invia da sé: le regole sulla privacy di Plainva non valgono per lui, e nessuno chiede prima che invii.",
+      "markingTools": {
+        "offered": "Strumenti di Plainva: offerti",
+        "off": "Strumenti di Plainva: disattivati"
+      },
+      "end": "Termina la sessione",
+      "starting": "Avvio di {{agent}}…",
+      "working": "{{agent}} sta lavorando…",
+      "placeholder": "Messaggio per {{agent}}…",
+      "empty": "Di' a {{agent}} che cosa deve fare. Lavora nella cartella di questo vault.",
+      "plan": "Piano dell'agente",
+      "toolOutside": "fuori dal vault: {{count}}",
+      "kind": {
+        "read": "Leggere",
+        "edit": "Modificare un file",
+        "delete": "Eliminare un file",
+        "move": "Spostare o rinominare",
+        "search": "Cercare",
+        "execute": "Eseguire un comando",
+        "think": "Riflettere",
+        "fetch": "Recuperare da Internet",
+        "switch_mode": "Cambiare modalità",
+        "other": "Un altro passaggio"
+      },
+      "option": {
+        "allow_once": "Consenti",
+        "allow_always": "Consenti sempre",
+        "reject_once": "Rifiuta",
+        "reject_always": "Rifiuta sempre"
+      },
+      "question": {
+        "title": "{{agent}} chiede",
+        "files": "File",
+        "hint": "Le parole sono dell'agente. La tua risposta va solo all'agente — ciò che fa dopo un sì è affar suo, non di Plainva."
+      },
+      "auth": {
+        "title": "{{agent}} chiede un accesso",
+        "body": "Accedi nel programma stesso dell'agente. Plainva non ne vede nulla e non conserva alcuna credenziale.",
+        "waiting": "Accedi nella finestra che si è aperta. Plainva aspetta qui.",
+        "retry": "Riprova",
+        "manual": "Non è stato possibile aprire un terminale. Esegui questo comando in un tuo terminale, accedi lì e poi riprova:",
+        "problem": {
+          "declined": "L'accesso non è stato completato.",
+          "failed": "L'agente non è riuscito ad accedere.",
+          "cancelled": "L'accesso è stato interrotto.",
+          "no-method": "L'agente non indica alcun modo per accedere da qui. Accedi in un tuo terminale e poi riprova.",
+          "start": "Non è stato possibile avviare l'accesso."
+        }
+      },
+      "event": {
+        "proposed": "Proposta in {{note}} · modifiche: {{count}}.",
+        "new": "Una nuova nota ti aspetta: {{note}}",
+        "created": "Creata: {{note}}",
+        "discarded": "Scartata: {{note}}",
+        "direct": "L'agente ha modificato {{note}} da sé: è nel vault senza proposta.",
+        "noteKept": "{{note}} non è stata nominata all'agente: è tenuta lontana dal cloud.",
+        "failed": "L'agente non è riuscito a terminare.",
+        "failedSaid": "L'agente non è riuscito a terminare. Dice: {{message}}",
+        "stopped": {
+          "max_tokens": "L'agente si è fermato: il suo modello ha raggiunto il limite.",
+          "max_turn_requests": "L'agente si è fermato: ha raggiunto il suo limite di passaggi.",
+          "refusal": "L'agente ha rifiutato di proseguire.",
+          "cancelled": "Interrotto."
+        },
+        "refused": {
+          "read": "Plainva non ha consegnato {{path}} all'agente: {{reason}}.",
+          "write": "Plainva non ha accettato la modifica dell'agente a {{path}}: {{reason}}."
+        }
+      },
+      "reason": {
+        "not-absolute": "non è un percorso completo",
+        "outside": "è fuori da questo vault",
+        "unsafe": "non è un percorso che Plainva accetta",
+        "hidden": "è una delle cartelle proprie di Plainva",
+        "missing": "il file non esiste",
+        "too-large": "il file è troppo grande",
+        "kept": "è tenuta lontana dal cloud",
+        "not-a-note": "non è una nota Markdown",
+        "sealed": "non è possibile in questo vault",
+        "rules": "contiene regole di IA o campi di fiducia",
+        "properties": "modificherebbe le proprietà della nota",
+        "unreadable": "le sue proprietà non sono leggibili",
+        "too-many": "troppe modifiche per una sola proposta",
+        "failed": "non è stato possibile"
+      },
+      "pending": {
+        "title": "Nuove note dell'agente",
+        "create": "Crea",
+        "discard": "Scarta",
+        "hint": "Una nota viene scritta solo quando la crei. Porta l'indicazione di chi l'ha scritta, e gli indirizzi web portati dall'agente sono disinnescati."
+      },
+      "ended": {
+        "closed": "La sessione è terminata.",
+        "exited": "Il programma dell'agente è terminato.",
+        "exitedCode": "Il programma dell'agente è terminato (codice {{code}}).",
+        "version": "L'agente parla una versione del protocollo che Plainva non conosce.",
+        "timeout": "L'agente non ha risposto in tempo.",
+        "protocol": "Non è stato possibile leggere le risposte dell'agente.",
+        "agentSaid": "L'agente ha risposto con un errore: {{message}}",
+        "start": {
+          "not-registered": "Questo agente non è più configurato su questo computer.",
+          "already-running": "L'agente è già in esecuzione.",
+          "program-moved": "Il programma dell'agente non è più dov'era. Aggiungi di nuovo l'agente.",
+          "not-a-vault": "Non è stato possibile avviare l'agente in questa cartella.",
+          "start-failed": "Non è stato possibile avviare il programma dell'agente."
+        }
+      },
+      "log": "Le ultime righe del programma dell'agente",
+      "logShow": "Mostra le sue ultime righe",
+      "logEmpty": "Il programma non ha scritto nulla.",
+      "settings": {
+        "desc": "Un agente è un programma di un altro produttore che hai installato tu e al quale hai effettuato tu l'accesso. Plainva lo avvia nella cartella di un vault quando glielo chiedi. Plainva non installa alcun agente e non conserva alcuna sua credenziale.",
+        "none": "Nessun agente aggiunto finora.",
+        "found": "Trovato su questo computer",
+        "add": "Aggiungi",
+        "addOwn": "Un altro agente",
+        "addOwnDesc": "Qualsiasi programma che parli l'Agent Client Protocol sul proprio ingresso e sulla propria uscita.",
+        "addAction": "Aggiungi agente…",
+        "remove": "Rimuovi {{agent}}",
+        "removeConfirm": "Rimuovere {{agent}}?",
+        "removeBody": "Plainva dimentica come avviarlo. Il programma stesso e il suo accesso restano come sono.",
+        "removeAction": "Rimuovi",
+        "seen": "Visto qui l'ultima volta ({{when}}): tramite Plainva {{proposed}}, scritti da sé {{direct}}",
+        "unseen": "Su questo computer non si è ancora visto come scrive"
+      },
+      "add": {
+        "title": "Aggiungi un agente",
+        "name": "Nome",
+        "nameHint": "Il nome che gli dai tu. Ciò che propone porta questo nome.",
+        "program": "Programma",
+        "programHint": "Il programma dell'agente: un nome che il tuo sistema trova, oppure un percorso completo. Viene avviato direttamente, senza shell.",
+        "args": "Argomenti, uno per riga",
+        "argsHint": "Ciò che fa parlare il protocollo al programma, per esempio --acp. La sua documentazione indica quali.",
+        "confirmTitle": "Aggiungere questo agente?",
+        "confirmMessage": "Plainva avvierà esattamente questo programma con esattamente questi argomenti, nella cartella del vault in cui lo avvii. Viene eseguito con i tuoi permessi e senza alcun recinto. Aggiungi solo un agente di cui ti fidi.",
+        "confirmAction": "Aggiungi",
+        "confirmNote": "Il tuo sistema mostra ancora una volta l'intero comando prima che venga ricordato.",
+        "failed": "Non è stato possibile aggiungere l'agente. Il programma è installato, e si chiama così?",
+        "added": "{{agent}} è stato aggiunto."
+      }
+    },
     "transcribe": {
       "action": "Trascrivi",
       "running": "Trascrizione…",

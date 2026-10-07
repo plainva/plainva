@@ -4210,6 +4210,13 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-ai-historylist { display: flex; flex-direction: column; }
 .pv-ai-historyrow.is-on { background: var(--accent-container); color: var(--on-accent-container); }
 .pv-ai-tabmain { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+/* An external agent's place in the AI tab (plan KI-Harness P4.6): before a start, a column of
+   plain sentences — what Plainva does not control — and one button. */
+.pv-agent-start { display: grid; align-content: start; gap: var(--space-3); max-width: 46rem; min-height: 0; padding: var(--space-4); overflow-y: auto; }
+.pv-agent-heading { margin: 0; font-size: var(--text-lg); font-weight: 600; }
+.pv-agent-facts { display: grid; gap: var(--space-2); margin: 0; padding-left: 1.2em; font-size: var(--text-md); line-height: 1.5; }
+/* The vault's lines about earlier sessions: a record to glance at, not the page's text. */
+.pv-agent-start .pv-mcp-audit { font-size: var(--text-sm); color: var(--text-muted); }
 /* "AI & automation" in the settings: provider rows, the add dialog, the model picker. */
 .pv-ai-rowactions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1); }
 .pv-ai-notewithaction { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }

@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::Manager;
 
+mod acp;
 mod ai_egress;
 mod ai_web;
 mod mcp;
@@ -407,6 +408,7 @@ pub fn run() {
         .manage(ai_egress::AiEgress::default())
         .manage(mcp::McpState::default())
         .manage(mcp_client::McpClientState::default())
+        .manage(acp::AcpState::default())
         .manage(embedding::Embeddings::default())
         .manage(model_store::ModelDownloads::default())
         .setup(|app| {
@@ -431,9 +433,11 @@ pub fn run() {
                 }
             }
             // The owner window is gone: the programs the assistant started for
-            // foreign MCP servers end with it (src/mcp_client).
+            // foreign MCP servers end with it (src/mcp_client), and so do the
+            // external agents it hosted (src/acp).
             if matches!(event, tauri::WindowEvent::Destroyed) && window.label() == "main" {
                 mcp_client::shutdown(&window.state::<mcp_client::McpClientState>());
+                acp::shutdown(&window.state::<acp::AcpState>());
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -478,6 +482,16 @@ pub fn run() {
             mcp_client::oauth::mcp_client_oauth_renew,
             mcp_client::oauth::mcp_client_oauth_status,
             mcp_client::oauth::mcp_client_oauth_sign_out,
+            acp::registry::acp_agents,
+            acp::registry::acp_detect,
+            acp::registry::acp_agent_add,
+            acp::registry::acp_agent_remove,
+            acp::process::acp_start,
+            acp::process::acp_write,
+            acp::process::acp_stop,
+            acp::process::acp_log,
+            acp::login::acp_login,
+            acp::login::acp_login_cancel,
             model_store::model_status,
             model_store::model_download,
             model_store::model_download_cancel,

@@ -179,6 +179,10 @@ Der Assistent kann Werkzeuge von Servern nutzen, die Du selbst anbindest, über 
 
 Ein Gespräch, das ein Skill begonnen hat, eine Aktion an einer Auswahl und eine Antwort im Kommentar-Faden erreichen keine externen Werkzeuge, ebenso wenig das Modell des Systems am Telefon.
 
+## Externe Agenten
+
+Am Desktop kann Plainva auch den KI-Agenten eines anderen Herstellers im Ordner des Vaults starten — ein Programm, das Du selbst installiert und bei dem Du Dich selbst angemeldet hast. So ein Agent ist nicht der Assistent: er liest und sendet selbst, und Deine Datenschutzregeln und die Übersicht vor dem Senden erreichen ihn nicht. Was Plainva in seiner Sitzung kontrolliert und was nicht: [Externe Agenten](External_Agents.md).
+
 ## Eine Antwort als Notiz festhalten
 
 Unter jeder fertigen Antwort macht **Als Notiz festhalten** aus der Antwort eine Notiz Deines Vaults. Du drückst es, und Plainva schreibt die Notiz — der Assistent selbst ändert weiterhin nichts.

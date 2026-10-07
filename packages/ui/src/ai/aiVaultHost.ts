@@ -26,6 +26,8 @@ import {
   type SituationInput,
   type ToolManifest,
 } from "@plainva/core";
+import type { AcpVaultAccess } from "./acpFiles";
+import { createAcpVaultStore } from "./acpStores";
 import { notesEmbedding } from "./aiImage";
 import type { AiInstructionsHost, AiVaultHost } from "./aiSession";
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
@@ -124,6 +126,8 @@ export interface AiVaultHostInput {
   instructionIO?: InstructionIO;
   /** Writes and removes the workshop's skills (plan P3-5); absent, the workshop only reads. */
   instructionWriter?: InstructionWriter;
+  /** What an external agent's session reaches of this vault (plan P4.6); absent where the shell hosts no agents. */
+  agents?: { access: AcpVaultAccess; activeNote(): string | null };
 }
 
 export interface InstructionWriter {
@@ -248,6 +252,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...stores,
     // This vault's choices about foreign MCP servers (plan P4.5): beside its other AI data, never in the vault.
     mcp: createMcpVaultStore(input.files, input.vaultKey),
+    // An external agent's session in this vault (plan P4.6), and the vault's log of such sessions — beside its other AI data too.
+    ...(input.agents ? { agents: { ...input.agents, store: createAcpVaultStore(input.files, input.vaultKey) } } : {}),
     activeNote: input.activeNote,
     readNote: input.readNote,
     situation: input.situation,

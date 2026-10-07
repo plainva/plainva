@@ -1,6 +1,6 @@
 # Plainva User Guide
 
-Last reviewed: 2026-09-29
+Last reviewed: 2026-10-07
 
 Plainva is a Markdown vault editor: your notes are ordinary Markdown files in a folder (a "vault") on your computer — no database silo, no forced cloud account. This guide explains how to work with Plainva and how the file formats work.
 
@@ -28,6 +28,7 @@ Plainva is a Markdown vault editor: your notes are ordinary Markdown files in a 
 | [AI Assistant (Beta)](AI_Assistant.md) | Asking questions about your notes with an AI model of your choice: providers and keys, profiles, context, privacy rules and history |
 | [Skills (Beta)](AI_Skills.md) | Instructions for recurring work: the ten that come with Plainva, your own, importing, and approving what arrives before it runs |
 | [Connecting AI apps (Beta)](Connect_AI_Apps.md) | Letting AI apps on this computer (Claude Code, Claude Desktop, editors) read the vault through Plainva's MCP server: switching it on, pairing, folders, what an app can see |
+| [External agents (Beta)](External_Agents.md) | Starting an AI agent of another maker in a vault's folder: what Plainva controls in its session and what it does not, adding an agent, signing in, suggestions and new notes |
 | [Journal](Journal.md) | The quick entry into today's daily note: capturing from anywhere, the journal view across all days, how entries are stored, and the optional global shortcut |
 | [Calendar & external tasks](Calendar_and_Tasks.md) | Connecting CalDAV/Google/Microsoft calendars, the calendar tab, meeting notes, and syncing external task lists into the task database |
 | [Email capture](Email_Capture.md) | IMAP and Microsoft mail (experimental): the sandboxed viewer, saving mails as notes/.eml/tasks, and composing and sending |

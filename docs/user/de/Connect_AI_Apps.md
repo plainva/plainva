@@ -6,6 +6,8 @@ KI-Apps auf Deinem Rechner — Claude Code, Claude Desktop, Cursor, VS Code und 
 
 Die Gegenrichtung — Plainvas Assistent nutzt Werkzeuge von Servern, die Du selbst anbindest — steht unter **Externe Werkzeuge (MCP)** im [KI-Assistenten](AI_Assistant.md).
 
+Ein dritter Weg — Plainva startet den KI-Agenten eines anderen Herstellers im Ordner des Vaults, mit seiner Sitzung im KI-Tab — steht unter [Externe Agenten](External_Agents.md).
+
 ## So funktioniert es
 
 Plainva bringt neben der App ein kleines Hilfsprogramm mit, `plainva-mcp`. Eine KI-App startet es, und das Hilfsprogramm verbindet sich über einen privaten Kanal dieses Rechners mit dem laufenden Plainva — eine Named Pipe unter Windows, ein Socket in einem privaten Ordner unter macOS und Linux. Ein Netzwerk-Port wird nie geöffnet. Plainva muss mit dem Vault geöffnet laufen; sonst bekommt die App eine klare Meldung.

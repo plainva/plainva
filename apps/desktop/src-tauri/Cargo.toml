@@ -118,7 +118,7 @@ tauri-plugin-global-shortcut = "2"
 # free space a model package needs (model_store.rs), and the job object that
 # ends a foreign MCP server's process tree with the app (mcp_client/program.rs).
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_Storage_FileSystem", "Win32_System_ProcessStatus", "Win32_System_JobObjects"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_Storage_FileSystem", "Win32_System_ProcessStatus", "Win32_System_JobObjects", "Win32_System_Console"] }
 
 # The Unix socket's private folder (uid, the per-user temporary folder on macOS).
 [target.'cfg(unix)'.dependencies]

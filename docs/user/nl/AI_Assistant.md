@@ -179,6 +179,10 @@ De assistent kan hulpmiddelen gebruiken van servers die je zelf koppelt, via het
 
 Een gesprek dat door een vaardigheid is gestart, een actie op een selectie en een antwoord in een draad met opmerkingen bereiken geen externe hulpmiddelen, en het eigen model van het systeem op de telefoon evenmin.
 
+## Externe agents
+
+Op de desktop kan Plainva ook een AI-agent van een andere maker in de map van de vault starten — een programma dat je zelf hebt geïnstalleerd en waarbij je je zelf hebt aangemeld. Zo'n agent is niet de assistent: hij leest en verzendt zelf, en je privacyregels en het overzicht vóór het verzenden bereiken hem niet. Wat Plainva in zijn sessie beheerst en wat niet: [Externe agents](External_Agents.md).
+
 ## Een antwoord als notitie bewaren
 
 Onder elk afgerond antwoord maakt **Bewaren als notitie** van het antwoord een notitie in je vault. Jij drukt erop en Plainva schrijft de notitie — de assistent zelf verandert nog steeds niets.

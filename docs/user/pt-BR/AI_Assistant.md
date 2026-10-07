@@ -179,6 +179,10 @@ O assistente pode usar ferramentas de servidores que você mesmo conecta, pelo M
 
 Uma conversa iniciada por uma habilidade, uma ação em uma seleção e uma resposta em um tópico de comentários não alcançam as ferramentas externas, e o modelo do próprio sistema no celular também não.
 
+## Agentes externos
+
+No desktop, o Plainva também pode iniciar um agente de IA de outro fabricante na pasta do vault — um programa que você instalou e no qual você mesmo fez login. Um agente assim não é o assistente: ele lê e envia por conta própria, e suas regras de privacidade e o resumo antes do envio não o alcançam. O que o Plainva controla na sessão dele e o que não controla: [Agentes externos](External_Agents.md).
+
 ## Manter uma resposta como nota
 
 Abaixo de cada resposta concluída, **Manter como nota** transforma a resposta em uma nota do seu vault. Você pressiona e o Plainva escreve a nota — o assistente em si continua não mudando nada.

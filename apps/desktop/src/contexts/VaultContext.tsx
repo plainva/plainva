@@ -25,7 +25,7 @@ import { workspaceSyncFailureText } from "@plainva/ui";
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { CommentStoreLockedError } from "@plainva/core";
+import { CommentStoreLockedError, commentSignedByPerson } from "@plainva/core";
 import type { JournalCheckResult } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -3255,8 +3255,10 @@ export const VaultProvider: React.FC<{
    * The name a remark is signed with, asked for ONCE where it is first needed
    * (finding 2026-09-09: every own remark read "Unknown member" because the
    * field was empty). Only in a vault without a workspace - a workspace signs
-   * with the member -, only for a remark or a proposal (never for a resolve or
-   * retract marker), and only until the person answered or declined: a
+   * with the member -, only for a remark or a proposal of the person's own
+   * (never for a resolve or retract marker, never for what a named author
+   * writes through this device - `commentSignedByPerson` in the core is the
+   * one rule), and only until the person answered or declined: a
    * declined question is not asked again this session, and the device then
    * signs with its own label. The answer lands in the one field the app has,
    * "Your name (remarks and reviews)" - the same field "mark as reviewed"
@@ -3280,8 +3282,8 @@ export const VaultProvider: React.FC<{
   };
 
   const ensureOperationAuthor = useStableHandler(async (store: CommentStore, vaultPath: string, input: CommentOperationInput) => {
-    if (input.markers.some((marker) => !marker.resolvedCommentId && !marker.retractsCommentId && (marker.body.trim() || marker.suggestion)))
-      await ensureCommentAuthorName(store, vaultPath);
+    // Only for what the person signs: a proposal of the assistant or of an external agent carries its own name (finding 2026-10-07).
+    if (input.markers.some(commentSignedByPerson)) await ensureCommentAuthorName(store, vaultPath);
   });
   const refreshOperationIndex = useStableHandler((path: string) => triggerFileTreeUpdate([path]));
   const commentOperations = useMemo((): CommentOperationService | null => {
@@ -3307,8 +3309,7 @@ export const VaultProvider: React.FC<{
     const captured = structuredClone(input);
     const store = commentStore();
     if (!store) throw new Error("comments-unavailable");
-    if (state.vaultPath && !captured.resolvedCommentId && !captured.retractsCommentId && (captured.body.trim() || captured.suggestion))
-      await ensureCommentAuthorName(store, state.vaultPath);
+    if (state.vaultPath && commentSignedByPerson(captured)) await ensureCommentAuthorName(store, state.vaultPath);
     await store.post(captured);
   };
 

@@ -1032,6 +1032,174 @@
         }
       }
     },
+    "agent": {
+      "title": "External agents",
+      "segment": "Agent",
+      "author": "{{agent}} (external agent)",
+      "roundNote": "Suggested by the external agent {{agent}}.",
+      "none": "No agent has been added on this computer yet.",
+      "noneAction": "Open settings",
+      "noVault": "Open a vault to start an agent in it.",
+      "sealed": "Plainva starts no external agent inside an encrypted workspace.",
+      "choose": "Agent",
+      "start": {
+        "title": "Before you start {{agent}}",
+        "fact": {
+          "program": "{{agent}} is a program of another maker. It runs on this computer with your rights, in the folder of this vault.",
+          "reads": "It reads files itself — also notes you keep from the cloud — and sends what it chooses to its own service. Plainva's privacy rules do not reach it, and nothing asks you before it sends.",
+          "direct": "What it writes itself is in the vault at once, without a suggestion. The session tells you when the agent reports such a change.",
+          "tools": "Plainva controls only its own side: its tools, with the folders you grant the agent and never a note kept from the cloud — and what the agent writes through Plainva: a change becomes a suggestion, a new note waits for you.",
+          "signIn": "The agent signs in by itself, with your own subscription or key. Plainva never sees its credentials."
+        },
+        "toolsOn": "Plainva's tools are offered to the agent. The first time, Plainva asks you which folders it may read.",
+        "toolsOff": "Plainva's tools are switched off (Settings → AI apps on this computer). The agent then works with the files alone.",
+        "confirmTitle": "Start this agent?",
+        "confirmMessage": "Plainva will start {{agent}} in this folder, with this command. It runs with your rights, reads and sends on its own, and is not fenced in.",
+        "action": "Start session"
+      },
+      "sessions": "Last sessions in this vault",
+      "sessionLine": "{{when}} · {{agent}} · messages: {{turns}} · through Plainva: {{proposed}} · written itself: {{direct}}",
+      "marking": "External agent · {{agent}}. It reads and sends on its own: Plainva's privacy rules do not apply to it, and nothing asks before it sends.",
+      "markingTools": {
+        "offered": "Plainva's tools: offered",
+        "off": "Plainva's tools: off"
+      },
+      "end": "End session",
+      "starting": "Starting {{agent}}…",
+      "working": "{{agent}} is working…",
+      "placeholder": "Message to {{agent}}…",
+      "empty": "Tell {{agent}} what to do. It works in the folder of this vault.",
+      "plan": "The agent's plan",
+      "toolOutside": "outside the vault: {{count}}",
+      "kind": {
+        "read": "Read",
+        "edit": "Change a file",
+        "delete": "Delete a file",
+        "move": "Move or rename",
+        "search": "Search",
+        "execute": "Run a command",
+        "think": "Think",
+        "fetch": "Fetch from the internet",
+        "switch_mode": "Change its mode",
+        "other": "Another step"
+      },
+      "option": {
+        "allow_once": "Allow",
+        "allow_always": "Always allow",
+        "reject_once": "Reject",
+        "reject_always": "Always reject"
+      },
+      "question": {
+        "title": "{{agent}} asks",
+        "files": "Files",
+        "hint": "The words are the agent's own. Your answer goes to the agent only — what it does after a yes is its own doing, not Plainva's."
+      },
+      "auth": {
+        "title": "{{agent}} wants a sign-in",
+        "body": "You sign in in the agent's own program. Plainva sees nothing of it and keeps no credential.",
+        "waiting": "Sign in in the window that opened. Plainva waits here.",
+        "retry": "Try again",
+        "manual": "No terminal could be opened. Run this command in a terminal of your own, sign in there, then try again:",
+        "problem": {
+          "declined": "The sign-in was not finished.",
+          "failed": "The agent could not sign in.",
+          "cancelled": "The sign-in was stopped.",
+          "no-method": "The agent names no way to sign in from here. Sign in to it in a terminal of your own, then try again.",
+          "start": "The sign-in could not be started."
+        }
+      },
+      "event": {
+        "proposed": "Suggestion in {{note}} · changes: {{count}}.",
+        "new": "A new note waits for you: {{note}}",
+        "created": "Created: {{note}}",
+        "discarded": "Discarded: {{note}}",
+        "direct": "The agent changed {{note}} itself: it is in the vault without a suggestion.",
+        "noteKept": "{{note}} was not named to the agent: it is kept from the cloud.",
+        "failed": "The agent could not finish this.",
+        "failedSaid": "The agent could not finish this. It says: {{message}}",
+        "stopped": {
+          "max_tokens": "The agent stopped: its model reached its limit.",
+          "max_turn_requests": "The agent stopped: it reached its limit of steps.",
+          "refusal": "The agent declined to go on.",
+          "cancelled": "Stopped."
+        },
+        "refused": {
+          "read": "Plainva did not hand {{path}} to the agent: {{reason}}.",
+          "write": "Plainva did not take the agent's change to {{path}}: {{reason}}."
+        }
+      },
+      "reason": {
+        "not-absolute": "not a full path",
+        "outside": "outside this vault",
+        "unsafe": "not a path Plainva takes",
+        "hidden": "one of Plainva's own folders",
+        "missing": "no such file",
+        "too-large": "file too large",
+        "kept": "kept from the cloud",
+        "not-a-note": "not a Markdown note",
+        "sealed": "not possible in this vault",
+        "rules": "carries AI rules or trust fields",
+        "properties": "would change the note's properties",
+        "unreadable": "properties cannot be read",
+        "too-many": "too many changes for one suggestion",
+        "failed": "could not be done"
+      },
+      "pending": {
+        "title": "New notes from the agent",
+        "create": "Create",
+        "discard": "Discard",
+        "hint": "A note is written only when you create it. It is marked with who wrote it, and web addresses the agent brought are defused."
+      },
+      "ended": {
+        "closed": "The session has ended.",
+        "exited": "The agent's program ended.",
+        "exitedCode": "The agent's program ended (code {{code}}).",
+        "version": "The agent speaks a version of the protocol that Plainva does not know.",
+        "timeout": "The agent did not answer in time.",
+        "protocol": "The agent's answers could not be read.",
+        "agentSaid": "The agent answered with an error: {{message}}",
+        "start": {
+          "not-registered": "This agent is no longer set up on this computer.",
+          "already-running": "The agent is running already.",
+          "program-moved": "The agent's program is no longer where it was. Add the agent again.",
+          "not-a-vault": "The agent could not be started in this folder.",
+          "start-failed": "The agent's program could not be started."
+        }
+      },
+      "log": "The last lines of the agent's program",
+      "logShow": "Show its last lines",
+      "logEmpty": "The program wrote nothing.",
+      "settings": {
+        "desc": "An agent is a program of another maker that you installed and signed in to yourself. Plainva starts it in a vault's folder when you ask it to. Plainva installs no agent and keeps no credential of one.",
+        "none": "No agent added yet.",
+        "found": "Found on this computer",
+        "add": "Add",
+        "addOwn": "Another agent",
+        "addOwnDesc": "Any program that speaks the Agent Client Protocol on its input and output.",
+        "addAction": "Add agent…",
+        "remove": "Remove {{agent}}",
+        "removeConfirm": "Remove {{agent}}?",
+        "removeBody": "Plainva forgets how to start it. The program itself and its sign-in stay as they are.",
+        "removeAction": "Remove",
+        "seen": "Last seen here ({{when}}): through Plainva {{proposed}}, written itself {{direct}}",
+        "unseen": "How it writes has not been seen on this computer yet"
+      },
+      "add": {
+        "title": "Add an agent",
+        "name": "Name",
+        "nameHint": "Your own name for it. What it suggests is signed with it.",
+        "program": "Program",
+        "programHint": "The agent's program: a name your system finds, or a full path. It is started directly, without a shell.",
+        "args": "Arguments, one per line",
+        "argsHint": "What makes the program speak the protocol, for example --acp. Its own documentation says which.",
+        "confirmTitle": "Add this agent?",
+        "confirmMessage": "Plainva will start exactly this program with exactly these arguments, in the folder of the vault you start it in. It runs with your rights and is not fenced in. Add only an agent you trust.",
+        "confirmAction": "Add",
+        "confirmNote": "Your system shows the whole command once more before it is remembered.",
+        "failed": "The agent could not be added. Is the program installed, and is this its name?",
+        "added": "{{agent}} was added."
+      }
+    },
     "transcribe": {
       "action": "Transcribe",
       "running": "Transcribing…",

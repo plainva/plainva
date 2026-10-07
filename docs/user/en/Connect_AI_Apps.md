@@ -6,6 +6,8 @@ AI apps on your computer — Claude Code, Claude Desktop, Cursor, VS Code and ot
 
 The other direction — Plainva's assistant using tools of servers you connect yourself — is described under **External tools (MCP)** in [AI Assistant](AI_Assistant.md).
 
+A third way — Plainva starting an AI agent of another maker in the vault's folder, with its session in the AI tab — is described in [External agents](External_Agents.md).
+
 ## How it works
 
 Plainva ships a small helper program, `plainva-mcp`, next to the app. An AI app starts it, and the helper connects to the running Plainva through a private channel of this computer — a named pipe on Windows, a socket in a private folder on macOS and Linux. No network port is ever opened. Plainva must be running with the vault open; otherwise the app gets a clear message.

@@ -348,7 +348,7 @@
       "neverHint": "Staan hier zodat je weet wat ontbreekt: nooit beoordeeld, nooit verzonden.",
       "ruleNote": "eigen regel",
       "ruleFolder": "regel voor {{folder}}",
-      "ruleDefault": "standaard van de kluis",
+      "ruleDefault": "standaard van de vault",
       "sendWith": "Met deze context verzenden",
       "never_one": "Nooit naar de cloud: {{count}} notitie",
       "never_other": "Nooit naar de cloud: {{count}} notities",
@@ -805,7 +805,7 @@
     },
     "mcp": {
       "title": "AI-apps op deze computer",
-      "switch": "AI-apps op deze computer deze kluis laten lezen",
+      "switch": "AI-apps op deze computer deze vault laten lezen",
       "switchDesc": "Standaard uit. Apps zoals Claude Code, Claude Desktop, Cursor of VS Code bereiken Plainva via een privékanaal van deze computer — geen netwerkpoort. Elke app vraagt één keer, en jij kiest de mappen die ze mag lezen. Ze kan niets wijzigen, en Plainva moet draaien.",
       "claudeCode": "Opdracht voor Claude Code",
       "copy": "Kopiëren",
@@ -820,8 +820,8 @@
       "helperMissing": "Het hulpprogramma ontbreekt naast Plainva. Installeer Plainva opnieuw.",
       "noClients": "Nog geen app heeft gevraagd.",
       "folders": "Mappen: {{folders}}",
-      "noFolders": "geen in deze kluis",
-      "wholeVault": "de hele kluis",
+      "noFolders": "geen in deze vault",
+      "wholeVault": "de hele vault",
       "lastSeen": "laatst gebruikt {{when}}",
       "revokeLabel": "{{client}} verwijderen",
       "revokeConfirm": "{{client}} verwijderen?",
@@ -830,11 +830,11 @@
       "audit": "Recente verzoeken",
       "auditNone": "Nog geen verzoeken.",
       "refused": "geweigerd",
-      "pairTitle": "{{client}} wil je kluis lezen",
-      "pairKnownTitle": "{{client}} wil deze kluis lezen",
+      "pairTitle": "{{client}} wil je vault lezen",
+      "pairKnownTitle": "{{client}} wil deze vault lezen",
       "pairBody": "Gestart door: {{program}}. Kies wat ze mag lezen — iets anders ziet ze niet, en ze kan niets wijzigen.",
       "pairFolders": "Mappen",
-      "pairWhole": "De hele kluis",
+      "pairWhole": "De hele vault",
       "pairAllow": "Toestaan",
       "pairDeny": "Weigeren",
       "pairNone": "Kies minstens één map om toe te staan."
@@ -1030,6 +1030,174 @@
           "cancelled": "De aanmelding is niet afgerond.",
           "failed": "De aanmelding is mislukt. Er is niets opgeslagen."
         }
+      }
+    },
+    "agent": {
+      "title": "Externe agents",
+      "segment": "Agent",
+      "author": "{{agent}} (externe agent)",
+      "roundNote": "Voorgesteld door de externe agent {{agent}}.",
+      "none": "Op deze computer is nog geen agent toegevoegd.",
+      "noneAction": "Instellingen openen",
+      "noVault": "Open een vault om er een agent in te starten.",
+      "sealed": "In een versleutelde workspace start Plainva geen externe agent.",
+      "choose": "Agent",
+      "start": {
+        "title": "Voordat je {{agent}} start",
+        "fact": {
+          "program": "{{agent}} is een programma van een andere maker. Het draait op deze computer met jouw rechten, in de map van deze vault.",
+          "reads": "Het leest bestanden zelf — ook notities die je van de cloud weghoudt — en stuurt wat het wil naar zijn eigen dienst. De privacyregels van Plainva bereiken het niet, en niemand vraagt je iets voordat het verstuurt.",
+          "direct": "Wat het zelf schrijft, staat meteen in de vault, zonder voorstel. De sessie zegt het je wanneer de agent zo'n wijziging meldt.",
+          "tools": "Plainva beheerst alleen zijn eigen kant: zijn hulpmiddelen, met de mappen die je de agent toestaat en nooit met een notitie die van de cloud wordt weggehouden — en wat de agent via Plainva schrijft: een wijziging wordt een voorstel, een nieuwe notitie wacht op jou.",
+          "signIn": "De agent meldt zichzelf aan, met je eigen abonnement of sleutel. Plainva ziet zijn inloggegevens nooit."
+        },
+        "toolsOn": "De hulpmiddelen van Plainva worden de agent aangeboden. De eerste keer vraagt Plainva je welke mappen hij mag lezen.",
+        "toolsOff": "De hulpmiddelen van Plainva staan uit (Instellingen → AI-apps op deze computer). De agent werkt dan alleen met de bestanden.",
+        "confirmTitle": "Deze agent starten?",
+        "confirmMessage": "Plainva start {{agent}} in deze map, met deze opdracht. Hij draait met jouw rechten, leest en verzendt zelf, en zonder afscherming.",
+        "action": "Sessie starten"
+      },
+      "sessions": "Laatste sessies in deze vault",
+      "sessionLine": "{{when}} · {{agent}} · berichten: {{turns}} · via Plainva: {{proposed}} · zelf geschreven: {{direct}}",
+      "marking": "Externe agent · {{agent}}. Hij leest en verstuurt zelf: de privacyregels van Plainva gelden niet voor hem, en niemand vraagt iets voordat hij verstuurt.",
+      "markingTools": {
+        "offered": "Hulpmiddelen van Plainva: aangeboden",
+        "off": "Hulpmiddelen van Plainva: uit"
+      },
+      "end": "Sessie beëindigen",
+      "starting": "{{agent}} wordt gestart…",
+      "working": "{{agent}} is bezig…",
+      "placeholder": "Bericht aan {{agent}}…",
+      "empty": "Zeg {{agent}} wat er moet gebeuren. Hij werkt in de map van deze vault.",
+      "plan": "Plan van de agent",
+      "toolOutside": "buiten de vault: {{count}}",
+      "kind": {
+        "read": "Lezen",
+        "edit": "Een bestand wijzigen",
+        "delete": "Een bestand verwijderen",
+        "move": "Verplaatsen of hernoemen",
+        "search": "Zoeken",
+        "execute": "Een opdracht uitvoeren",
+        "think": "Nadenken",
+        "fetch": "Van internet ophalen",
+        "switch_mode": "Van modus wisselen",
+        "other": "Een andere stap"
+      },
+      "option": {
+        "allow_once": "Toestaan",
+        "allow_always": "Altijd toestaan",
+        "reject_once": "Afwijzen",
+        "reject_always": "Altijd afwijzen"
+      },
+      "question": {
+        "title": "{{agent}} vraagt",
+        "files": "Bestanden",
+        "hint": "De woorden zijn van de agent zelf. Jouw antwoord gaat alleen naar de agent — wat hij na een ja doet, is zijn eigen zaak, niet die van Plainva."
+      },
+      "auth": {
+        "title": "{{agent}} vraagt om aanmelding",
+        "body": "Je meldt je aan in het eigen programma van de agent. Plainva ziet daar niets van en bewaart geen inloggegevens.",
+        "waiting": "Meld je aan in het venster dat is geopend. Plainva wacht hier.",
+        "retry": "Opnieuw proberen",
+        "manual": "Er kon geen terminal worden geopend. Voer deze opdracht uit in een eigen terminal, meld je daar aan en probeer het dan opnieuw:",
+        "problem": {
+          "declined": "De aanmelding is niet afgerond.",
+          "failed": "De agent kon zich niet aanmelden.",
+          "cancelled": "De aanmelding is gestopt.",
+          "no-method": "De agent noemt geen manier om je van hieruit aan te melden. Meld je bij hem aan in een eigen terminal en probeer het dan opnieuw.",
+          "start": "De aanmelding kon niet worden gestart."
+        }
+      },
+      "event": {
+        "proposed": "Voorstel in {{note}} · wijzigingen: {{count}}.",
+        "new": "Een nieuwe notitie wacht op jou: {{note}}",
+        "created": "Gemaakt: {{note}}",
+        "discarded": "Verworpen: {{note}}",
+        "direct": "De agent heeft {{note}} zelf gewijzigd: het staat zonder voorstel in de vault.",
+        "noteKept": "{{note}} is de agent niet genoemd: de notitie wordt van de cloud weggehouden.",
+        "failed": "De agent kon dit niet afmaken.",
+        "failedSaid": "De agent kon dit niet afmaken. Hij zegt: {{message}}",
+        "stopped": {
+          "max_tokens": "De agent is gestopt: zijn model heeft zijn limiet bereikt.",
+          "max_turn_requests": "De agent is gestopt: hij heeft zijn limiet aan stappen bereikt.",
+          "refusal": "De agent weigerde verder te gaan.",
+          "cancelled": "Gestopt."
+        },
+        "refused": {
+          "read": "Plainva heeft {{path}} niet aan de agent gegeven: {{reason}}.",
+          "write": "Plainva heeft de wijziging van de agent in {{path}} niet aangenomen: {{reason}}."
+        }
+      },
+      "reason": {
+        "not-absolute": "geen volledig pad",
+        "outside": "buiten deze vault",
+        "unsafe": "geen pad dat Plainva aanneemt",
+        "hidden": "een van de eigen mappen van Plainva",
+        "missing": "dat bestand bestaat niet",
+        "too-large": "het bestand is te groot",
+        "kept": "wordt van de cloud weggehouden",
+        "not-a-note": "geen Markdown-notitie",
+        "sealed": "niet mogelijk in deze vault",
+        "rules": "bevat AI-regels of vertrouwensvelden",
+        "properties": "zou de eigenschappen van de notitie wijzigen",
+        "unreadable": "de eigenschappen zijn niet leesbaar",
+        "too-many": "te veel wijzigingen voor één voorstel",
+        "failed": "het kon niet worden gedaan"
+      },
+      "pending": {
+        "title": "Nieuwe notities van de agent",
+        "create": "Maken",
+        "discard": "Verwerpen",
+        "hint": "Een notitie wordt pas geschreven wanneer je haar maakt. Ze draagt de vermelding wie haar schreef, en webadressen die de agent meebracht zijn onschadelijk gemaakt."
+      },
+      "ended": {
+        "closed": "De sessie is beëindigd.",
+        "exited": "Het programma van de agent is gestopt.",
+        "exitedCode": "Het programma van de agent is gestopt (code {{code}}).",
+        "version": "De agent spreekt een versie van het protocol die Plainva niet kent.",
+        "timeout": "De agent antwoordde niet op tijd.",
+        "protocol": "De antwoorden van de agent konden niet worden gelezen.",
+        "agentSaid": "De agent antwoordde met een fout: {{message}}",
+        "start": {
+          "not-registered": "Deze agent is op deze computer niet meer ingesteld.",
+          "already-running": "De agent draait al.",
+          "program-moved": "Het programma van de agent staat niet meer waar het stond. Voeg de agent opnieuw toe.",
+          "not-a-vault": "De agent kon in deze map niet worden gestart.",
+          "start-failed": "Het programma van de agent kon niet worden gestart."
+        }
+      },
+      "log": "De laatste regels van het programma van de agent",
+      "logShow": "Zijn laatste regels tonen",
+      "logEmpty": "Het programma schreef niets.",
+      "settings": {
+        "desc": "Een agent is een programma van een andere maker dat je zelf hebt geïnstalleerd en waarbij je je zelf hebt aangemeld. Plainva start het in de map van een vault wanneer je erom vraagt. Plainva installeert geen agent en bewaart geen inloggegevens ervan.",
+        "none": "Nog geen agent toegevoegd.",
+        "found": "Gevonden op deze computer",
+        "add": "Toevoegen",
+        "addOwn": "Een andere agent",
+        "addOwnDesc": "Elk programma dat via zijn invoer en uitvoer het Agent Client Protocol spreekt.",
+        "addAction": "Agent toevoegen…",
+        "remove": "{{agent}} verwijderen",
+        "removeConfirm": "{{agent}} verwijderen?",
+        "removeBody": "Plainva vergeet hoe hij wordt gestart. Het programma zelf en zijn aanmelding blijven zoals ze zijn.",
+        "removeAction": "Verwijderen",
+        "seen": "Hier voor het laatst gezien ({{when}}): via Plainva {{proposed}}, zelf geschreven {{direct}}",
+        "unseen": "Hoe hij schrijft, is op deze computer nog niet gezien"
+      },
+      "add": {
+        "title": "Een agent toevoegen",
+        "name": "Naam",
+        "nameHint": "Je eigen naam ervoor. Wat hij voorstelt, draagt die naam.",
+        "program": "Programma",
+        "programHint": "Het programma van de agent: een naam die je systeem vindt, of een volledig pad. Het wordt rechtstreeks gestart, zonder shell.",
+        "args": "Argumenten, één per regel",
+        "argsHint": "Wat het programma het protocol laat spreken, bijvoorbeeld --acp. Zijn eigen documentatie zegt welke.",
+        "confirmTitle": "Deze agent toevoegen?",
+        "confirmMessage": "Plainva start precies dit programma met precies deze argumenten, in de map van de vault waarin je het start. Het draait met jouw rechten en zonder afscherming. Voeg alleen een agent toe die je vertrouwt.",
+        "confirmAction": "Toevoegen",
+        "confirmNote": "Je systeem toont de hele opdracht nog één keer voordat hij wordt onthouden.",
+        "failed": "De agent kon niet worden toegevoegd. Is het programma geïnstalleerd, en heet het zo?",
+        "added": "{{agent}} is toegevoegd."
       }
     },
     "transcribe": {

@@ -1,6 +1,6 @@
 # Translation Glossary
 
-Last reviewed: 2026-09-30. Reference for ALL translation work (locale JSONs, vault
+Last reviewed: 2026-10-07. Reference for ALL translation work (locale JSONs, vault
 templates, user guide). Every session that touches strings follows these
 conventions — this keeps subsequent translations consistent, even without
 native-speaker review.
@@ -50,6 +50,11 @@ Language code = BCP-47 = locale JSON basename = folder name under `docs/user/`.
 
 Notes:
 
+- The vault's word is the one of the table in every new string and page. Older
+  strings drifted: between about 15 and 65 keys per language still say bóveda,
+  coffre, kluis, sejf, cofre or 保险库 (counted 2026-10-07), and some user-guide
+  pages use the same words. A page quotes a UI string as it is; new wording
+  never copies the drift.
 - Plural suffixes: always create ALL listed categories (even if `_many` only
   applies starting in the millions) — the parity test requires at least the
   categories reported by `Intl.PluralRules` and allows supersets
@@ -102,6 +107,29 @@ the verb of the skills' "Review and approve", "Approve" its second half.
 | pl | Narzędzia zewnętrzne (MCP) | serwer | token dostępu | prompty | piaskownica |
 | zh-CN | 外部工具（MCP） | 服务器 | 访问令牌 | 提示词 | 沙盒 |
 | ja | 外部ツール（MCP） | サーバー | アクセストークン | プロンプト | サンドボックス |
+
+**External agents** (`ai.agent.*`): an AI program of another maker that Plainva starts
+in a vault's folder. It is an **agent** — never the "assistant", which is Plainva's
+own, and never an "AI app", which reads the vault through Plainva (`ai.mcp.*`). What
+it has in the AI tab is a **session**, never a "conversation": a conversation is the
+assistant's and has a history, a session has neither. What it proposes is signed with
+the user's name for it and the words "external agent". Where the language says "start
+a session" for signing in (es *iniciar sesión*), the session's own buttons take
+another verb (**Empezar la sesión**, **Terminar la sesión**), and the sign-in keeps
+the usual one.
+
+| Language | External agents | Session | Suggestion author | Sign-in |
+|---|---|---|---|---|
+| en | External agents | session | ⟨name⟩ (external agent) | sign-in |
+| de | Externe Agenten | Sitzung | ⟨Name⟩ (externer Agent) | Anmeldung |
+| fr | Agents externes | session | ⟨nom⟩ (agent externe) | connexion |
+| es | Agentes externos | sesión | ⟨nombre⟩ (agente externo) | inicio de sesión |
+| pt-BR | Agentes externos | sessão | ⟨nome⟩ (agente externo) | login |
+| it | Agenti esterni | sessione | ⟨nome⟩ (agente esterno) | accesso |
+| nl | Externe agents | sessie | ⟨naam⟩ (externe agent) | aanmelding |
+| pl | Agenci zewnętrzni | sesja | ⟨nazwa⟩ (agent zewnętrzny) | logowanie |
+| zh-CN | 外部智能体 | 会话 | ⟨名称⟩（外部智能体） | 登录 |
+| ja | 外部エージェント | セッション | ⟨名前⟩（外部エージェント） | サインイン |
 
 Two terms that must not borrow a word the app already uses for something else
 (`ai.capture.action`, `ai.skills.research.title`): **Keep as a note** — an AI

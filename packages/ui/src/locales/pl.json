@@ -368,7 +368,7 @@
       "neverHint": "Wymienione, abyś wiedział, czego brakuje: nigdy nieoceniane, nigdy niewysyłane.",
       "ruleNote": "własna reguła",
       "ruleFolder": "reguła dla {{folder}}",
-      "ruleDefault": "domyślne ustawienie sejfu",
+      "ruleDefault": "domyślne ustawienie vaultu",
       "sendWith": "Wyślij z tym kontekstem",
       "never_one": "Nigdy do chmury: {{count}} notatka",
       "never_few": "Nigdy do chmury: {{count}} notatki",
@@ -859,7 +859,7 @@
     },
     "mcp": {
       "title": "Aplikacje AI na tym komputerze",
-      "switch": "Pozwól aplikacjom AI na tym komputerze czytać ten sejf",
+      "switch": "Pozwól aplikacjom AI na tym komputerze czytać ten vault",
       "switchDesc": "Domyślnie wyłączone. Aplikacje takie jak Claude Code, Claude Desktop, Cursor czy VS Code docierają do Plainva prywatnym kanałem tego komputera — bez portu sieciowego. Każda aplikacja pyta raz, a Ty wybierasz foldery, które może czytać. Niczego nie może zmienić, a Plainva musi być uruchomiona.",
       "claudeCode": "Polecenie dla Claude Code",
       "copy": "Kopiuj",
@@ -874,8 +874,8 @@
       "helperMissing": "Brakuje programu pomocniczego obok Plainva. Zainstaluj Plainva ponownie.",
       "noClients": "Żadna aplikacja jeszcze nie pytała.",
       "folders": "Foldery: {{folders}}",
-      "noFolders": "żaden w tym sejfie",
-      "wholeVault": "cały sejf",
+      "noFolders": "żaden w tym vaulcie",
+      "wholeVault": "cały vault",
       "lastSeen": "ostatnio {{when}}",
       "revokeLabel": "Usuń {{client}}",
       "revokeConfirm": "Usunąć {{client}}?",
@@ -884,11 +884,11 @@
       "audit": "Ostatnie zapytania",
       "auditNone": "Jeszcze nie było zapytań.",
       "refused": "odrzucone",
-      "pairTitle": "{{client}} chce czytać Twój sejf",
-      "pairKnownTitle": "{{client}} chce czytać ten sejf",
+      "pairTitle": "{{client}} chce czytać Twój vault",
+      "pairKnownTitle": "{{client}} chce czytać ten vault",
       "pairBody": "Uruchomiona przez: {{program}}. Wybierz, co może czytać — nic więcej nie widzi i niczego nie może zmienić.",
       "pairFolders": "Foldery",
-      "pairWhole": "Cały sejf",
+      "pairWhole": "Cały vault",
       "pairAllow": "Zezwól",
       "pairDeny": "Odmów",
       "pairNone": "Wybierz co najmniej jeden folder, aby zezwolić."
@@ -1084,6 +1084,174 @@
           "cancelled": "Logowanie nie zostało dokończone.",
           "failed": "Logowanie nie powiodło się. Niczego nie zapisano."
         }
+      }
+    },
+    "agent": {
+      "title": "Agenci zewnętrzni",
+      "segment": "Agent",
+      "author": "{{agent}} (agent zewnętrzny)",
+      "roundNote": "Propozycja zewnętrznego agenta {{agent}}.",
+      "none": "Na tym komputerze nie dodano jeszcze żadnego agenta.",
+      "noneAction": "Otwórz ustawienia",
+      "noVault": "Otwórz vault, aby uruchomić w nim agenta.",
+      "sealed": "W zaszyfrowanym obszarze roboczym Plainva nie uruchamia żadnego agenta zewnętrznego.",
+      "choose": "Agent",
+      "start": {
+        "title": "Zanim uruchomisz: {{agent}}",
+        "fact": {
+          "program": "{{agent}} to program innego producenta. Działa na tym komputerze z Twoimi uprawnieniami, w folderze tego vaultu.",
+          "reads": "Sam czyta pliki — także notatki trzymane z dala od chmury — i wysyła, co zechce, do własnej usługi. Zasady prywatności Plainva go nie obejmują i nikt nie pyta Cię, zanim coś wyśle.",
+          "direct": "To, co zapisuje sam, trafia do vaultu od razu, bez propozycji. Sesja powie Ci o tym, gdy agent zgłosi taką zmianę.",
+          "tools": "Plainva kontroluje tylko własną stronę: swoje narzędzia, z folderami, które przyznasz agentowi, i nigdy z notatką trzymaną z dala od chmury — oraz to, co agent zapisuje przez Plainva: zmiana staje się propozycją, a nowa notatka czeka na Ciebie.",
+          "signIn": "Agent loguje się sam, przy użyciu Twojej własnej subskrypcji lub klucza. Plainva nigdy nie widzi jego danych logowania."
+        },
+        "toolsOn": "Narzędzia Plainva są oferowane agentowi. Za pierwszym razem Plainva zapyta Cię, które foldery może czytać.",
+        "toolsOff": "Narzędzia Plainva są wyłączone (Ustawienia → Aplikacje AI na tym komputerze). Agent pracuje wtedy tylko z plikami.",
+        "confirmTitle": "Uruchomić tego agenta?",
+        "confirmMessage": "Plainva uruchomi agenta {{agent}} w tym folderze, tym poleceniem. Działa z Twoimi uprawnieniami, sam czyta i wysyła, bez żadnego ogrodzenia.",
+        "action": "Rozpocznij sesję"
+      },
+      "sessions": "Ostatnie sesje w tym vaulcie",
+      "sessionLine": "{{when}} · {{agent}} · wiadomości: {{turns}} · przez Plainva: {{proposed}} · zapisane samodzielnie: {{direct}}",
+      "marking": "Agent zewnętrzny · {{agent}}. Sam czyta i wysyła: zasady prywatności Plainva go nie dotyczą i nikt nie pyta, zanim coś wyśle.",
+      "markingTools": {
+        "offered": "Narzędzia Plainva: zaoferowane",
+        "off": "Narzędzia Plainva: wyłączone"
+      },
+      "end": "Zakończ sesję",
+      "starting": "Uruchamianie: {{agent}}…",
+      "working": "{{agent}} pracuje…",
+      "placeholder": "Wiadomość dla: {{agent}}…",
+      "empty": "Napisz, co {{agent}} ma zrobić. Pracuje w folderze tego vaultu.",
+      "plan": "Plan agenta",
+      "toolOutside": "poza vaultem: {{count}}",
+      "kind": {
+        "read": "Odczyt",
+        "edit": "Zmiana pliku",
+        "delete": "Usunięcie pliku",
+        "move": "Przeniesienie lub zmiana nazwy",
+        "search": "Wyszukiwanie",
+        "execute": "Uruchomienie polecenia",
+        "think": "Namysł",
+        "fetch": "Pobranie z internetu",
+        "switch_mode": "Zmiana trybu",
+        "other": "Inny krok"
+      },
+      "option": {
+        "allow_once": "Zezwól",
+        "allow_always": "Zawsze zezwalaj",
+        "reject_once": "Odrzuć",
+        "reject_always": "Zawsze odrzucaj"
+      },
+      "question": {
+        "title": "{{agent}} pyta",
+        "files": "Pliki",
+        "hint": "To słowa samego agenta. Twoja odpowiedź trafia tylko do agenta — to, co zrobi po „tak”, jest jego sprawą, nie Plainva."
+      },
+      "auth": {
+        "title": "{{agent}} wymaga zalogowania",
+        "body": "Logujesz się we własnym programie agenta. Plainva nic z tego nie widzi i nie przechowuje żadnych danych logowania.",
+        "waiting": "Zaloguj się w oknie, które się otworzyło. Plainva czeka tutaj.",
+        "retry": "Spróbuj ponownie",
+        "manual": "Nie udało się otworzyć terminala. Uruchom to polecenie we własnym terminalu, zaloguj się tam, a potem spróbuj ponownie:",
+        "problem": {
+          "declined": "Logowanie nie zostało dokończone.",
+          "failed": "Agent nie mógł się zalogować.",
+          "cancelled": "Logowanie zostało zatrzymane.",
+          "no-method": "Agent nie podaje sposobu zalogowania się stąd. Zaloguj się do niego we własnym terminalu, a potem spróbuj ponownie.",
+          "start": "Nie udało się rozpocząć logowania."
+        }
+      },
+      "event": {
+        "proposed": "Propozycja w {{note}} · zmiany: {{count}}.",
+        "new": "Nowa notatka czeka na Ciebie: {{note}}",
+        "created": "Utworzono: {{note}}",
+        "discarded": "Odrzucono: {{note}}",
+        "direct": "Agent sam zmienił {{note}}: zmiana jest w vaulcie bez propozycji.",
+        "noteKept": "Agentowi nie wskazano {{note}}: notatka jest trzymana z dala od chmury.",
+        "failed": "Agent nie mógł tego dokończyć.",
+        "failedSaid": "Agent nie mógł tego dokończyć. Podaje: {{message}}",
+        "stopped": {
+          "max_tokens": "Agent przerwał: jego model osiągnął limit.",
+          "max_turn_requests": "Agent przerwał: osiągnął limit kroków.",
+          "refusal": "Agent odmówił dalszej pracy.",
+          "cancelled": "Zatrzymano."
+        },
+        "refused": {
+          "read": "Plainva nie przekazała agentowi {{path}}: {{reason}}.",
+          "write": "Plainva nie przyjęła zmiany agenta w {{path}}: {{reason}}."
+        }
+      },
+      "reason": {
+        "not-absolute": "to nie jest pełna ścieżka",
+        "outside": "poza tym vaultem",
+        "unsafe": "Plainva nie przyjmuje takiej ścieżki",
+        "hidden": "to jeden z własnych folderów Plainva",
+        "missing": "nie ma takiego pliku",
+        "too-large": "plik jest za duży",
+        "kept": "notatka jest trzymana z dala od chmury",
+        "not-a-note": "to nie jest notatka Markdown",
+        "sealed": "w tym vaulcie nie jest to możliwe",
+        "rules": "zawiera zasady AI lub pola zaufania",
+        "properties": "zmieniłoby to właściwości notatki",
+        "unreadable": "nie da się odczytać jej właściwości",
+        "too-many": "za dużo zmian na jedną propozycję",
+        "failed": "nie udało się tego wykonać"
+      },
+      "pending": {
+        "title": "Nowe notatki od agenta",
+        "create": "Utwórz",
+        "discard": "Odrzuć",
+        "hint": "Notatka jest zapisywana dopiero wtedy, gdy ją utworzysz. Ma adnotację, kto ją napisał, a adresy internetowe przyniesione przez agenta są unieszkodliwione."
+      },
+      "ended": {
+        "closed": "Sesja została zakończona.",
+        "exited": "Program agenta zakończył działanie.",
+        "exitedCode": "Program agenta zakończył działanie (kod {{code}}).",
+        "version": "Agent używa wersji protokołu, której Plainva nie zna.",
+        "timeout": "Agent nie odpowiedział na czas.",
+        "protocol": "Nie udało się odczytać odpowiedzi agenta.",
+        "agentSaid": "Agent odpowiedział błędem: {{message}}",
+        "start": {
+          "not-registered": "Ten agent nie jest już skonfigurowany na tym komputerze.",
+          "already-running": "Agent już działa.",
+          "program-moved": "Programu agenta nie ma już tam, gdzie był. Dodaj agenta ponownie.",
+          "not-a-vault": "Nie udało się uruchomić agenta w tym folderze.",
+          "start-failed": "Nie udało się uruchomić programu agenta."
+        }
+      },
+      "log": "Ostatnie wiersze programu agenta",
+      "logShow": "Pokaż jego ostatnie wiersze",
+      "logEmpty": "Program niczego nie wypisał.",
+      "settings": {
+        "desc": "Agent to program innego producenta, zainstalowany i zalogowany przez Ciebie. Plainva uruchamia go w folderze vaultu, gdy o to poprosisz. Plainva nie instaluje żadnego agenta i nie przechowuje jego danych logowania.",
+        "none": "Nie dodano jeszcze żadnego agenta.",
+        "found": "Znaleziono na tym komputerze",
+        "add": "Dodaj",
+        "addOwn": "Inny agent",
+        "addOwnDesc": "Dowolny program, który na swoim wejściu i wyjściu posługuje się protokołem Agent Client Protocol.",
+        "addAction": "Dodaj agenta…",
+        "remove": "Usuń: {{agent}}",
+        "removeConfirm": "Usunąć: {{agent}}?",
+        "removeBody": "Plainva zapomni, jak go uruchomić. Sam program i jego logowanie pozostaną bez zmian.",
+        "removeAction": "Usuń",
+        "seen": "Ostatnio zaobserwowano tutaj ({{when}}): przez Plainva {{proposed}}, zapisane samodzielnie {{direct}}",
+        "unseen": "Na tym komputerze nie zaobserwowano jeszcze, jak zapisuje"
+      },
+      "add": {
+        "title": "Dodaj agenta",
+        "name": "Nazwa",
+        "nameHint": "Własna nazwa agenta. To, co proponuje, jest nią podpisane.",
+        "program": "Program",
+        "programHint": "Program agenta: nazwa, którą znajduje system, albo pełna ścieżka. Jest uruchamiany bezpośrednio, bez powłoki.",
+        "args": "Argumenty, po jednym w wierszu",
+        "argsHint": "To, co sprawia, że program posługuje się protokołem, na przykład --acp. Jakie to argumenty, podaje jego własna dokumentacja.",
+        "confirmTitle": "Dodać tego agenta?",
+        "confirmMessage": "Plainva uruchomi dokładnie ten program z dokładnie tymi argumentami, w folderze vaultu, w którym go uruchomisz. Działa z Twoimi uprawnieniami i bez żadnego ogrodzenia. Dodaj tylko agenta, któremu ufasz.",
+        "confirmAction": "Dodaj",
+        "confirmNote": "System pokaże całe polecenie jeszcze raz, zanim zostanie zapamiętane.",
+        "failed": "Nie udało się dodać agenta. Czy program jest zainstalowany i czy tak się nazywa?",
+        "added": "Dodano: {{agent}}."
       }
     },
     "transcribe": {

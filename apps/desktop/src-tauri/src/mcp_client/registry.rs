@@ -109,7 +109,7 @@ pub(crate) fn normalize_url(raw: &str) -> Result<String, String> {
     Ok(url.to_string())
 }
 
-fn clean_text(text: &str) -> bool {
+pub(crate) fn clean_text(text: &str) -> bool {
     !text.chars().any(|c| c.is_control())
 }
 
@@ -237,7 +237,7 @@ fn clip(text: &str, max: usize) -> String {
     text.chars().filter(|c| !c.is_control() || *c == '\n').take(max).collect()
 }
 
-async fn confirmed(app: &AppHandle, text: McpConfirmText, subject: String) -> Result<bool, String> {
+pub(crate) async fn confirmed(app: &AppHandle, text: McpConfirmText, subject: String) -> Result<bool, String> {
     let question = format!("{}\n\n{subject}", clip(&text.message, 600));
     let (title, confirm, cancel) = (clip(&text.title, 80), clip(&text.confirm, 40), clip(&text.cancel, 40));
     let dialog_app = app.clone();

@@ -2,21 +2,23 @@
 
 Última revisão: 2026-10-07
 
-Apps de IA no seu computador — Claude Code, Claude Desktop, Cursor, VS Code e outros que falam o Model Context Protocol (MCP) — podem ler o seu cofre pelo Plainva: pesquisar nele, ler notas e suas seções, estruturas, backlinks, bancos de dados, tarefas e notas recentes, e abrir uma nota no Plainva. Eles não podem mudar nada. Isso faz parte das funções experimentais de IA e funciona só no desktop.
+Apps de IA no seu computador — Claude Code, Claude Desktop, Cursor, VS Code e outros que falam o Model Context Protocol (MCP) — podem ler o seu vault pelo Plainva: pesquisar nele, ler notas e suas seções, estruturas, backlinks, bancos de dados, tarefas e notas recentes, e abrir uma nota no Plainva. Eles não podem mudar nada. Isso faz parte das funções experimentais de IA e funciona só no desktop.
 
 O sentido contrário — o assistente do Plainva usando ferramentas de servidores que você mesmo conecta — está descrito em **Ferramentas externas (MCP)** na página [Assistente de IA](AI_Assistant.md).
 
+Um terceiro caminho — o Plainva inicia um agente de IA de outro fabricante na pasta do vault, com a sessão dele na aba de IA — está descrito em [Agentes externos](External_Agents.md).
+
 ## Como funciona
 
-O Plainva traz ao lado do app um pequeno programa auxiliar, `plainva-mcp`. Um app de IA o inicia, e o programa auxiliar se conecta ao Plainva em execução por um canal privado deste computador — um named pipe no Windows, um socket numa pasta privada no macOS e no Linux. Nenhuma porta de rede é aberta. O Plainva precisa estar rodando com o cofre aberto; caso contrário, o app recebe uma mensagem clara.
+O Plainva traz ao lado do app um pequeno programa auxiliar, `plainva-mcp`. Um app de IA o inicia, e o programa auxiliar se conecta ao Plainva em execução por um canal privado deste computador — um named pipe no Windows, um socket numa pasta privada no macOS e no Linux. Nenhuma porta de rede é aberta. O Plainva precisa estar rodando com o vault aberto; caso contrário, o app recebe uma mensagem clara.
 
 ## Ativar
 
 1. Abra **Configurações → IA e automação** e ative **Usar IA neste dispositivo**.
-2. Ative **Deixar apps de IA deste computador lerem este cofre**.
-3. Configure o app (veja abaixo). Na primeira conexão, o Plainva pergunta qual app é, qual programa o iniciou e quais pastas ele pode ler. Nada vem marcado: escolha pastas ou **O cofre inteiro** e depois **Permitir**. **Recusar** afasta o app, e o Plainva não pergunta por ele de novo durante dez minutos.
+2. Ative **Deixar apps de IA deste computador lerem este vault**.
+3. Configure o app (veja abaixo). Na primeira conexão, o Plainva pergunta qual app é, qual programa o iniciou e quais pastas ele pode ler. Nada vem marcado: escolha pastas ou **O vault inteiro** e depois **Permitir**. **Recusar** afasta o app, e o Plainva não pergunta por ele de novo durante dez minutos.
 
-O app guarda um segredo no chaveiro do sistema para a próxima vez. As pastas valem por app e por cofre: em outro cofre, o app pergunta de novo.
+O app guarda um segredo no chaveiro do sistema para a próxima vez. As pastas valem por app e por vault: em outro vault, o app pergunta de novo.
 
 ## Configurar um app
 
@@ -28,7 +30,7 @@ O app guarda um segredo no chaveiro do sistema para a próxima vez. As pastas va
 
 Só as pastas que você permitiu, e só o que suas regras de privacidade deixam ir para um modelo na nuvem: notas com `cloud: deny`, ou numa pasta com essa regra, não existem para um app — nem o texto nem os títulos —, links para elas são retidos, e lugares do diário nunca vão. As pastas do próprio Plainva (`.plainva`, `.agent`) e as próprias regras nunca podem ser lidas. Cada caminho de uma solicitação e de uma resposta é verificado duas vezes: na janela do app e na parte nativa do Plainva.
 
-As configurações listam os apps permitidos com suas pastas e as últimas solicitações. **Remover** retira a permissão de um app em todos os cofres.
+As configurações listam os apps permitidos com suas pastas e as últimas solicitações. **Remover** retira a permissão de um app em todos os vaults.
 
 Além das ferramentas, o Plainva oferece suas três habilidades como prompts, no idioma do app: `daily-orientation`, `weekly-review` e `project-status`, que pede o nome do projeto. Um app que aceita prompts os lista entre seus comandos.
 

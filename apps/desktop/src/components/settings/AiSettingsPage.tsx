@@ -27,6 +27,7 @@ import { appConfirm } from "../../services/appDialogs";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
 import { AiAddProviderDialog, AiKeyDialog, AiModelDialog } from "./AiDialogs";
+import { ExternalAgentsCard } from "./ExternalAgentsCard";
 import { McpSettingsCard } from "./McpSettingsCard";
 import { SemanticSearchCard } from "./SemanticSearchCard";
 import { GistsCard } from "./GistsCard";
@@ -172,6 +173,8 @@ function AiSettingsBody({ session }: { session: AiSession }) {
       {settings.enabled && <SemanticSearchCard session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />}
       {settings.enabled && <GistsCard session={session} />}
       {settings.enabled && <McpSettingsCard session={session} enabled={settings.mcpEnabled} />}
+      {/* External agents (plan KI-Harness P4.6): which programs of other makers this computer may start in a vault. */}
+      {settings.enabled && <ExternalAgentsCard />}
 
       <SettingCard label={t("ai.settings.history")}>
         <SettingRow label={t("ai.settings.historyKeep")} desc={t("ai.settings.historyDesc")}>

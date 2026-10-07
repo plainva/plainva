@@ -3,6 +3,7 @@ import {
   BUNDLE_COMMENT_CAPABILITIES,
   BundleCommentStore,
   CommentStoreLockedError,
+  commentSignedByPerson,
   commentsDevicePath,
   mergeCommentsBundles,
   parseCommentsBundle,
@@ -147,6 +148,25 @@ describe("BundleCommentStore", () => {
     // ...and the person retracts it from their own device.
     await store.post({ path: "Notes/Plan.md", body: "", retractsCommentId: record.commentId });
     expect(await store.list("Notes/Plan.md")).toEqual([]);
+  });
+
+  it("asks for the person's name only for what the person signs", () => {
+    // The shells ask "what should your remarks be signed with?" once, where the
+    // name is first needed. A record a named author writes through this device
+    // is not such a place (finding 2026-10-07: a proposal of the assistant
+    // opened the question, and the turn waited behind it).
+    expect(commentSignedByPerson({ body: "A remark" })).toBe(true);
+    expect(commentSignedByPerson({ body: "", suggestion: { replacement: "new" } })).toBe(true);
+    expect(commentSignedByPerson({ body: "", suggestion: { replacement: "" } })).toBe(true);
+    // Markers carry no signature anybody reads.
+    expect(commentSignedByPerson({ body: "", resolvedCommentId: "ab".repeat(16) })).toBe(false);
+    expect(commentSignedByPerson({ body: "", retractsCommentId: "ab".repeat(16) })).toBe(false);
+    expect(commentSignedByPerson({ body: "   " })).toBe(false);
+    // A named author signs with its own name, whatever it writes.
+    const author = { id: "plainva-ai/gemma-4", displayName: "Gemma 4" };
+    expect(commentSignedByPerson({ body: "", suggestion: { replacement: "new" }, author })).toBe(false);
+    expect(commentSignedByPerson({ body: "A remark", author })).toBe(false);
+    expect(commentSignedByPerson({ body: "A remark", author: null })).toBe(true);
   });
 
   it("treats retry and discard as non-operations: nothing is ever pending here", async () => {

@@ -177,6 +177,7 @@ import {
   type GateRun,
   type RunMcp,
 } from "@plainva/core";
+import { AiAcp, type AcpVaultSide, type AiAcpHost, type AiAcpState } from "./acpSession";
 import { AiMcp, type AiMcpHost, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
 import type { McpPromptLook } from "./mcpRuntime";
 import type { McpVaultStore } from "./mcpStores";
@@ -224,6 +225,13 @@ export interface AiSessionHost {
    * are no foreign servers in this shell.
    */
   mcp?: AiMcpHost;
+  /**
+   * External agents (plan KI-Harness P4.6): the shell's native side — the
+   * registry behind a native dialog, the start of an agent's program in the
+   * vault's folder, the terminal of its sign-in — and the device's record of
+   * agents. Absent, this shell hosts no agents (a phone starts no programs).
+   */
+  acp?: AiAcpHost;
 }
 
 export interface AiVaultHost {
@@ -262,6 +270,8 @@ export interface AiVaultHost {
   web?: WebSettingsStore;
   /** This vault's choices about foreign MCP servers (plan P4.5): which it uses, and what each may be called with. Absent, it uses none. */
   mcp?: McpVaultStore;
+  /** What an external agent's session needs of this vault (plan P4.6): its folder, its files under its rules, its margin. Absent, no agent is started here. */
+  agents?: AcpVaultSide;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
   keepOnDevice?(path: string): Promise<void>;
   /** Checked gists of the model on this computer (plan P2b-3), read when a message is built; null while there are none. */
@@ -602,6 +612,8 @@ export interface AiState {
   effect: EffectRequest | null;
   /** The foreign MCP servers of this device as they stand for this vault (plan P4.5): what the settings show. */
   mcp: AiMcpState;
+  /** The external agents of this device and the session one of them has in this vault (plan P4.6). */
+  agents: AiAcpState;
 }
 
 type Listener = () => void;
@@ -727,9 +739,12 @@ export class AiSession {
   private reveal: (() => void) | null = null;
   /** Foreign MCP servers (plan P4.5): what the settings drive, and what a run asks before it calls one. */
   readonly mcp: AiMcp;
+  /** External agents (plan P4.6): the agents of this device, and the session one has in the open vault. */
+  readonly agents: AiAcp;
 
   constructor(private readonly host: AiSessionHost) {
     this.mcp = new AiMcp(host.mcp, { now: () => host.now(), newId: () => host.newId() }, (mcp) => this.set({ mcp }));
+    this.agents = new AiAcp(host.acp, { now: () => host.now() }, (key, vars) => host.label?.(key, vars) ?? key, (agents) => this.set({ agents }));
     this.state = {
       loaded: false,
       settings: host.defaults,
@@ -754,6 +769,7 @@ export class AiSession {
       draftWeb: false,
       effect: null,
       mcp: this.mcp.state,
+      agents: this.agents.state,
     };
   }
 
@@ -948,6 +964,8 @@ export class AiSession {
     });
     // The same for foreign servers: which this vault uses is its own choice, and the connections of the last one end here.
     this.mcp.attach(vault?.mcp ?? null);
+    // And for an external agent: its session belongs to the vault it was started in, and ends with it.
+    this.agents.attach(vault?.agents ?? null);
     if (!vault) return;
     void this.refreshSkills();
     void this.loadWebSettings(vault);

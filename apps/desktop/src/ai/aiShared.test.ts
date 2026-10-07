@@ -8,6 +8,7 @@ import {
   configuredProviders,
   createAiVaultStores,
   createVaultPolicy,
+  NO_ACP,
   NO_MCP,
   transcriptOf,
   unruledFolders,
@@ -169,6 +170,7 @@ describe("the settings model", () => {
     draftWeb: false,
     effect: null,
     mcp: NO_MCP,
+    agents: NO_ACP,
     ...patch,
   });
 

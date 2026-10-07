@@ -6,6 +6,8 @@ Le app di IA del tuo computer — Claude Code, Claude Desktop, Cursor, VS Code e
 
 La direzione opposta — l'assistente di Plainva che usa strumenti di server che colleghi tu stesso — è descritta sotto **Strumenti esterni (MCP)** in [Assistente IA](AI_Assistant.md).
 
+Una terza via — Plainva avvia un agente di IA di un altro produttore nella cartella del vault, con la sua sessione nella scheda IA — è descritta in [Agenti esterni](External_Agents.md).
+
 ## Come funziona
 
 Plainva installa accanto all'app un piccolo programma ausiliario, `plainva-mcp`. Un'app di IA lo avvia, e il programma si collega a Plainva in esecuzione tramite un canale privato di questo computer: una named pipe su Windows, un socket in una cartella privata su macOS e Linux. Nessuna porta di rete viene mai aperta. Plainva deve essere aperto con il vault; altrimenti l'app riceve un messaggio chiaro.

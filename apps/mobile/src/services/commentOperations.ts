@@ -1,4 +1,4 @@
-import { commentOperationStore, createCommentOperationService, type CommentOperation, type CommentOperationService, type CommentStore } from "@plainva/core";
+import { commentOperationStore, commentSignedByPerson, createCommentOperationService, type CommentOperation, type CommentOperationService, type CommentStore } from "@plainva/core";
 import { mobileCommentStore, ensureMobileCommentAuthorName } from "./mobileComments";
 import { mobileCommentOperationJournal } from "./commentOperationJournal";
 import { noteSaver, vaultOps, type MobileVault } from "./vaultService";
@@ -21,8 +21,8 @@ export function mobileCommentOperations(vault: MobileVault): CommentOperationSer
     journal,
     authorKey: async operation => (await route(operation)).writerKey(),
     prepareMarkers: async (input) => {
-      if (input.markers.some((marker) => !marker.resolvedCommentId && !marker.retractsCommentId && (marker.body.trim() || marker.suggestion)))
-        await ensureMobileCommentAuthorName(vault);
+      // Only for what the person signs: a proposal of the assistant carries its own name (finding 2026-10-07, the desktop's rule).
+      if (input.markers.some(commentSignedByPerson)) await ensureMobileCommentAuthorName(vault);
       const targetObjectId = await store.captureTarget(input.notePath);
       return input.markers.map((marker) => {
         if (marker.targetObjectId !== undefined && marker.targetObjectId !== targetObjectId) throw new Error("The comment target changed");

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare, MoreHorizontal, SquarePen } from "lucide-react";
 import {
+  AiAgentView,
   AiConversation,
   Button,
   conversationRowActions,
@@ -56,7 +57,8 @@ export function AiTabView({
   const [shown, setShown] = useState<string[] | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: ConversationRowCaps } | null>(null);
   // The workshop (plan KI-Harness P3-5) beside the conversation; the settings may ask for it, with one review.
-  const [view, setView] = useState<"chats" | "skills">("chats");
+  // And an external agent's place (plan P4.6): a session of its own, apart from the assistant's conversations.
+  const [view, setView] = useState<"chats" | "skills" | "agent">("chats");
   const [review, setReview] = useState<string | null>(null);
   useEffect(() => {
     const take = () => {
@@ -120,11 +122,16 @@ export function AiTabView({
           options={[
             { value: "chats", label: t("ai.workshop.segmentChats"), testId: "ai-tab-chats" },
             { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-tab-skills" },
+            // Only where this window hosts agents at all (the desktop's central window).
+            ...(state.agents.available ? [{ value: "agent" as const, label: t("ai.agent.segment"), testId: "ai-tab-agent" }] : []),
           ]}
         />
-        <Button size="sm" variant="primary" icon={<SquarePen size={ICON.ui} />} disabled={Boolean(state.live)} onClick={() => session.newConversation()} data-testid="ai-tab-new">
-          {t("ai.newConversation")}
-        </Button>
+        {/* A new conversation is the assistant's; an agent's session starts and ends in its own place. */}
+        {view !== "agent" && (
+          <Button size="sm" variant="primary" icon={<SquarePen size={ICON.ui} />} disabled={Boolean(state.live)} onClick={() => session.newConversation()} data-testid="ai-tab-new">
+            {t("ai.newConversation")}
+          </Button>
+        )}
       </div>
       <div className="pv-ai-tabbody">
         <nav className="pv-ai-history" aria-label={t("ai.history.title")}>
@@ -141,7 +148,11 @@ export function AiTabView({
                   title={summary.title || t("ai.history.untitled")}
                   subtitle={when.format(new Date(summary.updatedAt))}
                   disabled={Boolean(state.live)}
-                  onClick={() => void session.open(summary.id)}
+                  onClick={() => {
+                    // A conversation is read where conversations are: not behind the workshop or an agent's session.
+                    setView("chats");
+                    void session.open(summary.id);
+                  }}
                   onContextMenu={(event) => openMenu(event, summary.id, summary.title)}
                   data-testid="ai-history-row"
                   end={
@@ -171,6 +182,8 @@ export function AiTabView({
         <section className="pv-ai-tabmain">
           {view === "skills" ? (
             <SkillsWorkshop onOpenFile={onOpenPath} onRun={() => setView("chats")} review={review} onReviewOpened={reviewOpened} />
+          ) : view === "agent" ? (
+            <AiAgentView activeNote={activeNote} onOpenNote={onOpenNote} onOpenPath={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} />
           ) : (
             <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
           )}

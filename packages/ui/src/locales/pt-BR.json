@@ -358,7 +358,7 @@
       "neverHint": "Listadas para você saber o que falta: nunca avaliadas, nunca enviadas.",
       "ruleNote": "regra própria",
       "ruleFolder": "regra para {{folder}}",
-      "ruleDefault": "padrão do cofre",
+      "ruleDefault": "padrão do vault",
       "sendWith": "Enviar com este contexto",
       "never_one": "Nunca para a nuvem: {{count}} nota",
       "never_many": "Nunca para a nuvem: {{count}} notas",
@@ -832,7 +832,7 @@
     },
     "mcp": {
       "title": "Apps de IA neste computador",
-      "switch": "Deixar apps de IA deste computador lerem este cofre",
+      "switch": "Deixar apps de IA deste computador lerem este vault",
       "switchDesc": "Desativado por padrão. Apps como Claude Code, Claude Desktop, Cursor ou VS Code chegam ao Plainva por um canal privado deste computador — sem porta de rede. Cada app pergunta uma vez, e você escolhe as pastas que ele pode ler. Ele não pode mudar nada, e o Plainva precisa estar aberto.",
       "claudeCode": "Comando para o Claude Code",
       "copy": "Copiar",
@@ -847,8 +847,8 @@
       "helperMissing": "O programa auxiliar está faltando ao lado do Plainva. Reinstale o Plainva.",
       "noClients": "Nenhum app perguntou ainda.",
       "folders": "Pastas: {{folders}}",
-      "noFolders": "nenhuma neste cofre",
-      "wholeVault": "o cofre inteiro",
+      "noFolders": "nenhuma neste vault",
+      "wholeVault": "o vault inteiro",
       "lastSeen": "último uso {{when}}",
       "revokeLabel": "Remover {{client}}",
       "revokeConfirm": "Remover {{client}}?",
@@ -857,11 +857,11 @@
       "audit": "Solicitações recentes",
       "auditNone": "Nenhuma solicitação ainda.",
       "refused": "recusada",
-      "pairTitle": "{{client}} quer ler o seu cofre",
-      "pairKnownTitle": "{{client}} quer ler este cofre",
+      "pairTitle": "{{client}} quer ler o seu vault",
+      "pairKnownTitle": "{{client}} quer ler este vault",
       "pairBody": "Iniciado por: {{program}}. Escolha o que ele pode ler — ele não vê mais nada e não pode mudar nada.",
       "pairFolders": "Pastas",
-      "pairWhole": "O cofre inteiro",
+      "pairWhole": "O vault inteiro",
       "pairAllow": "Permitir",
       "pairDeny": "Recusar",
       "pairNone": "Escolha pelo menos uma pasta para permitir."
@@ -1057,6 +1057,174 @@
           "cancelled": "O login não foi concluído.",
           "failed": "O login falhou. Nada foi armazenado."
         }
+      }
+    },
+    "agent": {
+      "title": "Agentes externos",
+      "segment": "Agente",
+      "author": "{{agent}} (agente externo)",
+      "roundNote": "Sugerido pelo agente externo {{agent}}.",
+      "none": "Nenhum agente foi adicionado neste computador ainda.",
+      "noneAction": "Abrir configurações",
+      "noVault": "Abra um vault para iniciar um agente nele.",
+      "sealed": "O Plainva não inicia nenhum agente externo dentro de um workspace criptografado.",
+      "choose": "Agente",
+      "start": {
+        "title": "Antes de iniciar {{agent}}",
+        "fact": {
+          "program": "{{agent}} é um programa de outro fabricante. Ele roda neste computador com as suas permissões, na pasta deste vault.",
+          "reads": "Ele lê os arquivos por conta própria — também as notas que você mantém fora da nuvem — e envia o que quiser para o serviço dele. As regras de privacidade do Plainva não o alcançam, e ninguém pergunta a você antes de ele enviar.",
+          "direct": "O que ele escreve por conta própria fica no vault na hora, sem sugestão. A sessão avisa você quando o agente informa uma mudança assim.",
+          "tools": "O Plainva controla só o próprio lado: as ferramentas dele, com as pastas que você concede ao agente e nunca com uma nota mantida fora da nuvem — e o que o agente escreve pelo Plainva: uma mudança vira uma sugestão, uma nota nova espera por você.",
+          "signIn": "O agente faz login sozinho, com a sua própria assinatura ou chave. O Plainva nunca vê as credenciais dele."
+        },
+        "toolsOn": "As ferramentas do Plainva são oferecidas ao agente. Na primeira vez, o Plainva pergunta a você quais pastas ele pode ler.",
+        "toolsOff": "As ferramentas do Plainva estão desativadas (Configurações → Apps de IA neste computador). O agente trabalha então só com os arquivos.",
+        "confirmTitle": "Iniciar este agente?",
+        "confirmMessage": "O Plainva vai iniciar {{agent}} nesta pasta, com este comando. Ele roda com as suas permissões, lê e envia por conta própria, e sem nenhuma cerca.",
+        "action": "Começar a sessão"
+      },
+      "sessions": "Últimas sessões neste vault",
+      "sessionLine": "{{when}} · {{agent}} · mensagens: {{turns}} · pelo Plainva: {{proposed}} · escritas por conta própria: {{direct}}",
+      "marking": "Agente externo · {{agent}}. Ele lê e envia por conta própria: as regras de privacidade do Plainva não valem para ele, e ninguém pergunta antes de ele enviar.",
+      "markingTools": {
+        "offered": "Ferramentas do Plainva: oferecidas",
+        "off": "Ferramentas do Plainva: desativadas"
+      },
+      "end": "Encerrar a sessão",
+      "starting": "Iniciando {{agent}}…",
+      "working": "{{agent}} está trabalhando…",
+      "placeholder": "Mensagem para {{agent}}…",
+      "empty": "Diga a {{agent}} o que fazer. Ele trabalha na pasta deste vault.",
+      "plan": "Plano do agente",
+      "toolOutside": "fora do vault: {{count}}",
+      "kind": {
+        "read": "Ler",
+        "edit": "Alterar um arquivo",
+        "delete": "Excluir um arquivo",
+        "move": "Mover ou renomear",
+        "search": "Pesquisar",
+        "execute": "Executar um comando",
+        "think": "Pensar",
+        "fetch": "Buscar na internet",
+        "switch_mode": "Mudar de modo",
+        "other": "Outra etapa"
+      },
+      "option": {
+        "allow_once": "Permitir",
+        "allow_always": "Permitir sempre",
+        "reject_once": "Recusar",
+        "reject_always": "Recusar sempre"
+      },
+      "question": {
+        "title": "{{agent}} pergunta",
+        "files": "Arquivos",
+        "hint": "As palavras são do próprio agente. A sua resposta vai só para o agente — o que ele faz depois de um sim é com ele, não com o Plainva."
+      },
+      "auth": {
+        "title": "{{agent}} pede um login",
+        "body": "Você faz login no próprio programa do agente. O Plainva não vê nada disso e não guarda nenhuma credencial.",
+        "waiting": "Faça login na janela que se abriu. O Plainva espera aqui.",
+        "retry": "Tentar de novo",
+        "manual": "Não foi possível abrir um terminal. Execute este comando em um terminal seu, faça login lá e tente de novo:",
+        "problem": {
+          "declined": "O login não foi concluído.",
+          "failed": "O agente não conseguiu fazer login.",
+          "cancelled": "O login foi interrompido.",
+          "no-method": "O agente não indica nenhuma forma de fazer login daqui. Faça login nele em um terminal seu e tente de novo.",
+          "start": "Não foi possível começar o login."
+        }
+      },
+      "event": {
+        "proposed": "Sugestão em {{note}} · mudanças: {{count}}.",
+        "new": "Uma nota nova espera por você: {{note}}",
+        "created": "Criada: {{note}}",
+        "discarded": "Descartada: {{note}}",
+        "direct": "O agente alterou {{note}} por conta própria: está no vault sem sugestão.",
+        "noteKept": "{{note}} não foi mencionada ao agente: ela é mantida fora da nuvem.",
+        "failed": "O agente não conseguiu terminar isto.",
+        "failedSaid": "O agente não conseguiu terminar isto. Ele diz: {{message}}",
+        "stopped": {
+          "max_tokens": "O agente parou: o modelo dele chegou ao limite.",
+          "max_turn_requests": "O agente parou: ele chegou ao limite de etapas.",
+          "refusal": "O agente se recusou a continuar.",
+          "cancelled": "Interrompido."
+        },
+        "refused": {
+          "read": "O Plainva não entregou {{path}} ao agente: {{reason}}.",
+          "write": "O Plainva não aceitou a mudança do agente em {{path}}: {{reason}}."
+        }
+      },
+      "reason": {
+        "not-absolute": "não é um caminho completo",
+        "outside": "fica fora deste vault",
+        "unsafe": "não é um caminho que o Plainva aceite",
+        "hidden": "é uma das pastas próprias do Plainva",
+        "missing": "esse arquivo não existe",
+        "too-large": "o arquivo é grande demais",
+        "kept": "é mantida fora da nuvem",
+        "not-a-note": "não é uma nota Markdown",
+        "sealed": "não é possível neste vault",
+        "rules": "contém regras de IA ou campos de confiança",
+        "properties": "mudaria as propriedades da nota",
+        "unreadable": "as propriedades dela não podem ser lidas",
+        "too-many": "mudanças demais para uma só sugestão",
+        "failed": "não foi possível"
+      },
+      "pending": {
+        "title": "Notas novas do agente",
+        "create": "Criar",
+        "discard": "Descartar",
+        "hint": "Uma nota só é escrita quando você a cria. Ela leva a marca de quem a escreveu, e os endereços da web trazidos pelo agente estão neutralizados."
+      },
+      "ended": {
+        "closed": "A sessão terminou.",
+        "exited": "O programa do agente terminou.",
+        "exitedCode": "O programa do agente terminou (código {{code}}).",
+        "version": "O agente fala uma versão do protocolo que o Plainva não conhece.",
+        "timeout": "O agente não respondeu a tempo.",
+        "protocol": "Não foi possível ler as respostas do agente.",
+        "agentSaid": "O agente respondeu com um erro: {{message}}",
+        "start": {
+          "not-registered": "Este agente não está mais configurado neste computador.",
+          "already-running": "O agente já está rodando.",
+          "program-moved": "O programa do agente não está mais onde estava. Adicione o agente de novo.",
+          "not-a-vault": "Não foi possível iniciar o agente nesta pasta.",
+          "start-failed": "Não foi possível iniciar o programa do agente."
+        }
+      },
+      "log": "As últimas linhas do programa do agente",
+      "logShow": "Mostrar as últimas linhas dele",
+      "logEmpty": "O programa não escreveu nada.",
+      "settings": {
+        "desc": "Um agente é um programa de outro fabricante que você mesmo instalou e no qual você mesmo fez login. O Plainva o inicia na pasta de um vault quando você pede. O Plainva não instala nenhum agente e não guarda nenhuma credencial dele.",
+        "none": "Nenhum agente adicionado ainda.",
+        "found": "Encontrado neste computador",
+        "add": "Adicionar",
+        "addOwn": "Outro agente",
+        "addOwnDesc": "Qualquer programa que fale o Agent Client Protocol pela entrada e pela saída dele.",
+        "addAction": "Adicionar agente…",
+        "remove": "Remover {{agent}}",
+        "removeConfirm": "Remover {{agent}}?",
+        "removeBody": "O Plainva esquece como iniciá-lo. O programa em si e o login dele ficam como estão.",
+        "removeAction": "Remover",
+        "seen": "Visto aqui pela última vez ({{when}}): pelo Plainva {{proposed}}, escritas por conta própria {{direct}}",
+        "unseen": "Ainda não se viu neste computador como ele escreve"
+      },
+      "add": {
+        "title": "Adicionar um agente",
+        "name": "Nome",
+        "nameHint": "O nome que você dá a ele. O que ele sugere leva esse nome.",
+        "program": "Programa",
+        "programHint": "O programa do agente: um nome que o seu sistema encontra, ou um caminho completo. Ele é iniciado diretamente, sem shell.",
+        "args": "Argumentos, um por linha",
+        "argsHint": "O que faz o programa falar o protocolo, por exemplo --acp. A documentação dele diz quais.",
+        "confirmTitle": "Adicionar este agente?",
+        "confirmMessage": "O Plainva vai iniciar exatamente este programa com exatamente estes argumentos, na pasta do vault em que você o iniciar. Ele roda com as suas permissões e sem nenhuma cerca. Adicione só um agente em que você confia.",
+        "confirmAction": "Adicionar",
+        "confirmNote": "O seu sistema mostra o comando inteiro mais uma vez antes de ele ser lembrado.",
+        "failed": "Não foi possível adicionar o agente. O programa está instalado, e é esse o nome dele?",
+        "added": "{{agent}} foi adicionado."
       }
     },
     "transcribe": {

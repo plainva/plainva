@@ -4653,3 +4653,179 @@ test('AI external tools: a server that wants a sign-in is signed in to in the br
   await expect(review.getByTestId('ai-ext-signin-status')).toHaveText(/^(Not signed in|Nicht angemeldet)$/);
   await expect(review.getByTestId('ai-ext-tool')).toHaveCount(0);
 });
+
+// The gate of external agents (AI harness P4.6): an agent with its own sign-in
+// works in the vault; what it asks Plainva to write lands as a suggestion and
+// reaches the note only through "Accept"; and the surface says before the
+// start — and for as long as the session runs — what Plainva does not control.
+// The native side is stood in for at the commands: a registry, and an agent
+// that speaks the protocol over the channel the real one's output arrives on.
+test('AI external agents: an agent is added and started after the surface said what Plainva does not control; what it writes through Plainva becomes a suggestion', async ({ page }) => {
+  const NEW_TEXT = '# Hello\nWelcome to the mock vault, and to its garden!';
+  await page.addInitScript((newText) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
+    // The folder of the vault's remarks exists in a real vault; the mock only knows files.
+    (window as any).mockFs['/test-vault/.plainva/sync'] = { isDir: true };
+    const acp = ((window as any).__acp = {
+      registry: [] as any[],
+      shown: [] as any[],
+      started: [] as any[],
+      lines: [] as any[],
+      answers: [] as any[],
+      stopped: 0,
+      channel: null as any,
+      waiting: new Map<number, () => void>(),
+    });
+    const say = (message: unknown) => acp.channel?.onmessage({ type: 'line', text: JSON.stringify(message) });
+    const update = (body: object) => say({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: 's1', update: body } });
+    /** A request of the agent's own: resolves when the app answered it. */
+    const ask = (id: number, method: string, params: object) => new Promise<void>((resolve) => { acp.waiting.set(id, resolve); say({ jsonrpc: '2.0', id, method, params: { sessionId: 's1', ...params } }); });
+    const turn = async (promptId: number) => {
+      update({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'I will add the garden to the welcome note.' } });
+      // What the app does not hand over: one of its own folders.
+      await ask(900, 'fs/read_text_file', { path: '/test-vault/.agent/policy.yml' });
+      // A change through the app.
+      update({ sessionUpdate: 'tool_call', toolCallId: 'c1', title: 'Edit Welcome.md', kind: 'edit', status: 'in_progress', locations: [{ path: '/test-vault/Welcome.md' }] });
+      await ask(901, 'fs/write_text_file', { path: '/test-vault/Welcome.md', content: newText });
+      update({ sessionUpdate: 'tool_call_update', toolCallId: 'c1', status: 'completed' });
+      // A change it says it made itself.
+      update({ sessionUpdate: 'tool_call', toolCallId: 'c2', title: 'Edit Notes.md', kind: 'edit', status: 'completed', locations: [{ path: '/test-vault/Notes.md' }] });
+      // A question to the user.
+      await ask(902, 'session/request_permission', { toolCall: { toolCallId: 'c3', title: 'Run git status', kind: 'execute' }, options: [{ optionId: 'yes', name: 'Allow', kind: 'allow_once' }, { optionId: 'no', name: 'Reject', kind: 'reject_once' }] });
+      // A terminal Plainva never offered.
+      await ask(903, 'terminal/create', { command: 'git', args: ['status'] });
+      update({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: ' Done.' } });
+      say({ jsonrpc: '2.0', id: promptId, result: { stopReason: 'end_turn' } });
+    };
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'acp_agents') return acp.registry;
+      // "Installed": the name is found, nothing is started by looking.
+      if (cmd === 'acp_detect') return (args.programs as string[]).map((name) => (name === 'gemini' ? '/usr/bin/gemini' : null));
+      if (cmd === 'acp_agent_add') { acp.shown.push(args); acp.registry.push({ id: args.agentId, program: args.program, args: args.args }); return true; }
+      if (cmd === 'acp_agent_remove') { acp.registry = acp.registry.filter((agent: any) => agent.id !== args.agentId); return null; }
+      if (cmd === 'acp_start') { acp.started.push({ agentId: args.agentId, root: args.root }); acp.channel = args.onEvent; return null; }
+      if (cmd === 'acp_stop') { acp.stopped++; acp.channel?.onmessage({ type: 'exit', code: null }); acp.channel = null; return null; }
+      if (cmd === 'acp_log') return '';
+      if (cmd === 'acp_write') {
+        const message = JSON.parse(args.line);
+        acp.lines.push(message);
+        if (message.method === 'initialize') say({ jsonrpc: '2.0', id: message.id, result: { protocolVersion: 1, agentInfo: { name: 'gemini-cli', title: 'Gemini CLI', version: '0.63.0' }, agentCapabilities: {}, authMethods: [] } });
+        else if (message.method === 'session/new') say({ jsonrpc: '2.0', id: message.id, result: { sessionId: 's1' } });
+        else if (message.method === 'session/prompt') void turn(message.id);
+        else if (message.method === undefined && acp.waiting.has(message.id)) {
+          acp.answers.push(message);
+          const next = acp.waiting.get(message.id)!;
+          acp.waiting.delete(message.id);
+          next();
+        }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, NEW_TEXT);
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const acp = () => page.evaluate(() => { const a = (window as any).__acp; return { registry: a.registry as any[], shown: a.shown as any[], started: a.started as any[], lines: a.lines as any[], answers: a.answers as any[], stopped: a.stopped as number }; });
+
+  // 1. The settings find the installed agent and add it — through the dialog of the system, which is the stand-in's yes.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  const found = dialog.getByTestId('settings-ai-agent-add-found');
+  await found.scrollIntoViewIfNeeded();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-settings-desktop.png'), animations: 'disabled' });
+  await found.click();
+  await expect(dialog.getByTestId('settings-ai-agent-remove')).toHaveCount(1);
+  let now = await acp();
+  expect(now.shown.map((entry) => [entry.agentId, entry.program, entry.args])).toEqual([['gemini', '/usr/bin/gemini', ['--acp']]]);
+  expect(now.started).toEqual([]);
+  await page.keyboard.press('Escape');
+  // The toast names the agent; it is closed so that the pictures below show the whole session.
+  const added = page.locator('.pv-toast', { hasText: 'Gemini CLI' });
+  await expect(added).toBeVisible();
+  await added.getByRole('button').first().click();
+  await expect(added).toHaveCount(0);
+
+  // 2. The agent's place in the AI tab. Before anything starts it says what Plainva does not control.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-agent').click();
+  const facts = page.getByTestId('ai-agent-facts');
+  await expect(facts.locator('li')).toHaveCount(5);
+  await expect(facts).toContainText(/It reads files itself|Es liest Dateien selbst/);
+  await expect(facts).toContainText(/Plainva's privacy rules do not reach it|Plainvas Datenschutzregeln erreichen es nicht/);
+  await expect(facts).toContainText(/without a suggestion|ohne Vorschlag/);
+  expect((await acp()).started).toEqual([]);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-start-desktop.png'), animations: 'disabled' });
+
+  // 3. The start: in the vault's folder, told that Plainva offers files through the app and no terminal.
+  await page.getByTestId('ai-agent-start-action').click();
+  const session = page.getByTestId('ai-agent-session');
+  await expect(session).toHaveAttribute('data-phase', 'ready');
+  now = await acp();
+  expect(now.started).toEqual([{ agentId: 'gemini', root: '/test-vault' }]);
+  expect(now.lines[0].params.clientCapabilities).toEqual({ fs: { readTextFile: true, writeTextFile: true }, terminal: false, auth: { terminal: true } });
+  expect(now.lines[1].params).toEqual({ cwd: '/test-vault', mcpServers: [] });
+  // The head of the session keeps saying it.
+  await expect(page.getByTestId('ai-agent-marking')).toContainText(/Plainva's privacy rules do not apply to it|Plainvas Datenschutzregeln gelten für ihn nicht/);
+
+  // 4. A turn. The agent asks the user; its own words stand under a heading of Plainva's.
+  await page.getByTestId('ai-agent-input').fill('Add the garden to the welcome note.');
+  await page.getByTestId('ai-agent-send').click();
+  const question = page.getByTestId('ai-agent-question');
+  await expect(question.getByTestId('ai-agent-question-title')).toHaveText('Run git status');
+  // The note is untouched while the agent works — and stays so until somebody accepts.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toBe('# Hello\nWelcome to the mock vault!');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-question-desktop.png'), animations: 'disabled' });
+  await question.getByTestId('ai-agent-option-reject_once').click();
+  await expect(session).toHaveAttribute('data-phase', 'ready');
+
+  // 5. What the turn left behind: the agent was refused one of Plainva's own folders and a terminal, its write became a
+  //    suggestion, and the change it made itself is named as one.
+  now = await acp();
+  expect(now.answers.map((answer) => [answer.id, answer.result ?? answer.error])).toEqual([
+    [900, { code: -32602, message: 'Plainva does not hand over or change its own folders.' }],
+    [901, {}],
+    [902, { outcome: { outcome: 'selected', optionId: 'no' } }],
+    [903, { code: -32601, message: 'Method not found' }],
+  ]);
+  await expect(page.getByTestId('ai-agent-event-refused')).toHaveCount(1);
+  await expect(page.getByTestId('ai-agent-event-direct')).toContainText('Notes.md');
+  await expect(page.getByTestId('ai-agent-event-proposed')).toContainText('Welcome');
+  await expect(page.getByTestId('ai-agent-text').last()).toContainText('Done.');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toBe('# Hello\nWelcome to the mock vault!');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-turn-desktop.png'), animations: 'disabled' });
+
+  // 6. The suggestion waits in the note's margin under the agent's name; accepting it is what writes the note.
+  await page.getByText('Welcome', { exact: true }).first().click();
+  await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
+  const toggle = page.getByTestId('editor-comments-toggle');
+  await expect(toggle).toBeVisible({ timeout: 10000 });
+  const column = page.locator('aside.pv-comment-column');
+  if (!(await column.isVisible())) await toggle.click();
+  await page.getByTestId('comment-kind-suggestions').click();
+  const card = column.locator('.pv-comment-card').first();
+  await expect(card).toBeVisible({ timeout: 10000 });
+  await expect(column).toContainText(/Gemini CLI \((external agent|externer Agent)\)/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-suggestion-desktop.png'), animations: 'disabled' });
+  await card.hover();
+  await card.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).first().click();
+  await expect.poll(async () => page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md']), { timeout: 10000 }).toBe(NEW_TEXT);
+
+  // 7. The agent was running all the while — the session belongs to the vault, not to the tab that showed it. Ending
+  //    it stops the program, and the vault keeps one line about the session: counts, never what was said.
+  expect((await acp()).stopped).toBe(0);
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-agent').click();
+  await expect(page.getByTestId('ai-agent-session')).toHaveAttribute('data-phase', 'ready');
+  await page.getByTestId('ai-agent-end').click();
+  await expect(page.getByTestId('ai-agent-ended')).toHaveText(/The session has ended\.|Die Sitzung ist beendet\./);
+  expect((await acp()).stopped).toBe(1);
+  await page.getByTestId('ai-agent-dismiss').click();
+  const sessions = page.getByTestId('ai-agent-sessions');
+  await expect(sessions.locator('li')).toHaveCount(1);
+  await expect(sessions).toContainText(/Gemini CLI/);
+  await expect(sessions).toContainText(/through Plainva: 1 · written itself: 1|über Plainva: 1 · selbst geschrieben: 1/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-ended-desktop.png'), animations: 'disabled' });
+});

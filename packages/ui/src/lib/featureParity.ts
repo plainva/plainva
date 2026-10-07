@@ -265,6 +265,22 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-24",
   },
   {
+    id: "ai-external-agents",
+    title: "An external agent — another maker's program with its own sign-in — works in the vault (Agent Client Protocol, plan KI-Harness P4.6)",
+    area: "ai",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "An external agent is a program the user installed on a computer; Plainva " +
+      "starts it as a process of its own and, where it wants to sign in, opens " +
+      "its own program in a terminal. Neither iOS nor Android lets an app start " +
+      "another program, there is no place to install one and no terminal to " +
+      "sign in at. On the phone the assistant is Plainva's own, with the user's " +
+      "provider or the system's model (plan KI-Harness §19.5).",
+    verified: "2026-10-07",
+  },
+  {
     id: "ai-local-servers",
     title: "AI models on this computer (Ollama, LM Studio)",
     area: "ai",

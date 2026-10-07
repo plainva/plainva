@@ -150,7 +150,13 @@ describe("the name a remark is signed with (finding 2026-09-09)", () => {
     const context = strip(read("contexts", "VaultContext.tsx"));
     const funnel = context.slice(context.indexOf("const postWorkspaceCommentInput = async"), context.indexOf("const retryWorkspaceComment"));
     expect(funnel).toMatch(/const captured = structuredClone\(input\)/);
-    expect(funnel).toMatch(/if \(state\.vaultPath && !captured\.resolvedCommentId && !captured\.retractsCommentId && \(captured\.body\.trim\(\) \|\| captured\.suggestion\)\)\s+await ensureCommentAuthorName\(store, state\.vaultPath\)/);
+    // What counts as "the person signs it" is one rule of the core, shared with
+    // the phone and with the round of a proposal (finding 2026-10-07: a round
+    // of the assistant asked for the person's name and the turn waited).
+    expect(funnel).toMatch(/if \(state\.vaultPath && commentSignedByPerson\(captured\)\) await ensureCommentAuthorName\(store, state\.vaultPath\)/);
+    const round = context.slice(context.indexOf("const ensureOperationAuthor = useStableHandler("), context.indexOf("const postWorkspaceCommentInput = async"));
+    expect(round).toMatch(/if \(input\.markers\.some\(commentSignedByPerson\)\) await ensureCommentAuthorName\(store, vaultPath\)/);
+    expect(context).not.toMatch(/!\w+\.resolvedCommentId && !\w+\.retractsCommentId && \(\w+\.body\.trim\(\)/);
     const ask = context.slice(context.indexOf("const ensureCommentAuthorName = async"), context.indexOf("const postWorkspaceCommentRecord"));
     // Never in a workspace (the member signs), never twice a session, and the
     // answer lands in the one field the app has.

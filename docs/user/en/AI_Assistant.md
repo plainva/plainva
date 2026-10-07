@@ -179,6 +179,10 @@ The assistant can use tools of servers you connect yourself, over the Model Cont
 
 A conversation a skill started, an action on a selection and a reply in a comment thread do not reach external tools, and neither does the system's own model on the phone.
 
+## External agents
+
+On the desktop, Plainva can also start an AI agent of another maker in the vault's folder — a program you installed and signed in to yourself. Such an agent is not the assistant: it reads and sends on its own, and your privacy rules and the overview before sending do not reach it. What Plainva controls in its session and what it does not: [External agents](External_Agents.md).
+
 ## Keeping an answer as a note
 
 Under every finished answer, **Keep as a note** turns the answer into a note of your vault. You press it and Plainva writes the note — the assistant itself still changes nothing.
