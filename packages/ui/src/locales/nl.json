@@ -259,6 +259,8 @@
         "size": "Veel meer dan eerder: ~{{tokens}} tokens",
         "standing": "Zoeken op betekenis rekent met een cloudmodel: notities gaan daar op de achtergrond naartoe, zonder telkens te vragen — tot je deze goedkeuring in de instellingen intrekt.",
         "sensitive": "Mogelijk gevoelig, hieronder gemarkeerd: {{kinds}}",
+        "fill_one": "De kolom “{{column}}” wordt gevuld: {{count}} notitie gaat in een eigen verzoek.",
+        "fill_other": "De kolom “{{column}}” wordt gevuld: de {{count}} notities gaan één voor één, elk in een eigen verzoek.",
         "instructions": "Instructies uit deze vault gaan voor het eerst de deur uit."
       },
       "goesTo": "Gaat naar",
@@ -267,6 +269,8 @@
       "evidenceWhole": "de hele notitie",
       "evidenceSection": "de sectie “{{section}}”",
       "evidenceStart": "het begin",
+      "evidenceColumns_one": "{{count}} kolom: naam, soort en keuzes — geen item",
+      "evidenceColumns_other": "{{count}} kolommen: namen, soorten en keuzes — geen item",
       "evidenceSelection": "de geselecteerde passage",
       "card": "titel, sectie en kernzinnen",
       "handle": "alleen de naam",
@@ -1315,6 +1319,9 @@
         "changes_one": "{{count}} wijziging",
         "changes_other": "{{count}} wijzigingen"
       }
+    },
+    "fill": {
+      "roundNote": "Voorgesteld voor de kolom “{{column}}”, alleen op basis van deze notitie."
     },
     "transcribe": {
       "action": "Uitschrijven",
@@ -2757,6 +2764,65 @@
     "proposedFailed_other": "{{count}} voorstellen blijven open: {{reason}}",
     "proposedAcceptAllTitle": "Voorgestelde waarden toepassen",
     "proposedAcceptAllMsg": "{{count}} voorgestelde waarden worden in {{notes}} notities ingevuld. Doorgaan?",
+    "fill": {
+      "action": "“{{column}}” vullen met AI…",
+      "title": "“{{column}}” vullen",
+      "count_one": "{{count}} item heeft hier geen waarde.",
+      "count_other": "{{count}} items hebben hier geen waarde.",
+      "firstOnly": "Eén ronde neemt de eerste {{max}}.",
+      "waiting_one": "Bij nog {{count}} wacht al een voorgestelde waarde.",
+      "waiting_other": "Bij nog {{count}} wacht al een voorgestelde waarde.",
+      "allWaiting": "Voor elk item zonder waarde wacht hier al een voorstel.",
+      "nothing": "Elk item heeft hier al een waarde.",
+      "how": "De AI leest elke notitie afzonderlijk en stelt daaruit een waarde voor. Er wordt niets geschreven tot je een voorstel overneemt.",
+      "model": "Model: {{provider}} · {{model}}",
+      "noModel": "Kies eerst een model, in de AI-instellingen.",
+      "choices": "Kan kiezen uit:",
+      "start": "Waarden voorstellen",
+      "stop": "Stoppen",
+      "running": "“{{column}}” wordt gevuld · {{done}} van {{total}}",
+      "proposed_one": "{{count}} waarde voorgesteld voor “{{column}}”",
+      "proposed_other": "{{count}} waarden voorgesteld voor “{{column}}”",
+      "silent_one": "{{count}} notitie zegt het niet",
+      "silent_other": "{{count}} notities zeggen het niet",
+      "kept_one": "{{count}} tegengehouden door je regels",
+      "kept_other": "{{count}} tegengehouden door je regels",
+      "failed_one": "{{count}} zonder bruikbaar antwoord",
+      "failed_other": "{{count}} zonder bruikbaar antwoord",
+      "stopped": "voortijdig gestopt",
+      "refused": {
+        "off": "De AI staat uit.",
+        "no-model": "Kies eerst een model, in de AI-instellingen.",
+        "busy": "De AI is bezig met een ander verzoek. Probeer het opnieuw als dat klaar is.",
+        "encrypted": "Nog niet in een versleutelde workspace: de voorstellen daarin kunnen de AI nog niet als auteur noemen.",
+        "unfit": "“{{column}}” kan zo niet worden gevuld.",
+        "nothing": "Elk item heeft hier al een waarde.",
+        "kept": "Je regels houden al deze notities weg van dit model."
+      }
+    },
+    "filterWords": {
+      "label": "Filter in woorden",
+      "placeholder": "Zeg wat je wilt zien, bv. open offertes boven 5000",
+      "ask": "Voorstellen",
+      "asking": "Vragen…",
+      "one": "Voorgestelde regel:",
+      "all": "Voorstel — ze moeten allemaal gelden:",
+      "any": "Voorstel — één ervan moet gelden:",
+      "matches": "Komt overeen met {{n}} van {{total}} items.",
+      "sends": "Hiervoor gaan alleen de kolommen van deze database naar de AI — hun namen, soorten en keuzes — en je zin. Geen item, geen notitie.",
+      "apply": "Toepassen",
+      "discard": "Verwerpen",
+      "refused": {
+        "off": "De AI staat uit.",
+        "no-model": "Kies eerst een model, in de AI-instellingen.",
+        "busy": "De AI is bezig met een ander verzoek. Probeer het opnieuw als dat klaar is.",
+        "empty": "Typ wat de weergave moet tonen.",
+        "denied": "Je regels houden deze database weg van dit model.",
+        "none": "Dat is met de kolommen van deze database niet te zeggen. Probeer andere woorden of voeg het filter met de hand toe.",
+        "invalid": "Het antwoord was geen filter. Probeer het opnieuw, of met andere woorden.",
+        "failed": "Het verzoek is mislukt."
+      }
+    },
     "bulkSetConfirmTitle": "Een waarde instellen voor veel items",
     "bulkSetConfirmMsg": "'{{column}}' wordt in {{count}} notities ingesteld op '{{value}}'. Doorgaan?",
     "bulkSetProgress": "{{done}} van {{total}}",

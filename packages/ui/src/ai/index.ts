@@ -60,3 +60,5 @@ export * from "./LocalGistsContext";
 export * from "./aiWrites";
 export * from "./writeTools";
 export * from "./AiWriteCards";
+export * from "./aiFill";
+export * from "./aiBaseFilter";

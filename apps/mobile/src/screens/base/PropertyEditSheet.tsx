@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { SheetGrip } from "../../components/SheetGrip";
 import { useTranslation } from "react-i18next";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Sparkles, Trash2, X } from "lucide-react";
 import { baseStemOf, Button, Chip, chipPaletteIndex, type CuratedOption, ICON, IconButton, isValidNewPropertyName, isValidReverseColumnName, mergeObservedOptions, PALETTE_NAMES, parseBaseConfig, type PropertyType, reverseColumnState, reverseIntentFor, Switch, toast } from "@plainva/ui";
 import { mActions, mConfirm, mPrompt, mSelect } from "../../services/mobileDialogs";
 import { deleteBaseProperty, listBasePaths, renameBaseProperty, writeRelationSchema } from "../../services/baseOps";
@@ -54,7 +54,14 @@ export function PropertyEditSheet({
   onMutate,
   onReload,
   onClose,
+  fill,
 }: {
+  /**
+   * The assistant can fill this column (plan KI-Harness P5-4): the door to
+   * that, named with the column as the database calls it. Absent while the
+   * AI is off, and for a column no run takes.
+   */
+  fill?: { label: string; onStart(): void };
   vault: MobileVault;
   basePath: string;
   config: any;
@@ -384,6 +391,16 @@ export function PropertyEditSheet({
                   </Button>
                 </div>
               </>
+            )}
+
+            {fill && (
+              // The column's own door to the assistant (plan KI-Harness P5-4): the desktop carries it in the column's
+              // head and in its list of properties — here it stands with what else one does to a property.
+              <div className="m-config-actions">
+                <Button variant="ghost" size="sm" onClick={fill.onStart} data-testid="base-property-fill">
+                  <Sparkles size={ICON.meta} /> {t("database.fill.action", { column: fill.label })}
+                </Button>
+              </div>
             )}
 
             <p className="m-sectionlabel m-sectionlabel--inset">{t("properties.fieldName")}</p>

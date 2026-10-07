@@ -286,6 +286,7 @@ export * from "./base/timelineModel";
 export * from "./base/writeProperty";
 export * from "./base/proposedCells";
 export * from "./base/ProposedValues";
+export * from "./base/BaseAi";
 export * from "./base/bulkSetProperty";
 export * from "./base/deleteProperty";
 export * from "./base/renameProperty";

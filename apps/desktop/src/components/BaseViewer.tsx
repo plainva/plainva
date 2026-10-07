@@ -8,11 +8,12 @@ import { BaseExportDialog } from "@plainva/ui";
 import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
-  Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText } from "lucide-react";
+  Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
 import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
 import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
+import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
   applyRelationWrite,
@@ -136,7 +137,7 @@ export function BaseViewer({
   onCloseTab?: () => void;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, getWorkspaceCapabilities, commentOperations } = useVault();
+  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, getWorkspaceCapabilities, commentOperations, workspaceSecurityStatus } = useVault();
   const cache = useMemo(() => queryService ? pinboardCache(queryService) : null, [queryService]);
   const cacheKey = `${activePath}#${hostPath ?? ""}`;
   const snapshot = useMemo(() => cache?.base<{ config: any; rows: any[]; viewIndex: number }>(cacheKey), [cache, cacheKey]);
@@ -829,6 +830,40 @@ export function BaseViewer({
     () => (proposedCells.size === 0 ? [] : listProposedCells(proposedCells, scopedData.map((r: any) => String(r["file.path"])), proposedColumns)),
     [proposedCells, scopedData, proposedColumns]
   );
+
+  // The assistant at this database (plan KI-Harness P5-4): a column filled
+  // with proposed values, and a filter from a sentence. Absent while the AI is
+  // off on this device — no door of it is drawn then.
+  const baseAi = useBaseAi(useAiSession(), activePath, { sealed: workspaceSecurityStatus !== null });
+  const aiOffered = baseAi !== null;
+  // Which columns a run can fill: a property with words for values — nothing
+  // computed, no relation, none of Plainva's own names. Where the database
+  // declares no kind, the column's own values say it.
+  const fillColumns = useMemo(() => {
+    const out = new Map<string, FillColumn>();
+    if (!aiOffered) return out;
+    const schemas = dbConfig?.columns && !Array.isArray(dbConfig.columns) ? (dbConfig.columns as Record<string, any>) : {};
+    for (const col of new Set([...visibleColumns, ...availableColumns])) {
+      const schema = schemas[col];
+      const column = fillColumnOf(col.replace(/^note\./, ""), columnLabel(col, t, dbConfig), schema, schema?.input ? undefined : inferColumnType(dbData, col));
+      if (column) out.set(col, column);
+    }
+    return out;
+  }, [aiOffered, dbConfig, visibleColumns, availableColumns, dbData, t]);
+  const fillColumnKeys = useMemo(() => new Set(fillColumns.keys()), [fillColumns]);
+  const [fillPlan, setFillPlan] = useState<{ column: FillColumn; plan: FillPlan } | null>(null);
+  const openFillPlan = useStableHandler((col: string) => {
+    const column = fillColumns.get(col);
+    if (!column) return;
+    // An entry a value already waits for is not asked again: a second run must not lay a second value beside the
+    // first. Asked of the comments themselves — the column need not be one this view draws a cell for.
+    const rowsByPath = new Map<string, any>();
+    for (const row of dbData) { const p = row?.['file.path']; if (typeof p === 'string') rowsByPath.set(p, row); }
+    const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
+    for (const [path, comments] of noteComments) { if (rowsByPath.has(path)) entries.push({ path, comments }); }
+    const waiting = new Set(entries.length > 0 ? buildProposedCells(entries, (path) => rowsByPath.get(path), [col]).keys() : []);
+    setFillPlan({ column, plan: fillRows(scopedData, col, waiting) });
+  });
 
   // Selecting several rows (plan Mehrfachauswahl, P3). The reset key is the
   // file AND the view: switching views is switching what "these rows" means,
@@ -2551,6 +2586,8 @@ export function BaseViewer({
         onPersistColumnWidth={persistColumnWidth}
         onOpenColumnEditor={openColumnEditor}
         onToggleColumn={toggleColumn}
+        fillColumns={baseAi?.canFill ? fillColumnKeys : undefined}
+        onFillColumn={baseAi?.canFill ? openFillPlan : undefined}
         summaries={dbConfig?.views?.[activeViewIndex]?.summaries}
         selection={selectionApi}
         subItems={currentViewType === "table" && dbSubItemsParent ? { property: dbSubItemsParent, expandedKeys: expandedSubItems, onToggleExpand: toggleSubItemExpand } : undefined}
@@ -2824,6 +2861,40 @@ export function BaseViewer({
         />
       )}
 
+      {/* A run that fills a column of this database (plan KI-Harness P5-4):
+          how far it is, and the way to end it. The values it proposes appear
+          in their cells as they are laid down. */}
+      {baseAi?.fill && <FillProgressBanner fill={baseAi.fill} onStop={baseAi.stopFill} />}
+
+      {fillPlan && baseAi && (
+        <Modal
+          onClose={() => setFillPlan(null)}
+          title={t("database.fill.title", { column: fillPlan.column.label })}
+          icon={<Sparkles size={ICON.head} />}
+          size="sm"
+          testId="base-fill-dialog"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setFillPlan(null)}>{t("common.cancel")}</Button>
+              <Button
+                variant="primary"
+                disabled={fillPlan.plan.missing === 0 || !baseAi.model || baseAi.busy}
+                onClick={() => {
+                  const { column, plan } = fillPlan;
+                  setFillPlan(null);
+                  void baseAi.startFill(column, plan.rows);
+                }}
+                data-testid="base-fill-start"
+              >
+                {t("database.fill.start")}
+              </Button>
+            </>
+          }
+        >
+          <FillPlanBody column={fillPlan.column} plan={fillPlan.plan} model={baseAi.model} />
+        </Modal>
+      )}
+
       {bulkSetOpen && rowSel.selection.size > 0 && (
         <BulkSetPopover
           anchorRef={bulkAnchorRef}
@@ -2875,6 +2946,9 @@ export function BaseViewer({
             onSetSummary={setSummary}
             onSaveConfig={saveConfig}
             onMutateFilters={mutateFilters}
+            ai={baseAi}
+            fillColumns={baseAi?.canFill ? fillColumnKeys : undefined}
+            onFillColumn={baseAi?.canFill ? openFillPlan : undefined}
             onSetSortRules={setSortRules}
             onAddProperty={addProperty}
             onSetBoardGroupBy={setBoardGroupByPersisted}

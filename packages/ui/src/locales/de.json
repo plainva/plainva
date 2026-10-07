@@ -259,6 +259,8 @@
         "size": "Deutlich mehr als bisher: ~{{tokens}} Token",
         "standing": "Die Suche nach Bedeutung rechnet mit einem Cloud-Modell: Notizen gehen im Hintergrund dorthin, ohne jedes Mal zu fragen — bis Du diese Freigabe in den Einstellungen widerrufst.",
         "sensitive": "Möglicherweise sensibel, unten markiert: {{kinds}}",
+        "fill_one": "Die Spalte „{{column}}“ wird gefüllt: {{count}} Notiz geht in einer eigenen Anfrage hinaus.",
+        "fill_other": "Die Spalte „{{column}}“ wird gefüllt: Die {{count}} Notizen gehen einzeln hinaus, jede in einer eigenen Anfrage.",
         "instructions": "Anweisungen aus diesem Vault gehen zum ersten Mal hinaus."
       },
       "goesTo": "Geht an",
@@ -267,6 +269,8 @@
       "evidenceWhole": "die ganze Notiz",
       "evidenceSection": "der Abschnitt „{{section}}“",
       "evidenceStart": "der Anfang",
+      "evidenceColumns_one": "{{count}} Spalte: Name, Art und Auswahlwerte — kein Eintrag",
+      "evidenceColumns_other": "{{count}} Spalten: Namen, Arten und Auswahlwerte — kein Eintrag",
       "evidenceSelection": "die ausgewählte Stelle",
       "card": "Titel, Abschnitt und Kernsätze",
       "handle": "nur der Name",
@@ -1315,6 +1319,9 @@
         "changes_one": "{{count}} Änderung",
         "changes_other": "{{count}} Änderungen"
       }
+    },
+    "fill": {
+      "roundNote": "Für die Spalte „{{column}}“ vorgeschlagen, allein aus dieser Notiz."
     },
     "transcribe": {
       "action": "Transkribieren",
@@ -2757,6 +2764,65 @@
     "proposedFailed_other": "{{count}} Vorschläge bleiben offen: {{reason}}",
     "proposedAcceptAllTitle": "Vorgeschlagene Werte übernehmen",
     "proposedAcceptAllMsg": "{{count}} vorgeschlagene Werte werden in {{notes}} Notizen eingetragen. Fortfahren?",
+    "fill": {
+      "action": "„{{column}}“ mit KI füllen …",
+      "title": "„{{column}}“ füllen",
+      "count_one": "{{count}} Eintrag hat hier keinen Wert.",
+      "count_other": "{{count}} Einträge haben hier keinen Wert.",
+      "firstOnly": "Ein Durchlauf nimmt die ersten {{max}} davon.",
+      "waiting_one": "Bei {{count}} weiteren Eintrag wartet schon ein vorgeschlagener Wert.",
+      "waiting_other": "Bei {{count}} weiteren Einträgen wartet schon ein vorgeschlagener Wert.",
+      "allWaiting": "Für jeden Eintrag ohne Wert wartet hier schon ein Vorschlag.",
+      "nothing": "Jeder Eintrag hat hier schon einen Wert.",
+      "how": "Die KI liest jede Notiz für sich und schlägt daraus einen Wert vor. Geschrieben wird nichts, bis Du einen Vorschlag übernimmst.",
+      "model": "Modell: {{provider}} · {{model}}",
+      "noModel": "Wähle zuerst ein Modell — in den KI-Einstellungen.",
+      "choices": "Zur Auswahl stehen:",
+      "start": "Werte vorschlagen",
+      "stop": "Anhalten",
+      "running": "„{{column}}“ wird gefüllt · {{done}} von {{total}}",
+      "proposed_one": "{{count}} Wert für „{{column}}“ vorgeschlagen",
+      "proposed_other": "{{count}} Werte für „{{column}}“ vorgeschlagen",
+      "silent_one": "{{count}} Notiz sagt dazu nichts",
+      "silent_other": "{{count}} Notizen sagen dazu nichts",
+      "kept_one": "{{count}} von Deinen Regeln zurückgehalten",
+      "kept_other": "{{count}} von Deinen Regeln zurückgehalten",
+      "failed_one": "{{count}} ohne brauchbare Antwort",
+      "failed_other": "{{count}} ohne brauchbare Antwort",
+      "stopped": "vorzeitig angehalten",
+      "refused": {
+        "off": "Die KI ist aus.",
+        "no-model": "Wähle zuerst ein Modell — in den KI-Einstellungen.",
+        "busy": "Die KI ist gerade mit einer anderen Anfrage beschäftigt. Versuch es noch einmal, wenn sie fertig ist.",
+        "encrypted": "In einem verschlüsselten Workspace noch nicht: seine Vorschläge können die KI noch nicht als Autor nennen.",
+        "unfit": "„{{column}}“ lässt sich so nicht füllen.",
+        "nothing": "Jeder Eintrag hat hier schon einen Wert.",
+        "kept": "Deine Regeln halten alle diese Notizen von diesem Modell fern."
+      }
+    },
+    "filterWords": {
+      "label": "Filter in Worten",
+      "placeholder": "Sag, was zu sehen sein soll, z. B. offene Angebote über 5000",
+      "ask": "Vorschlagen",
+      "asking": "Frage …",
+      "one": "Vorgeschlagene Regel:",
+      "all": "Vorschlag — alle müssen zutreffen:",
+      "any": "Vorschlag — eine davon muss zutreffen:",
+      "matches": "Trifft auf {{n}} von {{total}} Einträgen zu.",
+      "sends": "An die KI gehen dafür nur die Spalten dieser Datenbank — ihre Namen, Arten und Auswahlwerte — und Dein Satz. Kein Eintrag, keine Notiz.",
+      "apply": "Anwenden",
+      "discard": "Verwerfen",
+      "refused": {
+        "off": "Die KI ist aus.",
+        "no-model": "Wähle zuerst ein Modell — in den KI-Einstellungen.",
+        "busy": "Die KI ist gerade mit einer anderen Anfrage beschäftigt. Versuch es noch einmal, wenn sie fertig ist.",
+        "empty": "Schreib, was die Ansicht zeigen soll.",
+        "denied": "Deine Regeln halten diese Datenbank von diesem Modell fern.",
+        "none": "Das lässt sich mit den Spalten dieser Datenbank nicht sagen. Versuch es mit anderen Worten oder füge den Filter von Hand hinzu.",
+        "invalid": "Die Antwort war kein Filter. Versuch es noch einmal oder mit anderen Worten.",
+        "failed": "Die Anfrage ist fehlgeschlagen."
+      }
+    },
     "bulkSetConfirmTitle": "Wert für viele Einträge setzen",
     "bulkSetConfirmMsg": "„{{column}}\" wird in {{count}} Notizen auf „{{value}}\" gesetzt. Fortfahren?",
     "bulkSetProgress": "{{done}} von {{total}}",

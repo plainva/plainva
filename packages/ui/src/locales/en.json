@@ -259,6 +259,8 @@
         "size": "Much more than before: ~{{tokens}} tokens",
         "standing": "Search by meaning computes with a cloud model: notes go there in the background, without asking each time — until you withdraw this approval in the settings.",
         "sensitive": "Possibly sensitive, marked below: {{kinds}}",
+        "fill_one": "The column “{{column}}” is being filled: {{count}} note goes in a request of its own.",
+        "fill_other": "The column “{{column}}” is being filled: the {{count}} notes go one at a time, each in a request of its own.",
         "instructions": "Instructions from this vault go out for the first time."
       },
       "goesTo": "Goes to",
@@ -267,6 +269,8 @@
       "evidenceWhole": "the whole note",
       "evidenceSection": "the section “{{section}}”",
       "evidenceStart": "the beginning",
+      "evidenceColumns_one": "{{count}} column: its name, kind and choices — no entry",
+      "evidenceColumns_other": "{{count}} columns: their names, kinds and choices — no entry",
       "evidenceSelection": "the selected passage",
       "card": "title, section and key sentences",
       "handle": "name only",
@@ -1315,6 +1319,9 @@
         "changes_one": "{{count}} change",
         "changes_other": "{{count}} changes"
       }
+    },
+    "fill": {
+      "roundNote": "Suggested for the column “{{column}}”, from this note alone."
     },
     "transcribe": {
       "action": "Transcribe",
@@ -2757,6 +2764,65 @@
     "proposedFailed_other": "{{count}} suggestions stay open: {{reason}}",
     "proposedAcceptAllTitle": "Apply suggested values",
     "proposedAcceptAllMsg": "{{count}} suggested values will be written into {{notes}} notes. Continue?",
+    "fill": {
+      "action": "Fill “{{column}}” with AI…",
+      "title": "Fill “{{column}}”",
+      "count_one": "{{count}} entry has no value here.",
+      "count_other": "{{count}} entries have no value here.",
+      "firstOnly": "A run takes the first {{max}} of them.",
+      "waiting_one": "{{count}} more already has a suggested value waiting.",
+      "waiting_other": "{{count}} more already have a suggested value waiting.",
+      "allWaiting": "Every entry without a value here already has a suggested one waiting.",
+      "nothing": "Every entry already has a value here.",
+      "how": "The AI reads each note on its own and suggests a value from it. Nothing is written until you accept a suggestion.",
+      "model": "Model: {{provider}} · {{model}}",
+      "noModel": "Choose a model first — in the AI settings.",
+      "choices": "It can choose from:",
+      "start": "Suggest values",
+      "stop": "Stop",
+      "running": "Filling “{{column}}” · {{done}} of {{total}}",
+      "proposed_one": "{{count}} value suggested for “{{column}}”",
+      "proposed_other": "{{count}} values suggested for “{{column}}”",
+      "silent_one": "{{count}} note does not say it",
+      "silent_other": "{{count}} notes do not say it",
+      "kept_one": "{{count}} kept back by your rules",
+      "kept_other": "{{count}} kept back by your rules",
+      "failed_one": "{{count}} without a usable answer",
+      "failed_other": "{{count}} without a usable answer",
+      "stopped": "stopped early",
+      "refused": {
+        "off": "The AI is off.",
+        "no-model": "Choose a model first — in the AI settings.",
+        "busy": "The AI is busy with another request. Try again when it is done.",
+        "encrypted": "Not yet in an encrypted workspace: its suggestions cannot name the AI as their author yet.",
+        "unfit": "“{{column}}” cannot be filled this way.",
+        "nothing": "Every entry already has a value here.",
+        "kept": "Your rules keep all of these notes from this model."
+      }
+    },
+    "filterWords": {
+      "label": "Filter in words",
+      "placeholder": "Say what to show, e.g. open offers over 5000",
+      "ask": "Suggest",
+      "asking": "Asking…",
+      "one": "Suggested rule:",
+      "all": "Suggested — all of these have to hold:",
+      "any": "Suggested — one of these has to hold:",
+      "matches": "Matches {{n}} of {{total}} entries.",
+      "sends": "Only this database's columns go to the AI for this — their names, kinds and choices — and your sentence. No entry, no note.",
+      "apply": "Apply",
+      "discard": "Discard",
+      "refused": {
+        "off": "The AI is off.",
+        "no-model": "Choose a model first — in the AI settings.",
+        "busy": "The AI is busy with another request. Try again when it is done.",
+        "empty": "Type what the view should show.",
+        "denied": "Your rules keep this database from this model.",
+        "none": "That cannot be said with this database's columns. Try other words, or add the filter by hand.",
+        "invalid": "The answer was not a filter. Try again, or with other words.",
+        "failed": "The request failed."
+      }
+    },
     "bulkSetConfirmTitle": "Set a value on many entries",
     "bulkSetConfirmMsg": "\"{{column}}\" will be set to \"{{value}}\" in {{count}} notes. Continue?",
     "bulkSetProgress": "{{done}} of {{total}}",

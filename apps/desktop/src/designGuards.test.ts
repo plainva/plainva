@@ -466,6 +466,8 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-maillink": "a link inside a plain-text mail body: --accent-color and an underline, nothing else to theme",
   "pv-evtjoin": "layout only — aligns the Join button; the button is a .pv-btn, which both themes restyle",
   "pv-pinentry": "layout only — the pinboard entry window's title field, editor host and line of inherited chips inside .pv-modal; the modal, the field tokens, the Chip primitive and the editor carry every theme",
+  "pv-fillplan": "layout only — sentences in --text-main and --text-muted and Chips inside .pv-modal; the modal, the tokens and the Chip primitive carry every theme",
+  "pv-filterwords": "layout only — a .pv-field, .pv-btn Buttons, Chips and a Banner the themes restyle; its one drawn block stands on --bg-secondary, --border-color and --radius-md, which the themes override",
 };
 
 describe("theme coverage (LCARS + Win95 dock onto every pv surface)", () => {

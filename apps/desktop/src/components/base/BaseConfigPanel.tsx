@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Settings2, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, Eye, EyeOff } from "lucide-react";
+import { Settings2, Sparkles, Trash2, X, Plus, GripVertical, ArrowUp, ArrowDown, Filter, Eye, EyeOff } from "lucide-react";
 import { Select, type SelectOption } from "../Select";
 import { DatabaseSourceConfig } from "../DatabaseSourceConfig";
 import { baseInputTypeOptions, defaultViewName } from "./baseViewerShared";
@@ -28,6 +28,7 @@ import { inlineOptionsFrom, parseWikiLinkValue, columnValuesAreWikiLinks, type C
 import type { BaseCells } from "./useBaseCells";
 import { useRowDrag } from "./useRowDrag";
 import { addContextFilter, getContextFilters, removeContextFilter, SELF_MARKER } from "@plainva/ui";
+import { addFilterRules, FilterInWords, filterSchemaOf, IconButton, inferColumnType, type BaseAi } from "@plainva/ui";
 
 export interface SortRuleUI {
   property: string;
@@ -537,7 +538,19 @@ export function BaseConfigPanel({
   onEnableSubItems,
   onSetSubItemsProperty,
   taskListChoice,
+  ai,
+  fillColumns,
+  onFillColumn,
 }: {
+  /**
+   * The assistant at this database (plan KI-Harness P5-4): a filter from a
+   * sentence on top of the filter list, and — for the columns in
+   * `fillColumns` — the door to a run that fills one. Absent while the AI is
+   * off on this device: the panel then shows neither.
+   */
+  ai?: BaseAi | null;
+  fillColumns?: ReadonlySet<string>;
+  onFillColumn?: (col: string) => void;
   currentViewType: string;
   extendedDbEnabled: boolean;
   dbConfig: any;
@@ -685,6 +698,18 @@ export function BaseConfigPanel({
     cells.columnLabel, t, dbConfig?.views?.[activeViewIndex]?.pinboardFilterBy,
   );
   const filterColumns = filterFields.map((field) => field.column);
+  // What a sentence may filter by (plan KI-Harness P5-4): the property columns, each with its kind — the declared
+  // one, or what its values say where none is declared — and its choices. Built only while the assistant is offered.
+  const filterWordsColumns = ai
+    ? filterSchemaOf(
+        filterFields.filter((field) => field.kind === "property").map((field) => field.column),
+        cells.columnLabel,
+        (column) => {
+          const schema = cells.getColumnSchema(column);
+          return schema?.input ? schema : { ...schema, input: inferColumnType(filterValueRows, column) };
+        },
+      )
+    : [];
   const filterCells = { ...cells, columnLabel: (column: string) => filterFields.find((field) => field.column === column)?.label ?? cells.columnLabel(column) };
   const [draftFilter, setDraftFilter] = useState<PropertyFilterRule | null>(null);
   const [draftGroup, setDraftGroup] = useState<{ logic: "all" | "any"; rule: PropertyFilterRule } | null>(null);
@@ -1155,6 +1180,11 @@ export function BaseConfigPanel({
                 )}
                 </div>
                 </div>
+                {onFillColumn && fillColumns?.has(col) && (
+                  <IconButton size="sm" label={t("database.fill.action", { column: cells.columnLabel(col) })} onClick={() => onFillColumn(col)} data-testid="base-cfg-fill-column">
+                    <Sparkles size={ICON.meta} />
+                  </IconButton>
+                )}
                 {!col.startsWith("file.") && (
                   <button onClick={() => onOpenColumnEditor(col)} aria-label={t("properties.editColumn", { column: col })} data-tip={t("properties.editColumn", { column: col })} className="base-cfg-iconbtn"><Settings2 size={ICON.meta} /></button>
                 )}
@@ -1238,6 +1268,15 @@ export function BaseConfigPanel({
       {/* Property filters — editable rows with an all/any toggle (P4, F3). */}
       {activeArea === "filter" && (
       <section className="base-cfg-section">
+        {/* A filter from a sentence (plan KI-Harness P5-4): the rules it would be are shown first, and only "Apply" adds them. */}
+        {ai && (
+          <FilterInWords
+            ai={ai}
+            columns={filterWordsColumns}
+            rows={filterValueRows}
+            onApply={(rules, logic) => mutateViewFilters((v) => addFilterRules(v, rules, logic, filterLogic))}
+          />
+        )}
         <div className="base-cfg-seg" role="group" aria-label={t("database.filterLogic", "Verknüpfung")} style={{ alignSelf: "flex-start" }}>
           <button
             className={filterLogic === "all" ? "active" : ""}

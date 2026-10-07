@@ -240,6 +240,10 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
 .pv-banner-ic { display: inline-flex; flex-shrink: 0; }
 .pv-banner-msg { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .pv-banner-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex-shrink: 0; margin-left: auto; }
+/* A run inside a banner (Design Language "A column is filled"): its sentence, and under it the track that says how far it is. */
+.pv-banner-run { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.pv-banner-run > .pv-security-progress { margin: 0; }
+.pv-banner-run .pv-security-progress-bar { display: block; }
 
 .pv-taskmeta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); min-width: 0; overflow-wrap: anywhere; font-size: var(--text-sm); color: var(--text-muted); }
 .pv-taskmeta-unsupported { color: var(--warning-text); }
@@ -4245,6 +4249,20 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-semantic-choices .pv-checkrow { align-items: flex-start; }
 .pv-semantic-choices .pv-checkrow > span { display: flex; flex-direction: column; gap: var(--space-1); }
 .pv-semantic-choices .pv-checkrow > span > span { color: var(--text-muted); font-size: var(--text-sm); }
+
+/* The assistant at a database (AI harness P5-4, Design Language "A column is filled" and "A filter in words"):
+   layout only — sentences, Chips, a field and Buttons; the one block that is drawn stands on the tokens. */
+.pv-fillplan { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-fillplan > p { margin: 0; }
+.pv-fillplan-how { color: var(--text-muted); font-size: var(--text-sm); }
+.pv-fillplan-choices { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.pv-filterwords { display: flex; flex-direction: column; gap: var(--space-2); }
+.pv-filterwords-ask { display: flex; align-items: center; gap: var(--space-1); }
+.pv-filterwords-ask > .pv-field { flex: 1 1 auto; min-width: 0; }
+.pv-filterwords-result { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-secondary); }
+.pv-filterwords-rules { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pv-filterwords-note { font-size: var(--text-sm); color: var(--text-muted); }
+.pv-filterwords-actions { display: flex; justify-content: flex-end; gap: var(--space-1); }
 /* "Show as a trail in the graph" under the lens's sources (AI harness P2b-5): layout only. */
 .pv-ai-lens-trail { display: flex; justify-content: flex-start; margin-top: var(--space-1); }
 /* Related notes (AI harness P2b-4, Design Language "Related notes"): layout and text runs in

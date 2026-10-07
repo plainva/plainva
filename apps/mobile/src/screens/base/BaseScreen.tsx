@@ -67,6 +67,8 @@ import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, flushPendingSave, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedCellView, proposedOutcomeWords, ProposedValueChip, ProposedValuesBar, type ProposedCell, type ProposedColumn } from "@plainva/ui";
+import { fillColumnOf, fillPlanLines, FillProgressBanner, fillRows, inferColumnType, useBaseAi, type FillColumn } from "@plainva/ui";
+import { getMobileAiSession } from "../../services/ai/mobileAi";
 import { mobileCommentOperations } from "../../services/commentOperations";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
@@ -607,6 +609,39 @@ export function BaseScreen({
     () => (proposedCells.size === 0 || !rows ? [] : listProposedCells(proposedCells, rows.map((r) => String(r["file.path"] ?? "")), proposedColumns)),
     [proposedCells, rows, proposedColumns],
   );
+
+  // The assistant at this database (plan KI-Harness P5-4), the desktop's
+  // twin: a column filled with proposed values, and a filter from a sentence.
+  // Absent while the AI is off on this device — no door of it is drawn then.
+  const baseAi = useBaseAi(getMobileAiSession(), path, { sealed: vault.workspaceRuntime !== null });
+  /** The column as a run fills it; null for one no run takes, and while filling is not offered here. */
+  const fillColumnFor = (col: string): FillColumn | null => {
+    if (!baseAi?.canFill || !rows) return null;
+    const schema = config?.columns?.[col];
+    return fillColumnOf(col, columnLabel(col), schema, schema?.input ? undefined : inferColumnType(rows, col));
+  };
+  // The plan first, as a question: how many entries, that each note is read on its own, that nothing is written.
+  const askFill = useStableHandler(async (col: string) => {
+    const column = fillColumnFor(col);
+    if (!column || !baseAi || !rows) return;
+    // An entry a value already waits for is not asked again: a second run must not lay a second value beside the first.
+    const rowsByPath = new Map(rows.map((r) => [String(r["file.path"] ?? ""), r]));
+    const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
+    for (const [notePath, comments] of noteComments) { if (rowsByPath.has(notePath)) entries.push({ path: notePath, comments }); }
+    const waiting = new Set(entries.length > 0 ? buildProposedCells(entries, (notePath) => rowsByPath.get(notePath), [col]).keys() : []);
+    const plan = fillRows(rows, col, waiting);
+    const lines = fillPlanLines(t, plan, baseAi.model);
+    if (plan.missing === 0) {
+      toast.info(lines[0]!);
+      return;
+    }
+    if (!baseAi.model) {
+      toast.error(t("database.fill.refused.no-model"));
+      return;
+    }
+    const start = await mConfirm({ title: t("database.fill.title", { column: column.label }), message: lines.join("\n\n"), confirmLabel: t("database.fill.start") });
+    if (start) void baseAi.startFill(column, plan.rows);
+  });
 
   /**
    * The comment count on a cell. A SPAN, never a button: it rides inside the
@@ -2333,6 +2368,10 @@ export function BaseScreen({
         onDeclineAll={() => void decideProposed(proposedShown, "declined")}
       />
 
+      {/* A run that fills a column of this database (plan KI-Harness P5-4):
+          how far it is, and the way to end it. */}
+      {baseAi?.fill && <FillProgressBanner fill={baseAi.fill} onStop={baseAi.stopFill} />}
+
       <div ref={rowsRef} className="m-baserows">
       {rows === null ? null : !vault.queryService ? (
         /* NOT "coming in a later step": databases are shipped, this vault's
@@ -2539,8 +2578,10 @@ export function BaseScreen({
           setCellEdit(null);
           if (proposed) void decideProposed([proposed], outcome);
         };
+        const fillable = fillColumnFor(cellEdit.col);
         return (
           <CellEditSheet key={`${vault.vaultId}:${cellEdit.notePath}:${cellEdit.col}`}
+            fill={fillable ? { label: fillable.label, onStart: () => { const c = cellEdit; setCellEdit(null); void askFill(c.col); } } : undefined}
             onClose={() => setCellEdit(null)}
             onCommentProperty={cellEditCanComment ? () => { const c = cellEdit; setCellEdit(null); composePropertyComment(c.notePath, c.col); } : undefined}
             onCommit={commitCell}
@@ -2579,6 +2620,7 @@ export function BaseScreen({
           columnsPool={columnsPool}
           config={config}
           onClose={() => setShowConfig(false)}
+          ai={baseAi}
           onEditProperty={setPropEdit}
           onMutate={mutateConfig}
           onSelectView={setViewIndex}
@@ -2593,6 +2635,11 @@ export function BaseScreen({
           column={propEdit}
           columnLabel={columnLabel}
           config={config}
+          fill={(() => {
+            const fillable = fillColumnFor(propEdit);
+            // The plan is a question above the database: the property's sheet and the configuration step aside for it.
+            return fillable ? { label: fillable.label, onStart: () => { const col = propEdit; setPropEdit(null); setShowConfig(false); void askFill(col); } } : undefined;
+          })()}
           onClose={() => setPropEdit(null)}
           onMutate={mutateConfig}
           onReload={() => {

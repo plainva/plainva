@@ -156,6 +156,20 @@ export function furtherToolNames(deps: Pick<VaultToolDeps, "mail" | "writes">): 
 export const SKILL_TOOL_NAMES: readonly string[] = [...CHAT_TOOL_NAMES, ...MAIL_TOOL_NAMES, ...WRITE_TOOL_NAMES];
 
 const NOT_FOUND = "No note is available at this path.";
+
+/** How a read that was cut at its limit ends: where the model reads on. */
+const readContinues = (cursor: number) => `\n\n[The note continues: call read_note again with cursor "${cursor}".]`;
+const READ_CONTINUES = /\n\n\[The note continues: call read_note again with cursor "\d+"\.\]$/;
+
+/**
+ * What `read_note` answered, for a reader that cannot call it again (a run
+ * that reads each note once, plan P5-4): the text without the line that says
+ * where to read on, and whether the read was cut.
+ */
+export function withoutReadCursor(content: string): { text: string; cut: boolean } {
+  const text = content.replace(READ_CONTINUES, "");
+  return { text, cut: text.length !== content.length };
+}
 const NO_EVENT = "No appointment with this handle. get_calendar lists appointments with their handles.";
 /**
  * An excerpt is cut at arbitrary places: a link cut in half ("…as in [[Finance/Sal")
@@ -334,7 +348,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const maxChars = Number(a.maxChars) || 8000;
           const offset = offsetOf(a.cursor);
           const slice = text.slice(offset, offset + maxChars);
-          const more = offset + maxChars < text.length ? `\n\n[The note continues: call read_note again with cursor "${offset + maxChars}".]` : "";
+          const more = offset + maxChars < text.length ? readContinues(offset + maxChars) : "";
           return result(tool.name, `${note.path}\n\n${slice}${more}`);
         }
         case "get_outline": {

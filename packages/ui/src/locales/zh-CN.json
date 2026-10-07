@@ -255,6 +255,7 @@
         "size": "比之前多得多：约{{tokens}}个Token",
         "standing": "含义搜索使用云端模型计算：笔记会在后台发送到那里，不再每次询问——直到你在设置中撤回此批准。",
         "sensitive": "可能敏感（见下方标记）：{{kinds}}",
+        "fill_other": "正在填写“{{column}}”列：{{count}} 条笔记逐条发送，每条单独一次请求。",
         "instructions": "来自此仓库的指令首次发出。"
       },
       "goesTo": "发送至",
@@ -263,6 +264,7 @@
       "evidenceWhole": "整篇笔记",
       "evidenceSection": "章节“{{section}}”",
       "evidenceStart": "开头",
+      "evidenceColumns_other": "{{count}} 个列的名称、类型和选项——不含任何条目",
       "evidenceSelection": "选中的段落",
       "card": "标题、段落和关键句",
       "handle": "仅名称",
@@ -1281,6 +1283,9 @@
         "hint": "这里显示的是由他人（而非你）留下的内容。在你采纳或创建之前，这些内容都不在仓库中。草稿保存在此设备上，建议保存在各自的笔记上。",
         "changes_other": "{{count}}处修改"
       }
+    },
+    "fill": {
+      "roundNote": "为“{{column}}”列建议的值，仅依据这条笔记。"
     },
     "transcribe": {
       "action": "转写",
@@ -2707,6 +2712,59 @@
     "proposedFailed_other": "有 {{count}} 条建议仍未处理：{{reason}}",
     "proposedAcceptAllTitle": "应用建议的值",
     "proposedAcceptAllMsg": "将把 {{count}} 个建议的值写入 {{notes}} 条笔记。是否继续？",
+    "fill": {
+      "action": "用 AI 填写“{{column}}”…",
+      "title": "填写“{{column}}”",
+      "count_other": "有 {{count}} 个条目在此列没有值。",
+      "firstOnly": "一次运行处理其中前 {{max}} 个。",
+      "waiting_other": "另有 {{count}} 个已有建议的值在等待处理。",
+      "allWaiting": "此列没有值的条目都已有建议在等待处理。",
+      "nothing": "每个条目在此列都已有值。",
+      "how": "AI 会逐条单独阅读笔记，并据此建议一个值。在你采纳建议之前，不会写入任何内容。",
+      "model": "模型：{{provider}} · {{model}}",
+      "noModel": "请先在AI设置中选择模型。",
+      "choices": "可选项：",
+      "start": "建议值",
+      "stop": "停止",
+      "running": "正在填写“{{column}}” · {{done}}/{{total}}",
+      "proposed_other": "已为“{{column}}”建议 {{count}} 个值",
+      "silent_other": "{{count}} 条笔记中没有提到",
+      "kept_other": "{{count}} 条被你的规则拦下",
+      "failed_other": "{{count}} 条没有可用的回答",
+      "stopped": "已提前停止",
+      "refused": {
+        "off": "AI已关闭。",
+        "no-model": "请先在AI设置中选择模型。",
+        "busy": "AI 正在处理另一个请求。请等它完成后再试。",
+        "encrypted": "加密工作区中暂不可用：其中的建议还无法将AI标为作者。",
+        "unfit": "“{{column}}”无法用这种方式填写。",
+        "nothing": "每个条目在此列都已有值。",
+        "kept": "你的规则不允许将这些笔记中的任何一条发送给此模型。"
+      }
+    },
+    "filterWords": {
+      "label": "用文字筛选",
+      "placeholder": "说出要显示什么，例如：超过 5000 的未完成报价",
+      "ask": "建议",
+      "asking": "正在询问…",
+      "one": "建议的规则：",
+      "all": "建议——须全部满足：",
+      "any": "建议——满足其中一条即可：",
+      "matches": "{{total}} 个条目中有 {{n}} 个符合。",
+      "sends": "为此发送给 AI 的只有此数据库的列（名称、类型和选项）和你的这句话。不包含任何条目和笔记。",
+      "apply": "应用",
+      "discard": "放弃",
+      "refused": {
+        "off": "AI已关闭。",
+        "no-model": "请先在AI设置中选择模型。",
+        "busy": "AI 正在处理另一个请求。请等它完成后再试。",
+        "empty": "请写下视图要显示的内容。",
+        "denied": "你的规则不允许将此数据库发送给此模型。",
+        "none": "用此数据库的列无法表达。请换个说法，或手动添加筛选。",
+        "invalid": "回答不是筛选规则。请重试，或换个说法。",
+        "failed": "请求失败。"
+      }
+    },
     "bulkSetConfirmTitle": "为多个条目设置值",
     "bulkSetConfirmMsg": "将在 {{count}} 条笔记中把“{{column}}”设置为“{{value}}”。是否继续？",
     "bulkSetProgress": "{{done}} / {{total}}",

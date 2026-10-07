@@ -473,3 +473,178 @@ test("AI writes into a database: a proposed value stands in its cell, the cell's
     await sql.close();
   }
 });
+
+/**
+ * A column filled by the assistant, and a filter from a sentence, on the
+ * phone (AI harness P5-4) — the desktop's twin. The phone has no column head,
+ * so the door stands at the foot of a cell's sheet; the plan is a question;
+ * the run reads each note in a request of its own and lays what the model
+ * answers on that note as a proposed value.
+ *
+ * Here the model IS reached: the test stands in for the native `AiNet`
+ * plugin at the one seam Capacitor offers — the plugin headers a native shell
+ * announces —, so everything above it is the app's own code.
+ */
+const FILL_CLIENTS: Record<string, string> = {
+  "Clients/Hafenkante.md": "---\ncity: Hamburg\n---\n# Studio Hafenkante\n\nA studio for film and video.\n",
+  "Clients/Vogt.md": "---\ncity: Luebeck\nindustry: Health\n---\n# Praxis Vogt\n\nA family doctor.\n",
+  "Clients/Werft.md": "---\ncity: Kiel\n---\n# Werft 7\n\nBuilds wooden boats.\n",
+  "Clients/Zeta.md": "---\ncity: Kiel\n---\n# Zeta\n\nNo word about its trade.\n",
+};
+type FillGlobals = typeof globalThis & { __aiRequests: string[] };
+
+test("AI writes a column of a database: the cell's sheet starts a run that proposes a value per empty entry; a sentence becomes a filter that is shown first", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const sql = await installSqlBridge(context);
+  const says = (text: string) =>
+    (
+      [
+        ["message_start", { type: "message_start", message: { usage: { input_tokens: 40 } } }],
+        ["content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }],
+        ["content_block_delta", { type: "content_block_delta", index: 0, delta: { type: "text_delta", text } }],
+        ["content_block_stop", { type: "content_block_stop", index: 0 }],
+        ["message_delta", { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 5 } }],
+        ["message_stop", { type: "message_stop" }],
+      ] as Array<[string, unknown]>
+    )
+      .map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`)
+      .join("");
+  // What the model answers depends on what it was given — the run asks in the view's order, whatever that is:
+  // each note's own words decide its value, and the sentence becomes the rule.
+  const script: Array<[needle: string, answer: string]> = [
+    ["A studio for film and video.", says('{"value": "Film"}')],
+    ["Builds wooden boats.", says('```json\n{"value": "Crafts"}\n```')],
+    ["No word about its trade.", says('{"value": null}')],
+    ["clients in Kiel", says(JSON.stringify({ match: "all", rules: [{ column: "City", op: "is", value: "Kiel" }] }))],
+  ];
+  try {
+    await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+    await context.addInitScript(
+      ({ script }) => {
+        localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
+        localStorage.setItem("CapacitorStorage.ai", JSON.stringify({ enabled: true, providers: ["anthropic"], profiles: { balanced: { providerId: "anthropic", model: "m-1" } } }));
+        const requests: string[] = [];
+        (globalThis as FillGlobals).__aiRequests = requests;
+        const promise = (name: string) => ({ name, rtype: "promise" });
+        (globalThis as unknown as { Capacitor: unknown }).Capacitor = {
+          PluginHeaders: [{ name: "AiNet", methods: [...["cancel", "setKey", "hasKey", "deleteKey", "addEndpoint", "removeEndpoint"].map(promise), { name: "request", rtype: "callback" }] }],
+          async nativePromise(_plugin: string, method: string) {
+            return method === "hasKey" ? { present: true } : method === "addEndpoint" ? { added: true } : {};
+          },
+          nativeCallback(_plugin: string, _method: string, options: { body: unknown }, callback: (chunk: unknown) => void) {
+            const sent = JSON.stringify(options.body);
+            requests.push(sent);
+            const text = script.find(([needle]) => sent.includes(needle))?.[1];
+            // A model takes its time: long enough for the run's progress to be seen.
+            setTimeout(() => {
+              const chunks = text === undefined ? [{ type: "failed", code: "network", message: "offline" }] : [{ type: "open", status: 200 }, { type: "data", text }, { type: "done" }];
+              chunks.forEach((chunk) => callback(chunk));
+            }, 900);
+            return Promise.resolve("ai");
+          },
+        };
+      },
+      { script },
+    );
+    await page.goto("/");
+    await waitForVaultDirectory(page);
+    await page.evaluate(
+      async ({ notes, base }) => {
+        const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
+        for (const [path, data] of Object.entries(notes)) await fs.writeFile({ path: `vault/${path}`, data, directory: "DATA", encoding: "utf8", recursive: true });
+        await fs.writeFile({ path: "vault/Customers.base", data: base, directory: "DATA", encoding: "utf8", recursive: true });
+      },
+      { notes: FILL_CLIENTS, base: CUSTOMERS },
+    );
+    await page.reload();
+    await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
+    const requests = () => page.evaluate(() => (globalThis as FillGlobals).__aiRequests);
+
+    await toList(page);
+    await page.getByText(/^Customers$/).first().click();
+    const row = (name: string) => page.locator(`tr[data-row-title="${name}"]`);
+    const chip = (name: string) => row(name).getByTestId("cell-proposed-industry");
+    await expect(row("Hafenkante")).toBeVisible({ timeout: 20_000 });
+
+    // 1. The door stands at the foot of a cell's sheet, named with the column; the plan is a question before anything goes.
+    await row("Hafenkante").locator("td").nth(1).click();
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-fill-door-mobile.png") });
+    await page.getByTestId("base-fill-column").click();
+    const question = page.locator(".m-sheet").filter({ hasText: "Fill “Industry”" });
+    await expect(question).toContainText("3 entries have no value here.");
+    await expect(question).toContainText("Nothing is written until you accept a suggestion.");
+    await expect(question).toContainText("Model: Anthropic · m-1");
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-fill-plan-mobile.png") });
+    expect(await requests()).toEqual([]);
+    await page.getByTestId("confirm-act").click();
+
+    // 2. Asked once, with every note of the run in one overview — the entry that has a value is not among them.
+    const sheet = page.getByTestId("ai-sheet");
+    await expect(sheet.getByTestId("ai-overview-fill")).toHaveText("The column “Industry” is being filled: the 3 notes go one at a time, each in a request of its own.");
+    await expect(sheet.locator(".pv-ai-overview-sources li")).toHaveCount(3);
+    await expect(sheet.getByTestId("ai-consent")).not.toContainText("Vogt");
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-fill-overview-mobile.png") });
+    expect(await requests()).toEqual([]);
+    await sheet.getByTestId("ai-consent-send").click();
+    await page.locator(".m-sheet-backdrop").last().click({ position: { x: 10, y: 10 } });
+    await expect(sheet).toHaveCount(0);
+
+    // 3. While it runs, the database says how far it is; the values appear in their cells as they are laid down.
+    const progress = page.getByTestId("base-fill-progress");
+    await expect(progress).toContainText("of 3");
+    await expect(page.getByTestId("cell-proposed-industry").first()).toBeVisible({ timeout: 10_000 });
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-fill-running-mobile.png") });
+    await expect(progress).toHaveCount(0, { timeout: 10_000 });
+    await expect(chip("Hafenkante")).toHaveText("Film");
+    await expect(chip("Werft")).toHaveText("Crafts");
+    await expect(chip("Zeta")).toHaveCount(0);
+    await expect(page.getByTestId("base-proposed-bar")).toContainText("2 suggested values in this view");
+    await expect(page.getByText("2 values suggested for “Industry” · 1 note does not say it")).toBeVisible();
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-fill-done-mobile.png") });
+
+    // 4. One note per request, nothing of another — and nothing was written.
+    const sent = await requests();
+    expect(sent).toHaveLength(3);
+    const ownWords = ["A studio for film and video.", "Builds wooden boats.", "No word about its trade."];
+    for (const request of sent) {
+      // Exactly one note's own words, and never those of the entry that has a value.
+      expect(ownWords.filter((text) => request.includes(text))).toHaveLength(1);
+      expect(request).not.toContain("family doctor");
+      expect(request).toContain('The property is called \\"Industry\\" (key: \\"industry\\")');
+    }
+    expect(ownWords.every((text) => sent.some((request) => request.includes(text)))).toBe(true);
+    for (const [path, text] of Object.entries(FILL_CLIENTS)) expect(await readVaultFile(page, path)).toBe(text);
+
+    // 5. A filter in words: the sentence and the database's columns go — no note —, and the rules are shown first.
+    await page.getByRole("button", { name: "Configure" }).click();
+    await page.getByRole("button", { name: /^Filter/ }).click();
+    const words = page.getByTestId("base-filter-words");
+    // What would go for it stands at the field, before anything is asked.
+    await expect(words.getByTestId("base-filter-words-sends")).toContainText("No entry, no note.");
+    await words.getByTestId("base-filter-words-input").fill("clients in Kiel");
+    await words.getByTestId("base-filter-words-ask").click();
+    // The database lies in a folder nothing went from yet: the overview names what would go — its columns.
+    await expect(sheet.getByTestId("ai-consent")).toContainText("2 columns: their names, kinds and choices — no entry");
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-filter-overview-mobile.png") });
+    await sheet.getByTestId("ai-consent-send").click();
+    await page.locator(".m-sheet-backdrop").last().click({ position: { x: 10, y: 10 } });
+    await expect(sheet).toHaveCount(0);
+    const result = words.getByTestId("base-filter-words-result");
+    await expect(result.getByTestId("base-filter-words-rule")).toHaveText(["City is Kiel"]);
+    await expect(result.getByTestId("base-filter-words-count")).toHaveText("Matches 2 of 4 entries.");
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-filter-words-mobile.png") });
+    const asked = (await requests())[3]!;
+    expect(asked).toContain("The sentence:\\nclients in Kiel");
+    expect(asked).toContain('name \\"City\\", kind text');
+    for (const text of ["wooden boats", "film and video", "family doctor", "Hamburg", "Werft"]) expect(asked).not.toContain(text);
+    // Shown, not applied: the database's own file says nothing of it yet.
+    expect(await readVaultFile(page, "Customers.base")).toBe(CUSTOMERS);
+
+    // 6. "Apply" is what filters: the rule joins the view's own filters.
+    await result.getByTestId("base-filter-words-apply").click();
+    await expect.poll(() => readVaultFile(page, "Customers.base"), { timeout: 10_000 }).toMatch(/city == "Kiel"/);
+    await expect(words.getByTestId("base-filter-words-result")).toHaveCount(0);
+  } finally {
+    await sql.close();
+  }
+});

@@ -78,6 +78,28 @@ a write or an outside effect.
        that question is the user's, and an assistant never answers it.
        "Create" is the user's step and writes the note the way the
        database's own "New entry" does without a template.
+     - *A run that fills a column is not a conversation* (`fillProperty`):
+       the app, not a model, walks the entries. Each note that says nothing
+       in the column goes in a request of its own — its properties, its
+       headings and its text as the read tools return them, and nothing of
+       another note —, with fixed sentences as the instruction and no tool
+       at all, so there is nothing a note's text could make the model do.
+       The column's name and choices are the vault's text and go with the
+       entry, never as part of the instruction. What comes back is read as
+       JSON and held against the column's kind and its choices; a value that
+       brings an address the model was not given is no value. What is left
+       is laid on the note through `set_property` itself — its lint, its
+       rules about what a place takes, its round — and waits like every
+       proposed value. The run asks once, with every note in one overview,
+       takes at most 25 entries, and leaves out an entry a value already
+       waits for. A request that fails ends it.
+     - *A filter in words sends a database's columns and no entry*
+       (`filterFromWords`): their names, kinds and choices, fenced as data,
+       and the user's sentence. The answer is held against those columns —
+       a column that is not there, an operator its kind does not have, a
+       choice it does not offer make the whole answer no filter — and is
+       shown as rules before anything is filtered. Applying them is the
+       user's own edit of the view; the assistant never writes a `.base`.
    - `critical` — delete, bulk change, vault-wide rename or move, and **any
      write to `plainva.ai.*`, `.agent/` or the OKF trust fields**: dry run and
      confirmation enforced in the tool layer; delete only through the deletion

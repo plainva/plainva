@@ -1,4 +1,4 @@
-import type { ToolScope } from "./vaultTools";
+import { withoutReadCursor, type ToolScope } from "./vaultTools";
 import { APP_SKILL_SOURCES, appSkillOf, appSkillScenarios } from "./appSkills";
 import type { InstructionApprovalStore, SkillTestStore, WebSettingsStore } from "./aiStores";
 import { createWebExecutor, newRunWeb, webToolNames } from "./webTools";
@@ -19,6 +19,9 @@ import {
 import { defuseNewAddresses } from "./aiWriteLint";
 import { draftedEntryContent, draftedNoteContent, EMPTY_WRITE_DRAFTS, type DraftCreator, type OpenProposal, type WriteDraftState, type WriteDraftStore } from "./aiWrites";
 import { isWriteToolName, type PlanQuestion, type WriteRun } from "./writeTools";
+import { bringsAddress, FILL_INSTRUCTION, FILL_LIMITS, fillColumnLine, isFillColumn, parseFillAnswer, type FillColumn } from "./aiFill";
+import { FILTER_INSTRUCTION, FILTER_WORDS_LIMITS, filterSchemaLines, parseFilterAnswer, type FilterSchemaColumn } from "./aiBaseFilter";
+import type { PropertyFilterRule } from "../base/filterExpr";
 import { safeFileStem } from "../lib/fileStem";
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
@@ -97,8 +100,13 @@ import {
   gateDecision,
   isCloudRecipient,
   payload,
+  goingKinds,
+  parseToolInput,
+  redactSensitive,
+  SENSITIVE_KINDS,
   sensitiveFindings,
   sensitiveKinds,
+  toolByName,
   withholdDeniedLinks,
   withholdPlaces,
   IMAGE_MAX_BYTES,
@@ -156,6 +164,9 @@ import {
   type ConversationRepository,
   type ConversationSummary,
   type EgressManifest,
+  type ManifestSource,
+  type SensitiveKind,
+  WRITE_REFUSALS,
   type EgressRecipient,
   type LedgerEntry,
   type ModelChoice,
@@ -643,7 +654,48 @@ export interface AiState {
   agents: AiAcpState;
   /** The drafts that wait in this vault on this device, and what became of earlier ones (plan P5). */
   drafts: WriteDraftState;
+  /** A column of a database being filled right now (plan P5-4): which, and how far the run is. */
+  fill: FillProgress | null;
 }
+
+/** A column to fill (plan KI-Harness P5-4): the database, the column, and the entries that say nothing in it. */
+export interface FillRequest {
+  /** The database's `.base` file — what the progress line is shown at. */
+  base: string;
+  column: FillColumn;
+  /** The entries to fill, in the view's order; a run takes the first `FILL_LIMITS.rows` of them. */
+  rows: readonly { path: string; title: string }[];
+}
+
+export interface FillProgress {
+  base: string;
+  column: string;
+  label: string;
+  done: number;
+  total: number;
+}
+
+export type FillOutcome =
+  /**
+   * The run is over. `proposed`: values laid on their notes. `silent`: notes
+   * that do not say it. `kept`: notes the rules keep from this model, or that
+   * are gone — not read. `failed`: answers that were no value, requests that
+   * failed, proposals a note did not take. `stopped`: the user ended it early.
+   */
+  | { kind: "done"; proposed: number; silent: number; kept: number; failed: number; stopped: boolean; provider: string; model: string; failure?: ModelFailure }
+  | { kind: "refused"; reason: "off" | "no-model" | "busy" | "encrypted" | "unfit" | "nothing" | "kept" | "cancelled" };
+
+/** A sentence to turn into filter rules (plan KI-Harness P5-4): the database and its columns — nothing of its entries. */
+export interface FilterWordsRequest {
+  base: string;
+  words: string;
+  columns: readonly FilterSchemaColumn[];
+}
+
+export type FilterWordsOutcome =
+  | { kind: "rules"; logic: "all" | "any"; rules: PropertyFilterRule[]; model: string }
+  /** `none`: the model says the sentence cannot be said with these columns. `invalid`: its answer was no filter. */
+  | { kind: "refused"; reason: "off" | "no-model" | "busy" | "empty" | "denied" | "cancelled" | "none" | "invalid" | "failed"; failure?: ModelFailure; provider?: string; model?: string };
 
 /** How "Create" on a draft ended (plan P5). */
 export type DraftOutcome =
@@ -774,6 +826,10 @@ export class AiSession {
   private sending = false;
   /** Recordings being transcribed now: one run per file. */
   private transcribing = new Set<string>();
+  /** Ends the run that fills a column, between two of its entries. */
+  private fillAbort: AbortController | null = null;
+  /** A sentence is on its way to become filter rules. */
+  private filtering = false;
   /** An answer is being kept as a note right now. */
   private capturing = false;
   /** What the user approved in this app session (E25); a server on this computer needs none. */
@@ -822,6 +878,7 @@ export class AiSession {
       mcp: this.mcp.state,
       agents: this.agents.state,
       drafts: EMPTY_WRITE_DRAFTS,
+      fill: null,
     };
   }
 
@@ -1015,7 +1072,10 @@ export class AiSession {
       draftWeb: false,
       // Another vault's drafts are not this one's.
       drafts: EMPTY_WRITE_DRAFTS,
+      // A column that was being filled belongs to the vault that is gone; its run ends with its next entry.
+      fill: null,
     });
+    this.fillAbort?.abort();
     // The same for foreign servers: which this vault uses is its own choice, and the connections of the last one end here.
     this.mcp.attach(vault?.mcp ?? null);
     // And for an external agent: its session belongs to the vault it was started in, and ends with it.
@@ -2014,26 +2074,389 @@ export class AiSession {
   }
 
   /** A transcription in the run ledger: usage and cost count like any request's. */
-  private async recordTranscription(vault: AiVaultHost, choice: ModelChoice, usage: ConversationUsage, failure?: string): Promise<void> {
-    const costUsd = usageCostUsd(usage, this.priceOf(choice));
+  private recordTranscription(vault: AiVaultHost, choice: ModelChoice, usage: ConversationUsage, failure?: string): Promise<void> {
+    return this.recordRequests(vault, choice, { id: `transcript-${this.host.newId()}`, usage, steps: 1, stop: failure ? "failed" : "answered", ...(failure ? { failure } : {}) });
+  }
+
+  /** Requests that belong to no conversation, in the run ledger: usage and cost count like any request's. */
+  private async recordRequests(vault: AiVaultHost, choice: ModelChoice, run: { id: string; usage: ConversationUsage; steps: number; stop: string; failure?: string }): Promise<void> {
+    const costUsd = usageCostUsd(run.usage, this.priceOf(choice));
     try {
       const ledger = await vault.ledger.load();
       await vault.ledger.save(
         appendAiLedgerEntry(ledger, {
           at: this.host.now().toISOString(),
-          conversationId: `transcript-${this.host.newId()}`,
+          conversationId: run.id,
           providerId: choice.providerId,
           model: choice.model,
-          stop: failure ? "failed" : "answered",
-          steps: 1,
+          stop: run.stop,
+          steps: run.steps,
           tools: [],
-          usage,
+          usage: run.usage,
           ...(costUsd !== undefined ? { costUsd } : {}),
-          ...(failure ? { failure } : {}),
+          ...(run.failure ? { failure: run.failure } : {}),
         }),
       );
     } catch {
-      // The transcript still goes to the note when app data cannot be written.
+      // What the request brought still goes where it belongs when app data cannot be written.
+    }
+  }
+
+  /**
+   * One request without tools and without a conversation of its own: fixed
+   * sentences as the instruction, the parts as the message. What the parts
+   * carry of the vault is fenced by whoever built them.
+   */
+  private async askOnce(
+    provider: ProviderInfo,
+    choice: ModelChoice,
+    instruction: string,
+    parts: TextPart[],
+    maxOutputTokens: number,
+    signal?: AbortSignal,
+  ): Promise<{ stop: RunStop; answer: string; usage: ConversationUsage }> {
+    const conversation = appendTurn(startConversation(`once-${this.host.newId()}`, instruction, []), { role: "user", parts, at: this.host.now().toISOString() });
+    const result = await runAgent({
+      conversation,
+      egress: this.host.egress,
+      endpoint: provider.endpoint,
+      model: choice.model,
+      executor: { execute: async () => ({ content: "No tools.", isError: true }) },
+      context: { privateContext: true, untrustedContext: true },
+      limits: { maxSteps: 1, maxToolCalls: 0, maxOutputTokens },
+      ...(provider.endpoint.api === "platform" ? { contextTokens: this.windowOf(provider, choice.model) ?? PLATFORM_CONTEXT_DEFAULT } : {}),
+      ...(signal ? { signal } : {}),
+      newRequestId: () => `ai-${this.host.newId()}`,
+      now: () => this.host.now().toISOString(),
+    });
+    return { stop: result.stop, answer: result.stop.kind === "answered" ? lastAnswerText(result.conversation) : "", usage: addUsage(EMPTY_USAGE, result.usage) };
+  }
+
+  /**
+   * Fills one column of a database (plan P5-4): for each entry that says
+   * nothing in it, the model a new conversation would get reads that entry's
+   * note — one note per request, nothing of another — and what it answers is
+   * laid on the note as a proposed value, through the tool every proposed
+   * value takes. Nothing is written; the values wait in the database's cells
+   * until someone decides them.
+   *
+   * The run asks once, before its first request, with everything it would
+   * send in one overview: a note left out there is not part of the run, and
+   * one redacted there goes redacted. A note the rules keep from this model
+   * is never read, and counts as kept. A request that fails ends the run —
+   * the next one would fail the same way —, with what was laid down so far.
+   */
+  async fillProperty(request: FillRequest): Promise<FillOutcome> {
+    const refused = (reason: Extract<FillOutcome, { kind: "refused" }>["reason"]): FillOutcome => ({ kind: "refused", reason });
+    const vault = this.vault;
+    if (!this.state.settings.enabled || !vault) return refused("off");
+    if (vault.encrypted?.()) return refused("encrypted");
+    const choice = this.newConversationChoice();
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
+    if (!choice || !provider) return refused("no-model");
+    if (this.fillAbort || this.state.live || this.sending) return refused("busy");
+    const { column } = request;
+    if (!isFillColumn(column)) return refused("unfit");
+    const rows = request.rows.slice(0, FILL_LIMITS.rows);
+    if (rows.length === 0) return refused("nothing");
+    const outlineTool = toolByName("get_outline");
+    const readTool = toolByName("read_note");
+    const writeTool = toolByName("set_property");
+    if (!outlineTool || !readTool || !writeTool) return refused("off");
+
+    const controller = new AbortController();
+    this.fillAbort = controller;
+    try {
+      const recipient: EgressRecipient = recipientOf(provider, choice.model);
+      const cloud = isCloudRecipient(recipient);
+      // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
+      const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+      const writer = { id: assistantAuthorId(choice.model), displayName: t("ai.suggestionAuthor", { model: choice.model }) };
+      const call = (tool: ToolManifest, args: unknown): ToolCallPart => ({ type: "tool_call", id: `fill-${this.host.newId()}`, name: tool.name, args });
+
+      // Each entry is a run of its own: its own gate, its own record of what it read, its own round on its note.
+      // Read here, on the device, before anyone is asked: the overview names what would go.
+      interface FillEntry {
+        path: string;
+        title: string;
+        executor: ToolExecutor;
+        outline: string;
+        text: string;
+        cut: boolean;
+      }
+      const entries: FillEntry[] = [];
+      let kept = 0;
+      for (const row of rows) {
+        if (controller.signal.aborted || this.vault !== vault) return refused("cancelled");
+        // The rules of what this entry's run read: the note's own, and those of the notes it names in its links.
+        const restricted = new Set<AiPolicyDimension>();
+        const scope: ToolScope = {
+          inside: () => true,
+          passed: (_path, rules) => {
+            for (const rule of rules) restricted.add(rule);
+          },
+        };
+        const run: WriteRun = {
+          author: writer,
+          // The user typed nothing here: an address is the note's own, or it is none.
+          userTexts: () => [],
+          inherited: async () => AI_POLICY_DIMENSIONS.filter((dimension) => restricted.has(dimension)),
+          draft: async () => ({ ok: false, problem: "invalid" }),
+          // A column is no rule and no file: nothing here is a plan, and nobody is asked.
+          ask: async () => "nobody",
+          writes: { rounds: [], drafts: [], plans: [] },
+          today: () => this.host.today(),
+          clock: () => clockOf(this.host.now()),
+        };
+        const tools = vault.tools(recipient, scope, undefined, false, undefined, undefined, run);
+        if (!tools) return refused("off");
+        const outlineArgs = { path: row.path };
+        const readArgs = { path: row.path, maxChars: FILL_LIMITS.noteChars };
+        const outline = await tools.executor.execute(outlineTool, outlineArgs, call(outlineTool, outlineArgs), controller.signal).catch(() => null);
+        const read = outline && !outline.isError ? await tools.executor.execute(readTool, readArgs, call(readTool, readArgs), controller.signal).catch(() => null) : null;
+        if (!outline || outline.isError || !read || read.isError) {
+          // Kept from this model by the rules, or gone: either way it is not read, and the model never learns of it.
+          kept += 1;
+          continue;
+        }
+        const body = withoutReadCursor(read.content);
+        entries.push({ path: row.path, title: row.title, executor: tools.executor, outline: outline.content, text: body.text, cut: body.cut });
+      }
+      if (entries.length === 0) return refused("kept");
+
+      /** What the local patterns see in a text that would go to a cloud (P2b-6), and the text as it goes. */
+      const screen = (text: string, redacted: boolean): { text: string; kinds: SensitiveKind[]; redacted: number } => {
+        if (!cloud) return { text, kinds: [], redacted: 0 };
+        const findings = sensitiveFindings(text);
+        if (!findings.length) return { text, kinds: [], redacted: 0 };
+        const kinds = sensitiveKinds(findings);
+        if (!redacted) return { text, kinds, redacted: 0 };
+        const out = redactSensitive(text, findings);
+        return { text: out.text, kinds, redacted: out.redacted };
+      };
+      const property = fillColumnLine(column);
+      const price = this.priceOf(choice);
+      const leftOut = new Set<string>();
+      const redact = new Set<string>();
+      const build = () => {
+        const sources: ManifestSource[] = [];
+        const requests = new Map<string, string>();
+        const going = new Set<SensitiveKind>();
+        let tokens = 0;
+        let largest = 0;
+        let redactions = 0;
+        for (const entry of entries) {
+          if (leftOut.has(entry.path)) continue;
+          const outline = screen(entry.outline, redact.has(entry.path));
+          const body = screen(entry.text, redact.has(entry.path));
+          const text = [
+            property,
+            `The entry is the note [[${entry.title}]]. Its properties and headings:`,
+            fenceUntrusted(payload(outline.text, { kind: "vault", path: entry.path, section: "properties" })),
+            entry.cut ? "The beginning of its text — the note is longer than what you are given:" : "Its text:",
+            fenceUntrusted(payload(body.text, { kind: "vault", path: entry.path })),
+          ].join("\n");
+          const size = estimateTokens(FILL_INSTRUCTION + text);
+          tokens += size;
+          largest = Math.max(largest, size);
+          const kinds = SENSITIVE_KINDS.filter((kind) => outline.kinds.includes(kind) || body.kinds.includes(kind));
+          const spans = outline.redacted + body.redacted;
+          redactions += spans;
+          for (const kind of goingKinds(kinds, spans > 0)) going.add(kind);
+          sources.push({
+            path: entry.path,
+            title: entry.title,
+            tier: "evidence",
+            // Cut at the run's limit: the overview says "the beginning", as for any note that goes in part.
+            ...(entry.cut ? { section: "" } : {}),
+            chars: outline.text.length + body.text.length,
+            reasons: [],
+            ...(kinds.length ? { sensitive: kinds } : {}),
+            ...(spans ? { redacted: spans } : {}),
+          });
+          requests.set(entry.path, text);
+        }
+        const manifest: EgressManifest = {
+          providerId: provider.id,
+          providerLabel: provider.label,
+          model: choice.model,
+          local: !cloud,
+          sources,
+          ...(going.size ? { sensitive: SENSITIVE_KINDS.filter((kind) => going.has(kind)) } : {}),
+          dataClasses: ["notes"],
+          folders: [...new Set(sources.map((source) => (source.path.includes("/") ? source.path.slice(0, source.path.indexOf("/")) : "")))].sort(),
+          withheld: { notes: kept, links: 0, places: 0, moodProperties: 0, ...(redactions ? { sensitive: redactions } : {}) },
+          excluded: [],
+          estimatedTokens: tokens,
+          ...(price ? { estimatedCostUsd: (tokens / 1_000_000) * price.input } : {}),
+          tools: [],
+          web: false,
+          fill: { column: column.label },
+        };
+        return { manifest, requests, largest };
+      };
+
+      // The overview as the approval of the whole run (E25): asked once, with every note in it.
+      let built = build();
+      let reviewing = false;
+      for (;;) {
+        if (built.manifest.sources.length === 0) return refused("cancelled");
+        const growth = scopeGrowth(built.manifest, this.scope);
+        if (!reviewing && growth.length === 0 && !(this.state.settings.confirmEveryRequest && !built.manifest.local)) break;
+        const answer = await this.askConsent(built.manifest, growth);
+        if (this.vault !== vault || controller.signal.aborted || answer === "cancel") return refused("cancelled");
+        if (answer === "send") break;
+        reviewing = true;
+        if ("leaveOut" in answer) leftOut.add(answer.leaveOut);
+        else if (redact.has(answer.redact)) redact.delete(answer.redact);
+        else redact.add(answer.redact);
+        built = build();
+      }
+      // What was approved is each request, not their sum: a later request is measured against the largest of them.
+      if (!built.manifest.local) this.scope = widenScope(this.scope, { ...built.manifest, estimatedTokens: built.largest });
+
+      const going = entries.filter((entry) => !leftOut.has(entry.path));
+      const progress = { base: request.base, column: column.key, label: column.label, total: going.length };
+      this.set({ fill: { ...progress, done: 0 } });
+      const roundNote = t("ai.fill.roundNote", { column: column.label }).slice(0, 300);
+      let usage: ConversationUsage = EMPTY_USAGE;
+      let steps = 0;
+      let proposed = 0;
+      let silent = 0;
+      let failed = 0;
+      let stopped = false;
+      let failure: ModelFailure | undefined;
+      for (const [index, entry] of going.entries()) {
+        if (controller.signal.aborted || this.vault !== vault) {
+          stopped = true;
+          break;
+        }
+        const asked = await this.askOnce(provider, choice, FILL_INSTRUCTION, [{ type: "text", text: built.requests.get(entry.path)! }], FILL_LIMITS.outputTokens, controller.signal);
+        usage = addUsage(usage, asked.usage);
+        steps += 1;
+        if (asked.stop.kind === "cancelled") {
+          stopped = true;
+          break;
+        }
+        if (asked.stop.kind === "failed") {
+          failure = asked.stop.failure;
+          break;
+        }
+        const answer: ReturnType<typeof parseFillAnswer> = asked.stop.kind === "answered" ? parseFillAnswer(asked.answer, column) : { kind: "invalid" };
+        if (answer.kind === "none") silent += 1;
+        // A value is to come from the note: an address the model was not given is none.
+        else if (answer.kind === "invalid" || bringsAddress(answer.value, [entry.outline, entry.text])) failed += 1;
+        else {
+          // Through the tool every proposed value takes: its checks, its lint, its round — and the note as it is now.
+          const args = parseToolInput(writeTool, { path: entry.path, key: column.key, value: answer.value, note: roundNote });
+          const laid = args.ok ? await entry.executor.execute(writeTool, args.value, call(writeTool, args.value), controller.signal).catch(() => null) : null;
+          if (laid && !laid.isError) proposed += 1;
+          // The rules of what the note names keep the value from it: kept, like a note that was not read.
+          else if (laid?.content === WRITE_REFUSALS.restricted) kept += 1;
+          else failed += 1;
+        }
+        if (this.vault === vault && this.fillAbort === controller) this.set({ fill: { ...progress, done: index + 1 } });
+      }
+      if (steps > 0) {
+        await this.recordRequests(vault, choice, {
+          id: `fill-${this.host.newId()}`,
+          usage,
+          steps,
+          stop: failure ? "failed" : stopped ? "cancelled" : "answered",
+          ...(failure ? { failure: failure.kind } : {}),
+        });
+      }
+      return { kind: "done", proposed, silent, kept, failed, stopped, provider: provider.label, model: choice.model, ...(failure ? { failure } : {}) };
+    } finally {
+      if (this.fillAbort === controller) {
+        this.fillAbort = null;
+        if (this.state.fill) this.set({ fill: null });
+      }
+    }
+  }
+
+  /** Ends the run that fills a column: the request on its way is cancelled, and what was laid down stays. */
+  stopFill(): void {
+    this.fillAbort?.abort();
+  }
+
+  /**
+   * A filter in words (plan P5-4): the sentence and the database's columns —
+   * their names, kinds and choices; no note and no value of any entry — go to
+   * the model a new conversation would get, and what it answers comes back as
+   * filter rules held against those columns. Nothing is filtered here: the
+   * view shows the rules, and the user applies them or throws them away.
+   *
+   * The database's own rules decide whether its columns may go: its folder's
+   * and the vault's, as for a note that lies there.
+   */
+  async filterFromWords(request: FilterWordsRequest): Promise<FilterWordsOutcome> {
+    const refused = (reason: Extract<FilterWordsOutcome, { kind: "refused" }>["reason"]): FilterWordsOutcome => ({ kind: "refused", reason });
+    const vault = this.vault;
+    if (!this.state.settings.enabled || !vault) return refused("off");
+    const choice = this.newConversationChoice();
+    const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
+    if (!choice || !provider) return refused("no-model");
+    if (this.filtering || this.state.live || this.sending) return refused("busy");
+    const words = request.words.replace(/\s+/g, " ").trim().slice(0, FILTER_WORDS_LIMITS.words);
+    const columns = request.columns.slice(0, FILTER_WORDS_LIMITS.columns);
+    if (!words || columns.length === 0) return refused("empty");
+    const recipient: EgressRecipient = recipientOf(provider, choice.model);
+    const cloud = isCloudRecipient(recipient);
+    const effective = isAiHiddenPath(request.base) ? null : await vault.policy.policyOf(request.base, "").catch(() => null);
+    if (!effective || !gateDecision(effective, { recipient, webTools: false }).allowed) return refused("denied");
+
+    this.filtering = true;
+    try {
+      const schema = filterSchemaLines(columns);
+      const lead: TextPart = { type: "text", text: `The columns of the database:\n${fenceUntrusted(payload(schema, { kind: "vault", path: request.base, section: "columns" }))}` };
+      const sentence: TextPart = { type: "text", text: `The sentence:\n${words}` };
+      const title = request.base.slice(request.base.lastIndexOf("/") + 1).replace(/\.base$/i, "");
+      const folder = request.base.includes("/") ? request.base.slice(0, request.base.indexOf("/")) : "";
+      const seen = cloud ? sensitiveKinds(sensitiveFindings(schema)) : [];
+      const tokens = estimateTokens(FILTER_INSTRUCTION + lead.text + sentence.text);
+      const price = this.priceOf(choice);
+      const manifest: EgressManifest = {
+        providerId: provider.id,
+        providerLabel: provider.label,
+        model: choice.model,
+        local: !cloud,
+        sources: [{ path: request.base, title, tier: "evidence", chars: schema.length, reasons: [], columns: columns.length, ...(seen.length ? { sensitive: seen } : {}) }],
+        ...(seen.length ? { sensitive: seen } : {}),
+        dataClasses: ["notes"],
+        folders: [folder],
+        withheld: { notes: 0, links: 0, places: 0, moodProperties: 0 },
+        excluded: [],
+        estimatedTokens: tokens,
+        ...(price ? { estimatedCostUsd: (tokens / 1_000_000) * price.input } : {}),
+        tools: [],
+        web: false,
+      };
+      const growth = scopeGrowth(manifest, this.scope);
+      if (growth.length > 0 || (this.state.settings.confirmEveryRequest && !manifest.local)) {
+        const answer = await this.askConsent(manifest, growth);
+        if (this.vault !== vault || answer !== "send") return refused("cancelled");
+      }
+      if (!manifest.local) this.scope = widenScope(this.scope, manifest);
+
+      const asked = await this.askOnce(provider, choice, FILTER_INSTRUCTION, [lead, sentence], FILTER_WORDS_LIMITS.outputTokens);
+      await this.recordRequests(vault, choice, {
+        id: `filter-${this.host.newId()}`,
+        usage: asked.usage,
+        steps: 1,
+        stop: asked.stop.kind,
+        ...(asked.stop.kind === "failed" ? { failure: asked.stop.failure.kind } : {}),
+      });
+      if (asked.stop.kind === "cancelled") return refused("cancelled");
+      if (asked.stop.kind === "failed") return { kind: "refused", reason: "failed", failure: asked.stop.failure, provider: provider.label, model: choice.model };
+      if (asked.stop.kind !== "answered") return refused("invalid");
+      const answer = parseFilterAnswer(asked.answer, columns);
+      if (answer.kind !== "rules") return refused(answer.kind);
+      return { kind: "rules", logic: answer.logic, rules: answer.rules, model: choice.model };
+    } catch {
+      return refused("failed");
+    } finally {
+      this.filtering = false;
     }
   }
 

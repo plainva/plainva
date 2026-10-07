@@ -157,6 +157,8 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
   const form = (source: ManifestSource) =>
     source.image
       ? t("ai.overview.evidenceImage", { width: number.format(source.image.width), height: number.format(source.image.height), size: pictureSize(source.image.bytes) })
+      : source.columns !== undefined
+      ? t("ai.overview.evidenceColumns", { count: source.columns })
       : source.audioBytes !== undefined
       ? t("ai.overview.evidenceAudio", { size: megabytes(source.audioBytes) })
       : source.comments !== undefined
@@ -192,6 +194,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
       : t("ai.overview.estimate", { tokens: number.format(manifest.estimatedTokens) });
 
   const standing = manifest.standing;
+  const fill = manifest.fill;
   const title = standing
     ? t("ai.overview.standingTitle", { provider: manifest.providerLabel })
     : asking
@@ -204,9 +207,11 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         <ShieldCheck size={ICON.ui} aria-hidden="true" />
         <span>{title}</span>
       </h4>
-      {(growth.length > 0 || standing) && (
+      {(growth.length > 0 || standing || fill) && (
         <ul className="pv-ai-overview-why">
           {standing && <li>{t("ai.overview.why.standing")}</li>}
+          {/* A run that fills a column (plan P5-4): the notes go one at a time, and the estimate is the run's. */}
+          {fill && <li data-testid="ai-overview-fill">{t("ai.overview.why.fill", { column: fill.column, count: manifest.sources.length })}</li>}
           {growth.map((g, i) => (
             <li key={i}>{why(g)}</li>
           ))}
@@ -236,13 +241,13 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
                     <span className="pv-ai-overview-note">{source.title}</span>
                   )}
                   <span className="pv-ai-overview-form">{form(source)}</span>
-                  {/* The thread, or the picture, is what was asked about: it goes, or the request is cancelled. */}
-                  {onLeaveOut && source.comments === undefined && !source.image && (
+                  {/* The thread, the picture, or a database's columns are what was asked about: they go, or the request is cancelled. */}
+                  {onLeaveOut && source.comments === undefined && !source.image && source.columns === undefined && (
                     <IconButton size="sm" label={t("ai.overview.leaveOut", { note: source.title })} onClick={() => onLeaveOut(source.path)}>
                       <Minus size={ICON.meta} />
                     </IconButton>
                   )}
-                  {source.sensitive && source.sensitive.length > 0 && sensitiveLine(source.path, source.sensitive, Boolean(source.redacted), !source.selection && source.comments === undefined)}
+                  {source.sensitive && source.sensitive.length > 0 && sensitiveLine(source.path, source.sensitive, Boolean(source.redacted), !source.selection && source.comments === undefined && source.columns === undefined)}
                 </li>
               ))}
             </ul>

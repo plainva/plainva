@@ -80,7 +80,8 @@ function DialogSheet({ dialog }: { dialog: MobileDialog }) {
       <div className="pv-sheet m-sheet" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={cancel} />
         <p className="m-sheet-title">{dialog.title}</p>
-        {dialog.message && <p className="m-hint">{dialog.message}</p>}
+        {/* A question of several sentences keeps its paragraphs (the plan of a run that fills a column, AI harness P5-4). */}
+        {dialog.message && <p className="m-hint m-hint--paragraphs">{dialog.message}</p>}
 
         {dialog.kind === "prompt" && (
           <>

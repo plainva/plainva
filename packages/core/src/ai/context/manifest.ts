@@ -41,6 +41,12 @@ export interface ManifestSource {
   sensitive?: SensitiveKind[];
   /** Spans of it sent redacted, at the reader's choice. */
   redacted?: number;
+  /**
+   * Only a database's columns went (a filter in words, plan KI-Harness P5-4):
+   * their names, their kinds and their choices, this many — and none of its
+   * entries.
+   */
+  columns?: number;
 }
 
 export interface EgressManifest {
@@ -92,6 +98,13 @@ export interface EgressManifest {
    * vault's text — the first time they go to a cloud, the scope grows.
    */
   instructions?: ManifestInstructions;
+  /**
+   * A run that fills a column of a database (plan KI-Harness P5-4): the notes
+   * in `sources` go one at a time, each in a request of its own with nothing
+   * of another, and the estimate is the run's as a whole. `column` is the
+   * column as the database calls it.
+   */
+  fill?: { column: string };
 }
 
 export interface ManifestInstructions {

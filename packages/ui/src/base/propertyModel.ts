@@ -88,6 +88,39 @@ export function inferType(value: unknown, key: string): PropertyType {
   return "text";
 }
 
+/**
+ * The type of a column no schema declares, from the values its entries
+ * already have: what most of them are (`inferType`), a list as soon as one
+ * of them is one. "text" where the column is still empty everywhere. Read
+ * from at most `sample` entries — the answer is a kind, not a count.
+ */
+export function inferColumnType(rows: readonly Record<string, unknown>[], column: string, sample = 300): PropertyType {
+  const key = column.replace(/^note\./, "");
+  const counts = new Map<PropertyType, number>();
+  let seen = 0;
+  for (const row of rows) {
+    if (seen >= sample) break;
+    const value = row[column] === undefined && column !== key ? row[key] : row[column];
+    if (value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0)) continue;
+    seen += 1;
+    const type = inferType(value, key);
+    counts.set(type, (counts.get(type) ?? 0) + 1);
+  }
+  if (seen === 0) return key === "tags" || key === "tag" ? "tags" : "text";
+  // One entry with several values makes the column a list: a single value is a list of one.
+  for (const listed of ["tags", "link", "list"] as const) if (counts.has(listed)) return listed;
+  let best: PropertyType = "text";
+  let most = 0;
+  for (const [type, count] of counts) {
+    if (count > most) {
+      best = type;
+      most = count;
+    }
+  }
+  // A column where only some values look like a date or an address holds text.
+  return most === seen ? best : "text";
+}
+
 /** Convert an existing value to the shape a newly chosen type expects. */
 export function coerceForType(value: unknown, type: PropertyType): unknown {
   switch (type) {

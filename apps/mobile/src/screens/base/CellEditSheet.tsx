@@ -61,7 +61,14 @@ export function CellEditSheet({
   onClose,
   onCommentProperty,
   proposal,
+  fill,
 }: {
+  /**
+   * The assistant can fill this cell's column (plan KI-Harness P5-4): the
+   * door to that, named with the column as the database calls it. Absent
+   * while the AI is off, and for a column no run takes.
+   */
+  fill?: { label: string; onStart(): void };
   vault: MobileVault;
   target: CellEditTarget;
   rows: any[];
@@ -384,6 +391,14 @@ export function CellEditSheet({
           <button className="m-row" onClick={onCommentProperty} data-testid="base-comment-property">
             <MessageSquare size={ICON.head} />
             <span>{t("comments.commentOnProperty")}</span>
+          </button>
+        )}
+        {fill && (
+          // The column's own door (plan KI-Harness P5-4): the phone has no column head to carry it, and a cell is where
+          // one notices that a column is empty. Last at the foot — it is about every entry, not about this one.
+          <button className="m-row" onClick={fill.onStart} data-testid="base-fill-column">
+            <Sparkles size={ICON.head} />
+            <span>{t("database.fill.action", { column: fill.label })}</span>
           </button>
         )}
       </div>

@@ -195,6 +195,20 @@ export function addTopFilterRule(config: any, ruleStr: string, topLogic: "all" |
   return config;
 }
 
+/**
+ * Adds rules that belong together (a filter in words, plan KI-Harness P5-4):
+ * loose at top level where their logic is the top's — or where there is only
+ * one of them —, and as one group otherwise, so "any of these" stays that
+ * beside filters that all have to hold.
+ */
+export function addFilterRules(config: any, rules: readonly PropertyFilterRule[], logic: "all" | "any", topLogic: "all" | "any"): any {
+  const strings = rules.map(serializePropertyFilter);
+  if (strings.length === 0) return config;
+  if (strings.length === 1 || logic === topLogic) listOf(config, topList(topLogic)).push(...strings);
+  else listOf(config, topList(topLogic)).push({ [logic === "any" ? "or" : "and"]: strings });
+  return config;
+}
+
 /** Create a group with its first rule (empty groups never reach the file). */
 export function addGroupWithRule(config: any, groupLogic: "all" | "any", ruleStr: string, topLogic: "all" | "any"): any {
   listOf(config, topList(topLogic)).push({ [groupLogic === "any" ? "or" : "and"]: [ruleStr] });

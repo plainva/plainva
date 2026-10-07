@@ -172,6 +172,7 @@ describe("the settings model", () => {
     mcp: NO_MCP,
     agents: NO_ACP,
     drafts: { drafts: [], done: [] },
+    fill: null,
     ...patch,
   });
 

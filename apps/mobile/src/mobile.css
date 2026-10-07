@@ -905,6 +905,11 @@ textarea {
   font-size: var(--text-sm, 0.85rem);
   color: var(--text-muted);
 }
+/* A question in several sentences (the dialog host's message): its paragraphs
+   stay paragraphs, so "how many", "what happens" and "which model" read apart. */
+.m-hint--paragraphs {
+  white-space: pre-line;
+}
 
 /* A numbered how-to, for the one place the app has to explain something that
    happens OUTSIDE it: fetching an API token from the provider's own site (P7).
@@ -1688,6 +1693,11 @@ textarea {
   gap: var(--space-2);
   margin: var(--space-2);
   padding: var(--space-3);
+}
+/* A filter from a sentence on top of the filter list (AI harness P5-4): the
+   shared block, held off the sheet's edge like the rows below it. */
+.m-filterwords {
+  padding: var(--space-1) var(--space-2) var(--space-3);
 }
 /* P5: sync conflict surfaces */
 .m-warn {

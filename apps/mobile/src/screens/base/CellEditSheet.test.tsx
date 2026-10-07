@@ -96,6 +96,37 @@ describe("the sheet of a cell with a proposed value", () => {
     await sheet.render();
     expect(q(sheet.host, "cell-proposal")).toBeNull();
     expect(q(sheet.host, "cell-proposal-open")).toBeNull();
+    expect(q(sheet.host, "base-fill-column")).toBeNull();
     expect(sheet.host.querySelector("textarea, input")).not.toBeNull();
+  });
+});
+
+/**
+ * The door to a run that fills the cell's column (AI harness P5-4). The phone
+ * has no column head to carry it, so it stands at the foot of the sheet a
+ * cell opens — last, because it is about every entry, not about this one.
+ */
+describe("the door to filling the cell's column", () => {
+  it("stands last at the sheet's foot and starts nothing but the plan", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const onCommit = vi.fn();
+    const onStart = vi.fn();
+    const onComment = vi.fn();
+    await act(async () => root.render(<CellEditSheet vault={vault} target={{ ...target, value: "" }} rows={[]} onCommit={onCommit} onClose={() => {}} onCommentProperty={onComment} fill={{ label: "Industry", onStart }} />));
+    const door = q(host, "base-fill-column") as HTMLButtonElement;
+    // The catalogue's own words (this file's translator leaves the column's name to the app).
+    expect(door.textContent).toBe("Fill “{{column}}” with AI…");
+    const rows = [...host.querySelectorAll("button.m-row")];
+    expect(rows[rows.length - 1]).toBe(door);
+    expect(rows[rows.length - 2]).toBe(q(host, "base-comment-property"));
+    await act(async () => door.click());
+    expect(onStart).toHaveBeenCalledTimes(1);
+    // The door writes no value and starts no remark.
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onComment).not.toHaveBeenCalled();
+    act(() => root.unmount());
+    host.remove();
   });
 });

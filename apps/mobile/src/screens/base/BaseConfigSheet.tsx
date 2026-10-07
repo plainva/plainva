@@ -10,6 +10,7 @@ import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import { ColumnSummarySelect, useFilterRuleDraft } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
+import { addFilterRules, FilterInWords, filterSchemaOf, inferColumnType, type BaseAi } from "@plainva/ui";
 import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, resolveTaskListTarget, taskListPickerOptions, BASE_CONFIG_AREAS, BASE_VIEW_TYPES, baseConfigArea, baseViewTypeMeta, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, ICON, IconButton, isSourceCondition, isValidNewPropertyName, listTemplates, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 
 /**
@@ -63,7 +64,14 @@ export function BaseConfigSheet({
   onSelectView,
   onEditProperty,
   onClose,
+  ai,
 }: {
+  /**
+   * The assistant at this database (plan KI-Harness P5-4): a filter from a
+   * sentence on top of the filter list. Absent while the AI is off on this
+   * device.
+   */
+  ai?: BaseAi | null;
   /** The base's own path — a sub-items relation points at itself. */
   basePath: string;
   config: any;
@@ -98,6 +106,18 @@ export function BaseConfigSheet({
   );
   const filterColumns = filterFields.map((field) => field.column);
   const filterLabel = (column: string) => filterFields.find((field) => field.column === column)?.label ?? columnLabel(column);
+  // What a sentence may filter by (plan KI-Harness P5-4): the property columns, each with its kind — the declared
+  // one, or what its values say where none is declared — and its choices. Built only while the assistant is offered.
+  const filterWordsColumns = ai
+    ? filterSchemaOf(
+        filterFields.filter((field) => field.kind === "property").map((field) => field.column),
+        columnLabel,
+        (column) => {
+          const schema = config?.columns?.[column];
+          return schema?.input ? schema : { ...schema, input: inferColumnType(filterRows, column) };
+        },
+      )
+    : [];
 
   // ── "This note" filters (S23) ─────────────────────────────────────────────
   // Any wiki-link-storing property can carry one — not just relations to the
@@ -1116,6 +1136,24 @@ export function BaseConfigSheet({
         <p className="m-sectionlabel m-sectionlabel--inset">
           {t("database.filterPerViewHint")}
         </p>
+
+        {/* A filter from a sentence (plan KI-Harness P5-4), the desktop's
+            twin: the rules it would be are shown first, and only "Apply"
+            adds them to this view. */}
+        {ai && (
+          <div className="m-filterwords">
+            <FilterInWords
+              ai={ai}
+              columns={filterWordsColumns}
+              rows={filterRows}
+              onApply={(rules, logic) =>
+                mutateView((v) => {
+                  Object.assign(v, addFilterRules(v, rules, logic, filterLogic));
+                })
+              }
+            />
+          </div>
+        )}
 
         {/* "This note" (S23): a self-reference filter for an EMBEDDED database
             — the project note lists its own tasks. Stored plainva-side, so

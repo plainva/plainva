@@ -1,9 +1,9 @@
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Settings2, Trash2, GripVertical, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
+import { Settings2, Sparkles, Trash2, GripVertical, ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import type { BaseCells } from "./useBaseCells";
 
-import { buildSubItemsTree, ICON, type SubItemNode } from "@plainva/ui";
+import { buildSubItemsTree, ICON, IconButton, type SubItemNode } from "@plainva/ui";
 import { ColumnSummaryRow } from "@plainva/ui";
 
 // Table view of the BaseViewer (structural split, plan C3), including the
@@ -20,6 +20,8 @@ export function BaseTableView({
   onPersistColumnWidth,
   onOpenColumnEditor,
   onToggleColumn,
+  fillColumns,
+  onFillColumn,
   summaries,
   subItems,
   selection,
@@ -34,6 +36,13 @@ export function BaseTableView({
   onPersistColumnWidth: (col: string, width: number) => void;
   onOpenColumnEditor: (col: string) => void;
   onToggleColumn: (col: string) => void;
+  /**
+   * The columns the assistant can fill, and the door to that (plan KI-Harness
+   * P5-4): a third control in the column's head, beside its settings. Absent
+   * while the AI is off — the head then looks as it always did.
+   */
+  fillColumns?: ReadonlySet<string>;
+  onFillColumn?: (col: string) => void;
   /** Obsidian-native per-view column summaries: property -> summary name. */
   summaries?: Record<string, string>;
   /** Sub-items nesting (P10, Notion model): set when this table view has a
@@ -205,6 +214,11 @@ export function BaseTableView({
                   </span>
                   {!col.startsWith('file.') && (
                     <span className="base-th-actions" style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
+                      {onFillColumn && fillColumns?.has(col) && (
+                        <IconButton size="sm" label={t("database.fill.action", { column: columnLabel(col) })} onClick={(e) => { e.stopPropagation(); onFillColumn(col); }} data-testid="base-fill-column">
+                          <Sparkles size={ICON.meta} />
+                        </IconButton>
+                      )}
                       <button onClick={(e) => { e.stopPropagation(); onOpenColumnEditor(col); }} aria-label={t("properties.editColumn", { column: col })} data-tip={t("properties.editColumn", { column: col })} className="pv-iconbtn pv-iconbtn--sm">
                         <Settings2 size={ICON.meta} />
                       </button>
