@@ -17,7 +17,7 @@ import {
   type SuggestionAuthor,
 } from "./aiSelectionActions";
 import { defuseNewAddresses } from "./aiWriteLint";
-import { draftedEntryContent, draftedNoteContent, EMPTY_WRITE_DRAFTS, type DraftCreator, type OpenProposal, type WriteDraftState, type WriteDraftStore } from "./aiWrites";
+import { draftedEntryContent, draftedNoteContent, EMPTY_WRITE_DRAFTS, namedNoteContent, type DraftCreator, type OpenProposal, type WriteDraftState, type WriteDraftStore } from "./aiWrites";
 import { isWriteToolName, type PlanQuestion, type WriteRun } from "./writeTools";
 import { bringsAddress, FILL_INSTRUCTION, FILL_LIMITS, fillColumnLine, isFillColumn, parseFillAnswer, type FillColumn } from "./aiFill";
 import { FILTER_INSTRUCTION, FILTER_WORDS_LIMITS, filterSchemaLines, parseFilterAnswer, type FilterSchemaColumn } from "./aiBaseFilter";
@@ -32,6 +32,7 @@ import {
   withoutWriteDraft,
   withWriteDraft,
   withWriteDraftOutcome,
+  WRITE_DRAFT_LIMITS,
   type RunWrites,
   type WriteDraft,
   type WriteDraftBody,
@@ -199,7 +200,7 @@ import {
   type McpToolEffect,
   type RunMcp,
 } from "@plainva/core";
-import { AiAcp, type AcpVaultSide, type AiAcpHost, type AiAcpState } from "./acpSession";
+import { AiAcp, type AcpDrafts, type AcpVaultSide, type AiAcpHost, type AiAcpState } from "./acpSession";
 import { AiMcp, type AiMcpHost, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
 import type { McpPromptLook } from "./mcpRuntime";
 import type { McpVaultStore } from "./mcpStores";
@@ -295,8 +296,11 @@ export interface AiVaultHost {
   web?: WebSettingsStore;
   /** This vault's choices about foreign MCP servers (plan P4.5): which it uses, and what each may be called with. Absent, it uses none. */
   mcp?: McpVaultStore;
-  /** What an external agent's session needs of this vault (plan P4.6): its folder, its files under its rules, its margin. Absent, no agent is started here. */
-  agents?: AcpVaultSide;
+  /**
+   * What an external agent's session needs of this vault (plan P4.6): its folder, its files under its rules, its
+   * margin. Absent, no agent is started here. Where a note of an agent waits is the session's own list of drafts.
+   */
+  agents?: Omit<AcpVaultSide, "drafts">;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
   keepOnDevice?(path: string): Promise<void>;
   /** Checked gists of the model on this computer (plan P2b-3), read when a message is built; null while there are none. */
@@ -706,8 +710,9 @@ export type DraftOutcome =
   /**
    * `unavailable`: this shell cannot make that kind of thing. `gone`: the draft is not there any more.
    * `no-entry-folder`: the database an entry was drafted for has no folder for new entries (yet, or any more).
+   * `exists`: the draft names its own file, and a file of that name is there by now — nothing is written over.
    */
-  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder"; message?: string };
+  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder" | "exists"; message?: string };
 
 type Listener = () => void;
 
@@ -843,6 +848,8 @@ export class AiSession {
   /** The lane of changes to the list of drafts (plan P5). */
   private draftLane: Promise<unknown> = Promise.resolve();
   private creatingDraft = false;
+  /** Each vault's list of drafts as an agent's session was handed it: one per vault, told apart by identity. */
+  private readonly agentDraftPorts = new WeakMap<AiVaultHost, AcpDrafts>();
   /** Conversations on screen right now: the places where the send overview can be answered. */
   private surfaces = 0;
   /** How the shell puts a conversation on screen (the companion, the AI sheet). */
@@ -1081,8 +1088,9 @@ export class AiSession {
     this.fillAbort?.abort();
     // The same for foreign servers: which this vault uses is its own choice, and the connections of the last one end here.
     this.mcp.attach(vault?.mcp ?? null);
-    // And for an external agent: its session belongs to the vault it was started in, and ends with it.
-    this.agents.attach(vault?.agents ?? null);
+    // And for an external agent: its session belongs to the vault it was started in, and ends with it. A note it
+    // writes waits in that vault's list of drafts.
+    this.agents.attach(vault?.agents ? { ...vault.agents, drafts: this.agentDrafts(vault) } : null);
     if (!vault) return;
     void this.refreshSkills();
     void this.loadWebSettings(vault);
@@ -1134,10 +1142,68 @@ export class AiSession {
         if (!next) return null;
         await vault.drafts.save(next);
         if (this.vault === vault) this.set({ drafts: next });
+        // An agent's session hears what became of the notes it left (plan P5-6), wherever the user decided about them.
+        const port = this.agentDraftPorts.get(vault);
+        if (port) {
+          this.agents.draftsChanged(port, {
+            waiting: new Set(next.drafts.map((draft) => draft.id)),
+            ended: new Map(next.done.map((outcome) => [outcome.id, outcome.outcome])),
+          });
+        }
         return next;
       });
     this.draftLane = work;
     return work;
+  }
+
+  /**
+   * A vault's list of drafts as an external agent's session reaches it (plan
+   * P5-6). A note an agent wrote names its own file, so its draft is one of a
+   * kind per writer and path: written again, it takes the place of the one
+   * before and keeps its id — the card the user is looking at stays the same
+   * card. It inherits no rule: an agent is handed no note that carries one
+   * (`acpGate`). One port per vault, so the session can tell whose drafts
+   * changed.
+   */
+  private agentDrafts(vault: AiVaultHost): AcpDrafts {
+    const known = this.agentDraftPorts.get(vault);
+    if (known) return known;
+    const mine = (draft: WriteDraft, authorId: string, path: string) => draft.author.id === authorId && draft.body.kind === "note" && draft.body.path === path;
+    const port: AcpDrafts = {
+      room: async (authorId, path) => {
+        if (!vault.drafts) return false;
+        const { drafts } = await vault.drafts.load();
+        return drafts.length < WRITE_DRAFT_LIMITS.drafts || drafts.some((draft) => mine(draft, authorId, path));
+      },
+      leave: async (note) => {
+        let problem: "full" | "invalid" = "invalid";
+        let id = "";
+        const next = await this.changeDrafts(vault, (state) => {
+          const before = state.drafts.find((draft) => mine(draft, note.author.id, note.path));
+          const draft: WriteDraft = {
+            id: before?.id ?? `d-${this.host.newId()}`,
+            createdAt: this.host.now().toISOString(),
+            author: note.author,
+            conversationId: null,
+            title: note.path.slice(note.path.lastIndexOf("/") + 1).replace(/\.md$/i, "").slice(0, WRITE_DRAFT_LIMITS.title).trim() || "Note",
+            body: { kind: "note", path: note.path, folder: null, content: note.content },
+            inherited: [],
+            sources: [],
+            defused: note.defused,
+          };
+          const added = withWriteDraft(before ? withoutWriteDraft(state.drafts, before.id) : state.drafts, draft);
+          if (!added.ok) {
+            problem = added.problem === "full" ? "full" : "invalid";
+            return null;
+          }
+          id = draft.id;
+          return { ...state, drafts: added.drafts };
+        }).catch(() => null);
+        return next ? { ok: true, id } : { ok: false, problem };
+      },
+    };
+    this.agentDraftPorts.set(vault, port);
+    return port;
   }
 
   /**
@@ -1232,9 +1298,14 @@ export class AiSession {
     this.creatingDraft = true;
     try {
       let path: string;
-      if (body.kind === "note") {
-        // A draft that names its own file is another writer's (an agent, a program): not made here yet.
-        if (body.path) return refused("unavailable");
+      if (body.kind === "note" && body.path) {
+        // A draft that names its own file is another writer's (an agent, plan P5-6): the note is made exactly there,
+        // or not at all — with the writer's whole text and the stamp that says who wrote it (ADR 0023 §3).
+        if (!creates.noteAt) return refused("unavailable");
+        const made = await creates.noteAt({ path: body.path, content: namedNoteContent(draft, this.host.now()) });
+        if (made === null) return refused("exists");
+        path = made;
+      } else if (body.kind === "note") {
         const stem = safeFileStem(draft.title) ?? "Note";
         const denied = creates.placeDenies ? await creates.placeDenies(body.folder, stem).catch(() => []) : [];
         const rules = draft.inherited.filter((dimension) => !denied.includes(dimension));

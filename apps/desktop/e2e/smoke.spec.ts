@@ -5761,7 +5761,8 @@ test('AI external tools: a server that wants a sign-in is signed in to in the br
 // The native side is stood in for at the commands: a registry, and an agent
 // that speaks the protocol over the channel the real one's output arrives on.
 test('AI external agents: an agent is added and started after the surface said what Plainva does not control; what it writes through Plainva becomes a suggestion', async ({ page }) => {
-  const NEW_TEXT = '# Hello\nWelcome to the mock vault, and to its garden!';
+  // The agent's text for the welcome note changes a passage AND gives the note a property (P5-6): both are proposed.
+  const NEW_TEXT = '---\nstage: review\n---\n# Hello\nWelcome to the mock vault, and to its garden!';
   await page.addInitScript((newText) => {
     (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
     // The folder of the vault's remarks exists in a real vault; the mock only knows files.
@@ -5788,6 +5789,8 @@ test('AI external agents: an agent is added and started after the surface said w
       update({ sessionUpdate: 'tool_call', toolCallId: 'c1', title: 'Edit Welcome.md', kind: 'edit', status: 'in_progress', locations: [{ path: '/test-vault/Welcome.md' }] });
       await ask(901, 'fs/write_text_file', { path: '/test-vault/Welcome.md', content: newText });
       update({ sessionUpdate: 'tool_call_update', toolCallId: 'c1', status: 'completed' });
+      // A note that does not exist yet (P5-6): it becomes a draft, and an address the agent brings is made inert.
+      await ask(904, 'fs/write_text_file', { path: '/test-vault/Garden.md', content: '# Garden\n\nPlant list: https://plants.example/list\n' });
       // A change it says it made itself.
       update({ sessionUpdate: 'tool_call', toolCallId: 'c2', title: 'Edit Notes.md', kind: 'edit', status: 'completed', locations: [{ path: '/test-vault/Notes.md' }] });
       // A question to the user.
@@ -5887,30 +5890,59 @@ test('AI external agents: an agent is added and started after the surface said w
   expect(now.answers.map((answer) => [answer.id, answer.result ?? answer.error])).toEqual([
     [900, { code: -32602, message: 'Plainva does not hand over or change its own folders.' }],
     [901, {}],
+    [904, {}],
     [902, { outcome: { outcome: 'selected', optionId: 'no' } }],
     [903, { code: -32601, message: 'Method not found' }],
   ]);
   await expect(page.getByTestId('ai-agent-event-refused')).toHaveCount(1);
   await expect(page.getByTestId('ai-agent-event-direct')).toContainText('Notes.md');
   await expect(page.getByTestId('ai-agent-event-proposed')).toContainText('Welcome');
+  await expect(page.getByTestId('ai-agent-event-new')).toContainText('Garden.md');
   await expect(page.getByTestId('ai-agent-text').last()).toContainText('Done.');
   expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md'])).toBe('# Hello\nWelcome to the mock vault!');
-  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-turn-desktop.png'), animations: 'disabled' });
 
-  // 6. The suggestion waits in the note's margin under the agent's name; accepting it is what writes the note.
+  // 5b. The note that does not exist yet waits as a draft — the card every draft has, here in the agent's thread
+  //     (P5-6). Nothing is in the vault until "Create"; then the note is made at exactly the path the agent named,
+  //     stamped with who wrote it, with the address it brought as text.
+  const draft = session.getByTestId('ai-draft');
+  await expect(draft).toHaveCount(1);
+  await expect(draft).toHaveAttribute('aria-label', /^(Draft · Note|Entwurf · Notiz): Garden$/);
+  // The agent named the file: the card says where exactly that is, not "inbox".
+  await expect(draft.getByTestId('ai-draft-place')).toHaveText(/^(Top level of the vault|Oberste Ebene des Vaults)$/);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Garden.md'])).toBeUndefined();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-turn-desktop.png'), animations: 'disabled' });
+  await draft.getByTestId('ai-draft-create').click();
+  await expect.poll(async () => page.evaluate(() => (window as any).mockFs['/test-vault/Garden.md'] as string | undefined), { timeout: 10000 }).toMatch(/^---\ngenerated:\n {2}by: "?acp:gemini"?\n {2}at: .+\n---\n# Garden\n\nPlant list: https\[:\/\/\]plants\.example\/list\n$/);
+  // The session heard of it — also while another tab shows the new note.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-agent').click();
+  await expect(page.getByTestId('ai-agent-session').getByTestId('ai-draft')).toHaveCount(0);
+  await expect(page.getByTestId('ai-agent-event-created')).toContainText('Garden.md');
+
+  // 6. The suggestions wait in the note's margin under the agent's name: the passage, and the property as a proposed
+  //    value that says which property (P5-6). Accepting them is what writes the note.
   await page.getByText('Welcome', { exact: true }).first().click();
-  await expect(page.getByText('Welcome to the mock vault!')).toBeVisible();
+  // The margin opens by itself for a note with open remarks, and then the passage is drawn with what would be added:
+  // the words up to that place are there either way.
+  await expect(page.getByText('Welcome to the mock vault').first()).toBeVisible();
   const toggle = page.getByTestId('editor-comments-toggle');
   await expect(toggle).toBeVisible({ timeout: 10000 });
   const column = page.locator('aside.pv-comment-column');
   if (!(await column.isVisible())) await toggle.click();
   await page.getByTestId('comment-kind-suggestions').click();
-  const card = column.locator('.pv-comment-card').first();
-  await expect(card).toBeVisible({ timeout: 10000 });
+  await expect(column.locator('.pv-comment-card').first()).toBeVisible({ timeout: 10000 });
   await expect(column).toContainText(/Gemini CLI \((external agent|externer Agent)\)/);
+  await expect(column.locator('.pv-comment-round')).toHaveCount(1);
+  const stage = column.locator('.pv-comment-card', { has: page.locator('[data-testid="comment-diff"][data-property="stage"]') });
+  await expect(stage.getByTestId('comment-property-label')).toHaveText(/^(New property|Neue Eigenschaft)$/i);
+  await expect(stage.locator('[data-testid="comment-diff"] ins')).toHaveText('review');
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-suggestion-desktop.png'), animations: 'disabled' });
-  await card.hover();
-  await card.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).first().click();
+  await stage.hover();
+  await stage.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).first().click();
+  await expect.poll(async () => page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md']), { timeout: 10000 }).toBe('---\nstage: review\n---\n# Hello\nWelcome to the mock vault!');
+  const passage = column.locator('.pv-comment-card', { has: page.getByRole('button', { name: /^(Accept|Übernehmen)$/ }) }).first();
+  await passage.hover();
+  await passage.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).first().click();
   await expect.poll(async () => page.evaluate(() => (window as any).mockFs['/test-vault/Welcome.md']), { timeout: 10000 }).toBe(NEW_TEXT);
 
   // 7. The agent was running all the while — the session belongs to the vault, not to the tab that showed it. Ending
@@ -5926,6 +5958,7 @@ test('AI external agents: an agent is added and started after the surface said w
   const sessions = page.getByTestId('ai-agent-sessions');
   await expect(sessions.locator('li')).toHaveCount(1);
   await expect(sessions).toContainText(/Gemini CLI/);
-  await expect(sessions).toContainText(/through Plainva: 1 · written itself: 1|über Plainva: 1 · selbst geschrieben: 1/);
+  // Through Plainva came the round on the welcome note and the note that was a draft.
+  await expect(sessions).toContainText(/through Plainva: 2 · written itself: 1|über Plainva: 2 · selbst geschrieben: 1/);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-ended-desktop.png'), animations: 'disabled' });
 });

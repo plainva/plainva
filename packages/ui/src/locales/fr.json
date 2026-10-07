@@ -1196,7 +1196,7 @@
         "created": "Créée : {{note}}",
         "discarded": "Abandonnée : {{note}}",
         "direct": "L'agent a modifié {{note}} lui-même : c'est dans le vault sans proposition.",
-        "noteKept": "{{note}} n'a pas été nommée à l'agent : elle est tenue à l'écart du cloud.",
+        "noteKept": "{{note}} n'a pas été nommée à l'agent : elle est tenue à l'écart du cloud ou d'internet.",
         "failed": "L'agent n'a pas pu terminer cela.",
         "failedSaid": "L'agent n'a pas pu terminer cela. Il dit : {{message}}",
         "stopped": {
@@ -1217,20 +1217,15 @@
         "hidden": "c'est l'un des dossiers propres à Plainva",
         "missing": "ce fichier n'existe pas",
         "too-large": "le fichier est trop volumineux",
-        "kept": "elle est tenue à l'écart du cloud",
+        "kept": "elle est tenue à l'écart du cloud ou d'internet",
         "not-a-note": "ce n'est pas une note Markdown",
         "sealed": "ce n'est pas possible dans ce vault",
-        "rules": "elle contient des règles d'IA ou des champs de confiance",
-        "properties": "cela modifierait les propriétés de la note",
+        "rules": "cela définirait des règles d'IA, des champs de confiance ou des propriétés propres à Plainva",
+        "properties": "une valeur de propriété qui n'est ni du texte, ni un nombre, ni oui/non, ni une liste de ceux-ci",
         "unreadable": "ses propriétés sont illisibles",
         "too-many": "trop de modifications pour une seule proposition",
+        "waiting": "trop de brouillons attendent déjà",
         "failed": "cela n'a pas pu être fait"
-      },
-      "pending": {
-        "title": "Nouvelles notes de l'agent",
-        "create": "Créer",
-        "discard": "Abandonner",
-        "hint": "Une note n'est écrite que lorsque vous la créez. Elle porte la mention de qui l'a écrite, et les adresses web apportées par l'agent sont neutralisées."
       },
       "ended": {
         "closed": "La session est terminée.",
@@ -1336,7 +1331,8 @@
         "discarded": "Abandonné : {{name}}",
         "createdToast": "Créé.",
         "failed": "Le brouillon n'a pas pu être créé : {{reason}}",
-        "unavailable": "Cela ne peut pas être créé sur cet appareil."
+        "unavailable": "Cela ne peut pas être créé sur cet appareil.",
+        "exists": "Un fichier de ce nom s'y trouve désormais. Abandonnez le brouillon ou renommez le fichier."
       },
       "plan": {
         "renameTitle": "Renommer ?",

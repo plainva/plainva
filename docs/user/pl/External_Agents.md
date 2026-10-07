@@ -18,8 +18,8 @@ Uruchamiaj agenta tylko w vaulcie, którego zawartość może trafić do usługi
 ## Co Plainva kontroluje
 
 - **Własne narzędzia.** Tam, gdzie włączono **Pozwól aplikacjom AI na tym komputerze czytać ten vault**, narzędzia Plainva są oferowane agentowi — te same, co każdej aplikacji z [Łączenie aplikacji AI](Connect_AI_Apps.md): tylko foldery, na które zezwolisz, nigdy notatka trzymana z dala od chmury lub internetu, i tylko do odczytu — chyba że pozwolisz mu tam proponować zmiany.
-- **O czego odczyt agent prosi Plainva.** Notatka trzymana z dala od chmury i własne foldery Plainva nie są wydawane. Agent się o tym dowiaduje, i Ty też.
-- **O czego zapis agent prosi Plainva.** Nic nie jest zapisywane. Zmiana w notatce staje się rundą propozycji pod nazwą agenta, a nowa notatka czeka, aż ją utworzysz.
+- **O czego odczyt agent prosi Plainva.** Notatka trzymana z dala od chmury lub internetu i własne foldery Plainva nie są wydawane. Agent się o tym dowiaduje, i Ty też.
+- **O czego zapis agent prosi Plainva.** Nic nie jest zapisywane. Zmiana w notatce staje się rundą propozycji pod nazwą agenta, a nowa notatka czeka jako szkic, aż ją utworzysz.
 - **Bez terminala.** Plainva nie oferuje agentowi własnego terminala.
 
 ## Dodawanie agenta
@@ -42,7 +42,7 @@ Agent, który nie jest zalogowany, mówi o tym, a sesja pokazuje **⟨agent⟩ w
 
 ## W sesji
 
-Wpisz, co agent ma zrobić. Otwarta notatka jest agentowi wskazywana — jej nazwa i położenie, nie jej tekst — chyba że usuniesz ją nad polem wpisywania; notatka trzymana z dala od chmury nigdy nie jest wskazywana. Sesja pokazuje, co mówi agent, jego plan i każdy z jego kroków, z plikami vaultu, które wymienia.
+Wpisz, co agent ma zrobić. Otwarta notatka jest agentowi wskazywana — jej nazwa i położenie, nie jej tekst — chyba że usuniesz ją nad polem wpisywania; notatka trzymana z dala od chmury lub internetu nigdy nie jest wskazywana. Sesja pokazuje, co mówi agent, jego plan i każdy z jego kroków, z plikami vaultu, które wymienia.
 
 Gdy agent chce Twojej zgody na jakiś krok, pokazuje to **⟨agent⟩ pyta**. Słowa pochodzą od agenta, a do wyboru jest to, co agent oferuje — **Zezwól**, **Zawsze zezwalaj**, **Odrzuć**, **Zawsze odrzucaj**. Twoja odpowiedź trafia tylko do agenta: to, co zrobi po zgodzie, jest jego sprawą, a „zawsze” to obietnica, której dotrzymuje agent, nie Plainva.
 
@@ -50,9 +50,9 @@ Gdy agent chce Twojej zgody na jakiś krok, pokazuje to **⟨agent⟩ pyta**. S�
 
 ## Co zapisuje agent
 
-**Przez Plainva.** Zmiana, którą agent przekazuje Plainva, nigdy nie jest zapisywana w notatce. Gdy odpowiedź agenta jest gotowa, każda notatka, którą zmienił, ma jedną rundę propozycji, podpisaną **⟨nazwa⟩ (agent zewnętrzny)**: w sekcji **Propozycje** akceptujesz lub odrzucasz każdą zmianę albo całą rundę, tak jak przy rundzie od człowieka. Notatka, której jeszcze nie ma, pojawia się w sekcji **Nowe notatki od agenta**. **Utwórz** ją zapisuje — oznaczoną `generated`, z agentem jako autorem — a **Odrzuć** ją porzuca. Adresy internetowe przyniesione przez agenta są zapisywane tak, aby nic ich nie otwierało ani nie ładowało (`https[://]…`).
+**Przez Plainva.** Zmiana, którą agent przekazuje Plainva, nigdy nie jest zapisywana w notatce. Gdy odpowiedź agenta jest gotowa, każda notatka, którą zmienił, ma jedną rundę propozycji, podpisaną **⟨nazwa⟩ (agent zewnętrzny)**: w sekcji **Propozycje** akceptujesz lub odrzucasz każdą zmianę albo całą rundę, tak jak przy rundzie od człowieka. Właściwość, którą zmienia tekst agenta, stoi w tej rundzie jako proponowana wartość, tak jak wartość proponowana przez własną AI Plainva. Notatka, której jeszcze nie ma, czeka jako szkic — jako karta **Szkic · Notatka** w sesji i ta sama karta na liście **Oczekujące** karty AI, gdzie pozostaje także po zakończeniu sesji. **Utwórz** zapisuje ją dokładnie w miejscu wskazanym przez agenta — oznaczoną `generated`, z agentem jako autorem — a **Odrzuć** ją porzuca. Adresy internetowe przyniesione przez agenta są zapisywane tak, aby nic ich nie otwierało ani nie ładowało (`https[://]…`).
 
-Plainva nie przyjmuje wszystkiego: tylko notatki Markdown, tylko ich tekst, a nie ich właściwości, żadnej notatki, która niesie reguły AI lub pola zaufania, niczego, co jest trzymane z dala od chmury, i nie więcej niż 150 zmian w jednej notatce naraz. O tym, czego nie przyjęła, mówi sesja, a agent się o tym dowiaduje.
+Plainva nie przyjmuje wszystkiego: tylko notatki Markdown; żadnych reguł AI, pól zaufania ani własnych właściwości Plainva; żadnej wartości właściwości, która nie jest tekstem, liczbą, tak lub nie ani ich listą; niczego, co jest trzymane z dala od chmury lub internetu; nie więcej niż 150 zmian w jednej notatce naraz; i żadnej kolejnej nowej notatki, dopóki czeka zbyt wiele szkiców. O tym, czego nie przyjęła, mówi sesja, a agent się o tym dowiaduje.
 
 **Samodzielnie.** Agent może też sam zapisywać pliki, jak każdy program. Gdy zgłosi taką zmianę, sesja mówi **Agent sam zmienił ⟨notatka⟩: zmiana jest w vaulcie bez propozycji.** Którą drogę wybierze agent, tego Plainva nie może obiecać: zależy to od agenta i od tego, jak jest skonfigurowany. W ustawieniach każdy agent pokazuje, co ostatnio zaobserwowano na tym komputerze — ile zmian przyszło przez Plainva, a ile zapisał sam.
 

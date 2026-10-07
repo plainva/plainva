@@ -18,8 +18,8 @@ Start een agent alleen in een vault waarvan de inhoud de dienst van de agent mag
 ## Wat Plainva beheerst
 
 - **Zijn eigen hulpmiddelen.** Waar **AI-apps op deze computer deze vault laten lezen** aanstaat, worden de hulpmiddelen van Plainva aan de agent aangeboden — dezelfde als voor elke app in [AI-apps koppelen](Connect_AI_Apps.md): alleen de mappen die je toestaat, nooit een notitie die van de cloud of van internet wordt weggehouden, en alleen lezen — tenzij je hem daar toestaat wijzigingen voor te stellen.
-- **Wat de agent Plainva vraagt te lezen.** Een notitie die van de cloud wordt weggehouden en de eigen mappen van Plainva worden niet afgegeven. De agent krijgt dat te horen, en jij ook.
-- **Wat de agent Plainva vraagt te schrijven.** Er wordt niets geschreven. Een wijziging in een notitie wordt een ronde voorstellen onder de naam van de agent, en een nieuwe notitie wacht tot je haar maakt.
+- **Wat de agent Plainva vraagt te lezen.** Een notitie die van de cloud of van internet wordt weggehouden en de eigen mappen van Plainva worden niet afgegeven. De agent krijgt dat te horen, en jij ook.
+- **Wat de agent Plainva vraagt te schrijven.** Er wordt niets geschreven. Een wijziging in een notitie wordt een ronde voorstellen onder de naam van de agent, en een nieuwe notitie wacht als concept tot je haar aanmaakt.
 - **Geen terminal.** Plainva biedt een agent geen eigen terminal aan.
 
 ## Een agent toevoegen
@@ -42,7 +42,7 @@ Een agent die niet is aangemeld, zegt dat, en de sessie toont **⟨agent⟩ vraa
 
 ## In een sessie
 
-Typ wat de agent moet doen. De notitie die je open hebt, wordt aan de agent genoemd — haar naam en waar ze staat, niet haar tekst —, tenzij je haar boven het invoerveld weghaalt; een notitie die je van de cloud weghoudt, wordt nooit genoemd. De sessie toont wat de agent zegt, zijn plan en elk van zijn stappen, met de bestanden van de vault die hij noemt.
+Typ wat de agent moet doen. De notitie die je open hebt, wordt aan de agent genoemd — haar naam en waar ze staat, niet haar tekst —, tenzij je haar boven het invoerveld weghaalt; een notitie die je van de cloud of van internet weghoudt, wordt nooit genoemd. De sessie toont wat de agent zegt, zijn plan en elk van zijn stappen, met de bestanden van de vault die hij noemt.
 
 Als de agent je toestemming voor een stap wil, toont **⟨agent⟩ vraagt** die. De woorden zijn van de agent, en de keuzes zijn de keuzes die de agent aanbiedt — **Toestaan**, **Altijd toestaan**, **Afwijzen**, **Altijd afwijzen**. Je antwoord gaat alleen naar de agent: wat hij na een ja doet, is zijn eigen zaak, en een 'altijd' is een belofte die de agent houdt, niet Plainva.
 
@@ -50,9 +50,9 @@ Als de agent je toestemming voor een stap wil, toont **⟨agent⟩ vraagt** die.
 
 ## Wat de agent schrijft
 
-**Via Plainva.** Een wijziging die de agent aan Plainva geeft, wordt nooit in de notitie geschreven. Als het antwoord van de agent klaar is, draagt elke notitie die hij heeft gewijzigd één ronde voorstellen, ondertekend met **⟨naam⟩ (externe agent)**: onder **Voorstellen** accepteer of wijs je elke wijziging of de hele ronde af, net als bij de ronde van een persoon. Een notitie die nog niet bestaat, verschijnt onder **Nieuwe notities van de agent**. **Maken** schrijft haar — gemarkeerd met `generated`, met de agent als auteur —, en **Verwerpen** laat haar vallen. Webadressen die de agent heeft meegebracht, worden zo geschreven dat niets ze opent of laadt (`https[://]…`).
+**Via Plainva.** Een wijziging die de agent aan Plainva geeft, wordt nooit in de notitie geschreven. Als het antwoord van de agent klaar is, draagt elke notitie die hij heeft gewijzigd één ronde voorstellen, ondertekend met **⟨naam⟩ (externe agent)**: onder **Voorstellen** accepteer of wijs je elke wijziging of de hele ronde af, net als bij de ronde van een persoon. Een eigenschap die de tekst van de agent wijzigt, staat in die ronde als voorgestelde waarde, zoals een waarde die de eigen AI van Plainva voorstelt. Een notitie die nog niet bestaat, wacht als concept — als kaart **Concept · Notitie** in de sessie, en als dezelfde kaart in de lijst **Open** van het AI-tabblad, waar ze ook na het einde van de sessie blijft staan. **Aanmaken** schrijft haar op precies de plek die de agent noemde — gemarkeerd met `generated`, met de agent als auteur —, en **Verwerpen** laat haar vallen. Webadressen die de agent heeft meegebracht, worden zo geschreven dat niets ze opent of laadt (`https[://]…`).
 
-Plainva neemt niet alles aan: alleen Markdown-notities, alleen hun tekst en niet hun eigenschappen, geen notitie die AI-regels of vertrouwensvelden draagt, niets wat van de cloud wordt weggehouden, en niet meer dan 150 wijzigingen in één notitie tegelijk. Wat het niet heeft aangenomen, zegt de sessie, en de agent krijgt het te horen.
+Plainva neemt niet alles aan: alleen Markdown-notities; geen AI-regels, geen vertrouwensvelden en geen eigen eigenschappen van Plainva; geen eigenschapswaarde die geen tekst, getal, ja of nee, of lijst daarvan is; niets wat van de cloud of van internet wordt weggehouden; niet meer dan 150 wijzigingen in één notitie tegelijk; en geen verdere nieuwe notitie zolang er te veel concepten wachten. Wat het niet heeft aangenomen, zegt de sessie, en de agent krijgt het te horen.
 
 **Zelf.** Een agent kan ook zelf bestanden schrijven, zoals elk programma. Als hij zo'n wijziging meldt, zegt de sessie **De agent heeft ⟨notitie⟩ zelf gewijzigd: het staat zonder voorstel in de vault.** Welke weg een agent neemt, kan Plainva niet beloven: het hangt af van de agent en van hoe hij is ingesteld. In de instellingen toont elke agent wat er op deze computer voor het laatst is gezien — hoeveel wijzigingen via Plainva kwamen en hoeveel hij er zelf heeft geschreven.
 

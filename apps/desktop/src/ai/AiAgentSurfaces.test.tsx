@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { ScriptedAcpStep } from "@plainva/core";
+import type { ScriptedAcpStep, WriteDraft } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import {
   agentArgsFromText,
@@ -20,7 +20,7 @@ import {
   type AcpSessionEvent,
   type AiSession,
 } from "@plainva/ui";
-import { acpHarness, AGENT_NOTES, lastOf, memoryAcpVault, ROOT, type AcpHarness, type AcpScript } from "./acpTestHost";
+import { acpHarness, AGENT_NOTES, decideAcpDraft, lastOf, memoryAcpVault, ROOT, type AcpHarness, type AcpScript } from "./acpTestHost";
 
 /**
  * An external agent's place in the AI tab (plan KI-Harness P4.6), over the
@@ -44,20 +44,48 @@ afterEach(() => {
 const t = (key: string, vars?: Record<string, unknown>) => i18n.t(key, vars) as string;
 const label = (key: string, vars?: Record<string, string>) => i18n.t(key, vars) as string;
 
-/** Just enough of the assistant's session for the agent's place: its agents, and whether Plainva's tools are switched on. */
+/**
+ * Just enough of the assistant's session for the agent's place: its agents,
+ * whether Plainva's tools are switched on, and the vault's list of drafts —
+ * where a note an agent wrote waits, and where "Create" and "Discard" on its
+ * card are answered (plan P5-6).
+ */
 function sessionOver(h: AcpHarness, mcpEnabled: boolean): AiSession {
-  let state = { agents: h.state(), settings: { mcpEnabled } };
+  const drafts = (): { drafts: WriteDraft[]; done: never[] } => ({
+    drafts: (h.vault?.drafts ?? []).map((draft) => ({
+      id: draft.id,
+      createdAt: "2026-10-07T10:00:00.000Z",
+      author: draft.author,
+      conversationId: null,
+      title: draft.path.slice(draft.path.lastIndexOf("/") + 1).replace(/\.md$/, ""),
+      body: { kind: "note", path: draft.path, folder: null, content: draft.content },
+      inherited: [],
+      sources: [],
+      defused: draft.defused,
+    })),
+    done: [],
+  });
+  const build = () => ({ agents: h.state(), settings: { mcpEnabled }, drafts: drafts() });
+  let state = build();
   return {
     agents: h.agents,
     subscribe: (listener: () => void) =>
       h.subscribe(() => {
-        state = { agents: h.state(), settings: { mcpEnabled } };
+        state = build();
         listener();
       }),
     getState: () => {
-      if (state.agents !== h.state()) state = { agents: h.state(), settings: { mcpEnabled } };
+      if (state.agents !== h.state()) state = build();
       return state;
     },
+    canCreateDrafts: () => true,
+    draftTaskList: async () => null,
+    async createDraft(id: string) {
+      const path = h.vault.drafts.find((draft) => draft.id === id)!.path;
+      decideAcpDraft(h, id, "created");
+      return { kind: "created", path };
+    },
+    discardDraft: async (id: string) => decideAcpDraft(h, id, "discarded"),
   } as unknown as AiSession;
 }
 
@@ -216,7 +244,7 @@ describe("an agent's session", () => {
     await send(m, "Move the date");
     expect(all(m.container, "ai-agent-tool").map((line) => line.textContent)).toEqual(["Reading the plan · Plan · outside the vault: 1", "Change a file · Notes", "Read Welcome.md"]);
     expect(find(m.container, "ai-agent-event-direct")!.textContent).toBe("The agent changed Projects/Notes.md itself: it is in the vault without a suggestion.");
-    expect(find(m.container, "ai-agent-event-refused")!.textContent).toBe("Plainva did not hand Health/Results.md to the agent: kept from the cloud.");
+    expect(find(m.container, "ai-agent-event-refused")!.textContent).toBe("Plainva did not hand Health/Results.md to the agent: kept from the cloud or the internet.");
     expect(find(m.container, "ai-agent-event-proposed")!.textContent).toMatch(/^Suggestion in Plan · changes: \d+\.$/);
     expect(find(m.container, "ai-agent-plan")!.textContent).toBe("Move the date");
   });
@@ -250,18 +278,36 @@ describe("an agent's session", () => {
     expect(find(m.container, "ai-agent-question")).toBeNull();
   });
 
-  it("lets the user create or throw away a note the agent wrote, and opens the one that was created", async () => {
-    const m = await mount(turns([{ write: { path: `${ROOT}/Projects/Summary.md`, content: "# Summary\n" } }, { write: { path: `${ROOT}/Projects/Other.md`, content: "# Other\n" } }]));
+  it("shows a note the agent wrote as a draft like every other — the same card, created or thrown away by the user", async () => {
+    const m = await mount(
+      turns([{ write: { path: `${ROOT}/Projects/Summary.md`, content: "# Summary\n\nSee https://example.org/a.\n" } }, { write: { path: `${ROOT}/Projects/Other.md`, content: "# Other\n" } }]),
+    );
     await click(m.h, find(m.container, "ai-agent-start-action"));
     await send(m, "Write");
-    expect(all(m.container, "ai-agent-pending-note").map((row) => row.querySelector(".pv-ai-overview-note")!.textContent)).toEqual(["Projects/Summary.md", "Projects/Other.md"]);
-    expect(find(m.container, "ai-agent-pending")!.textContent).toContain("A note is written only when you create it.");
+    // The shared draft card, inside the agent's thread: what it would become and where it would land.
+    const thread = m.container.querySelector(".pv-ai-thread")!;
+    const cards = all(m.container, "ai-draft");
+    expect(cards.map((card) => card.getAttribute("aria-label"))).toEqual(["Draft · Note: Summary", "Draft · Note: Other"]);
+    expect(cards.every((card) => card.classList.contains("pv-ai-overview--draft") && thread.contains(card))).toBe(true);
+    // The agent named the file, so the card names its folder — never the inbox.
+    expect(cards.map((card) => card.querySelector('[data-testid="ai-draft-place"]')!.textContent)).toEqual(["Projects", "Projects"]);
+    // Addresses the agent brought are inert in what waits, and the card says that there were some.
+    expect(cards[0]!.textContent).toContain(t("ai.write.draft.defused"));
+    expect(cards[1]!.textContent).not.toContain(t("ai.write.draft.defused"));
+    await click(m.h, cards[0]!.querySelector('[data-testid="ai-draft-show"]'));
+    expect(find(m.container, "ai-draft-text")!.textContent).toContain("https[://]example.org/a");
     expect(m.h.vault.created).toEqual([]);
-    await click(m.h, all(m.container, "ai-agent-pending-create")[0]);
+
+    // "Create" makes the note and opens it; the session says so, and the card is gone.
+    await click(m.h, cards[0]!.querySelector('[data-testid="ai-draft-create"]'));
     expect(m.h.vault.created).toEqual(["Projects/Summary.md"]);
     expect(m.opened.paths).toEqual(["Projects/Summary.md"]);
-    await click(m.h, find(m.container, "ai-agent-pending-discard"));
-    expect(find(m.container, "ai-agent-pending")).toBeNull();
+    expect(all(m.container, "ai-draft").map((card) => card.getAttribute("aria-label"))).toEqual(["Draft · Note: Other"]);
+    expect(thread.textContent).toContain("Created: Projects/Summary.md");
+    // "Discard" drops the other one: nothing was written for it.
+    await click(m.h, find(m.container, "ai-draft-discard"));
+    expect(all(m.container, "ai-draft")).toEqual([]);
+    expect(thread.textContent).toContain("Discarded: Projects/Other.md");
     expect(m.h.vault.created).toEqual(["Projects/Summary.md"]);
   });
 
@@ -317,8 +363,14 @@ describe("the lines Plainva writes about an agent", () => {
       [{ type: "created", path: "Projects/New.md" }, "Created: Projects/New.md"],
       [{ type: "discarded", path: "Projects/New.md" }, "Discarded: Projects/New.md"],
       [{ type: "direct", path: "Projects/Plan.md" }, "The agent changed Projects/Plan.md itself: it is in the vault without a suggestion."],
-      [{ type: "note-kept", path: "Health/Results.md" }, "Results was not named to the agent: it is kept from the cloud."],
-      [{ type: "refused", what: "write", reason: "properties", path: "Projects/Plan.md" }, "Plainva did not take the agent's change to Projects/Plan.md: would change the note's properties."],
+      [{ type: "note-kept", path: "Health/Results.md" }, "Results was not named to the agent: it is kept from the cloud or the internet."],
+      [{ type: "refused", what: "read", reason: "kept", path: "Health/Results.md" }, "Plainva did not hand Health/Results.md to the agent: kept from the cloud or the internet."],
+      [
+        { type: "refused", what: "write", reason: "properties", path: "Projects/Plan.md" },
+        "Plainva did not take the agent's change to Projects/Plan.md: a property value that is neither text, a number, yes/no nor a list of those.",
+      ],
+      [{ type: "refused", what: "write", reason: "rules", path: "Projects/Plan.md" }, "Plainva did not take the agent's change to Projects/Plan.md: would set AI rules, trust fields or one of Plainva's own properties."],
+      [{ type: "refused", what: "write", reason: "waiting", path: "Projects/New.md" }, "Plainva did not take the agent's change to Projects/New.md: too many drafts are waiting already."],
       [{ type: "refused", what: "read", reason: "outside", path: "/etc/passwd" }, "Plainva did not hand /etc/passwd to the agent: outside this vault."],
       [{ type: "stopped", reason: "max_tokens" }, "The agent stopped: its model reached its limit."],
       [{ type: "stopped", reason: "cancelled" }, "Stopped."],

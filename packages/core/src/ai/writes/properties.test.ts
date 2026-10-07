@@ -3,7 +3,17 @@ import { planCommentDecision } from "../../comments/commentActions.js";
 import { isReservedPropertyName, readFrontmatterPath, setFrontmatterPath } from "../../frontmatter-surgical.js";
 import { MAX_ANCHOR_QUOTE_BYTES, buildCommentAnchor, mintAnchorMarkerId, resolveCommentAnchor } from "../../workspace/commentAnchor.js";
 import type { WorkspaceCommentRecord } from "../../workspace/state.js";
-import { PROPERTY_WRITE_LIMITS, placeProposedProperty, planPropertyChange, propertyTarget, proposedPropertyOf, type PropertyChangePlan, type PropertyValue } from "./properties.js";
+import {
+  PROPERTY_WRITE_LIMITS,
+  changedProperties,
+  isRuleOrTrustProperty,
+  placeProposedProperty,
+  planPropertyChange,
+  propertyTarget,
+  proposedPropertyOf,
+  type PropertyChangePlan,
+  type PropertyValue,
+} from "./properties.js";
 
 const NOTE = ["---", "status: open", "tags:", "  - roof", "  - house", "due: 2026-11-01", "---", "# Plan", "", "status: open is also a sentence here.", ""].join("\n");
 
@@ -419,5 +429,77 @@ describe("deciding about suggestions that propose properties (planCommentDecisio
     const declined = planCommentDecision("note.md", NOTE, [record(NOTE, { key: "status", value: "done" })], "declined");
     expect(declined.text).toBeNull();
     expect(declined.kind).toBe("decline");
+  });
+});
+
+describe("what two versions of a note's properties differ in (changedProperties)", () => {
+  it("names each property that says something else, with the value the second version gives it", () => {
+    const next = NOTE.replace("status: open", "status: done").replace("due: 2026-11-01\n", "due: 2026-11-01\nowner: Anna\n");
+    expect(changedProperties(NOTE, next)).toEqual([
+      { key: "status", value: "done" },
+      { key: "owner", value: "Anna" },
+    ]);
+  });
+
+  it("names a property that is gone with null — after the ones the second version carries", () => {
+    const next = NOTE.replace("due: 2026-11-01\n", "").replace("  - house\n", "");
+    expect(changedProperties(NOTE, next)).toEqual([
+      { key: "tags", value: ["roof"] },
+      { key: "due", value: null },
+    ]);
+  });
+
+  it("reads what the properties say, not how they are written", () => {
+    // Another order, other quotes, a list written in one line: the same properties.
+    const rewritten = ["---", 'due: "2026-11-01"', "tags: [roof, house]", "status: 'open'", "---", "# Plan", "", "Other text.", ""].join("\n");
+    expect(changedProperties(NOTE, rewritten)).toEqual([]);
+    // The text below the properties is nobody's business here.
+    expect(changedProperties(NOTE, NOTE.replace("# Plan", "# Plan B"))).toEqual([]);
+  });
+
+  it("reads a note without properties as one that has none, and an emptied value as one that is gone", () => {
+    expect(changedProperties("# Plan\n", "---\nstatus: open\n---\n# Plan\n")).toEqual([{ key: "status", value: "open" }]);
+    expect(changedProperties("---\nstatus: open\n---\n# Plan\n", "# Plan\n")).toEqual([{ key: "status", value: null }]);
+    expect(changedProperties(NOTE, NOTE.replace("due: 2026-11-01", "due:"))).toEqual([{ key: "due", value: null }]);
+    // An empty property that comes or goes says nothing either way.
+    expect(changedProperties(NOTE, NOTE.replace("due: 2026-11-01\n", "due: 2026-11-01\nowner:\n"))).toEqual([]);
+  });
+
+  it("hands on a value that is no property value as it is — the caller judges it", () => {
+    expect(changedProperties(NOTE, NOTE.replace("status: open", "status:\n  now: open"))).toEqual([{ key: "status", value: { now: "open" } }]);
+  });
+
+  it("names nothing where either version cannot be read", () => {
+    expect(changedProperties(NOTE, "---\nstatus: [open\n---\n# Plan\n")).toBeNull();
+    expect(changedProperties("---\n- a\n- b\n---\n", NOTE)).toBeNull();
+  });
+
+  it("does not take a name of an object's own for a property the note had", () => {
+    expect(changedProperties(NOTE, NOTE.replace("status: open", "status: open\nconstructor: x"))).toEqual([{ key: "constructor", value: "x" }]);
+  });
+});
+
+describe("a note's own rules and trust fields, by name and by what stands there (isRuleOrTrustProperty)", () => {
+  it("knows Plainva's own namespace whatever stands under it", () => {
+    expect(isRuleOrTrustProperty(NOTE, "plainva", { ai: { cloud: "deny" } })).toBe(true);
+    expect(isRuleOrTrustProperty(NOTE, "plainva.ai.cloud", "deny")).toBe(true);
+    expect(isRuleOrTrustProperty(NOTE, "Plainva", null)).toBe(true);
+    // A name that only begins like it is an ordinary one.
+    expect(isRuleOrTrustProperty(NOTE, "plainvanilla", "yes")).toBe(false);
+  });
+
+  it("knows who made a note, who vouches for it and what it rests on by their name", () => {
+    for (const key of ["generated", "verified", "sources", "Generated"]) expect(isRuleOrTrustProperty(NOTE, key, [{ any: "thing" }])).toBe(true);
+  });
+
+  it("tells a lifecycle from a task's status by what stands there — now, or with the value that would", () => {
+    expect(isRuleOrTrustProperty(NOTE, "status", "done")).toBe(false);
+    expect(isRuleOrTrustProperty(NOTE, "status", "stable")).toBe(true);
+    expect(isRuleOrTrustProperty(NOTE.replace("status: open", "status: stable"), "status", "done")).toBe(true);
+    expect(isRuleOrTrustProperty(NOTE, "stale_after", "2027-01-01")).toBe(true);
+  });
+
+  it("leaves every other property alone — the note's type and a database's columns included", () => {
+    for (const key of ["due", "tags", "type", "okf_version", "file.name"]) expect(isRuleOrTrustProperty(NOTE, key, "x")).toBe(false);
   });
 });

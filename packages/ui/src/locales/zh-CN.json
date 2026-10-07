@@ -1138,7 +1138,7 @@
         "created": "已创建：{{note}}",
         "discarded": "已放弃：{{note}}",
         "direct": "智能体自行更改了 {{note}}：更改未经建议，已在仓库中。",
-        "noteKept": "没有向智能体提及 {{note}}：这篇笔记被排除在云端之外。",
+        "noteKept": "没有向智能体提及 {{note}}：这篇笔记被排除在云端或互联网之外。",
         "failed": "智能体未能完成这一步。",
         "failedSaid": "智能体未能完成这一步。它的说明：{{message}}",
         "stopped": {
@@ -1159,20 +1159,15 @@
         "hidden": "属于Plainva自己的文件夹",
         "missing": "没有这个文件",
         "too-large": "文件太大",
-        "kept": "被排除在云端之外",
+        "kept": "被排除在云端或互联网之外",
         "not-a-note": "不是Markdown笔记",
         "sealed": "在此仓库中无法进行",
-        "rules": "包含AI规则或可信度字段",
-        "properties": "会更改笔记的属性",
+        "rules": "会设置AI规则、可信度字段或Plainva自己的属性",
+        "properties": "属性值既不是文本、数字、是/否，也不是它们的列表",
         "unreadable": "无法读取其属性",
         "too-many": "更改太多，无法作为一条建议",
+        "waiting": "等待确认的草稿已经太多",
         "failed": "未能执行"
-      },
-      "pending": {
-        "title": "智能体写的新笔记",
-        "create": "创建",
-        "discard": "放弃",
-        "hint": "只有在你创建时，笔记才会被写入。笔记会标明由谁撰写，智能体带来的网址已被处理为无效。"
       },
       "ended": {
         "closed": "会话已结束。",
@@ -1272,7 +1267,8 @@
         "discarded": "已放弃：{{name}}",
         "createdToast": "已创建。",
         "failed": "无法创建草稿：{{reason}}",
-        "unavailable": "此设备上无法创建。"
+        "unavailable": "此设备上无法创建。",
+        "exists": "那里现在已经有一个同名文件。请放弃草稿，或者重命名该文件。"
       },
       "plan": {
         "renameTitle": "要重命名吗？",

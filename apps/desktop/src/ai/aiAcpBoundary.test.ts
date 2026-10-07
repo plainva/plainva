@@ -215,18 +215,23 @@ describe("the web view's side of external agents", () => {
     expect(client).not.toContain("terminal/");
   });
 
-  it("writes nothing to the vault for an agent except a note the user created", () => {
-    // The files' rules only read, plan and propose; the one write is the session's `create`, behind the user's own click.
+  it("writes nothing to the vault for an agent: a change is proposed, and a note that is new is left as a draft", () => {
+    // The files' rules only read, plan and propose.
     expect(files).not.toMatch(/\.create\(|writeTextFile|writeFile\(/);
     expect(files.match(/vault\.propose\(/g) ?? []).toHaveLength(1);
-    expect(session.match(/access\.create\(/g) ?? []).toHaveLength(1);
-    const create = /async createNote\(path: string\)[\s\S]*?\n {2}\}/.exec(session)![0];
-    expect(create).toContain("access.create(path, acpNewNoteContent(");
-    // Nothing an agent sends reaches `createNote`: it is called from the surface only.
-    for (const handler of ["onUpdate", "onTool", "onQuestion", "onRead", "onWrite", "settle", "onExit"]) {
-      const body = new RegExp(`private (?:async )?${handler}\\([\\s\\S]*?\\n {2}\\}`).exec(session)![0];
-      expect(body, handler).not.toMatch(/createNote|access\.create/);
-    }
+    // The vault's side a session is handed has nothing that makes or writes a file (plan P5-6).
+    const access = /export interface AcpVaultAccess \{[\s\S]*?\n\}/.exec(files)![0];
+    expect(access).not.toMatch(/\bcreate\w*\(|\bwrite\w*\(/);
+    // And the session has no way to make a note at all: what an agent wrote that is not there yet goes to the vault's
+    // list of drafts — once, when a turn ends —, and a draft is created by the user's own click on its card, in the
+    // assistant's session.
+    expect(session).not.toMatch(/access\.create\(|createNote|writeTextFile|writeFile\(/);
+    expect(session.match(/drafts\.leave\(/g) ?? []).toHaveLength(1);
+    expect(/private async settle\([\s\S]*?\n {2}\}/.exec(session)![0]).toContain("vault.drafts.leave(");
+    // The assistant's session writes such a draft only from `createDraft` — the card's button.
+    const assistant = code(read("packages", "ui", "src", "ai", "aiSession.ts"));
+    expect(assistant.match(/creates\.noteAt\(/g) ?? []).toHaveLength(1);
+    expect(/async createDraft\([\s\S]*?\n {2}\}/.exec(assistant)![0]).toContain("creates.noteAt({ path: body.path, content: namedNoteContent(draft, this.host.now()) })");
   });
 
   it("signs what an agent proposes with the id the user gave it, never with what the agent calls itself", () => {
@@ -234,5 +239,8 @@ describe("the web view's side of external agents", () => {
     expect(files).toContain("generated: generatedStamp(acpAuthorId(agentId), now)");
     expect(session).not.toMatch(/acpAuthorId\([^)]*agentName/);
     expect(session).toMatch(/author: this\.t\("ai\.agent\.author", \{ agent: live\.agent\.label \}\)/);
+    // A draft is signed the same way, and stamped with the draft's own author when it is created.
+    expect(session).toContain('author: { id: acpAuthorId(live.agent.id), label: this.t("ai.agent.author", { agent: live.agent.label }) }');
+    expect(code(read("packages", "ui", "src", "ai", "aiWrites.ts"))).toContain("upsertFrontmatterKeys(draft.body.content, { generated: generatedStamp(draft.author.id, now) })");
   });
 });

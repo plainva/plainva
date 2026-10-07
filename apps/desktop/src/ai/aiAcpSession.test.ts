@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath, type ScriptedAcpStep } from "@plainva/core";
 import type { AcpSessionEvent, AcpThreadItem } from "@plainva/ui";
-import { acpHarness, AGENT_NOTES, lastOf, memoryAcpVault, ROOT, type AcpScript } from "./acpTestHost";
+import { acpHarness, AGENT_NOTES, decideAcpDraft, lastOf, memoryAcpVault, ROOT, type AcpScript } from "./acpTestHost";
 
 /**
  * An external agent's session, played against a scripted agent (plan
@@ -174,6 +174,26 @@ describe("an agent with its own sign-in works in the vault", () => {
     expect(lastOf(h.agent().received)?.params).toEqual({ sessionId: "sess-1", prompt: [{ type: "text", text: "Just this" }] });
   });
 
+  it("reads an agent as a program that may reach the internet: a note kept from web access is neither named nor handed over", async () => {
+    const vault = memoryAcpVault({ ...AGENT_NOTES, "Research/Draft.md": "---\nplainva:\n  ai:\n    web: deny\n---\n# Draft\n\nNot for the web.\n" });
+    const h = await acpHarness(turns([{ read: { path: `${ROOT}/Research/Draft.md` } }, { write: { path: `${ROOT}/Research/Draft.md`, content: "# Draft\n\nRewritten.\n" } }]), { vault });
+    await h.agents.start("geminicli");
+    vault.active = "Research/Draft.md";
+    await h.agents.send("Look at this", { note: true });
+    expect(lastOf(h.agent().received.filter((message) => message.method === "session/prompt"))?.params).toEqual({ sessionId: "sess-1", prompt: [{ type: "text", text: "Look at this" }] });
+    expect(h.agent().answers).toEqual([
+      { method: "fs/read_text_file", error: { code: -32602, message: "This note is kept from programs that send elsewhere." } },
+      { method: "fs/write_text_file", error: { code: -32602, message: "This note is kept from programs that send elsewhere." } },
+    ]);
+    expect(events(h.state().session!.thread)).toEqual([
+      { type: "note-kept", path: "Research/Draft.md" },
+      { type: "refused", what: "read", reason: "kept", path: "Research/Draft.md" },
+      { type: "refused", what: "write", reason: "kept", path: "Research/Draft.md" },
+    ]);
+    expect(JSON.stringify(h.agent().answers)).not.toContain("Not for the web");
+    expect(vault.proposed).toEqual([]);
+  });
+
   it("hands a file over through Plainva under the vault's rules, and says in the thread what it refused", async () => {
     const h = await acpHarness(turns([{ read: { path: `${ROOT}/Projects/Plan.md` } }, { read: { path: `${ROOT}/Health/Results.md` } }, { read: { path: "/etc/passwd" } }, { read: { path: `${ROOT}/.agent/policy.yml` } }]));
     await h.agents.start("geminicli");
@@ -293,21 +313,28 @@ describe("what an agent asks Plainva to write lands as a suggestion", () => {
     expect(h.vault.proposed[0]!.base).toBe(edited);
   });
 
-  it("waits as a new note until the user creates it — stamped with who wrote it — or throws it away", async () => {
+  it("waits as a draft where the note does not exist yet — signed with the agent's id and the user's name for it", async () => {
     const h = await acpHarness(
-      turns([
-        { write: { path: `${ROOT}/Projects/Summary.md`, content: "# Summary\n\nSee https://example.org/a.\n" } },
-        { write: { path: `${ROOT}/Projects/Other.md`, content: "# Other\n" } },
-        { read: { path: `${ROOT}/Projects/Summary.md` } },
-      ]),
+      turns(
+        [
+          { write: { path: `${ROOT}/Projects/Summary.md`, content: "# Summary\n\nSee https://example.org/a.\n" } },
+          { write: { path: `${ROOT}/Projects/Other.md`, content: "# Other\n" } },
+          { read: { path: `${ROOT}/Projects/Summary.md` } },
+        ],
+        // The second turn: its own text is what the agent reads for a draft that waits, the vault's for a note that was created.
+        [{ read: { path: `${ROOT}/Projects/Summary.md` } }, { read: { path: `${ROOT}/Projects/Other.md` } }],
+      ),
     );
     await h.agents.start("geminicli");
     await h.agents.send("Write a summary");
     let current = h.state().session!;
-    expect(current.pending).toEqual([
-      { path: "Projects/Summary.md", content: "# Summary\n\nSee https[://]example.org/a.\n", defused: 1 },
-      { path: "Projects/Other.md", content: "# Other\n", defused: 0 },
+    const author = { id: "acp:geminicli", label: "ai.agent.author(Gemini CLI)" };
+    expect(h.vault.drafts).toEqual([
+      { id: "d-draft-1", author, path: "Projects/Summary.md", content: "# Summary\n\nSee https[://]example.org/a.\n", defused: 1 },
+      { id: "d-draft-2", author, path: "Projects/Other.md", content: "# Other\n", defused: 0 },
     ]);
+    // The session shows exactly its own drafts, by their ids.
+    expect(current.waiting).toEqual(["d-draft-1", "d-draft-2"]);
     expect(events(current.thread)).toEqual([
       { type: "new", path: "Projects/Summary.md" },
       { type: "new", path: "Projects/Other.md" },
@@ -316,28 +343,105 @@ describe("what an agent asks Plainva to write lands as a suggestion", () => {
     expect(h.vault.created).toEqual([]);
     expect(lastOf(h.agent().answers)).toEqual({ method: "fs/read_text_file", result: { content: "# Summary\n\nSee https://example.org/a.\n" } });
 
-    expect(await h.agents.createNote("Projects/Summary.md")).toBe(true);
-    const written = h.vault.files.get("Projects/Summary.md")!;
-    expect(readFrontmatterPath(written, ["generated"])).toEqual({ by: "acp:geminicli", at: "2026-10-07T10:00:00Z" });
-    expect(written.endsWith("# Summary\n\nSee https[://]example.org/a.\n")).toBe(true);
-    h.agents.discardNote("Projects/Other.md");
+    // The user decides — on the card in the session or in the list of everything that waits: the session hears of both.
+    decideAcpDraft(h, "d-draft-2", "created");
+    decideAcpDraft(h, "d-draft-1", "discarded");
     current = h.state().session!;
-    expect(current.pending).toEqual([]);
+    expect(current.waiting).toEqual([]);
     expect(current.counts.created).toBe(1);
-    expect(h.vault.created).toEqual(["Projects/Summary.md"]);
     expect(events(current.thread).slice(-2)).toEqual([
-      { type: "created", path: "Projects/Summary.md" },
-      { type: "discarded", path: "Projects/Other.md" },
+      { type: "created", path: "Projects/Other.md" },
+      { type: "discarded", path: "Projects/Summary.md" },
     ]);
-    // A note that is there already is not created over.
-    expect(await h.agents.createNote("Projects/Other.md")).toBe(false);
+    // What was thrown away is nowhere for the agent either, and what was created is read from the vault.
+    await h.agents.send("Read them again");
+    expect(h.agent().answers.slice(-2)).toEqual([
+      { method: "fs/read_text_file", error: { code: -32002, message: "There is no such file in the vault." } },
+      { method: "fs/read_text_file", result: { content: "# Other\n" } },
+    ]);
+  });
+
+  it("takes the place of its own draft when the agent writes the note again — the card stays the same card", async () => {
+    const h = await acpHarness(
+      turns([{ write: { path: `${ROOT}/Projects/Summary.md`, content: "# Summary\n\nFirst.\n" } }], [{ write: { path: `${ROOT}/Projects/Summary.md`, content: "# Summary\n\nSecond.\n" } }]),
+    );
+    await h.agents.start("geminicli");
+    await h.agents.send("Write a summary");
+    await h.agents.send("Better");
+    expect(h.vault.drafts.map((draft) => [draft.id, draft.content])).toEqual([["d-draft-1", "# Summary\n\nSecond.\n"]]);
+    const current = h.state().session!;
+    expect(current.waiting).toEqual(["d-draft-1"]);
+    // Said once: the second write is the same note that waits.
+    expect(events(current.thread)).toEqual([{ type: "new", path: "Projects/Summary.md" }]);
+  });
+
+  it("hears at once when too many drafts wait — and a draft of its own may still be written again", async () => {
+    const vault = memoryAcpVault();
+    const h = await acpHarness(
+      turns(
+        [{ write: { path: `${ROOT}/Projects/Summary.md`, content: "# Summary\n" } }],
+        [
+          { write: { path: `${ROOT}/Projects/Other.md`, content: "# Other\n" } },
+          { write: { path: `${ROOT}/Projects/Summary.md`, content: "# Summary\n\nMore.\n" } },
+        ],
+      ),
+      { vault },
+    );
+    await h.agents.start("geminicli");
+    await h.agents.send("Write a summary");
+    vault.draftsFull = true;
+    await h.agents.send("And another");
+    expect(h.agent().answers.slice(-2)).toEqual([
+      { method: "fs/write_text_file", error: { code: -32602, message: "Too many drafts are waiting in Plainva. The user decides about them first." } },
+      { method: "fs/write_text_file", result: {} },
+    ]);
+    expect(vault.drafts.map((draft) => [draft.path, draft.content])).toEqual([["Projects/Summary.md", "# Summary\n\nMore.\n"]]);
+    expect(events(h.state().session!.thread).slice(-1)).toEqual([{ type: "refused", what: "write", reason: "waiting", path: "Projects/Other.md" }]);
+  });
+
+  it("proposes a value for every property its text changes — in the same round as the passages, each with the hint that says which", async () => {
+    const base = AGENT_NOTES["Projects/Notes.md"]!;
+    const next = base.replace("tags: [project]", 'tags: ["project", "spec"]\nowner: Anna').replace("for the outline", "for the whole outline");
+    const h = await acpHarness(turns([{ write: { path: `${ROOT}/Projects/Notes.md`, content: next } }]));
+    await h.agents.start("geminicli");
+    await h.agents.send("Tag it");
+    expect(h.agent().answers).toEqual([{ method: "fs/write_text_file", result: {} }]);
+    expect(h.vault.proposed).toHaveLength(1);
+    const round = h.vault.proposed[0]!;
+    // The entry that says something else is one block with the hint; a new property is an entry in front of the closing line.
+    expect(round.chunks.slice(0, 2)).toEqual([
+      { fromA: base.indexOf("tags:"), toA: base.indexOf("tags:") + "tags: [project]".length, replacement: "tags:\n  - project\n  - spec", property: "tags" },
+      { fromA: base.indexOf("---\n# Notes"), toA: base.indexOf("---\n# Notes"), replacement: "owner: Anna\n" },
+    ]);
+    expect(round.chunks.slice(2).every((chunk) => chunk.property === undefined && chunk.fromA > base.indexOf("# Notes"))).toBe(true);
+    // Taken together they make a note that says what the agent's text says.
+    let text = base;
+    for (const chunk of [...round.chunks].reverse()) text = text.slice(0, chunk.fromA) + chunk.replacement + text.slice(chunk.toA);
+    expect(readFrontmatterPath(text, ["tags"])).toEqual(["project", "spec"]);
+    expect(readFrontmatterPath(text, ["owner"])).toBe("Anna");
+    expect(text.endsWith("# Notes\n\nSee https://example.com/spec for the whole outline.\n")).toBe(true);
+    // Nothing was written.
+    expect(h.vault.files.get("Projects/Notes.md")).toBe(base);
+    expect(events(h.state().session!.thread)).toEqual([{ type: "proposed", path: "Projects/Notes.md", blocks: round.chunks.length, defused: 0 }]);
+  });
+
+  it("proposes nothing for properties that only read differently", async () => {
+    const base = AGENT_NOTES["Projects/Notes.md"]!;
+    const h = await acpHarness(turns([{ write: { path: `${ROOT}/Projects/Notes.md`, content: base.replace("tags: [project]", "tags:\n  - project") } }]));
+    await h.agents.start("geminicli");
+    await h.agents.send("Tidy up");
+    expect(h.agent().answers).toEqual([{ method: "fs/write_text_file", result: {} }]);
+    expect(h.vault.proposed).toEqual([]);
+    expect(events(h.state().session!.thread)).toEqual([]);
   });
 
   it("is refused where Plainva does not take it: the agent hears why at once, the thread says it, nothing is proposed", async () => {
     const notes = AGENT_NOTES["Projects/Notes.md"]!;
     const h = await acpHarness(
       turns([
-        { write: { path: `${ROOT}/Projects/Notes.md`, content: notes.replace("tags: [project]", "plainva:\n  ai:\n    cloud: allow") } },
+        { write: { path: `${ROOT}/Projects/Notes.md`, content: notes.replace("tags: [project]", "tags: [project]\nplainva:\n  ai:\n    cloud: allow") } },
+        { write: { path: `${ROOT}/Projects/Notes.md`, content: notes.replace("tags: [project]", "tags: [project]\nverified: true") } },
+        { write: { path: `${ROOT}/Projects/Notes.md`, content: notes.replace("tags: [project]", "tags:\n  main: project") } },
         { write: { path: `${ROOT}/Health/Results.md`, content: "# Results\n\nRewritten.\n" } },
         { write: { path: `${ROOT}/.agent/policy.yml`, content: "folders: []\n" } },
         { write: { path: `${ROOT}/Data/table.base`, content: "views: [x]\n" } },
@@ -347,7 +451,9 @@ describe("what an agent asks Plainva to write lands as a suggestion", () => {
     await h.agents.start("geminicli");
     await h.agents.send("Change things");
     expect(h.agent().answers.map((answer) => answer.error?.message)).toEqual([
-      "Plainva takes changes to the text of a note only; its properties stay as they are.",
+      "Plainva does not take a note's AI rules, its trust fields or Plainva's own properties from an agent.",
+      "Plainva does not take a note's AI rules, its trust fields or Plainva's own properties from an agent.",
+      "Plainva takes a property's value as text, a number, yes or no, or a list of those — nothing nested and nothing longer.",
       "This note is kept from programs that send elsewhere.",
       "Plainva does not hand over or change its own folders.",
       "Plainva takes changes to Markdown notes only.",
@@ -357,8 +463,10 @@ describe("what an agent asks Plainva to write lands as a suggestion", () => {
     expect(h.vault.created).toEqual([]);
     expect([...h.vault.files]).toEqual(Object.entries(AGENT_NOTES));
     const current = h.state().session!;
-    expect(current.counts).toMatchObject({ proposed: 0, refused: 5 });
+    expect(current.counts).toMatchObject({ proposed: 0, refused: 7 });
     expect(events(current.thread).map((event) => (event.type === "refused" ? `${event.what}:${event.reason}:${event.path}` : event.type))).toEqual([
+      "write:rules:Projects/Notes.md",
+      "write:rules:Projects/Notes.md",
       "write:properties:Projects/Notes.md",
       "write:kept:Health/Results.md",
       `write:hidden:${ROOT}/.agent/policy.yml`,

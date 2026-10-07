@@ -13,7 +13,7 @@ import {
   type ScriptedAcpAgent,
   type ScriptedAcpOptions,
 } from "@plainva/core";
-import { AiAcp, createAcpDeviceStore, createAcpVaultStore, type AcpVaultAccess, type AcpVaultSide, type AiAcpHost, type AiAcpState, type AiFileStore } from "@plainva/ui";
+import { AiAcp, createAcpDeviceStore, createAcpVaultStore, type AcpDrafts, type AcpVaultAccess, type AcpVaultSide, type AiAcpHost, type AiAcpState, type AiFileStore } from "@plainva/ui";
 import { memoryFiles } from "./mcpTestHost";
 
 /**
@@ -149,6 +149,14 @@ export const AGENT_NOTES: Record<string, string> = {
   "Data/table.base": "views: []\n",
 };
 
+export interface MemoryAcpDraft {
+  id: string;
+  author: { id: string; label: string };
+  path: string;
+  content: string;
+  defused: number;
+}
+
 export interface MemoryAcpVault {
   side: AcpVaultSide;
   files: Map<string, string>;
@@ -156,6 +164,12 @@ export interface MemoryAcpVault {
   proposed: Parameters<AcpVaultAccess["propose"]>[0][];
   /** Every note that was created, in order. */
   created: string[];
+  /** The notes the agent wrote that wait as drafts — what the assistant's session keeps in its list —, oldest first. */
+  drafts: MemoryAcpDraft[];
+  /** What became of the drafts somebody decided about. */
+  draftsEnded: Map<string, "created" | "discarded">;
+  /** The list of drafts takes no more. */
+  draftsFull: boolean;
   /** What was asked of the vault: the paths that were read. */
   reads: string[];
   /** The note open in the shell. */
@@ -169,7 +183,32 @@ export interface MemoryAcpVault {
 /** A vault in memory, with the real rules: a note's own in its frontmatter, a folder's in `rules`. */
 export function memoryAcpVault(notes: Record<string, string> = AGENT_NOTES, rules: FolderPolicyRule[] = [{ folder: "Journal/", cloud: "deny" }], root = ROOT): MemoryAcpVault {
   const appFiles = memoryFiles();
-  const vault: MemoryAcpVault = { side: null as unknown as AcpVaultSide, files: new Map(Object.entries(notes)), proposed: [], created: [], reads: [], active: null, encrypted: false, marginFails: false, appFiles };
+  const vault: MemoryAcpVault = {
+    side: null as unknown as AcpVaultSide,
+    files: new Map(Object.entries(notes)),
+    proposed: [],
+    created: [],
+    drafts: [],
+    draftsEnded: new Map(),
+    draftsFull: false,
+    reads: [],
+    active: null,
+    encrypted: false,
+    marginFails: false,
+    appFiles,
+  };
+  // The list of drafts as the assistant's session keeps it: one draft per writer and path, written again under its id.
+  let minted = 0;
+  const drafts: AcpDrafts = {
+    room: async (authorId, path) => !vault.draftsFull || vault.drafts.some((draft) => draft.author.id === authorId && draft.path === path),
+    async leave(note) {
+      const before = vault.drafts.find((draft) => draft.author.id === note.author.id && draft.path === note.path);
+      if (!before && vault.draftsFull) return { ok: false, problem: "full" };
+      const id = before?.id ?? `d-draft-${++minted}`;
+      vault.drafts = [...vault.drafts.filter((draft) => draft !== before), { id, ...note }];
+      return { ok: true, id };
+    },
+  };
   const access: AcpVaultAccess = {
     root,
     async read(path) {
@@ -193,15 +232,28 @@ export function memoryAcpVault(notes: Record<string, string> = AGENT_NOTES, rule
       if (vault.marginFails) throw new Error("comment-operation-running");
       vault.proposed.push(round);
     },
-    async create(path, content) {
-      if (vault.files.has(path)) throw new Error("a file is there already");
-      vault.files.set(path, content);
-      vault.created.push(path);
-    },
     encrypted: () => vault.encrypted,
   };
-  vault.side = { access, store: createAcpVaultStore(appFiles, "vault-one"), activeNote: () => vault.active };
+  vault.side = { access, store: createAcpVaultStore(appFiles, "vault-one"), activeNote: () => vault.active, drafts };
   return vault;
+}
+
+/**
+ * The user decides about a draft, as on its card: "Create" writes the note,
+ * "Discard" drops it — and the agent's session hears what became of it, the
+ * way the assistant's session tells it after every change of its list.
+ */
+export function decideAcpDraft(harness: Pick<AcpHarness, "agents" | "vault">, id: string, outcome: "created" | "discarded"): void {
+  const vault = harness.vault;
+  const draft = vault.drafts.find((candidate) => candidate.id === id);
+  if (!draft) throw new Error(`no draft ${id}`);
+  vault.drafts = vault.drafts.filter((candidate) => candidate !== draft);
+  if (outcome === "created") {
+    vault.files.set(draft.path, draft.content);
+    vault.created.push(draft.path);
+  }
+  vault.draftsEnded.set(id, outcome);
+  harness.agents.draftsChanged(vault.side.drafts, { waiting: new Set(vault.drafts.map((candidate) => candidate.id)), ended: vault.draftsEnded });
 }
 
 export interface AcpHarness {

@@ -14,8 +14,8 @@ Everything else in the harness is governed: the assistant sends what the send ov
 | That an agent starts, and where | the user, natively | the system's dialog before the first start in a folder since the app started; the folder is an open vault |
 | What the agent reads and sends on its own | the agent | nothing of Plainva applies — said before the start and in the session's head |
 | What the agent writes on its own | the agent | in the vault at once; named in the session when the agent reports it |
-| What the agent reads through Plainva | Plainva | the privacy gate with the agent as a cloud recipient; never Plainva's own folders |
-| What the agent writes through Plainva | the user | a suggestion round per note; a new note waits to be created |
+| What the agent reads through Plainva | Plainva | the privacy gate with the agent as a cloud recipient that may reach the internet; never Plainva's own folders |
+| What the agent writes through Plainva | the user | a suggestion round per note — passages and proposed values of properties; a new note waits as a draft to be created |
 | The agent's sign-in | the agent | by itself or in a terminal of its own; no credential in Plainva |
 | What the agent may do next | the agent, asking the user | its question, its words, its options; the answer goes to the agent |
 
@@ -46,7 +46,7 @@ What the module does not do is part of its contract and tested on its source: it
 1. **Start.** Not without a vault, not in an encrypted workspace, not while another session is open. The client is opened; the agent says who it is and how it signs in.
 2. **Sign-in, where asked for.** "Authentication required" on `session/new` shows the agent's ways. One of the kind "agent" is the agent's own business behind `authenticate`; one of the kind "terminal" goes to `acp_login`, and afterwards the agent is started anew, as the protocol asks.
 3. **A turn.** The user's words, and the open note as a link where the user left it in and the gate lets it go — its name and address, never its text. Updates fill the thread; a question waits for the user; file requests go to `acpFiles.ts`.
-4. **The end of a turn** (`settle`), also when it was stopped or the program ended: every note the agent wrote through the host in the turn is planned again against the note as it is now and gets one round, or waits as a new note.
+4. **The end of a turn** (`settle`), also when it was stopped or the program ended: every note the agent wrote through the host in the turn is planned again against the note as it is now and gets one round, or is left as a draft where it does not exist yet (`AcpDrafts`, the assistant's session's list of drafts for the vault the session runs in).
 5. **The end of a session:** by the user, with the vault, or with the program. One line goes to the vault's log, and what was seen of the agent's ways of writing goes to its record on the device.
 
 ## Files through the host
@@ -54,9 +54,13 @@ What the module does not do is part of its contract and tested on its source: it
 `acpFiles.ts` holds the rules; nothing in it writes.
 
 - A path an agent names is absolute. It is mapped into the vault by the rules of the MCP server's paths (`files.ts`: inside the root, no `..`, no hidden root such as `.plainva` or `.agent`, NFC) and then spelled the way the vault spells it, part by part — a suggestion belongs to a note by its exact path.
-- **Read:** the file's text as it is now, the editor's unsaved keystrokes included, up to a million characters; a note the gate keeps from the cloud is refused, with the agent as the recipient `acp:<id>`. Where the agent wrote to that path earlier in the session and nobody accepted it yet, it reads its own text back.
-- **Write to a note that exists:** the new text is linted (addresses the note does not already carry are made inert), then compared with the note; the blocks become a round. Refused: a changed properties block, more than 150 blocks, a note kept from the cloud, an encrypted workspace. The write is planned at once, so that the agent hears a refusal where it happens, and proposed when the turn ends, so that a note gets one round.
-- **Write to a note that does not exist:** refused where it carries `plainva.ai` or an OKF trust field, where its folder is kept from the cloud, or where its properties cannot be read. Otherwise it waits in the session. "Create" writes it through the vault's own write path with the stamp `generated: { by: acp:<id>, at }`; a file that appeared there in the meantime is not overwritten.
+- **The gate** (`acpGate`): an agent is the recipient `acp:<id>`, a cloud that may reach the internet — the same reading as a program at Plainva's own MCP server. A note kept from the cloud or from web access does not exist for it: not to read, not to name, not to change.
+- **Read:** the file's text as it is now, the editor's unsaved keystrokes included, up to a million characters; a note the gate keeps back is refused. Where the agent wrote to that path earlier in the session and nobody decided about it yet, it reads its own text back.
+- **Write to a note that exists:** two comparisons, one round.
+  - *The properties* are compared by what they SAY (`changedProperties` in `packages/core/src/ai/writes/properties.ts`): another order, other quotes and other spacing are no change. Every property that would say something else is judged like a value the assistant proposes (`propertyTarget`): an ordinary one becomes a block of the round with the hint that says which property (`planPropertyChange`, the form of [ADR 0019](../adr/0019-ai-tools-risk-classes-and-approvals.md) §2); a note's own AI rules, its trust fields and Plainva's own names refuse the whole write (`rules`), and so does a value that is no text, number, yes/no or list of those (`properties`). Where a change is not one entry — properties written in one line, the only property removed, the last two removed together — the properties as they would read are compared like text instead, so that a round never holds two blocks one decision could not take.
+  - *The text* below them is linted (addresses the note does not already carry are made inert), then compared with the note.
+  Refused besides: more than 150 blocks, an encrypted workspace. The write is planned at once, so that the agent hears a refusal where it happens, and proposed when the turn ends, so that a note gets one round.
+- **Write to a note that does not exist:** refused where it carries one of its own AI rules or a trust field (judged as a proposed value is: `status: open` is a task's, `status: stable` the note's lifecycle), where its folder is kept from the agent, where its properties cannot be read, where it is longer than a draft may be, or while the list of drafts is full. Otherwise it becomes a draft (`WriteDraftBody` of the kind `note` with a `path`): one per agent and path, written again under the same id, signed `acp:<id>` with the user's name for the agent, inheriting no rule. "Create" on its card is the assistant's session's `createDraft`: the shell's `DraftCreator.noteAt` writes it at exactly that path through the vault's own write path, with the stamp `generated: { by: acp:<id>, at }` (`namedNoteContent`); a file that appeared there in the meantime is not overwritten, and the draft stays. The agent's session hears what became of a draft it left (`draftsChanged`) and stops reading its own text back for that path.
 - **Anything that is no Markdown note** is refused.
 
 A refusal is one fixed English sentence for the agent's model and a word for the session, which says it in the user's language.
@@ -75,7 +79,8 @@ Plainva cannot know how an agent writes, so it reports what it saw. A tool call 
 | The yes to a start, per agent and folder | native, in memory until the app closes | the user, through the system's dialog |
 | The user's name for an agent; what was last seen of how it writes | app data, per device: `acp/agents.json` | the web view |
 | One line per session: when, which agent, counts | app data, per vault: `acp-sessions.json`, the last 50 | the web view |
-| A session's thread, the notes that wait | memory, until the session is closed | — |
+| A session's thread | memory, until the session is closed | — |
+| A note an agent wrote that does not exist yet | app data, per vault and device: the vault's list of drafts (`drafts.json`), until the user creates it or throws it away | the web view |
 
 Nothing is stored in the vault. A device record belongs to the command it was made for: another command under the same id starts without a name and without a past.
 
@@ -85,7 +90,7 @@ Where "Let AI apps on this computer read this vault" is on, `session/new` names 
 
 ## What it does not do
 
-No agent's modes, models, configuration or commands; no images or audio in a prompt; no history and no reloading of a session; no proposals for properties; no withdrawal of an earlier round when a later turn changes the same note; no fence around the process. The reasons are in ADR 0025 under "Deferred".
+No agent's modes, models, configuration or commands; no images or audio in a prompt; no history and no reloading of a session; no withdrawal of an earlier round when a later turn changes the same note; no fence around the process. The reasons are in ADR 0025 under "Deferred".
 
 ## Verified, and not
 

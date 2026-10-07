@@ -1225,7 +1225,7 @@
         "created": "Utworzono: {{note}}",
         "discarded": "Odrzucono: {{note}}",
         "direct": "Agent sam zmienił {{note}}: zmiana jest w vaulcie bez propozycji.",
-        "noteKept": "Agentowi nie wskazano {{note}}: notatka jest trzymana z dala od chmury.",
+        "noteKept": "Agentowi nie wskazano {{note}}: notatka jest trzymana z dala od chmury lub internetu.",
         "failed": "Agent nie mógł tego dokończyć.",
         "failedSaid": "Agent nie mógł tego dokończyć. Podaje: {{message}}",
         "stopped": {
@@ -1246,20 +1246,15 @@
         "hidden": "to jeden z własnych folderów Plainva",
         "missing": "nie ma takiego pliku",
         "too-large": "plik jest za duży",
-        "kept": "notatka jest trzymana z dala od chmury",
+        "kept": "notatka jest trzymana z dala od chmury lub internetu",
         "not-a-note": "to nie jest notatka Markdown",
         "sealed": "w tym vaulcie nie jest to możliwe",
-        "rules": "zawiera zasady AI lub pola zaufania",
-        "properties": "zmieniłoby to właściwości notatki",
+        "rules": "ustawiłoby to zasady AI, pola zaufania lub własne właściwości Plainvy",
+        "properties": "wartość właściwości, która nie jest tekstem, liczbą, tak/nie ani ich listą",
         "unreadable": "nie da się odczytać jej właściwości",
         "too-many": "za dużo zmian na jedną propozycję",
+        "waiting": "zbyt wiele szkiców już czeka",
         "failed": "nie udało się tego wykonać"
-      },
-      "pending": {
-        "title": "Nowe notatki od agenta",
-        "create": "Utwórz",
-        "discard": "Odrzuć",
-        "hint": "Notatka jest zapisywana dopiero wtedy, gdy ją utworzysz. Ma adnotację, kto ją napisał, a adresy internetowe przyniesione przez agenta są unieszkodliwione."
       },
       "ended": {
         "closed": "Sesja została zakończona.",
@@ -1368,7 +1363,8 @@
         "discarded": "Odrzucono: {{name}}",
         "createdToast": "Utworzono.",
         "failed": "Nie udało się utworzyć szkicu: {{reason}}",
-        "unavailable": "Na tym urządzeniu nie da się tego utworzyć."
+        "unavailable": "Na tym urządzeniu nie da się tego utworzyć.",
+        "exists": "W tym miejscu jest już plik o tej nazwie. Odrzuć szkic albo zmień nazwę pliku."
       },
       "plan": {
         "renameTitle": "Zmienić nazwę?",

@@ -87,6 +87,15 @@ describe("a draft's card", () => {
     expect(q(card, "ai-draft-provider")).toBeNull();
   });
 
+  it("says where a note would land: the inbox where nobody named a place, the file's folder where its writer named the file", () => {
+    const place = (body: WriteDraft["body"]) => text(q(show(<AiDraftCard draft={draft({ body })} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />), "ai-draft-place"));
+    expect(place({ kind: "note", path: null, folder: null, content: "x" })).toBe("Inbox folder");
+    // An agent's note names its own file (plan P5-6): it is made exactly there.
+    expect(place({ kind: "note", path: "Projects/Shoot/Day 14.md", folder: null, content: "x" })).toBe("Projects/Shoot");
+    // At the vault's top level it lies in no folder — and not in the inbox either.
+    expect(place({ kind: "note", path: "Garden.md", folder: null, content: "x" })).toBe("Top level of the vault");
+  });
+
   it("offers a task's provider list the way the capture field does — on, and the user's to switch off", async () => {
     const onCreate = vi.fn();
     const container = show(<AiDraftCard draft={task} canCreate busy={false} onCreate={onCreate} onDiscard={() => {}} taskList="Errands" />);

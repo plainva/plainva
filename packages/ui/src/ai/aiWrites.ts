@@ -81,6 +81,13 @@ export interface DraftCreator {
   /** A note in `folder` (the vault's inbox where null) under a free name made from `stem`. Never overwrites. */
   note(input: { folder: string | null; stem: string; content: string }): Promise<string>;
   /**
+   * A note at exactly this path — a draft whose writer named the file (an
+   * agent, plan P5-6). Resolves with the path, or with null where a file is
+   * there already: nothing is written over, and no other name is made up.
+   * Absent where the shell hosts no writer that names files.
+   */
+  noteAt?(input: { path: string; content: string }): Promise<string | null>;
+  /**
    * A task from the words it was asked for in, read with `day` as "today".
    * `atProvider`: also at the provider list the task database names — the
    * user's choice on the card, as on the capture field's chip. Nothing is sent
@@ -149,6 +156,17 @@ export function draftedNoteContent(draft: WriteDraft, now: Date, rules: readonly
   content = withInheritedRules(content, rules);
   const body = draft.body.content.trim();
   return body ? `${content.trimEnd()}\n\n${body}\n` : content;
+}
+
+/**
+ * The note a draft that names its own file becomes (plan P5-6): the writer's
+ * whole text as it was handed over — its own properties included, which were
+ * judged when the draft was laid down — with the stamp that says who wrote it
+ * (ADR 0023 §3): the writer's id on this device, never a name it gives itself.
+ */
+export function namedNoteContent(draft: WriteDraft, now: Date): string {
+  if (draft.body.kind !== "note" || !draft.body.path) throw new Error("not a draft that names its file");
+  return upsertFrontmatterKeys(draft.body.content, { generated: generatedStamp(draft.author.id, now) });
 }
 
 /**

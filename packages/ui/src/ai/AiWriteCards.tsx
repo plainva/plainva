@@ -60,6 +60,7 @@ export function useDraftActions(session: Pick<AiSession, "createDraft" | "discar
           onOpenCreated(outcome.path);
         } else if (outcome.reason === "failed") toast.error(t("ai.write.draft.failed", { reason: outcome.message ?? "" }));
         else if (outcome.reason === "unavailable") toast.error(t("ai.write.draft.unavailable"));
+        else if (outcome.reason === "exists") toast.error(t("ai.write.draft.exists"));
         else if (outcome.reason === "no-entry-folder") toast.error(t("ai.write.draft.noEntryFolder"));
       })
       .finally(() => setBusy(null));
@@ -121,7 +122,8 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
         {"folder" in detail && (
           <>
             <dt>{t("ai.write.draft.landsIn")}</dt>
-            <dd>{detail.folder ?? t("ai.write.draft.inbox")}</dd>
+            {/* No folder named: the vault's inbox. A file its writer named at the vault's top level lies in no folder. */}
+            <dd data-testid="ai-draft-place">{detail.folder === "" ? t("ai.write.plan.vaultRoot") : (detail.folder ?? t("ai.write.draft.inbox"))}</dd>
           </>
         )}
         {"day" in detail && (

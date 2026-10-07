@@ -2,26 +2,33 @@ import {
   ACP_ERROR_INVALID_PARAMS,
   ACP_ERROR_NOT_FOUND,
   AcpRefusal,
-  OKF_TRUST_KEYS,
+  WRITE_DRAFT_LIMITS,
   acpAuthorId,
   acpLines,
   acpVaultPath,
-  frontmatterKeys,
+  changedProperties,
   gateDecision,
-  readFrontmatterPath,
+  isReservedPropertyName,
+  isRuleOrTrustProperty,
+  noteBodyStart,
+  planPropertyChange,
+  propertyTarget,
   upsertFrontmatterKeys,
   type AcpFileRead,
   type AcpFileWrite,
   type EffectivePolicy,
   type EgressRecipient,
+  type GateRun,
+  type PropertyValue,
 } from "@plainva/core";
-import type { SuggestionChunk } from "../components/suggestMode";
 import { generatedStamp } from "../lib/okfProvenance";
 import { selectionChunks, type SuggestionAuthor } from "./aiSelectionActions";
 import { defuseNewAddresses } from "./aiWriteLint";
+import type { RoundChunk } from "./writeTools";
 
 /**
- * What a file request of an external agent becomes (plan KI-Harness P4.6).
+ * What a file request of an external agent becomes (plan KI-Harness P4.6,
+ * P5-6).
  *
  * An agent reads and writes files on its own: it runs with the user's rights
  * and Plainva cannot stop that, and says so. This is about the other way —
@@ -30,14 +37,17 @@ import { defuseNewAddresses } from "./aiWriteLint";
  * program that sends elsewhere:
  *
  * - Reading: a file of the open vault, not one of Plainva's own folders, and
- *   not a note kept from the cloud. The agent gets the text, or one fixed
+ *   not a note kept from the cloud or from the internet — an agent is a
+ *   recipient that may reach both. The agent gets the text, or one fixed
  *   sentence why not.
  * - Writing: nothing is written. A change to a note becomes a suggestion
  *   round with the agent as its author, which the user accepts or declines
- *   block by block. A note that does not exist yet waits in the session until
- *   the user creates it. Everything else is refused: Plainva's own folders, a
- *   file that is no Markdown note, a note kept from the cloud, a change to a
- *   note's properties.
+ *   block by block: passages of its text, and for every property that would
+ *   say something else a proposed value. A note that does not exist yet
+ *   becomes a draft the user creates or throws away. Everything else is
+ *   refused: Plainva's own folders, a file that is no Markdown note, a note
+ *   kept from the agent, a note's own AI rules and trust fields, a property
+ *   value that is none.
  *
  * The sentences an agent is refused with are Plainva's own, in English (its
  * model reads them), and name nothing the agent did not name itself. The
@@ -54,9 +64,7 @@ export interface AcpVaultAccess {
   list(folder: string): Promise<string[] | null>;
   policyOf(path: string, text?: string): Promise<EffectivePolicy>;
   /** Writes a suggestion round into a note's comments; nothing enters the note until someone accepts. */
-  propose(round: { path: string; base: string; chunks: readonly SuggestionChunk[]; note: string; author: SuggestionAuthor }): Promise<void>;
-  /** Creates a note through the vault's own write path. Rejects where a file is there already. */
-  create(path: string, content: string): Promise<void>;
+  propose(round: { path: string; base: string; chunks: readonly RoundChunk[]; note: string; author: SuggestionAuthor }): Promise<void>;
   /** True inside an encrypted workspace: no agent is started there. */
   encrypted(): boolean;
 }
@@ -77,10 +85,11 @@ export const ACP_FILE_REFUSALS = {
   kept: "This note is kept from programs that send elsewhere.",
   "not-a-note": "Plainva takes changes to Markdown notes only.",
   sealed: "This vault takes no changes from an agent.",
-  rules: "Plainva does not take a note's AI rules or its trust fields from an agent.",
-  properties: "Plainva takes changes to the text of a note only; its properties stay as they are.",
+  rules: "Plainva does not take a note's AI rules, its trust fields or Plainva's own properties from an agent.",
+  properties: "Plainva takes a property's value as text, a number, yes or no, or a list of those — nothing nested and nothing longer.",
   unreadable: "The properties at the top of the note cannot be read.",
   "too-many": "Too many changes for one suggestion. Change less at a time.",
+  waiting: "Too many drafts are waiting in Plainva. The user decides about them first.",
 } as const;
 export type AcpFileRefusalReason = keyof typeof ACP_FILE_REFUSALS;
 
@@ -100,6 +109,17 @@ export class AcpFileRefusal extends AcpRefusal {
 /** An agent is a recipient like a cloud provider: a note kept from the cloud stays hidden from Plainva's side of it too. */
 export function acpRecipient(agentId: string): EgressRecipient {
   return { kind: "cloud", provider: acpAuthorId(agentId), model: "" };
+}
+
+/**
+ * How the privacy gate reads an agent (plan P5-6): a cloud that may reach the
+ * internet — as every program at Plainva's own MCP server is read (ADR 0022,
+ * stage 2). Plainva does not see what an agent does with what it was handed,
+ * so a note under either rule does not exist for it, and nothing it was
+ * handed carries a rule that the place of a proposal could lack.
+ */
+export function acpGate(agentId: string): GateRun {
+  return { recipient: acpRecipient(agentId), webTools: true };
 }
 
 const fold = (name: string) => name.normalize("NFC").toLowerCase();
@@ -131,7 +151,7 @@ export async function acpRequestedPath(vault: AcpVaultAccess, absolute: string):
 }
 
 async function allowed(vault: AcpVaultAccess, agentId: string, path: string, text: string): Promise<boolean> {
-  return gateDecision(await vault.policyOf(path, text), { recipient: acpRecipient(agentId), webTools: false }).allowed;
+  return gateDecision(await vault.policyOf(path, text), acpGate(agentId)).allowed;
 }
 
 /**
@@ -168,12 +188,74 @@ export function frontmatterBlock(text: string): string {
 
 /** What a write of an agent would become. Nothing has happened yet. */
 export type AcpWritePlan =
-  /** A change to a note: the blocks of a suggestion round, against the note as it is now. */
-  | { kind: "round"; path: string; base: string; chunks: SuggestionChunk[]; defused: number }
+  /**
+   * A change to a note: the blocks of a suggestion round, against the note as
+   * it is now. `properties` of them propose a value of a property (plan P5-6).
+   */
+  | { kind: "round"; path: string; base: string; chunks: RoundChunk[]; defused: number; properties: number }
   /** The note says this already. */
   | { kind: "unchanged"; path: string }
-  /** A note that does not exist yet: it waits in the session until the user creates it. */
+  /** A note that does not exist yet: it becomes a draft the user creates or throws away. */
   | { kind: "new"; path: string; content: string; defused: number };
+
+/** A value as an agent wrote it into a note's properties, with every address it brought made inert: a property can be a link. */
+function inertValue(value: unknown, known: readonly string[], count: (defused: number) => void): unknown {
+  const inert = (item: unknown): unknown => {
+    if (typeof item !== "string") return item;
+    const linted = defuseNewAddresses(item, known);
+    count(linted.defused);
+    return linted.text;
+  };
+  return Array.isArray(value) ? value.map(inert) : inert(value);
+}
+
+/**
+ * The properties an agent's text changes, as the blocks of a round (plan
+ * P5-6). What the properties SAY is compared — an agent that writes them in
+ * another order or with other quotes changes nothing —, and every property
+ * that would say something else is judged like a value Plainva's own
+ * assistant proposes (`propertyTarget`): an ordinary property becomes a
+ * proposed value, with the hint that says which one; a note's own AI rules,
+ * its trust fields and Plainva's own names are no agent's to write; a value
+ * that is no property value is refused.
+ *
+ * `intended` is null where every change is one entry of the properties — the
+ * form a proposed value has. Where one is not (properties written in one
+ * line, the only property removed), it is the note as it would read, and the
+ * caller compares it like text.
+ */
+function acpPropertyBlocks(base: string, content: string, path: string): { chunks: RoundChunk[]; defused: number; count: number; intended: string | null } {
+  const changes = changedProperties(base, content);
+  if (changes === null) throw new AcpFileRefusal("unreadable", path);
+  const chunks: RoundChunk[] = [];
+  let entrywise = true;
+  let work = base;
+  let defused = 0;
+  let count = 0;
+  for (const change of changes) {
+    const name = change.key.trim();
+    const value = inertValue(change.value, [base], (more) => (defused += more)) as PropertyValue | null;
+    const target = propertyTarget(base, name, value);
+    // Asked by the name first: a nested value under `plainva` is a rule, not a value that happens to be none.
+    if (target.class === "invalid") throw new AcpFileRefusal(isRuleOrTrustProperty(base, name, value) || isReservedPropertyName(name) ? "rules" : "properties", path);
+    if (target.class !== "plain") throw new AcpFileRefusal("rules", path);
+    const plan = planPropertyChange(base, name, value);
+    if (!plan.ok) {
+      if (plan.problem === "unreadable") throw new AcpFileRefusal("unreadable", path);
+      continue;
+    }
+    count++;
+    if (plan.block) chunks.push({ fromA: plan.block.from, toA: plan.block.to, replacement: plan.block.replacement, ...(plan.hinted ? { property: name } : {}) });
+    else entrywise = false;
+    // The same change on a copy that carries the ones before it: what the properties would read as with all of them.
+    const step = planPropertyChange(work, name, value);
+    if (step.ok) work = step.intended;
+  }
+  chunks.sort((a, b) => a.fromA - b.fromA);
+  // Two entries that go and stand next to each other share the line break between them: one decision could not take both.
+  if (chunks.some((chunk, index) => index > 0 && chunk.fromA < chunks[index - 1]!.toA)) entrywise = false;
+  return { chunks: entrywise ? chunks : [], defused, count, intended: entrywise ? null : work };
+}
 
 /**
  * `fs/write_text_file`: what the write would become, or the refusal the agent
@@ -192,10 +274,14 @@ export async function acpPlanNoteWrite(vault: AcpVaultAccess, agentId: string, p
   const base = exists ? await vault.read(path) : null;
 
   if (base === null) {
-    // A new note. What a note says about its own rules and its own trust is not an agent's to write.
-    const keys = frontmatterKeys(content);
-    if (readFrontmatterPath(content, ["plainva", "ai"]) !== undefined || keys.some((key) => (OKF_TRUST_KEYS as readonly string[]).includes(key))) throw new AcpFileRefusal("rules", path);
-    // The place may have rules of its own: a folder kept from the cloud takes no note from an agent either.
+    // A new note waits as a draft, and a draft is no place for a file of any size.
+    if (content.length > WRITE_DRAFT_LIMITS.content) throw new AcpFileRefusal("too-large", path);
+    // What a note says about its own rules and its own trust is not an agent's to write — judged as a proposed value is:
+    // `status: open` is a task's, `status: stable` the note's lifecycle.
+    const properties = changedProperties("", content);
+    if (properties === null) throw new AcpFileRefusal("unreadable", path);
+    if (properties.some((property) => isRuleOrTrustProperty("", property.key, property.value))) throw new AcpFileRefusal("rules", path);
+    // The place may have rules of its own: a folder kept from the agent takes no note from it either.
     if (!(await allowed(vault, agentId, path, content))) throw new AcpFileRefusal("kept", path);
     const linted = defuseNewAddresses(content, []);
     try {
@@ -209,14 +295,15 @@ export async function acpPlanNoteWrite(vault: AcpVaultAccess, agentId: string, p
 
   if (!(await allowed(vault, agentId, path, base))) throw new AcpFileRefusal("kept", path);
   if (content === base) return { kind: "unchanged", path };
-  // A note's properties are not text in the margin's sense, and among them are the note's own rules: an agent changes the text, not them.
-  if (frontmatterBlock(content) !== frontmatterBlock(base)) throw new AcpFileRefusal("properties", path);
-  // The whole new text is linted, then diffed: a block of the round is a fragment, and half an address is none.
-  const linted = defuseNewAddresses(content, [base]);
-  const chunks = selectionChunks(base, 0, base.length, linted.text, "replace");
+  // The properties: every one that would say something else becomes a proposed value, or the write is refused.
+  const properties = frontmatterBlock(content) === frontmatterBlock(base) ? { chunks: [], defused: 0, count: 0, intended: null } : acpPropertyBlocks(base, content, path);
+  // The text below them is linted as a whole, then diffed: a block of the round is a fragment, and half an address is none.
+  const linted = defuseNewAddresses(content.slice(noteBodyStart(content)), [base]);
+  const top = properties.intended === null ? base.slice(0, noteBodyStart(base)) : properties.intended.slice(0, noteBodyStart(properties.intended));
+  const chunks: RoundChunk[] = [...properties.chunks, ...selectionChunks(base, 0, base.length, top + linted.text, "replace")];
   if (chunks.length === 0) return { kind: "unchanged", path };
   if (chunks.length > ACP_MAX_ROUND_BLOCKS) throw new AcpFileRefusal("too-many", path);
-  return { kind: "round", path, base, chunks, defused: linted.defused };
+  return { kind: "round", path, base, chunks, defused: linted.defused + properties.defused, properties: properties.count };
 }
 
 export interface AcpRoundTexts {

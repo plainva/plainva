@@ -1196,7 +1196,7 @@
         "created": "Creada: {{note}}",
         "discarded": "Descartada: {{note}}",
         "direct": "El agente cambió {{note}} por su cuenta: está en el vault sin sugerencia.",
-        "noteKept": "No se nombró {{note}} al agente: se mantiene fuera de la nube.",
+        "noteKept": "No se nombró {{note}} al agente: se mantiene fuera de la nube o de internet.",
         "failed": "El agente no pudo terminar esto.",
         "failedSaid": "El agente no pudo terminar esto. Dice: {{message}}",
         "stopped": {
@@ -1217,20 +1217,15 @@
         "hidden": "es una de las carpetas propias de Plainva",
         "missing": "no existe ese archivo",
         "too-large": "el archivo es demasiado grande",
-        "kept": "se mantiene fuera de la nube",
+        "kept": "se mantiene fuera de la nube o de internet",
         "not-a-note": "no es una nota Markdown",
         "sealed": "no es posible en este vault",
-        "rules": "contiene reglas de IA o campos de confianza",
-        "properties": "cambiaría las propiedades de la nota",
+        "rules": "establecería reglas de IA, campos de confianza o propiedades propias de Plainva",
+        "properties": "un valor de propiedad que no es texto, número, sí/no ni una lista de ellos",
         "unreadable": "sus propiedades no se pueden leer",
         "too-many": "demasiados cambios para una sola sugerencia",
+        "waiting": "ya hay demasiados borradores en espera",
         "failed": "no se pudo hacer"
-      },
-      "pending": {
-        "title": "Notas nuevas del agente",
-        "create": "Crear",
-        "discard": "Descartar",
-        "hint": "Una nota solo se escribe cuando la creas. Lleva la marca de quién la escribió, y las direcciones web que trajo el agente están desactivadas."
       },
       "ended": {
         "closed": "La sesión ha terminado.",
@@ -1336,7 +1331,8 @@
         "discarded": "Descartado: {{name}}",
         "createdToast": "Creado.",
         "failed": "No se pudo crear el borrador: {{reason}}",
-        "unavailable": "Esto no se puede crear en este dispositivo."
+        "unavailable": "Esto no se puede crear en este dispositivo.",
+        "exists": "Ya hay allí un archivo con este nombre. Descarta el borrador o cambia el nombre del archivo."
       },
       "plan": {
         "renameTitle": "¿Renombrar?",

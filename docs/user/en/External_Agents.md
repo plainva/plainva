@@ -18,8 +18,8 @@ Start an agent only in a vault whose content may reach the agent's service.
 ## What Plainva controls
 
 - **Its own tools.** Where **Let AI apps on this computer read this vault** is switched on, Plainva's tools are offered to the agent — the same as for every app in [Connecting AI apps](Connect_AI_Apps.md): only the folders you grant, never a note kept from the cloud or from the internet, and reading only — unless you allow it there to propose changes.
-- **What the agent asks Plainva to read.** A note kept from the cloud and Plainva's own folders are not handed over. The agent is told so, and so are you.
-- **What the agent asks Plainva to write.** Nothing is written. A change to a note becomes a round of suggestions under the agent's name, and a new note waits until you create it.
+- **What the agent asks Plainva to read.** A note kept from the cloud or from the internet and Plainva's own folders are not handed over. The agent is told so, and so are you.
+- **What the agent asks Plainva to write.** Nothing is written. A change to a note becomes a round of suggestions under the agent's name, and a new note waits as a draft until you create it.
 - **No terminal.** Plainva offers an agent no terminal of its own.
 
 ## Adding an agent
@@ -42,7 +42,7 @@ An agent that is not signed in says so, and the session shows **⟨agent⟩ want
 
 ## In a session
 
-Type what the agent should do. The note you have open is named to the agent — its name and where it lies, not its text — unless you remove it above the input; a note you keep from the cloud is never named. The session shows what the agent says, its plan and each of its steps, with the files of the vault it names.
+Type what the agent should do. The note you have open is named to the agent — its name and where it lies, not its text — unless you remove it above the input; a note you keep from the cloud or from the internet is never named. The session shows what the agent says, its plan and each of its steps, with the files of the vault it names.
 
 When the agent wants your leave for a step, **⟨agent⟩ asks** shows it. The words are the agent's own, and the choices are the ones the agent offers — **Allow**, **Always allow**, **Reject**, **Always reject**. Your answer goes to the agent only: what it does after a yes is its own doing, and an "always" is the agent's promise to keep, not Plainva's.
 
@@ -50,9 +50,9 @@ When the agent wants your leave for a step, **⟨agent⟩ asks** shows it. The w
 
 ## What the agent writes
 
-**Through Plainva.** A change the agent hands to Plainva is never written into the note. When the agent's answer is finished, every note it changed carries one round of suggestions, signed **⟨name⟩ (external agent)**: under **Suggestions** you accept or decline each change or the whole round, as with a round from a person. A note that does not exist yet appears under **New notes from the agent**. **Create** writes it — marked `generated`, with the agent as its author — and **Discard** drops it. Web addresses the agent brought along are written so that nothing opens or loads them (`https[://]…`).
+**Through Plainva.** A change the agent hands to Plainva is never written into the note. When the agent's answer is finished, every note it changed carries one round of suggestions, signed **⟨name⟩ (external agent)**: under **Suggestions** you accept or decline each change or the whole round, as with a round from a person. A property the agent's text changes stands in that round as a proposed value, like one Plainva's own assistant proposes. A note that does not exist yet waits as a draft — a card **Draft · Note** in the session, and the same card in the list **Open** of the AI tab, where it stays when the session has ended. **Create** writes it at exactly the place the agent named — marked `generated`, with the agent as its author — and **Discard** drops it. Web addresses the agent brought along are written so that nothing opens or loads them (`https[://]…`).
 
-Plainva does not take everything: only Markdown notes, only their text and not their properties, no note that carries AI rules or trust fields, nothing that is kept from the cloud, and no more than 150 changes to one note at a time. What it did not take, the session says, and the agent is told.
+Plainva does not take everything: only Markdown notes; no AI rules, no trust fields and none of Plainva's own properties; no property value that is neither text, a number, yes or no, nor a list of those; nothing that is kept from the cloud or from the internet; no more than 150 changes to one note at a time; and no further new note while too many drafts are waiting. What it did not take, the session says, and the agent is told.
 
 **By itself.** An agent can also write files on its own, like any program. When it reports such a change, the session says **The agent changed ⟨note⟩ itself: it is in the vault without a suggestion.** Which way an agent takes is not Plainva's to promise: it depends on the agent and on how it is set up. In the settings, each agent shows what was last seen on this computer — how many changes came through Plainva and how many it wrote itself.
 

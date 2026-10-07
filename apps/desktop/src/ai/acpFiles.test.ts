@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { ACP_FILE_REFUSALS, ACP_MAX_ROUND_BLOCKS, ACP_READ_LIMIT, AcpFileRefusal, acpNewNoteContent, acpPlanWrite, acpProposeRound, acpReadFile, acpRecipient, acpSpelledPath, frontmatterBlock, type AcpFileRefusalReason, type AcpWritePlan } from "@plainva/ui";
+import {
+  ACP_FILE_REFUSALS,
+  ACP_MAX_ROUND_BLOCKS,
+  ACP_READ_LIMIT,
+  AcpFileRefusal,
+  acpGate,
+  acpNewNoteContent,
+  acpPlanWrite,
+  acpProposeRound,
+  acpReadFile,
+  acpRecipient,
+  acpSpelledPath,
+  frontmatterBlock,
+  type AcpFileRefusalReason,
+  type AcpWritePlan,
+} from "@plainva/ui";
 import { isCloudRecipient, readFrontmatterPath } from "@plainva/core";
 import { AGENT_NOTES, memoryAcpVault, ROOT } from "./acpTestHost";
 
@@ -151,16 +166,25 @@ describe("a file an agent asks Plainva to write", () => {
       // A note kept from the cloud does not exist for what Plainva does for an agent — also not as something to change.
       ["Health/Results.md", "# Results\n\nPublic now.\n", "kept"],
       ["Journal/2026-10-08.md", "# Thursday\n", "kept"],
-      // A note's properties are not the agent's to change through Plainva: among them are the note's own rules.
-      ["Projects/Notes.md", notes.replace("tags: [project]", "tags: [project, done]"), "properties"],
-      ["Projects/Plan.md", `---\nplainva:\n  ai:\n    cloud: allow\n---\n${plan}`, "properties"],
-      ["Projects/Notes.md", notes.replace("---\ntags: [project]\n---\n", ""), "properties"],
+      // A note's own AI rules, its trust fields and Plainva's own names are no agent's to write — whatever stands under them.
+      ["Projects/Plan.md", `---\nplainva:\n  ai:\n    cloud: allow\n---\n${plan}`, "rules"],
+      ["Projects/Notes.md", notes.replace("tags: [project]", "tags: [project]\nverified:\n  - by: human:mara"), "rules"],
+      ["Projects/Notes.md", notes.replace("tags: [project]", "tags: [project]\nstatus: stable"), "rules"],
+      ["Projects/Notes.md", notes.replace("tags: [project]", "tags: [project]\ntype: Task"), "rules"],
+      // A value that is no property value is not proposed in some other form: the write is refused.
+      ["Projects/Notes.md", notes.replace("tags: [project]", "tags:\n  main: project"), "properties"],
+      ["Projects/Notes.md", notes.replace("tags: [project]", `tags: [project]\nsummary: ${"x".repeat(2001)}`), "properties"],
+      ["Projects/Notes.md", notes.replace("tags: [project]", "tags: [unclosed"), "unreadable"],
       // A new note cannot bring its own rules, or say of itself who checked it.
       ["Projects/New.md", "---\nplainva:\n  ai:\n    cloud: allow\n---\n# New\n", "rules"],
+      ["Projects/New.md", "---\nplainva: {}\n---\n# New\n", "rules"],
       ["Projects/New.md", "---\nverified:\n  - by: human:mara\n    at: 2026-10-07T10:00:00Z\n---\n# New\n", "rules"],
       ["Projects/New.md", "---\ngenerated:\n  by: human:mara\n---\n# New\n", "rules"],
       ["Projects/New.md", "---\nsources: []\n---\n# New\n", "rules"],
+      ["Projects/New.md", "---\nstatus: stable\n---\n# New\n", "rules"],
       ["Projects/New.md", "---\ntitle: [unclosed\n---\n# New\n", "unreadable"],
+      // A draft is no place for a file of any size.
+      ["Projects/New.md", "x".repeat(200_001), "too-large"],
     ];
     for (const [path, content, reason] of cases) {
       const refused = await refusal(acpPlanWrite(vault.side.access, "gemini", write(path, content)));
@@ -177,6 +201,101 @@ describe("a file an agent asks Plainva to write", () => {
     const vault = memoryAcpVault();
     vault.encrypted = true;
     expect((await refusal(acpPlanWrite(vault.side.access, "gemini", write("Projects/Plan.md", "x"))))?.reason).toBe("sealed");
+  });
+
+  it("takes a new note with properties of its own — a task's status is a property, the note's type is its own", async () => {
+    const vault = memoryAcpVault();
+    const content = "---\ntype: Note\nstatus: open\ntags: [summary]\n---\n# Summary\n";
+    expect(await acpPlanWrite(vault.side.access, "gemini", write("Projects/Summary.md", content))).toEqual({ kind: "new", path: "Projects/Summary.md", content, defused: 0 });
+  });
+});
+
+describe("the properties an agent's text changes", () => {
+  const NOTE = ["---", "status: open", "tags:", "  - roof", "  - house", "due: 2026-11-01", "owner: Mara", "---", "# Plan", "", "Fix the roof.", ""].join("\n");
+  const planned = async (next: string) => {
+    const vault = memoryAcpVault({ "Plan.md": NOTE }, []);
+    return (await acpPlanWrite(vault.side.access, "gemini", write("Plan.md", next))) as Extract<AcpWritePlan, { kind: "round" }>;
+  };
+  const applied = (round: Extract<AcpWritePlan, { kind: "round" }>) => {
+    let text = round.base;
+    for (const chunk of [...round.chunks].reverse()) text = text.slice(0, chunk.fromA) + chunk.replacement + text.slice(chunk.toA);
+    return text;
+  };
+
+  it("become one proposed value each — the entry and the entry as it would read, with the hint that says which property", async () => {
+    const round = await planned(NOTE.replace("status: open", "status: done").replace("due: 2026-11-01\n", "").replace("owner: Mara", "owner: Mara\npriority: 2"));
+    expect(round.kind).toBe("round");
+    expect(round.properties).toBe(3);
+    expect(round.chunks).toEqual([
+      { fromA: NOTE.indexOf("status: open"), toA: NOTE.indexOf("status: open") + "status: open".length, replacement: "status: done", property: "status" },
+      // A property that goes takes its line break along.
+      { fromA: NOTE.indexOf("due:"), toA: NOTE.indexOf("owner:"), replacement: "", property: "due" },
+      // A new one is an entry in front of the line that closes the properties.
+      { fromA: NOTE.indexOf("---\n# Plan"), toA: NOTE.indexOf("---\n# Plan"), replacement: "priority: 2\n" },
+    ]);
+    expect(applied(round)).toBe(NOTE.replace("status: open", "status: done").replace("due: 2026-11-01\n", "").replace("owner: Mara", "owner: Mara\npriority: 2"));
+  });
+
+  it("stand in one round with the passages of the text, and the text's blocks carry no hint", async () => {
+    const round = await planned(NOTE.replace("status: open", "status: done").replace("Fix the roof.", "Fix the roof before winter."));
+    expect(round.properties).toBe(1);
+    expect(round.chunks[0]).toMatchObject({ property: "status", replacement: "status: done" });
+    expect(round.chunks.slice(1).length).toBeGreaterThan(0);
+    expect(round.chunks.slice(1).every((chunk) => chunk.property === undefined && chunk.fromA >= NOTE.indexOf("# Plan"))).toBe(true);
+    expect(applied(round)).toBe(NOTE.replace("status: open", "status: done").replace("Fix the roof.", "Fix the roof before winter."));
+  });
+
+  it("are read by what they say: an agent that only writes them another way proposes the text alone", async () => {
+    const rewritten = ["---", "owner: 'Mara'", "tags: [roof, house]", 'due: "2026-11-01"', "status: open", "---", "# Plan", "", "Fix the roof now.", ""].join("\n");
+    const round = await planned(rewritten);
+    expect(round.properties).toBe(0);
+    expect(round.chunks.every((chunk) => chunk.property === undefined)).toBe(true);
+    // The properties stay as their author wrote them.
+    expect(applied(round)).toBe(NOTE.replace("Fix the roof.", "Fix the roof now."));
+    const vault = memoryAcpVault({ "Plan.md": NOTE }, []);
+    expect(await acpPlanWrite(vault.side.access, "gemini", write("Plan.md", rewritten.replace("Fix the roof now.", "Fix the roof.")))).toEqual({ kind: "unchanged", path: "Plan.md" });
+  });
+
+  it("make an address the agent brings inert in a value too, and count it", async () => {
+    const round = await planned(NOTE.replace("owner: Mara", "owner: Mara\nlink: https://evil.example/?d=secret"));
+    expect(round.defused).toBe(1);
+    expect(round.chunks).toEqual([{ fromA: NOTE.indexOf("---\n# Plan"), toA: NOTE.indexOf("---\n# Plan"), replacement: "link: https[://]evil.example/?d=secret\n" }]);
+  });
+
+  it("are compared like text where a change is not one entry — and still say what the agent's properties say", async () => {
+    // The last two properties go: their blocks would share the line break between them, and one decision could not take both.
+    const round = await planned(NOTE.replace("due: 2026-11-01\nowner: Mara\n", ""));
+    expect(round.properties).toBe(2);
+    expect(round.chunks.every((chunk) => chunk.property === undefined)).toBe(true);
+    expect(round.chunks.every((chunk, index) => index === 0 || chunk.fromA >= round.chunks[index - 1]!.toA)).toBe(true);
+    expect(applied(round)).toBe(NOTE.replace("due: 2026-11-01\nowner: Mara\n", ""));
+    // The only property of a note goes: an empty block is the oracle's business.
+    const vault = memoryAcpVault({ "One.md": "---\nstatus: open\n---\n# One\n" }, []);
+    const one = (await acpPlanWrite(vault.side.access, "gemini", write("One.md", "# One\n"))) as Extract<AcpWritePlan, { kind: "round" }>;
+    expect(one.kind).toBe("round");
+    expect(readFrontmatterPath(applied(one), ["status"])).toBeUndefined();
+    expect(applied(one).endsWith("# One\n")).toBe(true);
+  });
+
+  it("give a note that had none its properties block, one entry at a time", async () => {
+    const vault = memoryAcpVault({ "Bare.md": "# Bare\n\nText.\n" }, []);
+    const round = (await acpPlanWrite(vault.side.access, "gemini", write("Bare.md", "---\nstatus: open\nowner: Anna\n---\n# Bare\n\nText.\n"))) as Extract<AcpWritePlan, { kind: "round" }>;
+    expect(round.properties).toBe(2);
+    expect(round.chunks).toEqual([
+      { fromA: 0, toA: 0, replacement: "---\nstatus: open\n---\n" },
+      { fromA: 0, toA: 0, replacement: "---\nowner: Anna\n---\n" },
+    ]);
+  });
+});
+
+describe("an agent at the privacy gate", () => {
+  it("is a cloud that may reach the internet: a note under either rule does not exist for it", async () => {
+    expect(acpGate("gemini")).toEqual({ recipient: { kind: "cloud", provider: "acp:gemini", model: "" }, webTools: true });
+    const vault = memoryAcpVault({ ...AGENT_NOTES, "Research/Draft.md": "---\nplainva:\n  ai:\n    web: deny\n---\n# Draft\n" }, [{ folder: "Offline/", web: "deny" }]);
+    expect((await refusal(acpReadFile(vault.side.access, "gemini", read("Research/Draft.md"))))?.reason).toBe("kept");
+    expect((await refusal(acpPlanWrite(vault.side.access, "gemini", write("Research/Draft.md", "# Draft\n\nMore.\n"))))?.reason).toBe("kept");
+    // A folder kept from the internet takes no new note from an agent either.
+    expect((await refusal(acpPlanWrite(vault.side.access, "gemini", write("Offline/New.md", "# New\n"))))?.reason).toBe("kept");
   });
 
   it("is refused where it would be more blocks than anybody reviews one by one", async () => {

@@ -439,14 +439,6 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
           if (!service) throw new Error("comments are not available in this vault");
           await proposeSuggestionRound(service, round);
         },
-        // Through the adapter chain like any note: indexed, synced and backed up as one the user made.
-        async create(path, content) {
-          if (await input.adapter.exists(path)) throw new Error("a file is there already");
-          const folder = path.slice(0, Math.max(0, path.lastIndexOf("/")));
-          if (folder && !(await input.adapter.exists(folder))) await input.adapter.createDir(folder);
-          await input.adapter.writeTextFile(path, content);
-          await input.noteCreated?.(path);
-        },
         encrypted: input.encrypted,
       },
     },
@@ -465,6 +457,16 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
           creates: {
             async note({ folder, stem, content }) {
               const path = await writeCapturedNote(input.adapter, folder ?? (await inboxFolder()), stem, content);
+              await input.noteCreated?.(path);
+              return path;
+            },
+            // A draft whose writer named the file (an agent, plan P5-6): exactly there, through the adapter chain like
+            // any note — indexed, synced and backed up as one the user made —, and never over a file that is there.
+            async noteAt({ path, content }) {
+              if (await input.adapter.exists(path)) return null;
+              const folder = path.slice(0, Math.max(0, path.lastIndexOf("/")));
+              if (folder && !(await input.adapter.exists(folder))) await input.adapter.createDir(folder);
+              await input.adapter.writeTextFile(path, content);
               await input.noteCreated?.(path);
               return path;
             },

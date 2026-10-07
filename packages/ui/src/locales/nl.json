@@ -1167,7 +1167,7 @@
         "created": "Gemaakt: {{note}}",
         "discarded": "Verworpen: {{note}}",
         "direct": "De agent heeft {{note}} zelf gewijzigd: het staat zonder voorstel in de vault.",
-        "noteKept": "{{note}} is de agent niet genoemd: de notitie wordt van de cloud weggehouden.",
+        "noteKept": "{{note}} is de agent niet genoemd: de notitie wordt van de cloud of van internet weggehouden.",
         "failed": "De agent kon dit niet afmaken.",
         "failedSaid": "De agent kon dit niet afmaken. Hij zegt: {{message}}",
         "stopped": {
@@ -1188,20 +1188,15 @@
         "hidden": "een van de eigen mappen van Plainva",
         "missing": "dat bestand bestaat niet",
         "too-large": "het bestand is te groot",
-        "kept": "wordt van de cloud weggehouden",
+        "kept": "wordt van de cloud of van internet weggehouden",
         "not-a-note": "geen Markdown-notitie",
         "sealed": "niet mogelijk in deze vault",
-        "rules": "bevat AI-regels of vertrouwensvelden",
-        "properties": "zou de eigenschappen van de notitie wijzigen",
+        "rules": "zou AI-regels, vertrouwensvelden of eigen eigenschappen van Plainva instellen",
+        "properties": "een eigenschapswaarde die geen tekst, getal, ja/nee of lijst daarvan is",
         "unreadable": "de eigenschappen zijn niet leesbaar",
         "too-many": "te veel wijzigingen voor één voorstel",
+        "waiting": "er wachten al te veel concepten",
         "failed": "het kon niet worden gedaan"
-      },
-      "pending": {
-        "title": "Nieuwe notities van de agent",
-        "create": "Maken",
-        "discard": "Verwerpen",
-        "hint": "Een notitie wordt pas geschreven wanneer je haar maakt. Ze draagt de vermelding wie haar schreef, en webadressen die de agent meebracht zijn onschadelijk gemaakt."
       },
       "ended": {
         "closed": "De sessie is beëindigd.",
@@ -1304,7 +1299,8 @@
         "discarded": "Verworpen: {{name}}",
         "createdToast": "Aangemaakt.",
         "failed": "Het concept kon niet worden aangemaakt: {{reason}}",
-        "unavailable": "Dit kan op dit apparaat niet worden aangemaakt."
+        "unavailable": "Dit kan op dit apparaat niet worden aangemaakt.",
+        "exists": "Daar staat inmiddels een bestand met deze naam. Verwerp het concept of hernoem het bestand."
       },
       "plan": {
         "renameTitle": "Hernoemen?",

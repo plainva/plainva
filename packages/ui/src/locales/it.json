@@ -1196,7 +1196,7 @@
         "created": "Creata: {{note}}",
         "discarded": "Scartata: {{note}}",
         "direct": "L'agente ha modificato {{note}} da sé: è nel vault senza proposta.",
-        "noteKept": "{{note}} non è stata nominata all'agente: è tenuta lontana dal cloud.",
+        "noteKept": "{{note}} non è stata nominata all'agente: è tenuta lontana dal cloud o da internet.",
         "failed": "L'agente non è riuscito a terminare.",
         "failedSaid": "L'agente non è riuscito a terminare. Dice: {{message}}",
         "stopped": {
@@ -1217,20 +1217,15 @@
         "hidden": "è una delle cartelle proprie di Plainva",
         "missing": "il file non esiste",
         "too-large": "il file è troppo grande",
-        "kept": "è tenuta lontana dal cloud",
+        "kept": "è tenuta lontana dal cloud o da internet",
         "not-a-note": "non è una nota Markdown",
         "sealed": "non è possibile in questo vault",
-        "rules": "contiene regole di IA o campi di fiducia",
-        "properties": "modificherebbe le proprietà della nota",
+        "rules": "imposterebbe regole di IA, campi di fiducia o proprietà proprie di Plainva",
+        "properties": "un valore di proprietà che non è testo, numero, sì/no né un elenco di questi",
         "unreadable": "le sue proprietà non sono leggibili",
         "too-many": "troppe modifiche per una sola proposta",
+        "waiting": "ci sono già troppe bozze in attesa",
         "failed": "non è stato possibile"
-      },
-      "pending": {
-        "title": "Nuove note dell'agente",
-        "create": "Crea",
-        "discard": "Scarta",
-        "hint": "Una nota viene scritta solo quando la crei. Porta l'indicazione di chi l'ha scritta, e gli indirizzi web portati dall'agente sono disinnescati."
       },
       "ended": {
         "closed": "La sessione è terminata.",
@@ -1336,7 +1331,8 @@
         "discarded": "Scartato: {{name}}",
         "createdToast": "Creato.",
         "failed": "Non è stato possibile creare la bozza: {{reason}}",
-        "unavailable": "Su questo dispositivo non è possibile crearlo."
+        "unavailable": "Su questo dispositivo non è possibile crearlo.",
+        "exists": "Lì c'è ormai un file con questo nome. Scarta la bozza o rinomina il file."
       },
       "plan": {
         "renameTitle": "Rinominare?",

@@ -1167,7 +1167,7 @@
         "created": "Angelegt: {{note}}",
         "discarded": "Verworfen: {{note}}",
         "direct": "Der Agent hat {{note}} selbst geändert: Die Änderung steht ohne Vorschlag im Vault.",
-        "noteKept": "{{note}} wurde dem Agenten nicht genannt: Die Notiz ist von der Cloud ferngehalten.",
+        "noteKept": "{{note}} wurde dem Agenten nicht genannt: Die Notiz ist von der Cloud oder vom Internet ferngehalten.",
         "failed": "Der Agent konnte das nicht abschließen.",
         "failedSaid": "Der Agent konnte das nicht abschließen. Er meldet: {{message}}",
         "stopped": {
@@ -1188,20 +1188,15 @@
         "hidden": "einer von Plainvas eigenen Ordnern",
         "missing": "keine solche Datei vorhanden",
         "too-large": "Datei zu groß",
-        "kept": "von der Cloud ferngehalten",
+        "kept": "von der Cloud oder vom Internet ferngehalten",
         "not-a-note": "keine Markdown-Notiz",
         "sealed": "in diesem Vault nicht möglich",
-        "rules": "enthält KI-Regeln oder Vertrauensfelder",
-        "properties": "würde die Eigenschaften der Notiz ändern",
+        "rules": "würde KI-Regeln, Vertrauensfelder oder Plainvas eigene Eigenschaften setzen",
+        "properties": "ein Eigenschaftswert, der weder Text, Zahl, Ja/Nein noch eine Liste davon ist",
         "unreadable": "Eigenschaften nicht lesbar",
         "too-many": "zu viele Änderungen für einen Vorschlag",
+        "waiting": "zu viele Entwürfe warten schon",
         "failed": "nicht ausführbar"
-      },
-      "pending": {
-        "title": "Neue Notizen vom Agenten",
-        "create": "Anlegen",
-        "discard": "Verwerfen",
-        "hint": "Eine Notiz wird erst geschrieben, wenn Du sie anlegst. Sie trägt den Vermerk, wer sie geschrieben hat, und Internetadressen, die der Agent mitgebracht hat, sind entschärft."
       },
       "ended": {
         "closed": "Die Sitzung ist beendet.",
@@ -1304,7 +1299,8 @@
         "discarded": "Verworfen: {{name}}",
         "createdToast": "Angelegt.",
         "failed": "Der Entwurf ließ sich nicht anlegen: {{reason}}",
-        "unavailable": "Das lässt sich auf diesem Gerät nicht anlegen."
+        "unavailable": "Das lässt sich auf diesem Gerät nicht anlegen.",
+        "exists": "Dort liegt inzwischen eine Datei mit diesem Namen. Verwirf den Entwurf oder benenne die Datei um."
       },
       "plan": {
         "renameTitle": "Umbenennen?",

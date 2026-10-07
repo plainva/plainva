@@ -18,8 +18,8 @@ Starte einen Agenten nur in einem Vault, dessen Inhalt den Dienst des Agenten er
 ## Was Plainva kontrolliert
 
 - **Die eigenen Werkzeuge.** Wo **KI-Apps auf diesem Rechner diesen Vault lesen lassen** eingeschaltet ist, werden Plainvas Werkzeuge dem Agenten angeboten — dieselben wie für jede App in [KI-Apps verbinden](Connect_AI_Apps.md): nur die Ordner, die Du freigibst, nie eine von der Cloud oder vom Internet ferngehaltene Notiz, und nur lesend — es sei denn, Du erlaubst ihm dort, Änderungen vorzuschlagen.
-- **Was der Agent Plainva zu lesen bittet.** Eine von der Cloud ferngehaltene Notiz und Plainvas eigene Ordner werden nicht herausgegeben. Der Agent erfährt das, und Du auch.
-- **Was der Agent Plainva zu schreiben bittet.** Geschrieben wird nichts. Eine Änderung an einer Notiz wird eine Vorschlagsrunde unter dem Namen des Agenten, und eine neue Notiz wartet, bis Du sie anlegst.
+- **Was der Agent Plainva zu lesen bittet.** Eine von der Cloud oder vom Internet ferngehaltene Notiz und Plainvas eigene Ordner werden nicht herausgegeben. Der Agent erfährt das, und Du auch.
+- **Was der Agent Plainva zu schreiben bittet.** Geschrieben wird nichts. Eine Änderung an einer Notiz wird eine Vorschlagsrunde unter dem Namen des Agenten, und eine neue Notiz wartet als Entwurf, bis Du sie anlegst.
 - **Kein Terminal.** Plainva bietet einem Agenten kein eigenes Terminal an.
 
 ## Einen Agenten hinzufügen
@@ -42,7 +42,7 @@ Ein Agent, der nicht angemeldet ist, sagt es, und die Sitzung zeigt **⟨Agent�
 
 ## In einer Sitzung
 
-Schreib, was der Agent tun soll. Die Notiz, die Du offen hast, wird dem Agenten genannt — ihr Name und wo sie liegt, nicht ihr Text —, außer Du nimmst sie über dem Eingabefeld heraus; eine Notiz, die Du von der Cloud fernhältst, wird nie genannt. Die Sitzung zeigt, was der Agent sagt, seinen Plan und jeden seiner Schritte, mit den Dateien des Vaults, die er nennt.
+Schreib, was der Agent tun soll. Die Notiz, die Du offen hast, wird dem Agenten genannt — ihr Name und wo sie liegt, nicht ihr Text —, außer Du nimmst sie über dem Eingabefeld heraus; eine Notiz, die Du von der Cloud oder vom Internet fernhältst, wird nie genannt. Die Sitzung zeigt, was der Agent sagt, seinen Plan und jeden seiner Schritte, mit den Dateien des Vaults, die er nennt.
 
 Will der Agent Deine Erlaubnis für einen Schritt, zeigt **⟨Agent⟩ fragt** ihn. Die Worte sind die des Agenten, und zur Wahl steht, was der Agent anbietet — **Erlauben**, **Immer erlauben**, **Ablehnen**, **Immer ablehnen**. Deine Antwort geht nur an den Agenten: was er nach einem Ja tut, ist seine Sache, und ein „immer“ ist ein Versprechen, das der Agent hält, nicht Plainva.
 
@@ -50,9 +50,9 @@ Will der Agent Deine Erlaubnis für einen Schritt, zeigt **⟨Agent⟩ fragt** i
 
 ## Was der Agent schreibt
 
-**Über Plainva.** Eine Änderung, die der Agent an Plainva gibt, wird nie in die Notiz geschrieben. Ist die Antwort des Agenten fertig, trägt jede Notiz, die er geändert hat, eine Vorschlagsrunde, gezeichnet **⟨Name⟩ (externer Agent)**: unter **Vorschläge** übernimmst oder lehnst Du jede Änderung einzeln oder die ganze Runde ab, wie bei der Runde eines Menschen. Eine Notiz, die es noch nicht gibt, erscheint unter **Neue Notizen vom Agenten**. **Anlegen** schreibt sie — gekennzeichnet mit `generated`, mit dem Agenten als Autor —, und **Verwerfen** lässt sie fallen. Web-Adressen, die der Agent mitgebracht hat, werden so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`).
+**Über Plainva.** Eine Änderung, die der Agent an Plainva gibt, wird nie in die Notiz geschrieben. Ist die Antwort des Agenten fertig, trägt jede Notiz, die er geändert hat, eine Vorschlagsrunde, gezeichnet **⟨Name⟩ (externer Agent)**: unter **Vorschläge** übernimmst oder lehnst Du jede Änderung einzeln oder die ganze Runde ab, wie bei der Runde eines Menschen. Eine Eigenschaft, die der Text des Agenten ändert, steht in dieser Runde als vorgeschlagener Wert, wie einer, den Plainvas eigene KI vorschlägt. Eine Notiz, die es noch nicht gibt, wartet als Entwurf — als Karte **Entwurf · Notiz** in der Sitzung und als dieselbe Karte in der Liste **Offen** des KI-Tabs, wo sie auch nach dem Ende der Sitzung steht. **Anlegen** schreibt sie an genau den Ort, den der Agent genannt hat — gekennzeichnet mit `generated`, mit dem Agenten als Autor —, und **Verwerfen** lässt sie fallen. Web-Adressen, die der Agent mitgebracht hat, werden so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`).
 
-Plainva nimmt nicht alles an: nur Markdown-Notizen, nur ihren Text und nicht ihre Eigenschaften, keine Notiz, die KI-Regeln oder Vertrauensfelder trägt, nichts, was von der Cloud ferngehalten wird, und nicht mehr als 150 Änderungen an einer Notiz auf einmal. Was es nicht angenommen hat, sagt die Sitzung, und der Agent erfährt es.
+Plainva nimmt nicht alles an: nur Markdown-Notizen; keine KI-Regeln, keine Vertrauensfelder und keine von Plainvas eigenen Eigenschaften; keinen Eigenschaftswert, der weder Text, Zahl, Ja oder Nein noch eine Liste davon ist; nichts, was von der Cloud oder vom Internet ferngehalten wird; nicht mehr als 150 Änderungen an einer Notiz auf einmal; und keine weitere neue Notiz, solange zu viele Entwürfe warten. Was es nicht angenommen hat, sagt die Sitzung, und der Agent erfährt es.
 
 **Selbst.** Ein Agent kann Dateien auch selbst schreiben, wie jedes Programm. Meldet er so eine Änderung, sagt die Sitzung **Der Agent hat ⟨Notiz⟩ selbst geändert: Die Änderung steht ohne Vorschlag im Vault.** Welchen Weg ein Agent nimmt, kann Plainva nicht zusagen: es hängt vom Agenten ab und davon, wie er eingerichtet ist. In den Einstellungen zeigt jeder Agent, was auf diesem Rechner zuletzt beobachtet wurde — wie viele Änderungen über Plainva kamen und wie viele er selbst geschrieben hat.
 

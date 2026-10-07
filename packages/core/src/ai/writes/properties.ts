@@ -108,6 +108,25 @@ export function propertyTarget(note: string, key: string, value: PropertyValue |
   return { class: "plain", path: [name] };
 }
 
+/**
+ * Whether a property is one of a note's own AI rules or trust fields, judged
+ * by its NAME and by what stands under it — whatever form its value has:
+ * everything in Plainva's own namespace, who made a note, who vouches for it
+ * and what it rests on, and — where the note uses them as such, now or with
+ * this value — its lifecycle `status` and `stale_after`.
+ *
+ * For a writer that brings whole properties instead of one value (an agent's
+ * file, plan P5-6): `propertyTarget` calls a nested value "invalid" before it
+ * looks at the name, and a nested value under `plainva` is still a rule.
+ */
+export function isRuleOrTrustProperty(note: string, key: string, value: unknown): boolean {
+  const name = key.trim();
+  if (/^plainva(?:$|[.:])/i.test(name) || TRUST_BY_NAME.includes(name.toLowerCase())) return true;
+  if (!(OKF_TRUST_KEYS as readonly string[]).includes(name)) return false;
+  const claims = (item: unknown) => item !== undefined && item !== null && parseOkfTrustSignals({ [name]: item }).claimedKeys.includes(name);
+  return claims(attempt(() => readFrontmatterPath(note, [name]))) || claims(value);
+}
+
 /** One passage of the note and what would stand in its place: the block of a suggestion. */
 export interface PropertyBlock {
   from: number;
@@ -154,6 +173,30 @@ function sameNote(a: string, b: string): boolean {
   const left = propertiesOf(a);
   const right = propertiesOf(b);
   return left !== null && right !== null && left.body === right.body && same(left.map, right.map);
+}
+
+/**
+ * The properties in which two versions of a note differ, by name, each with
+ * the value the second version gives it — `null` where it has none there, or
+ * an empty one. The names the second version carries come first, in its
+ * order; then the ones it dropped. Null where the properties of either
+ * cannot be read.
+ *
+ * Only what the properties SAY counts: another order, other quotes and other
+ * spacing are no change. This is how a writer that hands over a whole file
+ * (an agent, plan P5-6) is read as what it means: values, one by one.
+ */
+export function changedProperties(base: string, next: string): { key: string; value: unknown }[] | null {
+  const from = propertiesOf(base);
+  const to = propertiesOf(next);
+  if (!from || !to) return null;
+  const had = (key: string) => (Object.prototype.hasOwnProperty.call(from.map, key) ? from.map[key] : undefined);
+  const out: { key: string; value: unknown }[] = [];
+  for (const [key, value] of Object.entries(to.map)) if (!same(had(key), value)) out.push({ key, value: value ?? null });
+  for (const [key, value] of Object.entries(from.map)) {
+    if (!Object.prototype.hasOwnProperty.call(to.map, key) && !same(value, undefined)) out.push({ key, value: null });
+  }
+  return out;
 }
 
 /** A property as its lines, the way the properties of a note are written; no line break at the end. */

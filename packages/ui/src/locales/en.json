@@ -1167,7 +1167,7 @@
         "created": "Created: {{note}}",
         "discarded": "Discarded: {{note}}",
         "direct": "The agent changed {{note}} itself: it is in the vault without a suggestion.",
-        "noteKept": "{{note}} was not named to the agent: it is kept from the cloud.",
+        "noteKept": "{{note}} was not named to the agent: it is kept from the cloud or the internet.",
         "failed": "The agent could not finish this.",
         "failedSaid": "The agent could not finish this. It says: {{message}}",
         "stopped": {
@@ -1188,20 +1188,15 @@
         "hidden": "one of Plainva's own folders",
         "missing": "no such file",
         "too-large": "file too large",
-        "kept": "kept from the cloud",
+        "kept": "kept from the cloud or the internet",
         "not-a-note": "not a Markdown note",
         "sealed": "not possible in this vault",
-        "rules": "carries AI rules or trust fields",
-        "properties": "would change the note's properties",
+        "rules": "would set AI rules, trust fields or one of Plainva's own properties",
+        "properties": "a property value that is neither text, a number, yes/no nor a list of those",
         "unreadable": "properties cannot be read",
         "too-many": "too many changes for one suggestion",
+        "waiting": "too many drafts are waiting already",
         "failed": "could not be done"
-      },
-      "pending": {
-        "title": "New notes from the agent",
-        "create": "Create",
-        "discard": "Discard",
-        "hint": "A note is written only when you create it. It is marked with who wrote it, and web addresses the agent brought are defused."
       },
       "ended": {
         "closed": "The session has ended.",
@@ -1304,7 +1299,8 @@
         "discarded": "Discarded: {{name}}",
         "createdToast": "Created.",
         "failed": "The draft could not be created: {{reason}}",
-        "unavailable": "This cannot be created on this device."
+        "unavailable": "This cannot be created on this device.",
+        "exists": "A file of this name is there by now. Discard the draft, or rename the file."
       },
       "plan": {
         "renameTitle": "Rename?",

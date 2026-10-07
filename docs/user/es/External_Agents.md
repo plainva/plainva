@@ -18,8 +18,8 @@ Inicia un agente solo en un vault cuyo contenido pueda llegar al servicio del ag
 ## Lo que Plainva controla
 
 - **Sus propias herramientas.** Donde **Permitir que las apps de IA de este ordenador lean este vault** está activado, las herramientas de Plainva se ofrecen al agente — las mismas que a cualquier app de [Conectar apps de IA](Connect_AI_Apps.md): solo las carpetas que concedes, nunca una nota que se mantiene fuera de la nube o de Internet, y solo lectura, salvo que allí le permitas sugerir cambios.
-- **Lo que el agente pide a Plainva que lea.** Una nota que se mantiene fuera de la nube y las carpetas propias de Plainva no se entregan. El agente se entera, y tú también.
-- **Lo que el agente pide a Plainva que escriba.** No se escribe nada. Un cambio en una nota se convierte en una ronda de sugerencias con el nombre del agente, y una nota nueva espera hasta que la creas.
+- **Lo que el agente pide a Plainva que lea.** Una nota que se mantiene fuera de la nube o de internet y las carpetas propias de Plainva no se entregan. El agente se entera, y tú también.
+- **Lo que el agente pide a Plainva que escriba.** No se escribe nada. Un cambio en una nota se convierte en una ronda de sugerencias con el nombre del agente, y una nota nueva espera como borrador hasta que la creas.
 - **Sin terminal.** Plainva no ofrece a un agente una terminal propia.
 
 ## Añadir un agente
@@ -42,7 +42,7 @@ Un agente que no ha iniciado sesión lo dice, y la sesión muestra **⟨agente�
 
 ## En una sesión
 
-Escribe lo que el agente debe hacer. La nota que tienes abierta se le nombra al agente — su nombre y dónde está, no su texto —, salvo que la quites encima del campo de entrada; una nota que mantienes fuera de la nube nunca se nombra. La sesión muestra lo que dice el agente, su plan y cada uno de sus pasos, con los archivos del vault que nombra.
+Escribe lo que el agente debe hacer. La nota que tienes abierta se le nombra al agente — su nombre y dónde está, no su texto —, salvo que la quites encima del campo de entrada; una nota que mantienes fuera de la nube o de internet nunca se nombra. La sesión muestra lo que dice el agente, su plan y cada uno de sus pasos, con los archivos del vault que nombra.
 
 Cuando el agente quiere tu permiso para un paso, **⟨agente⟩ pregunta** lo muestra. Las palabras son del agente, y las opciones son las que el agente ofrece — **Permitir**, **Permitir siempre**, **Rechazar**, **Rechazar siempre**. Tu respuesta va solo al agente: lo que haga tras un sí es cosa suya, y un «siempre» es una promesa que cumple el agente, no Plainva.
 
@@ -50,9 +50,9 @@ Cuando el agente quiere tu permiso para un paso, **⟨agente⟩ pregunta** lo mu
 
 ## Lo que escribe el agente
 
-**A través de Plainva.** Un cambio que el agente entrega a Plainva nunca se escribe en la nota. Cuando la respuesta del agente termina, cada nota que cambió lleva una ronda de sugerencias, firmada **⟨nombre⟩ (agente externo)**: en **Sugerencias** aceptas o rechazas cada cambio o la ronda entera, igual que con la ronda de una persona. Una nota que aún no existe aparece en **Notas nuevas del agente**. **Crear** la escribe — marcada con `generated`, con el agente como autor —, y **Descartar** la desecha. Las direcciones web que el agente trajo se escriben de modo que nada las abra ni las cargue (`https[://]…`).
+**A través de Plainva.** Un cambio que el agente entrega a Plainva nunca se escribe en la nota. Cuando la respuesta del agente termina, cada nota que cambió lleva una ronda de sugerencias, firmada **⟨nombre⟩ (agente externo)**: en **Sugerencias** aceptas o rechazas cada cambio o la ronda entera, igual que con la ronda de una persona. Una propiedad que el texto del agente cambia figura en esa ronda como valor propuesto, igual que uno que propone la IA propia de Plainva. Una nota que aún no existe espera como borrador — una tarjeta **Borrador · Nota** en la sesión, y la misma tarjeta en la lista **Pendiente** de la pestaña de IA, donde sigue cuando la sesión ha terminado. **Crear** la escribe exactamente en el lugar que nombró el agente — marcada con `generated`, con el agente como autor —, y **Descartar** la desecha. Las direcciones web que el agente trajo se escriben de modo que nada las abra ni las cargue (`https[://]…`).
 
-Plainva no lo acepta todo: solo notas Markdown, solo su texto y no sus propiedades, ninguna nota que lleve reglas de IA o campos de confianza, nada que se mantenga fuera de la nube, y no más de 150 cambios en una nota a la vez. Lo que no aceptó lo dice la sesión, y el agente se entera.
+Plainva no lo acepta todo: solo notas Markdown; ni reglas de IA, ni campos de confianza, ni propiedades propias de Plainva; ningún valor de propiedad que no sea texto, un número, sí o no, o una lista de ellos; nada que se mantenga fuera de la nube o de internet; no más de 150 cambios en una nota a la vez; y ninguna nota nueva más mientras haya demasiados borradores en espera. Lo que no aceptó lo dice la sesión, y el agente se entera.
 
 **Por su cuenta.** Un agente también puede escribir archivos por su cuenta, como cualquier programa. Cuando informa de un cambio así, la sesión dice **El agente cambió ⟨nota⟩ por su cuenta: está en el vault sin sugerencia.** Qué camino toma un agente no lo puede prometer Plainva: depende del agente y de cómo esté configurado. En la configuración, cada agente muestra lo que se vio por última vez en este ordenador — cuántos cambios llegaron a través de Plainva y cuántos escribió por su cuenta.
 

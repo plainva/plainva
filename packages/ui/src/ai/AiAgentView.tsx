@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Bot, Check, Circle, CircleAlert, Copy, FilePlus2, FileText, Info, LoaderCircle, Plus, Send, Square, SquareTerminal } from "lucide-react";
+import { Ban, Bot, Check, Circle, CircleAlert, Copy, FileText, Info, LoaderCircle, Plus, Send, Square, SquareTerminal } from "lucide-react";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -14,6 +14,7 @@ import { toast } from "../services/toastStore";
 import type { AcpThreadItem, AiAcpSession, AiAcpState } from "./acpSession";
 import { agentAuthProblemText, agentEventText, agentEventTone, agentKindText, agentNoteName, agentOptionsInOrder, agentOptionText, agentProblemText, agentSessionLine } from "./agentView";
 import { AiAnswer } from "./AiAnswer";
+import { AiDraftCard, useDraftActions } from "./AiWriteCards";
 import { useAiSession, useAiState } from "./useAiSession";
 
 /**
@@ -225,42 +226,24 @@ function AgentQuestion({ current }: { current: AiAcpSession }) {
   );
 }
 
-function AgentPending({ current, onOpenPath }: { current: AiAcpSession; onOpenPath(path: string): void }) {
-  const { t } = useTranslation();
+/**
+ * The notes the agent wrote in this session that do not exist yet (plan
+ * P5-6): each is a draft like every other — the same card, the same two
+ * buttons, the same list of everything that waits —, so it is still there
+ * when the session is not.
+ */
+function AgentDrafts({ current, onOpenPath }: { current: AiAcpSession; onOpenPath(path: string): void }) {
   const session = useAiSession();
-  const [busy, setBusy] = useState<string | null>(null);
-  if (!session || current.pending.length === 0) return null;
-  const create = (path: string) => {
-    setBusy(path);
-    void session.agents
-      .createNote(path)
-      .then((done) => {
-        if (done) onOpenPath(path);
-      })
-      .finally(() => setBusy(null));
-  };
+  const state = useAiState();
+  const actions = useDraftActions(session, onOpenPath);
+  const drafts = state ? state.drafts.drafts.filter((draft) => current.waiting.includes(draft.id)) : [];
+  // The cards stand in the thread like the agent's question does: no frame of their own around them.
   return (
-    <section className="pv-ai-overview" aria-label={t("ai.agent.pending.title")} data-testid="ai-agent-pending">
-      <h4 className="pv-ai-overview-head">
-        <FilePlus2 size={ICON.ui} aria-hidden="true" />
-        <span>{t("ai.agent.pending.title")}</span>
-      </h4>
-      <ul className="pv-ai-overview-sources">
-        {current.pending.map((note) => (
-          <li key={note.path} data-testid="ai-agent-pending-note">
-            <span className="pv-ai-overview-note">{note.path}</span>
-            <span className="pv-ai-overview-form" />
-            <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => session.agents.discardNote(note.path)} data-testid="ai-agent-pending-discard">
-              {t("ai.agent.pending.discard")}
-            </Button>
-            <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => create(note.path)} data-testid="ai-agent-pending-create">
-              {t("ai.agent.pending.create")}
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <span className="pv-ai-overview-hint">{t("ai.agent.pending.hint")}</span>
-    </section>
+    <>
+      {drafts.map((draft) => (
+        <AiDraftCard key={draft.id} draft={draft} canCreate={actions.canCreate} busy={actions.busy} onCreate={actions.create} onDiscard={actions.discard} />
+      ))}
+    </>
   );
 }
 
@@ -362,7 +345,7 @@ function AgentSession({ current, activeNote, onOpenNote, onOpenPath, onOpenUrl }
   useEffect(() => {
     const el = threadEl.current;
     if (el && typeof el.scrollTo === "function") el.scrollTo({ top: el.scrollHeight });
-  }, [shown, lastLength, current.phase, current.question, current.pending.length]);
+  }, [shown, lastLength, current.phase, current.question, current.waiting.length]);
   if (!session) return null;
   const agents = session.agents;
   const running = current.phase === "running";
@@ -404,7 +387,7 @@ function AgentSession({ current, activeNote, onOpenNote, onOpenPath, onOpenUrl }
         )}
         {(current.phase === "auth" || current.phase === "signing-in") && <AgentSignIn current={current} />}
         <AgentQuestion current={current} />
-        <AgentPending current={current} onOpenPath={onOpenPath} />
+        <AgentDrafts current={current} onOpenPath={onOpenPath} />
         {ended && (
           <Banner
             kind={current.problem ? "warning" : "info"}

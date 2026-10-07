@@ -3,6 +3,7 @@ import {
   ACP_START_DECLINED,
   acpAgentLabel,
   acpAgentTarget,
+  acpAuthorId,
   acpCommandText,
   acpFileUri,
   acpKnownAgentOf,
@@ -34,7 +35,7 @@ import {
   type AcpUpdate,
   type EndpointConfirmText,
 } from "@plainva/core";
-import { AcpFileRefusal, acpNewNoteContent, acpPlanNoteWrite, acpPlanWrite, acpProposeRound, acpReadFile, acpRecipient, acpSpelledPath, type AcpFileRefusalReason, type AcpVaultAccess } from "./acpFiles";
+import { AcpFileRefusal, acpGate, acpPlanNoteWrite, acpPlanWrite, acpProposeRound, acpReadFile, acpSpelledPath, type AcpFileRefusalReason, type AcpVaultAccess } from "./acpFiles";
 import type { AcpAgentSeen, AcpDeviceStore, AcpSessionEnd, AcpSessionEntry, AcpVaultStore } from "./acpStores";
 
 /**
@@ -49,10 +50,29 @@ import type { AcpAgentSeen, AcpDeviceStore, AcpSessionEnd, AcpSessionEntry, AcpV
  * this class holds to is the other half: what the agent asks PLAINVA for.
  * A file it asks the app for passes the vault's rules or is refused; a file
  * it asks the app to write is never written — a change becomes a suggestion
- * round under the agent's name, a new note waits until the user creates it;
- * a question it asks is the user's to answer; and a terminal is not there to
- * ask for.
+ * round under the agent's name, a new note a draft the user creates or throws
+ * away (plan P5-6); a question it asks is the user's to answer; and a
+ * terminal is not there to ask for.
  */
+
+/**
+ * The drafts of the vault a session runs in, as far as an agent reaches them
+ * (plan P5-6). A note the agent wrote that does not exist yet waits there
+ * like every other draft — on its card in the session and in the list of
+ * everything that waits, also after the session ended.
+ */
+export interface AcpDrafts {
+  /** Whether a note of this writer at this path can wait: there is room, or it takes the place of the writer's own earlier draft there. */
+  room(authorId: string, path: string): Promise<boolean>;
+  /** Leaves the note as a draft, in place of this writer's earlier draft at this path and under that one's id. */
+  leave(note: { author: { id: string; label: string }; path: string; content: string; defused: number }): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" }>;
+}
+
+/** What became of the drafts a vault holds, as a session needs it: which still wait, and how the others ended. */
+export interface AcpDraftsNow {
+  waiting: ReadonlySet<string>;
+  ended: ReadonlyMap<string, "created" | "discarded">;
+}
 
 export interface AiAcpHost {
   /** The shell's native side. */
@@ -76,6 +96,8 @@ export interface AcpVaultSide {
   store: AcpVaultStore;
   /** The note open in the shell right now — its path in the vault —, or null. */
   activeNote(): string | null;
+  /** Where a note the agent wrote waits; the assistant's session hands it in. */
+  drafts: AcpDrafts;
 }
 
 /** An agent as the settings and the start show it. */
@@ -102,7 +124,7 @@ export interface AiAcpFound {
 export type AcpSessionEvent =
   /** A change the agent wrote through the app waits in the note's margin. */
   | { type: "proposed"; path: string; blocks: number; defused: number }
-  /** A note the agent wrote waits for the user to create it. */
+  /** A note the agent wrote waits as a draft for the user to create it. */
   | { type: "new"; path: string }
   | { type: "created"; path: string }
   | { type: "discarded"; path: string }
@@ -161,13 +183,6 @@ export interface AcpQuestion {
   options: AcpPermissionOption[];
 }
 
-export interface AcpPendingNote {
-  path: string;
-  content: string;
-  /** Addresses in it that were made inert. */
-  defused: number;
-}
-
 export interface AcpCounts {
   turns: number;
   read: number;
@@ -187,8 +202,8 @@ export interface AiAcpSession {
   tools: "offered" | "off";
   thread: AcpThreadItem[];
   question: AcpQuestion | null;
-  /** Notes the agent wrote that wait to be created. */
-  pending: AcpPendingNote[];
+  /** The drafts this session left that still wait, by their id: the cards the session shows. */
+  waiting: string[];
   authMethods: AcpAuthMethod[];
   authProblem: AcpAuthProblem | null;
   /** Where no terminal could be opened: the command to run in one's own. */
@@ -245,6 +260,8 @@ interface Live {
   drafts: Map<string, string>;
   /** Everything it wrote through the app in this session and nobody accepted yet: what it reads back. */
   own: Map<string, string>;
+  /** The notes it wrote that wait as drafts, by vault path: the id of each one's draft. */
+  news: Map<string, string>;
   /** Paths it reported as changed by itself in the turn that runs. */
   direct: Set<string>;
   /** The client is being replaced after a sign-in: its end is not the session's. */
@@ -281,7 +298,7 @@ export class AiAcp {
   /** Publishes the session as it is now. */
   private show(): void {
     const live = this.live;
-    this.set({ session: live ? { ...live.view, thread: [...live.view.thread], pending: [...live.view.pending], counts: { ...live.view.counts } } : null });
+    this.set({ session: live ? { ...live.view, thread: [...live.view.thread], waiting: [...live.news.values()], counts: { ...live.view.counts } } : null });
   }
 
   /** The same, a little later: a burst of reports is one repaint. */
@@ -405,7 +422,7 @@ export class AiAcp {
         tools: "off",
         thread: [],
         question: null,
-        pending: [],
+        waiting: [],
         authMethods: [],
         authProblem: null,
         manualSignIn: null,
@@ -417,6 +434,7 @@ export class AiAcp {
       asks: [],
       drafts: new Map(),
       own: new Map(),
+      news: new Map(),
       direct: new Set(),
       restarting: false,
       ended: false,
@@ -575,10 +593,10 @@ export class AiAcp {
     let named: string | null = null;
     const open = options.note ? vault.activeNote() : null;
     if (open) {
-      // Naming a note is telling the agent about it: a note kept from the cloud is not named.
+      // Naming a note is telling the agent about it: a note kept from the cloud or from the internet is not named.
       const allowed = await vault.access
         .policyOf(open)
-        .then((policy) => gateDecision(policy, { recipient: acpRecipient(live.agent.id), webTools: false }).allowed)
+        .then((policy) => gateDecision(policy, acpGate(live.agent.id)).allowed)
         .catch(() => false);
       if (allowed) {
         blocks.push({ type: "resource_link", uri: acpFileUri(live.root, open), name: open.slice(open.lastIndexOf("/") + 1) });
@@ -626,35 +644,27 @@ export class AiAcp {
     this.show();
   }
 
-  /** Creates a note the agent wrote, through the vault's own write path, stamped with who wrote it. */
-  async createNote(path: string): Promise<boolean> {
+  /**
+   * The drafts of a vault changed (plan P5-6): somebody created or threw away
+   * a note this session's agent wrote — on its card here, or in the list of
+   * everything that waits. The session says so in its thread, and the agent
+   * no longer reads its own text back for that path: a note that was created
+   * is in the vault, stamp and all, and one that was thrown away is nowhere.
+   */
+  draftsChanged(drafts: AcpDrafts, now: AcpDraftsNow): void {
     const live = this.live;
-    const pending = live?.view.pending.find((entry) => entry.path === path);
-    if (!live || !pending) return false;
-    try {
-      await live.vault.access.create(path, acpNewNoteContent(pending.content, live.agent.id, this.clock.now()));
-    } catch {
-      this.event(live, { type: "refused", what: "write", reason: "failed", path });
-      this.show();
-      return false;
+    if (!live || live.vault.drafts !== drafts || live.news.size === 0) return;
+    let changed = false;
+    for (const [path, id] of [...live.news]) {
+      if (now.waiting.has(id)) continue;
+      const ended = now.ended.get(id);
+      live.news.delete(path);
+      live.own.delete(path);
+      if (ended === "created") live.view.counts.created++;
+      if (ended) this.event(live, { type: ended, path });
+      changed = true;
     }
-    live.view.pending = live.view.pending.filter((entry) => entry.path !== path);
-    // The note is in the vault now: the agent reads it from there, stamp and all.
-    live.own.delete(path);
-    live.view.counts.created++;
-    this.event(live, { type: "created", path });
-    this.show();
-    return true;
-  }
-
-  /** Throws a note the agent wrote away. */
-  discardNote(path: string): void {
-    const live = this.live;
-    if (!live || !live.view.pending.some((entry) => entry.path === path)) return;
-    live.view.pending = live.view.pending.filter((entry) => entry.path !== path);
-    live.own.delete(path);
-    this.event(live, { type: "discarded", path });
-    this.show();
+    if (changed) this.show();
   }
 
   /** Ends the session: the agent's program stops. What it wrote stays to be read until the session is closed. */
@@ -801,6 +811,8 @@ export class AiAcp {
     try {
       // Planned now, so that the agent hears at once what Plainva does not take; proposed when the turn ends, so that one note gets one round.
       const plan = await acpPlanWrite(live.vault.access, live.agent.id, request);
+      // A new note waits as a draft, and the list of drafts never drops one to make room: the agent hears when it is full.
+      if (plan.kind === "new" && !(await live.vault.drafts.room(acpAuthorId(live.agent.id), plan.path).catch(() => false))) throw new AcpFileRefusal("waiting", plan.path);
       live.own.set(plan.path, request.content);
       live.drafts.set(plan.path, request.content);
     } catch (error) {
@@ -828,9 +840,22 @@ export class AiAcp {
           live.view.counts.proposed++;
           this.event(live, { type: "proposed", path, blocks: plan.chunks.length, defused: plan.defused });
         } else if (plan.kind === "new") {
-          const waiting = live.view.pending.some((entry) => entry.path === path);
-          live.view.pending = [...live.view.pending.filter((entry) => entry.path !== path), { path, content: plan.content, defused: plan.defused }];
-          if (!waiting) this.event(live, { type: "new", path });
+          // A draft like every other (plan P5-6): signed with the agent's id on this device and the user's name for it,
+          // in place of the one it left at this path before.
+          const left = await vault.drafts.leave({
+            author: { id: acpAuthorId(live.agent.id), label: this.t("ai.agent.author", { agent: live.agent.label }) },
+            path,
+            content: plan.content,
+            defused: plan.defused,
+          });
+          if (!left.ok) {
+            live.own.delete(path);
+            this.event(live, { type: "refused", what: "write", reason: left.problem === "full" ? "waiting" : "failed", path });
+          } else {
+            const waiting = live.news.has(path);
+            live.news.set(path, left.id);
+            if (!waiting) this.event(live, { type: "new", path });
+          }
         } else {
           // The note says this already: nothing of the agent's waits for it any more.
           live.own.delete(path);
@@ -863,7 +888,7 @@ export class AiAcp {
     live.view.problem = problem;
     const counts = live.view.counts;
     const at = this.clock.now().toISOString();
-    const through = counts.proposed + live.view.pending.length + counts.created;
+    const through = counts.proposed + live.news.size + counts.created;
     // A session that never came up is not one the vault's log needs a line for.
     if (counts.turns > 0 || end !== "failed") {
       await live.vault.store.log({ at, agent: live.agent.id, label: live.agent.label, turns: counts.turns, read: counts.read, proposed: counts.proposed, created: counts.created, direct: counts.direct, refused: counts.refused, end }).catch(() => undefined);
