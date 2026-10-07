@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-10-07
 
-Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications d'un passage sélectionné sous forme de propositions — il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
+Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications — sous forme de propositions sur une note, de brouillons pour ce qui est nouveau, ou d'un plan que vous confirmez. Il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
 ## Activer l'IA
 
@@ -43,7 +43,7 @@ Un sixième emplacement, **Embeddings**, contient le modèle avec lequel la rech
 - **Téléphone :** **Demander à l'IA** dans le menu ⋮ d'une note ouvre la feuille IA au-dessus de cette note. La rubrique **IA** (dans « Rubriques », ou dans la barre de navigation si vous l'y placez) affiche la conversation en plein écran ; **Conversations** liste les précédentes.
 - **À côté de la note :** sur l'ordinateur, la même conversation est la dernière section de la barre latérale droite, **IA**. Sur un téléphone ou une tablette, c'est l'onglet **IA** du contexte de la note — à côté de **Propriétés** et **Backlinks** —, qu'une tablette affiche à côté de la note.
 
-La note que vous avez ouverte est jointe automatiquement ; retirez-la du contexte avec son ✕ si vous le souhaitez. **Épingler une note…** ajoute d'autres notes. L'assistant peut aussi chercher par lui-même : il parcourt le vault, lit des notes et leurs sections, des bases de données, des backlinks et des notes liées, liste des tâches, des rendez-vous et les notes ouvertes ou modifiées récemment, et ouvre des notes et des vues. Il ne peut rien modifier, créer ou supprimer.
+La note que vous avez ouverte est jointe automatiquement ; retirez-la du contexte avec son ✕ si vous le souhaitez. **Épingler une note…** ajoute d'autres notes. L'assistant peut aussi chercher par lui-même : il parcourt le vault, lit des notes et leurs sections, des bases de données, des backlinks et des notes liées, liste des tâches, des rendez-vous et les notes ouvertes ou modifiées récemment, et ouvre des notes et des vues. Il ne peut rien modifier, créer ou supprimer lui-même ; ce qu'il peut proposer à la place est décrit plus bas, sous « Proposer des modifications ».
 
 L'assistant peut aussi vous montrer des choses : ouvrir une note à un titre, afficher une note dans le graphe, placer le calendrier sur un jour, ouvrir des vues, afficher et masquer les barres latérales. Il utilise pour cela les commandes de la palette de commandes — et, parmi elles, seulement celles qui montrent quelque chose : il ne peut pas déclencher celles qui créent, modifient, suppriment, exportent ou ouvrent une fenêtre.
 
@@ -183,6 +183,20 @@ Une conversation lancée par une compétence, une action sur une sélection et u
 
 Sur l'ordinateur, Plainva peut aussi démarrer un agent d'IA d'un autre éditeur dans le dossier du vault — un programme que vous avez installé et auquel vous vous êtes connecté vous-même. Un tel agent n'est pas l'assistant : il lit et envoie de lui-même, et vos règles de confidentialité et l'aperçu avant l'envoi ne l'atteignent pas. Ce que Plainva contrôle dans sa session et ce qu'il ne contrôle pas : [Agents externes](External_Agents.md).
 
+## Proposer des modifications
+
+L'assistant peut proposer plus qu'une réponse — et rien de ce qu'il propose n'est dans votre vault avant que vous ne le disiez. Il existe trois formes, et chacune attend là où vous en décidez.
+
+- **Une proposition sur une note.** Si vous demandez une modification d'une note qui existe, l'assistant la dépose sur la note sous forme de propositions : dans la marge, signées « Plainva IA · ⟨modèle⟩ », chaque modification à accepter ou à refuser séparément — comme les propositions d'une personne, voir [Commentaires et suggestions](Comments_and_Suggestions.md). Sous la réponse, une ligne nomme la note ; un appui l'ouvre. L'assistant propose ainsi des modifications du texte d'une note, pas de ses propriétés.
+- **Un brouillon.** Une nouvelle note, une tâche ou une entrée de journal reste un brouillon : une carte sous la réponse indique ce qu'il deviendrait et où il irait. **Créer** le réalise — la note dans le dossier que nomme la carte (le **Dossier de la boîte de réception**, si l'assistant n'en a pas nommé d'autre), la tâche lue à partir de ses mots comme si vous les aviez saisis dans le champ de saisie, l'entrée dans le journal du jour indiqué sur la carte. **Afficher** déplie d'abord le texte d'une note ; **Abandonner** jette le brouillon. Une note créée à partir d'un brouillon dit qui l'a écrite (`generated`, voir [OKF](OKF.md)) et nomme les notes sur lesquelles reposait la conversation. Là où vos nouvelles tâches vont aussi dans une liste de tâches de votre fournisseur, la carte d'une tâche porte l'interrupteur du champ de saisie, **Créer aussi dans « … »** : il est activé, et la tâche est créée là aussi, sauf si vous le désactivez.
+- **Un plan.** Renommer, déplacer ou supprimer une note ne se vérifie pas morceau par morceau ; l'assistant demande donc : une question au-dessus du champ de saisie montre ce qui se passerait — le nouveau nom et combien de liens dans combien de notes le suivent, ou le dossier cible, avec un avertissement si la note y perdait une règle de confidentialité de son dossier. Après votre oui, Plainva le fait comme lorsque vous le faites vous-même ; l'assistant apprend seulement si cela a été fait. Pour une suppression, la question ouvre simplement la boîte de dialogue de suppression de Plainva : rien ne disparaît avant que vous n'y confirmiez.
+
+Tout ce qui attend figure dans une liste : **En attente**, un segment de l'onglet IA sur l'ordinateur et de **Conversations** sur le téléphone. Elle nomme les notes qui portent des propositions d'une IA et les brouillons de cet appareil, chacun avec celui qui l'a déposé. Les brouillons sont conservés sur l'appareil où ils ont été faits, comme les conversations ; les propositions font partie des commentaires de la note et atteignent vos autres appareils avec eux.
+
+Trois limites valent quoi que l'on demande à l'assistant. Une adresse web qu'il apporte dans une proposition ou un brouillon est écrite de façon que rien ne l'ouvre ni ne la charge (`https[://]…`) ; une adresse que vous avez saisie vous-même reste telle quelle. Une conversation qui a lu une note tenue à l'écart du cloud ou d'Internet ne dépose une proposition, une tâche ou une entrée de journal que là où la même règle s'applique — une note en brouillon emporte la règle avec elle. Et dans un espace chiffré, rien n'est proposé, rédigé ni planifié.
+
+Une compétence n'a ces capacités que si elle les nomme, et sa vérification le dit — voir [Compétences](AI_Skills.md).
+
 ## Conserver une réponse comme note
 
 Sous chaque réponse terminée, **Conserver comme note** transforme la réponse en une note de votre vault. Vous appuyez dessus et Plainva écrit la note — l'assistant lui-même ne modifie toujours rien.
@@ -221,6 +235,6 @@ Les conversations restent sur cet appareil, par vault — jamais dans le vault e
 
 - Sur l'ordinateur, l'IA s'exécute uniquement dans la fenêtre principale.
 - Sur le téléphone, une réponse n'arrive que si l'application est ouverte.
-- L'assistant ne modifie aucune note lui-même : il propose des modifications d'un passage sélectionné et des transcriptions de notes vocales, sous forme de propositions que vous acceptez ou refusez ; dans un fil de commentaires, il écrit une réponse à côté de la note, jamais du texte dans celle-ci. Une réponse ne devient une note que lorsque vous appuyez sur **Conserver comme note** ; Plainva l'écrit alors, pas l'assistant.
+- L'assistant ne modifie aucune note lui-même : une modification d'une note et la transcription d'une note vocale sont des propositions que vous acceptez ou refusez, ce qui est nouveau est un brouillon jusqu'à ce que vous appuyiez sur **Créer**, et renommer, déplacer ou supprimer attendent votre oui ; dans un fil de commentaires, il écrit une réponse à côté de la note, jamais du texte dans celle-ci. Une réponse ne devient une note que lorsque vous appuyez sur **Conserver comme note** ; Plainva l'écrit alors, pas l'assistant.
 
 Les retours sur la bêta vont dans les discussions du projet sur GitHub : **Retour sur l'IA (bêta)** dans les réglages en ouvre une.

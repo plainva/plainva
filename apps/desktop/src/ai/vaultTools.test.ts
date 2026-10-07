@@ -27,7 +27,7 @@ function deps(overrides: Partial<VaultToolDeps> = {}): VaultToolDeps {
     },
     async taskRows(): Promise<PlannerRow[]> {
       return [
-        { id: "1", source: "note", path: "Projects/Offer.md", noteTitle: "Offer", ordinal: 0, title: "Send offer", state: "open", due: "2026-09-20", dueMinutes: null, priority: 3, tags: [] },
+        { id: "1", source: "note", path: "Projects/Offer.md", noteTitle: "Offer", ordinal: 0, title: "Send offer", state: "open", due: "2026-09-20", dueMinutes: null, priority: 1, tags: [] },
         { id: "2", source: "note", path: "Private/Client.md", noteTitle: "Client", ordinal: 0, title: "Call the client", state: "open", due: "2026-09-24", dueMinutes: null, priority: 0, tags: [] },
         { id: "3", source: "database", path: "Tasks/Plan.md", title: "Plan week", state: "open", due: null, dueMinutes: null, priority: 0, tags: [] },
       ];
@@ -104,6 +104,14 @@ describe("vault tools behind the hard gate", () => {
     expect(overdue.content).toContain("Send offer");
     const inbox = await run("get_tasks", { range: "inbox", limit: 25 });
     expect(inbox.content).toBe("- [ ] Plan week — [[Plan]] in the task database");
+  });
+
+  it("names a task's priority as the app does: 1 is the most important", async () => {
+    const rows = (priority: 1 | 2 | 3): PlannerRow[] => [{ id: "1", source: "note", path: "Projects/Offer.md", noteTitle: "Offer", ordinal: 0, title: "Send offer", state: "open", due: "2026-09-24", dueMinutes: null, priority, tags: [] }];
+    const said = async (priority: 1 | 2 | 3) => (await run("get_tasks", { range: "today", limit: 25 }, cloud, deps({ taskRows: async () => rows(priority) }))).content;
+    expect(await said(1)).toContain("priority high");
+    expect(await said(2)).toContain("priority medium");
+    expect(await said(3)).toContain("priority low");
   });
 
   it("navigates only through the listed commands", async () => {

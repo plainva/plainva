@@ -37,7 +37,16 @@
       "search_mail": "メールの検索",
       "read_mail": "メッセージの読み取り",
       "find_tools": "ほかのツールの検索",
-      "call_tool": "ほかのツールの使用"
+      "call_tool": "ほかのツールの使用",
+      "propose_edit": "ノートへの変更を提案",
+      "set_property": "プロパティ値を提案",
+      "create_note": "ノートの下書きを作成",
+      "create_task": "タスクの下書きを作成",
+      "add_journal_entry": "ジャーナルエントリの下書きを作成",
+      "create_entry": "データベースの項目の下書きを作成",
+      "rename_note": "名前変更の計画を提示",
+      "move_note": "移動の計画を提示",
+      "delete_note": "ノートの削除を依頼"
     },
     "stopped": {
       "cancelled": "停止しました。",
@@ -639,6 +648,7 @@
       "mayReadOnly": "何も変更せず、何も送信しません。",
       "mayWeb": "この保管庫で許可した場合に、インターネットを使います。ノートが会話に含まれている間は、ページや検索のたびに先に確認します。",
       "mayNoChange": "何も変更しません。",
+      "mayPropose": "変更の提案、下書きの作成、計画の提示ができます。あなたが適用・作成・確認するまで、保管庫は何も変わりません。",
       "mayAgents": "この保管庫のすべての新しい会話に対する常設の指示です。プライバシーのルールを解除することはできません。",
       "originApp": "Plainvaに付属",
       "originPath": "場所: {{path}}",
@@ -1184,6 +1194,79 @@
       "noneSealed": "開いている保管庫は暗号化ワークスペースです。そのタイトルは一切渡されません。",
       "noneRules": "Plainvaは.agent/policy.ymlの一部の行を解釈できないか、ファイルを読み取れません。修正されるまで、タイトルは一切渡されません。",
       "noneEmpty": "現在、渡されているタイトルはありません。"
+    },
+    "write": {
+      "proposedIn": "「{{name}}」に提案: {{what}}",
+      "passages_other": "本文 {{count}} か所",
+      "properties_other": "プロパティ {{count}} 件",
+      "draft": {
+        "kind": {
+          "note": "下書き · ノート",
+          "task": "下書き · タスク",
+          "journal": "下書き · ジャーナルエントリ",
+          "entry": "下書き · データベースの項目"
+        },
+        "what": {
+          "note": "ノート",
+          "task": "タスク",
+          "journal": "エントリ",
+          "entry": "項目"
+        },
+        "landsIn": "作成先",
+        "inbox": "インボックスフォルダー",
+        "readFrom": "下書きの日付",
+        "day": "日付",
+        "words": "入力された文",
+        "by": "作成者",
+        "inherits": "このノートは、元になったノートのプライバシールールを引き継ぎます。",
+        "defused": "AIが持ち込んだウェブアドレスは、テキストとして記載されています。",
+        "show": "表示",
+        "hide": "隠す",
+        "discard": "破棄",
+        "create": "作成",
+        "created": "作成しました: {{name}}",
+        "discarded": "破棄しました: {{name}}",
+        "createdToast": "作成しました。",
+        "failed": "下書きを作成できませんでした: {{reason}}",
+        "unavailable": "この端末では作成できません。"
+      },
+      "plan": {
+        "renameTitle": "名前を変更しますか？",
+        "moveTitle": "移動しますか？",
+        "deleteTitle": "AIがノートの削除を求めています",
+        "note": "ノート",
+        "newName": "新しい名前",
+        "folder": "移動先フォルダー",
+        "vaultRoot": "保管庫の最上位",
+        "links": "リンク",
+        "linksNone": "このノートへのリンクは他にありません。",
+        "linksIn": "{{notes}}にある{{links}} — 新しい名前に合わせて更新されます",
+        "linkCount_other": "{{count}} 件のリンク",
+        "noteCount_other": "{{count}} 件のノート",
+        "moreNotes_other": "ほか {{count}} 件のノート",
+        "loosens": "移動先フォルダーでは、このノートに次のルールが適用されなくなります: {{rules}}。",
+        "rule": {
+          "cloud": "クラウドに送らない",
+          "web": "インターネットと併用しない"
+        },
+        "renameHint": "Plainvaが名前を変更し、リンクを更新します。手動で名前を変更するときと同じです。AIに伝わるのは、実行されたかどうかだけです。",
+        "moveHint": "Plainvaがノートを移動します。手動で移動するときと同じです。AIに伝わるのは、実行されたかどうかだけです。",
+        "deleteHint": "ノートはPlainvaの削除ダイアログからのみ削除されます。一緒に削除されるものが表示され、そこで確認するまで何も消えません。",
+        "rename": "名前を変更",
+        "noRename": "変更しない",
+        "move": "移動",
+        "noMove": "移動しない",
+        "openDelete": "削除ダイアログを開く",
+        "noDelete": "削除しない"
+      },
+      "open": {
+        "segment": "保留中",
+        "proposals": "ノートへの提案",
+        "empty": "判断待ちのものはありません",
+        "emptyHint": "AIが提案または下書きしたものは、あなたが決めるまでここに残ります。",
+        "hint": "ここには、あなた以外が残したものが表示されます。適用または作成するまで、保管庫には何も入りません。下書きはこの端末に、提案はそれぞれのノートに保存されます。",
+        "changes_other": "{{count}} 件の変更"
+      }
     },
     "transcribe": {
       "action": "文字起こし",

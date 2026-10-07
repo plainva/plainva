@@ -15,3 +15,4 @@ export * from "./authors.js";
 export * from "./edits.js";
 export * from "./properties.js";
 export * from "./drafts.js";
+export * from "./sentences.js";

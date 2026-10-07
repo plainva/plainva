@@ -39,7 +39,16 @@
       "search_mail": "Searching mail",
       "read_mail": "Reading a message",
       "find_tools": "Looking for further tools",
-      "call_tool": "Using a further tool"
+      "call_tool": "Using a further tool",
+      "propose_edit": "Suggesting changes to a note",
+      "set_property": "Suggesting a property value",
+      "create_note": "Drafting a note",
+      "create_task": "Drafting a task",
+      "add_journal_entry": "Drafting a journal entry",
+      "create_entry": "Drafting a database entry",
+      "rename_note": "Laying out a plan to rename",
+      "move_note": "Laying out a plan to move",
+      "delete_note": "Asking to delete a note"
     },
     "stopped": {
       "cancelled": "Stopped.",
@@ -659,6 +668,7 @@
       "mayReadOnly": "Changes nothing, sends nothing.",
       "mayWeb": "Uses the internet where you allowed it for this vault. While notes are in the conversation, every page and every search asks first.",
       "mayNoChange": "Changes nothing.",
+      "mayPropose": "May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.",
       "mayAgents": "Standing instructions for every new conversation in this vault. They cannot lift your privacy rules.",
       "originApp": "Comes with Plainva",
       "originPath": "Lies in {{path}}",
@@ -1211,6 +1221,85 @@
       "noneSealed": "The open vault is an encrypted workspace. None of its titles are passed on.",
       "noneRules": "Plainva does not understand some lines of .agent/policy.yml, or cannot read the file. Until that is fixed, no title is passed on.",
       "noneEmpty": "No title is passed on right now."
+    },
+    "write": {
+      "proposedIn": "Suggested in “{{name}}”: {{what}}",
+      "passages_one": "{{count}} passage",
+      "passages_other": "{{count}} passages",
+      "properties_one": "{{count}} property",
+      "properties_other": "{{count}} properties",
+      "draft": {
+        "kind": {
+          "note": "Draft · Note",
+          "task": "Draft · Task",
+          "journal": "Draft · Journal entry",
+          "entry": "Draft · Database entry"
+        },
+        "what": {
+          "note": "Note",
+          "task": "Task",
+          "journal": "Entry",
+          "entry": "Entry"
+        },
+        "landsIn": "Goes into",
+        "inbox": "Inbox folder",
+        "readFrom": "Drafted on",
+        "day": "Day",
+        "words": "Wording",
+        "by": "By",
+        "inherits": "The note gets the privacy rules of the notes it rests on.",
+        "defused": "Web addresses the AI brought are in it as text.",
+        "show": "Show",
+        "hide": "Hide",
+        "discard": "Discard",
+        "create": "Create",
+        "created": "Created: {{name}}",
+        "discarded": "Discarded: {{name}}",
+        "createdToast": "Created.",
+        "failed": "The draft could not be created: {{reason}}",
+        "unavailable": "This cannot be created on this device."
+      },
+      "plan": {
+        "renameTitle": "Rename?",
+        "moveTitle": "Move?",
+        "deleteTitle": "The AI asks to delete a note",
+        "note": "Note",
+        "newName": "New name",
+        "folder": "Target folder",
+        "vaultRoot": "Top level of the vault",
+        "links": "Links",
+        "linksNone": "No other note links here.",
+        "linksIn": "{{links}} in {{notes}} — they follow the new name",
+        "linkCount_one": "{{count}} link",
+        "linkCount_other": "{{count}} links",
+        "noteCount_one": "{{count}} note",
+        "noteCount_other": "{{count}} notes",
+        "moreNotes_one": "and {{count}} more note",
+        "moreNotes_other": "and {{count}} more notes",
+        "loosens": "In the target folder this no longer holds for the note: {{rules}}.",
+        "rule": {
+          "cloud": "never to the cloud",
+          "web": "never together with the internet"
+        },
+        "renameHint": "Plainva renames the note and updates the links — as when you rename by hand. The AI only learns whether it happened.",
+        "moveHint": "Plainva moves the note — as when you move it by hand. The AI only learns whether it happened.",
+        "deleteHint": "A note is only deleted through Plainva's delete dialog. It shows what would go with it, and nothing is gone before you confirm there.",
+        "rename": "Rename",
+        "noRename": "Don't rename",
+        "move": "Move",
+        "noMove": "Don't move",
+        "openDelete": "Open delete dialog",
+        "noDelete": "Don't delete"
+      },
+      "open": {
+        "segment": "Open",
+        "proposals": "Suggestions on notes",
+        "empty": "Nothing is waiting for you",
+        "emptyHint": "What an AI suggests or drafts stays here until you have decided.",
+        "hint": "This is what somebody who is not you has left. None of it is in the vault until you accept or create it. Drafts are kept on this device, suggestions on their note.",
+        "changes_one": "{{count}} change",
+        "changes_other": "{{count}} changes"
+      }
     },
     "transcribe": {
       "action": "Transcribe",

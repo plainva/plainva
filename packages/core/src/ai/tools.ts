@@ -359,7 +359,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
   {
     name: "parse_task",
     description:
-      "Turns a short task phrase ('call Anna tomorrow 3pm !high #work') into date, time, priority, tags and repetition, locally and without a model.",
+      "Turns a short task phrase ('call Anna tomorrow 3pm !!! #work') into date, time, priority, tags and repetition, locally and without a model. One to three exclamation marks standing alone set the priority: ! low, !! medium, !!! high.",
     risk: "read",
     input: z.object({ text: z.string().min(1).max(500), language: z.string().max(10).optional() }),
     dataClasses: [],
@@ -484,7 +484,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
   {
     name: "create_task",
     description:
-      "Drafts a new task in the user's own words, for example 'Call the roofer tomorrow 9:00 !high #house'. Plainva reads date, time, priority, tags and repetition from the words, as it does when the user captures a task; the task is created when the user says so.",
+      "Drafts a new task in the user's own words, for example 'Call the roofer tomorrow 9:00 !!! #house'. Plainva reads date, time, priority (one to three exclamation marks standing alone: ! low, !! medium, !!! high), tags and repetition from the words, as it does when the user captures a task; the task is created when the user says so.",
     risk: "write",
     input: z.object({ text: z.string().min(1).max(500).describe("The task as one line") }),
     dataClasses: [],

@@ -124,4 +124,34 @@ describe("system prompt", () => {
     expect(bound).toContain("search_mail lists messages from the user's mail; read_mail reports what one message says; get_event returns one appointment in detail");
     expect(bound).not.toContain("find_tools");
   });
+
+  it("tells a conversation that can propose what a proposal is — and one that cannot, that it changes nothing", () => {
+    const base = { language: "English", today: "2026-10-07" };
+    const own = ["search_vault", "find_tools", "call_tool"];
+    const cannot = "You cannot change notes, send anything or act outside this conversation. If the user asks for a change, show the proposed text in your answer.";
+    const all = assistantSystemPrompt({ ...base, tools: own, more: ["propose_edit", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note", "search_mail"] });
+    expect(all).toContain("You cannot change the vault, send anything or act outside this conversation on your own.");
+    expect(all).toContain(
+      "You can propose: a suggestion on a note that is there (its text), a draft of something new (a note, a task or a journal entry) or a plan to rename, move or delete a note.",
+    );
+    expect(all).toContain("until then nothing has changed");
+    expect(all).toContain("never that you changed, created or deleted something");
+    expect(all).not.toContain(cannot);
+    expect(all).toContain("Further tools exist, for example to propose a change to the vault, and for the user's mail: find_tools lists them");
+    // Only the forms its tools can make are named.
+    const one = assistantSystemPrompt({ ...base, tools: own, more: ["propose_edit", "set_property"] });
+    expect(one).toContain("You can propose: a suggestion on a note that is there (its text or one of its properties).");
+    expect(one).not.toContain("a draft of something new");
+    expect(one).not.toContain("a plan to");
+    const plans = assistantSystemPrompt({ ...base, tools: own, more: ["create_entry", "delete_note"] });
+    expect(plans).toContain("You can propose: a draft of something new (an entry of a database) or a plan to delete a note.");
+    // Without the way to call them, nothing is promised.
+    expect(assistantSystemPrompt({ ...base, tools: ["search_vault"], more: ["propose_edit"] })).toContain(cannot);
+    expect(assistantSystemPrompt({ ...base, tools: own, more: ["search_mail"] })).toContain(cannot);
+    // A conversation bound to a skill that names writing tools carries them itself — and is told the same.
+    const bound = assistantSystemPrompt({ ...base, tools: ["read_note", "propose_edit", "rename_note"] });
+    expect(bound).toContain("You can propose: a suggestion on a note that is there (its text) or a plan to rename a note.");
+    expect(bound).not.toContain(cannot);
+    expect(bound).not.toContain("Further tools");
+  });
 });

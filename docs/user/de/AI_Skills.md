@@ -1,6 +1,6 @@
 # Skills (Beta)
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt zwölf davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
@@ -38,6 +38,10 @@ Alle lesen nur: keiner ändert eine Notiz oder sendet etwas. Nur **Recherche** b
 Ein eigener Skill benutzt das Internet nur, wenn seine Zeile `allowed-tools` `web_search` oder `fetch_url` nennt. **Prüfen und freigeben** sagt dann **Nutzt das Internet, wo Du es für diesen Vault erlaubt hast.**, bevor Du ihn freigibst. Ein Skill, der keine Werkzeuge nennt, bringt das Internet nie mit.
 
 Ein Testlauf benutzt das Internet nie, und er fragt nie: E-Mails, die er in dieser Sitzung nicht lesen durfte, bleiben ungelesen.
+
+## Änderungen vorschlagen
+
+Ein eigener Skill schlägt Änderungen nur vor, wenn seine Zeile `allowed-tools` die Werkzeuge dafür nennt: `propose_edit` für Vorschläge an einer Notiz, `create_note`, `create_task` und `add_journal_entry` für Entwürfe, `rename_note`, `move_note` und `delete_note` für Pläne. **Prüfen und freigeben** nennt dann jedes von ihnen und sagt **Kann Änderungen vorschlagen, Entwürfe hinlegen und Pläne vorlegen. Im Vault ändert sich nichts, bevor Du übernimmst, anlegst oder bestätigst.** Ein Skill, der keine Werkzeuge nennt, schlägt nichts vor — auch einer, den Du früher freigegeben hast, gewinnt nichts dazu —, und ein Testlauf legt nichts hin. Was die drei Formen sind, steht unter **Änderungen vorschlagen** in [KI-Assistent](AI_Assistant.md).
 
 ## Eigene Skills
 

@@ -2,7 +2,7 @@ import type { Conversation, TextPart } from "./conversation.js";
 import { gateDecision, isCloudRecipient, redactDeniedLinks, type EgressRecipient, type GateDecision } from "./egressGate.js";
 import { isMcpExposedToolName } from "./mcp/names.js";
 import type { EffectivePolicy } from "./policy.js";
-import { DISPATCH_TOOL, FIND_TOOL, hasWebTools, MAIL_TOOL_NAMES } from "./tools.js";
+import { DISPATCH_TOOL, FIND_TOOL, hasWebTools, MAIL_TOOL_NAMES, WRITE_TOOL_NAMES } from "./tools.js";
 import { fenceUntrusted, payload, stripInvisible, UNTRUSTED_DATA_RULE } from "./trust.js";
 
 /**
@@ -53,6 +53,7 @@ const TOOL_LINES: Record<string, string> = {
 function furtherTools(more: readonly string[]): string | null {
   if (!more.length) return null;
   const kinds = [
+    more.some((name) => WRITE_TOOL_NAMES.includes(name)) ? "to propose a change to the vault" : "",
     more.some((name) => MAIL_TOOL_NAMES.includes(name)) ? "for the user's mail" : "",
     // Tools of foreign servers (plan KI-Harness P4.5): the conversation is told that there are some, never what they say of themselves.
     more.some(isMcpExposedToolName) ? "those of services the user connected" : "",
@@ -95,17 +96,52 @@ function webRules(tools: readonly string[]): string {
 }
 
 /**
+ * The writing tools a conversation reaches (plan KI-Harness P5): through its
+ * tool search, or — bound to a skill that names them — as its own.
+ */
+function writeToolsOf(input: SystemPromptInput): string[] {
+  const own = input.tools.filter((name) => WRITE_TOOL_NAMES.includes(name));
+  const found = input.tools.includes(DISPATCH_TOOL) ? (input.more ?? []).filter((name) => WRITE_TOOL_NAMES.includes(name)) : [];
+  return [...own, ...found.filter((name) => !own.includes(name))];
+}
+
+/**
+ * What such a conversation is told instead of "you cannot change notes".
+ * None of it is a control: a writing tool cannot change the vault whatever a
+ * model believes. But a model that knows the three forms says "I proposed"
+ * where it proposed, and does not tell the user that something was done.
+ */
+function canPropose(names: readonly string[]): string {
+  const has = (name: string) => names.includes(name);
+  const list = (items: (string | false)[], last: string) => {
+    const said = items.filter((item): item is string => Boolean(item));
+    return said.length > 1 ? `${said.slice(0, -1).join(", ")} ${last} ${said[said.length - 1]!}` : (said[0] ?? "");
+  };
+  const on = list([has("propose_edit") && "its text", has("set_property") && "one of its properties"], "or");
+  const fresh = list([has("create_note") && "a note", has("create_task") && "a task", has("add_journal_entry") && "a journal entry", has("create_entry") && "an entry of a database"], "or");
+  const plan = list([has("rename_note") && "rename", has("move_note") && "move", has("delete_note") && "delete"], "or");
+  const forms = list([on && `a suggestion on a note that is there (${on})`, fresh && `a draft of something new (${fresh})`, plan && `a plan to ${plan} a note`], "or");
+  return [
+    "You cannot change the vault, send anything or act outside this conversation on your own.",
+    `You can propose: ${forms}.`,
+    "The user accepts, creates or confirms each of them in Plainva; until then nothing has changed.",
+    "So say what you proposed and that it waits for the user — never that you changed, created or deleted something. Propose only what the user asked for.",
+  ].join(" ");
+}
+
+/**
  * The system prompt is fixed for the whole conversation (append-only): no
  * note text, nothing that changes from one turn to the next.
  */
 export function assistantSystemPrompt(input: SystemPromptInput): string {
   const web = hasWebTools(input.tools);
+  const writes = writeToolsOf(input);
   const lines = [
     "You are the assistant inside Plainva, an app for notes kept as Markdown files. The user's collection of notes is called the vault.",
     `Today is ${input.today}. Answer in ${input.language} unless the user writes in another language; then answer in theirs.`,
     UNTRUSTED_DATA_RULE,
     "When a statement rests on a note, name the note as a wikilink, for example [[Offer 2026]], so the user can open it. Do not invent notes, quotes or facts; say so when the vault does not answer the question.",
-    "You cannot change notes, send anything or act outside this conversation. If the user asks for a change, show the proposed text in your answer.",
+    writes.length ? canPropose(writes) : "You cannot change notes, send anything or act outside this conversation. If the user asks for a change, show the proposed text in your answer.",
     web
       ? "Do not include images. Link only to web addresses the user gave you or that a result in this conversation names."
       : "Do not include images, and do not link to web addresses the user did not give you.",

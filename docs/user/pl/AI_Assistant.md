@@ -2,7 +2,7 @@
 
 Stan na: 2026-10-07
 
-Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany w zaznaczonym fragmencie jako propozycje — sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
+Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
 ## Włączanie
 
@@ -43,7 +43,7 @@ Szóste miejsce, **Embeddingi**, zawiera model, którym liczy wyszukiwanie po zn
 - **Telefon:** **Zapytaj AI** w menu ⋮ notatki otwiera arkusz AI nad tą notatką. Obszar **AI** (w arkuszu obszarów albo na pasku nawigacji, jeśli zostanie tam umieszczony) pokazuje rozmowę na pełnym ekranie; **Rozmowy** pokazują wcześniejsze.
 - **Obok notatki:** na komputerze ta sama rozmowa jest ostatnią sekcją prawego paska bocznego, **AI**. Na telefonie lub tablecie to karta **AI** w kontekście notatki — obok **Właściwości** i **Linki zwrotne** — który tablet pokazuje obok notatki.
 
-Otwarta notatka jest dołączana automatycznie; można ją usunąć z kontekstu jej ✕, jeśli trzeba. **Przypnij notatkę…** dodaje kolejne notatki. Asystent potrafi też sam czegoś poszukać: przeszukuje vault, czyta notatki i ich sekcje, bazy danych, linki zwrotne i powiązane notatki, wyświetla listę zadań, spotkań oraz notatek niedawno otwartych lub zmienionych, a także otwiera notatki i widoki. Nie potrafi niczego zmienić, utworzyć ani usunąć.
+Otwarta notatka jest dołączana automatycznie; można ją usunąć z kontekstu jej ✕, jeśli trzeba. **Przypnij notatkę…** dodaje kolejne notatki. Asystent potrafi też sam czegoś poszukać: przeszukuje vault, czyta notatki i ich sekcje, bazy danych, linki zwrotne i powiązane notatki, wyświetla listę zadań, spotkań oraz notatek niedawno otwartych lub zmienionych, a także otwiera notatki i widoki. Sam nie potrafi niczego zmienić, utworzyć ani usunąć; to, co może zamiast tego zaproponować, opisano niżej, w części „Proponowanie zmian”.
 
 Asystent potrafi też coś Ci pokazać: otworzyć notatkę przy nagłówku, pokazać notatkę na grafie, ustawić kalendarz na wybrany dzień, otworzyć widoki, pokazać i ukryć paski boczne. Korzysta w tym celu z poleceń z palety poleceń — i to tylko z tych, które coś pokazują: tych, które tworzą, zmieniają, usuwają, eksportują albo otwierają okno, wywołać nie może.
 
@@ -183,6 +183,20 @@ Rozmowa rozpoczęta przez umiejętność, działanie na zaznaczeniu i odpowiedź
 
 Na komputerze Plainva może też uruchomić agenta AI innego producenta w folderze vaultu — program zainstalowany samodzielnie, do którego logujesz się samodzielnie. Taki agent nie jest asystentem: czyta i wysyła sam, a Twoje zasady prywatności i przegląd przed wysłaniem go nie obejmują. Co Plainva kontroluje w jego sesji, a czego nie: [Agenci zewnętrzni](External_Agents.md).
 
+## Proponowanie zmian
+
+Asystent może zaproponować więcej niż odpowiedź — i nic z tego, co proponuje, nie trafia do Twojego vaultu, dopóki tego nie powiesz. Są trzy formy, a każda czeka tam, gdzie o niej decydujesz.
+
+- **Propozycja w notatce.** Gdy poprosisz o zmianę w istniejącej notatce, asystent zostawia ją w notatce jako propozycje: na marginesie, podpisane „Plainva AI · ⟨model⟩”, każda zmiana do zaakceptowania lub odrzucenia osobno — tak jak propozycje człowieka, zobacz [Komentarze i propozycje](Comments_and_Suggestions.md). Pod odpowiedzią wiersz podaje nazwę notatki; naciśnięcie go otwiera notatkę. W ten sposób asystent proponuje zmiany w tekście notatki, nie w jej właściwościach.
+- **Szkic.** Nowa notatka, zadanie albo wpis dziennika pozostaje szkicem: karta pod odpowiedzią mówi, czym by się stał i dokąd by trafił. **Utwórz** go tworzy — notatkę w folderze podanym na karcie (**Folder skrzynki**, jeśli asystent nie wskazał innego), zadanie odczytane z jego słów tak, jakby zostały wpisane w pole szybkiego dodawania, wpis w dzienniku dnia podanego na karcie. **Pokaż** rozwija najpierw tekst notatki; **Odrzuć** wyrzuca szkic. Notatka utworzona ze szkicu mówi, kto ją napisał (`generated`, zobacz [OKF](OKF.md)), i wymienia notatki, na których opierała się rozmowa. Tam, gdzie nowe zadania trafiają także na listę zadań Twojego dostawcy, karta zadania ma przełącznik pola szybkiego dodawania, **Twórz też w „…”**: jest włączony, a zadanie zostanie utworzone także tam, chyba że go wyłączysz.
+- **Plan.** Zmiany nazwy, przeniesienia ani usunięcia notatki nie da się sprawdzić kawałek po kawałku, więc asystent pyta: pytanie nad polem wprowadzania pokazuje, co by się stało — nową nazwę oraz ile linków w ilu notatkach za nią podąży, albo folder docelowy, z ostrzeżeniem, jeśli notatka straciłaby przy tym zasadę prywatności swojego folderu. Po Twoim „tak” Plainva robi to tak, jak wtedy, gdy robisz to samodzielnie; asystent dowiaduje się tylko, czy to nastąpiło. Przy usuwaniu pytanie jedynie otwiera okno usuwania Plainva: nic nie znika, zanim tam nie potwierdzisz.
+
+Wszystko, co czeka, znajduje się na jednej liście: **Oczekujące**, segment karty AI na desktopie i ekranu **Rozmowy** na telefonie. Lista wymienia notatki, w których leżą propozycje AI, oraz szkice tego urządzenia, każdy z informacją, kto go zostawił. Szkice są przechowywane na urządzeniu, na którym powstały, tak jak rozmowy; propozycje należą do komentarzy notatki i razem z nimi docierają na Twoje pozostałe urządzenia.
+
+Trzy ograniczenia obowiązują niezależnie od tego, o co poprosisz asystenta. Adres internetowy, który asystent wnosi do propozycji lub szkicu, jest zapisywany tak, aby nic go nie otwierało ani nie wczytywało (`https[://]…`); adres wpisany przez Ciebie pozostaje bez zmian. Rozmowa, która przeczytała notatkę trzymaną z dala od chmury lub od internetu, zostawia propozycję, zadanie albo wpis dziennika tylko tam, gdzie obowiązuje ta sama zasada — szkic notatki zabiera zasadę ze sobą. A w zaszyfrowanym obszarze roboczym niczego się nie proponuje, nie szkicuje ani nie planuje.
+
+Umiejętność ma te możliwości tylko wtedy, gdy je wymienia, a jej sprawdzenie to pokazuje — zobacz [Umiejętności](AI_Skills.md).
+
 ## Zachowywanie odpowiedzi jako notatki
 
 Pod każdą gotową odpowiedzią **Zachowaj jako notatkę** zamienia odpowiedź w notatkę w Twoim vaulcie. Ty naciskasz, a notatkę zapisuje Plainva — sam asystent nadal niczego nie zmienia.
@@ -221,6 +235,6 @@ Rozmowy zostają na tym urządzeniu, dla każdego vaultu — nigdy w vaulcie i n
 
 - Na komputerze AI działa tylko w głównym oknie.
 - Na telefonie odpowiedź pojawia się tylko, gdy aplikacja jest otwarta.
-- Asystent sam nie zmienia żadnej notatki: proponuje zmiany w zaznaczonym fragmencie i transkrypcje notatek głosowych, jako propozycje do zaakceptowania lub odrzucenia; w wątku komentarzy pisze odpowiedź obok notatki, nigdy tekst w niej. Odpowiedź staje się notatką tylko wtedy, gdy naciśniesz **Zachowaj jako notatkę**; wtedy zapisuje ją Plainva, nie asystent.
+- Asystent sam nie zmienia żadnej notatki: zmiana w notatce i transkrypcja notatki głosowej to propozycje do zaakceptowania lub odrzucenia, coś nowego jest szkicem, dopóki nie naciśniesz **Utwórz**, a zmiana nazwy, przeniesienie i usunięcie czekają na Twoje „tak”; w wątku komentarzy pisze odpowiedź obok notatki, nigdy tekst w niej. Odpowiedź staje się notatką tylko wtedy, gdy naciśniesz **Zachowaj jako notatkę**; wtedy zapisuje ją Plainva, nie asystent.
 
 Opinie o wersji beta trafiają do dyskusji projektu na GitHubie: **Opinie o AI (beta)** w ustawieniach rozpoczyna nową.

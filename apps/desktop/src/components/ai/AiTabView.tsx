@@ -4,7 +4,10 @@ import { MessageSquare, MoreHorizontal, SquarePen } from "lucide-react";
 import {
   AiAgentView,
   AiConversation,
+  AiOpenPanel,
   Button,
+  openWritesCount,
+  useOpenProposals,
   conversationRowActions,
   EmptyState,
   ICON,
@@ -58,7 +61,9 @@ export function AiTabView({
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: ConversationRowCaps } | null>(null);
   // The workshop (plan KI-Harness P3-5) beside the conversation; the settings may ask for it, with one review.
   // And an external agent's place (plan P4.6): a session of its own, apart from the assistant's conversations.
-  const [view, setView] = useState<"chats" | "skills" | "agent">("chats");
+  // And everything that waits for the user (plan P5): the drafts of this device, the notes with a machine's open proposals.
+  const [view, setView] = useState<"chats" | "skills" | "agent" | "open">("chats");
+  const proposals = useOpenProposals(session);
   const [review, setReview] = useState<string | null>(null);
   useEffect(() => {
     const take = () => {
@@ -89,6 +94,7 @@ export function AiTabView({
   }, [session, query, summaries]);
 
   if (!session || !state) return null;
+  const waiting = openWritesCount(state.drafts, proposals);
   const list = shown === null ? state.summaries : state.summaries.filter((s) => shown.includes(s.id));
   const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" });
 
@@ -124,6 +130,7 @@ export function AiTabView({
             { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-tab-skills" },
             // Only where this window hosts agents at all (the desktop's central window).
             ...(state.agents.available ? [{ value: "agent" as const, label: t("ai.agent.segment"), testId: "ai-tab-agent" }] : []),
+            { value: "open", label: waiting ? `${t("ai.write.open.segment")} · ${waiting}` : t("ai.write.open.segment"), testId: "ai-tab-waiting" },
           ]}
         />
         {/* A new conversation is the assistant's; an agent's session starts and ends in its own place. */}
@@ -184,6 +191,8 @@ export function AiTabView({
             <SkillsWorkshop onOpenFile={onOpenPath} onRun={() => setView("chats")} review={review} onReviewOpened={reviewOpened} />
           ) : view === "agent" ? (
             <AiAgentView activeNote={activeNote} onOpenNote={onOpenNote} onOpenPath={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} />
+          ) : view === "open" ? (
+            <AiOpenPanel session={session} state={state.drafts} proposals={proposals} onOpenNote={onOpenPath} onOpenCreated={onOpenPath} />
           ) : (
             <AiConversation selection={editorSelectionReader} dress="tab" activeNote={activeNote} onOpenNote={onOpenNote} onOpenCreated={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} onPickNote={onPickNote} />
           )}

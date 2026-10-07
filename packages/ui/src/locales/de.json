@@ -39,7 +39,16 @@
       "search_mail": "Durchsucht E-Mails",
       "read_mail": "Liest eine E-Mail",
       "find_tools": "Sucht weitere Werkzeuge",
-      "call_tool": "Nutzt ein weiteres Werkzeug"
+      "call_tool": "Nutzt ein weiteres Werkzeug",
+      "propose_edit": "Schlägt Änderungen an einer Notiz vor",
+      "set_property": "Schlägt einen Eigenschaftswert vor",
+      "create_note": "Entwirft eine Notiz",
+      "create_task": "Entwirft eine Aufgabe",
+      "add_journal_entry": "Entwirft einen Journal-Eintrag",
+      "create_entry": "Entwirft einen Datenbank-Eintrag",
+      "rename_note": "Legt einen Plan zum Umbenennen vor",
+      "move_note": "Legt einen Plan zum Verschieben vor",
+      "delete_note": "Bittet darum, eine Notiz zu löschen"
     },
     "stopped": {
       "cancelled": "Angehalten.",
@@ -659,6 +668,7 @@
       "mayReadOnly": "Ändert nichts, sendet nichts.",
       "mayWeb": "Nutzt das Internet, wo Du es für diesen Vault erlaubt hast. Solange Notizen im Gespräch sind, fragt jede Seite und jede Suche vorher.",
       "mayNoChange": "Ändert nichts.",
+      "mayPropose": "Kann Änderungen vorschlagen, Entwürfe hinlegen und Pläne vorlegen. Im Vault ändert sich nichts, bevor Du übernimmst, anlegst oder bestätigst.",
       "mayAgents": "Stehende Anweisungen für jedes neue Gespräch in diesem Vault. Deine Datenschutzregeln kann sie nicht aufheben.",
       "originApp": "Kommt mit Plainva",
       "originPath": "Liegt in {{path}}",
@@ -1211,6 +1221,85 @@
       "noneSealed": "Der offene Vault ist ein verschlüsselter Workspace. Keiner seiner Titel wird weitergegeben.",
       "noneRules": "Plainva versteht einige Zeilen von .agent/policy.yml nicht oder kann die Datei nicht lesen. Bis das behoben ist, wird kein Titel weitergegeben.",
       "noneEmpty": "Gerade wird kein Titel weitergegeben."
+    },
+    "write": {
+      "proposedIn": "Vorgeschlagen in „{{name}}“: {{what}}",
+      "passages_one": "{{count}} Textstelle",
+      "passages_other": "{{count}} Textstellen",
+      "properties_one": "{{count}} Eigenschaft",
+      "properties_other": "{{count}} Eigenschaften",
+      "draft": {
+        "kind": {
+          "note": "Entwurf · Notiz",
+          "task": "Entwurf · Aufgabe",
+          "journal": "Entwurf · Journal-Eintrag",
+          "entry": "Entwurf · Datenbank-Eintrag"
+        },
+        "what": {
+          "note": "Notiz",
+          "task": "Aufgabe",
+          "journal": "Eintrag",
+          "entry": "Eintrag"
+        },
+        "landsIn": "Landet in",
+        "inbox": "Eingangsordner",
+        "readFrom": "Entworfen am",
+        "day": "Tag",
+        "words": "Wortlaut",
+        "by": "Von",
+        "inherits": "Die Notiz bekommt die Datenschutzregeln der Notizen, auf denen sie beruht.",
+        "defused": "Webadressen, die die KI mitgebracht hat, stehen darin als Text.",
+        "show": "Ansehen",
+        "hide": "Ausblenden",
+        "discard": "Verwerfen",
+        "create": "Anlegen",
+        "created": "Angelegt: {{name}}",
+        "discarded": "Verworfen: {{name}}",
+        "createdToast": "Angelegt.",
+        "failed": "Der Entwurf ließ sich nicht anlegen: {{reason}}",
+        "unavailable": "Das lässt sich auf diesem Gerät nicht anlegen."
+      },
+      "plan": {
+        "renameTitle": "Umbenennen?",
+        "moveTitle": "Verschieben?",
+        "deleteTitle": "Die KI bittet darum, eine Notiz zu löschen",
+        "note": "Notiz",
+        "newName": "Neuer Name",
+        "folder": "Zielordner",
+        "vaultRoot": "Oberste Ebene des Vaults",
+        "links": "Links",
+        "linksNone": "Keine andere Notiz verlinkt hierher.",
+        "linksIn": "{{links}} in {{notes}} — sie folgen dem neuen Namen",
+        "linkCount_one": "{{count}} Link",
+        "linkCount_other": "{{count}} Links",
+        "noteCount_one": "{{count}} Notiz",
+        "noteCount_other": "{{count}} Notizen",
+        "moreNotes_one": "und {{count}} weitere Notiz",
+        "moreNotes_other": "und {{count}} weitere Notizen",
+        "loosens": "Im Zielordner gilt für die Notiz nicht mehr: {{rules}}.",
+        "rule": {
+          "cloud": "nie in die Cloud",
+          "web": "nie zusammen mit dem Internet"
+        },
+        "renameHint": "Plainva benennt um und zieht die Links nach — wie beim Umbenennen von Hand. Die KI erfährt nur, ob es geschehen ist.",
+        "moveHint": "Plainva verschiebt die Notiz — wie beim Verschieben von Hand. Die KI erfährt nur, ob es geschehen ist.",
+        "deleteHint": "Gelöscht wird nur über den Löschdialog von Plainva. Er zeigt, was mitginge, und nichts verschwindet, bevor Du dort bestätigst.",
+        "rename": "Umbenennen",
+        "noRename": "Nicht umbenennen",
+        "move": "Verschieben",
+        "noMove": "Nicht verschieben",
+        "openDelete": "Löschdialog öffnen",
+        "noDelete": "Nicht löschen"
+      },
+      "open": {
+        "segment": "Offen",
+        "proposals": "Vorschläge an Notizen",
+        "empty": "Nichts wartet auf Dich",
+        "emptyHint": "Was eine KI vorschlägt oder entwirft, steht hier, bis Du entschieden hast.",
+        "hint": "Hier steht, was jemand hingelegt hat, der nicht Du bist. Nichts davon ist im Vault, bis Du übernimmst oder anlegst. Entwürfe liegen auf diesem Gerät, Vorschläge an ihrer Notiz.",
+        "changes_one": "{{count}} Änderung",
+        "changes_other": "{{count}} Änderungen"
+      }
     },
     "transcribe": {
       "action": "Transkribieren",

@@ -2,7 +2,7 @@
 
 Última revisão: 2026-10-07
 
-O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações em um trecho selecionado como sugestões — nunca muda uma nota sozinho. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
+O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações — como sugestões em uma nota, como rascunhos de algo novo ou como um plano que você confirma. Ele nunca muda uma nota sozinho. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
 
 ## Ativando
 
@@ -43,7 +43,7 @@ Um sexto espaço, **Embeddings**, guarda o modelo com que a pesquisa por signifi
 - **Celular:** **Perguntar à IA** no menu ⋮ de uma nota abre a folha de IA sobre essa nota. A área **IA** (na folha de áreas, ou na barra de navegação se você a colocar lá) mostra a conversa em tela cheia; **Conversas** lista as anteriores.
 - **Ao lado da nota:** no desktop, a mesma conversa é a última seção da barra lateral direita, **IA**. No celular ou no tablet, é a aba **IA** do contexto da nota — ao lado de **Propriedades** e **Backlinks** —, que um tablet mostra ao lado da nota.
 
-A nota que você tem aberta vai junto automaticamente; remova-a do contexto com o ✕ dela, se quiser. **Fixar nota…** adiciona mais notas. O assistente também pode pesquisar por conta própria: ele pesquisa no vault, lê notas e suas seções, bancos de dados, backlinks e notas vinculadas, lista tarefas, compromissos e as notas abertas ou alteradas há pouco, e abre notas e visualizações. Ele não pode mudar, criar ou excluir nada.
+A nota que você tem aberta vai junto automaticamente; remova-a do contexto com o ✕ dela, se quiser. **Fixar nota…** adiciona mais notas. O assistente também pode pesquisar por conta própria: ele pesquisa no vault, lê notas e suas seções, bancos de dados, backlinks e notas vinculadas, lista tarefas, compromissos e as notas abertas ou alteradas há pouco, e abre notas e visualizações. Sozinho, ele não pode mudar, criar ou excluir nada; o que ele pode propor no lugar está descrito mais abaixo, em “Propor alterações”.
 
 O assistente também pode mostrar coisas a você: abrir uma nota em um título, mostrar uma nota no grafo, levar o calendário até um dia, abrir visualizações, mostrar e ocultar as barras laterais. Para isso, usa os comandos da paleta de comandos — e, deles, só os que mostram algo: não pode acionar os que criam, alteram, excluem, exportam ou abrem uma janela.
 
@@ -183,6 +183,20 @@ Uma conversa iniciada por uma habilidade, uma ação em uma seleção e uma resp
 
 No desktop, o Plainva também pode iniciar um agente de IA de outro fabricante na pasta do vault — um programa que você instalou e no qual você mesmo fez login. Um agente assim não é o assistente: ele lê e envia por conta própria, e suas regras de privacidade e o resumo antes do envio não o alcançam. O que o Plainva controla na sessão dele e o que não controla: [Agentes externos](External_Agents.md).
 
+## Propor alterações
+
+O assistente pode propor mais do que uma resposta — e nada do que ele propõe está no seu vault até você dizer. Há três formas, e cada uma espera onde você decide sobre ela.
+
+- **Uma sugestão em uma nota.** Se você pede uma alteração em uma nota que já existe, o assistente a deixa na nota como sugestões: na margem, assinadas “Plainva IA · ⟨modelo⟩”, cada alteração para aceitar ou recusar separadamente — como as sugestões de uma pessoa, veja [Comentários e sugestões](Comments_and_Suggestions.md). Abaixo da resposta, uma linha nomeia a nota; pressione-a para abrir a nota. Assim o assistente propõe alterações no texto de uma nota, não nas propriedades dela.
+- **Um rascunho.** Uma nota nova, uma tarefa ou uma entrada de diário fica como rascunho: um cartão abaixo da resposta diz o que ele se tornaria e para onde iria. **Criar** faz isso — a nota na pasta que o cartão nomeia (a **Pasta de entrada**, se o assistente não nomeou outra), a tarefa lida a partir das palavras dela como se você as tivesse digitado no campo de captura, a entrada no diário do dia indicado no cartão. **Mostrar** abre antes o texto de uma nota; **Descartar** joga o rascunho fora. Uma nota criada a partir de um rascunho diz quem a escreveu (`generated`, veja [OKF](OKF.md)) e nomeia as notas em que a conversa se apoiou. Onde suas novas tarefas também vão para uma lista de tarefas do seu provedor, o cartão de uma tarefa traz a chave do campo de captura, **Criar também em “…”**: ela fica ligada, e a tarefa é criada lá também, a menos que você a desligue.
+- **Um plano.** Renomear, mover ou excluir uma nota não pode ser revisado parte por parte, então o assistente pergunta: uma pergunta acima do campo de entrada mostra o que aconteceria — o novo nome e quantos links em quantas notas o seguem, ou a pasta de destino, com um aviso se a nota perder com isso uma regra de privacidade da pasta dela. Depois do seu sim, o Plainva faz isso como quando você mesmo faz; o assistente só fica sabendo se aconteceu. Para uma exclusão, a pergunta apenas abre a caixa de diálogo de exclusão do próprio Plainva: nada desaparece antes de você confirmar ali.
+
+Tudo o que espera fica em uma lista: **Pendentes**, um segmento da aba de IA no desktop e de **Conversas** no celular. Ela nomeia as notas que carregam sugestões de uma IA e os rascunhos deste dispositivo, cada um com quem o deixou. Os rascunhos ficam no dispositivo em que foram feitos, como as conversas; as sugestões fazem parte dos comentários da nota e chegam com eles aos seus outros dispositivos.
+
+Três limites valem seja o que for que se peça ao assistente. Um endereço da web que ele traz para uma sugestão ou um rascunho é escrito de modo que nada o abra nem o carregue (`https[://]…`); um endereço que você mesmo digitou fica como está. Uma conversa que leu uma nota mantida fora da nuvem ou da internet só deixa uma sugestão, uma tarefa ou uma entrada de diário onde vale a mesma regra — uma nota em rascunho leva a regra junto. E em um workspace criptografado nada é proposto, rascunhado nem planejado.
+
+Uma habilidade só tem essas capacidades quando as nomeia, e a revisão dela diz isso — veja [Habilidades](AI_Skills.md).
+
 ## Manter uma resposta como nota
 
 Abaixo de cada resposta concluída, **Manter como nota** transforma a resposta em uma nota do seu vault. Você pressiona e o Plainva escreve a nota — o assistente em si continua não mudando nada.
@@ -221,6 +235,6 @@ As conversas ficam neste dispositivo, por vault — nunca no vault e nunca sincr
 
 - No desktop, a IA roda apenas na janela principal.
 - No celular, uma resposta só chega enquanto o Plainva estiver aberto.
-- O assistente não muda nenhuma nota sozinho: propõe alterações em um trecho selecionado e transcrições de notas de voz, como sugestões que você aceita ou recusa; em um tópico de comentários ele escreve uma resposta ao lado da nota, nunca texto dentro dela. Uma resposta só vira nota quando você pressiona **Manter como nota**; é então que o Plainva a escreve, não o assistente.
+- O assistente não muda nenhuma nota sozinho: uma alteração em uma nota e a transcrição de uma nota de voz são sugestões que você aceita ou recusa, o que é novo é um rascunho até você pressionar **Criar**, e renomear, mover ou excluir esperam o seu sim; em um tópico de comentários ele escreve uma resposta ao lado da nota, nunca texto dentro dela. Uma resposta só vira nota quando você pressiona **Manter como nota**; é então que o Plainva a escreve, não o assistente.
 
 O feedback sobre a beta vai para as discussões do projeto no GitHub: **Feedback sobre a IA (beta)** nas configurações abre uma.

@@ -37,7 +37,16 @@
       "search_mail": "正在搜索邮件",
       "read_mail": "正在读取一封邮件",
       "find_tools": "正在查找其他工具",
-      "call_tool": "正在使用另一个工具"
+      "call_tool": "正在使用另一个工具",
+      "propose_edit": "正在为笔记提出修改建议",
+      "set_property": "正在建议属性值",
+      "create_note": "正在起草笔记",
+      "create_task": "正在起草任务",
+      "add_journal_entry": "正在起草日志条目",
+      "create_entry": "正在起草数据库条目",
+      "rename_note": "正在提交重命名计划",
+      "move_note": "正在提交移动计划",
+      "delete_note": "正在请求删除笔记"
     },
     "stopped": {
       "cancelled": "已停止。",
@@ -639,6 +648,7 @@
       "mayReadOnly": "不更改任何内容，不发送任何内容。",
       "mayWeb": "在你为此仓库允许的范围内使用互联网。只要对话中有笔记，每个网页和每次搜索都会先询问。",
       "mayNoChange": "不更改任何内容。",
+      "mayPropose": "可以提出修改建议、留下草稿并提交计划。在你采纳、创建或确认之前，仓库不会有任何改动。",
       "mayAgents": "此仓库中每个新对话的常设指令。它们不能解除你的隐私规则。",
       "originApp": "Plainva自带",
       "originPath": "位于{{path}}",
@@ -1184,6 +1194,79 @@
       "noneSealed": "已打开的仓库是加密工作区，它的标题一个也不会传出。",
       "noneRules": "Plainva无法理解.agent/policy.yml中的部分行，或无法读取该文件。在修复之前，不会传出任何标题。",
       "noneEmpty": "目前没有传出任何标题。"
+    },
+    "write": {
+      "proposedIn": "已在“{{name}}”中提出建议：{{what}}",
+      "passages_other": "{{count}}处正文",
+      "properties_other": "{{count}}项属性",
+      "draft": {
+        "kind": {
+          "note": "草稿 · 笔记",
+          "task": "草稿 · 任务",
+          "journal": "草稿 · 日志条目",
+          "entry": "草稿 · 数据库条目"
+        },
+        "what": {
+          "note": "笔记",
+          "task": "任务",
+          "journal": "条目",
+          "entry": "条目"
+        },
+        "landsIn": "存放位置",
+        "inbox": "收件箱文件夹",
+        "readFrom": "起草日期",
+        "day": "日期",
+        "words": "原文",
+        "by": "来自",
+        "inherits": "这条笔记会沿用其所依据笔记的隐私规则。",
+        "defused": "AI带来的网址在其中以纯文本显示。",
+        "show": "显示",
+        "hide": "隐藏",
+        "discard": "放弃",
+        "create": "创建",
+        "created": "已创建：{{name}}",
+        "discarded": "已放弃：{{name}}",
+        "createdToast": "已创建。",
+        "failed": "无法创建草稿：{{reason}}",
+        "unavailable": "此设备上无法创建。"
+      },
+      "plan": {
+        "renameTitle": "要重命名吗？",
+        "moveTitle": "要移动吗？",
+        "deleteTitle": "AI请求删除一条笔记",
+        "note": "笔记",
+        "newName": "新名称",
+        "folder": "目标文件夹",
+        "vaultRoot": "仓库顶层",
+        "links": "链接",
+        "linksNone": "没有其他笔记链接到这里。",
+        "linksIn": "{{notes}}中的{{links}}——它们会随新名称更新",
+        "linkCount_other": "{{count}}个链接",
+        "noteCount_other": "{{count}}条笔记",
+        "moreNotes_other": "另有{{count}}条笔记",
+        "loosens": "在目标文件夹中，这条笔记不再适用：{{rules}}。",
+        "rule": {
+          "cloud": "绝不发送到云端",
+          "web": "绝不与互联网同时使用"
+        },
+        "renameHint": "Plainva会重命名笔记并更新链接——与你手动重命名时一样。AI只会得知是否已执行。",
+        "moveHint": "Plainva会移动笔记——与你手动移动时一样。AI只会得知是否已执行。",
+        "deleteHint": "笔记只能通过Plainva的删除对话框删除。对话框会显示将一并删除的内容，在你确认之前不会有任何内容消失。",
+        "rename": "重命名",
+        "noRename": "不重命名",
+        "move": "移动",
+        "noMove": "不移动",
+        "openDelete": "打开删除对话框",
+        "noDelete": "不删除"
+      },
+      "open": {
+        "segment": "待处理",
+        "proposals": "笔记上的建议",
+        "empty": "没有等待你决定的内容",
+        "emptyHint": "AI提出的建议或起草的内容会保留在这里，直到你做出决定。",
+        "hint": "这里显示的是由他人（而非你）留下的内容。在你采纳或创建之前，这些内容都不在仓库中。草稿保存在此设备上，建议保存在各自的笔记上。",
+        "changes_other": "{{count}}处修改"
+      }
     },
     "transcribe": {
       "action": "转写",

@@ -1,6 +1,6 @@
 # Habilidades (Beta)
 
-Última revisão: 2026-10-06
+Última revisão: 2026-10-07
 
 Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz doze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
 
@@ -38,6 +38,10 @@ Todas apenas leem: nenhuma altera uma nota ou envia algo. Só **Investigar** usa
 Uma habilidade sua só usa a internet quando a linha `allowed-tools` dela nomeia `web_search` ou `fetch_url`. **Revisar e aprovar** então diz **Usa a internet onde você a permitiu para este vault.** antes de você aprová-la. Uma habilidade que não nomeia ferramentas nunca traz a internet junto.
 
 Uma execução de teste nunca usa a internet e nunca pergunta: o e-mail que ela não tinha permissão para ler nesta sessão continua não lido.
+
+## Propor alterações
+
+Uma habilidade sua só propõe alterações quando a linha `allowed-tools` dela nomeia as ferramentas para isso: `propose_edit` para sugestões em uma nota, `create_note`, `create_task` e `add_journal_entry` para rascunhos, `rename_note`, `move_note` e `delete_note` para planos. **Revisar e aprovar** então nomeia cada uma delas e diz **Pode sugerir alterações, deixar rascunhos e apresentar planos. Nada muda no vault antes de você aceitar, criar ou confirmar.** Uma habilidade que não nomeia ferramentas não propõe nada — uma que você aprovou antes também não ganha nada —, e uma execução de teste não deixa nada. O que são as três formas: **Propor alterações** em [Assistente de IA](AI_Assistant.md).
 
 ## Suas próprias habilidades
 

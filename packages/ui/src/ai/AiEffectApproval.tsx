@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Globe, Mail, Plug, TriangleAlert, Users } from "lucide-react";
+import { FolderInput, Globe, Mail, PencilLine, Plug, TriangleAlert, Users } from "lucide-react";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
 import { cx } from "../components/ui/cx";
@@ -132,11 +132,100 @@ function AiExternalCallApproval({ request, onAnswer, touch }: { request: Extract
   );
 }
 
+const noteName = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+
+/** The notes a rename's card names; the rest is a count. */
+const PLAN_FILES_SHOWN = 6;
+
+/**
+ * A plan (plan KI-Harness P5, ADR 0019 §2): what cannot be reviewed part by
+ * part — a rename, a move, a deletion. The run waits here, above the
+ * composer, and the card shows what would happen: the new name with every
+ * note whose links change, the folder, or the note that would go. A yes lets
+ * the app's own operation do it; for a deletion it opens the app's delete
+ * dialog, and nothing is gone before the user confirms there.
+ *
+ * Everything on the card is for the user: the model is told the outcome and
+ * nothing else — not which notes link here, not which rule a folder has.
+ */
+function AiPlanApproval({ request, onAnswer, touch }: { request: Extract<EffectRequest, { kind: "plan" }>; onAnswer: (answer: EffectAnswer) => void; touch?: boolean }) {
+  const { t } = useTranslation();
+  const question = request.question;
+  const title = t(question.plan === "rename" ? "ai.write.plan.renameTitle" : question.plan === "move" ? "ai.write.plan.moveTitle" : "ai.write.plan.deleteTitle");
+  const folderOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf("/")));
+  const Icon = question.plan === "rename" ? PencilLine : question.plan === "move" ? FolderInput : TriangleAlert;
+  return (
+    <section className={cx("pv-ai-overview", "pv-ai-overview--asking", touch && "pv-ai-overview--touch")} aria-label={title} data-testid="ai-effect" data-kind="plan" data-plan={question.plan}>
+      <h4 className="pv-ai-overview-head">
+        <Icon size={ICON.ui} aria-hidden="true" />
+        <span>{title}</span>
+      </h4>
+      <dl className="pv-ai-overview-list">
+        <dt>{t("ai.write.plan.note")}</dt>
+        <dd data-testid="ai-effect-note">
+          {noteName(question.path)}
+          {folderOf(question.path) ? ` · ${folderOf(question.path)}` : ""}
+        </dd>
+        {question.plan === "rename" && (
+          <>
+            <dt>{t("ai.write.plan.newName")}</dt>
+            <dd data-testid="ai-effect-target">{question.title}</dd>
+            <dt>{t("ai.write.plan.links")}</dt>
+            <dd data-testid="ai-effect-links">
+              {question.links === 0
+                ? t("ai.write.plan.linksNone")
+                : t("ai.write.plan.linksIn", { links: t("ai.write.plan.linkCount", { count: question.links }), notes: t("ai.write.plan.noteCount", { count: question.files.length }) })}
+            </dd>
+          </>
+        )}
+        {question.plan === "move" && (
+          <>
+            <dt>{t("ai.write.plan.folder")}</dt>
+            <dd data-testid="ai-effect-target">{question.folder || t("ai.write.plan.vaultRoot")}</dd>
+          </>
+        )}
+      </dl>
+      {question.plan === "rename" && question.files.length > 0 && (
+        <ul className="pv-ai-overview-sources" data-testid="ai-effect-files">
+          {question.files.slice(0, PLAN_FILES_SHOWN).map((file) => (
+            <li key={file.path}>
+              <span className="pv-ai-overview-note">{file.path.replace(/\.md$/i, "")}</span>
+              <span className="pv-ai-overview-form">{t("ai.write.plan.linkCount", { count: file.links })}</span>
+            </li>
+          ))}
+          {question.files.length > PLAN_FILES_SHOWN && (
+            <li>
+              <span className="pv-ai-overview-form">{t("ai.write.plan.moreNotes", { count: question.files.length - PLAN_FILES_SHOWN })}</span>
+            </li>
+          )}
+        </ul>
+      )}
+      {question.plan === "move" && question.loosens.length > 0 && (
+        <span className="pv-ai-effect-warn" data-testid="ai-effect-loosens">
+          <TriangleAlert size={ICON.meta} aria-hidden="true" />
+          <span>{t("ai.write.plan.loosens", { rules: question.loosens.map((rule) => t(`ai.write.plan.rule.${rule}`)).join(" · ") })}</span>
+        </span>
+      )}
+      <span className="pv-ai-overview-hint">{t(question.plan === "rename" ? "ai.write.plan.renameHint" : question.plan === "move" ? "ai.write.plan.moveHint" : "ai.write.plan.deleteHint")}</span>
+      <div className="pv-ai-overview-actions">
+        <Button variant="ghost" onClick={() => onAnswer("deny")} data-testid="ai-effect-deny">
+          {t(question.plan === "rename" ? "ai.write.plan.noRename" : question.plan === "move" ? "ai.write.plan.noMove" : "ai.write.plan.noDelete")}
+        </Button>
+        {/* A deletion is not this card's to carry out: the button opens the app's own dialog. */}
+        <Button variant={question.plan === "delete" ? "secondary" : "primary"} onClick={() => onAnswer("once")} data-testid="ai-effect-once">
+          {t(question.plan === "rename" ? "ai.write.plan.rename" : question.plan === "move" ? "ai.write.plan.move" : "ai.write.plan.openDelete")}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export function AiEffectApproval({ request, onAnswer, touch }: AiEffectApprovalProps) {
   const { t } = useTranslation();
   if (request.kind === "data") return <AiDataApproval request={request} onAnswer={onAnswer} touch={touch} />;
   if (request.kind === "write") return <AiWriteApproval request={request} onAnswer={onAnswer} touch={touch} />;
   if (request.kind === "mcp") return <AiExternalCallApproval request={request} onAnswer={onAnswer} touch={touch} />;
+  if (request.kind === "plan") return <AiPlanApproval request={request} onAnswer={onAnswer} touch={touch} />;
   const fetch = request.kind === "fetch";
   const title = fetch ? t("ai.web.ask.fetchTitle") : t("ai.web.ask.searchTitle");
   return (

@@ -20,6 +20,7 @@ import { AiPicture } from "./AiPicture";
 import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAction, type SelectionReader } from "./aiSelectionActions";
 import { startableSkills } from "./aiSkills";
 import { AiSendOverview } from "./AiSendOverview";
+import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { aiFailureText } from "./aiSettingsModel";
 import type { AiDress } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
@@ -137,6 +138,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
 
   // The send overview is answered here: a door outside the conversation relies on the session knowing one is on screen.
   useEffect(() => session?.mountSurface(), [session]);
+  // "Create" on a draft makes the thing and opens it, like a note the user made themselves.
+  const draftActions = useDraftActions(session, onOpenCreated ?? onOpenNote);
 
   if (!session || !state || !state.loaded) return null;
 
@@ -393,6 +396,10 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               </Button>
             ) : (
               <span className="pv-ai-runline">{runLine(item.run, coverage)}</span>
+            )}
+            {/* What the run laid down for the user to decide (plan P5): the notes that carry its proposals, and its drafts. */}
+            {item.run.writes && (
+              <AiRunWrites writes={item.run.writes} state={state.drafts} canCreate={draftActions.canCreate} busy={draftActions.busy || running} onOpenNote={onOpenNote} onCreate={draftActions.create} onDiscard={draftActions.discard} taskList={draftActions.taskList} touch={touch} />
             )}
             {/* The answer becomes a note of the vault, with what it rests on (plan P4-6): the user's own step, never the model's. */}
             {canCapture && item.run.stop === "answered" && answer !== null && (

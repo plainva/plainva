@@ -1,0 +1,62 @@
+import { EFFECT_DECLINED } from "../orchestrator.js";
+import type { NoteEditProblem } from "./edits.js";
+
+/**
+ * What a writing tool answers a model with (plan KI-Harness P5): Plainva's
+ * own sentences, in English because a model reads them, and fixed — nothing
+ * of a note, of a path the model did not name itself, or of a rule is ever
+ * part of one. The user reads what happened in their own language, from the
+ * run's record; these are for the model alone.
+ *
+ * A note the rules keep from this recipient is answered exactly like a note
+ * that is not there, here as for every read: `no-note`.
+ */
+export const WRITE_REFUSALS = {
+  unavailable: "Plainva takes no changes from an assistant in this vault.",
+  sealed: "This vault is an encrypted workspace. Nothing is proposed, drafted or planned in it.",
+  "no-note": "No note is available at this path.",
+  "not-a-note": "Plainva takes changes to Markdown notes only.",
+  "edits-or-append": "Give either `edits` or `append`.",
+  empty: "There is nothing to change: an edit needs a passage, and an addition needs text.",
+  "not-found": "A passage is not in the text of the note. Quote it exactly as read_note returned it. A note's properties are changed with set_property.",
+  ambiguous: "A passage, or the section, is in the note more than once. Quote more of it, or name the section by its whole chain.",
+  overlap: "Two of the passages touch. Give them as one edit.",
+  unchanged: "The note says this already.",
+  "too-many": "Too many changes for one proposal. Change less at a time.",
+  "too-long": "A passage or its replacement is too long.",
+  "no-section": "There is no such section. get_outline lists the sections of a note.",
+  restricted:
+    "This conversation has read notes that are kept from the cloud or from the internet, and the place this would be written to is not. It would carry what they say to where their rule does not hold, so Plainva does not lay it down. The user can give that place the same rule first.",
+  full: "Too many drafts wait for the user. They have to create or discard some of them first.",
+  "no-title": "A title is needed.",
+  frontmatter: "Give the note's text without frontmatter.",
+  "no-folder": "There is no such folder in the vault.",
+  "bad-name": "This is no name a note can have.",
+  exists: "A note of this name is there already.",
+  "same-place": "The note is there already.",
+  // The run's own words for a no: the step is shown as declined, like every question the user answered with no.
+  declined: EFFECT_DECLINED,
+  nobody: "Nobody is there to confirm this, so it was not done.",
+  failed: "Plainva could not do it.",
+} as const;
+
+export type WriteRefusal = keyof typeof WRITE_REFUSALS;
+
+/** The sentence for an edit that could not be applied; which edit, where one of them is the reason. */
+export function editProblemSentence(problem: NoteEditProblem, edit?: number): string {
+  const sentence = WRITE_REFUSALS[problem];
+  return edit === undefined || problem === "unchanged" || problem === "too-many" ? sentence : `Edit ${edit + 1}: ${sentence}`;
+}
+
+const WAITS = "Nothing in the vault has changed.";
+
+/** What a tool says when it laid something down. Counts and the path the model named — never the text. */
+export const WRITE_RESULTS = {
+  proposed: (path: string, changes: number, defused: number) =>
+    `Proposed on ${path}: ${changes} change${changes === 1 ? "" : "s"}. ${WAITS} The user accepts or declines each change in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  drafted: (what: string, defused: number) =>
+    `Drafted: ${what}. ${WAITS} It exists once the user creates it from the draft in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  renamed: (path: string) => `Renamed. The note is now ${path}.`,
+  moved: (path: string) => `Moved. The note is now ${path}.`,
+  deleted: "The user deleted the note.",
+} as const;

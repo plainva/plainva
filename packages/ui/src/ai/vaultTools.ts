@@ -7,6 +7,7 @@ import {
   isAiHiddenPath,
   isCloudRecipient,
   MAIL_TOOL_NAMES,
+  WRITE_TOOL_NAMES,
   outlineOf,
   payload,
   redactSensitive,
@@ -33,12 +34,14 @@ import { stripFrontmatter } from "../services/docMeta";
 import { notePropertiesOf, type SituationEventInput } from "./aiSituation";
 import { eventHandle, eventLine, eventReport, parseEventHandle } from "./eventDetails";
 import { mailToolOutcome, type MailSource } from "./mailTools";
+import { writeToolNames, writeToolOutcome, type VaultWriteDeps, type WriteRun } from "./writeTools";
 
 /**
  * The vault tools of the chat (ADR 0019), one implementation for both shells:
  * search, read, outline, databases, tasks, links, recent notes, appointments,
- * mail, the tool search and app navigation. All of them read or show; none
- * of them changes anything.
+ * mail, the tool search and app navigation. All of them read or show. The
+ * writing tools (writeTools.ts) answer here too, behind the same gate — and
+ * none of them changes the vault either: they propose, draft, or ask.
  *
  * Every result passes the hard gate first. A note the policy keeps from this
  * recipient is answered exactly like a note that does not exist — so not even
@@ -81,6 +84,8 @@ export interface VaultToolDeps {
   moodKey?(): Promise<string | null>;
   /** The vault's mail accounts (plan KI-Harness P4-4); absent in a shell without mail. */
   mail?: MailSource;
+  /** How this shell proposes, drafts and carries out a plan (plan KI-Harness P5); absent where it cannot write. */
+  writes?: VaultWriteDeps;
 }
 
 /**
@@ -137,8 +142,9 @@ export const CHAT_TOOL_NAMES = [
  * search, never part of a conversation's own list. Mail, where the shell has
  * a mail client — whether an account is connected is asked when it is used.
  */
-export function furtherToolNames(deps: Pick<VaultToolDeps, "mail">): string[] {
-  return deps.mail ? [...MAIL_TOOL_NAMES] : [];
+export function furtherToolNames(deps: Pick<VaultToolDeps, "mail" | "writes">): string[] {
+  // The writing tools first: "change", "create" and "rename" are what a tool search is asked for most.
+  return [...writeToolNames(deps.writes), ...(deps.mail ? MAIL_TOOL_NAMES : [])];
 }
 
 /**
@@ -147,7 +153,7 @@ export function furtherToolNames(deps: Pick<VaultToolDeps, "mail">): string[] {
  * the skill may do — so a skill that names a mail tool, or names none and
  * leaves everything, is approved with mail in view.
  */
-export const SKILL_TOOL_NAMES: readonly string[] = [...CHAT_TOOL_NAMES, ...MAIL_TOOL_NAMES];
+export const SKILL_TOOL_NAMES: readonly string[] = [...CHAT_TOOL_NAMES, ...MAIL_TOOL_NAMES, ...WRITE_TOOL_NAMES];
 
 const NOT_FOUND = "No note is available at this path.";
 const NO_EVENT = "No appointment with this handle. get_calendar lists appointments with their handles.";
@@ -171,6 +177,13 @@ export function withoutBrokenLinks(text: string): string {
 /** Search snippets carry sentinel characters around the matches; the model gets plain text. */
 export const unmarkSnippet = (snippet: string) => snippet.split(VaultQueryService.SNIPPET_MARK_START).join("").split(VaultQueryService.SNIPPET_MARK_END).join("");
 
+/** A folder as a model may write it: "Projects/" means "Projects". Counted, not matched — the text is a model's. */
+function withoutTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path[end - 1] === "/") end -= 1;
+  return path.slice(0, end);
+}
+
 /** A vault-relative path the model may name; anything else is refused up front. */
 export function safeRelPath(path: string): string | null {
   const p = path.trim().replace(/^\.\//, "");
@@ -191,7 +204,9 @@ function offsetOf(cursor: unknown): number {
 }
 
 const BOX: Record<PlannerRow["state"], string> = { open: "[ ]", progress: "[/]", done: "[x]", cancelled: "[-]" };
-const PRIORITY = ["", "low", "medium", "high"];
+// 1 is the most important (`TaskPriority`). Until P5 this table stood the other way round: the model was told that the
+// user's most important tasks were of low priority.
+const PRIORITY = ["", "high", "medium", "low"];
 const titleOf = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.(md|base)$/i, "");
 const pad = (n: number) => String(n).padStart(2, "0");
 const dayOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -224,7 +239,7 @@ function dayStart(key: string): Date | null {
  * the model reads from them itself goes redacted as well; the situation's
  * choice covers tasks and appointments.
  */
-export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope, redact?: ReadonlySet<string>, further?: FurtherTools): ToolExecutor {
+export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope?: ToolScope, redact?: ReadonlySet<string>, further?: FurtherTools, writing?: WriteRun): ToolExecutor {
   const cloud = isCloudRecipient(run.recipient);
   /** Per path: whether it passes here, and which of its rules deny it elsewhere. */
   const decisions = new Map<string, { ok: boolean; rules: readonly AiPolicyDimension[] }>();
@@ -240,6 +255,17 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
     }
     if (decision.ok) scope?.passed?.(path, decision.rules);
     return decision.ok;
+  };
+  /**
+   * Whether a place passes where nothing was read: the folder a draft would
+   * go to, the path a note would have after a move. Decided like `allowed`,
+   * but it is no read — the run's record of what it read, and what a draft
+   * says it rests on, stay what they are.
+   */
+  const placeAllowed = async (path: string, text?: string): Promise<boolean> => {
+    if (isAiHiddenPath(path)) return false;
+    if (scope && !scope.inside(path)) return false;
+    return gateDecision(await deps.policyOf(path, text), run).allowed;
   };
   /**
    * What any vault text passes: place stamps withheld for everyone, links to
@@ -278,7 +304,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   const unavailable = (tool: ToolManifest): ToolOutcome => ({ content: `The tool ${tool.name} is not available here.`, isError: true });
 
   return {
-    async execute(tool: ToolManifest, args: unknown): Promise<ToolOutcome> {
+    async execute(tool: ToolManifest, args: unknown, call?: { id: string }): Promise<ToolOutcome> {
       const a = (args ?? {}) as Record<string, unknown>;
       switch (tool.name) {
         case "search_vault": {
@@ -533,8 +559,17 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const ran = await command.run(args);
           return ran ? { content: `Done: ${command.label}.` } : cannot;
         }
-        default:
-          return { content: `The tool ${tool.name} is not available in this version of Plainva.`, isError: true };
+        default: {
+          // The writing tools (plan P5): none of them changes the vault — a proposal, a draft, or a plan the user confirms.
+          const written = await writeToolOutcome(deps.writes, writing, tool, a, {
+            readAllowed,
+            safeFolder: (raw) => (typeof raw === "string" ? safeRelPath(withoutTrailingSlashes(raw.trim())) : null),
+            allowed: placeAllowed,
+            policyOf: deps.policyOf,
+            ...(call ? { callId: call.id } : {}),
+          });
+          return written ?? { content: `The tool ${tool.name} is not available in this version of Plainva.`, isError: true };
+        }
       }
     },
   };

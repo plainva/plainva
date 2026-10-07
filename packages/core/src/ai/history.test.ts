@@ -9,6 +9,7 @@ import {
   EMPTY_USAGE,
   expiredConversations,
   RUN_READ_CAP,
+  RUN_WRITES_CAP,
   AI_LEDGER_LIMIT,
   aiMonthlyTotals,
   readConversationRecord,
@@ -143,6 +144,37 @@ describe("conversation records", () => {
     expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("readMore");
     tampered.runs[0].read = [];
     expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("read");
+  });
+
+  it("keeps what a run laid down for the user to decide: paths, counts and titles — bounded, and nothing that is none", () => {
+    const r = record();
+    const writes = {
+      rounds: [{ path: "Projects/Offer.md", blocks: 2, properties: 1 }],
+      drafts: [{ id: "d-000001", kind: "note", title: "Kick-off" }],
+      plans: [{ kind: "rename", path: "Projects/Offer.md", outcome: "done" }],
+    };
+    r.runs[0] = { ...r.runs[0]!, writes };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.writes).toEqual(writes);
+    const tampered = JSON.parse(JSON.stringify(r));
+    // A proposed text has no place in the record: what is no path, no count and no title is dropped.
+    tampered.runs[0].writes = {
+      rounds: [{ path: "A.md", blocks: "many", properties: -3, text: "the proposed words" }, { path: "", blocks: 2 }, { path: "B.md", blocks: 1.9, properties: 0 }, "C.md", null],
+      drafts: [{ id: "d-1", kind: "task", title: 7, content: "the draft's words" }, { id: "", kind: "note", title: "x" }, { id: "d-2" }],
+      plans: [{ kind: "delete", path: "A.md", outcome: { done: true } }, { kind: "", path: "A.md", outcome: "done" }, { kind: "move", path: "" }],
+    };
+    const back = readConversationRecord(tampered)!.runs[0]!.writes!;
+    expect(back.rounds).toEqual([{ path: "B.md", blocks: 1, properties: 0 }]);
+    expect(back.drafts).toEqual([{ id: "d-1", kind: "task", title: "" }]);
+    expect(back.plans).toEqual([{ kind: "delete", path: "A.md", outcome: "" }]);
+    expect(JSON.stringify(back)).not.toContain("words");
+    // Bounded, each list for itself.
+    tampered.runs[0].writes = { rounds: Array.from({ length: RUN_WRITES_CAP + 9 }, (_, i) => ({ path: `Notes/${i}.md`, blocks: 1, properties: 0 })), drafts: [], plans: [] };
+    expect(readConversationRecord(tampered)!.runs[0]!.writes!.rounds).toHaveLength(RUN_WRITES_CAP);
+    // Nothing laid down is no entry at all, whatever stood there.
+    for (const none of [{ rounds: [], drafts: [], plans: [] }, { rounds: [{ path: "A.md", blocks: 0, properties: 0 }] }, [], "writes", 3, null]) {
+      tampered.runs[0].writes = none;
+      expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("writes");
+    }
   });
 
   it("keeps what a run asked of foreign servers: who, what, how it ended — and nothing that was said", () => {

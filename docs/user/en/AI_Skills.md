@@ -1,6 +1,6 @@
 # Skills (Beta)
 
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-07
 
 A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with twelve of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
 
@@ -38,6 +38,10 @@ All of them only read: none changes a note or sends anything. Only **Research** 
 A skill of your own uses the internet only when its `allowed-tools` line names `web_search` or `fetch_url`. **Review and approve** then says **Uses the internet where you allowed it for this vault.** before you approve it. A skill that names no tools never brings the internet along.
 
 A test run never uses the internet, and it never asks: mail it was not allowed to read in this session stays unread.
+
+## Proposing changes
+
+A skill of your own proposes changes only when its `allowed-tools` line names the tools for it: `propose_edit` for suggestions on a note, `create_note`, `create_task` and `add_journal_entry` for drafts, `rename_note`, `move_note` and `delete_note` for plans. **Review and approve** then names each of them and says **May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.** A skill that names no tools proposes nothing — one you approved earlier gains nothing either — and a test run leaves nothing behind. What the three forms are: **Proposing changes** in [AI Assistant](AI_Assistant.md).
 
 ## Your own skills
 

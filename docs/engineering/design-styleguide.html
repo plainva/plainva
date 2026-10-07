@@ -1215,6 +1215,40 @@
         <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't keep</button><button class="pvbtn primary">Keep as a note</button></div>
       </section>
     </div>
+    <p class="sec-sub">AI harness P5 (2026-10-07): propose, draft, plan. The assistant changes nothing. A proposal on a note is a suggestion round in the note's margin; the conversation only says where it lies (the pencil line beside the run's line). A draft of something new is a card under the answer — the overview's card with a left edge in <code>--warning-border</code> (<code>.pv-ai-overview--draft</code>) — with the user's two buttons. A rename, a move and a deletion are a fifth form of the question above the composer (<code>AiEffectApproval</code>, <code>data-kind="plan"</code>); for a deletion its button only opens the app's own dialog. Everything that waits is listed under “Open” (<code>.pv-ai-open</code>).</p>
+    <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
+      <div class="pv-ai-run"><span class="pv-ai-runline">1 note · ~1,240 tokens</span> <button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-runline pv-ai-capture"><span aria-hidden="true">✎</span>Suggested in “Offer”: 2 passages</button></div>
+      <section class="pv-ai-overview pv-ai-overview--draft" aria-label="Draft · Note: Kick-off">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">＋</span><span>Draft · Note</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Kick-off</dd>
+          <dt>Goes into</dt>
+          <dd>Inbox folder</dd>
+        </dl>
+        <span class="pv-ai-overview-hint">The note gets the privacy rules of the notes it rests on.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Show</button><button class="pvbtn ghost">Discard</button><button class="pvbtn secondary">Create</button></div>
+      </section>
+      <div class="pv-ai-run"><span class="pv-ai-runline pv-ai-capture"><span aria-hidden="true">✓</span>Created: Call the roofer</span></div>
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Rename?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">✎</span><span>Rename?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Offer · Projects</dd>
+          <dt>New name</dt>
+          <dd>Offer 2027</dd>
+          <dt>Links</dt>
+          <dd>5 links in 3 notes — they follow the new name</dd>
+        </dl>
+        <ul class="pv-ai-overview-sources">
+          <li><span class="pv-ai-overview-note">Projects/Plan</span><span class="pv-ai-overview-form">3 links</span></li>
+          <li><span class="pv-ai-overview-note">Clients/Northwind</span><span class="pv-ai-overview-form">1 link</span></li>
+          <li><span class="pv-ai-overview-note">Journal/2026-10-06</span><span class="pv-ai-overview-form">1 link</span></li>
+        </ul>
+        <span class="pv-ai-overview-hint">Plainva renames the note and updates the links — as when you rename by hand. The AI only learns whether it happened.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't rename</button><button class="pvbtn primary">Rename</button></div>
+      </section>
+    </div>
     <p class="sec-sub">AI harness P3-5 (2026-10-01): the skills workshop. What waits for an approval on this device stands first; the review names what a skill may do in words and what changed since the approved version as a line comparison (<code>LineCompare</code>, <code>.pv-linecompare</code>), in a facts list (<code>.pv-skill-facts</code>).</p>
     <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
       <dl class="pv-skill-facts">

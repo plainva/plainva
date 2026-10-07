@@ -22,6 +22,8 @@ export interface SkillGrant {
 }
 
 const RISK_RANK: Record<ToolRiskClass, number> = { read: 0, ui: 1, write: 2, critical: 3, external: 4, script: 5 };
+/** The classes whose tools propose, plan or act — everything that is more than reading and showing. */
+const WRITE_RISKS: ReadonlySet<ToolRiskClass> = new Set<ToolRiskClass>(["write", "critical", "external", "script"]);
 
 /**
  * Whether a skill names the internet's tools itself (plan KI-Harness P4-6).
@@ -41,6 +43,9 @@ export function skillGrant(skill: SkillDefinition, available: readonly string[],
     if (listed !== null && !listed.includes(name)) return false;
     const tool = toolByName(name);
     if (!tool) return false;
+    // A tool that writes is never part of "whatever a conversation has" (plan KI-Harness P5): a skill has it only by
+    // naming it. So a skill approved before there were such tools gains none, and the approval shows each one it names.
+    if (listed === null && WRITE_RISKS.has(tool.risk)) return false;
     if (meta.risk && RISK_RANK[tool.risk] > RISK_RANK[meta.risk]) return false;
     if (meta.dataClasses && !tool.dataClasses.every((c) => meta.dataClasses!.includes(c))) return false;
     return true;

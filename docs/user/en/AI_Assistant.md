@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-10-07
 
-Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes to a passage you selected as suggestions — it never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
+Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
 ## Switching it on
 
@@ -43,7 +43,7 @@ A sixth slot, **Embeddings**, holds the model search by meaning computes with wh
 - **Phone:** **Ask AI** in a note's ⋮ menu opens the AI sheet over that note. The **AI** area (in the areas sheet, or in the navigation bar if you put it there) shows the conversation full screen; **Conversations** lists the earlier ones.
 - **Beside the note:** on the desktop the same conversation is the last section of the right sidebar, **AI**. On a phone or tablet it is the **AI** tab of the note's context — next to **Properties** and **Backlinks** — which a tablet shows beside the note.
 
-The note you have open goes along automatically; remove it from the context with its ✕ if you want to. **Pin a note…** adds further notes. The assistant can also look things up itself: it searches the vault, reads notes and their sections, databases, backlinks and linked notes, lists tasks, appointments and the notes opened or changed lately, and opens notes and views. It cannot change, create or delete anything.
+The note you have open goes along automatically; remove it from the context with its ✕ if you want to. **Pin a note…** adds further notes. The assistant can also look things up itself: it searches the vault, reads notes and their sections, databases, backlinks and linked notes, lists tasks, appointments and the notes opened or changed lately, and opens notes and views. It cannot change, create or delete anything itself; what it can propose instead is described under “Proposing changes” below.
 
 The assistant can also show you things: open a note at a heading, show a note in the graph, turn the calendar to a day, open views, show and hide the sidebars. It uses the commands of the command palette for that — and of those only the ones that show something: whatever creates, changes, deletes, exports or opens a window is not its to trigger.
 
@@ -183,6 +183,20 @@ A conversation a skill started, an action on a selection and a reply in a commen
 
 On the desktop, Plainva can also start an AI agent of another maker in the vault's folder — a program you installed and signed in to yourself. Such an agent is not the assistant: it reads and sends on its own, and your privacy rules and the overview before sending do not reach it. What Plainva controls in its session and what it does not: [External agents](External_Agents.md).
 
+## Proposing changes
+
+The assistant can propose more than an answer — and nothing it proposes is in your vault until you say so. There are three forms, and each waits where you decide about it.
+
+- **A suggestion on a note.** Ask for a change to a note that is there, and the assistant lays it on the note as suggestions: in the margin, signed “Plainva AI · ⟨model⟩”, each change to accept or decline on its own — like a person's suggestions, see [Comments & Suggestions](Comments_and_Suggestions.md). Under the answer a line names the note; press it to open the note. This way the assistant proposes changes to a note's text, not to its properties.
+- **A draft.** A new note, a task or a journal entry is left as a draft: a card under the answer says what it would become and where it would go. **Create** makes it — the note in the folder the card names (the **Inbox folder**, unless the assistant named another), the task read from its words as if you had typed them into the capture field, the entry in the journal of the day on the card. **Show** unfolds a note's text first; **Discard** throws the draft away. A note made from a draft says who wrote it (`generated`, see [OKF](OKF.md)) and names the notes the conversation rested on. Where your new tasks also go to a task list of your provider, a task's card carries the capture field's switch, **Also create in “…”**: it is on, and the task is created there as well unless you switch it off.
+- **A plan.** Renaming, moving or deleting a note cannot be reviewed piece by piece, so the assistant asks: a question above the input field shows what would happen — the new name and how many links in how many notes follow it, or the target folder, with a warning if the note would leave a privacy rule of its folder behind. After your yes, Plainva does it the way it does when you do it yourself; the assistant only learns whether it happened. For a deletion the question merely opens Plainva's own delete dialog: nothing is gone before you confirm there.
+
+Everything that waits is in one list: **Open**, a segment of the AI tab on the desktop and of **Conversations** on the phone. It names the notes that carry suggestions of an AI and the drafts of this device, each with who left it. Drafts are kept on the device they were made on, like conversations; suggestions belong to the note's comments and reach your other devices with them.
+
+Three limits hold whatever the assistant is asked. A web address it brings into a suggestion or a draft is written so that nothing opens or loads it (`https[://]…`); an address you typed yourself stays as it is. A conversation that has read a note kept from the cloud or from the internet lays a suggestion, a task or a journal entry only where the same rule holds — a drafted note takes the rule along instead. And in an encrypted workspace nothing is proposed, drafted or planned.
+
+A skill has these abilities only when it names them, and its review says so — see [Skills](AI_Skills.md).
+
 ## Keeping an answer as a note
 
 Under every finished answer, **Keep as a note** turns the answer into a note of your vault. You press it and Plainva writes the note — the assistant itself still changes nothing.
@@ -221,6 +235,6 @@ Conversations stay on this device, per vault — never in the vault and never sy
 
 - On the desktop the AI runs in the main window only.
 - On the phone an answer comes only while the app is open.
-- The assistant changes no note itself: it proposes changes to a selected passage and transcripts of voice notes, as suggestions you accept or decline; in a comment thread it writes a reply beside the note, never text in it. An answer becomes a note only when you press **Keep as a note**; Plainva writes it then, not the assistant.
+- The assistant changes no note itself: a change to a note and the transcript of a voice note are suggestions you accept or decline, something new is a draft until you press **Create**, and a rename, a move or a deletion waits for your yes; in a comment thread it writes a reply beside the note, never text in it. An answer becomes a note only when you press **Keep as a note**; Plainva writes it then, not the assistant.
 
 Feedback on the beta goes to the project's discussions on GitHub: **Feedback on the AI (Beta)** in the settings starts one.

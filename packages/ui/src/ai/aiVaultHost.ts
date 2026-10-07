@@ -32,6 +32,8 @@ import { notesEmbedding } from "./aiImage";
 import type { AiInstructionsHost, AiVaultHost } from "./aiSession";
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
 import { createMcpVaultStore } from "./mcpStores";
+import { createWriteDraftStore, type DraftCreator } from "./aiWrites";
+import type { WriteRun } from "./writeTools";
 import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
 
 /**
@@ -122,6 +124,10 @@ export interface AiVaultHostInput {
   reply?: AiVaultHost["reply"];
   /** Where an answer kept as a note is written (plan P4-6); absent where the shell writes no notes. */
   capture?: AiVaultHost["capture"];
+  /** How this shell makes what a draft describes — a note, a task, a line in the journal (plan P5); absent where it cannot. */
+  creates?: DraftCreator;
+  /** The notes that carry open suggestions of a machine, from the vault's comments (plan P5); absent where the shell cannot list them. */
+  proposals?: AiVaultHost["proposals"];
   /** The vault's folder entries and file bytes, for its own instructions (plan KI-Harness P3); absent, only the app's skills exist. */
   instructionIO?: InstructionIO;
   /** Writes and removes the workshop's skills (plan P3-5); absent, the workshop only reads. */
@@ -266,13 +272,17 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     ...(input.encrypted ? { encrypted: input.encrypted } : {}),
     ...(input.reply ? { reply: input.reply } : {}),
     ...(input.capture ? { capture: input.capture } : {}),
+    // The drafts of this vault on this device (plan P5): beside its other AI data, never in the vault.
+    drafts: createWriteDraftStore(input.files, input.vaultKey),
+    ...(input.creates ? { creates: input.creates } : {}),
+    ...(input.proposals ? { proposals: input.proposals } : {}),
     // Which notes embed a picture (plan P4-5): their rules decide with the picture's own. Without an index nobody can tell — `null`, never "none".
     embedders: (path) => {
       const containing = input.retrieval?.notesContaining?.bind(input.retrieval);
       return containing ? notesEmbedding(path, { containing, read: async (note) => (await input.readNote(note))?.text ?? null }) : Promise.resolve(null);
     },
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
-    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean, narrowed?: () => readonly string[] | null, foreign?: () => readonly ToolManifest[]) {
+    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean, narrowed?: () => readonly string[] | null, foreign?: () => readonly ToolManifest[], writing?: WriteRun) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;
       const deps: VaultToolDeps = {
@@ -287,7 +297,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
       // A shell without appointments does not offer the tools that read them.
       const names = deps.events ? CHAT_TOOL_NAMES : CHAT_TOOL_NAMES.filter((name) => name !== "get_calendar" && name !== "get_event");
       // In a conversation with the internet a note whose rules say `web: deny` does not exist for the tools either.
-      return { names, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}) }) };
+      return { names, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}) }, writing) };
     },
   };
 }

@@ -2,7 +2,7 @@
 
 Stand: 2026-10-07
 
-Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen an einer markierten Stelle als Vorschläge vor — eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
+Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen vor — als Vorschläge an einer Notiz, als Entwürfe für Neues oder als Plan, den Du bestätigst. Eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
 ## Einschalten
 
@@ -43,7 +43,7 @@ Ein sechster Platz, **Einbettungen**, hält das Modell, mit dem die Suche nach B
 - **Telefon:** **KI fragen** im ⋮-Menü einer Notiz öffnet das KI-Blatt über dieser Notiz. Der Bereich **KI** (im Bereiche-Blatt oder in der Navigationsleiste, wenn Du ihn dort hinlegst) zeigt das Gespräch im Vollbild; **Gespräche** listet die früheren.
 - **Neben der Notiz:** am Desktop ist dasselbe Gespräch die letzte Sektion der rechten Seitenleiste, **KI**. Am Telefon oder Tablet ist es der Reiter **KI** im Kontext der Notiz — neben **Eigenschaften** und **Backlinks** —, den ein Tablet neben der Notiz zeigt.
 
-Die Notiz, die Du offen hast, geht automatisch mit; nimm sie mit ihrem ✕ aus dem Kontext, wenn Du willst. **Notiz anheften …** fügt weitere Notizen hinzu. Der Assistent kann auch selbst nachsehen: er durchsucht den Vault, liest Notizen und ihre Abschnitte, Datenbanken, Backlinks und verlinkte Notizen, listet Aufgaben, Termine und die zuletzt geöffneten oder geänderten Notizen und öffnet Notizen und Ansichten. Ändern, anlegen oder löschen kann er nichts.
+Die Notiz, die Du offen hast, geht automatisch mit; nimm sie mit ihrem ✕ aus dem Kontext, wenn Du willst. **Notiz anheften …** fügt weitere Notizen hinzu. Der Assistent kann auch selbst nachsehen: er durchsucht den Vault, liest Notizen und ihre Abschnitte, Datenbanken, Backlinks und verlinkte Notizen, listet Aufgaben, Termine und die zuletzt geöffneten oder geänderten Notizen und öffnet Notizen und Ansichten. Ändern, anlegen oder löschen kann er selbst nichts; was er stattdessen vorschlagen kann, steht unten unter „Änderungen vorschlagen“.
 
 Der Assistent kann Dir auch etwas zeigen: eine Notiz an einer Überschrift öffnen, eine Notiz im Graphen zeigen, den Kalender auf einen Tag stellen, Ansichten öffnen, die Seitenleisten ein- und ausblenden. Er benutzt dafür die Befehle der Befehlspalette — und davon nur die, die etwas zeigen: was anlegt, ändert, löscht, exportiert oder ein Fenster öffnet, kann er nicht auslösen.
 
@@ -183,6 +183,20 @@ Ein Gespräch, das ein Skill begonnen hat, eine Aktion an einer Auswahl und eine
 
 Am Desktop kann Plainva auch den KI-Agenten eines anderen Herstellers im Ordner des Vaults starten — ein Programm, das Du selbst installiert und bei dem Du Dich selbst angemeldet hast. So ein Agent ist nicht der Assistent: er liest und sendet selbst, und Deine Datenschutzregeln und die Übersicht vor dem Senden erreichen ihn nicht. Was Plainva in seiner Sitzung kontrolliert und was nicht: [Externe Agenten](External_Agents.md).
 
+## Änderungen vorschlagen
+
+Der Assistent kann mehr vorschlagen als eine Antwort — und nichts davon ist in Deinem Vault, bevor Du es sagst. Es gibt drei Formen, und jede wartet dort, wo Du über sie entscheidest.
+
+- **Ein Vorschlag an einer Notiz.** Bittest Du um eine Änderung an einer Notiz, die es gibt, legt der Assistent sie als Vorschläge an die Notiz: am Rand, gezeichnet mit „Plainva KI · ⟨Modell⟩“, jede Änderung einzeln zum Übernehmen oder Ablehnen — wie die Vorschläge eines Menschen, siehe [Kommentare & Vorschläge](Comments_and_Suggestions.md). Unter der Antwort nennt eine Zeile die Notiz; ein Klick darauf öffnet sie. So schlägt der Assistent Änderungen am Text einer Notiz vor, nicht an ihren Eigenschaften.
+- **Ein Entwurf.** Eine neue Notiz, eine Aufgabe oder ein Journal-Eintrag bleibt ein Entwurf: Eine Karte unter der Antwort sagt, was daraus würde und wohin es käme. **Anlegen** macht es — die Notiz in dem Ordner, den die Karte nennt (der **Eingangsordner**, wenn der Assistent keinen anderen genannt hat), die Aufgabe aus ihren Worten gelesen, als hättest Du sie ins Erfassungsfeld getippt, den Eintrag im Journal des Tages auf der Karte. **Ansehen** klappt vorher den Text einer Notiz auf; **Verwerfen** wirft den Entwurf weg. Eine Notiz aus einem Entwurf sagt, wer sie geschrieben hat (`generated`, siehe [OKF](OKF.md)), und nennt die Notizen, auf denen das Gespräch beruhte. Wo neue Aufgaben auch in eine Aufgabenliste Deines Anbieters gehen, trägt die Karte einer Aufgabe den Schalter des Erfassungsfelds, **Auch anlegen bei „…“**: Er ist an, und die Aufgabe wird auch dort angelegt, wenn Du ihn nicht ausschaltest.
+- **Ein Plan.** Umbenennen, Verschieben und Löschen lassen sich nicht Stück für Stück prüfen, also fragt der Assistent: Eine Rückfrage über dem Eingabefeld zeigt, was geschähe — den neuen Namen und wie viele Links in wie vielen Notizen ihm folgen, oder den Zielordner, mit einer Warnung, wenn die Notiz dabei eine Datenschutzregel ihres Ordners verlöre. Nach Deinem Ja erledigt Plainva es so, wie wenn Du es selbst tust; der Assistent erfährt nur, ob es geschehen ist. Beim Löschen öffnet die Rückfrage lediglich Plainvas eigenen Löschdialog: Nichts ist weg, bevor Du dort bestätigst.
+
+Alles, was wartet, steht in einer Liste: **Offen**, ein Abschnitt des KI-Tabs am Desktop und von **Gespräche** am Telefon. Sie nennt die Notizen, an denen Vorschläge einer KI liegen, und die Entwürfe dieses Geräts, jeweils mit dem, der sie hingelegt hat. Entwürfe liegen auf dem Gerät, auf dem sie entstanden sind, wie die Gespräche; Vorschläge gehören zu den Kommentaren der Notiz und erreichen mit ihnen Deine anderen Geräte.
+
+Drei Grenzen gelten, worum auch immer der Assistent gebeten wird. Eine Webadresse, die er in einen Vorschlag oder einen Entwurf mitbringt, wird so geschrieben, dass nichts sie öffnet oder lädt (`https[://]…`); eine Adresse, die Du selbst getippt hast, bleibt, wie sie ist. Ein Gespräch, das eine Notiz gelesen hat, die nie in die Cloud oder nie ins Internet darf, legt einen Vorschlag, eine Aufgabe oder einen Journal-Eintrag nur dorthin, wo dieselbe Regel gilt — eine entworfene Notiz nimmt die Regel stattdessen mit. Und in einem verschlüsselten Workspace wird nichts vorgeschlagen, entworfen oder geplant.
+
+Ein Skill hat diese Fähigkeiten nur, wenn er sie nennt, und seine Prüfung sagt das — siehe [Skills](AI_Skills.md).
+
 ## Eine Antwort als Notiz festhalten
 
 Unter jeder fertigen Antwort macht **Als Notiz festhalten** aus der Antwort eine Notiz Deines Vaults. Du drückst es, und Plainva schreibt die Notiz — der Assistent selbst ändert weiterhin nichts.
@@ -221,6 +235,6 @@ Gespräche bleiben auf diesem Gerät, je Vault — nie im Vault und nie synchron
 
 - Am Desktop läuft die KI nur im Hauptfenster.
 - Am Telefon kommt eine Antwort nur, solange die App geöffnet ist.
-- Der Assistent ändert keine Notiz selbst: Änderungen an einer markierten Stelle und Transkripte von Sprachnotizen schlägt er vor, als Vorschläge, die Du übernimmst oder ablehnst; in einem Kommentar-Faden schreibt er eine Antwort neben die Notiz, nie Text in sie. Eine Antwort wird nur dann zu einer Notiz, wenn Du **Als Notiz festhalten** drückst; dann schreibt Plainva sie, nicht der Assistent.
+- Der Assistent ändert keine Notiz selbst: Eine Änderung an einer Notiz und das Transkript einer Sprachnotiz sind Vorschläge, die Du übernimmst oder ablehnst, Neues ist ein Entwurf, bis Du **Anlegen** drückst, und Umbenennen, Verschieben und Löschen warten auf Dein Ja; in einem Kommentar-Faden schreibt er eine Antwort neben die Notiz, nie Text in sie. Eine Antwort wird nur dann zu einer Notiz, wenn Du **Als Notiz festhalten** drückst; dann schreibt Plainva sie, nicht der Assistent.
 
 Rückmeldungen zur Beta gehen in die Diskussionen des Projekts auf GitHub: **Rückmeldung zur KI (Beta)** in den Einstellungen beginnt eine.

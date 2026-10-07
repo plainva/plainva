@@ -4131,6 +4131,215 @@ test('AI app commands: the assistant opens a view through the palette, and canno
   expect(sent[2]).toContain('Unknown command. Available commands:');
 });
 
+// What the assistant can change (AI harness P5): nothing. A change to a note
+// waits with the vault's comments as a suggestion, something new waits on this
+// device as a draft, and a rename waits for the reader's yes — in the real
+// shell, with the real wiring, against the mock file system that stands for
+// the vault. The model is the scripted `ai_http`.
+test('AI writes: a proposal and a draft change nothing until the reader decides; a rename, a move and a deletion wait for a yes', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  // A found tool is called through the conversation's dispatcher.
+  const calls = (...list: Array<[id: string, name: string, args: unknown]>) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ...list.flatMap(([id, name, args], index): Array<[string, unknown]> => [
+      ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name: 'call_tool', input: {} } }],
+      ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ name, args }) } }],
+      ['content_block_stop', { type: 'content_block_stop', index }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const OFFER = '# Offer\n\nThe day rate is 1,800 euros.\n';
+  const script = [
+    calls(
+      ['c1', 'propose_edit', { path: 'Projects/Offer.md', edits: [{ find: '1,800 euros', replace: '1,900 euros' }], note: 'New rate' }],
+      ['c2', 'create_note', { title: 'Kick-off', content: 'Agenda\n\n- one' }],
+      ['c3', 'create_task', { text: 'Call the roofer' }],
+      ['c4', 'add_journal_entry', { text: 'Met Anna about the offer' }],
+    ),
+    says('I proposed the new rate and drafted a note, a task and a journal line. They wait for you.'),
+    calls(['c5', 'rename_note', { path: 'Projects/Offer.md', title: 'Offer 2027' }]),
+    says('The offer has its new name.'),
+    calls(['c6', 'move_note', { path: 'Projects/Offer 2027.md', folder: 'Archive' }]),
+    says('It lies in the archive now.'),
+    calls(['c7', 'delete_note', { path: 'Archive/Offer 2027.md' }]),
+    says('The note is gone, as you confirmed.'),
+  ];
+  await page.addInitScript(({ script, offer }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.plainva/sync'] = { isDir: true };
+    fs['/test-vault/Archive'] = { isDir: true };
+    fs['/test-vault/Projects'] = { isDir: true };
+    fs['/test-vault/Projects/Offer.md'] = offer;
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, offer: OFFER });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const files = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([, value]) => typeof value === 'string').map(([path, value]) => ({ path, text: String(value) })));
+  const fileAt = async (path: string) => (await files()).find((file) => file.path === path)?.text ?? null;
+  const draftsFile = async () => {
+    const stored = (await files()).filter((file) => file.path.endsWith('/drafts.json'));
+    return stored.length === 1 ? { path: stored[0].path, ...JSON.parse(stored[0].text) } : null;
+  };
+
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Raise the day rate in the offer to 1,900 euros, draft a kick-off note, remind me to call the roofer and note that I met Anna.');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('I proposed the new rate and drafted a note, a task and a journal line.')).toBeVisible();
+
+  // 1. The conversation was told what a proposal is, and reached the tools through its search — they are not in its list.
+  const sent = await requests();
+  expect(sent[0]).toContain('You can propose:');
+  expect(sent[0]).not.toContain('"name":"propose_edit"');
+  // What the model read back: counts and that it waits — never the proposed words.
+  expect(sent[1]).toContain('Proposed on Projects/Offer.md: 1 change. Nothing in the vault has changed.');
+  expect(sent[1]).toContain('Drafted: a note \\"Kick-off\\". Nothing in the vault has changed.');
+
+  // 2. Nothing was asked, and nothing in the vault changed: the note is what it was, and no new file exists.
+  await expect(companion.getByTestId('ai-effect')).toHaveCount(0);
+  expect(await fileAt('/test-vault/Projects/Offer.md')).toBe(OFFER);
+  expect((await files()).filter((file) => /Kick-off|roofer/i.test(file.path) || (file.path.startsWith('/test-vault/') && file.text.includes('Met Anna')))).toEqual([]);
+
+  // 3. The proposal lies with the vault's comments, signed with the model that made it.
+  const bundles = (await files()).filter((file) => /^\/test-vault\/\.plainva\/sync\/comments\.[^/]+\.json$/.test(file.path));
+  expect(bundles).toHaveLength(1);
+  const records = Object.values(JSON.parse(bundles[0].text).comments as Record<string, any>);
+  const proposed = records.filter((record) => record.suggestion);
+  expect(proposed).toHaveLength(1);
+  expect(proposed[0].path).toBe('Projects/Offer.md');
+  expect(JSON.stringify(proposed[0])).toContain('plainva-ai/m-1');
+
+  // 4. The drafts lie in the app's data on this device, not in the vault.
+  const waiting = (await draftsFile())!;
+  expect(waiting.path.startsWith('/test-vault/')).toBe(false);
+  expect(waiting.drafts).toMatchObject([
+    { title: 'Kick-off', author: { id: 'plainva-ai/m-1' }, body: { kind: 'note', folder: null, content: 'Agenda\n\n- one' } },
+    { title: 'Call the roofer', body: { kind: 'task', text: 'Call the roofer' } },
+    { title: 'Met Anna about the offer', body: { kind: 'journal', text: 'Met Anna about the offer', task: false } },
+  ]);
+
+  // 5. Under the answer: the note that carries the proposal, and a card per draft with the reader's own buttons.
+  await expect(companion.getByTestId('ai-proposed')).toContainText('Offer');
+  const noteDraft = companion.locator('[data-testid="ai-draft"][data-kind="note"]');
+  await expect(noteDraft.getByTestId('ai-draft-title')).toHaveText('Kick-off');
+  await expect(companion.locator('[data-testid="ai-draft"][data-kind="task"]')).toHaveCount(1);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-writes-drafts-desktop.png') });
+
+  // 6. A rename is a question above the composer; until its yes the note keeps its name.
+  await companion.getByTestId('ai-input').fill('Rename the offer to Offer 2027.');
+  await companion.getByTestId('ai-send').click();
+  const consent = companion.getByTestId('ai-consent-send');
+  const question = companion.getByTestId('ai-effect');
+  await expect(consent.or(question)).toBeVisible();
+  if (await consent.isVisible()) await consent.click();
+  await expect(question).toHaveAttribute('data-plan', 'rename');
+  await expect(question.getByTestId('ai-effect-target')).toHaveText('Offer 2027');
+  await expect(question.getByTestId('ai-effect-links')).toBeVisible();
+  expect(await fileAt('/test-vault/Projects/Offer.md')).toBe(OFFER);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-writes-plan-desktop.png') });
+  await question.getByTestId('ai-effect-once').click();
+  await expect(companion.getByText('The offer has its new name.')).toBeVisible();
+  expect(await fileAt('/test-vault/Projects/Offer 2027.md')).toBe(OFFER);
+  expect(await fileAt('/test-vault/Projects/Offer.md')).toBeNull();
+  expect((await requests())[3]).toContain('Renamed. The note is now Projects/Offer 2027.md.');
+
+  // 6b. A move is the same kind of question, with the folder; the app moves the note after the yes.
+  await companion.getByTestId('ai-input').fill('Move it to the archive.');
+  await companion.getByTestId('ai-send').click();
+  await expect(consent.or(question).first()).toBeVisible();
+  if (await consent.isVisible()) await consent.click();
+  await expect(question).toHaveAttribute('data-plan', 'move');
+  await expect(question.getByTestId('ai-effect-target')).toHaveText('Archive');
+  expect(await fileAt('/test-vault/Projects/Offer 2027.md')).toBe(OFFER);
+  await question.getByTestId('ai-effect-once').click();
+  await expect(companion.getByText('It lies in the archive now.')).toBeVisible();
+  expect(await fileAt('/test-vault/Archive/Offer 2027.md')).toBe(OFFER);
+  expect(await fileAt('/test-vault/Projects/Offer 2027.md')).toBeNull();
+
+  // 6c. A deletion is never the assistant's: its yes only opens the app's own dialog, and that one decides.
+  await companion.getByTestId('ai-input').fill('Delete that note.');
+  await companion.getByTestId('ai-send').click();
+  await expect(consent.or(question).first()).toBeVisible();
+  if (await consent.isVisible()) await consent.click();
+  await expect(question).toHaveAttribute('data-plan', 'delete');
+  await question.getByTestId('ai-effect-once').click();
+  const confirmDelete = page.locator('.pv-modal-footer button.pv-btn--danger');
+  await expect(confirmDelete).toBeVisible();
+  // The yes on the card deleted nothing: the note is there until the app's dialog is confirmed.
+  expect(await fileAt('/test-vault/Archive/Offer 2027.md')).toBe(OFFER);
+  const gone = companion.getByText('The note is gone, as you confirmed.');
+  // (One note of a small vault is a large share of it: the app asks a second, sharper time.)
+  for (let round = 0; round < 3; round++) {
+    await expect(gone.or(confirmDelete).first()).toBeVisible();
+    if (await gone.isVisible()) break;
+    await confirmDelete.click();
+  }
+  await expect(gone).toBeVisible();
+  expect(await fileAt('/test-vault/Archive/Offer 2027.md')).toBeNull();
+  expect((await requests())[7]).toContain('The user deleted the note.');
+
+  // 7. "Create" is the reader's step: the app writes the note into the inbox folder and says who drafted it.
+  await noteDraft.getByTestId('ai-draft-create').click();
+  await expect.poll(async () => (await files()).filter((file) => file.path.endsWith('/Kick-off.md')).length, { timeout: 8000 }).toBe(1);
+  const created = (await files()).find((file) => file.path.endsWith('/Kick-off.md'))!;
+  expect(created.path.startsWith('/test-vault/')).toBe(true);
+  expect(created.text).toContain('by: plainva-ai/m-1');
+  expect(created.text).toContain('# Kick-off\n\nAgenda\n\n- one\n');
+  await expect(companion.locator('[data-testid="ai-draft-done"][data-outcome="created"]')).toContainText('Kick-off');
+  await expect(noteDraft).toHaveCount(0);
+  // No model was asked for any of it.
+  expect(await requests()).toHaveLength(8);
+
+  // 8. Everything that still waits is listed in the AI tab, whoever laid it down. The task's draft is discarded there,
+  //    the journal line created — through the journal, under the time it was drafted at.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-waiting').click();
+  const open = page.getByTestId('ai-open');
+  await expect(open.getByTestId('ai-draft')).toHaveCount(2);
+  const taskDraft = open.locator('[data-testid="ai-draft"][data-kind="task"]');
+  await expect(taskDraft.getByTestId('ai-draft-author')).toContainText('m-1');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-writes-open-desktop.png') });
+  await taskDraft.getByTestId('ai-draft-discard').click();
+  await expect(open.getByTestId('ai-draft')).toHaveCount(1);
+  await open.locator('[data-testid="ai-draft"][data-kind="journal"]').getByTestId('ai-draft-create').click();
+  const journal = async () => (await files()).filter((file) => file.path.startsWith('/test-vault/') && file.path.endsWith('.md') && file.text.includes('Met Anna about the offer'));
+  await expect.poll(async () => (await journal()).length, { timeout: 8000 }).toBe(1);
+  expect((await journal())[0].text).toMatch(/^- \d{2}:\d{2} Met Anna about the offer$/m);
+  await expect.poll(async () => (await draftsFile())?.drafts.length).toBe(0);
+  expect(((await draftsFile())!.done as Array<{ title: string; outcome: string }>).map((entry) => [entry.title, entry.outcome])).toEqual([
+    ['Kick-off', 'created'],
+    ['Call the roofer', 'discarded'],
+    ['Met Anna about the offer', 'created'],
+  ]);
+  expect((await files()).filter((file) => /roofer/i.test(file.path))).toEqual([]);
+});
+
 // "Explain image" (AI harness P4-5): a picture of the vault goes, with a
 // question, to the model — after the overview showed it exactly as it would
 // go. The web view's own decoder and canvas prepare it, as in the app: what

@@ -1,6 +1,6 @@
 # Umiejętności (Beta)
 
-Stan na: 2026-10-06
+Stan na: 2026-10-07
 
 Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma dwanaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
@@ -38,6 +38,10 @@ Wszystkie tylko czytają: żadna nie zmienia notatki ani niczego nie wysyła. Ty
 Własna umiejętność korzysta z internetu tylko wtedy, gdy jej wiersz `allowed-tools` wymienia `web_search` lub `fetch_url`. **Sprawdź i zatwierdź** pokazuje wtedy, zanim ją zatwierdzisz: **Korzysta z internetu tam, gdzie dopuścisz to dla tego vaultu.** Umiejętność, która nie wymienia żadnych narzędzi, nigdy nie przynosi internetu ze sobą.
 
 Uruchomienie testowe nigdy nie korzysta z internetu i nigdy nie pyta: e-maile, których nie wolno mu było czytać w tej sesji, pozostają nieprzeczytane.
+
+## Proponowanie zmian
+
+Własna umiejętność proponuje zmiany tylko wtedy, gdy jej wiersz `allowed-tools` wymienia przeznaczone do tego narzędzia: `propose_edit` dla propozycji w notatce, `create_note`, `create_task` i `add_journal_entry` dla szkiców, `rename_note`, `move_note` i `delete_note` dla planów. **Sprawdź i zatwierdź** wymienia wtedy każde z nich i pokazuje: **Może proponować zmiany, zostawiać szkice i przedstawiać plany. W vaulcie nic się nie zmienia, dopóki nie zaakceptujesz, nie utworzysz lub nie potwierdzisz.** Umiejętność, która nie wymienia żadnych narzędzi, niczego nie proponuje — nic nie zyskuje też umiejętność zatwierdzona wcześniej — a uruchomienie testowe niczego nie zostawia. Czym są te trzy formy: **Proponowanie zmian** w [Asystent AI](AI_Assistant.md).
 
 ## Własne umiejętności
 

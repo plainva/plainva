@@ -2,14 +2,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, remove } from "@tauri-apps/plugin-fs";
 import i18n from "@plainva/ui/i18n";
-import { acpToolbox, MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
-import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, VaultQueryService } from "@plainva/core";
+import { acpToolbox, AI_POLICY_DIMENSIONS, MCP_OAUTH_CLIENT_DOCUMENT } from "@plainva/core";
+import type { AiAppSettings, CommentOperationService, IDatabaseAdapter, IVaultAdapter, VaultQueryService, WorkspaceCommentRecord } from "@plainva/core";
 import type { LocalEmbeddings, LocalGists } from "@plainva/ui";
 import {
   aiDefaultSettings,
   AiSession,
   aiVaultKey,
   calendarDay,
+  capturedNotePath,
+  captureVocabularyOf,
+  machineProposals,
+  noteMovePlan,
+  noteRenamePlan,
   adapterInstructionIO,
   adapterInstructionWriter,
   createAcpDeviceStore,
@@ -24,6 +29,7 @@ import {
   parseRecentsFile,
   plannerRowsFromTasks,
   postThreadReply,
+  prepareTaskNote,
   profileDefault,
   proposeSuggestionRound,
   situationFrom,
@@ -35,8 +41,10 @@ import {
   type AiVaultHost,
   type SituationEventInput,
   type VaultPolicyHost,
+  type VaultWriteDeps,
 } from "@plainva/ui";
 import { checkedReadTextFile } from "../../adapters/checkedFilesystem";
+import { requestCascadeDelete } from "../cascadeDelete";
 import { inboxFolderKey, journalMoodPropertyKey } from "../../contexts/VaultContext";
 import { buildDailyNotePath, readDailyNoteConfig } from "../dailyNotes";
 import { readEditorSelection } from "../editorSelection";
@@ -214,6 +222,31 @@ export interface DesktopVaultInput {
   semantic?: () => LocalEmbeddings | null;
   /** The vault's gists by the model on this computer, for the context package (plan P2b-3); null while there are none. */
   gists?: () => LocalGists | null;
+  /** The shell's own ways of doing what a plan or a draft asks for (plan P5); absent, the assistant proposes nothing here. */
+  writes?: DesktopWriteHost;
+  /** Every open remark of the vault by note — the comments overview's own query —, for the list of open proposals (plan P5). */
+  listComments?: () => Promise<ReadonlyMap<string, readonly WorkspaceCommentRecord[]>>;
+}
+
+/**
+ * What the window does for a plan and a draft (plan KI-Harness P5): each is
+ * the way the app itself does it — the file tree's rename and move, the task
+ * view's capture, the journal's entry —, so unsaved text lands first, links
+ * and tabs follow, and the index and the tree hear of it.
+ */
+export interface DesktopWriteHost {
+  /** The new path, or null where the note stayed what it was. */
+  rename(path: string, title: string): Promise<string | null>;
+  move(path: string, folder: string): Promise<string | null>;
+  /**
+   * A task from a captured line, read with `day` as "today"; the path of what
+   * was written. `atProvider`: also in the provider list its database names,
+   * through the one service every way of creating a task uses.
+   */
+  createTask(text: string, day: string, atProvider: boolean): Promise<string>;
+  /** The name of that provider list, or null where the task database names none. */
+  taskList(): Promise<string | null>;
+  addJournal(entry: { text: string; day: string; time: string; task: boolean }): Promise<string>;
 }
 
 /** Where an answer kept as a note goes while the vault names no inbox folder of its own. Asked when it is needed: nothing of another package runs while this module loads. */
@@ -247,6 +280,63 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     encrypted: input.encrypted,
   });
   currentPolicy = policy;
+  /** The vault's inbox folder: where a kept answer and a drafted note land while nobody named another place. */
+  const inboxFolder = async (): Promise<string> => {
+    try {
+      return ((await (await getSettingsStore()).get<string>(inboxFolderKey(input.vaultPath))) ?? "").trim() || defaultInboxFolder();
+    } catch {
+      return defaultInboxFolder();
+    }
+  };
+  const writes = input.writes;
+  /** The writing tools (plan P5): the dry runs are read from the index here, the acts are the window's own. */
+  const writeDeps: VaultWriteDeps | undefined = writes
+    ? {
+        sealed: input.encrypted,
+        async current(path) {
+          // The editor's pending keystrokes land first: a proposal is made against the note as it is.
+          if (/\.md$/i.test(path)) await flushPendingSave(path);
+          return read(path);
+        },
+        async propose(round) {
+          const service = input.commentOperations();
+          if (!service) throw new Error("comments are not available in this vault");
+          await proposeSuggestionRound(service, round);
+        },
+        async folderExists(folder) {
+          if (!folder) return true;
+          try {
+            if (!(await input.adapter.exists(folder))) return false;
+            await input.adapter.listDir(folder, false);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        taskVocabulary: () => captureVocabularyOf((key) => i18n.t(key), i18n.language),
+        // Where a task or a journal line would land, for the rules of that place: the task database's folder, the daily note.
+        async draftPlace(kind, day) {
+          if (kind === "task") {
+            const dbPath = await getTaskDatabasePath(input.vaultPath).catch(() => null);
+            if (dbPath) {
+              const prepared = await prepareTaskNote({ adapter: input.adapter, dbPath, title: "task", noteType: "Task" });
+              return prepared.ok ? `${prepared.folder}/task.md` : null;
+            }
+            // Without a task database a task is a line in the journal.
+          }
+          const date = new Date(`${day}T12:00:00`);
+          if (Number.isNaN(date.getTime())) return null;
+          const config = await readDailyNoteConfig(input.vaultPath);
+          return buildDailyNotePath(date, config.format, config.folder).fullPath;
+        },
+        renamePlan: (path, title) => noteRenamePlan(input.query, (target) => input.adapter.exists(target), path, title),
+        rename: writes.rename,
+        movePlan: (path, folder) => noteMovePlan((target) => input.adapter.exists(target), path, folder),
+        move: writes.move,
+        // The assistant never deletes: this opens the app's own dialog, and that one decides.
+        requestDelete: (path) => requestCascadeDelete({ paths: [path] }),
+      }
+    : undefined;
   /** Checkbox tasks and the task database, as every task view reads them. */
   const taskRows = async () => {
     const [db, notes] = await Promise.all([
@@ -325,19 +415,33 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     },
     // "Keep as a note" (plan P4-6): into the vault's inbox folder, through the adapter chain like any note.
     capture: {
-      async folder() {
-        try {
-          return ((await (await getSettingsStore()).get<string>(inboxFolderKey(input.vaultPath))) ?? "").trim() || defaultInboxFolder();
-        } catch {
-          return defaultInboxFolder();
-        }
-      },
+      folder: inboxFolder,
       async write(folder, stem, content) {
         const path = await writeCapturedNote(input.adapter, folder, stem, content);
         await input.noteCreated?.(path);
         return path;
       },
     },
+    // "Create" on a draft (plan P5): a note like a kept answer, a task and a journal line the way the window makes them.
+    ...(writes
+      ? {
+          creates: {
+            async note({ folder, stem, content }) {
+              const path = await writeCapturedNote(input.adapter, folder ?? (await inboxFolder()), stem, content);
+              await input.noteCreated?.(path);
+              return path;
+            },
+            task: ({ text, day, atProvider }) => writes.createTask(text, day, atProvider),
+            taskList: () => writes.taskList(),
+            journal: (entry) => writes.addJournal(entry),
+            async placeDenies(folder, stem) {
+              const effective = await policy.policyOf(capturedNotePath(folder ?? (await inboxFolder()), stem), "");
+              return AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny");
+            },
+          },
+        }
+      : {}),
+    ...(input.listComments ? { proposals: async () => machineProposals(await input.listComments!()) } : {}),
     gists: () => input.gists?.()?.reader() ?? null,
     async keepOnDevice(path) {
       // The editor's pending keystrokes land first, so the rule is written into the live text.
@@ -397,6 +501,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
       moodKey,
       // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
       mail: vaultMailSource(input.vaultPath, input.db),
+      ...(writeDeps ? { writes: writeDeps } : {}),
     },
   });
   return { host, policy };

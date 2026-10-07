@@ -1,6 +1,6 @@
 # Competenze (Beta)
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-07
 
 Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include dodici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
@@ -38,6 +38,10 @@ Tutte si limitano a leggere: nessuna cambia una nota o invia qualcosa. Solo **Do
 Una tua competenza usa Internet solo quando la sua riga `allowed-tools` nomina `web_search` o `fetch_url`. **Controlla e approva** dice allora **Usa Internet dove l'hai consentito per questo vault.** prima che tu la approvi. Una competenza che non nomina alcuno strumento non porta mai con sé Internet.
 
 Un'esecuzione di prova non usa mai Internet e non chiede mai: le e-mail che in questa sessione non aveva il permesso di leggere restano non lette.
+
+## Proporre modifiche
+
+Una tua competenza propone modifiche solo quando la sua riga `allowed-tools` nomina gli strumenti adatti: `propose_edit` per le proposte su una nota, `create_note`, `create_task` e `add_journal_entry` per le bozze, `rename_note`, `move_note` e `delete_note` per i piani. **Controlla e approva** allora li nomina uno per uno e dice **Può proporre modifiche, lasciare bozze e presentare piani. Nel vault non cambia nulla prima che tu accetti, crei o confermi.** Una competenza che non nomina alcuno strumento non propone nulla — nemmeno una che avevi approvato prima ci guadagna qualcosa —, e un'esecuzione di prova non lascia nulla. Che cosa sono le tre forme: **Proporre modifiche** in [Assistente IA](AI_Assistant.md).
 
 ## Le tue competenze
 

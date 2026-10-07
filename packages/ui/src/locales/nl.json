@@ -39,7 +39,16 @@
       "search_mail": "Zoekt in je e-mail",
       "read_mail": "Leest een bericht",
       "find_tools": "Zoekt andere hulpmiddelen",
-      "call_tool": "Gebruikt een ander hulpmiddel"
+      "call_tool": "Gebruikt een ander hulpmiddel",
+      "propose_edit": "Stelt wijzigingen in een notitie voor",
+      "set_property": "Stelt een eigenschapswaarde voor",
+      "create_note": "Maakt een concept van een notitie",
+      "create_task": "Maakt een concept van een taak",
+      "add_journal_entry": "Maakt een concept van een journaalitem",
+      "create_entry": "Maakt een concept van een database-item",
+      "rename_note": "Legt een plan voor om te hernoemen",
+      "move_note": "Legt een plan voor om te verplaatsen",
+      "delete_note": "Vraagt om een notitie te verwijderen"
     },
     "stopped": {
       "cancelled": "Gestopt.",
@@ -659,6 +668,7 @@
       "mayReadOnly": "Verandert niets, verstuurt niets.",
       "mayWeb": "Gebruikt internet waar je dat voor deze vault hebt toegestaan. Zolang er notities in het gesprek zitten, vraagt elke pagina en elke zoekopdracht eerst.",
       "mayNoChange": "Verandert niets.",
+      "mayPropose": "Kan wijzigingen voorstellen, concepten klaarzetten en plannen voorleggen. In de vault verandert niets voordat je overneemt, aanmaakt of bevestigt.",
       "mayAgents": "Vaste instructies voor elk nieuw gesprek in deze vault. Ze kunnen je privacyregels niet opheffen.",
       "originApp": "Meegeleverd met Plainva",
       "originPath": "Staat in {{path}}",
@@ -1211,6 +1221,85 @@
       "noneSealed": "De geopende vault is een versleutelde workspace. Geen van de titels wordt doorgegeven.",
       "noneRules": "Plainva begrijpt sommige regels van .agent/policy.yml niet of kan het bestand niet lezen. Totdat dat is opgelost, wordt geen enkele titel doorgegeven.",
       "noneEmpty": "Op dit moment wordt geen enkele titel doorgegeven."
+    },
+    "write": {
+      "proposedIn": "Voorgesteld in “{{name}}”: {{what}}",
+      "passages_one": "{{count}} passage",
+      "passages_other": "{{count}} passages",
+      "properties_one": "{{count}} eigenschap",
+      "properties_other": "{{count}} eigenschappen",
+      "draft": {
+        "kind": {
+          "note": "Concept · Notitie",
+          "task": "Concept · Taak",
+          "journal": "Concept · Journaalitem",
+          "entry": "Concept · Database-item"
+        },
+        "what": {
+          "note": "Notitie",
+          "task": "Taak",
+          "journal": "Item",
+          "entry": "Item"
+        },
+        "landsIn": "Komt terecht in",
+        "inbox": "Inbox-map",
+        "readFrom": "Opgesteld op",
+        "day": "Dag",
+        "words": "Formulering",
+        "by": "Van",
+        "inherits": "De notitie krijgt de privacyregels van de notities waarop ze berust.",
+        "defused": "Webadressen die de AI meebracht, staan er als tekst in.",
+        "show": "Tonen",
+        "hide": "Verbergen",
+        "discard": "Verwerpen",
+        "create": "Aanmaken",
+        "created": "Aangemaakt: {{name}}",
+        "discarded": "Verworpen: {{name}}",
+        "createdToast": "Aangemaakt.",
+        "failed": "Het concept kon niet worden aangemaakt: {{reason}}",
+        "unavailable": "Dit kan op dit apparaat niet worden aangemaakt."
+      },
+      "plan": {
+        "renameTitle": "Hernoemen?",
+        "moveTitle": "Verplaatsen?",
+        "deleteTitle": "De AI vraagt om een notitie te verwijderen",
+        "note": "Notitie",
+        "newName": "Nieuwe naam",
+        "folder": "Doelmap",
+        "vaultRoot": "Bovenste niveau van de vault",
+        "links": "Links",
+        "linksNone": "Geen andere notitie linkt hierheen.",
+        "linksIn": "{{links}} in {{notes}} — ze volgen de nieuwe naam",
+        "linkCount_one": "{{count}} link",
+        "linkCount_other": "{{count}} links",
+        "noteCount_one": "{{count}} notitie",
+        "noteCount_other": "{{count}} notities",
+        "moreNotes_one": "en nog {{count}} notitie",
+        "moreNotes_other": "en nog {{count}} notities",
+        "loosens": "In de doelmap geldt voor de notitie niet meer: {{rules}}.",
+        "rule": {
+          "cloud": "nooit naar de cloud",
+          "web": "nooit samen met internet"
+        },
+        "renameHint": "Plainva hernoemt de notitie en werkt de links bij — zoals wanneer je met de hand hernoemt. De AI hoort alleen of het is gebeurd.",
+        "moveHint": "Plainva verplaatst de notitie — zoals wanneer je met de hand verplaatst. De AI hoort alleen of het is gebeurd.",
+        "deleteHint": "Verwijderen gaat alleen via het verwijdervenster van Plainva. Dat laat zien wat er meegaat, en er verdwijnt niets voordat je daar bevestigt.",
+        "rename": "Hernoemen",
+        "noRename": "Niet hernoemen",
+        "move": "Verplaatsen",
+        "noMove": "Niet verplaatsen",
+        "openDelete": "Verwijdervenster openen",
+        "noDelete": "Niet verwijderen"
+      },
+      "open": {
+        "segment": "Open",
+        "proposals": "Voorstellen bij notities",
+        "empty": "Er wacht niets op je",
+        "emptyHint": "Wat een AI voorstelt of opstelt, blijft hier staan tot je hebt beslist.",
+        "hint": "Hier staat wat iemand heeft klaargezet die jij niet bent. Niets daarvan staat in de vault totdat je het overneemt of aanmaakt. Concepten staan op dit apparaat, voorstellen bij hun notitie.",
+        "changes_one": "{{count}} wijziging",
+        "changes_other": "{{count}} wijzigingen"
+      }
     },
     "transcribe": {
       "action": "Uitschrijven",

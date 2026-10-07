@@ -115,6 +115,26 @@ describe("the skills workshop", () => {
     }
   });
 
+  it("says before the yes that a skill may propose, draft and plan — only one that names those tools does", async () => {
+    await i18n.changeLanguage("en");
+    const skill = (tools: string) => `---\nname: tidy-up\ndescription: Tidies a note.\n${tools}---\n\nTidy the note.\n`;
+    const factsOf = async (tools: string) => approvalFacts(t, resolveInstructions(await scanVaultInstructions(io({ ".agent/skills/tidy-up/SKILL.md": skill(tools) })), EMPTY_INSTRUCTION_APPROVALS)[0]!, "en");
+    // Every writing tool it names is shown by name, and the line that used to say "changes nothing" says what it can do instead.
+    expect((await factsOf("allowed-tools: read_note propose_edit create_note rename_note delete_note\n")).may).toEqual([
+      "Uses: Reading a note · Suggesting changes to a note · Drafting a note · Laying out a plan to rename · Asking to delete a note",
+      "Notes in the whole vault, as far as your rules allow",
+      "May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.",
+    ]);
+    // A skill that names nothing gained no writing tool when those arrived: what was approved before still says what it said.
+    const everything = (await factsOf("")).may;
+    expect(everything[0]).not.toMatch(/Suggesting|Drafting|Laying out|Asking to delete/);
+    expect(everything[everything.length - 1]).toBe("Changes nothing, sends nothing.");
+    // None of the skills that come with the app writes.
+    for (const own of resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS)) {
+      expect(approvalFacts(t, own, "en").may.join("\n"), own.source.id).not.toContain("May suggest changes");
+    }
+  });
+
   it("shows the app's own skills read only, and an invalid one with its problems", async () => {
     await i18n.changeLanguage("en");
     const [daily] = resolveInstructions(APP_SKILL_SOURCES.slice(0, 1), EMPTY_INSTRUCTION_APPROVALS);

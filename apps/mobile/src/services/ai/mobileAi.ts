@@ -52,6 +52,7 @@ import { getMobileSettings } from "../mobileSettings";
 import { mobileCommentOperations } from "../commentOperations";
 import { useMobileEmbeddings } from "./mobileEmbeddings";
 import { useMobileGists } from "./mobileGists";
+import { mobileDraftCreator, mobileProposals, mobileWriteDeps } from "./mobileAiWrites";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -438,7 +439,12 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         moodKey,
         // The vault's mail accounts (plan KI-Harness P4-4): found through the tool search, asked for at the first call.
         mail: vaultMailSource(vault.vaultId, () => vault.db),
+        // The writing tools (plan P5): a proposal, a draft, or a plan the phone's own operation carries out.
+        writes: mobileWriteDeps(vault, query, read),
       },
+      // "Create" on a draft (plan P5): a note, a task and a journal line the way the phone makes them.
+      creates: mobileDraftCreator(vault, vaultPolicy),
+      proposals: () => mobileProposals(vault),
     });
     currentPolicy = vaultPolicy;
     setPolicy(vaultPolicy);

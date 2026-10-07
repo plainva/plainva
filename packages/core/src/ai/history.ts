@@ -103,7 +103,27 @@ export interface RunMeta {
   readMore?: boolean;
   /** What the run asked of foreign servers; absent when it asked nothing. */
   mcp?: RunMcp;
+  /** What the run laid down for the user to decide (plan KI-Harness P5); absent when it laid down nothing. */
+  writes?: RunWrites;
 }
+
+/**
+ * What a run laid down (plan KI-Harness P5): the notes it put a suggestion
+ * round on, the drafts it left, the plans it asked about and how each ended.
+ * Paths, counts, a draft's title — never a proposed text. The line under an
+ * answer is drawn from this, and a later conversation can see what an
+ * earlier one already proposed.
+ */
+export interface RunWrites {
+  /** Suggestion rounds by note: how many passages, how many properties. */
+  rounds: { path: string; blocks: number; properties: number }[];
+  /** Drafts by id, with the kind and the title they were laid down with. */
+  drafts: { id: string; kind: string; title: string }[];
+  /** Plans the user was asked about: `done`, `declined` or `failed`. */
+  plans: { kind: string; path: string; outcome: string }[];
+}
+
+export const RUN_WRITES_CAP = 64;
 
 /** Paths of notes a run's tools read that its record keeps. */
 export const RUN_READ_CAP = 200;
@@ -308,8 +328,27 @@ function readRun(raw: unknown): RunMeta[] {
       // More than the record keeps — or more than it may keep: either way not everything is known by path.
       ...(r.readMore === true || strings(r.read).length > RUN_READ_CAP ? { readMore: true } : {}),
       ...(readRunMcp(r.mcp) ? { mcp: readRunMcp(r.mcp)! } : {}),
+      ...(readRunWrites(r.writes) ? { writes: readRunWrites(r.writes)! } : {}),
     },
   ];
+}
+
+/** A run's record of what it laid down, read defensively: paths, counts and titles, bounded. */
+function readRunWrites(raw: unknown): RunWrites | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<Record<keyof RunWrites, unknown>>;
+  const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  const list = (v: unknown) => (Array.isArray(v) ? (v.filter((item) => item && typeof item === "object") as Record<string, unknown>[]).slice(0, RUN_WRITES_CAP) : []);
+  const rounds = list(r.rounds)
+    .map((item) => ({ path: text(item.path, 1024), blocks: Math.floor(count(item.blocks)), properties: Math.floor(count(item.properties)) }))
+    .filter((item) => item.path && item.blocks + item.properties > 0);
+  const drafts = list(r.drafts)
+    .map((item) => ({ id: text(item.id, 64), kind: text(item.kind, 16), title: text(item.title, 200) }))
+    .filter((item) => item.id && item.kind);
+  const plans = list(r.plans)
+    .map((item) => ({ kind: text(item.kind, 16), path: text(item.path, 1024), outcome: text(item.outcome, 16) }))
+    .filter((item) => item.kind && item.path);
+  return rounds.length || drafts.length || plans.length ? { rounds, drafts, plans } : null;
 }
 
 /** A run's record of its calls to foreign servers, read defensively: names and outcomes, bounded. */

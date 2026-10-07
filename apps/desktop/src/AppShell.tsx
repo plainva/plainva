@@ -577,6 +577,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
     openNote: (path) => openInFocusedPane(path),
     embeddings,
     gists,
+    renameTabPrefix,
   });
   // The global key handler binds these two, not the whole (per-render) object.
   const { enabled: aiEnabled, toggleCompanion: toggleAiCompanion } = ai;

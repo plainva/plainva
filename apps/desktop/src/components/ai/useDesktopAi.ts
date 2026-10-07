@@ -5,8 +5,12 @@ import i18n from "@plainva/ui/i18n";
 import type { IVaultAdapter, VaultQueryService } from "@plainva/core";
 import {
   aiNavigationCommands,
+  appendPlannedJournalEntry,
+  captureVocabularyOf,
   createAudioTranscriber,
   createImageExplainer,
+  createTaskInDatabase,
+  parseTaskCapture,
   getPlatformServices,
   noteDisplayName,
   resolveAudioPath,
@@ -14,6 +18,7 @@ import {
   setImageExplainer,
   situationEvents,
   startableSkills,
+  toast,
   useStableHandler,
   type AiNavigationCommand,
   type AiSession,
@@ -23,9 +28,14 @@ import {
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
-import { applyIndexChanges } from "../../services/fileActions";
+import { readJournalHeading, useJournalFiles } from "../../hooks/useJournal";
+import { applyIndexChanges, moveItems, reindexAfterRename, renameToName } from "../../services/fileActions";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
-import { AI_OPEN_EVENT, AI_SKILLS_EVENT, createDesktopVaultHost, getDesktopAiSession } from "../../services/ai/desktopAi";
+import { getConfiguredNoteType } from "../../services/newNote";
+import { requestSaveFlush } from "../../services/saveFlush";
+import { getTaskDatabasePath } from "../../services/taskDatabase";
+import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
+import { AI_OPEN_EVENT, AI_SKILLS_EVENT, createDesktopVaultHost, getDesktopAiSession, type DesktopWriteHost } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { AI_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
 
@@ -49,7 +59,14 @@ export interface DesktopAiInput {
   embeddings?: LocalEmbeddings | null;
   /** The vault's gists (plan P2b-3): the context package sends them for its cards. */
   gists?: LocalGists | null;
+  /** Makes open tabs follow a note that was renamed or moved (plan P5): the window's own bookkeeping. */
+  renameTabPrefix?: (from: string, to: string) => void;
 }
+
+const clockNow = (): string => {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+};
 
 /** Where the shell leaves its palette's commands for the assistant: built late in a render, asked for when a command runs. */
 export type AiCommandSource = { current: (() => readonly AppCommand[]) | null };
@@ -86,7 +103,7 @@ export function useDesktopAi(input: DesktopAiInput) {
   });
   // Appointments come from the PIM cache of the open vault, when it has one;
   // an AI suggestion round goes through its comment service (plan P1.5).
-  const { pimRuntime, commentOperations, dbAdapter, indexer, triggerFileTreeUpdate } = useVault();
+  const { pimRuntime, commentOperations, dbAdapter, indexer, triggerFileTreeUpdate, listAllWorkspaceComments } = useVault();
   const comments = useRef(commentOperations);
   useLayoutEffect(() => {
     comments.current = commentOperations;
@@ -104,6 +121,94 @@ export function useDesktopAi(input: DesktopAiInput) {
   const pim = useRef(pimRuntime);
   useLayoutEffect(() => {
     pim.current = pimRuntime;
+  });
+  // What a plan and a draft of the assistant ask for is done the way this window does it (plan KI-Harness P5): the file
+  // tree's rename and move — unsaved text first, links, tabs, index and tree after —, the task view's capture, the
+  // journal's entry. Read through a ref like everything else the host uses.
+  const journalFiles = useJournalFiles();
+  const allComments = useRef(listAllWorkspaceComments);
+  const writeHost = useRef<DesktopWriteHost | null>(null);
+  useLayoutEffect(() => {
+    allComments.current = listAllWorkspaceComments;
+    const { vaultAdapter: adapter, vaultPath: root, queryService: query, renameTabPrefix } = input;
+    if (!adapter || !root) {
+      writeHost.current = null;
+      return;
+    }
+    const landed = async (path: string) => {
+      try {
+        await requestSaveFlush(path, root);
+        return true;
+      } catch {
+        // Unsaved text that cannot be written stays where it is: nothing moves under it (issue 113).
+        return false;
+      }
+    };
+    const addJournal = async (entry: { text: string; day: string; time: string; task: boolean }): Promise<string> => {
+      if (!journalFiles) throw new Error("the journal is not available");
+      const path = await appendPlannedJournalEntry(journalFiles, { date: entry.day, time: entry.time, heading: await readJournalHeading(root), text: entry.text, ...(entry.task ? { task: true } : {}) });
+      if (!path) throw new Error("the entry could not be written");
+      return path;
+    };
+    // A task made from a draft reaches its provider list the way every other new task does (C4, S16): through the one
+    // shared service, after the note exists. A failure is reported and never costs the note. Nothing exists at the
+    // provider after a failed creation, so trying again is safe; a task created there without its anchor is the
+    // opposite, and that message offers no retry.
+    const sendToList = async (dbPath: string, notePath: string, title: string, dueDate?: string): Promise<void> => {
+      const outcome = await sendTaskToProviderList({ adapter, dbPath, notePath, title, ...(dueDate ? { dueDate } : {}), pimRuntime: pim.current });
+      if (outcome === "createFailed") toast.error(i18n.t("tasks.providerCreateFailed"), { label: i18n.t("pim.eventWriteRetry"), run: () => void sendToList(dbPath, notePath, title, dueDate) });
+      else if (outcome === "notAnchored") toast.error(i18n.t("tasks.providerAnchorFailed"));
+    };
+    writeHost.current = {
+      async rename(path, title) {
+        if (!(await landed(path))) return null;
+        const result = await renameToName({ adapter, queryService: query, oldPath: path, newName: title, isFolder: false });
+        if (!result.ok) return null;
+        renameTabPrefix?.(path, result.newPath);
+        if (indexer) await reindexAfterRename(indexer, { oldPath: path, newPath: result.newPath, isFolder: false, changedPaths: result.changedPaths }).catch(() => undefined);
+        triggerFileTreeUpdate();
+        notifyFileOps([{ type: "move", from: path, to: result.newPath, isFolder: false }]);
+        return result.newPath;
+      },
+      async move(path, folder) {
+        if (!(await landed(path))) return null;
+        const { moved } = await moveItems({ adapter, queryService: query, indexer, isFolder: () => false, onMoved: (from, to) => renameTabPrefix?.(from, to) }, [path], folder);
+        if (moved.length === 0) return null;
+        triggerFileTreeUpdate();
+        notifyFileOps(moved);
+        return moved[0]!.to;
+      },
+      async createTask(text, day, atProvider) {
+        const taskDb = await getTaskDatabasePath(root);
+        // Without a task database a task is what it is everywhere else in Plainva: a line with an open box, in the journal.
+        if (!taskDb) return addJournal({ text, day, time: clockNow(), task: true });
+        // The same reading as a line typed into the capture field — with "today" being the day it was drafted.
+        const read = parseTaskCapture(text, captureVocabularyOf((key) => i18n.t(key), i18n.language), day);
+        const created = await createTaskInDatabase({
+          adapter,
+          dbPath: taskDb,
+          title: read.title.trim() || text,
+          noteType: await getConfiguredNoteType(root),
+          ...(read.due ? { dueDate: read.due, dueMinutes: read.minutes } : {}),
+          tags: read.tags,
+          priority: read.priority,
+          repeat: read.repeat,
+        });
+        if (!created.ok) throw new Error(created.reason);
+        if (indexer) await applyIndexChanges(indexer, { added: [created.notePath] }).catch(() => undefined);
+        triggerFileTreeUpdate([created.notePath]);
+        notifyFileOps([{ type: "create", path: created.notePath }]);
+        // …and in the provider list the database names, where the card's chip stayed on. The note is the deliverable
+        // and exists; the provider's answer only adds the link to it and does not hold the creation back (issue 119).
+        if (atProvider) void sendToList(taskDb, created.notePath, read.title.trim() || text, read.due ?? undefined);
+        return created.notePath;
+      },
+      async taskList() {
+        const taskDb = await getTaskDatabasePath(root).catch(() => null);
+        return taskDb ? providerListLabel({ adapter, dbPath: taskDb, pimRuntime: pim.current }) : null;
+      },
+      addJournal,
+    };
   });
   // The index database: the mail client's offline copy lives there, and the assistant's mail tools read it when an account does not answer.
   const db = useRef(dbAdapter);
@@ -153,6 +258,14 @@ export function useDesktopAi(input: DesktopAiInput) {
       noteCreated: (path) => created.current(path),
       semantic: () => latest.current.embeddings ?? null,
       gists: () => latest.current.gists ?? null,
+      writes: {
+        rename: async (path, title) => (await writeHost.current?.rename(path, title)) ?? null,
+        move: async (path, folder) => (await writeHost.current?.move(path, folder)) ?? null,
+        createTask: (text, day, atProvider) => (writeHost.current ? writeHost.current.createTask(text, day, atProvider) : Promise.reject(new Error("no vault"))),
+        taskList: async () => (await writeHost.current?.taskList()) ?? null,
+        addJournal: (entry) => (writeHost.current ? writeHost.current.addJournal(entry) : Promise.reject(new Error("no vault"))),
+      },
+      listComments: () => allComments.current(),
     });
     hostRef.current = host;
     void session.attachVault(host);

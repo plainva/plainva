@@ -4438,6 +4438,10 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
   color: var(--text-main);
 }
 .pv-ai-overview--asking { border-color: var(--accent-color); background: var(--surface-container); }
+/* A draft (plan KI-Harness P5): the same card with the amber edge a suggestion has — it waits for the user, like one. */
+.pv-ai-overview--draft { border-left: 3px solid var(--warning-border); }
+/* Everything that waits, in the AI tab and on the phone's AI screen: the cards one under the other. */
+.pv-ai-open { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); overflow-y: auto; }
 .pv-ai-overview-head { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); font-weight: 600; }
 .pv-ai-overview-head > svg { flex: none; color: var(--accent-color); }
 .pv-ai-overview-why { margin: 0; padding-left: 1.2em; color: var(--text-muted); }

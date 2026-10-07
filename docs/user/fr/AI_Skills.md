@@ -1,6 +1,6 @@
 # Compétences (Bêta)
 
-Dernière mise à jour : 2026-10-06
+Dernière mise à jour : 2026-10-07
 
 Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit douze, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
 
@@ -38,6 +38,10 @@ Toutes ne font que lire : aucune ne modifie une note ni n'envoie quoi que ce soi
 Une de vos propres compétences n'utilise Internet que lorsque sa ligne `allowed-tools` nomme `web_search` ou `fetch_url`. **Vérifier et approuver** indique alors **Utilise Internet là où vous l'avez autorisé pour ce vault.** avant que vous ne l'approuviez. Une compétence qui ne nomme aucun outil n'amène jamais Internet avec elle.
 
 Une exécution de test n'utilise jamais Internet et ne demande jamais : les e-mails qu'elle n'avait pas le droit de lire dans cette session restent non lus.
+
+## Proposer des modifications
+
+Une de vos propres compétences ne propose des modifications que lorsque sa ligne `allowed-tools` nomme les outils prévus pour cela : `propose_edit` pour des propositions sur une note, `create_note`, `create_task` et `add_journal_entry` pour des brouillons, `rename_note`, `move_note` et `delete_note` pour des plans. **Vérifier et approuver** nomme alors chacun d'eux et indique **Peut proposer des modifications, laisser des brouillons et présenter des plans. Rien ne change dans le vault avant que vous n'acceptiez, ne créiez ou ne confirmiez.** Une compétence qui ne nomme aucun outil ne propose rien — une compétence approuvée auparavant n'y gagne rien non plus —, et une exécution de test ne laisse rien. Ce que sont les trois formes : **Proposer des modifications** dans [Assistant IA](AI_Assistant.md).
 
 ## Vos propres compétences
 

@@ -1,6 +1,6 @@
 # Vaardigheden (Beta)
 
-Laatst bijgewerkt: 2026-10-06
+Laatst bijgewerkt: 2026-10-07
 
 Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er twaalf mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
@@ -38,6 +38,10 @@ Ze lezen allemaal alleen: geen enkele verandert een notitie of verstuurt iets. A
 Een eigen vaardigheid gebruikt internet alleen als haar `allowed-tools`-regel `web_search` of `fetch_url` noemt. **Controleren en goedkeuren** zegt dan **Gebruikt internet waar je dat voor deze vault hebt toegestaan.** voordat je haar goedkeurt. Een vaardigheid die geen hulpmiddelen noemt, brengt internet nooit mee.
 
 Een testuitvoering gebruikt nooit internet en vraagt nooit: e-mail die ze in deze sessie niet mocht lezen, blijft ongelezen.
+
+## Wijzigingen voorstellen
+
+Een eigen vaardigheid stelt alleen wijzigingen voor als haar `allowed-tools`-regel de hulpmiddelen daarvoor noemt: `propose_edit` voor voorstellen bij een notitie, `create_note`, `create_task` en `add_journal_entry` voor concepten, `rename_note`, `move_note` en `delete_note` voor plannen. **Controleren en goedkeuren** noemt ze dan elk afzonderlijk en zegt **Kan wijzigingen voorstellen, concepten klaarzetten en plannen voorleggen. In de vault verandert niets voordat je overneemt, aanmaakt of bevestigt.** Een vaardigheid die geen hulpmiddelen noemt, stelt niets voor — ook een vaardigheid die je eerder hebt goedgekeurd, krijgt er niets bij —, en een testuitvoering laat niets achter. Wat de drie vormen zijn: **Wijzigingen voorstellen** in [AI-assistent](AI_Assistant.md).
 
 ## Je eigen vaardigheden
 

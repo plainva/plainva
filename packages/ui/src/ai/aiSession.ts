@@ -17,11 +17,21 @@ import {
   type SuggestionAuthor,
 } from "./aiSelectionActions";
 import { defuseNewAddresses } from "./aiWriteLint";
+import { draftedNoteContent, EMPTY_WRITE_DRAFTS, type DraftCreator, type OpenProposal, type WriteDraftState, type WriteDraftStore } from "./aiWrites";
+import { isWriteToolName, type PlanQuestion, type WriteRun } from "./writeTools";
+import { safeFileStem } from "../lib/fileStem";
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
   addressOrigin,
   addUsage,
   AI_POLICY_DIMENSIONS,
+  assistantAuthorId,
+  withoutWriteDraft,
+  withWriteDraft,
+  withWriteDraftOutcome,
+  type RunWrites,
+  type WriteDraft,
+  type WriteDraftBody,
   calledToolName,
   dispatchedArgs,
   allowHost,
@@ -256,7 +266,9 @@ export interface AiVaultHost {
    * tools this shell can serve, reached through the tool search (ADR 0019);
    * `narrowed` tells that search what a skill the model loaded leaves;
    * `foreign` are the tools of foreign servers this run may find there too
-   * (plan P4.5).
+   * (plan P4.5). `writing`: what the run brings to the writing tools — who
+   * signs, how the user is asked, where a draft goes (plan P5); without it
+   * they answer that this vault takes no changes here.
    */
   tools(
     recipient: EgressRecipient,
@@ -265,6 +277,7 @@ export interface AiVaultHost {
     web?: boolean,
     narrowed?: () => readonly string[] | null,
     foreign?: () => readonly ToolManifest[],
+    writing?: WriteRun,
   ): { names: readonly string[]; more?: readonly string[]; executor: ToolExecutor } | null;
   /** Whether the AI may use the internet in this vault, and the sites it need not ask for (plan P4); absent, it may not. */
   web?: WebSettingsStore;
@@ -309,6 +322,12 @@ export interface AiVaultHost {
    * absent where the shell cannot read them.
    */
   instructions?: AiInstructionsHost;
+  /** The drafts of this vault on this device (plan KI-Harness P5): what an assistant wants to exist, until the user decides. */
+  drafts?: WriteDraftStore;
+  /** How this shell makes what a draft describes — a note, a task, a line in the journal — through the app's own ways. Absent where it cannot. */
+  creates?: DraftCreator;
+  /** The notes that carry open suggestions of a machine, from the vault's comments (plan P5); absent where the shell cannot list them. */
+  proposals?(): Promise<OpenProposal[]>;
 }
 
 export interface AiInstructionsHost {
@@ -523,7 +542,15 @@ export type EffectRequest =
    * it, `args` the arguments in full, as they would go. Asked for every call:
    * there is no "from now on", and `always` means this once.
    */
-  | { id: string; kind: "mcp"; serverId: string; server: string; tool: string; title: string; args: string };
+  | { id: string; kind: "mcp"; serverId: string; server: string; tool: string; title: string; args: string }
+  /**
+   * `plan` — what cannot be reviewed part by part (plan P5, ADR 0019 §2): a
+   * rename with the notes whose links change, a move, a deletion. The run
+   * waits. A yes lets the app's own operation do it; for a deletion it opens
+   * the app's delete dialog, and that one decides. Asked every time: `always`
+   * means this once.
+   */
+  | { id: string; kind: "plan"; question: PlanQuestion };
 
 /**
  * The user's answer. To a request to the internet: this once, from now on for
@@ -614,9 +641,27 @@ export interface AiState {
   mcp: AiMcpState;
   /** The external agents of this device and the session one of them has in this vault (plan P4.6). */
   agents: AiAcpState;
+  /** The drafts that wait in this vault on this device, and what became of earlier ones (plan P5). */
+  drafts: WriteDraftState;
 }
 
+/** How "Create" on a draft ended (plan P5). */
+export type DraftOutcome =
+  | { kind: "created"; path: string }
+  /** `unavailable`: this shell cannot make that kind of thing. `gone`: the draft is not there any more. */
+  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed"; message?: string };
+
 type Listener = () => void;
+
+/** What the user typed in a conversation so far: their own words, without the context the app put beside them. */
+function userTextsOf(conversation: ConversationRecord["conversation"]): string[] {
+  return conversation.turns.flatMap((turn) => (turn.role === "user" ? turn.parts.flatMap((part) => (part.type === "text" && !part.context ? [part.text] : [])) : []));
+}
+
+/** The time of day as the journal writes it: HH:mm. */
+function clockOf(now: Date): string {
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
 
 /** What the send overview shows of a conversation's instructions (plan KI-Harness P3). */
 function manifestInstructionsOf(instructions: ConversationInstructions | undefined): ManifestInstructions | undefined {
@@ -733,6 +778,9 @@ export class AiSession {
   private consentAnswer: ((answer: ConsentAnswer) => void) | null = null;
   /** The request to the internet that waits for an answer, if one does. */
   private effectAnswer: ((answer: EffectAnswer) => void) | null = null;
+  /** The lane of changes to the list of drafts (plan P5). */
+  private draftLane: Promise<unknown> = Promise.resolve();
+  private creatingDraft = false;
   /** Conversations on screen right now: the places where the send overview can be answered. */
   private surfaces = 0;
   /** How the shell puts a conversation on screen (the companion, the AI sheet). */
@@ -770,6 +818,7 @@ export class AiSession {
       effect: null,
       mcp: this.mcp.state,
       agents: this.agents.state,
+      drafts: EMPTY_WRITE_DRAFTS,
     };
   }
 
@@ -961,6 +1010,8 @@ export class AiSession {
       // Another vault's switch says nothing about this one: off until its own settings are read.
       web: DEFAULT_WEB_SETTINGS,
       draftWeb: false,
+      // Another vault's drafts are not this one's.
+      drafts: EMPTY_WRITE_DRAFTS,
     });
     // The same for foreign servers: which this vault uses is its own choice, and the connections of the last one end here.
     this.mcp.attach(vault?.mcp ?? null);
@@ -969,6 +1020,7 @@ export class AiSession {
     if (!vault) return;
     void this.refreshSkills();
     void this.loadWebSettings(vault);
+    void this.loadDrafts(vault);
     const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
     const old = expiredConversations(summaries, this.state.settings.historyDays, this.host.now());
     for (const id of old) await vault.conversations.remove(id).catch(() => undefined);
@@ -997,6 +1049,137 @@ export class AiSession {
    */
   private dropWriteQuestion(): void {
     if (this.state.effect?.kind === "write") this.settleEffect("deny");
+  }
+
+  // ----------------------------------------------------------------- drafts
+
+  private async loadDrafts(vault: AiVaultHost): Promise<void> {
+    const drafts = vault.drafts ? await vault.drafts.load().catch(() => EMPTY_WRITE_DRAFTS) : EMPTY_WRITE_DRAFTS;
+    if (this.vault === vault) this.set({ drafts });
+  }
+
+  /** One change at a time on the list of drafts — read, change, write —, so two drafts of one run both land. */
+  private changeDrafts(vault: AiVaultHost, change: (state: WriteDraftState) => WriteDraftState | null): Promise<WriteDraftState | null> {
+    const work = this.draftLane
+      .catch(() => undefined)
+      .then(async () => {
+        if (!vault.drafts) return null;
+        const next = change(await vault.drafts.load());
+        if (!next) return null;
+        await vault.drafts.save(next);
+        if (this.vault === vault) this.set({ drafts: next });
+        return next;
+      });
+    this.draftLane = work;
+    return work;
+  }
+
+  /**
+   * Leaves a draft in a vault's list (plan KI-Harness P5): something an
+   * assistant wants to exist. Nothing is created; the list never drops a
+   * waiting draft to make room, so the writer hears when it is full.
+   */
+  async leaveDraft(vault: AiVaultHost, draft: WriteDraft): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" }> {
+    let problem: "full" | "invalid" = "invalid";
+    const next = await this.changeDrafts(vault, (state) => {
+      const added = withWriteDraft(state.drafts, draft);
+      if (!added.ok) {
+        problem = added.problem === "full" ? "full" : "invalid";
+        return null;
+      }
+      return { ...state, drafts: added.drafts };
+    }).catch(() => null);
+    return next ? { ok: true, id: draft.id } : { ok: false, problem };
+  }
+
+  /** Whether a draft can be created here: the shell makes notes, tasks and journal lines, and the AI is on. */
+  canCreateDrafts(): boolean {
+    return Boolean(this.state.settings.enabled && this.vault?.creates && this.vault.drafts);
+  }
+
+  /**
+   * The provider list a task made from a draft can also be created in, by its
+   * name; null where the task database names none. The card asks with it, the
+   * way the capture field does — without a name there is nothing to ask.
+   */
+  async draftTaskList(): Promise<string | null> {
+    const list = this.vault?.creates?.taskList;
+    return list ? list().catch(() => null) : null;
+  }
+
+  /**
+   * "Create" on a draft (plan P5): the app makes what the draft describes,
+   * through its own way of making that kind of thing — the user's own step,
+   * never a model's. A note is stamped with who wrote it and takes over the
+   * rules of what it rests on, where the place it lands in would allow more.
+   * A task goes to its provider list as well only with `atProvider` — the
+   * chip on its card, as on the capture field. The draft is gone once the
+   * thing exists; what became of it is kept.
+   */
+  async createDraft(id: string, choice: { atProvider?: boolean } = {}): Promise<DraftOutcome> {
+    const refused = (reason: Extract<DraftOutcome, { kind: "refused" }>["reason"], message?: string): DraftOutcome => ({ kind: "refused", reason, ...(message ? { message } : {}) });
+    const vault = this.vault;
+    if (!this.state.settings.enabled || !vault) return refused("off");
+    const creates = vault.creates;
+    if (!creates || !vault.drafts) return refused("unavailable");
+    if (this.creatingDraft) return refused("busy");
+    const draft = this.state.drafts.drafts.find((candidate) => candidate.id === id);
+    if (!draft) return refused("gone");
+    const body = draft.body;
+    this.creatingDraft = true;
+    try {
+      let path: string;
+      if (body.kind === "note") {
+        // A draft that names its own file is another writer's (an agent, a program): not made here yet.
+        if (body.path) return refused("unavailable");
+        const stem = safeFileStem(draft.title) ?? "Note";
+        const denied = creates.placeDenies ? await creates.placeDenies(body.folder, stem).catch(() => []) : [];
+        const rules = draft.inherited.filter((dimension) => !denied.includes(dimension));
+        path = await creates.note({ folder: body.folder, stem, content: draftedNoteContent(draft, this.host.now(), rules) });
+      } else if (body.kind === "task") {
+        // Also at the provider list the task database names — only where the user left that on, on the card.
+        path = await creates.task({ text: body.text, day: body.day, atProvider: choice.atProvider === true });
+      }
+      else if (body.kind === "journal") path = await creates.journal({ text: body.text, day: body.day, time: body.time, task: body.task });
+      else return refused("unavailable");
+      const at = this.host.now().toISOString();
+      await this.changeDrafts(vault, (state) => ({
+        drafts: withoutWriteDraft(state.drafts, id),
+        done: withWriteDraftOutcome(state.done, { id, kind: body.kind, title: draft.title, outcome: "created", path, at }),
+      })).catch(() => null);
+      return { kind: "created", path };
+    } catch (error) {
+      return refused("failed", error instanceof Error ? error.message : String(error));
+    } finally {
+      this.creatingDraft = false;
+    }
+  }
+
+  /** "Discard" on a draft: it is gone, and its conversation can still say that it was. */
+  async discardDraft(id: string): Promise<void> {
+    const vault = this.vault;
+    const draft = this.state.drafts.drafts.find((candidate) => candidate.id === id);
+    if (!vault || !draft) return;
+    const at = this.host.now().toISOString();
+    await this.changeDrafts(vault, (state) => ({
+      drafts: withoutWriteDraft(state.drafts, id),
+      done: withWriteDraftOutcome(state.done, { id, kind: draft.body.kind, title: draft.title, outcome: "discarded", at }),
+    })).catch(() => null);
+  }
+
+  /** The notes that carry open proposals of a machine (plan P5): what the list of everything that waits shows beside the drafts. */
+  async openProposals(): Promise<OpenProposal[]> {
+    const vault = this.vault;
+    return vault?.proposals ? vault.proposals().catch(() => []) : [];
+  }
+
+  /** A plan of a run, asked above the composer like every question of a run; without a run there is nobody to ask. */
+  private async askPlan(question: PlanQuestion, callId?: string): Promise<"yes" | "no" | "nobody"> {
+    const signal = this.abort?.signal;
+    if (!signal) return "nobody";
+    // Under the call's own id where there is one: while the question stands, no step claims to be running.
+    const answer = await this.askEffect({ id: callId ?? `plan-${this.host.newId()}`, kind: "plan", question }, signal);
+    return answer === "deny" ? "no" : "yes";
   }
 
   // -------------------------------------------------------- foreign servers
@@ -2550,7 +2733,39 @@ export class AiSession {
     const mcpLog = foreign.length ? newRunMcp() : null;
     /** What this message's own context carries, known once it is built. */
     const sending: { sources: { path: string; image?: unknown }[] } = { sources: [] };
-    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillState.loaded?.tools ?? null, () => foreign) : null;
+    // The writing tools (plan P5): what this run lays down is signed with its model, asked about above the composer and
+    // recorded with the run. A door and a regression run bring none of it — a proposal nobody asked for is no test.
+    const writesLog: RunWrites = { rounds: [], drafts: [], plans: [] };
+    const writer = { id: assistantAuthorId(choice.model), displayName: this.host.label?.("ai.suggestionAuthor", { model: choice.model }) ?? choice.model };
+    const inherited = () => this.inheritedBy(vault, record, sending.sources, reads, restricted);
+    const writing: WriteRun | undefined =
+      !apart && [...toolNames, ...moreNames].some(isWriteToolName)
+        ? {
+            author: writer,
+            userTexts: () => [message, ...userTextsOf(record.conversation)],
+            inherited,
+            draft: async (input: { title: string; body: WriteDraftBody; defused: number }) => {
+              const carried = await this.carriedBy(vault, record, sending.sources, reads).catch(() => ({ paths: [] as string[], more: false }));
+              return this.leaveDraft(vault, {
+                id: `d-${this.host.newId()}`,
+                createdAt: this.host.now().toISOString(),
+                author: { id: writer.id, label: writer.displayName },
+                conversationId: record.id,
+                title: input.title,
+                body: input.body,
+                inherited: [...(await inherited())],
+                // What the draft rests on, from the run's record — never from the model's own words.
+                sources: input.body.kind === "note" ? carried.paths.filter((path) => /\.md$/i.test(path)).slice(0, 50).map((path) => ({ resource: path })) : [],
+                defused: input.defused,
+              });
+            },
+            ask: (question: PlanQuestion, callId?: string) => this.askPlan(question, callId),
+            writes: writesLog,
+            today: () => this.host.today(),
+            clock: () => clockOf(this.host.now()),
+          }
+        : undefined;
+    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillState.loaded?.tools ?? null, () => foreign, writing) : null;
     // Mail and the descriptions of appointments (plan P4-4): a kind of data no overview named asks first, and raw text goes to a reader without tools.
     const reading = newRunReading();
     const guarded = base
@@ -2676,6 +2891,7 @@ export class AiSession {
       ...(guarded ? { reading } : {}),
       ...(base ? { restricted, reads } : {}),
       ...(mcpLog ? { foreign, mcp: mcpLog } : {}),
+      ...(writing ? { writes: writesLog } : {}),
       ...(related.length ? { related } : {}),
     });
   }
@@ -2710,6 +2926,31 @@ export class AiSession {
     }
     for (const path of reads.paths) paths.add(path);
     return { paths: [...paths], more };
+  }
+
+  /**
+   * The rules of everything a conversation rests on (plan P5): what its context carried, what was pinned to it and what
+   * its tools read, in the runs before this one and in this one. What such a conversation proposes may only go where
+   * these rules already hold — a round inherits nothing —, and a draft of it takes them along. A rule that cannot be
+   * looked up counts as one that says no, and so does a read that is not known by path.
+   */
+  private async inheritedBy(
+    vault: AiVaultHost,
+    record: ConversationRecord,
+    sending: readonly { path: string; image?: unknown }[],
+    reads: { paths: ReadonlySet<string>; more: boolean },
+    restricted: ReadonlySet<AiPolicyDimension>,
+  ): Promise<AiPolicyDimension[]> {
+    const inherited = new Set<AiPolicyDimension>(restricted);
+    for (const run of record.runs) for (const rule of run.restricted ?? []) inherited.add(rule);
+    const carried = await this.carriedBy(vault, record, sending, reads);
+    if (carried.more) return [...AI_POLICY_DIMENSIONS];
+    for (const path of carried.paths) {
+      if (inherited.size === AI_POLICY_DIMENSIONS.length) break;
+      const effective = await (/\.md$/i.test(path) ? vault.policy.policyOf(path) : vault.policy.policyOf(path, "")).catch(() => null);
+      for (const dimension of AI_POLICY_DIMENSIONS) if (!effective || effective.policy[dimension] === "deny") inherited.add(dimension);
+    }
+    return AI_POLICY_DIMENSIONS.filter((dimension) => inherited.has(dimension));
   }
 
   /** Whether one of these notes must not reach a foreign server — a cloud recipient, wherever it runs. A rule that cannot be read says no. */
@@ -2867,6 +3108,8 @@ export class AiSession {
     /** The tools of foreign servers this run may find, and what it asked of them (plan P4.5). */
     foreign?: readonly ToolManifest[];
     mcp?: RunMcp;
+    /** What the run's writing tools lay down (plan P5), gathered while it runs; present where the run may write. */
+    writes?: RunWrites;
     /** The notes that match the question best, shown when no answer comes back (plan §19.4). */
     related?: { path: string; title: string }[];
   }): Promise<{ stop: RunStop; record: ConversationRecord; answer: string }> {
@@ -2895,12 +3138,15 @@ export class AiSession {
       ...(input.limits ? { limits: input.limits } : {}),
       ...(input.foreign?.length ? { foreign: input.foreign } : {}),
       // Asked by the run for each call with an outside effect while private data is in it (the Rule of Two).
-      ...(input.web || input.foreign?.length
+      ...(input.web || input.foreign?.length || input.writes
         ? {
             approveEffect: (call: ToolCallPart, tool: ToolManifest) => {
               // A call to a foreign server asks its own question — every time, with the arguments in full, and after
               // the rules that may keep it back (plan P4.5). The run's gate lets it through to there.
               if (tool.foreign) return Promise.resolve(true);
+              // A proposal and a draft change nothing: accepting them is the approval, part by part. A plan asks its own
+              // question, every time and whatever else is in the run, with what it would do (plan P5).
+              if (isWriteToolName(tool.name)) return Promise.resolve(Boolean(input.writes));
               if (!input.web) return Promise.resolve(false);
               return this.approveWebCall(call, tool, { provider, signal: controller.signal, conversation: () => record.conversation, ...(input.skillState ? { skillState: input.skillState } : {}) });
             },
@@ -2971,6 +3217,7 @@ export class AiSession {
       ...(input.reads?.paths.size ? { read: [...input.reads.paths] } : {}),
       ...(input.reads?.more ? { readMore: true } : {}),
       ...(input.mcp?.calls.length ? { mcp: input.mcp } : {}),
+      ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length) ? { writes: input.writes } : {}),
     };
     record = {
       ...record,

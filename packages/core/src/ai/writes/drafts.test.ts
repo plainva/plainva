@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { acpAuthorId } from "../acp/agents.js";
 import { assistantAuthorId, machineAuthorId, machineAuthorKind, machineAuthorSubject, mcpAuthorId } from "./authors.js";
-import { WRITE_DRAFT_LIMITS, parseWriteDraft, parseWriteDrafts, serializeWriteDrafts, withWriteDraft, withoutWriteDraft, type WriteDraft } from "./drafts.js";
+import {
+  WRITE_DRAFT_DONE_CAP,
+  WRITE_DRAFT_LIMITS,
+  parseWriteDraft,
+  parseWriteDraftOutcomes,
+  parseWriteDrafts,
+  serializeWriteDrafts,
+  withWriteDraft,
+  withWriteDraftOutcome,
+  withoutWriteDraft,
+  type WriteDraft,
+  type WriteDraftOutcome,
+} from "./drafts.js";
 
 const draft = (over: Partial<WriteDraft> = {}): WriteDraft => ({
   id: "d-000001",
@@ -116,5 +128,59 @@ describe("the list of drafts", () => {
   it("refuses the same draft twice and one that is none", () => {
     expect(withWriteDraft([draft()], draft())).toEqual({ ok: false, problem: "duplicate" });
     expect(withWriteDraft([], draft({ title: "" }))).toEqual({ ok: false, problem: "invalid" });
+  });
+});
+
+describe("what became of a draft", () => {
+  const outcome = (over: Partial<WriteDraftOutcome> = {}): WriteDraftOutcome => ({ id: "d-000001", kind: "note", title: "Roof plan", outcome: "created", path: "Inbox/Roof plan.md", at: "2026-10-07T09:05:00.000Z", ...over });
+
+  it("is stored beside the waiting drafts and read back, oldest first", () => {
+    const later = outcome({ id: "d-later", at: "2026-10-07T10:00:00.000Z" });
+    const stored = JSON.parse(JSON.stringify(serializeWriteDrafts([draft({ id: "d-000002" })], [later, outcome()])));
+    expect(parseWriteDrafts(stored).map((item) => item.id)).toEqual(["d-000002"]);
+    expect(parseWriteDraftOutcomes(stored)).toEqual([outcome(), later]);
+    // A file written before outcomes were kept has none, and so has one that cannot be read.
+    expect(parseWriteDraftOutcomes(JSON.parse(JSON.stringify(serializeWriteDrafts([draft()]))))).toEqual([]);
+    expect(parseWriteDraftOutcomes({ version: 1, drafts: [] })).toEqual([]);
+    expect(parseWriteDraftOutcomes(null)).toEqual([]);
+    expect(parseWriteDraftOutcomes({ version: 2, done: [outcome()] })).toEqual([]);
+  });
+
+  it("keeps a path only where something was created inside the vault, and nothing that is no outcome", () => {
+    const stored = {
+      version: 1,
+      drafts: [],
+      done: [
+        outcome({ id: "d-discarded", outcome: "discarded" }),
+        { ...outcome({ id: "d-climbs" }), path: "../outside.md" },
+        { ...outcome({ id: "d-lost00" }), outcome: "lost" },
+        { ...outcome({ id: "d-mail00" }), kind: "mail" },
+        { ...outcome({ id: "d-when00" }), at: "yesterday" },
+        { ...outcome({ id: "d-blank0" }), title: " " },
+        { ...outcome(), id: "x" },
+        outcome({ id: "d-discarded", title: "Said twice" }),
+        "created",
+        null,
+      ],
+    };
+    expect(parseWriteDraftOutcomes(stored)).toEqual([
+      { id: "d-climbs", kind: "note", title: "Roof plan", outcome: "created", at: "2026-10-07T09:05:00.000Z" },
+      { id: "d-discarded", kind: "note", title: "Roof plan", outcome: "discarded", at: "2026-10-07T09:05:00.000Z" },
+    ]);
+  });
+
+  it("says the newest word about a draft once, and forgets the oldest past its bound", () => {
+    const first = withWriteDraftOutcome([], outcome({ outcome: "discarded", path: undefined }));
+    const again = withWriteDraftOutcome(first, outcome());
+    expect(again).toEqual([outcome()]);
+    let done: WriteDraftOutcome[] = [];
+    for (let index = 0; index < WRITE_DRAFT_DONE_CAP + 3; index++) done = withWriteDraftOutcome(done, outcome({ id: `d-${String(index).padStart(6, "0")}` }));
+    expect(done).toHaveLength(WRITE_DRAFT_DONE_CAP);
+    expect(done[0]!.id).toBe("d-000003");
+    // Stored and read back, the bound holds as well.
+    const many = Array.from({ length: WRITE_DRAFT_DONE_CAP + 2 }, (_, index) => outcome({ id: `d-${String(index).padStart(6, "0")}`, at: new Date(Date.UTC(2026, 9, 7, 9, 0, index)).toISOString() }));
+    const back = parseWriteDraftOutcomes(JSON.parse(JSON.stringify(serializeWriteDrafts([], many))));
+    expect(back).toHaveLength(WRITE_DRAFT_DONE_CAP);
+    expect(back[0]!.id).toBe("d-000002");
   });
 });

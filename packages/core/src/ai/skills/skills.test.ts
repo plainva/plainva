@@ -190,6 +190,18 @@ describe("a skill creates no rights", () => {
     expect(skillGrant(def({ plainva: { folders: ["Projekte/"] } }), available).folders).toEqual(["Projekte/"]);
   });
 
+  it("gives a tool that writes only to a skill that names it — never as part of whatever a conversation has", () => {
+    const available = ["search_vault", "read_note", "propose_edit", "create_note", "rename_note", "delete_note"];
+    // A skill without a list leaves a conversation its reading tools — and gained no writing tool when those arrived.
+    expect(skillGrant(def({}), available).tools).toEqual(["search_vault", "read_note"]);
+    expect(skillGrant(def({ allowedTools: ["read_note", "propose_edit", "delete_note"] }), available).tools).toEqual(["read_note", "propose_edit", "delete_note"]);
+    // Its own risk bound still narrows what it names: a skill that calls itself reading, or showing, proposes nothing.
+    expect(skillGrant(def({ allowedTools: ["read_note", "propose_edit", "delete_note"], plainva: { risk: "ui" } }), available).tools).toEqual(["read_note"]);
+    expect(skillGrant(def({ allowedTools: ["read_note", "propose_edit"], plainva: { risk: "read" } }), available).tools).toEqual(["read_note"]);
+    // Naming one does not bring it where the conversation has none.
+    expect(skillGrant(def({ allowedTools: ["read_note", "propose_edit"] }), ["search_vault", "read_note"]).tools).toEqual(["read_note"]);
+  });
+
   it("reads folders as the MCP server's grants read them", () => {
     expect(withinFolders("Projekte/Angebot.md", ["Projekte/"])).toBe(true);
     expect(withinFolders("projekte/a.md", ["Projekte"])).toBe(true);

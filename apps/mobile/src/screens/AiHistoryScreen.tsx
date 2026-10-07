@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare } from "lucide-react";
-import { startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, Row, RowList, SearchField, SectionLabel, Segmented, waitingCount, type ConversationRowCaps } from "@plainva/ui";
+import { AiOpenPanel, startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, openWritesCount, Row, RowList, SearchField, SectionLabel, Segmented, useOpenProposals, waitingCount, type ConversationRowCaps } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
@@ -24,8 +24,11 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
   const [shown, setShown] = useState<string[] | null>(null);
   const [sheet, setSheet] = useState<{ title: string; caps: ConversationRowCaps } | null>(null);
   // The skills workshop is this screen's second segment (plan KI-Harness P3-5).
-  const [view, setView] = useState<"chats" | "skills">(initialView);
+  // And everything that waits for the user is its third (plan P5): the drafts of this phone, the notes with a machine's open proposals.
+  const [view, setView] = useState<"chats" | "skills" | "open">(initialView);
   const [review] = useState(() => takeSkillReview());
+  const proposals = useOpenProposals(session);
+  const waiting = openWritesCount(state.drafts, proposals);
 
   useEffect(() => {
     let alive = true;
@@ -73,10 +76,13 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
         options={[
           { value: "chats", label: t("ai.workshop.segmentChats"), testId: "ai-history-chats" },
           { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-history-skills" },
+          { value: "open", label: waiting ? `${t("ai.write.open.segment")} · ${waiting}` : t("ai.write.open.segment"), testId: "ai-history-waiting" },
         ]}
       />
       {view === "skills" ? (
         <MobileSkillsWorkshop onOpenNote={onOpenNote} onRun={onBack} review={review} />
+      ) : view === "open" ? (
+        <AiOpenPanel session={session} state={state.drafts} proposals={proposals} onOpenNote={onOpenNote} touch />
       ) : (
         <>
       <SearchField value={query} onValueChange={setQuery} placeholder={t("ai.history.search")} aria-label={t("ai.history.search")} clearLabel={t("ai.history.clearSearch")} />

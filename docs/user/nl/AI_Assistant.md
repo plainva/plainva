@@ -2,7 +2,7 @@
 
 Laatst bijgewerkt: 2026-10-07
 
-Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen aan een geselecteerde passage voor als voorstellen — een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
+Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen voor — als voorstellen bij een notitie, als concepten voor iets nieuws of als een plan dat jij bevestigt. Een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
 ## Inschakelen
 
@@ -43,7 +43,7 @@ Een zesde plek, **Embeddings**, bevat het model waarmee zoeken op betekenis reke
 - **Telefoon:** **AI vragen** in het ⋮-menu van een notitie opent het AI-blad over die notitie. Het onderdeel **AI** (in het onderdelenblad, of in de navigatiebalk als je het daar neerzet) toont het gesprek op volledig scherm; **Gesprekken** toont de eerdere gesprekken.
 - **Naast de notitie:** op de desktop is hetzelfde gesprek de laatste sectie van de rechterzijbalk, **AI**. Op een telefoon of tablet is het het tabblad **AI** in de context van de notitie — naast **Eigenschappen** en **Backlinks** —, die een tablet naast de notitie toont.
 
-De notitie die je open hebt staan, gaat automatisch mee; verwijder haar met het kruisje ✕ uit de context als je wilt. **Notitie vastzetten…** voegt nog meer notities toe. De assistent kan ook zelf dingen opzoeken: hij doorzoekt de vault, leest notities en de secties ervan, databases, backlinks en gelinkte notities, somt taken, afspraken en de onlangs geopende of gewijzigde notities op en opent notities en weergaven. Hij kan niets veranderen, aanmaken of verwijderen.
+De notitie die je open hebt staan, gaat automatisch mee; verwijder haar met het kruisje ✕ uit de context als je wilt. **Notitie vastzetten…** voegt nog meer notities toe. De assistent kan ook zelf dingen opzoeken: hij doorzoekt de vault, leest notities en de secties ervan, databases, backlinks en gelinkte notities, somt taken, afspraken en de onlangs geopende of gewijzigde notities op en opent notities en weergaven. Zelf kan hij niets veranderen, aanmaken of verwijderen; wat hij in plaats daarvan kan voorstellen, staat verderop onder ‘Wijzigingen voorstellen’.
 
 De assistent kan je ook dingen laten zien: een notitie openen bij een kop, een notitie in de graaf tonen, de kalender op een dag zetten, weergaven openen, de zijbalken tonen en verbergen. Hij gebruikt daarvoor de opdrachten van het opdrachtenpalet — en daarvan alleen die iets tonen: wat iets aanmaakt, wijzigt, verwijdert, exporteert of een venster opent, kan hij niet in gang zetten.
 
@@ -183,6 +183,20 @@ Een gesprek dat door een vaardigheid is gestart, een actie op een selectie en ee
 
 Op de desktop kan Plainva ook een AI-agent van een andere maker in de map van de vault starten — een programma dat je zelf hebt geïnstalleerd en waarbij je je zelf hebt aangemeld. Zo'n agent is niet de assistent: hij leest en verzendt zelf, en je privacyregels en het overzicht vóór het verzenden bereiken hem niet. Wat Plainva in zijn sessie beheerst en wat niet: [Externe agents](External_Agents.md).
 
+## Wijzigingen voorstellen
+
+De assistent kan meer voorstellen dan een antwoord — en niets daarvan staat in je vault voordat jij het zegt. Er zijn drie vormen, en elke vorm wacht op de plek waar jij erover beslist.
+
+- **Een voorstel bij een notitie.** Vraag je om een wijziging in een notitie die er al is, dan legt de assistent die als voorstellen bij de notitie: in de marge, ondertekend met ‘Plainva AI · ⟨model⟩’, elke wijziging apart over te nemen of af te wijzen — net als de voorstellen van een mens, zie [Opmerkingen en voorstellen](Comments_and_Suggestions.md). Onder het antwoord noemt een regel de notitie; druk erop om haar te openen. Zo stelt de assistent wijzigingen in de tekst van een notitie voor, niet in haar eigenschappen.
+- **Een concept.** Een nieuwe notitie, een taak of een journaalitem blijft een concept: een kaart onder het antwoord zegt wat het zou worden en waar het terecht zou komen. **Aanmaken** maakt het — de notitie in de map die de kaart noemt (de **Inbox-map**, tenzij de assistent een andere noemde), de taak gelezen uit haar woorden alsof je ze in het invoerveld had getypt, het item in het journaal van de dag op de kaart. **Tonen** klapt eerst de tekst van een notitie uit; **Verwerpen** gooit het concept weg. Een notitie die uit een concept is gemaakt, zegt wie haar schreef (`generated`, zie [OKF](OKF.md)) en noemt de notities waarop het gesprek berustte. Waar je nieuwe taken ook naar een takenlijst van je provider gaan, heeft de kaart van een taak de schakelaar van het invoerveld, **Ook aanmaken in “…”**: die staat aan, en de taak wordt ook daar aangemaakt, tenzij je hem uitzet.
+- **Een plan.** Hernoemen, verplaatsen en verwijderen kun je niet stukje bij beetje beoordelen, dus vraagt de assistent het: een vraag boven het invoerveld laat zien wat er zou gebeuren — de nieuwe naam en hoeveel links in hoeveel notities die volgen, of de doelmap, met een waarschuwing als de notitie daardoor een privacyregel van haar map zou verliezen. Na jouw ja doet Plainva het zoals wanneer je het zelf doet; de assistent hoort alleen of het is gebeurd. Bij verwijderen opent de vraag alleen het verwijdervenster van Plainva zelf: er verdwijnt niets voordat je daar bevestigt.
+
+Alles wat wacht, staat in één lijst: **Open**, een segment van het AI-tabblad op de desktop en van **Gesprekken** op de telefoon. De lijst noemt de notities waarbij voorstellen van een AI liggen en de concepten van dit apparaat, telkens met wie ze heeft klaargezet. Concepten worden bewaard op het apparaat waarop ze zijn gemaakt, net als gesprekken; voorstellen horen bij de opmerkingen van de notitie en bereiken daarmee je andere apparaten.
+
+Drie grenzen gelden, wat er ook aan de assistent wordt gevraagd. Een webadres dat hij in een voorstel of een concept meebrengt, wordt zo geschreven dat niets het opent of laadt (`https[://]…`); een adres dat je zelf hebt getypt, blijft zoals het is. Een gesprek dat een notitie heeft gelezen die buiten de cloud of buiten internet wordt gehouden, legt een voorstel, een taak of een journaalitem alleen neer waar dezelfde regel geldt — een notitie in concept neemt de regel in plaats daarvan mee. En in een versleutelde workspace wordt niets voorgesteld, opgesteld of gepland.
+
+Een vaardigheid heeft deze mogelijkheden alleen als ze die noemt, en haar controle zegt dat — zie [Vaardigheden](AI_Skills.md).
+
 ## Een antwoord als notitie bewaren
 
 Onder elk afgerond antwoord maakt **Bewaren als notitie** van het antwoord een notitie in je vault. Jij drukt erop en Plainva schrijft de notitie — de assistent zelf verandert nog steeds niets.
@@ -221,6 +235,6 @@ Gesprekken blijven op dit apparaat, per vault — nooit in de vault en nooit ges
 
 - Op de desktop werkt de AI alleen in het hoofdvenster.
 - Op de telefoon komt een antwoord alleen terwijl de app open staat.
-- De assistent verandert zelf geen notitie: hij stelt wijzigingen aan een geselecteerde passage en transcripties van spraaknotities voor, als voorstellen die je accepteert of afwijst; in een draad met opmerkingen schrijft hij een antwoord naast de notitie, nooit tekst erin. Een antwoord wordt pas een notitie wanneer je op **Bewaren als notitie** drukt; dan schrijft Plainva haar, niet de assistent.
+- De assistent verandert zelf geen notitie: een wijziging in een notitie en de transcriptie van een spraaknotitie zijn voorstellen die je accepteert of afwijst, iets nieuws is een concept totdat je op **Aanmaken** drukt, en hernoemen, verplaatsen en verwijderen wachten op jouw ja; in een draad met opmerkingen schrijft hij een antwoord naast de notitie, nooit tekst erin. Een antwoord wordt pas een notitie wanneer je op **Bewaren als notitie** drukt; dan schrijft Plainva haar, niet de assistent.
 
 Feedback over de bèta gaat naar de discussies van het project op GitHub: **Feedback over de AI (bèta)** in de instellingen begint er een.

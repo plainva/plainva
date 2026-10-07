@@ -140,8 +140,57 @@ export function parseWriteDrafts(raw: unknown): WriteDraft[] {
   return out.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)).slice(0, WRITE_DRAFT_LIMITS.drafts);
 }
 
-export function serializeWriteDrafts(drafts: readonly WriteDraft[]): { version: 1; drafts: WriteDraft[] } {
-  return { version: 1, drafts: [...drafts] };
+export function serializeWriteDrafts(drafts: readonly WriteDraft[], done: readonly WriteDraftOutcome[] = []): { version: 1; drafts: WriteDraft[]; done: WriteDraftOutcome[] } {
+  return { version: 1, drafts: [...drafts], done: [...done] };
+}
+
+/**
+ * What became of a draft: the user created it, or threw it away. Kept beside
+ * the waiting drafts so the conversation that laid one down can still say
+ * what happened to it — "created: Inbox/Kick-off.md" instead of a card that
+ * has silently gone. Unlike a waiting draft this is history: the oldest
+ * entries go once there are more than the bound.
+ */
+export interface WriteDraftOutcome {
+  id: string;
+  kind: WriteDraftKind;
+  title: string;
+  outcome: "created" | "discarded";
+  /** Where it was created: the note's path. */
+  path?: string;
+  at: string;
+}
+
+export const WRITE_DRAFT_DONE_CAP = 200;
+
+const KINDS: readonly WriteDraftKind[] = ["note", "task", "journal", "entry"];
+
+function parseOutcome(raw: unknown): WriteDraftOutcome | null {
+  if (!isRecord(raw) || !text(raw.id, 64) || !ID.test(raw.id)) return null;
+  if (!KINDS.includes(raw.kind as WriteDraftKind) || !filled(raw.title, WRITE_DRAFT_LIMITS.title)) return null;
+  if (raw.outcome !== "created" && raw.outcome !== "discarded") return null;
+  if (!text(raw.at, 40) || !Number.isFinite(Date.parse(raw.at))) return null;
+  const path = raw.outcome === "created" && vaultPath(raw.path) ? raw.path : undefined;
+  return { id: raw.id, kind: raw.kind as WriteDraftKind, title: raw.title, outcome: raw.outcome, ...(path ? { path } : {}), at: raw.at };
+}
+
+/** What became of earlier drafts, as stored: oldest first, the newest `WRITE_DRAFT_DONE_CAP` of them. */
+export function parseWriteDraftOutcomes(raw: unknown): WriteDraftOutcome[] {
+  const list = isRecord(raw) && raw.version === 1 && Array.isArray(raw.done) ? raw.done : [];
+  const seen = new Set<string>();
+  const out: WriteDraftOutcome[] = [];
+  for (const item of list) {
+    const outcome = parseOutcome(item);
+    if (!outcome || seen.has(outcome.id)) continue;
+    seen.add(outcome.id);
+    out.push(outcome);
+  }
+  return out.sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id)).slice(-WRITE_DRAFT_DONE_CAP);
+}
+
+/** The outcomes with one more, the oldest dropped past the bound. */
+export function withWriteDraftOutcome(done: readonly WriteDraftOutcome[], outcome: WriteDraftOutcome): WriteDraftOutcome[] {
+  return [...done.filter((existing) => existing.id !== outcome.id), outcome].slice(-WRITE_DRAFT_DONE_CAP);
 }
 
 /**

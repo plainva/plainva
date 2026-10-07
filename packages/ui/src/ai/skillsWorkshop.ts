@@ -113,8 +113,11 @@ export function approvalFacts(t: Translate, entry: InstructionEntry, language: s
     if (grant.maxOutputTokens !== null) may.push(t("ai.workshop.mayBudget", { tokens: new Intl.NumberFormat(language).format(grant.maxOutputTokens) }));
     const reachesWeb = hasWebTools(grant.tools);
     if (reachesWeb) may.push(t("ai.workshop.mayWeb"));
-    // Every tool before P5 reads or shows: nothing a skill could do changes the vault. A request to the internet is the one thing that leaves.
-    if (grant.tools.every((name) => toolByName(name)?.risk === "read" || toolByName(name)?.risk === "ui")) may.push(t(reachesWeb ? "ai.workshop.mayNoChange" : "ai.workshop.mayReadOnly"));
+    // A tool that reads or shows changes nothing; a request to the internet is the one thing that leaves.
+    // A skill that names writing tools (plan P5) gets them, and the approval says what that means: proposals, drafts and plans — never a change the user did not take.
+    const risks = grant.tools.map((name) => toolByName(name)?.risk);
+    if (risks.some((risk) => risk === "write" || risk === "critical")) may.push(t("ai.workshop.mayPropose"));
+    else if (risks.every((risk) => risk === "read" || risk === "ui")) may.push(t(reachesWeb ? "ai.workshop.mayNoChange" : "ai.workshop.mayReadOnly"));
   }
 
   const changes = entry.status === "changed" && approval?.text !== undefined && source.text !== null ? compareLines(approval.text, source.text) : null;
