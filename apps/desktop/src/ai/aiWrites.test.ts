@@ -187,6 +187,17 @@ describe("the notes that carry a machine's open proposals", () => {
       { path: "Projects/Offer.md", authorId: "plainva-ai/m-1", changes: 2, at: "2026-10-07T09:05:00.000Z" },
       { path: "Projects/Offer.md", authorId: "mcp:desk-client", changes: 1, at: "2026-10-07T08:00:00.000Z" },
     ]);
+    // With the names the vault's comments keep for their authors, a writer is listed under the name it signed with.
+    const names = new Map([
+      ["mcp:desk-client", "Claude Code (AI app)"],
+      ["acp:helper", "  "],
+      ["member-anna", "Anna"],
+    ]);
+    expect(machineProposals(byPath, names).map((proposal) => [proposal.authorId, proposal.authorLabel])).toEqual([
+      ["acp:helper", undefined],
+      ["plainva-ai/m-1", undefined],
+      ["mcp:desk-client", "Claude Code (AI app)"],
+    ]);
   });
 
   it("counts only what still waits: nothing accepted, declined or resolved", () => {

@@ -791,7 +791,7 @@
     "mcp": {
       "title": "此电脑上的AI应用",
       "switch": "允许此电脑上的AI应用读取这个仓库",
-      "switchDesc": "默认关闭。Claude Code、Claude Desktop、Cursor或VS Code等应用通过此电脑的私有通道连接Plainva——不使用网络端口。每个应用只询问一次，由你选择它可以读取的文件夹。它不能更改任何内容，并且Plainva必须在运行。",
+      "switchDesc": "默认关闭。Claude Code、Claude Desktop、Cursor或VS Code等应用通过此电脑的私有通道连接Plainva——不使用网络端口。每个应用只询问一次，由你选择它可以读取的文件夹。它不能更改任何内容；只有在你另行允许时，它才能提出修改建议。Plainva必须在运行。",
       "claudeCode": "Claude Code的命令",
       "copy": "复制",
       "copied": "已复制。",
@@ -817,11 +817,42 @@
       "refused": "已拒绝",
       "pairTitle": "{{client}}想要读取你的仓库",
       "pairKnownTitle": "{{client}}想要读取这个仓库",
-      "pairBody": "启动程序：{{program}}。选择它可以读取的内容——它看不到其他任何内容，也不能更改任何内容。",
+      "pairBody": "启动程序：{{program}}。选择它可以读取的内容——它看不到其他任何内容。",
       "pairFolders": "文件夹",
       "pairWhole": "整个仓库",
       "pairAllow": "允许",
       "pairDeny": "拒绝",
+      "author": "{{client}}（AI应用）",
+      "pairWritesLegend": "那么写入呢？",
+      "pairWrites": "可以提出修改建议",
+      "pairWritesHint": "在你允许之前保持关闭。允许后，应用写入的内容会成为笔记上的建议或草稿，并以它的名称作为作者；在你采纳或创建之前，仓库不会有任何变化。重命名、移动和删除每次都会在Plainva中询问。此授权对这个仓库中的这个应用有效，直到你撤回。",
+      "writesRow": "{{client}}可以提出修改建议",
+      "writesOn": "它写入的内容会成为笔记上的建议或草稿，作者为“{{client}}”。在你采纳或创建之前，仓库不会有任何变化。重命名、移动和删除每次都会在Plainva中询问。",
+      "writesOff": "关闭：此应用只能读取。",
+      "writesOnToast": "{{client}}现在可以提出修改建议。应用重新连接后即可看到新工具。",
+      "auditAsked": "已询问",
+      "auditDeclined": "已否决",
+      "plan": {
+        "renameTitle": "{{client}}想要重命名一条笔记",
+        "moveTitle": "{{client}}想要移动一条笔记",
+        "deleteTitle": "{{client}}想要删除一条笔记",
+        "renameHint": "Plainva会重命名笔记并更新链接——与你手动重命名时一样。在你同意之后，{{client}}继续时才会执行；应用只会得知是否已执行。",
+        "moveHint": "Plainva会移动笔记——与你手动移动时一样。在你同意之后，{{client}}继续时才会执行；应用只会得知是否已执行。",
+        "deleteHint": "你的同意还不会删除任何内容：{{client}}继续后，Plainva会打开自己的删除对话框。对话框会显示将一并删除的内容，在你确认之前不会有任何内容消失。",
+        "allowed": "已允许。{{client}}继续时将会执行。"
+      },
+      "planNote": {
+        "rename": "Plainva正在它的窗口中询问是否将“{{note}}”重命名为“{{title}}”。请在那里回答，然后在这里继续。",
+        "move": "Plainva正在它的窗口中询问是否将“{{note}}”移动到文件夹“{{folder}}”。请在那里回答，然后在这里继续。",
+        "moveRoot": "Plainva正在它的窗口中询问是否将“{{note}}”移动到仓库顶层。请在那里回答，然后在这里继续。",
+        "delete": "Plainva正在它的窗口中询问是否删除“{{note}}”。请在那里回答，然后在这里继续。",
+        "again": "Plainva仍在等待你的回答。"
+      },
+      "left": {
+        "proposal": "{{client}}为“{{note}}”提出了修改建议。",
+        "draft": "{{client}}留下了一份草稿。",
+        "open": "打开"
+      },
       "pairNone": "请至少选择一个文件夹以允许。"
     },
     "ext": {

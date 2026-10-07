@@ -829,6 +829,26 @@ describe("the assistant in the threads (P3-6)", () => {
       expect(onDelete).toHaveBeenCalledWith(answer);
     } finally { unmount(); }
   });
+
+  it("marks what another program wrote as a machine's: no person's letters, and not the assistant's mark", () => {
+    // An AI app at Plainva's MCP server and an external agent sign with ids of their own (ADR 0023).
+    const APP = "mcp:3f9a1c2b4d5e6f70";
+    const AGENT = "acp:helper";
+    const byApp = comment({ commentId: "p1", authorMemberId: APP, authorDeviceId: SELF, body: "From an app." });
+    const byAgent = comment({ commentId: "p2", authorMemberId: AGENT, authorDeviceId: "9999888877776666", body: "From an agent on another device." });
+    const signed = new Map<string, string>([...names, [APP, "Claude Code (AI app)"], [AGENT, "Helper (external agent)"]]);
+    const { host, unmount } = render(<WorkspaceCommentsColumn {...props({ comments: [byApp, byAgent], memberNames: signed, selfMemberId: SELF, onDelete: vi.fn() })} />);
+    try {
+      const marks = [...host.querySelectorAll(".pv-comment-card__avatar[data-machine]")];
+      expect(marks).toHaveLength(2);
+      expect(marks.every((mark) => mark.querySelector("svg") && !mark.hasAttribute("data-hue") && !mark.hasAttribute("data-ai"))).toBe(true);
+      expect(host.textContent).toContain("Claude Code (AI app)");
+      expect(host.textContent).toContain("Helper (external agent)");
+      // What came through this device is this device's to delete; what another device let in is not.
+      expect(host.querySelector("[data-testid=comment-delete-p1]")).not.toBeNull();
+      expect(host.querySelector("[data-testid=comment-delete-p2]")).toBeNull();
+    } finally { unmount(); }
+  });
 });
 
 /**

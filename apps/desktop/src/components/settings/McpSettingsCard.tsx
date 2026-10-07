@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Package, Trash2 } from "lucide-react";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, Switch, toast, type AiSession } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
-import { claudeCodeCommand, mcpClientConfig, mcpRevoke, mcpStatus, mcpWritePackage, type McpStatus } from "../../services/ai/mcpBridge";
+import { claudeCodeCommand, mcpClientConfig, mcpRevoke, mcpSetWrites, mcpStatus, mcpWritePackage, type McpAuditEntry, type McpStatus } from "../../services/ai/mcpBridge";
 
 /**
  * Settings → AI & automation → "AI apps on this computer" (plan KI-Harness
  * §17.3): the switch that opens the private channel, how to set a client up,
- * the apps that were allowed (with their folders in the vault open now) and
- * what they asked for lately. Desktop only (parity catalog `mcp-server`).
+ * the apps that were allowed (with their folders in the vault open now, and
+ * — stage 2 — whether each may propose changes there) and what they asked
+ * for lately. Desktop only (parity catalog `mcp-server`).
  */
 export function McpSettingsCard({ session, enabled }: { session: AiSession; enabled: boolean }) {
   const { t } = useTranslation();
@@ -45,6 +46,18 @@ export function McpSettingsCard({ session, enabled }: { session: AiSession; enab
       if (ok) void mcpRevoke(id).then(refresh);
     });
   };
+  const setWrites = (id: string, name: string, on: boolean) => {
+    void mcpSetWrites(id, on)
+      .then(() => {
+        // It holds from the app's next request on; the tools it lists are the ones of its connection.
+        if (on) toast.info(t("ai.mcp.writesOnToast", { client: name }));
+      })
+      .catch(() => undefined)
+      .then(refresh);
+  };
+  /** What became of a request, in the record's own fixed words: a plan that waits, a no, or a refusal. */
+  const auditOutcome = (entry: McpAuditEntry) =>
+    entry.note === "asked" ? ` · ${t("ai.mcp.auditAsked")}` : entry.note === "declined" ? ` · ${t("ai.mcp.auditDeclined")}` : entry.ok ? "" : ` · ${t("ai.mcp.refused")}`;
   const folderText = (folders: string[]) =>
     folders.length === 0 ? t("ai.mcp.noFolders") : folders.map((f) => (f === "" ? t("ai.mcp.wholeVault") : f)).join(", ");
   const when = (at: string) => {
@@ -90,11 +103,19 @@ export function McpSettingsCard({ session, enabled }: { session: AiSession; enab
             <SettingCardNote>{t("ai.mcp.noClients")}</SettingCardNote>
           ) : (
             status!.clients.map((client) => (
-              <SettingRow key={client.id} label={client.name} desc={`${t("ai.mcp.folders", { folders: folderText(client.folders) })} · ${t("ai.mcp.lastSeen", { when: when(client.lastSeen) })}`}>
-                <IconButton label={t("ai.mcp.revokeLabel", { client: client.name })} onClick={() => revoke(client.id, client.name)}>
-                  <Trash2 size={ICON.ui} />
-                </IconButton>
-              </SettingRow>
+              <Fragment key={client.id}>
+                <SettingRow label={client.name} desc={`${t("ai.mcp.folders", { folders: folderText(client.folders) })} · ${t("ai.mcp.lastSeen", { when: when(client.lastSeen) })}`}>
+                  <IconButton label={t("ai.mcp.revokeLabel", { client: client.name })} onClick={() => revoke(client.id, client.name)}>
+                    <Trash2 size={ICON.ui} />
+                  </IconButton>
+                </SettingRow>
+                {/* Stage 2: proposing changes is its own grant, per app and vault — and only where the app reads at all. */}
+                {client.folders.length > 0 && (
+                  <SettingRow label={t("ai.mcp.writesRow", { client: client.name })} desc={t(client.writes ? "ai.mcp.writesOn" : "ai.mcp.writesOff", { client: client.name })}>
+                    <Switch checked={client.writes} label={t("ai.mcp.writesRow", { client: client.name })} onChange={(on) => setWrites(client.id, client.name, on)} data-testid="mcp-writes-switch" />
+                  </SettingRow>
+                )}
+              </Fragment>
             ))
           )}
           <SettingCardNote>
@@ -103,7 +124,7 @@ export function McpSettingsCard({ session, enabled }: { session: AiSession; enab
                 {status.audit.slice(0, 8).map((a, i) => (
                   <li key={`${a.at}-${i}`}>
                     {when(a.at)} · {a.client} · {t(`ai.tool.${a.tool}`, { defaultValue: a.tool })}
-                    {a.ok ? "" : ` · ${t("ai.mcp.refused")}`}
+                    {auditOutcome(a)}
                   </li>
                 ))}
               </ul>

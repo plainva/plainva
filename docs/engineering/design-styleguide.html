@@ -1335,6 +1335,37 @@
         </div>
       </div>
     </div>
+    <p class="sec-sub">AI harness P5-5 (2026-10-07): an AI app proposes changes. The pairing question's second answer is a fieldset of its own with one unticked <code>Checkbox</code> and a sentence that says what the tick means (<code>.pv-mcp-pair-writes</code>, <code>.pv-mcp-note</code>). A plan of an app is a <code>Modal</code> whose body is <code>AiPlanDetails</code> — the rows of the assistant's own plan card — and one hint line (<code>.pv-mcp-plan</code>); Allow is <code>primary</code>, for a deletion <code>secondary</code>. A remark no person wrote carries a machine's mark in its card's head: the sparkle in the accent pair for Plainva's assistant (<code>data-ai</code>), a bot in a neutral pair for an AI app and an external agent (<code>data-machine</code>).</p>
+    <div class="card" style="max-width: 520px; display: grid; gap: var(--space-4)">
+      <div>
+        <fieldset class="pv-mcp-pair-folders pv-mcp-pair-writes" style="margin-top: 0">
+          <legend>And writing?</legend>
+          <label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>May suggest changes</span></label>
+        </fieldset>
+        <p class="pv-mcp-note">Off until you allow it. What the app writes then becomes a suggestion on the note or a draft — with its name as the author; nothing in the vault changes until you accept or create it.</p>
+      </div>
+      <div class="pv-mcp-plan">
+        <dl class="pv-ai-overview-list">
+          <dt>Note</dt>
+          <dd>Offer 2026 · Projects</dd>
+          <dt>New name</dt>
+          <dd>Offer Hafenkante 2026</dd>
+          <dt>Links</dt>
+          <dd>3 links in 2 notes — they follow the new name</dd>
+        </dl>
+        <ul class="pv-ai-overview-sources">
+          <li><span class="pv-ai-overview-note">Projects/Brief</span><span class="pv-ai-overview-form">1 link</span></li>
+          <li><span class="pv-ai-overview-note">Archive/Old</span><span class="pv-ai-overview-form">2 links</span></li>
+        </ul>
+        <p class="pv-mcp-note">Plainva renames the note and updates the links — as when you rename by hand. It is carried out once the app continues after your yes; the app only learns whether it happened.</p>
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2)"><button class="pvbtn ghost">Deny</button><button class="pvbtn primary">Allow</button></div>
+      </div>
+      <div style="display: grid; gap: var(--space-2)">
+        <div class="pv-comment-card__who"><span class="pv-comment-card__avatar" data-ai="" aria-hidden="true">✦</span><span class="pv-comment-card__name">Plainva AI · model</span><time class="pv-comment-card__when">2 min ago</time></div>
+        <div class="pv-comment-card__who"><span class="pv-comment-card__avatar" data-machine="" aria-hidden="true">⚙</span><span class="pv-comment-card__name">Claude Code (AI app)</span><time class="pv-comment-card__when">5 min ago</time></div>
+        <div class="pv-comment-card__who"><span class="pv-comment-card__avatar" data-hue="3" aria-hidden="true">AN</span><span class="pv-comment-card__name">Anna</span><time class="pv-comment-card__when">1 h ago</time></div>
+      </div>
+    </div>
     <p class="sec-sub">AI harness P3-5 (2026-10-01): the skills workshop. What waits for an approval on this device stands first; the review names what a skill may do in words and what changed since the approved version as a line comparison (<code>LineCompare</code>, <code>.pv-linecompare</code>), in a facts list (<code>.pv-skill-facts</code>).</p>
     <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
       <dl class="pv-skill-facts">

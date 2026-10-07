@@ -137,7 +137,7 @@ export function BaseViewer({
   onCloseTab?: () => void;
 }) {
   const { t } = useTranslation();
-  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, getWorkspaceCapabilities, commentOperations, workspaceSecurityStatus } = useVault();
+  const { vaultAdapter, queryService, vaultPath, indexer, triggerFileTreeUpdate, fileTreeVersion, fileTreeVersionPaths, pimRuntime, listAllWorkspaceComments, listWorkspaceMembers, getWorkspaceCapabilities, commentOperations, workspaceSecurityStatus } = useVault();
   const cache = useMemo(() => queryService ? pinboardCache(queryService) : null, [queryService]);
   const cacheKey = `${activePath}#${hostPath ?? ""}`;
   const snapshot = useMemo(() => cache?.base<{ config: any; rows: any[]; viewIndex: number }>(cacheKey), [cache, cacheKey]);
@@ -434,7 +434,10 @@ export function BaseViewer({
   // event announces them - a write anywhere in the app raises the window event
   // instead, and a short debounce keeps a burst of replies to a single reload.
   const [noteComments, setNoteComments] = useState<Map<string, WorkspaceCommentRecord[]>>(() => new Map());
+  // Who signed a proposed value, by author id: the names the comments keep. An app's id alone is a row of random letters.
+  const [commentAuthors, setCommentAuthors] = useState<ReadonlyMap<string, string>>(() => new Map());
   const loadComments = useStableHandler(() => listAllWorkspaceComments());
+  const loadCommentAuthors = useStableHandler(() => listWorkspaceMembers());
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -442,12 +445,15 @@ export function BaseViewer({
       loadComments()
         .then((map) => { if (alive) setNoteComments(map); })
         .catch(() => { if (alive) setNoteComments(new Map()); });
+      loadCommentAuthors()
+        .then((members) => { if (alive) setCommentAuthors(new Map(members.map((member) => [member.memberId, member.displayName]))); })
+        .catch(() => undefined);
     };
     load();
     const onChanged = () => { clearTimeout(timer); timer = setTimeout(load, 150); };
     window.addEventListener("plainva-workspace-comments-changed", onChanged);
     return () => { alive = false; clearTimeout(timer); window.removeEventListener("plainva-workspace-comments-changed", onChanged); };
-  }, [loadComments, vaultPath]);
+  }, [loadComments, loadCommentAuthors, vaultPath]);
 
   // The values somebody proposes for the entries this database shows (plan
   // KI-Harness P5-4), read from the same comments: per entry and column, the
@@ -3113,7 +3119,7 @@ export function BaseViewer({
           suggestion lives, with everything else of its round. */}
       {proposedMenu && (
         <MenuSurface open at={proposedMenu.at} onClose={() => setProposedMenu(null)} ariaLabel={t("database.proposedLabel")}>
-          <MenuLabel>{proposedBy(t, proposedMenu.cell.comment)}</MenuLabel>
+          <MenuLabel>{proposedBy(t, proposedMenu.cell.comment, commentAuthors)}</MenuLabel>
           <MenuItem icon={<Check size={ICON.meta} />} disabled={proposedBusy || !proposedMenu.canWrite} onSelect={() => { const cell = proposedMenu.cell; setProposedMenu(null); void decideProposed([cell], "applied"); }} data-testid="base-proposed-accept">
             {t("comments.suggestionApply")}
           </MenuItem>

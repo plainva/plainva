@@ -91,6 +91,25 @@ export function takeSkillsRequest(): { review: string | null } | null {
   return request;
 }
 
+/**
+ * Opens the AI tab on everything that waits for the user — the toast that
+ * says an app left a draft (plan KI-Harness P5-5). Like the skills request,
+ * it waits here until the tab takes it.
+ */
+export const AI_WAITING_EVENT = "plainva-ai-waiting";
+let pendingWaiting = false;
+
+export function requestWaitingView(): void {
+  pendingWaiting = true;
+  window.dispatchEvent(new CustomEvent(AI_WAITING_EVENT));
+}
+
+export function takeWaitingRequest(): boolean {
+  const request = pendingWaiting;
+  pendingWaiting = false;
+  return request;
+}
+
 let aiRootPromise: Promise<{ dir: string; rootId: string }> | null = null;
 
 /** `<appData>/ai` — registered once as a write root of the atomic write command. */
@@ -229,6 +248,8 @@ export interface DesktopVaultInput {
   writes?: DesktopWriteHost;
   /** Every open remark of the vault by note — the comments overview's own query —, for the list of open proposals (plan P5). */
   listComments?: () => Promise<ReadonlyMap<string, readonly WorkspaceCommentRecord[]>>;
+  /** The names the vault's comments keep for their authors, by author id: an app at the MCP server is known by the name it signed with. */
+  authorNames?: () => Promise<ReadonlyMap<string, string>>;
 }
 
 /**
@@ -458,7 +479,14 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
           },
         }
       : {}),
-    ...(input.listComments ? { proposals: async () => machineProposals(await input.listComments!()) } : {}),
+    ...(input.listComments
+      ? {
+          proposals: async () => {
+            const names = input.authorNames ? await input.authorNames().catch(() => undefined) : undefined;
+            return machineProposals(await input.listComments!(), names);
+          },
+        }
+      : {}),
     gists: () => input.gists?.()?.reader() ?? null,
     async keepOnDevice(path) {
       // The editor's pending keystrokes land first, so the rule is written into the live text.

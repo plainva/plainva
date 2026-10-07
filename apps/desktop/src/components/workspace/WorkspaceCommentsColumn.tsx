@@ -6,7 +6,7 @@ import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, Messag
 import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { isLegacyTableQuote } from "@plainva/core";
 import type { CommentThread, CommentThreadAi } from "@plainva/ui";
-import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, EmptyState, groupSuggestionRounds, ICON, IconButton, isAiAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type SuggestedProperty } from "@plainva/ui";
+import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, EmptyState, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type SuggestedProperty } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */
 
@@ -167,9 +167,9 @@ export function WorkspaceCommentsColumn({
   const [replyTo, setReplyTo] = useState<string | null>(null);
   /** The remark whose deletion is being confirmed, in its own card (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  // What the assistant wrote from this device is this device's to delete: the store judges a retraction by the writer.
+  // What the assistant, an app or an agent wrote from this device is this device's to delete: the store judges a retraction by the writer.
   const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && !record.legacyPending
-    && ((!record.legacyOrigin && (record.authorMemberId === selfMemberId || (isAiAuthorId(record.authorMemberId) && record.authorDeviceId === selfMemberId))) || canModerate === true);
+    && ((!record.legacyOrigin && (record.authorMemberId === selfMemberId || (isMachineAuthorId(record.authorMemberId) && record.authorDeviceId === selfMemberId))) || canModerate === true);
   const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
     <IconButton
       size="sm"

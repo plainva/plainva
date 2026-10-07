@@ -3870,6 +3870,9 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-comment-card__avatar[data-hue="3"] { background: color-mix(in srgb, var(--callout-blue) 22%, transparent); color: var(--callout-blue); }
 .pv-comment-card__avatar[data-hue="4"] { background: color-mix(in srgb, var(--callout-green) 22%, transparent); color: var(--callout-green); }
 .pv-comment-card__avatar[data-hue="5"] { background: color-mix(in srgb, var(--callout-cyan) 22%, transparent); color: var(--callout-cyan); }
+/* Another program's remark (an AI app at Plainva's MCP server, an external agent): a machine's mark in a neutral
+   pair - no person's hue, and not the accent pair of Plainva's own assistant. */
+.pv-comment-card__avatar[data-machine] { background: var(--surface-container); color: var(--text-muted); }
 .pv-comment-card__name { font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pv-comment-card.is-active .pv-comment-card__name { color: inherit; }
 .pv-comment-card__when { margin-left: auto; flex: none; color: var(--text-faint); font-variant-numeric: tabular-nums; }
@@ -4535,6 +4538,12 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-mcp-pair-folders { display: grid; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
 .pv-mcp-pair-folders legend { margin-bottom: var(--space-2); padding: 0; font-weight: 600; }
 .pv-mcp-pair-hint { margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--text-muted); }
+/* Stage 2: the second answer of the pairing dialog — may the app propose changes — and the dialog about a plan of an app. */
+.pv-mcp-pair-writes { margin-top: var(--space-4); }
+.pv-mcp-plan { display: grid; gap: var(--space-3); }
+/* What an answer in one of the two dialogs means, said before it is given: a sentence to read, not a footnote. */
+.pv-mcp-note { margin: var(--space-2) 0 0; font-size: var(--text-sm); line-height: 1.45; color: var(--text-muted); }
+.pv-mcp-plan > .pv-mcp-note { margin: 0; }
 .pv-mcp-audit { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
 /* External tools (AI harness P4.5, Design Language "External tools"): layout only — the review of a foreign
    server is the skills' facts list, Checkbox rows with the server's words as a second line, a Segmented and

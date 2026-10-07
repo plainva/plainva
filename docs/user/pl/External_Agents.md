@@ -17,7 +17,7 @@ Uruchamiaj agenta tylko w vaulcie, którego zawartość może trafić do usługi
 
 ## Co Plainva kontroluje
 
-- **Własne narzędzia.** Tam, gdzie włączono **Pozwól aplikacjom AI na tym komputerze czytać ten vault**, narzędzia Plainva są oferowane agentowi — te same, co każdej aplikacji z [Łączenie aplikacji AI](Connect_AI_Apps.md): tylko foldery, na które zezwolisz, nigdy notatka trzymana z dala od chmury, i tylko do odczytu.
+- **Własne narzędzia.** Tam, gdzie włączono **Pozwól aplikacjom AI na tym komputerze czytać ten vault**, narzędzia Plainva są oferowane agentowi — te same, co każdej aplikacji z [Łączenie aplikacji AI](Connect_AI_Apps.md): tylko foldery, na które zezwolisz, nigdy notatka trzymana z dala od chmury lub internetu, i tylko do odczytu — chyba że pozwolisz mu tam proponować zmiany.
 - **O czego odczyt agent prosi Plainva.** Notatka trzymana z dala od chmury i własne foldery Plainva nie są wydawane. Agent się o tym dowiaduje, i Ty też.
 - **O czego zapis agent prosi Plainva.** Nic nie jest zapisywane. Zmiana w notatce staje się rundą propozycji pod nazwą agenta, a nowa notatka czeka, aż ją utworzysz.
 - **Bez terminala.** Plainva nie oferuje agentowi własnego terminala.

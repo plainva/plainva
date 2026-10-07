@@ -17,7 +17,7 @@ Start an agent only in a vault whose content may reach the agent's service.
 
 ## What Plainva controls
 
-- **Its own tools.** Where **Let AI apps on this computer read this vault** is switched on, Plainva's tools are offered to the agent — the same as for every app in [Connecting AI apps](Connect_AI_Apps.md): only the folders you grant, never a note kept from the cloud, and reading only.
+- **Its own tools.** Where **Let AI apps on this computer read this vault** is switched on, Plainva's tools are offered to the agent — the same as for every app in [Connecting AI apps](Connect_AI_Apps.md): only the folders you grant, never a note kept from the cloud or from the internet, and reading only — unless you allow it there to propose changes.
 - **What the agent asks Plainva to read.** A note kept from the cloud and Plainva's own folders are not handed over. The agent is told so, and so are you.
 - **What the agent asks Plainva to write.** Nothing is written. A change to a note becomes a round of suggestions under the agent's name, and a new note waits until you create it.
 - **No terminal.** Plainva offers an agent no terminal of its own.

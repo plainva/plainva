@@ -849,7 +849,7 @@
     "mcp": {
       "title": "Apps d'IA sur cet ordinateur",
       "switch": "Laisser les apps d'IA de cet ordinateur lire ce vault",
-      "switchDesc": "Désactivé par défaut. Des apps comme Claude Code, Claude Desktop, Cursor ou VS Code joignent Plainva par un canal privé de cet ordinateur — aucun port réseau. Chaque app demande une fois, et vous choisissez les dossiers qu'elle peut lire. Elle ne peut rien modifier, et Plainva doit être ouvert.",
+      "switchDesc": "Désactivé par défaut. Des apps comme Claude Code, Claude Desktop, Cursor ou VS Code joignent Plainva par un canal privé de cet ordinateur — aucun port réseau. Chaque app demande une fois, et vous choisissez les dossiers qu'elle peut lire. Elle ne peut rien modifier ; ce n'est que si vous l'y autorisez expressément qu'elle peut proposer des modifications. Plainva doit être ouvert.",
       "claudeCode": "Commande pour Claude Code",
       "copy": "Copier",
       "copied": "Copié.",
@@ -875,11 +875,42 @@
       "refused": "refusée",
       "pairTitle": "{{client}} veut lire votre vault",
       "pairKnownTitle": "{{client}} veut lire ce vault",
-      "pairBody": "Lancé par : {{program}}. Choisissez ce qu'elle peut lire — elle ne voit rien d'autre et ne peut rien modifier.",
+      "pairBody": "Lancé par : {{program}}. Choisissez ce qu'elle peut lire — elle ne voit rien d'autre.",
       "pairFolders": "Dossiers",
       "pairWhole": "Tout le vault",
       "pairAllow": "Autoriser",
       "pairDeny": "Refuser",
+      "author": "{{client}} (app d'IA)",
+      "pairWritesLegend": "Et écrire ?",
+      "pairWrites": "Peut proposer des modifications",
+      "pairWritesHint": "Désactivé tant que vous ne l'autorisez pas. Ce que l'app écrit alors devient une proposition sur la note ou un brouillon — avec son nom comme auteur ; rien ne change dans le vault tant que vous n'acceptez pas ou ne créez pas. Renommer, déplacer et supprimer demandent à chaque fois dans Plainva. Cela vaut pour cette app dans ce vault jusqu'à ce que vous le retiriez.",
+      "writesRow": "{{client}} peut proposer des modifications",
+      "writesOn": "Ce qu'elle écrit devient une proposition sur la note ou un brouillon, avec « {{client}} » comme auteur. Rien ne change dans le vault tant que vous n'acceptez pas ou ne créez pas. Renommer, déplacer et supprimer demandent à chaque fois dans Plainva.",
+      "writesOff": "Désactivé : cette app ne fait que lire.",
+      "writesOnToast": "{{client}} peut désormais proposer des modifications. L'app verra les nouveaux outils dès qu'elle se reconnectera.",
+      "auditAsked": "question posée",
+      "auditDeclined": "déclinée",
+      "plan": {
+        "renameTitle": "{{client}} veut renommer une note",
+        "moveTitle": "{{client}} veut déplacer une note",
+        "deleteTitle": "{{client}} veut supprimer une note",
+        "renameHint": "Plainva renomme la note et met les liens à jour — comme lorsque vous renommez à la main. Ce sera fait dès que {{client}} continuera après votre oui ; l'app apprend seulement si cela a été fait.",
+        "moveHint": "Plainva déplace la note — comme lorsque vous la déplacez à la main. Ce sera fait dès que {{client}} continuera après votre oui ; l'app apprend seulement si cela a été fait.",
+        "deleteHint": "Votre oui ne supprime encore rien : dès que {{client}} continue, Plainva ouvre sa propre boîte de dialogue de suppression. Elle montre ce qui partirait avec la note, et rien ne disparaît avant que vous n'y confirmiez.",
+        "allowed": "Autorisé. Ce sera fait dès que {{client}} continuera."
+      },
+      "planNote": {
+        "rename": "Plainva demande dans sa fenêtre s'il faut renommer « {{note}} » en « {{title}} ». Répondez-y, puis continuez ici.",
+        "move": "Plainva demande dans sa fenêtre s'il faut déplacer « {{note}} » dans le dossier « {{folder}} ». Répondez-y, puis continuez ici.",
+        "moveRoot": "Plainva demande dans sa fenêtre s'il faut déplacer « {{note}} » au niveau supérieur du vault. Répondez-y, puis continuez ici.",
+        "delete": "Plainva demande dans sa fenêtre s'il faut supprimer « {{note}} ». Répondez-y, puis continuez ici.",
+        "again": "Plainva attend toujours votre réponse."
+      },
+      "left": {
+        "proposal": "{{client}} a proposé des modifications pour « {{note}} ».",
+        "draft": "{{client}} a laissé un brouillon.",
+        "open": "Ouvrir"
+      },
       "pairNone": "Choisissez au moins un dossier à autoriser."
     },
     "ext": {

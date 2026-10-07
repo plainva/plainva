@@ -17,7 +17,7 @@ Avvia un agente solo in un vault il cui contenuto può arrivare al servizio dell
 
 ## Che cosa Plainva controlla
 
-- **I propri strumenti.** Dove **Consenti alle app di IA di questo computer di leggere questo vault** è attivo, gli strumenti di Plainva vengono offerti all'agente — gli stessi di ogni app in [Collegare app di IA](Connect_AI_Apps.md): solo le cartelle che concedi, mai una nota tenuta lontana dal cloud, e solo in lettura.
+- **I propri strumenti.** Dove **Consenti alle app di IA di questo computer di leggere questo vault** è attivo, gli strumenti di Plainva vengono offerti all'agente — gli stessi di ogni app in [Collegare app di IA](Connect_AI_Apps.md): solo le cartelle che concedi, mai una nota tenuta lontana dal cloud o da Internet, e solo in lettura — a meno che lì tu non gli consenta di proporre modifiche.
 - **Che cosa l'agente chiede a Plainva di leggere.** Una nota tenuta lontana dal cloud e le cartelle proprie di Plainva non vengono consegnate. L'agente ne viene informato, e anche tu.
 - **Che cosa l'agente chiede a Plainva di scrivere.** Non viene scritto nulla. Una modifica a una nota diventa un giro di proposte a nome dell'agente, e una nota nuova aspetta finché non la crei.
 - **Nessun terminale.** Plainva non offre a un agente un terminale proprio.

@@ -135,6 +135,62 @@ the part that follows (§10).*
 - **Claude Desktop.** The settings write an `.mcpb` (manifest 0.3, `binary`
   server) that carries the installed helper; no package is built in CI.
 
+### Implementation (stage 2: a client may propose changes, 2026-10-07)
+
+- **A grant of its own.** Whether a client may propose changes is a second
+  answer of the pairing question and a switch per client in the settings —
+  per client and vault, kept beside its folders in `mcp/grants-<vault>.json`
+  (`writes`), off by default, and worth nothing without a folder to read.
+  The native side reads the grants **at every request**, not once per
+  connection: folders that changed, a grant that was taken back and a client
+  that was removed hold from the next call of a connection that is already
+  open. (Until this stage a connection kept the folders it was admitted
+  with, so a client removed in the settings could go on reading until it
+  reconnected.)
+- **Six more tools on the `mcp` surface** — `propose_edit`, `set_property`,
+  `create_note` (kind `propose`: answered at once) and `rename_note`,
+  `move_note`, `delete_note` (kind `plan`). The web view registers each tool
+  with its kind; the native side lists a tool that writes only to a client
+  with the grant and refuses a call without it in the words of a tool that
+  does not exist, before anything reaches the main window. The main window
+  checks the flag it is handed once more.
+- **Nothing a client writes changes the vault.** The tools are the
+  assistant's own (ADR 0019 §2), run for a writer outside every conversation:
+  a change to a note is a suggestion round signed `mcp:<client id>` under the
+  name the user paired the client with, a new note is a draft on this device
+  that belongs to no conversation, and every address the client brings is
+  written inert — nothing the user typed is known here. One of a note's own
+  `plainva.ai` rules is nobody's to set from outside: such a call is answered
+  that nobody confirmed it, and the user is not asked. A program can call in a
+  loop where a run of the assistant ends by itself: a client with 300 changes
+  waiting on the vault's notes is told that the user has to decide first, as a
+  full list of drafts tells its writer; the user hears of what a client left
+  once per note and minute.
+- **A plan goes by the protocol's round trip** (`input_required`,
+  specification 2026-07-28). The first call only computes what would happen
+  and lays it before the user in a dialog of the main window — with what the
+  user needs to judge it and the client is never told (the notes whose links
+  would change). The client gets `input_required` with an elicitation for its
+  own user and an opaque request state: a random handle, valid for that
+  client, that vault, that very call, and ten minutes. A retry without the
+  client user's answer is answered `input_required` again natively and never
+  reaches the main window. With it, the tool runs again and is told yes only
+  if the user said yes **in Plainva** and what it would do now equals what
+  they were shown; otherwise nothing happens. What a client writes into
+  `inputResponses` approves nothing by itself. A deletion is the app's own
+  delete dialog, opened after both answers — it decides. Plan tools exist
+  only for a client that speaks 2026-07-28 and declares form elicitation: a
+  client that could not come back with an answer is not offered them.
+- **The gate, tightened.** An outside client is at the gate a cloud recipient
+  **that may reach the internet** (`webTools: true`): Plainva cannot see what
+  a client does with what it reads, so a note under `cloud: deny` or under
+  `web: deny` does not exist for it — for reading as for writing. This also
+  changed the read-only stage, which had held only the cloud rule. A
+  consequence the writing tools rely on: nothing a client can read carries a
+  rule that the place of its proposal could lack.
+- **The record.** A line of the audit may carry one fixed word — `asked` (a
+  plan waits for the user) or `declined` — and still never a path or a text.
+
 ## Consequences
 
 - One more native binary per desktop platform (built and signed with the

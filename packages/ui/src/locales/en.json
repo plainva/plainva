@@ -820,7 +820,7 @@
     "mcp": {
       "title": "AI apps on this computer",
       "switch": "Let AI apps on this computer read this vault",
-      "switchDesc": "Off by default. Apps such as Claude Code, Claude Desktop, Cursor or VS Code reach Plainva through a private channel of this computer — no network port. Each app asks once, and you choose the folders it may read. It cannot change anything, and Plainva must be running.",
+      "switchDesc": "Off by default. Apps such as Claude Code, Claude Desktop, Cursor or VS Code reach Plainva through a private channel of this computer — no network port. Each app asks once, and you choose the folders it may read. It cannot change anything; only if you allow it separately may it suggest changes. Plainva must be running.",
       "claudeCode": "Command for Claude Code",
       "copy": "Copy",
       "copied": "Copied.",
@@ -846,11 +846,42 @@
       "refused": "refused",
       "pairTitle": "{{client}} wants to read your vault",
       "pairKnownTitle": "{{client}} wants to read this vault",
-      "pairBody": "Started by: {{program}}. Choose what it may read — it sees nothing else and cannot change anything.",
+      "pairBody": "Started by: {{program}}. Choose what it may read — it sees nothing else.",
       "pairFolders": "Folders",
       "pairWhole": "The whole vault",
       "pairAllow": "Allow",
       "pairDeny": "Deny",
+      "author": "{{client}} (AI app)",
+      "pairWritesLegend": "And writing?",
+      "pairWrites": "May suggest changes",
+      "pairWritesHint": "Off until you allow it. What the app writes then becomes a suggestion on the note or a draft — with its name as the author; nothing in the vault changes until you accept or create it. Renaming, moving and deleting ask in Plainva every time. This holds for this app in this vault until you take it back.",
+      "writesRow": "{{client}} may suggest changes",
+      "writesOn": "What it writes becomes a suggestion on the note or a draft, with “{{client}}” as the author. Nothing in the vault changes until you accept or create it. Renaming, moving and deleting ask in Plainva every time.",
+      "writesOff": "Off: this app only reads.",
+      "writesOnToast": "{{client}} may now suggest changes. The app sees the new tools once it reconnects.",
+      "auditAsked": "asked",
+      "auditDeclined": "declined",
+      "plan": {
+        "renameTitle": "{{client}} wants to rename a note",
+        "moveTitle": "{{client}} wants to move a note",
+        "deleteTitle": "{{client}} wants to delete a note",
+        "renameHint": "Plainva renames the note and updates the links — as when you rename by hand. It is carried out once {{client}} continues after your yes; the app only learns whether it happened.",
+        "moveHint": "Plainva moves the note — as when you move it by hand. It is carried out once {{client}} continues after your yes; the app only learns whether it happened.",
+        "deleteHint": "Your yes deletes nothing yet: once {{client}} continues, Plainva opens its own delete dialog. It shows what would go with the note, and nothing is gone before you confirm there.",
+        "allowed": "Allowed. It is carried out once {{client}} continues."
+      },
+      "planNote": {
+        "rename": "Plainva is asking in its window whether to rename “{{note}}” to “{{title}}”. Answer there, then continue here.",
+        "move": "Plainva is asking in its window whether to move “{{note}}” to the folder “{{folder}}”. Answer there, then continue here.",
+        "moveRoot": "Plainva is asking in its window whether to move “{{note}}” to the top level of the vault. Answer there, then continue here.",
+        "delete": "Plainva is asking in its window whether to delete “{{note}}”. Answer there, then continue here.",
+        "again": "Plainva is still waiting for your answer."
+      },
+      "left": {
+        "proposal": "{{client}} suggested changes to “{{note}}”.",
+        "draft": "{{client}} left a draft.",
+        "open": "Open"
+      },
       "pairNone": "Choose at least one folder to allow."
     },
     "ext": {

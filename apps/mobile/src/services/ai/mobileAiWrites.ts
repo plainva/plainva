@@ -26,7 +26,7 @@ import i18n from "@plainva/ui/i18n";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { mobileCommentOperations } from "../commentOperations";
 import { appendPlannedJournalEntry, journalHeading } from "../journalService";
-import { listAllMobileComments } from "../mobileComments";
+import { listAllMobileComments, listMobileCommentAuthors } from "../mobileComments";
 import { getMobileSettings } from "../mobileSettings";
 import { providerListLabel, sendTaskToProviderList } from "../pim/taskToProvider";
 import { vaultOps, type MobileVault } from "../vaultService";
@@ -163,5 +163,6 @@ export function mobileDraftCreator(vault: MobileVault, policy: VaultPolicyHost):
 
 /** The notes of the vault that carry open suggestions of a machine, from the phone's own comment store. */
 export async function mobileProposals(vault: MobileVault): Promise<OpenProposal[]> {
-  return machineProposals(await listAllMobileComments(vault));
+  // With the names the comments keep for their authors: an app that wrote through the desktop is known by the name it signed with.
+  return machineProposals(await listAllMobileComments(vault), await listMobileCommentAuthors(vault).catch(() => undefined));
 }

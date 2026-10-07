@@ -17,7 +17,7 @@ Start een agent alleen in een vault waarvan de inhoud de dienst van de agent mag
 
 ## Wat Plainva beheerst
 
-- **Zijn eigen hulpmiddelen.** Waar **AI-apps op deze computer deze vault laten lezen** aanstaat, worden de hulpmiddelen van Plainva aan de agent aangeboden — dezelfde als voor elke app in [AI-apps koppelen](Connect_AI_Apps.md): alleen de mappen die je toestaat, nooit een notitie die van de cloud wordt weggehouden, en alleen lezen.
+- **Zijn eigen hulpmiddelen.** Waar **AI-apps op deze computer deze vault laten lezen** aanstaat, worden de hulpmiddelen van Plainva aan de agent aangeboden — dezelfde als voor elke app in [AI-apps koppelen](Connect_AI_Apps.md): alleen de mappen die je toestaat, nooit een notitie die van de cloud of van internet wordt weggehouden, en alleen lezen — tenzij je hem daar toestaat wijzigingen voor te stellen.
 - **Wat de agent Plainva vraagt te lezen.** Een notitie die van de cloud wordt weggehouden en de eigen mappen van Plainva worden niet afgegeven. De agent krijgt dat te horen, en jij ook.
 - **Wat de agent Plainva vraagt te schrijven.** Er wordt niets geschreven. Een wijziging in een notitie wordt een ronde voorstellen onder de naam van de agent, en een nieuwe notitie wacht tot je haar maakt.
 - **Geen terminal.** Plainva biedt een agent geen eigen terminal aan.

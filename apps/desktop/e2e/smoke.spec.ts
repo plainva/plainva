@@ -4834,6 +4834,200 @@ test('AI writes a column of a database: a run proposes a value for each empty en
 // go. The web view's own decoder and canvas prepare it, as in the app: what
 // leaves is a picture drawn anew, never the file. And a picture that a note
 // kept from the cloud shows stays, also when it is opened by itself.
+test('AI apps on this computer: an app the user allowed proposes and drafts under its own name; a rename waits for a yes in Plainva and for the app to come back', async ({ page }) => {
+  const OFFER = '# Offer\n\nThe day rate is 1,800 euros.\n';
+  await page.addInitScript(({ offer }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.plainva/sync'] = { isDir: true };
+    fs['/test-vault/Archive'] = { isDir: true };
+    fs['/test-vault/Archive/Old.md'] = '# Old\n\nSee [[Offer]].\n';
+    fs['/test-vault/Projects'] = { isDir: true };
+    fs['/test-vault/Projects/Offer.md'] = offer;
+    fs['/test-vault/Projects/Brief.md'] = '# Brief\n\nAs in [[Offer]].\n';
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, mcpEnabled: true } };
+    // The native side of Plainva's MCP server, played here: it hands the main window a pairing question and the calls
+    // of an app as events — after its own checks —, and takes the answers back as commands.
+    const callbacks = new Map<number, (event: unknown) => void>();
+    const listeners = new Map<string, number>();
+    let next = 100;
+    const server = ((window as any).__mcpServer = {
+      configured: [] as any[],
+      pairAnswers: [] as any[],
+      answers: [] as any[],
+      writes: [] as any[],
+      clients: [] as any[],
+      audit: [
+        { at: '1759830060', clientId: 'c1', client: 'Claude Code', tool: 'rename_note', ok: false, notes: 0, note: 'asked' },
+        { at: '1759830050', clientId: 'c1', client: 'Claude Code', tool: 'propose_edit', ok: true, notes: 1 },
+      ] as any[],
+      emit(event: string, payload: unknown) {
+        const id = listeners.get(event);
+        const callback = id === undefined ? undefined : callbacks.get(id);
+        if (!callback) return false;
+        callback({ event, id: 0, payload });
+        return true;
+      },
+    });
+    const internals = (window as any).__TAURI_INTERNALS__;
+    internals.transformCallback = (callback: (event: unknown) => void) => { next += 1; callbacks.set(next, callback); return next; };
+    const orig = internals.invoke;
+    internals.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'plugin:event|listen') { listeners.set(String(args.event), Number(args.handler)); return Number(args.handler); }
+      if (cmd === 'plugin:event|unlisten') return null;
+      if (cmd === 'mcp_configure') { server.configured.push({ enabled: args.enabled, tools: args.tools }); return null; }
+      if (cmd === 'mcp_status') return { running: true, helperPath: 'C:/Program Files/Plainva/plainva-mcp.exe', identifier: 'com.plainva.labs', clients: server.clients, audit: server.audit };
+      if (cmd === 'mcp_pair_answer') {
+        server.pairAnswers.push({ requestId: args.requestId, allow: args.allow, folders: args.folders, writes: args.writes });
+        if (args.allow) server.clients = [{ id: 'c1', name: 'Claude Code', program: 'claude.exe', createdAt: '1759830000', lastSeen: '1759830000', folders: args.folders, writes: args.writes }];
+        return null;
+      }
+      if (cmd === 'mcp_set_writes') {
+        server.writes.push({ clientId: args.clientId, allowed: args.allowed });
+        server.clients = server.clients.map((client: any) => ({ ...client, writes: args.allowed }));
+        return null;
+      }
+      if (cmd === 'mcp_call_answer') { server.answers.push({ requestId: args.requestId, ...args.answer }); return null; }
+      return orig(cmd, args, options);
+    };
+  }, { offer: OFFER });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const server = () => page.evaluate(() => { const s = (window as any).__mcpServer; return { configured: s.configured as any[], pairAnswers: s.pairAnswers as any[], answers: s.answers as any[], writes: s.writes as any[] }; });
+  const emit = (event: string, payload: unknown) => page.evaluate(({ event, payload }) => (window as any).__mcpServer.emit(event, payload) as boolean, { event, payload });
+  const files = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([, value]) => typeof value === 'string').map(([path, value]) => ({ path, text: String(value) })));
+  const fileAt = async (path: string) => (await files()).find((file) => file.path === path)?.text ?? null;
+  let sent = 0;
+  /** One call of the app as the native side forwards it — its folders and its grant checked there —, and the answer it gets. */
+  const call = async (tool: string, args: unknown, extra: Record<string, unknown> = {}) => {
+    const requestId = `call-${++sent}`;
+    expect(await emit('mcp-call', { requestId, clientId: 'c1', client: 'Claude Code', tool, args, folders: ['Projects'], writes: true, ...extra })).toBe(true);
+    await expect.poll(async () => (await server()).answers.some((answer) => answer.requestId === requestId), { timeout: 15000 }).toBe(true);
+    return (await server()).answers.find((answer) => answer.requestId === requestId);
+  };
+
+  // 1. What the native side is told to serve: every tool with what a call of it can do. It offers a tool that writes
+  //    only to an app the user allowed, and a plan only to one that can come back with its user's answer.
+  await expect.poll(async () => (await server()).configured.some((entry) => entry.enabled), { timeout: 15000 }).toBe(true);
+  const served = (await server()).configured.filter((entry) => entry.enabled).pop().tools as Array<{ name: string; kind: string; destructive: boolean }>;
+  expect(served.filter((tool) => tool.kind === 'propose').map((tool) => tool.name)).toEqual(['propose_edit', 'set_property', 'create_note']);
+  expect(served.filter((tool) => tool.kind === 'plan').map((tool) => tool.name)).toEqual(['rename_note', 'move_note', 'delete_note']);
+  expect(served.filter((tool) => tool.destructive).map((tool) => tool.name)).toEqual(['delete_note']);
+
+  // 2. The pairing question: reading is one answer, proposing changes another — and that one is off until it is ticked.
+  await expect.poll(() => emit('mcp-pair', { requestId: 'pair-1', client: 'Claude Code', version: '2.0.0', program: 'C:/Users/me/AppData/Local/Programs/claude/claude.exe', known: false })).toBe(true);
+  const pairing = page.getByTestId('mcp-pairing');
+  await expect(pairing).toBeVisible();
+  const mayWrite = pairing.getByTestId('mcp-pair-writes');
+  await expect(mayWrite).not.toBeChecked();
+  // Nothing is ticked, so nothing can be allowed yet. (This fixture's index lists no folders: the whole vault it is.)
+  await expect(pairing.getByTestId('mcp-pair-allow')).toBeDisabled();
+  await pairing.locator('label.pv-checkrow').first().click();
+  await mayWrite.check();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('mcp-pairing-desktop.png'), animations: 'disabled' });
+  await pairing.getByTestId('mcp-pair-allow').click();
+  expect((await server()).pairAnswers).toEqual([{ requestId: 'pair-1', allow: true, folders: [''], writes: true }]);
+
+  // 3. A change the app asks for is a suggestion on the note, signed with the app's id and the name it was paired
+  //    under: the note is what it was, and the user hears of it where they work — the note, never the text.
+  const proposed = await call('propose_edit', { path: 'Projects/Offer.md', edits: [{ find: '1,800 euros', replace: '1,900 euros' }], note: 'New rate' });
+  expect(proposed).toMatchObject({ isError: false, paths: ['Projects/Offer.md'], content: 'Proposed on Projects/Offer.md: 1 change. Nothing in the vault has changed. The user accepts or declines each change in Plainva.' });
+  expect(await fileAt('/test-vault/Projects/Offer.md')).toBe(OFFER);
+  const bundles = (await files()).filter((file) => /^\/test-vault\/\.plainva\/sync\/comments\.[^/]+\.json$/.test(file.path));
+  expect(bundles).toHaveLength(1);
+  const suggestion = Object.values(JSON.parse(bundles[0].text).comments as Record<string, any>).filter((record) => record.suggestion);
+  expect(suggestion).toHaveLength(1);
+  expect(JSON.stringify(suggestion[0])).toContain('mcp:c1');
+  const left = page.locator('.pv-toast', { hasText: 'Claude Code' }).filter({ hasText: 'Offer' });
+  await expect(left).toBeVisible();
+  await expect(left).not.toContainText('1,900');
+  await left.locator('.pv-toast-action').click();
+  const toggle = page.getByTestId('editor-comments-toggle');
+  await expect(toggle).toBeVisible({ timeout: 10000 });
+  const column = page.locator('aside.pv-comment-column');
+  if (!(await column.isVisible())) await toggle.click();
+  await page.getByTestId('comment-kind-suggestions').click();
+  const card = column.locator('.pv-comment-card').first();
+  await expect(card).toBeVisible({ timeout: 10000 });
+  // A machine's mark and what it is — never two letters that read like a colleague.
+  await expect(card.locator('.pv-comment-card__name')).toHaveText(/^Claude Code \((AI app|KI-App)\)$/);
+  await expect(card.locator('.pv-comment-card__avatar[data-machine] svg')).toHaveCount(1);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('mcp-suggestion-desktop.png'), animations: 'disabled' });
+
+  // 4. Something new is a draft on this device, under the app's name, in the list of everything that waits.
+  const drafted = await call('create_note', { title: 'Kick-off', folder: 'Projects', content: 'Agenda\n\n- one' });
+  expect(drafted).toMatchObject({ isError: false, content: 'Drafted: a note "Kick-off". Nothing in the vault has changed. It exists once the user creates it from the draft in Plainva.' });
+  expect((await files()).filter((file) => /Kick-off/.test(file.path))).toEqual([]);
+  const leftDraft = page.locator('.pv-toast', { hasText: 'Claude Code' }).filter({ has: page.locator('.pv-toast-action') }).last();
+  await expect(leftDraft).toBeVisible();
+  await leftDraft.locator('.pv-toast-action').click();
+  const open = page.getByTestId('ai-open');
+  const draft = open.locator('[data-testid="ai-draft"][data-kind="note"]');
+  await expect(draft.getByTestId('ai-draft-title')).toHaveText('Kick-off');
+  await expect(draft.getByTestId('ai-draft-author')).toHaveText(/^Claude Code \((AI app|KI-App)\)$/);
+  // The note that carries the app's suggestion stands above it, under the same name — not under the app's id.
+  await expect(open.getByTestId('ai-open-proposals')).toContainText(/Claude Code \((AI app|KI-App)\)/);
+  await expect(open.getByTestId('ai-open-proposals')).not.toContainText('c1');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('mcp-open-desktop.png'), animations: 'disabled' });
+
+  // 5. A rename is a question in Plainva's own window. The app is only told that input is required, and what it
+  //    named itself — not which notes link to the offer, one of which lies outside its folders.
+  const RENAME = { path: 'Projects/Offer.md', title: 'Offer 2027' };
+  const asked = await call('rename_note', RENAME);
+  expect(asked).toMatchObject({ isError: false, content: '', paths: ['Projects/Offer.md'] });
+  expect(asked.pending.handle).toMatch(/^[A-Za-z0-9_-]{16,64}$/);
+  expect(asked.pending.message).toMatch(/Offer 2027/);
+  expect(JSON.stringify(asked)).not.toMatch(/Archive|Brief/);
+  const plan = page.getByTestId('mcp-plan');
+  await expect(plan).toBeVisible();
+  await expect(plan).toHaveAttribute('aria-label', /^Claude Code (wants to rename a note|möchte eine Notiz umbenennen)$/);
+  await expect(plan.getByTestId('ai-effect-target')).toHaveText('Offer 2027');
+  // The rows of the assistant's own plan card. (This fixture's index knows no links; which notes link to the
+  // note, and that the app is never told, is held in `mcpWrites.test.ts` and `McpSurfaces.test.tsx`.)
+  await expect(plan.getByTestId('ai-effect-links')).toBeVisible();
+  await expect(plan.getByTestId('mcp-plan-hint')).toContainText('Claude Code');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('mcp-plan-desktop.png'), animations: 'disabled' });
+  // The yes in Plainva carries nothing out by itself …
+  await plan.getByTestId('mcp-plan-allow').click();
+  await expect(plan).toHaveCount(0);
+  expect(await fileAt('/test-vault/Projects/Offer.md')).toBe(OFFER);
+  expect(await fileAt('/test-vault/Projects/Offer 2027.md')).toBeNull();
+  // … the app coming back for this very plan does: the note has its new name, renamed the way the app renames.
+  const renamed = await call('rename_note', RENAME, { handle: asked.pending.handle, answer: 'accept' });
+  expect(renamed).toMatchObject({ isError: false, content: 'Renamed. The note is now Projects/Offer 2027.md.' });
+  expect(renamed.paths).toEqual(expect.arrayContaining(['Projects/Offer.md', 'Projects/Offer 2027.md']));
+  expect(await fileAt('/test-vault/Projects/Offer 2027.md')).toBe(OFFER);
+  expect(await fileAt('/test-vault/Projects/Offer.md')).toBeNull();
+  // The handle is used up: coming back with it once more finds nothing waiting.
+  expect(await call('rename_note', RENAME, { handle: asked.pending.handle, answer: 'accept' })).toMatchObject({ isError: true, content: 'This request is not waiting in Plainva any more. Call the tool again.' });
+
+  // 6. A deletion the user says no to in Plainva: the app hears that it was declined, and the note is there.
+  const removal = await call('delete_note', { path: 'Projects/Brief.md' });
+  await expect(plan).toHaveAttribute('aria-label', /^Claude Code (wants to delete a note|möchte eine Notiz löschen)$/);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('mcp-plan-delete-desktop.png'), animations: 'disabled' });
+  await plan.getByTestId('mcp-plan-deny').click();
+  expect(await call('delete_note', { path: 'Projects/Brief.md' }, { handle: removal.pending.handle, answer: 'accept' })).toMatchObject({ isError: true, declined: true });
+  expect(await fileAt('/test-vault/Projects/Brief.md')).toContain('# Brief');
+
+  // 7. Without the grant — as the native side says it at every call — a tool that writes is no tool of the app.
+  expect(await call('propose_edit', { path: 'Projects/Brief.md', append: 'x' }, { writes: false })).toMatchObject({ isError: true, content: 'There is no tool called propose_edit.' });
+
+  // 8. The settings: the app with its folders, its own switch for proposing — and the record, which says what became
+  //    of a request without a path or a text.
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  const mayPropose = dialog.getByTestId('mcp-writes-switch');
+  await expect(mayPropose).toHaveAttribute('aria-checked', 'true');
+  await expect(mayPropose).toHaveAttribute('aria-label', /^Claude Code (may suggest changes|darf Änderungen vorschlagen)$/);
+  await expect(dialog.locator('.pv-mcp-audit li').first()).toContainText(/(asked|Rückfrage)$/);
+  await mayPropose.scrollIntoViewIfNeeded();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('mcp-settings-desktop.png'), animations: 'disabled' });
+  await mayPropose.click();
+  await expect(mayPropose).toHaveAttribute('aria-checked', 'false');
+  expect((await server()).writes).toEqual([{ clientId: 'c1', allowed: false }]);
+});
+
 test('AI explain image: the picture goes drawn anew and only after the overview showed it; a note kept from the cloud keeps its picture', async ({ page }) => {
   const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
   const says = (text: string) => sse([

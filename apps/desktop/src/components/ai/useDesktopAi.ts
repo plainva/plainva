@@ -35,8 +35,9 @@ import { getConfiguredNoteType } from "../../services/newNote";
 import { requestSaveFlush } from "../../services/saveFlush";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
-import { AI_OPEN_EVENT, AI_SKILLS_EVENT, createDesktopVaultHost, getDesktopAiSession, type DesktopWriteHost } from "../../services/ai/desktopAi";
+import { AI_OPEN_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, createDesktopVaultHost, getDesktopAiSession, requestWaitingView, type DesktopWriteHost } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
+import { mcpPlans } from "../../services/ai/mcpPlans";
 import { AI_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
 
 /**
@@ -103,7 +104,7 @@ export function useDesktopAi(input: DesktopAiInput) {
   });
   // Appointments come from the PIM cache of the open vault, when it has one;
   // an AI suggestion round goes through its comment service (plan P1.5).
-  const { pimRuntime, commentOperations, dbAdapter, indexer, triggerFileTreeUpdate, listAllWorkspaceComments } = useVault();
+  const { pimRuntime, commentOperations, dbAdapter, indexer, triggerFileTreeUpdate, listAllWorkspaceComments, listWorkspaceMembers } = useVault();
   const comments = useRef(commentOperations);
   useLayoutEffect(() => {
     comments.current = commentOperations;
@@ -127,9 +128,11 @@ export function useDesktopAi(input: DesktopAiInput) {
   // journal's entry. Read through a ref like everything else the host uses.
   const journalFiles = useJournalFiles();
   const allComments = useRef(listAllWorkspaceComments);
+  const authors = useRef(listWorkspaceMembers);
   const writeHost = useRef<DesktopWriteHost | null>(null);
   useLayoutEffect(() => {
     allComments.current = listAllWorkspaceComments;
+    authors.current = listWorkspaceMembers;
     const { vaultAdapter: adapter, vaultPath: root, queryService: query, renameTabPrefix } = input;
     if (!adapter || !root) {
       writeHost.current = null;
@@ -266,17 +269,40 @@ export function useDesktopAi(input: DesktopAiInput) {
         addJournal: (entry) => (writeHost.current ? writeHost.current.addJournal(entry) : Promise.reject(new Error("no vault"))),
       },
       listComments: () => allComments.current(),
+      authorNames: async () => new Map((await authors.current()).map((member) => [member.memberId, member.displayName])),
     });
     hostRef.current = host;
     void session.attachVault(host);
   }, [session, vaultPath, vaultAdapter, queryService, commands]);
 
   // The MCP server (plan §17.3): the native side forwards calls here; only
-  // the main window has a session, so only it answers.
+  // the main window has a session, so only it answers. An app the user allowed
+  // to propose changes (stage 2) leaves a suggestion or a draft like the
+  // assistant does, signed with its own name — and the user hears of it once,
+  // where they work: the app that wrote it is another window.
   useEffect(() => {
     if (!session) return;
-    return listenForMcpCalls(() => hostRef.current);
+    return listenForMcpCalls(() => hostRef.current, {
+      session,
+      plans: mcpPlans,
+      left: (what) => {
+        if (what.kind === "proposal") {
+          const path = what.path;
+          toast.info(i18n.t("ai.mcp.left.proposal", { client: what.client, note: noteDisplayName(path) }), { label: i18n.t("ai.mcp.left.open"), run: () => latest.current.openNote(path) });
+        } else {
+          toast.info(i18n.t("ai.mcp.left.draft", { client: what.client }), { label: i18n.t("ai.write.draft.show"), run: () => requestWaitingView() });
+        }
+      },
+    });
   }, [session]);
+  // A plan of an app was asked of the vault that was open then: another vault, or none, and it waits no more.
+  useEffect(() => () => mcpPlans.clear(), [vaultPath]);
+  // "View" on the toast about a draft: the AI tab takes the request when it shows.
+  useEffect(() => {
+    const open = () => latest.current.openView(AI_TAB_PATH);
+    window.addEventListener(AI_WAITING_EVENT, open);
+    return () => window.removeEventListener(AI_WAITING_EVENT, open);
+  }, []);
   // What the native side serves: on only with the AI and the device switch,
   // and always for the vault open now — a new vault closes older connections.
   const mcpOn = Boolean(enabled && state?.settings.mcpEnabled);

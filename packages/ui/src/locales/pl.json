@@ -878,7 +878,7 @@
     "mcp": {
       "title": "Aplikacje AI na tym komputerze",
       "switch": "Pozwól aplikacjom AI na tym komputerze czytać ten vault",
-      "switchDesc": "Domyślnie wyłączone. Aplikacje takie jak Claude Code, Claude Desktop, Cursor czy VS Code docierają do Plainva prywatnym kanałem tego komputera — bez portu sieciowego. Każda aplikacja pyta raz, a Ty wybierasz foldery, które może czytać. Niczego nie może zmienić, a Plainva musi być uruchomiona.",
+      "switchDesc": "Domyślnie wyłączone. Aplikacje takie jak Claude Code, Claude Desktop, Cursor czy VS Code docierają do Plainva prywatnym kanałem tego komputera — bez portu sieciowego. Każda aplikacja pyta raz, a Ty wybierasz foldery, które może czytać. Niczego nie może zmienić; tylko jeśli osobno na to pozwolisz, może proponować zmiany. Plainva musi być uruchomiona.",
       "claudeCode": "Polecenie dla Claude Code",
       "copy": "Kopiuj",
       "copied": "Skopiowano.",
@@ -904,11 +904,42 @@
       "refused": "odrzucone",
       "pairTitle": "{{client}} chce czytać Twój vault",
       "pairKnownTitle": "{{client}} chce czytać ten vault",
-      "pairBody": "Uruchomiona przez: {{program}}. Wybierz, co może czytać — nic więcej nie widzi i niczego nie może zmienić.",
+      "pairBody": "Uruchomiona przez: {{program}}. Wybierz, co może czytać — nic więcej nie widzi.",
       "pairFolders": "Foldery",
       "pairWhole": "Cały vault",
       "pairAllow": "Zezwól",
       "pairDeny": "Odmów",
+      "author": "{{client}} (aplikacja AI)",
+      "pairWritesLegend": "A pisanie?",
+      "pairWrites": "Może proponować zmiany",
+      "pairWritesHint": "Wyłączone, dopóki na to nie pozwolisz. To, co aplikacja wtedy napisze, staje się propozycją przy notatce albo szkicem — z jej nazwą jako autorem; w vaulcie nic się nie zmienia, dopóki tego nie zaakceptujesz lub nie utworzysz. Zmiana nazwy, przeniesienie i usunięcie pytają za każdym razem w Plainva. Obowiązuje to dla tej aplikacji w tym vaulcie, dopóki tego nie cofniesz.",
+      "writesRow": "{{client}} może proponować zmiany",
+      "writesOn": "To, co napisze, staje się propozycją przy notatce albo szkicem, z „{{client}}” jako autorem. W vaulcie nic się nie zmienia, dopóki tego nie zaakceptujesz lub nie utworzysz. Zmiana nazwy, przeniesienie i usunięcie pytają za każdym razem w Plainva.",
+      "writesOff": "Wyłączone: ta aplikacja tylko czyta.",
+      "writesOnToast": "{{client}} może teraz proponować zmiany. Aplikacja zobaczy nowe narzędzia, gdy połączy się ponownie.",
+      "auditAsked": "pytanie",
+      "auditDeclined": "odmówiono",
+      "plan": {
+        "renameTitle": "{{client}} chce zmienić nazwę notatki",
+        "moveTitle": "{{client}} chce przenieść notatkę",
+        "deleteTitle": "{{client}} chce usunąć notatkę",
+        "renameHint": "Plainva zmienia nazwę notatki i aktualizuje linki — tak jak przy ręcznej zmianie nazwy. Stanie się to, gdy {{client}} będzie kontynuować po Twojej zgodzie; aplikacja dowiaduje się tylko, czy to nastąpiło.",
+        "moveHint": "Plainva przenosi notatkę — tak jak przy ręcznym przenoszeniu. Stanie się to, gdy {{client}} będzie kontynuować po Twojej zgodzie; aplikacja dowiaduje się tylko, czy to nastąpiło.",
+        "deleteHint": "Twoja zgoda niczego jeszcze nie usuwa: gdy {{client}} będzie kontynuować, Plainva otworzy własne okno usuwania. Pokazuje ono, co zniknęłoby razem z notatką, i nic nie znika, zanim tam nie potwierdzisz.",
+        "allowed": "Dozwolone. Stanie się to, gdy {{client}} będzie kontynuować."
+      },
+      "planNote": {
+        "rename": "Plainva pyta w swoim oknie, czy zmienić nazwę „{{note}}” na „{{title}}”. Odpowiedz tam, a potem kontynuuj tutaj.",
+        "move": "Plainva pyta w swoim oknie, czy przenieść „{{note}}” do folderu „{{folder}}”. Odpowiedz tam, a potem kontynuuj tutaj.",
+        "moveRoot": "Plainva pyta w swoim oknie, czy przenieść „{{note}}” na najwyższy poziom vaultu. Odpowiedz tam, a potem kontynuuj tutaj.",
+        "delete": "Plainva pyta w swoim oknie, czy usunąć „{{note}}”. Odpowiedz tam, a potem kontynuuj tutaj.",
+        "again": "Plainva wciąż czeka na Twoją odpowiedź."
+      },
+      "left": {
+        "proposal": "{{client}} proponuje zmiany w „{{note}}”.",
+        "draft": "{{client}} zostawia szkic.",
+        "open": "Otwórz"
+      },
       "pairNone": "Wybierz co najmniej jeden folder, aby zezwolić."
     },
     "ext": {

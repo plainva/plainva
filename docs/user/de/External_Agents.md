@@ -17,7 +17,7 @@ Starte einen Agenten nur in einem Vault, dessen Inhalt den Dienst des Agenten er
 
 ## Was Plainva kontrolliert
 
-- **Die eigenen Werkzeuge.** Wo **KI-Apps auf diesem Rechner diesen Vault lesen lassen** eingeschaltet ist, werden Plainvas Werkzeuge dem Agenten angeboten — dieselben wie für jede App in [KI-Apps verbinden](Connect_AI_Apps.md): nur die Ordner, die Du freigibst, nie eine von der Cloud ferngehaltene Notiz, und nur lesend.
+- **Die eigenen Werkzeuge.** Wo **KI-Apps auf diesem Rechner diesen Vault lesen lassen** eingeschaltet ist, werden Plainvas Werkzeuge dem Agenten angeboten — dieselben wie für jede App in [KI-Apps verbinden](Connect_AI_Apps.md): nur die Ordner, die Du freigibst, nie eine von der Cloud oder vom Internet ferngehaltene Notiz, und nur lesend — es sei denn, Du erlaubst ihm dort, Änderungen vorzuschlagen.
 - **Was der Agent Plainva zu lesen bittet.** Eine von der Cloud ferngehaltene Notiz und Plainvas eigene Ordner werden nicht herausgegeben. Der Agent erfährt das, und Du auch.
 - **Was der Agent Plainva zu schreiben bittet.** Geschrieben wird nichts. Eine Änderung an einer Notiz wird eine Vorschlagsrunde unter dem Namen des Agenten, und eine neue Notiz wartet, bis Du sie anlegst.
 - **Kein Terminal.** Plainva bietet einem Agenten kein eigenes Terminal an.

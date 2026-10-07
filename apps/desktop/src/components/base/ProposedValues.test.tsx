@@ -71,6 +71,17 @@ describe("a proposed value in words", () => {
     expect(proposedBy(t, comment("mcp:desk-client"))).toBe("Suggested by desk-client");
     expect(proposedBy(t, comment("acp:helper"))).toBe("Suggested by helper");
     expect(proposedBy(t, comment("member-anna"))).toBe("Suggested value");
+    // An app's id is a row of random letters: where the comments keep the name it signed with, that is what the user reads.
+    const names = new Map([
+      ["mcp:3f9a1c2b4d5e6f70", "Claude Code (AI app)"],
+      ["plainva-ai/m-1", "Somebody else's word for it"],
+      ["member-anna", "Anna"],
+    ]);
+    expect(proposedBy(t, comment("mcp:3f9a1c2b4d5e6f70"), names)).toBe("Suggested by Claude Code (AI app)");
+    expect(proposedBy(t, comment("mcp:0000000000000000"), names)).toBe("Suggested by 0000000000000000");
+    // The assistant is named by its model in the reader's own language, and a person's suggestion still names nobody.
+    expect(proposedBy(t, comment("plainva-ai/m-1"), names)).toBe("Suggested by Plainva AI · m-1");
+    expect(proposedBy(t, comment("member-anna"), names)).toBe("Suggested value");
   });
 
   it("is the property's before and after on the sheet of its cell", () => {

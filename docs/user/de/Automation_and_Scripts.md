@@ -1,6 +1,6 @@
 # Automatisierung & Skripte
 
-Stand: 2026-09-29
+Stand: 2026-10-07
 
 Plainva hat kein Plugin-System, das fremden Code ausführt. Stattdessen ist der Vault selbst die Erweiterungs-Schnittstelle: Deine Notizen sind reines Markdown, Datenbanken sind reines YAML (`.base`), und die [OKF-Konventionen](OKF.md) geben jeder Datei eine vorhersagbare Struktur. Alles, was Dateien lesen und schreiben kann — ein Shell-Skript, ein Python-Programm, ein CLI-Werkzeug, ein geplanter Job oder ein KI-Agent — kann Deinen Vault erweitern, erzeugen oder umbauen, ganz ohne eine Plainva-spezifische API.
 
@@ -59,7 +59,7 @@ Ein KI-Agent mit Lese-/Schreibzugriff auf einen Vault-Ordner ist genau der Fall,
 
 Weil der Vertrag ein Dokument ist und keine laufende API, funktionieren dieselben Anweisungen mit jeder KI, offline wie online.
 
-**Lesen, ohne die Dateien anzufassen.** Eine KI-App auf diesem Rechner — Claude Code, Claude Desktop, ein Editor — kann den Vault auch über Plainva lesen statt über den Ordner: sie sieht nur die Ordner, die Du erlaubt hast, die Datenschutzregeln gelten, und ändern kann sie nichts. Siehe [KI-Apps verbinden](Connect_AI_Apps.md).
+**Lesen, ohne die Dateien anzufassen.** Eine KI-App auf diesem Rechner — Claude Code, Claude Desktop, ein Editor — kann den Vault auch über Plainva lesen statt über den Ordner: sie sieht nur die Ordner, die Du erlaubt hast, die Datenschutzregeln gelten, und von sich aus ändert sie nichts — höchstens schlägt sie Änderungen vor, wo Du das erlaubst. Siehe [KI-Apps verbinden](Connect_AI_Apps.md).
 
 **Was ein direkter Schreibzugriff umgeht.** Plainva bemerkt Änderungen von außen und synchronisiert sie, legt aber keine Sicherung des Textes an, den ein Agent ersetzt: der Versionsverlauf enthält nur, was Plainva selbst geschrieben hat. Für größere Änderungen den Vault unter Versionsverwaltung (Git) halten.
 

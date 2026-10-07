@@ -849,7 +849,7 @@
     "mcp": {
       "title": "Apps de IA neste computador",
       "switch": "Deixar apps de IA deste computador lerem este vault",
-      "switchDesc": "Desativado por padrão. Apps como Claude Code, Claude Desktop, Cursor ou VS Code chegam ao Plainva por um canal privado deste computador — sem porta de rede. Cada app pergunta uma vez, e você escolhe as pastas que ele pode ler. Ele não pode mudar nada, e o Plainva precisa estar aberto.",
+      "switchDesc": "Desativado por padrão. Apps como Claude Code, Claude Desktop, Cursor ou VS Code chegam ao Plainva por um canal privado deste computador — sem porta de rede. Cada app pergunta uma vez, e você escolhe as pastas que ele pode ler. Ele não pode mudar nada; só se você permitir à parte ele pode sugerir alterações. O Plainva precisa estar aberto.",
       "claudeCode": "Comando para o Claude Code",
       "copy": "Copiar",
       "copied": "Copiado.",
@@ -875,11 +875,42 @@
       "refused": "recusada",
       "pairTitle": "{{client}} quer ler o seu vault",
       "pairKnownTitle": "{{client}} quer ler este vault",
-      "pairBody": "Iniciado por: {{program}}. Escolha o que ele pode ler — ele não vê mais nada e não pode mudar nada.",
+      "pairBody": "Iniciado por: {{program}}. Escolha o que ele pode ler — ele não vê mais nada.",
       "pairFolders": "Pastas",
       "pairWhole": "O vault inteiro",
       "pairAllow": "Permitir",
       "pairDeny": "Recusar",
+      "author": "{{client}} (app de IA)",
+      "pairWritesLegend": "E escrever?",
+      "pairWrites": "Pode sugerir alterações",
+      "pairWritesHint": "Desativado até você permitir. O que o app escrever passa a ser uma sugestão na nota ou um rascunho — com o nome dele como autor; nada muda no vault até você aceitar ou criar. Renomear, mover e excluir perguntam no Plainva todas as vezes. Isso vale para este app neste vault até você retirar a permissão.",
+      "writesRow": "{{client}} pode sugerir alterações",
+      "writesOn": "O que ele escrever passa a ser uma sugestão na nota ou um rascunho, com “{{client}}” como autor. Nada muda no vault até você aceitar ou criar. Renomear, mover e excluir perguntam no Plainva todas as vezes.",
+      "writesOff": "Desativado: este app apenas lê.",
+      "writesOnToast": "{{client}} agora pode sugerir alterações. O app verá as novas ferramentas quando se reconectar.",
+      "auditAsked": "pergunta feita",
+      "auditDeclined": "negada",
+      "plan": {
+        "renameTitle": "{{client}} quer renomear uma nota",
+        "moveTitle": "{{client}} quer mover uma nota",
+        "deleteTitle": "{{client}} quer excluir uma nota",
+        "renameHint": "O Plainva renomeia a nota e atualiza os links — como quando você renomeia à mão. Isso será feito assim que {{client}} continuar depois do seu sim; o app só fica sabendo se isso aconteceu.",
+        "moveHint": "O Plainva move a nota — como quando você a move à mão. Isso será feito assim que {{client}} continuar depois do seu sim; o app só fica sabendo se isso aconteceu.",
+        "deleteHint": "O seu sim ainda não exclui nada: assim que {{client}} continuar, o Plainva abre a própria caixa de diálogo de exclusão. Ela mostra o que iria junto com a nota, e nada desaparece antes de você confirmar ali.",
+        "allowed": "Permitido. Isso será feito assim que {{client}} continuar."
+      },
+      "planNote": {
+        "rename": "O Plainva pergunta na janela dele se deve renomear “{{note}}” para “{{title}}”. Responda lá e depois continue aqui.",
+        "move": "O Plainva pergunta na janela dele se deve mover “{{note}}” para a pasta “{{folder}}”. Responda lá e depois continue aqui.",
+        "moveRoot": "O Plainva pergunta na janela dele se deve mover “{{note}}” para o nível superior do vault. Responda lá e depois continue aqui.",
+        "delete": "O Plainva pergunta na janela dele se deve excluir “{{note}}”. Responda lá e depois continue aqui.",
+        "again": "O Plainva ainda aguarda a sua resposta."
+      },
+      "left": {
+        "proposal": "{{client}} sugeriu alterações em “{{note}}”.",
+        "draft": "{{client}} deixou um rascunho.",
+        "open": "Abrir"
+      },
       "pairNone": "Escolha pelo menos uma pasta para permitir."
     },
     "ext": {

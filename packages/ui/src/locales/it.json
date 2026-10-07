@@ -849,7 +849,7 @@
     "mcp": {
       "title": "App di IA su questo computer",
       "switch": "Consenti alle app di IA di questo computer di leggere questo vault",
-      "switchDesc": "Disattivato per impostazione predefinita. App come Claude Code, Claude Desktop, Cursor o VS Code raggiungono Plainva tramite un canale privato di questo computer, senza porta di rete. Ogni app chiede una volta e scegli tu le cartelle che può leggere. Non può modificare nulla, e Plainva deve essere aperto.",
+      "switchDesc": "Disattivato per impostazione predefinita. App come Claude Code, Claude Desktop, Cursor o VS Code raggiungono Plainva tramite un canale privato di questo computer, senza porta di rete. Ogni app chiede una volta e scegli tu le cartelle che può leggere. Non può modificare nulla; solo se glielo consenti a parte può proporre modifiche. Plainva deve essere aperto.",
       "claudeCode": "Comando per Claude Code",
       "copy": "Copia",
       "copied": "Copiato.",
@@ -875,11 +875,42 @@
       "refused": "rifiutata",
       "pairTitle": "{{client}} vuole leggere il tuo vault",
       "pairKnownTitle": "{{client}} vuole leggere questo vault",
-      "pairBody": "Avviata da: {{program}}. Scegli cosa può leggere: non vede altro e non può modificare nulla.",
+      "pairBody": "Avviata da: {{program}}. Scegli cosa può leggere: non vede altro.",
       "pairFolders": "Cartelle",
       "pairWhole": "L'intero vault",
       "pairAllow": "Consenti",
       "pairDeny": "Rifiuta",
+      "author": "{{client}} (app di IA)",
+      "pairWritesLegend": "E scrivere?",
+      "pairWrites": "Può proporre modifiche",
+      "pairWritesHint": "Disattivato finché non lo consenti. Ciò che l'app scrive diventa allora una proposta sulla nota o una bozza, con il suo nome come autore; nel vault non cambia nulla finché non accetti o crei. Rinominare, spostare ed eliminare chiedono ogni volta in Plainva. Vale per questa app in questo vault finché non lo revochi.",
+      "writesRow": "{{client}} può proporre modifiche",
+      "writesOn": "Ciò che scrive diventa una proposta sulla nota o una bozza, con «{{client}}» come autore. Nel vault non cambia nulla finché non accetti o crei. Rinominare, spostare ed eliminare chiedono ogni volta in Plainva.",
+      "writesOff": "Disattivato: questa app legge soltanto.",
+      "writesOnToast": "{{client}} ora può proporre modifiche. L'app vedrà i nuovi strumenti quando si riconnetterà.",
+      "auditAsked": "richiesta di conferma",
+      "auditDeclined": "negata",
+      "plan": {
+        "renameTitle": "{{client}} vuole rinominare una nota",
+        "moveTitle": "{{client}} vuole spostare una nota",
+        "deleteTitle": "{{client}} vuole eliminare una nota",
+        "renameHint": "Plainva rinomina la nota e aggiorna i link, come quando rinomini a mano. Avverrà non appena {{client}} proseguirà dopo il tuo sì; l'app viene a sapere solo se è avvenuto.",
+        "moveHint": "Plainva sposta la nota, come quando la sposti a mano. Avverrà non appena {{client}} proseguirà dopo il tuo sì; l'app viene a sapere solo se è avvenuto.",
+        "deleteHint": "Il tuo sì non elimina ancora nulla: non appena {{client}} prosegue, Plainva apre la propria finestra di eliminazione. Mostra che cosa andrebbe via con la nota, e nulla sparisce prima che tu confermi lì.",
+        "allowed": "Consentito. Avverrà non appena {{client}} proseguirà."
+      },
+      "planNote": {
+        "rename": "Plainva chiede nella sua finestra se rinominare «{{note}}» in «{{title}}». Rispondi lì, poi prosegui qui.",
+        "move": "Plainva chiede nella sua finestra se spostare «{{note}}» nella cartella «{{folder}}». Rispondi lì, poi prosegui qui.",
+        "moveRoot": "Plainva chiede nella sua finestra se spostare «{{note}}» al livello superiore del vault. Rispondi lì, poi prosegui qui.",
+        "delete": "Plainva chiede nella sua finestra se eliminare «{{note}}». Rispondi lì, poi prosegui qui.",
+        "again": "Plainva attende ancora la tua risposta."
+      },
+      "left": {
+        "proposal": "{{client}} ha proposto modifiche a «{{note}}».",
+        "draft": "{{client}} ha lasciato una bozza.",
+        "open": "Apri"
+      },
       "pairNone": "Scegli almeno una cartella da consentire."
     },
     "ext": {

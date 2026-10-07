@@ -5,13 +5,14 @@
 //!   program that asked, a hash of the secret the helper keeps, when it was
 //!   last seen. A secret is never stored in clear here.
 //! - `mcp/grants-<vault>.json` — per vault, which folders each client may read
-//!   (deny by default: a client with no entry reads nothing of that vault).
+//!   (deny by default: a client with no entry reads nothing of that vault), and
+//!   which clients may propose changes there (stage 2; off by default).
 //! - `mcp/audit-<vault>.jsonl` — which client asked for what and when; the last
 //!   `AUDIT_KEEP` lines are kept.
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -38,6 +39,19 @@ pub struct Clients {
 pub struct Grants {
     /// client id → granted folders ("" = the whole vault).
     pub folders: BTreeMap<String, Vec<String>>,
+    /// The clients that may propose changes in this vault (stage 2): a
+    /// suggestion on a note, a draft, a plan the user confirms. Off for every
+    /// client until the user switches it on; a file written before stage 2
+    /// names none.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub writes: BTreeSet<String>,
+}
+
+impl Grants {
+    /// Whether this client may propose changes: only inside folders it reads.
+    pub fn may_write(&self, client_id: &str) -> bool {
+        self.writes.contains(client_id) && self.folders.get(client_id).is_some_and(|folders| !folders.is_empty())
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -50,6 +64,12 @@ pub struct AuditEntry {
     pub ok: bool,
     /// How many notes the answer named (paths stay out of the audit's summary line).
     pub notes: usize,
+    /// What became of a call that is no plain yes or no: `asked` — the user
+    /// was asked in Plainva and the client told that input is required —,
+    /// `declined` — the user, or the client's own user, said no. Fixed words,
+    /// never text of a note or of a client.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 pub fn hash_secret(secret: &str) -> String {
@@ -146,7 +166,9 @@ impl Store {
                 if let Some(key) = name.strip_prefix("grants-").and_then(|n| n.strip_suffix(".json")) {
                     let path = entry.path();
                     let mut grants: Grants = read_json(&path).unwrap_or_default();
-                    if grants.folders.remove(client_id).is_some() {
+                    let read = grants.folders.remove(client_id).is_some();
+                    let wrote = grants.writes.remove(client_id);
+                    if read || wrote {
                         write_json(&self.dir, &self.grants_path(key), &grants)?;
                     }
                 }
@@ -257,11 +279,54 @@ mod tests {
     }
 
     #[test]
+    fn proposing_changes_is_off_until_it_is_granted_and_goes_with_the_client() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::new(dir.path().join("mcp"));
+        // A grants file written before stage 2 names no client that may write.
+        std::fs::create_dir_all(dir.path().join("mcp")).unwrap();
+        std::fs::write(dir.path().join("mcp").join("grants-v.json"), r#"{"folders":{"a":["Projects"],"b":[""]}}"#).unwrap();
+        let mut grants = store.grants("v");
+        assert!(!grants.may_write("a") && !grants.may_write("b"));
+        grants.writes.insert("a".into());
+        // Named as a writer without a folder to read: still nothing.
+        grants.writes.insert("ghost".into());
+        store.save_grants("v", &grants).unwrap();
+        let read = store.grants("v");
+        assert!(read.may_write("a"));
+        assert!(!read.may_write("b"), "another client's grant is not this one's");
+        assert!(!read.may_write("ghost"), "writing needs folders to read");
+        assert!(!store.grants("other").may_write("a"), "a grant is per vault");
+        // A file without writers stays the file it was.
+        let mut plain = Grants::default();
+        plain.folders.insert("a".into(), vec!["Projects".into()]);
+        assert!(!serde_json::to_string(&plain).unwrap().contains("writes"));
+
+        store.save_clients(&Clients { clients: vec![record("a", "A", "s")] }).unwrap();
+        store.revoke("a").unwrap();
+        assert!(!store.grants("v").may_write("a"));
+        assert!(!store.grants("v").writes.contains("a"), "revoking forgets the grant too");
+    }
+
+    #[test]
+    fn the_audit_says_what_became_of_a_call_in_fixed_words() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::new(dir.path().join("mcp"));
+        let entry = |tool: &str, ok: bool, note: Option<&str>| AuditEntry { at: "1".into(), client_id: "a".into(), client: "A".into(), tool: tool.into(), ok, notes: 0, note: note.map(str::to_string) };
+        store.append_audit("v", &entry("read_note", true, None)).unwrap();
+        store.append_audit("v", &entry("rename_note", false, Some("asked"))).unwrap();
+        let audit = store.audit("v");
+        assert_eq!(audit.iter().map(|a| a.note.as_deref()).collect::<Vec<_>>(), vec![None, Some("asked")]);
+        // A line written before stage 2 reads as one without a note.
+        std::fs::write(dir.path().join("mcp").join("audit-old.jsonl"), "{\"at\":\"1\",\"clientId\":\"a\",\"client\":\"A\",\"tool\":\"read_note\",\"ok\":true,\"notes\":1}\n").unwrap();
+        assert_eq!(store.audit("old")[0].note, None);
+    }
+
+    #[test]
     fn the_audit_keeps_its_last_lines() {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::new(dir.path().join("mcp"));
         for i in 0..(AUDIT_KEEP + AUDIT_KEEP / 5 + 3) {
-            let entry = AuditEntry { at: format!("{i}"), client_id: "a".into(), client: "A".into(), tool: "read_note".into(), ok: true, notes: 1 };
+            let entry = AuditEntry { at: format!("{i}"), client_id: "a".into(), client: "A".into(), tool: "read_note".into(), ok: true, notes: 1, note: None };
             store.append_audit("v", &entry).unwrap();
         }
         let audit = store.audit("v");

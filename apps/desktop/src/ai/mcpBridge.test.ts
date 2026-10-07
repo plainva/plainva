@@ -45,9 +45,15 @@ function host(): AiVaultHost {
     commands: () => [{ id: "open-note", label: "Open a note", run: () => true }],
   };
   return {
-    tools: (recipient: EgressRecipient, scope?: ToolScope) => ({ names: [], executor: createVaultToolExecutor(deps, { recipient, webTools: false }, scope) }),
+    // The bridge says how a call stands at the gate; the host passes it on as every shell's does.
+    tools: (recipient: EgressRecipient, scope?: ToolScope, _redact?: unknown, web?: boolean) => {
+      gates.push(web === true);
+      return { names: [], executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope) };
+    },
   } as unknown as AiVaultHost;
 }
+/** Whether each call was made as one that may reach the internet. */
+const gates: boolean[] = [];
 
 const call = (tool: string, args: unknown, folders = ["Projects"]) => runMcpCall(host(), { requestId: "r1", clientId: "c1", client: "Test client", tool, args, folders });
 
@@ -61,14 +67,24 @@ describe("the MCP bridge", () => {
     expect(insideFolders("x.md", [])).toBe(false);
   });
 
-  it("serves only the read tools of the MCP surface, and names the arguments that are paths", () => {
+  it("serves the tools of the MCP surface, says which of them only read, and names the arguments that are paths", () => {
     const specs = mcpToolSpecs();
     expect(specs.map((s) => s.name)).toEqual(toolsFor("mcp").map((t) => t.name));
     expect(specs.map((s) => s.name)).not.toContain("run_command");
-    expect(toolsFor("mcp").every((t) => t.risk === "read" || t.risk === "ui")).toBe(true);
+    // Every paired client reads; what proposes or plans is served only to one the user allowed (stage 2, `mcpWrites.test.ts`).
+    const reading = specs.filter((s) => s.kind === "read").map((s) => s.name);
+    expect(reading).toEqual(toolsFor("mcp").filter((t) => t.risk === "read" || t.risk === "ui").map((t) => t.name));
+    expect(reading).toHaveLength(8);
     expect(specs.find((s) => s.name === "read_note")!.pathArgs).toEqual(["path"]);
     expect(specs.find((s) => s.name === "query_base")!.pathArgs).toEqual(["base"]);
     expect(specs.find((s) => s.name === "search_vault")!.pathArgs).toEqual(["folder"]);
+  });
+
+  it("an outside client is at the gate a cloud that may reach the internet", async () => {
+    gates.length = 0;
+    await call("read_note", { path: "Projects/Offer.md", maxChars: 8000 });
+    await call("search_vault", { query: "offer", limit: 10 });
+    expect(gates).toEqual([true, true]);
   });
 
   it("outside the granted folders a note does not exist, and a denied one neither", async () => {

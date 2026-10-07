@@ -820,7 +820,7 @@
     "mcp": {
       "title": "AI-apps op deze computer",
       "switch": "AI-apps op deze computer deze vault laten lezen",
-      "switchDesc": "Standaard uit. Apps zoals Claude Code, Claude Desktop, Cursor of VS Code bereiken Plainva via een privékanaal van deze computer — geen netwerkpoort. Elke app vraagt één keer, en jij kiest de mappen die ze mag lezen. Ze kan niets wijzigen, en Plainva moet draaien.",
+      "switchDesc": "Standaard uit. Apps zoals Claude Code, Claude Desktop, Cursor of VS Code bereiken Plainva via een privékanaal van deze computer — geen netwerkpoort. Elke app vraagt één keer, en jij kiest de mappen die ze mag lezen. Ze kan niets wijzigen; alleen als je het apart toestaat, mag ze wijzigingen voorstellen. Plainva moet draaien.",
       "claudeCode": "Opdracht voor Claude Code",
       "copy": "Kopiëren",
       "copied": "Gekopieerd.",
@@ -846,11 +846,42 @@
       "refused": "geweigerd",
       "pairTitle": "{{client}} wil je vault lezen",
       "pairKnownTitle": "{{client}} wil deze vault lezen",
-      "pairBody": "Gestart door: {{program}}. Kies wat ze mag lezen — iets anders ziet ze niet, en ze kan niets wijzigen.",
+      "pairBody": "Gestart door: {{program}}. Kies wat ze mag lezen — iets anders ziet ze niet.",
       "pairFolders": "Mappen",
       "pairWhole": "De hele vault",
       "pairAllow": "Toestaan",
       "pairDeny": "Weigeren",
+      "author": "{{client}} (AI-app)",
+      "pairWritesLegend": "En schrijven?",
+      "pairWrites": "Mag wijzigingen voorstellen",
+      "pairWritesHint": "Uit totdat je het toestaat. Wat de app dan schrijft, wordt een voorstel bij de notitie of een concept — met haar naam als auteur; in de vault verandert niets totdat je het overneemt of aanmaakt. Hernoemen, verplaatsen en verwijderen vragen het elke keer in Plainva. Dit geldt voor deze app in deze vault totdat je het intrekt.",
+      "writesRow": "{{client}} mag wijzigingen voorstellen",
+      "writesOn": "Wat ze schrijft, wordt een voorstel bij de notitie of een concept, met “{{client}}” als auteur. In de vault verandert niets totdat je het overneemt of aanmaakt. Hernoemen, verplaatsen en verwijderen vragen het elke keer in Plainva.",
+      "writesOff": "Uit: deze app leest alleen.",
+      "writesOnToast": "{{client}} mag nu wijzigingen voorstellen. De app ziet de nieuwe hulpmiddelen zodra ze opnieuw verbinding maakt.",
+      "auditAsked": "vraag gesteld",
+      "auditDeclined": "afgewezen",
+      "plan": {
+        "renameTitle": "{{client}} wil een notitie hernoemen",
+        "moveTitle": "{{client}} wil een notitie verplaatsen",
+        "deleteTitle": "{{client}} wil een notitie verwijderen",
+        "renameHint": "Plainva hernoemt de notitie en werkt de links bij — zoals wanneer je met de hand hernoemt. Het gebeurt zodra {{client}} na jouw ja verdergaat; de app hoort alleen of het is gebeurd.",
+        "moveHint": "Plainva verplaatst de notitie — zoals wanneer je met de hand verplaatst. Het gebeurt zodra {{client}} na jouw ja verdergaat; de app hoort alleen of het is gebeurd.",
+        "deleteHint": "Met jouw ja is er nog niets verwijderd: zodra {{client}} verdergaat, opent Plainva het eigen verwijdervenster. Dat laat zien wat er meegaat, en er verdwijnt niets voordat je daar bevestigt.",
+        "allowed": "Toegestaan. Het gebeurt zodra {{client}} verdergaat."
+      },
+      "planNote": {
+        "rename": "Plainva vraagt in zijn venster of “{{note}}” moet worden hernoemd naar “{{title}}”. Beantwoord de vraag daar en ga dan hier verder.",
+        "move": "Plainva vraagt in zijn venster of “{{note}}” naar de map “{{folder}}” moet worden verplaatst. Beantwoord de vraag daar en ga dan hier verder.",
+        "moveRoot": "Plainva vraagt in zijn venster of “{{note}}” naar het bovenste niveau van de vault moet worden verplaatst. Beantwoord de vraag daar en ga dan hier verder.",
+        "delete": "Plainva vraagt in zijn venster of “{{note}}” moet worden verwijderd. Beantwoord de vraag daar en ga dan hier verder.",
+        "again": "Plainva wacht nog op je antwoord."
+      },
+      "left": {
+        "proposal": "{{client}} heeft wijzigingen in “{{note}}” voorgesteld.",
+        "draft": "{{client}} heeft een concept klaargezet.",
+        "open": "Openen"
+      },
       "pairNone": "Kies minstens één map om toe te staan."
     },
     "ext": {

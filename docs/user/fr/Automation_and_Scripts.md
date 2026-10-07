@@ -1,6 +1,6 @@
 # Automatisation & scripts
 
-Dernière mise à jour : 2026-09-29
+Dernière mise à jour : 2026-10-07
 
 Plainva n'a pas de système de plugins qui exécute du code tiers. C'est le vault lui-même qui sert d'interface d'extension : vos notes sont du Markdown pur, les bases de données sont du YAML pur (`.base`), et les [conventions OKF](OKF.md) donnent à chaque fichier une structure prévisible. Tout ce qui peut lire et écrire des fichiers — un script shell, un programme Python, un outil CLI, une tâche planifiée ou un agent IA — peut étendre, générer ou réorganiser votre vault sans la moindre API propre à Plainva.
 
@@ -59,7 +59,7 @@ Un agent IA disposant d'un accès en lecture/écriture à un dossier de vault es
 
 Comme le contrat est un document et non une API en direct, les mêmes instructions fonctionnent avec n'importe quel assistant, hors ligne comme en ligne.
 
-**Lire sans toucher aux fichiers.** Une app d'IA de cet ordinateur — Claude Code, Claude Desktop, un éditeur — peut aussi lire le coffre à travers Plainva plutôt que par le dossier : elle ne voit que les dossiers que vous avez autorisés, les règles de confidentialité s'appliquent, et elle ne peut rien modifier. Voir [Connecter des apps d'IA](Connect_AI_Apps.md).
+**Lire sans toucher aux fichiers.** Une app d'IA de cet ordinateur — Claude Code, Claude Desktop, un éditeur — peut aussi lire le coffre à travers Plainva plutôt que par le dossier : elle ne voit que les dossiers que vous avez autorisés, les règles de confidentialité s'appliquent, et d'elle-même elle ne modifie rien — tout au plus propose-t-elle des modifications, là où vous l'y autorisez. Voir [Connecter des apps d'IA](Connect_AI_Apps.md).
 
 **Ce qu'une écriture directe contourne.** Plainva remarque les changements faits de l'extérieur et les synchronise, mais ne sauvegarde pas le texte qu'un agent remplace : l'historique des versions ne contient que ce que Plainva a écrit lui-même. Pour des modifications importantes, gardez le vault sous gestion de versions (Git).
 

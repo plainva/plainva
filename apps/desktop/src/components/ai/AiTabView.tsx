@@ -27,7 +27,7 @@ import {
   type ConversationRowCaps,
 } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
-import { AI_SKILLS_EVENT, takeSkillsRequest } from "../../services/ai/desktopAi";
+import { AI_SKILLS_EVENT, AI_WAITING_EVENT, takeSkillsRequest, takeWaitingRequest } from "../../services/ai/desktopAi";
 import { SkillsWorkshop } from "./SkillsWorkshop";
 import { editorSelectionReader } from "../../services/editorSelection";
 
@@ -75,6 +75,15 @@ export function AiTabView({
     take();
     window.addEventListener(AI_SKILLS_EVENT, take);
     return () => window.removeEventListener(AI_SKILLS_EVENT, take);
+  }, []);
+  // "View" on the toast that says an app left a draft (plan P5-5): the tab opens on what waits.
+  useEffect(() => {
+    const take = () => {
+      if (takeWaitingRequest()) setView("open");
+    };
+    take();
+    window.addEventListener(AI_WAITING_EVENT, take);
+    return () => window.removeEventListener(AI_WAITING_EVENT, take);
   }, []);
   const reviewOpened = useCallback(() => setReview(null), []);
 

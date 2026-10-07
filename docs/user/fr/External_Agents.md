@@ -17,7 +17,7 @@ Ne démarrez un agent que dans un vault dont le contenu peut atteindre le servic
 
 ## Ce que Plainva contrôle
 
-- **Ses propres outils.** Là où **Laisser les apps d'IA de cet ordinateur lire ce vault** est activé, les outils de Plainva sont proposés à l'agent — les mêmes que pour toute app de [Connecter des apps d'IA](Connect_AI_Apps.md) : uniquement les dossiers que vous accordez, jamais une note tenue à l'écart du cloud, et en lecture seule.
+- **Ses propres outils.** Là où **Laisser les apps d'IA de cet ordinateur lire ce vault** est activé, les outils de Plainva sont proposés à l'agent — les mêmes que pour toute app de [Connecter des apps d'IA](Connect_AI_Apps.md) : uniquement les dossiers que vous accordez, jamais une note tenue à l'écart du cloud ou d'Internet, et en lecture seule — sauf si vous l'y autorisez à proposer des modifications.
 - **Ce que l'agent demande à Plainva de lire.** Une note tenue à l'écart du cloud et les dossiers propres à Plainva ne sont pas remis. L'agent en est informé, et vous aussi.
 - **Ce que l'agent demande à Plainva d'écrire.** Rien n'est écrit. Une modification d'une note devient une série de propositions au nom de l'agent, et une nouvelle note attend que vous la créiez.
 - **Pas de terminal.** Plainva ne propose à un agent aucun terminal à lui.

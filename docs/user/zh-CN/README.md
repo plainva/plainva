@@ -29,7 +29,7 @@ Plainva是一款Markdown仓库编辑器：你的笔记就是电脑上某个文�
 | [任务](Tasks.md) | 仓库范围的任务视图：笔记中的每一个复选框，支持按状态/标签/文件夹/截止日期筛选，并可一键切换完成状态 |
 | [AI助手（测试版）](AI_Assistant.md) | 用你选择的AI模型提问你的笔记：服务商与密钥、配置、上下文、隐私规则和历史记录 |
 | [技能（测试版）](AI_Skills.md) | 用于重复性工作的指令：自带的十个技能、自己的技能、导入，以及在运行前批准新到达的内容 |
-| [连接AI应用（测试版）](Connect_AI_Apps.md) | 让此电脑上的AI应用（Claude Code、Claude Desktop、编辑器）通过Plainva的MCP服务器读取仓库：开启、配对、文件夹、应用能看到什么 |
+| [连接AI应用（测试版）](Connect_AI_Apps.md) | 让此电脑上的AI应用（Claude Code、Claude Desktop、编辑器）通过Plainva的MCP服务器读取仓库：开启、配对、文件夹、应用能看到什么，以及让应用提出修改建议 |
 | [外部智能体（测试版）](External_Agents.md) | 在仓库的文件夹中启动其他厂商的AI智能体：Plainva在其会话中能控制什么、不能控制什么，添加智能体、登录、建议和新笔记 |
 | [日志](Journal.md) | 快速记入今天的日记：随时随地记录、跨越所有日期的日志视图、条目如何保存，以及可选的全局快捷键 |
 | [日历与外部任务](Calendar_and_Tasks.md) | 连接CalDAV/Google/Microsoft日历、日历标签页、会议笔记，以及把外部任务列表同步进任务数据库 |

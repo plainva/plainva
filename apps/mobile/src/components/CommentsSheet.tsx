@@ -3,7 +3,7 @@ import { PublicationFeedback, publicationFeedbackCounts, CommentLegacyLock, type
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, composerNames, groupSuggestionRounds, ICON, IconButton, isAiAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type AnchorCellPlace, type SuggestedProperty, type CommentThread, type CommentThreadAi, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
+import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, composerNames, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type AnchorCellPlace, type SuggestedProperty, type CommentThread, type CommentThreadAi, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
 import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
 import { SheetGrip } from "./SheetGrip";
 
@@ -210,9 +210,9 @@ export function CommentsSheet({
     nameOf(round.blocks[0].root);
   /** Same question in the card as on the desktop (K7). */
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  // What the assistant wrote from this phone is this phone's to delete: the store judges a retraction by the writer.
+  // What the assistant or an agent wrote from this phone is this phone's to delete: the store judges a retraction by the writer.
   const mayDelete = (record: WorkspaceCommentRecord) => !!onDelete && !record.pending && !record.legacyPending
-    && ((!record.legacyOrigin && (record.authorMemberId === selfMemberId || (isAiAuthorId(record.authorMemberId) && record.authorDeviceId === selfMemberId))) || canModerate === true);
+    && ((!record.legacyOrigin && (record.authorMemberId === selfMemberId || (isMachineAuthorId(record.authorMemberId) && record.authorDeviceId === selfMemberId))) || canModerate === true);
   const deleteControl = (record: WorkspaceCommentRecord) => mayDelete(record) ? (
     <IconButton label={t("comments.commentDelete")} onClick={() => setConfirmDelete(confirmDelete === record.commentId ? null : record.commentId)}>
       <Trash2 size={ICON.touch} />

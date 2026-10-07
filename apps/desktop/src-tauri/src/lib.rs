@@ -458,6 +458,7 @@ pub fn run() {
             mcp::mcp_pair_answer,
             mcp::mcp_call_answer,
             mcp::mcp_set_folders,
+            mcp::mcp_set_writes,
             mcp::mcp_revoke,
             mcp::mcp_write_package,
             mcp_client::registry::mcp_client_servers,

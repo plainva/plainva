@@ -1155,6 +1155,43 @@ export class AiSession {
     return next ? { ok: true, id: draft.id } : { ok: false, problem };
   }
 
+  /**
+   * What a writer outside every conversation brings to the writing tools
+   * (plan KI-Harness P5-5): a program at Plainva's own MCP server. It signs
+   * with its own id and the name the user knows it by. Nothing the user typed
+   * is known here, so every address it brings is written inert. A draft of it
+   * belongs to no conversation and rests on nothing the device could name.
+   * How the user is asked about a plan is the caller's — the round trip of its
+   * protocol —, never a card above a composer nobody is looking at.
+   *
+   * Such a writer reads as a cloud that may reach the internet: a note under
+   * either rule does not exist for it, so nothing it read carries a rule that
+   * the place of a proposal could lack.
+   */
+  outsideWriting(vault: AiVaultHost, author: SuggestionAuthor, ask: WriteRun["ask"]): WriteRun {
+    return {
+      author,
+      userTexts: () => [],
+      inherited: async () => [],
+      draft: (input) =>
+        this.leaveDraft(vault, {
+          id: `d-${this.host.newId()}`,
+          createdAt: this.host.now().toISOString(),
+          author: { id: author.id, label: author.displayName },
+          conversationId: null,
+          title: input.title,
+          body: input.body,
+          inherited: [],
+          sources: [],
+          defused: input.defused,
+        }),
+      ask,
+      writes: { rounds: [], drafts: [], plans: [] },
+      today: () => this.host.today(),
+      clock: () => clockOf(this.host.now()),
+    };
+  }
+
   /** Whether a draft can be created here: the shell makes notes, tasks and journal lines, and the AI is on. */
   canCreateDrafts(): boolean {
     return Boolean(this.state.settings.enabled && this.vault?.creates && this.vault.drafts);

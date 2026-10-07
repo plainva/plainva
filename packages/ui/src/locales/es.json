@@ -849,7 +849,7 @@
     "mcp": {
       "title": "Apps de IA en este ordenador",
       "switch": "Permitir que las apps de IA de este ordenador lean este vault",
-      "switchDesc": "Desactivado por defecto. Apps como Claude Code, Claude Desktop, Cursor o VS Code llegan a Plainva por un canal privado de este ordenador, sin puerto de red. Cada app pregunta una vez y tú eliges las carpetas que puede leer. No puede cambiar nada, y Plainva debe estar abierto.",
+      "switchDesc": "Desactivado por defecto. Apps como Claude Code, Claude Desktop, Cursor o VS Code llegan a Plainva por un canal privado de este ordenador, sin puerto de red. Cada app pregunta una vez y tú eliges las carpetas que puede leer. No puede cambiar nada; solo si se lo permites aparte puede sugerir cambios. Plainva debe estar abierto.",
       "claudeCode": "Comando para Claude Code",
       "copy": "Copiar",
       "copied": "Copiado.",
@@ -875,11 +875,42 @@
       "refused": "rechazada",
       "pairTitle": "{{client}} quiere leer tu vault",
       "pairKnownTitle": "{{client}} quiere leer este vault",
-      "pairBody": "Iniciado por: {{program}}. Elige qué puede leer: no ve nada más y no puede cambiar nada.",
+      "pairBody": "Iniciado por: {{program}}. Elige qué puede leer: no ve nada más.",
       "pairFolders": "Carpetas",
       "pairWhole": "Todo el vault",
       "pairAllow": "Permitir",
       "pairDeny": "Rechazar",
+      "author": "{{client}} (app de IA)",
+      "pairWritesLegend": "¿Y escribir?",
+      "pairWrites": "Puede sugerir cambios",
+      "pairWritesHint": "Desactivado hasta que lo permitas. Lo que la app escriba entonces será una sugerencia en la nota o un borrador, con su nombre como autor; nada cambia en el vault hasta que lo aceptes o lo crees. Renombrar, mover y eliminar preguntan cada vez en Plainva. Esto vale para esta app en este vault hasta que lo retires.",
+      "writesRow": "{{client}} puede sugerir cambios",
+      "writesOn": "Lo que escriba será una sugerencia en la nota o un borrador, con «{{client}}» como autor. Nada cambia en el vault hasta que lo aceptes o lo crees. Renombrar, mover y eliminar preguntan cada vez en Plainva.",
+      "writesOff": "Desactivado: esta app solo lee.",
+      "writesOnToast": "{{client}} ya puede sugerir cambios. La app verá las nuevas herramientas cuando vuelva a conectarse.",
+      "auditAsked": "consulta",
+      "auditDeclined": "denegada",
+      "plan": {
+        "renameTitle": "{{client}} quiere renombrar una nota",
+        "moveTitle": "{{client}} quiere mover una nota",
+        "deleteTitle": "{{client}} quiere eliminar una nota",
+        "renameHint": "Plainva renombra la nota y actualiza los enlaces, como cuando renombras a mano. Se hará en cuanto {{client}} continúe tras tu sí; la app solo sabe si se hizo.",
+        "moveHint": "Plainva mueve la nota, como cuando la mueves a mano. Se hará en cuanto {{client}} continúe tras tu sí; la app solo sabe si se hizo.",
+        "deleteHint": "Tu sí todavía no elimina nada: en cuanto {{client}} continúe, Plainva abre su propio diálogo de eliminación. Muestra qué se iría con la nota, y nada desaparece antes de que confirmes allí.",
+        "allowed": "Permitido. Se hará en cuanto {{client}} continúe."
+      },
+      "planNote": {
+        "rename": "Plainva pregunta en su ventana si debe renombrar «{{note}}» a «{{title}}». Responde allí y luego continúa aquí.",
+        "move": "Plainva pregunta en su ventana si debe mover «{{note}}» a la carpeta «{{folder}}». Responde allí y luego continúa aquí.",
+        "moveRoot": "Plainva pregunta en su ventana si debe mover «{{note}}» al nivel superior del vault. Responde allí y luego continúa aquí.",
+        "delete": "Plainva pregunta en su ventana si debe eliminar «{{note}}». Responde allí y luego continúa aquí.",
+        "again": "Plainva sigue esperando tu respuesta."
+      },
+      "left": {
+        "proposal": "{{client}} ha sugerido cambios en «{{note}}».",
+        "draft": "{{client}} ha dejado un borrador.",
+        "open": "Abrir"
+      },
       "pairNone": "Elige al menos una carpeta para permitir."
     },
     "ext": {

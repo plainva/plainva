@@ -36,6 +36,7 @@ const JournalView = lazy(() => import('./components/journal/JournalView').then(m
 const AiTabView = lazy(() => import('./components/ai/AiTabView').then(m => ({ default: m.AiTabView })));
 const AiCompanion = lazy(() => import('./components/ai/AiCompanion').then(m => ({ default: m.AiCompanion })));
 const McpPairing = lazy(() => import('./components/ai/McpPairing').then(m => ({ default: m.McpPairing })));
+const McpPlanDialog = lazy(() => import('./components/ai/McpPlanDialog').then(m => ({ default: m.McpPlanDialog })));
 import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
@@ -2011,6 +2012,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
         {ai.enabled && (
           <Suspense fallback={null}>
             <McpPairing />
+            <McpPlanDialog />
           </Suspense>
         )}
         {ai.companionOpen && (

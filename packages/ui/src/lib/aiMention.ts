@@ -35,6 +35,19 @@ export function isAiAuthorId(id: string): boolean {
   return id.startsWith(`${AI_MENTION_ID}/`);
 }
 
+/**
+ * An author id no person writes under: the assistant's, an app's at Plainva's
+ * own MCP server (`mcp:<client>`), an external agent's (`acp:<agent>`) — the
+ * three kinds of `machineAuthorKind` in the core (ADR 0023). The prefixes are
+ * said again here because this file imports nothing; `aiThreadReply.test.ts`
+ * holds the two together.
+ */
+export function isMachineAuthorId(id: string): boolean {
+  // A prefix alone names nobody, as in the core.
+  if (isAiAuthorId(id)) return id.length > AI_MENTION_ID.length + 1;
+  return (id.startsWith("mcp:") || id.startsWith("acp:")) && id.length > 4;
+}
+
 /** id -> name for the assistant: this device's own word first, then the other spellings. */
 export function aiMentionNames(label: string): Map<string, string> {
   const names = new Map<string, string>();
@@ -53,11 +66,12 @@ export function namesWithAi(members: ReadonlyMap<string, string>, label: string)
 
 /**
  * What a comment field offers after an "@": the members — without the bylines
- * the assistant left on earlier replies and proposals, which are authors, not
- * people to address — and the assistant itself where it can answer.
+ * the assistant, an app or an agent left on earlier replies and proposals,
+ * which are authors, not people to address — and the assistant itself where
+ * it can answer.
  */
 export function composerNames(members: ReadonlyMap<string, string>, label: string, offered: boolean): Map<string, string> {
-  const names = new Map([...members].filter(([id]) => !isAiAuthorId(id)));
+  const names = new Map([...members].filter(([id]) => !isMachineAuthorId(id)));
   const own = label.trim();
   if (offered && own) names.set(AI_MENTION_ID, own);
   return names;

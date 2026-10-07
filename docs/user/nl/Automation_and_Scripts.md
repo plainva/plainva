@@ -1,6 +1,6 @@
 # Automatisering & scripts
 
-Laatst bijgewerkt: 2026-09-29
+Laatst bijgewerkt: 2026-10-07
 
 Plainva heeft geen pluginsysteem dat code van derden uitvoert. In plaats daarvan is de vault zelf de uitbreidingsinterface: je notities zijn gewone Markdown, databases zijn gewone YAML (`.base`), en de [OKF-conventies](OKF.md) geven elk bestand een voorspelbare structuur. Alles wat bestanden kan lezen en schrijven — een shellscript, een Python-programma, een CLI-tool, een geplande taak of een KI-agent — kan je vault uitbreiden, genereren of herstructureren zonder ook maar één Plainva-specifieke API.
 
@@ -59,7 +59,7 @@ Een KI-agent met lees-/schrijftoegang tot een vaultmap is precies het scenario w
 
 Omdat het contract een document is en geen live API, werken dezelfde instructies met elke assistent, offline of online.
 
-**Lezen zonder de bestanden aan te raken.** Een AI-app op deze computer — Claude Code, Claude Desktop, een editor — kan de kluis ook via Plainva lezen in plaats van via de map: ze ziet alleen de mappen die je hebt toegestaan, de privacyregels gelden, en ze kan niets wijzigen. Zie [AI-apps koppelen](Connect_AI_Apps.md).
+**Lezen zonder de bestanden aan te raken.** Een AI-app op deze computer — Claude Code, Claude Desktop, een editor — kan de kluis ook via Plainva lezen in plaats van via de map: ze ziet alleen de mappen die je hebt toegestaan, de privacyregels gelden, en uit zichzelf wijzigt ze niets — hooguit stelt ze wijzigingen voor, waar je dat toestaat. Zie [AI-apps koppelen](Connect_AI_Apps.md).
 
 **Wat een directe schrijfactie overslaat.** Plainva merkt wijzigingen van buitenaf op en synchroniseert ze, maar maakt geen back-up van de tekst die een agent vervangt: de versiegeschiedenis bevat alleen wat Plainva zelf schreef. Houd de vault voor grotere wijzigingen onder versiebeheer (Git).
 

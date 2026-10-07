@@ -6,6 +6,7 @@ import {
   findTools,
   findToolsText,
   MAIL_TOOL_NAMES,
+  mcpToolKind,
   META_TOOL_NAMES,
   parseToolInput,
   PLAN_TOOL_NAMES,
@@ -56,10 +57,16 @@ describe("tool manifests", () => {
     expect(META_TOOL_NAMES).toEqual(["find_tools", "call_tool"]);
   });
 
-  it("the MCP surface is small and read-only", () => {
+  it("the MCP surface is small: eight tools that read, and six that propose or plan for a client the user allowed", () => {
     const mcp = toolsFor("mcp");
-    expect(mcp.map((t) => t.name).sort()).toEqual(["get_backlinks", "get_outline", "get_recent", "get_tasks", "open_in_app", "query_base", "read_note", "search_vault"]);
-    for (const tool of mcp) expect(["read", "ui"], tool.name).toContain(tool.risk);
+    const reading = mcp.filter((tool) => mcpToolKind(tool) === "read");
+    expect(reading.map((t) => t.name).sort()).toEqual(["get_backlinks", "get_outline", "get_recent", "get_tasks", "open_in_app", "query_base", "read_note", "search_vault"]);
+    for (const tool of reading) expect(["read", "ui"], tool.name).toContain(tool.risk);
+    // Stage 2 (plan §17.3): a suggestion on a note's text or on a property and a drafted note are answered at once;
+    // a rename, a move and a deletion only by the round trip. Nothing else that writes is offered to another program.
+    expect(mcp.filter((tool) => mcpToolKind(tool) === "propose").map((t) => t.name)).toEqual(["propose_edit", "set_property", "create_note"]);
+    expect(mcp.filter((tool) => mcpToolKind(tool) === "plan").map((t) => t.name)).toEqual(["rename_note", "move_note", "delete_note"]);
+    for (const name of ["create_task", "add_journal_entry", "create_entry", "run_command", "find_tools", "call_tool"]) expect(toolByName(name)!.surfaces, name).not.toContain("mcp");
   });
 
   it("no tool reads secrets or runs a shell, and the only ones that write are the proposals and the plans", () => {
@@ -73,10 +80,11 @@ describe("tool manifests", () => {
     expect(TOOL_MANIFESTS.filter((tool) => tool.risk === "external" || tool.risk === "script")).toEqual([]);
   });
 
-  it("a writing tool is found, never loaded, answers in Plainva's own words and stays off the MCP surface", () => {
+  it("a writing tool is found, never loaded, and answers in Plainva's own words", () => {
     expect(WRITE_TOOL_NAMES).toEqual([...PROPOSAL_TOOL_NAMES, ...PLAN_TOOL_NAMES]);
     for (const name of WRITE_TOOL_NAMES) {
-      expect(toolByName(name), name).toMatchObject({ core: false, untrustedResult: false, dataClasses: [], surfaces: ["harness"], native: null });
+      expect(toolByName(name), name).toMatchObject({ core: false, untrustedResult: false, dataClasses: [], native: null });
+      expect(toolByName(name)!.surfaces, name).toContain("harness");
       expect(isEffectTool(toolByName(name)!), name).toBe(true);
     }
     expect(TOOL_MANIFESTS.filter((tool) => tool.risk === "write" || tool.risk === "critical").map((tool) => tool.name)).toEqual([...WRITE_TOOL_NAMES]);

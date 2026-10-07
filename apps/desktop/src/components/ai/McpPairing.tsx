@@ -11,6 +11,10 @@ import { listenQuietly, mcpAnswerPairing, topLevelFolders, type McpPairRequest }
  * and the user picks the folders it may read — nothing is ticked by default,
  * so allowing needs a choice. Closing the dialog is a refusal; so is waiting
  * too long (the native side gives up after two minutes).
+ *
+ * Stage 2: whether the app may also propose changes is a second answer in
+ * the same dialog, and it is off until the user ticks it — reading is never
+ * a leave to write.
  */
 export function McpPairing() {
   const { t } = useTranslation();
@@ -18,11 +22,13 @@ export function McpPairing() {
   const [request, setRequest] = useState<McpPairRequest | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
+  const [writes, setWrites] = useState(false);
 
   useEffect(
     () =>
       listenQuietly<McpPairRequest>("mcp-pair", (payload) => {
         setChosen([]);
+        setWrites(false);
         setRequest(payload);
       }),
     [],
@@ -46,7 +52,7 @@ export function McpPairing() {
   const whole = chosen.includes("");
   const toggle = (folder: string) => setChosen((list) => (list.includes(folder) ? list.filter((f) => f !== folder) : [...list, folder]));
   const answer = (allow: boolean) => {
-    void mcpAnswerPairing(request.requestId, allow, allow ? (whole ? [""] : chosen) : []);
+    void mcpAnswerPairing(request.requestId, allow, allow ? (whole ? [""] : chosen) : [], allow && writes);
     setRequest(null);
   };
 
@@ -81,6 +87,13 @@ export function McpPairing() {
         ))}
       </fieldset>
       {chosen.length === 0 && <p className="pv-mcp-pair-hint">{t("ai.mcp.pairNone")}</p>}
+      <fieldset className="pv-mcp-pair-folders pv-mcp-pair-writes">
+        <legend>{t("ai.mcp.pairWritesLegend")}</legend>
+        <Checkbox checked={writes} onChange={() => setWrites((on) => !on)} data-testid="mcp-pair-writes">
+          {t("ai.mcp.pairWrites")}
+        </Checkbox>
+      </fieldset>
+      <p className="pv-mcp-note">{t("ai.mcp.pairWritesHint")}</p>
     </Modal>
   );
 }

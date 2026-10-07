@@ -99,6 +99,22 @@ export const PLAN_TOOL_NAMES: readonly string[] = ["rename_note", "move_note", "
 export const WRITE_TOOL_NAMES: readonly string[] = [...PROPOSAL_TOOL_NAMES, ...PLAN_TOOL_NAMES];
 
 /**
+ * How Plainva's own MCP server serves a tool (plan KI-Harness §17.3, stage 2;
+ * ADR 0022). `read`: answered at once, for every paired client. `propose`: a
+ * suggestion or a draft, answered at once — only for a client the user
+ * allowed to propose changes. `plan`: a rename, a move, a deletion — the
+ * first call only lays the plan before the user in Plainva and answers that
+ * input is required; nothing is carried out before the client comes back
+ * with that request and the user said yes in the app.
+ */
+export type McpToolKind = "read" | "propose" | "plan";
+
+export function mcpToolKind(tool: Pick<ToolManifest, "name">): McpToolKind {
+  if (PLAN_TOOL_NAMES.includes(tool.name)) return "plan";
+  return PROPOSAL_TOOL_NAMES.includes(tool.name) ? "propose" : "read";
+}
+
+/**
  * The tool a call runs, by name: for a call through the dispatcher the tool
  * it names, otherwise the call's own. What a transcript, a ledger and a
  * skill's scenario say was used.
@@ -442,7 +458,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     dataClasses: [],
     untrustedResult: false,
     core: false,
-    surfaces: ["harness"],
+    surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 1,
   },
@@ -460,7 +476,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     dataClasses: [],
     untrustedResult: false,
     core: false,
-    surfaces: ["harness"],
+    surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 1,
   },
@@ -477,7 +493,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     dataClasses: [],
     untrustedResult: false,
     core: false,
-    surfaces: ["harness"],
+    surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 1,
   },
@@ -533,7 +549,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     dataClasses: [],
     untrustedResult: false,
     core: false,
-    surfaces: ["harness"],
+    surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 1,
   },
@@ -545,7 +561,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     dataClasses: [],
     untrustedResult: false,
     core: false,
-    surfaces: ["harness"],
+    surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 1,
   },
@@ -558,7 +574,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
     dataClasses: [],
     untrustedResult: false,
     core: false,
-    surfaces: ["harness"],
+    surfaces: ["harness", "mcp"],
     native: null,
     pageLimit: 1,
   },

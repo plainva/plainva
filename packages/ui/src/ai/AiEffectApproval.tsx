@@ -5,6 +5,7 @@ import { Button } from "../components/ui/Button";
 import { cx } from "../components/ui/cx";
 import { ICON } from "../lib/iconSizes";
 import type { EffectAnswer, EffectRequest } from "./aiSession";
+import type { PlanQuestion } from "./writeTools";
 
 /**
  * The approval of ONE request to the internet (plan KI-Harness P4, the Rule
@@ -165,7 +166,6 @@ function AiPlanApproval({ request, onAnswer, touch }: { request: Extract<EffectR
   const question = request.question;
   const words = PLAN_WORDS[question.plan];
   const title = t(words.title);
-  const folderOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf("/")));
   // Taking a rule out lets the note go where it could not: like a deletion, that is no step this card makes look like the obvious one.
   const loosening = question.plan === "rule" && !question.set;
   const Icon = question.plan === "rename" ? PencilLine : question.plan === "move" ? FolderInput : question.plan === "rule" ? (question.set ? ShieldCheck : ShieldOff) : TriangleAlert;
@@ -175,6 +175,35 @@ function AiPlanApproval({ request, onAnswer, touch }: { request: Extract<EffectR
         <Icon size={ICON.ui} aria-hidden="true" />
         <span>{title}</span>
       </h4>
+      <AiPlanDetails question={question} />
+      <span className="pv-ai-overview-hint">{t(words.hint)}</span>
+      <div className="pv-ai-overview-actions">
+        <Button variant="ghost" onClick={() => onAnswer("deny")} data-testid="ai-effect-deny">
+          {t(words.deny)}
+        </Button>
+        {/* A deletion is not this card's to carry out: the button opens the app's own dialog. */}
+        <Button variant={question.plan === "delete" || loosening ? "secondary" : "primary"} onClick={() => onAnswer("once")} data-testid="ai-effect-once">
+          {t(loosening ? "ai.write.plan.removeRule" : words.go)}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * What a plan would do, in the rows every surface that asks about one shows:
+ * the note, the new name with the notes whose links change, the folder — and
+ * the warning where a move or a rule lets the note go where it could not.
+ * The assistant's card above the composer and the dialog for a program at
+ * Plainva's MCP server (plan P5-5) draw the same rows: a plan reads the same
+ * whoever asks for it.
+ */
+export function AiPlanDetails({ question }: { question: PlanQuestion }) {
+  const { t } = useTranslation();
+  const folderOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf("/")));
+  const loosening = question.plan === "rule" && !question.set;
+  return (
+    <>
       <dl className="pv-ai-overview-list">
         <dt>{t("ai.write.plan.note")}</dt>
         <dd data-testid="ai-effect-note">
@@ -235,17 +264,7 @@ function AiPlanApproval({ request, onAnswer, touch }: { request: Extract<EffectR
           <span>{t(question.rule === "cloud" ? "ai.write.plan.ruleLoosensCloud" : "ai.write.plan.ruleLoosensWeb")}</span>
         </span>
       )}
-      <span className="pv-ai-overview-hint">{t(words.hint)}</span>
-      <div className="pv-ai-overview-actions">
-        <Button variant="ghost" onClick={() => onAnswer("deny")} data-testid="ai-effect-deny">
-          {t(words.deny)}
-        </Button>
-        {/* A deletion is not this card's to carry out: the button opens the app's own dialog. */}
-        <Button variant={question.plan === "delete" || loosening ? "secondary" : "primary"} onClick={() => onAnswer("once")} data-testid="ai-effect-once">
-          {t(loosening ? "ai.write.plan.removeRule" : words.go)}
-        </Button>
-      </div>
-    </section>
+    </>
   );
 }
 

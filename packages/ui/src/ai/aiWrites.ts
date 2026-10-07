@@ -193,7 +193,7 @@ export interface OpenProposal {
  * the same on every device, whichever of them the suggestion was made on.
  * A person's own suggestions are not here; the comments overview has them.
  */
-export function machineProposals(byPath: ReadonlyMap<string, readonly WorkspaceCommentRecord[]>): OpenProposal[] {
+export function machineProposals(byPath: ReadonlyMap<string, readonly WorkspaceCommentRecord[]>, names?: ReadonlyMap<string, string>): OpenProposal[] {
   const out: OpenProposal[] = [];
   for (const [path, records] of byPath) {
     const writers = new Map<string, { changes: number; at: string }>();
@@ -206,7 +206,11 @@ export function machineProposals(byPath: ReadonlyMap<string, readonly WorkspaceC
       if (record.createdAt > writer.at) writer.at = record.createdAt;
       writers.set(record.authorMemberId, writer);
     }
-    for (const [authorId, writer] of writers) out.push({ path, authorId, ...writer });
+    // The name the writer signed with, as the vault's comments keep it: an app's id is a row of random letters.
+    for (const [authorId, writer] of writers) {
+      const label = names?.get(authorId)?.trim();
+      out.push({ path, authorId, ...(label ? { authorLabel: label } : {}), ...writer });
+    }
   }
   return out.sort((a, b) => b.at.localeCompare(a.at) || a.path.localeCompare(b.path) || a.authorId.localeCompare(b.authorId));
 }

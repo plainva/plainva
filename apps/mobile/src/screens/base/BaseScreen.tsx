@@ -52,7 +52,7 @@ import {
 import { reloadActiveMobileVault, reportMoveFailure, vaultOps, type MobileVault } from "../../services/vaultService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
-import { canCommentOnNote, listAllMobileComments, noteWorkspaceCapabilities } from "../../services/mobileComments";
+import { canCommentOnNote, listAllMobileComments, listMobileCommentAuthors, noteWorkspaceCapabilities } from "../../services/mobileComments";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
@@ -551,6 +551,8 @@ export function BaseScreen({
   // ONE read of the bundle per open - it holds them all anyway; a write on any
   // screen raises the same window event the comments overview listens to.
   const [noteComments, setNoteComments] = useState<Map<string, WorkspaceCommentRecord[]>>(() => new Map());
+  // Who signed a proposed value, by author id: the names the comments keep. An app's id alone is a row of random letters.
+  const [commentAuthors, setCommentAuthors] = useState<ReadonlyMap<string, string>>(() => new Map());
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -558,6 +560,9 @@ export function BaseScreen({
       listAllMobileComments(vault)
         .then((map) => { if (alive) setNoteComments(map); })
         .catch(() => { if (alive) setNoteComments(new Map()); });
+      listMobileCommentAuthors(vault)
+        .then((names) => { if (alive) setCommentAuthors(names); })
+        .catch(() => undefined);
     };
     load();
     const onChanged = () => { clearTimeout(timer); timer = setTimeout(load, 150); };
@@ -2586,7 +2591,7 @@ export function BaseScreen({
             onCommentProperty={cellEditCanComment ? () => { const c = cellEdit; setCellEdit(null); composePropertyComment(c.notePath, c.col); } : undefined}
             onCommit={commitCell}
             proposal={proposed ? {
-              by: proposedBy(t, proposed.comment),
+              by: proposedBy(t, proposed.comment, commentAuthors),
               view: proposedCellView(proposed, cellEdit.value, proposedColumn(cellEdit.col)),
               canAccept: cellEditCanWrite,
               canDecline: cellEditCanComment,

@@ -313,7 +313,7 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
   },
   {
     id: "ai-mcp-server",
-    title: "AI apps on this computer read the vault through Plainva (MCP server)",
+    title: "AI apps on this computer read the vault through Plainva and, where allowed, propose changes (MCP server)",
     area: "ai",
     kind: "decision",
     desktop: "yes",
@@ -324,8 +324,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "A phone runs no such client, and neither iOS nor Android lets one app " +
       "offer another a local pipe or socket; reaching a phone from outside would " +
       "need a server on the internet, which Plainva does not run (plan KI-Harness " +
-      "§17.3, §22). The phone's own assistant reads the vault directly.",
-    verified: "2026-09-29",
+      "§17.3, §22). The phone's own assistant reads the vault directly. What an " +
+      "app proposes on a computer is a suggestion in the note's comments: it " +
+      "reaches the phone with them and is decided there like every suggestion, " +
+      "under the app's name and a machine's mark (plan P5-5).",
+    verified: "2026-10-07",
   },
   {
     id: "ai-mcp-sign-in-pinned-address",
