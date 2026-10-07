@@ -41,7 +41,7 @@ Uma execução de teste nunca usa a internet e nunca pergunta: o e-mail que ela 
 
 ## Propor alterações
 
-Uma habilidade sua só propõe alterações quando a linha `allowed-tools` dela nomeia as ferramentas para isso: `propose_edit` e `set_property` para sugestões no texto e nas propriedades de uma nota, `create_note`, `create_task` e `add_journal_entry` para rascunhos, `rename_note`, `move_note` e `delete_note` para planos. **Revisar e aprovar** então nomeia cada uma delas e diz **Pode sugerir alterações, deixar rascunhos e apresentar planos. Nada muda no vault antes de você aceitar, criar ou confirmar.** Uma habilidade que não nomeia ferramentas não propõe nada — uma que você aprovou antes também não ganha nada —, e uma execução de teste não deixa nada. O que são as três formas: **Propor alterações** em [Assistente de IA](AI_Assistant.md).
+Uma habilidade sua só propõe alterações quando a linha `allowed-tools` dela nomeia as ferramentas para isso: `propose_edit` e `set_property` para sugestões no texto e nas propriedades de uma nota, `create_note`, `create_entry`, `create_task` e `add_journal_entry` para rascunhos, `rename_note`, `move_note` e `delete_note` para planos. **Revisar e aprovar** então nomeia cada uma delas e diz **Pode sugerir alterações, deixar rascunhos e apresentar planos. Nada muda no vault antes de você aceitar, criar ou confirmar.** Uma habilidade que não nomeia ferramentas não propõe nada — uma que você aprovou antes também não ganha nada —, e uma execução de teste não deixa nada. O que são as três formas: **Propor alterações** em [Assistente de IA](AI_Assistant.md).
 
 ## Suas próprias habilidades
 

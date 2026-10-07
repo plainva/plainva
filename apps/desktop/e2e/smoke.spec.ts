@@ -4485,6 +4485,182 @@ test('AI writes a property: the value waits as a suggestion that names the prope
   expect(await brief()).toContain('stage: sent');
 });
 
+// The database (AI harness P5-4): a value the assistant proposes for an entry
+// is a suggestion at that entry's note — and the database shows it in the cell
+// of the entry and the property, where it is decided without opening the note.
+// A new entry is a draft like every new thing; "Create" writes the note into
+// the folder the database keeps its entries in.
+test('AI writes into a database: proposed values stand in their cells and are decided there; a new entry is a draft', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (...list: Array<[id: string, name: string, args: unknown]>) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ...list.flatMap(([id, name, args], index): Array<[string, unknown]> => [
+      ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name: 'call_tool', input: {} } }],
+      ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ name, args }) } }],
+      ['content_block_stop', { type: 'content_block_stop', index }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const NOTES = {
+    'Clients/Hafenkante.md': '---\ncity: Hamburg\n---\n# Studio Hafenkante\n',
+    'Clients/Vogt.md': '---\ncity: Luebeck\nindustry: Health\n---\n# Praxis Vogt\n',
+    'Clients/Werft.md': '---\ncity: Kiel\n---\n# Werft 7\n',
+  };
+  const BASE = 'filters:\n  and:\n    - file.folder == "Clients"\nviews:\n  - type: table\n    name: Table\n    order:\n      - file.name\n      - note.industry\n      - note.city\n  - type: table\n    name: Pipeline\n    order:\n      - file.name\n      - note.city\n    plainva:\n      render: board\n      groupBy: industry\n';
+  const script = [
+    calls(
+      ['c1', 'set_property', { path: 'Clients/Hafenkante.md', key: 'industry', value: 'Film' }],
+      ['c2', 'set_property', { path: 'Clients/Vogt.md', key: 'industry', value: 'Medicine' }],
+      ['c3', 'set_property', { path: 'Clients/Werft.md', key: 'industry', value: 'Crafts' }],
+      ['c4', 'create_entry', { base: 'Customers.base', title: 'Werft 9', properties: { industry: 'Crafts', city: 'Kiel' }, content: 'Boats.' }],
+    ),
+    says('Three values wait in the database, and the new client is a draft.'),
+  ];
+  await page.addInitScript(({ script, notes, base }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.plainva/sync'] = { isDir: true };
+    fs['/test-vault/Clients'] = { isDir: true };
+    for (const [path, text] of Object.entries(notes)) fs[`/test-vault/${path}`] = text;
+    fs['/test-vault/Customers.base'] = base;
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    // The database's rows, read LIVE from the files: what a re-query after a decision returns is what the note says.
+    const clients = () => Object.keys(fs).filter((p) => typeof fs[p] === 'string' && p.startsWith('/test-vault/Clients/') && p.endsWith('.md')).sort().map((p) => p.replace('/test-vault/', ''));
+    const propertiesOf = (path: string) => {
+      const text = String(fs[`/test-vault/${path}`] ?? '');
+      const block = /^---\n([\s\S]*?)\n---\n/.exec(text)?.[1] ?? '';
+      return block.split('\n').map((line) => /^([A-Za-z_]+): (.+)$/.exec(line)).filter(Boolean).map((m) => ({ file_id: path, key: m![1], value: m![2], type: /^\d+$/.test(m![2]) ? 'number' : 'text' }));
+    };
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      if (cmd === 'plugin:sql|select') {
+        const q = String(args?.query || '');
+        if (q.includes('SELECT f.id, f.path AS path') && q.includes('FROM files f')) {
+          return clients().map((path, index) => ({ id: path, path, title: path.split('/').pop()!.replace(/\.md$/, ''), mtime_local: 1750000000000 - index, size_bytes: 10, sha256: null, ctime: null }));
+        }
+        if (q.includes('SELECT file_id, key, value, type') && q.includes('FROM properties')) return (args.values ?? []).flatMap((id: unknown) => propertiesOf(String(id)));
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, notes: NOTES, base: BASE });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const noteAt = (path: string) => page.evaluate((p) => ((window as any).mockFs[`/test-vault/${p}`] ?? null) as string | null, path);
+  const open = async () => {
+    const texts = await page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path, value]) => typeof value === 'string' && /\/\.plainva\/sync\/comments\.[^/]+\.json$/.test(path)).map(([, value]) => String(value)));
+    const records = texts.flatMap((text) => Object.values(JSON.parse(text).comments as Record<string, any>));
+    const decided = new Set(records.filter((record) => record.resolvedCommentId).map((record) => record.resolvedCommentId));
+    return records.filter((record) => record.suggestion && !decided.has(record.commentId)).length;
+  };
+
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Fill in the industry of my clients, and add Werft 9 from Kiel as a client.');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('Three values wait in the database')).toBeVisible();
+
+  // 1. What the model read back: that values wait and an entry is drafted — never a value. Nothing in the vault changed.
+  const sent = await requests();
+  expect(sent[1]).toContain('Proposed on Clients/Hafenkante.md: a value for the property industry. Nothing in the vault has changed.');
+  expect(sent[1]).toContain('Drafted: an entry \\"Werft 9\\" of the database Customers.base. Nothing in the vault has changed.');
+  for (const [path, text] of Object.entries(NOTES)) expect(await noteAt(path)).toBe(text);
+  expect(await noteAt('Clients/Werft 9.md')).toBeNull();
+  expect(await open()).toBe(3);
+
+  // 2. The drafted entry says which database it is for and what it would have.
+  const draft = companion.locator('[data-testid="ai-draft"][data-kind="entry"]');
+  await expect(draft.getByTestId('ai-draft-title')).toHaveText('Werft 9');
+  await expect(draft.getByTestId('ai-draft-base')).toHaveText('Customers');
+  await expect(draft.getByTestId('ai-draft-property')).toHaveText(['Crafts', 'Kiel']);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-base-draft-desktop.png'), animations: 'disabled' });
+
+  // 3. In the database each proposed value stands in the cell of its entry and its property; the line above says how many.
+  await companion.getByTestId('ai-companion-close').click();
+  await expect(companion).toHaveCount(0);
+  await page.getByTestId('file-tree').getByText('Customers', { exact: true }).click();
+  const bar = page.getByTestId('base-proposed-bar');
+  await expect(bar).toContainText(/3 (suggested values in this view|vorgeschlagene Werte in dieser Ansicht)/, { timeout: 10000 });
+  const rowOf = (name: string) => page.locator('tr', { hasText: name });
+  const chipOf = (name: string) => rowOf(name).getByTestId('cell-proposed-industry');
+  await expect(chipOf('Hafenkante')).toHaveText('Film');
+  await expect(chipOf('Werft')).toHaveText('Crafts');
+  // A cell that says something keeps saying it: the proposal stands beside it.
+  await expect(chipOf('Vogt')).toHaveText('Medicine');
+  await expect(rowOf('Vogt')).toContainText('Health');
+  // The proposal is in the cell, so the cell does not count it among its remarks as well.
+  await expect(page.getByTestId('cell-comments-industry')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-base-cells-desktop.png'), animations: 'disabled' });
+
+  // 4. A click on the value decides it where it stands: who proposed it, and the two answers.
+  await chipOf('Hafenkante').click();
+  const menu = page.getByRole('menu');
+  await expect(menu).toContainText('Plainva AI · m-1');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-base-decision-desktop.png'), animations: 'disabled' });
+  await menu.getByTestId('base-proposed-accept').click();
+  await expect.poll(() => noteAt('Clients/Hafenkante.md'), { timeout: 10000 }).toBe('---\ncity: Hamburg\nindustry: Film\n---\n# Studio Hafenkante\n');
+  await expect(chipOf('Hafenkante')).toHaveCount(0);
+  await expect(rowOf('Hafenkante')).toContainText('Film');
+  await expect(bar).toContainText(/^2 /);
+
+  // 5. Declining writes nothing into the note.
+  await chipOf('Vogt').click();
+  await page.getByRole('menu').getByTestId('base-proposed-decline').click();
+  await expect(chipOf('Vogt')).toHaveCount(0);
+  expect(await noteAt('Clients/Vogt.md')).toBe(NOTES['Clients/Vogt.md']);
+  await expect(bar).toContainText(/^1 /);
+
+  // 5b. A board groups its cards by a property no cell of a card shows: the value proposed for it is named on the
+  //     card itself, and decided there like in a cell.
+  await page.locator('.base-view-tab-btn', { hasText: 'Pipeline' }).click();
+  const card = page.locator('[data-testid="base-row"]', { hasText: 'Werft' });
+  await expect(card.getByTestId('card-proposed-industry')).toContainText('Crafts');
+  await expect(bar).toContainText(/^1 /);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-base-board-desktop.png'), animations: 'disabled' });
+  await card.getByTestId('cell-proposed-industry').click();
+  await expect(page.getByRole('menu')).toContainText('Plainva AI · m-1');
+  await page.keyboard.press('Escape');
+  await page.locator('.base-view-tab-btn', { hasText: 'Table' }).click();
+  await expect(chipOf('Werft')).toHaveText('Crafts');
+
+  // 6. "Apply all" decides what the view still shows — and the line goes with the last proposal.
+  await bar.getByTestId('base-proposed-accept-all').click();
+  await expect.poll(() => noteAt('Clients/Werft.md'), { timeout: 10000 }).toBe('---\ncity: Kiel\nindustry: Crafts\n---\n# Werft 7\n');
+  await expect(bar).toHaveCount(0);
+  expect(await open()).toBe(0);
+
+  // 7. "Create" on the draft is what makes the entry: a note in the database's folder, with the properties the draft named.
+  await page.keyboard.press('Control+j');
+  await expect(draft.getByTestId('ai-draft-create')).toBeEnabled();
+  await draft.getByTestId('ai-draft-create').click();
+  await expect.poll(() => noteAt('Clients/Werft 9.md'), { timeout: 10000 }).not.toBeNull();
+  const made = (await noteAt('Clients/Werft 9.md'))!;
+  expect(made).toContain('industry: Crafts');
+  expect(made).toContain('city: Kiel');
+  expect(made).toContain('by: plainva-ai/m-1');
+  expect(made).toContain('# Werft 9\n\nBoats.\n');
+});
+
 // "Explain image" (AI harness P4-5): a picture of the vault goes, with a
 // question, to the model — after the overview showed it exactly as it would
 // go. The web view's own decoder and canvas prepare it, as in the app: what

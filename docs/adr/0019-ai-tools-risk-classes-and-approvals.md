@@ -60,6 +60,24 @@ a write or an outside effect.
        card): an entry found only in the text is a suggestion that no longer
        fits, a new property goes in front of the closing line as it stands,
        and one the note has by now is refused instead of written twice.
+     - *A database shows a proposed value; it does not keep it.* The value
+       proposed for an entry stands in the cell of that entry and that
+       property (`buildProposedCells`), read from the note's comments on
+       every look — there is no second store, and what a cell decides is the
+       operation the note's margin runs (`decideProposedCells` over
+       `planCommentDecision`), one decision per note. A database has its
+       rows' values, not its notes' texts, so it shows only what still fits
+       the row; whether it fits the note is asked again when it is accepted.
+       "All" is what the view draws as cells (`proposalColumns`), and many
+       notes at once ask first, like every bulk change of a database.
+     - *A new entry of a database is a draft* (`create_entry`): a note in the
+       folder the database keeps its entries in, with the properties the
+       model named — each judged like a value proposed on a note that is
+       there, so no rule, no trust field and none of Plainva's own names.
+       Where a database has no folder for new entries, nothing is drafted:
+       that question is the user's, and an assistant never answers it.
+       "Create" is the user's step and writes the note the way the
+       database's own "New entry" does without a template.
    - `critical` — delete, bulk change, vault-wide rename or move, and **any
      write to `plainva.ai.*`, `.agent/` or the OKF trust fields**: dry run and
      confirmation enforced in the tool layer; delete only through the deletion

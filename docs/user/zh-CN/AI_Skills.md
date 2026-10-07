@@ -41,7 +41,7 @@
 
 ## 提出修改
 
-你自己的技能只有在`allowed-tools`一行列出相应工具时才会提出修改：`propose_edit`和`set_property`用于对笔记正文和属性的建议，`create_note`、`create_task`和`add_journal_entry`用于草稿，`rename_note`、`move_note`和`delete_note`用于计划。此时**检查并批准**会逐一列出这些工具，并显示**可以提出修改建议、留下草稿并提交计划。在你采纳、创建或确认之前，仓库不会有任何改动。**没有列出任何工具的技能不会提出任何内容——你之前批准过的技能也不会因此多出什么——测试运行也不会留下任何内容。三种形式的说明见[AI助手](AI_Assistant.md)中的**提出修改**。
+你自己的技能只有在`allowed-tools`一行列出相应工具时才会提出修改：`propose_edit`和`set_property`用于对笔记正文和属性的建议，`create_note`、`create_entry`、`create_task`和`add_journal_entry`用于草稿，`rename_note`、`move_note`和`delete_note`用于计划。此时**检查并批准**会逐一列出这些工具，并显示**可以提出修改建议、留下草稿并提交计划。在你采纳、创建或确认之前，仓库不会有任何改动。**没有列出任何工具的技能不会提出任何内容——你之前批准过的技能也不会因此多出什么——测试运行也不会留下任何内容。三种形式的说明见[AI助手](AI_Assistant.md)中的**提出修改**。
 
 ## 你自己的技能
 

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { readFrontmatterPath, type WorkspaceCommentRecord, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
-import { EMPTY_WRITE_DRAFTS, createWriteDraftStore, draftDetail, draftedNoteContent, machineProposals, stripFrontmatter } from "@plainva/ui";
+import { EMPTY_WRITE_DRAFTS, createWriteDraftStore, draftDetail, draftedEntryContent, draftedNoteContent, entryPlaceOf, machineProposals, serializeBaseConfig, stripFrontmatter } from "@plainva/ui";
 import { memoryFiles } from "./mcpTestHost";
 
 /**
- * Drafts on this device, the note a drafted note becomes, and the list of
- * notes that carry a machine's open proposals (plan KI-Harness P5-2).
+ * Drafts on this device, the note a drafted note or a drafted entry of a
+ * database becomes, and the list of notes that carry a machine's open
+ * proposals (plan KI-Harness P5-2, P5-4).
  */
 
 const draft = (over: Partial<WriteDraft> = {}): WriteDraft => ({
@@ -82,6 +83,56 @@ describe("the note a drafted note becomes", () => {
     const empty = draftedNoteContent(draft({ body: { kind: "note", path: null, folder: null, content: "  \n" } }), now, []);
     expect(stripFrontmatter(empty).trim()).toBe("# Roof plan");
     expect(() => draftedNoteContent(draft({ body: { kind: "task", text: "Buy nails", day: "2026-10-07" } }), now, [])).toThrow();
+  });
+});
+
+describe("a drafted entry of a database", () => {
+  const now = new Date("2026-10-07T10:00:00Z");
+  /** A database's file as Plainva writes one: its sources, one view, and the folder the user chose for new entries. */
+  const base = (sources: string[], newItemFolder?: string) => serializeBaseConfig({ filters: { and: sources }, views: [{ type: "table", name: "All" }], ...(newItemFolder ? { newItemFolder } : {}) });
+  const entry = (over: Partial<WriteDraft> = {}) =>
+    draft({ title: "Dune", body: { kind: "entry", base: "Projects/Books.base", properties: { author: "Frank Herbert", pages: 412, read: false, genres: ["sci-fi", "classic"] }, content: "A desert planet.\n" }, ...over });
+
+  it("goes where the database's own “New entry” puts one, and carries the tags its source asks for", () => {
+    expect(entryPlaceOf(base(['file.folder == "Books"', 'file.hasTag("book")', 'file.hasTag("read")']), "Book")).toEqual({ folder: "Books", noteType: "Book", tags: ["book", "read"] });
+    // The folder as a note is written into it, however the database spells it.
+    expect(entryPlaceOf(base(['file.folder == "Reading/Books/"']), "Note")?.folder).toBe("Reading/Books");
+    // A database of tags alone names its folder once the user chose one with its first entry.
+    expect(entryPlaceOf(base(['file.hasTag("book")']), "Note")).toBeNull();
+    expect(entryPlaceOf(base(['file.hasTag("book")'], "Shelf"), "Note")).toEqual({ folder: "Shelf", noteType: "Note", tags: ["book"] });
+  });
+
+  it("has no place while the database has none: two folders are a question for the user, and a file that is no database is none", () => {
+    const two = ['file.folder == "Books"', 'file.folder == "Comics"'];
+    expect(entryPlaceOf(base(two), "Note")).toBeNull();
+    // The folder the user chose among them answers it — one that is none of them does not.
+    expect(entryPlaceOf(base(two, "Comics"), "Note")?.folder).toBe("Comics");
+    expect(entryPlaceOf(base(two, "Elsewhere"), "Note")).toBeNull();
+    for (const raw of [null, "", "views: []\n", "- a list\n", "{ not: [yaml"]) expect(entryPlaceOf(raw, "Note"), String(raw)).toBeNull();
+  });
+
+  it("becomes a note like the database's own new entry — its type, its tags, the properties the draft names — stamped with who wrote it", () => {
+    const note = draftedEntryContent(entry({ sources: [{ resource: "Projects/Offer.md" }] }), now, [], { noteType: "Book", tags: ["book"] });
+    expect(readFrontmatterPath(note, ["type"])).toBe("Book");
+    expect(readFrontmatterPath(note, ["tags"])).toEqual(["book"]);
+    expect([readFrontmatterPath(note, ["author"]), readFrontmatterPath(note, ["pages"]), readFrontmatterPath(note, ["read"]), readFrontmatterPath(note, ["genres"])]).toEqual(["Frank Herbert", 412, false, ["sci-fi", "classic"]]);
+    expect(readFrontmatterPath(note, ["generated", "by"])).toBe("plainva-ai/m-1");
+    expect(readFrontmatterPath(note, ["sources"])).toEqual([{ resource: "Projects/Offer.md" }]);
+    expect(readFrontmatterPath(note, ["plainva"])).toBeUndefined();
+    expect(stripFrontmatter(note).trim()).toBe("# Dune\n\nA desert planet.");
+  });
+
+  it("joins the tags the draft names to the ones that make it a member, and takes the rules of what it rests on along", () => {
+    const tagged = entry({ body: { kind: "entry", base: "Projects/Books.base", properties: { tags: ["sci-fi", "book", " "] }, content: "" }, inherited: ["cloud", "web"] });
+    const note = draftedEntryContent(tagged, now, ["cloud"], { noteType: "Note", tags: ["book"] });
+    expect(readFrontmatterPath(note, ["tags"])).toEqual(["book", "sci-fi"]);
+    expect(readFrontmatterPath(note, ["plainva", "ai", "cloud"])).toBe("deny");
+    expect(readFrontmatterPath(note, ["plainva", "ai", "web"])).toBeUndefined();
+    // A single tag is one, a database without a tag source takes the draft's own, and an entry without text is a heading.
+    const single = draftedEntryContent(entry({ body: { kind: "entry", base: "Projects/Books.base", properties: { tags: "sci-fi" }, content: "" } }), now, [], { noteType: "Note", tags: [] });
+    expect(readFrontmatterPath(single, ["tags"])).toEqual(["sci-fi"]);
+    expect(stripFrontmatter(single).trim()).toBe("# Dune");
+    expect(() => draftedEntryContent(draft(), now, [], { noteType: "Note", tags: [] })).toThrow();
   });
 });
 

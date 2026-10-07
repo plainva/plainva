@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, FilePlus2, ListChecks, NotebookPen, PencilLine, X } from "lucide-react";
+import { Check, Database, FilePlus2, ListChecks, NotebookPen, PencilLine, X } from "lucide-react";
 import { machineAuthorKind, machineAuthorSubject, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
@@ -8,6 +8,7 @@ import { Chip } from "../components/ui/Chip";
 import { cx } from "../components/ui/cx";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ICON } from "../lib/iconSizes";
+import { propertyValueWords } from "../lib/propertySuggestion";
 import { toast } from "../services/toastStore";
 import type { AiSession } from "./aiSession";
 import { draftDetail, type OpenProposal, type WriteDraftState } from "./aiWrites";
@@ -23,6 +24,9 @@ import { draftDetail, type OpenProposal, type WriteDraftState } from "./aiWrites
  */
 
 const noteName = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+
+/** The properties a drafted entry's card names; the rest is a count. */
+const DRAFT_PROPERTIES_SHOWN = 8;
 
 type Translate = ReturnType<typeof useTranslation>["t"];
 
@@ -56,6 +60,7 @@ export function useDraftActions(session: Pick<AiSession, "createDraft" | "discar
           onOpenCreated(outcome.path);
         } else if (outcome.reason === "failed") toast.error(t("ai.write.draft.failed", { reason: outcome.message ?? "" }));
         else if (outcome.reason === "unavailable") toast.error(t("ai.write.draft.unavailable"));
+        else if (outcome.reason === "no-entry-folder") toast.error(t("ai.write.draft.noEntryFolder"));
       })
       .finally(() => setBusy(null));
   };
@@ -95,8 +100,10 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
   const [atProvider, setAtProvider] = useState(true);
   const body = draft.body;
   const offersList = body.kind === "task" && Boolean(taskList);
-  const Icon = body.kind === "task" ? ListChecks : body.kind === "journal" ? NotebookPen : FilePlus2;
+  const Icon = body.kind === "task" ? ListChecks : body.kind === "journal" ? NotebookPen : body.kind === "entry" ? Database : FilePlus2;
   const detail = draftDetail(draft);
+  // What a drafted entry would have: said on the card, since "Create" writes exactly that (plan P5-4).
+  const properties = body.kind === "entry" ? Object.entries(body.properties) : [];
   const day = (key: string) => {
     const date = new Date(`${key}T12:00:00`);
     return Number.isNaN(date.getTime()) ? key : new Intl.DateTimeFormat(i18n.language, { weekday: "short", day: "numeric", month: "short" }).format(date);
@@ -123,6 +130,19 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
             <dd>{detail.time ? `${day(detail.day)} · ${detail.time}` : day(detail.day)}</dd>
           </>
         )}
+        {"base" in detail && (
+          <>
+            <dt>{t("ai.write.draft.database")}</dt>
+            <dd data-testid="ai-draft-base">{noteName(detail.base).replace(/\.base$/i, "")}</dd>
+            {properties.slice(0, DRAFT_PROPERTIES_SHOWN).map(([key, value]) => (
+              <Fragment key={key}>
+                {/* A property's name is the database's own word, not one of Plainva's. */}
+                <dt>{key}</dt>
+                <dd data-testid="ai-draft-property">{propertyValueWords(value)}</dd>
+              </Fragment>
+            ))}
+          </>
+        )}
         {body.kind === "task" && body.text !== draft.title && (
           <>
             <dt>{t("ai.write.draft.words")}</dt>
@@ -136,7 +156,12 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
           </>
         )}
       </dl>
-      {draft.inherited.length > 0 && body.kind === "note" && <span className="pv-ai-overview-hint">{t("ai.write.draft.inherits")}</span>}
+      {properties.length > DRAFT_PROPERTIES_SHOWN && (
+        <span className="pv-ai-overview-hint" data-testid="ai-draft-more">
+          {t("ai.write.draft.moreProperties", { count: properties.length - DRAFT_PROPERTIES_SHOWN })}
+        </span>
+      )}
+      {draft.inherited.length > 0 && (body.kind === "note" || body.kind === "entry") && <span className="pv-ai-overview-hint">{t("ai.write.draft.inherits")}</span>}
       {draft.defused > 0 && <span className="pv-ai-overview-hint">{t("ai.write.draft.defused")}</span>}
       {offersList && (
         // The one thing "Create" would send out of the vault: said on the card, in the capture field's own words, and the user's to switch off.

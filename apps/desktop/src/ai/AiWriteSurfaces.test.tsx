@@ -128,6 +128,35 @@ describe("a draft's card", () => {
     expect(rows(q(first, "ai-draft")!)).toEqual(["Entry: Met Anna", "Day: Wed, Oct 7 · 10:30"]);
   });
 
+  it("names the database of a drafted entry and the properties it would have — “Create” writes exactly those", async () => {
+    const properties = { author: "Frank Herbert", pages: 412, read: false, genres: ["sci-fi", "classic"] };
+    const entry = draft({ id: "d-000004", title: "Dune", body: { kind: "entry", base: "Projects/Books.base", properties, content: "A desert planet." }, inherited: ["cloud"] });
+    const onCreate = vi.fn();
+    const container = show(<AiDraftCard draft={entry} canCreate busy={false} onCreate={onCreate} onDiscard={() => {}} taskList="Errands" />);
+    const card = q(container, "ai-draft")!;
+    expect(card.getAttribute("data-kind")).toBe("entry");
+    expect(card.getAttribute("aria-label")).toBe("Draft · Database entry: Dune");
+    // The database by its name; a property under the database's own word for it, its value as a suggestion's card writes one.
+    expect(rows(card)).toEqual(["Entry: Dune", "Database: Books", "author: Frank Herbert", "pages: 412", "read: false", "genres: sci-fi, classic"]);
+    expect(q(card, "ai-draft-more")).toBeNull();
+    expect(text(card)).toContain("The note gets the privacy rules of the notes it rests on.");
+    await click(q(card, "ai-draft-show"));
+    expect(text(q(card, "ai-draft-text"))).toBe("A desert planet.");
+    // An entry goes nowhere but into the vault, whatever the vault is connected to.
+    expect(q(card, "ai-draft-provider")).toBeNull();
+    await click(q(card, "ai-draft-create"));
+    expect(onCreate.mock.calls).toEqual([["d-000004", false]]);
+
+    // A long list is cut, and the card says how much it left out; an entry without text has nothing to unfold.
+    const many = draft({ title: "Wide", body: { kind: "entry", base: "Books.base", properties: Object.fromEntries(Array.from({ length: 11 }, (_, index) => [`p${index + 1}`, index])), content: "" } });
+    act(() => root!.render(<AiDraftCard draft={many} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />));
+    expect(card.querySelectorAll('[data-testid="ai-draft-property"]')).toHaveLength(8);
+    expect(text(q(container, "ai-draft-more"))).toBe("and 3 more properties");
+    expect(q(container, "ai-draft-show")).toBeNull();
+    act(() => root!.render(<AiDraftCard draft={draft({ ...many, body: { kind: "entry", base: "Books.base", properties: Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`p${index + 1}`, index])), content: "" } })} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />));
+    expect(text(q(container, "ai-draft-more"))).toBe("and 1 more property");
+  });
+
   it("cannot be created where this device cannot make it, and waits while another one is being made", () => {
     const container = show(<AiDraftCard draft={draft()} canCreate={false} busy={false} onCreate={() => {}} onDiscard={() => {}} />);
     expect((q(container, "ai-draft-create") as HTMLButtonElement).disabled).toBe(true);

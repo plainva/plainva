@@ -2,6 +2,7 @@ import {
   AI_POLICY_DIMENSIONS,
   PLAN_TOOL_NAMES,
   PROPOSAL_TOOL_NAMES,
+  WRITE_DRAFT_LIMITS,
   WRITE_REFUSALS,
   WRITE_RESULTS,
   appendToNote,
@@ -25,7 +26,7 @@ import {
 } from "@plainva/core";
 import type { SuggestionChunk } from "../components/suggestMode";
 import { parseTaskCapture, type CaptureVocabulary } from "../lib/taskCapture";
-import { flattenInertLinks } from "./aiCapture";
+import { capturedNotePath, flattenInertLinks } from "./aiCapture";
 import { selectionChunks, type SuggestionAuthor } from "./aiSelectionActions";
 import { defuseNewAddresses } from "./aiWriteLint";
 
@@ -108,6 +109,13 @@ export interface VaultWriteDeps {
    * shell's own save after. True when the note says it now.
    */
   setRule(path: string, rule: AiPolicyDimension, set: boolean): Promise<boolean>;
+  /**
+   * Where a new entry of the database at `base` would be written: the folder
+   * the database keeps its entries in ("" is the vault itself). Null where the
+   * database has no such folder yet — the user chooses one with its first
+   * entry —, or where it cannot be read.
+   */
+  entryPlace(base: string): Promise<{ folder: string } | null>;
 }
 
 /**
@@ -182,7 +190,7 @@ export interface WriteToolContext {
 }
 
 /** The writing tools that have hands, in the order the tool search lists them. */
-const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
+const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
 
 /**
  * The writing tools a shell with these deps offers a new conversation. Inside
@@ -373,6 +381,53 @@ async function createNote(deps: VaultWriteDeps, run: WriteRun, a: Record<string,
   return said(WRITE_RESULTS.drafted(`a note "${title}"`, drafted.defused));
 }
 
+/**
+ * A new entry of a database (plan P5-4): a draft like a note's — a note in
+ * the folder the database keeps its entries in, with the properties the model
+ * named. Each of them is judged like a value it proposes on a note that is
+ * there: no rule, no trust field, none of Plainva's own names. Nothing is
+ * created; "Create" on the draft's card is the user's step.
+ */
+async function createEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
+  // A database the rules keep from this recipient is answered like one that is not there.
+  const base = await ctx.readAllowed(a.base);
+  if (!base || !/\.base$/i.test(base.path)) return refuse("no-base");
+  const title = noteNameOf(typeof a.title === "string" ? a.title : "");
+  if (!title) return refuse(typeof a.title === "string" && a.title.trim() ? "bad-name" : "no-title");
+  const place = await deps.entryPlace(base.path).catch(() => null);
+  if (!place) return refuse("no-entry-folder");
+  // So is the folder its entries lie in: an entry would be a note there.
+  if (!(await ctx.allowed(capturedNotePath(place.folder, title), ""))) return refuse("no-base");
+
+  const given = a.properties && typeof a.properties === "object" && !Array.isArray(a.properties) ? Object.entries(a.properties as Record<string, unknown>) : [];
+  if (given.length > WRITE_DRAFT_LIMITS.properties) return refuse("too-many");
+  const known = run.userTexts();
+  let defused = 0;
+  const inert = <T>(item: T): T => {
+    if (typeof item !== "string") return item;
+    const linted = defuseNewAddresses(item, known);
+    defused += linted.defused;
+    return linted.text as T;
+  };
+  const properties: Record<string, PropertyValue> = {};
+  for (const [key, raw] of given) {
+    // A draft says what the entry would have; a property it should not have is simply not named.
+    if (raw === null || raw === undefined) return refuse("bad-property");
+    const value: PropertyValue = Array.isArray(raw) ? (raw as (string | number | boolean)[]).map(inert) : inert(raw as string | number | boolean);
+    const target = propertyTarget("", key, value);
+    if (target.class === "trust") return refuse("trust");
+    if (target.class === "reserved" || target.class === "rules") return refuse("reserved");
+    if (target.class !== "plain") return refuse("bad-property");
+    properties[target.path[0]!] = value;
+  }
+  const drafted = draftedText(typeof a.content === "string" ? a.content : "", run);
+  if (!drafted) return refuse("frontmatter");
+  const left = await run.draft({ title, body: { kind: "entry", base: base.path, properties, content: drafted.text }, defused: defused + drafted.defused });
+  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
+  run.writes.drafts.push({ id: left.id, kind: "entry", title });
+  return said(WRITE_RESULTS.drafted(`an entry "${title}" of the database ${base.path}`, defused + drafted.defused));
+}
+
 const clockOf = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 /** A task's priority in words: 1 is the most important (`TaskPriority`). */
 const PRIORITY_WORDS = ["", "high", "medium", "low"] as const;
@@ -479,6 +534,8 @@ export async function writeToolOutcome(deps: VaultWriteDeps | undefined, run: Wr
         return await setProperty(deps, run, a, ctx);
       case "create_note":
         return await createNote(deps, run, a, ctx);
+      case "create_entry":
+        return await createEntry(deps, run, a, ctx);
       case "create_task":
         return await createTask(deps, run, a, ctx);
       case "add_journal_entry":

@@ -5,6 +5,7 @@ import {
   captureVocabularyOf,
   createTaskInDatabase,
   dailyNotePathFor,
+  entryPlaceOf,
   flushPendingSave,
   machineProposals,
   noteDisplayName,
@@ -41,6 +42,10 @@ import { vaultOps, type MobileVault } from "../vaultService";
 
 const vocabulary = () => captureVocabularyOf((key) => i18n.t(key), i18n.language);
 const inboxFolder = () => getMobileSettings().inboxFolder.trim() || (profileDefault<string>("inboxFolder") ?? "Inbox");
+
+/** Where a new entry of a database goes and what it carries, decided as the database's own "Entry" decides it. */
+const entryPlaceIn = (vault: MobileVault) => async (base: string) =>
+  entryPlaceOf(await vaultOps.read(vault, base).catch(() => null), getMobileSettings().defaultNoteType);
 
 /** A day key as the middle of that day: the daily note of a day does not depend on the hour. */
 function dayAtNoon(day: string): Date | null {
@@ -103,6 +108,7 @@ export function mobileWriteDeps(vault: MobileVault, query: VaultQueryService, re
       await vaultOps.save(vault, path, next);
       return true;
     },
+    entryPlace: entryPlaceIn(vault),
   };
 }
 
@@ -147,6 +153,7 @@ export function mobileDraftCreator(vault: MobileVault, policy: VaultPolicyHost):
       return created.notePath;
     },
     journal,
+    entryPlace: entryPlaceIn(vault),
     async placeDenies(folder, stem) {
       const effective = await policy.policyOf(capturedNotePath(folder ?? inboxFolder(), stem), "");
       return AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny");

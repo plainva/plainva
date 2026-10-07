@@ -41,7 +41,7 @@ A test run never uses the internet, and it never asks: mail it was not allowed t
 
 ## Proposing changes
 
-A skill of your own proposes changes only when its `allowed-tools` line names the tools for it: `propose_edit` and `set_property` for suggestions on a note's text and on its properties, `create_note`, `create_task` and `add_journal_entry` for drafts, `rename_note`, `move_note` and `delete_note` for plans. **Review and approve** then names each of them and says **May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.** A skill that names no tools proposes nothing — one you approved earlier gains nothing either — and a test run leaves nothing behind. What the three forms are: **Proposing changes** in [AI Assistant](AI_Assistant.md).
+A skill of your own proposes changes only when its `allowed-tools` line names the tools for it: `propose_edit` and `set_property` for suggestions on a note's text and on its properties, `create_note`, `create_entry`, `create_task` and `add_journal_entry` for drafts, `rename_note`, `move_note` and `delete_note` for plans. **Review and approve** then names each of them and says **May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.** A skill that names no tools proposes nothing — one you approved earlier gains nothing either — and a test run leaves nothing behind. What the three forms are: **Proposing changes** in [AI Assistant](AI_Assistant.md).
 
 ## Your own skills
 

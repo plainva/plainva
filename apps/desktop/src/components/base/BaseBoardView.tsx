@@ -367,6 +367,11 @@ export function BaseBoardView({
                     data-tip={row['file.name']}
                     style={{ fontWeight: 500, fontSize: "var(--text-md)", marginBottom: "0.5rem", cursor: "pointer", color: "var(--text-main)", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
                   >{row['file.name']}</div>
+                  {/* What a card is grouped by is where it lies, not a line on it —
+                      so a value proposed for that property is named here, with the
+                      property's name (AI harness P5-4). */}
+                  {cells.renderStructureProposal(row, boardGroupBy)}
+                  {cells.renderStructureProposal(row, boardLaneBy)}
                   {/* The note's own checklist (issue #83, P4): progress from the
                       index, the lines on demand. Not a column row — a card shows it
                       whenever the note has one. */}

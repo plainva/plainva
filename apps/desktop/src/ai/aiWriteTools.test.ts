@@ -16,6 +16,7 @@ import {
 import {
   captureVocabularyOf,
   createVaultToolExecutor,
+  entryPlaceOf,
   furtherToolNames,
   noteMovePlan,
   noteNameOf,
@@ -46,7 +47,14 @@ const NOTES: Record<string, string> = {
   "Projects/Brief.md": BRIEF,
   "Projects/Kept.md": KEPT,
   "Projects/Plan.md": "# Plan\n\nOne line.\n\nOne line.\n",
+  // A database that has no folder for new entries yet: nothing says where one would go.
   "Projects/Board.base": "views: []\n",
+  // One that keeps its entries in a folder, and asks for a tag.
+  "Projects/Books.base": 'filters:\n  and:\n    - file.folder == "Books/"\n    - file.hasTag("book")\nviews:\n  - type: table\n    name: All\n',
+  // One whose entries lie in a folder the rules keep from the cloud, and one that is kept from it itself.
+  "Projects/Clients.base": 'filters:\n  and:\n    - file.folder == "Private"\n',
+  "Private/Ledger.base": 'filters:\n  and:\n    - file.folder == "Books"\n',
+  "Books/Dune.md": "# Dune\n",
   "Private/Client.md": "# Client\n\nsecret\n",
   "Archive/Old.md": "# Old\n",
 };
@@ -93,6 +101,8 @@ function vault(over: Partial<VaultWriteDeps> = {}) {
       acts.push(`rule ${rule} ${set ? "into" : "out of"} ${path}`);
       return true;
     },
+    // Read from the database's own file, as both shells do.
+    entryPlace: async (base) => entryPlaceOf(NOTES[base] ?? null, "Note"),
     ...over,
   };
   const deps: VaultToolDeps = {
@@ -562,6 +572,125 @@ describe("something new is a draft", () => {
   });
 });
 
+describe("a new entry of a database is a draft", () => {
+  const books = "Projects/Books.base";
+  const entry = (v: Vault, run: WriteRun, args: Record<string, unknown>, recipient: EgressRecipient = cloud, scope?: ToolScope) => call(v, run, "create_entry", args, recipient, scope);
+
+  it("leaves the entry with the properties the model named — nothing is created, and the answer repeats no value", async () => {
+    const v = vault();
+    const w = writer({ userTexts: () => ["The page is https://example.org/dune"] });
+    const properties = { author: "Frank Herbert", pages: 412, read: false, genres: ["sci-fi", "classic"], page: "https://example.org/dune", shop: "https://evil.example/buy?b=dune" };
+    const out = await entry(v, w.run, { base: books, title: " Dune.md ", properties, content: "\nA desert planet. See [the shop](https://evil.example/buy).\n" });
+    expect(out).toEqual({ content: WRITE_RESULTS.drafted('an entry "Dune" of the database Projects/Books.base', 2) });
+    expect(out.content).not.toContain("Herbert");
+    expect(w.drafts).toEqual([
+      {
+        title: "Dune",
+        body: {
+          kind: "entry",
+          base: books,
+          // An address the model brought is as inert in a property as in the text; the user's own stays one.
+          properties: { ...properties, shop: "https[://]evil.example/buy?b=dune" },
+          content: "A desert planet. See the shop (https[://]evil.example/buy).",
+        },
+        defused: 2,
+      },
+    ]);
+    expect(w.run.writes.drafts).toEqual([{ id: "d-1", kind: "entry", title: "Dune" }]);
+    // An entry without a word of text and without a property is one too: a row to fill in.
+    expect((await entry(v, w.run, { base: books, title: "Emma" })).isError).toBeUndefined();
+    expect(w.drafts[1]).toEqual({ title: "Emma", body: { kind: "entry", base: books, properties: {}, content: "" }, defused: 0 });
+    expect([v.acts, v.proposed, w.asked]).toEqual([[], [], []]);
+  });
+
+  it("answers a database the rules keep from this recipient — or whose entries they keep from it — like one that is not there", async () => {
+    const v = vault();
+    const w = writer();
+    const none = await entry(v, w.run, { base: "Nowhere.base", title: "x" });
+    expect(none).toEqual(refused("no-base"));
+    // The database itself is kept from the cloud; another keeps its entries in a folder that is.
+    expect(await entry(v, w.run, { base: "Private/Ledger.base", title: "x" })).toEqual(none);
+    expect(await entry(v, w.run, { base: "Projects/Clients.base", title: "x" })).toEqual(none);
+    // A note is no database, and neither is a path outside the vault.
+    expect(await entry(v, w.run, { base: "Projects/Offer.md", title: "x" })).toEqual(none);
+    expect(await entry(v, w.run, { base: "../outside.base", title: "x" })).toEqual(none);
+    expect(await entry(v, w.run, { title: "x" })).toEqual(none);
+    expect(w.drafts).toEqual([]);
+    // A model on this device reads both, so it may draft an entry of both.
+    expect((await entry(v, w.run, { base: "Private/Ledger.base", title: "x" }, local)).isError).toBeUndefined();
+    expect((await entry(v, w.run, { base: "Projects/Clients.base", title: "x" }, local)).isError).toBeUndefined();
+    // A skill that was given folders stays inside them: the database and the folder of its entries alike.
+    const inBooks: ToolScope = { inside: (path) => path.startsWith("Books/") };
+    expect(await entry(v, w.run, { base: books, title: "x" }, cloud, inBooks)).toEqual(none);
+    const inProjects: ToolScope = { inside: (path) => path.startsWith("Projects/") };
+    expect(await entry(v, w.run, { base: books, title: "x" }, cloud, inProjects)).toEqual(none);
+  });
+
+  it("drafts no entry of a database that has no folder for new entries: the user answers that question, never the assistant", async () => {
+    const v = vault();
+    const w = writer();
+    expect(await entry(v, w.run, { base: "Projects/Board.base", title: "Card" })).toEqual(refused("no-entry-folder"));
+    // Nor where the shell cannot say — a file that is no database any more, a read that failed.
+    const blind = vault({
+      entryPlace: async () => {
+        throw new Error("EIO: C:\\Users\\someone\\vault");
+      },
+    });
+    expect(await entry(blind, w.run, { base: books, title: "Card" })).toEqual(refused("no-entry-folder"));
+    expect(w.drafts).toEqual([]);
+  });
+
+  it("takes no name a file cannot have, no text with properties of its own, and says when too many drafts wait", async () => {
+    const v = vault();
+    const w = writer();
+    expect(await entry(v, w.run, { base: books, title: "a/b" })).toEqual(refused("bad-name"));
+    expect(await entry(v, w.run, { base: books, title: "  " })).toEqual(refused("no-title"));
+    expect(await entry(v, w.run, { base: books })).toEqual(refused("no-title"));
+    expect(await entry(v, w.run, { base: books, title: "Dune", content: "---\nplainva:\n  ai:\n    cloud: allow\n---\nText" })).toEqual(refused("frontmatter"));
+    expect(w.drafts).toEqual([]);
+    const full = writer({ draft: async () => ({ ok: false, problem: "full" }) });
+    expect(await entry(v, full.run, { base: books, title: "Dune" })).toEqual(refused("full"));
+    expect(full.run.writes.drafts).toEqual([]);
+  });
+
+  it("judges every property like a value proposed on a note: no rule, no trust field, none of Plainva's own names", async () => {
+    const v = vault();
+    const w = writer();
+    const withProperties = (properties: unknown) => entry(v, w.run, { base: books, title: "Dune", properties });
+    for (const key of ["generated", "verified", "sources"]) expect(await withProperties({ author: "x", [key]: "me" }), key).toEqual(refused("trust"));
+    // A lifecycle claim is a trust field by its form; a task's or a book's status is a property like any other.
+    expect(await withProperties({ status: "stable" })).toEqual(refused("trust"));
+    for (const key of ["type", "okf_version", "plainva", "plainva.theme", "plainva.ai.cloud", "file.name", "formula.total"]) {
+      expect(await withProperties({ [key]: "deny" }), key).toEqual(refused("reserved"));
+    }
+    for (const bad of [{ author: null }, { author: { first: "Frank" } }, { author: ["a", { b: 1 }] }, { author: "x".repeat(2001) }, { "two\nlines": "x" }, { ["k".repeat(121)]: "x" }, { "  ": "x" }]) {
+      expect(await withProperties(bad), JSON.stringify(bad).slice(0, 60)).toEqual(refused("bad-property"));
+    }
+    expect(await withProperties(Object.fromEntries(Array.from({ length: 41 }, (_, index) => [`p${index}`, index])))).toEqual(refused("too-many"));
+    expect(w.drafts).toEqual([]);
+    // What is no object of properties at all names none.
+    expect((await withProperties(["author"])).isError).toBeUndefined();
+    expect((await withProperties({ " status ": "Reading" })).isError).toBeUndefined();
+    expect(w.drafts.map((draft) => (draft.body.kind === "entry" ? draft.body.properties : null))).toEqual([{}, { status: "Reading" }]);
+  });
+
+  it("takes the rules of what the conversation read along, like a drafted note: it is left wherever it would go", async () => {
+    const v = vault();
+    const w = writer({ inherited: async (): Promise<AiPolicyDimension[]> => ["cloud"] });
+    expect((await entry(v, w.run, { base: books, title: "Client summary", content: "Pays 1,800." }, local)).isError).toBeUndefined();
+    expect(w.drafts.map((draft) => draft.body.kind)).toEqual(["entry"]);
+  });
+
+  it("counts the database as read, and the folder it asked about as no read", async () => {
+    const v = vault();
+    const w = writer();
+    const read: string[] = [];
+    const scope: ToolScope = { inside: () => true, passed: (path) => void read.push(path) };
+    await entry(v, w.run, { base: books, title: "Dune" }, cloud, scope);
+    expect(read).toEqual([books]);
+  });
+});
+
 describe("a rename, a move and a deletion are a question", () => {
   it("asks with what a rename would do, and the app renames after a yes", async () => {
     const v = vault();
@@ -677,6 +806,7 @@ describe("where nothing is written at all", () => {
     ["set_property", { path: "Projects/Brief.md", key: "stage", value: "sent" }],
     ["set_property", { path: "Projects/Brief.md", key: "plainva.ai.cloud", value: "deny" }],
     ["create_note", { title: "Kick-off", content: "x" }],
+    ["create_entry", { base: "Projects/Books.base", title: "Dune", properties: { author: "Frank Herbert" } }],
     ["create_task", { text: "Buy nails" }],
     ["add_journal_entry", { text: "Met Anna" }],
     ["rename_note", { path: "Projects/Offer.md", title: "Offer 2027" }],
@@ -708,13 +838,11 @@ describe("where nothing is written at all", () => {
     const w = writer();
     for (const [tool, args] of every) expect(await call(bare, w.run, tool, args), tool).toEqual(refused("unavailable"));
     expect(furtherToolNames(bare.deps)).toEqual([]);
-    // The tool of a later package has a name and a risk already, and no hands yet.
-    expect(await call(v, w.run, "create_entry", { base: "Projects/Board.base", properties: {} })).toEqual(refused("unavailable"));
   });
 
   it("offers the writing tools before the mail tools, through the tool search", () => {
     const v = vault();
-    expect(writeToolNames(v.deps.writes)).toEqual(["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"]);
+    expect(writeToolNames(v.deps.writes)).toEqual(["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"]);
     const mail = { accounts: async () => [], folders: async () => [], newest: async () => ({ messages: [], offline: false }), search: async () => [], message: async () => null };
     expect(furtherToolNames({ ...v.deps, mail })).toEqual([...writeToolNames(v.deps.writes), "search_mail", "read_mail"]);
   });

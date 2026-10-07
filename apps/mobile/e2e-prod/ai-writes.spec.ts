@@ -320,3 +320,156 @@ test("AI writes a property: the sheet shows the property and its values, and acc
   await expect.poll(() => readVaultFile(page, "Brief.md"), { timeout: 10_000 }).toBe("---\nstage: sent\nowner: Anna\neffort: 3\n---\n# Brief\n\nA very short brief.\n");
   await expect(sheet.getByRole("button", { name: /^Accept$/ })).toHaveCount(0);
 });
+
+/**
+ * The database, on the phone (AI harness P5-4). A value an assistant proposes
+ * for an entry is a suggestion at that entry's note, so it reaches this phone
+ * with the vault's comment files — here in the file of another device, as a run
+ * on the desktop leaves it. The database shows it in the cell of the entry and
+ * the property; a tap on the cell opens its sheet with the proposal on top, and
+ * the line above the rows decides everything the view shows.
+ *
+ * A new entry is a draft like every new thing: it waits on this phone, and
+ * "Create" writes the note into the folder the database keeps its entries in.
+ */
+const CLIENTS: Record<string, string> = {
+  "Clients/Hafenkante.md": "---\ncity: Hamburg\n---\n# Studio Hafenkante\n",
+  "Clients/Vogt.md": "---\ncity: Luebeck\nindustry: Health\n---\n# Praxis Vogt\n",
+  "Clients/Werft.md": "---\ncity: Kiel\n---\n# Werft 7\n",
+};
+const CUSTOMERS = 'filters:\n  and:\n    - file.folder == "Clients"\nviews:\n  - type: table\n    name: Table\n    order:\n      - file.name\n      - note.industry\n      - note.city\n';
+const cellProposal = (id: string, path: string, anchor: Record<string, unknown>, replacement: string, second: number) => ({
+  commentId: id, path, parentCommentId: null, resolvedCommentId: null, suggestionOutcome: null,
+  // Each value is a round of its own: proposed for another note.
+  suggestionBatchId: id, batchIndex: 0, batchNote: null, authorDeviceId: "laptop-1", authorId: AUTHOR.id,
+  body: "", anchor, suggestion: { replacement }, createdAt: `2026-10-07T10:00:0${second}.000Z`,
+});
+/** A property the note does not have: an entry in front of the line that closes its properties. */
+const addedValue = (id: string, marker: string, path: string, entry: string, second: number) => {
+  const text = CLIENTS[path]!;
+  const close = text.indexOf("---\n", 4);
+  return cellProposal(id, path, { markerId: marker, quote: "", before: text.slice(Math.max(0, close - 40), close), after: text.slice(close, close + 40), approximateOffset: close }, `${entry}\n`, second);
+};
+/** A value that changes: the property's entry as it stands, with the hint that says which property. */
+const changedValue = (id: string, marker: string, path: string, key: string, from: string, to: string, second: number) => {
+  const text = CLIENTS[path]!;
+  const start = text.indexOf(from);
+  const end = start + from.length;
+  return cellProposal(id, path, { markerId: marker, quote: from, before: text.slice(Math.max(0, start - 40), start), after: text.slice(end, end + 40), approximateOffset: start, display: { kind: "property", key } }, to, second);
+};
+const CELL_PROPOSALS = {
+  format: "plainva-comments",
+  version: 1,
+  updatedAt: "2026-10-07T10:00:03.000Z",
+  comments: {
+    [hex("d1")]: addedValue(hex("d1"), "7f41", "Clients/Hafenkante.md", "industry: Film", 1),
+    [hex("d2")]: changedValue(hex("d2"), "7f42", "Clients/Vogt.md", "industry", "industry: Health", "industry: Medicine", 2),
+    [hex("d3")]: addedValue(hex("d3"), "7f43", "Clients/Werft.md", "industry: Crafts", 3),
+  },
+  authors: { [AUTHOR.id]: { name: AUTHOR.label, updatedAt: "2026-10-07T10:00:00.000Z" } },
+};
+const ENTRY_DRAFTS = {
+  version: 1,
+  drafts: [draft("d-000009", "Werft 9", { kind: "entry", base: "Customers.base", properties: { industry: "Crafts", city: "Kiel" }, content: "Boats." })],
+  done: [],
+};
+
+test("AI writes into a database: a proposed value stands in its cell, the cell's sheet decides it, and a new entry is a draft", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const sql = await installSqlBridge(context);
+  try {
+    await page.addLocatorHandler(page.getByTestId("whats-new-sheet"), async () => page.getByTestId("whats-new-close").click());
+    await context.addInitScript(() => {
+      localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
+      localStorage.setItem("CapacitorStorage.ai", JSON.stringify({ enabled: true, providers: ["anthropic"], profiles: { balanced: { providerId: "anthropic", model: "m-1" } } }));
+    });
+    await page.goto("/");
+    await waitForVaultDirectory(page);
+    await page.evaluate(
+      async ({ notes, base, proposals }) => {
+        const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
+        for (const [path, data] of Object.entries(notes)) await fs.writeFile({ path: `vault/${path}`, data, directory: "DATA", encoding: "utf8", recursive: true });
+        await fs.writeFile({ path: "vault/Customers.base", data: base, directory: "DATA", encoding: "utf8", recursive: true });
+        await fs.writeFile({ path: "vault/.plainva/sync/comments.laptop-1.json", data: JSON.stringify(proposals), directory: "DATA", encoding: "utf8", recursive: true });
+      },
+      { notes: CLIENTS, base: CUSTOMERS, proposals: CELL_PROPOSALS },
+    );
+    await page.reload();
+    await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
+
+    // The drafted entry waits in the app's data on this phone (the folder is made with the vault's first AI setting).
+    await page.getByTestId("nav-settings").first().click();
+    await page.getByTestId("settings-area-aiVault").click();
+    await page.getByRole("switch", { name: "The AI may use the internet in this vault" }).click();
+    await expect.poll(() => aiVaults(page)).toHaveLength(1);
+    const [vault] = await aiVaults(page);
+    await page.evaluate(
+      async ({ vault, drafts }) => {
+        const fs = (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem;
+        await fs.writeFile({ path: `ai/${vault}/drafts.json`, data: JSON.stringify(drafts), directory: "DATA", encoding: "utf8", recursive: true });
+      },
+      { vault, drafts: ENTRY_DRAFTS },
+    );
+
+    // 1. In the database each proposed value stands in the cell of its entry and its property; the line above counts them.
+    await toList(page);
+    await page.getByText(/^Customers$/).first().click();
+    const bar = page.getByTestId("base-proposed-bar");
+    await expect(bar).toContainText("3 suggested values in this view", { timeout: 20_000 });
+    const row = (name: string) => page.locator(`tr[data-row-title="${name}"]`);
+    const chip = (name: string) => row(name).getByTestId("cell-proposed-industry");
+    await expect(chip("Hafenkante")).toHaveText("Film");
+    await expect(chip("Werft")).toHaveText("Crafts");
+    // A cell that says something keeps saying it: the proposal stands beside it.
+    await expect(chip("Vogt")).toHaveText("Medicine");
+    await expect(row("Vogt")).toContainText("Health");
+    // The proposal is in the cell, so the cell does not count it among its remarks as well.
+    await expect(page.getByTestId("cell-comments-industry")).toHaveCount(0);
+    for (const [path, text] of Object.entries(CLIENTS)) expect(await readVaultFile(page, path)).toBe(text);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-base-cells-mobile.png") });
+
+    // 2. A tap on the cell opens its sheet with the proposal on top: who proposed it, the value, and the two answers.
+    await chip("Hafenkante").click();
+    const proposal = page.getByTestId("cell-proposal");
+    await expect(proposal.getByTestId("cell-proposal-by")).toHaveText("Suggested by Plainva AI · m-1");
+    await expect(proposal.locator('[data-testid="comment-diff"] ins')).toHaveText("Film");
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-base-sheet-mobile.png") });
+    await proposal.getByTestId("cell-proposal-accept").click();
+    await expect.poll(() => readVaultFile(page, "Clients/Hafenkante.md"), { timeout: 10_000 }).toBe("---\ncity: Hamburg\nindustry: Film\n---\n# Studio Hafenkante\n");
+    await expect(chip("Hafenkante")).toHaveCount(0);
+    await expect(row("Hafenkante")).toContainText("Film");
+    await expect(bar).toContainText("2 suggested values in this view");
+
+    // 3. Declining writes nothing into the note.
+    await chip("Vogt").click();
+    await expect(page.getByTestId("cell-proposal").locator('[data-testid="comment-diff"] del')).toHaveText("Health");
+    await page.getByTestId("cell-proposal-decline").click();
+    await expect(chip("Vogt")).toHaveCount(0);
+    expect(await readVaultFile(page, "Clients/Vogt.md")).toBe(CLIENTS["Clients/Vogt.md"]);
+
+    // 4. "Apply all" decides what the view still shows, and the line goes with the last proposal.
+    await bar.getByTestId("base-proposed-accept-all").click();
+    await expect.poll(() => readVaultFile(page, "Clients/Werft.md"), { timeout: 10_000 }).toBe("---\ncity: Kiel\nindustry: Crafts\n---\n# Werft 7\n");
+    await expect(bar).toHaveCount(0);
+
+    // 5. The drafted entry says which database it is for and what it would have; "Create" writes it into that
+    //    database's folder.
+    await toHistory(page);
+    await page.getByTestId("ai-history-waiting").click();
+    const card = page.getByTestId("ai-open").locator('[data-testid="ai-draft"][data-kind="entry"]');
+    await expect(card.getByTestId("ai-draft-title")).toHaveText("Werft 9");
+    await expect(card.getByTestId("ai-draft-base")).toHaveText("Customers");
+    await expect(card.getByTestId("ai-draft-property")).toHaveText(["Crafts", "Kiel"]);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-base-draft-mobile.png") });
+    await card.getByTestId("ai-draft-create").click();
+    await expect.poll(() => readVaultFile(page, "Clients/Werft 9.md"), { timeout: 10_000 }).not.toBeNull();
+    const made = (await readVaultFile(page, "Clients/Werft 9.md"))!;
+    expect(made).toContain("industry: Crafts");
+    expect(made).toContain("city: Kiel");
+    expect(made).toMatch(/generated:\s*\n\s+by: "?plainva-ai\/m-1/);
+    expect(made).toContain("# Werft 9\n\nBoats.\n");
+    expect((await storedDrafts(page, vault!)).done).toMatchObject([{ id: "d-000009", outcome: "created" }]);
+  } finally {
+    await sql.close();
+  }
+});

@@ -1663,6 +1663,14 @@ button.pv-searchfield--button:hover { background: var(--state-hover); }
   border-color: transparent;
   color: var(--warning-text);
 }
+/* A value somebody proposes and nobody accepted yet (AI harness P5-4: a cell
+   of a database). Tinted like an insertion — the --success trio every
+   suggestion's <ins> uses —, because accepting it inserts it. Its counterpart
+   is the value a proposal would take away: the --error trio and a stroke, like
+   a suggestion's <del>. The stroke sits on the label, the one part of a chip
+   that carries text (its rule stands behind the label's own, below). */
+.pv-chip--proposed { background: var(--success-bg); border-color: var(--success-border); color: var(--success-text); }
+.pv-chip--removal { background: var(--error-bg); border-color: var(--error-border); color: var(--error-text); }
 button.pv-chip { cursor: pointer; font-family: var(--font-ui); }
 button.pv-chip:hover { background: var(--state-hover); }
 .pv-chip.is-on {
@@ -1693,6 +1701,8 @@ button.pv-chip:hover { background: var(--state-hover); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The value a proposal would take away is struck through, like a suggestion's <del>. */
+.pv-chip--removal > .pv-chip-text { text-decoration: line-through; text-decoration-thickness: 1px; }
 .pv-chip-x {
   display: inline-flex;
   align-items: center;

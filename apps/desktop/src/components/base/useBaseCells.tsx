@@ -4,7 +4,7 @@ import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { upsertFrontmatterKeys, wikiTargetForPath, trimEndChars } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { Button, chipClass, inferType, propertyFolder, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
+import { Button, chipClass, inferType, isEmptyPropertyValue, propertyFolder, ProposedValueChip, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat, type ProposedCell } from "@plainva/ui";
 import { PlainInput, SelectChip } from "../PropertyValues";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
 import { CustomDatePicker } from "../DatePicker";
@@ -31,6 +31,8 @@ export function useBaseCells({
   dateFormat = "default",
   commentedProperties,
   onOpenPropertyComments,
+  proposedCells,
+  onOpenProposedCell,
 }: {
   dbConfig: any;
   dbData: any[];
@@ -62,6 +64,14 @@ export function useBaseCells({
    * stands for and how this database opens an entry.
    */
   onOpenPropertyComments?: (path: string, col: string) => void;
+  /**
+   * Cells that carry a proposed value, by note path and column key (plan
+   * KI-Harness P5-4). The host reads them from the notes' suggestions once for
+   * the whole database; the cell layer draws the chip.
+   */
+  proposedCells?: ReadonlyMap<string, ReadonlyMap<string, ProposedCell>>;
+  /** A click on a proposed value: the host opens the decision at the chip. Without it the chip only shows. */
+  onOpenProposedCell?: (cell: ProposedCell, anchor: HTMLElement) => void;
 }) {
   const { t, i18n } = useTranslation();
   const { vaultAdapter, queryService, vaultPath, indexer, fileTreeVersion, triggerFileTreeUpdate } = useVault();
@@ -541,6 +551,42 @@ export function useBaseCells({
     return { displayVal, isMissing: false };
   };
 
+  // The proposed value of one entry's property (plan KI-Harness P5-4), or
+  // nothing. The chip stops its own clicks, so whatever lies underneath — a
+  // cell that would start editing, a card that would open — stays where it is;
+  // the decision is the host's.
+  const renderProposedChip = (path: string, col: string, val: unknown, beside: boolean): React.ReactNode => {
+    const proposed = proposedCells?.get(path)?.get(col);
+    if (!proposed) return null;
+    return (
+      <span className={beside ? "base-cell-proposed base-cell-proposed--beside" : "base-cell-proposed"} onDoubleClick={(e) => e.stopPropagation()} onContextMenu={(e) => e.stopPropagation()}>
+        <ProposedValueChip
+          cell={proposed}
+          current={val}
+          column={{ label: columnLabel(col), input: getColumnInput(col), options: getColumnOptions(col), dateFormat, language: i18n.language }}
+          onOpen={onOpenProposedCell ? (anchor) => onOpenProposedCell(proposed, anchor) : undefined}
+        />
+      </span>
+    );
+  };
+
+  /**
+   * A value proposed for a property a view shows as STRUCTURE, not as a cell
+   * — what a board groups its cards by. Where a card lies says that value; a
+   * proposal for it has no cell to stand in, so the card names it in a line
+   * of its own, with the property's name.
+   */
+  const renderStructureProposal = (row: any, col: string | null | undefined): React.ReactNode => {
+    if (!col) return null;
+    const chip = renderProposedChip(row['file.path'], col, row[col], false);
+    return chip ? (
+      <div key={col} className="base-card-proposed" data-testid={`card-proposed-${col}`}>
+        <span className="base-card-proposed-label">{columnLabel(col)}</span>
+        {chip}
+      </div>
+    ) : null;
+  };
+
   const renderEditableCell = (row: any, col: string, val: any, displayVal: React.ReactNode) => {
     const path = row['file.path'];
     const isEditing = editingCell?.path === path && editingCell?.col === col;
@@ -552,18 +598,24 @@ export function useBaseCells({
     const input = cellInput(col, val);
     // Checkboxes toggle on click; they have no separate edit mode.
     const isCheckbox = input === 'checkbox' || typeof val === 'boolean';
+    // A value somebody proposes for THIS cell (plan KI-Harness P5-4): shown
+    // beside what the cell says now — or in its place, where it says nothing.
+    const proposedChip = isReadOnly ? null : renderProposedChip(path, col, val, !isEmptyPropertyValue(val));
     // Neither does a rating: opening an editor to press one of five dots would
     // be a detour, so the marks are pressed where they stand.
     if (input === 'rating' && !isReadOnly) {
       const schema = getColumnSchema(col);
       return (
-        <Rating
-          glyph={schema?.ratingGlyph}
-          label={columnLabel(col)}
-          max={schema?.ratingMax}
-          onChange={(next) => void handleCellSave(path, col, next)}
-          value={Number(val) || 0}
-        />
+        <>
+          <Rating
+            glyph={schema?.ratingGlyph}
+            label={columnLabel(col)}
+            max={schema?.ratingMax}
+            onChange={(next) => void handleCellSave(path, col, next)}
+            value={Number(val) || 0}
+          />
+          {proposedChip}
+        </>
       );
     }
 
@@ -721,7 +773,10 @@ export function useBaseCells({
           renderEditor()
         ) : (
           <>
-            {col === 'file.name' ? <span style={{ fontWeight: 500, cursor: "pointer", color: "var(--accent-color)", textDecoration: "underline" }} onClick={(e) => { e.stopPropagation(); onOpenNote?.(path, e); }}>{displayVal}</span> : displayVal}
+            {col === 'file.name' ? <span style={{ fontWeight: 500, cursor: "pointer", color: "var(--accent-color)", textDecoration: "underline" }} onClick={(e) => { e.stopPropagation(); onOpenNote?.(path, e); }}>{displayVal}</span>
+              // A cell that says nothing shows the proposal in place of its dash.
+              : proposedChip && isEmptyPropertyValue(val) ? null : displayVal}
+            {proposedChip}
             {commentDot}
           </>
         )}
@@ -743,6 +798,7 @@ export function useBaseCells({
     renderTypedDisplay,
     formatValueForDisplay,
     renderEditableCell,
+    renderStructureProposal,
     handleCellSave,
     commitCellValue,
   };

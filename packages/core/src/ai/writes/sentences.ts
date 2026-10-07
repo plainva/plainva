@@ -36,6 +36,9 @@ export const WRITE_REFUSALS = {
   // A suggestion is attached to the words around it; a file with nothing in it has none.
   "empty-note": "This note is empty, and a suggestion has to be attached to something that is there. Give the user the text in your answer instead.",
   "no-title": "A title is needed.",
+  // A database the rules keep from this recipient is answered like one that is not there, as a note is.
+  "no-base": "No database is available at this path. query_base reads a database by the path of its .base file.",
+  "no-entry-folder": "This database has no folder for new entries yet. The user chooses one when they create its first entry in Plainva.",
   frontmatter: "Give the note's text without frontmatter.",
   "no-folder": "There is no such folder in the vault.",
   "bad-name": "This is no name a note can have.",

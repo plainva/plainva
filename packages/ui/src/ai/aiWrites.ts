@@ -9,9 +9,13 @@ import {
   type WriteDraft,
   type WriteDraftOutcome,
 } from "@plainva/core";
+import { parseBaseConfig } from "../base/baseFormat";
+import { resolveNewItemTarget } from "../base/baseRelations";
+import { migrateFiltersToPerView } from "../base/filterExpr";
+import { buildNewItemContent } from "../lib/newItemContent";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { generatedStamp } from "../lib/okfProvenance";
-import { withInheritedRules } from "./aiCapture";
+import { capturedFolder, withInheritedRules } from "./aiCapture";
 import type { AiFileStore } from "./aiStores";
 
 /**
@@ -93,6 +97,41 @@ export interface DraftCreator {
   journal(input: { text: string; day: string; time: string; task: boolean }): Promise<string>;
   /** The rules of the place a new note would land in, for what it still has to carry itself. */
   placeDenies?(folder: string | null, stem: string): Promise<readonly AiPolicyDimension[]>;
+  /**
+   * Where a new entry of the database at `base` goes, and what it has to
+   * carry to be one of its entries (plan P5-4): the folder the database keeps
+   * its entries in, the vault's note type, and the tags its source asks for.
+   * Null where the database has no folder for new entries yet. Absent where
+   * the shell has no databases to write to. The entry itself is a note and is
+   * written with `note`.
+   */
+  entryPlace?(base: string): Promise<EntryPlace | null>;
+}
+
+/** What a shell knows about where an entry of a database is made. */
+export interface EntryPlace {
+  folder: string;
+  noteType: string;
+  tags: readonly string[];
+}
+
+/**
+ * Where a new entry of the database whose file reads `raw` goes, decided as
+ * the database's own "New entry" decides it (`resolveNewItemTarget`): the
+ * folder it keeps its entries in, and the tags its source asks for. Null where
+ * the file is no database that can be read, or where the database has no
+ * folder for new entries yet — several sources, or none: the user answers
+ * that with its first entry, and an assistant never answers it for them.
+ */
+export function entryPlaceOf(raw: string | null, noteType: string): EntryPlace | null {
+  if (raw === null) return null;
+  try {
+    const target = resolveNewItemTarget(migrateFiltersToPerView(parseBaseConfig(raw)));
+    if (target.folder === null) return null;
+    return { folder: capturedFolder(target.folder), noteType, tags: target.inheritTags };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -103,6 +142,29 @@ export interface DraftCreator {
 export function draftedNoteContent(draft: WriteDraft, now: Date, rules: readonly AiPolicyDimension[]): string {
   if (draft.body.kind !== "note") throw new Error("not a note draft");
   let content = buildNewNoteContent("Note", draft.title);
+  content = upsertFrontmatterKeys(content, {
+    generated: generatedStamp(draft.author.id, now),
+    ...(draft.sources.length ? { sources: draft.sources } : {}),
+  });
+  content = withInheritedRules(content, rules);
+  const body = draft.body.content.trim();
+  return body ? `${content.trimEnd()}\n\n${body}\n` : content;
+}
+
+/**
+ * The note a drafted entry of a database becomes (plan P5-4): a new entry as
+ * the database's own "New entry" makes one without a template — a heading,
+ * the vault's note type, the tags the database's source asks for —, with the
+ * properties the draft names, the stamp that says who wrote it and what it
+ * rests on, the rules it takes over, and the draft's text.
+ */
+export function draftedEntryContent(draft: WriteDraft, now: Date, rules: readonly AiPolicyDimension[], place: Pick<EntryPlace, "noteType" | "tags">): string {
+  if (draft.body.kind !== "entry") throw new Error("not an entry draft");
+  // The tags the database's source asks for make the note its entry; tags the draft names join them, they never replace them.
+  const { tags: named, ...prefills } = draft.body.properties;
+  const tags = [...place.tags];
+  for (const tag of named === undefined ? [] : Array.isArray(named) ? named.map(String) : [String(named)]) if (tag.trim() && !tags.includes(tag)) tags.push(tag);
+  let content = buildNewItemContent({ templateText: null, noteType: place.noteType, title: draft.title, inheritTags: tags, prefills });
   content = upsertFrontmatterKeys(content, {
     generated: generatedStamp(draft.author.id, now),
     ...(draft.sources.length ? { sources: draft.sources } : {}),

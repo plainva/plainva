@@ -31,6 +31,7 @@ import {
   captureVocabularyOf,
   createVaultToolExecutor,
   createWriteDraftStore,
+  entryPlaceOf,
   furtherToolNames,
   noteMovePlan,
   noteRenamePlan,
@@ -108,9 +109,11 @@ const NOTES: Record<string, string> = {
   "Projects/Offer.md": OFFER,
   "Projects/Brief.md": BRIEF,
   "Private/Client.md": "# Client\n\nPays 1,800 euros.\n",
+  // A database that keeps its entries in a folder and asks for a tag.
+  "Projects/Books.base": 'filters:\n  and:\n    - file.folder == "Books"\n    - file.hasTag("book")\nviews:\n  - type: table\n    name: All\n',
 };
 const rules = parsePolicyFile("folders:\n  Private/:\n    cloud: deny\n").rules;
-const WRITE_TOOLS = ["propose_edit", "set_property", "create_note", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
+const WRITE_TOOLS = ["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry", "rename_note", "move_note", "delete_note"];
 
 interface Made {
   kind: "note" | "task" | "journal";
@@ -127,6 +130,9 @@ interface Made {
 /** A vault whose tools are the real ones, with the writing tools behind them; `skills` are files below `.agent/skills/`. */
 function writeVault(options: { active?: string; skills?: Record<string, string>; sealed?: boolean; creates?: false | "failing"; proposals?: OpenProposal[]; taskList?: string } = {}) {
   const disk = new Map(Object.entries(options.skills ?? {}));
+  // The databases as they are now: a test can change one after a draft was laid down.
+  const bases = new Map(Object.entries(NOTES).filter(([path]) => path.endsWith(".base")));
+  const entryPlace = async (base: string) => entryPlaceOf(bases.get(base) ?? null, "Book");
   const io: InstructionIO = {
     async list(folder) {
       const prefix = `${folder}/`;
@@ -181,6 +187,7 @@ function writeVault(options: { active?: string; skills?: Record<string, string>;
       acts.push(`rule ${rule} ${set ? "into" : "out of"} ${path}`);
       return true;
     },
+    entryPlace,
   };
   const deps: VaultToolDeps = {
     search: async () => [],
@@ -241,6 +248,7 @@ function writeVault(options: { active?: string; skills?: Record<string, string>;
               return `Daily/${input.day}.md`;
             },
             placeDenies: async (folder) => (folder === "Private" ? (["cloud"] as const) : []),
+            entryPlace,
           },
         }),
     proposals: async () => options.proposals ?? [],
@@ -249,7 +257,7 @@ function writeVault(options: { active?: string; skills?: Record<string, string>;
   const approve = async (id: string) => {
     approvals = approveInstruction(approvals, (await scanInstruction(io, id))!, "2026-10-07T09:00:00Z", "review");
   };
-  return { host, saved, proposed, acts, created, files, approve };
+  return { host, saved, proposed, acts, created, files, approve, bases };
 }
 
 const CLOUD = { providerId: "anthropic", model: "m-1" };
@@ -312,7 +320,7 @@ describe("the writing tools of a conversation", () => {
     expect(record.conversation.more).toEqual(WRITE_TOOLS);
     expect(toolNames(fake.sent[0])).toEqual([...CHAT_TOOL_NAMES, "find_tools", "call_tool", "use_skill"]);
     expect(body(fake.sent[0])).toContain(
-      "You can propose: a suggestion on a note that is there (its text or one of its properties), a draft of something new (a note, a task or a journal entry) or a plan to rename, move or delete a note.",
+      "You can propose: a suggestion on a note that is there (its text or one of its properties), a draft of something new (a note, a task, a journal entry or an entry of a database) or a plan to rename, move or delete a note.",
     );
     expect(body(fake.sent[0])).toContain("Further tools exist, for example to propose a change to the vault");
     expect(body(fake.sent[0])).not.toContain(CANNOT);
@@ -519,6 +527,66 @@ describe("a draft of a run", () => {
     expect(second.s.canCreateDrafts()).toBe(false);
     expect(await second.s.createDraft(second.s.getState().drafts.drafts[0]!.id)).toEqual({ kind: "refused", reason: "unavailable" });
     expect(second.s.getState().drafts.drafts).toHaveLength(1);
+  });
+
+  it("makes a drafted entry a note in the database's folder: the tag its source asks for, the properties the draft names, and who wrote it", async () => {
+    const vault = writeVault({ active: "Projects/Offer.md" });
+    const properties = { author: "Frank Herbert", pages: 412, tags: ["sci-fi", "book"] };
+    const { s, fake } = await session(
+      [turn({ calls: [viaDispatch("c1", "create_entry", { base: "Projects/Books.base", title: "Dune", properties, content: "A desert planet." })] }), turn({ text: "Drafted." })],
+      vault,
+    );
+    expect(await s.send("Add Dune to my books.")).toEqual({ kind: "answered" });
+    const record = s.getState().active!;
+    expect(results(record)[0]).toMatchObject({ tool: "create_entry", content: WRITE_RESULTS.drafted('an entry "Dune" of the database Projects/Books.base', 0) });
+    const [draft] = s.getState().drafts.drafts;
+    expect(draft).toMatchObject({
+      title: "Dune",
+      body: { kind: "entry", base: "Projects/Books.base", properties, content: "A desert planet." },
+      // What it rests on are the notes the run read; the database's own file is no source of a note.
+      sources: [{ resource: "Projects/Offer.md" }],
+    });
+    expect(record.runs[0]!.writes).toEqual({ rounds: [], drafts: [{ id: draft!.id, kind: "entry", title: "Dune" }], plans: [] });
+    expect(vault.created).toEqual([]);
+
+    // The database lost its folder before the user got to the draft: nothing is made, and the draft stays.
+    const books = vault.bases.get("Projects/Books.base")!;
+    vault.bases.set("Projects/Books.base", "views: []\n");
+    expect(await s.createDraft(draft!.id)).toEqual({ kind: "refused", reason: "no-entry-folder" });
+    expect(s.getState().drafts).toMatchObject({ drafts: [{ id: draft!.id }], done: [] });
+    vault.bases.set("Projects/Books.base", books);
+
+    const sentBefore = fake.sent.length;
+    expect(await s.createDraft(draft!.id)).toEqual({ kind: "created", path: "Books/Dune.md" });
+    // "Create" is the user's own step here too: no model is asked for anything.
+    expect(fake.sent).toHaveLength(sentBefore);
+    const made = vault.created[0]!;
+    expect(made).toMatchObject({ kind: "note", folder: "Books", stem: "Dune" });
+    // An entry as the database's own "New entry" makes one — the vault's note type, the tag that makes it a member —,
+    // and the tags the draft names join that tag instead of replacing it.
+    expect(readFrontmatterPath(made.content!, ["type"])).toBe("Book");
+    expect(readFrontmatterPath(made.content!, ["tags"])).toEqual(["book", "sci-fi"]);
+    expect(readFrontmatterPath(made.content!, ["author"])).toBe("Frank Herbert");
+    expect(readFrontmatterPath(made.content!, ["pages"])).toBe(412);
+    expect(readFrontmatterPath(made.content!, ["generated", "by"])).toBe("plainva-ai/m-1");
+    expect(readFrontmatterPath(made.content!, ["sources"])).toEqual([{ resource: "Projects/Offer.md" }]);
+    expect(readFrontmatterPath(made.content!, ["plainva"])).toBeUndefined();
+    expect(made.content).toContain("# Dune\n\nA desert planet.\n");
+    expect(s.getState().drafts).toEqual({ drafts: [], done: [{ id: draft!.id, kind: "entry", title: "Dune", outcome: "created", path: "Books/Dune.md", at: "2026-10-07T10:00:00.000Z" }] });
+  });
+
+  it("gives an entry made from a restricted conversation the rules its folder does not have", async () => {
+    const vault = writeVault();
+    const { s } = await session(
+      [chat({ calls: [{ id: "c1", name: "read_note", args: { path: "Private/Client.md" } }] }), chat({ calls: [viaDispatch("c2", "create_entry", { base: "Projects/Books.base", title: "Client reading list" })] }), chat({ text: "Drafted." })],
+      vault,
+      LOCAL,
+    );
+    expect(await s.send("Make a book entry from the client note.")).toEqual({ kind: "answered" });
+    const [draft] = s.getState().drafts.drafts;
+    expect(draft).toMatchObject({ body: { kind: "entry" }, inherited: ["cloud"], sources: [{ resource: "Private/Client.md" }] });
+    expect(await s.createDraft(draft!.id)).toEqual({ kind: "created", path: "Books/Client reading list.md" });
+    expect(readFrontmatterPath(vault.created[0]!.content!, ["plainva", "ai", "cloud"])).toBe("deny");
   });
 });
 

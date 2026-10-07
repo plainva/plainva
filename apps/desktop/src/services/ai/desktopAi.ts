@@ -22,6 +22,7 @@ import {
   createMcpDeviceStore,
   createVaultPolicy,
   databaseTaskRows,
+  entryPlaceOf,
   flushPendingSave,
   getPlatformServices,
   journalToday,
@@ -49,6 +50,7 @@ import { requestCascadeDelete } from "../cascadeDelete";
 import { inboxFolderKey, journalMoodPropertyKey } from "../../contexts/VaultContext";
 import { buildDailyNotePath, readDailyNoteConfig } from "../dailyNotes";
 import { readEditorSelection } from "../editorSelection";
+import { getConfiguredNoteType } from "../newNote";
 import { getSettingsStore } from "../settingsStore";
 import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
@@ -290,6 +292,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     }
   };
   const writes = input.writes;
+  /** Where a new entry of a database goes and what it carries, decided as the database's own "New entry" decides it. */
+  const entryPlace = async (base: string) => entryPlaceOf(await read(base), await getConfiguredNoteType(input.vaultPath).catch(() => "Note"));
   /** The writing tools (plan P5): the dry runs are read from the index here, the acts are the window's own. */
   const writeDeps: VaultWriteDeps | undefined = writes
     ? {
@@ -346,6 +350,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
           await input.adapter.writeTextFile(path, next);
           return true;
         },
+        entryPlace,
       }
     : undefined;
   /** Checkbox tasks and the task database, as every task view reads them. */
@@ -445,6 +450,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
             task: ({ text, day, atProvider }) => writes.createTask(text, day, atProvider),
             taskList: () => writes.taskList(),
             journal: (entry) => writes.addJournal(entry),
+            entryPlace,
             async placeDenies(folder, stem) {
               const effective = await policy.policyOf(capturedNotePath(folder ?? (await inboxFolder()), stem), "");
               return AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny");

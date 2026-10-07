@@ -52,7 +52,7 @@ import {
 import { reloadActiveMobileVault, reportMoveFailure, vaultOps, type MobileVault } from "../../services/vaultService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
-import { canCommentOnNote, listAllMobileComments } from "../../services/mobileComments";
+import { canCommentOnNote, listAllMobileComments, noteWorkspaceCapabilities } from "../../services/mobileComments";
 import type { WorkspaceCommentRecord } from "@plainva/core";
 import { boardDropValue } from "./boardDrag";
 import { MobileBaseGraph } from "./MobileBaseGraph";
@@ -66,6 +66,8 @@ import { ColumnSummaryRow } from "@plainva/ui";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
 import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
+import { buildProposedCells, decideProposedCells, flushPendingSave, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedCellView, proposedOutcomeWords, ProposedValueChip, ProposedValuesBar, type ProposedCell, type ProposedColumn } from "@plainva/ui";
+import { mobileCommentOperations } from "../../services/commentOperations";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { holdGestureEnd, holdMoved } from "../../lib/holdGesture";
@@ -116,6 +118,10 @@ type Row = Record<string, any>;
 /** Sentinel for the overflow pill — never a view index, so it cannot collide. */
 const MORE_VIEWS = "more-views";
 const MORE_SCALES = "more-scales";
+/** No proposed values: one map for every database that has none, so nothing re-renders over an empty answer. */
+const NO_PROPOSED_CELLS: ReadonlyMap<string, ReadonlyMap<string, ProposedCell>> = new Map();
+/** How many properties a card of the gallery names. */
+const CARD_PROPERTIES = 3;
 
 /**
  * Full .base experience on mobile (R4, E5 "all views"): table/list/cards/
@@ -231,6 +237,7 @@ export function BaseScreen({
   useEffect(() => () => { queryEpoch.next(); }, [vault, path, queryEpoch]);
   const [cellEdit, setCellEdit] = useState<CellEditTarget | null>(null);
   const [cellEditCanComment, setCellEditCanComment] = useState(false);
+  const [cellEditCanWrite, setCellEditCanWrite] = useState(false);
   const [showConfig, setShowConfig] = useState(!!initialConfigOpen);
   const [showExport, setShowExport] = useState(false);
   const [propEdit, setPropEdit] = useState<string | null>(null);
@@ -511,6 +518,15 @@ export function BaseScreen({
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [config, rows]);
 
+  // What a board groups its cards by: the view's own choice, else the select
+  // column called "status", else the first select column. Decided here, once,
+  // for the board itself and for everything that has to name the same
+  // property — the drag, and the values proposed for it (plan KI-Harness P5-4).
+  const boardGroupBy: string | null = useMemo(() => {
+    const isSelect = (col: string) => String(config?.columns?.[col]?.input ?? "") === "select";
+    return view.groupBy ?? columnsPool.find((c) => isSelect(c) && c.toLowerCase() === "status") ?? columnsPool.find(isSelect) ?? null;
+  }, [view, config, columnsPool]);
+
   const columnLabel = useCallback(
     (col: string): string => {
       if (col === "file.tasks") return t("database.colChecklist");
@@ -547,19 +563,50 @@ export function BaseScreen({
     return () => { alive = false; clearTimeout(timer); window.removeEventListener("plainva-workspace-comments-changed", onChanged); };
   }, [vault]);
 
+  // The values somebody proposes for the entries this database shows (plan
+  // KI-Harness P5-4), read from the same comments — the desktop's twin: per
+  // entry and column, the open suggestion that proposes this column's
+  // property. Only where this view shows a CELL for it (`proposalColumns`):
+  // the phone's list names one property per entry and its cards three, a
+  // calendar none — and what the line above the rows counts is what the
+  // reader sees.
+  const proposedColumns = useMemo(() => {
+    const kind = String(view.plainva?.render ?? view.type ?? "table");
+    const render = kind === "cards" || kind === "card" ? "gallery" : kind;
+    const shown = render === "list" ? orderedColumns.slice(0, 1) : render === "gallery" ? orderedColumns.slice(0, CARD_PROPERTIES) : orderedColumns;
+    const laneBy = typeof view.boardLaneBy === "string" && view.boardLaneBy ? view.boardLaneBy : null;
+    return proposalColumns(render, shown, config?.columns, { groupBy: boardGroupBy, laneBy });
+  }, [view, orderedColumns, config, boardGroupBy]);
+  const proposedCells = useMemo(() => {
+    if (noteComments.size === 0 || proposedColumns.length === 0 || !rows) return NO_PROPOSED_CELLS;
+    const rowsByPath = new Map(rows.map((r) => [String(r["file.path"] ?? ""), r]));
+    const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
+    for (const [path, comments] of noteComments) { if (rowsByPath.has(path)) entries.push({ path, comments }); }
+    if (entries.length === 0) return NO_PROPOSED_CELLS;
+    return buildProposedCells(entries, (path) => rowsByPath.get(path), proposedColumns);
+  }, [noteComments, rows, proposedColumns]);
+
   // The anchor names the note's BARE frontmatter key; this database answers with
   // the column carrying it today, following a rename the same way the note's own
-  // context sheet does. Only columns this view shows can take a dot.
+  // context sheet does. Only columns this view shows can take a dot. A proposal
+  // the cell SHOWS is not counted among its remarks as well.
   const commentedProperties = useMemo(() => {
     if (noteComments.size === 0 || orderedColumns.length === 0 || !rows) return new Map<string, Map<string, number>>();
     const rendered = new Set(orderedColumns);
     const shown = new Set(rows.map((r) => String(r["file.path"] ?? "")));
+    const inCells = proposedCellComments(proposedCells);
     const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
-    for (const [path, comments] of noteComments) { if (shown.has(path)) entries.push({ path, comments }); }
+    for (const [path, comments] of noteComments) { if (shown.has(path)) entries.push({ path, comments: inCells.size > 0 ? comments.filter((c) => !inCells.has(c.commentId)) : comments }); }
     if (entries.length === 0) return new Map<string, Map<string, number>>();
     const aliasOf = propertyAliasResolver(config?.columns ? [{ columns: config.columns }] : []);
     return buildPropertyCommentCells(entries, (key) => rendered.has(key), aliasOf);
-  }, [noteComments, rows, orderedColumns, config]);
+  }, [noteComments, rows, orderedColumns, config, proposedCells]);
+
+  /** What "all" means for the line above the rows: the proposed values of the entries and columns this view shows. */
+  const proposedShown = useMemo(
+    () => (proposedCells.size === 0 || !rows ? [] : listProposedCells(proposedCells, rows.map((r) => String(r["file.path"] ?? "")), proposedColumns)),
+    [proposedCells, rows, proposedColumns],
+  );
 
   /**
    * The comment count on a cell. A SPAN, never a button: it rides inside the
@@ -676,8 +723,10 @@ export function BaseScreen({
       return;
     }
     const input = columnInput(col, r[col]);
-    // Checkboxes toggle in place (no sheet).
-    if (input === "checkbox") {
+    // Checkboxes toggle in place (no sheet) — unless a value is proposed for
+    // this one: then the cell leads to its sheet like every other, because that
+    // is where a proposal is decided (plan KI-Harness P5-4).
+    if (input === "checkbox" && !proposedCells.get(rowPath(r))?.has(col)) {
       const next = !(r[col] === true);
       void commitCellValue(vault, rowPath(r), col, next).then(() => requery(config, viewIndex));
       return;
@@ -687,6 +736,14 @@ export function BaseScreen({
     // whether the sheet offers the action at all (finding 2026-09-04).
     setCellEditCanComment(false);
     void canCommentOnNote(vault, rowPath(r)).then(setCellEditCanComment).catch(() => setCellEditCanComment(false));
+    // …and may it write the entry's note? Only asked where a value is proposed
+    // for this cell: accepting it writes the note (plan KI-Harness P5-4).
+    setCellEditCanWrite(false);
+    if (proposedCells.get(rowPath(r))?.has(col)) {
+      void noteWorkspaceCapabilities(vault, rowPath(r))
+        .then((caps) => setCellEditCanWrite(caps === null || caps.includes("content.write")))
+        .catch(() => setCellEditCanWrite(false));
+    }
     setCellEdit({
       notePath: rowPath(r),
       col,
@@ -707,6 +764,59 @@ export function BaseScreen({
       .then(() => requery(config, viewIndex))
       .catch(() => toast.warning(t("mobile.saveRetry")));
   };
+
+  // ── Proposed values (plan KI-Harness P5-4) ──────────────────────────────
+  // A proposed value is a suggestion at its note. The database shows it in
+  // its cell and decides it through the operation the note's own sheet runs —
+  // one decision per note, with its backup, its version and its place in the
+  // sync. Many notes at once ask first, like every bulk change of a database.
+  /** How a column writes its values, for the words of a proposed one. */
+  const proposedColumn = (col: string): ProposedColumn => ({
+    label: columnLabel(col),
+    input: config?.columns?.[col]?.input,
+    options: config?.columns?.[col]?.options,
+    dateFormat: view.dateFormat,
+    language: i18nInstance.language,
+  });
+  /**
+   * The proposed value of a cell. A label, never a button: the cell around it
+   * is what opens — its sheet carries the proposal on top —, and a button in
+   * the button of a card's property would be no control at all (issue #34).
+   */
+  const proposedChip = (r: Row, col: string) => {
+    const cell = proposedCells.get(rowPath(r))?.get(col);
+    return cell ? <ProposedValueChip cell={cell} className={displayCell(col, r[col]) ? "m-prop-proposed" : undefined} column={proposedColumn(col)} current={r[col]} /> : null;
+  };
+  const [proposedBusy, setProposedBusy] = useState(false);
+  const decideProposed = useStableHandler(async (list: readonly ProposedCell[], outcome: "applied" | "declined") => {
+    if (list.length === 0 || proposedBusy) return;
+    const notes = new Set(list.map((cell) => cell.path)).size;
+    if (outcome === "applied" && isLargeBulkChange(notes, (allRows ?? rows ?? []).length)) {
+      const sure = await mConfirm({ title: t("database.proposedAcceptAllTitle"), message: t("database.proposedAcceptAllMsg", { count: list.length, notes }), confirmLabel: t("comments.suggestApplyAll") });
+      if (!sure) return;
+    }
+    setProposedBusy(true);
+    try {
+      const result = await decideProposedCells(
+        {
+          service: mobileCommentOperations(vault),
+          // The editor's pending keystrokes land first: the decision is made against the note as it is.
+          current: async (notePath) => {
+            await flushPendingSave(notePath);
+            return vault.files.readTextFile(notePath).catch(() => null);
+          },
+        },
+        list,
+        outcome,
+      );
+      if (result.decided.length > 0) requery(config, viewIndex);
+      const words = proposedOutcomeWords(t, outcome, result, list.length);
+      if (words.done) toast.success(words.done);
+      if (words.failed) toast.error(words.failed);
+    } finally {
+      setProposedBusy(false);
+    }
+  });
 
   // ── Entry actions (S20; desktop parity with issue #34) ──────────────────
   // Until now a database could only OPEN a note: renaming or deleting an entry
@@ -1118,7 +1228,9 @@ export function BaseScreen({
 
   const propLine = (r: Row, cols: string[], max: number) =>
     cols.slice(0, max).map((c) =>
-      displayCell(c, r[c]) ? (
+      // A card names the properties that say something — and one that says
+      // nothing yet where a value is proposed for it (plan KI-Harness P5-4).
+      displayCell(c, r[c]) || proposedCells.get(rowPath(r))?.has(c) ? (
         <button
           className="pv-card pv-card--flat m-basecard-prop"
           key={c}
@@ -1129,6 +1241,7 @@ export function BaseScreen({
         >
           <span className="m-prop-key">{columnLabel(c)}</span>{" "}
           {isDueCell(c, r) ? <span className="m-taskdue m-taskdue--due">{displayCell(c, r[c])}</span> : displayCell(c, r[c])}
+          {proposedChip(r, c)}
           {commentDot(rowPath(r), c)}
         </button>
       ) : null,
@@ -1239,6 +1352,7 @@ export function BaseScreen({
               {orderedColumns.map((c) => (
                 <td key={c} onClick={() => (rowSel.active ? rowSel.toggle(rowPath(r)) : openCellEditor(r, c))}>
                   {displayCell(c, r[c])}
+                  {proposedChip(r, c)}
                   {commentDot(rowPath(r), c)}
                 </td>
               ))}
@@ -1262,7 +1376,8 @@ export function BaseScreen({
           </button>
           {orderedColumns[0] && (
             <Chip onClick={() => (rowSel.active ? rowSel.toggle(rowPath(r)) : openCellEditor(r, orderedColumns[0]))}>
-              {displayCell(orderedColumns[0], r[orderedColumns[0]]) || "—"}
+              {displayCell(orderedColumns[0], r[orderedColumns[0]]) || (proposedCells.get(rowPath(r))?.has(orderedColumns[0]) ? "" : "—")}
+              {proposedChip(r, orderedColumns[0])}
               {commentDot(rowPath(r), orderedColumns[0])}
             </Chip>
           )}
@@ -1282,17 +1397,11 @@ export function BaseScreen({
             {rowSel.active && <ChoiceMark multiple on={rowSel.selection.has(rowPath(r))} />}
             {rowTitle(r)}
           </button>
-          {propLine(r, orderedColumns, 3)}
+          {propLine(r, orderedColumns, CARD_PROPERTIES)}
         </div>
       ))}
     </div>
   );
-
-  const boardGroupBy: string | null =
-    view.groupBy ??
-    columnsPool.find((c) => columnInput(c) === "select" && c.toLowerCase() === "status") ??
-    columnsPool.find((c) => columnInput(c) === "select") ??
-    null;
 
   // Board card drag (E1, desktop parity): long-press arms, moving carries a
   // ghost, dropping on another column rewrites the groupBy value through the
@@ -1486,11 +1595,20 @@ export function BaseScreen({
       return color ? noteCardTint(color, "var(--bg-primary)") : undefined;
     };
     const boardMiniChips = (r: Record<string, unknown>, group: string) => {
-      const cols = orderedColumns.filter((c: string) => c !== group).slice(0, 2);
-      const chips = cols
+      const others = orderedColumns.filter((c: string) => c !== group);
+      const chips = others
+        .slice(0, 2)
         .map((c: string) => ({ c, text: displayCell(c, r[c]), due: isDueCell(c, r as Row) }))
         .filter((x: { c: string; text: string; due: boolean }) => x.text);
-      if (chips.length === 0) return null;
+      // A value proposed for a property of this card (plan KI-Harness P5-4) is
+      // named here whichever column it is, and — unlike the values beside it,
+      // which a card only shows — it is a button: a tap leads to the cell's
+      // sheet, where the proposal is decided, as from every other view.
+      const proposed = others.flatMap((c: string) => {
+        const cell = proposedCells.get(rowPath(r))?.get(c);
+        return cell ? [cell] : [];
+      });
+      if (chips.length === 0 && proposed.length === 0) return null;
       return (
         <span className="pv-card pv-card--flat m-basecard-mini">
           {chips.map((x: { c: string; text: string; due: boolean }) => (
@@ -1498,6 +1616,9 @@ export function BaseScreen({
               {x.text.length > 16 ? `${x.text.slice(0, 16)}…` : x.text}
               {commentDot(rowPath(r), x.c)}
             </Chip>
+          ))}
+          {proposed.map((cell) => (
+            <ProposedValueChip cell={cell} column={proposedColumn(cell.column)} current={r[cell.column]} key={`proposed-${cell.column}`} onOpen={() => openCellEditor(r as Row, cell.column)} size="md" />
           ))}
         </span>
       );
@@ -1560,6 +1681,7 @@ export function BaseScreen({
                     }
                   >
                     {cellText(r[groupBy]) || "—"}
+                    {proposedChip(r, groupBy)}
                     {commentDot(rowPath(r), groupBy)}
                   </Chip>
                   {laneBy && (
@@ -1567,6 +1689,7 @@ export function BaseScreen({
                        it to another lane on a phone (E6) — the cell editor. */
                     <Chip onClick={() => openCellEditor(r, laneBy)} data-testid="board-lane-chip">
                       {cellText(r[laneBy]) || t("database.boardUngrouped")}
+                      {proposedChip(r, laneBy)}
                     </Chip>
                   )}
                   <CardChecklist vault={vault} path={rowPath(r)} progress={r["file.tasks"]} onChanged={() => requery(config, viewIndex)} />
@@ -2201,6 +2324,15 @@ export function BaseScreen({
         />
       )}
 
+      {/* Values somebody proposes for what this view shows (plan KI-Harness
+          P5-4): how many, and the two buttons that decide them all. */}
+      <ProposedValuesBar
+        busy={proposedBusy}
+        count={proposedShown.length}
+        onAcceptAll={() => void decideProposed(proposedShown, "applied")}
+        onDeclineAll={() => void decideProposed(proposedShown, "declined")}
+      />
+
       <div ref={rowsRef} className="m-baserows">
       {rows === null ? null : !vault.queryService ? (
         /* NOT "coming in a later step": databases are shipped, this vault's
@@ -2400,16 +2532,39 @@ export function BaseScreen({
         );
       })()}
 
-      {cellEdit && (
-        <CellEditSheet key={`${vault.vaultId}:${cellEdit.notePath}:${cellEdit.col}`}
-          onClose={() => setCellEdit(null)}
-          onCommentProperty={cellEditCanComment ? () => { const c = cellEdit; setCellEdit(null); composePropertyComment(c.notePath, c.col); } : undefined}
-          onCommit={commitCell}
-          rows={rows ?? []}
-          target={cellEdit}
-          vault={vault}
-        />
-      )}
+      {cellEdit && (() => {
+        // A value proposed for this cell stands on top of its sheet (plan KI-Harness P5-4).
+        const proposed = proposedCells.get(cellEdit.notePath)?.get(cellEdit.col);
+        const decide = (outcome: "applied" | "declined") => {
+          setCellEdit(null);
+          if (proposed) void decideProposed([proposed], outcome);
+        };
+        return (
+          <CellEditSheet key={`${vault.vaultId}:${cellEdit.notePath}:${cellEdit.col}`}
+            onClose={() => setCellEdit(null)}
+            onCommentProperty={cellEditCanComment ? () => { const c = cellEdit; setCellEdit(null); composePropertyComment(c.notePath, c.col); } : undefined}
+            onCommit={commitCell}
+            proposal={proposed ? {
+              by: proposedBy(t, proposed.comment),
+              view: proposedCellView(proposed, cellEdit.value, proposedColumn(cellEdit.col)),
+              canAccept: cellEditCanWrite,
+              canDecline: cellEditCanComment,
+              busy: proposedBusy,
+              onAccept: () => decide("applied"),
+              onDecline: () => decide("declined"),
+              onOpenNote: () => {
+                const c = cellEdit;
+                setCellEdit(null);
+                requestCommentJump({ path: c.notePath, commentId: proposed.comment.commentId });
+                onOpenNote(c.notePath);
+              },
+            } : undefined}
+            rows={rows ?? []}
+            target={cellEdit}
+            vault={vault}
+          />
+        );
+      })()}
 
       {showExport && config && rows && <BaseExportDialog config={config} viewIndex={viewIndex} rows={rows}
         onExport={async file => {

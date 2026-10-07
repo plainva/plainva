@@ -41,7 +41,7 @@ Uruchomienie testowe nigdy nie korzysta z internetu i nigdy nie pyta: e-maile, k
 
 ## Proponowanie zmian
 
-Własna umiejętność proponuje zmiany tylko wtedy, gdy jej wiersz `allowed-tools` wymienia przeznaczone do tego narzędzia: `propose_edit` i `set_property` dla propozycji w tekście i we właściwościach notatki, `create_note`, `create_task` i `add_journal_entry` dla szkiców, `rename_note`, `move_note` i `delete_note` dla planów. **Sprawdź i zatwierdź** wymienia wtedy każde z nich i pokazuje: **Może proponować zmiany, zostawiać szkice i przedstawiać plany. W vaulcie nic się nie zmienia, dopóki nie zaakceptujesz, nie utworzysz lub nie potwierdzisz.** Umiejętność, która nie wymienia żadnych narzędzi, niczego nie proponuje — nic nie zyskuje też umiejętność zatwierdzona wcześniej — a uruchomienie testowe niczego nie zostawia. Czym są te trzy formy: **Proponowanie zmian** w [Asystent AI](AI_Assistant.md).
+Własna umiejętność proponuje zmiany tylko wtedy, gdy jej wiersz `allowed-tools` wymienia przeznaczone do tego narzędzia: `propose_edit` i `set_property` dla propozycji w tekście i we właściwościach notatki, `create_note`, `create_entry`, `create_task` i `add_journal_entry` dla szkiców, `rename_note`, `move_note` i `delete_note` dla planów. **Sprawdź i zatwierdź** wymienia wtedy każde z nich i pokazuje: **Może proponować zmiany, zostawiać szkice i przedstawiać plany. W vaulcie nic się nie zmienia, dopóki nie zaakceptujesz, nie utworzysz lub nie potwierdzisz.** Umiejętność, która nie wymienia żadnych narzędzi, niczego nie proponuje — nic nie zyskuje też umiejętność zatwierdzona wcześniej — a uruchomienie testowe niczego nie zostawia. Czym są te trzy formy: **Proponowanie zmian** w [Asystent AI](AI_Assistant.md).
 
 ## Własne umiejętności
 

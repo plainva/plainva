@@ -515,7 +515,7 @@ export const TOOL_MANIFESTS: readonly ToolManifest[] = [
       base: z.string().min(1).max(1024).describe("Vault-relative path of the .base file"),
       title: z.string().min(1).max(200),
       properties: z.record(z.string().min(1).max(120), z.union([z.string().max(2000), z.number(), z.boolean(), z.array(z.union([z.string().max(2000), z.number(), z.boolean()])).max(50)])).optional(),
-      content: z.string().max(100000).optional().describe("The entry's text in Markdown"),
+      content: z.string().max(100000).optional().describe("The entry's text in Markdown, without a title heading and without frontmatter"),
     }),
     dataClasses: [],
     untrustedResult: false,

@@ -40,8 +40,18 @@ export interface ChipProps {
    * surface. `warning` is for state that is time-critical — a due date, an
    * expiry — and paints on the shared `--warning-*` tokens, so it is the same
    * amber the desktop's task view has always used and every theme overrides.
+   * `proposed` is a value somebody proposes and nobody accepted yet (a cell
+   * of a database, plan KI-Harness P5-4): tinted like an insertion, on the
+   * `--success-*` tokens, because accepting it inserts it. `removal` is its
+   * counterpart — the value a proposal would take away, struck through on the
+   * `--error-*` tokens like a deletion.
    */
-  tone?: "default" | "muted" | "warning";
+  tone?: "default" | "muted" | "warning" | "proposed" | "removal";
+  /**
+   * What the chip is, where its text alone does not say it: the tooltip and
+   * the accessible name ("Suggested value for stage: sent").
+   */
+  tip?: string;
   title?: string;
   testId?: string;
   className?: string;
@@ -73,6 +83,7 @@ export function Chip({
   removeLabel,
   size = "md",
   tone = "default",
+  tip,
   title,
   testId,
   className,
@@ -83,6 +94,8 @@ export function Chip({
     size === "sm" && "pv-chip--sm",
     tone === "muted" && "pv-chip--muted",
     tone === "warning" && "pv-chip--warning",
+    tone === "proposed" && "pv-chip--proposed",
+    tone === "removal" && "pv-chip--removal",
     onRemove && "pv-chip--removable",
     selected && "is-on",
     className
@@ -118,6 +131,8 @@ export function Chip({
         className={cls}
         style={style}
         aria-pressed={selected}
+        aria-label={tip}
+        data-tip={tip}
         title={title}
         data-testid={testId}
         aria-disabled={disabled}
@@ -134,7 +149,8 @@ export function Chip({
     );
   }
   return (
-    <span className={cls} style={style} title={title} data-testid={testId}>
+    // A chip that only displays is no control, so it takes no accessible name of its own: `tip` is its tooltip.
+    <span className={cls} style={style} data-tip={tip} title={title} data-testid={testId}>
       {glyph}
       {label}
       {remove}

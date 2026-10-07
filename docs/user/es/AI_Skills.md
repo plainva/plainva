@@ -41,7 +41,7 @@ Una ejecución de prueba nunca usa Internet y nunca pregunta: el correo que no t
 
 ## Proponer cambios
 
-Una habilidad propia propone cambios solo cuando su línea `allowed-tools` nombra las herramientas para ello: `propose_edit` y `set_property` para sugerencias en el texto y en las propiedades de una nota, `create_note`, `create_task` y `add_journal_entry` para borradores, `rename_note`, `move_note` y `delete_note` para planes. **Revisar y aprobar** nombra entonces cada una y dice **Puede sugerir cambios, dejar borradores y presentar planes. Nada cambia en el vault antes de que aceptes, crees o confirmes.** Una habilidad que no nombra herramientas no propone nada — tampoco gana nada una que aprobaste antes —, y una ejecución de prueba no deja nada. Qué son las tres formas: **Proponer cambios** en [Asistente de IA](AI_Assistant.md).
+Una habilidad propia propone cambios solo cuando su línea `allowed-tools` nombra las herramientas para ello: `propose_edit` y `set_property` para sugerencias en el texto y en las propiedades de una nota, `create_note`, `create_entry`, `create_task` y `add_journal_entry` para borradores, `rename_note`, `move_note` y `delete_note` para planes. **Revisar y aprobar** nombra entonces cada una y dice **Puede sugerir cambios, dejar borradores y presentar planes. Nada cambia en el vault antes de que aceptes, crees o confirmes.** Una habilidad que no nombra herramientas no propone nada — tampoco gana nada una que aprobaste antes —, y una ejecución de prueba no deja nada. Qué son las tres formas: **Proponer cambios** en [Asistente de IA](AI_Assistant.md).
 
 ## Tus propias habilidades
 

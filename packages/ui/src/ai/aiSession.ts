@@ -17,7 +17,7 @@ import {
   type SuggestionAuthor,
 } from "./aiSelectionActions";
 import { defuseNewAddresses } from "./aiWriteLint";
-import { draftedNoteContent, EMPTY_WRITE_DRAFTS, type DraftCreator, type OpenProposal, type WriteDraftState, type WriteDraftStore } from "./aiWrites";
+import { draftedEntryContent, draftedNoteContent, EMPTY_WRITE_DRAFTS, type DraftCreator, type OpenProposal, type WriteDraftState, type WriteDraftStore } from "./aiWrites";
 import { isWriteToolName, type PlanQuestion, type WriteRun } from "./writeTools";
 import { safeFileStem } from "../lib/fileStem";
 import type { SuggestionChunk } from "../components/suggestMode";
@@ -648,8 +648,11 @@ export interface AiState {
 /** How "Create" on a draft ended (plan P5). */
 export type DraftOutcome =
   | { kind: "created"; path: string }
-  /** `unavailable`: this shell cannot make that kind of thing. `gone`: the draft is not there any more. */
-  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed"; message?: string };
+  /**
+   * `unavailable`: this shell cannot make that kind of thing. `gone`: the draft is not there any more.
+   * `no-entry-folder`: the database an entry was drafted for has no folder for new entries (yet, or any more).
+   */
+  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder"; message?: string };
 
 type Listener = () => void;
 
@@ -1141,7 +1144,18 @@ export class AiSession {
         path = await creates.task({ text: body.text, day: body.day, atProvider: choice.atProvider === true });
       }
       else if (body.kind === "journal") path = await creates.journal({ text: body.text, day: body.day, time: body.time, task: body.task });
-      else return refused("unavailable");
+      else {
+        // An entry of a database is a note in the folder the database keeps its entries in (plan P5-4): the shell says
+        // where that is and what an entry carries there; without a folder there is nowhere to make it yet.
+        if (!creates.entryPlace) return refused("unavailable");
+        const place = await creates.entryPlace(body.base);
+        // The draft stays: the user chooses the folder with the database's first entry and creates it then.
+        if (!place) return refused("no-entry-folder");
+        const stem = safeFileStem(draft.title) ?? "Entry";
+        const denied = creates.placeDenies ? await creates.placeDenies(place.folder, stem).catch(() => []) : [];
+        const rules = draft.inherited.filter((dimension) => !denied.includes(dimension));
+        path = await creates.note({ folder: place.folder, stem, content: draftedEntryContent(draft, this.host.now(), rules, place) });
+      }
       const at = this.host.now().toISOString();
       await this.changeDrafts(vault, (state) => ({
         drafts: withoutWriteDraft(state.drafts, id),
@@ -2755,7 +2769,7 @@ export class AiSession {
                 body: input.body,
                 inherited: [...(await inherited())],
                 // What the draft rests on, from the run's record — never from the model's own words.
-                sources: input.body.kind === "note" ? carried.paths.filter((path) => /\.md$/i.test(path)).slice(0, 50).map((path) => ({ resource: path })) : [],
+                sources: input.body.kind === "note" || input.body.kind === "entry" ? carried.paths.filter((path) => /\.md$/i.test(path)).slice(0, 50).map((path) => ({ resource: path })) : [],
                 defused: input.defused,
               });
             },

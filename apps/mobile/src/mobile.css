@@ -1673,6 +1673,22 @@ textarea {
   margin-left: var(--space-2);
   padding: var(--space-1) var(--space-2);
 }
+/* A proposed value beside what its cell says (AI harness P5-4): the shared
+   Chip in its `proposed` tone; this only keeps it off the text in front. */
+.m-prop-proposed {
+  margin-inline-start: var(--space-2);
+}
+/* The proposal on top of the cell's sheet: who proposed it, the property's
+   before and after as a suggestion's card writes them, and the two answers. */
+.m-cell-proposal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2);
+  padding: var(--space-3);
+}
 /* P5: sync conflict surfaces */
 .m-warn {
   color: var(--warning-text);

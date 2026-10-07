@@ -1,6 +1,6 @@
 # Databases (.base)
 
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-07
 
 With `.base` files you turn notes into databases: tables, boards, calendars — with filters, typed properties and relations between databases. The concept resembles Notion databases, with one decisive difference: **the data does not live in the database, it lives in your notes.**
 
@@ -177,6 +177,7 @@ Note for synced vaults: if two devices arrange the board at the same time, a `.C
 - **New entries inherit the link**: creating an entry with **Entry** inside such a scoped embed automatically links it to the host element (a task you create in a project's embedded task list belongs to that project right away). For the reverse direction the host is linked to the new entry instead; an already assigned single-value relation is left untouched.
 - **Explicit "This note" filter (like Notion's "this page")**: instead of relying on the automatic scope, you can make it explicit and permanent. In **Configure → Filter**, add a rule on a relation property and pick the value **This note**. The database is then scoped to whichever note it is embedded in — ideal for **templates**: embed the task database in a project template, and every project created from it shows its own tasks. It works for any wiki-link property, not only detected relations, and an explicit **This note** filter takes precedence over the automatic scope. This filter lives only in Plainva (it is not written into the `.base` as a normal filter), so both Obsidian and a standalone open show all rows.
 - **Comments on a cell**: when a property carries remarks, its cell shows a small dot with the number of open threads — in **Table**, **Board** and **Gallery**. A comment hangs on the **note and its property key**, not on the `.base`: the same remark therefore appears in every database that shows the note, and in the note's own **Properties** panel. **Comment on this property** in the cell menu starts a new thread. Renaming a column carries the comments along; if the property is deleted, the card stays readable and names the value it recorded. More on this under [Security & Sharing](Security_and_Sharing.md).
+- **Suggested values**: when the AI assistant proposes a value for a property of an entry, the cell of that entry shows it tinted, with a small sparkle — beside what the cell says now, if it says something. Click the value and choose **Accept**, **Decline** or **Show in the note**; on the phone, tap the cell — its sheet opens with the suggestion on top. A line above the rows says how many values are suggested in this view; **Apply all** and **Decline all** decide them at once. A suggested value is a suggestion on its note like any other: nothing is written before you accept, each value is decided on its own, and one that no longer fits what the entry says stays at its note. **Calendar**, **Timeline**, **Pinboard** and **Graph** show entries rather than cells and therefore no suggested values. More under [AI Assistant (Beta)](AI_Assistant.md) and [Comments & Suggestions](Comments_and_Suggestions.md).
 
 ## Several entries at once
 

@@ -200,6 +200,9 @@ export interface CaptureAdapter {
 /** The folder as the note is written into it: forward slashes, no slash at either end. */
 const folderOf = (folder: string): string => trimChars(folder.replace(/\\/g, "/").trim(), "/");
 
+/** A folder as a note is written into it ("" is the vault itself) — the one spelling a place's rules are asked by. */
+export const capturedFolder = folderOf;
+
 /** Where the note lands while its name is free: the path its place's rules are asked by. */
 export function capturedNotePath(folder: string, stem: string): string {
   const dir = folderOf(folder);
