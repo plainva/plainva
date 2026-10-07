@@ -1,6 +1,6 @@
 # Assistente IA (Beta)
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-07
 
 Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa, apre note e viste per te e propone modifiche a un passaggio selezionato come proposte — non cambia mai una nota da solo. L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
 
@@ -158,6 +158,24 @@ Un link in una risposta il cui indirizzo è stato costruito dal modello stesso �
 **Cosa ne legge l'assistente.** Di una ricerca vede la data, il mittente e l'oggetto dei messaggi — mai il loro testo. Il testo di un messaggio e la descrizione di un appuntamento non li legge mai da solo: li hanno scritti altre persone, e chi scrive un'e-mail o un invito può scrivere proprio per questo lettore. Un secondo lettore senza alcuno strumento li legge e scrive un breve rapporto — un riepilogo, affermazioni con il passaggio su cui si basano e link che si trovano davvero lì dentro. Se un modello su questo dispositivo è impostato come **Locale** in **Modelli e profili**, quel modello è il lettore, e il testo in sé non lascia il dispositivo; al provider va solo il rapporto. Altrimenti legge il provider della conversazione, in una richiesta a parte e senza strumenti. La domanda ti dice prima chi legge.
 
 **Cosa non cambia.** L'assistente legge soltanto: un messaggio che ha letto resta non letto, non sposta, non risponde e non elimina nulla, e non apre gli allegati — li nomina soltanto. Sotto la risposta vedi quanti messaggi sono stati letti, e la riga sotto dice chi ne ha letto il testo.
+
+## Strumenti esterni (MCP)
+
+L'assistente può usare strumenti di server che colleghi tu stesso, tramite il Model Context Protocol (MCP) — un sistema di ticket, un wiki, un database del tuo team. È la direzione opposta di [Collegare app di IA](Connect_AI_Apps.md): lì, altre app leggono il tuo vault tramite Plainva; qui, l'assistente di Plainva interroga altri server. Nulla di un server viene usato prima che tu abbia guardato che cosa offre, e ogni chiamata ti viene mostrata prima che parta.
+
+**Aggiungere un server.** In **Impostazioni → IA e automazione** (la parte Vault), sotto **Strumenti esterni (MCP)**, scegli **Aggiungi un server…**. Dagli un nome tuo e il suo indirizzo (`https://…`), e un token di accesso se il server lo richiede — va nell'archivio sicuro di questo dispositivo e non viene mai più mostrato. Sul desktop un server può essere anche un **Programma su questo computer**: il file da avviare, i suoi argomenti e i valori per il suo ambiente. Plainva lo avvia direttamente, senza shell, e in una sandbox quando il tuo computer ne ha una che Plainva possa usare. Il tuo sistema mostra ancora una volta l'indirizzo o l'intero comando prima che venga ricordato. Sul telefono un server è sempre un indirizzo.
+
+**Controllarlo.** Un server appena aggiunto non offre ancora nulla. Il suo controllo mostra che cosa è registrato e che cosa il server elenca: la sua descrizione, i suoi strumenti con le loro descrizioni — parole del server stesso — e i suoi prompt. **Approva** consente esattamente questi testi, su questo dispositivo. Prima che un server venga usato, Plainva carica di nuovo ciò che elenca e lo confronta con ciò che hai approvato; se qualcosa è diverso, il server resta bloccato finché non lo guardi di nuovo, e il controllo dice che cosa è cambiato.
+
+**Che cosa consente un vault.** Ogni vault decide da sé: se usare il server (**Usa ⟨server⟩ in questo vault**), quali dei suoi strumenti l'assistente può chiamare — nessuno è spuntato, e si possono spuntare solo quelli che dichiarano di limitarsi a leggere —, e sotto **Note che possono accompagnare una chiamata**, se **Nessuna**, **Cartelle scelte** o **L'intero vault**.
+
+**In una conversazione.** Gli strumenti dei tuoi server non sono tra gli strumenti con cui inizia una conversazione: l'assistente li cerca solo quando la tua domanda ne ha bisogno, e il riepilogo prima dell'invio nomina i server a cui appartengono. Ogni singola chiamata chiede prima — **Chiamare ⟨server⟩?** — con lo strumento ed esattamente ciò che verrebbe inviato. **Chiama** lascia passare questa sola chiamata, **Non chiamare** la lascia cadere, e non esiste un «sempre». Una chiamata non parte affatto se la conversazione ha letto una nota che si trova fuori da ciò che il vault consente a questo server, o una che tieni lontana dal cloud. Ciò che torna è trattato come il testo di uno sconosciuto: l'assistente lo legge e non ne accetta istruzioni.
+
+**Prompt.** Un server può offrire prompt — richieste già pronte. Si trovano sotto una conversazione vuota, e li avvii solo tu. La prima volta, Plainva mostra in che cosa si trasforma un prompt prima che venga inviato come tuo messaggio; da allora esattamente quel testo parte senza chiedere, e un altro testo blocca il server.
+
+**Che cosa conserva Plainva.** L'indirizzo o il comando viene ricordato su questo dispositivo, i valori salvati nel suo archivio sicuro; la tua approvazione si trova nei dati di Plainva, mai nel vault — così chi può scrivere nel vault non può approvare un server. Sotto **Chiamate recenti in questo vault** il controllo indica quando uno strumento è stato chiamato, quale e come è finita — mai che cosa è stato detto. **Rimuovi server** elimina il server da questo dispositivo, per ogni vault.
+
+Una conversazione avviata da una competenza, un'azione su una selezione e una risposta in un thread di commenti non raggiungono gli strumenti esterni, e nemmeno il modello del sistema sul telefono.
 
 ## Conservare una risposta come nota
 

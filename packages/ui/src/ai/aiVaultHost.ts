@@ -24,10 +24,12 @@ import {
   type PackageGists,
   type ParsedPolicyFile,
   type SituationInput,
+  type ToolManifest,
 } from "@plainva/core";
 import { notesEmbedding } from "./aiImage";
 import type { AiInstructionsHost, AiVaultHost } from "./aiSession";
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
+import { createMcpVaultStore } from "./mcpStores";
 import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnippet, withoutBrokenLinks, type ToolScope, type VaultToolDeps } from "./vaultTools";
 
 /**
@@ -244,6 +246,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
   const stores = createAiVaultStores(input.files, input.vaultKey);
   return {
     ...stores,
+    // This vault's choices about foreign MCP servers (plan P4.5): beside its other AI data, never in the vault.
+    mcp: createMcpVaultStore(input.files, input.vaultKey),
     activeNote: input.activeNote,
     readNote: input.readNote,
     situation: input.situation,
@@ -262,7 +266,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
       return containing ? notesEmbedding(path, { containing, read: async (note) => (await input.readNote(note))?.text ?? null }) : Promise.resolve(null);
     },
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
-    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean, narrowed?: () => readonly string[] | null) {
+    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean, narrowed?: () => readonly string[] | null, foreign?: () => readonly ToolManifest[]) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;
       const deps: VaultToolDeps = {
@@ -277,7 +281,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
       // A shell without appointments does not offer the tools that read them.
       const names = deps.events ? CHAT_TOOL_NAMES : CHAT_TOOL_NAMES.filter((name) => name !== "get_calendar" && name !== "get_event");
       // In a conversation with the internet a note whose rules say `web: deny` does not exist for the tools either.
-      return { names, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}) }) };
+      return { names, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}) }) };
     },
   };
 }

@@ -83,6 +83,26 @@ The skill titles are UI strings (`ai.skills.*`); the MCP prompt names (`daily-or
 | zh-CN | AI | 悬浮窗 | 技能 | Plainva AI · ⟨模型⟩ |
 | ja | AI | コンパニオン | スキル | Plainva AI · ⟨モデル⟩ |
 
+**External tools (MCP)** (`ai.ext.*`): tools of MCP servers the user connected. An
+entry is a **server** — never a "service", which the app uses for the services of an
+account — and never an "AI app", which is the other direction (`ai.mcp.*`, apps that
+read the vault). The tool word is the one of `ai.overview.tools`; a server's ready-made
+requests are **prompts**, the loanword, in every Latin-script language. "Review" is
+the verb of the skills' "Review and approve", "Approve" its second half.
+
+| Language | External tools (MCP) | Server | Access token | Prompts | Sandbox |
+|---|---|---|---|---|---|
+| en | External tools (MCP) | server | access token | prompts | sandbox |
+| de | Externe Werkzeuge (MCP) | Server | Zugangstoken | Prompts | Sandbox |
+| fr | Outils externes (MCP) | serveur | jeton d'accès | prompts | bac à sable |
+| es | Herramientas externas (MCP) | servidor | token de acceso | prompts | entorno aislado |
+| pt-BR | Ferramentas externas (MCP) | servidor | token de acesso | prompts | sandbox |
+| it | Strumenti esterni (MCP) | server | token di accesso | prompt | sandbox |
+| nl | Externe hulpmiddelen (MCP) | server | toegangstoken | prompts | sandbox |
+| pl | Narzędzia zewnętrzne (MCP) | serwer | token dostępu | prompty | piaskownica |
+| zh-CN | 外部工具（MCP） | 服务器 | 访问令牌 | 提示词 | 沙盒 |
+| ja | 外部ツール（MCP） | サーバー | アクセストークン | プロンプト | サンドボックス |
+
 Two terms that must not borrow a word the app already uses for something else
 (`ai.capture.action`, `ai.skills.research.title`): **Keep as a note** — an AI
 answer kept as a note — is never the label of the mail-to-note action ("Save

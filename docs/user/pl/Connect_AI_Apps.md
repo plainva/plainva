@@ -1,8 +1,10 @@
 # Łączenie aplikacji AI (beta)
 
-Stan na: 2026-09-30
+Stan na: 2026-10-07
 
 Aplikacje AI na Twoim komputerze — Claude Code, Claude Desktop, Cursor, VS Code i inne, które mówią protokołem Model Context Protocol (MCP) — mogą czytać Twój sejf przez Plainva: przeszukiwać go, czytać notatki i ich sekcje, konspekty, linki zwrotne, bazy danych, zadania i ostatnie notatki oraz otwierać notatkę w Plainva. Niczego nie mogą zmienić. To część eksperymentalnych funkcji AI i działa tylko na komputerze.
+
+Kierunek odwrotny — asystent Plainva korzystający z narzędzi samodzielnie podłączanych serwerów — opisano w sekcji **Narzędzia zewnętrzne (MCP)** na stronie [Asystent AI](AI_Assistant.md).
 
 ## Jak to działa
 

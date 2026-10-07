@@ -4140,6 +4140,17 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-mcp-pair-folders legend { margin-bottom: var(--space-2); padding: 0; font-weight: 600; }
 .pv-mcp-pair-hint { margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--text-muted); }
 .pv-mcp-audit { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+/* External tools (AI harness P4.5, Design Language "External tools"): layout only — the review of a foreign
+   server is the skills' facts list, Checkbox rows with the server's words as a second line, a Segmented and
+   Banners. A tool's description and notes are text runs in --text-muted. */
+.pv-ext-group { display: grid; gap: var(--space-2); min-width: 0; margin: 0 0 var(--space-3); padding: 0; border: 0; }
+.pv-ext-group legend { margin-bottom: var(--space-2); padding: 0; font-weight: 600; }
+.pv-ext-group .pv-checkrow { align-items: flex-start; }
+.pv-ext-group .pv-checkrow > span { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.pv-ext-group .pv-checkrow > span > span { color: var(--text-muted); font-size: var(--text-sm); }
+.pv-ext-note { margin: 0; font-size: var(--text-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.pv-ext-secret { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.pv-ext-secret > .pv-field { flex: 1 1 12rem; min-width: 0; }
 /* The wide AI tab keeps "View context" as a column beside the thread. */
 .pv-ai--withside { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); grid-template-rows: auto minmax(0, 1fr) auto; }
 .pv-ai--withside > .pv-ai-marking,

@@ -110,6 +110,12 @@ describe("system prompt", () => {
     expect(withMail).toContain("Further tools exist, for example for the user's mail: find_tools lists them and the app's commands with their arguments, and call_tool calls a tool it listed.");
     // The mail tools are not this conversation's own: they are not listed as if they were.
     expect(withMail).not.toContain("search_mail lists messages");
+    // Tools of services the user connected (plan P4.5) are named as a kind — never by name, and never by what a server says of itself.
+    const withService = assistantSystemPrompt({ ...base, tools: own, more: ["mcp_tracker_search_issues"] });
+    expect(withService).toContain("Further tools exist, for example those of services the user connected: find_tools lists them and the app's commands with their arguments, and call_tool calls a tool it listed.");
+    const withBoth = assistantSystemPrompt({ ...base, tools: own, more: ["search_mail", "mcp_tracker_search_issues"] });
+    expect(withBoth).toContain("Further tools exist, for example for the user's mail, and those of services the user connected: find_tools lists them");
+    expect(withBoth).not.toContain("mcp_tracker");
     // Nothing further, or no dispatcher to call it with: nothing is promised.
     expect(assistantSystemPrompt({ ...base, tools: own })).not.toContain("Further tools");
     expect(assistantSystemPrompt({ ...base, tools: ["search_vault"], more: ["search_mail"] })).not.toContain("Further tools");

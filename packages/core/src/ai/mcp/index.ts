@@ -22,4 +22,5 @@ export * from "./httpWire.js";
 export * from "./stdioWire.js";
 export * from "./client.js";
 export * from "./native.js";
+export * from "./offer.js";
 export * from "./scripted.js";

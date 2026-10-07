@@ -1,8 +1,10 @@
 # 连接AI应用（测试版）
 
-更新日期：2026-09-30
+更新日期：2026-10-07
 
 你电脑上的AI应用——Claude Code、Claude Desktop、Cursor、VS Code以及其他支持Model Context Protocol（MCP）的应用——可以通过Plainva读取你的保险库：搜索它，读取笔记及其段落、大纲、反向链接、数据库、任务和最近的笔记，并在Plainva中打开笔记。它们不能更改任何内容。这是实验性AI功能的一部分，只在桌面端可用。
+
+相反的方向——由Plainva的助手使用你自己连接的服务器所提供的工具——见[AI助手](AI_Assistant.md)中的**外部工具（MCP）**。
 
 ## 工作原理
 

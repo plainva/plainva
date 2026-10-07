@@ -1,6 +1,6 @@
 # MCP client architecture
 
-Status: rules and protocol client built, in `packages/core/src/ai/mcp/` with tests. The native transports, the stores, the session and the settings surface are built on top of them and add no rule of their own.
+Status: built in three layers. The rules and the protocol client are in `packages/core/src/ai/mcp/`; the native side is in the three shells; the stores, the session and the surfaces are in `packages/ui/src/ai/` (`mcpStores`, `mcpRuntime`, `mcpSession`, `mcpTools`, `externalTools`, `externalReview`, `AiExternalReview`, `AiExternalPrompt`). The layers above the rules apply them and add none of their own. Signing in to a remote server with OAuth is the part that follows.
 
 Plainva speaks MCP in two directions. As a **server** it lets AI apps on the same computer read the vault ([ADR 0022](../adr/0022-mcp-server-without-a-network-port.md)). As a **client**, described here, it lets the assistant use tools of servers the user added: an issue tracker, a calendar service, a search API. The two share the tool manifest idea and nothing else; the trust runs in opposite directions.
 
@@ -61,12 +61,14 @@ A model picks a tool by name and description. A server that calls its tool `read
 
 An approved listing says "these texts are what I saw". A **grant** says which of these tools may be called and with what. They are separate on purpose: approving a changed listing does not silently grant the tools that are new in it.
 
-A call goes out only if the server is approved, the tool's name is not withheld, the user granted the tool, the tool declares itself read-only, and every vault path in the arguments lies in a folder the grant names. Otherwise the decision names the reason. Every allowed call is shown before it goes out: server, tool, data.
+A call goes out only if the server is approved, the tool's name is not withheld, the user granted the tool, the tool declares itself read-only, and every vault path the call may carry lies in a folder the grant names. Otherwise the decision names the reason. Every allowed call is shown before it goes out: server, tool, data.
+
+The paths the session hands to that decision are **every note the conversation has read** — what its context carried, what was pinned to it, what its tools read, in this run and the ones before. Arguments are text a model wrote, and a model can write anything it has read into them; so what counts is what it could carry, not what a path-shaped argument admits to.
 
 - `readOnlyHint` is the server's own claim. It is **necessary** — a tool that does not even claim to only read is not offered while writing through MCP is closed — and never **sufficient**: the call is previewed, its result is tier 3, and nothing a foreign tool returns can change the vault.
 - A grant names folders. By default it names none: the server only ever sees what the user typed.
 - To the privacy gate ([ADR 0018](../adr/0018-ai-context-package-and-egress-policy.md)) every MCP server is a **cloud recipient**, a local stdio server included. It runs on this computer, but it is someone else's program with the user's network access. A note marked `cloud: deny` therefore reaches no MCP server.
-- A remote server is reached only at a host the grant names, over https — plain http only where the server is on this device.
+- A vault's choice belongs to the **registration** it was made for: the address or the command line as the native dialog confirmed it (`mcpServerTarget`). A server registered anew under the same id — another address, another command — starts off, with nothing granted, in every vault, and its approval is void. Where a request goes is the native registry's alone: the web view names a server by its id and never passes an address. `mcpHostAllowed` remains the rule for a caller that holds an address; no path of the app is one.
 
 ### Results
 
@@ -160,20 +162,51 @@ added ──► new ──(the user reviews the listing)──► approved
 
 Nothing of a `new` or `blocked` server is offered to a model.
 
+## What Plainva remembers, and where
+
+Three places, because three things are decided in three places.
+
+| What | Where | Why there |
+|---|---|---|
+| Where a request goes or what is started; the credentials | the native registry and the keychain, per device | the web view must not be able to redirect a request or read a credential |
+| The user's name for a server, the approved listing and its pin | `mcp/servers.json` in the app's data, per device (`McpDeviceStore`) | the texts are the same whatever vault is open — and whoever can write a vault must not be able to write an approval |
+| Whether a vault uses a server, the tools it granted, the folders it allowed; the log of calls | `<vault key>/mcp.json` and `<vault key>/mcp-audit.json` in the app's data (`McpVaultStore`) | a server is off in a vault until the user switches it on, like the internet |
+
+Both files are read defensively, and a damaged one can only take away: an approval without the listing it was given for reads as "new", an entry that cannot be read switches a server off and grants nothing. The log keeps who, what, how it ended and how much — never what was said — and the newest 300 entries.
+
+`McpRuntime` holds the connections and enforces the pin: `inspect` shows a listing for the review, `check` loads it again before a use (unless the server's own `ttlMs` says it is still fresh, for at most five minutes), and both block the server when it differs. What a conversation reads of a server comes from the approved snapshot in the record, never from a connection. A connection nobody used for ten minutes is ended (`MCP_IDLE_MS`), and every connection ends with the vault: a program that was started for a review does not idle beside the app, and the next use starts it again.
+
+## In a conversation
+
+- **Names, not tools.** A new conversation carries the names of the foreign tools this vault offers (`mcp_<server>_<tool>`) in `conversation.more`. They never appear in a provider's tool list: the model finds them through `find_tools` and calls them through `call_tool`, like the app's own further tools (ADR 0019). The system prompt says only that tools of services the user connected exist.
+- **The approved words, in the fence.** What `find_tools` answers about a foreign tool is built from the approved snapshot — name, the user's name for the server, the description, a reading copy of the arguments — and that part of the answer stands inside the untrusted-data block. A server's `instructions` are shown in the review and go to no model.
+- **Decided at the call.** The names are fixed for the conversation; whether a call goes out is decided on what holds at that moment. A server that was switched off, removed or blocked since brings no tool, and the model is told in the app's own words.
+- **Who gets none.** A conversation bound to a skill, a door (an action on a selection, a reply in a comment thread), a regression run and the system's own model reach no foreign tool: nobody chose a service for them. A loaded skill narrows them away as it narrows every tool.
+- **Prompts are the user's step.** The prompts of a server that is ready in this vault stand under an empty conversation. Starting one checks the listing, asks the server for the expansion and compares it with the pin: a match is sent as the user's message; one nobody approved yet is shown in full first and pinned when the user sends it; one that differs blocks the server, and nothing is sent.
+
 ## The life of a call
 
-1. The model names `mcp_<server>_<tool>`.
-2. `mcpCallDecision` answers; a refusal goes back to the model as a structured error with the reason.
-3. The arguments pass the privacy gate with the server as a cloud recipient.
-4. The call is shown: server, tool, data. The user confirms.
-5. The transport sends it; a token, where one is needed, is checked against the address.
-6. `mcpResultView` turns the answer into a tier 3 payload; the conversation continues.
+`createMcpExecutor` (`mcpTools.ts`) decides one call, in the order of trust. Every way out before the last ends without a question and without a request.
+
+1. **The server and the tool as they stand now.** Registered, approved for this registration, switched on in this vault, the tool granted and offered (`mcpServerStanding`, `mcpOfferedTools`). Arguments larger than a person could read in a question are refused.
+2. **The listing again.** `check` loads it unless it is fresh and compares it with the pin. A difference blocks the server here: the user is not asked, and the model is told not to try again.
+3. **What the conversation carries.** `mcpCallDecision` with every note the conversation has read as the paths. If the conversation read more than its record keeps by path, or a picture whose notes cannot be looked up, nothing is assumed of the rest and nothing is sent. Then the privacy gate, with the server as a cloud recipient: one note that is kept from the cloud ends it.
+4. **The user.** The call is shown above the composer — the server by the user's name for it, the tool, the arguments in full. One yes is for one call; there is no "always".
+5. **The request**, through the shell's native port. A failure is told in the app's words; a server's own error text is a stranger's words and goes into the fence.
+6. **The result.** `mcpResultView` makes one bounded piece of text of it, tier 3, with server and tool as its origin; the orchestrator fences it. The run records the server, the tool and how it ended, and so does the vault's log.
+
+To the Rule of Two a foreign tool is a way out (`outward`) and its result is untrusted: the manifest says both, and the executor above is where the user is asked.
+
+## The surfaces
+
+One model, two dresses. `useExternalAdd` and `useExternalReview` hold the state of adding and of reviewing a server; `AiExternalReview` is the review's body. The desktop shows them in modals from the card "External tools (MCP)" of the vault's AI settings, the phone in sheets from the same section. The question about a call is a fourth form of the approval card above the composer (`AiEffectApproval`, `data-kind="mcp"`), and a prompt on its way into a conversation is `AiExternalPrompt`, in the same place. The words a person reads are made in `externalTools.ts`: where a server stands, why a tool is not offered, what differs from the approved texts, how a look failed. A server's own error text is never part of them.
 
 ## What the client does not do
 
 - It starts no stdio server on its own. Each server is started after an approval; where the platform offers a sandbox, the server runs in one.
 - It does not offer roots, sampling or logging to servers.
-- It loads no instructions from the network on behalf of a skill. A skill a server offers goes through the same content-bound approval as a skill from the vault.
+- It loads no instructions from the network on behalf of a skill, and it does not read a server's skills extension: a skill a server offers reaches nobody. Where that opens, it goes through the same content-bound approval as a skill from the vault.
+- It answers no question a server asks of the user (elicitation) and keeps no stream open for a server's notifications; a list is loaded again before a use instead.
 - It calls no tool that changes something before writing through MCP opens with the approval chain of [ADR 0019](../adr/0019-ai-tools-risk-classes-and-approvals.md).
 - It never passes `_meta` to a model.
 

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Minus, ShieldAlert, ShieldCheck } from "lucide-react";
 import {
   DISPATCH_TOOL,
+  isMcpExposedToolName,
   MAIL_TOOL_NAMES,
   REDACTABLE,
   SITUATION_SOURCE,
@@ -61,6 +62,10 @@ export interface AiSendOverviewProps {
   images?: readonly ImagePart[];
   /** The provider's own list says the chosen model reads no pictures: said, never a lock. */
   blind?: boolean;
+  /** The tools of foreign servers among the further tools (plan P4.5), as lines per server; the caller knows the servers' names. */
+  external?: readonly string[];
+  /** After the answer: what the run asked of foreign servers — server, tool, how it ended — as lines. */
+  externalCalls?: readonly string[];
 }
 
 /** A page as a row names it: without the scheme every address shares. */
@@ -75,14 +80,17 @@ function useSkillTitle(): (id: string, name: string) => string {
   };
 }
 
-export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind }: AiSendOverviewProps) {
+export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeaveOut, onRedact, onOpenNote, everyRequest, touch, coverage, web, reading, onOpenUrl, images, blind, external, externalCalls }: AiSendOverviewProps) {
   const { t, i18n } = useTranslation();
   // The dispatcher is the search's other half, not a tool of its own to a reader.
   const shownTools = manifest.tools.filter((tool) => tool !== DISPATCH_TOOL);
   const further = manifest.more ?? [];
+  // A foreign tool is named by its server, never by the name a server gave it: the caller brings those lines.
+  const foreign = further.filter(isMcpExposedToolName);
   const furtherLines = [
     further.some((name) => MAIL_TOOL_NAMES.includes(name)) ? t("ai.overview.furtherMail") : "",
-    ...further.filter((name) => !MAIL_TOOL_NAMES.includes(name)).map((name) => t(`ai.tool.${name}`, { defaultValue: name })),
+    ...further.filter((name) => !MAIL_TOOL_NAMES.includes(name) && !isMcpExposedToolName(name)).map((name) => t(`ai.tool.${name}`, { defaultValue: name })),
+    ...(external ?? (foreign.length ? [t("ai.ext.overviewOther", { n: foreign.length })] : [])),
   ].filter(Boolean);
   const readingLines = reading
     ? [
@@ -349,6 +357,19 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
                   {reading.reader === "device" ? t("ai.reading.byDevice", { reader: reading.readerModel ?? "" }) : t("ai.reading.byProvider", { provider: manifest.providerLabel })}
                 </span>
               )}
+            </dd>
+          </>
+        )}
+        {/* Afterwards: what the run asked of foreign servers (plan P4.5) — who, what, how it ended; never what was said. */}
+        {externalCalls && externalCalls.length > 0 && (
+          <>
+            <dt>{t("ai.ext.overviewCalls")}</dt>
+            <dd data-testid="ai-overview-external">
+              {externalCalls.map((line, index) => (
+                <span key={index} className="pv-ai-overview-hint">
+                  {line}
+                </span>
+              ))}
             </dd>
           </>
         )}

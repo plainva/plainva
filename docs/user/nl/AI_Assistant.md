@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-10-06
+Laatst bijgewerkt: 2026-10-07
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen aan een geselecteerde passage voor als voorstellen — een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -158,6 +158,24 @@ Een link in een antwoord waarvan het model het adres zelf heeft samengesteld, is
 **Wat de assistent ervan leest.** Van een zoekopdracht ziet hij de datum, de afzender en het onderwerp van de berichten — nooit hun tekst. De tekst van een bericht en de beschrijving van een afspraak leest hij nooit zelf: anderen hebben ze geschreven, en wie een e-mail of een uitnodiging schrijft, kan die precies voor deze lezer schrijven. Een tweede lezer zonder enig hulpmiddel leest ze en schrijft een kort verslag — een samenvatting, uitspraken met de passage waarop ze berusten, en links die er echt in staan. Is onder **Modellen en profielen** een model op dit apparaat ingesteld als **Lokaal**, dan is dat model die lezer, en verlaat de tekst zelf het apparaat niet; alleen het verslag gaat naar de provider. Anders leest de provider van het gesprek, in een apart verzoek zonder hulpmiddelen. De vraag zegt je vooraf wie er leest.
 
 **Wat niet verandert.** De assistent leest alleen: een bericht dat hij las, blijft ongelezen, er wordt niets verplaatst, beantwoord of verwijderd, en bijlagen opent hij niet — hij noemt alleen hun namen. Onder het antwoord zie je hoeveel berichten zijn gelezen, en de regel eronder zegt wie de tekst las.
+
+## Externe hulpmiddelen (MCP)
+
+De assistent kan hulpmiddelen gebruiken van servers die je zelf koppelt, via het Model Context Protocol (MCP) — een ticketsysteem, een wiki, een database van je team. Het is de omgekeerde richting van [AI-apps koppelen](Connect_AI_Apps.md): daar lezen andere apps je vault via Plainva; hier vraagt de assistent van Plainva iets aan andere servers. Van een server wordt niets gebruikt voordat je hebt bekeken wat hij aanbiedt, en elke aanroep krijg je te zien voordat hij vertrekt.
+
+**Een server toevoegen.** Kies in **Instellingen → AI & automatisering** (het Vault-deel) onder **Externe hulpmiddelen (MCP)** voor **Server toevoegen…**. Geef hem een eigen naam en zijn adres (`https://…`), en een toegangstoken als de server erom vraagt — het gaat naar de beveiligde opslag van dit apparaat en wordt nooit meer getoond. Op de desktop kan een server ook een **Programma op deze computer** zijn: het bestand dat wordt gestart, de argumenten en de waarden voor zijn omgeving. Plainva start het rechtstreeks, zonder shell, en in een sandbox wanneer je computer er een heeft die Plainva kan gebruiken. Je systeem toont het adres of de hele opdracht nog één keer voordat het wordt onthouden. Op de telefoon is een server altijd een adres.
+
+**Hem controleren.** Een server die net is toegevoegd, biedt nog niets aan. Zijn controle toont wat er is geregistreerd en wat de server opsomt: zijn eigen beschrijving, zijn hulpmiddelen met hun beschrijvingen — de eigen woorden van de server — en zijn prompts. **Goedkeuren** staat precies deze teksten toe, op dit apparaat. Voordat een server wordt gebruikt, laadt Plainva opnieuw wat hij opsomt en vergelijkt het met wat je hebt goedgekeurd; wijkt er iets af, dan is de server geblokkeerd totdat je opnieuw kijkt, en de controle zegt wat er is veranderd.
+
+**Wat een vault toestaat.** Elke vault beslist voor zichzelf: of hij de server gebruikt (**⟨server⟩ in deze vault gebruiken**), welke van zijn hulpmiddelen de assistent mag aanroepen — er is er geen aangevinkt, en alleen hulpmiddelen die zeggen dat ze alleen lezen kunnen worden aangevinkt —, en onder **Notities die met een aanroep mee mogen** of dat **Geen**, **Gekozen mappen** of **De hele vault** is.
+
+**In een gesprek.** De hulpmiddelen van je servers horen niet bij de hulpmiddelen waarmee een gesprek begint: de assistent zoekt ze pas wanneer je vraag ze nodig heeft, en het overzicht vóór het verzenden noemt de servers waarbij ze horen. Elke afzonderlijke aanroep vraagt eerst — **⟨server⟩ aanroepen?** — met het hulpmiddel en precies wat er zou worden verstuurd. **Aanroepen** laat deze ene aanroep door, **Niet aanroepen** laat hem achterwege, en een “altijd” bestaat niet. Een aanroep vertrekt helemaal niet als het gesprek een notitie heeft gelezen die buiten valt wat de vault deze server toestaat, of een notitie die je uit de cloud houdt. Wat terugkomt wordt behandeld als de tekst van een vreemde: de assistent leest het en neemt er geen instructies uit aan.
+
+**Prompts.** Een server kan prompts aanbieden — kant-en-klare verzoeken. Ze staan onder een leeg gesprek, en alleen jij start ze. De eerste keer toont Plainva waartoe een prompt uitgroeit voordat hij als jouw bericht wordt verstuurd; daarna gaat precies die tekst zonder te vragen, en een andere tekst blokkeert de server.
+
+**Wat Plainva bewaart.** Het adres of de opdracht wordt op dit apparaat onthouden, de opgeslagen waarden in zijn beveiligde opslag; jouw goedkeuring staat in de eigen gegevens van Plainva, nooit in de vault — wie in de vault kan schrijven, kan dus geen server goedkeuren. Onder **Recente aanroepen in deze vault** somt de controle op wanneer een hulpmiddel is aangeroepen, welk en hoe het afliep — nooit wat er is gezegd. **Server verwijderen** verwijdert de server van dit apparaat, voor elke vault.
+
+Een gesprek dat door een vaardigheid is gestart, een actie op een selectie en een antwoord in een draad met opmerkingen bereiken geen externe hulpmiddelen, en het eigen model van het systeem op de telefoon evenmin.
 
 ## Een antwoord als notitie bewaren
 

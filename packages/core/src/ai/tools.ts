@@ -52,6 +52,14 @@ export interface ToolManifest {
    * needs the user's approval.
    */
   outward?: boolean;
+  /**
+   * A tool of a foreign MCP server (plan KI-Harness P4.5). Such a manifest is
+   * not in the list below: it is built for one run from the listing the user
+   * approved (`mcpForeignManifest`), is reached only through the tool search,
+   * and never goes to a provider as a tool definition. `schema` is the
+   * reading copy of its arguments; `label` is the user's name for the server.
+   */
+  foreign?: { server: string; label: string; tool: string; schema: Record<string, unknown> };
 }
 
 /** The tools that reach the internet. A conversation carries them only while its vault allows the internet. */
@@ -456,8 +464,9 @@ export function findTools(query: string, pool: readonly ToolManifest[], max = 5)
     .map((hit) => hit.tool);
 }
 
-/** JSON Schema of a tool's input, as the provider adapters and MCP send it. */
+/** JSON Schema of a tool's input, as the provider adapters and MCP send it. A foreign tool's is the reading copy of what its server listed. */
 export function toolInputJsonSchema(tool: ToolManifest): Record<string, unknown> {
+  if (tool.foreign) return tool.foreign.schema;
   const schema = z.toJSONSchema(tool.input, { target: "draft-2020-12", io: "input" }) as Record<string, unknown>;
   delete schema.$schema;
   return schema;
@@ -500,6 +509,20 @@ export function findToolsText(query: string, pool: readonly ToolManifest[], comm
     for (const command of listed) lines.push(`- ${command.id} — ${command.label}`);
   }
   return lines.join("\n");
+}
+
+/**
+ * The tools of foreign servers that `find_tools` lists for a query, as lines
+ * (plan KI-Harness P4.5): the matching ones, or all where nothing matches —
+ * like the app's own. Every word of a line but the name is a server's: the
+ * caller puts the text into the data fence, where a description is
+ * information about a tool and never an instruction.
+ */
+export function foreignToolsText(query: string, pool: readonly ToolManifest[], max = 8): string {
+  if (pool.length === 0) return "";
+  const hits = findTools(query, pool, max);
+  const tools = hits.length ? hits : pool.slice(0, max);
+  return tools.map((tool) => `- ${tool.name} (${tool.foreign?.label ?? ""}) — ${tool.description}\n  arguments: ${JSON.stringify(toolInputJsonSchema(tool))}`).join("\n");
 }
 
 /** Validates and completes tool arguments (defaults applied); never throws. */

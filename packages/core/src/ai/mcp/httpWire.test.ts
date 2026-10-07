@@ -336,6 +336,47 @@ describe("what the transport does", () => {
     expect(port.requests).toHaveLength(2);
   });
 
+  it("opens once for everybody who waits — one that gives up leaves the others waiting", async () => {
+    const { wire, port, server } = wired();
+    const gone = new AbortController();
+    const one = failureOf(wire.open(gone.signal));
+    const two = wire.open();
+    const three = wire.request("tools/list", {});
+    gone.abort();
+    // A review that was closed does not cancel the conversation that waits for the same connection.
+    expect(await one).toEqual({ kind: "cancelled" });
+    await expect(two).resolves.toMatchObject({ era: "modern" });
+    await expect(three).resolves.toMatchObject({ tools: expect.any(Array) });
+    expect(server.methods.filter((method) => method === "server/discover")).toHaveLength(1);
+    expect(port.cancelled).toEqual([]);
+  });
+
+  it("calls an opening off when the last one who waited has gone, and starts anew for whoever comes next", async () => {
+    const { wire, port, server } = wired();
+    port.hang = true;
+    const a = new AbortController();
+    const b = new AbortController();
+    const one = failureOf(wire.open(a.signal));
+    const two = failureOf(wire.open(b.signal));
+    await vi.waitFor(() => expect(port.requests).toHaveLength(1));
+    a.abort();
+    expect(await one).toEqual({ kind: "cancelled" });
+    // One still waits: the request goes on.
+    expect(port.cancelled).toEqual([]);
+    b.abort();
+    expect(await two).toEqual({ kind: "cancelled" });
+    await vi.waitFor(() => expect(port.cancelled).toEqual(["r1"]));
+    port.hang = false;
+    await expect(wire.open()).resolves.toMatchObject({ era: "modern" });
+    expect(server.methods.filter((method) => method === "server/discover")).toHaveLength(1);
+    // One who has given up before asking is not let in, and starts nothing.
+    const before = new AbortController();
+    before.abort();
+    const fresh = wired();
+    expect(await failureOf(fresh.wire.open(before.signal))).toEqual({ kind: "cancelled" });
+    expect(fresh.port.requests).toEqual([]);
+  });
+
   it("gives up by itself when the native side does not", async () => {
     vi.useFakeTimers();
     const { wire, port } = wired();

@@ -91,6 +91,29 @@ export interface RunMeta {
    * nothing of the kind passed.
    */
   restricted?: AiPolicyDimension[];
+  /**
+   * Notes the run's tools read, by path (plan KI-Harness P4.5), beside the
+   * ones its context carried (`sent`). A foreign server gets a call only when
+   * everything a conversation has read lies in the folders the user allowed
+   * for it — so what was read has to be known later. At most `RUN_READ_CAP`
+   * paths; `readMore` says that there were more, and then nothing is assumed
+   * about where they lie.
+   */
+  read?: string[];
+  readMore?: boolean;
+  /** What the run asked of foreign servers; absent when it asked nothing. */
+  mcp?: RunMcp;
+}
+
+/** Paths of notes a run's tools read that its record keeps. */
+export const RUN_READ_CAP = 200;
+
+/**
+ * What a run asked of foreign MCP servers (plan KI-Harness P4.5): which
+ * server, which tool, how it ended — never an argument or a word of a result.
+ */
+export interface RunMcp {
+  calls: { server: string; tool: string; outcome: string }[];
 }
 
 /** The skill a conversation runs, bound when it started (plan KI-Harness P3). */
@@ -281,8 +304,23 @@ function readRun(raw: unknown): RunMeta[] {
       ...(readRunWeb(r.web) ? { web: readRunWeb(r.web)! } : {}),
       ...(readRunReading(r.reading) ? { reading: readRunReading(r.reading)! } : {}),
       ...(readRestricted(r.restricted).length ? { restricted: readRestricted(r.restricted) } : {}),
+      ...(strings(r.read).length ? { read: strings(r.read).slice(0, RUN_READ_CAP) } : {}),
+      // More than the record keeps — or more than it may keep: either way not everything is known by path.
+      ...(r.readMore === true || strings(r.read).length > RUN_READ_CAP ? { readMore: true } : {}),
+      ...(readRunMcp(r.mcp) ? { mcp: readRunMcp(r.mcp)! } : {}),
     },
   ];
+}
+
+/** A run's record of its calls to foreign servers, read defensively: names and outcomes, bounded. */
+function readRunMcp(raw: unknown): RunMcp | null {
+  if (!raw || typeof raw !== "object" || !Array.isArray((raw as { calls?: unknown }).calls)) return null;
+  const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 128) : "");
+  const calls = ((raw as { calls: unknown[] }).calls as unknown[])
+    .flatMap((c) => (c && typeof c === "object" ? [{ server: text((c as { server?: unknown }).server), tool: text((c as { tool?: unknown }).tool), outcome: text((c as { outcome?: unknown }).outcome) }] : []))
+    .filter((c) => c.server && c.tool)
+    .slice(0, 64);
+  return calls.length ? { calls } : null;
 }
 
 /** The rules a run's notes carried, read defensively: only the dimensions there are, each once, in their order. */

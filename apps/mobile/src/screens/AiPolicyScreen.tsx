@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Globe, Plus } from "lucide-react";
-import { parsePolicyFile, serializePolicyFile, type AiPolicyDimension, type FolderPolicyRule } from "@plainva/core";
+import { Globe, Plug, Plus } from "lucide-react";
+import { mcpServerStanding, parsePolicyFile, serializePolicyFile, type AiPolicyDimension, type FolderPolicyRule } from "@plainva/core";
 import {
   AI_POLICY_FILE,
   Banner,
+  externalStatusText,
   GroupCard,
   ICON,
   Row,
@@ -22,6 +23,7 @@ import {
   type PolicyChoice,
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
+import { ExternalAddSheet, ExternalReviewSheet } from "../components/ExternalToolsSheets";
 import { currentMobileAiPolicy, getMobileAiSession } from "../services/ai/mobileAi";
 import { mActions, mPrompt, mSelect, mTargets } from "../services/mobileDialogs";
 import type { MobileVault } from "../services/vaultService";
@@ -38,8 +40,11 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileV
   const aiState = useSyncExternalStore(session.subscribe, session.getState);
   useEffect(() => {
     void session.refreshSkills();
+    void session.mcp.refresh();
   }, [session]);
   const sections = workshopSections(aiState.skills.entries);
+  // External tools (plan KI-Harness P4.5): the sheet that is open — adding a server, or the review of one.
+  const [external, setExternal] = useState<"add" | { review: string } | null>(null);
   const [rules, setRules] = useState<FolderPolicyRule[] | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
@@ -164,6 +169,35 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileV
           </RowList>
         </GroupCard>
         <p className="m-hint">{web.enabled ? t("ai.web.settings.sitesDesc") : t("ai.web.settings.desc")}</p>
+        {/* External tools (plan KI-Harness P4.5): the servers this phone knows, and whether this vault uses each — as on the desktop. */}
+        {aiState.mcp.available && aiState.mcp.loaded && (
+          <>
+            <SectionLabel>{t("ai.ext.title")}</SectionLabel>
+            <GroupCard>
+              <RowList>
+                {aiState.mcp.servers.map((server) => {
+                  const standing = mcpServerStanding(server);
+                  const usable = standing === "ready" || standing === "off";
+                  return (
+                    <Row
+                      key={server.id}
+                      wrap
+                      controls={usable}
+                      icon={<Plug size={ICON.ui} />}
+                      title={server.label}
+                      subtitle={usable ? externalStatusText(t, server) : `${externalStatusText(t, server)} · ${t("ai.ext.reviewAction")}`}
+                      end={usable ? <Switch checked={server.enabled} label={t("ai.ext.use", { server: server.label })} onChange={(enabled) => void session.mcp.setVault(server.id, { enabled })} /> : undefined}
+                      onClick={() => setExternal({ review: server.id })}
+                      data-testid="settings-ai-ext-server"
+                    />
+                  );
+                })}
+                <Row icon={<Plus size={ICON.ui} />} title={t("ai.ext.addAction")} onClick={() => setExternal("add")} data-testid="settings-ai-ext-add" />
+              </RowList>
+            </GroupCard>
+            <p className="m-hint">{aiState.mcp.servers.length ? t("ai.ext.desc") : `${t("ai.ext.none")} ${t("ai.ext.desc")}`}</p>
+          </>
+        )}
         <SectionLabel>{t("ai.workshop.settingsTitle")}</SectionLabel>
         <GroupCard>
           <RowList>
@@ -189,6 +223,8 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileV
         </GroupCard>
         <p className="m-hint">{t("ai.workshop.settingsDesc")}</p>
       </div>
+      {external === "add" && <ExternalAddSheet onClose={() => setExternal(null)} onAdded={(id) => setExternal({ review: id })} />}
+      {external !== null && external !== "add" && <ExternalReviewSheet vault={vault} serverId={external.review} onClose={() => setExternal(null)} />}
     </div>
   );
 }

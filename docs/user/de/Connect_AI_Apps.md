@@ -1,8 +1,10 @@
 # KI-Apps verbinden (Beta)
 
-Stand: 2026-09-30
+Stand: 2026-10-07
 
 KI-Apps auf Deinem Rechner — Claude Code, Claude Desktop, Cursor, VS Code und andere, die das Model Context Protocol (MCP) sprechen — können Deinen Vault über Plainva lesen: ihn durchsuchen, Notizen und ihre Abschnitte lesen, Gliederungen, Backlinks, Datenbanken, Aufgaben und zuletzt benutzte Notizen, und eine Notiz in Plainva öffnen. Ändern können sie nichts. Das gehört zu den experimentellen KI-Funktionen und geht nur am Desktop.
+
+Die Gegenrichtung — Plainvas Assistent nutzt Werkzeuge von Servern, die Du selbst anbindest — steht unter **Externe Werkzeuge (MCP)** im [KI-Assistenten](AI_Assistant.md).
 
 ## So funktioniert es
 

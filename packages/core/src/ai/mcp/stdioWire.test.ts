@@ -192,6 +192,38 @@ describe("what the pipe does", () => {
     expect(await opening).toEqual({ kind: "exited", code: null });
   });
 
+  it("opens once for everybody who waits — one that gives up leaves the others waiting", async () => {
+    const { wire, port } = wired({}, { held: true });
+    const gone = new AbortController();
+    const one = failureOf(wire.open(gone.signal));
+    const two = wire.open();
+    await flush();
+    gone.abort();
+    expect(await one).toEqual({ kind: "cancelled" });
+    port.release();
+    expect((await two).era).toBe("modern");
+    // The program was asked once, and nobody told it to stop.
+    expect(written(port).map((line) => line.method)).toEqual(["server/discover"]);
+    expect(port.stopped).toBe(false);
+  });
+
+  it("gives an opening up when the last one who waited has gone, and asks anew for whoever comes next", async () => {
+    const { wire, port } = wired({}, { held: true });
+    const a = new AbortController();
+    const b = new AbortController();
+    const one = failureOf(wire.open(a.signal));
+    const two = failureOf(wire.open(b.signal));
+    await flush();
+    a.abort();
+    expect(await one).toEqual({ kind: "cancelled" });
+    expect(written(port).some((line) => line.method === "notifications/cancelled")).toBe(false);
+    b.abort();
+    expect(await two).toEqual({ kind: "cancelled" });
+    port.release();
+    expect((await wire.open()).era).toBe("modern");
+    expect(written(port).filter((line) => line.method === "server/discover")).toHaveLength(2);
+  });
+
   it("tells the program to stop working on a request that is given up", async () => {
     vi.useFakeTimers();
     const { wire, port, server } = wired();

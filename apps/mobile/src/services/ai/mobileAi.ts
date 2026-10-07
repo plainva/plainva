@@ -10,6 +10,7 @@ import {
   adapterInstructionIO,
   adapterInstructionWriter,
   createAiVaultHost,
+  createMcpDeviceStore,
   createVaultPolicy,
   dailyNotePathFor,
   databaseTaskRows,
@@ -42,6 +43,7 @@ import { atomicWriteText } from "../../platform/atomicFile";
 import { mConfirm } from "../mobileDialogs";
 import { createMobileAiEgress } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
+import { createMobileMcpHost } from "../../platform/aiMcp";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
@@ -128,6 +130,8 @@ export function getMobileAiSession(): AiSession {
       label: (key, vars) => i18n.t(key, vars),
       // The assistant's page fetch (plan KI-Harness P4): the plugin of its own, apart from the egress.
       web: createMobileWebFetcher(),
+      // Foreign MCP servers (plan KI-Harness P4.5): the plugin's registry, and what was approved on this phone.
+      mcp: { native: createMobileMcpHost(), store: createMcpDeviceStore(mobileAiFiles), version: async () => (await getPlatformServices().appVersion?.()) ?? "" },
     });
     void session.load();
   }

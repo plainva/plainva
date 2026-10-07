@@ -1,5 +1,5 @@
 import { mcpParamHeaders, readMcpHeaderParams } from "./headerValues.js";
-import { readMcpListing, MCP_MAX_PROMPTS, MCP_MAX_TOOLS, type McpListing } from "./listing.js";
+import { capMcpText, readMcpListing, MCP_MAX_PROMPTS, MCP_MAX_TOOLS, type McpListing } from "./listing.js";
 import {
   McpError,
   mcpTtl,
@@ -65,6 +65,37 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 /** What a prompt expansion is pinned by: its description and its messages, nothing of the envelope around them. */
 export function mcpPromptBody(result: Record<string, unknown>): { description: string; messages: unknown[] } {
   return { description: typeof result.description === "string" ? result.description : "", messages: Array.isArray(result.messages) ? result.messages : [] };
+}
+
+/** The longest text a server's prompt becomes as a message. */
+export const MCP_PROMPT_TEXT_LIMIT = 20_000;
+
+/**
+ * A prompt expansion as the one message it becomes when the user sends it:
+ * the text of its parts, in order; a part the server wrote as the assistant's
+ * is marked as such; what is no text — a picture, a sound, a link — is
+ * counted and left out. Cleaned of invisible characters and cut, like every
+ * text a server supplies: the user reads exactly what would go.
+ */
+export function mcpPromptText(body: { messages: readonly unknown[] }): { text: string; dropped: number; truncated: boolean } {
+  let dropped = 0;
+  const parts: string[] = [];
+  for (const message of body.messages) {
+    if (!isRecord(message)) {
+      dropped++;
+      continue;
+    }
+    const texts: string[] = [];
+    for (const block of Array.isArray(message.content) ? message.content : [message.content]) {
+      if (isRecord(block) && block.type === "text" && typeof block.text === "string") texts.push(block.text);
+      else if (isRecord(block) && block.type === "resource" && isRecord(block.resource) && typeof block.resource.text === "string") texts.push(block.resource.text);
+      else dropped++;
+    }
+    const text = texts.join("\n\n").trim();
+    if (text) parts.push(message.role === "assistant" ? `[assistant]\n${text}` : text);
+  }
+  const capped = capMcpText(parts.join("\n\n"), MCP_PROMPT_TEXT_LIMIT);
+  return { text: capped.text, dropped, truncated: capped.truncated };
 }
 
 export function createMcpClient(wire: McpWire, options: { timeouts?: Partial<McpTimeouts> } = {}): McpClient {

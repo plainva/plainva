@@ -168,7 +168,19 @@ import {
   type ToolManifest,
   type WebFetcher,
   type WebSettings,
+  asMcpError,
+  isMcpExposedToolName,
+  mcpPromptText,
+  mcpRecipient,
+  mcpServerStanding,
+  RUN_READ_CAP,
+  type GateRun,
+  type RunMcp,
 } from "@plainva/core";
+import { AiMcp, type AiMcpHost, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
+import type { McpPromptLook } from "./mcpRuntime";
+import type { McpVaultStore } from "./mcpStores";
+import { createMcpExecutor, newRunMcp, type McpCallQuestion } from "./mcpTools";
 
 /**
  * THE conversation state of the AI harness (plan §19.1): one store, whatever
@@ -205,6 +217,13 @@ export interface AiSessionHost {
    * `ai_web_fetch`, the phone's `AiWeb` plugin. Absent, no page is read.
    */
   web?: WebFetcher;
+  /**
+   * Foreign MCP servers (plan KI-Harness P4.5): the shell's native side — the
+   * registry behind a native dialog, the credentials, the requests and the
+   * programs — and the device's record of what was approved. Absent, there
+   * are no foreign servers in this shell.
+   */
+  mcp?: AiMcpHost;
 }
 
 export interface AiVaultHost {
@@ -227,7 +246,9 @@ export interface AiVaultHost {
    * carries tools that reach the internet, so a note whose rules say
    * `web: deny` does not exist for these tools either. `more`: the further
    * tools this shell can serve, reached through the tool search (ADR 0019);
-   * `narrowed` tells that search what a skill the model loaded leaves.
+   * `narrowed` tells that search what a skill the model loaded leaves;
+   * `foreign` are the tools of foreign servers this run may find there too
+   * (plan P4.5).
    */
   tools(
     recipient: EgressRecipient,
@@ -235,9 +256,12 @@ export interface AiVaultHost {
     redact?: ReadonlySet<string>,
     web?: boolean,
     narrowed?: () => readonly string[] | null,
+    foreign?: () => readonly ToolManifest[],
   ): { names: readonly string[]; more?: readonly string[]; executor: ToolExecutor } | null;
   /** Whether the AI may use the internet in this vault, and the sites it need not ask for (plan P4); absent, it may not. */
   web?: WebSettingsStore;
+  /** This vault's choices about foreign MCP servers (plan P4.5): which it uses, and what each may be called with. Absent, it uses none. */
+  mcp?: McpVaultStore;
   /** Gives a note its own rule "never to the cloud" (View context, "only on this device"). */
   keepOnDevice?(path: string): Promise<void>;
   /** Checked gists of the model on this computer (plan P2b-3), read when a message is built; null while there are none. */
@@ -482,7 +506,14 @@ export type EffectRequest =
    * P4-6, §12.1 "a write into a place third parties read"): an answer kept as
    * a note inside a shared workspace. Asked each time; `always` means yes.
    */
-  | { id: string; kind: "write"; audience: "members"; title: string; folder: string };
+  | { id: string; kind: "write"; audience: "members"; title: string; folder: string }
+  /**
+   * `mcp` — one call to a tool of a foreign server (plan P4.5, §17.2 "before
+   * every call visible: server, tool, data"). `server` is the user's name for
+   * it, `args` the arguments in full, as they would go. Asked for every call:
+   * there is no "from now on", and `always` means this once.
+   */
+  | { id: string; kind: "mcp"; serverId: string; server: string; tool: string; title: string; args: string };
 
 /**
  * The user's answer. To a request to the internet: this once, from now on for
@@ -569,6 +600,8 @@ export interface AiState {
   draftWeb: boolean;
   /** A page or a search waiting for the user's answer. */
   effect: EffectRequest | null;
+  /** The foreign MCP servers of this device as they stand for this vault (plan P4.5): what the settings show. */
+  mcp: AiMcpState;
 }
 
 type Listener = () => void;
@@ -692,8 +725,11 @@ export class AiSession {
   private surfaces = 0;
   /** How the shell puts a conversation on screen (the companion, the AI sheet). */
   private reveal: (() => void) | null = null;
+  /** Foreign MCP servers (plan P4.5): what the settings drive, and what a run asks before it calls one. */
+  readonly mcp: AiMcp;
 
   constructor(private readonly host: AiSessionHost) {
+    this.mcp = new AiMcp(host.mcp, { now: () => host.now(), newId: () => host.newId() }, (mcp) => this.set({ mcp }));
     this.state = {
       loaded: false,
       settings: host.defaults,
@@ -717,6 +753,7 @@ export class AiSession {
       web: DEFAULT_WEB_SETTINGS,
       draftWeb: false,
       effect: null,
+      mcp: this.mcp.state,
     };
   }
 
@@ -909,6 +946,8 @@ export class AiSession {
       web: DEFAULT_WEB_SETTINGS,
       draftWeb: false,
     });
+    // The same for foreign servers: which this vault uses is its own choice, and the connections of the last one end here.
+    this.mcp.attach(vault?.mcp ?? null);
     if (!vault) return;
     void this.refreshSkills();
     void this.loadWebSettings(vault);
@@ -940,6 +979,46 @@ export class AiSession {
    */
   private dropWriteQuestion(): void {
     if (this.state.effect?.kind === "write") this.settleEffect("deny");
+  }
+
+  // -------------------------------------------------------- foreign servers
+
+  /**
+   * Starts a prompt of a foreign server (plan KI-Harness P4.5). A prompt is a
+   * text a server wrote that becomes the user's message, so it is checked at
+   * the moment it is used: the expansion that was approved goes at once; one
+   * nobody approved yet comes back for the user to read first
+   * (`sendMcpPrompt` sends it); one that differs from the approved one blocks
+   * the server, and nothing is sent.
+   */
+  async startMcpPrompt(serverId: string, name: string, args: Readonly<Record<string, string>>): Promise<McpPromptStart> {
+    const vault = this.vault;
+    if (!vault || this.state.live || !this.state.settings.enabled) return { kind: "unavailable" };
+    const server = (await this.mcp.servers().catch(() => [])).find((entry) => entry.id === serverId);
+    if (!server || mcpServerStanding(server) !== "ready" || !server.snapshot?.prompts.some((prompt) => prompt.name === name)) return { kind: "unavailable" };
+    // The listing again before the server is asked for a text: a server that changed is blocked here already.
+    const check = await this.mcp.check(serverId);
+    if (!check.ok) return check.reason === "failed" ? { kind: "failed", failure: check.failure } : { kind: check.reason === "blocked" ? "blocked" : "unavailable" };
+    let look: McpPromptLook;
+    try {
+      look = await this.mcp.prompt(serverId, name, args);
+    } catch (error) {
+      return { kind: "failed", failure: asMcpError(error).failure };
+    }
+    if (this.vault !== vault) return { kind: "unavailable" };
+    if (look.standing === "changed") return { kind: "blocked" };
+    const { text, dropped, truncated } = mcpPromptText(look.body);
+    if (!text) return { kind: "empty" };
+    if (look.standing === "unpinned") return { kind: "review", review: { serverId, server: server.label, name, key: look.key, body: look.body, text, dropped, truncated } };
+    await this.send(text);
+    return { kind: "sent" };
+  }
+
+  /** The user read what a server's prompt expanded to, and sends it: from now on this expansion is the approved one. */
+  async sendMcpPrompt(review: McpPromptReview): Promise<void> {
+    if (!this.vault || this.state.live) return;
+    await this.mcp.pinPrompt(review.serverId, review.key, review.body);
+    await this.send(review.text);
   }
 
   // --------------------------------------------------------------- internet
@@ -2159,7 +2238,12 @@ export class AiSession {
     const recipient = recipientOf(provider, choice.model);
     const start = record
       ? null
-      : this.conversationStart((await this.instructionEntries(vault)).entries, this.offeredTools(vault, provider, recipient, this.state.draftWeb && this.state.web.enabled), undefined, this.furtherTools(vault, provider, recipient));
+      : this.conversationStart(
+          (await this.instructionEntries(vault)).entries,
+          this.offeredTools(vault, provider, recipient, this.state.draftWeb && this.state.web.enabled),
+          undefined,
+          await this.furtherTools(vault, provider, recipient, true),
+        );
     const tools = record ? record.conversation.tools : (start?.tools ?? []);
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
       tools,
@@ -2398,7 +2482,7 @@ export class AiSession {
       const withWeb = !apart && this.state.web.enabled && (skills?.bind ? skillWeb : this.state.draftWeb);
       // A door answers where it was asked: it reads the vault, it does not move the app — and it looks for no further tool.
       const offered = this.offeredTools(vault, provider, recipient, withWeb).filter((name) => !door || name !== "run_command");
-      const further = door ? [] : this.furtherTools(vault, provider, recipient);
+      const further = door ? [] : await this.furtherTools(vault, provider, recipient, !detached && !skills?.bind);
       // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
       const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further);
       const id = this.host.newId();
@@ -2430,13 +2514,25 @@ export class AiSession {
     // model on this device, a note kept from the internet in a conversation without it: the run's record keeps the rule,
     // never the path, and a note made of its answer inherits it.
     const restricted = new Set<AiPolicyDimension>();
+    // The notes this run's tools read, by path (plan P4.5): a foreign server gets a call only when everything the
+    // conversation has read lies where the user allowed it. More than the record keeps is remembered as "more".
+    const reads = { paths: new Set<string>(), more: false };
     const scope: ToolScope = {
       ...skillScope(bound?.folders, skillState),
-      passed: (_path, rules) => {
+      passed: (path, rules) => {
         for (const rule of rules) restricted.add(rule);
+        if (reads.paths.size < RUN_READ_CAP) reads.paths.add(path);
+        else if (!reads.paths.has(path)) reads.more = true;
       },
     };
-    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillState.loaded?.tools ?? null) : null;
+    // The tools of foreign servers this run may find (plan P4.5): of the names its conversation was started with, the
+    // ones that are offered NOW — a server that was switched off or blocked since brings none. A door and a
+    // regression run reach none at all.
+    const foreign = !apart && moreNames.some(isMcpExposedToolName) ? await this.mcp.manifests(moreNames) : [];
+    const mcpLog = foreign.length ? newRunMcp() : null;
+    /** What this message's own context carries, known once it is built. */
+    const sending: { sources: { path: string; image?: unknown }[] } = { sources: [] };
+    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillState.loaded?.tools ?? null, () => foreign) : null;
     // Mail and the descriptions of appointments (plan P4-4): a kind of data no overview named asks first, and raw text goes to a reader without tools.
     const reading = newRunReading();
     const guarded = base
@@ -2471,7 +2567,25 @@ export class AiSession {
             webLog,
           )
         : guarded;
-    const tools = inner ? { names: toolNames, executor: createSkillExecutor(inner, this.skillRuntime(vault, record), toolNames, skillState, moreNames) } : null;
+    // The tools of foreign servers sit under the skills' wrapper as well: while a skill is loaded they are not among what it leaves.
+    const startedWith = record;
+    const outer =
+      inner && mcpLog
+        ? createMcpExecutor(
+            inner,
+            {
+              servers: () => this.mcp.servers(),
+              check: (serverId, signal) => this.mcp.check(serverId, signal),
+              carried: () => this.carriedBy(vault, startedWith, sending.sources, reads),
+              keptFromCloud: (serverId, paths) => this.keptFromCloud(vault, serverId, paths),
+              ask: (question, signal) => this.askMcp(question, signal),
+              call: (serverId, tool, args, inputSchema, signal) => this.mcp.call(serverId, tool, args, inputSchema, signal),
+              log: (entry) => this.mcp.log({ ...entry, at: this.host.now().toISOString(), conversation: startedWith.id }),
+            },
+            mcpLog,
+          )
+        : inner;
+    const tools = outer ? { names: toolNames, executor: createSkillExecutor(outer, this.skillRuntime(vault, record), toolNames, skillState, moreNames) } : null;
     // A skill's own budget narrows whatever limits the start brings; it never widens them.
     const own = bound?.maxOutputTokens;
     const limits: RunLimits | undefined =
@@ -2523,6 +2637,8 @@ export class AiSession {
     }
     if (redact.size || record.redact) record = { ...record, redact: [...redact] };
     if (!manifest.local) this.scope = widenScope(this.scope, manifest);
+    // What this message carries counts as read from here on: a call to a foreign server in this very run looks at it too.
+    sending.sources = manifest.sources.map((source) => ({ path: source.path, ...(source.image ? { image: true } : {}) }));
     return this.execute({
       vault,
       choice,
@@ -2540,9 +2656,65 @@ export class AiSession {
       ...(limits ? { limits } : {}),
       ...(webLog ? { web: webLog } : {}),
       ...(guarded ? { reading } : {}),
-      ...(base ? { restricted } : {}),
+      ...(base ? { restricted, reads } : {}),
+      ...(mcpLog ? { foreign, mcp: mcpLog } : {}),
       ...(related.length ? { related } : {}),
     });
+  }
+
+  /**
+   * The notes a conversation has read so far, by path (plan P4.5): what its context carried, what was pinned to it,
+   * what its tools read — in the runs before this one and in this one. `more` when not all of it is known by path:
+   * a run that read more than its record keeps, a picture whose notes cannot be looked up.
+   */
+  private async carriedBy(
+    vault: AiVaultHost,
+    record: ConversationRecord,
+    sending: readonly { path: string; image?: unknown }[],
+    reads: { paths: ReadonlySet<string>; more: boolean },
+  ): Promise<{ paths: string[]; more: boolean }> {
+    const paths = new Set<string>(record.pins);
+    let more = reads.more;
+    const sources: { path: string; image?: unknown }[] = [...sending];
+    for (const run of record.runs) {
+      for (const path of run.sent) paths.add(path);
+      for (const path of run.read ?? []) paths.add(path);
+      if (run.readMore) more = true;
+      sources.push(...(run.manifest?.sources ?? []));
+    }
+    for (const source of sources) {
+      paths.add(source.path);
+      if (!source.image) continue;
+      // A picture belongs to the notes that show it (ADR 0018 §10).
+      const embedders = vault.embedders ? await vault.embedders(source.path).catch(() => null) : null;
+      if (embedders === null) more = true;
+      else for (const path of embedders) paths.add(path);
+    }
+    for (const path of reads.paths) paths.add(path);
+    return { paths: [...paths], more };
+  }
+
+  /** Whether one of these notes must not reach a foreign server — a cloud recipient, wherever it runs. A rule that cannot be read says no. */
+  private async keptFromCloud(vault: AiVaultHost, serverId: string, paths: readonly string[]): Promise<boolean> {
+    const run: GateRun = { recipient: mcpRecipient(serverId), webTools: false };
+    for (const path of paths) {
+      const effective = await (/\.md$/i.test(path) ? vault.policy.policyOf(path) : vault.policy.policyOf(path, "")).catch(() => null);
+      if (!effective || !gateDecision(effective, run).allowed) return true;
+    }
+    return false;
+  }
+
+  /** One call to a foreign server, shown before it goes: the server, the tool, the arguments in full. Asked every time. */
+  private async askMcp(question: McpCallQuestion, signal?: AbortSignal): Promise<boolean> {
+    let args: string;
+    try {
+      args = JSON.stringify(question.args, null, 2);
+    } catch {
+      return false;
+    }
+    // Under the call's own id, like every question about a call: while it stands, no step claims to be running.
+    const request: EffectRequest = { id: question.callId, kind: "mcp", serverId: question.serverId, server: question.serverLabel, tool: question.tool, title: question.title, args };
+    return (await this.askEffect(request, signal ?? new AbortController().signal)) !== "deny";
   }
 
   /** The tools a new conversation with this model is offered: the vault's, and the internet's where it was chosen for it. */
@@ -2553,10 +2725,15 @@ export class AiSession {
     return web && names.length ? [...names, ...webToolNames(this.host.web ?? null, provider.endpoint)] : names;
   }
 
-  /** The further tools a new conversation with this model reaches through its tool search (ADR 0019). */
-  private furtherTools(vault: AiVaultHost, provider: ProviderInfo, recipient: EgressRecipient): string[] {
+  /**
+   * The further tools a new conversation with this model reaches through its tool search (ADR 0019): the vault's own,
+   * and — where `services` — the tools of the foreign servers this vault uses (plan P4.5), under the names the app gives
+   * them. A door, a regression run and a conversation bound to a skill get none of those: nobody chose a service for them.
+   */
+  private async furtherTools(vault: AiVaultHost, provider: ProviderInfo, recipient: EgressRecipient, services: boolean): Promise<string[]> {
     if (provider.endpoint.api === "platform") return [];
-    return [...(vault.tools(recipient)?.more ?? [])];
+    const own = [...(vault.tools(recipient)?.more ?? [])];
+    return services ? [...own, ...(await this.mcp.offeredNames())] : own;
   }
 
   /** A model that runs on this device: the profile "Local" while it names a server on this computer or the system's own model. */
@@ -2667,6 +2844,11 @@ export class AiSession {
     reading?: RunReading;
     /** The rules of notes that passed the run's tools although they restrict them elsewhere (plan P4-6), gathered while it runs. */
     restricted?: ReadonlySet<AiPolicyDimension>;
+    /** The notes the run's tools read, by path (plan P4.5), gathered while it runs. */
+    reads?: { paths: ReadonlySet<string>; more: boolean };
+    /** The tools of foreign servers this run may find, and what it asked of them (plan P4.5). */
+    foreign?: readonly ToolManifest[];
+    mcp?: RunMcp;
     /** The notes that match the question best, shown when no answer comes back (plan §19.4). */
     related?: { path: string; title: string }[];
   }): Promise<{ stop: RunStop; record: ConversationRecord; answer: string }> {
@@ -2693,11 +2875,17 @@ export class AiSession {
       context: { privateContext: carriesVault, untrustedContext: carriesVault },
       signal: controller.signal,
       ...(input.limits ? { limits: input.limits } : {}),
+      ...(input.foreign?.length ? { foreign: input.foreign } : {}),
       // Asked by the run for each call with an outside effect while private data is in it (the Rule of Two).
-      ...(input.web
+      ...(input.web || input.foreign?.length
         ? {
-            approveEffect: (call: ToolCallPart, tool: ToolManifest) =>
-              this.approveWebCall(call, tool, { provider, signal: controller.signal, conversation: () => record.conversation, ...(input.skillState ? { skillState: input.skillState } : {}) }),
+            approveEffect: (call: ToolCallPart, tool: ToolManifest) => {
+              // A call to a foreign server asks its own question — every time, with the arguments in full, and after
+              // the rules that may keep it back (plan P4.5). The run's gate lets it through to there.
+              if (tool.foreign) return Promise.resolve(true);
+              if (!input.web) return Promise.resolve(false);
+              return this.approveWebCall(call, tool, { provider, signal: controller.signal, conversation: () => record.conversation, ...(input.skillState ? { skillState: input.skillState } : {}) });
+            },
           }
         : {}),
       cache: true,
@@ -2762,6 +2950,9 @@ export class AiSession {
       ...(web ? { web } : {}),
       ...(reading ? { reading } : {}),
       ...(input.restricted?.size ? { restricted: AI_POLICY_DIMENSIONS.filter((dimension) => input.restricted!.has(dimension)) } : {}),
+      ...(input.reads?.paths.size ? { read: [...input.reads.paths] } : {}),
+      ...(input.reads?.more ? { readMore: true } : {}),
+      ...(input.mcp?.calls.length ? { mcp: input.mcp } : {}),
     };
     record = {
       ...record,

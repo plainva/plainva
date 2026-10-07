@@ -1,8 +1,10 @@
 # Connecter des apps d'IA (bêta)
 
-Dernière mise à jour : 2026-09-30
+Dernière mise à jour : 2026-10-07
 
 Les apps d'IA de votre ordinateur — Claude Code, Claude Desktop, Cursor, VS Code et d'autres qui parlent le Model Context Protocol (MCP) — peuvent lire votre coffre à travers Plainva : y chercher, lire des notes et leurs sections, des plans, des backlinks, des bases de données, des tâches et les notes récentes, et ouvrir une note dans Plainva. Elles ne peuvent rien modifier. Cela fait partie des fonctions d'IA expérimentales et ne marche que sur ordinateur.
+
+Le sens inverse — l'assistant de Plainva utilisant les outils de serveurs que vous connectez vous-même — est décrit sous **Outils externes (MCP)** dans [Assistant IA](AI_Assistant.md).
 
 ## Comment ça marche
 

@@ -27,6 +27,7 @@ import {
 import { useVault } from "../../contexts/VaultContext";
 import { currentAiPolicy, getDesktopAiSession, requestSkillsView } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
+import { ExternalToolsCard } from "./ExternalToolsCard";
 
 /**
  * Settings → AI & automation, VAULT world (plan KI-Harness §13.2): the privacy
@@ -253,6 +254,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
         {workspaceSecurityStatus !== null && <SettingCardNote>{t("ai.policy.encrypted")}</SettingCardNote>}
       </SettingCard>
       <InternetCard />
+      <ExternalToolsCard />
       <SkillsCard onOpenSkills={openSkills} />
     </div>
   );

@@ -149,6 +149,13 @@ export interface RunInput {
    * such a call is refused: nobody was there to approve it.
    */
   approveEffect?: (call: ToolCallPart, tool: ToolManifest) => Promise<boolean>;
+  /**
+   * Tools of foreign MCP servers for this run (plan KI-Harness P4.5): built
+   * from the listings the user approved, never part of the registry. They
+   * count only where the conversation's `more` list names them, are reached
+   * only through the dispatcher, and never go to a provider as tools.
+   */
+  foreign?: readonly ToolManifest[];
   newRequestId?: () => string;
   now?: () => string;
   /** Mark the stable prefix for provider-side prompt caching. */
@@ -211,8 +218,11 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   const newId = input.newRequestId ?? (() => `ai-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
   const known = (names: readonly string[] | undefined) => (names ?? []).map((name) => toolByName(name)).filter((t): t is ToolManifest => Boolean(t));
   const tools = known(input.conversation.tools);
-  // Further tools are only reachable where the dispatcher is one of the conversation's tools.
-  const more = tools.some((t) => t.name === DISPATCH_TOOL) ? known(input.conversation.more).filter((t) => !tools.includes(t)) : [];
+  // Further tools are only reachable where the dispatcher is one of the conversation's tools. A foreign tool is one of
+  // them only under a name the conversation was started with, and never under the name of a tool of the app's own.
+  const named = new Set(input.conversation.more ?? []);
+  const foreign = (input.foreign ?? []).filter((t) => Boolean(t.foreign) && named.has(t.name) && !toolByName(t.name));
+  const more = tools.some((t) => t.name === DISPATCH_TOOL) ? [...known(input.conversation.more).filter((t) => !tools.includes(t)), ...foreign] : [];
   // What the run can reach decides its class, however a tool is spelled.
   const verdict = ruleOfTwo(runTraits([...tools, ...more], input.context));
   const usage: RunUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, toolCalls: 0, steps: 0 };

@@ -1,5 +1,6 @@
 import type { Conversation, TextPart } from "./conversation.js";
 import { gateDecision, isCloudRecipient, redactDeniedLinks, type EgressRecipient, type GateDecision } from "./egressGate.js";
+import { isMcpExposedToolName } from "./mcp/names.js";
 import type { EffectivePolicy } from "./policy.js";
 import { DISPATCH_TOOL, FIND_TOOL, hasWebTools, MAIL_TOOL_NAMES } from "./tools.js";
 import { fenceUntrusted, payload, stripInvisible, UNTRUSTED_DATA_RULE } from "./trust.js";
@@ -51,8 +52,12 @@ const TOOL_LINES: Record<string, string> = {
  */
 function furtherTools(more: readonly string[]): string | null {
   if (!more.length) return null;
-  const kinds = [more.some((name) => MAIL_TOOL_NAMES.includes(name)) ? "the user's mail" : ""].filter(Boolean);
-  const what = kinds.length ? `Further tools exist, for example for ${kinds.join(", ")}` : "Further tools exist";
+  const kinds = [
+    more.some((name) => MAIL_TOOL_NAMES.includes(name)) ? "for the user's mail" : "",
+    // Tools of foreign servers (plan KI-Harness P4.5): the conversation is told that there are some, never what they say of themselves.
+    more.some(isMcpExposedToolName) ? "those of services the user connected" : "",
+  ].filter(Boolean);
+  const what = kinds.length ? `Further tools exist, for example ${kinds.join(", and ")}` : "Further tools exist";
   return `${what}: ${FIND_TOOL} lists them and the app's commands with their arguments, and ${DISPATCH_TOOL} calls a tool it listed.`;
 }
 

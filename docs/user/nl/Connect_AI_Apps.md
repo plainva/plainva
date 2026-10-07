@@ -1,8 +1,10 @@
 # AI-apps koppelen (bèta)
 
-Laatst bijgewerkt: 2026-09-30
+Laatst bijgewerkt: 2026-10-07
 
 AI-apps op je computer — Claude Code, Claude Desktop, Cursor, VS Code en andere die het Model Context Protocol (MCP) spreken — kunnen je kluis via Plainva lezen: erin zoeken, notities en hun secties lezen, structuren, backlinks, databases, taken en recente notities, en een notitie in Plainva openen. Ze kunnen niets wijzigen. Dit hoort bij de experimentele AI-functies en werkt alleen op de desktop.
+
+De omgekeerde richting — de assistent van Plainva die hulpmiddelen gebruikt van servers die je zelf koppelt — staat beschreven onder **Externe hulpmiddelen (MCP)** in [AI-assistent](AI_Assistant.md).
 
 ## Zo werkt het
 

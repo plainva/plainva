@@ -7,6 +7,7 @@ import {
   readMcpDiscover,
   readMcpInitialize,
   readMcpMessage,
+  shareMcpWork,
   MCP_ERROR_METHOD_NOT_FOUND,
   MCP_ERROR_UNSUPPORTED_VERSION,
   MCP_LEGACY_VERSIONS,
@@ -60,7 +61,6 @@ export function createMcpStdioWire(port: McpStdioPort, options: McpStdioWireOpti
   let closed = false;
   /** While the handshake of an earlier revision runs, and after it: the server may send requests of its own. */
   let handshaking = false;
-  let opening: Promise<McpOpened> | null = null;
   let opened: McpOpened | null = null;
 
   const write = (message: Record<string, unknown>) => port.write(JSON.stringify(message));
@@ -241,24 +241,24 @@ export function createMcpStdioWire(port: McpStdioPort, options: McpStdioWireOpti
     return greeted(second.greet.response);
   };
 
+  // One opening for everybody who waits for it: a caller that gives up does not cancel it for the others.
+  const connecting = shareMcpWork((signal) => connect(signal));
   const open = (signal?: AbortSignal): Promise<McpOpened> => {
     if (closed) return Promise.reject(new McpError({ kind: "cancelled" }));
     if (opened) return Promise.resolve(opened);
     if (exited) return Promise.reject(new McpError({ kind: "exited", code: exited.code }));
-    opening ??= connect(signal).then(
+    return connecting(signal).then(
       (result) => {
-        opening = null;
-        // The program may have ended while it was being asked.
+        // The program may have ended, or the wire may have been closed, while it was being asked.
         if (exited) throw new McpError({ kind: "exited", code: exited.code });
+        if (closed) throw new McpError({ kind: "cancelled" });
         opened = result;
         return result;
       },
       (error: unknown) => {
-        opening = null;
         throw asMcpError(error);
       },
     );
-    return opening;
   };
 
   const answerOf = (response: McpResponse, modern: boolean): Record<string, unknown> => {

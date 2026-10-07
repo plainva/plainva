@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-07
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes to a passage you selected as suggestions — it never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -158,6 +158,24 @@ A link in an answer whose address the model composed itself is marked, and the q
 **What the assistant reads of it.** Of a search it sees the date, the sender and the subject of the messages — never their text. It never reads the text of a message or the description of an appointment itself: other people wrote them, and whoever writes a mail or an invitation can write it for exactly this reader. A second reader without any tools reads them and writes a short report — a summary, statements with the passage they rest on, and links that are really in there. If a model on this device is set up as **Local** under **Models and profiles**, it is that reader, and the text itself does not leave the device; only the report goes to the provider. Otherwise the conversation's provider reads it, in a request of its own without tools. The question tells you beforehand who reads.
 
 **What does not change.** The assistant only reads: a message it read stays unread, nothing is moved, answered or deleted, and it does not open attachments — it only names them. Below the answer you see how many messages were read, and the line below it says who read the text.
+
+## External tools (MCP)
+
+The assistant can use tools of servers you connect yourself, over the Model Context Protocol (MCP) — a ticket system, a wiki, a database of your team. It is the other direction of [Connecting AI apps](Connect_AI_Apps.md): there, other apps read your vault through Plainva; here, Plainva's assistant asks other servers. Nothing of a server is used before you have looked at what it offers, and every call is shown to you before it goes out.
+
+**Adding a server.** In **Settings → AI & automation** (the Vault part), under **External tools (MCP)**, choose **Add a server…**. Give it a name of your own and its address (`https://…`), and an access token if the server asks for one — it goes into this device's secure store and is never shown again. On the desktop a server can also be a **Program on this computer**: the file to start, its arguments and the values for its environment. Plainva starts it directly, without a shell, and in a sandbox where your computer has one Plainva can use. Your system shows the address or the whole command once more before it is remembered. On the phone a server is always an address.
+
+**Reviewing it.** A server that was just added offers nothing yet. Its review shows what is registered and what the server lists: its own description, its tools with their descriptions — the server's own words — and its prompts. **Approve** allows exactly these texts, on this device. Before a server is used, Plainva loads what it lists again and compares it with what you approved; if anything differs, the server is blocked until you look again, and the review says what changed.
+
+**What a vault allows.** Each vault decides for itself: whether it uses the server (**Use ⟨server⟩ in this vault**), which of its tools the assistant may call — none is ticked, and only tools that say they only read can be —, and under **Notes that may go with a call** whether **None**, **Chosen folders** or **The whole vault**.
+
+**In a conversation.** The tools of your servers are not among the tools a conversation starts with: the assistant looks for them only when your question needs them, and the overview before sending names the servers they belong to. Every single call asks first — **Call ⟨server⟩?** — with the tool and exactly what would be sent. **Call** lets this one call through, **Don't call** leaves it, and there is no "always". A call does not go out at all if the conversation has read a note that lies outside what the vault allows this server, or one you keep from the cloud. What comes back is treated as a stranger's text: the assistant reads it and takes no instructions from it.
+
+**Prompts.** A server can offer prompts — ready-made requests. They stand under an empty conversation, and only you start them. The first time, Plainva shows what a prompt expands to before it is sent as your message; from then on exactly that text goes without asking, and another text blocks the server.
+
+**What Plainva keeps.** The address or the command is remembered on this device, the stored values in its secure store; your approval lies in Plainva's own data, never in the vault — so whoever can write the vault cannot approve a server. Under **Recent calls in this vault** the review lists when a tool was called, which one and how it ended — never what was said. **Remove server** deletes the server from this device, for every vault.
+
+A conversation a skill started, an action on a selection and a reply in a comment thread do not reach external tools, and neither does the system's own model on the phone.
 
 ## Keeping an answer as a note
 

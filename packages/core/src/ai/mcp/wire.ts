@@ -146,6 +146,60 @@ export function asMcpError(error: unknown): McpError {
   return new McpError({ kind: "unreachable", detail: (error instanceof Error ? error.message : String(error)).slice(0, MCP_ERROR_TEXT_LIMIT) });
 }
 
+/**
+ * One piece of work for everybody who waits for it — the opening of a
+ * connection. It belongs to none of them alone: a caller that gives up
+ * leaves the others waiting, and only when the last one has gone is the work
+ * itself called off. (A review that was closed must not cancel the
+ * conversation that waits for the same connection.)
+ *
+ * `run` gets the signal that ends the work; a caller's own signal only ends
+ * that caller's wait.
+ */
+export function shareMcpWork<T>(run: (signal: AbortSignal) => Promise<T>): (signal?: AbortSignal) => Promise<T> {
+  interface Shared {
+    promise: Promise<T>;
+    abort: AbortController;
+    waiting: number;
+  }
+  let current: Shared | null = null;
+  return (signal) => {
+    if (signal?.aborted) return Promise.reject(new McpError({ kind: "cancelled" }));
+    if (!current) {
+      const abort = new AbortController();
+      const started: Shared = { abort, waiting: 0, promise: run(abort.signal) };
+      started.promise = started.promise.finally(() => {
+        if (current === started) current = null;
+      });
+      current = started;
+    }
+    const joined = current;
+    joined.waiting++;
+    if (!signal) return joined.promise;
+    return new Promise<T>((resolve, reject) => {
+      const onAbort = () => {
+        if (--joined.waiting === 0) {
+          // Nobody needs it any more: it ends, and whoever comes next starts anew instead of joining what is ending.
+          if (current === joined) current = null;
+          joined.abort.abort();
+        }
+        reject(new McpError({ kind: "cancelled" }));
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      joined.promise.then(
+        (value) => {
+          signal.removeEventListener("abort", onAbort);
+          resolve(value);
+        },
+        (error: unknown) => {
+          signal.removeEventListener("abort", onAbort);
+          reject(error);
+        },
+      );
+    });
+  };
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 export interface McpRpcError {

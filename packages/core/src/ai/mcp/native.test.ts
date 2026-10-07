@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkMcpAddress, mcpServerTarget, mcpStartFailure, readMcpRegisteredServers, MCP_START_PROBLEMS } from "./native.js";
+import { checkMcpAddress, mcpServerTarget, mcpStartFailure, readMcpRegisteredServers, validMcpEnvName, MCP_START_PROBLEMS } from "./native.js";
 
 /**
  * [what the user typed, whether it is an address a server may have] — the
@@ -90,6 +90,14 @@ describe("what the native side answers", () => {
     expect(mcpServerTarget({ ...program, args: ["-y", "@scope/server", "--write"] })).not.toBe(mcpServerTarget(program));
     // Arguments are told apart from one another: two that would join to the same text are two commands.
     expect(mcpServerTarget({ ...program, args: ["-y @scope/server"] })).not.toBe(mcpServerTarget(program));
+  });
+
+  it("takes plain names for a program's environment values, and none that change how a program loads", () => {
+    // The same lists as the native registry's own test (registry.rs).
+    for (const good of ["GITHUB_TOKEN", "API_KEY", "_PRIVATE", "token2"]) expect(validMcpEnvName(good), good).toBe(true);
+    for (const bad of ["", "2FAST", "MY-KEY", "MY KEY", "A=B", "PATH", "Path", "PATHEXT", "ComSpec", "LD_PRELOAD", "ld_library_path", "DYLD_INSERT_LIBRARIES", "A".repeat(65)]) {
+      expect(validMcpEnvName(bad), bad).toBe(false);
+    }
   });
 
   it("turns the reason a program did not start into a failure, and knows only the reasons there are", () => {

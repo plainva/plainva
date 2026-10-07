@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-10-06
+Stand: 2026-10-07
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen an einer markierten Stelle als Vorschläge vor — eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -158,6 +158,24 @@ Ein Link in einer Antwort, dessen Adresse das Modell selbst gebildet hat, ist ma
 **Was der Assistent davon liest.** Von einer Suche sieht er Datum, Absender und Betreff der Nachrichten — nie ihren Text. Den Text einer Nachricht und die Beschreibung eines Termins liest er nie selbst: andere haben sie geschrieben, und wer eine Mail oder eine Einladung schreibt, kann sie für genau diesen Leser schreiben. Ein zweiter Leser ohne jedes Werkzeug liest sie und schreibt einen kurzen Bericht — eine Zusammenfassung, Aussagen mit der Stelle, auf der sie beruhen, und Links, die wirklich darin stehen. Ist unter **Modelle und Profile** ein Modell auf diesem Gerät als **Lokal** eingerichtet, ist es dieser Leser, und der Text selbst verlässt das Gerät nicht; an den Anbieter geht nur der Bericht. Sonst liest der Anbieter des Gesprächs, in einer eigenen Anfrage ohne Werkzeuge. Die Frage sagt Dir vorher, wer liest.
 
 **Was sich nicht ändert.** Der Assistent liest nur: eine Nachricht, die er gelesen hat, bleibt ungelesen, nichts wird verschoben, beantwortet oder gelöscht, und Anhänge öffnet er nicht — er nennt nur ihre Namen. Unter der Antwort siehst Du, wie viele Nachrichten gelesen wurden, und die Zeile darunter sagt, wer den Text gelesen hat.
+
+## Externe Werkzeuge (MCP)
+
+Der Assistent kann Werkzeuge von Servern nutzen, die Du selbst anbindest, über das Model Context Protocol (MCP) — ein Ticketsystem, ein Wiki, eine Datenbank Deines Teams. Es ist die Gegenrichtung zu [KI-Apps verbinden](Connect_AI_Apps.md): Dort lesen andere Apps Deinen Vault über Plainva; hier fragt Plainvas Assistent andere Server. Von einem Server wird nichts genutzt, bevor Du angesehen hast, was er anbietet, und jeden Aufruf siehst Du, bevor er hinausgeht.
+
+**Einen Server hinzufügen.** Wähle in **Einstellungen → KI & Automatisierung** (dem Vault-Teil) unter **Externe Werkzeuge (MCP)** den Punkt **Server hinzufügen…**. Gib ihm einen eigenen Namen und seine Adresse (`https://…`), dazu ein Zugangstoken, falls der Server eines verlangt — es geht in den sicheren Speicher dieses Geräts und wird nie wieder angezeigt. Am Desktop kann ein Server auch ein **Programm auf diesem Rechner** sein: die Datei, die gestartet wird, ihre Argumente und die Werte für ihre Umgebung. Plainva startet es direkt, ohne Shell, und in einer Sandbox, wo Dein Rechner eine hat, die Plainva nutzen kann. Dein System zeigt die Adresse oder den ganzen Befehl noch einmal an, bevor sie gemerkt werden. Am Telefon ist ein Server immer eine Adresse.
+
+**Ihn prüfen.** Ein gerade hinzugefügter Server bietet noch nichts an. Seine Prüfung zeigt, was registriert ist und was der Server auflistet: seine eigene Beschreibung, seine Werkzeuge mit ihren Beschreibungen — den eigenen Worten des Servers — und seine Prompts. **Freigeben** erlaubt genau diese Texte, auf diesem Gerät. Bevor ein Server benutzt wird, lädt Plainva erneut, was er auflistet, und vergleicht es mit dem, was Du freigegeben hast; weicht etwas ab, ist der Server gesperrt, bis Du erneut hinsiehst, und die Prüfung sagt, was sich geändert hat.
+
+**Was ein Vault erlaubt.** Jeder Vault entscheidet für sich: ob er den Server nutzt (**⟨Server⟩ in diesem Vault nutzen**), welche seiner Werkzeuge der Assistent aufrufen darf — keines ist angehakt, und anhaken lassen sich nur Werkzeuge, die sagen, dass sie nur lesen —, und unter **Notizen, die mit einem Aufruf mitgehen dürfen**, ob **Keine**, **Gewählte Ordner** oder **Der ganze Vault**.
+
+**Im Gespräch.** Die Werkzeuge Deiner Server gehören nicht zu den Werkzeugen, mit denen ein Gespräch beginnt: Der Assistent sucht sie erst, wenn Deine Frage sie braucht, und die Übersicht vor dem Senden nennt die Server, zu denen sie gehören. Jeder einzelne Aufruf fragt vorher — **⟨Server⟩ aufrufen?** — mit dem Werkzeug und genau dem, was gesendet würde. **Aufrufen** lässt diesen einen Aufruf durch, **Nicht aufrufen** lässt ihn weg, und ein „immer“ gibt es nicht. Ein Aufruf geht gar nicht hinaus, wenn das Gespräch eine Notiz gelesen hat, die außerhalb dessen liegt, was der Vault diesem Server erlaubt, oder eine, die Du von der Cloud fernhältst. Was zurückkommt, gilt als Text eines Fremden: Der Assistent liest es und nimmt daraus keine Anweisungen an.
+
+**Prompts.** Ein Server kann Prompts anbieten — fertige Anfragen. Sie stehen unter einem leeren Gespräch, und nur Du startest sie. Beim ersten Mal zeigt Plainva, wozu ein Prompt wird, bevor er als Deine Nachricht gesendet wird; von da an geht genau dieser Text ohne Nachfrage, und ein anderer Text sperrt den Server.
+
+**Was Plainva aufbewahrt.** Die Adresse oder der Befehl wird auf diesem Gerät gemerkt, die gespeicherten Werte in seinem sicheren Speicher; Deine Freigabe liegt in Plainvas eigenen Daten, nie im Vault — wer den Vault schreiben kann, kann also keinen Server freigeben. Unter **Letzte Aufrufe in diesem Vault** listet die Prüfung auf, wann ein Werkzeug aufgerufen wurde, welches und wie es ausging — nie, was gesagt wurde. **Server entfernen** löscht den Server von diesem Gerät, für jeden Vault.
+
+Ein Gespräch, das ein Skill begonnen hat, eine Aktion an einer Auswahl und eine Antwort im Kommentar-Faden erreichen keine externen Werkzeuge, ebenso wenig das Modell des Systems am Telefon.
 
 ## Eine Antwort als Notiz festhalten
 

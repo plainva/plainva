@@ -8,6 +8,7 @@ import {
   conversationTitleFrom,
   EMPTY_USAGE,
   expiredConversations,
+  RUN_READ_CAP,
   AI_LEDGER_LIMIT,
   aiMonthlyTotals,
   readConversationRecord,
@@ -118,6 +119,43 @@ describe("conversation records", () => {
     for (const none of [[], ["mail"], "cloud", { cloud: true }]) {
       tampered.runs[0].restricted = none;
       expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("restricted");
+    }
+  });
+
+  it("keeps the notes a run's tools read, by path and bounded — and says when there were more", () => {
+    const r = record();
+    r.runs[0] = { ...r.runs[0]!, read: ["Projects/Offer.md", "People/Anna.md"] };
+    const back = readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!;
+    expect(back.read).toEqual(["Projects/Offer.md", "People/Anna.md"]);
+    expect(back).not.toHaveProperty("readMore");
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].read = ["A.md", 7, null, { path: "B.md" }];
+    expect(readConversationRecord(tampered)!.runs[0]!.read).toEqual(["A.md"]);
+    // More than the record keeps: the rest is not kept, and that there was a rest is.
+    tampered.runs[0].read = Array.from({ length: RUN_READ_CAP + 5 }, (_, i) => `Notes/${i}.md`);
+    const many = readConversationRecord(tampered)!.runs[0]!;
+    expect(many.read).toHaveLength(RUN_READ_CAP);
+    expect(many.readMore).toBe(true);
+    tampered.runs[0].read = ["A.md"];
+    tampered.runs[0].readMore = true;
+    expect(readConversationRecord(tampered)!.runs[0]!.readMore).toBe(true);
+    tampered.runs[0].readMore = "yes";
+    expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("readMore");
+    tampered.runs[0].read = [];
+    expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("read");
+  });
+
+  it("keeps what a run asked of foreign servers: who, what, how it ended — and nothing that was said", () => {
+    const r = record();
+    r.runs[0] = { ...r.runs[0]!, mcp: { calls: [{ server: "tracker", tool: "search_issues", outcome: "answered" }] } };
+    expect(readConversationRecord(JSON.parse(JSON.stringify(r)))!.runs[0]!.mcp).toEqual({ calls: [{ server: "tracker", tool: "search_issues", outcome: "answered" }] });
+    const tampered = JSON.parse(JSON.stringify(r));
+    tampered.runs[0].mcp = { calls: [{ server: "tracker", tool: "search_issues", outcome: "declined", args: { query: "secret" }, result: "never kept" }, { server: "", tool: "x" }, null, "text", { server: 7, tool: "y" }] };
+    expect(readConversationRecord(tampered)!.runs[0]!.mcp).toEqual({ calls: [{ server: "tracker", tool: "search_issues", outcome: "declined" }] });
+    // No call is no record at all.
+    for (const none of [{ calls: [] }, { calls: "many" }, "calls", null]) {
+      tampered.runs[0].mcp = none;
+      expect(readConversationRecord(tampered)!.runs[0]).not.toHaveProperty("mcp");
     }
   });
 

@@ -9,6 +9,7 @@ import {
   readMcpDiscover,
   readMcpInitialize,
   readMcpMessage,
+  shareMcpWork,
   MCP_ERROR_HEADER_MISMATCH,
   MCP_ERROR_MISSING_CAPABILITY,
   MCP_ERROR_UNSUPPORTED_VERSION,
@@ -186,7 +187,6 @@ export function createMcpHttpWire(port: McpHttpPort, options: McpHttpWireOptions
   const timeouts = { ...MCP_TIMEOUTS, ...options.timeouts };
   const meta = () => mcpRequestMeta(options.client);
   let nextId = 1;
-  let opening: Promise<McpOpened> | null = null;
   let opened: McpOpened | null = null;
   let session: string | undefined;
 
@@ -297,20 +297,19 @@ export function createMcpHttpWire(port: McpHttpPort, options: McpHttpWireOptions
     return handshake(signal);
   };
 
+  // One opening for everybody who waits for it: a caller that gives up does not cancel it for the others.
+  const connecting = shareMcpWork((signal) => connect(signal));
   const open = (signal?: AbortSignal): Promise<McpOpened> => {
     if (opened) return Promise.resolve(opened);
-    opening ??= connect(signal).then(
+    return connecting(signal).then(
       (hello) => {
         opened = hello;
-        opening = null;
         return hello;
       },
       (error: unknown) => {
-        opening = null;
         throw asMcpError(error);
       },
     );
-    return opening;
   };
 
   return {

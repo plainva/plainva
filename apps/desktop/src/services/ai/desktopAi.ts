@@ -12,6 +12,7 @@ import {
   adapterInstructionIO,
   adapterInstructionWriter,
   createAiVaultHost,
+  createMcpDeviceStore,
   createVaultPolicy,
   databaseTaskRows,
   flushPendingSave,
@@ -42,6 +43,7 @@ import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
 import { createDesktopAiEgress } from "./desktopAiEgress";
 import { createDesktopWebFetcher } from "./desktopAiWeb";
+import { createDesktopMcpHost } from "./desktopMcp";
 
 /**
  * The desktop's AI session (plan KI-Harness P1a). AI v1 runs in the central
@@ -156,6 +158,8 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
       label: (key, vars) => i18n.t(key, vars),
       // The assistant's page fetch (plan KI-Harness P4): native, like the egress.
       web: createDesktopWebFetcher(),
+      // Foreign MCP servers (plan KI-Harness P4.5): the native registry, and what was approved on this device.
+      mcp: { native: createDesktopMcpHost(), store: createMcpDeviceStore(desktopAiFiles), version: async () => (await getPlatformServices().appVersion?.()) ?? "" },
     });
     void session.load();
   }

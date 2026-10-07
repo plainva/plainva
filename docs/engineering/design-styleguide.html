@@ -1168,6 +1168,30 @@
         <div class="pv-ai-usertext">Explain this image.</div>
       </div>
     </div>
+    <p class="sec-sub">AI harness P4.5 (2026-10-07): external tools (MCP). The question about one call to a server the user connected is a fourth form of the approval card (<code>AiEffectApproval</code>, <code>data-kind="mcp"</code>): the server by the user's name for it, the tool, and the arguments in full as a <code>LineCompare</code> block. One yes is for one call — there is no “always”. The review of a server reuses the skills' facts list and adds Checkbox rows whose second line is the server's own words (<code>.pv-ext-group</code>, <code>.pv-ext-note</code>, layout only).</p>
+    <div class="card" style="max-width: 460px; display: grid; gap: var(--space-2)">
+      <section class="pv-ai-overview pv-ai-overview--asking" aria-label="Call Tracker?">
+        <h4 class="pv-ai-overview-head"><span aria-hidden="true">⏚</span><span>Call Tracker?</span></h4>
+        <dl class="pv-ai-overview-list">
+          <dt>Goes to</dt>
+          <dd>Tracker</dd>
+          <dt>Tool</dt>
+          <dd>Search issues (search_issues)</dd>
+          <dt>Sends</dt>
+          <dd><pre class="pv-linecompare">{
+  "query": "login"
+}</pre></dd>
+        </dl>
+        <span class="pv-ai-overview-hint">Exactly this goes to Tracker. What comes back is treated as a stranger's text: the AI reads it and takes no instructions from it.</span>
+        <div class="pv-ai-overview-actions"><button class="pvbtn ghost">Don't call</button><button class="pvbtn primary">Call</button></div>
+      </section>
+      <fieldset class="pv-ext-group">
+        <legend>Tools</legend>
+        <p class="pv-ext-note">Tick the tools the AI may call in this vault. The descriptions are the server's own words.</p>
+        <label class="pv-checkrow"><input type="checkbox" class="pv-check" checked /><span>Search issues (search_issues)<span>Searches the tracker's issues.</span></span></label>
+        <label class="pv-checkrow"><input type="checkbox" class="pv-check" disabled /><span>close_issue<span>Closes an issue.</span><span>Not offered: it does not say that it only reads.</span></span></label>
+      </fieldset>
+    </div>
     <p class="sec-sub">AI harness P4-6 (2026-10-06): “Keep as a note”. Under a finished answer, beside the run's line, a ghost Button of size sm with the file-plus mark (<code>.pv-ai-capture</code>): the user's own step — a press writes the note into the vault's inbox folder and opens it. In a shared workspace the press first asks, in the same card as a page, a search or mail (<code>AiEffectApproval</code>, <code>data-kind="write"</code>): the note's name, the folder, who reads it. One yes is for one note.</p>
     <div class="card" style="max-width: 420px; display: grid; gap: var(--space-2)">
       <div class="pv-ai-run"><span class="pv-ai-runline">2 notes · ~1,240 tokens · coverage high</span> <button class="pv-btn pv-btn--ghost pv-btn--sm pv-ai-runline pv-ai-capture"><span aria-hidden="true">＋</span>Keep as a note</button></div>

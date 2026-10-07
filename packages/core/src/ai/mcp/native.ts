@@ -124,6 +124,17 @@ export function checkMcpAddress(raw: string): { ok: true; url: string; host: str
   return { ok: true, url: url.toString(), host: url.host };
 }
 
+/**
+ * A name of an environment value the user may set for a program — the form's
+ * side of a rule the native registry enforces. Plain names; none of those
+ * that change how a program is found or loaded.
+ */
+export function validMcpEnvName(name: string): boolean {
+  if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name)) return false;
+  const upper = name.toUpperCase();
+  return upper !== "PATH" && upper !== "PATHEXT" && upper !== "COMSPEC" && !upper.startsWith("LD_") && !upper.startsWith("DYLD_");
+}
+
 /** Why a program did not start, as the native side names it. */
 export const MCP_START_PROBLEMS = ["not-registered", "already-running", "program-moved", "sandbox-unavailable", "start-failed"] as const;
 export type McpStartProblem = (typeof MCP_START_PROBLEMS)[number];

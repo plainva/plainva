@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-10-06
+Stan na: 2026-10-07
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany w zaznaczonym fragmencie jako propozycje — sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -158,6 +158,24 @@ Link w odpowiedzi, którego adres model zbudował sam, jest oznaczony, a pytanie
 **Co z tego czyta asystent.** Z wyszukiwania widzi datę, nadawcę i temat wiadomości — nigdy ich tekst. Tekstu wiadomości ani opisu spotkania nigdy nie czyta sam: napisały je inne osoby, a kto pisze e-mail albo zaproszenie, może to napisać właśnie dla tego czytelnika. Drugi czytelnik, bez żadnych narzędzi, czyta je i pisze krótki raport — streszczenie, stwierdzenia z fragmentem, na którym się opierają, oraz linki, które naprawdę w nich są. Jeśli model na tym urządzeniu jest ustawiony jako **Lokalny** w **Modele i profile**, to on jest tym czytelnikiem, a sam tekst nie opuszcza urządzenia; do dostawcy trafia tylko raport. W przeciwnym razie czyta dostawca rozmowy, w osobnym zapytaniu, bez narzędzi. Pytanie mówi Ci z góry, kto czyta.
 
 **Co się nie zmienia.** Asystent tylko czyta: wiadomość, którą przeczytał, pozostaje nieprzeczytana, nic nie jest przenoszone, odpisywane ani usuwane, a załączników nie otwiera — podaje tylko ich nazwy. Pod odpowiedzią widzisz, ile wiadomości przeczytano, a wiersz pod nią mówi, kto przeczytał tekst.
+
+## Narzędzia zewnętrzne (MCP)
+
+Asystent może korzystać z narzędzi serwerów podłączanych samodzielnie, przez Model Context Protocol (MCP) — systemu zgłoszeń, wiki, bazy danych zespołu. To kierunek odwrotny do opisanego w [Łączenie aplikacji AI](Connect_AI_Apps.md): tam inne aplikacje czytają vault przez Plainva; tutaj asystent Plainva pyta inne serwery. Nic z serwera nie jest używane, zanim nie zostanie sprawdzone, co on oferuje, a każde wywołanie jest pokazywane, zanim zostanie wysłane.
+
+**Dodawanie serwera.** W **Ustawienia → AI & automatyzacja** (część vaultu), w sekcji **Narzędzia zewnętrzne (MCP)**, wybierz **Dodaj serwer…**. Nadaj mu własną nazwę i podaj adres (`https://…`), a jeśli serwer tego wymaga, także token dostępu — trafia on do bezpiecznego magazynu tego urządzenia i nigdy nie jest pokazywany ponownie. Na komputerze serwerem może być też **Program na tym komputerze**: plik do uruchomienia, jego argumenty i wartości dla jego środowiska. Plainva uruchamia go bezpośrednio, bez powłoki, a w piaskownicy tam, gdzie komputer ma taką, z której Plainva może skorzystać. System pokazuje adres albo całe polecenie jeszcze raz, zanim zostanie zapamiętane. Na telefonie serwer jest zawsze adresem.
+
+**Sprawdzanie serwera.** Dopiero co dodany serwer niczego jeszcze nie oferuje. Jego sprawdzenie pokazuje, co jest zarejestrowane i co serwer wymienia: jego własny opis, narzędzia z ich opisami — własnymi słowami serwera — oraz prompty. **Zatwierdź** dopuszcza dokładnie te teksty, na tym urządzeniu. Zanim serwer zostanie użyty, Plainva ponownie wczytuje to, co on wymienia, i porównuje z tym, co zostało zatwierdzone; jeśli coś się różni, serwer jest zablokowany do ponownego sprawdzenia, a sprawdzenie mówi, co się zmieniło.
+
+**Na co pozwala vault.** Każdy vault decyduje sam: czy korzysta z serwera (**Używaj ⟨serwer⟩ w tym vaulcie**), które z jego narzędzi asystent może wywoływać — żadne nie jest zaznaczone, a zaznaczyć można tylko te, które deklarują, że tylko czytają —, oraz w polu **Notatki, które mogą towarzyszyć wywołaniu**, czy **Żadne**, **Wybrane foldery**, czy **Cały vault**.
+
+**W rozmowie.** Narzędzia serwerów nie należą do narzędzi, z którymi zaczyna się rozmowa: asystent szuka ich dopiero wtedy, gdy pytanie tego wymaga, a przegląd przed wysłaniem wymienia serwery, do których należą. Każde pojedyncze wywołanie najpierw pyta — **Wywołać ⟨serwer⟩?** — pokazując narzędzie i dokładnie to, co zostałoby wysłane. **Wywołaj** przepuszcza to jedno wywołanie, **Nie wywołuj** je pomija, a opcji „zawsze” nie ma. Wywołanie w ogóle nie wychodzi, jeśli rozmowa przeczytała notatkę leżącą poza tym, na co vault pozwala temu serwerowi, albo notatkę trzymaną z dala od chmury. To, co wraca, jest traktowane jak tekst kogoś obcego: asystent go czyta i nie przyjmuje z niego żadnych poleceń.
+
+**Prompty.** Serwer może oferować prompty — gotowe zapytania. Znajdują się pod pustą rozmową i uruchamia je wyłącznie użytkownik. Za pierwszym razem Plainva pokazuje, w co prompt się rozwija, zanim zostanie wysłany jako Twoja wiadomość; od tej pory dokładnie ten tekst idzie bez pytania, a inny tekst blokuje serwer.
+
+**Co przechowuje Plainva.** Adres albo polecenie jest zapamiętywane na tym urządzeniu, zapisane wartości — w jego bezpiecznym magazynie; zatwierdzenie leży we własnych danych Plainva, nigdy w vaulcie — kto może pisać w vaulcie, nie może więc zatwierdzić serwera. W sekcji **Ostatnie wywołania w tym vaulcie** sprawdzenie wymienia, kiedy wywołano narzędzie, które i jak się to skończyło — nigdy to, co zostało powiedziane. **Usuń serwer** usuwa serwer z tego urządzenia, dla każdego vaultu.
+
+Rozmowa rozpoczęta przez umiejętność, działanie na zaznaczeniu i odpowiedź w wątku komentarzy nie sięgają po narzędzia zewnętrzne, podobnie jak model systemowy na telefonie.
 
 ## Zachowywanie odpowiedzi jako notatki
 
