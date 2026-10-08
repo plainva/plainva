@@ -244,7 +244,8 @@ export const MAX_ROUND_BLOCKS = 150;
 
 // A no of the user is no failure of the tool: it does not count towards the run's limit of failures in a row.
 const refuse = (reason: WriteRefusal): ToolOutcome => ({ content: WRITE_REFUSALS[reason], isError: true, ...(reason === "declined" ? { declined: true } : {}) });
-const said = (content: string): ToolOutcome => ({ content });
+/** `data`: the same outcome as values, for a script that called the tool (plan P5.5) — never more than the sentence says. */
+const said = (content: string, data?: unknown): ToolOutcome => ({ content, ...(data !== undefined ? { data } : {}) });
 
 /** One line: no line breaks, no runs of blank space, cut at `max`. */
 function oneLine(value: unknown, max: number): string {
@@ -386,7 +387,7 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const links = await linksNowhere(run, ctx, addedNoteTargets(base, intended), note.path);
   await propose(deps, run, { path: note.path, base, chunks, note: oneLine(a.note, 300) });
   recordRound(run.writes, note.path, chunks.length, 0, links);
-  return said(WRITE_RESULTS.proposed(note.path, chunks.length, linted.defused, links.told));
+  return said(WRITE_RESULTS.proposed(note.path, chunks.length, linted.defused, links.told), { proposed: true, path: note.path, passages: chunks.length });
 }
 
 /**
@@ -443,7 +444,7 @@ async function setProperty(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   if (chunks.length > MAX_ROUND_BLOCKS) return refuse("too-many");
   await propose(deps, run, { path: note.path, base, chunks, note: oneLine(a.note, 300) });
   recordRound(run.writes, note.path, 0, 1);
-  return said(WRITE_RESULTS.proposedProperty(note.path, name, value === null, defused));
+  return said(WRITE_RESULTS.proposedProperty(note.path, name, value === null, defused), { proposed: true, path: note.path, property: name });
 }
 
 /** The text of a note a model drafted: its addresses inert, its links flat, and no properties block of its own. */
@@ -469,7 +470,7 @@ async function createNote(deps: VaultWriteDeps, run: WriteRun, a: Record<string,
   const left = await run.draft({ title, body: { kind: "note", path: null, folder, content: drafted.text }, defused: drafted.defused, ...linkRecord(links) });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "note", title });
-  return said(WRITE_RESULTS.drafted(`a note "${title}"`, drafted.defused, links.told));
+  return said(WRITE_RESULTS.drafted(`a note "${title}"`, drafted.defused, links.told), { drafted: true, kind: "note", title });
 }
 
 /**
@@ -517,7 +518,7 @@ async function createEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const left = await run.draft({ title, body: { kind: "entry", base: base.path, properties, content: drafted.text }, defused: defused + drafted.defused, ...linkRecord(links) });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "entry", title });
-  return said(WRITE_RESULTS.drafted(`an entry "${title}" of the database ${base.path}`, defused + drafted.defused, links.told));
+  return said(WRITE_RESULTS.drafted(`an entry "${title}" of the database ${base.path}`, defused + drafted.defused, links.told), { drafted: true, kind: "entry", title, base: base.path });
 }
 
 const clockOf = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
@@ -540,7 +541,7 @@ async function createTask(deps: VaultWriteDeps, run: WriteRun, a: Record<string,
     read.tags.length ? `tags ${read.tags.join(", ")}` : "",
     read.repeat ? "repeating" : "",
   ].filter(Boolean);
-  return said(WRITE_RESULTS.drafted(`a task "${title}"${details.length ? ` (${details.join("; ")})` : ""}`, 0));
+  return said(WRITE_RESULTS.drafted(`a task "${title}"${details.length ? ` (${details.join("; ")})` : ""}`, 0), { drafted: true, kind: "task", title });
 }
 
 async function addJournalEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
@@ -554,7 +555,7 @@ async function addJournalEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<st
   const left = await run.draft({ title, body: { kind: "journal", text, day: run.today(), time: run.clock(), task: a.task === true }, defused: linted.defused, ...linkRecord(links) });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "journal", title });
-  return said(WRITE_RESULTS.drafted("a journal entry", linted.defused, links.told));
+  return said(WRITE_RESULTS.drafted("a journal entry", linted.defused, links.told), { drafted: true, kind: "journal" });
 }
 
 /**

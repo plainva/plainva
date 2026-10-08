@@ -49,15 +49,17 @@ export function proposedValueWords(value: unknown, column: ProposedColumn): stri
 type Translate = ReturnType<typeof useTranslation>["t"];
 
 /**
- * Who proposed it, as the user knows them: an assistant by its model; an app
- * or an agent by the name it signed with, which the vault's comments keep
- * (`names`, by author id) — its id alone is a row of random letters.
+ * Who proposed it, as the user knows them: an assistant by its model; an app,
+ * an agent or a script by the name it signed with, which the vault's comments
+ * keep (`names`, by author id) — an id alone is a row of random letters, and
+ * a script's is its folder.
  */
 export function proposedBy(t: Translate, comment: WorkspaceCommentRecord, names?: ReadonlyMap<string, string>): string {
   const id = comment.authorMemberId;
   const kind = machineAuthorKind(id);
   if (kind === null) return t("database.proposedLabel");
-  const author = kind === "assistant" ? t("ai.suggestionAuthor", { model: machineAuthorSubject(id) ?? id }) : names?.get(id)?.trim() || (machineAuthorSubject(id) ?? id);
+  const subject = machineAuthorSubject(id) ?? id;
+  const author = kind === "assistant" ? t("ai.suggestionAuthor", { model: subject }) : names?.get(id)?.trim() || (kind === "script" ? t("ai.scripts.author", { name: subject }) : subject);
   return t("database.proposedBy", { author });
 }
 

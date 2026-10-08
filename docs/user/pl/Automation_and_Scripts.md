@@ -6,7 +6,7 @@ Plainva nie ma systemu wtyczek, który uruchamiałby cudzy kod. Zamiast tego int
 
 Ta strona wyjaśnia, jak robić to **bezpiecznie**. Dokładny format każdego pliku na poziomie bajtów jest udokumentowany osobno w [Dokumentacji formatu plików](File_Format_Reference.md); ta strona jest praktycznym uzupełnieniem: zasady, przebieg pracy i to, co przekazać asystentowi AI.
 
-Plainva potrafi też uruchamiać w aplikacji Twoje własne małe skrypty: w zamkniętej piaskownicy, która sięga do notatek tylko przez narzędzia odczytu asystenta AI i nigdy nie dotyka żadnego pliku. To coś innego niż skrypty opisane na tej stronie, które pracują na plikach z zewnątrz — zob. [Skrypty](AI_Scripts.md).
+Plainva potrafi też uruchamiać w aplikacji Twoje własne małe skrypty: w zamkniętej piaskownicy, która sięga do notatek tylko przez narzędzia asystenta AI — czytając je albo zostawiając propozycję, o której decydujesz Ty — i nigdy nie dotyka żadnego pliku. To coś innego niż skrypty opisane na tej stronie, które pracują na plikach z zewnątrz — zob. [Skrypty](AI_Scripts.md).
 
 ## Dlaczego pliki zamiast piaskownicy wtyczek
 

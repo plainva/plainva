@@ -129,9 +129,30 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
      (ADR 0019) whose result is a program's output and is fenced as
      untrusted data. Scripts are not offered to a conversation bound to a
      skill, to the MCP server, to a regression run or to a platform model.
-   - **Read-only first.** The first version gives scripts the reading tools
-     and the app's commands; mutating ones go through the approval chain of
-     ADR 0019.
+   - **Two stages.** A script that names only reading tools and the app's
+     commands changes nothing and is no outside effect. One that names a
+     tool of the second stage — a suggestion on a note's text or on one of
+     its properties, the draft of a note, a database entry, a task or a
+     journal line — lays down what the same call of a model lays down,
+     through the approval chain of ADR 0019: a suggestion round in the
+     note's margin, a draft in the list. Nothing in the vault changes before
+     the user accepts or creates.
+     - Started from the workshop, it signs with its own name
+       (`script:<name>`, a fourth machine writer beside the assistant, a
+       paired app and an agent — ADR 0023). It reads as a reader on this
+       device, so what it lays down inherits the rules of everything that
+       run read: a place that lacks one of them does not take it. A dry run
+       lays nothing down.
+     - Called by a model, it is offered only to a conversation that has
+       those writing tools itself, and what it lays down is the run's own:
+       signed with the conversation's model, recorded with the run. Its
+       approval is the approval of the tools it stands for — a suggestion
+       and a draft are approved by accepting them —, so it is never asked
+       about as an effect of its own.
+     - Scripts are given no plans (rename, move, delete: each asks the user
+       about one thing, and a program that loops would ask without end) and
+       no drafts of an e-mail or an appointment, which are on their way out
+       of the vault.
    - **The engine is an interim one.** `@tootallnate/quickjs-emscripten`
      0.23.0 (QuickJS of 2021, ES2020) was already part of the build; a test
      pins the module's hash and the functions it imports, so a new version

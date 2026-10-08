@@ -192,7 +192,7 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       {open && <SkillApprovalSheet id={open} onClose={() => setOpen(null)} />}
       {creating && <NewSkillSheet onClose={() => setCreating(false)} />}
       {scriptForm && <ScriptFormSheet id={scriptForm.id} onClose={() => setScriptForm(null)} />}
-      {running && <ScriptRunSheet id={running} onClose={() => setRunning(null)} />}
+      {running && <ScriptRunSheet id={running} onClose={() => setRunning(null)} onOpenNote={onOpenNote} />}
       {importing && <SkillImportSheet label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}
       {sheet && (
         <RowActionSheet

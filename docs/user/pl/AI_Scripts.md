@@ -2,17 +2,23 @@
 
 Stan na: 2026-10-08
 
-Skrypt to mały program do tego, co model robi słabo, a program wykonuje za każdym razem tak samo: liczenia, sortowania, porównywania, sumowania. Pisze się go w JavaScript. Działa w zamkniętej piaskownicy wewnątrz Plainva: nie może otworzyć pliku, sięgnąć do sieci ani czekać na późniejszą chwilę. Wywołuje tylko te narzędzia, które są dla niego zaznaczone, a te czytają Twój vault tak samo jak narzędzia AI. Skrypt niczego nie zmienia.
+Skrypt to mały program do tego, co model robi słabo, a program wykonuje za każdym razem tak samo: liczenia, sortowania, porównywania, sumowania. Pisze się go w JavaScript. Działa w zamkniętej piaskownicy wewnątrz Plainva: nie może otworzyć pliku, sięgnąć do sieci ani czekać na późniejszą chwilę. Wywołuje tylko te narzędzia, które są dla niego zaznaczone: czytają one Twój vault tak samo jak narzędzia AI albo zostawiają propozycję, o której decydujesz Ty. Skrypt sam niczego nie zmienia.
 
 ## Uruchamianie skryptu
 
 Twoje skrypty znajdują się w sekcji **Umiejętności** na karcie AI — na telefonie w **Rozmowy → Umiejętności** — w grupie **Skrypty**. Wybranie **Uruchom** otwiera okno skryptu: wpisz to, o co skrypt pyta, i naciśnij **Uruchom**. Gdy skrypt działa, widać każde narzędzie, które wywołuje, a przycisk **Zatrzymaj** kończy jego pracę. Potem okno pokazuje **Wywołania**, **Wynik** — który można skopiować — i **Dziennik**, a także to, ile przebieg zużył ze swoich limitów.
 
-Przebieg uruchomiony tutaj zostaje na tym urządzeniu: nic z niego nie trafia do modelu, dlatego czyta też notatki, które trzymasz z dala od chmury. **Przebieg próbny** wywołuje narzędzia, które czytają, a wywołanie, które coś by pokazało w aplikacji, tylko zapisuje.
+Przebieg uruchomiony tutaj zostaje na tym urządzeniu: nic z niego nie trafia do modelu, dlatego czyta też notatki, które trzymasz z dala od chmury. **Przebieg próbny** wywołuje narzędzia, które czytają, a wywołanie, które coś by pokazało w aplikacji albo zostawiło propozycję, tylko zapisuje.
 
 ## W rozmowie
 
 W zwykłej rozmowie AI może znaleźć Twoje aktywne skrypty i uruchomić jeden z nich, gdy pasuje do pytania; krok w rozmowie nazywa się wtedy **Uruchamianie skryptu „word-count”**. Skrypt czyta tylko to, co wolno czytać tej rozmowie: notatka trzymana z dala od chmury zostaje na urządzeniu, a każda notatka, którą skrypt czyta, liczy się do tego, co przeczytał przebieg. To, co zwraca, trafia do modelu jako dane, nigdy jako instrukcje. Skrypty nie są oferowane ani rozmowie uruchomionej z umiejętnością, ani aplikacji AI połączonej przez serwer MCP.
+
+## Proponowanie zmian
+
+Skryptowi można też dać narzędzia do proponowania. Narzędzia **Proponowanie zmian w notatce** i **Proponowanie wartości właściwości** zostawiają propozycję na marginesie notatki; narzędzia **Przygotowywanie szkicu notatki**, **Przygotowywanie szkicu wpisu bazy danych**, **Przygotowywanie szkicu zadania** i **Przygotowywanie szkicu wpisu dziennika** zostawiają szkic. Jedno i drugie jest podpisane nazwą skryptu, a w Twoim vaulcie nic się nie zmienia, dopóki nie zaakceptujesz propozycji lub nie utworzysz szkicu — dokładnie tak jak przy propozycji AI. Po przebiegu okno wymienia je w sekcji **Propozycje i szkice**; przebieg uruchomiony jako **Przebieg próbny** niczego nie zostawia.
+
+To, co skrypt przeczytał, decyduje o tym, gdzie wolno mu zapisywać: propozycje i szkice, które opierają się na notatce trzymanej z dala od chmury, mogą trafić tylko tam, gdzie obowiązuje ta sama zasada. W rozmowie skrypt, który proponuje, jest oferowany AI tylko tam, gdzie sama rozmowa może proponować, a to, co skrypt tam zostawia, jest podpisane nazwą modelu tej rozmowy.
 
 ## Pisanie skryptu
 
@@ -20,7 +26,7 @@ W zwykłej rozmowie AI może znaleźć Twoje aktywne skrypty i uruchomić jeden 
 
 - **Nazwa** — małe litery, cyfry i łączniki; staje się nazwą folderu.
 - **Opis** — do czego służy skrypt; po tym rozpoznajecie go Ty i AI.
-- **Narzędzia** — zaznacz, co skrypt może wywoływać. Nic innego dla niego nie istnieje.
+- **Narzędzia** — zaznacz, co skrypt może wywoływać: w grupie **Odczyt** to, co czyta, w grupie **Proponowanie** to, co zostawia propozycję lub szkic. Nic innego dla niego nie istnieje.
 - **Dane wejściowe** — o co skrypt pyta przy starcie: nazwa, rodzaj (tekst, liczba albo tak lub nie) i to, czy odpowiedź jest wymagana.
 - **Limity** — sekundy obliczeń, wywołania narzędzi i pamięć.
 - **Kod** — program.
@@ -57,6 +63,12 @@ Językiem jest JavaScript w wersji ES2020. Nie ma `fetch`, timera, `import` ani 
 | `get_recent` — **Przeglądanie ostatnich notatek** | opcjonalnie `kind` (`opened` lub `edited`), `limit` (do 20) | `kind`; `notes`: lista obiektów `{ title, path, at }` |
 | `get_calendar` — **Czytanie spotkań** | `from` i `to` jako `YYYY-MM-DD`; opcjonalnie `details`, `limit` (do 100) | `events`: lista obiektów `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Korzystanie z aplikacji** | `id`, polecenie aplikacji, np. `open-note`, `show-in-graph` lub `open-calendar`; opcjonalnie `args` z `path`, `section` lub `date` | `done`, `command` |
+| `propose_edit` — **Proponowanie zmian w notatce** | `path`; `edits`, czyli lista obiektów `{ find, replace }`, albo `append`; opcjonalnie `section`, `note` | `proposed`, `path`, `passages` |
+| `set_property` — **Proponowanie wartości właściwości** | `path`, `key`, `value`; opcjonalnie `note` | `proposed`, `path`, `property` |
+| `create_note` — **Przygotowywanie szkicu notatki** | `title`, `content`; opcjonalnie `folder` | `drafted`, `kind`, `title` |
+| `create_entry` — **Przygotowywanie szkicu wpisu bazy danych** | `base`, `title`; opcjonalnie `properties`, `content` | `drafted`, `kind`, `title`, `base` |
+| `create_task` — **Przygotowywanie szkicu zadania** | `text` | `drafted`, `kind`, `title` |
+| `add_journal_entry` — **Przygotowywanie szkicu wpisu dziennika** | `text`; opcjonalnie `task` | `drafted`, `kind` |
 
 ## Limity
 
@@ -78,4 +90,4 @@ Po wybraniu **Zatwierdź** to urządzenie podpisuje dokładnie te pliki. Klucz d
 
 ## Ograniczenia wersji beta
 
-Skrypty tylko czytają: nie proponują żadnych zmian. Umiejętność nie może uruchomić skryptu, a własny folder `scripts/` umiejętności nie jest uruchamiany. E-maile, internet i narzędzia zewnętrznych serwerów nie są dostępne dla skryptów.
+Skrypt proponuje i zostawia szkice; nigdy nie zmienia nazwy notatki, nie przenosi jej ani nie usuwa, nie pisze też e-maili i nie tworzy spotkań. Umiejętność nie może uruchomić skryptu, a własny folder `scripts/` umiejętności nie jest uruchamiany. E-maile, internet i narzędzia zewnętrznych serwerów nie są dostępne dla skryptów.

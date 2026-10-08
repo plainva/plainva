@@ -7,6 +7,7 @@ import {
   verifyScriptApproval,
   type DeviceScriptKey,
   type InstructionSource,
+  type RunWrites,
   type ScriptApprovalCheck,
   type ScriptCallRecord,
   type ScriptDefinition,
@@ -77,6 +78,12 @@ export interface ScriptRunState {
   /** The tool calls so far, in order. */
   calls: ScriptCallRecord[];
   outcome: ScriptOutcome | null;
+  /**
+   * What the run laid down so far (plan P5.5, second stage): suggestion rounds
+   * by note and drafts by id. Null for a script that names no writing tool,
+   * and for a dry run — which lays nothing down.
+   */
+  writes: RunWrites | null;
 }
 
 export interface AiScriptsState {
@@ -180,14 +187,16 @@ export class AiScripts {
    * tools as a reader on this device gets them —, and what it did is shown
    * as it happens. One run at a time; a second start while one runs is none.
    */
-  async run(input: { id: string; script: ScriptDefinition; code: string; args: unknown; dry: boolean; tools: ToolExecutor }): Promise<ScriptOutcome | null> {
+  async run(input: { id: string; script: ScriptDefinition; code: string; args: unknown; dry: boolean; tools: ToolExecutor; writes?: RunWrites }): Promise<ScriptOutcome | null> {
     const sandbox = this.sandbox;
     if (!sandbox || this.state.run?.running) return null;
     const abort = new AbortController();
     this.abort = abort;
     let made = 0;
     const calls: ScriptCallRecord[] = [];
-    this.set({ run: { id: input.id, dry: input.dry, running: true, calls: [], outcome: null } });
+    // `writes` is the list the run's writing tools fill: shown as it grows, as a copy of that moment.
+    const laid = (): RunWrites | null => (input.writes ? { rounds: [...input.writes.rounds], drafts: [...input.writes.drafts], plans: [...input.writes.plans] } : null);
+    this.set({ run: { id: input.id, dry: input.dry, running: true, calls: [], outcome: null, writes: laid() } });
     const outcome = await runScript({
       script: input.script,
       code: input.code,
@@ -198,12 +207,12 @@ export class AiScripts {
       execute: (tool, args, stop) => input.tools.execute(tool, args, { type: "tool_call", id: `script-${++made}`, name: tool.name, args }, stop),
       onCall: (record) => {
         calls.push(record);
-        if (this.abort === abort) this.set({ run: { id: input.id, dry: input.dry, running: true, calls: [...calls], outcome: null } });
+        if (this.abort === abort) this.set({ run: { id: input.id, dry: input.dry, running: true, calls: [...calls], outcome: null, writes: laid() } });
       },
     });
     if (this.abort === abort) {
       this.abort = null;
-      this.set({ run: { id: input.id, dry: input.dry, running: false, calls: outcome.calls, outcome } });
+      this.set({ run: { id: input.id, dry: input.dry, running: false, calls: outcome.calls, outcome, writes: laid() } });
     }
     return outcome;
   }

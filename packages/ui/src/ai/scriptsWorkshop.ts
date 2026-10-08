@@ -5,6 +5,7 @@ import {
   SCRIPT_LIMIT_DEFAULTS,
   SCRIPT_PARAMETERS_MAX,
   SCRIPT_TOOL_NAMES,
+  SCRIPT_WRITE_TOOL_NAMES,
   type InstructionEntry,
   type ScriptCallRecord,
   type ScriptDefinition,
@@ -213,9 +214,13 @@ export function scriptFormOf(entry: InstructionEntry): ScriptFormState | null {
   };
 }
 
-/** The tools a script can be given, in the app's words — the form's list to tick. */
-export function scriptToolChoices(t: Translate): { name: string; label: string }[] {
-  return SCRIPT_TOOL_NAMES.map((name) => ({ name, label: t(`ai.tool.${name}`, { defaultValue: name }) }));
+/**
+ * The tools a script can be given, in the app's words — the form's lists to
+ * tick. `writes`: a tool that lays down a suggestion or a draft; the form
+ * shows those apart, under their own word.
+ */
+export function scriptToolChoices(t: Translate): { name: string; label: string; writes: boolean }[] {
+  return SCRIPT_TOOL_NAMES.map((name) => ({ name, label: t(`ai.tool.${name}`, { defaultValue: name }), writes: SCRIPT_WRITE_TOOL_NAMES.includes(name) }));
 }
 
 export const SCRIPT_PARAMETER_TYPES: readonly ScriptParameterType[] = ["text", "number", "boolean"];

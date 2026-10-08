@@ -23,9 +23,12 @@ import {
   SCRIPT_LIMIT_DEFAULTS,
   SCRIPT_MAIN_MAX_BYTES,
   SCRIPT_MAX_FILES,
+  SCRIPT_READ_TOOL_NAMES,
   SCRIPT_TOOL_NAMES,
+  SCRIPT_WRITE_TOOL_NAMES,
   scriptToolManifest,
   scriptToolName,
+  scriptWrites,
   serializeScriptManifest,
   type ScriptDefinition,
 } from "./manifest.js";
@@ -128,18 +131,37 @@ describe("a script's manifest", () => {
   it("names only tools the app has, and only those open to scripts", () => {
     expect(codes(manifestOf({ tools: ["read_everything"] }), "s")).toEqual(["tool-unknown"]);
     expect(codes(manifestOf({ tools: [7] }), "s")).toEqual(["tool-unknown"]);
-    // Mail, the internet, the tool search, the skills, an appointment's description, and everything that writes.
-    for (const name of ["read_mail", "search_mail", "fetch_url", "web_search", "find_tools", "call_tool", "use_skill", "get_event", "propose_edit", "create_note", "delete_note", "open_in_app"]) {
+    // Mail, the internet, the tool search, the skills, an appointment's description — and of the writing tools the plans
+    // (each asks the user about one thing) and the drafts that are on their way out of the vault.
+    for (const name of ["read_mail", "search_mail", "fetch_url", "web_search", "find_tools", "call_tool", "use_skill", "get_event", "rename_note", "move_note", "delete_note", "draft_mail", "draft_event", "open_in_app"]) {
       expect(codes(manifestOf({ tools: [name] }), "s"), name).toEqual(["tool-not-for-scripts"]);
     }
     for (const name of SCRIPT_TOOL_NAMES) expect(codes(manifestOf({ tools: [name] }), "s"), name).toEqual([]);
   });
 
-  it("the tools open to scripts read or show, and reach neither mail nor the internet", () => {
+  it("the second stage: a script can name the tools that suggest and draft, and is then an effect", () => {
+    // What it can lay down ends as a suggestion or a draft: the six tools of that kind, and no other writing tool.
+    expect(SCRIPT_WRITE_TOOL_NAMES).toEqual(["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry"]);
+    expect(SCRIPT_TOOL_NAMES).toEqual([...SCRIPT_READ_TOOL_NAMES, ...SCRIPT_WRITE_TOOL_NAMES]);
+    for (const name of SCRIPT_WRITE_TOOL_NAMES) expect(toolByName(name)?.risk, name).toBe("write");
+    for (const name of SCRIPT_READ_TOOL_NAMES) expect(["read", "ui"], name).toContain(toolByName(name)?.risk);
+
+    const reading = parseScriptManifest(manifestOf({ name: "s", tools: ["read_note", "run_command"] }), "s").script!;
+    const writing = parseScriptManifest(manifestOf({ name: "s", tools: ["read_note", "propose_edit"] }), "s").script!;
+    expect(scriptWrites(reading)).toBe(false);
+    expect(scriptWrites(writing)).toBe(true);
+    // Whether a script is an outside effect is its manifest's to say — the Rule of Two reads it there.
+    expect(isEffectTool(scriptToolManifest(".agent/scripts/s", reading))).toBe(false);
+    expect(isEffectTool(scriptToolManifest(".agent/scripts/s", writing))).toBe(true);
+    expect(scriptToolManifest(".agent/scripts/s", writing).script).toEqual({ id: ".agent/scripts/s", name: "s", effect: true });
+  });
+
+  it("the tools open to scripts read, show or suggest — and reach neither mail nor the internet", () => {
     for (const name of SCRIPT_TOOL_NAMES) {
       const tool = toolByName(name);
       expect(tool, name).toBeDefined();
-      expect(["read", "ui"], name).toContain(tool!.risk);
+      // What suggests or drafts is a write that changes nothing by itself; nothing critical, nothing external.
+      expect(["read", "ui", "write"], name).toContain(tool!.risk);
       expect(tool!.outward, name).not.toBe(true);
       expect(tool!.dataClasses, name).not.toContain("mail");
       expect(tool!.dataClasses, name).not.toContain("web");
@@ -639,7 +661,7 @@ describe("one run of a script", () => {
 
   it("a tool no script may call stays closed even to a manifest that names it", async () => {
     // A manifest cannot be read with such a tool; this is the run's own check, should one ever be built by hand.
-    const forged: ScriptDefinition = { ...scriptOf(), tools: ["read_mail", "fetch_url", "propose_edit"] };
+    const forged: ScriptDefinition = { ...scriptOf(), tools: ["read_mail", "fetch_url", "delete_note", "draft_mail"] };
     for (const name of forged.tools) {
       const outcome = await runScript({ script: forged, code: "", input: {}, sandbox: playedSandbox(async (_job, host) => done(await host.call(name, "{}"))), execute: async () => answered("x") });
       expect(outcome, name).toMatchObject({ kind: "failed", reason: "tool" });

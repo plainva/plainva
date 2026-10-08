@@ -205,7 +205,9 @@ import {
   SCRIPT_MAIN_FILE,
   SCRIPT_MANIFEST_FILE,
   SCRIPTS_FOLDER,
+  scriptAuthorId,
   scriptToolManifest,
+  scriptWrites,
   serializeScriptManifest,
   type RunScripts,
   type ScriptDefinition,
@@ -410,9 +412,19 @@ export type ScriptWriteOutcome =
   | { ok: true; id: string; approved: boolean }
   | { ok: false; reason: "no-vault" | "invalid" | "exists" | "write-failed" | "changed" | "syntax"; problems?: ScriptProblem[]; message?: string };
 
-/** The scripts that are active on this device, each as the tool a conversation can call it by. */
-export function activeScriptTools(entries: readonly InstructionEntry[]): ToolManifest[] {
-  return entries.flatMap((entry) => (entry.status === "active" && entry.source.kind === "script" && entry.source.script ? [scriptToolManifest(entry.source.id, entry.source.script)] : []));
+/**
+ * The scripts that are active on this device, each as the tool a conversation
+ * can call it by. `reach`: the tools the conversation itself can reach — a
+ * script that names one beyond them is not offered there (a script that
+ * proposes changes in a conversation that was given no writing tools would
+ * only fail at its first call).
+ */
+export function activeScriptTools(entries: readonly InstructionEntry[], reach?: ReadonlySet<string>): ToolManifest[] {
+  return entries.flatMap((entry) => {
+    const script = entry.status === "active" && entry.source.kind === "script" ? entry.source.script : null;
+    if (!script || (reach && !script.tools.every((name) => reach.has(name)))) return [];
+    return [scriptToolManifest(entry.source.id, script)];
+  });
 }
 
 /** Skills and vault instructions as the workshop and the entry points show them (plan KI-Harness P3). */
@@ -1826,9 +1838,68 @@ export class AiSession {
     const vault = this.vault;
     if (!vault) return null;
     const active = await this.activeScript(vault, id);
-    const tools = active ? vault.tools({ kind: "local", provider: "script", model: active.definition.name }) : null;
-    if (!active || !tools || this.vault !== vault) return null;
-    return this.scripts.run({ id, script: active.definition, code: active.code, args, dry, tools: tools.executor });
+    if (!active || this.vault !== vault) return null;
+    const recipient: EgressRecipient = { kind: "local", provider: "script", model: active.definition.name };
+    // A script that names a writing tool lays down suggestions and drafts (the second stage): signed with its own
+    // name, never with the user's. A dry run brings no writer — it lays nothing down.
+    const writing = !dry && scriptWrites(active.definition) ? this.scriptWriting(vault, active.definition, args) : null;
+    const tools = writing ? vault.tools(recipient, writing.scope, undefined, false, undefined, undefined, writing.run) : vault.tools(recipient);
+    if (!tools) return null;
+    return this.scripts.run({ id, script: active.definition, code: active.code, args, dry, tools: tools.executor, ...(writing ? { writes: writing.run.writes } : {}) });
+  }
+
+  /**
+   * What a script the user started brings to the writing tools (plan
+   * KI-Harness P5.5, second stage). It signs with its own id and the words
+   * "Script …" — the user started it, but did not write what it proposes.
+   *
+   * It reads as a reader on this device, so it can have read a note that is
+   * kept from the cloud or from the internet: what it lays down inherits the
+   * rules of everything this run read (`scope.passed`), and a place that
+   * lacks one of them does not take it. The texts the user typed into the
+   * run's fields are the user's own words — an address in them stays one.
+   * A plan has nobody to ask here, and scripts are given no plans.
+   */
+  private scriptWriting(vault: AiVaultHost, script: ScriptDefinition, args: unknown): { run: WriteRun; scope: ToolScope } {
+    const restricted = new Set<AiPolicyDimension>();
+    const read = new Set<string>();
+    const scope: ToolScope = {
+      inside: () => true,
+      passed: (path, rules) => {
+        read.add(path);
+        for (const rule of rules) restricted.add(rule);
+      },
+    };
+    // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
+    const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
+    const author = { id: scriptAuthorId(script.name), displayName: t("ai.scripts.author", { name: script.title || script.name }) };
+    const typed = args && typeof args === "object" ? Object.values(args as Record<string, unknown>).filter((value): value is string => typeof value === "string") : [];
+    const inherited = async () => AI_POLICY_DIMENSIONS.filter((dimension) => restricted.has(dimension));
+    const run: WriteRun = {
+      author,
+      userTexts: () => typed,
+      inherited,
+      draft: async (input) =>
+        this.leaveDraft(vault, {
+          id: `d-${this.host.newId()}`,
+          createdAt: this.host.now().toISOString(),
+          author: { id: author.id, label: author.displayName },
+          conversationId: null,
+          title: input.title,
+          body: input.body,
+          inherited: [...(await inherited())],
+          // What the draft rests on: the notes this run read, from the gate's own record — never from the script's words.
+          sources: input.body.kind === "note" || input.body.kind === "entry" ? [...read].filter((path) => /\.md$/i.test(path)).slice(0, 50).map((path) => ({ resource: path })) : [],
+          defused: input.defused,
+          ...(input.missing?.length ? { missing: [...input.missing] } : {}),
+          ...(input.withheld?.length ? { withheld: [...input.withheld] } : {}),
+        }),
+      ask: async () => "nobody",
+      writes: { rounds: [], drafts: [], plans: [] },
+      today: () => this.host.today(),
+      clock: () => clockOf(this.host.now()),
+    };
+    return { run, scope };
   }
 
   /** Stops the script the workshop started. */
@@ -3782,8 +3853,10 @@ export class AiSession {
     const served = vault.tools(recipient);
     const own = [...(served?.more ?? [])];
     if (!services) return own;
-    // A script calls the vault's tools: without them there is nothing for it to do.
-    const scripts = served && this.scripts.available() ? activeScriptTools(entries).map((tool) => tool.name) : [];
+    // A script calls the vault's tools: without them there is nothing for it to do, and it is offered only where
+    // every tool it names is one this conversation can reach itself.
+    const reach = new Set<string>([...(served?.names ?? []), ...own]);
+    const scripts = served && this.scripts.available() ? activeScriptTools(entries, reach).map((tool) => tool.name) : [];
     return [...own, ...(await this.mcp.offeredNames()), ...scripts];
   }
 
@@ -3943,6 +4016,9 @@ export class AiSession {
               // A proposal and a draft change nothing: accepting them is the approval, part by part. A plan asks its own
               // question, every time and whatever else is in the run, with what it would do (plan P5).
               if (isWriteToolName(tool.name)) return Promise.resolve(Boolean(input.writes));
+              // A script is an effect only through the writing tools it names (plan P5.5): what it lays down is a
+              // suggestion or a draft like theirs, and it is offered only to a conversation that has those tools.
+              if (tool.script) return Promise.resolve(Boolean(input.writes));
               if (!input.web) return Promise.resolve(false);
               return this.approveWebCall(call, tool, { provider, signal: controller.signal, conversation: () => record.conversation, ...(input.skillState ? { skillState: input.skillState } : {}) });
             },

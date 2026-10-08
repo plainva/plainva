@@ -188,8 +188,13 @@ a write or an outside effect.
        as it stood when the conversation began.
      - *Whether it has an effect is the manifest's to say.* A script that
        names only reading tools and the app's commands is not an effect
-       tool; one that names another is treated as one, by the Rule of Two
-       and everything that follows from it.
+       tool; one that names a tool that suggests or drafts is treated as
+       one by the Rule of Two. Its approval is that of the tools it stands
+       for: a suggestion and a draft are approved by accepting them, so
+       such a script runs where the conversation has those tools — and is
+       offered nowhere else —, and is never asked about as an effect of
+       its own. What it lays down is the run's: the same chain, the same
+       author, the same record.
      - *What comes back is a program's output.* The result is JSON, cut at a
        fixed length and fenced as untrusted data with the script as its
        origin. A run that was ended — time, steps, memory, a tool it may not
@@ -197,10 +202,14 @@ a write or an outside effect.
        the engine.
      - *Tools answer scripts with values.* A tool's outcome can carry `data`
        beside the text a model reads: a script gets `{ results, next }` from
-       a search rather than a paragraph to parse. The reading tools and
-       `run_command` are the ones a script can name; mail, an appointment's
-       description, the internet, foreign servers' tools, skills, the tool
-       search and other scripts are not.
+       a search rather than a paragraph to parse, and `{ proposed, path }`
+       from a suggestion — never more than the sentence says. The reading
+       tools, `run_command` and the six tools that suggest and draft
+       (`propose_edit`, `set_property`, `create_note`, `create_entry`,
+       `create_task`, `add_journal_entry`) are the ones a script can name;
+       mail, an appointment's description, the internet, foreign servers'
+       tools, skills, the tool search, other scripts, the plans (rename,
+       move, delete) and the drafts of an e-mail or an appointment are not.
    - `forbidden` — reading the keychain, raw secrets, an unbounded shell,
      direct DB or file writes outside the adapters, raw SQL. Never a tool.
 3. **A small, stable surface.** A conversation loads the tools an answer

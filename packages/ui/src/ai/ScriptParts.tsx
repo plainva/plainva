@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Minus, X } from "lucide-react";
 import type { ScriptInput } from "@plainva/core";
+import { Checkbox } from "../components/ui/Checkbox";
 import { ICON } from "../lib/iconSizes";
 import type { AiSession, AiState } from "./aiSession";
 import type { ScriptRunState } from "./scriptSession";
@@ -24,6 +25,32 @@ export function ScriptCode({ code, testId }: { code: string; testId?: string }) 
         <span key={index}>{line || " "}</span>
       ))}
     </pre>
+  );
+}
+
+/**
+ * The tools of the form, to tick: those that read, then those that lay down
+ * a suggestion or a draft — each group under its own word, so nobody ticks a
+ * writing tool for a reading one. One markup for both shells.
+ */
+export function ScriptToolPicker({ choices, chosen, labels, onToggle }: { choices: readonly { name: string; label: string; writes: boolean }[]; chosen: readonly string[]; labels: { read: string; write: string }; onToggle(name: string, on: boolean): void }) {
+  return (
+    <>
+      {[false, true].map((writes) => (
+        <div key={writes ? "write" : "read"} className="pv-script-toolgroup">
+          <span>{writes ? labels.write : labels.read}</span>
+          <div className="pv-script-tools" role="group" aria-label={writes ? labels.write : labels.read}>
+            {choices
+              .filter((tool) => tool.writes === writes)
+              .map((tool) => (
+                <Checkbox key={tool.name} checked={chosen.includes(tool.name)} onChange={(event) => onToggle(tool.name, event.target.checked)} data-testid={`ai-script-tool-${tool.name}`}>
+                  {tool.label}
+                </Checkbox>
+              ))}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 

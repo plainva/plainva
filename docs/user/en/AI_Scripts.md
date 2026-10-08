@@ -2,17 +2,23 @@
 
 Last reviewed: 2026-10-08
 
-A script is a small program for what a model does badly and a program does the same way every time: counting, sorting, comparing, adding up. You write it in JavaScript. It runs in a closed box inside Plainva: it cannot open a file, reach the network or wait for later. It only calls the tools you ticked for it, and those read your vault the way the AI's tools do. A script changes nothing.
+A script is a small program for what a model does badly and a program does the same way every time: counting, sorting, comparing, adding up. You write it in JavaScript. It runs in a closed box inside Plainva: it cannot open a file, reach the network or wait for later. It only calls the tools you ticked for it: they read your vault the way the AI's tools do, or leave a suggestion that you decide about. A script changes nothing by itself.
 
 ## Running a script
 
 Your scripts stand under **Skills** in the AI tab — on the phone under **Conversations → Skills** — in the group **Scripts**. **Run** opens the script: fill in what it asks for and press **Run**. While it runs you see each tool it calls, and **Stop** ends it. Afterwards the dialog shows the **Calls**, the **Result** — which you can copy — and the **Log**, and what the run used of its limits.
 
-A run you start here stays on this device: nothing of it goes to a model, so it also reads notes you keep from the cloud. **Dry run** calls the tools that read, and only writes down a call that would show something in the app.
+A run you start here stays on this device: nothing of it goes to a model, so it also reads notes you keep from the cloud. **Dry run** calls the tools that read, and only writes down a call that would show something in the app or leave a suggestion.
 
 ## In a conversation
 
 In an ordinary conversation the AI can find your active scripts and run one when it fits; the step then reads **Running the script “word-count”**. The script reads only what that conversation may read: a note you keep from the cloud stays kept, and every note the script reads counts among what the run read. What it returns goes to the model as data, never as instructions. A conversation started with a skill is offered no scripts, and neither is an AI app connected through the MCP server.
+
+## Suggesting changes
+
+A script can also be given tools that suggest. The tools **Suggesting changes to a note** and **Suggesting a property value** leave a suggestion in the margin of a note; **Drafting a note**, **Drafting a database entry**, **Drafting a task** and **Drafting a journal entry** leave a draft. Both carry the script's name, and nothing in your vault changes before you accept a suggestion or create a draft — exactly as with a suggestion of the AI. After a run the dialog lists them under **Suggestions and drafts**; a run started with **Dry run** leaves nothing.
+
+What a script read decides where it may write: a suggestion or a draft that rests on a note you keep from the cloud is taken only by a place under the same rule. In a conversation the AI is offered a script that suggests only where the conversation can suggest itself, and what the script leaves there carries the name of the conversation's model.
 
 ## Writing a script
 
@@ -20,7 +26,7 @@ In an ordinary conversation the AI can find your active scripts and run one when
 
 - **Name** — lower-case letters, digits and hyphens; it becomes the folder.
 - **Description** — what the script is for; you and the AI recognise it by this.
-- **Tools** — tick what the script may call. Nothing else exists for it.
+- **Tools** — tick what the script may call: under **Reading** what reads, under **Suggesting** what leaves a suggestion or a draft. Nothing else exists for it.
 - **Inputs** — what the script asks for when it starts: a name, whether it is text, a number or yes or no, and whether it is required.
 - **Limits** — seconds of computing, tool calls and memory.
 - **Code** — the program.
@@ -57,6 +63,12 @@ The language is JavaScript as of ES2020. There is no `fetch`, no timer, no `impo
 | `get_recent` — **Looking at recent notes** | optional `kind` (`opened` or `edited`), `limit` (up to 20) | `kind`; `notes`: a list of `{ title, path, at }` |
 | `get_calendar` — **Reading appointments** | `from` and `to` as `YYYY-MM-DD`; optional `details`, `limit` (up to 100) | `events`: a list of `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Using the app** | `id`, a command of the app such as `open-note`, `show-in-graph` or `open-calendar`; optional `args` with `path`, `section` or `date` | `done`, `command` |
+| `propose_edit` — **Suggesting changes to a note** | `path`; `edits`, a list of `{ find, replace }`, or `append`; optional `section`, `note` | `proposed`, `path`, `passages` |
+| `set_property` — **Suggesting a property value** | `path`, `key`, `value`; optional `note` | `proposed`, `path`, `property` |
+| `create_note` — **Drafting a note** | `title`, `content`; optional `folder` | `drafted`, `kind`, `title` |
+| `create_entry` — **Drafting a database entry** | `base`, `title`; optional `properties`, `content` | `drafted`, `kind`, `title`, `base` |
+| `create_task` — **Drafting a task** | `text` | `drafted`, `kind`, `title` |
+| `add_journal_entry` — **Drafting a journal entry** | `text`; optional `task` | `drafted`, `kind` |
 
 ## Limits
 
@@ -78,4 +90,4 @@ With **Approve**, this device signs exactly these files. The key for that is mad
 
 ## Limits of the beta
 
-Scripts only read: they propose no changes. A skill cannot start a script, and a skill's own `scripts/` folder is not run. Mail, the internet and the tools of external servers are not available to scripts.
+A script suggests and drafts; it never renames, moves or deletes a note, and it writes no e-mail and no appointment. A skill cannot start a script, and a skill's own `scripts/` folder is not run. Mail, the internet and the tools of external servers are not available to scripts.

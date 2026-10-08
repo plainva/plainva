@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { acpAuthorId } from "../acp/agents.js";
-import { assistantAuthorId, machineAuthorId, machineAuthorKind, machineAuthorSubject, mcpAuthorId } from "./authors.js";
+import { assistantAuthorId, machineAuthorId, machineAuthorKind, machineAuthorSubject, mcpAuthorId, scriptAuthorId } from "./authors.js";
 import {
   OPENED_DRAFT_KINDS,
   WRITE_DRAFT_DONE_CAP,
@@ -38,17 +38,21 @@ describe("who a machine's write is signed with", () => {
     expect(machineAuthorId({ kind: "assistant", model: "model-x" })).toBe("plainva-ai/model-x");
     expect(machineAuthorId({ kind: "mcp", clientId: "3f9a" })).toBe("mcp:3f9a");
     expect(machineAuthorId({ kind: "acp", agentId: "a1" })).toBe(acpAuthorId("a1"));
+    expect(machineAuthorId({ kind: "script", name: "tag-count" })).toBe("script:tag-count");
     expect(mcpAuthorId("3f9a")).toBe("mcp:3f9a");
+    expect(scriptAuthorId("tag-count")).toBe("script:tag-count");
   });
 
   it("tells a machine from a person, and reads the id back", () => {
     expect(machineAuthorKind("plainva-ai/model-x")).toBe("assistant");
     expect(machineAuthorKind("mcp:3f9a")).toBe("mcp");
     expect(machineAuthorKind("acp:a1")).toBe("acp");
+    expect(machineAuthorKind("script:tag-count")).toBe("script");
     expect(machineAuthorSubject("plainva-ai/vendor/model-x")).toBe("vendor/model-x");
     expect(machineAuthorSubject("mcp:3f9a")).toBe("3f9a");
+    expect(machineAuthorSubject("script:tag-count")).toBe("tag-count");
     // A device id, a member id, a prefix with nothing behind it: a person's, or nobody's.
-    for (const id of ["4f3a9c0d4f3a9c0d4f3a9c0d4f3a9c0d", "member-7", "plainva-ai/", "mcp:", "acp:", "", null, undefined]) {
+    for (const id of ["4f3a9c0d4f3a9c0d4f3a9c0d4f3a9c0d", "member-7", "plainva-ai/", "mcp:", "acp:", "script:", "scripts:x", "", null, undefined]) {
       expect(machineAuthorKind(id), String(id)).toBeNull();
     }
     expect(machineAuthorSubject("member-7")).toBeNull();

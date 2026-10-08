@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CodeXml, Copy, Play } from "lucide-react";
 import {
+  AiRunWrites,
   Banner,
   Button,
   ICON,
@@ -21,6 +22,7 @@ import {
   toast,
   useAiSession,
   useAiState,
+  useDraftActions,
   useScriptRun,
   workshopTitle,
   type ScriptFieldValues,
@@ -32,9 +34,12 @@ import {
  * call appears as it happens, with a way to stop; afterwards its value and
  * what it used of its limits — or, in words, why it was ended. Started here,
  * it reads the vault on this device and nothing of the run goes to a model.
- * The words come from `scriptsWorkshop.ts` and are the phone's as well.
+ * A script that names writing tools leaves suggestions and drafts, shown
+ * with the cards a conversation shows them with: nothing changes before the
+ * user accepts or creates. The words come from `scriptsWorkshop.ts` and are
+ * the phone's as well.
  */
-export function ScriptRunModal({ id, onClose }: { id: string; onClose: () => void }) {
+export function ScriptRunModal({ id, onClose, onOpenNote }: { id: string; onClose: () => void; onOpenNote: (path: string) => void }) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
@@ -42,9 +47,16 @@ export function ScriptRunModal({ id, onClose }: { id: string; onClose: () => voi
   const script = entry?.source.script ?? null;
   const [values, setValues] = useState<ScriptFieldValues>(() => scriptFieldDefaults(script?.parameters ?? []));
   const running = useScriptRun(session, state, id);
+  // A note opens behind a dialog nobody could see through: the dialog closes with it.
+  const open = (path: string) => {
+    onOpenNote(path);
+    onClose();
+  };
+  const drafts = useDraftActions(session, open);
   if (!session || !state || !entry || !script) return null;
   const { input, missing } = scriptFieldInput(script.parameters, values);
   const run = running.run;
+  const laid = run?.writes && (run.writes.rounds.length > 0 || run.writes.drafts.length > 0) ? run.writes : null;
   const outcome = run?.outcome ?? null;
   const ended = outcome ? scriptOutcomeText(t, outcome, script.limits, run?.dry === true, i18n.language) : null;
   const value = outcome ? scriptValueText(outcome) : null;
@@ -166,6 +178,13 @@ export function ScriptRunModal({ id, onClose }: { id: string; onClose: () => voi
               </>
             )}
           </dl>
+        )}
+        {/* What the run laid down (second stage): the notes it left a suggestion on, and its drafts — the conversation's own cards. */}
+        {laid && (
+          <div className="pv-script-field" data-testid="ai-script-laid">
+            <span className="pv-modal-label">{t("ai.scripts.run.laid")}</span>
+            <AiRunWrites writes={laid} state={state.drafts} canCreate={drafts.canCreate} busy={drafts.busy || running.busy} onOpenNote={open} onCreate={drafts.create} onDiscard={drafts.discard} taskList={drafts.taskList} />
+          </div>
         )}
         {outcome && (
           <p className="pv-modal-hint" data-testid="ai-script-usage">

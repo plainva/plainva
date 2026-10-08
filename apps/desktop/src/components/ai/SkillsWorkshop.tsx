@@ -231,7 +231,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       {open && <SkillApprovalModal id={open} onClose={() => setOpen(null)} />}
       {creating && <NewSkillModal onClose={() => setCreating(false)} />}
       {scriptForm && <ScriptFormModal id={scriptForm.id} onClose={() => setScriptForm(null)} />}
-      {running && <ScriptRunModal id={running} onClose={() => setRunning(null)} />}
+      {running && <ScriptRunModal id={running} onClose={() => setRunning(null)} onOpenNote={onOpenFile} />}
       {importing && <SkillImportModal label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}
       {menu && (
         <MenuSurface open onClose={() => setMenu(null)} at={menu.at} ariaLabel={t("common.moreActions")}>

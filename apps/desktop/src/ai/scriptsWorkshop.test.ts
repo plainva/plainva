@@ -10,7 +10,9 @@ import {
   scanVaultInstructions,
   SCRIPT_LIMIT_DEFAULTS,
   SCRIPT_PARAMETERS_MAX,
+  SCRIPT_READ_TOOL_NAMES,
   SCRIPT_TOOL_NAMES,
+  SCRIPT_WRITE_TOOL_NAMES,
   scriptSeal,
   serializeScriptManifest,
   signScriptApproval,
@@ -30,6 +32,7 @@ import {
   APP_LANGUAGES,
   approvalFacts,
   changeScriptParameter,
+  machineAuthorLabel,
   newScriptForm,
   removeScriptParameter,
   scriptCallLines,
@@ -177,6 +180,36 @@ describe("a script in the workshop", () => {
     expect(Object.values(facts.seen).every((hash) => /^[0-9a-f]{64}$/.test(hash))).toBe(true);
   });
 
+  it("a script that names writing tools says so before it is approved — it suggests and drafts, it changes nothing", async () => {
+    await i18n.changeLanguage("en");
+    const [source] = await script({ "manifest.json": manifest({ tools: ["read_note", "propose_edit", "create_task"] }), "main.js": CODE });
+    const [entry] = resolveInstructions([source!], EMPTY_INSTRUCTION_APPROVALS, () => false);
+    const facts = approvalFacts(t, entry!, "en");
+    expect(facts.may).toEqual([
+      "It calls these tools: Reading a note · Suggesting changes to a note · Drafting a task.",
+      "It reaches nothing else — no file, no network, no other tool.",
+      "It can suggest changes and leave drafts, signed with its name. Nothing in the vault changes before you accept or create.",
+    ]);
+    expect(facts.canApprove).toBe(true);
+    // Its row names the writing tools like the reading ones: what it calls is what it can do.
+    expect(scriptRowDescription(t, entry!)).toBe("Script · new · Counts the notes that carry a tag.");
+    // A plan — a rename, a deletion — is no tool of a script, whatever its manifest says.
+    const [plans] = await script({ "manifest.json": manifest({ tools: ["read_note", "delete_note"] }), "main.js": CODE });
+    expect(approvalFacts(t, resolveInstructions([plans!], EMPTY_INSTRUCTION_APPROVALS, () => false)[0]!, "en").problems).toEqual(["It names a tool no script may call: delete_note."]);
+  });
+
+  it("names the script as the author of what it lays down — in every language of the app", async () => {
+    for (const { code } of APP_LANGUAGES) {
+      const tt = i18n.getFixedT(code);
+      const label = machineAuthorLabel(tt, "script:tag-count");
+      expect(label, code).toContain("tag-count");
+      expect(label, code).not.toBe("tag-count");
+      // The words it was laid down with — its title — are kept with the draft and shown instead.
+      expect(machineAuthorLabel(tt, "script:tag-count", "Script “Count tags”"), code).toBe("Script “Count tags”");
+    }
+    expect(machineAuthorLabel(i18n.getFixedT("en"), "script:tag-count")).toBe("Script “tag-count”");
+  });
+
   it("cannot be approved while its manifest is wrong, and names what is wrong", async () => {
     await i18n.changeLanguage("en");
     const [source] = await script({ "manifest.json": manifest({ tools: ["search_vault", "draft_mail", "no_such_tool"], limits: { seconds: 900 } }), "main.js": CODE });
@@ -299,6 +332,9 @@ describe("the form a script is written in", () => {
     const choices = scriptToolChoices(t);
     expect(choices.map((choice) => choice.name)).toEqual([...SCRIPT_TOOL_NAMES]);
     expect(choices.every((choice) => choice.label !== choice.name)).toBe(true);
+    // Two groups in the form: what reads comes first, what suggests or drafts is marked as such.
+    expect(choices.filter((choice) => choice.writes).map((choice) => choice.name)).toEqual([...SCRIPT_WRITE_TOOL_NAMES]);
+    expect(choices.findIndex((choice) => choice.writes)).toBe(SCRIPT_READ_TOOL_NAMES.length);
     let form = newScriptForm();
     form = toggleScriptTool(form, "get_recent", true);
     form = toggleScriptTool(form, "read_note", true);

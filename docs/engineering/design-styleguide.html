@@ -1445,7 +1445,7 @@
         <dd><span><code>SKILL.md</code> · 2.1 KB</span></dd>
       </dl>
     </div>
-    <p class="sec-sub">AI harness P5.5 (2026-10-08): scripts in the same workshop. A script's review is the skills' facts list with what a program adds — its limits, its inputs, and its code as a box with line numbers (<code>ScriptCode</code>, <code>.pv-script-code</code>) and the line that the engine reads it. A run lists each tool call with the skills' verdict mark and shows its value and its log in the same box without numbers (<code>ScriptOutput</code>, <code>.pv-script-out</code>). The form is a column of fields (<code>.pv-script-form</code>, <code>.pv-script-field</code>); an input is one row — name, kind, required, remove (<code>.pv-script-input</code>).</p>
+    <p class="sec-sub">AI harness P5.5 (2026-10-08): scripts in the same workshop. A script's review is the skills' facts list with what a program adds — its limits, its inputs, and its code as a box with line numbers (<code>ScriptCode</code>, <code>.pv-script-code</code>) and the line that the engine reads it. A run lists each tool call with the skills' verdict mark and shows its value and its log in the same box without numbers (<code>ScriptOutput</code>, <code>.pv-script-out</code>). The form is a column of fields (<code>.pv-script-form</code>, <code>.pv-script-field</code>); the tools stand in two groups, what reads and what suggests (<code>ScriptToolPicker</code>, <code>.pv-script-toolgroup</code>); an input is one row — name, kind, required, remove (<code>.pv-script-input</code>). What a script that suggests laid down is shown with the conversation's own run lines and draft cards, never a card of its own.</p>
     <div class="card" style="max-width: 560px; display: grid; gap: var(--space-2)">
       <dl class="pv-skill-facts">
         <dt>What it may do</dt>
@@ -1466,6 +1466,11 @@
 }</pre></dd>
       </dl>
       <div class="pv-script-form">
+        <div class="pv-script-field">
+          <span style="color: var(--text-muted); font-size: var(--text-sm)">Tools</span>
+          <div class="pv-script-toolgroup"><span>Reading</span><div class="pv-script-tools"><label class="pv-checkrow"><input type="checkbox" class="pv-check" checked /><span>Reading a note</span></label><label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>Searching the vault</span></label></div></div>
+          <div class="pv-script-toolgroup"><span>Suggesting</span><div class="pv-script-tools"><label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>Suggesting changes to a note</span></label><label class="pv-checkrow"><input type="checkbox" class="pv-check" /><span>Drafting a task</span></label></div></div>
+        </div>
         <div class="pv-script-field">
           <span style="color: var(--text-muted); font-size: var(--text-sm)">Inputs</span>
           <div class="pv-script-inputs">

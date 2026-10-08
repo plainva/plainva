@@ -2,17 +2,23 @@
 
 Laatst bijgewerkt: 2026-10-08
 
-Een script is een klein programma voor wat een model slecht kan en een programma elke keer op dezelfde manier doet: tellen, sorteren, vergelijken, optellen. Je schrijft het in JavaScript. Het draait in een afgesloten ruimte binnen Plainva: het kan geen bestand openen, niet het netwerk op en niet wachten tot later. Het roept alleen de hulpmiddelen aan die je ervoor hebt aangevinkt, en die lezen je vault zoals de hulpmiddelen van de AI dat doen. Een script verandert niets.
+Een script is een klein programma voor wat een model slecht kan en een programma elke keer op dezelfde manier doet: tellen, sorteren, vergelijken, optellen. Je schrijft het in JavaScript. Het draait in een afgesloten ruimte binnen Plainva: het kan geen bestand openen, niet het netwerk op en niet wachten tot later. Het roept alleen de hulpmiddelen aan die je ervoor hebt aangevinkt: ze lezen je vault zoals de hulpmiddelen van de AI dat doen, of leggen een voorstel neer waarover jij beslist. Een script verandert zelf niets.
 
 ## Een script uitvoeren
 
 Je scripts staan onder **Vaardigheden** in het AI-tabblad — op de telefoon onder **Gesprekken → Vaardigheden** — in de groep **Scripts**. **Uitvoeren** opent het script: vul in wat het vraagt en druk op **Uitvoeren**. Zolang het draait, zie je elk hulpmiddel dat het aanroept, en **Stoppen** beëindigt het. Daarna toont het dialoogvenster de **Aanroepen**, het **Resultaat** — dat je kunt kopiëren — en het **Logboek**, en wat de uitvoering van zijn grenzen heeft verbruikt.
 
-Een uitvoering die je hier start, blijft op dit apparaat: niets ervan gaat naar een model, dus het script leest ook notities die je van de cloud weghoudt. **Proefrun** roept de hulpmiddelen aan die lezen, en noteert alleen een aanroep die in de app iets zou tonen.
+Een uitvoering die je hier start, blijft op dit apparaat: niets ervan gaat naar een model, dus het script leest ook notities die je van de cloud weghoudt. **Proefrun** roept de hulpmiddelen aan die lezen, en noteert alleen een aanroep die in de app iets zou tonen of een voorstel zou neerleggen.
 
 ## In een gesprek
 
 In een gewoon gesprek kan de AI je actieve scripts vinden en er een uitvoeren wanneer dat past; dan staat er als stap **Voert het script “word-count” uit**. Het script leest alleen wat dat gesprek mag lezen: een notitie die je van de cloud weghoudt, blijft weggehouden, en elke notitie die het script leest, telt mee bij wat de uitvoering heeft gelezen. Wat het teruggeeft, gaat als gegevens naar het model, nooit als instructies. Een gesprek dat met een vaardigheid is gestart, krijgt geen scripts aangeboden, en een AI-app die via de MCP-server is verbonden ook niet.
+
+## Wijzigingen voorstellen
+
+Een script kan ook hulpmiddelen krijgen die voorstellen doen. Een voorstel in de marge van een notitie komt van de hulpmiddelen **Stelt wijzigingen in een notitie voor** en **Stelt een eigenschapswaarde voor**; een concept komt van de hulpmiddelen **Maakt een concept van een notitie**, **Maakt een concept van een database-item**, **Maakt een concept van een taak** en **Maakt een concept van een journaalitem**. Beide zijn ondertekend met de naam van het script, en in je vault verandert niets voordat je een voorstel overneemt of een concept aanmaakt — precies zoals bij een voorstel van de AI. Na een uitvoering somt het dialoogvenster ze op onder **Voorstellen en concepten**; een uitvoering die met **Proefrun** is gestart, laat niets achter.
+
+Wat een script las, bepaalt waar het mag schrijven: een voorstel of een concept dat berust op een notitie die je van de cloud weghoudt, kan alleen terechtkomen op een plek waar dezelfde regel geldt. In een gesprek krijgt de AI een script dat voorstellen doet alleen aangeboden waar het gesprek zelf voorstellen kan doen, en wat het script daar neerlegt, is ondertekend met de naam van het model van het gesprek.
 
 ## Een script schrijven
 
@@ -20,7 +26,7 @@ In een gewoon gesprek kan de AI je actieve scripts vinden en er een uitvoeren wa
 
 - **Naam** — kleine letters, cijfers en koppeltekens; het wordt de naam van de map.
 - **Beschrijving** — waar het script voor is; daaraan herken jij het, en de AI ook.
-- **Hulpmiddelen** — vink aan wat het script mag aanroepen. Verder bestaat er niets voor het script.
+- **Hulpmiddelen** — vink aan wat het script mag aanroepen: onder **Lezen** wat leest, onder **Voorstellen** wat een voorstel of een concept neerlegt. Verder bestaat er niets voor het script.
 - **Invoer** — waar het script bij het starten om vraagt: een naam, of het tekst, een getal of ja of nee is, en of het verplicht is.
 - **Grenzen** — seconden rekentijd, aanroepen van hulpmiddelen en geheugen.
 - **Code** — het programma.
@@ -57,6 +63,12 @@ De taal is JavaScript op het niveau van ES2020. Er is geen `fetch`, geen timer, 
 | `get_recent` — **Recente notities bekijken** | optioneel `kind` (`opened` of `edited`), `limit` (hoogstens 20) | `kind`; `notes`: een lijst van `{ title, path, at }` |
 | `get_calendar` — **Afspraken lezen** | `from` en `to` als `YYYY-MM-DD`; optioneel `details`, `limit` (hoogstens 100) | `events`: een lijst van `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Gebruikt de app** | `id`, een opdracht van de app zoals `open-note`, `show-in-graph` of `open-calendar`; optioneel `args` met `path`, `section` of `date` | `done`, `command` |
+| `propose_edit` — **Stelt wijzigingen in een notitie voor** | `path`; `edits`, een lijst van `{ find, replace }`, of `append`; optioneel `section`, `note` | `proposed`, `path`, `passages` |
+| `set_property` — **Stelt een eigenschapswaarde voor** | `path`, `key`, `value`; optioneel `note` | `proposed`, `path`, `property` |
+| `create_note` — **Maakt een concept van een notitie** | `title`, `content`; optioneel `folder` | `drafted`, `kind`, `title` |
+| `create_entry` — **Maakt een concept van een database-item** | `base`, `title`; optioneel `properties`, `content` | `drafted`, `kind`, `title`, `base` |
+| `create_task` — **Maakt een concept van een taak** | `text` | `drafted`, `kind`, `title` |
+| `add_journal_entry` — **Maakt een concept van een journaalitem** | `text`; optioneel `task` | `drafted`, `kind` |
 
 ## Grenzen
 
@@ -78,4 +90,4 @@ Met **Goedkeuren** ondertekent dit apparaat precies deze bestanden. De sleutel d
 
 ## Grenzen van de beta
 
-Scripts lezen alleen: ze stellen geen wijzigingen voor. Een vaardigheid kan geen script starten, en de eigen map `scripts/` van een vaardigheid wordt niet uitgevoerd. E-mail, internet en de hulpmiddelen van externe servers zijn voor scripts niet beschikbaar.
+Een script stelt voor en zet concepten klaar; het hernoemt, verplaatst of verwijdert nooit een notitie, en het stelt geen e-mail en geen afspraak op. Een vaardigheid kan geen script starten, en de eigen map `scripts/` van een vaardigheid wordt niet uitgevoerd. E-mail, internet en de hulpmiddelen van externe servers zijn voor scripts niet beschikbaar.

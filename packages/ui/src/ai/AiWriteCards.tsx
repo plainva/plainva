@@ -81,11 +81,13 @@ export function useDraftActions(session: Pick<AiSession, "createDraft" | "discar
   return { busy: busy !== null, canCreate: Boolean(session?.canCreateDrafts()), create, discard, taskList };
 }
 
-/** Who wrote something, as the user knows them: the assistant by its model; a program or an agent by what its id names. */
+/** Who wrote something, as the user knows them: the assistant by its model; a script by its name; a program or an agent by what its id names. */
 export function machineAuthorLabel(t: Translate, authorId: string, fallback?: string): string {
   const kind = machineAuthorKind(authorId);
   const subject = machineAuthorSubject(authorId) ?? authorId;
   if (kind === "assistant") return t("ai.suggestionAuthor", { model: subject });
+  // A script is named by the words it was laid down with (its title), else by its folder — always as "Script …".
+  if (kind === "script") return fallback?.trim() || t("ai.scripts.author", { name: subject });
   return fallback?.trim() || subject;
 }
 

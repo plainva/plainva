@@ -17,7 +17,25 @@ import {
   type LedgerEntry,
   type SkillTestRecords,
 } from "@plainva/core";
-import { AI_POLICY_FILE, AiSession, CHAT_TOOL_NAMES, createDirectSandbox, createVaultPolicy, createVaultToolExecutor, type AiVaultHost, type ScriptDraft, type ScriptKeyStore, type VaultToolDeps } from "@plainva/ui";
+import {
+  AI_POLICY_FILE,
+  AiSession,
+  CHAT_TOOL_NAMES,
+  EMPTY_WRITE_DRAFTS,
+  captureVocabularyOf,
+  createDirectSandbox,
+  createVaultPolicy,
+  createVaultToolExecutor,
+  writeToolNames,
+  type AiVaultHost,
+  type ProposalRound,
+  type ScriptDraft,
+  type ScriptKeyStore,
+  type VaultToolDeps,
+  type VaultWriteDeps,
+  type WriteDraftState,
+} from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import { CLOUD, LOCAL, chat, fakeEgress, results, turn } from "./mcpSessionHarness";
 
 /**
@@ -56,8 +74,13 @@ const POLICY = "folders:\n  Private/:\n    cloud: deny\n";
 
 const title = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
 
-/** A vault in memory: notes, `.agent/`, its approvals on this device — and the vault's real tools over it. */
-function scriptVault(files: Record<string, string> = {}, vaultKey = "vault-a") {
+/**
+ * A vault in memory: notes, `.agent/`, its approvals on this device — and the vault's real tools over it.
+ * `conversationWrites`: a conversation started here reaches the writing tools through its tool search, as in a
+ * shell that serves them; without it a conversation has none, while a script run from the workshop still has
+ * the vault's own.
+ */
+function scriptVault(files: Record<string, string> = {}, vaultKey = "vault-a", conversationWrites = false) {
   const disk = new Map<string, string>(Object.entries({ ...NOTES, ...files }));
   const notePaths = () => [...disk.keys()].filter((path) => !path.startsWith(".agent/"));
   const io: InstructionIO = {
@@ -84,7 +107,27 @@ function scriptVault(files: Record<string, string> = {}, vaultKey = "vault-a") {
   });
   const commands: string[] = [];
   const executed: string[] = [];
+  // The write side as a shell gives it: a suggestion round goes to the note's margin (kept here), nothing into a note.
+  const proposed: ProposalRound[] = [];
+  let draftState: WriteDraftState = EMPTY_WRITE_DRAFTS;
+  const writes: VaultWriteDeps = {
+    sealed: () => false,
+    current: read,
+    propose: async (round) => void proposed.push(round),
+    folderExists: async (folder) => folder === "" || notePaths().some((path) => path.startsWith(`${folder}/`)),
+    taskVocabulary: () => captureVocabularyOf((key) => i18n.t(key), "en"),
+    draftPlace: async (kind, day) => (kind === "task" ? "Tasks/task.md" : `Journal/${day}.md`),
+    renamePlan: async () => "bad-name",
+    rename: async () => null,
+    movePlan: async () => "no-folder",
+    move: async () => null,
+    requestDelete: async () => false,
+    setRule: async () => false,
+    entryPlace: async () => null,
+  };
+  const more = conversationWrites ? writeToolNames(writes) : [];
   const deps: VaultToolDeps = {
+    writes,
     async search(query) {
       const word = query.split(" ")[0]!.toLowerCase();
       // The index answers with everything it has — `.agent/` included, as a real one could: the gate is the tools'.
@@ -120,10 +163,10 @@ function scriptVault(files: Record<string, string> = {}, vaultKey = "vault-a") {
     candidates: async () => [],
     policy,
     tools(recipient, scope, redact, web, narrowed, foreign, writing, scripts) {
-      const inner = createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more: [], ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}), ...(scripts ? { scripts } : {}) }, writing);
+      const inner = createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}), ...(scripts ? { scripts } : {}) }, writing);
       return {
         names: CHAT_TOOL_NAMES.filter((name) => name !== "get_calendar" && name !== "get_event"),
-        more: [],
+        more,
         executor: { execute: (tool, args, call, signal) => (executed.push(`${tool.name} ${JSON.stringify(args)}`), inner.execute(tool, args, call, signal)) },
       };
     },
@@ -138,8 +181,9 @@ function scriptVault(files: Record<string, string> = {}, vaultKey = "vault-a") {
       approvals: { load: async () => approvals, save: async (value) => void (approvals = value) },
     },
     skillTests: { load: async () => tests, save: async (value) => void (tests = value) },
+    drafts: { load: async () => draftState, save: async (state) => void (draftState = state) },
   };
-  return { host, disk, commands, executed, saved, approvals: () => approvals, setApprovals: (value: InstructionApprovals) => void (approvals = value) };
+  return { host, disk, commands, executed, saved, proposed, drafts: () => draftState, approvals: () => approvals, setApprovals: (value: InstructionApprovals) => void (approvals = value) };
 }
 
 async function session(script: EgressChunk[][] = [], chain = keychain(), model: { providerId: string; model: string } = CLOUD) {
@@ -153,7 +197,8 @@ async function session(script: EgressChunk[][] = [], chain = keychain(), model: 
     language: () => "English",
     today: () => "2026-10-08",
     now: () => new Date("2026-10-08T10:00:00Z"),
-    newId: () => `id${++ids}`,
+    // Long enough to be an id of a draft as well (six characters at least, as the app's own ids are).
+    newId: () => `id${String(++ids).padStart(4, "0")}`,
     label: (key) => key,
     scripts: { sandbox: createDirectSandbox(), keys: chain.keys },
   });
@@ -655,5 +700,148 @@ return out;
     expect(sent).toContain("No note is available at this path.");
     expect(sent).toContain("withheld note");
     expect(sent).not.toMatch(/5200|Anna 5|# Salaries/);
+  });
+});
+
+describe("a script that lays something down (the second stage)", () => {
+  /** Reads a note and suggests a line on another: the two tools, and nothing else. */
+  const TIDY: ScriptDraft = {
+    name: "add-source",
+    title: "Add a source line",
+    description: "Adds a line that names where a note's figures come from.",
+    tools: ["read_note", "propose_edit"],
+    parameters: [
+      { name: "from", type: "text", description: "The note the figures come from", required: true },
+      { name: "to", type: "text", description: "The note that gets the line", required: true },
+    ],
+    code: `const source = await tools.read_note({ path: input.from });
+const lines = source.text.split(String.fromCharCode(10));
+const first = lines.find((line) => line.trim() && line.charAt(0) !== "#") || "";
+try {
+  const laid = await tools.propose_edit({ path: input.to, append: "Source: " + first.trim(), note: "Names the source." });
+  return { laid };
+} catch (error) {
+  return { refused: String(error.message || error) };
+}
+`,
+  };
+  const TIDY_ROOT = ".agent/scripts/add-source";
+  /** Leaves a draft of a note about what it read. */
+  const DIGEST: ScriptDraft = {
+    name: "digest",
+    description: "Drafts a note that names the note it read.",
+    tools: ["read_note", "create_note"],
+    parameters: [{ name: "from", type: "text", description: "The note to read", required: true }],
+    code: `const source = await tools.read_note({ path: input.from });
+return await tools.create_note({ title: "Digest", content: "From " + source.path + "." });
+`,
+  };
+
+  it("a suggestion from the workshop is signed with the script's name, laid on the note's margin, and changes nothing", async () => {
+    const { s } = await session();
+    const vault = scriptVault();
+    await s.attachVault(vault.host);
+    expect(await s.saveScript(TIDY)).toMatchObject({ ok: true, approved: true });
+    const before = vault.disk.get("Projects/Plan.md");
+    const outcome = await s.runScript(TIDY_ROOT, { from: "Journal/Monday.md", to: "Projects/Plan.md" });
+    expect(outcome).toMatchObject({ kind: "done", value: { laid: { proposed: true, path: "Projects/Plan.md", passages: 1 } } });
+
+    // One round, in the margin: the note itself is as it was.
+    expect(vault.proposed).toHaveLength(1);
+    const [round] = vault.proposed;
+    expect(round!.path).toBe("Projects/Plan.md");
+    // The author is the script — never the user who started it, never a model.
+    expect(round!.author).toEqual({ id: "script:add-source", displayName: "ai.scripts.author" });
+    expect(round!.note).toBe("Names the source.");
+    expect(vault.disk.get("Projects/Plan.md")).toBe(before);
+
+    // The run's dialog shows what was laid down, by note.
+    const run = s.getState().scripts.run!;
+    expect(run.writes).toEqual({ rounds: [{ path: "Projects/Plan.md", blocks: 1, properties: 0 }], drafts: [], plans: [] });
+    expect(run.calls.map((call) => [call.tool, call.ok])).toEqual([["read_note", true], ["propose_edit", true]]);
+  });
+
+  it("a dry run lays nothing down: the writing call is written down, not carried out", async () => {
+    const { s } = await session();
+    const vault = scriptVault();
+    await s.attachVault(vault.host);
+    await s.saveScript(TIDY);
+    const outcome = await s.runScript(TIDY_ROOT, { from: "Journal/Monday.md", to: "Projects/Plan.md" }, true);
+    expect(outcome).toMatchObject({ kind: "done", value: { laid: { dryRun: true } } });
+    expect(vault.proposed).toEqual([]);
+    const run = s.getState().scripts.run!;
+    expect(run.writes).toBeNull();
+    expect(run.calls.map((call) => [call.tool, call.note ?? null])).toEqual([["read_note", null], ["propose_edit", "not-run"]]);
+    expect(vault.executed.some((line) => line.startsWith("propose_edit"))).toBe(false);
+  });
+
+  it("what it read decides where it may write: a line from a note kept from the cloud goes only where that rule holds too", async () => {
+    const { s } = await session();
+    const vault = scriptVault({ "Private/Notes.md": "# Notes\n\nKept here.\n" });
+    await s.attachVault(vault.host);
+    await s.saveScript(TIDY);
+    // The run read a note kept from the cloud; the note it wants to write on has no such rule — refused, and the script is told.
+    const open = await s.runScript(TIDY_ROOT, { from: "Private/Salaries.md", to: "Projects/Plan.md" });
+    expect(open).toMatchObject({ kind: "done" });
+    expect(typeof (open as { value: { refused?: string } }).value.refused).toBe("string");
+    expect(vault.proposed).toEqual([]);
+    expect(s.getState().scripts.run!.writes).toEqual({ rounds: [], drafts: [], plans: [] });
+
+    // A note under the same rule takes it.
+    const kept = await s.runScript(TIDY_ROOT, { from: "Private/Salaries.md", to: "Private/Notes.md" });
+    expect(kept).toMatchObject({ kind: "done", value: { laid: { proposed: true, path: "Private/Notes.md" } } });
+    expect(vault.proposed.map((round) => round.path)).toEqual(["Private/Notes.md"]);
+  });
+
+  it("a draft from the workshop is the script's own, belongs to no conversation, and carries the rules of what the run read", async () => {
+    const { s } = await session();
+    const vault = scriptVault();
+    await s.attachVault(vault.host);
+    expect(await s.saveScript(DIGEST)).toMatchObject({ ok: true, approved: true });
+    const outcome = await s.runScript(".agent/scripts/digest", { from: "Private/Salaries.md" });
+    expect(outcome).toMatchObject({ kind: "done", value: { drafted: true, kind: "note", title: "Digest" } });
+    const [draft] = vault.drafts().drafts;
+    expect(draft).toMatchObject({
+      author: { id: "script:digest", label: "ai.scripts.author" },
+      conversationId: null,
+      title: "Digest",
+      inherited: ["cloud"],
+      sources: [{ resource: "Private/Salaries.md" }],
+    });
+    expect(draft!.body).toMatchObject({ kind: "note", content: "From Private/Salaries.md." });
+    // Nothing was made: a draft waits for "Create".
+    expect([...vault.disk.keys()].some((path) => path.endsWith("Digest.md"))).toBe(false);
+    expect(s.getState().scripts.run!.writes!.drafts).toEqual([{ id: draft!.id, kind: "note", title: "Digest" }]);
+    expect(s.getState().drafts.drafts.map((entry) => entry.id)).toEqual([draft!.id]);
+  });
+
+  it("is offered to a conversation only where that conversation has the writing tools itself", async () => {
+    const find = { id: "c1", name: "find_tools", args: { query: "add a source line" } };
+    // A conversation without writing tools: the script would fail at its first call, so it is not there.
+    const without = await session([turn({ calls: [find] }), turn({ text: "Nothing to do it with." })]);
+    const plain = scriptVault();
+    await without.s.attachVault(plain.host);
+    await without.s.saveScript(TIDY);
+    await without.s.saveScript(COUNT);
+    await without.s.send("Add the source to the plan.");
+    expect(without.s.getState().active!.conversation.more).toEqual(["script_tag_count"]);
+
+    // One that has them: the script is found, and its suggestion goes through the conversation's own chain.
+    const call = { id: "c2", name: "call_tool", args: { name: "script_add_source", args: { from: "Journal/Monday.md", to: "Projects/Plan.md" } } };
+    const withTools = await session([turn({ calls: [find] }), turn({ calls: [call] }), turn({ text: "Suggested." })]);
+    const writing = scriptVault({}, "vault-a", true);
+    await withTools.s.attachVault(writing.host);
+    await withTools.s.saveScript(TIDY);
+    expect(await withTools.s.send("Add the source to the plan.")).toMatchObject({ kind: "answered" });
+    const record = withTools.s.getState().active!;
+    expect(record.conversation.more).toContain("script_add_source");
+    // The script's answer to the model is its value, fenced as data: what was laid down, never the words of the note.
+    expect(answers(withTools.s)[1]).toBe('<untrusted_data origin="script:add-source" trust="3">\n{"laid":{"proposed":true,"path":"Projects/Plan.md","passages":1}}\n</untrusted_data>');
+    // Laid down by the run of the conversation: signed with its model, recorded with the run, the note untouched.
+    expect(writing.proposed).toHaveLength(1);
+    expect(writing.proposed[0]!.author.id).toBe(`plainva-ai/${CLOUD.model}`);
+    expect(record.runs[0]!.writes).toEqual({ rounds: [{ path: "Projects/Plan.md", blocks: 1, properties: 0 }], drafts: [], plans: [] });
+    expect(record.runs[0]!.scripts).toEqual({ runs: [{ script: "add-source", outcome: "done", calls: 2 }] });
+    expect(writing.disk.get("Projects/Plan.md")).toBe(NOTES["Projects/Plan.md"]);
   });
 });

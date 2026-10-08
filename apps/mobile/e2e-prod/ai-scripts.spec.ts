@@ -221,6 +221,47 @@ test("a script runs for nobody until this phone signed it, then in its box — a
     await page.getByTestId("ai-skill-action-revoke").click();
     await expect(row("query-length")).toHaveCount(0);
     await expect(waiting).toHaveCount(1);
+
+    // 8. The second stage: a script that suggests. Written with a writing tool ticked; what it lays down is a
+    //    suggestion on the note — the note itself is as it was.
+    const REPORT = "# Report\n\nOne two three four five.\n";
+    await workshop.getByTestId("ai-scripts-new").click();
+    await form.getByTestId("ai-script-name").fill("add-line");
+    await form.getByTestId("ai-script-description").fill("Suggests a line at the end of a note.");
+    await form.getByTestId("ai-script-tool-search_vault").uncheck();
+    await form.getByTestId("ai-script-tool-propose_edit").check();
+    await form.getByTestId("ai-script-code-field").fill('return await tools.propose_edit({ path: input.query, append: "Checked by a script.", note: "Adds a line." });\n');
+    await form.getByTestId("ai-script-tool-propose_edit").scrollIntoViewIfNeeded();
+    await shot("scripts-7-form-writing-phone");
+    await form.getByTestId("ai-script-save").click();
+    await expect(form).toHaveCount(0);
+    await expect(row("add-line")).toHaveCount(1);
+    // Its review says what a writing tool means.
+    await row("add-line").click();
+    await page.getByTestId("ai-skill-action-showInstructions").click();
+    await expect(approval).toContainText("It can suggest changes and leave drafts, signed with its name.");
+    await approval.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(approval).toHaveCount(0);
+
+    await row("add-line").click();
+    await page.getByTestId("ai-skill-action-run").click();
+    await run.getByTestId("ai-script-field-query").fill("Report.md");
+    // A dry run lays nothing down: the writing call is written down, not carried out.
+    await run.getByTestId("ai-script-dry").click();
+    await expect(run.getByTestId("ai-script-outcome")).toContainText("Dry run finished.", { timeout: 30_000 });
+    await expect(run.getByTestId("ai-script-call")).toContainText("not carried out");
+    await expect(run.getByTestId("ai-script-laid")).toHaveCount(0);
+    // The run itself: one suggestion, on the note it was told.
+    await run.getByTestId("ai-script-start").click();
+    const laid = run.getByTestId("ai-script-laid");
+    await expect(laid.getByTestId("ai-proposed")).toContainText("Report", { timeout: 30_000 });
+    await laid.scrollIntoViewIfNeeded();
+    await shot("scripts-8-laid-phone");
+    expect(await readVaultFile(page, "vault/Report.md")).toBe(REPORT);
+    // The line opens the note and closes the sheet.
+    await laid.getByTestId("ai-proposed").click();
+    await expect(run).toHaveCount(0);
+    expect(await readVaultFile(page, "vault/Report.md")).toBe(REPORT);
   } finally {
     await sql.close();
   }

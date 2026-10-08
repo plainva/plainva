@@ -4213,9 +4213,14 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-script-field { display: grid; gap: var(--space-1); min-width: 0; }
 .pv-script-form p,
 .pv-script-form dl { margin: 0; }
+/* What a run laid down stands at the field's own edge, as it does under an answer — not stretched across the dialog. */
+.pv-script-field > .pv-ai-runline { justify-self: start; }
 /* The form a script is written in: the tools to tick, and one row per input — its name, its kind,
    whether it is required, and the way to take it out. */
 .pv-script-tools { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
+/* The tools in two groups — what reads, what suggests —, each under its own quiet word. */
+.pv-script-toolgroup { display: grid; gap: var(--space-1); min-width: 0; }
+.pv-script-toolgroup > span { color: var(--text-faint); font-size: var(--text-sm); }
 .pv-script-inputs { display: grid; gap: var(--space-2); }
 .pv-script-input { display: grid; grid-template-columns: minmax(8ch, 1fr) auto auto auto; align-items: center; gap: var(--space-2); }
 /* The fields stand on one line whatever their labels do: a label that wraps on a narrow sheet pushes its own field down, not out of the row. */

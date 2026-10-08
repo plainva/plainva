@@ -35,7 +35,11 @@ enough. The review runs in parallel and does not block (E33).
    `plainva-ai/<model-id>`, shown as "Plainva KI · ⟨model⟩" (ADR 0019). The
    author stays in the suggestion history after the user accepts the round, so
    the record of which passage an AI wrote survives the acceptance. Proposals
-   from other harnesses carry `mcp:<client>` or `acp:<agent>`. A reply the
+   from other harnesses carry `mcp:<client>` or `acp:<agent>`. What a script
+   the user started lays down (ADR 0020, decision 6) carries
+   `script:<name>` and is shown as "Script ⟨name⟩" with the machine mark: a
+   program wrote it, not a model and not the person who started it — and a
+   note created from its draft carries that id in `generated.by`. A reply the
    assistant writes into a comment thread (addressed with "@AI") is a remark
    under the same author and is shown with the AI mark in place of initials;
    it is never text in the note.

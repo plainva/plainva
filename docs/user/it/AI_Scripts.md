@@ -2,17 +2,23 @@
 
 Ultimo aggiornamento: 2026-10-08
 
-Uno script è un piccolo programma per ciò che un modello fa male e che un programma fa ogni volta allo stesso modo: contare, ordinare, confrontare, sommare. Lo scrivi in JavaScript. Gira in un ambiente chiuso dentro Plainva: non può aprire un file, raggiungere la rete né rimandare qualcosa a più tardi. Chiama solo gli strumenti che hai spuntato per lui, e questi leggono il tuo vault come fanno gli strumenti dell'IA. Uno script non cambia nulla.
+Uno script è un piccolo programma per ciò che un modello fa male e che un programma fa ogni volta allo stesso modo: contare, ordinare, confrontare, sommare. Lo scrivi in JavaScript. Gira in un ambiente chiuso dentro Plainva: non può aprire un file, raggiungere la rete né rimandare qualcosa a più tardi. Chiama solo gli strumenti che hai spuntato per lui: questi leggono il tuo vault come fanno gli strumenti dell'IA, oppure lasciano una proposta su cui decidi tu. Da solo, uno script non cambia nulla.
 
 ## Eseguire uno script
 
 I tuoi script si trovano sotto **Competenze** nella scheda IA — sul telefono in **Conversazioni → Competenze** — nel gruppo **Script**. **Esegui** apre lo script: inserisci ciò che chiede e premi **Esegui**. Mentre gira, vedi ogni strumento che chiama, e **Interrompi** lo termina. Al termine la finestra mostra le **Chiamate**, il **Risultato** — che puoi copiare — e il **Registro**, insieme a quanto l'esecuzione ha usato dei suoi limiti.
 
-Un'esecuzione che avvii da qui resta su questo dispositivo: nulla di ciò va a un modello, perciò legge anche le note che tieni lontane dal cloud. Con **Esecuzione di prova** vengono chiamati gli strumenti che leggono, mentre una chiamata che mostrerebbe qualcosa nell'app viene solo annotata.
+Un'esecuzione che avvii da qui resta su questo dispositivo: nulla di ciò va a un modello, perciò legge anche le note che tieni lontane dal cloud. Con **Esecuzione di prova** vengono chiamati gli strumenti che leggono, mentre una chiamata che mostrerebbe qualcosa nell'app o lascerebbe una proposta viene solo annotata.
 
 ## In una conversazione
 
 In una conversazione normale l'IA può trovare i tuoi script attivi ed eseguirne uno quando serve; il passaggio dice allora **Esegue lo script «word-count»**. Lo script legge solo ciò che quella conversazione può leggere: una nota che tieni lontana dal cloud resta lontana, e ogni nota che lo script legge rientra tra quelle che l'esecuzione ha letto. Ciò che restituisce va al modello come dati, mai come istruzioni. A una conversazione avviata con una competenza non vengono offerti script, e nemmeno a un'app di IA collegata tramite il server MCP.
+
+## Proporre modifiche
+
+Uno script può ricevere anche strumenti che propongono. Gli strumenti **Sta proponendo modifiche a una nota** e **Sta proponendo un valore di proprietà** lasciano una proposta a margine di una nota; gli strumenti **Sta preparando la bozza di una nota**, **Sta preparando la bozza di una voce di database**, **Sta preparando la bozza di un'attività** e **Sta preparando la bozza di una voce di diario** lasciano una bozza. Entrambe sono firmate con il nome dello script, e nel tuo vault non cambia nulla prima che tu accetti una proposta o crei una bozza — esattamente come con una proposta dell'IA. Dopo un'esecuzione la finestra le elenca sotto **Proposte e bozze**; un'esecuzione avviata con **Esecuzione di prova** non lascia nulla.
+
+Ciò che uno script ha letto decide dove può scrivere: una proposta o una bozza che si basa su una nota che tieni lontana dal cloud viene accolta solo da un luogo in cui vale la stessa regola. In una conversazione all'IA viene offerto uno script che propone solo dove può proporre la conversazione stessa, e ciò che lo script lascia lì porta il nome del modello della conversazione.
 
 ## Scrivere uno script
 
@@ -20,7 +26,7 @@ In una conversazione normale l'IA può trovare i tuoi script attivi ed eseguirne
 
 - **Nome** — lettere minuscole, cifre e trattini; diventa la cartella.
 - **Descrizione** — a cosa serve lo script; lo riconoscete da questa, tu e l'IA.
-- **Strumenti** — spunta ciò che lo script può chiamare. Per lo script non esiste nient'altro.
+- **Strumenti** — spunta ciò che lo script può chiamare: sotto **Leggere** ciò che legge, sotto **Proporre** ciò che lascia una proposta o una bozza. Per lo script non esiste nient'altro.
 - **Dati in ingresso** — ciò che lo script chiede all'avvio: un nome, se è un testo, un numero o sì o no, e se è obbligatorio.
 - **Limiti** — secondi di calcolo, chiamate a strumenti e memoria.
 - **Codice** — il programma.
@@ -57,6 +63,12 @@ Nel modulo, **Che cosa restituisce uno strumento** apre questa pagina. Ogni stru
 | `get_recent` — **Guardo le note recenti** | facoltativi `kind` (`opened` o `edited`), `limit` (fino a 20) | `kind`; `notes`: un elenco di `{ title, path, at }` |
 | `get_calendar` — **Lettura degli appuntamenti** | `from` e `to` come `YYYY-MM-DD`; facoltativi `details`, `limit` (fino a 100) | `events`: un elenco di `{ day, start, end, allDay, title, cancelled, place, with, others, online, event }`; `more` |
 | `run_command` — **Sta usando l'app** | `id`, un comando dell'app come `open-note`, `show-in-graph` o `open-calendar`; facoltativo `args` con `path`, `section` o `date` | `done`, `command` |
+| `propose_edit` — **Sta proponendo modifiche a una nota** | `path`; `edits`, un elenco di `{ find, replace }`, o `append`; facoltativi `section`, `note` | `proposed`, `path`, `passages` |
+| `set_property` — **Sta proponendo un valore di proprietà** | `path`, `key`, `value`; facoltativo `note` | `proposed`, `path`, `property` |
+| `create_note` — **Sta preparando la bozza di una nota** | `title`, `content`; facoltativo `folder` | `drafted`, `kind`, `title` |
+| `create_entry` — **Sta preparando la bozza di una voce di database** | `base`, `title`; facoltativi `properties`, `content` | `drafted`, `kind`, `title`, `base` |
+| `create_task` — **Sta preparando la bozza di un'attività** | `text` | `drafted`, `kind`, `title` |
+| `add_journal_entry` — **Sta preparando la bozza di una voce di diario** | `text`; facoltativo `task` | `drafted`, `kind` |
 
 ## Limiti
 
@@ -78,4 +90,4 @@ Con **Approva**, questo dispositivo firma esattamente questi file. La chiave per
 
 ## Limiti della beta
 
-Gli script si limitano a leggere: non propongono modifiche. Una competenza non può avviare uno script, e la cartella `scripts/` di una competenza non viene eseguita. E-mail, Internet e gli strumenti dei server esterni non sono a disposizione degli script.
+Uno script propone e lascia bozze; non rinomina, non sposta e non elimina mai una nota, e non scrive né e-mail né appuntamenti. Una competenza non può avviare uno script, e la cartella `scripts/` di una competenza non viene eseguita. E-mail, Internet e gli strumenti dei server esterni non sono a disposizione degli script.

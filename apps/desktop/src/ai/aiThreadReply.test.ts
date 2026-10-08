@@ -73,26 +73,27 @@ describe("the assistant as someone a comment can address", () => {
     expect(isAiMentionId(AI)).toBe(false);
   });
 
-  it("knows every author no person writes under — the three kinds the core signs with, and no other id", () => {
+  it("knows every author no person writes under — the four kinds the core signs with, and no other id", () => {
     // `isMachineAuthorId` says the prefixes again because its file imports nothing: held here against the core's own.
     const writers: MachineWriter[] = [
       { kind: "assistant", model: "m-1" },
       { kind: "mcp", clientId: "3f9a1c2b4d5e6f70" },
       { kind: "acp", agentId: "helper" },
+      { kind: "script", name: "tag-count" },
     ];
     for (const writer of writers) {
       const id = machineAuthorId(writer);
       expect(machineAuthorKind(id), id).toBe(writer.kind);
       expect(isMachineAuthorId(id), id).toBe(true);
     }
-    for (const id of [SELF, ANNA, AI_MENTION_ID, "mcp:", "acp:", "plainva-ai/", "mcpx:1", "member-anna", ""]) {
+    for (const id of [SELF, ANNA, AI_MENTION_ID, "mcp:", "acp:", "script:", "plainva-ai/", "mcpx:1", "scripts:x", "member-anna", ""]) {
       expect(isMachineAuthorId(id), id).toBe(machineAuthorKind(id) !== null);
       expect(isMachineAuthorId(id), id).toBe(false);
     }
-    // Only the assistant's own byline carries its mark; an app's and an agent's are machines of somebody else.
-    expect(writers.map((writer) => isAiAuthorId(machineAuthorId(writer)))).toEqual([true, false, false]);
+    // Only the assistant's own byline carries its mark; an app's, an agent's and a script's are machines of another kind.
+    expect(writers.map((writer) => isAiAuthorId(machineAuthorId(writer)))).toEqual([true, false, false, false]);
     // And none of their bylines is a person to address after an "@".
-    const members = new Map([...NAMES, ["mcp:3f9a1c2b4d5e6f70", "Claude Code (AI app)"], ["acp:helper", "Helper (external agent)"], [AI, "Plainva AI · m-1"]]);
+    const members = new Map([...NAMES, ["mcp:3f9a1c2b4d5e6f70", "Claude Code (AI app)"], ["acp:helper", "Helper (external agent)"], ["script:tag-count", "Script “Count tags”"], [AI, "Plainva AI · m-1"]]);
     expect([...composerNames(members, "KI", false).keys()]).toEqual([SELF, ANNA]);
   });
 });

@@ -35,13 +35,13 @@ export const SCRIPT_DESCRIPTION_MAX = 400;
 export const SCRIPT_VERSION_MAX = 40;
 
 /**
- * The tools a script can call: what reads the vault or shows something in the
- * app. Not among them, and never reachable from a script: mail and the
+ * The tools a script can read with: what reads the vault or shows something
+ * in the app. Not among them, and never reachable from a script: mail and the
  * descriptions of appointments (their text goes to a reader without tools,
  * and a script's result would carry it past that reader), the internet,
  * the tools of foreign servers, the skills, the tool search, other scripts.
  */
-export const SCRIPT_TOOL_NAMES: readonly string[] = [
+export const SCRIPT_READ_TOOL_NAMES: readonly string[] = [
   "search_vault",
   "read_note",
   "get_outline",
@@ -53,7 +53,29 @@ export const SCRIPT_TOOL_NAMES: readonly string[] = [
   "get_calendar",
   "run_command",
 ];
+
+/**
+ * The tools a script can lay something down with — the second stage, through
+ * the approval chain of ADR 0019: a suggestion on a note's text or on one of
+ * its properties, and the drafts of a note, a database entry, a task and a
+ * journal line. Each ends as the same call of a model ends: a suggestion
+ * round in the note's margin, a draft in the list — nothing in the vault
+ * changes before the user accepts or creates.
+ *
+ * Not among them: the plans (rename, move, delete — each asks the user about
+ * one thing, and a program that loops would ask without end) and the drafts
+ * of an e-mail or an appointment, which are on their way out of the vault.
+ */
+export const SCRIPT_WRITE_TOOL_NAMES: readonly string[] = ["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry"];
+
+/** Every tool a script's manifest can name, the reading ones first. */
+export const SCRIPT_TOOL_NAMES: readonly string[] = [...SCRIPT_READ_TOOL_NAMES, ...SCRIPT_WRITE_TOOL_NAMES];
 export const SCRIPT_TOOLS_MAX = 20;
+
+/** Whether a script lays something down: its manifest names a tool that does. */
+export function scriptWrites(script: { tools: readonly string[] }): boolean {
+  return script.tools.some((name) => SCRIPT_WRITE_TOOL_NAMES.includes(name));
+}
 
 export interface ScriptLimits {
   /** Seconds the script itself may compute; the time a tool takes does not count. */

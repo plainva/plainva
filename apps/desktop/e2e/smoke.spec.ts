@@ -4123,6 +4123,58 @@ test('AI scripts: a script runs for nobody until this device signed it, then in 
   await page.getByTestId('ai-skill-action-revoke').click();
   await expect(runnable).toHaveCount(2);
   await expect(waiting).toHaveCount(1);
+
+  // 8. The second stage: a script that suggests. Written with a writing tool ticked; what it lays down is a suggestion
+  //    in the note's margin under the script's name — the note itself is as it was.
+  const REPORT = '# Report\n\nOne two three four five.\n';
+  await workshop.getByTestId('ai-scripts-new').click();
+  await form.getByTestId('ai-script-name').fill('add-line');
+  await form.getByTestId('ai-script-description').fill('Suggests a line at the end of a note.');
+  await form.getByTestId('ai-script-tool-search_vault').uncheck();
+  await form.getByTestId('ai-script-tool-propose_edit').check();
+  await form.getByTestId('ai-script-code-field').fill('return await tools.propose_edit({ path: input.query, append: "Checked by a script.", note: "Adds a line." });\n');
+  await form.getByTestId('ai-script-name').scrollIntoViewIfNeeded();
+  await shot('scripts-7-form-writing-desktop');
+  await form.getByTestId('ai-script-save').click();
+  await expect(form).toHaveCount(0);
+  const addLine = workshop.locator('.pv-setrow').filter({ hasText: 'add-line' });
+  await expect(addLine).toContainText('Calls: Suggesting changes to a note');
+  // Its review says what a writing tool means.
+  await addLine.getByTestId('ai-skill-more').click();
+  await page.getByTestId('ai-skill-action-showInstructions').click();
+  await expect(approval).toContainText('It can suggest changes and leave drafts, signed with its name.');
+  await page.keyboard.press('Escape');
+  await expect(approval).toHaveCount(0);
+
+  await addLine.getByTestId('ai-script-open-run').click();
+  await run.getByTestId('ai-script-field-query').fill('Report.md');
+  // A dry run lays nothing down: the writing call is written down, not carried out.
+  await run.getByTestId('ai-script-dry').click();
+  await expect(run.getByTestId('ai-script-outcome')).toContainText('Dry run finished.', { timeout: 30_000 });
+  await expect(run.getByTestId('ai-script-call')).toContainText('not carried out');
+  await expect(run.getByTestId('ai-script-laid')).toHaveCount(0);
+  // The run itself: one suggestion, on the note it was told — shown with the line a conversation shows it with.
+  await run.getByTestId('ai-script-start').click();
+  const laid = run.getByTestId('ai-script-laid');
+  await expect(laid.getByTestId('ai-proposed')).toContainText('Report', { timeout: 30_000 });
+  await expect(run.getByTestId('ai-script-result')).toContainText('"proposed": true');
+  await shot('scripts-8-laid-desktop');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Report.md'])).toBe(REPORT);
+
+  // The line opens the note and closes the dialog; in the margin the suggestion stands under the script's name.
+  await laid.getByTestId('ai-proposed').click();
+  await expect(run).toHaveCount(0);
+  await expect(page.getByText('One two three four five.')).toBeVisible();
+  const toggle = page.getByTestId('editor-comments-toggle');
+  await expect(toggle).toBeVisible({ timeout: 10000 });
+  const column = page.locator('aside.pv-comment-column');
+  if (!(await column.isVisible())) await toggle.click();
+  const card = column.locator('.pv-comment-card').first();
+  await expect(card).toBeVisible({ timeout: 10000 });
+  await expect(card.locator('.pv-comment-card__name')).toHaveText('Script “add-line”');
+  await expect(card.locator('.pv-comment-card__avatar[data-machine]')).toHaveCount(1);
+  await shot('scripts-9-suggestion-desktop');
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Report.md'])).toBe(REPORT);
 });
 
 // The gate of the internet strand (AI harness P4): "a fresh vault has no way

@@ -18,6 +18,7 @@ import {
   scriptFormReady,
   scriptLimitRange,
   scriptToolChoices,
+  ScriptToolPicker,
   scriptTypeLabel,
   SCRIPTS_GUIDE,
   scriptWriteError,
@@ -85,13 +86,7 @@ export function ScriptFormSheet({ id, onClose }: { id?: string | null; onClose: 
         <p className="m-hint">{t("ai.scripts.form.descriptionHint")}</p>
         <div className="m-field">
           <span>{t("ai.scripts.form.tools")}</span>
-          <div className="pv-script-tools" role="group" aria-label={t("ai.scripts.form.tools")}>
-            {scriptToolChoices(t).map((tool) => (
-              <Checkbox key={tool.name} checked={form.tools.includes(tool.name)} onChange={(event) => change(toggleScriptTool(form, tool.name, event.target.checked))} data-testid={`ai-script-tool-${tool.name}`}>
-                {tool.label}
-              </Checkbox>
-            ))}
-          </div>
+          <ScriptToolPicker choices={scriptToolChoices(t)} chosen={form.tools} labels={{ read: t("ai.scripts.form.toolsRead"), write: t("ai.scripts.form.toolsWrite") }} onToggle={(name, on) => change(toggleScriptTool(form, name, on))} />
         </div>
         <p className="m-hint">{t("ai.scripts.form.toolsHint")}</p>
         <div className="m-field">

@@ -6,7 +6,7 @@ Plainva hat kein Plugin-System, das fremden Code ausführt. Stattdessen ist der 
 
 Diese Seite erklärt, wie das **sicher** geht. Das genaue Byte-Format jeder Datei steht separat in der [Dateiformat-Referenz](File_Format_Reference.md); diese Seite ist der praktische Begleiter: die Regeln, der Ablauf und was Du einer KI mitgibst.
 
-Plainva kann auch kleine eigene Skripte in der App ausführen: in einem geschlossenen Kasten, der Deine Notizen nur über die lesenden Werkzeuge des KI-Assistenten erreicht und nie eine Datei anfasst. Das ist etwas anderes als die Skripte auf dieser Seite, die von außen mit den Dateien arbeiten — siehe [Skripte](AI_Scripts.md).
+Plainva kann auch kleine eigene Skripte in der App ausführen: in einem geschlossenen Kasten, der Deine Notizen nur über die Werkzeuge des KI-Assistenten erreicht — lesend, oder mit einem Vorschlag, über den Du entscheidest — und nie eine Datei anfasst. Das ist etwas anderes als die Skripte auf dieser Seite, die von außen mit den Dateien arbeiten — siehe [Skripte](AI_Scripts.md).
 
 ## Warum Dateien statt einer Plugin-Sandbox
 

@@ -144,8 +144,15 @@ function writer(over: Partial<WriteRun> = {}) {
 }
 
 type Vault = ReturnType<typeof vault>;
-const call = (v: Vault, run: WriteRun | undefined, name: string, args: unknown, recipient: EgressRecipient = cloud, scope?: ToolScope) =>
+/** The tool's whole outcome: the sentence a model is given, and — for a script that called it — the same as values. */
+const outcomeOf = (v: Vault, run: WriteRun | undefined, name: string, args: unknown, recipient: EgressRecipient = cloud, scope?: ToolScope) =>
   createVaultToolExecutor(v.deps, { recipient, webTools: false }, scope, undefined, undefined, run).execute(toolByName(name)!, args, { type: "tool_call", id: "c1", name, args });
+/** What a model is told. The values a script gets beside it are asked of `outcomeOf` where a test is about them. */
+const call = async (v: Vault, run: WriteRun | undefined, name: string, args: unknown, recipient: EgressRecipient = cloud, scope?: ToolScope) => {
+  const told = { ...(await outcomeOf(v, run, name, args, recipient, scope)) };
+  delete told.data;
+  return told;
+};
 
 /** A round as the note would read once every block of it was accepted. */
 function accepted(round: ProposalRound): string {
@@ -1165,5 +1172,20 @@ describe("the name of a note, and where it would go", () => {
     expect(await noteMovePlan(async () => false, "Projects/Offer.md", "")).toEqual({ target: "Offer.md" });
     expect(await noteMovePlan(async () => false, "Offer.md", "")).toBe("same-place");
     expect(await noteMovePlan(async () => true, "Projects/Offer.md", "Archive")).toBe("exists");
+  });
+});
+
+describe("what a script that called a writing tool gets back (plan P5.5)", () => {
+  it("the outcome as values — what was laid down and where, never more than the sentence says", async () => {
+    const v = vault();
+    const w = writer();
+    expect((await outcomeOf(v, w.run, "propose_edit", { path: "Projects/Offer.md", append: "A line." })).data).toEqual({ proposed: true, path: "Projects/Offer.md", passages: 1 });
+    expect((await outcomeOf(v, w.run, "create_task", { text: "Call Anna" })).data).toEqual({ drafted: true, kind: "task", title: "Call Anna" });
+    expect((await outcomeOf(v, w.run, "add_journal_entry", { text: "Read the offer." })).data).toEqual({ drafted: true, kind: "journal" });
+    expect((await outcomeOf(v, w.run, "create_note", { title: "Digest", content: "Text." })).data).toEqual({ drafted: true, kind: "note", title: "Digest" });
+    // A refusal carries none: a script gets it as an error with the tool's own sentence.
+    const refused = await outcomeOf(v, w.run, "propose_edit", { path: "No/Such.md", append: "x" });
+    expect(refused.isError).toBe(true);
+    expect(refused.data).toBeUndefined();
   });
 });

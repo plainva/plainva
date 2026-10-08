@@ -6,7 +6,7 @@ O Plainva não tem um sistema de plugins que execute código de terceiros. Em ve
 
 Esta página explica como fazer isso com **segurança**. O formato exato, byte a byte, de cada arquivo está documentado separadamente na [Referência do Formato de Arquivo](File_Format_Reference.md); esta página é o complemento prático: as regras, o fluxo de trabalho e o que entregar a um assistente de IA.
 
-O Plainva também pode executar, dentro do app, pequenos scripts seus: em uma caixa fechada que alcança as suas notas apenas pelas ferramentas de leitura do assistente de IA e nunca toca em um arquivo. Isso é diferente dos scripts desta página, que atuam sobre os arquivos de fora — veja [Scripts](AI_Scripts.md).
+O Plainva também pode executar, dentro do app, pequenos scripts seus: em uma caixa fechada que alcança as suas notas apenas pelas ferramentas do assistente de IA — lendo-as ou deixando uma sugestão sobre a qual você decide — e nunca toca em um arquivo. Isso é diferente dos scripts desta página, que atuam sobre os arquivos de fora — veja [Scripts](AI_Scripts.md).
 
 ## Por que arquivos em vez de uma sandbox de plugins
 

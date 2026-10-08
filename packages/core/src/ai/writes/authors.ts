@@ -4,24 +4,28 @@ import { acpAuthorId } from "../acp/agents.js";
  * Who a write that no person made is signed with (plan KI-Harness P5,
  * ADR 0023): Plainva's own assistant by its model, a program that reaches
  * the vault through Plainva's MCP server by the client the user paired, an
- * external agent by the id it has on this device. The same three ids sign a
- * suggestion round, the stamp `generated.by` of a note that was created from
- * a draft, and the line a plan is confirmed under.
+ * external agent by the id it has on this device, and a script the user
+ * started by its name (plan P5.5). The same ids sign a suggestion round, the
+ * stamp `generated.by` of a note that was created from a draft, and the line
+ * a plan is confirmed under.
  *
  * None of them is a name. What the user reads is the name they know the
- * writer by — the model's, the paired client's, the one they gave an agent —
- * and that is resolved where it is shown.
+ * writer by — the model's, the paired client's, the one they gave an agent,
+ * the script's own — and that is resolved where it is shown.
  */
 export type MachineWriter =
   | { kind: "assistant"; model: string }
   | { kind: "mcp"; clientId: string }
-  | { kind: "acp"; agentId: string };
+  | { kind: "acp"; agentId: string }
+  /** A script run from the workshop: its name is its folder, so it names one script of one vault. */
+  | { kind: "script"; name: string };
 
 export type MachineAuthorKind = MachineWriter["kind"];
 
 const ASSISTANT_PREFIX = "plainva-ai/";
 const MCP_PREFIX = "mcp:";
 const ACP_PREFIX = "acp:";
+const SCRIPT_PREFIX = "script:";
 
 export function assistantAuthorId(model: string): string {
   return `${ASSISTANT_PREFIX}${model}`;
@@ -31,9 +35,29 @@ export function mcpAuthorId(clientId: string): string {
   return `${MCP_PREFIX}${clientId}`;
 }
 
-export function machineAuthorId(writer: MachineWriter): string {
-  return writer.kind === "assistant" ? assistantAuthorId(writer.model) : writer.kind === "mcp" ? mcpAuthorId(writer.clientId) : acpAuthorId(writer.agentId);
+export function scriptAuthorId(name: string): string {
+  return `${SCRIPT_PREFIX}${name}`;
 }
+
+export function machineAuthorId(writer: MachineWriter): string {
+  switch (writer.kind) {
+    case "assistant":
+      return assistantAuthorId(writer.model);
+    case "mcp":
+      return mcpAuthorId(writer.clientId);
+    case "acp":
+      return acpAuthorId(writer.agentId);
+    case "script":
+      return scriptAuthorId(writer.name);
+  }
+}
+
+const PREFIXES: readonly [MachineAuthorKind, string][] = [
+  ["assistant", ASSISTANT_PREFIX],
+  ["mcp", MCP_PREFIX],
+  ["acp", ACP_PREFIX],
+  ["script", SCRIPT_PREFIX],
+];
 
 /**
  * Which kind of writer an author id names, or null for a person's — a device
@@ -42,15 +66,13 @@ export function machineAuthorId(writer: MachineWriter): string {
  */
 export function machineAuthorKind(id: string | null | undefined): MachineAuthorKind | null {
   if (!id) return null;
-  if (id.startsWith(ASSISTANT_PREFIX) && id.length > ASSISTANT_PREFIX.length) return "assistant";
-  if (id.startsWith(MCP_PREFIX) && id.length > MCP_PREFIX.length) return "mcp";
-  if (id.startsWith(ACP_PREFIX) && id.length > ACP_PREFIX.length) return "acp";
+  for (const [kind, prefix] of PREFIXES) if (id.startsWith(prefix) && id.length > prefix.length) return kind;
   return null;
 }
 
-/** The part of a machine's author id behind its kind: the model, the client's id, the agent's id. */
+/** The part of a machine's author id behind its kind: the model, the client's id, the agent's id, the script's name. */
 export function machineAuthorSubject(id: string): string | null {
   const kind = machineAuthorKind(id);
   if (kind === null) return null;
-  return id.slice(kind === "assistant" ? ASSISTANT_PREFIX.length : kind === "mcp" ? MCP_PREFIX.length : ACP_PREFIX.length);
+  return id.slice(PREFIXES.find(([k]) => k === kind)![1].length);
 }

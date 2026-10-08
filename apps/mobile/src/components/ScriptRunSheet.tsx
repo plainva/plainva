@@ -2,6 +2,7 @@ import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Play } from "lucide-react";
 import {
+  AiRunWrites,
   Banner,
   Button,
   GroupCard,
@@ -21,6 +22,7 @@ import {
   Switch,
   TextInput,
   toast,
+  useDraftActions,
   useScriptRun,
   workshopTitle,
   type ScriptFieldValues,
@@ -36,7 +38,7 @@ import { getMobileAiSession } from "../services/ai/mobileAi";
  * The words and the run itself are shared (`scriptsWorkshop.ts`,
  * `useScriptRun`); nothing here decides on its own.
  */
-export function ScriptRunSheet({ id, onClose }: { id: string; onClose: () => void }) {
+export function ScriptRunSheet({ id, onClose, onOpenNote }: { id: string; onClose: () => void; onOpenNote: (path: string) => void }) {
   const { t, i18n } = useTranslation();
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
@@ -44,9 +46,16 @@ export function ScriptRunSheet({ id, onClose }: { id: string; onClose: () => voi
   const script = entry?.source.script ?? null;
   const [values, setValues] = useState<ScriptFieldValues>(() => scriptFieldDefaults(script?.parameters ?? []));
   const running = useScriptRun(session, state, id);
+  // A note opens as a screen of its own: the sheet closes with it.
+  const open = (path: string) => {
+    onClose();
+    onOpenNote(path);
+  };
+  const drafts = useDraftActions(session, open);
   if (!entry || !script) return null;
   const { input, missing } = scriptFieldInput(script.parameters, values);
   const run = running.run;
+  const laid = run?.writes && (run.writes.rounds.length > 0 || run.writes.drafts.length > 0) ? run.writes : null;
   const outcome = run?.outcome ?? null;
   const ended = outcome ? scriptOutcomeText(t, outcome, script.limits, run?.dry === true, i18n.language) : null;
   const value = outcome ? scriptValueText(outcome) : null;
@@ -132,6 +141,15 @@ export function ScriptRunSheet({ id, onClose }: { id: string; onClose: () => voi
             <p className="m-hint">{t("ai.scripts.run.log")}</p>
             <ScriptOutput text={outcome.logs.map((line) => line.text).join("\n")} testId="ai-script-log" />
             {outcome.logsCut && <p className="m-hint">{t("ai.scripts.run.logCut")}</p>}
+          </>
+        )}
+        {/* What the run laid down (second stage): the notes it left a suggestion on, and its drafts — the conversation's own cards. */}
+        {laid && (
+          <>
+            <p className="m-hint">{t("ai.scripts.run.laid")}</p>
+            <div className="m-skill-test-lines" data-testid="ai-script-laid">
+              <AiRunWrites writes={laid} state={state.drafts} canCreate={drafts.canCreate} busy={drafts.busy || running.busy} onOpenNote={open} onCreate={drafts.create} onDiscard={drafts.discard} taskList={drafts.taskList} touch />
+            </div>
           </>
         )}
         {outcome && (

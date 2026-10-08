@@ -5,6 +5,7 @@ import {
   SKILL_TEST_NOT_APPLICABLE,
   SKILL_TEST_NOT_RUN,
   hasWebTools,
+  scriptWrites,
   skillGrant,
   skillNamesWeb,
   skillTestState,
@@ -129,7 +130,11 @@ function scriptFacts(t: Translate, entry: InstructionEntry, language: string): A
   const { source, approval } = entry;
   const script = source.script ?? null;
   const number = new Intl.NumberFormat(language);
-  const may = script ? [script.tools.length ? t("ai.scripts.mayTools", { tools: toolWords(t, script.tools) }) : t("ai.scripts.mayNoTools"), t("ai.scripts.mayNothingElse"), t("ai.scripts.mayReadOnly")] : [];
+  // A script that names a writing tool (the second stage) lays down suggestions and drafts — and the review says what
+  // that means, in the words a skill's review uses for the same tools: nothing changes before the user takes it.
+  const may = script
+    ? [script.tools.length ? t("ai.scripts.mayTools", { tools: toolWords(t, script.tools) }) : t("ai.scripts.mayNoTools"), t("ai.scripts.mayNothingElse"), t(scriptWrites(script) ? "ai.scripts.mayPropose" : "ai.scripts.mayReadOnly")]
+    : [];
   const limits = script
     ? t("ai.scripts.limitsLine", {
         seconds: number.format(script.limits.seconds),

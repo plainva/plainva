@@ -6,7 +6,7 @@ Plainva n'a pas de système de plugins qui exécute du code tiers. C'est le vaul
 
 Cette page explique comment procéder **en toute sécurité**. Le format exact de chaque fichier, octet par octet, est documenté séparément dans la [Référence du format de fichier](File_Format_Reference.md) ; cette page en est le complément pratique : les règles, la démarche à suivre, et ce qu'il faut transmettre à un assistant IA.
 
-Plainva peut aussi exécuter dans l'app de petits scripts que vous écrivez vous-même : dans une boîte fermée qui n'atteint vos notes que par les outils de lecture de l'assistant IA et ne touche jamais à un fichier. C'est autre chose que les scripts de cette page, qui travaillent sur les fichiers depuis l'extérieur — voir [Scripts](AI_Scripts.md).
+Plainva peut aussi exécuter dans l'app de petits scripts que vous écrivez vous-même : dans une boîte fermée qui n'atteint vos notes que par les outils de l'assistant IA — pour les lire, ou pour laisser une proposition dont vous décidez — et ne touche jamais à un fichier. C'est autre chose que les scripts de cette page, qui travaillent sur les fichiers depuis l'extérieur — voir [Scripts](AI_Scripts.md).
 
 ## Pourquoi des fichiers plutôt qu'un bac à sable de plugins
 

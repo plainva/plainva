@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectivePolicy, notePolicyFrom, parsePolicyFile, SCRIPT_TOOL_NAMES, scriptCallResult, toolByName, type EgressRecipient, type ToolOutcome } from "@plainva/core";
+import { effectivePolicy, notePolicyFrom, parsePolicyFile, SCRIPT_READ_TOOL_NAMES, scriptCallResult, toolByName, type EgressRecipient, type ToolOutcome } from "@plainva/core";
 import { createVaultToolExecutor, situationEvents, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
 
 /**
@@ -109,8 +109,9 @@ const CALLS: [string, Record<string, unknown>][] = [
 ];
 
 describe("the read tools' results as values", () => {
-  it("every tool a script may call hands back values, not only text", async () => {
-    expect(new Set(CALLS.map(([name]) => name))).toEqual(new Set(SCRIPT_TOOL_NAMES));
+  it("every tool a script may read with hands back values, not only text", async () => {
+    // The tools that suggest and draft answer with values too: `aiWriteTools.test.ts`, with the write side they need.
+    expect(new Set(CALLS.map(([name]) => name))).toEqual(new Set(SCRIPT_READ_TOOL_NAMES));
     for (const [name, args] of CALLS) {
       const out = await run(name, args);
       expect(out.isError, name).toBeUndefined();

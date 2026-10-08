@@ -6,7 +6,7 @@ Plainva heeft geen pluginsysteem dat code van derden uitvoert. In plaats daarvan
 
 Deze pagina legt uit hoe je dat **veilig** doet. Het exacte bestandsformaat, tot op byte-niveau, is voor elk bestand apart gedocumenteerd in de [Bestandsformaat-referentie](File_Format_Reference.md); deze pagina is de praktische aanvulling: de regels, de werkwijze, en wat je een KI-assistent moet meegeven.
 
-Plainva kan ook je eigen kleine scripts in de app uitvoeren: in een afgesloten ruimte die je notities alleen bereikt via de hulpmiddelen waarmee de AI-assistent leest, en die nooit een bestand aanraakt. Dat is iets anders dan de scripts op deze pagina, die van buitenaf op de bestanden werken — zie [Scripts](AI_Scripts.md).
+Plainva kan ook je eigen kleine scripts in de app uitvoeren: in een afgesloten ruimte die je notities alleen bereikt via de hulpmiddelen van de AI-assistent — om ze te lezen, of om een voorstel neer te leggen waarover jij beslist — en die nooit een bestand aanraakt. Dat is iets anders dan de scripts op deze pagina, die van buitenaf op de bestanden werken — zie [Scripts](AI_Scripts.md).
 
 ## Waarom bestanden in plaats van een plugin-sandbox
 

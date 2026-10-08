@@ -37,15 +37,17 @@ export function isAiAuthorId(id: string): boolean {
 
 /**
  * An author id no person writes under: the assistant's, an app's at Plainva's
- * own MCP server (`mcp:<client>`), an external agent's (`acp:<agent>`) — the
- * three kinds of `machineAuthorKind` in the core (ADR 0023). The prefixes are
- * said again here because this file imports nothing; `aiThreadReply.test.ts`
- * holds the two together.
+ * own MCP server (`mcp:<client>`), an external agent's (`acp:<agent>`), a
+ * script's the user started (`script:<name>`) — the four kinds of
+ * `machineAuthorKind` in the core (ADR 0023). The prefixes are said again
+ * here because this file imports nothing; `aiThreadReply.test.ts` holds the
+ * two together.
  */
 export function isMachineAuthorId(id: string): boolean {
   // A prefix alone names nobody, as in the core.
   if (isAiAuthorId(id)) return id.length > AI_MENTION_ID.length + 1;
-  return (id.startsWith("mcp:") || id.startsWith("acp:")) && id.length > 4;
+  for (const prefix of ["mcp:", "acp:", "script:"]) if (id.startsWith(prefix)) return id.length > prefix.length;
+  return false;
 }
 
 /** id -> name for the assistant: this device's own word first, then the other spellings. */

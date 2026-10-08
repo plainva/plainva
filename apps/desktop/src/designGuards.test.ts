@@ -369,6 +369,7 @@ const THEME_EXEMPT: Record<string, string> = {
   "pv-script-form": "layout only — a column of fields in a Modal the themes already restyle",
   "pv-script-field": "layout only — a label, a control and a hint; see pv-script-form",
   "pv-script-tools": "layout only — Checkbox rows (.pv-checkrow) the themes already restyle",
+  "pv-script-toolgroup": "layout only — a group of those rows under a word in --text-faint; the themes override that token",
   "pv-script-inputs": "layout only — rows of a TextInput, a Select, a Switch and an IconButton the themes already restyle",
   "pv-script-input": "layout only — see pv-script-inputs",
   "pv-script-limits": "layout only — labelled TextInputs the themes already restyle; the labels are in --text-muted",
