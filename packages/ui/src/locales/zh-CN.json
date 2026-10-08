@@ -110,7 +110,7 @@
     },
     "settings": {
       "sectionApp": "适用于此设备上的Plainva，在每个仓库中生效：服务商、密钥、模型。",
-      "sectionVault": "适用于此仓库，并随仓库一起迁移：隐私规则。",
+      "sectionVault": "针对此仓库：随仓库一起迁移的隐私规则，以及AI在这里可以使用的内容——互联网、外部工具、技能与记忆。",
       "betaTitle": "Plainva AI（测试版）",
       "betaSwitch": "在此设备上使用AI",
       "betaDesc": "仅适用于此设备。不开启它，就没有AI按钮、标签页或悬浮窗。",
@@ -219,7 +219,6 @@
     "policy": {
       "title": "隐私规则（plainva.ai）",
       "desc": "规则可以写在笔记的frontmatter中，或者对整个文件夹写在.agent/policy.yml中。被排除在云端之外的笔记不会贡献任何内容——不论是正文还是标题——指向它的链接也会被隐去。",
-      "scope": "适用于",
       "vaultDefault": "仓库默认",
       "cloud": "云端",
       "web": "网络访问",
@@ -1234,6 +1233,8 @@
       "noneEmpty": "目前没有传出任何标题。"
     },
     "write": {
+      "missingLinks": "已链接，但此仓库中没有：{{names}}",
+      "withheldLinks": "链接到AI在此无法读取的笔记：{{names}}",
       "proposedIn": "已在“{{name}}”中提出建议：{{what}}",
       "passages_other": "{{count}}处正文",
       "properties_other": "{{count}}项属性",

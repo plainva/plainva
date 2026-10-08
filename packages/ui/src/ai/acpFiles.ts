@@ -24,7 +24,7 @@ import {
 import { generatedStamp } from "../lib/okfProvenance";
 import { selectionChunks, type SuggestionAuthor } from "./aiSelectionActions";
 import { defuseNewAddresses } from "./aiWriteLint";
-import type { RoundChunk } from "./writeTools";
+import { noteAsEdited, type RoundChunk } from "./writeTools";
 
 /**
  * What a file request of an external agent becomes (plan KI-Harness P4.6,
@@ -268,10 +268,14 @@ export async function acpPlanWrite(vault: AcpVaultAccess, agentId: string, reque
 }
 
 /** The same for a path of the vault in the vault's own spelling: what a session plans again when a turn ends. */
-export async function acpPlanNoteWrite(vault: AcpVaultAccess, agentId: string, path: string, exists: boolean, content: string): Promise<AcpWritePlan> {
+export async function acpPlanNoteWrite(vault: AcpVaultAccess, agentId: string, path: string, exists: boolean, written: string): Promise<AcpWritePlan> {
   if (!/\.md$/i.test(path)) throw new AcpFileRefusal("not-a-note", path);
   if (vault.encrypted()) throw new AcpFileRefusal("sealed", path);
-  const base = exists ? await vault.read(path) : null;
+  // Both sides as the editor holds a note — no byte order mark, "\n" (AI harness P5-7): a round is anchored on that
+  // text, and an agent that hands a file back with other line ends has changed nothing by it.
+  const onDisk = exists ? await vault.read(path) : null;
+  const base = onDisk === null ? null : noteAsEdited(onDisk);
+  const content = noteAsEdited(written);
 
   if (base === null) {
     // A new note waits as a draft, and a draft is no place for a file of any size.

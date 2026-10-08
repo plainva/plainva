@@ -584,6 +584,16 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             safeFolder: (raw) => (typeof raw === "string" ? safeRelPath(withoutTrailingSlashes(raw.trim())) : null),
             allowed: placeAllowed,
             policyOf: deps.policyOf,
+            // The source check (plan P5-7): a link leads somewhere when the vault resolves it to a note this run
+            // may know of — the gate a read passes. A note the gate keeps back is answered as such, and the tool
+            // tells the model what it tells it about a note that does not exist; only the user hears the
+            // difference. It is no read: a note that is only linked is not among what the run read, and no
+            // source of what it drafts.
+            linked: async (target, from) => {
+              const path = await deps.resolveLink(target, from);
+              if (path === null) return "none";
+              return (await placeAllowed(path)) ? "note" : "withheld";
+            },
             ...(call ? { callId: call.id } : {}),
           });
           return written ?? { content: `The tool ${tool.name} is not available in this version of Plainva.`, isError: true };

@@ -219,6 +219,85 @@ describe("BackupVaultAdapter", () => {
     await expect(adapter.forceBackup("missing.md")).resolves.toBeUndefined();
   });
 
+  describe("ensureSnapshot: what lies there is kept before something replaces it for good (AI harness P5-7)", () => {
+    /** The snapshots of the vault's top-level files, oldest first, as their exact bytes. */
+    const kept = async () => {
+      if (!(await innerAdapter.exists(".plainva/backups"))) return [];
+      const backups = (await innerAdapter.listDir(".plainva/backups")).filter((entry) => !entry.isDirectory);
+      backups.sort((a, b) => a.name.localeCompare(b.name));
+      return Promise.all(backups.map(async (entry) => Buffer.from(await innerAdapter.readBinaryFile(entry.path)).toString("latin1")));
+    };
+    const bytes = (text: string) => Buffer.from(text, "utf8").toString("latin1");
+
+    it("takes a snapshot despite the interval — and none where the newest one already holds these bytes", async () => {
+      const adapter = makeAdapter({ minSnapshotIntervalSeconds: 3600 });
+      await adapter.writeTextFile("f.md", "v1");
+      clock += 1000;
+      await adapter.writeTextFile("f.md", "v2"); // the save's own snapshot: v1
+      clock += 1000;
+      await adapter.ensureSnapshot("f.md"); // v2 lies there and is kept nowhere yet
+      expect(await kept()).toEqual(["v1", "v2"]);
+      // Asked again — a second accept, a retry — nothing is added: the newest snapshot is these bytes.
+      clock += 1000;
+      await adapter.ensureSnapshot("f.md");
+      await adapter.ensureSnapshot("f.md");
+      expect(await kept()).toEqual(["v1", "v2"]);
+      // And where a save a moment ago took the snapshot of exactly what lies there, that one is the version.
+      const fresh = makeAdapter({ minSnapshotIntervalSeconds: 3600 });
+      await innerAdapter.writeTextFile("g.md", "old");
+      clock += 1000;
+      await fresh.writeTextFile("g.md", "old"); // a flush that writes what was there: snapshot "old"
+      await fresh.ensureSnapshot("g.md");
+      expect((await innerAdapter.listDir(".plainva/backups")).filter((entry) => entry.name.startsWith("g.md.")).length).toBe(1);
+    });
+
+    it("keeps the bytes as they lie there: a byte order mark and \\r\\n are part of what is kept", async () => {
+      const adapter = makeAdapter({ minSnapshotIntervalSeconds: 3600 });
+      const windows = `${String.fromCharCode(0xfeff)}# Title\r\n\r\nBody with ä and 日本.\r\n`;
+      await innerAdapter.writeTextFile("w.md", windows);
+      await adapter.ensureSnapshot("w.md");
+      expect(await kept()).toEqual([bytes(windows)]);
+      // A text that differs only in its line ends is another file, and is kept as one.
+      await innerAdapter.writeTextFile("w.md", windows.replace(/\r\n/g, "\n"));
+      clock += 1000;
+      await adapter.ensureSnapshot("w.md");
+      expect(await kept()).toEqual([bytes(windows), bytes(windows.replace(/\r\n/g, "\n"))]);
+    });
+
+    it("never writes onto the snapshot before it when both fall into one millisecond", async () => {
+      const adapter = makeAdapter({ minSnapshotIntervalSeconds: 0 });
+      await innerAdapter.writeTextFile("m.md", "v1");
+      await adapter.writeTextFile("m.md", "v2"); // snapshot of v1 at `clock`
+      await adapter.ensureSnapshot("m.md"); // the same millisecond: v2 must not replace v1's snapshot
+      expect(await kept()).toEqual(["v1", "v2"]);
+    });
+
+    it("tolerates a missing file, leaves Plainva's own files alone, counts towards the limit — and lets a failure be heard", async () => {
+      const adapter = makeAdapter({ minSnapshotIntervalSeconds: 3600, maxBackupsPerFile: 2 });
+      await expect(adapter.ensureSnapshot("missing.md")).resolves.toBeUndefined();
+      await innerAdapter.writeTextFile(".plainva/sync/comments.device.json", "{}");
+      await adapter.ensureSnapshot(".plainva/sync/comments.device.json");
+      expect(await kept()).toEqual([]);
+      for (const text of ["v1", "v2", "v3"]) {
+        await innerAdapter.writeTextFile("r.md", text);
+        clock += 1000;
+        await adapter.ensureSnapshot("r.md");
+      }
+      expect(await kept()).toEqual(["v2", "v3"]);
+      // Whoever asks for this means not to write without it: the error is the caller's, not a console line.
+      await innerAdapter.writeTextFile("r.md", "v4");
+      const full = vi.spyOn(innerAdapter, "writeTextFile").mockRejectedValueOnce(new Error("no space left on device"));
+      await expect(adapter.ensureSnapshot("r.md")).rejects.toThrow("no space left on device");
+      full.mockRestore();
+      // It reads and writes the note as text, the way a save's own snapshot is taken: nothing here needs the file
+      // as bytes, so it works wherever a save works.
+      const binary = vi.spyOn(innerAdapter, "readBinaryFile").mockRejectedValue(new Error("no binary reads here"));
+      await adapter.ensureSnapshot("r.md");
+      binary.mockRestore();
+      expect(await kept()).toEqual(["v3", "v4"]);
+    });
+  });
+
   it("prunes snapshots older than maxAgeDays during rotation", async () => {
     const adapter = makeAdapter({ maxAgeDays: 1 });
     await adapter.writeTextFile("age.md", "v1");

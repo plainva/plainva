@@ -36,6 +36,10 @@ export function mobileCommentOperations(vault: MobileVault): CommentOperationSer
     },
     withNoteLock: (path, work) => noteSaver.withWriteLock(path, vault, work),
     readText: (path) => vault.files.readTextFile(path),
+    // An accepted suggestion keeps what it replaces as a version first (AI harness P5-7), as on the desktop: the
+    // editor's undo does not take an accept back, and a save only snapshots every few minutes. Not twice: where
+    // the newest version already holds exactly this text, that one is the way back.
+    ...(vault.backup ? { snapshot: (path: string) => vault.backup!.ensureSnapshot(path) } : {}),
     writeText: (path, text) => vaultOps.save(vault, path, text),
     post: async (marker, operation) => (await route(operation)).post(marker),
     changed: (operation) => {

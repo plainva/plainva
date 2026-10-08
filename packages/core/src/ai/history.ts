@@ -3,6 +3,7 @@ import type { EgressManifest } from "./context/manifest.js";
 import { isSensitiveKind, type SensitiveKind } from "./context/sensitiveHints.js";
 import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "./policy.js";
 import { checkWebUrl } from "./web/rules.js";
+import { parseMissingLinks } from "./writes/links.js";
 
 /**
  * Conversation history and the run ledger (§16 of the plan).
@@ -115,8 +116,13 @@ export interface RunMeta {
  * earlier one already proposed.
  */
 export interface RunWrites {
-  /** Suggestion rounds by note: how many passages, how many properties. */
-  rounds: { path: string; blocks: number; properties: number }[];
+  /**
+   * Suggestion rounds by note: how many passages, how many properties — and, where the added text links to notes
+   * that were not in the vault when it was laid down, their names (the source check, plan P5-7). `withheld` are
+   * links to notes that are there and that the rules kept from the run: said to the user, on this device, and
+   * never part of anything a model is sent — they are names of notes the rules keep back.
+   */
+  rounds: { path: string; blocks: number; properties: number; missing?: string[]; withheld?: string[] }[];
   /** Drafts by id, with the kind and the title they were laid down with. */
   drafts: { id: string; kind: string; title: string }[];
   /** Plans the user was asked about: `done`, `declined` or `failed`. */
@@ -340,7 +346,11 @@ function readRunWrites(raw: unknown): RunWrites | null {
   const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
   const list = (v: unknown) => (Array.isArray(v) ? (v.filter((item) => item && typeof item === "object") as Record<string, unknown>[]).slice(0, RUN_WRITES_CAP) : []);
   const rounds = list(r.rounds)
-    .map((item) => ({ path: text(item.path, 1024), blocks: Math.floor(count(item.blocks)), properties: Math.floor(count(item.properties)) }))
+    .map((item) => {
+      const missing = parseMissingLinks(item.missing);
+      const withheld = parseMissingLinks(item.withheld);
+      return { path: text(item.path, 1024), blocks: Math.floor(count(item.blocks)), properties: Math.floor(count(item.properties)), ...(missing.length ? { missing } : {}), ...(withheld.length ? { withheld } : {}) };
+    })
     .filter((item) => item.path && item.blocks + item.properties > 0);
   const drafts = list(r.drafts)
     .map((item) => ({ id: text(item.id, 64), kind: text(item.kind, 16), title: text(item.title, 200) }))

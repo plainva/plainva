@@ -4,7 +4,8 @@
  * there becomes a suggestion on that note — its text (`edits`) or one of its
  * properties (`properties`) —, something that is not there yet becomes a
  * draft (`drafts`), and whatever cannot be reviewed part by part becomes a
- * plan the user confirms. `authors` is who such a write is signed with.
+ * plan the user confirms. `authors` is who such a write is signed with, and
+ * `links` what the source check reads before a text is laid down.
  *
  * Everything here is rules without a vault: what a passage is, where an
  * entry of the properties begins and ends, what a draft has to look like when
@@ -13,6 +14,7 @@
  */
 export * from "./authors.js";
 export * from "./edits.js";
+export * from "./links.js";
 export * from "./properties.js";
 export * from "./drafts.js";
 export * from "./sentences.js";

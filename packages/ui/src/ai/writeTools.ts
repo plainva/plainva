@@ -6,6 +6,7 @@ import {
   WRITE_DRAFT_LIMITS,
   WRITE_REFUSALS,
   WRITE_RESULTS,
+  addedNoteTargets,
   appendToNote,
   applyNoteEdits,
   createWorkspaceObjectId,
@@ -13,12 +14,16 @@ import {
   isCivilDay,
   isClockTime,
   isDraftAddress,
+  linkedNoteName,
+  linkedNoteTargets,
   noteBodyStart,
   planPropertyChange,
   propertyTarget,
   readFrontmatterPath,
   type AiPolicyDimension,
   type EffectivePolicy,
+  type LinkCheckResult,
+  type LinkedNoteState,
   type NoteEdit,
   type PropertyValue,
   type RunWrites,
@@ -30,6 +35,7 @@ import {
 } from "@plainva/core";
 import type { SuggestionChunk } from "../components/suggestMode";
 import { parseTaskCapture, type CaptureVocabulary } from "../lib/taskCapture";
+import { readTextShape } from "../lib/textFileShape";
 import { capturedNotePath, flattenInertLinks } from "./aiCapture";
 import { selectionChunks, type SuggestionAuthor } from "./aiSelectionActions";
 import { defuseNewAddresses } from "./aiWriteLint";
@@ -177,8 +183,8 @@ export interface WriteRun {
   userTexts(): readonly string[];
   /** The rules of everything this conversation has read or carried: a place that takes a proposal of it has to have them too. */
   inherited(): Promise<readonly AiPolicyDimension[]>;
-  /** Leaves a draft; the reason where the list does not take it. */
-  draft(input: { title: string; body: WriteDraftBody; defused: number }): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" }>;
+  /** Leaves a draft; the reason where the list does not take it. `missing` and `withheld`: what the source check found (`LinkCheckResult`). */
+  draft(input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] }): Promise<{ ok: true; id: string } | { ok: false; problem: "full" | "invalid" }>;
   /** Asks the user about a plan. `nobody`: this run has no one to ask (a door, a regression run). */
   ask(question: PlanQuestion, callId?: string): Promise<"yes" | "no" | "nobody">;
   /** What the run laid down, gathered for its record. */
@@ -197,6 +203,12 @@ export interface WriteToolContext {
   /** Whether a place passes the gate — where a draft would go, where a note would lie after a move. No read. */
   allowed(path: string, text?: string): Promise<boolean>;
   policyOf(path: string, text?: string): Promise<EffectivePolicy>;
+  /**
+   * Where a link of this name, written in the note at `from`, leads (the source check, plan P5-7): to a note this
+   * run may know of, to none, or to one the gate keeps from the recipient. The last two are one answer to the
+   * model — a name must not be found out by trying it — and two to the user (`LinkedNoteState`).
+   */
+  linked(target: string, from: string): Promise<LinkedNoteState>;
   /** The id of the call that runs, where the run has one: a question about it is asked under it. */
   callId?: string;
 }
@@ -268,12 +280,54 @@ async function propose(deps: VaultWriteDeps, run: WriteRun, round: Omit<Proposal
   rounds.set(round.path, state);
 }
 
-function recordRound(writes: RunWrites, path: string, blocks: number, properties: number): void {
+const NO_LINKS: LinkCheckResult = { told: [], missing: [], withheld: [] };
+
+/** The names of both lists, each once, the ones that were there first. */
+const joined = (had: readonly string[] | undefined, more: readonly string[]) => [...(had ?? []), ...more.filter((name) => !(had ?? []).includes(name))];
+
+function recordRound(writes: RunWrites, path: string, blocks: number, properties: number, links: LinkCheckResult = NO_LINKS): void {
   const existing = writes.rounds.find((round) => round.path === path);
   if (existing) {
     existing.blocks += blocks;
     existing.properties += properties;
-  } else writes.rounds.push({ path, blocks, properties });
+    const missing = joined(existing.missing, links.missing);
+    const withheld = joined(existing.withheld, links.withheld);
+    if (missing.length) existing.missing = missing;
+    if (withheld.length) existing.withheld = withheld;
+  } else writes.rounds.push({ path, blocks, properties, ...linkRecord(links) });
+}
+
+/** What the source check found, as a draft and a run's record keep it for the user: nothing where nothing was found. */
+function linkRecord(links: LinkCheckResult): { missing?: string[]; withheld?: string[] } {
+  return { ...(links.missing.length ? { missing: [...links.missing] } : {}), ...(links.withheld.length ? { withheld: [...links.withheld] } : {}) };
+}
+
+/**
+ * The source check (plan P5-7, the plan's "sources validated before a write"): the notes a text links to that
+ * the vault does not have. A model is asked to name a note as a wiki link, so a link is the one claim in its text
+ * that says "this is in your vault" and can be checked without a second model. A link to nothing is not refused —
+ * a proposal may link to a note this very run drafted, and the user may want the link first and the note later —;
+ * it is said: to the model in the tool's answer, and to the user where what was laid down is shown.
+ *
+ * A link to a note the rules keep from this run is said too, and to each in their own words: the model hears what
+ * it hears about a note that does not exist (`told` holds both, undistinguished), the user that the text links to
+ * a note the run cannot have read. Where the vault cannot answer, the name counts as missing — never as found.
+ */
+async function linksNowhere(run: WriteRun, ctx: WriteToolContext, targets: readonly string[], from: string): Promise<LinkCheckResult> {
+  // What this run has drafted is not in the vault yet, and is no made-up note.
+  const drafted = new Set(run.writes.drafts.filter((draft) => draft.kind === "note" || draft.kind === "entry").map((draft) => draft.title.toLowerCase()));
+  const found: LinkCheckResult = { told: [], missing: [], withheld: [] };
+  for (const target of targets) {
+    // "[[Brief.md]]" names the note "Brief": the vault is asked for the note, whatever the link spells out.
+    const note = linkedNoteName(target);
+    const name = note.slice(note.lastIndexOf("/") + 1);
+    if (drafted.has(name.toLowerCase())) continue;
+    const state = await ctx.linked(note, from).catch((): LinkedNoteState => "none");
+    if (state === "note") continue;
+    found.told.push(target);
+    (state === "withheld" ? found.withheld : found.missing).push(target);
+  }
+  return found;
 }
 
 /**
@@ -291,6 +345,19 @@ async function placeTakes(run: WriteRun, ctx: WriteToolContext, place: string | 
   return policy !== null && inherited.every((dimension) => policy.policy[dimension] === "deny");
 }
 
+/**
+ * A note as its editor holds it — and as its comments are anchored: without a
+ * byte order mark, with "\n" for every line end (AI harness P5-7). A shell
+ * reads a file as it lies on disk, and a note that came from Windows lies
+ * there with "\r\n". A suggestion anchored on those bytes quotes passages the
+ * editor does not have: it would find nothing to stand on, and accepted, its
+ * line ends would be written a second time. The file's own shape is put back
+ * where the note is written (`applyTextShape`), not here.
+ */
+export function noteAsEdited(raw: string): string {
+  return readTextShape(raw).text;
+}
+
 async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
   const note = await ctx.readAllowed(a.path);
   if (!note) return refuse("no-note");
@@ -299,7 +366,7 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const append = typeof a.append === "string" ? a.append : "";
   if ((edits.length > 0) === (append.trim().length > 0)) return refuse("edits-or-append");
   // The editor's pending keystrokes land first: the proposal is made against the note as it is.
-  const base = (await deps.current(note.path)) ?? note.text;
+  const base = noteAsEdited((await deps.current(note.path)) ?? note.text);
   // A suggestion is attached to the words around it; a file with nothing in it has none.
   if (base.length === 0) return refuse("empty-note");
   const outcome = edits.length ? applyNoteEdits(base, edits) : appendToNote(base, append, typeof a.section === "string" ? a.section : undefined);
@@ -315,9 +382,11 @@ async function proposeEdit(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const chunks = selectionChunks(base, 0, base.length, intended, "replace");
   if (chunks.length === 0) return refuse("unchanged");
   if (chunks.length > MAX_ROUND_BLOCKS) return refuse("too-many");
+  // The source check: what the change ADDS as links. A link the note already had is not this run's claim.
+  const links = await linksNowhere(run, ctx, addedNoteTargets(base, intended), note.path);
   await propose(deps, run, { path: note.path, base, chunks, note: oneLine(a.note, 300) });
-  recordRound(run.writes, note.path, chunks.length, 0);
-  return said(WRITE_RESULTS.proposed(note.path, chunks.length, linted.defused));
+  recordRound(run.writes, note.path, chunks.length, 0, links);
+  return said(WRITE_RESULTS.proposed(note.path, chunks.length, linted.defused, links.told));
 }
 
 /**
@@ -335,7 +404,7 @@ async function setProperty(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   const key = typeof a.key === "string" ? a.key.trim() : "";
   if (a.value === undefined) return refuse("bad-property");
   // The editor's pending keystrokes land first: the proposal is made against the note as it is.
-  const base = (await deps.current(note.path)) ?? note.text;
+  const base = noteAsEdited((await deps.current(note.path)) ?? note.text);
   // An address the model brings is as inert in a property as in the text: a property can be a link.
   let defused = 0;
   const known = [base, ...run.userTexts()];
@@ -396,10 +465,11 @@ async function createNote(deps: VaultWriteDeps, run: WriteRun, a: Record<string,
   }
   const drafted = draftedText(typeof a.content === "string" ? a.content : "", run);
   if (!drafted) return refuse("frontmatter");
-  const left = await run.draft({ title, body: { kind: "note", path: null, folder, content: drafted.text }, defused: drafted.defused });
+  const links = await linksNowhere(run, ctx, linkedNoteTargets(drafted.text), `${folder ? `${folder}/` : ""}${title}.md`);
+  const left = await run.draft({ title, body: { kind: "note", path: null, folder, content: drafted.text }, defused: drafted.defused, ...linkRecord(links) });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "note", title });
-  return said(WRITE_RESULTS.drafted(`a note "${title}"`, drafted.defused));
+  return said(WRITE_RESULTS.drafted(`a note "${title}"`, drafted.defused, links.told));
 }
 
 /**
@@ -443,10 +513,11 @@ async function createEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<string
   }
   const drafted = draftedText(typeof a.content === "string" ? a.content : "", run);
   if (!drafted) return refuse("frontmatter");
-  const left = await run.draft({ title, body: { kind: "entry", base: base.path, properties, content: drafted.text }, defused: defused + drafted.defused });
+  const links = await linksNowhere(run, ctx, linkedNoteTargets(drafted.text), capturedNotePath(place.folder, title));
+  const left = await run.draft({ title, body: { kind: "entry", base: base.path, properties, content: drafted.text }, defused: defused + drafted.defused, ...linkRecord(links) });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "entry", title });
-  return said(WRITE_RESULTS.drafted(`an entry "${title}" of the database ${base.path}`, defused + drafted.defused));
+  return said(WRITE_RESULTS.drafted(`an entry "${title}" of the database ${base.path}`, defused + drafted.defused, links.told));
 }
 
 const clockOf = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
@@ -479,10 +550,11 @@ async function addJournalEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<st
   const linted = defuseNewAddresses(raw.slice(0, 2000), run.userTexts());
   const text = flattenInertLinks(linted.text);
   const title = oneLine(text, 200);
-  const left = await run.draft({ title, body: { kind: "journal", text, day: run.today(), time: run.clock(), task: a.task === true }, defused: linted.defused });
+  const links = await linksNowhere(run, ctx, linkedNoteTargets(text), (await deps.draftPlace("journal", run.today()).catch(() => null)) ?? "");
+  const left = await run.draft({ title, body: { kind: "journal", text, day: run.today(), time: run.clock(), task: a.task === true }, defused: linted.defused, ...linkRecord(links) });
   if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
   run.writes.drafts.push({ id: left.id, kind: "journal", title });
-  return said(WRITE_RESULTS.drafted("a journal entry", linted.defused));
+  return said(WRITE_RESULTS.drafted("a journal entry", linted.defused, links.told));
 }
 
 /**

@@ -114,7 +114,7 @@
     },
     "settings": {
       "sectionApp": "Vale per Plainva su questo dispositivo, in ogni vault: provider, chiavi, modelli.",
-      "sectionVault": "Vale per questo vault e lo accompagna: le regole sulla privacy.",
+      "sectionVault": "Per questo vault: le regole sulla privacy, che lo accompagnano, e ciò che l'IA può usare qui: Internet, strumenti esterni, competenze e memoria.",
       "betaTitle": "Plainva IA (Beta)",
       "betaSwitch": "Usa l'IA su questo dispositivo",
       "betaDesc": "Vale solo per questo dispositivo. Senza l'interruttore non ci sono il pulsante IA, la scheda o il compagno.",
@@ -227,7 +227,6 @@
     "policy": {
       "title": "Regole sulla privacy (plainva.ai)",
       "desc": "Una regola si trova nel frontmatter di una nota o, per un'intera cartella, in .agent/policy.yml. Una nota tenuta lontana dal cloud non contribuisce con nulla — né testo né titolo — e i link ad essa vengono trattenuti.",
-      "scope": "Vale per",
       "vaultDefault": "Predefinito del vault",
       "cloud": "Cloud",
       "web": "Accesso web",
@@ -1292,6 +1291,8 @@
       "noneEmpty": "Al momento non viene trasmesso alcun titolo."
     },
     "write": {
+      "missingLinks": "Collegato, ma non presente in questo vault: {{names}}",
+      "withheldLinks": "Collega a note che l'IA qui non può leggere: {{names}}",
       "proposedIn": "Proposto in «{{name}}»: {{what}}",
       "passages_one": "{{count}} passaggio",
       "passages_many": "{{count}} passaggi",

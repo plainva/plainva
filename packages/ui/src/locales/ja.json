@@ -110,7 +110,7 @@
     },
     "settings": {
       "sectionApp": "この端末のPlainvaに、すべての保管庫で適用されます: プロバイダー、キー、モデル。",
-      "sectionVault": "この保管庫に適用され、保管庫と一緒に移動します: プライバシールール。",
+      "sectionVault": "この保管庫について: 保管庫と一緒に移動するプライバシールールと、ここでAIが使えるもの（インターネット、外部ツール、スキルと記憶）。",
       "betaTitle": "Plainva AI（ベータ版）",
       "betaSwitch": "この端末でAIを使う",
       "betaDesc": "この端末にのみ適用されます。オフのままでは、AIボタンもタブもコンパニオンもありません。",
@@ -219,7 +219,6 @@
     "policy": {
       "title": "プライバシールール（plainva.ai）",
       "desc": "ルールはノートのFrontmatterに、フォルダー全体の場合は.agent/policy.ymlに置きます。クラウドから遠ざけられたノートは本文もタイトルも一切渡さず、そのノートへのリンクも伏せられます。",
-      "scope": "適用先",
       "vaultDefault": "保管庫の既定",
       "cloud": "クラウド",
       "web": "ウェブアクセス",
@@ -1234,6 +1233,8 @@
       "noneEmpty": "現在、渡されているタイトルはありません。"
     },
     "write": {
+      "missingLinks": "リンクされていますが、この保管庫にはありません: {{names}}",
+      "withheldLinks": "ここではAIが読めないノートへのリンク: {{names}}",
       "proposedIn": "「{{name}}」に提案: {{what}}",
       "passages_other": "本文 {{count}} か所",
       "properties_other": "プロパティ {{count}} 件",

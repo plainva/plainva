@@ -46,6 +46,29 @@ a write or an outside effect.
      property proposal at the property anchor). Provenance through the OKF
      fields (`generated: {by, at}`, `sources`), stamped only at the moment of
      creation.
+     - *A proposal stands on the note as its editor holds it*
+       (`noteAsEdited`): without a byte order mark, with `\n`. A shell reads
+       a file as it lies on disk; a suggestion is anchored on the text of
+       the editor, and the comment operation puts the file's own shape back
+       when it writes. Anchored on the bytes of a file with `\r\n`, a
+       suggestion over more than one line found nothing to stand on. The
+       same holds for a file an agent hands back: other line ends are no
+       change.
+     - *What an accepted suggestion replaces is kept as a version first.*
+       Before an `apply` writes, the comment operation makes sure the note
+       as it lies there is in the version history (`snapshot` in
+       `CommentOperationDeps`, wired to `ensureSnapshot` of the version
+       history in both shells), whatever the snapshot interval says and
+       whoever made the suggestion: accepting is no keystroke — the editor's
+       undo does not take it back —, so the version history is the way back,
+       and an ordinary save keeps a version only every few minutes. Not
+       twice: where the newest version already holds exactly this text —
+       the editor saved a moment before the decision — that one is the way
+       back, and the history does not grow by a copy of its own last entry.
+       The note is read and kept as text, the way every save's own snapshot
+       is taken, so the step works wherever a save works.
+       A version that cannot be kept stops the operation before the note is
+       touched.
      - *A proposed property is a suggestion on the property's entry.* It is
        stored, synced and decided as every suggestion is: the passage is the
        entry in the note's properties, the replacement the entry as it would
@@ -201,6 +224,34 @@ a write or an outside effect.
    the model hang data onto a host a note merely mentions, and the note is
    where an injected instruction comes from. In an answer kept as a note
    (decision 11) no address the model wrote stays live at all.
+   - *The same check asks what a text claims to rest on* (the source check).
+     A model is asked to name a note as a wiki link, so a link is the one
+     claim in its text that says "this is in your vault" and can be checked
+     without a second model. Before a suggestion or a draft is laid down,
+     the links it ADDS are resolved (`addedNoteTargets`, `linkedNoteTargets`
+     in `packages/core/src/ai/writes/links.ts`; code is not read as links).
+     One that leads to no note is not refused — a proposal may link to a note
+     the same run drafted, and the user may want the link first and the note
+     later —; it is said: to the model in the tool's own answer, with the
+     run's record, on the draft's card and under the answer. A link can
+     also lead to a note that is there and that the gate keeps from this
+     writer — a privacy rule, a folder a paired app was not given. *The
+     model and the user are told different things about it, and each the
+     truth it may have* (`LinkCheckResult`): the tool's answer goes back to
+     a model, so it names such a note together with the ones that do not
+     exist, in the words a read uses for both ("not available here") — a
+     name is not found out by trying it. The user, whose vault it is, reads
+     "Linked, but not in this vault" only of a note that is not in it, and
+     of the other "Linked to notes the AI may not read here": a text that
+     links to a note its writer cannot have read is its own thing to know.
+     That second list is kept with the draft and the run's record on the
+     device and is part of nothing a model is sent. Resolving a link is no
+     read: a note that is merely linked is not among what the run read, and
+     no source of what it drafts. A draft's `sources` stay what they were:
+     the notes the run read, taken from its record, never a list a model
+     wrote. Where the vault cannot answer, a name counts as missing, never
+     as found. Statements are not checked: no text is held against its
+     sources.
 7. **Guardrails.** Limits for steps, tool calls, tokens and cost with a
    warning at 80 %; a loop guard for repeated identical calls; a circuit
    breaker after three errors; STOP at any time — an abort in the middle of a
@@ -365,6 +416,55 @@ a write or an outside effect.
       watched by nobody: it gets no internet tools whatever its skill names,
       and a kind of data this session has not approved — mail — is answered
       as declined instead of asked for.
+12. **The gate of the writing tools** (built with P5-7). What decision 2
+    promises is played end to end in `apps/desktop/src/ai/aiWriteGate.test.ts`:
+    a vault on a real disk, the real file adapter under the real version
+    history, above it the chain the desktop writes a note through — the
+    sync queue and the conflict guard, on a real SQLite index —, the comment
+    files a vault really has, the desktop's own operation that accepts a
+    suggestion, and the real session in front of a scripted model. What is
+    compared is bytes, and what waits to be synced.
+    - *Nothing in a note differs that nobody accepted.* For a note with
+      `\n`, with `\r\n`, with a byte order mark and without a last line
+      break: proposing writes no note, declining writes none, accepting
+      writes exactly the passages — in the file's own shape — and every
+      other file of the vault is byte for byte what it was. One of two
+      suggestions accepted writes that one passage.
+    - *There is a way back.* Accepting keeps exactly what it replaced as a
+      version, also seconds after a save — once, never as two copies of the
+      same bytes; restoring it gives the bytes back.
+      A draft that is created is one new file that says who wrote it; one
+      that is discarded leaves nothing.
+    - *A note that changed since is not written over.* At the passage: the
+      suggestion no longer fits and nothing is written. Elsewhere: it lands
+      on the note as it is. On disk behind the editor: the decision is held
+      for review. On two devices: the round arrives with its author, and
+      two different decisions end in a conflict that writes nothing more.
+    - *What is accepted goes to the other devices as what it is.* Proposing
+      and declining queue no note for sync; an accept queues one write of
+      that note, a created draft one write of the new note, a rename and a
+      deletion the user said yes to a rename and a deletion. A note that
+      was changed outside since it was last synced keeps both changes when
+      a suggestion on it is accepted — the conflict guard merges, and no
+      copy of the note is left beside it.
+    - *Nothing happens that nobody decided.* A model that asks for
+      everything changes no note; every plan was a question, and no was no.
+      A yes to a deletion only opens the app's own dialog.
+    - *Every writer signs.* The assistant, a program at Plainva's MCP server
+      and an external agent each leave their own id on what they lay down,
+      and a note made from a draft says who wrote it. A program's rename
+      reaches the vault only after a yes in Plainva and the program coming
+      back; an agent's file becomes a round.
+    - *What a text claims to rest on is said* (decision 6).
+    The gate found two faults in what was built before it, both closed with
+    it: a suggestion over several lines on a note with `\r\n` could not be
+    accepted (it was anchored on the file's bytes), and an accept within the
+    snapshot interval left no version of what it replaced. On the phone the
+    same operation runs through `mobileCommentOperations`; its own test
+    (`commentOperationJournal.test.ts`) proves the version before an accept
+    and that a note lying there with `\r\n` is not rewritten — the phone
+    keeps no file's shape yet, so there the decision is held for review and
+    no byte moves.
 
 ## Consequences
 
@@ -392,6 +492,17 @@ a write or an outside effect.
   names its tools. What a skill may reach is what the user reviews — for a
   skill of the vault before the approval, for every skill in the overview
   before the first request.
+- An accepted suggestion costs at most one version in the history — a
+  person's as well as a machine's —, and none where the newest version is
+  the note as it lies there. An "accept all" is one operation and at most one
+  version.
+- Renaming, moving and deleting have no undo of their own in the app; what
+  an assistant's plan does after a yes is taken back the way the user would
+  take back their own: by renaming or moving again, from the trash where the
+  platform has one, or from the version history. A suggestion on a note that
+  lies there with `\r\n` is accepted on the desktop: the phone keeps no
+  file's shape yet, for any writer, and holds such a decision for review
+  instead of writing.
 
 ## Alternatives
 
@@ -456,6 +567,17 @@ a write or an outside effect.
   queues the message for a few seconds in which it can be taken back, and
   taking it back drops it. A draft that had left the list by then would be
   lost with it.
+- **Refusing a text that links to a note the vault does not have.**
+  Rejected: a round may link to a note the same run drafted, a user may ask
+  for the link before the note exists, and a refusal would teach a model to
+  leave its sources out. The link is said instead.
+- **A second model that holds every statement against its sources before a
+  write.** Not built: it doubles the requests of every write, sends the
+  notes a second time, and its verdict would be one more text nobody
+  checked. What can be checked without a model is checked; the suggestion
+  shows the change, and the user decides.
+- **A version before an accept only for a machine's suggestions.**
+  Rejected: the editor's undo takes back nobody's accepted suggestion.
 
 ## Links
 
@@ -482,3 +604,13 @@ a write or an outside effect.
   (`apps/desktop/src/services/mail/sendQueue.ts`) and the phone's composer
   (`apps/mobile/src/services/mail/composeDone.ts`) say when a mail is out;
   `docs/engineering/AI_Threat_Model.md` (T37).
+- The gate of the writing tools: `apps/desktop/src/ai/aiWriteGate.test.ts`
+  with `writeGateHarness.ts`. The source check:
+  `packages/core/src/ai/writes/links.ts` and `linksNowhere` in
+  `packages/ui/src/ai/writeTools.ts`. A note as its editor holds it:
+  `noteAsEdited` in the same file, over `packages/ui/src/lib/textFileShape.ts`.
+  The version before an accept: `snapshot` in `CommentOperationDeps`
+  (`packages/core/src/comments/commentOperations.ts`), wired in
+  `apps/desktop/src/services/commentOperations.ts` and
+  `apps/mobile/src/services/commentOperations.ts`;
+  `docs/engineering/AI_Threat_Model.md` (T38, T39).

@@ -1261,6 +1261,8 @@ export class AiSession {
           inherited: [],
           sources: [],
           defused: input.defused,
+          ...(input.missing?.length ? { missing: [...input.missing] } : {}),
+          ...(input.withheld?.length ? { withheld: [...input.withheld] } : {}),
         }),
       ask,
       writes: { rounds: [], drafts: [], plans: [] },
@@ -3322,7 +3324,7 @@ export class AiSession {
             author: writer,
             userTexts: () => [message, ...userTextsOf(record.conversation)],
             inherited,
-            draft: async (input: { title: string; body: WriteDraftBody; defused: number }) => {
+            draft: async (input: { title: string; body: WriteDraftBody; defused: number; missing?: readonly string[]; withheld?: readonly string[] }) => {
               const carried = await this.carriedBy(vault, record, sending.sources, reads).catch(() => ({ paths: [] as string[], more: false }));
               return this.leaveDraft(vault, {
                 id: `d-${this.host.newId()}`,
@@ -3335,6 +3337,10 @@ export class AiSession {
                 // What the draft rests on, from the run's record — never from the model's own words.
                 sources: input.body.kind === "note" || input.body.kind === "entry" ? carried.paths.filter((path) => /\.md$/i.test(path)).slice(0, 50).map((path) => ({ resource: path })) : [],
                 defused: input.defused,
+                // What the source check found when the draft was laid down: links to notes the vault did not have,
+                // and links to notes the rules kept from this run. Kept with the draft for its card; never sent.
+                ...(input.missing?.length ? { missing: [...input.missing] } : {}),
+                ...(input.withheld?.length ? { withheld: [...input.withheld] } : {}),
               });
             },
             ask: (question: PlanQuestion, callId?: string) => this.askPlan(question, callId),

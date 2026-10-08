@@ -1,6 +1,6 @@
 # Backups & Versionsverlauf
 
-Stand: 2026-09-15
+Stand: 2026-10-08
 
 Plainva sichert Deine Arbeit auf zwei Ebenen: **Datei-Versionen** (automatische Snapshots jeder einzelnen Datei beim Bearbeiten und Löschen) und **Vault-Backups** (regelmäßige ZIP-Sicherungen des ganzen Vaults außerhalb des Vault-Ordners). Beides läuft ohne Zutun im Hintergrund und lässt sich in den Einstellungen unter **Backup & Versionierung** anpassen.
 
@@ -15,7 +15,7 @@ Aufbewahrung (je Vault einstellbar):
 - **Maximales Alter**: Standard 90 Tage — ältere Versionen werden bei einem täglichen Aufräumlauf **endgültig** entfernt („Unbegrenzt" schaltet das ab)
 - **Große Dateien**: über 5 MB wird nur die neueste Version behalten — siehe unten
 
-Beim Umbenennen oder Verschieben einer Datei wandert ihre Versions-Historie mit.
+Beim Umbenennen oder Verschieben einer Datei wandert ihre Versions-Historie mit. Zwei Dinge werden unabhängig vom Snapshot-Intervall festgehalten: eine Datei, bevor sie gelöscht wird, und eine Notiz, bevor ein übernommener Vorschlag in sie geschrieben wird (siehe [Kommentare & Vorschläge](Comments_and_Suggestions.md)).
 
 **Warum große Dateien anders behandelt werden:** Ein 90-MB-Anhang, den Du immer wieder änderst, könnte den Vault sonst mit hundert Kopien füllen — neun Gigabyte für eine Datei. Oberhalb der Grenze behält Plainva die neueste Version statt des vollen Verlaufs und sagt das einmal pro Vault. Notizen und gewöhnliche Bilder liegen weit darunter und sind nicht betroffen. **Eine Löschung wird immer vollständig gesichert**, egal wie groß die Datei ist: Die neue Fassung einer gespeicherten Datei liegt noch auf der Platte, eine gelöschte nicht — dort ist der Snapshot der einzige Weg zurück.
 

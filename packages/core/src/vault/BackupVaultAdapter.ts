@@ -137,6 +137,49 @@ export class BackupVaultAdapter implements IVaultAdapter {
     await this.performBackup(path, true, true);
   }
 
+  /**
+   * Makes sure a note, as it lies on disk now, is kept before something
+   * replaces it that the editor's undo does not take back — an accepted
+   * suggestion. Whatever the snapshot interval says; but not twice: where the
+   * newest snapshot already holds exactly this text — a save a moment ago
+   * took it — there is nothing to add, and the history does not grow by a
+   * copy of its own last entry. No-op if the file does not exist.
+   *
+   * For a text file, and read and written as text — the way the snapshot of
+   * every ordinary save is taken (`writeTextFile`), so it works wherever a
+   * save works, and keeps what a save keeps: the text with its line ends and
+   * its byte order mark.
+   *
+   * Unlike a snapshot before an ordinary write, a failure is the caller's to
+   * hear: whoever asks for this means not to write without it.
+   */
+  async ensureSnapshot(path: string): Promise<void> {
+    if (isPlainvaInternalPath(path)) return;
+    let current: string;
+    try {
+      current = await this.inner.readTextFile(path);
+    } catch (err: any) {
+      if (err instanceof VaultFileNotFoundError || err.code === "FILE_NOT_FOUND" || err.name === "VaultFileNotFoundError") return;
+      throw err;
+    }
+    const existing = await this.listFileBackups(path);
+    const newest = existing[existing.length - 1];
+    if (newest) {
+      let kept: string | null = null;
+      try {
+        kept = await this.inner.readTextFile(newest.path);
+      } catch {
+        // A snapshot that cannot be read keeps nothing: a new one is taken.
+      }
+      if (kept === current) return;
+    }
+    // Never onto the name of the snapshot before it: two in one millisecond are two versions.
+    const ts = Math.max(this.now(), (newest?.timestamp ?? 0) + 1);
+    await this.inner.writeTextFile(makeBackupPath(path, ts), current);
+    this.lastSnapshotAt.set(path, ts);
+    await this.rotate(existing);
+  }
+
   /** Lists existing snapshots of exactly this file, sorted oldest first. */
   private async listFileBackups(path: string): Promise<FileBackupEntry[]> {
     let files: VaultFileInfo[];

@@ -1,5 +1,6 @@
 import { EFFECT_DECLINED } from "../orchestrator.js";
 import type { NoteEditProblem } from "./edits.js";
+import { LINK_CHECK_LIMITS } from "./links.js";
 
 /**
  * What a writing tool answers a model with (plan KI-Harness P5): Plainva's
@@ -67,12 +68,28 @@ export function editProblemSentence(problem: NoteEditProblem, edit?: number): st
 
 const WAITS = "Nothing in the vault has changed.";
 
+/**
+ * What the source check found (plan P5-7): the notes a text links to that are not in the vault — or that this run
+ * may not know of. The two read the same here, in the words a read uses for both ("not available"): a name is not
+ * found out by trying it. Named back, so a model that made a note up can say so in its answer.
+ */
+function linksNowhere(told: readonly string[]): string {
+  if (!told.length) return "";
+  const named = told
+    .slice(0, LINK_CHECK_LIMITS.named)
+    .map((name) => `[[${name.slice(0, 120)}]]`)
+    .join(", ");
+  const more = told.length > LINK_CHECK_LIMITS.named ? ` and ${told.length - LINK_CHECK_LIMITS.named} more` : "";
+  return ` Your text links to ${told.length === 1 ? "a note that is" : "notes that are"} not available here: ${named}${more}. The user is told about ${told.length === 1 ? "this link" : "these links"}.`;
+}
+
 /** What a tool says when it laid something down. Counts and the path the model named — never the text. */
 export const WRITE_RESULTS = {
-  proposed: (path: string, changes: number, defused: number) =>
-    `Proposed on ${path}: ${changes} change${changes === 1 ? "" : "s"}. ${WAITS} The user accepts or declines each change in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
-  drafted: (what: string, defused: number) =>
-    `Drafted: ${what}. ${WAITS} It exists once the user creates it from the draft in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  // `told`: the linked names the source check found no note for, as the model may hear them (`LinkCheckResult.told`).
+  proposed: (path: string, changes: number, defused: number, told: readonly string[] = []) =>
+    `Proposed on ${path}: ${changes} change${changes === 1 ? "" : "s"}. ${WAITS} The user accepts or declines each change in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}${linksNowhere(told)}`,
+  drafted: (what: string, defused: number, told: readonly string[] = []) =>
+    `Drafted: ${what}. ${WAITS} It exists once the user creates it from the draft in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}${linksNowhere(told)}`,
   // An e-mail or an appointment: nothing is sent, nothing is saved — the draft opens in the app's own editor, and the rest is the user's.
   draftedOut: (what: string, where: "mail composer" | "event editor", unnamed: number, defused: number) =>
     `Drafted: ${what}. Nothing was sent or saved. The user opens the draft in Plainva's own ${where} and ${where === "mail composer" ? "sends" : "saves"} it there themselves.${

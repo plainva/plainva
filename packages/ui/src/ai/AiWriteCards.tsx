@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarPlus, Check, Database, FilePlus2, ListChecks, Mail, NotebookPen, PencilLine, TriangleAlert, X } from "lucide-react";
+import { CalendarPlus, Check, Database, EyeOff, FilePlus2, ListChecks, Mail, NotebookPen, PencilLine, TriangleAlert, Unlink, X } from "lucide-react";
 import { machineAuthorKind, machineAuthorSubject, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
@@ -27,6 +27,13 @@ const noteName = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace
 
 /** The properties a drafted entry's card names; the rest is a count. */
 const DRAFT_PROPERTIES_SHOWN = 8;
+
+/**
+ * The names the source check found no note for — or a note the writer may not read —, as a hint line says them:
+ * the first few, and that there are more. Shown to the user only; no model is sent what a card says.
+ */
+const MISSING_NAMES_SHOWN = 6;
+const missingNames = (names: readonly string[]) => `${names.slice(0, MISSING_NAMES_SHOWN).join(", ")}${names.length > MISSING_NAMES_SHOWN ? ", …" : ""}`;
 
 type Translate = ReturnType<typeof useTranslation>["t"];
 
@@ -213,6 +220,18 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
       )}
       {outgoing && <span className="pv-ai-overview-hint">{t(body.kind === "mail" ? "ai.write.draft.mailHint" : "ai.write.draft.eventHint")}</span>}
       {draft.defused > 0 && <span className="pv-ai-overview-hint">{t("ai.write.draft.defused")}</span>}
+      {/* The source check (plan P5-7): a link in the draft's text that led to no note when it was laid down — and
+          one that led to a note the writer may not read, which is another thing to know about a text. */}
+      {draft.missing && draft.missing.length > 0 && (
+        <span className="pv-ai-overview-hint" data-testid="ai-draft-missing">
+          {t("ai.write.missingLinks", { names: missingNames(draft.missing) })}
+        </span>
+      )}
+      {draft.withheld && draft.withheld.length > 0 && (
+        <span className="pv-ai-overview-hint" data-testid="ai-draft-withheld">
+          {t("ai.write.withheldLinks", { names: missingNames(draft.withheld) })}
+        </span>
+      )}
       {offersList && (
         // The one thing "Create" would send out of the vault: said on the card, in the capture field's own words, and the user's to switch off.
         <div className="pv-capture-quick">
@@ -288,10 +307,25 @@ export function AiRunWrites({ writes, state, canCreate, busy, onOpenNote, onCrea
       {writes.rounds.map((round) => {
         const what = [round.blocks ? t("ai.write.passages", { count: round.blocks }) : "", round.properties ? t("ai.write.properties", { count: round.properties }) : ""].filter(Boolean).join(", ");
         return (
-          <Button key={round.path} size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" onClick={() => onOpenNote(round.path)} data-testid="ai-proposed" data-path={round.path}>
-            <PencilLine size={ICON.meta} aria-hidden="true" />
-            {t("ai.write.proposedIn", { name: noteName(round.path), what })}
-          </Button>
+          <Fragment key={round.path}>
+            <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" onClick={() => onOpenNote(round.path)} data-testid="ai-proposed" data-path={round.path}>
+              <PencilLine size={ICON.meta} aria-hidden="true" />
+              {t("ai.write.proposedIn", { name: noteName(round.path), what })}
+            </Button>
+            {/* The source check (plan P5-7): what the suggestion links to that the vault did not have. */}
+            {round.missing && round.missing.length > 0 && (
+              <span className="pv-ai-runline pv-ai-capture pv-ai-runline--below" data-testid="ai-proposed-missing">
+                <Unlink size={ICON.meta} aria-hidden="true" />
+                {t("ai.write.missingLinks", { names: missingNames(round.missing) })}
+              </span>
+            )}
+            {round.withheld && round.withheld.length > 0 && (
+              <span className="pv-ai-runline pv-ai-capture pv-ai-runline--below" data-testid="ai-proposed-withheld">
+                <EyeOff size={ICON.meta} aria-hidden="true" />
+                {t("ai.write.withheldLinks", { names: missingNames(round.withheld) })}
+              </span>
+            )}
+          </Fragment>
         );
       })}
       {writes.drafts.map((entry) => {

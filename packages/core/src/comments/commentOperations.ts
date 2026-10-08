@@ -172,6 +172,16 @@ export interface CommentOperationDeps {
   withNoteLock(path: string, work: () => Promise<void>): Promise<void>;
   readText(path: string): Promise<string>;
   writeText(path: string, text: string): Promise<void>;
+  /**
+   * Keeps the note's present bytes as a version, before an accepted suggestion
+   * is written over them (AI harness P5-7). Accepting is no keystroke: the
+   * editor's undo does not take it back, so the version history is the way
+   * back — and an ordinary save only snapshots every few minutes, which is not
+   * "exactly what was there". Asked for `apply` alone; a failure stops the
+   * operation before the note is touched, like a restore that cannot keep
+   * what it would replace.
+   */
+  snapshot?(path: string): Promise<void>;
   post(marker: DurableCommentPost, operation?: CommentOperation): Promise<void>;
   changed?(operation: CommentOperation): void;
   now?(): string;
@@ -243,6 +253,8 @@ export class CommentOperationRunner {
                 throw new CommentOperationError(op.operationId, op.phase, "needs-review");
               }
               await checkContext();
+              // What the decision replaces is kept first — the text was just read and is the one planned against.
+              if (op.kind === "apply") await this.deps.snapshot?.(op.notePath);
               await this.deps.writeText(op.notePath, plannedText.intended);
               actual = await this.deps.readText(op.notePath);
               if (!includesOperationText(plannedText.before, plannedText.intended, actual)) {

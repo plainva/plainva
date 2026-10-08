@@ -112,7 +112,7 @@
     },
     "settings": {
       "sectionApp": "Gilt für Plainva auf diesem Gerät, in jedem Vault: Anbieter, Schlüssel, Modelle.",
-      "sectionVault": "Gilt für diesen Vault und reist mit ihm: die Datenschutzregeln.",
+      "sectionVault": "Für diesen Vault: die Datenschutzregeln, die mit ihm reisen, und was die KI hier nutzen darf — Internet, externe Werkzeuge, Skills und Gedächtnis.",
       "betaTitle": "Plainva KI (Beta)",
       "betaSwitch": "KI auf diesem Gerät nutzen",
       "betaDesc": "Gilt nur für dieses Gerät. Ohne den Schalter gibt es weder den KI-Knopf noch Tab oder Begleiter.",
@@ -223,7 +223,6 @@
     "policy": {
       "title": "Datenschutzregeln (plainva.ai)",
       "desc": "Eine Regel steht im Frontmatter einer Notiz oder, für einen ganzen Ordner, in .agent/policy.yml. Eine von der Cloud ferngehaltene Notiz trägt nichts bei — weder Text noch Titel —, und Links auf sie werden zurückgehalten.",
-      "scope": "Gilt für",
       "vaultDefault": "Vault-Standard",
       "cloud": "Cloud",
       "web": "Webzugriff",
@@ -1263,6 +1262,8 @@
       "noneEmpty": "Gerade wird kein Titel weitergegeben."
     },
     "write": {
+      "missingLinks": "Verlinkt, aber nicht im Vault: {{names}}",
+      "withheldLinks": "Verlinkt auf Notizen, die die KI hier nicht lesen darf: {{names}}",
       "proposedIn": "Vorgeschlagen in „{{name}}“: {{what}}",
       "passages_one": "{{count}} Textstelle",
       "passages_other": "{{count}} Textstellen",

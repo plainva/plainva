@@ -213,6 +213,13 @@ test.beforeEach(async ({ page }) => {
           const root = String(args.rootId).replace(/^mock-root:/, '');
           const rel = String(args.relPath).replace(/^\/+/, '');
           const p = root ? root + '/' + rel : rel;
+          // As on a disk: the folders on the way are there afterwards, so a listing of the folder a file was just
+          // written into finds it (the version history asks exactly that before an accept, AI harness P5-7).
+          const parts = rel.split('/');
+          for (let depth = 1; depth < parts.length; depth++) {
+            const dir = (root ? root + '/' : '') + parts.slice(0, depth).join('/');
+            if (fs[dir] === undefined) fs[dir] = { isDir: true };
+          }
           fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
           return null;
         }
@@ -4338,6 +4345,128 @@ test('AI writes: a proposal and a draft change nothing until the reader decides;
     ['Met Anna about the offer', 'created'],
   ]);
   expect((await files()).filter((file) => /roofer/i.test(file.path))).toEqual([]);
+});
+
+// What a text of the assistant claims to rest on (AI harness P5-7). A link in
+// a suggestion or a draft that leads to no note is said where the text waits;
+// one that leads to a note the rules keep from the model is said in other
+// words, because "not in this vault" would be untrue of it. The model hears
+// one sentence about both. And accepting the suggestion keeps what it
+// replaces as a version first — in the real shell, through the real wiring.
+test('AI writes: a link that leads nowhere is said under the answer and on the draft; accepting keeps what it replaced as a version', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const calls = (...list: Array<[id: string, name: string, args: unknown]>) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ...list.flatMap(([id, name, args], index): Array<[string, unknown]> => [
+      ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name: 'call_tool', input: {} } }],
+      ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ name, args }) } }],
+      ['content_block_stop', { type: 'content_block_stop', index }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const OFFER = '# Offer\n\nThe day rate is 1,800 euros.\n';
+  const ADDED = 'As agreed in [[Brief]] and in [[Contract 2025]]; see [[Salaries]].';
+  const script = [
+    calls(
+      ['c1', 'propose_edit', { path: 'Projects/Offer.md', append: ADDED }],
+      ['c2', 'create_note', { title: 'Kick-off', content: 'Agenda, see [[Offer]] and [[Board meeting]].' }],
+    ),
+    says('I added the references and drafted the kick-off note.'),
+  ];
+  await page.addInitScript(({ script, offer }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.plainva/sync'] = { isDir: true };
+    fs['/test-vault/Projects'] = { isDir: true };
+    fs['/test-vault/Projects/Offer.md'] = offer;
+    fs['/test-vault/Projects/Brief.md'] = '# Brief\n\nA short brief.\n';
+    // A note the rules keep from every cloud model: it is in the vault, and the model may not know of it.
+    fs['/test-vault/Private'] = { isDir: true };
+    fs['/test-vault/Private/Salaries.md'] = '---\nplainva:\n  ai:\n    cloud: deny\n---\n# Salaries\n\nNever to a cloud.\n';
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, offer: OFFER });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const files = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([, value]) => typeof value === 'string').map(([path, value]) => ({ path, text: String(value) })));
+  const fileAt = async (path: string) => (await files()).find((file) => file.path === path)?.text ?? null;
+  const versions = async () => (await files()).filter((file) => file.path.startsWith('/test-vault/.plainva/backups/') && file.path.includes('Offer'));
+
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Add the references to the offer and draft a kick-off note.');
+  await companion.getByTestId('ai-send').click();
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('I added the references and drafted the kick-off note.')).toBeVisible();
+
+  // 1. Under the answer: the note that carries the suggestion, and behind it what its links lead to. A note that is
+  //    not there and a note that is kept back are two sentences — a link to a note that is there says nothing.
+  await expect(companion.getByTestId('ai-proposed')).toContainText('Offer');
+  await expect(companion.getByTestId('ai-proposed-missing')).toHaveText('Linked, but not in this vault: Contract 2025');
+  await expect(companion.getByTestId('ai-proposed-withheld')).toHaveText('Linked to notes the AI may not read here: Salaries');
+  // Each on a row of its own, below the note's line: sharing a row, a hint would read as a word about the next note.
+  const rows = await companion.locator('[data-testid="ai-proposed"], [data-testid="ai-proposed-missing"], [data-testid="ai-proposed-withheld"]').evaluateAll((items) => items.map((item) => Math.round(item.getBoundingClientRect().top)));
+  expect(rows[0]).toBeLessThan(rows[1]);
+  expect(rows[1]).toBeLessThan(rows[2]);
+  // 2. On the draft's card: one more hint line. "Offer" is a note of the vault; "Board meeting" is not.
+  const noteDraft = companion.locator('[data-testid="ai-draft"][data-kind="note"]');
+  await expect(noteDraft.getByTestId('ai-draft-missing')).toHaveText('Linked, but not in this vault: Board meeting');
+  await expect(noteDraft.getByTestId('ai-draft-withheld')).toHaveCount(0);
+  // Nothing is held back for it: the card's buttons are what they are for any draft.
+  await expect(noteDraft.getByTestId('ai-draft-create')).toBeEnabled();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-writes-links-desktop.png'), animations: 'disabled' });
+
+  // 3. The model heard one sentence about both kinds, in the words of a read — and nothing of the note that is kept back.
+  const sent = await requests();
+  expect(sent[1]).toContain('Your text links to notes that are not available here: [[Contract 2025]], [[Salaries]]. The user is told about these links.');
+  expect(sent[1]).toContain('Your text links to a note that is not available here: [[Board meeting]]. The user is told about this link.');
+  expect(sent.join('\n')).not.toContain('may not read');
+  expect(sent.join('\n')).not.toContain('Never to a cloud');
+
+  // 4. Nothing has changed, and nothing was kept: no suggestion replaces anything until it is accepted.
+  expect(await fileAt('/test-vault/Projects/Offer.md')).toBe(OFFER);
+  expect(await versions()).toEqual([]);
+
+  // 5. The line under the answer opens the note. Accepted in its margin, the note reads as proposed — and what it
+  //    replaced is a version of the note. (The companion floats over the margin; it is closed for the look at the note.)
+  await companion.getByTestId('ai-proposed').click();
+  await expect(page.getByText('The day rate is 1,800 euros.')).toBeVisible();
+  if (await companion.count()) await companion.getByTestId('ai-companion-close').click();
+  await expect(companion).toHaveCount(0);
+  const toggle = page.getByTestId('editor-comments-toggle');
+  await expect(toggle).toBeVisible({ timeout: 10000 });
+  const column = page.locator('aside.pv-comment-column');
+  if (!(await column.isVisible())) await toggle.click();
+  const card = column.locator('.pv-comment-card').first();
+  await card.hover();
+  await card.getByRole('button', { name: /^(Accept|Übernehmen)$/ }).first().click();
+  await expect.poll(() => fileAt('/test-vault/Projects/Offer.md'), { timeout: 10000 }).toBe(`${OFFER}\n${ADDED}\n`);
+  const kept = await versions();
+  expect(kept).toHaveLength(1);
+  expect(kept[0].text).toBe(OFFER);
 });
 
 // A value for a property (AI harness P5-3). The assistant proposes it the way

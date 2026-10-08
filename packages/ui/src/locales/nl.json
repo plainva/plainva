@@ -112,7 +112,7 @@
     },
     "settings": {
       "sectionApp": "Geldt voor Plainva op dit apparaat, in elke vault: providers, sleutels, modellen.",
-      "sectionVault": "Geldt voor deze vault en reist ermee mee: de privacyregels.",
+      "sectionVault": "Voor deze vault: de privacyregels, die ermee meereizen, en wat de AI hier mag gebruiken — internet, externe hulpmiddelen, vaardigheden en geheugen.",
       "betaTitle": "Plainva AI (Beta)",
       "betaSwitch": "AI op dit apparaat gebruiken",
       "betaDesc": "Geldt alleen voor dit apparaat. Zonder de schakelaar is er geen AI-knop, tabblad of begeleider.",
@@ -223,7 +223,6 @@
     "policy": {
       "title": "Privacyregels (plainva.ai)",
       "desc": "Een regel staat in de frontmatter van een notitie of, voor een hele map, in .agent/policy.yml. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe worden achtergehouden.",
-      "scope": "Geldt voor",
       "vaultDefault": "Vault-standaard",
       "cloud": "Cloud",
       "web": "Webtoegang",
@@ -1263,6 +1262,8 @@
       "noneEmpty": "Op dit moment wordt geen enkele titel doorgegeven."
     },
     "write": {
+      "missingLinks": "Gekoppeld, maar niet in deze vault: {{names}}",
+      "withheldLinks": "Verwijst naar notities die de AI hier niet mag lezen: {{names}}",
       "proposedIn": "Voorgesteld in “{{name}}”: {{what}}",
       "passages_one": "{{count}} passage",
       "passages_other": "{{count}} passages",

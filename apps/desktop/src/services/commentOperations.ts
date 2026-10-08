@@ -8,6 +8,12 @@ export function desktopCommentOperations(deps: {
   vaultPath: string;
   adapter: IVaultAdapter;
   store: CommentStore;
+  /**
+   * The vault's version history, where it has one: an accepted suggestion keeps what it replaces there first
+   * (AI harness P5-7) — whatever the snapshot interval says, because accepting is not undone by the editor; and
+   * not twice, where a save a moment ago already kept exactly this text.
+   */
+  backup?: { ensureSnapshot(path: string): Promise<void> } | null;
   assertCurrent(): void;
   ensureAuthorName(input: CommentOperationInput): Promise<void>;
   noteWritten(path: string): Promise<void>;
@@ -39,6 +45,7 @@ export function desktopCommentOperations(deps: {
     },
     withNoteLock: (path, work) => withPendingWrite(vaultPath, path, work),
     readText: async (path) => readTextShape(await adapter.readTextFile(path)).text,
+    ...(deps.backup ? { snapshot: (path: string) => deps.backup!.ensureSnapshot(path) } : {}),
     writeText: async (path, text) => {
       const { shape } = readTextShape(await adapter.readTextFile(path));
       await adapter.writeTextFile(path, applyTextShape(text, shape));

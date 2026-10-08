@@ -21,11 +21,12 @@ const ANSWER = "I proposed the new rate on [[Offer]] and drafted a note, a journ
 const AUTHOR = { id: "plainva-ai/m-1", label: "Plainva AI · m-1" };
 
 const usage = { inputTokens: 40, outputTokens: 30, cacheReadTokens: 0, cacheWriteTokens: 0 };
-const draft = (id: string, title: string, body: Record<string, unknown>) => ({ id, createdAt: "2026-10-07T10:00:04.000Z", author: AUTHOR, conversationId: "wrote-1", title, body, inherited: [], sources: [], defused: 0 });
+const draft = (id: string, title: string, body: Record<string, unknown>, more: Record<string, unknown> = {}) => ({ id, createdAt: "2026-10-07T10:00:04.000Z", author: AUTHOR, conversationId: "wrote-1", title, body, inherited: [], sources: [], defused: 0, ...more });
 const DRAFTS = {
   version: 1,
   drafts: [
-    draft("d-000001", "Kick-off", { kind: "note", path: null, folder: null, content: "Agenda\n\n- one" }),
+    // What the source check found when the draft was laid down (P5-7): its text links to a note the vault did not have.
+    draft("d-000001", "Kick-off", { kind: "note", path: null, folder: null, content: "Agenda\n\n- one" }, { missing: ["Board meeting"] }),
     draft("d-000002", "Met Anna about the offer", { kind: "journal", text: "Met Anna about the offer", day: "2026-10-07", time: "10:30", task: false }),
     draft("d-000003", "Call the roofer", { kind: "task", text: "Call the roofer", day: "2026-10-07" }),
   ],
@@ -59,9 +60,10 @@ const RECORD = {
       usage,
       steps: 1,
       stop: "answered",
-      // What the run laid down, as its record keeps it: paths, counts and titles — never a proposed text.
+      // What the run laid down, as its record keeps it: paths, counts and titles — never a proposed text. And what
+      // the source check found (P5-7): a link to a note that was not there, and one to a note the model may not read.
       writes: {
-        rounds: [{ path: "Offer.md", blocks: 1, properties: 0 }],
+        rounds: [{ path: "Offer.md", blocks: 1, properties: 0, missing: ["Contract 2025"], withheld: ["Salaries"] }],
         drafts: DRAFTS.drafts.map((entry) => ({ id: entry.id, kind: String(entry.body.kind), title: entry.title })),
         plans: [],
       },
@@ -181,10 +183,23 @@ test("AI writes: drafts wait on this phone until the reader creates or discards 
     const conversation = page.getByTestId("ai-conversation");
     await expect(conversation.getByText("I proposed the new rate on", { exact: false })).toBeVisible();
     await expect(conversation.getByTestId("ai-proposed")).toHaveText("Suggested in “Offer”: 1 passage");
+    // Below the note's line, each on a row of its own: what its links lead to — a note that is not there, and in
+    // other words a note that is there and that the model may not read (P5-7).
+    await expect(conversation.getByTestId("ai-proposed-missing")).toHaveText("Linked, but not in this vault: Contract 2025");
+    await expect(conversation.getByTestId("ai-proposed-withheld")).toHaveText("Linked to notes the AI may not read here: Salaries");
+    const rows = await conversation.locator('[data-testid="ai-proposed"], [data-testid="ai-proposed-missing"], [data-testid="ai-proposed-withheld"]').evaluateAll((items) => items.map((item) => Math.round(item.getBoundingClientRect().top)));
+    expect(rows[0]).toBeLessThan(rows[1]!);
+    expect(rows[1]).toBeLessThan(rows[2]!);
+    if (process.env.PLAINVA_EVIDENCE) {
+      await conversation.getByTestId("ai-proposed").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: test.info().outputPath("ai-writes-links-mobile.png") });
+    }
     await expect(conversation.getByTestId("ai-draft")).toHaveCount(3);
     const noteCard = conversation.locator('[data-testid="ai-draft"][data-kind="note"]');
     await expect(noteCard.getByTestId("ai-draft-title")).toHaveText("Kick-off");
     await expect(noteCard).toContainText("Inbox folder");
+    await expect(noteCard.getByTestId("ai-draft-missing")).toHaveText("Linked, but not in this vault: Board meeting");
+    await expect(noteCard.getByTestId("ai-draft-withheld")).toHaveCount(0);
     await noteCard.getByTestId("ai-draft-show").click();
     await expect(noteCard.getByTestId("ai-draft-text")).toHaveText("Agenda\n\n- one");
     expect(await vaultFilesWith(page, "Agenda")).toEqual([]);

@@ -336,6 +336,57 @@ describe("under an answer", () => {
   });
 });
 
+describe("what the source check found (plan P5-7)", () => {
+  it("is said on a draft's card: the names its text links to that the vault did not have", () => {
+    const container = show(<AiDraftCard draft={draft({ missing: ["Board meeting", "Contract 2025"] })} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />);
+    expect(text(q(container, "ai-draft-missing"))).toBe("Linked, but not in this vault: Board meeting, Contract 2025");
+    // Nothing about the card's buttons changes: the user may want the link first and the note later.
+    expect((q(container, "ai-draft-create") as HTMLButtonElement).disabled).toBe(false);
+    // A draft whose links all lead somewhere — and one from before the check — says nothing.
+    expect(q(show(<AiDraftCard draft={draft()} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />), "ai-draft-missing")).toBeNull();
+    // Many names: the first few, and that there are more.
+    const many = Array.from({ length: 9 }, (_, index) => `N${index}`);
+    expect(text(q(show(<AiDraftCard draft={draft({ missing: many })} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />), "ai-draft-missing"))).toBe("Linked, but not in this vault: N0, N1, N2, N3, N4, N5, …");
+  });
+
+  it("is said under an answer, beside the note that carries the suggestion", () => {
+    const writes: RunWrites = { rounds: [{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Contract 2025"] }, { path: "Projects/Plan.md", blocks: 1, properties: 0 }], drafts: [], plans: [] };
+    const container = show(
+      <div className="pv-ai-run">
+        <AiRunWrites writes={writes} state={{ drafts: [], done: [] }} canCreate busy={false} onOpenNote={() => {}} onCreate={() => {}} onDiscard={() => {}} />
+      </div>,
+    );
+    const lines = [...container.querySelectorAll('[data-testid="ai-proposed"], [data-testid="ai-proposed-missing"]')].map((item) => `${item.tagName}: ${text(item)}`);
+    expect(lines).toEqual(["BUTTON: Suggested in “Offer”: 1 passage", "SPAN: Linked, but not in this vault: Contract 2025", "BUTTON: Suggested in “Plan”: 1 passage"]);
+  });
+
+  it("says in its own words when a link leads to a note that is there and that the writer may not read", () => {
+    // On a draft's card: a second hint line, never the sentence that the note is not in the vault.
+    const card = show(<AiDraftCard draft={draft({ missing: ["Contract 2025"], withheld: ["Diary", "Salaries"] })} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />);
+    expect(text(q(card, "ai-draft-missing"))).toBe("Linked, but not in this vault: Contract 2025");
+    expect(text(q(card, "ai-draft-withheld"))).toBe("Linked to notes the AI may not read here: Diary, Salaries");
+    const only = show(<AiDraftCard draft={draft({ withheld: ["Diary"] })} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />);
+    expect(q(only, "ai-draft-missing")).toBeNull();
+    expect(text(q(only, "ai-draft-withheld"))).toBe("Linked to notes the AI may not read here: Diary");
+    expect(q(show(<AiDraftCard draft={draft()} canCreate busy={false} onCreate={() => {}} onDiscard={() => {}} />), "ai-draft-withheld")).toBeNull();
+    // Under an answer: its own quiet line behind the note's, after the line about notes that are not there.
+    const writes: RunWrites = { rounds: [{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Contract 2025"], withheld: ["Diary"] }, { path: "Projects/Plan.md", blocks: 1, properties: 0, withheld: ["Salaries"] }], drafts: [], plans: [] };
+    const container = show(
+      <div className="pv-ai-run">
+        <AiRunWrites writes={writes} state={{ drafts: [], done: [] }} canCreate busy={false} onOpenNote={() => {}} onCreate={() => {}} onDiscard={() => {}} />
+      </div>,
+    );
+    const lines = [...container.querySelectorAll('[data-testid="ai-proposed"], [data-testid="ai-proposed-missing"], [data-testid="ai-proposed-withheld"]')].map((item) => `${item.tagName}: ${text(item)}`);
+    expect(lines).toEqual([
+      "BUTTON: Suggested in “Offer”: 1 passage",
+      "SPAN: Linked, but not in this vault: Contract 2025",
+      "SPAN: Linked to notes the AI may not read here: Diary",
+      "BUTTON: Suggested in “Plan”: 1 passage",
+      "SPAN: Linked to notes the AI may not read here: Salaries",
+    ]);
+  });
+});
+
 describe("everything that waits", () => {
   const proposals: OpenProposal[] = [
     { path: "Projects/Offer.md", authorId: "plainva-ai/m-1", changes: 2, at: "2026-10-07T09:05:00.000Z" },

@@ -160,6 +160,26 @@ beforeAll(async () => {
 });
 
 describe("a change to a note is a suggestion round", () => {
+  it("is anchored on the note as its editor holds it — no byte order mark, no \\r —, whatever shape the file lies in (plan P5-7)", async () => {
+    // A note from Windows: a byte order mark, and "\r\n" at the end of every line.
+    // The mark is made at run time: written into this file it would be an invisible character of the source.
+    const onDisk = `${String.fromCharCode(0xfeff)}${OFFER.replace(/\n/g, "\r\n")}`;
+    const v = vault({ current: async (path) => (path === "Projects/Offer.md" ? onDisk : (NOTES[path] ?? null)) });
+    const w = writer();
+    const edit = { find: "The day rate is 1,800 euros.\n\n## Costs", replace: "The day rate is 1,900 euros.\n\n## Costs and fees" };
+    expect(await call(v, w.run, "propose_edit", { path: "Projects/Offer.md", edits: [edit] })).toMatchObject({ content: expect.stringContaining("Proposed on Projects/Offer.md") });
+    // A passage over two lines is found, and the round stands on the text an editor has: the comment that carries
+    // it is resolved against that text, and the file's own shape is put back where the note is written.
+    const round = v.proposed[0]!;
+    expect(round.base).toBe(OFFER);
+    expect(JSON.stringify(round.chunks)).not.toContain("\\r");
+    expect(accepted(round)).toBe(OFFER.replace(edit.find, edit.replace));
+    // The same for a value of a property: its entry is found although the file begins with a byte order mark.
+    await call(v, w.run, "set_property", { path: "Projects/Offer.md", key: "owner", value: "Tom" });
+    expect(v.proposed[1]!.base).toBe(OFFER);
+    expect(accepted(v.proposed[1]!)).toBe(OFFER.replace("status: draft\n", "status: draft\nowner: Tom\n"));
+  });
+
   it("lays the change on the note and changes nothing — the answer names the count, never the words", async () => {
     const v = vault();
     const w = writer();
@@ -933,6 +953,112 @@ describe("an e-mail and an appointment are drafts that send and save nothing", (
     expect(await call(sealed, w.run, "draft_event", { title: "x", day: "2026-10-14", start: "09:00" })).toEqual(refused("sealed"));
     expect(await call(vault(PIM), undefined, "draft_mail", { subject: "x" })).toEqual(refused("nobody"));
     expect(w.drafts).toEqual([]);
+  });
+});
+
+describe("the source check: a link to a note the vault does not have is said, never hidden (plan P5-7)", () => {
+  /** A vault whose links lead to its notes by their names or their paths, as the index resolves them. */
+  const linking = (over: Partial<VaultWriteDeps> = {}) => {
+    const v = vault(over);
+    v.deps.resolveLink = async (target) =>
+      Object.keys(NOTES).find((path) => path.endsWith(".md") && (path.slice(path.lastIndexOf("/") + 1, -3).toLowerCase() === target.toLowerCase() || path.slice(0, -3).toLowerCase() === target.toLowerCase())) ?? null;
+    return v;
+  };
+
+  it("lays the round all the same, names the made-up note to the model, and keeps the name with the run", async () => {
+    const v = linking();
+    const w = writer();
+    const result = await call(v, w.run, "propose_edit", { path: "Projects/Offer.md", append: "As agreed in [[Brief]] and in [[Contract 2025]], see also [[contract 2025#Rates|the rates]]." });
+    expect(result).toEqual({ content: WRITE_RESULTS.proposed("Projects/Offer.md", 1, 0, ["Contract 2025"]) });
+    expect(result.content).toContain("Your text links to a note that is not available here: [[Contract 2025]].");
+    // Nothing is refused: the user may want the link first and the note later.
+    expect(v.proposed).toHaveLength(1);
+    expect(w.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Contract 2025"] }]);
+  });
+
+  it("asks about what a change adds: a link the note already had is not this run's claim, and code links nothing", async () => {
+    const had = "# Plan\n\nSee [[Ghost]].\n";
+    const v = linking({ current: async (path) => (path === "Projects/Plan.md" ? had : (NOTES[path] ?? null)) });
+    const w = writer();
+    const result = await call(v, w.run, "propose_edit", { path: "Projects/Plan.md", append: "Still [[Ghost]]; in code `[[Nobody]]` and\n\n```\n[[Nothing]]\n```" });
+    expect(result).toEqual({ content: WRITE_RESULTS.proposed("Projects/Plan.md", 1, 0) });
+    expect(w.run.writes.rounds).toEqual([{ path: "Projects/Plan.md", blocks: 1, properties: 0 }]);
+  });
+
+  it("asks for the note a link names, however the link spells it: with its extension, by its path, with a heading or another name", async () => {
+    const v = linking();
+    const asked: string[] = [];
+    const resolve = v.deps.resolveLink;
+    v.deps.resolveLink = async (target, from) => {
+      asked.push(target);
+      return resolve(target, from);
+    };
+    const w = writer();
+    const result = await call(v, w.run, "propose_edit", { path: "Projects/Offer.md", append: "See [[Brief.md]], [[Projects/Brief.md|the brief]], [[Brief#Scope]], [[Ghost.md]] and the table in [[Books.base]]." });
+    // One note that is not there, named as the text wrote it; a database is a file, not this check's to find.
+    expect(result).toEqual({ content: WRITE_RESULTS.proposed("Projects/Offer.md", 1, 0, ["Ghost.md"]) });
+    expect(w.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Ghost.md"] }]);
+    // What the vault was asked for is the note, without the extension: "Brief" once, whatever it was written as.
+    expect(asked).toEqual(["Brief", "Projects/Brief", "Ghost"]);
+  });
+
+  it("answers a note the rules keep from this recipient like one that is not there — a name is not found out by trying it", async () => {
+    const edit = { path: "Projects/Offer.md", append: "The client is [[Client]]." };
+    const cloudRun = writer();
+    const kept = await call(linking(), cloudRun.run, "propose_edit", edit);
+    expect(kept).toEqual({ content: WRITE_RESULTS.proposed("Projects/Offer.md", 1, 0, ["Client"]) });
+    // Word for word what a note that does not exist is answered with: only the name differs.
+    const absent = await call(linking(), writer().run, "propose_edit", { path: "Projects/Offer.md", append: "The client is [[Nobody]]." });
+    expect(String(kept.content).replace("[[Client]]", "[[x]]")).toBe(String(absent.content).replace("[[Nobody]]", "[[x]]"));
+    // A model on this device may know the note: for it the link leads somewhere.
+    const localRun = writer();
+    expect(await call(linking(), localRun.run, "propose_edit", edit, local)).toEqual({ content: WRITE_RESULTS.proposed("Projects/Offer.md", 1, 0) });
+    expect(localRun.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0 }]);
+    // … and a program that reads one folder knows nothing outside it.
+    const scoped = writer();
+    const inProjects: ToolScope = { inside: (path) => path.startsWith("Projects/") };
+    expect(await call(linking(), scoped.run, "propose_edit", { path: "Projects/Offer.md", append: "Like [[Old]] and [[Brief]]." }, cloud, inProjects)).toEqual({
+      content: WRITE_RESULTS.proposed("Projects/Offer.md", 1, 0, ["Old"]),
+    });
+    expect(scoped.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, withheld: ["Old"] }]);
+  });
+
+  it("tells the user the difference the model does not hear: the note is there, and the writer may not read it", async () => {
+    const v = linking();
+    const w = writer();
+    // One text, both kinds: a note the rules keep from a cloud model, and a note nobody has.
+    const result = await call(v, w.run, "propose_edit", { path: "Projects/Offer.md", append: "For [[Client]], as in [[Contract 2025]]." });
+    expect(result).toEqual({ content: WRITE_RESULTS.proposed("Projects/Offer.md", 1, 0, ["Client", "Contract 2025"]) });
+    expect(w.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Contract 2025"], withheld: ["Client"] }]);
+    // A second step of the same run on the same note adds to both lists, each name once.
+    await call(v, w.run, "propose_edit", { path: "Projects/Offer.md", edits: [{ find: "Travel is extra.", replace: "Travel is extra for [[Client]], see [[Old contract]]." }] });
+    expect(w.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 2, properties: 0, missing: ["Contract 2025", "Old contract"], withheld: ["Client"] }]);
+    // A draft carries both the same way.
+    const drafted = await call(v, w.run, "create_note", { title: "Summary", content: "About [[Client]] and [[Somebody]]." });
+    expect(drafted).toEqual({ content: WRITE_RESULTS.drafted('a note "Summary"', 0, ["Client", "Somebody"]) });
+    expect(w.drafts[0]).toMatchObject({ title: "Summary", missing: ["Somebody"], withheld: ["Client"] });
+    // Where the vault cannot answer, a name counts as missing — never as found.
+    const broken = linking();
+    broken.deps.resolveLink = async () => { throw new Error("index unavailable"); };
+    const unsure = writer();
+    await call(broken, unsure.run, "propose_edit", { path: "Projects/Offer.md", append: "See [[Brief]]." });
+    expect(unsure.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Brief"] }]);
+  });
+
+  it("checks a drafted note, an entry and a journal line the same way — and a note the same run drafted is no made-up note", async () => {
+    const v = linking();
+    const w = writer();
+    expect(await call(v, w.run, "create_note", { title: "Kick-off", content: "Agenda, see [[Brief]]." })).toEqual({ content: WRITE_RESULTS.drafted('a note "Kick-off"', 0) });
+    expect(w.drafts[0]).not.toHaveProperty("missing");
+    const second = await call(v, w.run, "create_note", { title: "Minutes", content: "Follows [[Kick-off]]; decided in [[Board meeting]]." });
+    expect(second).toEqual({ content: WRITE_RESULTS.drafted('a note "Minutes"', 0, ["Board meeting"]) });
+    expect(w.drafts[1]).toMatchObject({ title: "Minutes", missing: ["Board meeting"] });
+    const line = await call(v, w.run, "add_journal_entry", { text: "Talked to Anna about [[Roof repair]]" });
+    expect(line).toEqual({ content: WRITE_RESULTS.drafted("a journal entry", 0, ["Roof repair"]) });
+    expect(w.drafts[2]).toMatchObject({ body: { kind: "journal" }, missing: ["Roof repair"] });
+    const entry = await call(v, w.run, "create_entry", { base: "Projects/Books.base", title: "Hyperion", content: "Like [[Dune]], unlike [[Endymion]]." });
+    expect(entry).toEqual({ content: WRITE_RESULTS.drafted('an entry "Hyperion" of the database Projects/Books.base', 0, ["Endymion"]) });
+    expect(w.drafts[3]).toMatchObject({ body: { kind: "entry" }, missing: ["Endymion"] });
   });
 });
 

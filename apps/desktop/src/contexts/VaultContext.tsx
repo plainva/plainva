@@ -3292,12 +3292,12 @@ export const VaultProvider: React.FC<{
   });
   const refreshOperationIndex = useStableHandler((path: string) => triggerFileTreeUpdate([path]));
   const commentOperations = useMemo((): CommentOperationService | null => {
-    const vaultPath = state.vaultPath, adapter = state.vaultAdapter, indexer = state.indexer;
+    const vaultPath = state.vaultPath, adapter = state.vaultAdapter, indexer = state.indexer, backup = state.backupAdapter;
     if (!vaultPath) return null;
     if (isClient) return clientCommentOperations(vaultPath);
     if (!adapter || !commentStoreMemo) return null;
     const store = commentStoreMemo;
-    return desktopCommentOperations({ vaultPath, adapter, store,
+    return desktopCommentOperations({ vaultPath, adapter, store, backup,
       assertCurrent: () => {
         const current = commentLifetimeRef.current;
         if (current.vaultPath !== vaultPath || current.adapter !== adapter) throw new Error("The comment vault changed");
@@ -3307,7 +3307,7 @@ export const VaultProvider: React.FC<{
         if (indexer && await indexer.indexFile(await adapter.getFileInfo(path))) refreshOperationIndex(path);
       },
     });
-  }, [state.vaultPath, state.vaultAdapter, state.indexer, isClient, commentStoreMemo, ensureOperationAuthor, refreshOperationIndex]);
+  }, [state.vaultPath, state.vaultAdapter, state.indexer, state.backupAdapter, isClient, commentStoreMemo, ensureOperationAuthor, refreshOperationIndex]);
   const clientCommentApi = useMemo(() => clientComments(state.vaultPath), [state.vaultPath]);
 
   const postWorkspaceCommentInput = async (input: CommentPostInput): Promise<void> => {

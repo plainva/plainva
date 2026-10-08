@@ -112,7 +112,7 @@
     },
     "settings": {
       "sectionApp": "Applies to Plainva on this device, in every vault: providers, keys, models.",
-      "sectionVault": "Applies to this vault and travels with it: the privacy rules.",
+      "sectionVault": "For this vault: the privacy rules, which travel with it, and what the AI may use here — the internet, external tools, skills and memory.",
       "betaTitle": "Plainva AI (Beta)",
       "betaSwitch": "Use AI on this device",
       "betaDesc": "Applies to this device only. Without it there is no AI button, tab or companion.",
@@ -223,7 +223,6 @@
     "policy": {
       "title": "Privacy rules (plainva.ai)",
       "desc": "A rule sits in a note's frontmatter or, for a whole folder, in .agent/policy.yml. A note kept from the cloud contributes nothing — neither text nor title — and links to it are withheld.",
-      "scope": "Applies to",
       "vaultDefault": "Vault default",
       "cloud": "Cloud",
       "web": "Web access",
@@ -1263,6 +1262,8 @@
       "noneEmpty": "No title is passed on right now."
     },
     "write": {
+      "missingLinks": "Linked, but not in this vault: {{names}}",
+      "withheldLinks": "Linked to notes the AI may not read here: {{names}}",
       "proposedIn": "Suggested in “{{name}}”: {{what}}",
       "passages_one": "{{count}} passage",
       "passages_other": "{{count}} passages",

@@ -116,7 +116,7 @@
     },
     "settings": {
       "sectionApp": "Dotyczy Plainvy na tym urządzeniu, w każdym vaulcie: dostawców, kluczy, modeli.",
-      "sectionVault": "Dotyczy tego vaultu i wędruje razem z nim: zasady prywatności.",
+      "sectionVault": "Dla tego vaultu: zasady prywatności, które wędrują razem z nim, oraz to, czego AI może tu używać — internet, narzędzia zewnętrzne, umiejętności i pamięć.",
       "betaTitle": "AI Plainvy (Beta)",
       "betaSwitch": "Używaj AI na tym urządzeniu",
       "betaDesc": "Dotyczy tylko tego urządzenia. Bez tego nie ma przycisku AI, karty ani asystenta.",
@@ -231,7 +231,6 @@
     "policy": {
       "title": "Zasady prywatności (plainva.ai)",
       "desc": "Reguła znajduje się we frontmatterze notatki albo, dla całego folderu, w .agent/policy.yml. Notatka trzymana z dala od chmury nie wnosi niczego — ani tekstu, ani tytułu — a linki do niej są wstrzymywane.",
-      "scope": "Dotyczy",
       "vaultDefault": "Domyślne dla vaultu",
       "cloud": "Chmura",
       "web": "Dostęp do sieci",
@@ -1321,6 +1320,8 @@
       "noneEmpty": "W tej chwili żaden tytuł nie jest przekazywany."
     },
     "write": {
+      "missingLinks": "Podlinkowane, ale nie ma tego w tym vaulcie: {{names}}",
+      "withheldLinks": "Linki do notatek, których AI nie może tu czytać: {{names}}",
       "proposedIn": "Zaproponowano w „{{name}}”: {{what}}",
       "passages_one": "{{count}} fragment",
       "passages_few": "{{count}} fragmenty",

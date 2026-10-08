@@ -124,11 +124,14 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileV
   const free = unruledFolders(rules, folders);
   return (
     <div className="m-page" data-testid="settings-ai-vault">
-      <AppBar onBack={onBack} title={t("ai.policy.title")} testId="appbar-area-aiVault" />
+      {/* The area's own name, as the settings list has it: the screen holds the privacy rules AND what the AI may use
+          in this vault — the internet, external tools, skills. The rules are its first section, named as on the desktop. */}
+      <AppBar onBack={onBack} title={t("ai.settings.title")} testId="appbar-area-aiVault" />
       <div className="m-settings">
+        <p className="m-hint">{t("ai.settings.sectionVault")}</p>
+        <SectionLabel>{t("ai.policy.title")}</SectionLabel>
         <p className="m-hint">{t("ai.policy.desc")}</p>
         {problems.length > 0 && <Banner kind="warning" rounded>{t("ai.policy.problems", { lines: problems.join("; ") })}</Banner>}
-        <SectionLabel>{t("ai.policy.scope")}</SectionLabel>
         <GroupCard>
           <RowList>
             <Row wrap title={t("ai.policy.vaultDefault")} subtitle={line(ruleOf(rules, ""), false)} onClick={() => void edit("", false)} />

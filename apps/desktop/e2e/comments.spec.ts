@@ -216,6 +216,14 @@ test.beforeEach(async ({ page }) => {
           const root = String(args.rootId).replace(/^mock-root:/, '');
           const rel = String(args.relPath).replace(/^\/+/, '');
           const p = root ? root + '/' + rel : rel;
+          // As on a disk: the folders on the way are there afterwards. Without them a listing of the folder a file
+          // was just written into found nothing — the version history never saw the snapshot it had taken a
+          // moment before, which is what "is this note already kept?" asks (AI harness P5-7).
+          const parts = rel.split('/');
+          for (let depth = 1; depth < parts.length; depth++) {
+            const dir = (root ? root + '/' : '') + parts.slice(0, depth).join('/');
+            if (fs[dir] === undefined) fs[dir] = { isDir: true };
+          }
           fs[p] = args.encoding === 'base64' ? atob(String(args.contents)) : String(args.contents);
           return null;
         }

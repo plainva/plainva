@@ -1,6 +1,7 @@
 import { parseOkfSources, type OkfSource } from "../../okf-trust.js";
 import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "../policy.js";
 import { machineAuthorKind } from "./authors.js";
+import { parseMissingLinks } from "./links.js";
 import type { PropertyValue } from "./properties.js";
 
 /**
@@ -77,6 +78,16 @@ export interface WriteDraft {
   sources: OkfSource[];
   /** How many addresses the writer brought were made inert. */
   defused: number;
+  /**
+   * The notes its text links to that were not in the vault when it was laid down (the source check, plan P5-7):
+   * by the name each link gives. Absent where every link led somewhere — and in a draft from before the check.
+   */
+  missing?: string[];
+  /**
+   * The notes its text links to that are in the vault and that the rules kept from the writer (the same check).
+   * For the user, on this device: these are names of notes the rules keep back, and no model is ever shown them.
+   */
+  withheld?: string[];
 }
 
 export const WRITE_DRAFT_LIMITS = { drafts: 100, title: 200, content: 200_000, text: 2_000, properties: 40, sources: 50, recipients: 50, subject: 300, place: 300, description: 20_000 } as const;
@@ -204,7 +215,13 @@ export function parseWriteDraft(raw: unknown): WriteDraft | null {
   const inherited = Array.isArray(raw.inherited) ? AI_POLICY_DIMENSIONS.filter((dimension) => (raw.inherited as unknown[]).includes(dimension)) : [];
   const sources = (parseOkfSources(raw.sources) ?? []).slice(0, WRITE_DRAFT_LIMITS.sources);
   const defused = typeof raw.defused === "number" && Number.isSafeInteger(raw.defused) && raw.defused > 0 ? raw.defused : 0;
-  return { id: raw.id, createdAt: raw.createdAt, author: { id: author.id, label: author.label }, conversationId: conversationId as string | null, title: raw.title, body, inherited, sources, defused };
+  const missing = parseMissingLinks(raw.missing);
+  const withheld = parseMissingLinks(raw.withheld);
+  return {
+    id: raw.id, createdAt: raw.createdAt, author: { id: author.id, label: author.label }, conversationId: conversationId as string | null, title: raw.title, body, inherited, sources, defused,
+    ...(missing.length ? { missing } : {}),
+    ...(withheld.length ? { withheld } : {}),
+  };
 }
 
 /** The drafts of a vault as they were stored, oldest first; what is no draft is left out, twice the same id counts once. */

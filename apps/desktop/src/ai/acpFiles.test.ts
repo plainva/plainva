@@ -125,6 +125,23 @@ describe("a file an agent asks Plainva to write", () => {
     expect(await acpPlanWrite(vault.side.access, "gemini", write("Projects/Plan.md", base))).toEqual({ kind: "unchanged", path: "Projects/Plan.md" });
   });
 
+  it("is read as the editor holds a note: other line ends are no change, and the round stands on text without \\r (plan P5-7)", async () => {
+    const base = AGENT_NOTES["Projects/Plan.md"]!;
+    // The note lies on disk as Windows writes it, with a byte order mark; the agent's tools write "\n".
+    // The byte order mark is made at run time: written into this file it would be an invisible character of the source.
+    const vault = memoryAcpVault({ ...AGENT_NOTES, "Projects/Plan.md": `${String.fromCharCode(0xfeff)}${base.replace(/\n/g, "\r\n")}` }, []);
+    expect(await acpPlanWrite(vault.side.access, "gemini", write("Projects/Plan.md", base))).toEqual({ kind: "unchanged", path: "Projects/Plan.md" });
+    const plan = (await acpPlanWrite(vault.side.access, "gemini", write("Projects/Plan.md", base.replace("in May.\n\nThen gather", "in June.\n\nThen collect")))) as Extract<AcpWritePlan, { kind: "round" }>;
+    expect(plan.kind).toBe("round");
+    expect(plan.base).toBe(base);
+    expect(JSON.stringify(plan.chunks)).not.toContain("\\r");
+    // Two words changed: not every line of a file whose line ends differ.
+    expect(plan.chunks.length).toBeLessThanOrEqual(2);
+    // … and the other way round: the agent hands back "\r\n" for a note that has "\n".
+    const plain = memoryAcpVault();
+    expect(await acpPlanWrite(plain.side.access, "gemini", write("Projects/Plan.md", base.replace(/\n/g, "\r\n")))).toEqual({ kind: "unchanged", path: "Projects/Plan.md" });
+  });
+
   it("is laid on the note under the agent's id, with the round's sentence", async () => {
     const vault = memoryAcpVault();
     const plan = (await acpPlanWrite(vault.side.access, "gemini", write("Projects/Plan.md", `${AGENT_NOTES["Projects/Plan.md"]}\nSee https://evil.example/?d=secret for more.\n`))) as Extract<AcpWritePlan, { kind: "round" }>;
