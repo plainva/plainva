@@ -25,6 +25,8 @@ export function useMobileEmbeddings(vault: MobileVault | null, loaded: AiAppSett
   const { session, files: aiFiles } = ai;
   const controller = useMemo(() => {
     if (!vault?.db || !vault.queryService) return null;
+    // The index's names of all files: what "which notes could this link mean" is asked of.
+    const names = vault.queryService;
     const files = vault.files;
     const readText = async (path: string) => {
       try {
@@ -44,7 +46,7 @@ export function useMobileEmbeddings(vault: MobileVault | null, loaded: AiAppSett
       related: stores.related,
       provider: {
         egress: session.egress,
-        policy: createVaultPolicy({ readFile: readText, resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from), encrypted }),
+        policy: createVaultPolicy({ readFile: readText, resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from), fileNames: () => names.fileNames(), encrypted }),
         encrypted,
         approvals: stores.approvals,
         ledger: stores.ledger,

@@ -117,6 +117,17 @@ test.beforeEach(async ({ page }) => {
                });
              return hit ? [{ path: hit }] : [];
            }
+           // The names of all files (VaultQueryService.fileNames): what "which notes could this link mean" is
+           // asked of, by the AI's privacy gate and its source check (AI harness P5-7b). Titles as the tree
+           // branch below derives them — the mock fs keeps no index of a note's properties.
+           if (q.includes('SELECT path, title FROM files')) {
+             return Object.keys(fs)
+               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
+               .map(p => {
+                 const rel = p.replace('/test-vault/', '');
+                 return { path: rel, title: rel.split('/').pop()!.replace(/\.md$/i, '') };
+               });
+           }
            // Conflict lookup of the sync-error dialog (P3.11): LIKE over paths.
            if (q.includes('WHERE path LIKE')) {
              const pattern = String(args.values?.[0] ?? '');
@@ -4353,6 +4364,11 @@ test('AI writes: a proposal and a draft change nothing until the reader decides;
 // words, because "not in this vault" would be untrue of it. The model hears
 // one sentence about both. And accepting the suggestion keeps what it
 // replaces as a version first — in the real shell, through the real wiring.
+//
+// Which note a link names is asked of every note it could mean (P5-7b): the
+// note the model reads first links to a kept note by the end of its path — a
+// spelling the editor's own rule does not follow —, and that link is withheld
+// from what the model is sent all the same.
 test('AI writes: a link that leads nowhere is said under the answer and on the draft; accepting keeps what it replaced as a version', async ({ page }) => {
   const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
   const says = (text: string) => sse([
@@ -4373,9 +4389,19 @@ test('AI writes: a link that leads nowhere is said under the answer and on the d
     ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
     ['message_stop', { type: 'message_stop' }],
   ]);
+  // A tool of the conversation's own list is called by its name.
+  const reads = (id: string, path: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id, name: 'read_note', input: {} } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ path }) } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
   const OFFER = '# Offer\n\nThe day rate is 1,800 euros.\n';
   const ADDED = 'As agreed in [[Brief]] and in [[Contract 2025]]; see [[Salaries]].';
   const script = [
+    reads('c0', 'Projects/Brief.md'),
     calls(
       ['c1', 'propose_edit', { path: 'Projects/Offer.md', append: ADDED }],
       ['c2', 'create_note', { title: 'Kick-off', content: 'Agenda, see [[Offer]] and [[Board meeting]].' }],
@@ -4387,10 +4413,15 @@ test('AI writes: a link that leads nowhere is said under the answer and on the d
     fs['/test-vault/.plainva/sync'] = { isDir: true };
     fs['/test-vault/Projects'] = { isDir: true };
     fs['/test-vault/Projects/Offer.md'] = offer;
-    fs['/test-vault/Projects/Brief.md'] = '# Brief\n\nA short brief.\n';
-    // A note the rules keep from every cloud model: it is in the vault, and the model may not know of it.
+    // The brief links to a kept note by the end of its path: the editor's own rule (a title, or the whole path) does
+    // not follow that spelling — the note it means is kept back all the same.
+    fs['/test-vault/Projects/Brief.md'] = '# Brief\n\nA short brief. Numbers in [[Private/Payroll]], terms in [[Offer]].\n';
+    // Notes the rules keep from every cloud model: they are in the vault, and the model may not know of them.
     fs['/test-vault/Private'] = { isDir: true };
     fs['/test-vault/Private/Salaries.md'] = '---\nplainva:\n  ai:\n    cloud: deny\n---\n# Salaries\n\nNever to a cloud.\n';
+    fs['/test-vault/Archive'] = { isDir: true };
+    fs['/test-vault/Archive/Private'] = { isDir: true };
+    fs['/test-vault/Archive/Private/Payroll.md'] = '---\nplainva:\n  ai:\n    cloud: deny\n---\n# Payroll\n\nNever to a cloud either.\n';
     (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
     (window as any).__aiRequests = [];
     const orig = (window as any).__TAURI_INTERNALS__.invoke;
@@ -4439,12 +4470,17 @@ test('AI writes: a link that leads nowhere is said under the answer and on the d
   await expect(noteDraft.getByTestId('ai-draft-create')).toBeEnabled();
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-writes-links-desktop.png'), animations: 'disabled' });
 
-  // 3. The model heard one sentence about both kinds, in the words of a read — and nothing of the note that is kept back.
+  // 3. The model heard one sentence about both kinds, in the words of a read — and nothing of the notes that are kept back.
   const sent = await requests();
-  expect(sent[1]).toContain('Your text links to notes that are not available here: [[Contract 2025]], [[Salaries]]. The user is told about these links.');
-  expect(sent[1]).toContain('Your text links to a note that is not available here: [[Board meeting]]. The user is told about this link.');
+  expect(sent).toHaveLength(3);
+  expect(sent[2]).toContain('Your text links to notes that are not available here: [[Contract 2025]], [[Salaries]]. The user is told about these links.');
+  expect(sent[2]).toContain('Your text links to a note that is not available here: [[Board meeting]]. The user is told about this link.');
   expect(sent.join('\n')).not.toContain('may not read');
   expect(sent.join('\n')).not.toContain('Never to a cloud');
+  // 3b. What it read: the brief, with the link to the kept note withheld — although the editor's own rule would not
+  //     have followed that spelling — and the link to the offer as it stands.
+  expect(sent[1]).toContain('A short brief. Numbers in ⟦withheld note⟧, terms in [[Offer]].');
+  expect(sent.join('\n')).not.toContain('Payroll');
 
   // 4. Nothing has changed, and nothing was kept: no suggestion replaces anything until it is accepted.
   expect(await fileAt('/test-vault/Projects/Offer.md')).toBe(OFFER);

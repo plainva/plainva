@@ -225,7 +225,7 @@ plainva:
     cloud: deny
 ```
 
-o, para toda una carpeta, en **Configuración → IA y automatización** (la parte del vault), que escribe las reglas en `.agent/policy.yml`. Una nota que se mantiene fuera de la nube no aporta nada — ni texto ni título —, y los enlaces hacia ella en otras notas se retienen. Los modelos en este dispositivo siguen permitidos. Los espacios cifrados mantienen la nube desactivada, salvo que la permitas allí. El formato exacto está en la [Referencia del formato de archivo](File_Format_Reference.md).
+o, para toda una carpeta, en **Configuración → IA y automatización** (la parte del vault), que escribe las reglas en `.agent/policy.yml`. Una nota que se mantiene fuera de la nube no aporta nada — ni texto ni título —, y los enlaces hacia ella en otras notas se retienen. Esto vale escriba como escriba el enlace la nota — por el nombre de su archivo, por su título o por una ruta —; y si dos notas comparten nombre y una de ellas se mantiene fuera, también se retiene un enlace con solo ese nombre. Escribe la carpeta en el enlace para nombrar la que quieres decir. Los modelos en este dispositivo siguen permitidos. Los espacios cifrados mantienen la nube desactivada, salvo que la permitas allí. El formato exacto está en la [Referencia del formato de archivo](File_Format_Reference.md).
 
 Una imagen pertenece a las notas que la muestran: la que está incrustada en una nota mantenida fuera de la nube tampoco va a ningún modelo en la nube (ver Explicar una imagen más arriba).
 

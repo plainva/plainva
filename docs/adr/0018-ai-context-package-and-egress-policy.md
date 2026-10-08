@@ -123,6 +123,43 @@ thinking blocks are involved).
     counts as a denial. Suggestions, transcripts and replies in a comment
     thread are written into, or beside, the note they come from and need no
     such step: they are under that note's rule already.
+12. **Which note a link names is asked of every note it could mean** (built
+    with P5-7b). Decision 2 withholds a link to a note the rules keep back,
+    and that needs an answer to "which note does this link name?". The app
+    has more than one: the desktop's editor follows a link by a note's title
+    (the `title` of its properties where it has one) or its whole path, the
+    phone by a path from the note and by the file's name anywhere, the graph
+    by the end of a path. Each opens one note, and not always the same. The
+    gate used to ask the shell's own rule — so a link that rule did not
+    follow was no link to a kept note for it, and the note's name went to a
+    cloud model inside an allowed neighbour's text.
+    - *The gate asks another question.* For every link it takes all files
+      its spelling could mean under any of those rules — a path from the
+      note it stands in, a path from the vault's root, the end of a path
+      (the file's name among them), the title of a note's properties — and
+      withholds the link where one of them is kept back
+      (`filesALinkCouldMean` in `packages/core/src/ai/linkNames.ts`,
+      `linkNamesDeniedNote` in `chat.ts`). Names are compared without regard
+      to letter case and to how a letter is composed. What a tap opens in
+      the shell at hand is always among the candidates.
+    - *One answer in both shells.* The names come from the index: every
+      file with the title it holds for it (`VaultQueryService.fileNames`),
+      read at most every few seconds by the shared policy host
+      (`createVaultPolicy`, `fileNames`). Every place that builds that host
+      hands the names in; a test on the source of both shells fails a host
+      built without them.
+    - *Cannot tell is never none.* Where the names cannot be read, a link
+      is withheld. Where more files share a name than are asked about (200 —
+      each is a file to read for its own rule), the link is withheld.
+    - *What counts as a link.* Wiki links and embeds; Markdown links with
+      the destination bare or in angle brackets, where it may hold blanks;
+      reference links — the definition that names the note and every use of
+      its label. Not: a link written as HTML, and a note's name that merely
+      stands in a text.
+    - *The source check of the writing tools asks the same question* (ADR
+      0019 §6): a link in an assistant's text leads "nowhere" only where no
+      note could be meant by it, and is said to lead to a note the writer
+      may not read only where every note it could mean is kept back.
 
 ## Consequences
 
@@ -141,6 +178,13 @@ thinking blocks are involved).
   moment on a large vault, once per press of the door, and only for a cloud
   model. Two pictures of one file name count as one there: that can keep a
   picture back, never let one go.
+- A link is withheld more often than before, and never less: where two notes
+  share a name and one of them is kept back, a link by that bare name is
+  withheld although the shell would have opened the other one. Writing the
+  folder into the link (`[[Notes/Diary]]`) names the one that is meant.
+- The names of all files are read from the index once per burst of
+  questions — one query, a moment on a large vault — and each note a link
+  could mean is read for its own rule, once per run.
 
 ## Alternatives
 
@@ -166,6 +210,17 @@ thinking blocks are involved).
 - **A storage of references instead of the copy that went.** Rejected: the
   file can change or go, and the record would then no longer say what a
   provider got.
+- **Asking the shell's own link rule, and making the shells agree.** The
+  rules of the editor, the phone and the graph should become one — that is
+  the app's own work, outside the harness. The gate does not wait for it and
+  does not depend on it: whichever rule a shell follows, the question "could
+  this name a kept note?" is answered from the names of all files.
+- **Withholding a link only where the note a tap opens is kept back.**
+  Rejected: which note a tap opens differs by shell, and the same vault
+  would send a kept note's name from one device and not from the other.
+- **Checking every note of a name without a bound.** Rejected: a bare name
+  can be shared by one note per folder, and each is a file to read. Beyond
+  the bound the link is withheld instead.
 
 ## Links
 
@@ -177,3 +232,10 @@ thinking blocks are involved).
   of embedding notes), `explainImage` in `packages/ui/src/ai/aiSession.ts`;
   `VaultQueryService.notesContaining`; `docs/engineering/AI_Threat_Model.md`
   (T20, T21).
+- Which note a link names: `packages/core/src/ai/linkNames.ts`,
+  `redactDeniedLinks` in `egressGate.ts`, `withholdDeniedLinks` and
+  `linkNamesDeniedNote` in `chat.ts`, `VaultQueryService.fileNames`,
+  `createVaultPolicy` in `packages/ui/src/ai/aiVaultHost.ts`; proved on the
+  real index in `packages/core/test/ai-link-candidates.test.ts`, the wiring
+  of both shells in `apps/desktop/src/ai/linkNamesWiring.test.ts`;
+  `docs/engineering/AI_Threat_Model.md` (T5).

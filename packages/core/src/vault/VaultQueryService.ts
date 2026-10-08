@@ -736,6 +736,17 @@ export class VaultQueryService {
   }
 
   /**
+   * Every file the index knows, with the title it holds for it — for a note
+   * the `title` of its properties where it has one, otherwise its file's
+   * name. What "which files could this link mean" is asked of
+   * (`buildLinkNameIndex`): one read for a whole text's links instead of a
+   * query per link, and the same lookup in both shells.
+   */
+  async fileNames(): Promise<{ path: string; title: string | null }[]> {
+    return this.db.query<{ path: string; title: string | null }>(`SELECT path, title FROM files WHERE is_deleted IS NULL OR is_deleted = 0`);
+  }
+
+  /**
    * A file by its bare basename, anywhere in the vault — how Obsidian writes
    * and finds attachments (`![[foto.png]]`, the file in its attachments
    * folder). Notes and attachments alike; the note's own folder wins on a

@@ -1,8 +1,10 @@
 import {
+  buildLinkNameIndex,
   DEFAULT_AI_POLICY,
   deleteFrontmatterPath,
   EDITED_HALF_LIFE_MS,
   effectivePolicy,
+  filesALinkCouldMean,
   isCloudRecipient,
   ENCRYPTED_WORKSPACE_AI_POLICY,
   isAiHiddenPath,
@@ -23,6 +25,8 @@ import {
   type EffectivePolicy,
   type EgressRecipient,
   type InstructionIO,
+  type LinkNameIndex,
+  type NamedFile,
   type PackageGists,
   type ParsedPolicyFile,
   type SituationInput,
@@ -54,17 +58,44 @@ export interface VaultPolicyHost extends ContextPolicyHost {
   invalidate(): void;
 }
 
+/** How long the rules and the names of the vault's files are kept before they are read again. */
+const POLICY_CACHE_MS = 3000;
+
 export function createVaultPolicy(opts: {
   readFile(path: string): Promise<string | null>;
+  /** Where a tap on a link leads in this shell: the one file it opens. */
   resolveLink(target: string, fromPath: string): Promise<string | null>;
+  /**
+   * Every file of the vault, a note with the title of its properties where it
+   * has one. From it the gate tells which notes a link COULD mean, the same
+   * way in both shells (`filesALinkCouldMean`) — a link the shell's own
+   * resolver does not follow is still withheld where it names a note the
+   * rules keep back. Without it only `resolveLink` is asked.
+   */
+  fileNames?(): Promise<readonly NamedFile[]>;
   /** True inside an encrypted workspace: the cloud is off unless the rules say otherwise. */
   encrypted(): boolean;
   now?: () => number;
 }): VaultPolicyHost {
   const now = opts.now ?? (() => Date.now());
   let cached: { at: number; parsed: ParsedPolicyFile } | null = null;
+  let names: { at: number; index: Promise<LinkNameIndex> } | null = null;
+  /**
+   * The lookup over the vault's file names, read at most every few seconds;
+   * null in a host that was given none. Where the names cannot be read it
+   * rejects — whoever asks then cannot tell what a link means, and says so.
+   */
+  const nameIndex = (): Promise<LinkNameIndex | null> => {
+    if (!opts.fileNames) return Promise.resolve(null);
+    if (names && now() - names.at < POLICY_CACHE_MS) return names.index;
+    const index = opts.fileNames().then((files) => buildLinkNameIndex(files));
+    // Kept also when it failed, so one burst of questions asks once; whoever awaits it hears the failure.
+    index.catch(() => {});
+    names = { at: now(), index };
+    return index;
+  };
   const rules = async (): Promise<ParsedPolicyFile> => {
-    if (cached && now() - cached.at < 3000) return cached.parsed;
+    if (cached && now() - cached.at < POLICY_CACHE_MS) return cached.parsed;
     let text: string | null;
     try {
       text = await opts.readFile(AI_POLICY_FILE);
@@ -82,6 +113,7 @@ export function createVaultPolicy(opts: {
     rules,
     invalidate() {
       cached = null;
+      names = null;
     },
     async policyOf(path: string, text?: string): Promise<EffectivePolicy> {
       let content = text;
@@ -97,6 +129,15 @@ export function createVaultPolicy(opts: {
       return effectivePolicy(path, own, (await rules()).rules, opts.encrypted() ? ENCRYPTED_WORKSPACE_AI_POLICY : DEFAULT_AI_POLICY);
     },
     resolveLink: opts.resolveLink,
+    async linkCandidates(target: string, fromPath: string): Promise<readonly string[]> {
+      // What a tap opens here is always among them — a file the names do not list yet, an attachment found by
+      // the shell's own rule —, then everything the spelling could mean under any rule. Where the names cannot
+      // be read this rejects: "cannot tell" is the caller's to treat as such, never as "no note".
+      const index = await nameIndex();
+      const opened = await opts.resolveLink(target, fromPath).catch(() => null);
+      const found = index ? filesALinkCouldMean(index, target, fromPath) : [];
+      return opened && !found.includes(opened) ? [opened, ...found] : found;
+    },
   };
 }
 
@@ -113,7 +154,7 @@ export interface AiVaultHostInput {
   /** The vault's candidate sources; null in a shell without an index. */
   retrieval: CandidateRetrieval | null;
   /** The tools' access to the vault; null when this shell offers no tools. */
-  toolDeps: Omit<VaultToolDeps, "policyOf" | "resolveLink"> | null;
+  toolDeps: Omit<VaultToolDeps, "policyOf" | "resolveLink" | "linkCandidates"> | null;
   /** Writes a note's own "never to the cloud" rule — the user's action in "View context". */
   keepOnDevice?(path: string): Promise<void>;
   /** Checked gists of the model on this computer (plan P2b-3), asked when a message is built. */
@@ -303,6 +344,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
         ...input.toolDeps,
         policyOf: input.policy.policyOf,
         resolveLink: input.policy.resolveLink,
+        // Which notes a link could mean, for the gate and the source check: the policy's own answer, in both shells.
+        ...(input.policy.linkCandidates ? { linkCandidates: input.policy.linkCandidates } : {}),
       };
       // What this shell serves beyond a conversation's own list: found with the tool search, never loaded on its own.
       const more = furtherToolNames(deps);

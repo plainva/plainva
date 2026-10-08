@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { appendTurn, startConversation } from "./conversation.js";
-import { assembleContext, assistantSystemPrompt, contextChanged, contextStamp, lastSentContext, type ContextPolicyHost } from "./chat.js";
-import { WITHHELD_LINK, type EgressRecipient } from "./egressGate.js";
+import { assembleContext, assistantSystemPrompt, contextChanged, contextStamp, lastSentContext, linkCandidatesOf, linkNamesDeniedNote, withholdDeniedLinks, type ContextPolicyHost } from "./chat.js";
+import { gateDecision, WITHHELD_LINK, type EgressRecipient } from "./egressGate.js";
+import { buildLinkNameIndex, filesALinkCouldMean, LINK_CANDIDATE_LIMIT } from "./linkNames.js";
 import { effectivePolicy, notePolicyFrom, parsePolicyFile } from "./policy.js";
 
 /** A small vault: Finance/ is kept from the cloud by folder rule, Diary.md by its own frontmatter. */
@@ -70,6 +71,78 @@ describe("context through the hard gate", () => {
     const edited = await assembleContext([{ ...note("Plan.md", true), text: "# Plan\n\nnew line" }], cloud, host);
     expect(contextChanged(c, edited.part)).toBe(true);
     expect(contextChanged(c, null)).toBe(false);
+  });
+});
+
+/**
+ * Which note a link names is asked of every note it COULD mean (P5-7b): the
+ * shells follow a link by different rules, and a link one of them does not
+ * follow must not carry the name of a note the rules keep back.
+ */
+describe("a link is withheld where any note it could mean is kept back", () => {
+  // A vault in which the two shells' own rules disagree: a note with a title of its own, linked by its file's name;
+  // a note linked by the end of its path; two notes of one name, one of them kept back.
+  const vault: Record<string, string> = {
+    "Projects/Offer.md": "",
+    "Finance/Brief.md": "---\ntitle: Offer letter\n---\nkept by its folder",
+    "Archive/2025/Finance/Report.md": "kept by its folder too",
+    "Notes/Diary.md": "a diary anyone may read",
+    "Journal/Diary.md": "---\nplainva:\n  ai:\n    cloud: deny\n---\nthe private one",
+    "Plan.md": "# Plan",
+  };
+  const index = buildLinkNameIndex(Object.keys(vault).map((path) => ({ path, title: /^---\ntitle: (.+)\n/.exec(vault[path]!)?.[1] ?? path.replace(/^.*\//, "").replace(/\.md$/, "") })));
+  const folderRules = parsePolicyFile("folders:\n  Finance/:\n    cloud: deny\n  Archive/2025/Finance/:\n    cloud: deny\n").rules;
+  const policyOf: ContextPolicyHost["policyOf"] = async (path, text) => effectivePolicy(path, notePolicyFrom(frontmatterOf(text ?? vault[path] ?? "")), folderRules);
+  /** The desktop's own rule: a note's title, or its whole path. It finds none of the three. */
+  const byTitleOrPath = async (target: string) => Object.keys(vault).find((path) => path === target || path === `${target}.md`) ?? null;
+  const asking: ContextPolicyHost = { policyOf, resolveLink: byTitleOrPath, linkCandidates: async (target, from) => filesALinkCouldMean(index, target, from) };
+  const allowed = async (path: string) => gateDecision(await policyOf(path), { recipient: cloud, webTools: false }).allowed;
+
+  it("by its file's name although its properties call it otherwise, by the end of its path, and among several of one name", async () => {
+    const text = "See [[Brief]], [[Finance/Report]], [[Diary]] and [the report](<../Archive/2025/Finance/Report.md>) — and [[Plan]].";
+    // With the shell's rule alone, every one of them goes out: it resolves none, so it withholds none.
+    const before = await withholdDeniedLinks(text, "Projects/Offer.md", { resolveLink: byTitleOrPath }, allowed);
+    expect(before).toEqual({ text, redacted: 0 });
+    const after = await withholdDeniedLinks(text, "Projects/Offer.md", asking, allowed);
+    expect(after.text).toBe(`See ${WITHHELD_LINK}, ${WITHHELD_LINK}, ${WITHHELD_LINK} and ${WITHHELD_LINK} — and [[Plan]].`);
+    expect(after.redacted).toBe(4);
+  });
+
+  it("through the whole assembly: nothing of a kept note's name is in what goes", async () => {
+    const offer = { path: "Projects/Offer.md", title: "Offer", text: "Rates as in [[Brief]] and [[Finance/Report]]; ask [[Diary]].", pinned: false };
+    const ctx = await assembleContext([offer], cloud, asking);
+    expect(ctx.withheldLinks).toBe(3);
+    expect(ctx.part!.text).not.toMatch(/Brief|Report|Diary/);
+    // A model on this device is told all of it.
+    expect((await assembleContext([offer], local, asking)).part!.text).toContain("[[Brief]]");
+  });
+
+  it("tells the two questions apart: a link to a note that is not kept back stays, whoever else shares a folder's name", async () => {
+    expect(await linkNamesDeniedNote(asking, "Plan", "Projects/Offer.md", allowed)).toBe(false);
+    expect(await linkNamesDeniedNote(asking, "Nobody", "Projects/Offer.md", allowed)).toBe(false);
+    expect(await linkNamesDeniedNote(asking, "Notes/Diary", "Projects/Offer.md", allowed)).toBe(false);
+    expect(await linkNamesDeniedNote(asking, "Journal/Diary", "Projects/Offer.md", allowed)).toBe(true);
+    // The bare name is shared by a note that is kept back: it could mean that one.
+    expect(await linkNamesDeniedNote(asking, "Diary", "Notes/Other.md", allowed)).toBe(true);
+    // A host without the wider question is asked for the one note its resolver finds — as before.
+    expect(await linkCandidatesOf({ resolveLink: byTitleOrPath }, "Plan", "x.md")).toEqual(["Plan.md"]);
+    expect(await linkCandidatesOf({ resolveLink: byTitleOrPath }, "Brief", "x.md")).toEqual([]);
+  });
+
+  it("cannot tell is never none: a vault that does not answer, and more notes of one name than are asked about", async () => {
+    const silent: ContextPolicyHost = { policyOf, resolveLink: byTitleOrPath, linkCandidates: async () => { throw new Error("index unavailable"); } };
+    expect(await linkNamesDeniedNote(silent, "Plan", "x.md", allowed)).toBe(true);
+    expect((await withholdDeniedLinks("See [[Plan]].", "x.md", silent, allowed)).text).toBe(`See ${WITHHELD_LINK}.`);
+    // One name, a note per folder: the first ones are asked about, and beyond them the answer is "withhold".
+    const many = Array.from({ length: LINK_CANDIDATE_LIMIT + 1 }, (_, at) => `Area ${at}/index.md`);
+    let asked = 0;
+    const crowded: ContextPolicyHost = { policyOf, resolveLink: byTitleOrPath, linkCandidates: async () => many };
+    const counting = async (path: string) => { asked++; return allowed(path); };
+    expect(await linkNamesDeniedNote(crowded, "index", "x.md", counting)).toBe(true);
+    expect(asked).toBe(LINK_CANDIDATE_LIMIT);
+    // Exactly as many as are asked about, all of them free to go: the link stays.
+    const full: ContextPolicyHost = { policyOf, resolveLink: byTitleOrPath, linkCandidates: async () => many.slice(0, LINK_CANDIDATE_LIMIT) };
+    expect(await linkNamesDeniedNote(full, "index", "x.md", allowed)).toBe(false);
   });
 });
 

@@ -1,5 +1,6 @@
 import type { Conversation, TextPart } from "./conversation.js";
 import { gateDecision, isCloudRecipient, redactDeniedLinks, type EgressRecipient, type GateDecision } from "./egressGate.js";
+import { LINK_CANDIDATE_LIMIT } from "./linkNames.js";
 import { isMcpExposedToolName } from "./mcp/names.js";
 import type { EffectivePolicy } from "./policy.js";
 import { DISPATCH_TOOL, FIND_TOOL, hasWebTools, MAIL_TOOL_NAMES, WRITE_TOOL_NAMES } from "./tools.js";
@@ -201,8 +202,46 @@ export interface ContextRef {
 
 export interface ContextPolicyHost {
   policyOf(path: string, text?: string): Promise<EffectivePolicy>;
-  /** Resolves a link target as written to a vault path; null when it names no note. */
+  /** Resolves a link target as written to a vault path; null when it names no note. Where a tap on the link leads in this shell. */
   resolveLink(target: string, fromPath: string): Promise<string | null>;
+  /**
+   * Every note a link of this target could mean, under any rule the app
+   * follows a link by (`notesALinkCouldMean`) — wider than `resolveLink`,
+   * which names the one note a tap opens. The privacy gate asks this one: a
+   * link is withheld where ANY note it could mean is kept back. A host
+   * without it is asked for the one note its resolver finds.
+   */
+  linkCandidates?(target: string, fromPath: string): Promise<readonly string[]>;
+}
+
+/** What tells which notes a link could mean: a policy host, or anything that carries its two ways of asking. */
+export type LinkHost = Pick<ContextPolicyHost, "resolveLink" | "linkCandidates">;
+
+/** The notes a link could mean, as this host can tell: its candidates, or the one note its resolver finds. */
+export async function linkCandidatesOf(host: LinkHost, target: string, fromPath: string): Promise<readonly string[]> {
+  if (host.linkCandidates) return host.linkCandidates(target, fromPath);
+  const path = await host.resolveLink(target, fromPath);
+  return path ? [path] : [];
+}
+
+/**
+ * Whether a link names a note the recipient may not see: one of the notes it
+ * could mean is kept back. Where more notes share the name than are asked
+ * about (`LINK_CANDIDATE_LIMIT`), which of them the link means cannot be
+ * told — and "cannot tell" is never "none": the link is withheld.
+ */
+export async function linkNamesDeniedNote(host: LinkHost, target: string, fromPath: string, isAllowed: (path: string) => Promise<boolean>): Promise<boolean> {
+  let paths: readonly string[];
+  try {
+    paths = await linkCandidatesOf(host, target, fromPath);
+  } catch {
+    // The vault could not say what the link means: it is not sent.
+    return true;
+  }
+  for (const path of paths.slice(0, LINK_CANDIDATE_LIMIT)) {
+    if (!(await isAllowed(path))) return true;
+  }
+  return paths.length > LINK_CANDIDATE_LIMIT;
 }
 
 export interface AssembledContext {
@@ -233,7 +272,7 @@ export function contextStamp(text: string): string {
 export async function withholdDeniedLinks(
   text: string,
   fromPath: string,
-  resolveLink: ContextPolicyHost["resolveLink"],
+  host: LinkHost,
   isAllowed: (path: string) => Promise<boolean>,
 ): Promise<{ text: string; redacted: number }> {
   // First pass: collect every target exactly as the redactor parses it (wiki
@@ -244,11 +283,10 @@ export async function withholdDeniedLinks(
     targets.add(target.trim());
     return false;
   });
+  // A link is withheld where any note it could mean is kept back — not only
+  // the one a tap would open in this shell (`linkNamesDeniedNote`).
   const denied = new Map<string, boolean>();
-  for (const target of targets) {
-    const path = await resolveLink(target, fromPath);
-    denied.set(target, path ? !(await isAllowed(path)) : false);
-  }
+  for (const target of targets) denied.set(target, await linkNamesDeniedNote(host, target, fromPath, isAllowed));
   return redactDeniedLinks(text, (target) => denied.get(target.trim()) ?? false);
 }
 
@@ -279,7 +317,7 @@ export async function assembleContext(notes: readonly ContextNote[], recipient: 
     }
     let text = note.text;
     if (isCloudRecipient(recipient)) {
-      const redacted = await withholdDeniedLinks(text, note.path, host.resolveLink, async (path) => (await decide(path)).allowed);
+      const redacted = await withholdDeniedLinks(text, note.path, host, async (path) => (await decide(path)).allowed);
       text = redacted.text;
       withheldLinks += redacted.redacted;
     }

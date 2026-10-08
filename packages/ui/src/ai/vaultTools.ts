@@ -6,6 +6,9 @@ import {
   gateDecision,
   isAiHiddenPath,
   isCloudRecipient,
+  isNotePath,
+  LINK_CANDIDATE_LIMIT,
+  linkCandidatesOf,
   MAIL_TOOL_NAMES,
   PIM_DRAFT_TOOL_NAMES,
   WRITE_TOOL_NAMES,
@@ -63,7 +66,13 @@ export interface VaultToolDeps {
   search(query: string, limit: number, offset: number): Promise<{ path: string; title: string; snippet?: string | null }[]>;
   /** The note's text as the adapter chain reads it; null when there is none. */
   readNote(path: string): Promise<string | null>;
+  /** Where a tap on a link leads in this shell: the one note a command opens. */
   resolveLink(target: string, fromPath: string): Promise<string | null>;
+  /**
+   * Every file a link could mean, under any rule the app follows a link by (`ContextPolicyHost.linkCandidates`):
+   * what the gate asks before a note's text goes, and what the source check asks about a link a text adds.
+   */
+  linkCandidates?(target: string, fromPath: string): Promise<readonly string[]>;
   policyOf(path: string, text?: string): Promise<EffectivePolicy>;
   /** Checkbox tasks and the task database, as planner rows. */
   taskRows(): Promise<PlannerRow[]>;
@@ -293,7 +302,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   const withhold = async (text: string, fromPath: string, situational = false): Promise<string> => {
     const places = withholdPlaces(text).text;
     if (!cloud && !run.webTools) return places;
-    const linked = (await withholdDeniedLinks(places, fromPath, deps.resolveLink, (path) => allowed(path))).text;
+    const linked = (await withholdDeniedLinks(places, fromPath, deps, (path) => allowed(path))).text;
     if (!cloud || !redact || !(redact.has(fromPath) || (situational && redact.has(SITUATION_SOURCE)))) return linked;
     return redactSensitive(linked, sensitiveFindings(linked)).text;
   };
@@ -584,15 +593,18 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             safeFolder: (raw) => (typeof raw === "string" ? safeRelPath(withoutTrailingSlashes(raw.trim())) : null),
             allowed: placeAllowed,
             policyOf: deps.policyOf,
-            // The source check (plan P5-7): a link leads somewhere when the vault resolves it to a note this run
-            // may know of — the gate a read passes. A note the gate keeps back is answered as such, and the tool
-            // tells the model what it tells it about a note that does not exist; only the user hears the
-            // difference. It is no read: a note that is only linked is not among what the run read, and no
-            // source of what it drafts.
+            // The source check (plan P5-7): a link leads somewhere when it could mean a note this run may know
+            // of — any note of that spelling, under any rule the app follows a link by (P5-7b), so the answer is
+            // the same in both shells. Where every note it could mean is kept back by the gate, that is answered
+            // as such, and the tool tells the model what it tells it about a note that does not exist; only the
+            // user hears the difference. It is no read: a note that is only linked is not among what the run
+            // read, and no source of what it drafts.
             linked: async (target, from) => {
-              const path = await deps.resolveLink(target, from);
-              if (path === null) return "none";
-              return (await placeAllowed(path)) ? "note" : "withheld";
+              const notes = (await linkCandidatesOf(deps, target, from)).filter(isNotePath);
+              if (notes.length === 0) return "none";
+              for (const path of notes.slice(0, LINK_CANDIDATE_LIMIT)) if (await placeAllowed(path)) return "note";
+              // More notes of the name than are asked about: there is a note to mean, and nothing to say.
+              return notes.length > LINK_CANDIDATE_LIMIT ? "note" : "withheld";
             },
             ...(call ? { callId: call.id } : {}),
           });

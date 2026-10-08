@@ -314,6 +314,8 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
   const policy = createVaultPolicy({
     readFile: read,
     resolveLink: (target) => input.query.resolveNotePath(target),
+    // Which notes a link COULD mean is asked of the names of all files, by one rule for both shells.
+    fileNames: () => input.query.fileNames(),
     encrypted: input.encrypted,
   });
   currentPolicy = policy;

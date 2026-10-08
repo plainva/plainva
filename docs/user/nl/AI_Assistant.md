@@ -225,7 +225,7 @@ plainva:
     cloud: deny
 ```
 
-of, voor een hele map, in **Instellingen → AI & automatisering** (het Vault-deel), dat de regels naar `.agent/policy.yml` schrijft. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe in andere notities worden achtergehouden. Modellen op dit apparaat blijven toegestaan. Versleutelde workspaces sluiten de cloud uit, tenzij je die daar toestaat. Het exacte formaat staat in de [Bestandsformaat-referentie](File_Format_Reference.md).
+of, voor een hele map, in **Instellingen → AI & automatisering** (het Vault-deel), dat de regels naar `.agent/policy.yml` schrijft. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe in andere notities worden achtergehouden. Dat geldt hoe een link de notitie ook schrijft — met de bestandsnaam, de titel of een pad —; en hebben twee notities dezelfde naam en wordt een ervan weggehouden, dan wordt ook een link met alleen die naam achtergehouden. Schrijf de map in de link om de bedoelde te noemen. Modellen op dit apparaat blijven toegestaan. Versleutelde workspaces sluiten de cloud uit, tenzij je die daar toestaat. Het exacte formaat staat in de [Bestandsformaat-referentie](File_Format_Reference.md).
 
 Een afbeelding hoort bij de notities die haar tonen: een afbeelding die is ingesloten in een notitie die van de cloud wordt weggehouden, gaat ook naar geen enkel cloudmodel (zie Een afbeelding uitleggen hierboven).
 

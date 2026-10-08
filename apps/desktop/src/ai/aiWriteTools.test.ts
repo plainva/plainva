@@ -2,8 +2,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   WRITE_REFUSALS,
   WRITE_RESULTS,
+  buildLinkNameIndex,
   deleteFrontmatterPath,
   effectivePolicy,
+  filesALinkCouldMean,
   notePolicyFrom,
   parsePolicyFile,
   readFrontmatterPath,
@@ -1043,6 +1045,38 @@ describe("the source check: a link to a note the vault does not have is said, ne
     const unsure = writer();
     await call(broken, unsure.run, "propose_edit", { path: "Projects/Offer.md", append: "See [[Brief]]." });
     expect(unsure.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Brief"] }]);
+  });
+
+  it("asks which notes a link could mean, not where a tap on it leads: the answer is the same in both shells (plan P5-7b)", async () => {
+    // The names of the vault's files as the index holds them: one note carries a title of its own.
+    const names = buildLinkNameIndex(Object.keys(NOTES).map((path) => ({ path, title: path === "Projects/Brief.md" ? "Offer letter" : path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "") })));
+    const named = () => {
+      const v = vault();
+      // The shell's own rule finds nothing here — as the desktop's editor finds no note by its file's name once its
+      // properties call it otherwise, and no note by the end of its path.
+      v.deps.resolveLink = async () => null;
+      v.deps.linkCandidates = async (target, from) => filesALinkCouldMean(names, target, from);
+      return v;
+    };
+    const w = writer();
+    const result = await call(named(), w.run, "propose_edit", {
+      path: "Projects/Offer.md",
+      append: "As in [[Brief]], [[Offer letter]] and [[Books/Dune]]; ask [[Client]] and [[Private/Client]]; see [[Ghost]] and the list in [[Projects/Books.base]].",
+    });
+    // Two notes by their file's name, one by its title: they are there. One is kept back, however it is spelled. One is nobody's.
+    expect(result).toEqual({ content: WRITE_RESULTS.proposed("Projects/Offer.md", 1, 0, ["Client", "Private/Client", "Ghost"]) });
+    expect(w.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Ghost"], withheld: ["Client", "Private/Client"] }]);
+    // A model on this device may know the kept note: for it only the made-up one leads nowhere.
+    const here = writer();
+    await call(named(), here.run, "propose_edit", { path: "Projects/Offer.md", append: "Ask [[Client]]; see [[Ghost]]." }, local);
+    expect(here.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Ghost"] }]);
+    // A name shared by a note that is kept back and one that is not leads somewhere: nothing is said.
+    const shared = buildLinkNameIndex([{ path: "Private/Notes.md" }, { path: "Projects/Notes.md" }]);
+    const both = vault();
+    both.deps.linkCandidates = async (target, from) => filesALinkCouldMean(shared, target, from);
+    const twice = writer();
+    await call(both, twice.run, "propose_edit", { path: "Projects/Offer.md", append: "See [[Notes]]." });
+    expect(twice.run.writes.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0 }]);
   });
 
   it("checks a drafted note, an entry and a journal line the same way — and a note the same run drafted is no made-up note", async () => {

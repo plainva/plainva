@@ -225,7 +225,7 @@ plainva:
     cloud: deny
 ```
 
-or, for a whole folder, in **Settings → AI & automation** (the Vault part), which writes the rules to `.agent/policy.yml`. A note kept from the cloud contributes nothing — neither text nor title — and links to it in other notes are withheld. Models on this device stay allowed. Encrypted workspaces keep the cloud off unless you allow it there. The exact format is in the [File Format Reference](File_Format_Reference.md).
+or, for a whole folder, in **Settings → AI & automation** (the Vault part), which writes the rules to `.agent/policy.yml`. A note kept from the cloud contributes nothing — neither text nor title — and links to it in other notes are withheld. That holds however a link spells the note — by its file's name, its title or a path —, and where two notes share a name and one of them is kept back, a link by that bare name is withheld as well; write the folder into the link to name the one you mean. Models on this device stay allowed. Encrypted workspaces keep the cloud off unless you allow it there. The exact format is in the [File Format Reference](File_Format_Reference.md).
 
 A picture belongs to the notes that show it: one that a note kept from the cloud embeds goes to no cloud model either (see Explaining an image above).
 

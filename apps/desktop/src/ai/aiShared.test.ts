@@ -143,6 +143,73 @@ describe("the policy rules editor", () => {
     expect((await sealed.policyOf("Any.md")).policy.cloud).toBe("deny");
     expect(parsePolicyFile("folders:\n  /:\n    cloud: deny\n").rules).toEqual([{ folder: "", cloud: "deny" }]);
   });
+
+  it("tells which notes a link could mean from the names of the vault's files — wider than the shell's own rule, and with what a tap opens among them (plan P5-7b)", async () => {
+    let listed = 0;
+    let clock = 0;
+    const names = [
+      { path: "Finance/Brief.md", title: "Offer letter" },
+      { path: "Notes/Diary.md", title: "Diary" },
+      { path: "Journal/Diary.md", title: "Diary" },
+    ];
+    const policy = createVaultPolicy({
+      readFile: async () => null,
+      // The shell's own rule: a note at exactly this path, or an attachment by its name. It knows no file's name anywhere else.
+      resolveLink: async (target) => (target === "Report.pdf" ? "Attachments/Report.pdf" : target === "Notes/Diary" ? "Notes/Diary.md" : null),
+      fileNames: async () => {
+        listed++;
+        return names;
+      },
+      encrypted: () => false,
+      now: () => clock,
+    });
+    // A note the shell's rule does not find under its file's name, and under its title.
+    expect(await policy.linkCandidates!("Brief", "Projects/Offer.md")).toEqual(["Finance/Brief.md"]);
+    expect(await policy.linkCandidates!("Offer letter", "Projects/Offer.md")).toEqual(["Finance/Brief.md"]);
+    // Every note of one name: which of them a tap opens differs by shell.
+    expect([...(await policy.linkCandidates!("Diary", "Projects/Offer.md"))].sort()).toEqual(["Journal/Diary.md", "Notes/Diary.md"]);
+    // What a tap opens here comes first, also where the names do not list it.
+    expect(await policy.linkCandidates!("Notes/Diary", "Projects/Offer.md")).toEqual(["Notes/Diary.md"]);
+    expect(await policy.linkCandidates!("Report.pdf", "Projects/Offer.md")).toEqual(["Attachments/Report.pdf"]);
+    expect(await policy.linkCandidates!("Nobody", "Projects/Offer.md")).toEqual([]);
+    // The names are read once for a burst of questions, again after a few seconds, and again once the rules were rewritten.
+    expect(listed).toBe(1);
+    clock += 5000;
+    await policy.linkCandidates!("Brief", "x.md");
+    expect(listed).toBe(2);
+    policy.invalidate();
+    await policy.linkCandidates!("Brief", "x.md");
+    expect(listed).toBe(3);
+  });
+
+  it("says that it cannot tell where the names cannot be read — and answers with the shell's rule alone where it was given none", async () => {
+    let fail = true;
+    let clock = 0;
+    const policy = createVaultPolicy({
+      readFile: async () => null,
+      resolveLink: async (target) => (target === "Plan" ? "Plan.md" : null),
+      fileNames: async () => {
+        if (fail) throw new Error("index unavailable");
+        return [{ path: "Plan.md", title: "Plan" }];
+      },
+      encrypted: () => false,
+      now: () => clock,
+    });
+    // Not "no note": whoever asks hears that there was no answer, and withholds.
+    await expect(policy.linkCandidates!("Plan", "x.md")).rejects.toThrow("index unavailable");
+    await expect(policy.linkCandidates!("Nobody", "x.md")).rejects.toThrow("index unavailable");
+    // The failure is not kept for good: asked again later, the names are read again.
+    fail = false;
+    clock += 5000;
+    expect(await policy.linkCandidates!("Plan", "x.md")).toEqual(["Plan.md"]);
+    // A host that was given no names — a test, a shell without an index — is the shell's rule and nothing else.
+    const plain = createVaultPolicy({ readFile: async () => null, resolveLink: async (target) => (target === "Plan" ? "Plan.md" : null), encrypted: () => false });
+    expect(await plain.linkCandidates!("Plan", "x.md")).toEqual(["Plan.md"]);
+    expect(await plain.linkCandidates!("Brief", "x.md")).toEqual([]);
+    // A resolver that fails is no reason to name a file, and none to fail: the names answer.
+    const shaky = createVaultPolicy({ readFile: async () => null, resolveLink: async () => { throw new Error("no index"); }, fileNames: async () => [{ path: "Plan.md" }], encrypted: () => false });
+    expect(await shaky.linkCandidates!("Plan", "x.md")).toEqual(["Plan.md"]);
+  });
 });
 
 describe("the settings model", () => {

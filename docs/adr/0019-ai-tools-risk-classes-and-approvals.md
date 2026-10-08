@@ -228,8 +228,11 @@ a write or an outside effect.
      A model is asked to name a note as a wiki link, so a link is the one
      claim in its text that says "this is in your vault" and can be checked
      without a second model. Before a suggestion or a draft is laid down,
-     the links it ADDS are resolved (`addedNoteTargets`, `linkedNoteTargets`
-     in `packages/core/src/ai/writes/links.ts`; code is not read as links).
+     the links it ADDS are looked up (`addedNoteTargets`, `linkedNoteTargets`
+     in `packages/core/src/ai/writes/links.ts`; code is not read as links) —
+     among the names of the vault's files, as every note the spelling could
+     mean, the question the privacy gate asks (ADR 0018 §12): the answer is
+     the same in both shells, whichever rule a shell follows a link by.
      One that leads to no note is not refused — a proposal may link to a note
      the same run drafted, and the user may want the link first and the note
      later —; it is said: to the model in the tool's own answer, with the

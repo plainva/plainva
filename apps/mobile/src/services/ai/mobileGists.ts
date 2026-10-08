@@ -19,6 +19,8 @@ export function useMobileGists(vault: MobileVault | null, loaded: AiAppSettings 
   const { session, files: aiFiles } = ai;
   const controller = useMemo(() => {
     if (!vault?.db || !vault.queryService) return null;
+    // The index's names of all files: what "which notes could this link mean" is asked of.
+    const names = vault.queryService;
     const files = vault.files;
     const readText = async (path: string) => {
       try {
@@ -32,7 +34,7 @@ export function useMobileGists(vault: MobileVault | null, loaded: AiAppSettings 
     return new LocalGists({
       db: vault.db,
       readText,
-      policy: createVaultPolicy({ readFile: readText, resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from), encrypted }),
+      policy: createVaultPolicy({ readFile: readText, resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from), fileNames: () => names.fileNames(), encrypted }),
       encrypted,
       ready: nextTurn,
       ledger: stores.ledger,

@@ -22,6 +22,23 @@ describe("VaultQueryService.findByFileName", () => {
     expect(await qs.findByFileName("foto.png", "x.md")).toBe("a/foto.png");
   });
 
+  it("hands out every file with the title the index holds for it — and none that was deleted (AI harness P5-7b)", async () => {
+    const db = new MockDatabaseAdapter();
+    const qs = new VaultQueryService(db);
+    db.mockedResults.push([
+      { path: "Projects/Brief.md", title: "Offer letter" },
+      { path: "Assets/photo.png", title: "photo.png" },
+    ]);
+    expect(await qs.fileNames()).toEqual([
+      { path: "Projects/Brief.md", title: "Offer letter" },
+      { path: "Assets/photo.png", title: "photo.png" },
+    ]);
+    const q = db.queries.find((x) => x.query.includes("FROM files"))!;
+    // One read for a whole text's links, of what a link can name: the path and the title. No bind values.
+    expect(q.query.replace(/\s+/g, " ").trim()).toBe("SELECT path, title FROM files WHERE is_deleted IS NULL OR is_deleted = 0");
+    expect(q.params ?? []).toEqual([]);
+  });
+
   it("matches a decomposed folder name and drops LIKE false positives", async () => {
     const db = new MockDatabaseAdapter();
     const qs = new VaultQueryService(db);

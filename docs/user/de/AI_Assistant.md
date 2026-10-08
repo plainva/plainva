@@ -225,7 +225,7 @@ plainva:
     cloud: deny
 ```
 
-oder, für einen ganzen Ordner, in **Einstellungen → KI & Automatisierung** (dem Vault-Teil), das die Regeln in `.agent/policy.yml` schreibt. Eine von der Cloud ferngehaltene Notiz trägt nichts bei — weder Text noch Titel —, und Links auf sie in anderen Notizen werden zurückgehalten. Modelle auf diesem Gerät bleiben erlaubt. Verschlüsselte Workspaces halten die Cloud aus, solange Du sie dort nicht erlaubst. Das genaue Format steht in der [Dateiformat-Referenz](File_Format_Reference.md).
+oder, für einen ganzen Ordner, in **Einstellungen → KI & Automatisierung** (dem Vault-Teil), das die Regeln in `.agent/policy.yml` schreibt. Eine von der Cloud ferngehaltene Notiz trägt nichts bei — weder Text noch Titel —, und Links auf sie in anderen Notizen werden zurückgehalten. Das gilt, wie auch immer ein Link die Notiz schreibt — mit ihrem Dateinamen, ihrem Titel oder einem Pfad —; und tragen zwei Notizen denselben Namen und eine davon ist ferngehalten, wird auch ein Link mit dem bloßen Namen zurückgehalten. Schreib den Ordner in den Link, um die gemeinte zu nennen. Modelle auf diesem Gerät bleiben erlaubt. Verschlüsselte Workspaces halten die Cloud aus, solange Du sie dort nicht erlaubst. Das genaue Format steht in der [Dateiformat-Referenz](File_Format_Reference.md).
 
 Ein Bild gehört zu den Notizen, die es zeigen: Eines, das eine von der Cloud ferngehaltene Notiz einbettet, geht ebenfalls an kein Cloud-Modell (siehe Ein Bild erklären weiter oben).
 

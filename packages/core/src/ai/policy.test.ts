@@ -109,6 +109,69 @@ describe("withheld links", () => {
     expect(redacted).toBe(4);
     expect(out).toBe(`See ${WITHHELD_LINK}, ${WITHHELD_LINK}, ${WITHHELD_LINK} and ${WITHHELD_LINK}, but [[Plan]] and [site](https://example.org/Diary).`);
   });
+
+  it("finds a Markdown link however its destination is written: in angle brackets with blanks, with brackets in the name, with a title in any form (P5-7b)", () => {
+    const asked: string[] = [];
+    const named = (target: string) => {
+      asked.push(target);
+      return denied(target);
+    };
+    const text = [
+      "[a](<Private/Diary 2026.md>)",
+      '[b](<Private/Diary 2026.md> "the diary")',
+      "[c](Private/Diary.md 'mine')",
+      "[d](Diary.md (old))",
+      "![e](<Diary 2026.md#March>)",
+      "[f](<Plan B.md>)",
+      "[g](Notes(old).md)",
+      "[h](<https://example.org/My Diary>)",
+      "[i](#Diary)",
+    ].join("\n");
+    const { text: out, redacted } = redactDeniedLinks(text, named);
+    expect(out.split("\n")).toEqual([WITHHELD_LINK, WITHHELD_LINK, WITHHELD_LINK, WITHHELD_LINK, WITHHELD_LINK, "[f](<Plan B.md>)", "[g](Notes(old).md)", "[h](<https://example.org/My Diary>)", "[i](#Diary)"]);
+    expect(redacted).toBe(5);
+    // The whole destination is what is asked about — the name with its blanks and its brackets, without the heading.
+    expect(asked).toEqual(["Private/Diary 2026.md", "Private/Diary 2026.md", "Private/Diary.md", "Diary.md", "Diary 2026.md", "Plan B.md", "Notes(old).md"]);
+  });
+
+  it("finds a reference link: the definition that names the note goes, and every use of its label with it", () => {
+    const text = [
+      "As noted in [my diary][d] and in [D][], see also [d] — but [the plan][p] and [x] stay.",
+      "",
+      "[d]: <Private/Diary 2026.md> \"Diary\"",
+      "[p]: Plan.md",
+      "   [far]: Diary.md",
+      "[site]: https://example.org/Diary",
+    ].join("\n");
+    const { text: out, redacted } = redactDeniedLinks(text, denied);
+    expect(out.split("\n")).toEqual([
+      `As noted in ${WITHHELD_LINK} and in ${WITHHELD_LINK}, see also ${WITHHELD_LINK} — but [the plan][p] and [x] stay.`,
+      "",
+      WITHHELD_LINK,
+      "[p]: Plan.md",
+      WITHHELD_LINK,
+      "[site]: https://example.org/Diary",
+    ]);
+    // Two definitions and three uses.
+    expect(redacted).toBe(5);
+    expect(out).not.toContain("Private/Diary");
+    expect(out).not.toContain('"Diary"');
+    expect(out).not.toContain("my diary");
+  });
+
+  it("leaves alone what only looks like a reference: a box to tick, a wiki link, a footnote of several words, a label nobody defined", () => {
+    const text = ["- [ ] call [[Plan]] about [later]", "- [x] done[^1]", "", "[^1]: A footnote with several words about the Diary.", "[ ]: Diary.md"].join("\n");
+    expect(redactDeniedLinks(text, denied)).toEqual({ text, redacted: 0 });
+    // A wiki link to a denied note inside a list item is still a wiki link.
+    expect(redactDeniedLinks("- [ ] read [[Diary]]", denied).text).toBe(`- [ ] read ${WITHHELD_LINK}`);
+  });
+
+  it("stays quick on a text built to make a pattern search for long", () => {
+    const hostile = [`[a](${"(".repeat(4000)}`, `[b](<${"x ".repeat(4000)}`, `[c]:${" ".repeat(6000)}x y`, `${"[".repeat(6000)}`, `[d](x${" ".repeat(6000)}"`, `${"[a][".repeat(3000)}`].join("\n");
+    const started = Date.now();
+    expect(redactDeniedLinks(hostile, () => true).redacted).toBe(0);
+    expect(Date.now() - started).toBeLessThan(3_000);
+  });
 });
 
 describe("writing the policy file", () => {

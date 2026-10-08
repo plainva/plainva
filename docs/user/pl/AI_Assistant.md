@@ -225,7 +225,7 @@ plainva:
     cloud: deny
 ```
 
-albo, dla całego folderu, w **Ustawienia → AI & automatyzacja** (część vaultu), skąd reguły trafiają do `.agent/policy.yml`. Notatka trzymana z dala od chmury nie wnosi niczego — ani tekstu, ani tytułu — a linki do niej w innych notatkach są wstrzymywane. Modele na tym urządzeniu pozostają dozwolone. Zaszyfrowane obszary robocze trzymają chmurę z dala, chyba że zostanie tam dopuszczona. Dokładny format znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md).
+albo, dla całego folderu, w **Ustawienia → AI & automatyzacja** (część vaultu), skąd reguły trafiają do `.agent/policy.yml`. Notatka trzymana z dala od chmury nie wnosi niczego — ani tekstu, ani tytułu — a linki do niej w innych notatkach są wstrzymywane. Dotyczy to każdego sposobu zapisania notatki w linku — nazwą pliku, tytułem albo ścieżką —; a gdy dwie notatki mają tę samą nazwę i jedna z nich jest trzymana z dala, wstrzymywany jest także link z samą nazwą. Wpisz folder w linku, aby wskazać tę, o którą chodzi. Modele na tym urządzeniu pozostają dozwolone. Zaszyfrowane obszary robocze trzymają chmurę z dala, chyba że zostanie tam dopuszczona. Dokładny format znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md).
 
 Obraz należy do notatek, które go pokazują: obraz osadzony w notatce trzymanej z dala od chmury również nie trafia do żadnego modelu w chmurze (zob. Wyjaśnianie obrazu wyżej).
 

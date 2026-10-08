@@ -503,6 +503,36 @@ describe("gate: what a text claims to rest on", () => {
     expect(here.s.getState().active!.runs[0]!.writes!.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0 }]);
   });
 
+  it("which note a link names is asked of every note it could mean: by its file's name although its properties call it otherwise, by the end of its path (plan P5-7b)", async () => {
+    const notes = {
+      "Projects/Offer.md": OFFER,
+      // The editor follows a link by a note's title: this one it does not find under its file's name.
+      "Projects/Brief.md": "---\ntitle: Offer letter\n---\n# Offer letter\n\nShort.\n",
+      // Kept back by its folder, and linked by the end of its path.
+      "Archive/Private/Salaries.md": "# Salaries\n\nNever to a cloud.\n",
+      "Projects/Notes.md": "# Notes\n\nSee [[Private/Salaries]] and [the brief](<Brief.md>); ask about [[Salaries]].\n",
+    };
+    const policy = "folders:\n  Archive/Private/:\n    cloud: deny\n";
+    const script = [
+      turn({ calls: [{ id: "c1", name: "read_note", args: { path: "Projects/Notes.md" } }] }),
+      turn({ calls: [viaDispatch("c2", "propose_edit", { path: "Projects/Offer.md", append: "As in [[Brief]] and [[Private/Salaries]]; see [[Ghost]]." })] }),
+      turn({ text: "Read and proposed." }),
+    ];
+    const { s, fake } = await gateSession(script, await gateVault(notes, { policy }));
+    await s.send("Read my notes and add the references.");
+    const [read, proposed] = results(s.getState().active!).map((result) => result.content);
+    // 1. Reading: both spellings of the kept note are withheld — the editor's own rule follows neither —, the link to the brief stays.
+    expect(read).toContain("See ⟦withheld note⟧ and [the brief](<Brief.md>); ask about ⟦withheld note⟧.");
+    // 2. Proposing: the brief is a note of the vault, found by its file's name; the kept note and the made-up one are
+    //    told to the model in one sentence — and apart to the user.
+    expect(proposed).toBe(WRITE_RESULTS.proposed("Projects/Offer.md", 1, 0, ["Private/Salaries", "Ghost"]));
+    expect(s.getState().active!.runs[0]!.writes!.rounds).toEqual([{ path: "Projects/Offer.md", blocks: 1, properties: 0, missing: ["Ghost"], withheld: ["Private/Salaries"] }]);
+    // 3. Nothing the provider was sent names the kept note, except where the model wrote the name itself.
+    const sent = fake.sent.map((request) => JSON.stringify(request));
+    expect(sent[1]).not.toContain("Salaries");
+    expect(sent.join("\n")).not.toContain("Never to a cloud");
+  });
+
   it("the sources of a note made from a draft are what the run read — never a list the model wrote", async () => {
     const vault = await gateVault({ "Projects/Offer.md": OFFER, ...NOTES_AROUND });
     const script = [

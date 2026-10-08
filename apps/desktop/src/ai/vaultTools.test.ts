@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectivePolicy, notePolicyFrom, parsePolicyFile, SITUATION_SOURCE, toolByName, type EgressRecipient } from "@plainva/core";
+import { buildLinkNameIndex, effectivePolicy, filesALinkCouldMean, notePolicyFrom, parsePolicyFile, SITUATION_SOURCE, toolByName, type EgressRecipient } from "@plainva/core";
 import { createVaultToolExecutor, outlineOf, safeRelPath, sectionOf, situationEvents, withoutBrokenLinks, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
 
 const files: Record<string, string> = {
@@ -94,6 +94,31 @@ describe("vault tools behind the hard gate", () => {
     const outline = await run("get_outline", { path: "Notes/Links.md" }, cloud, d);
     expect(outline.content).toContain("- See ⟦withheld note⟧");
     expect(outline.content).not.toContain("Client");
+  });
+
+  it("withholds a link the shell's own rule does not follow, where a note it could mean is kept back (plan P5-7b)", async () => {
+    const text = "Ask [[Client]], see [the file](<../Private/Client.md>) and [again][c]; rates in [[Offer]].\n\n[c]: ../Private/Client.md";
+    const names = buildLinkNameIndex(Object.keys(files).map((path) => ({ path })));
+    const withNames = (extra: Partial<VaultToolDeps> = {}) =>
+      deps({
+        async readNote(path) {
+          return path === "Notes/Links.md" ? text : (files[path] ?? null);
+        },
+        ...extra,
+      });
+    // The shell's rule alone: it finds a note at exactly the path a link spells out, and none of these.
+    const before = await run("read_note", { path: "Notes/Links.md", maxChars: 8000 }, cloud, withNames());
+    expect(before.content).toContain("[[Client]]");
+    expect(before.content).toContain("Private/Client.md");
+    // Asked which notes the links COULD mean, every way of naming the kept note goes — and the other link stays.
+    const after = await run("read_note", { path: "Notes/Links.md", maxChars: 8000 }, cloud, withNames({ linkCandidates: async (target, from) => filesALinkCouldMean(names, target, from) }));
+    expect(after.content).toBe("Notes/Links.md\n\nAsk ⟦withheld note⟧, see ⟦withheld note⟧ and ⟦withheld note⟧; rates in [[Offer]].\n\n⟦withheld note⟧");
+    // A model on this device is told all of it.
+    const here = await run("read_note", { path: "Notes/Links.md", maxChars: 8000 }, { kind: "local", provider: "ollama", model: "m" }, withNames({ linkCandidates: async (target, from) => filesALinkCouldMean(names, target, from) }));
+    expect(here.content).toContain("[[Client]]");
+    // Where the vault does not answer, nothing that is a link goes.
+    const silent = await run("read_note", { path: "Notes/Links.md", maxChars: 8000 }, cloud, withNames({ linkCandidates: async () => { throw new Error("index unavailable"); } }));
+    expect(silent.content).not.toMatch(/Client|Offer\]\]/);
   });
 
   it("lists tasks without those of denied notes", async () => {

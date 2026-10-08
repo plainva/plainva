@@ -225,7 +225,7 @@ plainva:
     cloud: deny
 ```
 
-ou, para uma pasta inteira, em **Configurações → IA e automação** (a parte do Vault), que grava as regras em `.agent/policy.yml`. Uma nota mantida fora da nuvem não contribui com nada — nem texto, nem título — e os links para ela em outras notas são retidos. Modelos neste dispositivo continuam permitidos. Workspaces criptografados mantêm a nuvem desligada, a menos que você a permita ali. O formato exato está na [Referência do Formato de Arquivo](File_Format_Reference.md).
+ou, para uma pasta inteira, em **Configurações → IA e automação** (a parte do Vault), que grava as regras em `.agent/policy.yml`. Uma nota mantida fora da nuvem não contribui com nada — nem texto, nem título — e os links para ela em outras notas são retidos. Isso vale seja como for que um link escreva a nota — pelo nome do arquivo, pelo título ou por um caminho —; e, quando duas notas têm o mesmo nome e uma delas é mantida fora, um link só com esse nome também é retido. Escreva a pasta no link para indicar a que você quer dizer. Modelos neste dispositivo continuam permitidos. Workspaces criptografados mantêm a nuvem desligada, a menos que você a permita ali. O formato exato está na [Referência do Formato de Arquivo](File_Format_Reference.md).
 
 Uma imagem pertence às notas que a mostram: uma imagem incorporada em uma nota mantida fora da nuvem também não vai para nenhum modelo na nuvem (veja Explicar uma imagem acima).
 

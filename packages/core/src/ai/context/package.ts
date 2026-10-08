@@ -342,7 +342,7 @@ export async function buildContextPackage(input: ContextBuildInput, host: Contex
     const places = withholdPlaces(text);
     redactions.places += places.withheld;
     if (!cloud && !run.webTools) return places.text;
-    const links = await withholdDeniedLinks(places.text, fromPath, host.resolveLink, (path) => allowed(path));
+    const links = await withholdDeniedLinks(places.text, fromPath, host, (path) => allowed(path));
     redactions.withheldLinks += links.redacted;
     return links.text;
   };

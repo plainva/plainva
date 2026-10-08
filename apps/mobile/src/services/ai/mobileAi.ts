@@ -329,6 +329,8 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
     const vaultPolicy = createVaultPolicy({
       readFile: read,
       resolveLink: (target, from) => vaultOps.resolveWikiTarget(vault, target, from),
+      // Which notes a link COULD mean is asked of the names of all files, by one rule for both shells.
+      fileNames: () => query.fileNames(),
       encrypted: () => vault.workspaceRuntime !== null,
     });
     // What `run_command` can do: the palette's commands that show something, and the three that take a note or a day.

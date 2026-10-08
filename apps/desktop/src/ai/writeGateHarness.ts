@@ -13,16 +13,12 @@ import {
   SyncQueue,
   SyncStateRepository,
   VersionHistoryService,
-  effectivePolicy,
-  notePolicyFrom,
-  parsePolicyFile,
   planCommentDecision,
   readConversationRecord,
   readFrontmatterPath,
   type CommentOperationService,
   type ConversationRecord,
   type EgressChunk,
-  type FolderPolicyRule,
   type IDatabaseAdapter,
   type InstructionApprovals,
   type LedgerEntry,
@@ -30,9 +26,11 @@ import {
   type WorkspaceCommentRecord,
 } from "@plainva/core";
 import {
+  AI_POLICY_FILE,
   AiSession,
   CHAT_TOOL_NAMES,
   captureVocabularyOf,
+  createVaultPolicy,
   createVaultToolExecutor,
   createWriteDraftStore,
   furtherToolNames,
@@ -143,17 +141,32 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
     noteWritten: async () => {},
   });
 
-  const rules: FolderPolicyRule[] = options.policy ? parsePolicyFile(options.policy).rules : [];
   const title = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
   const read = async (path: string): Promise<string | null> => ((await backup.exists(path)) ? backup.readTextFile(path) : null);
-  // As the shells' policy host decides it: the folder rules, and the note's own rule — read from the file where
-  // the caller has no text at hand (a place, a link's target).
-  const policyOf = async (path: string, text?: string) => {
-    const content = text ?? (await read(path).catch(() => null)) ?? "";
-    const plainva = readFrontmatterPath(content, ["plainva"]);
-    return effectivePolicy(path, notePolicyFrom(plainva === undefined ? {} : { plainva }), rules);
+  const filePaths = async () => (await backup.listDir("", true)).filter((file) => !file.isDirectory).map((file) => file.path.replace(/\\/g, "/")).filter((path) => !path.startsWith(".plainva/"));
+  /** The names of the vault's files as the index holds them: a note under the `title` of its properties where it has one. */
+  const fileNames = async () =>
+    Promise.all(
+      (await filePaths()).map(async (path) => {
+        const own = /\.md$/i.test(path) ? readFrontmatterPath((await read(path)) ?? "", ["title"]) : undefined;
+        return { path, title: typeof own === "string" && own.trim() ? own.trim() : title(path) };
+      }),
+    );
+  /** Where a tap on a link leads on the desktop (`VaultQueryService.resolveNotePath`): a note's title, or its whole path. */
+  const resolveLink = async (target: string): Promise<string | null> => {
+    const wanted = target.toLowerCase();
+    return (await fileNames()).find((file) => file.title.toLowerCase() === wanted || file.path.toLowerCase() === wanted || file.path.toLowerCase() === `${wanted}.md`)?.path ?? null;
   };
-  const notePaths = async () => (await backup.listDir("", true)).filter((file) => !file.isDirectory && /\.md$/i.test(file.path) && !file.path.startsWith(".plainva/")).map((file) => file.path.replace(/\\/g, "/"));
+  // The policy host both shells build (`createVaultPolicy`): the folder rules — here the test's, as
+  // `.agent/policy.yml` would hold them —, a note's own rule read from its file, and the names of all files for
+  // the question which notes a link could mean.
+  const policy = createVaultPolicy({
+    readFile: async (path) => (path === AI_POLICY_FILE ? (options.policy ?? null) : read(path)),
+    resolveLink,
+    fileNames,
+    encrypted: () => false,
+  });
+  const policyOf = policy.policyOf;
   const acts: string[] = [];
   const created: string[] = [];
 
@@ -195,7 +208,9 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
   const deps: VaultToolDeps = {
     search: async () => [],
     readNote: read,
-    resolveLink: async (target) => (await notePaths()).find((path) => title(path).toLowerCase() === target.toLowerCase() || path.toLowerCase() === `${target.toLowerCase()}.md`) ?? null,
+    resolveLink,
+    // Which notes a link could mean: the policy's answer, as the shells' vault host hands it to the tools.
+    linkCandidates: policy.linkCandidates!,
     policyOf,
     taskRows: async () => [],
     todayKey: () => "2026-10-08",
@@ -245,7 +260,7 @@ export async function gateVault(notes: Record<string, string>, options: GateOpti
       return { now: "2026-10-08 10:00", weekday: "Thursday", calendarDay: "2026-10-08", journalDay: "2026-10-08", active: null, tabs: [], tasks: [], events: [], dailyNote: null };
     },
     candidates: async () => [],
-    policy: { policyOf, resolveLink: deps.resolveLink },
+    policy,
     tools(recipient, scope, redact, web, narrowed, foreign, writing) {
       const more = furtherToolNames(deps);
       return { names: CHAT_TOOL_NAMES, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}) }, writing) };

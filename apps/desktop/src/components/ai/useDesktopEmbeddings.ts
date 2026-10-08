@@ -74,7 +74,7 @@ export function useDesktopEmbeddings({
       related: stores.related,
       provider: {
         egress: session.egress,
-        policy: createVaultPolicy({ readFile: readText, resolveLink: (target) => queryService.resolveNotePath(target), encrypted }),
+        policy: createVaultPolicy({ readFile: readText, resolveLink: (target) => queryService.resolveNotePath(target), fileNames: () => queryService.fileNames(), encrypted }),
         encrypted,
         approvals: stores.approvals,
         ledger: stores.ledger,

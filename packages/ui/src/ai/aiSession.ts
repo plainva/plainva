@@ -2024,7 +2024,7 @@ export class AiSession {
     if (!gateDecision(await vault.policy.policyOf(range.path, range.doc), run).allowed) return { kind: "refused", reason: "denied" };
     const places = withholdPlaces(range.text);
     const links = isCloudRecipient(recipient)
-      ? await withholdDeniedLinks(range.text, range.path, vault.policy.resolveLink, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)
+      ? await withholdDeniedLinks(range.text, range.path, vault.policy, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)
       : { text: range.text };
     if (places.withheld > 0 || links.text !== range.text) return { kind: "refused", reason: "withheld" };
 
@@ -2857,7 +2857,7 @@ export class AiSession {
       // Remarks are text like a note's: a place stays on the device, and a link to a note the rules keep back names nothing.
       const withheld = async (text: string): Promise<string> => {
         const places = withholdPlaces(text).text;
-        return cloud ? (await withholdDeniedLinks(places, request.path, vault.policy.resolveLink, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)).text : places;
+        return cloud ? (await withholdDeniedLinks(places, request.path, vault.policy, async (path) => gateDecision(await vault.policy.policyOf(path), run).allowed)).text : places;
       };
       const title = request.path.slice(request.path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
       // Named `t`: the locale guard finds keys by their `t(` call (localeParity.test.ts).
@@ -3084,6 +3084,8 @@ export class AiSession {
         {
           policyOf: vault.policy.policyOf,
           resolveLink: vault.policy.resolveLink,
+          // Which notes a link could mean: asked by the gate before a note's text goes into the package.
+          ...(vault.policy.linkCandidates ? { linkCandidates: vault.policy.linkCandidates } : {}),
           readNote: (path) => vault.readNote(path),
           ...(vault.noteSizes ? { noteSizes: (paths: readonly string[]) => vault.noteSizes!(paths) } : {}),
           ...(gists ? { gists } : {}),

@@ -225,7 +225,7 @@ plainva:
     cloud: deny
 ```
 
-oppure, per un'intera cartella, in **Impostazioni → IA e automazione** (la parte Vault), che scrive le regole in `.agent/policy.yml`. Una nota tenuta lontana dal cloud non contribuisce con nulla — né testo né titolo — e i link ad essa in altre note vengono trattenuti. I modelli su questo dispositivo restano consentiti. I workspace cifrati tengono il cloud disattivato, a meno che tu non lo consenta lì. Il formato esatto si trova nella [File Format Reference](File_Format_Reference.md).
+oppure, per un'intera cartella, in **Impostazioni → IA e automazione** (la parte Vault), che scrive le regole in `.agent/policy.yml`. Una nota tenuta lontana dal cloud non contribuisce con nulla — né testo né titolo — e i link ad essa in altre note vengono trattenuti. Questo vale comunque un link scriva la nota — con il nome del file, con il titolo o con un percorso —; e se due note hanno lo stesso nome e una delle due è tenuta lontana, viene trattenuto anche un link con il solo nome. Scrivi la cartella nel link per indicare quella che intendi. I modelli su questo dispositivo restano consentiti. I workspace cifrati tengono il cloud disattivato, a meno che tu non lo consenta lì. Il formato esatto si trova nella [File Format Reference](File_Format_Reference.md).
 
 Un'immagine appartiene alle note che la mostrano: anche un'immagine incorporata in una nota tenuta lontana dal cloud non va a nessun modello cloud (vedi Spiegare un'immagine più sopra).
 

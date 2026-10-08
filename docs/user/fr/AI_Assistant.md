@@ -225,7 +225,7 @@ plainva:
     cloud: deny
 ```
 
-ou, pour un dossier entier, dans **Paramètres → IA & automatisation** (la partie Vault), qui écrit les règles dans `.agent/policy.yml`. Une note tenue à l'écart du cloud n'apporte rien — ni texte, ni titre —, et les liens vers elle dans d'autres notes sont retenus. Les modèles sur cet appareil restent autorisés. Les espaces chiffrés tiennent le cloud à l'écart, sauf si vous l'y autorisez. Le format exact se trouve dans la [Référence du format de fichier](File_Format_Reference.md).
+ou, pour un dossier entier, dans **Paramètres → IA & automatisation** (la partie Vault), qui écrit les règles dans `.agent/policy.yml`. Une note tenue à l'écart du cloud n'apporte rien — ni texte, ni titre —, et les liens vers elle dans d'autres notes sont retenus. Cela vaut quelle que soit la façon dont un lien écrit la note — par le nom de son fichier, par son titre ou par un chemin — ; et lorsque deux notes portent le même nom et que l'une d'elles est tenue à l'écart, un lien par ce seul nom est retenu lui aussi. Écrivez le dossier dans le lien pour nommer celle que vous visez. Les modèles sur cet appareil restent autorisés. Les espaces chiffrés tiennent le cloud à l'écart, sauf si vous l'y autorisez. Le format exact se trouve dans la [Référence du format de fichier](File_Format_Reference.md).
 
 Une image appartient aux notes qui l'affichent : une image intégrée dans une note tenue à l'écart du cloud ne part pas non plus vers un modèle cloud (voir Expliquer une image plus haut).
 
