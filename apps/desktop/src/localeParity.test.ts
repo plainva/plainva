@@ -333,6 +333,10 @@ const VERBATIM_ALLOWED = new Set<string>([
   // The Cc row on the card of a drafted mail (plan KI-Harness P5-6): the abbreviation the composer's own row
   // carries (`mail.cc`, below) — "Cc" in every Latin-script language but pl, and in ja.
   "ai.write.draft.cc",
+  // An input of a script in its approval (plan KI-Harness P5.5): its name, its kind and whether it is required —
+  // three placeholders and their punctuation; the words they stand for are translated where they are defined.
+  "ai.scripts.inputLine",
+  "ai.scripts.inputLineDescribed",
   // Two placeholders and a separator; there is no word in it to translate.
   "background.trayNextInVault",
   // The artifact kind and the worker's raw sentence, joined by a colon - the

@@ -13,6 +13,7 @@ import {
   createAiVaultHost,
   createMcpDeviceStore,
   createVaultPolicy,
+  createWorkerSandbox,
   dailyNotePathFor,
   databaseTaskRows,
   flushPendingSave,
@@ -31,6 +32,7 @@ import {
   setImageExplainer,
   situationEvents,
   situationFrom,
+  spawnScriptWorker,
   startableSkills,
   vaultMailSource,
   withCloudDenied,
@@ -53,6 +55,7 @@ import { mobileCommentOperations } from "../commentOperations";
 import { useMobileEmbeddings } from "./mobileEmbeddings";
 import { useMobileGists } from "./mobileGists";
 import { mobileDraftCreator, mobileProposals, mobileWriteDeps, type MobileDraftNavigation } from "./mobileAiWrites";
+import { mobileScriptKeys } from "./mobileScriptKeys";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -142,6 +145,9 @@ export function getMobileAiSession(): AiSession {
         store: createMcpDeviceStore(mobileAiFiles),
         version: async () => (await getPlatformServices().appVersion?.()) ?? "",
       },
+      // Scripts (plan KI-Harness P5.5): the same worker and the same engine as on the desktop, and the key this
+      // phone signs their approvals with in its Keychain or Keystore.
+      scripts: { sandbox: createWorkerSandbox(spawnScriptWorker), keys: mobileScriptKeys() },
     });
     void session.load();
   }

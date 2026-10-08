@@ -71,6 +71,50 @@ export function eventLine(event: SituationEventInput, details: boolean): string 
   return `- ${parts.join(" — ")}${handle ? ` (event "${handle}")` : ""}`;
 }
 
+/**
+ * An appointment's short fields as values (plan KI-Harness P5.5) — what a
+ * listing's line says, for a caller that is a program: each of them capped
+ * and without a live address, exactly like the line. Its description is not
+ * among them, and never is.
+ */
+export interface EventFields {
+  /** The day it starts on, `YYYY-MM-DD`. */
+  day: string;
+  /** `HH:MM`; null for an appointment that lasts all day. */
+  start: string | null;
+  /** `HH:MM`, or day and time where it ends on another day; null where it has no end or lasts all day. */
+  end: string | null;
+  allDay: boolean;
+  title: string;
+  cancelled: boolean;
+  /** With `details`: where, who else (the first few names) and how many others there are in all. */
+  place: string | null;
+  with: string[];
+  others: number;
+  online: boolean;
+  /** The handle `get_event` takes. */
+  event: string | null;
+}
+
+export function eventFields(event: SituationEventInput, details: boolean): EventFields {
+  const d = event.details;
+  const others = details && d ? (d.attendees ?? []).filter((a) => !a.self) : [];
+  const sameDay = event.end ? dayOf(event.end) === dayOf(event.start) : true;
+  return {
+    day: dayOf(event.start),
+    start: event.allDay ? null : clockOf(event.start),
+    end: event.allDay || !event.end ? null : sameDay ? clockOf(event.end) : `${dayOf(event.end)} ${clockOf(event.end)}`,
+    allDay: Boolean(event.allDay),
+    title: inertLine(event.title, TITLE_MAX),
+    cancelled: d?.status === "cancelled",
+    place: details && d ? inertLine(d.location, PLACE_MAX) || null : null,
+    with: others.slice(0, NAMES_IN_LIST).map((a) => inertLine(a.name, NAME_MAX)).filter(Boolean),
+    others: others.length,
+    online: Boolean(details && d?.online),
+    event: eventHandle(event),
+  };
+}
+
 /** One appointment in detail, and its description handed over for a reader. */
 export function eventReport(event: SituationEventInput, question: string): { lines: string[]; quarantine?: QuarantinedText } {
   const d = event.details;

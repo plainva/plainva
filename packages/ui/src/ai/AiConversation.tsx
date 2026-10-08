@@ -25,6 +25,7 @@ import { aiFailureText } from "./aiSettingsModel";
 import type { AiDress } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
 import type { McpPromptReview } from "./mcpSession";
+import { scriptToolLabel } from "./scriptsWorkshop";
 import { transcriptOf, type TranscriptItem } from "./transcript";
 import { useAiSession, useAiState } from "./useAiSession";
 
@@ -260,8 +261,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     if (coverage?.level) parts.push(t(`ai.coverage.${coverage.level}`));
     return parts.join(" · ");
   };
-  // A tool of a foreign server is named by the user's name for the server and the tool's own (plan P4.5).
-  const toolLabel = (name: string) => externalToolLabel(t, name, state.mcp.servers) ?? t(`ai.tool.${name}`, { defaultValue: t("ai.tool.unknown") });
+  // A tool of a foreign server is named by the user's name for the server and the tool's own (plan P4.5); a script by its own name (plan P5.5).
+  const toolLabel = (name: string) => externalToolLabel(t, name, state.mcp.servers) ?? scriptToolLabel(t, name) ?? t(`ai.tool.${name}`, { defaultValue: t("ai.tool.unknown") });
   /** What a run asked of foreign servers, as lines: who, what, how it ended. */
   const externalCallsOf = (run: RunMeta) =>
     (run.mcp?.calls ?? []).map((call) => `${state.mcp.servers.find((server) => server.id === call.server)?.label ?? call.server} · ${call.tool} · ${t(`ai.ext.outcome.${call.outcome}`, { defaultValue: call.outcome })}`);

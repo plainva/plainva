@@ -108,6 +108,8 @@ The thread goes to the model the way a question does: its comments, the passage 
 
 Skills are instructions for recurring work. Twelve come with Plainva — among them **Daily orientation**, **Weekly review** and **Project status** as chips in an empty conversation — and you can write or import your own. Start one with a click, or simply ask: the AI loads a matching skill by itself. Your own skills run only after you approved them on this device. Everything about them: [Skills](AI_Skills.md).
 
+Scripts are small programs you write for what a model does badly — counting, sorting, adding up. They run in a closed box, read your vault through the same tools as the AI, and only after you approved them on this device. Everything about them: [Scripts](AI_Scripts.md).
+
 ## Transcribing a voice note
 
 At every voice note — in the editor, in reading mode, in the journal and on cards — **Transcribe** turns the recording into text. It goes as it is to the model of the profile **Audio**, through the same overview as a question; a recording is a kind of data of its own, so the overview asks the first time. The transcript comes back as a suggestion under the recording, authored **Plainva AI · ⟨model⟩** — accept or decline it under **Suggestions**.

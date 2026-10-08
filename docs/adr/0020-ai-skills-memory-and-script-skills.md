@@ -76,15 +76,67 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    delete or weaken tests, request or store secrets, or approve an arrived
    skill.
 6. **Scripts are programmatic access to the same tool API.** A script is a
-   signed WASM package (desktop: Wasmtime with Extism, guest QuickJS-ng so
-   users write JavaScript; Android Chicory; iOS a Wasmer spike, and if that
-   fails "scripts v1 desktop-only" as a documented decision). Host functions
-   map 1:1 to the tool registry — no file system, SQL, shell, raw WASI sockets
-   or preopens, no secrets in the guest. Each manifest sets fuel, an epoch
-   deadline, maximum memory and the maximum data per host call. Read-only
-   scripts first; mutating ones through the approval chain of ADR 0019.
-   Signature and origin are checked before instantiation (the updater's
-   Ed25519 infrastructure), followed by a static check and a dry run.
+   package of two files under `.agent/scripts/<name>/`: `manifest.json` —
+   what it is for, the tools it may call, the inputs it asks for, its limits
+   — and `main.js`, JavaScript that is the body of an async function of
+   `input` and `tools`. As built (2026-10-08):
+   - **One sandbox for both shells.** The guest is QuickJS compiled to
+     WebAssembly, inside a Web Worker of the WebView, one fresh engine
+     instance per run and none reused. The code sees the ECMAScript globals
+     and nothing else — no file system, no network, no timer, no DOM, no host
+     object. Its only way out is `await tools.<name>(…)`, which the host maps
+     1:1 onto the tool registry, holds against the manifest, and hands to the
+     executor a conversation uses: the same privacy gate, the same folders,
+     the same record of what was read. No secret enters the guest. The
+     runtime is deliberately not the one first planned (Wasmtime with Extism
+     on the desktop, Chicory on Android, a Wasmer spike on iOS); see
+     Alternatives.
+   - **Limits come from the manifest and are enforced in three places.**
+     Seconds of computing (1–30, default 5), memory (8–128 MB, default 32),
+     steps (the engine's interrupt handler counts one per 10,000 jumps, and
+     the host one per 2,000 pending jobs), tool calls (at most 50, default
+     20), and the size of one call's arguments and of the result. The engine
+     enforces steps, memory and a 64 KiB stack; the owner of the worker ends
+     the worker when the time is over — the only thing that stops code which
+     never reaches the interrupt handler, such as a regular expression that
+     backtracks for ever —; and core enforces the tool list, the number of
+     calls and the sizes. A run that is ended hands nothing back.
+   - **A script's approval is this device's signature.** Decision 2 holds
+     with one addition. The approval binds the SHA-256 of every file (the
+     script's *seal*) and counts only with an Ed25519 signature over the
+     vault, the script and the seal, made with a key that is created at the
+     first approval and kept in this device's keychain. An approval record
+     without a signature that holds — copied from another device, or written
+     by whoever can write the app's data — is none: the script is new again.
+     The signature is checked at every scan and again before every run.
+   - **A publisher's signature informs; it never activates.** A `signature`
+     file in the folder (minisign, over the seal) is held against the
+     publishers Plainva knows — the key the updater trusts. The review says
+     "signed by …", "signed with a key Plainva does not know", or nothing;
+     a signature that does not fit the files makes the script invalid. No
+     signature replaces the approval on this device.
+   - **Checked before it runs.** The manifest is read strictly: an unknown
+     field, an unknown tool, a tool no script may call, a limit outside its
+     bounds each keep the script from being approved. Invisible characters
+     in the manifest or the code make it invalid — code that reads
+     differently from how it runs cannot be reviewed. The engine has to
+     parse the code before it is approved or written. A dry run calls the
+     tools that only read and writes down, without carrying it out, a call
+     that would show or change something.
+   - **Who starts one.** The user, from the workshop: the run stays on the
+     device and nothing of it goes to a model. Or a model in an open
+     conversation, through the tool search, as a tool of the class `script`
+     (ADR 0019) whose result is a program's output and is fenced as
+     untrusted data. Scripts are not offered to a conversation bound to a
+     skill, to the MCP server, to a regression run or to a platform model.
+   - **Read-only first.** The first version gives scripts the reading tools
+     and the app's commands; mutating ones go through the approval chain of
+     ADR 0019.
+   - **The engine is an interim one.** `@tootallnate/quickjs-emscripten`
+     0.23.0 (QuickJS of 2021, ES2020) was already part of the build; a test
+     pins the module's hash and the functions it imports, so a new version
+     is a new engine that is looked at before it runs anything. It is to be
+     replaced by QuickJS-ng before a public release.
 7. **Chat history lives in app data, not in the vault** — per vault,
    searchable, with adjustable retention, deletable — because transcripts
    contain excerpts that were sent to a provider and would otherwise sync past
@@ -133,6 +185,17 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
   activates nothing.
 - A test result does not travel: each device tests against the model it uses,
   and pays for it there.
+- Scripts are the same on the desktop and on the phone from their first
+  version: there is one sandbox, so there is no "desktop only".
+- The desktop's content security policy allows WebAssembly to be compiled
+  (`script-src 'self' 'wasm-unsafe-eval'`); `eval` stays forbidden. The native
+  smoke test asks the real window for exactly that.
+- A script is slow next to native code — QuickJS interprets. That is the
+  price of a sandbox with no compiler in it, and scripts are glue between
+  tool calls, not number crunching.
+- The interrupt handler is not a preemption point: native parts of the
+  engine do not reach it. The time limit therefore rests on ending the
+  worker, and the end of a run can come up to a second after its limit.
 
 ## Alternatives
 
@@ -143,6 +206,23 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
   write the approval.
 - **Free scripting with Node or Python.** Rejected: an unbounded runtime is
   the shell the tool design exists to avoid.
+- **A native WebAssembly runtime per platform** (Wasmtime with Extism on the
+  desktop, Chicory on Android, Wasmer on iOS) — the plan until the spike of
+  2026-10-08. Rejected: three runtimes are three sandboxes that have to be
+  kept equal, so parity would be a promise instead of a construction; a
+  compiling runtime in the main process enlarges what has to be trusted; iOS
+  allows no compiler outside the WebView, so the third runtime would have
+  interpreted anyway. The WebView's own WebAssembly is already there in both
+  shells, sandboxed by the platform, and the same guest runs in the unit
+  tests under Node.
+- **Running the code in the page** — a hidden frame, `new Function`, a
+  compartment. Rejected: it shares the heap and the event loop with the app,
+  so nothing can take memory or time away from it, and a way out of the
+  compartment is a way into the app.
+- **Treating a publisher's signature as the approval.** Rejected for the
+  reason signed skills are not trusted automatically, and because a script
+  that arrives through sync is then active on a device whose user never saw
+  it.
 
 ## Links
 

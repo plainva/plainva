@@ -1,6 +1,6 @@
 # Vaardigheden (Beta)
 
-Laatst bijgewerkt: 2026-10-07
+Laatst bijgewerkt: 2026-10-08
 
 Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er twaalf mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
@@ -86,4 +86,4 @@ Het verzendoverzicht noemt onder **Instructies** wat er meegaat: de vaardigheid 
 
 ## Grenzen van de beta
 
-Vaardigheden voeren geen scripts uit. Je eigen vaardigheden worden niet aangeboden aan AI-apps die via de MCP-server verbonden zijn; alleen de meegeleverde.
+Een vaardigheid voert geen eigen scripts uit; voor kleine programma's die je vault lezen, zie [Scripts](AI_Scripts.md). Je eigen vaardigheden worden niet aangeboden aan AI-apps die via de MCP-server verbonden zijn; alleen de meegeleverde.

@@ -60,6 +60,13 @@ export interface ToolOutcome {
    */
   declined?: boolean;
   quarantine?: QuarantinedText;
+  /**
+   * The same result as values, for a caller that is a program (a script, plan
+   * P5.5): built from the very pieces `content` is written from — each one
+   * past the same gate —, so the two can never say different things. A model
+   * never gets it; it reads `content`.
+   */
+  data?: unknown;
 }
 
 export interface ToolExecutor {
@@ -156,6 +163,13 @@ export interface RunInput {
    * only through the dispatcher, and never go to a provider as tools.
    */
   foreign?: readonly ToolManifest[];
+  /**
+   * The vault's scripts as tools of this run (plan KI-Harness P5.5): built
+   * from the scripts the user approved on this device. Like a foreign tool,
+   * a script counts only under a name the conversation was started with and
+   * is reached only through the dispatcher.
+   */
+  scripts?: readonly ToolManifest[];
   newRequestId?: () => string;
   now?: () => string;
   /** Mark the stable prefix for provider-side prompt caching. */
@@ -222,7 +236,9 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   // them only under a name the conversation was started with, and never under the name of a tool of the app's own.
   const named = new Set(input.conversation.more ?? []);
   const foreign = (input.foreign ?? []).filter((t) => Boolean(t.foreign) && named.has(t.name) && !toolByName(t.name));
-  const more = tools.some((t) => t.name === DISPATCH_TOOL) ? [...known(input.conversation.more).filter((t) => !tools.includes(t)), ...foreign] : [];
+  // A script is one of them on the same terms; a foreign tool that took a script's name does not stand in for it.
+  const scripts = (input.scripts ?? []).filter((t) => Boolean(t.script) && named.has(t.name) && !toolByName(t.name) && !foreign.some((f) => f.name === t.name));
+  const more = tools.some((t) => t.name === DISPATCH_TOOL) ? [...known(input.conversation.more).filter((t) => !tools.includes(t)), ...foreign, ...scripts] : [];
   // What the run can reach decides its class, however a tool is spelled.
   const verdict = ruleOfTwo(runTraits([...tools, ...more], input.context));
   const usage: RunUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, toolCalls: 0, steps: 0 };

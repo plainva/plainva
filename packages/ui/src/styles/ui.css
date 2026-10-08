@@ -4199,6 +4199,29 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-skill-test-line[data-mark="pass"] > svg { color: var(--success-text); }
 .pv-skill-test-line[data-mark="fail"] > svg { color: var(--error-text); }
 .pv-skill-test-line[data-mark="skip"] { color: var(--text-muted); }
+/* A script's code in its dialogs (AI harness P5.5, mockup chapter 21): the block
+   of a line comparison, each line with its number — an error names a line, and
+   the reader finds it. Code keeps its lines: a long one scrolls, it does not wrap. */
+.pv-script-code,
+.pv-script-out { padding: var(--space-2); border-radius: var(--radius-sm); background: var(--code-bg); font-family: var(--font-mono); line-height: 1.5; tab-size: 2; }
+.pv-script-code { counter-reset: script-line; white-space: pre; overflow-wrap: normal; }
+.pv-script-code > span { counter-increment: script-line; }
+.pv-script-code > span::before { content: counter(script-line); display: inline-block; min-width: 2.5ch; margin-right: var(--space-3); color: var(--text-faint); text-align: right; user-select: none; }
+/* The dialogs of a script on the desktop: a column of fields, each a label, its control and its hint.
+   (The phone's sheet spaces its own children; it uses only the rows below.) */
+.pv-script-form { display: grid; gap: var(--space-3); min-width: 0; }
+.pv-script-field { display: grid; gap: var(--space-1); min-width: 0; }
+.pv-script-form p,
+.pv-script-form dl { margin: 0; }
+/* The form a script is written in: the tools to tick, and one row per input — its name, its kind,
+   whether it is required, and the way to take it out. */
+.pv-script-tools { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
+.pv-script-inputs { display: grid; gap: var(--space-2); }
+.pv-script-input { display: grid; grid-template-columns: minmax(8ch, 1fr) auto auto auto; align-items: center; gap: var(--space-2); }
+/* The fields stand on one line whatever their labels do: a label that wraps on a narrow sheet pushes its own field down, not out of the row. */
+.pv-script-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(14ch, 1fr)); align-items: end; gap: var(--space-2) var(--space-3); }
+.pv-script-limits label { display: grid; gap: var(--space-1); min-width: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.pv-script-editor { font-family: var(--font-mono); white-space: pre; overflow-wrap: normal; tab-size: 2; }
 
 /* Pinboard loading retains a readable file identity, independently of content. */
 .pv-pinboard-placeholder {

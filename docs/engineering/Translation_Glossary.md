@@ -1,6 +1,6 @@
 # Translation Glossary
 
-Last reviewed: 2026-10-07. Reference for ALL translation work (locale JSONs, vault
+Last reviewed: 2026-10-08. Reference for ALL translation work (locale JSONs, vault
 templates, user guide). Every session that touches strings follows these
 conventions — this keeps subsequent translations consistent, even without
 native-speaker review.
@@ -107,6 +107,28 @@ the verb of the skills' "Review and approve", "Approve" its second half.
 | pl | Narzędzia zewnętrzne (MCP) | serwer | token dostępu | prompty | piaskownica |
 | zh-CN | 外部工具（MCP） | 服务器 | 访问令牌 | 提示词 | 沙盒 |
 | ja | 外部ツール（MCP） | サーバー | アクセストークン | プロンプト | サンドボックス |
+
+**Scripts** (`ai.scripts.*`): a small program of the user's own that reads the vault
+through the assistant's tools, inside a sandbox. It is a **script** — the noun the
+Agent Skills format uses for a skill's `scripts/` folder, which Plainva does not run —,
+never a "plugin", an "extension" or a "macro". A **dry run** calls the tools that read
+and only writes down the rest; its **limits** are those of its manifest; what it asks
+for when it starts are its **inputs**. Prose for users describes the sandbox ("a closed
+box") rather than naming it. The handbook page `AI_Scripts.md` takes every UI term from
+the catalog itself, so a renamed key shows there at once.
+
+| Language | Script / Scripts | Dry run | Limits | Code | Inputs |
+|---|---|---|---|---|---|
+| en | Script / Scripts | Dry run | Limits | Code | Inputs |
+| de | Skript / Skripte | Probelauf | Grenzen | Code | Eingaben |
+| fr | Script / Scripts | Essai à blanc | Limites | Code | Entrées |
+| es | Script / Scripts | Ejecución de prueba | Límites | Código | Entradas |
+| pt-BR | Script / Scripts | Execução de teste | Limites | Código | Entradas |
+| it | Script / Script | Esecuzione di prova | Limiti | Codice | Dati in ingresso |
+| nl | Script / Scripts | Proefrun | Grenzen | Code | Invoer |
+| pl | Skrypt / Skrypty | Przebieg próbny | Limity | Kod | Dane wejściowe |
+| zh-CN | 脚本 | 试运行 | 限制 | 代码 | 输入 |
+| ja | スクリプト | 試し実行 | 上限 | コード | 入力 |
 
 **External agents** (`ai.agent.*`): an AI program of another maker that Plainva starts
 in a vault's folder. It is an **agent** — never the "assistant", which is Plainva's

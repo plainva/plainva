@@ -1,10 +1,12 @@
 # Automatisering & scripts
 
-Laatst bijgewerkt: 2026-10-07
+Laatst bijgewerkt: 2026-10-08
 
 Plainva heeft geen pluginsysteem dat code van derden uitvoert. In plaats daarvan is de vault zelf de uitbreidingsinterface: je notities zijn gewone Markdown, databases zijn gewone YAML (`.base`), en de [OKF-conventies](OKF.md) geven elk bestand een voorspelbare structuur. Alles wat bestanden kan lezen en schrijven — een shellscript, een Python-programma, een CLI-tool, een geplande taak of een KI-agent — kan je vault uitbreiden, genereren of herstructureren zonder ook maar één Plainva-specifieke API.
 
 Deze pagina legt uit hoe je dat **veilig** doet. Het exacte bestandsformaat, tot op byte-niveau, is voor elk bestand apart gedocumenteerd in de [Bestandsformaat-referentie](File_Format_Reference.md); deze pagina is de praktische aanvulling: de regels, de werkwijze, en wat je een KI-assistent moet meegeven.
+
+Plainva kan ook je eigen kleine scripts in de app uitvoeren: in een afgesloten ruimte die je notities alleen bereikt via de hulpmiddelen waarmee de AI-assistent leest, en die nooit een bestand aanraakt. Dat is iets anders dan de scripts op deze pagina, die van buitenaf op de bestanden werken — zie [Scripts](AI_Scripts.md).
 
 ## Waarom bestanden in plaats van een plugin-sandbox
 

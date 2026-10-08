@@ -108,6 +108,8 @@ Der Faden geht an das Modell wie eine Frage: seine Kommentare, die Stelle, an de
 
 Skills sind Anleitungen für wiederkehrende Arbeit. Zwölf kommen mit Plainva — darunter **Tagesorientierung**, **Wochenrückblick** und **Projektstatus** als Chips in einem leeren Gespräch —, eigene kannst Du schreiben oder importieren. Starte einen mit einem Klick oder frag einfach: die KI lädt einen passenden Skill selbst. Eigene Skills laufen erst, wenn Du sie auf diesem Gerät freigegeben hast. Alles dazu: [Skills](AI_Skills.md).
 
+Skripte sind kleine Programme, die Du für das schreibst, was ein Modell schlecht kann — zählen, sortieren, zusammenrechnen. Sie laufen in einem geschlossenen Kasten, lesen Deinen Vault über dieselben Werkzeuge wie die KI und erst, nachdem Du sie auf diesem Gerät freigegeben hast. Alles dazu: [Skripte](AI_Scripts.md).
+
 ## Eine Sprachnotiz transkribieren
 
 An jeder Sprachnotiz — im Editor, im Lesemodus, im Journal und auf Karten — macht **Transkribieren** aus der Aufnahme Text. Sie geht unverändert an das Modell des Profils **Audio**, über dieselbe Übersicht wie eine Frage; eine Aufnahme ist eine eigene Art von Daten, deshalb fragt die Übersicht beim ersten Mal. Das Transkript kommt als Vorschlag unter die Aufnahme, mit dem Autor **Plainva KI · ⟨Modell⟩** — unter **Vorschläge** übernimmst oder lehnst Du es ab.

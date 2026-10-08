@@ -1,5 +1,5 @@
 import { estimateTokens } from "../context/package.js";
-import { approvalOf, instructionStatus, type InstructionApproval, type InstructionApprovals, type InstructionStatus } from "./approvals.js";
+import { approvalOf, instructionStatus, type InstructionApproval, type InstructionApprovals, type InstructionStatus, type ScriptApprovalCheck } from "./approvals.js";
 import type { InstructionSource } from "./sources.js";
 
 /**
@@ -20,18 +20,21 @@ export interface InstructionEntry {
 /**
  * Every source with its state on this device: the app's skills first, in the
  * order the app lists them (the most used first), then the vault's skills by
- * name, then `AGENTS.md`.
+ * name, its scripts by name, then `AGENTS.md`. `signed`: how a script's
+ * approval is held against this device's key (`instructionStatus`).
  */
-export function resolveInstructions(sources: readonly InstructionSource[], approvals: InstructionApprovals): InstructionEntry[] {
-  const group = (s: InstructionSource) => (s.origin === "plainva" ? 0 : s.kind === "skill" ? 1 : 2);
+export function resolveInstructions(sources: readonly InstructionSource[], approvals: InstructionApprovals, signed?: ScriptApprovalCheck): InstructionEntry[] {
+  const group = (s: InstructionSource) => (s.origin === "plainva" ? 0 : s.kind === "skill" ? 1 : s.kind === "script" ? 2 : 3);
   return sources
     .map((source, index) => ({ source, index }))
     .sort((a, b) => group(a.source) - group(b.source) || (group(a.source) === 0 ? a.index - b.index : nameOf(a.source).localeCompare(nameOf(b.source)) || a.source.id.localeCompare(b.source.id)))
-    .map(({ source }) => ({ source, status: instructionStatus(source, approvals), approval: approvalOf(approvals, source.id) }));
+    .map(({ source }) => ({ source, status: instructionStatus(source, approvals, signed), approval: approvalOf(approvals, source.id) }));
 }
 
-/** A source's name: the skill's own, or its folder or file when it is no valid skill. */
+/** A source's name: the skill's or the script's own, or its folder or file when it is no valid one. */
 export function nameOf(source: InstructionSource): string {
+  // A script's folder IS its name (a manifest that says otherwise is a problem): the folder is what an id, a path and a tool's name carry.
+  if (source.kind === "script") return source.root.slice(source.root.lastIndexOf("/") + 1) || source.id;
   return source.skill?.name || source.root.slice(source.root.lastIndexOf("/") + 1) || source.id;
 }
 

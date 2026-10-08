@@ -60,6 +60,15 @@ export interface ToolManifest {
    * reading copy of its arguments; `label` is the user's name for the server.
    */
   foreign?: { server: string; label: string; tool: string; schema: Record<string, unknown> };
+  /**
+   * A script of the vault as a tool (plan KI-Harness P5.5, ADR 0020). Such a
+   * manifest is not in the list below either: it is built for one run from
+   * the script the user approved on this device (`scriptToolManifest`), and
+   * is reached only through the tool search. `id` is the script's source,
+   * `name` its own name. `effect`: it may call a tool that proposes or plans
+   * a change — a script that only reads and shows is no outside effect.
+   */
+  script?: { id: string; name: string; effect: boolean };
 }
 
 /** The tools that reach the internet. A conversation carries them only while its vault allows the internet. */

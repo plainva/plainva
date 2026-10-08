@@ -140,7 +140,7 @@ describe("vault tools behind the hard gate", () => {
   });
 
   it("navigates only through the listed commands", async () => {
-    expect(await run("run_command", { id: "open-graph" })).toEqual({ content: "Done: Open graph." });
+    expect(await run("run_command", { id: "open-graph" })).toEqual({ content: "Done: Open graph.", data: { done: true, command: "open-graph" } });
     const unknown = await run("run_command", { id: "delete-everything" });
     expect(unknown.isError).toBe(true);
     expect(unknown.content).toContain("- open-graph: Open graph");

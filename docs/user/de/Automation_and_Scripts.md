@@ -1,10 +1,12 @@
 # Automatisierung & Skripte
 
-Stand: 2026-10-07
+Stand: 2026-10-08
 
 Plainva hat kein Plugin-System, das fremden Code ausführt. Stattdessen ist der Vault selbst die Erweiterungs-Schnittstelle: Deine Notizen sind reines Markdown, Datenbanken sind reines YAML (`.base`), und die [OKF-Konventionen](OKF.md) geben jeder Datei eine vorhersagbare Struktur. Alles, was Dateien lesen und schreiben kann — ein Shell-Skript, ein Python-Programm, ein CLI-Werkzeug, ein geplanter Job oder ein KI-Agent — kann Deinen Vault erweitern, erzeugen oder umbauen, ganz ohne eine Plainva-spezifische API.
 
 Diese Seite erklärt, wie das **sicher** geht. Das genaue Byte-Format jeder Datei steht separat in der [Dateiformat-Referenz](File_Format_Reference.md); diese Seite ist der praktische Begleiter: die Regeln, der Ablauf und was Du einer KI mitgibst.
+
+Plainva kann auch kleine eigene Skripte in der App ausführen: in einem geschlossenen Kasten, der Deine Notizen nur über die lesenden Werkzeuge des KI-Assistenten erreicht und nie eine Datei anfasst. Das ist etwas anderes als die Skripte auf dieser Seite, die von außen mit den Dateien arbeiten — siehe [Skripte](AI_Scripts.md).
 
 ## Warum Dateien statt einer Plugin-Sandbox
 

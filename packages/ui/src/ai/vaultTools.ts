@@ -1,6 +1,7 @@
 import {
   AI_POLICY_DIMENSIONS,
   fenceUntrusted,
+  findTools,
   findToolsText,
   foreignToolsText,
   gateDecision,
@@ -19,6 +20,7 @@ import {
   sensitiveFindings,
   SITUATION_SOURCE,
   toolByName,
+  toolInputJsonSchema,
   VaultQueryService,
   withholdDeniedLinks,
   withholdPlaces,
@@ -36,7 +38,7 @@ import { backlinkContexts, contextChain, groupBacklinks, type BacklinkOccurrence
 import { addDaysToKey, buildPlanner, type PlannerRow } from "../lib/taskPlanner";
 import { stripFrontmatter } from "../services/docMeta";
 import { notePropertiesOf, type SituationEventInput } from "./aiSituation";
-import { eventHandle, eventLine, eventReport, parseEventHandle } from "./eventDetails";
+import { eventFields, eventHandle, eventLine, eventReport, parseEventHandle, type EventFields } from "./eventDetails";
 import { mailToolOutcome, type MailSource } from "./mailTools";
 import { pimDraftReady, writeToolNames, writeToolOutcome, type VaultWriteDeps, type WriteRun } from "./writeTools";
 
@@ -108,7 +110,12 @@ export interface FurtherTools {
   narrowed?(): readonly string[] | null;
   /** The tools of foreign servers this run may find (plan KI-Harness P4.5): built from the listings the user approved. */
   foreign?(): readonly ToolManifest[];
+  /** The vault's scripts this run may find (plan KI-Harness P5.5): built from the scripts the user approved on this device. */
+  scripts?(): readonly ToolManifest[];
 }
+
+/** What stands above the vault's scripts in a tool search. A script's description is text the user approved with it. */
+export const SCRIPT_TOOLS_HEAD = "Scripts the user approved for this vault — small programs that read it and return a result. Call one through call_tool like any other tool:";
 
 /** What stands above the tools of foreign servers in a tool search: the app's own words, outside the fence. */
 export const FOREIGN_TOOLS_HEAD =
@@ -324,7 +331,26 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
       .map(([key, value]) => `- ${key}: ${value}`);
     return lines.length ? (await withhold(lines.join("\n"), fromPath)).split("\n") : [];
   };
-  const result = (tool: string, content: string): ToolOutcome => ({ content, origin: { kind: "tool", tool } });
+  /**
+   * The same properties as values, for a caller that is a program (plan
+   * P5.5): read back from the very lines above — so a value is exactly what
+   * the text says, withheld where the text withholds. A line that begins no
+   * property (a value that ran over several lines) belongs to the one before.
+   */
+  const propertyValues = (lines: readonly string[]): Record<string, string> => {
+    const values: Record<string, string> = Object.create(null) as Record<string, string>;
+    let last: string | null = null;
+    for (const line of lines) {
+      const at = line.startsWith("- ") ? line.indexOf(": ") : -1;
+      if (at > 2) {
+        last = line.slice(2, at);
+        values[last] = line.slice(at + 2);
+      } else if (last !== null) values[last] += `\n${line}`;
+    }
+    return { ...values };
+  };
+  /** `data`: the same result as values (plan P5.5) — every piece of it one the text is written from. */
+  const result = (tool: string, content: string, data?: unknown): ToolOutcome => ({ content, origin: { kind: "tool", tool }, ...(data !== undefined ? { data } : {}) });
   const unavailable = (tool: ToolManifest): ToolOutcome => ({ content: `The tool ${tool.name} is not available here.`, isError: true });
 
   return {
@@ -337,13 +363,16 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const folder = typeof a.folder === "string" && a.folder.trim() ? ` path:"${a.folder.trim().replace(/"/g, "")}"` : "";
           const hits = await deps.search(`${String(a.query)}${folder}`, limit, offset);
           const lines: string[] = [];
+          const results: { title: string; path: string; snippet: string }[] = [];
           for (const hit of hits) {
             if (!(await allowed(hit.path))) continue;
             const snippet = hit.snippet ? (await withhold(withoutBrokenLinks(unmarkSnippet(hit.snippet)), hit.path)).replace(/\s+/g, " ").trim() : "";
             lines.push(`- [[${hit.title}]] (${hit.path})${snippet ? ` — ${snippet}` : ""}`);
+            results.push({ title: hit.title, path: hit.path, snippet });
           }
-          const more = hits.length === limit ? `\n\nMore results: call search_vault again with cursor "${offset + limit}".` : "";
-          return result(tool.name, lines.length ? `${lines.join("\n")}${more}` : `No matching notes.${more}`);
+          const next = hits.length === limit ? String(offset + limit) : null;
+          const more = next ? `\n\nMore results: call search_vault again with cursor "${next}".` : "";
+          return result(tool.name, lines.length ? `${lines.join("\n")}${more}` : `No matching notes.${more}`, { results, next });
         }
         case "read_note": {
           const note = await readAllowed(a.path);
@@ -358,18 +387,23 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const maxChars = Number(a.maxChars) || 8000;
           const offset = offsetOf(a.cursor);
           const slice = text.slice(offset, offset + maxChars);
-          const more = offset + maxChars < text.length ? readContinues(offset + maxChars) : "";
-          return result(tool.name, `${note.path}\n\n${slice}${more}`);
+          const next = offset + maxChars < text.length ? String(offset + maxChars) : null;
+          const more = next ? readContinues(offset + maxChars) : "";
+          return result(tool.name, `${note.path}\n\n${slice}${more}`, { path: note.path, text: slice, next });
         }
         case "get_outline": {
           const note = await readAllowed(a.path);
           if (!note) return { content: NOT_FOUND, isError: true };
-          const headings = outlineOf(stripFrontmatter(note.text)).map((h) => `${"  ".repeat(h.level - 1)}- ${h.text}  (section: "${h.chain}")`);
+          const outline = outlineOf(stripFrontmatter(note.text));
+          const headings = outline.map((h) => `${"  ".repeat(h.level - 1)}- ${h.text}  (section: "${h.chain}")`);
           const props = await propertyLines(notePropertiesOf(note.text, 64), note.path);
           const properties = props.length ? `Properties:\n${props.join("\n")}\n\n` : "";
           // A heading can link too ("## See [[Salaries]]"): it goes through the same gate as the text.
           const sections = headings.length ? await withhold(`Sections:\n${headings.join("\n")}`, note.path) : "No headings.";
-          return result(tool.name, `${note.path}\n\n${properties}${sections}`);
+          // As values: each heading through that gate on its own — the text of a heading and the handle that finds its section.
+          const listed: { level: number; text: string; section: string }[] = [];
+          for (const h of outline) listed.push({ level: h.level, text: await withhold(h.text, note.path), section: await withhold(h.chain, note.path) });
+          return result(tool.name, `${note.path}\n\n${properties}${sections}`, { path: note.path, properties: propertyValues(props), sections: listed });
         }
         case "query_base": {
           if (!deps.queryDatabase) return unavailable(tool);
@@ -393,6 +427,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const limit = Number(a.limit) || 20;
           const offset = offsetOf(a.cursor);
           const lines: string[] = [];
+          const listed: { title: string; path: string; properties: Record<string, string> }[] = [];
           let passed = 0;
           for (const row of rows) {
             const rowPath = String(row["file.path"] ?? "");
@@ -403,11 +438,15 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             const props: Record<string, unknown> = {};
             for (const key of columns.length ? columns : Object.keys(row).filter((k) => !k.startsWith("file."))) if (key in row) props[key] = row[key];
             const cells = await propertyLines(props, rowPath);
-            lines.push(`- [[${String(row["file.name"] ?? titleOf(rowPath))}]] (${rowPath})${cells.length ? `: ${cells.map((c) => c.slice(2)).join("; ")}` : ""}`);
+            const title = String(row["file.name"] ?? titleOf(rowPath));
+            lines.push(`- [[${title}]] (${rowPath})${cells.length ? `: ${cells.map((c) => c.slice(2)).join("; ")}` : ""}`);
+            listed.push({ title, path: rowPath, properties: propertyValues(cells) });
           }
-          const head = `${path}, view "${view?.name ?? "—"}"${views.length > 1 ? ` (views: ${views.map((v) => v.name ?? "").filter(Boolean).join(", ")})` : ""}`;
-          const more = lines.length === limit ? `\n\nMore rows: call query_base again with cursor "${offset + limit}".` : "";
-          return result(tool.name, `${head}\n\n${lines.length ? lines.join("\n") : "No rows."}${more}`);
+          const viewNames = views.map((v) => v.name ?? "").filter(Boolean);
+          const head = `${path}, view "${view?.name ?? "—"}"${views.length > 1 ? ` (views: ${viewNames.join(", ")})` : ""}`;
+          const next = lines.length === limit ? String(offset + limit) : null;
+          const more = next ? `\n\nMore rows: call query_base again with cursor "${next}".` : "";
+          return result(tool.name, `${head}\n\n${lines.length ? lines.join("\n") : "No rows."}${more}`, { base: path, view: view?.name ?? null, views: viewNames, rows: listed, next });
         }
         case "get_tasks": {
           const range = typeof a.range === "string" ? a.range : "today";
@@ -425,13 +464,18 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
                 : planner.sections(range === "upcoming" || range === "inbox" || range === "done" ? range : "today").flatMap((s) => s.rows);
           const page = listed.slice(offset, offset + limit);
           const lines: string[] = [];
+          const tasks: { state: PlannerRow["state"]; title: string; due: string | null; priority: string | null; path: string; note: string; source: PlannerRow["source"] }[] = [];
           for (const r of page) {
             const meta = [r.due ? `due ${r.due}` : "", r.priority ? `priority ${PRIORITY[r.priority]}` : ""].filter(Boolean).join(", ");
-            const where = r.source === "note" ? ` — in [[${r.noteTitle ?? titleOf(r.path)}]]` : ` — [[${titleOf(r.path)}]] in the task database`;
-            lines.push(`- ${BOX[r.state]} ${await withhold(r.title, r.path, true)}${meta ? ` (${meta})` : ""}${where}`);
+            const noteTitle = r.source === "note" ? (r.noteTitle ?? titleOf(r.path)) : titleOf(r.path);
+            const where = r.source === "note" ? ` — in [[${noteTitle}]]` : ` — [[${noteTitle}]] in the task database`;
+            const title = await withhold(r.title, r.path, true);
+            lines.push(`- ${BOX[r.state]} ${title}${meta ? ` (${meta})` : ""}${where}`);
+            tasks.push({ state: r.state, title, due: r.due ?? null, priority: r.priority ? (PRIORITY[r.priority] ?? null) : null, path: r.path, note: noteTitle, source: r.source });
           }
-          const more = offset + limit < listed.length ? `\n\nMore: call get_tasks again with cursor "${offset + limit}".` : "";
-          return result(tool.name, lines.length ? `${lines.join("\n")}${more}` : "No tasks in this list.");
+          const next = offset + limit < listed.length ? String(offset + limit) : null;
+          const more = next ? `\n\nMore: call get_tasks again with cursor "${next}".` : "";
+          return result(tool.name, lines.length ? `${lines.join("\n")}${more}` : "No tasks in this list.", { tasks, next });
         }
         case "get_backlinks": {
           if (!deps.backlinks) return unavailable(tool);
@@ -440,6 +484,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const limit = Number(a.limit) || 20;
           const offset = offsetOf(a.cursor);
           const lines: string[] = [];
+          const linking: { title: string; path: string; links: number; places: { line: number; under: string; text: string }[] }[] = [];
           let passed = 0;
           for (const group of groupBacklinks(await deps.backlinks(note.path))) {
             if (group.source_path === note.path) continue;
@@ -448,15 +493,22 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             passed += 1;
             if (passed <= offset) continue;
             if (lines.length === limit) break;
-            const places = backlinkContexts(source.text, group.lines.slice(0, 3)).map((ctx) => {
+            const contexts = backlinkContexts(source.text, group.lines.slice(0, 3));
+            const places = contexts.map((ctx) => {
               const chain = contextChain(ctx);
               return `  - line ${ctx.line}${chain ? ` (${chain})` : ""}: ${ctx.lineText}`;
             });
-            const head = `- [[${group.title ?? titleOf(group.source_path)}]] (${group.source_path})${group.count > 1 ? `, ${group.count} links` : ""}`;
+            const title = group.title ?? titleOf(group.source_path);
+            const head = `- [[${title}]] (${group.source_path})${group.count > 1 ? `, ${group.count} links` : ""}`;
             lines.push(await withhold([head, ...places].join("\n"), source.path));
+            // As values: the line that links and the headings above it are the other note's text — each through the same gate.
+            const found: { line: number; under: string; text: string }[] = [];
+            for (const ctx of contexts) found.push({ line: ctx.line, under: await withhold(contextChain(ctx), source.path), text: await withhold(ctx.lineText, source.path) });
+            linking.push({ title, path: group.source_path, links: group.count, places: found });
           }
-          const more = lines.length === limit ? `\n\nMore: call get_backlinks again with cursor "${offset + limit}".` : "";
-          return result(tool.name, lines.length ? `Notes linking to ${note.path}:\n${lines.join("\n")}${more}` : `No note links to ${note.path}.`);
+          const next = lines.length === limit ? String(offset + limit) : null;
+          const more = next ? `\n\nMore: call get_backlinks again with cursor "${next}".` : "";
+          return result(tool.name, lines.length ? `Notes linking to ${note.path}:\n${lines.join("\n")}${more}` : `No note links to ${note.path}.`, { path: note.path, notes: linking, next });
         }
         case "graph_neighborhood": {
           if (!deps.neighbors) return unavailable(tool);
@@ -465,6 +517,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const limit = Number(a.limit) || 30;
           const seen = new Set([note.path]);
           const lines: string[] = [];
+          const linked: { title: string; path: string; fromHere: number; toHere: number; via?: string }[] = [];
           const first: { path: string; title: string }[] = [];
           for (const n of await deps.neighbors(note.path, limit)) {
             if (seen.has(n.path) || !(await allowed(n.path))) continue;
@@ -472,6 +525,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             first.push(n);
             const how = [n.outgoing ? `linked from here${n.outgoing > 1 ? ` ×${n.outgoing}` : ""}` : "", n.incoming ? `links here${n.incoming > 1 ? ` ×${n.incoming}` : ""}` : ""].filter(Boolean).join(", ");
             lines.push(`- [[${n.title || titleOf(n.path)}]] (${n.path}) — ${how}`);
+            linked.push({ title: n.title || titleOf(n.path), path: n.path, fromHere: n.outgoing, toHere: n.incoming });
             if (lines.length >= limit) break;
           }
           if (Number(a.depth) === 2) {
@@ -482,21 +536,24 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
                 if (seen.has(n.path) || !(await allowed(n.path))) continue;
                 seen.add(n.path);
                 lines.push(`- [[${n.title || titleOf(n.path)}]] (${n.path}) — two steps, via [[${via.title || titleOf(via.path)}]]`);
+                linked.push({ title: n.title || titleOf(n.path), path: n.path, fromHere: 0, toHere: 0, via: via.path });
               }
             }
           }
-          return result(tool.name, lines.length ? `Linked with ${note.path}:\n${lines.join("\n")}` : `${note.path} has no links to other notes.`);
+          return result(tool.name, lines.length ? `Linked with ${note.path}:\n${lines.join("\n")}` : `${note.path} has no links to other notes.`, { path: note.path, notes: linked });
         }
         case "get_recent": {
           const kind = a.kind === "edited" ? "edited" : "opened";
           const limit = Number(a.limit) || 10;
           const lines: string[] = [];
+          const recent: { title: string; path: string; at: string }[] = [];
           if (kind === "opened") {
             if (!deps.recentlyOpened) return unavailable(tool);
             for (const r of await deps.recentlyOpened()) {
               if (lines.length === limit) break;
               if (!/\.md$/i.test(r.path) || !safeRelPath(r.path) || !(await allowed(r.path))) continue;
               lines.push(`- [[${titleOf(r.path)}]] (${r.path}) — opened ${stampOf(r.openedAt)}`);
+              recent.push({ title: titleOf(r.path), path: r.path, at: stampOf(r.openedAt) });
             }
           } else {
             if (!deps.recentlyChanged) return unavailable(tool);
@@ -504,9 +561,10 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
               if (lines.length === limit) break;
               if (!safeRelPath(r.path) || !(await allowed(r.path))) continue;
               lines.push(`- [[${r.title || titleOf(r.path)}]] (${r.path}) — changed ${stampOf(r.mtime)}`);
+              recent.push({ title: r.title || titleOf(r.path), path: r.path, at: stampOf(r.mtime) });
             }
           }
-          return result(tool.name, lines.length ? lines.join("\n") : kind === "opened" ? "Nothing opened on this device yet." : "No notes changed lately.");
+          return result(tool.name, lines.length ? lines.join("\n") : kind === "opened" ? "Nothing opened on this device yet." : "No notes changed lately.", { kind, notes: recent });
         }
         case "get_calendar": {
           if (!deps.events) return unavailable(tool);
@@ -518,11 +576,20 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           const limit = Number(a.limit) || 50;
           const events = (await deps.events(from, end)).filter((e) => e.start < end && (e.end ?? e.start) >= from).sort((x, y) => x.start.getTime() - y.start.getTime());
           // Each line is capped and carries no live address: whoever sends an invitation writes its title and its place.
-          const lines = events.slice(0, limit).map((e) => eventLine(e, a.details === true));
+          const page = events.slice(0, limit);
+          const lines = page.map((e) => eventLine(e, a.details === true));
           // Appointment titles are the user's words like a note's: the same text rules apply.
           const listed = lines.length ? await withhold(lines.join("\n"), "", true) : "";
           const more = events.length > limit ? `\n\n${events.length - limit} more; ask for a shorter range.` : "";
-          return { content: listed ? `${listed}${more}` : "No appointments in this range.", origin: { kind: "calendar" } };
+          // As values: the same short fields, each capped like the line and through the same rules. The description is never among them.
+          const fields: EventFields[] = [];
+          for (const event of page) {
+            const f = eventFields(event, a.details === true);
+            const names: string[] = [];
+            for (const name of f.with) names.push(await withhold(name, "", true));
+            fields.push({ ...f, title: await withhold(f.title, "", true), place: f.place === null ? null : await withhold(f.place, "", true), with: names });
+          }
+          return { content: listed ? `${listed}${more}` : "No appointments in this range.", origin: { kind: "calendar" }, data: { events: fields, more: Math.max(0, events.length - limit) } };
         }
         case "get_event": {
           if (!deps.events) return unavailable(tool);
@@ -556,9 +623,16 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           // of the answer — and only that part — stands in the data fence. A loaded skill leaves none of them.
           const foreign = foreignToolsText(String(a.query ?? ""), narrowed ? [] : (further?.foreign?.() ?? []));
           const services = foreign ? `${FOREIGN_TOOLS_HEAD}\n${fenceUntrusted(payload(foreign, { kind: "tool", tool: "find_tools" }))}` : "";
-          // Where there is nothing of the app's own to list, the foreign tools are the whole answer.
-          const own = usable.length || commands.length || !services ? `${findToolsText(String(a.query ?? ""), usable, commands)}${note}` : note.trim();
-          return { content: [own, services].filter(Boolean).join("\n\n") };
+          // The vault's scripts (plan P5.5): the ones that match, or all of them where none does — they are few, and
+          // what a script is for is said in its own words. A loaded skill leaves none of them.
+          const scriptPool = narrowed ? [] : (further?.scripts?.() ?? []);
+          const matching = findTools(String(a.query ?? ""), scriptPool, 6);
+          const listed = matching.length ? matching : scriptPool.slice(0, 6);
+          const scripts = listed.length ? `${SCRIPT_TOOLS_HEAD}\n${listed.map((tool) => `- ${tool.name} — ${tool.description}\n  arguments: ${JSON.stringify(toolInputJsonSchema(tool))}`).join("\n")}` : "";
+          // Where there is nothing of the app's own to list, the scripts and the foreign tools are the whole answer.
+          const others = Boolean(services || scripts);
+          const own = usable.length || commands.length || !others ? `${findToolsText(String(a.query ?? ""), usable, commands)}${note}` : note.trim();
+          return { content: [own, scripts, services].filter(Boolean).join("\n\n") };
         }
         case "open_in_app": {
           // An outside client shows the user what it is talking about: the note opens in Plainva, through the same gate as a read.
@@ -584,7 +658,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
             args = { ...args, path };
           }
           const ran = await command.run(args);
-          return ran ? { content: `Done: ${command.label}.` } : cannot;
+          return ran ? { content: `Done: ${command.label}.`, data: { done: true, command: command.id } } : cannot;
         }
         default: {
           // The writing tools (plan P5): none of them changes the vault — a proposal, a draft, or a plan the user confirms.

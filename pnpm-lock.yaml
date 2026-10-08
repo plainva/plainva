@@ -458,6 +458,9 @@ importers:
       '@plainva/core':
         specifier: workspace:*
         version: link:../core
+      '@tootallnate/quickjs-emscripten':
+        specifier: 0.23.0
+        version: 0.23.0
       '@uiw/codemirror-extensions-basic-setup':
         specifier: ^4.25.12
         version: 4.25.12(@codemirror/autocomplete@6.20.3)(@codemirror/commands@6.11.1)(@codemirror/language@6.12.4)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.2)(@codemirror/state@6.7.6)(@codemirror/view@6.43.13)

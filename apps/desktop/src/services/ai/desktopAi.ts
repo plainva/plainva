@@ -21,6 +21,7 @@ import {
   createAiVaultHost,
   createMcpDeviceStore,
   createVaultPolicy,
+  createWorkerSandbox,
   databaseTaskRows,
   entryPlaceOf,
   flushPendingSave,
@@ -33,7 +34,9 @@ import {
   prepareTaskNote,
   profileDefault,
   proposeSuggestionRound,
+  protectedScriptKeys,
   situationFrom,
+  spawnScriptWorker,
   vaultMailSource,
   withCloudDenied,
   withNoteRule,
@@ -51,6 +54,7 @@ import { inboxFolderKey, journalMoodPropertyKey } from "../../contexts/VaultCont
 import { buildDailyNotePath, readDailyNoteConfig } from "../dailyNotes";
 import { readEditorSelection } from "../editorSelection";
 import { getConfiguredNoteType } from "../newNote";
+import { protectedSecrets } from "../protectedSecrets";
 import { getSettingsStore } from "../settingsStore";
 import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
@@ -213,6 +217,9 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
           return status.running && status.helperPath ? acpToolbox(status.helperPath, status.identifier) : null;
         },
       },
+      // Scripts (plan KI-Harness P5.5): each run in a worker of its own, and the key this device signs their
+      // approvals with in the keychain — never in a file beside them.
+      scripts: { sandbox: createWorkerSandbox(spawnScriptWorker), keys: protectedScriptKeys(protectedSecrets) },
     });
     void session.load();
   }

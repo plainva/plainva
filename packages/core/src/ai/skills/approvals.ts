@@ -39,6 +39,12 @@ export interface InstructionApproval {
   text?: string;
   /** Where an imported skill came from: the file the user picked, and the archive's SHA-256. */
   from?: { label: string; sha256?: string };
+  /**
+   * For a script (plan P5.5, ADR 0020 decision 6): this device's signature
+   * over what was approved — the vault, the script and its seal —, base64. A
+   * script's approval without one that holds is none.
+   */
+  signature?: string;
 }
 
 export interface InstructionApprovals {
@@ -85,6 +91,7 @@ export function readInstructionApprovals(raw: string | null): InstructionApprova
       how,
       ...(isText(a.text) ? { text: a.text.slice(0, APPROVED_TEXT_MAX) } : {}),
       ...(from ? { from: { label: from.label.slice(0, 200), ...(isText(from.sha256) && HEX64.test(from.sha256) ? { sha256: from.sha256 } : {}) } } : {}),
+      ...(isText(a.signature) && a.signature.length <= 128 ? { signature: a.signature } : {}),
     });
   }
   const off = (Array.isArray(value.off) ? value.off : []).filter((id): id is string => isText(id) && id.length > 0);
@@ -106,23 +113,42 @@ export function approvalOf(approvals: InstructionApprovals, id: string): Instruc
 }
 
 /**
+ * Whether a script's approval is this device's: its signature holds for the
+ * script as it is now (`verifyScriptApproval`, with the public half of the
+ * key in this device's keychain).
+ */
+export type ScriptApprovalCheck = (source: InstructionSource, approval: InstructionApproval) => boolean;
+
+/**
  * A source's state on this device. The app's own skills need no approval —
  * they are part of the app, like its code — and can only be switched off.
+ *
+ * A script (plan P5.5) asks for more than a skill: its approval counts only
+ * with this device's signature under it. `signed` checks that; where nobody
+ * can — no keychain, no key — a script is never active. An approval whose
+ * signature does not hold is one this device never gave: the script is "new".
  */
-export function instructionStatus(source: InstructionSource, approvals: InstructionApprovals): InstructionStatus {
+export function instructionStatus(source: InstructionSource, approvals: InstructionApprovals, signed?: ScriptApprovalCheck): InstructionStatus {
   if (source.tooLarge) return "too-large";
   if (source.kind === "skill" && (!source.skill || blockingProblems(source.problems).length)) return "invalid";
+  if (source.kind === "script" && (!source.script || source.code === null || source.code === undefined || (source.scriptProblems?.length ?? 0) > 0)) return "invalid";
   if (source.origin === "vault") {
     const approval = approvalOf(approvals, source.id);
     if (!approval) return "new";
     if (!sameFiles(approval.files, source.files)) return "changed";
+    if (source.kind === "script" && !(approval.signature && signed?.(source, approval))) return "new";
   }
   return approvals.off.includes(source.id) ? "off" : "active";
 }
 
-/** Approves a source exactly as it is now; an approval of the same id is replaced. */
-export function approveInstruction(approvals: InstructionApprovals, source: InstructionSource, at: string, how: ApprovalHow, from?: InstructionApproval["from"]): InstructionApprovals {
+/**
+ * Approves a source exactly as it is now; an approval of the same id is
+ * replaced. `signature`: this device's, for a script — without one a script
+ * is not approved at all.
+ */
+export function approveInstruction(approvals: InstructionApprovals, source: InstructionSource, at: string, how: ApprovalHow, from?: InstructionApproval["from"], signature?: string): InstructionApprovals {
   if (source.tooLarge || !source.files.length) return approvals;
+  if (source.kind === "script" && !signature) return approvals;
   const entry: InstructionApproval = {
     id: source.id,
     files: Object.fromEntries(source.files.map((f) => [f.path, f.sha256])),
@@ -130,6 +156,7 @@ export function approveInstruction(approvals: InstructionApprovals, source: Inst
     how,
     ...(source.text !== null ? { text: source.text.slice(0, APPROVED_TEXT_MAX) } : {}),
     ...(from ? { from } : {}),
+    ...(source.kind === "script" && signature ? { signature } : {}),
   };
   return { ...approvals, approved: [...approvals.approved.filter((a) => a.id !== source.id), entry] };
 }

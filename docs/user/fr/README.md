@@ -28,7 +28,8 @@ Plainva est un éditeur de vault Markdown : vos notes sont de simples fichiers M
 | [Recherche](Search.md) | Recherche en texte intégral, sélecteur rapide, rechercher & remplacer, tags |
 | [Tâches](Tasks.md) | La vue des tâches à l'échelle du vault : chaque case à cocher de vos notes, avec des filtres par état, étiquette, dossier et échéance, et une bascule en un clic |
 | [Assistant IA (Bêta)](AI_Assistant.md) | Poser des questions sur vos notes avec un modèle d'IA de votre choix : fournisseurs et clés, profils, contexte, règles de confidentialité et historique |
-| [Compétences (Bêta)](AI_Skills.md) | Des instructions pour un travail récurrent : les dix fournies, les vôtres, l'importation et l'approbation de ce qui arrive avant qu'il ne s'exécute |
+| [Compétences (Bêta)](AI_Skills.md) | Des instructions pour un travail récurrent : les douze fournies, les vôtres, l'importation et l'approbation de ce qui arrive avant qu'il ne s'exécute |
+| [Scripts (Bêta)](AI_Scripts.md) | De petits programmes qui lisent votre vault et calculent un résultat : en exécuter un, en écrire un, ce que renvoient ses outils, ses limites, et l'approbation de ce qui arrive avant qu'il ne s'exécute |
 | [Connecter des apps d'IA (bêta)](Connect_AI_Apps.md) | Laisser les apps d'IA de cet ordinateur (Claude Code, Claude Desktop, éditeurs) lire le vault via le serveur MCP de Plainva : activation, appairage, dossiers, ce qu'une app voit, et laisser une app proposer des modifications |
 | [Agents externes (Bêta)](External_Agents.md) | Démarrer un agent d'IA d'un autre éditeur dans le dossier d'un vault : ce que Plainva contrôle dans sa session et ce qu'il ne contrôle pas, l'ajout d'un agent, la connexion, les propositions et les nouvelles notes |
 | [Journal](Journal.md) | L'entrée rapide dans la note quotidienne d'aujourd'hui : capturer de partout, la vue du journal sur tous les jours, comment les entrées sont enregistrées, et le raccourci global optionnel |

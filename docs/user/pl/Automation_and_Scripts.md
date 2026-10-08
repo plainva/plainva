@@ -1,10 +1,12 @@
 # Automatyzacja i skrypty
 
-Stan na: 2026-10-07
+Stan na: 2026-10-08
 
 Plainva nie ma systemu wtyczek, który uruchamiałby cudzy kod. Zamiast tego interfejsem rozszerzeń jest sam vault: Twoje notatki to zwykły Markdown, bazy danych to zwykły YAML (`.base`), a [konwencje OKF](OKF.md) nadają każdemu plikowi przewidywalną strukturę. Wszystko, co potrafi czytać i zapisywać pliki — skrypt powłoki, program w Pythonie, narzędzie CLI, zaplanowane zadanie czy agent AI — może rozszerzać, generować lub reorganizować Twój vault bez żadnego API specyficznego dla Plainva.
 
 Ta strona wyjaśnia, jak robić to **bezpiecznie**. Dokładny format każdego pliku na poziomie bajtów jest udokumentowany osobno w [Dokumentacji formatu plików](File_Format_Reference.md); ta strona jest praktycznym uzupełnieniem: zasady, przebieg pracy i to, co przekazać asystentowi AI.
+
+Plainva potrafi też uruchamiać w aplikacji Twoje własne małe skrypty: w zamkniętej piaskownicy, która sięga do notatek tylko przez narzędzia odczytu asystenta AI i nigdy nie dotyka żadnego pliku. To coś innego niż skrypty opisane na tej stronie, które pracują na plikach z zewnątrz — zob. [Skrypty](AI_Scripts.md).
 
 ## Dlaczego pliki zamiast piaskownicy wtyczek
 

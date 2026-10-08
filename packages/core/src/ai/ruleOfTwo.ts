@@ -32,8 +32,14 @@ export interface RunContextTraits {
 const EFFECT_RISKS = new Set(["write", "critical", "external", "script"]);
 const PRIVATE_CLASSES = new Set(["notes", "tasks", "calendar", "mail"]);
 
-/** A tool whose use is an outside effect: it changes something, or its call leaves the device for a third party. */
+/**
+ * A tool whose use is an outside effect: it changes something, or its call
+ * leaves the device for a third party. A script (plan P5.5) is what the tools
+ * it may call are: one that only reads and shows is no more of an effect
+ * than those tools called one by one — a script has no way out of its own.
+ */
 export function isEffectTool(tool: ToolManifest): boolean {
+  if (tool.script) return tool.script.effect;
   return EFFECT_RISKS.has(tool.risk) || tool.outward === true;
 }
 

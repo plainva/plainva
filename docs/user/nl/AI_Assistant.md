@@ -108,6 +108,8 @@ De draad gaat naar het model zoals een vraag: de opmerkingen erin, de passage wa
 
 Vaardigheden zijn instructies voor terugkerend werk. Twaalf komen met Plainva mee — waaronder **Dagoriëntatie**, **Weekoverzicht** en **Projectstatus** als chips in een leeg gesprek — en je kunt je eigen schrijven of importeren. Start er een met één klik, of vraag het gewoon: de AI laadt zelf een passende vaardigheid. Je eigen vaardigheden draaien pas nadat je ze op dit apparaat hebt goedgekeurd. Alles erover: [Vaardigheden](AI_Skills.md).
 
+Scripts zijn kleine programma's die je schrijft voor wat een model slecht kan — tellen, sorteren, optellen. Ze werken in een afgesloten ruimte, lezen je vault via dezelfde hulpmiddelen als de AI en draaien pas nadat je ze op dit apparaat hebt goedgekeurd. Alles erover: [Scripts](AI_Scripts.md).
+
 ## Een spraaknotitie uitschrijven
 
 Bij elke spraaknotitie — in de editor, in de leesmodus, in het journaal en op kaarten — maakt **Uitschrijven** van de opname tekst. Die gaat ongewijzigd naar het model van het profiel **Audio**, via hetzelfde overzicht als een vraag; een opname is een eigen soort gegevens, dus het overzicht vraagt het de eerste keer. De transcriptie komt terug als voorstel onder de opname, met de auteur **Plainva AI · ⟨model⟩** — accepteer of wijs haar af onder **Voorstellen**.

@@ -108,6 +108,8 @@ Il thread va al modello come una domanda: i suoi commenti, il passaggio a cui è
 
 Le competenze sono istruzioni per lavori ricorrenti. Dodici sono incluse in Plainva — tra cui **Orientamento del giorno**, **Riepilogo settimanale** e **Stato del progetto** come chip in una conversazione vuota — e puoi scriverne o importarne di tue. Avviane una con un clic, oppure chiedi semplicemente: l'IA carica da sola una competenza adatta. Le tue competenze si eseguono solo dopo che le hai approvate su questo dispositivo. Tutto su di esse: [Competenze](AI_Skills.md).
 
+Gli script sono piccoli programmi che scrivi tu per ciò che un modello fa male — contare, ordinare, sommare. Si eseguono in un ambiente chiuso e leggono il tuo vault con gli stessi strumenti dell'IA, ma solo dopo che li hai approvati su questo dispositivo. Tutto su di essi: [Script](AI_Scripts.md).
+
 ## Trascrivere una nota vocale
 
 Su ogni nota vocale — nell'editor, in modalità lettura, nel diario e sulle schede — **Trascrivi** trasforma la registrazione in testo. Va così com'è al modello del profilo **Audio**, attraverso lo stesso riepilogo di una domanda; una registrazione è un tipo di dati a sé, perciò il riepilogo chiede la prima volta. La trascrizione torna come proposta sotto la registrazione, con l'autore **Plainva IA · ⟨modello⟩**: accettala o rifiutala in **Proposte**.

@@ -171,7 +171,36 @@ a write or an outside effect.
        taken back or refused changes nothing —, the account stored it as a
        draft, or the calendar took the appointment. An editor that is just
        closed tells nobody anything, and the draft is where it was.
-   - `script` — signed WASM scripts (later package), manifest-bound.
+   - `script` — a script the user approved on this device (ADR 0020,
+     decision 6), offered to an open conversation as a tool of one run. As
+     built (2026-10-08):
+     - *It is not in the registry.* Like a foreign server's tool, a script's
+       tool is made for the run from what the user approved: its name is
+       `script_` and the script's own, its input schema the inputs of its
+       manifest, its data classes those of the tools it may call. It is found
+       through `find_tools` and called through `call_tool`, never loaded.
+     - *It can reach no more than its manifest names, and no more than the
+       conversation.* Every call the script makes goes to the conversation's
+       own executor — the privacy gate, the skill-free tool list, the folders
+       and the record of what was read are those of a call the model made
+       itself. The script is looked up again when it is called: what runs is
+       the script as it stands now on this device, approved and signed, not
+       as it stood when the conversation began.
+     - *Whether it has an effect is the manifest's to say.* A script that
+       names only reading tools and the app's commands is not an effect
+       tool; one that names another is treated as one, by the Rule of Two
+       and everything that follows from it.
+     - *What comes back is a program's output.* The result is JSON, cut at a
+       fixed length and fenced as untrusted data with the script as its
+       origin. A run that was ended — time, steps, memory, a tool it may not
+       call — is told to the model in the app's words, never as an error of
+       the engine.
+     - *Tools answer scripts with values.* A tool's outcome can carry `data`
+       beside the text a model reads: a script gets `{ results, next }` from
+       a search rather than a paragraph to parse. The reading tools and
+       `run_command` are the ones a script can name; mail, an appointment's
+       description, the internet, foreign servers' tools, skills, the tool
+       search and other scripts are not.
    - `forbidden` — reading the keychain, raw secrets, an unbounded shell,
      direct DB or file writes outside the adapters, raw SQL. Never a tool.
 3. **A small, stable surface.** A conversation loads the tools an answer

@@ -22,6 +22,27 @@ import { join } from "node:path";
 describe("Plainva native smoke", () => {
   const marker = `smoke-marker-${Date.now()}`;
 
+  /**
+   * The engine that runs scripts is WebAssembly (ADR 0020, decision 6), and
+   * the window's content security policy has to let it be compiled
+   * (`script-src … 'wasm-unsafe-eval'` in tauri.conf.json). The mocked suites
+   * run in a browser that has no such policy, so only the real window can say
+   * whether it holds: the smallest module there is — eight bytes, a header
+   * and nothing else — compiles, or the policy refuses it. What this asks of
+   * the window is what the scripts' worker asks: a worker has the window's
+   * policy or none.
+   */
+  it("lets the window compile WebAssembly", async () => {
+    await $('[data-testid="ribbon-tasks"]').waitForExist({ timeout: 40_000 });
+    const outcome = await browser.executeAsync((done: (result: string) => void) => {
+      WebAssembly.compile(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])).then(
+        () => done("compiled"),
+        (error: unknown) => done(`refused: ${error instanceof Error ? error.message : String(error)}`),
+      );
+    });
+    if (outcome !== "compiled") throw new Error(`the window does not compile WebAssembly — ${outcome}`);
+  });
+
   it("writes a typed note to the vault on disk", async () => {
     const vault = process.env.PLAINVA_SMOKE_VAULT;
     if (!vault) throw new Error("PLAINVA_SMOKE_VAULT is not set (wdio.conf onPrepare)");

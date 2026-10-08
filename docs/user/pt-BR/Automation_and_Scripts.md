@@ -1,10 +1,12 @@
 # Automação & Scripts
 
-Última revisão: 2026-10-07
+Última revisão: 2026-10-08
 
 O Plainva não tem um sistema de plugins que execute código de terceiros. Em vez disso, o próprio vault é a interface de extensão: suas notas são Markdown puro, os bancos de dados são YAML puro (`.base`), e as [convenções do OKF](OKF.md) dão a cada arquivo uma estrutura previsível. Qualquer coisa capaz de ler e escrever arquivos — um script de shell, um programa em Python, uma ferramenta CLI, uma tarefa agendada ou um agente de IA — pode estender, gerar ou reorganizar seu vault sem uma única API específica do Plainva.
 
 Esta página explica como fazer isso com **segurança**. O formato exato, byte a byte, de cada arquivo está documentado separadamente na [Referência do Formato de Arquivo](File_Format_Reference.md); esta página é o complemento prático: as regras, o fluxo de trabalho e o que entregar a um assistente de IA.
+
+O Plainva também pode executar, dentro do app, pequenos scripts seus: em uma caixa fechada que alcança as suas notas apenas pelas ferramentas de leitura do assistente de IA e nunca toca em um arquivo. Isso é diferente dos scripts desta página, que atuam sobre os arquivos de fora — veja [Scripts](AI_Scripts.md).
 
 ## Por que arquivos em vez de uma sandbox de plugins
 

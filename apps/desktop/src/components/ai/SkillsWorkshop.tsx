@@ -1,6 +1,6 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, FlaskConical, MoreHorizontal, Plus } from "lucide-react";
+import { CodeXml, Download, FlaskConical, MoreHorizontal, Plus } from "lucide-react";
 import type { InstructionEntry, SkillImport } from "@plainva/core";
 import {
   Button,
@@ -23,11 +23,14 @@ import {
   useAiState,
   useSkillTestPlan,
   workshopSections,
+  workshopTitle,
   type SkillRowCaps,
 } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
 import { pickSkillArchive } from "../../services/ai/skillImport";
 import { NewSkillModal } from "./NewSkillModal";
+import { ScriptFormModal } from "./ScriptFormModal";
+import { ScriptRunModal } from "./ScriptRunModal";
 import { SkillApprovalModal } from "./SkillApprovalModal";
 import { SkillImportModal } from "./SkillImportModal";
 import { SkillTestModal } from "./SkillTestModal";
@@ -39,6 +42,12 @@ import { SkillTestModal } from "./SkillTestModal";
  * run, reviewed, created, copied, imported and deleted here. Nothing that
  * arrives runs before it is approved here; the model (`workshopSections`,
  * `approvalFacts`) is the phone's as well.
+ *
+ * The vault's scripts (plan P5.5, mockup chapter 21) stand in the same
+ * workshop: what waits, above with the skills; the approved ones in a group
+ * of their own, each with its switch and — while it is active — a way to run
+ * it here. A script is written and changed in a form, not in the editor: its
+ * two files belong together, and saving approves exactly what was written.
  */
 export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { onOpenFile: (path: string) => void; onRun: () => void; review?: string | null; onReviewOpened?: () => void }) {
   const { t, i18n } = useTranslation();
@@ -46,6 +55,10 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
   const state = useAiState();
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  /** The script form: a new one (`id` null) or an existing one to change. */
+  const [scriptForm, setScriptForm] = useState<{ id: string | null } | null>(null);
+  /** The script whose run dialog is open. */
+  const [running, setRunning] = useState<string | null>(null);
   const [importing, setImporting] = useState<{ label: string; imported: SkillImport } | null>(null);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: SkillRowCaps } | null>(null);
   /** The regression run's dialog: for some skills, or (null) for all that bring scenarios. */
@@ -64,13 +77,29 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
 
   if (!session || !state) return null;
   const sections = workshopSections(state.skills.entries);
-  const titleOf = (entry: InstructionEntry) => (entry.source.kind === "agents" ? "AGENTS.md" : skillView(t, entry).title);
+  const titleOf = (entry: InstructionEntry) => workshopTitle(t, entry);
   const describe = (entry: InstructionEntry) => skillRowDescription(t, entry, state.skillTests.records, plan);
   const testable = (entry: InstructionEntry) => plan?.targets.some((target) => target.id === entry.source.id && target.scenarios > 0) === true;
   const overview = skillTestOverview(t, state.skillTests.records, plan, i18n.language);
   const mainPath = (entry: InstructionEntry) => (entry.source.kind === "agents" ? "AGENTS.md" : `${entry.source.root}/SKILL.md`);
 
+  const remove = (entry: InstructionEntry, question: string) => {
+    void appConfirm({ title: t(question, { title: titleOf(entry) }), message: t("ai.workshop.deleteBody"), confirmLabel: t("ai.workshop.delete") }).then((ok) => {
+      if (ok) void session.deleteInstruction(entry.source.id);
+    });
+  };
   const capsFor = (entry: InstructionEntry): SkillRowCaps => {
+    if (entry.source.kind === "script") {
+      const readable = Boolean(entry.source.script) && typeof entry.source.code === "string";
+      return {
+        ...(entry.status === "active" ? { run: () => setRunning(entry.source.id) } : {}),
+        showInstructions: () => setOpen(entry.source.id),
+        showLabel: t("ai.scripts.show"),
+        ...(readable ? { edit: () => setScriptForm({ id: entry.source.id }) } : {}),
+        ...(entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
+        delete: () => remove(entry, "ai.scripts.deleteConfirm"),
+      };
+    }
     const vault = entry.source.origin === "vault";
     const startable = entry.status === "active" && entry.source.kind === "skill";
     return {
@@ -97,15 +126,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           }
         : {}),
       ...(vault && entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
-      ...(vault
-        ? {
-            delete: () => {
-              void appConfirm({ title: t("ai.workshop.deleteConfirm", { title: titleOf(entry) }), message: t("ai.workshop.deleteBody"), confirmLabel: t("ai.workshop.delete") }).then((ok) => {
-                if (ok) void session.deleteInstruction(entry.source.id);
-              });
-            },
-          }
-        : {}),
+      ...(vault ? { delete: () => remove(entry, "ai.workshop.deleteConfirm") } : {}),
     };
   };
   const openMenu = (event: MouseEvent, entry: InstructionEntry) => {
@@ -115,6 +136,11 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
   };
   const switchable = (entry: InstructionEntry) => (
     <div className="pv-ai-rowactions">
+      {entry.source.kind === "script" && entry.status === "active" && (
+        <Button size="sm" variant="ghost" onClick={() => setRunning(entry.source.id)} data-testid="ai-script-open-run">
+          {t("ai.workshop.run")}
+        </Button>
+      )}
       <Switch checked={entry.status === "active"} label={t("ai.workshop.switchLabel", { title: titleOf(entry) })} onChange={(on) => void session.switchInstruction(entry.source.id, on)} />
       <IconButton label={t("common.moreActions")} size="sm" onClick={(event) => openMenu(event, entry)} data-testid="ai-skill-more">
         <MoreHorizontal size={ICON.ui} />
@@ -138,6 +164,9 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
         >
           {t("ai.workshop.import")}
         </Button>
+        <Button size="sm" variant="secondary" icon={<CodeXml size={ICON.ui} />} disabled={!state.scripts.available} onClick={() => setScriptForm({ id: null })} data-testid="ai-scripts-new">
+          {t("ai.scripts.new")}
+        </Button>
         <Button size="sm" variant="tonal" icon={<Plus size={ICON.ui} />} onClick={() => setCreating(true)} data-testid="ai-skills-new">
           {t("ai.workshop.newSkill")}
         </Button>
@@ -147,7 +176,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           {sections.waiting.map((entry) => (
             <SettingRow key={entry.source.id} label={titleOf(entry)} desc={describe(entry)}>
               <Button size="sm" variant="tonal" onClick={() => setOpen(entry.source.id)} data-testid="ai-skill-review">
-                {entry.status === "new" || entry.status === "changed" ? t("ai.workshop.review") : t("ai.workshop.showInstructions")}
+                {entry.status === "new" || entry.status === "changed" ? t("ai.workshop.review") : entry.source.kind === "script" ? t("ai.scripts.show") : t("ai.workshop.showInstructions")}
               </Button>
             </SettingRow>
           ))}
@@ -158,6 +187,18 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           <SettingCardNote>{t("ai.workshop.noOwn")}</SettingCardNote>
         ) : (
           sections.own.map((entry) => (
+            <SettingRow key={entry.source.id} label={titleOf(entry)} desc={describe(entry)}>
+              {switchable(entry)}
+            </SettingRow>
+          ))
+        )}
+      </SettingCard>
+      <SettingCard label={t("ai.scripts.group")}>
+        {!state.scripts.available && <SettingCardNote>{t("ai.scripts.unavailable")}</SettingCardNote>}
+        {sections.scripts.length === 0 ? (
+          <SettingCardNote>{t("ai.scripts.none")}</SettingCardNote>
+        ) : (
+          sections.scripts.map((entry) => (
             <SettingRow key={entry.source.id} label={titleOf(entry)} desc={describe(entry)}>
               {switchable(entry)}
             </SettingRow>
@@ -189,6 +230,8 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       {testing && <SkillTestModal ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
       {open && <SkillApprovalModal id={open} onClose={() => setOpen(null)} />}
       {creating && <NewSkillModal onClose={() => setCreating(false)} />}
+      {scriptForm && <ScriptFormModal id={scriptForm.id} onClose={() => setScriptForm(null)} />}
+      {running && <ScriptRunModal id={running} onClose={() => setRunning(null)} />}
       {importing && <SkillImportModal label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}
       {menu && (
         <MenuSurface open onClose={() => setMenu(null)} at={menu.at} ariaLabel={t("common.moreActions")}>

@@ -1,6 +1,6 @@
 # Umiejętności (Beta)
 
-Stan na: 2026-10-07
+Stan na: 2026-10-08
 
 Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma dwanaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
@@ -86,4 +86,4 @@ Podgląd wysyłki wymienia w **Instrukcje**, co idzie razem z prośbą: umiejęt
 
 ## Ograniczenia wersji beta
 
-Umiejętności nie uruchamiają skryptów. Własne umiejętności nie są oferowane aplikacjom AI połączonym przez serwer MCP; tylko te dołączone do Plainva.
+Umiejętność nie uruchamia własnych skryptów; małe programy, które czytają Twój vault, opisuje strona [Skrypty](AI_Scripts.md). Własne umiejętności nie są oferowane aplikacjom AI połączonym przez serwer MCP; tylko te dołączone do Plainva.

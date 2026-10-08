@@ -108,6 +108,8 @@ El hilo va al modelo como una pregunta: sus comentarios, el pasaje al que está 
 
 Las habilidades son instrucciones para trabajo recurrente. Doce vienen con Plainva —entre ellas **Orientación del día**, **Repaso semanal** y **Estado del proyecto** como chips en una conversación vacía— y puedes escribir o importar las tuyas. Inicia una con un clic o simplemente pregunta: la IA carga por sí misma una habilidad que encaje. Tus propias habilidades solo se ejecutan después de que las apruebes en este dispositivo. Todo sobre ellas: [Habilidades](AI_Skills.md).
 
+Los scripts son programas pequeños que escribes para lo que un modelo hace mal —contar, ordenar, sumar—. Se ejecutan en un entorno aislado, leen tu vault con las mismas herramientas que la IA y solo lo hacen después de que los apruebes en este dispositivo. Todo sobre ellos: [Scripts](AI_Scripts.md).
+
 ## Transcribir una nota de voz
 
 En cada nota de voz —en el editor, en el modo de lectura, en el diario y en las tarjetas— **Transcribir** convierte la grabación en texto. Va tal cual al modelo del perfil **Audio**, a través del mismo resumen que una pregunta; una grabación es un tipo de datos propio, por eso el resumen pregunta la primera vez. La transcripción vuelve como sugerencia debajo de la grabación, con el autor **Plainva IA · ⟨modelo⟩**: acéptala o recházala en **Sugerencias**.

@@ -199,12 +199,26 @@ import {
   type GateRun,
   type McpToolEffect,
   type RunMcp,
+  instructionStatus,
+  isScriptToolName,
+  parseScriptManifest,
+  SCRIPT_MAIN_FILE,
+  SCRIPT_MANIFEST_FILE,
+  SCRIPTS_FOLDER,
+  scriptToolManifest,
+  serializeScriptManifest,
+  type RunScripts,
+  type ScriptDefinition,
+  type ScriptOutcome,
+  type ScriptProblem,
 } from "@plainva/core";
 import { AiAcp, type AcpDrafts, type AcpVaultSide, type AiAcpHost, type AiAcpState } from "./acpSession";
 import { AiMcp, type AiMcpHost, type AiMcpState, type McpPromptReview, type McpPromptStart } from "./mcpSession";
 import type { McpPromptLook } from "./mcpRuntime";
 import type { McpVaultStore } from "./mcpStores";
 import { createMcpExecutor, newRunMcp, type McpCallQuestion } from "./mcpTools";
+import { AiScripts, type AiScriptsHost, type AiScriptsState, type ScriptApprovalRefusal } from "./scriptSession";
+import { createScriptExecutor, newRunScripts, type ActiveScript } from "./scriptTools";
 
 /**
  * THE conversation state of the AI harness (plan §19.1): one store, whatever
@@ -255,9 +269,22 @@ export interface AiSessionHost {
    * agents. Absent, this shell hosts no agents (a phone starts no programs).
    */
   acp?: AiAcpHost;
+  /**
+   * Scripts (plan KI-Harness P5.5): the sandbox a script runs in — the script
+   * worker — and the keychain slot of the key this device signs its script
+   * approvals with. Absent, this shell shows scripts and runs none.
+   */
+  scripts?: AiScriptsHost;
 }
 
 export interface AiVaultHost {
+  /**
+   * What this vault's data in the app is filed under on this device
+   * (`aiVaultKey`). A script's approval is signed for this vault: one copied
+   * into another vault's data holds for nothing there. Absent, no script of
+   * this vault is ever active.
+   */
+  key?: string;
   conversations: ConversationRepository;
   ledger: AiLedgerStore;
   /** The note open right now, if any. */
@@ -281,7 +308,8 @@ export interface AiVaultHost {
    * `foreign` are the tools of foreign servers this run may find there too
    * (plan P4.5). `writing`: what the run brings to the writing tools — who
    * signs, how the user is asked, where a draft goes (plan P5); without it
-   * they answer that this vault takes no changes here.
+   * they answer that this vault takes no changes here. `scripts`: the
+   * vault's scripts this run may find in the tool search (plan P5.5).
    */
   tools(
     recipient: EgressRecipient,
@@ -291,6 +319,7 @@ export interface AiVaultHost {
     narrowed?: () => readonly string[] | null,
     foreign?: () => readonly ToolManifest[],
     writing?: WriteRun,
+    scripts?: () => readonly ToolManifest[],
   ): { names: readonly string[]; more?: readonly string[]; executor: ToolExecutor } | null;
   /** Whether the AI may use the internet in this vault, and the sites it need not ask for (plan P4); absent, it may not. */
   web?: WebSettingsStore;
@@ -363,6 +392,28 @@ export interface AiInstructionsHost {
 export type SkillWriteOutcome =
   | { ok: true; id: string; path: string }
   | { ok: false; reason: "no-vault" | "invalid" | "exists" | "write-failed" | "changed"; problems?: SkillProblem[] };
+
+/** A script as the workshop's form hands it over (plan KI-Harness P5.5): what its manifest says, and its code. */
+export interface ScriptDraft extends Pick<ScriptDefinition, "name" | "description" | "tools"> {
+  title?: string;
+  parameters?: ScriptDefinition["parameters"];
+  limits?: ScriptDefinition["limits"];
+  code: string;
+}
+
+/**
+ * How writing a script ended. `syntax`: the engine does not read the code;
+ * `message` says where. `approved`: false where the keychain gave no key to
+ * sign with — the script is written and waits.
+ */
+export type ScriptWriteOutcome =
+  | { ok: true; id: string; approved: boolean }
+  | { ok: false; reason: "no-vault" | "invalid" | "exists" | "write-failed" | "changed" | "syntax"; problems?: ScriptProblem[]; message?: string };
+
+/** The scripts that are active on this device, each as the tool a conversation can call it by. */
+export function activeScriptTools(entries: readonly InstructionEntry[]): ToolManifest[] {
+  return entries.flatMap((entry) => (entry.status === "active" && entry.source.kind === "script" && entry.source.script ? [scriptToolManifest(entry.source.id, entry.source.script)] : []));
+}
 
 /** Skills and vault instructions as the workshop and the entry points show them (plan KI-Harness P3). */
 export interface AiSkillsState {
@@ -663,6 +714,8 @@ export interface AiState {
   drafts: WriteDraftState;
   /** A column of a database being filled right now (plan P5-4): which, and how far the run is. */
   fill: FillProgress | null;
+  /** Scripts on this device (plan P5.5): whether it can run them, and the run the workshop started. */
+  scripts: AiScriptsState;
 }
 
 /** A column to fill (plan KI-Harness P5-4): the database, the column, and the entries that say nothing in it. */
@@ -865,10 +918,13 @@ export class AiSession {
   readonly mcp: AiMcp;
   /** External agents (plan P4.6): the agents of this device, and the session one has in the open vault. */
   readonly agents: AiAcp;
+  /** Scripts (plan P5.5): this device's key for their approvals, and the run the workshop started. */
+  readonly scripts: AiScripts;
 
   constructor(private readonly host: AiSessionHost) {
     this.mcp = new AiMcp(host.mcp, { now: () => host.now(), newId: () => host.newId() }, (mcp) => this.set({ mcp }));
     this.agents = new AiAcp(host.acp, { now: () => host.now() }, (key, vars) => host.label?.(key, vars) ?? key, (agents) => this.set({ agents }));
+    this.scripts = new AiScripts(host.scripts, (scripts) => this.set({ scripts }));
     this.state = {
       loaded: false,
       settings: host.defaults,
@@ -896,6 +952,7 @@ export class AiSession {
       agents: this.agents.state,
       drafts: EMPTY_WRITE_DRAFTS,
       fill: null,
+      scripts: this.scripts.state,
     };
   }
 
@@ -1093,6 +1150,8 @@ export class AiSession {
       fill: null,
     });
     this.fillAbort?.abort();
+    // A script the workshop started ran on the vault that is gone: it ends here, and what it showed goes with it.
+    this.scripts.clear();
     // The same for foreign servers: which this vault uses is its own choice, and the connections of the last one end here.
     this.mcp.attach(vault?.mcp ?? null);
     // And for an external agent: its session belongs to the vault it was started in, and ends with it. A note it
@@ -1531,7 +1590,19 @@ export class AiSession {
     const host = vault.instructions;
     if (!host) return { entries: APP_ENTRIES(), approvals: EMPTY_INSTRUCTION_APPROVALS };
     const [approvals, sources] = await Promise.all([host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), host.scan().catch(() => [] as InstructionSource[])]);
-    return { entries: resolveInstructions([...APP_SKILL_SOURCES, ...sources], approvals), approvals };
+    // A script's approval counts only with this device's signature under it (plan P5.5); the keychain is asked only where there is a script.
+    const signed = sources.some((source) => source.kind === "script") ? await this.scripts.signedCheck(vault.key) : undefined;
+    return { entries: resolveInstructions([...APP_SKILL_SOURCES, ...sources], approvals, signed), approvals };
+  }
+
+  /** One source of the vault as it stands now on this device; null when it is gone. */
+  private async instructionEntry(vault: AiVaultHost, id: string): Promise<InstructionEntry | null> {
+    const host = vault.instructions;
+    if (!host) return null;
+    const [source, approvals] = await Promise.all([host.scanOne(id).catch(() => null), host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS)]);
+    if (!source) return null;
+    const signed = source.kind === "script" ? await this.scripts.signedCheck(vault.key) : undefined;
+    return resolveInstructions([source], approvals, signed)[0] ?? null;
   }
 
   /** Reads the instructions again: the workshop and the entry points show what is there now. */
@@ -1551,17 +1622,38 @@ export class AiSession {
    * meantime nothing is approved, and the state is read again.
    */
   async approveInstruction(id: string, seen: Readonly<Record<string, string>>): Promise<boolean> {
+    return (await this.approveSource(id, seen)) === null;
+  }
+
+  /**
+   * The approval itself, with why it did not happen: `changed` — the files
+   * are no longer the ones the dialog showed; `no-key` — a script, and this
+   * device's keychain gave no key to sign its approval with (plan P5.5).
+   * Null when it is approved.
+   */
+  async approveSource(id: string, seen: Readonly<Record<string, string>>): Promise<ScriptApprovalRefusal | null> {
     const vault = this.vault;
     const host = vault?.instructions;
-    if (!vault || !host) return false;
+    if (!vault || !host) return "unavailable";
     const source = await host.scanOne(id).catch(() => null);
     const same = Boolean(source) && source!.files.length === Object.keys(seen).length && source!.files.every((f) => seen[f.path] === f.sha256);
+    let refusal: ScriptApprovalRefusal | null = same ? null : "changed";
     if (same) {
-      const approvals = await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS);
-      await host.approvals.save(approveInstruction(approvals, source!, this.host.now().toISOString(), "review"));
+      let signature: string | undefined;
+      if (source!.kind === "script") {
+        // A script is approved with this device's signature — and only one that could run at all.
+        const runnable = instructionStatus(source!, EMPTY_INSTRUCTION_APPROVALS) === "new";
+        signature = runnable ? ((await this.scripts.sign(vault.key, source!)) ?? undefined) : undefined;
+        if (!runnable) refusal = "unavailable";
+        else if (!signature) refusal = "no-key";
+      }
+      if (!refusal) {
+        const approvals = await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS);
+        await host.approvals.save(approveInstruction(approvals, source!, this.host.now().toISOString(), "review", undefined, signature));
+      }
     }
     await this.refreshSkills();
-    return same;
+    return refusal;
   }
 
   /** Withdraws an approval on this device: the source is "new" again. */
@@ -1655,6 +1747,105 @@ export class AiSession {
     await host.approvals.save(pruneInstructionApprovals(revokeInstruction(approvals, id), new Set((await host.scan().catch(() => [] as InstructionSource[])).map((s) => s.id))));
     await this.refreshSkills();
     return true;
+  }
+
+  // ---------------------------------------------------------------- scripts
+
+  /**
+   * Writes a script into `.agent/scripts/<name>/` — its manifest and its code —
+   * and approves exactly what was written, with this device's signature: the
+   * user wrote it here (plan KI-Harness P5.5). A manifest with a problem, or
+   * code the engine does not read, is not written at all. An own script of
+   * the same name is only replaced when the user said so (its folder goes to
+   * the trash first).
+   *
+   * `approved: false`: the files are there, but the keychain gave no key to
+   * sign with — the script waits like one that arrived.
+   */
+  async saveScript(input: ScriptDraft, options: { replace?: boolean } = {}): Promise<ScriptWriteOutcome> {
+    const vault = this.vault;
+    const host = vault?.instructions;
+    if (!vault || !host?.write) return { ok: false, reason: "no-vault" };
+    const name = input.name.trim();
+    const manifest = serializeScriptManifest({ ...input, name, description: input.description.trim(), ...(input.title?.trim() ? { title: input.title.trim() } : {}) });
+    const parsed = parseScriptManifest(manifest, name);
+    if (!parsed.script || parsed.problems.length) return { ok: false, reason: "invalid", problems: parsed.problems };
+    if (!input.code.trim()) return { ok: false, reason: "invalid", problems: [{ code: "main-missing" }] };
+    const checked = await this.scripts.check(input.code);
+    if (checked && !checked.ok) return { ok: false, reason: "syntax", message: checked.message };
+    const id = `${SCRIPTS_FOLDER}/${name}`;
+    const files = [
+      { path: SCRIPT_MANIFEST_FILE, bytes: utf8Encode(manifest) },
+      { path: SCRIPT_MAIN_FILE, bytes: utf8Encode(input.code) },
+    ];
+    const existing = await host.scanOne(id).catch(() => null);
+    if (existing && !options.replace) return { ok: false, reason: "exists" };
+    try {
+      if (existing && host.remove) await host.remove(id);
+      for (const file of files) await host.write(`${id}/${file.path}`, file.bytes);
+    } catch {
+      await this.refreshSkills();
+      return { ok: false, reason: "write-failed" };
+    }
+    const written = await host.scanOne(id).catch(() => null);
+    const expected = Object.fromEntries(files.map((f) => [f.path, instructionFileHash(f.bytes)]));
+    if (!written || !sameFiles(expected, written.files)) {
+      await this.refreshSkills();
+      return { ok: false, reason: "changed" };
+    }
+    const signature = instructionStatus(written, EMPTY_INSTRUCTION_APPROVALS) === "new" ? await this.scripts.sign(vault.key, written) : null;
+    if (signature) {
+      const approvals = await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS);
+      await host.approvals.save(approveInstruction(approvals, written, this.host.now().toISOString(), "created", undefined, signature));
+    }
+    await this.refreshSkills();
+    return { ok: true, id, approved: Boolean(signature) };
+  }
+
+  /** Whether code is JavaScript the engine reads; null where this device cannot ask. Nothing of it runs. */
+  checkScript(code: string): Promise<{ ok: true } | { ok: false; message: string } | null> {
+    return this.scripts.check(code);
+  }
+
+  /** A script as it stands now on this device: active — its files the approved ones, the approval signed here — or null. */
+  private async activeScript(vault: AiVaultHost, id: string): Promise<ActiveScript | null> {
+    const entry = await this.instructionEntry(vault, id);
+    const source = entry?.source;
+    if (!entry || entry.status !== "active" || source?.kind !== "script" || !source.script || typeof source.code !== "string") return null;
+    return { definition: source.script, code: source.code };
+  }
+
+  /**
+   * Runs a script from the workshop (plan KI-Harness P5.5). It reads the
+   * vault as a reader on this device does — nothing of the run leaves it, so
+   * a note that is only kept from the cloud is there for it. `dry`: what
+   * would show or change something is written down, not done. Null when the
+   * script is not active here at this moment, or no script can run.
+   */
+  async runScript(id: string, args: unknown, dry = false): Promise<ScriptOutcome | null> {
+    const vault = this.vault;
+    if (!vault) return null;
+    const active = await this.activeScript(vault, id);
+    const tools = active ? vault.tools({ kind: "local", provider: "script", model: active.definition.name }) : null;
+    if (!active || !tools || this.vault !== vault) return null;
+    return this.scripts.run({ id, script: active.definition, code: active.code, args, dry, tools: tools.executor });
+  }
+
+  /** Stops the script the workshop started. */
+  stopScript(): void {
+    this.scripts.stop();
+  }
+
+  /** Closes what the last script run showed. */
+  clearScriptRun(): void {
+    this.scripts.clear();
+  }
+
+  /** The active scripts of this vault as tools of a run, under the names a conversation was started with. */
+  private async scriptTools(vault: AiVaultHost, names: readonly string[]): Promise<ToolManifest[]> {
+    if (!this.scripts.available() || !names.some(isScriptToolName)) return [];
+    const { entries } = await this.instructionEntries(vault);
+    return activeScriptTools(entries).filter((tool) => names.includes(tool.name));
   }
 
   /**
@@ -3265,7 +3456,7 @@ export class AiSession {
       const withWeb = !apart && this.state.web.enabled && (skills?.bind ? skillWeb : this.state.draftWeb);
       // A door answers where it was asked: it reads the vault, it does not move the app — and it looks for no further tool.
       const offered = this.offeredTools(vault, provider, recipient, withWeb).filter((name) => !door || name !== "run_command");
-      const further = door ? [] : await this.furtherTools(vault, provider, recipient, !detached && !skills?.bind);
+      const further = door ? [] : await this.furtherTools(vault, provider, recipient, !detached && !skills?.bind, entries);
       // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
       const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further);
       const id = this.host.newId();
@@ -3313,6 +3504,10 @@ export class AiSession {
     // regression run reach none at all.
     const foreign = !apart && moreNames.some(isMcpExposedToolName) ? await this.mcp.manifests(moreNames) : [];
     const mcpLog = foreign.length ? newRunMcp() : null;
+    // The vault's scripts this run may find (plan P5.5): of the names its conversation was started with, the ones
+    // that are active NOW — a script changed or withdrawn since brings none. A door and a regression run reach none.
+    const scriptTools = apart ? [] : await this.scriptTools(vault, moreNames);
+    const scriptLog = scriptTools.length ? newRunScripts() : null;
     /** What this message's own context carries, known once it is built. */
     const sending: { sources: { path: string; image?: unknown }[] } = { sources: [] };
     // The writing tools (plan P5): what this run lays down is signed with its model, asked about above the composer and
@@ -3351,7 +3546,7 @@ export class AiSession {
             clock: () => clockOf(this.host.now()),
           }
         : undefined;
-    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillState.loaded?.tools ?? null, () => foreign, writing) : null;
+    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillState.loaded?.tools ?? null, () => foreign, writing, () => scriptTools) : null;
     // Mail and the descriptions of appointments (plan P4-4): a kind of data no overview named asks first, and raw text goes to a reader without tools.
     const reading = newRunReading();
     const guarded = base
@@ -3404,7 +3599,12 @@ export class AiSession {
             mcpLog,
           )
         : inner;
-    const tools = outer ? { names: toolNames, executor: createSkillExecutor(outer, this.skillRuntime(vault, record), toolNames, skillState, moreNames) } : null;
+    // A script sits under the skills' wrapper too. What it calls goes to the conversation's own executor below the
+    // internet and the foreign servers — neither is a script's to reach —, behind the same gate and into the same
+    // record of what was read as a call the model made itself.
+    const sandbox = this.scripts.sandbox;
+    const scripted = outer && guarded && scriptLog && sandbox ? createScriptExecutor(outer, guarded, { script: (id) => this.activeScript(vault, id), sandbox }, scriptLog) : outer;
+    const tools = scripted ? { names: toolNames, executor: createSkillExecutor(scripted, this.skillRuntime(vault, record), toolNames, skillState, moreNames) } : null;
     // A skill's own budget narrows whatever limits the start brings; it never widens them.
     const own = bound?.maxOutputTokens;
     const limits: RunLimits | undefined =
@@ -3477,6 +3677,7 @@ export class AiSession {
       ...(guarded ? { reading } : {}),
       ...(base ? { restricted, reads } : {}),
       ...(mcpLog ? { foreign, mcp: mcpLog } : {}),
+      ...(scriptLog ? { scripts: scriptTools, scriptLog } : {}),
       ...(writing ? { writes: writesLog } : {}),
       ...(related.length ? { related } : {}),
     });
@@ -3574,11 +3775,16 @@ export class AiSession {
    * The further tools a new conversation with this model reaches through its tool search (ADR 0019): the vault's own,
    * and — where `services` — the tools of the foreign servers this vault uses (plan P4.5), under the names the app gives
    * them. A door, a regression run and a conversation bound to a skill get none of those: nobody chose a service for them.
+   * The same goes for the vault's scripts (plan P5.5): the ones active on this device, where it can run scripts at all.
    */
-  private async furtherTools(vault: AiVaultHost, provider: ProviderInfo, recipient: EgressRecipient, services: boolean): Promise<string[]> {
+  private async furtherTools(vault: AiVaultHost, provider: ProviderInfo, recipient: EgressRecipient, services: boolean, entries: readonly InstructionEntry[] = []): Promise<string[]> {
     if (provider.endpoint.api === "platform") return [];
-    const own = [...(vault.tools(recipient)?.more ?? [])];
-    return services ? [...own, ...(await this.mcp.offeredNames())] : own;
+    const served = vault.tools(recipient);
+    const own = [...(served?.more ?? [])];
+    if (!services) return own;
+    // A script calls the vault's tools: without them there is nothing for it to do.
+    const scripts = served && this.scripts.available() ? activeScriptTools(entries).map((tool) => tool.name) : [];
+    return [...own, ...(await this.mcp.offeredNames()), ...scripts];
   }
 
   /** A model that runs on this device: the profile "Local" while it names a server on this computer or the system's own model. */
@@ -3694,6 +3900,9 @@ export class AiSession {
     /** The tools of foreign servers this run may find, and what it asked of them (plan P4.5). */
     foreign?: readonly ToolManifest[];
     mcp?: RunMcp;
+    /** The vault's scripts this run may find, and which of them it started (plan P5.5). */
+    scripts?: readonly ToolManifest[];
+    scriptLog?: RunScripts;
     /** What the run's writing tools lay down (plan P5), gathered while it runs; present where the run may write. */
     writes?: RunWrites;
     /** The notes that match the question best, shown when no answer comes back (plan §19.4). */
@@ -3723,6 +3932,7 @@ export class AiSession {
       signal: controller.signal,
       ...(input.limits ? { limits: input.limits } : {}),
       ...(input.foreign?.length ? { foreign: input.foreign } : {}),
+      ...(input.scripts?.length ? { scripts: input.scripts } : {}),
       // Asked by the run for each call with an outside effect while private data is in it (the Rule of Two).
       ...(input.web || input.foreign?.length || input.writes
         ? {
@@ -3804,6 +4014,7 @@ export class AiSession {
       ...(input.reads?.more ? { readMore: true } : {}),
       ...(input.mcp?.calls.length ? { mcp: input.mcp } : {}),
       ...(input.writes && (input.writes.rounds.length || input.writes.drafts.length || input.writes.plans.length) ? { writes: input.writes } : {}),
+      ...(input.scriptLog?.runs.length ? { scripts: input.scriptLog } : {}),
     };
     record = {
       ...record,

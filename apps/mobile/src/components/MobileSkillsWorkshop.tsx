@@ -1,10 +1,12 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Download, FlaskConical, Plus } from "lucide-react";
+import { ChevronRight, CodeXml, Download, FlaskConical, Plus } from "lucide-react";
 import type { InstructionEntry, SkillImport } from "@plainva/core";
-import { Button, GroupCard, ICON, Row, RowList, SectionLabel, skillRowActions, skillRowDescription, skillTestOverview, skillTestPlanFor, skillView, Switch, toast, useSkillTestPlan, workshopSections, type SkillRowCaps } from "@plainva/ui";
+import { Button, GroupCard, ICON, Row, RowList, SectionLabel, skillRowActions, skillRowDescription, skillTestOverview, skillTestPlanFor, skillView, Switch, toast, useSkillTestPlan, workshopSections, workshopTitle, type SkillRowCaps } from "@plainva/ui";
 import { RowActionSheet } from "./RowActionSheet";
 import { NewSkillSheet } from "./NewSkillSheet";
+import { ScriptFormSheet } from "./ScriptFormSheet";
+import { ScriptRunSheet } from "./ScriptRunSheet";
 import { SkillApprovalSheet } from "./SkillApprovalSheet";
 import { SkillImportSheet } from "./SkillImportSheet";
 import { SkillTestSheet } from "./SkillTestSheet";
@@ -17,6 +19,10 @@ import { mConfirm } from "../services/mobileDialogs";
  * the segment "Skills" of the AI screen — the desktop's lists in the phone's
  * grammar of group cards, the approval as a sheet. The model is shared
  * (`workshopSections`, `approvalFacts`); nothing here decides on its own.
+ *
+ * The vault's scripts (plan P5.5, mockup chapter 21) stand in the same
+ * workshop, in a group of their own: a tap on one opens what it can do —
+ * run it, see its code, change it in a form, revoke or delete it.
  */
 export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote: (path: string) => void; onRun: () => void; review?: string | null }) {
   const { t, i18n } = useTranslation();
@@ -24,6 +30,10 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
   const state = useSyncExternalStore(session.subscribe, session.getState);
   const [open, setOpen] = useState<string | null>(review ?? null);
   const [creating, setCreating] = useState(false);
+  /** The script form: a new one (`id` null) or an existing one to change. */
+  const [scriptForm, setScriptForm] = useState<{ id: string | null } | null>(null);
+  /** The script whose run sheet is open. */
+  const [running, setRunning] = useState<string | null>(null);
   const [importing, setImporting] = useState<{ label: string; imported: SkillImport } | null>(null);
   const [sheet, setSheet] = useState<{ title: string; caps: SkillRowCaps } | null>(null);
   /** The regression run's sheet: for some skills, or (null) for all that bring scenarios. */
@@ -35,12 +45,28 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
   }, [session]);
 
   const sections = workshopSections(state.skills.entries);
-  const titleOf = (entry: InstructionEntry) => (entry.source.kind === "agents" ? "AGENTS.md" : skillView(t, entry).title);
+  const titleOf = (entry: InstructionEntry) => workshopTitle(t, entry);
   const describe = (entry: InstructionEntry) => skillRowDescription(t, entry, state.skillTests.records, plan);
   const testable = (entry: InstructionEntry) => plan?.targets.some((target) => target.id === entry.source.id && target.scenarios > 0) === true;
   const overview = skillTestOverview(t, state.skillTests.records, plan, i18n.language);
   const mainPath = (entry: InstructionEntry) => (entry.source.kind === "agents" ? "AGENTS.md" : `${entry.source.root}/SKILL.md`);
+  const remove = (entry: InstructionEntry, question: string) => {
+    void mConfirm({ title: t(question, { title: titleOf(entry) }), message: t("ai.workshop.deleteBody"), danger: true, confirmLabel: t("ai.workshop.delete") }).then((ok) => {
+      if (ok) void session.deleteInstruction(entry.source.id);
+    });
+  };
   const capsFor = (entry: InstructionEntry): SkillRowCaps => {
+    if (entry.source.kind === "script") {
+      const readable = Boolean(entry.source.script) && typeof entry.source.code === "string";
+      return {
+        ...(entry.status === "active" ? { run: () => setRunning(entry.source.id) } : {}),
+        showInstructions: () => setOpen(entry.source.id),
+        showLabel: t("ai.scripts.show"),
+        ...(readable ? { edit: () => setScriptForm({ id: entry.source.id }) } : {}),
+        ...(entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
+        delete: () => remove(entry, "ai.scripts.deleteConfirm"),
+      };
+    }
     const vault = entry.source.origin === "vault";
     return {
       ...(entry.status === "active" && entry.source.kind === "skill"
@@ -68,15 +94,7 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
           }
         : {}),
       ...(vault && entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
-      ...(vault
-        ? {
-            delete: () => {
-              void mConfirm({ title: t("ai.workshop.deleteConfirm", { title: titleOf(entry) }), message: t("ai.workshop.deleteBody"), danger: true, confirmLabel: t("ai.workshop.delete") }).then((ok) => {
-                if (ok) void session.deleteInstruction(entry.source.id);
-              });
-            },
-          }
-        : {}),
+      ...(vault ? { delete: () => remove(entry, "ai.workshop.deleteConfirm") } : {}),
     };
   };
   const switchRow = (entry: InstructionEntry) => (
@@ -106,6 +124,9 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
         >
           {t("ai.workshop.import")}
         </Button>
+        <Button variant="secondary" icon={<CodeXml size={ICON.ui} />} disabled={!state.scripts.available} onClick={() => setScriptForm({ id: null })} data-testid="ai-scripts-new">
+          {t("ai.scripts.new")}
+        </Button>
         <Button variant="tonal" icon={<Plus size={ICON.ui} />} onClick={() => setCreating(true)} data-testid="ai-skills-new">
           {t("ai.workshop.newSkill")}
         </Button>
@@ -122,10 +143,24 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
           </GroupCard>
         </>
       )}
+      {/* A group with nothing in it is a sentence on the page's edge, not a card: a card's edge belongs to its rows. */}
       <SectionLabel>{t("ai.workshop.own")}</SectionLabel>
-      <GroupCard>
-        {sections.own.length === 0 ? <p className="m-hint">{t("ai.workshop.noOwn")}</p> : <RowList>{sections.own.map(switchRow)}</RowList>}
-      </GroupCard>
+      {sections.own.length === 0 ? (
+        <p className="m-hint">{t("ai.workshop.noOwn")}</p>
+      ) : (
+        <GroupCard>
+          <RowList>{sections.own.map(switchRow)}</RowList>
+        </GroupCard>
+      )}
+      <SectionLabel>{t("ai.scripts.group")}</SectionLabel>
+      {!state.scripts.available && <p className="m-hint">{t("ai.scripts.unavailable")}</p>}
+      {sections.scripts.length === 0 ? (
+        <p className="m-hint">{t("ai.scripts.none")}</p>
+      ) : (
+        <GroupCard>
+          <RowList>{sections.scripts.map(switchRow)}</RowList>
+        </GroupCard>
+      )}
       {sections.agents && (
         <>
           <SectionLabel>{t("ai.workshop.vault")}</SectionLabel>
@@ -151,16 +186,28 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
             data-testid="ai-skills-test"
           />
         </RowList>
-        {overview.hint && <p className="m-hint">{overview.hint}</p>}
       </GroupCard>
+      {overview.hint && <p className="m-hint">{overview.hint}</p>}
       {testing && <SkillTestSheet ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
       {open && <SkillApprovalSheet id={open} onClose={() => setOpen(null)} />}
       {creating && <NewSkillSheet onClose={() => setCreating(false)} />}
+      {scriptForm && <ScriptFormSheet id={scriptForm.id} onClose={() => setScriptForm(null)} />}
+      {running && <ScriptRunSheet id={running} onClose={() => setRunning(null)} />}
       {importing && <SkillImportSheet label={importing.label} imported={importing.imported} onClose={() => setImporting(null)} />}
       {sheet && (
         <RowActionSheet
           title={sheet.title}
-          actions={skillRowActions(t, sheet.caps).map((a) => ({ icon: <a.icon size={ICON.head} />, label: a.label, danger: a.danger, testId: `ai-skill-action-${a.id}`, onClick: a.run }))}
+          // The sheet closes with the choice: what an action opens — a run, a review, a form — must not lie under it.
+          actions={skillRowActions(t, sheet.caps).map((a) => ({
+            icon: <a.icon size={ICON.head} />,
+            label: a.label,
+            danger: a.danger,
+            testId: `ai-skill-action-${a.id}`,
+            onClick: () => {
+              setSheet(null);
+              a.run();
+            },
+          }))}
           onClose={() => setSheet(null)}
         />
       )}

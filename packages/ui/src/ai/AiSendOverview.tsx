@@ -26,6 +26,7 @@ import { pictureSize } from "./aiImage";
 import { AiPicture } from "./AiPicture";
 import { useSensitiveKinds } from "./sensitiveKinds";
 import { appSkillOf } from "./appSkills";
+import { scriptToolLabel } from "./scriptsWorkshop";
 
 /**
  * The send overview (plan §13.3): what goes where, before it goes — and,
@@ -85,11 +86,13 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
   // The dispatcher is the search's other half, not a tool of its own to a reader.
   const shownTools = manifest.tools.filter((tool) => tool !== DISPATCH_TOOL);
   const further = manifest.more ?? [];
+  // A tool in the app's words; a script (plan P5.5) by its own name.
+  const toolWord = (name: string) => scriptToolLabel(t, name) ?? t(`ai.tool.${name}`, { defaultValue: name });
   // A foreign tool is named by its server, never by the name a server gave it: the caller brings those lines.
   const foreign = further.filter(isMcpExposedToolName);
   const furtherLines = [
     further.some((name) => MAIL_TOOL_NAMES.includes(name)) ? t("ai.overview.furtherMail") : "",
-    ...further.filter((name) => !MAIL_TOOL_NAMES.includes(name) && !isMcpExposedToolName(name)).map((name) => t(`ai.tool.${name}`, { defaultValue: name })),
+    ...further.filter((name) => !MAIL_TOOL_NAMES.includes(name) && !isMcpExposedToolName(name)).map(toolWord),
     ...(external ?? (foreign.length ? [t("ai.ext.overviewOther", { n: foreign.length })] : [])),
   ].filter(Boolean);
   const readingLines = reading
@@ -116,7 +119,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
       case "folder":
         return t("ai.overview.why.folder", { folder: g.folder || "/" });
       case "tools":
-        return t("ai.overview.why.tools", { tools: g.tools.filter((tool) => tool !== DISPATCH_TOOL).map((tool) => t(`ai.tool.${tool}`, { defaultValue: tool })).join(", ") });
+        return t("ai.overview.why.tools", { tools: g.tools.filter((tool) => tool !== DISPATCH_TOOL).map(toolWord).join(", ") });
       case "web":
         return t("ai.overview.why.web");
       case "size":
@@ -303,7 +306,7 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
         {shownTools.length > 0 && (
           <>
             <dt>{t("ai.overview.tools")}</dt>
-            <dd>{shownTools.map((tool) => t(`ai.tool.${tool}`, { defaultValue: tool })).join(" · ")}</dd>
+            <dd>{shownTools.map(toolWord).join(" · ")}</dd>
           </>
         )}
         {/* What the tool search reaches (ADR 0019): in the conversation's reach, but not approved here — each kind asks first. */}

@@ -12,6 +12,7 @@ import {
   toolByName,
   WEB_TOOL_NAMES,
   type InstructionEntry,
+  type InstructionKind,
   type InstructionStatus,
   type SkillCheck,
   type SkillImport,
@@ -41,6 +42,8 @@ export interface WorkshopSections {
   waiting: InstructionEntry[];
   /** The vault's own skills, approved here — on or switched off. */
   own: InstructionEntry[];
+  /** The vault's scripts, approved here — on or switched off (plan P5.5, mockup chapter 21). */
+  scripts: InstructionEntry[];
   /** The skills that come with the app. */
   app: InstructionEntry[];
   /** The vault's AGENTS.md once approved here (waiting, it stands in `waiting`). */
@@ -54,17 +57,39 @@ export function workshopSections(entries: readonly InstructionEntry[]): Workshop
   return {
     waiting: vault.filter((e) => WAITING.has(e.status)),
     own: vault.filter((e) => e.source.kind === "skill" && !WAITING.has(e.status)),
+    scripts: vault.filter((e) => e.source.kind === "script" && !WAITING.has(e.status)),
     app: entries.filter((e) => e.source.origin === "plainva"),
     agents: vault.find((e) => e.source.kind === "agents" && !WAITING.has(e.status)) ?? null,
   };
 }
+
+/** What a row of the workshop is called: the app's word for one of its skills, a skill's or a script's own title, the file's name. */
+export function workshopTitle(t: Translate, entry: InstructionEntry): string {
+  if (entry.source.kind === "agents") return "AGENTS.md";
+  if (entry.source.kind === "script") return entry.source.script?.title || nameOf(entry.source);
+  return skillView(t, entry).title;
+}
+
+/** The names of tools as a line of the workshop writes them. */
+const toolWords = (t: Translate, names: readonly string[]): string => names.map((name) => t(`ai.tool.${name}`, { defaultValue: name })).join(" · ");
 
 /** The count a settings row or a badge shows: what waits for the user. */
 export const waitingCount = (entries: readonly InstructionEntry[]): number => entries.filter((e) => e.source.origin === "vault" && (e.status === "new" || e.status === "changed")).length;
 
 export interface ApprovalFacts {
   title: string;
+  /** What the source is: the dialogs choose their words and their icon by it. */
+  kind: InstructionKind;
   status: InstructionStatus;
+  /**
+   * A script (plan P5.5): its limits in one line, the inputs it asks for,
+   * and its code exactly as it would run — with how long it is. Absent for
+   * everything that is no script.
+   */
+  limits?: string;
+  inputs?: string[];
+  code?: string | null;
+  codeSize?: string;
   /** What it may do, in words — one line each. */
   may: string[];
   /** A changed source: its lines since the approved version; null when there is nothing to compare. */
@@ -94,7 +119,85 @@ export function problemText(t: Translate, problem: SkillProblem): string {
   return t(`ai.workshop.problem.${problem.code}`, { detail: problem.detail ?? "" });
 }
 
+/**
+ * A script before it may run on this device (plan P5.5, mockup chapter 21):
+ * what its manifest asks for, in words — the tools, the limits, the inputs —,
+ * then its code in full. The tools are the whole of what it can reach, and
+ * the dialog says so: whatever the code does, that is the boundary.
+ */
+function scriptFacts(t: Translate, entry: InstructionEntry, language: string): ApprovalFacts {
+  const { source, approval } = entry;
+  const script = source.script ?? null;
+  const number = new Intl.NumberFormat(language);
+  const may = script ? [script.tools.length ? t("ai.scripts.mayTools", { tools: toolWords(t, script.tools) }) : t("ai.scripts.mayNoTools"), t("ai.scripts.mayNothingElse"), t("ai.scripts.mayReadOnly")] : [];
+  const limits = script
+    ? t("ai.scripts.limitsLine", {
+        seconds: number.format(script.limits.seconds),
+        memory: number.format(script.limits.memoryMb),
+        calls: number.format(script.limits.calls),
+        callSize: size(script.limits.callBytes, language),
+        resultSize: size(script.limits.resultBytes, language),
+      })
+    : undefined;
+  const inputs = script
+    ? script.parameters.length
+      ? script.parameters.map((p) =>
+          t(p.description ? "ai.scripts.inputLineDescribed" : "ai.scripts.inputLine", {
+            name: p.name,
+            type: p.options ? t("ai.scripts.typeChoice", { options: p.options.join(", ") }) : t(p.type === "number" ? "ai.scripts.typeNumber" : p.type === "boolean" ? "ai.scripts.typeBoolean" : "ai.scripts.typeText"),
+            need: t(p.required ? "ai.scripts.required" : "ai.scripts.optional"),
+            description: p.description,
+          }),
+        )
+      : [t("ai.scripts.inputNone")]
+    : undefined;
+  const code = typeof source.code === "string" ? source.code : null;
+
+  const origin = [t("ai.workshop.originPath", { path: source.root })];
+  if (approval) {
+    const when = new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(approval.at));
+    origin.push(t(`ai.workshop.approvedHow.${approval.how}`, { when }));
+    // Its files are the approved ones, and still it waits: the approval is not this device's.
+    if (entry.status === "new") origin.push(t("ai.scripts.notThisDevice"));
+  } else {
+    origin.push(t("ai.workshop.neverApproved"));
+  }
+  const signature = source.signature;
+  origin.push(signature?.state === "valid" ? t("ai.scripts.signedBy", { publisher: signature.publisher }) : signature?.state === "unknown-key" ? t("ai.scripts.signedUnknown", { key: signature.keyId }) : t("ai.scripts.unsigned"));
+
+  const problems = (source.scriptProblems ?? []).map((p) => t(`ai.scripts.problem.${p.code}`, { detail: p.detail ?? "" }));
+  return {
+    title: workshopTitle(t, entry),
+    kind: "script",
+    status: entry.status,
+    may,
+    changes: entry.status === "changed" && approval?.text !== undefined && source.text !== null ? compareLines(approval.text, source.text) : null,
+    text: null,
+    ...(limits ? { limits } : {}),
+    ...(inputs ? { inputs } : {}),
+    code,
+    ...(code !== null ? { codeSize: t("ai.scripts.codeSize", { lines: number.format(code.split("\n").length - (code.endsWith("\n") ? 1 : 0)), chars: number.format(code.length) }) } : {}),
+    files: source.files.map((f) => ({ path: f.path, size: size(f.bytes, language) })),
+    origin,
+    warnings: source.tooLarge ? [t("ai.scripts.tooLarge")] : [],
+    problems,
+    canApprove: !source.tooLarge && problems.length === 0 && Boolean(script) && code !== null && (entry.status === "new" || entry.status === "changed"),
+    seen: Object.fromEntries(source.files.map((f) => [f.path, f.sha256])),
+  };
+}
+
+/** A script's row: its state where it is not simply active, what it is, what it is for, which tools it calls. */
+export function scriptRowDescription(t: Translate, entry: InstructionEntry): string {
+  const script = entry.source.script;
+  const waits = WAITING.has(entry.status);
+  const status = entry.status === "active" ? null : t(`ai.workshop.status.${entry.status}`);
+  const calls = script ? (script.tools.length ? t("ai.scripts.callsTools", { tools: toolWords(t, script.tools) }) : t("ai.scripts.callsNone")) : null;
+  // Among what waits, skills and scripts stand in one list: the row says which this is.
+  return [waits ? t("ai.scripts.kind") : null, status, script?.description || null, waits ? null : calls].filter(Boolean).join(" · ");
+}
+
 export function approvalFacts(t: Translate, entry: InstructionEntry, language: string): ApprovalFacts {
+  if (entry.source.kind === "script") return scriptFacts(t, entry, language);
   const { source, approval } = entry;
   const app = appSkillOf(source.id);
   const skill = source.skill;
@@ -146,6 +249,7 @@ export function approvalFacts(t: Translate, entry: InstructionEntry, language: s
   const problems = blockingProblems(source.problems).map((p) => problemText(t, p));
   return {
     title,
+    kind: source.kind,
     status: entry.status,
     may,
     changes,
@@ -224,6 +328,7 @@ export function skillTestNote(t: Translate, record: SkillTestRecord | undefined,
  * skill is for is the part a reader already knows.
  */
 export function skillRowDescription(t: Translate, entry: InstructionEntry, records: readonly SkillTestRecord[], plan: SkillTestPlan | null): string {
+  if (entry.source.kind === "script") return scriptRowDescription(t, entry);
   const about = entry.source.kind === "agents" ? t("ai.workshop.mayAgents") : skillView(t, entry).description;
   const status = entry.status === "active" ? null : t(`ai.workshop.status.${entry.status}`);
   const tested = skillTestNote(t, records.find((record) => record.id === entry.source.id), plan);

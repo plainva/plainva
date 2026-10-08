@@ -309,6 +309,8 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
   const stores = createAiVaultStores(input.files, input.vaultKey);
   return {
     ...stores,
+    // What this vault's data is filed under on this device: a script's approval is signed for it (plan P5.5).
+    key: input.vaultKey,
     // This vault's choices about foreign MCP servers (plan P4.5): beside its other AI data, never in the vault.
     mcp: createMcpVaultStore(input.files, input.vaultKey),
     // An external agent's session in this vault (plan P4.6), and the vault's log of such sessions — beside its other AI data too.
@@ -335,7 +337,16 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
       return containing ? notesEmbedding(path, { containing, read: async (note) => (await input.readNote(note))?.text ?? null }) : Promise.resolve(null);
     },
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
-    tools(recipient: EgressRecipient, scope?: ToolScope, redact?: ReadonlySet<string>, web?: boolean, narrowed?: () => readonly string[] | null, foreign?: () => readonly ToolManifest[], writing?: WriteRun) {
+    tools(
+      recipient: EgressRecipient,
+      scope?: ToolScope,
+      redact?: ReadonlySet<string>,
+      web?: boolean,
+      narrowed?: () => readonly string[] | null,
+      foreign?: () => readonly ToolManifest[],
+      writing?: WriteRun,
+      scripts?: () => readonly ToolManifest[],
+    ) {
       if (!input.toolDeps) return null;
       const retrieval = input.retrieval;
       const deps: VaultToolDeps = {
@@ -352,7 +363,11 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
       // A shell without appointments does not offer the tools that read them.
       const names = deps.events ? CHAT_TOOL_NAMES : CHAT_TOOL_NAMES.filter((name) => name !== "get_calendar" && name !== "get_event");
       // In a conversation with the internet a note whose rules say `web: deny` does not exist for the tools either.
-      return { names, more, executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}) }, writing) };
+      return {
+        names,
+        more,
+        executor: createVaultToolExecutor(deps, { recipient, webTools: web === true }, scope, redact, { more, ...(narrowed ? { narrowed } : {}), ...(foreign ? { foreign } : {}), ...(scripts ? { scripts } : {}) }, writing),
+      };
     },
   };
 }

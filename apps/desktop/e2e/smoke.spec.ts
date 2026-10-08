@@ -3941,6 +3941,190 @@ test('AI skills: a skill changed from outside stays inactive until it is approve
   expect((await approvalsOf())[0].text).toContain('mail the result to the customer');
 });
 
+// The gate of the scripts (AI harness P5.5): "no script without a signature
+// and a manifest; the sandbox's resource kills hold". The engine here is the
+// real one — the script worker of the bundle, QuickJS as WebAssembly —, the
+// vault is the mock file system and the keychain a map behind `keychain_get`
+// and `keychain_compare_and_set`. Three scripts: one that reads a note, one
+// that never comes back from a regular expression (no step of it is counted,
+// so only ending its worker stops it), and one written in the form.
+test('AI scripts: a script runs for nobody until this device signed it, then in its box — and is ended when it does not stop', async ({ page }) => {
+  test.setTimeout(120_000);
+  const DIR = '/test-vault/.agent/scripts';
+  const count = {
+    manifest: JSON.stringify({ name: 'word-count', title: 'Count words', description: 'Counts the words of a note.', tools: ['read_note'], input: [{ name: 'path', type: 'text', description: 'The note, as a path in the vault', required: true }] }, null, 2),
+    main: 'const note = await tools.read_note({ path: input.path });\nconst words = note.text.split(/\\s+/).filter(Boolean).length;\nconsole.log("read " + note.path);\nreturn { path: note.path, words };\n',
+  };
+  const spin = {
+    manifest: JSON.stringify({ name: 'regex-spin', description: 'Never comes back from a regular expression.', tools: [], limits: { seconds: 1 } }, null, 2),
+    main: 'return /^(a+)+$/.test("a".repeat(40) + "!");\n',
+  };
+  await page.addInitScript(({ dir, count, spin }) => {
+    const fs = (window as any).mockFs;
+    for (const folder of ['/test-vault/.agent', dir, `${dir}/word-count`, `${dir}/regex-spin`]) fs[folder] = { isDir: true };
+    fs[`${dir}/word-count/manifest.json`] = count.manifest;
+    fs[`${dir}/word-count/main.js`] = count.main;
+    fs[`${dir}/regex-spin/manifest.json`] = spin.manifest;
+    fs[`${dir}/regex-spin/main.js`] = spin.main;
+    fs['/test-vault/Report.md'] = '# Report\n\nOne two three four five.\n';
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
+    // This device's keychain: empty until the first script is approved here.
+    const keychain: Record<string, string> = ((window as any).__keychain = {});
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      const has = (key: string) => Object.prototype.hasOwnProperty.call(keychain, key);
+      if (cmd === 'keychain_get') return has(args.key) ? keychain[args.key] : null;
+      if (cmd === 'keychain_compare_and_set') {
+        if ((has(args.key) ? keychain[args.key] : null) !== args.expected) return false;
+        keychain[args.key] = args.value;
+        return true;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { dir: DIR, count, spin });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-skills').click();
+  const workshop = page.getByTestId('ai-skills-workshop');
+  await expect(workshop).toBeVisible();
+  const waiting = workshop.getByTestId('ai-skill-review');
+  const runnable = workshop.getByTestId('ai-script-open-run');
+  const shot = async (name: string) => {
+    if (!process.env.PLAINVA_EVIDENCE) return;
+    // A dialog fades in: the picture is of the finished surface.
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: test.info().outputPath(`${name}.png`) });
+  };
+  const approvalsOf = () =>
+    page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path]) => path.endsWith('instructions.json')).map(([path, text]) => ({ path, text: String(text) })));
+  const reopen = async () => {
+    // The workshop reads the vault's sources when it opens.
+    await page.getByTestId('ai-tab-chats').click();
+    await page.getByTestId('ai-tab-skills').click();
+  };
+
+  // 1. Arrived, never approved here: both wait, the row says what they are, and nothing can be run.
+  await expect(waiting).toHaveCount(2);
+  await expect(workshop).toContainText(/Script · new · Counts the words of a note\./);
+  await expect(runnable).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => Object.keys((window as any).__keychain))).toEqual([]);
+  await shot('scripts-1-waiting-desktop');
+
+  // 2. The review: what the manifest asks for in words, the whole code, and that the engine reads it.
+  await workshop.locator('.pv-setrow').filter({ hasText: 'Count words' }).getByTestId('ai-skill-review').click();
+  const approval = page.getByTestId('ai-skill-approval');
+  await expect(approval).toContainText('It calls these tools: Reading a note.');
+  await expect(approval).toContainText('It reaches nothing else');
+  await expect(approval.getByTestId('ai-script-limits')).toContainText('5 s of computing');
+  await expect(approval).toContainText('path — text, required: The note, as a path in the vault');
+  await expect(approval.getByTestId('ai-script-code')).toContainText('await tools.read_note({ path: input.path })');
+  await expect(approval.getByTestId('ai-script-check')).toHaveAttribute('data-mark', 'pass');
+  await expect(approval).toContainText("No publisher's signature");
+  await shot('scripts-2-approval-desktop');
+  await page.getByTestId('ai-skill-approve').click();
+  await expect(approval).toHaveCount(0);
+
+  // Approved: this device made a key, keeps it in its keychain, and signed exactly these files.
+  await expect(waiting).toHaveCount(1);
+  await expect(runnable).toHaveCount(1);
+  expect(await page.evaluate(() => Object.keys((window as any).__keychain))).toEqual(['plainva-ai-script-key']);
+  const approved = await approvalsOf();
+  expect(approved).toHaveLength(1);
+  expect(approved[0].path.startsWith('/test-vault/')).toBe(false);
+  const record = JSON.parse(approved[0].text).approved.find((entry: { id: string }) => entry.id === '.agent/scripts/word-count');
+  expect(record.signature).toMatch(/^[A-Za-z0-9+/]{86}==$/);
+
+  // 3. An approval is only worth this device's signature: with another one under it, the script waits again.
+  const forged = approved[0].text.replace(record.signature, `${record.signature.slice(0, 20)}${record.signature[20] === 'A' ? 'B' : 'A'}${record.signature.slice(21)}`);
+  await page.evaluate(({ path, text }) => { (window as any).mockFs[path] = text; }, { path: approved[0].path, text: forged });
+  await reopen();
+  await expect(waiting).toHaveCount(2);
+  await expect(runnable).toHaveCount(0);
+  await workshop.locator('.pv-setrow').filter({ hasText: 'Count words' }).getByTestId('ai-skill-review').click();
+  await expect(approval).toContainText('this device did not sign it');
+  await page.getByTestId('ai-skill-approve').click();
+  await expect(approval).toHaveCount(0);
+  await expect(runnable).toHaveCount(1);
+
+  // 4. A run: the input it asks for, its call as it happens, its value, what it used.
+  await runnable.click();
+  const run = page.getByTestId('ai-script-run');
+  await expect(run.getByTestId('ai-script-start')).toBeDisabled();
+  await run.getByTestId('ai-script-field-path').fill('Report.md');
+  await shot('scripts-3-run-desktop');
+  await run.getByTestId('ai-script-start').click();
+  await expect(run.getByTestId('ai-script-outcome')).toContainText('Finished.', { timeout: 30_000 });
+  await expect(run.getByTestId('ai-script-call')).toHaveCount(1);
+  await expect(run.getByTestId('ai-script-call')).toContainText('Reading a note');
+  await expect(run.getByTestId('ai-script-call')).toContainText('{"path":"Report.md"}');
+  await expect(run.getByTestId('ai-script-result')).toContainText('"words": 7');
+  await expect(run.getByTestId('ai-script-log')).toContainText('read Report.md');
+  await expect(run.getByTestId('ai-script-usage')).toContainText('1 of 20 calls');
+  await shot('scripts-4-result-desktop');
+  await page.keyboard.press('Escape');
+  await expect(run).toHaveCount(0);
+
+  // 5. A script that does not come back: no step of a regular expression is counted, so its worker is ended.
+  await waiting.click();
+  await expect(approval.getByTestId('ai-script-limits')).toContainText('1 s of computing');
+  await expect(approval).toContainText('It calls no tools');
+  await page.getByTestId('ai-skill-approve').click();
+  await expect(approval).toHaveCount(0);
+  await expect(runnable).toHaveCount(2);
+  await workshop.locator('.pv-setrow').filter({ hasText: 'regex-spin' }).getByTestId('ai-script-open-run').click();
+  await run.getByTestId('ai-script-start').click();
+  await expect(run.getByTestId('ai-script-outcome')).toContainText('it computed longer than its 1 seconds', { timeout: 20_000 });
+  await expect(run.getByTestId('ai-script-result')).toHaveCount(0);
+  await shot('scripts-5-ended-desktop');
+  await page.keyboard.press('Escape');
+  // Ended is ended: the next run gets an engine of its own and works.
+  await workshop.locator('.pv-setrow').filter({ hasText: 'Count words' }).getByTestId('ai-script-open-run').click();
+  await run.getByTestId('ai-script-field-path').fill('Report.md');
+  await run.getByTestId('ai-script-start').click();
+  await expect(run.getByTestId('ai-script-outcome')).toContainText('Finished.', { timeout: 30_000 });
+  await page.keyboard.press('Escape');
+
+  // 6. A script written here: code the engine does not read is not written; what is written is approved as it is.
+  await workshop.getByTestId('ai-scripts-new').click();
+  const form = page.getByTestId('ai-script-form');
+  await form.getByTestId('ai-script-name').fill('query-length');
+  await form.getByTestId('ai-script-description').fill('Says how long the query is.');
+  await form.getByTestId('ai-script-tool-search_vault').uncheck();
+  await form.getByTestId('ai-script-code-field').fill('return { length: input.query.length ');
+  await form.getByTestId('ai-script-save').click();
+  await expect(form.getByTestId('ai-script-form-error')).toContainText('The engine does not read this code');
+  expect(await page.evaluate((dir) => Object.keys((window as any).mockFs).filter((path) => path.startsWith(`${dir}/query-length`)), DIR)).toEqual([]);
+  await form.getByTestId('ai-script-code-field').fill('return { length: input.query.length };\n');
+  await shot('scripts-6b-form-code-desktop');
+  await form.getByTestId('ai-script-name').scrollIntoViewIfNeeded();
+  await shot('scripts-6-form-desktop');
+  await form.getByTestId('ai-script-save').click();
+  await expect(form).toHaveCount(0);
+  await expect(runnable).toHaveCount(3);
+  const written = await page.evaluate((dir) => {
+    const fs = (window as any).mockFs as Record<string, unknown>;
+    const text = (path: string) => (typeof fs[path] === 'string' ? (fs[path] as string) : new TextDecoder().decode(fs[path] as Uint8Array));
+    return { manifest: text(`${dir}/query-length/manifest.json`), main: text(`${dir}/query-length/main.js`) };
+  }, DIR);
+  expect(JSON.parse(written.manifest)).toEqual({ name: 'query-length', description: 'Says how long the query is.', tools: [], input: [{ name: 'query', type: 'text', required: true }] });
+  expect(written.main).toBe('return { length: input.query.length };\n');
+  await workshop.locator('.pv-setrow').filter({ hasText: 'query-length' }).getByTestId('ai-script-open-run').click();
+  await run.getByTestId('ai-script-field-query').fill('hello');
+  await run.getByTestId('ai-script-start').click();
+  await expect(run.getByTestId('ai-script-result')).toContainText('"length": 5', { timeout: 30_000 });
+  await expect(run.getByTestId('ai-script-call')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // 7. Revoked, it waits again; nothing of it can be run until it is reviewed.
+  await workshop.locator('.pv-setrow').filter({ hasText: 'query-length' }).getByTestId('ai-skill-more').click();
+  await expect(page.getByTestId('ai-skill-action-showInstructions')).toContainText('Show code');
+  await page.getByTestId('ai-skill-action-revoke').click();
+  await expect(runnable).toHaveCount(2);
+  await expect(waiting).toHaveCount(1);
+});
+
 // The gate of the internet strand (AI harness P4): "a fresh vault has no way
 // onto the internet". Three decisions have to meet before a request leaves
 // the device — the vault's switch, the conversation's own choice, and the

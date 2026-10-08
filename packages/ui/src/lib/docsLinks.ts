@@ -23,6 +23,8 @@ const DOCS_BASE = "https://plainva.com";
 
 export const GDRIVE_BYO_GUIDE = "Google_Drive_BYO_Guide.md";
 export const ONEDRIVE_DROPBOX_BYO_GUIDE = "OneDrive_and_Dropbox_BYO_Guide.md";
+/** Scripts (AI harness P5.5): what a script is, what its tools hand back, and its limits. */
+export const SCRIPTS_GUIDE = "AI_Scripts.md";
 
 /** Handbook file name → website slug. `README.md` is the section index. */
 export function docsSlug(page: string): string {

@@ -1445,6 +1445,35 @@
         <dd><span><code>SKILL.md</code> · 2.1 KB</span></dd>
       </dl>
     </div>
+    <p class="sec-sub">AI harness P5.5 (2026-10-08): scripts in the same workshop. A script's review is the skills' facts list with what a program adds — its limits, its inputs, and its code as a box with line numbers (<code>ScriptCode</code>, <code>.pv-script-code</code>) and the line that the engine reads it. A run lists each tool call with the skills' verdict mark and shows its value and its log in the same box without numbers (<code>ScriptOutput</code>, <code>.pv-script-out</code>). The form is a column of fields (<code>.pv-script-form</code>, <code>.pv-script-field</code>); an input is one row — name, kind, required, remove (<code>.pv-script-input</code>).</p>
+    <div class="card" style="max-width: 560px; display: grid; gap: var(--space-2)">
+      <dl class="pv-skill-facts">
+        <dt>What it may do</dt>
+        <dd><span>It calls these tools: Reading a note.</span><span>It reaches nothing else — no file, no network, no other tool.</span><span>It changes nothing.</span></dd>
+        <dt>Limits</dt>
+        <dd><span>5 s of computing · 32 MB of memory · at most 20 tool calls of 64 KB each · a result of at most 64 KB</span></dd>
+        <dt>Code</dt>
+        <dd>
+          <pre class="pv-linecompare pv-script-code"><span>const note = await tools.read_note({ path: input.path });</span><span>const words = note.text.split(/\s+/).filter(Boolean).length;</span><span>return { path: note.path, words };</span></pre>
+          <span class="pv-skill-test-line" data-mark="pass"><span aria-hidden="true">✓</span><span>The engine reads this code as JavaScript. Lines: 3 · Characters: 146</span></span>
+        </dd>
+        <dt>Calls</dt>
+        <dd><span class="pv-skill-test-line" data-mark="pass"><span aria-hidden="true">✓</span><span>Reading a note <code>{"path":"Report.md"}</code> — 2 ms · 99 B</span></span></dd>
+        <dt>Result</dt>
+        <dd><pre class="pv-linecompare pv-script-out">{
+  "path": "Report.md",
+  "words": 7
+}</pre></dd>
+      </dl>
+      <div class="pv-script-form">
+        <div class="pv-script-field">
+          <span style="color: var(--text-muted); font-size: var(--text-sm)">Inputs</span>
+          <div class="pv-script-inputs">
+            <div class="pv-script-input"><input class="pv-field pv-field--compact" value="path" aria-label="Name of the input" /><select class="pv-field pv-field--select pv-field--compact" aria-label="Type"><option>text</option></select><label class="pv-checkrow"><input type="checkbox" class="pv-check" checked /><span>Required</span></label><button type="button" class="pv-iconbtn pv-iconbtn--sm" aria-label="Remove this input">×</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <p class="sec-sub">AI harness P2c (2026-10-01): the system's own model on the phone is a provider row like the others — “Add provider” lists it first; its line reads “Ready on this device · window of about 4,096 tokens” or, in the failure words, why not; the sheet offers “Check availability” and, on Android while the system offers the download, “Load model”. No new visual pattern.</p>
   </section>
 

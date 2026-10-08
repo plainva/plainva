@@ -108,6 +108,8 @@ Le fil part vers le modèle comme une question : ses commentaires, le passage au
 
 Les compétences sont des instructions pour un travail récurrent. Douze sont fournies avec Plainva — dont **Orientation du jour**, **Bilan de la semaine** et **État du projet** sous forme de puces dans une conversation vide — et vous pouvez écrire ou importer les vôtres. Lancez-en une en un clic, ou demandez simplement : l'IA charge d'elle-même une compétence adaptée. Vos propres compétences ne s'exécutent qu'après votre approbation sur cet appareil. Tout à leur sujet : [Compétences](AI_Skills.md).
 
+Les scripts sont de petits programmes que vous écrivez pour ce qu'un modèle fait mal — compter, trier, additionner. Ils s'exécutent dans une boîte fermée et lisent votre vault avec les mêmes outils que l'IA, mais seulement après que vous les avez approuvés sur cet appareil. Tout ce qui les concerne : [Scripts](AI_Scripts.md).
+
 ## Transcrire une note vocale
 
 Sur chaque note vocale — dans l'éditeur, en mode lecture, dans le journal et sur les cartes —, **Transcrire** transforme l'enregistrement en texte. Il part tel quel vers le modèle du profil **Audio**, via le même aperçu qu'une question ; un enregistrement est un type de données à part, l'aperçu demande donc la première fois. La transcription revient comme proposition sous l'enregistrement, avec l'auteur **Plainva IA · ⟨modèle⟩** — acceptez-la ou refusez-la sous **Propositions**.

@@ -49,7 +49,7 @@ export interface SkillImport {
   contentHash: string;
   /** What the dialog says before the approval. */
   notes: {
-    /** Files in `scripts/`: Plainva runs no scripts (P5.5 at the earliest, in a sandbox). */
+    /** Files in `scripts/`: a skill's own scripts are not run. The scripts Plainva runs are packages of their own under `.agent/scripts/` (plan P5.5). */
     scripts: string[];
     /** Tools in `allowed-tools` that Plainva does not have: the skill runs without them. */
     unknownTools: string[];

@@ -106,6 +106,17 @@ export interface RunMeta {
   mcp?: RunMcp;
   /** What the run laid down for the user to decide (plan KI-Harness P5); absent when it laid down nothing. */
   writes?: RunWrites;
+  /** The scripts the run started; absent when it started none. */
+  scripts?: RunScripts;
+}
+
+/**
+ * What a run did with the vault's scripts (plan KI-Harness P5.5): which
+ * script, how it ended (`done`, or why not), how many tool calls it made —
+ * never what it was handed or a word of what it returned.
+ */
+export interface RunScripts {
+  runs: { script: string; outcome: string; calls: number }[];
 }
 
 /**
@@ -335,8 +346,20 @@ function readRun(raw: unknown): RunMeta[] {
       ...(r.readMore === true || strings(r.read).length > RUN_READ_CAP ? { readMore: true } : {}),
       ...(readRunMcp(r.mcp) ? { mcp: readRunMcp(r.mcp)! } : {}),
       ...(readRunWrites(r.writes) ? { writes: readRunWrites(r.writes)! } : {}),
+      ...(readRunScripts(r.scripts) ? { scripts: readRunScripts(r.scripts)! } : {}),
     },
   ];
+}
+
+/** A run's record of the scripts it started, read defensively: names, outcomes and counts, bounded. */
+function readRunScripts(raw: unknown): RunScripts | null {
+  if (!raw || typeof raw !== "object" || !Array.isArray((raw as { runs?: unknown }).runs)) return null;
+  const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+  const runs = ((raw as { runs: unknown[] }).runs as unknown[])
+    .flatMap((r) => (r && typeof r === "object" ? [{ script: text((r as { script?: unknown }).script, 64), outcome: text((r as { outcome?: unknown }).outcome, 16), calls: Math.floor(count((r as { calls?: unknown }).calls)) }] : []))
+    .filter((r) => r.script && r.outcome)
+    .slice(0, 64);
+  return runs.length ? { runs } : null;
 }
 
 /** A run's record of what it laid down, read defensively: paths, counts and titles, bounded. */

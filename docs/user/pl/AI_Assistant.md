@@ -108,6 +108,8 @@ Wątek trafia do modelu tak jak pytanie: jego komentarze, fragment, do którego 
 
 Umiejętności to instrukcje do powtarzalnej pracy. Dwanaście jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
 
+Skrypty to małe programy, które piszesz do tego, co model robi słabo — liczenia, sortowania, sumowania. Działają w zamkniętej piaskownicy, czytają Twój vault przez te same narzędzia co AI i uruchamiają się dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Skrypty](AI_Scripts.md).
+
 ## Transkrypcja notatki głosowej
 
 Przy każdej notatce głosowej — w edytorze, w trybie czytania, w dzienniku i na kartach — **Transkrybuj** zamienia nagranie w tekst. Trafia ono bez zmian do modelu profilu **Audio**, przez ten sam przegląd co pytanie; nagranie to osobny rodzaj danych, więc przegląd pyta za pierwszym razem. Transkrypcja wraca jako propozycja pod nagraniem, z autorem **Plainva AI · ⟨model⟩** — zaakceptuj ją lub odrzuć w sekcji **Propozycje**.

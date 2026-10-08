@@ -1,6 +1,6 @@
 # Skills (Beta)
 
-Stand: 2026-10-07
+Stand: 2026-10-08
 
 Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt zwölf davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
@@ -86,4 +86,4 @@ Die Sende-Übersicht nennt unter **Anweisungen**, was mitgeht: den Skill des Ges
 
 ## Grenzen der Beta
 
-Skills führen keine Skripte aus. Deine eigenen Skills werden KI-Apps, die über den MCP-Server verbunden sind, nicht angeboten; nur die mitgelieferten.
+Ein Skill führt keine eigenen Skripte aus; für kleine Programme, die Deinen Vault lesen, siehe [Skripte](AI_Scripts.md). Deine eigenen Skills werden KI-Apps, die über den MCP-Server verbunden sind, nicht angeboten; nur die mitgelieferten.

@@ -159,7 +159,7 @@ describe("the skills workshop", () => {
     expect(facts.notes).toEqual([
       "Licence: MIT",
       expect.stringMatching(/^2 files, /),
-      "Contains a script. Plainva runs no scripts; the instructions apply without it.",
+      "Contains a script. Plainva does not run a skill's scripts; the instructions apply without it.",
       "Names tools Plainva does not have: Bash(git:*) — the skill runs without them.",
     ]);
     expect(facts.exists).toBe(true);

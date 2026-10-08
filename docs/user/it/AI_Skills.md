@@ -1,6 +1,6 @@
 # Competenze (Beta)
 
-Ultimo aggiornamento: 2026-10-07
+Ultimo aggiornamento: 2026-10-08
 
 Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include dodici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
@@ -86,4 +86,4 @@ Il riepilogo di invio elenca sotto **Istruzioni** cosa va insieme: la competenza
 
 ## Limiti della beta
 
-Le competenze non eseguono script. Le tue competenze non vengono offerte alle app di IA collegate tramite il server MCP; solo quelle incluse in Plainva.
+Una competenza non esegue script propri; per i piccoli programmi che leggono il vault, vedi [Script](AI_Scripts.md). Le tue competenze non vengono offerte alle app di IA collegate tramite il server MCP; solo quelle incluse in Plainva.

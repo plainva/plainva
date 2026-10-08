@@ -1,6 +1,6 @@
 # Habilidades (Beta)
 
-Última actualización: 2026-10-07
+Última actualización: 2026-10-08
 
 Una habilidad es un conjunto de instrucciones para un trabajo que se repite: preparar una reunión, ordenar tus tareas, un repaso semanal. Plainva incluye doce y puedes escribir las tuyas. Las habilidades usan el formato abierto Agent Skills —una carpeta con un `SKILL.md`—, así que también funcionan en otras apps de IA que leen ese formato.
 
@@ -86,4 +86,4 @@ La vista de envío muestra en **Instrucciones** lo que va incluido: la habilidad
 
 ## Límites de la beta
 
-Las habilidades no ejecutan scripts. Tus propias habilidades no se ofrecen a las apps de IA conectadas mediante el servidor MCP; solo las incluidas en Plainva.
+Una habilidad no ejecuta ningún script propio; para los programas pequeños que leen tu vault, consulta [Scripts](AI_Scripts.md). Tus propias habilidades no se ofrecen a las apps de IA conectadas mediante el servidor MCP; solo las incluidas en Plainva.

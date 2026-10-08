@@ -218,8 +218,9 @@ export interface SkillRowCaps {
   /** Its test scenarios against the chosen model (the regression run, plan P3-8); `testLabel` names the model. */
   test?: () => void;
   testLabel?: string;
-  /** The app's own skills: their instructions, read only. */
+  /** The app's own skills: their instructions, read only. A script shows its code and its approval instead, and `showLabel` says so. */
   showInstructions?: () => void;
+  showLabel?: string;
   /** The vault's own: the file in the editor (any change asks for an approval again). */
   edit?: () => void;
   /** The app's own: an own version in the vault, to change there. */
@@ -233,7 +234,7 @@ export function skillRowActions(t: RowActionT, c: SkillRowCaps): RowActionSpec[]
   const out: Array<RowActionSpec | null> = [
     c.run ? { id: "run", label: t("ai.workshop.run"), icon: Play, run: c.run } : null,
     c.test ? { id: "test", label: c.testLabel ?? t("ai.workshop.test.open"), icon: FlaskConical, run: c.test } : null,
-    c.showInstructions ? { id: "showInstructions", label: t("ai.workshop.showInstructions"), icon: Eye, run: c.showInstructions } : null,
+    c.showInstructions ? { id: "showInstructions", label: c.showLabel ?? t("ai.workshop.showInstructions"), icon: Eye, run: c.showInstructions } : null,
     c.edit ? { id: "edit", label: t("ai.workshop.edit"), icon: Pencil, run: c.edit } : null,
     c.copy ? { id: "copy", label: t("ai.workshop.copy"), icon: Copy, run: c.copy } : null,
     c.revoke ? { id: "revoke", label: t("ai.workshop.revoke"), icon: ShieldOff, run: c.revoke } : null,

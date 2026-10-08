@@ -240,6 +240,7 @@ describe("the settings model", () => {
     agents: NO_ACP,
     drafts: { drafts: [], done: [] },
     fill: null,
+    scripts: { available: false, run: null },
     ...patch,
   });
 
