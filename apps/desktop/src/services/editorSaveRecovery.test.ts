@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import ts from "typescript";
@@ -174,18 +174,65 @@ describe("original desktop save completion", () => {
   // Built at run time: the mark is never typed into this file.
   const MARK = String.fromCharCode(0xfeff);
 
-  it("saves a note in the house form — \\n — and keeps the mark it arrived with, which the editor does not hold", async () => {
+  /** The file as it lies on disk, byte for byte. */
+  const bytesOf = async (path: string) => [...await readFile(join(root, path))];
+  const utf8 = (text: string) => [...new TextEncoder().encode(text)];
+
+  it("saves a note with the line ends and the mark it arrived with: an edit changes the edited line, byte for byte", async () => {
     const windows = `${MARK}base\r\nmiddle\r\nend\r\n`;
     await raw.writeTextFile("Windows.md", windows);
+    const before = await bytesOf("Windows.md");
     const h = open("Windows.md", windows);
     // No mark in the buffer (finding 2026-10-08): it used to be the note's
     // first character, while the comment operation read the note without it.
     expect(h.session.view.state.doc.toString()).toBe("base\nmiddle\nend\n");
-    h.edit("base!\nmiddle\nend\n"); await h.persist("base!\nmiddle\nend\n");
-    expect(await raw.readTextFile("Windows.md")).toBe(`${MARK}base!\nmiddle\nend\n`);
-    expect(h.lifetime.persisted).toBe("base!\nmiddle\nend\n");
+    h.edit("base\nmiddle!\nend\n"); await h.persist("base\nmiddle!\nend\n");
+    // Until 2026-10-09 the note came back as "base\nmiddle!\nend\n" behind its
+    // mark: every line end turned by one edit — the whole file, for whoever
+    // keeps the vault in Git. Now one byte is new, and every other one stays.
+    const after = await bytesOf("Windows.md");
+    expect(after).toEqual([0xef, 0xbb, 0xbf, ...utf8("base\r\nmiddle!\r\nend\r\n")]);
+    const at = before.length - utf8("\r\nend\r\n").length;
+    expect(after.slice(0, at)).toEqual(before.slice(0, at));
+    expect(after.slice(at + 1)).toEqual(before.slice(at));
+    expect(h.lifetime.persisted).toBe("base\nmiddle!\nend\n");
     expect(h.lifetime.dirty).toBe(false);
     expect(await files.getConflictSession("Windows.md")).toBeNull();
+    // What the editor remembers is its own text again, so the next edit starts from it.
+    expect(h.lifetime.baseInput).toBe("base\nmiddle!\nend\n");
+    h.edit("base\nmiddle!\nend!\n"); await h.persist("base\nmiddle!\nend!\n");
+    expect(await bytesOf("Windows.md")).toEqual([0xef, 0xbb, 0xbf, ...utf8("base\r\nmiddle!\r\nend!\r\n")]);
+  });
+
+  it("keeps a note's line ends and mark when a change made elsewhere merges into the save", async () => {
+    const windows = `${MARK}a\r\nb\r\nc\r\nd\r\n`;
+    await raw.writeTextFile("Windows.md", windows);
+    const h = open("Windows.md", windows);
+    await raw.writeTextFile("Windows.md", `${MARK}a\r\nb\r\nc\r\nd from elsewhere\r\n`);
+    h.edit("a!\nb\nc\nd\n"); await h.persist("a!\nb\nc\nd\n");
+    expect(await bytesOf("Windows.md")).toEqual([0xef, 0xbb, 0xbf, ...utf8("a!\r\nb\r\nc\r\nd from elsewhere\r\n")]);
+    expect(h.session.view.state.doc.toString()).toBe("a!\nb\nc\nd from elsewhere\n");
+    expect(await files.getConflictSession("Windows.md")).toBeNull();
+  });
+
+  it("writes a note with one stray line end back in its majority — the edited line and that one, not the whole note", async () => {
+    const mixed = "a\r\nb\r\nc\nd\r\n";
+    await raw.writeTextFile("Windows.md", mixed);
+    const h = open("Windows.md", mixed);
+    h.edit("a!\nb\nc\nd\n"); await h.persist("a!\nb\nc\nd\n");
+    expect(await raw.readTextFile("Windows.md")).toBe("a!\r\nb\r\nc\r\nd\r\n");
+  });
+
+  it("saves a note that arrived with \\n with \\n, and a new one too", async () => {
+    await raw.writeTextFile("Unix.md", "base\nmiddle\nend\n");
+    const h = open("Unix.md", "base\nmiddle\nend\n");
+    h.edit("base!\nmiddle\nend\n"); await h.persist("base!\nmiddle\nend\n");
+    expect(await bytesOf("Unix.md")).toEqual(utf8("base!\nmiddle\nend\n"));
+    // A note Plainva has just created: one line, nothing to count yet.
+    await raw.writeTextFile("New.md", "# New");
+    const fresh = open("New.md", "# New");
+    fresh.edit("# New\n\nFirst line.\n"); await fresh.persist("# New\n\nFirst line.\n");
+    expect(await bytesOf("New.md")).toEqual(utf8("# New\n\nFirst line.\n"));
   });
 
   it("does not write a text that did not change: leaving the suggestion mode costs a note from Windows nothing", async () => {
@@ -202,9 +249,9 @@ describe("original desktop save completion", () => {
     expect(h.lifetime.dirty).toBe(false);
     expect(dirtyStore.get().has("Windows.md")).toBe(false);
     expect(h.journals.size).toBe(0);
-    // The first real edit is saved as ever.
+    // The first real edit is saved as ever — and leaves the note its shape.
     h.edit("base!\nmiddle\nend\n"); await h.persist("base!\nmiddle\nend\n");
-    expect(await raw.readTextFile("Windows.md")).toBe(`${MARK}base!\nmiddle\nend\n`);
+    expect(await raw.readTextFile("Windows.md")).toBe(`${MARK}base!\r\nmiddle\r\nend\r\n`);
   });
 
   it("writes a foreign file with one stray line end back in its majority — one line of diff, not the whole file", async () => {

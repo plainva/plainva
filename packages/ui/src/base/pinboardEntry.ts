@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, readTextShape, setFrontmatterPath } from "@plainva/core";
 import { finalizeItemContent } from "../lib/newItemContent";
 import { templateCaretInNote } from "../lib/templateCaret";
 import { resolveNewItemTarget } from "./baseRelations";
@@ -291,7 +291,8 @@ export function applyPinboardEntryTitle(content: string, title: string, stem: st
   } catch {
     /* unparseable frontmatter: leave it alone, the heading still carries the title */
   }
-  const bodyStart = frontmatterEndOf(next);
+  // The text begins behind the properties, or behind a byte order mark.
+  const bodyStart = frontmatterEndOf(next) || (next.charCodeAt(0) === 0xfeff ? 1 : 0);
   const head = next.slice(0, bodyStart);
   const body = next.slice(bodyStart);
   const h1 = leadingH1(body);
@@ -299,7 +300,10 @@ export function applyPinboardEntryTitle(content: string, title: string, stem: st
   if (h1 && h1.text === stem) return head + body.slice(0, h1.start) + `# ${t}` + body.slice(h1.end);
   let rest = body;
   while (rest.startsWith("\n") || rest.startsWith("\r\n")) rest = rest.slice(rest.startsWith("\r\n") ? 2 : 1);
-  return head + `# ${t}\n` + (rest.trim() ? `\n${rest}` : "");
+  // The heading that is added ends the way the note's lines end (a template
+  // from Windows): with `\n` it was one line of the other kind in such a note.
+  const eol = readTextShape(next).shape.eol;
+  return head + `# ${t}${eol}` + (rest.trim() ? `${eol}${rest}` : "");
 }
 
 /** Takes the chips the person removed off the note again. */

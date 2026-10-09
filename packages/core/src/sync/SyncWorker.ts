@@ -5,6 +5,7 @@ import { SyncStateRepository, SyncState } from "../vault/SyncStateRepository.js"
 import { SyncQueue } from "./SyncQueue.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { mergeText, mergeWithoutBase } from "../conflict-resolver.js";
+import { textOfFileBytes } from "../textFileShape.js";
 import { classifyTaskNotes, preserveDisplacedTask, taskNotesEquivalent } from "../pim/taskNoteIdentity.js";
 import { isTextFile } from "./fileType.js";
 import { findCollidingPath, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
@@ -1449,7 +1450,11 @@ export class SyncWorker {
       return;
     }
 
-    const remoteContent = new TextDecoder().decode(contentBytes);
+    // With its byte order mark, where it has one: this text is what gets
+    // written here, and a decoder left to itself drops the mark — the file
+    // arrived on the second device without it, and a merge with the local
+    // version, which still had it, saw a changed first line on both sides.
+    const remoteContent = textOfFileBytes(contentBytes);
     const remoteSha = await sha256Hash(remoteContent);
 
     const localExists = await this.vault.exists(path);

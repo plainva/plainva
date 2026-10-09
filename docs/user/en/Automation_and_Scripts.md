@@ -1,6 +1,6 @@
 # Automation & Scripts
 
-Last reviewed: 2026-08-21
+Last reviewed: 2026-10-09
 
 Plainva has no plugin system that runs third-party code. Instead the vault itself is the extension interface: your notes are plain Markdown, databases are plain YAML (`.base`), and the [OKF conventions](OKF.md) give every file a predictable structure. Anything that can read and write files — a shell script, a Python program, a CLI tool, a scheduled job or an AI agent — can extend, generate or reorganize your vault without a single Plainva-specific API.
 
@@ -28,7 +28,7 @@ Reading never needs care — text files cannot be "corrupted" by reading them. T
 
 Follow these rules and Plainva (and Obsidian) will accept your changes cleanly. Plainva watches the vault folder: an external write is picked up and re-indexed automatically, usually within a second.
 
-1. **Write UTF-8 without a BOM, with LF line endings.** Windows tools that default to UTF-16 or CRLF produce files Plainva treats as changed on every sync.
+1. **Write UTF-8.** Give a new file LF line endings and no BOM — that is what Plainva writes. A file that already has CRLF line endings or a BOM may keep them: Plainva reads both and leaves them as they are, also when the note is edited or synced. What it cannot read is another encoding — UTF-16 or Windows-1252, which some Windows tools write by default: such a file shows wrong characters, and a sync does not carry it over intact.
 2. **Write atomically.** Write to a temporary file in the same folder, then rename it over the target. A half-written note (for example after a crash) is worse than no change. Plainva itself writes every note this way.
 3. **Preserve OKF frontmatter and unknown keys.** Keep `type` and `okf_version` when you rewrite a note, and never drop frontmatter keys you do not recognize — round-trip them unchanged. Do not "tidy" keys you do not understand.
 4. **Never touch `.plainva/`.** That folder holds Plainva's device-local index, backups, graph pins and sync state. It is not part of your content and must never be written, synced or committed to Git by your scripts.

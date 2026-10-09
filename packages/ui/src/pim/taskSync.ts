@@ -1,7 +1,7 @@
 import {
   frontmatterSpan,
-  noteBodyOf,
   readFrontmatterPath,
+  readTextShape,
   upsertFrontmatterKeys,
   deleteFrontmatterPath,
   setFrontmatterPath,
@@ -827,19 +827,30 @@ export function applyFieldsToNote(content: string, merged: PimTaskFields, curren
   return out;
 }
 
+/**
+ * Where the note's text begins: behind its properties, or — in a note without
+ * any — behind a byte order mark. The mark is no part of the first line: read
+ * as one, it hid a heading on that line from both functions below, and a
+ * title from the provider was written as a second heading above it.
+ */
+function textStartOf(content: string): number {
+  return frontmatterSpan(content)?.end ?? (content.charCodeAt(0) === 0xfeff ? 1 : 0);
+}
+
 function firstH1(content: string): string | null {
-  const body = noteBodyOf(content);
+  const body = content.slice(textStartOf(content));
   const m = body.match(/^#[ \t]+(\S[^\r\n]*)/m);
   return m ? m[1].trim() : null;
 }
 
 function replaceFirstH1(content: string, title: string): string {
-  const fmEnd = frontmatterSpan(content)?.end ?? 0;
-  const head = content.slice(0, fmEnd);
-  const body = content.slice(fmEnd);
+  const at = textStartOf(content);
+  const head = content.slice(0, at);
+  const body = content.slice(at);
   if (/^#[ \t]+\S[^\r\n]*/m.test(body)) {
     return head + body.replace(/^#[ \t]+\S[^\r\n]*/m, `# ${title}`);
   }
-  return head + `# ${title}\n` + body;
+  // A heading that has to be added ends the way the note's lines end.
+  return head + `# ${title}${readTextShape(content).shape.eol}` + body;
 }
 

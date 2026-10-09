@@ -1,6 +1,6 @@
 # Automatisering & scripts
 
-Laatst bijgewerkt: 2026-08-21
+Laatst bijgewerkt: 2026-10-09
 
 Plainva heeft geen pluginsysteem dat code van derden uitvoert. In plaats daarvan is de vault zelf de uitbreidingsinterface: je notities zijn gewone Markdown, databases zijn gewone YAML (`.base`), en de [OKF-conventies](OKF.md) geven elk bestand een voorspelbare structuur. Alles wat bestanden kan lezen en schrijven — een shellscript, een Python-programma, een CLI-tool, een geplande taak of een KI-agent — kan je vault uitbreiden, genereren of herstructureren zonder ook maar één Plainva-specifieke API.
 
@@ -28,7 +28,7 @@ Lezen vraagt nooit om voorzichtigheid — tekstbestanden kunnen niet "beschadigd
 
 Volg deze regels en Plainva (en Obsidian) accepteren je wijzigingen probleemloos. Plainva houdt de vaultmap in de gaten: een externe schrijfactie wordt automatisch opgemerkt en opnieuw geïndexeerd, meestal binnen een seconde.
 
-1. **Schrijf UTF-8 zonder BOM, met LF-regeleinden.** Windows-tools die standaard UTF-16 of CRLF gebruiken, produceren bestanden die Plainva bij elke sync als gewijzigd beschouwt.
+1. **Schrijf UTF-8.** Geef een nieuw bestand LF-regeleinden en geen BOM — zo schrijft Plainva zelf. Een bestand dat al CRLF-regeleinden of een BOM heeft, mag die houden: Plainva leest beide en laat ze zoals ze zijn, ook wanneer de notitie wordt bewerkt of gesynchroniseerd. Wat het niet kan lezen, is een andere codering — UTF-16 of Windows-1252, die sommige Windows-tools standaard schrijven: zo'n bestand toont verkeerde tekens, en een sync brengt het niet ongeschonden over.
 2. **Schrijf atomair.** Schrijf naar een tijdelijk bestand in dezelfde map en hernoem dat vervolgens naar de doelnaam. Een half geschreven notitie (bijvoorbeeld na een crash) is erger dan helemaal geen wijziging. Plainva schrijft zelf elke notitie op deze manier.
 3. **Bewaar de OKF-frontmatter en onbekende sleutels.** Behoud `type` en `okf_version` wanneer je een notitie herschrijft, en laat nooit frontmattersleutels vallen die je niet herkent — ze moeten een lees-/schrijfronde ongewijzigd doorstaan. "Ruim" geen sleutels op die je niet begrijpt.
 4. **Raak `.plainva/` nooit aan.** Die map bevat Plainva's lokale (per-apparaat) index, back-ups, vastzettingen in de graaf en sync-status. Het is geen onderdeel van je inhoud en mag door je scripts nooit worden beschreven, gesynchroniseerd of naar Git gecommit.

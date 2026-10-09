@@ -1,5 +1,6 @@
 import {
   generateIndexContent,
+  inShapeOf,
   isExcludedFromOkfScan,
   isReservedOkfName,
   readRootOkfDeclaration,
@@ -136,6 +137,10 @@ export async function generateIndexForFolder(opts: {
   });
 
   if (existing !== null && !opts.skipBackup) await backupIndexFile(adapter, indexPath, existing);
-  await adapter.writeTextFile(indexPath, content);
+  // A listing that is written anew over the one that is there keeps that
+  // file's line ends and mark: the refresh runs by itself on every change in
+  // the folder, and it turned every line end of an overview that lies there
+  // with `\r\n` (finding 2026-10-09). A new overview starts with `\n`.
+  await adapter.writeTextFile(indexPath, existing === null ? content : inShapeOf(existing, content));
   return { indexPath, entries: directFiles.length + subfolders.size, overwrote };
 }

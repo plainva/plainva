@@ -232,7 +232,7 @@ Los eventos y las notas diarias están deliberadamente separados: **Calendario**
 
 Además de notas y bases de datos, el navegador muestra ahora los **adjuntos**: imágenes, PDF y cualquier otro archivo de la carpeta. Una imagen se abre dentro de Plainva; el resto se entrega al sistema, que sabe qué es un PDF y Plainva no. **Compartir** pasa un archivo a cualquier otra app.
 
-Un archivo de texto (`.txt`, `.csv`, `.json`, código fuente y similares; consulta [Notas y Markdown](Notes_and_Markdown.md)) también se abre aquí dentro de Plainva y se guarda tal como llegó: con sus finales de línea y su BOM. Si el comienzo del archivo revela que no es texto, Plainva no lo muestra y ofrece **Compartir**: mostrarlo y guardarlo lo dañaría.
+Un archivo de texto (`.txt`, `.csv`, `.json`, código fuente y similares; consulta [Notas y Markdown](Notes_and_Markdown.md)) también se abre aquí dentro de Plainva y se guarda tal como llegó: con sus finales de línea y su BOM. Lo mismo vale para una nota: al editarla cambian las líneas que has editado y nada más en el archivo. Si el comienzo del archivo revela que no es texto, Plainva no lo muestra y ofrece **Compartir**: mostrarlo y guardarlo lo dañaría.
 
 El menú ⋮ de una nota incluye **Exportar como Markdown…**: entrega el archivo al panel de compartir del sistema, donde encuentras Imprimir, «Guardar en Archivos» y todos los editores instalados. **Compartir**, encima, envía solo el texto de la nota. Si la nota tiene anotaciones abiertas, Plainva pregunta antes **¿Incluir las anotaciones?**: **Como lista al final (legible en todas partes)** o **Marcadas en el texto (CriticMarkup)**; las marcas de anclaje invisibles se eliminan en todos los casos.
 

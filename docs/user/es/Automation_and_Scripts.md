@@ -1,6 +1,6 @@
 # Automatización y scripts
 
-Última actualización: 2026-08-21
+Última actualización: 2026-10-09
 
 Plainva no tiene ningún sistema de plugins que ejecute código de terceros. En su lugar, el propio vault es la interfaz de extensión: tus notas son Markdown puro, las bases de datos son YAML puro (`.base`), y las [convenciones OKF](OKF.md) dan a cada archivo una estructura predecible. Cualquier cosa que pueda leer y escribir archivos — un script de shell, un programa Python, una herramienta CLI, una tarea programada o un agente de IA — puede ampliar, generar o reorganizar tu vault sin una sola API específica de Plainva.
 
@@ -28,7 +28,7 @@ Leer nunca requiere cuidado especial — los archivos de texto no se pueden "cor
 
 Sigue estas reglas y Plainva (y Obsidian) aceptarán tus cambios sin problemas. Plainva vigila la carpeta del vault: una escritura externa se detecta y se reindexa automáticamente, normalmente en menos de un segundo.
 
-1. **Escribe UTF-8 sin BOM, con finales de línea LF.** Las herramientas de Windows que usan UTF-16 o CRLF por defecto producen archivos que Plainva trata como modificados en cada sincronización.
+1. **Escribe UTF-8.** Da a un archivo nuevo finales de línea LF y ningún BOM: así escribe el propio Plainva. Un archivo que ya tiene finales de línea CRLF o un BOM puede conservarlos: Plainva lee ambos y los deja como están, también cuando la nota se edita o se sincroniza. Lo que no puede leer es otra codificación (UTF-16 o Windows-1252, que algunas herramientas de Windows escriben por defecto): un archivo así muestra caracteres erróneos, y la sincronización no lo transfiere intacto.
 2. **Escribe de forma atómica.** Escribe en un archivo temporal en la misma carpeta y luego renómbralo sobre el archivo de destino. Una nota escrita a medias (por ejemplo, tras un fallo) es peor que ningún cambio. El propio Plainva escribe cada nota así.
 3. **Conserva el frontmatter OKF y las claves desconocidas.** Mantén `type` y `okf_version` al reescribir una nota, y nunca elimines claves de frontmatter que no reconozcas — arrástralas sin cambios. No "limpies" claves que no entiendas.
 4. **Nunca toques `.plainva/`.** Esa carpeta contiene el índice local del dispositivo de Plainva, las copias de seguridad, los pines del grafo y el estado de sincronización. No forma parte de tu contenido y tus scripts nunca deben escribirla, sincronizarla ni subirla a Git.

@@ -1,4 +1,5 @@
 import { parseDocument, Document, YAMLMap, isMap } from "yaml";
+import { readTextShape } from "./textFileShape.js";
 
 /**
  * The properties block of a note: where it is, how its YAML becomes a document
@@ -138,7 +139,10 @@ export interface SplitDocument {
 }
 
 export function splitDocument(content: string): SplitDocument {
-  const eol = content.includes("\r\n") ? "\r\n" : "\n";
+  // The note's line end, by the one definition of it (`readTextShape`: what
+  // most of its lines have). A single `\r\n` anywhere used to decide here, and
+  // the block of a note with one stray line end was written in that one.
+  const eol = readTextShape(content).shape.eol;
   const byteOrderMark = byteOrderMarkOf(content);
   const span = frontmatterSpan(content);
 

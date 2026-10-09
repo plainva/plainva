@@ -1,5 +1,5 @@
 import { flushPendingSave } from "../platform/services";
-import { frontmatterSpan, nextWhere, resolveLinkTarget, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { editInShape, frontmatterSpan, nextWhere, resolveLinkTarget, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 
 /**
@@ -40,9 +40,14 @@ export async function appendWikiLink(
 
   await flushPendingSave(sourcePath);
   const current = await adapter.readTextFile(sourcePath);
-  const needsBlankLine = current.length > 0 && !current.endsWith("\n\n") ;
-  const separator = current.length === 0 ? "" : current.endsWith("\n") ? (needsBlankLine ? "\n" : "") : "\n\n";
-  await adapter.writeTextFile(sourcePath, `${current}${separator}${link}\n`);
+  // The link and the empty line in front of it end the way the note's lines
+  // end (`editInShape`): they were written with `\n` into every note, and one
+  // that lies there with `\r\n` got two lines of the other kind per link.
+  await adapter.writeTextFile(sourcePath, editInShape(current, (text) => {
+    const needsBlankLine = text.length > 0 && !text.endsWith("\n\n");
+    const separator = text.length === 0 ? "" : text.endsWith("\n") ? (needsBlankLine ? "\n" : "") : "\n\n";
+    return `${text}${separator}${link}\n`;
+  }));
   notifyOpenEditor(sourcePath);
   return link;
 }

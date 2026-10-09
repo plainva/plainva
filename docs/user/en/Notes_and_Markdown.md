@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-10-06
+Last updated: 2026-10-09
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -185,7 +185,7 @@ Your notes are plain `.md` files, so any Markdown editor can open them. The edit
 - **Linking**: type `[[` and Plainva suggests notes first, with your vault's files below them under **Attachments**.
 - **Viewing**: image files (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) open in the built-in image viewer with **Zoom in**/**Zoom out**, **Fit** and **Actual size (1:1)**.
 - **Editing**: the **Edit** button opens the image editor with **Crop**, rotate/flip, **Resize**, drawing tools (**Pen**, **Arrow**, **Rectangle**, **Text**) plus **Undo**/**Redo**. Save in place or **Save as copy…**. Editable formats are PNG, JPG and WebP; other formats open view-only.
-- **Text files** open inside Plainva: `.txt`, `.csv`, `.json`, `.yaml`, source code and the like. If your vault needs more, add the extensions under **Settings → Your vault → Content & structure → More text files** — the list can only add, never take away. If the start of a file shows it is not text after all, Plainva does not display it and offers the default program instead: showing and saving it would damage the file. A file opened this way keeps its line endings and its BOM when saved — it is yours, not Plainva's. While you edit, Plainva colours the text by its file extension — the same highlighting a fenced code block inside a note gets. The note tools stay off: no live preview, no properties header, no `[[links]]`, no "/" menu. Find and replace stays, because that is a text feature and not a note feature.
+- **Text files** open inside Plainva: `.txt`, `.csv`, `.json`, `.yaml`, source code and the like. If your vault needs more, add the extensions under **Settings → Your vault → Content & structure → More text files** — the list can only add, never take away. If the start of a file shows it is not text after all, Plainva does not display it and offers the default program instead: showing and saving it would damage the file. A file opened this way keeps its line endings and its BOM when saved, as a note does — it is yours, not Plainva's. While you edit, Plainva colours the text by its file extension — the same highlighting a fenced code block inside a note gets. The note tools stay off: no live preview, no properties header, no `[[links]]`, no "/" menu. Find and replace stays, because that is a text feature and not a note feature.
 - Other attachments open in the system's default program on a single click — in the file tree just as via a `[[link]]`, a bookmark or search.
 
 ## What about Obsidian?

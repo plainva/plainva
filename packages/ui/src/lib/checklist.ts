@@ -14,7 +14,7 @@
  * the same list style, or at the end when the note has none. Editing the
  * wording is what the note is for.
  */
-import { taskBoxState, type TaskBoxState } from "@plainva/core";
+import { editInShape, taskBoxState, type TaskBoxState } from "@plainva/core";
 import { FENCE_RE, TASK_LINE_RE } from "./taskToggle";
 
 export interface TaskProgress {
@@ -70,26 +70,30 @@ export function listTaskLines(content: string): TaskLine[] {
  * that line's own indentation and list marker (so a nested list stays one);
  * otherwise at the end of the note, as a plain `- [ ]` item on its own line.
  * The text is one line: line breaks would turn the rest into ordinary text.
+ * The note keeps its own line ends (`editInShape`): the new line used to end
+ * with `\n` whatever the note had (finding 2026-10-09).
  */
 export function appendTaskLine(content: string, text: string): string {
   const clean = text.replace(/[\r\n]+/g, " ").trim();
   if (!clean) return content;
-  const lines = content.split("\n");
-  let inFence = false;
-  let last: { index: number; prefix: string } | null = null;
-  for (let i = 0; i < lines.length; i++) {
-    if (FENCE_RE.test(lines[i])) {
-      inFence = !inFence;
-      continue;
+  return editInShape(content, (body) => {
+    const lines = body.split("\n");
+    let inFence = false;
+    let last: { index: number; prefix: string } | null = null;
+    for (let i = 0; i < lines.length; i++) {
+      if (FENCE_RE.test(lines[i])) {
+        inFence = !inFence;
+        continue;
+      }
+      if (inFence) continue;
+      const m = lines[i].match(TASK_LINE_RE);
+      if (m) last = { index: i, prefix: m[1].slice(0, -1) };
     }
-    if (inFence) continue;
-    const m = lines[i].match(TASK_LINE_RE);
-    if (m) last = { index: i, prefix: m[1].slice(0, -1) };
-  }
-  if (last) {
-    lines.splice(last.index + 1, 0, `${last.prefix}[ ] ${clean}`);
-    return lines.join("\n");
-  }
-  const trailing = content.endsWith("\n") ? content : content.length > 0 ? `${content}\n` : "";
-  return `${trailing}- [ ] ${clean}\n`;
+    if (last) {
+      lines.splice(last.index + 1, 0, `${last.prefix}[ ] ${clean}`);
+      return lines.join("\n");
+    }
+    const trailing = body.endsWith("\n") ? body : body.length > 0 ? `${body}\n` : "";
+    return `${trailing}- [ ] ${clean}\n`;
+  });
 }

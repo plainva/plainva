@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-09
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -185,7 +185,7 @@ Le tue note sono normali file `.md`, quindi qualsiasi editor Markdown può aprir
 - **Collegare**: digita `[[` e Plainva propone prima le note e sotto, in **Allegati**, i file del tuo archivio.
 - **Visualizzazione**: i file immagine (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) si aprono nel visualizzatore di immagini integrato con **Aumenta zoom**/**Riduci zoom**, **Adatta** e **Dimensione reale (1:1)**.
 - **Modifica**: il pulsante **Modifica** apre l'editor di immagini con **Ritaglia**, ruota/capovolgi, **Ridimensiona**, strumenti di disegno (**Penna**, **Freccia**, **Rettangolo**, **Testo**) più **Annulla**/**Ripeti**. Salva sul posto o **Salva come copia…**. I formati modificabili sono PNG, JPG e WebP; gli altri formati si aprono in sola visualizzazione.
-- **I file di testo** si aprono dentro Plainva: `.txt`, `.csv`, `.json`, `.yaml`, codice sorgente e simili. Se il tuo vault ne richiede altri, aggiungi le estensioni in **Impostazioni → Il tuo vault → Contenuto e struttura → Altri file di testo**: l'elenco può solo aggiungere, mai togliere. Se l'inizio del file rivela che non è testo, Plainva non lo mostra e propone il programma predefinito: mostrarlo e salvarlo lo danneggerebbe. Un file aperto così conserva i suoi fine riga e il suo BOM al salvataggio — è tuo, non di Plainva. Durante la modifica, Plainva colora il testo in base alla sua estensione del file — la stessa evidenziazione che riceve un blocco di codice all'interno di una nota. Gli strumenti per le note restano disattivati: niente Anteprima dal vivo, niente intestazione delle proprietà, niente `[[links]]`, niente menu "/". Trova e sostituisci resta, perché è una funzionalità di testo e non una funzionalità di nota.
+- **I file di testo** si aprono dentro Plainva: `.txt`, `.csv`, `.json`, `.yaml`, codice sorgente e simili. Se il tuo vault ne richiede altri, aggiungi le estensioni in **Impostazioni → Il tuo vault → Contenuto e struttura → Altri file di testo**: l'elenco può solo aggiungere, mai togliere. Se l'inizio del file rivela che non è testo, Plainva non lo mostra e propone il programma predefinito: mostrarlo e salvarlo lo danneggerebbe. Un file aperto così conserva i suoi fine riga e il suo BOM al salvataggio, come una nota — è tuo, non di Plainva. Durante la modifica, Plainva colora il testo in base alla sua estensione del file — la stessa evidenziazione che riceve un blocco di codice all'interno di una nota. Gli strumenti per le note restano disattivati: niente Anteprima dal vivo, niente intestazione delle proprietà, niente `[[links]]`, niente menu "/". Trova e sostituisci resta, perché è una funzionalità di testo e non una funzionalità di nota.
 - Gli altri allegati si aprono con un clic nel programma predefinito del sistema: nell'albero dei file come tramite un `[[collegamento]]`, un segnalibro o la ricerca.
 
 ## E Obsidian?

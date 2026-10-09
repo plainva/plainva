@@ -1,6 +1,6 @@
 # Automação & Scripts
 
-Última revisão: 2026-08-21
+Última revisão: 2026-10-09
 
 O Plainva não tem um sistema de plugins que execute código de terceiros. Em vez disso, o próprio vault é a interface de extensão: suas notas são Markdown puro, os bancos de dados são YAML puro (`.base`), e as [convenções do OKF](OKF.md) dão a cada arquivo uma estrutura previsível. Qualquer coisa capaz de ler e escrever arquivos — um script de shell, um programa em Python, uma ferramenta CLI, uma tarefa agendada ou um agente de IA — pode estender, gerar ou reorganizar seu vault sem uma única API específica do Plainva.
 
@@ -28,7 +28,7 @@ A leitura nunca exige cuidado — arquivos de texto não podem ser "corrompidos"
 
 Siga estas regras e o Plainva (e o Obsidian) aceitarão suas alterações sem problemas. O Plainva observa a pasta do vault: uma escrita externa é detectada e reindexada automaticamente, geralmente em menos de um segundo.
 
-1. **Escreva UTF-8 sem BOM, com quebras de linha LF.** Ferramentas do Windows que usam UTF-16 ou CRLF por padrão produzem arquivos que o Plainva trata como alterados a cada sincronização.
+1. **Escreva UTF-8.** Dê a um arquivo novo quebras de linha LF e nenhum BOM — é assim que o próprio Plainva escreve. Um arquivo que já tem quebras de linha CRLF ou um BOM pode mantê-los: o Plainva lê os dois e os deixa como estão, também quando a nota é editada ou sincronizada. O que ele não consegue ler é outra codificação — UTF-16 ou Windows-1252, que algumas ferramentas do Windows escrevem por padrão: um arquivo assim mostra caracteres errados, e a sincronização não o transfere intacto.
 2. **Escreva de forma atômica.** Escreva em um arquivo temporário na mesma pasta e depois renomeie-o para o destino. Uma nota escrita pela metade (por exemplo, depois de uma falha) é pior do que nenhuma alteração. O próprio Plainva escreve toda nota dessa maneira.
 3. **Preserve o frontmatter do OKF e as chaves desconhecidas.** Mantenha `type` e `okf_version` ao reescrever uma nota, e nunca descarte chaves de frontmatter que você não reconhece — carregue-as adiante sem alterações. Não "organize" chaves que você não entende.
 4. **Nunca toque em `.plainva/`.** Essa pasta guarda o índice local do dispositivo do Plainva, os backups, as fixações do grafo e o estado de sincronização. Ela não faz parte do seu conteúdo, e seus scripts nunca devem escrever nela, sincronizá-la ou incluí-la em um commit do Git.

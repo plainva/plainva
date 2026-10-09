@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Segmented, compareLines, compareStats, lineCount, type CompareLine } from "@plainva/ui";
+import { Segmented, compareLines, compareStats, editorTextOf, lineCount, type CompareLine } from "@plainva/ui";
 
 /**
  * The phone's half of the ONE comparison surface (feedback round 2026-09-01,
@@ -119,7 +119,8 @@ type FullLine = { type: "same" | "add" | "del"; text: string } | { type: "skip";
  */
 function expandSkips(inNote: string, other: string, lines: CompareLine[], expanded: Set<number>): FullLine[] {
   const out: FullLine[] = [];
-  const noteLines = inNote.replace(/\r\n/g, "\n").split("\n");
+  // The same text `compareLines` counted its lines in.
+  const noteLines = editorTextOf(inNote).split("\n");
   let notePos = 0;
   let skipIndex = 0;
   for (const l of lines) {

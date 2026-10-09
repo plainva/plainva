@@ -12,7 +12,7 @@ Wszystko tutaj to zwykły tekst UTF-8. Notatki to Markdown z frontmatter YAML; b
 2. **Notatki pozostają Obsidian-natywne.** We frontmatter notatki zapisuj wyłącznie proste skalary i listy (string, liczba, boolean, data ISO, lista YAML). Nigdy nie zapisuj zagnieżdżonego obiektu ani flagi „aktywne/wybrane” w notatce.
 3. **`.base` używa tylko pięciu kluczy najwyższego poziomu Obsidian** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian nie rozumie żadnego innego klucza najwyższego poziomu. Dlatego wszystkie dane specyficzne dla Plainva znajdują się pod zagnieżdżonymi podkluczami `plainva:`.
 4. **Zachowaj to, czego nie rozumiesz.** Nieznane klucze muszą przetrwać cykl odczytu/zapisu bez zmian. Nie „porządkuj” kluczy, których nie rozpoznajesz.
-5. **Zapisuj UTF-8 bez BOM, z zakończeniami linii LF.**
+5. **Zapisuj UTF-8. Nowy plik dostaje zakończenia linii LF i nie ma BOM; plik, który już istnieje, zachowuje to, co ma.** Plainva robi tak samo: to, co tworzy, zaczyna się od LF i bez BOM, a to, co zastaje, zachowuje swoje zakończenia linii i swój BOM — gdy edytujesz notatkę, zmieniają się tylko linie, które zmienisz. Plik, w którym mieszają się oba rodzaje zakończeń linii, przy pierwszej edycji dostaje w całości ten rodzaj, który ma większość jego linii.
 
 ## Vault w skrócie
 
@@ -599,7 +599,7 @@ Zasady: przypięte ścieżki nie powtarzają się w `pinboardOrder`. Karty spoza
 - **Nieznane klucze są święte.** Gdy przepisujesz `.base` lub notatkę, przenieś każdy klucz, którego nie zamierzałeś zmienić, bez zmian. Sam Plainva zachowuje nieznane klucze `.base` przez wewnętrzną surową kopię; zewnętrzny program piszący powinien robić to samo (sparsuj → zmień tylko to, co zamierzasz → zserializuj).
 - **Wartości zmieniają się w notatce, nie w `.base`.** Aby ustawić komórkę, edytuj frontmatter notatki. `.base` decyduje tylko o tym, które notatki i kolumny są pokazywane.
 - **Nie dodawaj kluczy najwyższego poziomu `.base`** poza `filters` / `formulas` / `properties` / `views`.
-- **Kodowanie:** UTF-8 bez BOM, zakończenia linii LF, wszędzie.
+- **Kodowanie:** UTF-8. Nowe pliki: zakończenia linii LF, bez BOM. Notatka lub plik tekstowy, który ma już zakończenia linii CRLF albo BOM, zachowuje je — Plainva ich nie zmienia i narzędzie też nie powinno. Jedynym wyjątkiem jest `.base`: Plainva zapisuje go na nowo, z LF i bez BOM, za każdym razem, gdy zmienia się jego konfiguracja.
 
 ## Zobacz też
 

@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-10-06
+Dernière mise à jour : 2026-10-09
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -185,7 +185,7 @@ Vos notes sont de simples fichiers `.md`, donc n'importe quel éditeur Markdown 
 - **Lier** : tapez `[[` et Plainva propose d'abord les notes, puis en dessous, sous **Pièces jointes**, les fichiers de votre coffre.
 - **Visualiser** : les fichiers image (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) s'ouvrent dans la visionneuse d'images intégrée avec **Zoom avant**/**Zoom arrière**, **Ajuster** et **Taille réelle (1:1)**.
 - **Modifier** : le bouton **Modifier** ouvre l'éditeur d'image avec **Rogner**, pivoter/retourner, **Redimensionner**, des outils de dessin (**Crayon**, **Flèche**, **Rectangle**, **Texte**) plus **Annuler**/**Rétablir**. Enregistrez sur place ou **Enregistrer comme copie…**. Les formats modifiables sont PNG, JPG et WebP ; les autres formats s'ouvrent en lecture seule.
-- **Les fichiers texte** s'ouvrent dans Plainva : `.txt`, `.csv`, `.json`, `.yaml`, le code source et similaires. Si votre coffre en demande davantage, ajoutez les extensions sous **Paramètres → Votre coffre → Contenu et structure → Autres fichiers texte** — la liste ne peut qu'ajouter, jamais retirer. Si le début du fichier révèle qu'il ne s'agit pas de texte, Plainva ne l'affiche pas et propose le programme par défaut : l'afficher et l'enregistrer l'endommagerait. Un fichier ouvert ainsi conserve ses fins de ligne et son BOM à l'enregistrement — il vous appartient, pas à Plainva. En édition, Plainva colore le texte selon l'extension du fichier — la même coloration syntaxique que reçoit un bloc de code dans une note. Les outils de note restent désactivés : pas d'aperçu en direct, pas d'en-tête de propriétés, pas de `[[links]]`, pas de menu "/". Rechercher et remplacer reste, car c'est une fonctionnalité de texte et non une fonctionnalité de note.
+- **Les fichiers texte** s'ouvrent dans Plainva : `.txt`, `.csv`, `.json`, `.yaml`, le code source et similaires. Si votre coffre en demande davantage, ajoutez les extensions sous **Paramètres → Votre coffre → Contenu et structure → Autres fichiers texte** — la liste ne peut qu'ajouter, jamais retirer. Si le début du fichier révèle qu'il ne s'agit pas de texte, Plainva ne l'affiche pas et propose le programme par défaut : l'afficher et l'enregistrer l'endommagerait. Un fichier ouvert ainsi conserve ses fins de ligne et son BOM à l'enregistrement, comme une note — il vous appartient, pas à Plainva. En édition, Plainva colore le texte selon l'extension du fichier — la même coloration syntaxique que reçoit un bloc de code dans une note. Les outils de note restent désactivés : pas d'aperçu en direct, pas d'en-tête de propriétés, pas de `[[links]]`, pas de menu "/". Rechercher et remplacer reste, car c'est une fonctionnalité de texte et non une fonctionnalité de note.
 - Les autres pièces jointes s'ouvrent d'un simple clic dans le programme par défaut du système — dans l'arborescence comme via un `[[lien]]`, un signet ou la recherche.
 
 ## Et Obsidian ?

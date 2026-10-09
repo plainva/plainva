@@ -100,13 +100,14 @@ describe("journal entries appended on two devices (plan Journal, E6)", () => {
     expect(times(result.mergedText)).toEqual(["08:00", "09:00", "09:30"]);
   });
 
-  it("unites CRLF notes too, with the line endings every merge writes", () => {
-    // A merged note is written with LF — the documented behaviour of mergeText,
-    // which this pre-stage follows rather than changes.
+  it("unites CRLF notes too, and leaves them their line endings", () => {
+    // Until 2026-10-09 a merged note came back with LF throughout. The united
+    // note is what capturing both entries on ONE device would have written.
     const crlf = base.replace(/\n/g, "\r\n");
     const result = mergeText(crlf, capture(crlf, "09:00", "a"), capture(crlf, "10:00", "b"));
     expect(result.hasConflicts).toBe(false);
-    expect(result.mergedText).toBe(capture(capture(base, "09:00", "a"), "10:00", "b"));
+    expect(result.mergedText).toBe(capture(capture(crlf, "09:00", "a"), "10:00", "b"));
+    expect(result.mergedText).not.toMatch(/[^\r]\n/);
   });
 });
 
@@ -144,5 +145,36 @@ describe("two versions and no common ancestor", () => {
     const merged = mergeWithoutBase(phone, desk).mergedText.split("\n");
     for (const line of [...phone.split("\n"), ...desk.split("\n")]) expect(merged).toContain(line);
     expect(times(merged.join("\n"))).toEqual(["07:30", "09:00", "12:00"]);
+  });
+
+  it("unites two daily notes with \\r\\n and leaves them their line endings", () => {
+    // Both devices made the note from a template that came from Windows.
+    const windows = template.replace(/\n/g, "\r\n");
+    const phone = capture(windows, "07:30", "phone"), desk = capture(windows, "09:00", "desk");
+    const result = mergeWithoutBase(desk, phone);
+    expect(result.hasConflicts).toBe(false);
+    // What one device would have written, had it captured both.
+    expect(result.mergedText).toBe(capture(phone, "09:00", "desk"));
+    expect(result.mergedText).not.toMatch(/[^\r]\n/);
+    // Where the two were made with different line ends, the united note takes
+    // those of the version that is already out there (the second argument):
+    // the devices that hold it get the new entry, not a note turned over.
+    const mixed = mergeWithoutBase(capture(template, "09:00", "desk"), phone);
+    expect(mixed.hasConflicts).toBe(false);
+    expect(mixed.mergedText).toBe(capture(phone, "09:00", "desk"));
+    expect(mixed.mergedText).not.toMatch(/[^\r]\n/);
+  });
+
+  it("takes the version that is already out there, byte for byte, where the two say the same lines", () => {
+    // The same daily note on a device that joins the sync, with other line
+    // ends and one stray one: nothing is united, nothing is new. The result
+    // IS the other version — so nothing is uploaded, and this device follows.
+    const here = capture(template, "09:00", "desk").replace(/\n/g, "\r\n");
+    const there = capture(template, "09:00", "desk");
+    expect(mergeWithoutBase(here, there)).toEqual({ mergedText: there, hasConflicts: false });
+    const stray = there.replace("## Notes\n", "## Notes\r\n");
+    expect(mergeWithoutBase(here, stray)).toEqual({ mergedText: stray, hasConflicts: false });
+    // Identical on both sides: itself.
+    expect(mergeWithoutBase(here, here).mergedText).toBe(here);
   });
 });

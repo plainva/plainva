@@ -142,4 +142,24 @@ describe("original desktop reaction to a file that changed on disk", () => {
     // The editor keeps what was typed.
     expect(h.session.view.state.doc.toString()).toBe("[a]\nx=typed here\n");
   });
+
+  it("holds a note to the same two rules: its conflict copy is in the note's own shape, and it follows a tool that turns the note's line ends", async () => {
+    // Until 2026-10-09 a note's shape was "\n" whatever it had arrived with.
+    await raw.writeTextFile("Note.md", `${MARK}one\r\ntwo\r\n`);
+    const h = await opened("Note.md");
+    expect(h.lifetime.shape).toEqual({ eol: "\r\n", bom: true });
+    h.type("one\ntwo typed here\n");
+    await raw.writeTextFile("Note.md", `${MARK}one\r\ntwo from elsewhere\r\n`);
+    await h.changedOnDisk();
+    const conflict = await files.getConflictSession("Note.md");
+    expect(conflict).not.toBeNull();
+    expect(await bytes(conflict!.workingCopyPath)).toBe(`${MARK}one\r\ntwo typed here\r\n`);
+    expect(await bytes("Note.md")).toBe(`${MARK}one\r\ntwo from elsewhere\r\n`);
+    // A tool that turns the note's line ends is followed, as for any text file.
+    await raw.writeTextFile("Other.md", "one\r\ntwo\r\n");
+    const other = await opened("Other.md");
+    await raw.writeTextFile("Other.md", "one\ntwo\nthree\n");
+    await other.changedOnDisk();
+    expect(other.lifetime.shape).toEqual({ eol: "\n", bom: false });
+  });
 });

@@ -12,7 +12,7 @@ Alles hier is puur UTF-8-tekst. Notities zijn Markdown met YAML-frontmatter; dat
 2. **Notities blijven Obsidian-native.** Schrijf in notitie-frontmatter uitsluitend eenvoudige scalars en lijsten (string, getal, boolean, ISO-datum, YAML-lijst). Schrijf nooit een genest object of een "actief/geselecteerd"-vlag in een notitie.
 3. **Een `.base` gebruikt alleen Obsidians vijf top-level sleutels** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian begrijpt geen enkele andere top-level sleutel. Daarom staat alle Plainva-specifieke data onder geneste `plainva:`-subsleutels.
 4. **Bewaar wat je niet begrijpt.** Onbekende sleutels moeten een lees-/schrijfronde ongewijzigd doorstaan. "Ruim" geen sleutels op die je niet herkent.
-5. **Schrijf UTF-8 zonder BOM, met LF-regeleinden.**
+5. **Schrijf UTF-8. Een nieuw bestand krijgt LF-regeleinden en geen BOM; een bestand dat er al is, houdt wat het heeft.** Plainva doet hetzelfde: wat het aanmaakt, begint met LF en zonder BOM, en wat het aantreft, houdt zijn regeleinden en zijn BOM — bewerk je een notitie, dan veranderen alleen de regels die je hebt gewijzigd. Een bestand dat beide soorten regeleinden mengt, krijgt bij de eerste bewerking overal de soort die de meeste regels hebben.
 
 ## De vault in vogelvlucht
 
@@ -599,7 +599,7 @@ Regels: vastgezette paden worden niet herhaald in `pinboardOrder`. Kaarten die i
 - **Onbekende sleutels zijn heilig.** Als je een `.base` of een notitie herschrijft, draag dan elke sleutel mee die je niet van plan was te wijzigen. Plainva zelf bewaart onbekende `.base`-sleutels via een interne rauwe kopie; een externe schrijver zou hetzelfde moeten doen (parsen → alleen wijzigen wat je bedoelt → serialiseren).
 - **Waarden veranderen in de notitie, niet in de `.base`.** Om een cel te zetten, bewerk je de frontmatter van de notitie. De `.base` bepaalt alleen welke notities en kolommen worden getoond.
 - **Voeg geen top-level `.base`-sleutels toe** boven `filters` / `formulas` / `properties` / `views`.
-- **Encoding:** UTF-8 zonder BOM, LF-regeleinden, overal.
+- **Encoding:** UTF-8. Nieuwe bestanden: LF-regeleinden, geen BOM. Een notitie of tekstbestand dat al CRLF-regeleinden of een BOM heeft, houdt die — Plainva verandert ze niet, en een tool hoort dat ook niet te doen. De enige uitzondering is een `.base`: Plainva schrijft die opnieuw, met LF en zonder BOM, zodra de configuratie verandert.
 
 ## Zie ook
 

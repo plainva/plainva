@@ -28,6 +28,11 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
   if (tasksDayNumber(today) === null) throw new Error("invalid_task_completion_day");
   const lines = content.split("\n"), raw = lines[task.line], cr = raw.endsWith("\r") ? "\r" : "";
   const match = GFM_TASK_LINE.exec(raw)!;
+  // A byte order mark belongs to the file, not to its first line: the line's
+  // own lead is what stands behind it. (The pattern's leading blanks take the
+  // mark in, and a successor built from them carried a second one.)
+  const mark = task.line === 0 && raw.charCodeAt(0) === 0xfeff ? raw[0] : "";
+  const lead = match[1].slice(mark.length);
   const suffix = match[3].replace(/\r$/, "");
   let body = raw.slice(match[0].length).replace(/\r$/, "");
   const metadata = readTasksMetadata(body);
@@ -47,13 +52,15 @@ export function setChecklistTaskDone(content: string, index: number, checked: bo
         nextBody = setTasksField(nextBody, "completed", null);
         if (metadata.created) nextBody = setTasksField(nextBody, "created", today);
         for (const field of ["due", "scheduled", "start"] as const) if (nextDates[field]) nextBody = setTasksField(nextBody, field, nextDates[field]);
-        successor = match[1] + " " + suffix + nextBody + cr;
+        successor = lead + " " + suffix + nextBody + cr;
       }
     }
   }
   if (hasFields) body = setTasksField(body, "completed", checked ? today : null);
-  lines[task.line] = match[1] + (checked ? "x" : " ") + suffix + body + cr;
+  lines[task.line] = lead + (checked ? "x" : " ") + suffix + body + cr;
   if (successor !== null) lines.splice(task.line, 0, successor);
+  // The mark goes back in front of whatever line is the first one now.
+  lines[0] = mark + lines[0];
   return { content: lines.join("\n"), changed: true };
 }
 
@@ -70,7 +77,13 @@ export function rewriteChecklistTaskText(content: string, index: number, rewrite
   const body = raw.slice(match[0].length).replace(/\r$/, "");
   const next = rewrite(body);
   if (next === body) return { content, changed: false };
-  lines[task.line] = match[0] + next + cr;
+  // An empty box in a `\r\n` note: the blank the pattern asks for behind the
+  // bracket IS the line's `\r`. It is put back at the end — it used to stay
+  // where it was, in the middle of the line. And a text set behind a box that
+  // had nothing behind it gets the blank that makes the line a task line.
+  const head = match[0].endsWith("\r") ? match[0].slice(0, -1) : match[0];
+  const gap = head.endsWith("]") && next !== "" && !/^\s/.test(next) ? " " : "";
+  lines[task.line] = head + gap + next + cr;
   return { content: lines.join("\n"), changed: true };
 }
 

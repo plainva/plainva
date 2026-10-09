@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, History } from "lucide-react";
 import { VersionHistoryService, type FileVersion } from "@plainva/core";
-import { Button, EmptyState, ICON, toast, versionCopyPath } from "@plainva/ui";
+import { Button, EmptyState, ICON, editorTextOf, toast, versionCopyPath } from "@plainva/ui";
 import { CompareVersions } from "./CompareVersions";
 import { mConfirm } from "../services/mobileDialogs";
 import { noteSaver, vaultOps, type MobileVault } from "../services/vaultService";
@@ -46,7 +46,8 @@ export function VersionsPanel({
       if (!stale) setVersions(v);
     });
     void vaultOps.read(vault, path).then((text) => {
-      if (!stale) setCurrent(text.replace(/\r\n/g, "\n"));
+      // Shown the way an editor holds it; a restore copies the snapshot itself.
+      if (!stale) setCurrent(editorTextOf(text));
     });
     void vault.adapter
       .getFileInfo(path)
@@ -64,7 +65,7 @@ export function VersionsPanel({
     setPreview(null);
     void service
       .readVersionText(v.backupPath)
-      .then((text) => setPreview(text.replace(/\r\n/g, "\n")))
+      .then((text) => setPreview(editorTextOf(text)))
       .catch(() => setPreview(t("versions.binaryNoPreview")));
   };
 

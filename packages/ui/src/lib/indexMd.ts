@@ -2,6 +2,7 @@ import {
   findIndexCandidates,
   convertWikilinksToMarkdownLinks,
   frontmatterSpan,
+  inShapeOf,
   isPlainvaManagedIndex,
   isReservedOkfName,
   noteBodyOf,
@@ -162,7 +163,8 @@ export async function adoptFileAsIndex(opts: {
     const ast = parseMarkdownAst(body, { preserveObsidianSyntax: true });
     const allFilePaths = await listMarkdownPaths(queryService);
     preparation = convertWikilinksToMarkdownLinks(ast, { sourcePath: candidatePath, allFilePaths });
-    await adapter.writeTextFile(candidatePath, serializeMarkdownAst(ast));
+    // In the shape the note has: the serializer writes `\n` and no mark.
+    await adapter.writeTextFile(candidatePath, inShapeOf(content, serializeMarkdownAst(ast)));
   }
 
   const indexPath = folder ? `${folder}/index.md` : "index.md";

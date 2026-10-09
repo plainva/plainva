@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-10-06
+Última actualización: 2026-10-09
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -185,7 +185,7 @@ Tus notas son archivos `.md` normales, así que cualquier editor Markdown puede 
 - **Enlazar**: escribe `[[` y Plainva sugiere primero notas y, debajo, bajo **Adjuntos**, los archivos de tu bóveda.
 - **Ver**: los archivos de imagen (PNG, JPG, GIF, WebP, SVG, BMP, AVIF) se abren en el visor de imágenes integrado con **Acercar**/**Alejar**, **Ajustar** y **Tamaño real (1:1)**.
 - **Editar**: el botón **Editar** abre el editor de imágenes con **Recortar**, girar/voltear, **Cambiar tamaño**, herramientas de dibujo (**Lápiz**, **Flecha**, **Rectángulo**, **Texto**) además de **Deshacer**/**Rehacer**. Guarda en el propio archivo o **Guardar como copia…**. Los formatos editables son PNG, JPG y WebP; otros formatos se abren solo para ver.
-- **Los archivos de texto** se abren dentro de Plainva: `.txt`, `.csv`, `.json`, `.yaml`, código fuente y similares. Si tu bóveda necesita más, añade las extensiones en **Ajustes → Tu bóveda → Contenido y estructura → Más archivos de texto**: la lista solo puede añadir, nunca quitar. Si el comienzo del archivo revela que no es texto, Plainva no lo muestra y ofrece el programa predeterminado: mostrarlo y guardarlo lo dañaría. Un archivo abierto así conserva sus finales de línea y su BOM al guardarse: es tuyo, no de Plainva. Al editar, Plainva colorea el texto según su extensión de archivo — el mismo resaltado que recibe un bloque de código dentro de una nota. Las herramientas de nota permanecen desactivadas: sin vista previa en vivo, sin cabecera de propiedades, sin `[[links]]`, sin menú "/". Buscar y reemplazar se mantiene, porque es una función de texto y no una función de nota.
+- **Los archivos de texto** se abren dentro de Plainva: `.txt`, `.csv`, `.json`, `.yaml`, código fuente y similares. Si tu bóveda necesita más, añade las extensiones en **Ajustes → Tu bóveda → Contenido y estructura → Más archivos de texto**: la lista solo puede añadir, nunca quitar. Si el comienzo del archivo revela que no es texto, Plainva no lo muestra y ofrece el programa predeterminado: mostrarlo y guardarlo lo dañaría. Un archivo abierto así conserva sus finales de línea y su BOM al guardarse, igual que una nota: es tuyo, no de Plainva. Al editar, Plainva colorea el texto según su extensión de archivo — el mismo resaltado que recibe un bloque de código dentro de una nota. Las herramientas de nota permanecen desactivadas: sin vista previa en vivo, sin cabecera de propiedades, sin `[[links]]`, sin menú "/". Buscar y reemplazar se mantiene, porque es una función de texto y no una función de nota.
 - Otros adjuntos se abren con un clic en el programa predeterminado del sistema: en el árbol de archivos igual que mediante un `[[enlace]]`, un marcador o la búsqueda.
 
 ## ¿Y Obsidian?

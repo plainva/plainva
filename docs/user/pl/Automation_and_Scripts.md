@@ -1,6 +1,6 @@
 # Automatyzacja i skrypty
 
-Stan na: 2026-08-21
+Stan na: 2026-10-09
 
 Plainva nie ma systemu wtyczek, który uruchamiałby cudzy kod. Zamiast tego interfejsem rozszerzeń jest sam vault: Twoje notatki to zwykły Markdown, bazy danych to zwykły YAML (`.base`), a [konwencje OKF](OKF.md) nadają każdemu plikowi przewidywalną strukturę. Wszystko, co potrafi czytać i zapisywać pliki — skrypt powłoki, program w Pythonie, narzędzie CLI, zaplanowane zadanie czy agent AI — może rozszerzać, generować lub reorganizować Twój vault bez żadnego API specyficznego dla Plainva.
 
@@ -28,7 +28,7 @@ Odczyt nigdy nie wymaga ostrożności — plików tekstowych nie da się „uszk
 
 Trzymaj się tych zasad, a Plainva (i Obsidian) przyjmą Twoje zmiany bez problemów. Plainva obserwuje folder vaultu: zewnętrzny zapis jest wykrywany i automatycznie ponownie indeksowany, zwykle w ciągu sekundy.
 
-1. **Zapisuj UTF-8 bez BOM, z zakończeniami linii LF.** Narzędzia Windows, które domyślnie używają UTF-16 lub CRLF, tworzą pliki, które Plainva traktuje jako zmienione przy każdej synchronizacji.
+1. **Zapisuj UTF-8.** Nowemu plikowi daj zakończenia linii LF i nie dawaj BOM — tak zapisuje sama Plainva. Plik, który ma już zakończenia linii CRLF albo BOM, może je zachować: Plainva czyta jedno i drugie i zostawia je bez zmian, także wtedy, gdy notatka jest edytowana lub synchronizowana. Nie potrafi natomiast czytać innego kodowania — UTF-16 lub Windows-1252, w których niektóre narzędzia Windows zapisują domyślnie: taki plik pokazuje błędne znaki, a synchronizacja nie przenosi go w nienaruszonym stanie.
 2. **Zapisuj atomowo.** Zapisz do pliku tymczasowego w tym samym folderze, a następnie zmień jego nazwę na docelową (rename). Notatka zapisana w połowie (na przykład po awarii) jest gorsza niż brak zmiany. Sama Plainva zapisuje w ten sposób każdą notatkę.
 3. **Zachowaj frontmatter OKF i nieznane klucze.** Podczas przepisywania notatki zachowaj `type` i `okf_version`, a kluczy frontmatter, których nie rozpoznajesz, nigdy nie usuwaj — muszą przetrwać cykl odczytu/zapisu bez zmian. Nie „porządkuj” kluczy, których nie rozumiesz.
 4. **Nigdy nie dotykaj `.plainva/`.** Ten folder przechowuje lokalny na urządzeniu indeks Plainva, kopie zapasowe, przypięcia grafu i stan synchronizacji. Nie jest częścią Twojej treści — Twoje skrypty nigdy nie powinny do niego zapisywać, synchronizować go ani dodawać do commitów Git.

@@ -1,6 +1,6 @@
 # Automatisation & scripts
 
-Dernière mise à jour : 2026-08-21
+Dernière mise à jour : 2026-10-09
 
 Plainva n'a pas de système de plugins qui exécute du code tiers. C'est le vault lui-même qui sert d'interface d'extension : vos notes sont du Markdown pur, les bases de données sont du YAML pur (`.base`), et les [conventions OKF](OKF.md) donnent à chaque fichier une structure prévisible. Tout ce qui peut lire et écrire des fichiers — un script shell, un programme Python, un outil CLI, une tâche planifiée ou un agent IA — peut étendre, générer ou réorganiser votre vault sans la moindre API propre à Plainva.
 
@@ -28,7 +28,7 @@ Lire ne demande jamais de précaution particulière — un fichier texte ne peut
 
 Suivez ces règles et Plainva (ainsi qu'Obsidian) acceptera vos modifications sans accroc. Plainva surveille le dossier du vault : une écriture externe est détectée et réindexée automatiquement, généralement en moins d'une seconde.
 
-1. **Écrivez en UTF-8 sans BOM, avec des fins de ligne LF.** Les outils Windows qui utilisent par défaut l'UTF-16 ou le CRLF produisent des fichiers que Plainva considère comme modifiés à chaque synchronisation.
+1. **Écrivez en UTF-8.** Donnez à un nouveau fichier des fins de ligne LF et pas de BOM — c'est ce que Plainva écrit lui-même. Un fichier qui a déjà des fins de ligne CRLF ou un BOM peut les garder : Plainva lit les deux et les laisse tels quels, y compris quand la note est modifiée ou synchronisée. Ce qu'il ne sait pas lire, c'est un autre encodage — UTF-16 ou Windows-1252, que certains outils Windows écrivent par défaut : un tel fichier affiche des caractères erronés, et la synchronisation ne le transmet pas intact.
 2. **Écrivez de manière atomique.** Écrivez dans un fichier temporaire situé dans le même dossier, puis renommez-le par-dessus la cible. Une note à moitié écrite (par exemple après un plantage) est pire que l'absence de modification. Plainva lui-même écrit chaque note de cette façon.
 3. **Préservez le frontmatter OKF et les clés inconnues.** Conservez `type` et `okf_version` quand vous réécrivez une note, et ne supprimez jamais de clés de frontmatter que vous ne reconnaissez pas — faites-les survivre inchangées à un cycle de lecture/écriture. Ne « nettoyez » pas des clés que vous ne comprenez pas.
 4. **Ne touchez jamais à `.plainva/`.** Ce dossier contient l'index de Plainva propre à l'appareil, ainsi que les sauvegardes, les épingles du graphe et l'état de synchronisation. Il ne fait pas partie de votre contenu et ne doit jamais être écrit, synchronisé ni committé dans Git par vos scripts.

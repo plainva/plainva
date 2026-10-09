@@ -1,4 +1,4 @@
-import { scanTasks, trimEndChars, wikiTargetForPath } from "@plainva/core";
+import { applyTextShape, readTextShape, scanTasks, trimEndChars, wikiTargetForPath } from "@plainva/core";
 import { TASK_LINE_RE, FENCE_RE } from "./taskToggle";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
@@ -78,6 +78,10 @@ export interface CheckboxReplaceResult {
  * link, preserving indentation, blockquote markers and the list bullet. Fence-
  * aware, in lock-step with `scanTasks`/`toggleTaskAtIndex`. The alias is
  * appended only when it differs from the link target.
+ *
+ * The lines are counted the way an editor holds the note and the result leaves
+ * in the note's own shape: the replaced line used to lose its `\r`, one line
+ * of the other kind in a note that lies there with `\r\n` (finding 2026-10-09).
  */
 export function replaceCheckboxWithLink(
   content: string,
@@ -85,7 +89,8 @@ export function replaceCheckboxWithLink(
   linkTarget: string,
   alias?: string
 ): CheckboxReplaceResult {
-  const lines = content.split("\n");
+  const { text, shape } = readTextShape(content);
+  const lines = text.split("\n");
   let inFence = false;
   let seen = 0;
   for (let i = 0; i < lines.length; i++) {
@@ -102,7 +107,7 @@ export function replaceCheckboxWithLink(
       const prefix = lines[i].slice(0, m[1].length - 1);
       const link = alias && alias !== linkTarget ? `[[${linkTarget}|${alias}]]` : `[[${linkTarget}]]`;
       lines[i] = `${prefix}${link}`;
-      return { content: lines.join("\n"), changed: true };
+      return { content: applyTextShape(lines.join("\n"), shape), changed: true };
     }
     seen++;
   }

@@ -12,7 +12,7 @@ Alles hier ist reiner UTF-8-Text. Notizen sind Markdown mit YAML-Frontmatter; Da
 2. **Notizen bleiben Obsidian-nativ.** In Notiz-Frontmatter schreibst Du ausschließlich einfache Skalare und Listen (String, Zahl, Boolean, ISO-Datum, YAML-Liste). Niemals ein verschachteltes Objekt oder ein „aktiv/ausgewählt"-Flag in eine Notiz.
 3. **Eine `.base` nutzt nur Obsidians fünf Top-Level-Schlüssel** (`filters`, `formulas`, `properties`, `summaries`, `views`). Jeder weitere Top-Level-Schlüssel wird von Obsidian nicht verstanden. Alles Plainva-Spezifische liegt deshalb unter verschachtelten `plainva:`-Unterschlüsseln.
 4. **Erhalte, was Du nicht verstehst.** Unbekannte Schlüssel müssen einen Lese-/Schreib-Zyklus unverändert überstehen. Räume keine Schlüssel „auf", die Du nicht kennst.
-5. **Schreibe UTF-8 ohne BOM, mit LF-Zeilenenden.**
+5. **Schreibe UTF-8. Eine neue Datei bekommt LF-Zeilenenden und kein BOM; eine vorhandene behält, was sie hat.** Plainva hält es genauso: Was es anlegt, beginnt mit LF und ohne BOM, und was es vorfindet, behält seine Zeilenenden und sein BOM — bearbeitest Du eine Notiz, ändern sich nur die Zeilen, die Du geändert hast. Eine Datei mit gemischten Zeilenenden bekommt beim ersten Bearbeiten durchgehend die Art, die die meisten ihrer Zeilen haben.
 
 ## Der Vault auf einen Blick
 
@@ -599,7 +599,7 @@ Regeln: Angepinnte Pfade stehen nicht zusätzlich in `pinboardOrder`. Karten, di
 - **Unbekannte Schlüssel sind heilig.** Wenn Du eine `.base` oder eine Notiz neu schreibst, trage jeden Schlüssel unverändert mit, den Du nicht ändern wolltest. Plainva selbst erhält unbekannte `.base`-Schlüssel über eine interne Rohkopie; ein Fremd-Schreiber sollte dasselbe tun (parsen → nur das Gemeinte ändern → serialisieren).
 - **Werte ändern sich in der Notiz, nicht in der `.base`.** Um eine Zelle zu setzen, bearbeite das Frontmatter der Notiz. Die `.base` entscheidet nur, welche Notizen und Spalten gezeigt werden.
 - **Ergänze keine Top-Level-`.base`-Schlüssel** über `filters` / `formulas` / `properties` / `views` hinaus.
-- **Encoding:** UTF-8 ohne BOM, LF-Zeilenenden, überall.
+- **Encoding:** UTF-8. Neue Dateien: LF-Zeilenenden, kein BOM. Eine Notiz oder Textdatei, die schon CRLF-Zeilenenden oder ein BOM hat, behält sie — Plainva ändert sie nicht, und ein Werkzeug sollte es auch nicht tun. Die eine Ausnahme ist eine `.base`: Plainva schreibt sie neu, mit LF und ohne BOM, sobald sich ihre Konfiguration ändert.
 
 ## Siehe auch
 

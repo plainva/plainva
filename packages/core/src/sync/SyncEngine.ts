@@ -5,6 +5,7 @@ import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
 import { isTextFile } from "./fileType.js";
+import { textOfFileBytes } from "../textFileShape.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
 async function sha256Bytes(bytes: Uint8Array): Promise<string> {
@@ -510,7 +511,11 @@ export class SyncEngine {
              // alone still carries the merge base; the 3-way merge falls back
              // to the binary path, which is what a file that large is anyway.
              if (op.content && isTextFile(syncedPath)) {
-               const textContent = new TextDecoder().decode(op.content);
+               // The base is the file's text as every adapter reads it, mark
+               // included: without it the base no longer hashed to the bytes
+               // that were pushed, and the next change from elsewhere found
+               // "no base version" for a file that starts with a mark.
+               const textContent = textOfFileBytes(op.content);
                await this.stateRepo.updateLocalHashAndBaseTextGuarded(syncedPath, shaStr, textContent, expectedLocalSha);
              } else {
                await this.stateRepo.updateLocalHashGuarded(syncedPath, shaStr, expectedLocalSha);

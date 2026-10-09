@@ -1,7 +1,6 @@
 import type { IVaultAdapter } from "./IVaultAdapter.js";
 import { withPathMutation } from "./pathMutation.js";
 import { mergeEditorText } from "../conflict-resolver.js";
-import { inShapeOf } from "../textFileShape.js";
 
 export type ConflictWriter = "adapter" | "editor-save" | "editor-external" | "sync-pull";
 
@@ -190,8 +189,8 @@ export class ConflictSessions {
     if (baseText !== null && baseText !== session.draftText && text !== session.draftText) {
       const merged = mergeEditorText(baseText, text, session.draftText);
       if (merged.hasConflicts) await this.preserveRevision(session, session.draftText);
-      // In the shape the editor asked for, as in the adapter's own merge.
-      else text = inShapeOf(text, merged.mergedText);
+      // The merge decides the shape, as in the adapter's own merge.
+      else text = merged.mergedText;
     }
     session.draftRevision++;
     session.draftText = text;

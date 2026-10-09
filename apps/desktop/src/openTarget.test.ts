@@ -90,10 +90,10 @@ describe("resolveOpenAction", () => {
   });
 
   /**
-   * A foreign file leaves the way it arrived. Notes are UTF-8/LF by house rule
-   * and keep being normalised; an `.ini` from Windows or a `.csv` with the BOM
-   * Excel wants is not ours to reformat — and rewriting every line ending turns
-   * one edit into a whole-file diff.
+   * A file leaves the way it arrived: an `.ini` from Windows or a `.csv` with
+   * the BOM Excel wants is not ours to reformat, and rewriting every line
+   * ending turns one edit into a whole-file diff. Until 2026-10-09 a note was
+   * the exception (UTF-8/LF by house rule); since then it keeps its shape too.
    */
   it("remembers the line endings and BOM a text file arrived in", () => {
     const crlf = readTextShape("a\r\nb\r\nc");
@@ -153,9 +153,17 @@ describe("resolveOpenAction", () => {
     // A note is held in the SAME text space — no mark in the buffer either,
     // where it used to hide a properties block from the editor and made every
     // decision on a suggestion fail, because the comment operation reads the
-    // note without one. Its save writes the house form: "\n", the mark kept.
-    expect(openEditorText("Note.md", `${MARK}---\r\ntitle: x\r\n---\r\n`)).toEqual({ text: "---\ntitle: x\n---\n", shape: { eol: "\n", bom: true } });
+    // note without one. And it leaves as it arrived, like any other text file:
+    // its save used to write "\n" whatever the note had (the mark alone kept).
+    expect(openEditorText("Note.md", `${MARK}---\r\ntitle: x\r\n---\r\n`)).toEqual({ text: "---\ntitle: x\n---\n", shape: { eol: "\r\n", bom: true } });
     expect(openEditorText("Note.md", "plain\n")).toEqual({ text: "plain\n", shape: { eol: "\n", bom: false } });
+    // The shape is the file's, whatever its name: there is no second rule to ask.
+    for (const name of ["Note.md", "Settings.ini", "Data.csv", "run.bat", "Board.base"]) {
+      for (const raw of [`${MARK}a\r\nb\r\n`, "a\r\nb\r\n", "a\nb\n", `${MARK}a\nb\n`]) {
+        const opened = openEditorText(name, raw)!;
+        expect(applyTextShape(opened.text, opened.shape), `${name} ${JSON.stringify(raw)}`).toBe(raw);
+      }
+    }
     // The veto: a text name over bytes that are not text opens nothing…
     expect(openEditorText("dump.log", `PK${NUL}${NUL}`)).toBeNull();
     // …and it is a foreign file's veto. A note is a note by its name.

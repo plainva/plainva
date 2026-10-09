@@ -104,6 +104,9 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 const bytes = async (path: string) => (await readFile(join(root, path))).toString("utf8");
+/** The file as it lies on disk, byte for byte. */
+const rawBytes = async (path: string) => [...await readFile(join(root, path))];
+const utf8 = (text: string) => [...new TextEncoder().encode(text)];
 
 /** What the note screen and its editor host do when a file is opened. */
 async function open(path: string) {
@@ -191,13 +194,67 @@ describe("the phone writes a file back in its shape", () => {
     expect(await bytes("Settings.ini")).toBe(`${MARK}[section]\r\nkey=3\r\n`);
   });
 
-  it("saves a note in the house form — \\n — and keeps its mark, as the desktop does", async () => {
+  it("saves a note with the line ends and the mark it arrived with: an edit changes the edited line, byte for byte", async () => {
     await raw.writeTextFile("Note.md", `${MARK}one\r\ntwo\r\nthree\r\n`);
+    const before = await rawBytes("Note.md");
     const note = await open("Note.md");
     note.type("one\ntwo!\nthree\n");
     await phone.noteSaver.flushAll();
-    expect(await bytes("Note.md")).toBe(`${MARK}one\ntwo!\nthree\n`);
+    // Until 2026-10-09 the note came back as "one\ntwo!\nthree\n" behind its
+    // mark, on the phone as on the desktop: every line end turned by one edit
+    // — the whole file, for whoever keeps the vault in Git. Now one byte is
+    // new, and every other one stays.
+    const after = await rawBytes("Note.md");
+    expect(after).toEqual([0xef, 0xbb, 0xbf, ...utf8("one\r\ntwo!\r\nthree\r\n")]);
+    const at = before.length - utf8("\r\nthree\r\n").length;
+    expect(after.slice(0, at)).toEqual(before.slice(0, at));
+    expect(after.slice(at + 1)).toEqual(before.slice(at));
+    expect(phone.getLastPersistedText(vault, "Note.md")).toBe("one\ntwo!\nthree\n");
     expect(conflicts).toEqual([]);
+    // What the saver remembers is the editor's text again, so the next edit starts from it.
+    note.type("one\ntwo!\nthree!\n");
+    await phone.noteSaver.flushAll();
+    expect(await rawBytes("Note.md")).toEqual([0xef, 0xbb, 0xbf, ...utf8("one\r\ntwo!\r\nthree!\r\n")]);
+    expect(conflicts).toEqual([]);
+  });
+
+  it("keeps a note's line ends and mark when a change made elsewhere merges into the save", async () => {
+    const windows = `${MARK}a\r\nb\r\nc\r\nd\r\n`;
+    await raw.writeTextFile("Note.md", windows);
+    const note = await open("Note.md");
+    // A pull, or another program, changed the last line; the save comes before the screen heard of it.
+    await raw.writeTextFile("Note.md", `${MARK}a\r\nb\r\nc\r\nd from elsewhere\r\n`);
+    note.type("a!\nb\nc\nd\n");
+    await phone.noteSaver.flushAll();
+    expect(await rawBytes("Note.md")).toEqual([0xef, 0xbb, 0xbf, ...utf8("a!\r\nb\r\nc\r\nd from elsewhere\r\n")]);
+    expect(phone.getLastPersistedText(vault, "Note.md")).toBe("a!\nb\nc\nd from elsewhere\n");
+    expect(conflicts).toEqual([]);
+  });
+
+  it("saves a note that arrived with \\n with \\n, and a new one too", async () => {
+    await raw.writeTextFile("Unix.md", "one\ntwo\n");
+    const note = await open("Unix.md");
+    note.type("one\ntwo!\n");
+    await phone.noteSaver.flushAll();
+    expect(await rawBytes("Unix.md")).toEqual(utf8("one\ntwo!\n"));
+    // A note Plainva has just created: one line, nothing to count yet.
+    await raw.writeTextFile("New.md", "# New");
+    const fresh = await open("New.md");
+    fresh.type("# New\n\nFirst line.\n");
+    await phone.noteSaver.flushAll();
+    expect(await rawBytes("New.md")).toEqual(utf8("# New\n\nFirst line.\n"));
+  });
+
+  it("keeps a note's unsaved typing as a conflict copy in the note's own shape", async () => {
+    await raw.writeTextFile("Note.md", `${MARK}one\r\ntwo\r\n`);
+    const note = await open("Note.md");
+    note.hold("one\ntwo typed here\n");
+    await raw.writeTextFile("Note.md", `${MARK}one\r\ntwo from elsewhere\r\n`);
+    await note.changedOnDisk();
+    const conflict = await vault.files.getConflictSession!("Note.md");
+    expect(conflict).not.toBeNull();
+    expect(await bytes(conflict!.workingCopyPath)).toBe(`${MARK}one\r\ntwo typed here\r\n`);
+    expect(await bytes("Note.md")).toBe(`${MARK}one\r\ntwo from elsewhere\r\n`);
   });
 
   it("does not write a text that did not change: leaving the suggestion mode costs a note from Windows nothing", async () => {
@@ -213,10 +270,10 @@ describe("the phone writes a file back in its shape", () => {
     expect(write).not.toHaveBeenCalled();
     expect(await bytes("Note.md")).toBe(windows);
     expect(await db.query("SELECT file_path FROM offline_queue")).toEqual([]);
-    // The first real edit is saved as ever.
+    // The first real edit is saved as ever — and leaves the note its shape.
     note.type("one\ntwo!\n");
     await phone.noteSaver.flushAll();
-    expect(await bytes("Note.md")).toBe(`${MARK}one\ntwo!\n`);
+    expect(await bytes("Note.md")).toBe(`${MARK}one\r\ntwo!\r\n`);
     expect(await db.query("SELECT file_path FROM offline_queue")).toEqual([{ file_path: "Note.md" }]);
   });
 

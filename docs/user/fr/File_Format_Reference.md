@@ -12,7 +12,7 @@ Tout ici est du texte UTF-8 pur. Les notes sont du Markdown avec un frontmatter 
 2. **Les notes restent natives d'Obsidian.** Dans le frontmatter d'une note, n'écrivez que des scalaires et des listes simples (chaîne, nombre, booléen, date ISO, liste YAML). N'écrivez jamais un objet imbriqué ou un indicateur « actif/sélectionné » dans une note.
 3. **Une `.base` n'utilise que les cinq clés de premier niveau d'Obsidian** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian ne comprend aucune autre clé de premier niveau. C'est pourquoi toutes les données propres à Plainva vont sous des sous-clés imbriquées `plainva:`.
 4. **Préservez ce que vous ne comprenez pas.** Les clés inconnues doivent survivre inchangées à un cycle de lecture/écriture. Ne « nettoyez » pas les clés que vous ne reconnaissez pas.
-5. **Écrivez en UTF-8 sans BOM, avec des fins de ligne LF.**
+5. **Écrivez en UTF-8. Un nouveau fichier reçoit des fins de ligne LF et pas de BOM ; un fichier existant garde ce qu'il a.** Plainva fait de même : ce qu'il crée commence avec des LF et sans BOM, et ce qu'il trouve garde ses fins de ligne et son BOM — modifiez une note, et seules les lignes que vous avez modifiées changent. Un fichier qui mélange les deux types de fin de ligne passe, à la première modification, au type qu'ont la plupart de ses lignes.
 
 ## Le vault en un coup d'œil
 
@@ -599,7 +599,7 @@ Règles : les chemins épinglés ne sont pas répétés dans `pinboardOrder`. Le
 - **Les clés inconnues sont sacrées.** Quand vous réécrivez une `.base` ou une note, reportez chaque clé que vous n'aviez pas l'intention de changer. Plainva lui-même préserve les clés `.base` inconnues via une copie brute interne ; un rédacteur tiers devrait faire de même (analyser → ne changer que ce que vous voulez → sérialiser).
 - **Les valeurs changent dans la note, pas dans la `.base`.** Pour définir une cellule, modifiez le frontmatter de la note. La `.base` décide seulement quelles notes et colonnes sont affichées.
 - **N'ajoutez pas de clés `.base` de premier niveau** au-delà de `filters` / `formulas` / `properties` / `views`.
-- **Encodage :** UTF-8 sans BOM, fins de ligne LF, partout.
+- **Encodage :** UTF-8. Nouveaux fichiers : fins de ligne LF, pas de BOM. Une note ou un fichier texte qui a déjà des fins de ligne CRLF ou un BOM les garde — Plainva ne les change pas, et un outil ne devrait pas le faire non plus. Seule exception : un `.base`, que Plainva réécrit, avec des LF et sans BOM, chaque fois que sa configuration change.
 
 ## Voir aussi
 

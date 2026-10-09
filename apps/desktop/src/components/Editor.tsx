@@ -22,7 +22,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, editorTextOf, isVaultPathLink, openEditorText, planRelativeLinkOpen, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
+import { applyTextShape, editorTextOf, inShapeOf, isVaultPathLink, openEditorText, planRelativeLinkOpen, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { answerEditorPathProbe } from "@plainva/ui";
@@ -473,7 +473,11 @@ export const Editor: React.FC<{
     if (!ok) return;
     try {
       const stripped = stripPlainvaIndexMarker(content);
-      await vaultAdapter.writeTextFile(activePath, stripped);
+      // `content` is what the editor holds; the overview leaves in the shape
+      // its file has, as on the phone (`saveEditorText` there). It used to be
+      // written as it stood — `\n` throughout, and without the file's mark
+      // (finding 2026-10-09).
+      await vaultAdapter.writeTextFile(activePath, inShapeOf(await vaultAdapter.readTextFile(activePath), stripped));
       setContent(stripped);
       setViewMode('live');
       rememberSessionViewMode(activePath, 'live');
@@ -1977,10 +1981,11 @@ export const Editor: React.FC<{
         loadedPathRef.current = activePath;
         // One rule for both shells (C15, S13; finding 2026-10-08): the editor
         // gets `\n` text without a byte order mark, the save gets the shape to
-        // put back — a foreign text file's own, a note's house form — and a
-        // file whose bytes do not agree with its name is not shown at all. The
-        // check runs on the decoded text we already hold: a 0x00 byte decodes
-        // to U+0000, so this is the same evidence without a second read.
+        // put back — the file's own, for a note as for any other text file
+        // (since 2026-10-09) — and a file whose bytes do not agree with its
+        // name is not shown at all. The check runs on the decoded text we
+        // already hold: a 0x00 byte decodes to U+0000, so this is the same
+        // evidence without a second read.
         const opened = openEditorText(activePath, text);
         if (!opened) {
           setNotText(true);

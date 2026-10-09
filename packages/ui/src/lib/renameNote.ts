@@ -3,6 +3,7 @@ import {
   serializeMarkdownAst,
   renameVaultLink,
   renameFrontmatterWikiLinks,
+  inShapeOf,
   type FrontmatterLinkRename,
   type VaultQueryService,
 } from "@plainva/core";
@@ -164,7 +165,9 @@ export async function applyLinkUpdates(
         // and guarantees they serialize back byte-identically.
         const ast = parseMarkdownAst(text, { preserveObsidianSyntax: true });
         for (const { raw, target } of source.body) bodyCount += renameVaultLink(ast, raw, target);
-        if (bodyCount > 0) text = serializeMarkdownAst(ast);
+        // The serializer joins its blocks with `\n` and writes no byte order
+        // mark: the note comes back in the shape it has (finding 2026-10-09).
+        if (bodyCount > 0) text = inShapeOf(text, serializeMarkdownAst(ast));
       }
 
       let fmCount = 0;

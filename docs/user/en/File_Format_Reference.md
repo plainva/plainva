@@ -12,7 +12,7 @@ Everything here is plain UTF-8 text. Notes are Markdown with YAML frontmatter; d
 2. **Notes stay Obsidian-native.** In note frontmatter, only ever write plain scalars and lists (string, number, boolean, ISO date, YAML list). Never write a nested object or an "active/selected" flag into a note.
 3. **A `.base` uses only Obsidian's five top-level keys** (`filters`, `formulas`, `properties`, `summaries`, `views`). Obsidian does not understand any other top-level key. That is why everything Plainva-specific goes under nested `plainva:` sub-keys.
 4. **Preserve what you do not understand.** Unknown keys must survive a read/write round-trip unchanged. Do not "clean up" keys you do not recognize.
-5. **Write UTF-8 without BOM, with LF line endings.**
+5. **Write UTF-8. A new file gets LF line endings and no BOM; a file that is already there keeps the ones it has.** Plainva does the same: what it creates starts with LF and without a BOM, and what it finds keeps its line endings and its BOM — edit a note and only the lines you changed change. A file that mixes both kinds of line ending is brought to the kind most of its lines have the first time it is edited.
 
 ## The vault at a glance
 
@@ -599,7 +599,7 @@ Rules: pinned paths are not repeated in `pinboardOrder`. Cards in neither list r
 - **Unknown keys are sacred.** When you rewrite a `.base` or a note, carry through every key you did not intend to change. Plainva itself preserves unknown `.base` keys via an internal raw copy; a third-party writer should do the same (parse → change only what you mean → serialize).
 - **Values change in the note, not the `.base`.** To set a cell, edit the note's frontmatter. The `.base` only decides which notes and columns are shown.
 - **Do not add top-level `.base` keys** beyond `filters` / `formulas` / `properties` / `views`.
-- **Encoding:** UTF-8 without BOM, LF newlines, everywhere.
+- **Encoding:** UTF-8. New files: LF line endings, no BOM. A note or text file that already has CRLF line endings or a BOM keeps them — Plainva does not change them, and a tool should not either. A `.base` is the one exception: Plainva writes it anew, with LF and without a BOM, whenever its configuration changes.
 
 ## See also
 

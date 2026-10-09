@@ -1,4 +1,4 @@
-import { trimChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
+import { textOfFileBytes, trimChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
 import { VaultFileExistsError, VaultFileNotFoundError, type IVaultAdapter, type VaultFileInfo } from "@plainva/core";
 import type { VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../platform/vaultFolder";
 import { isMissingFile } from "./fileErrors";
@@ -48,8 +48,15 @@ function utf8ToB64(text: string): string {
   return bytesToB64(new TextEncoder().encode(text));
 }
 
+/**
+ * The file's text as every adapter hands it out — with its byte order mark as
+ * the first character, where it has one (`textOfFileBytes`). A plain decoder
+ * dropped it here: an editor saw a note or a `.csv` without its mark, and the
+ * first save wrote the file back without one (finding 2026-10-09). The
+ * container adapter and the desktop read through the platform, which keeps it.
+ */
 function b64ToUtf8(b64: string): string {
-  return new TextDecoder().decode(b64ToBytes(b64));
+  return textOfFileBytes(b64ToBytes(b64));
 }
 
 function toInfo(rel: string, e: VaultFolderEntry): VaultFileInfo {

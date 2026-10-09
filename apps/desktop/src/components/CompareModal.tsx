@@ -11,6 +11,7 @@ import {
   Checkbox,
   ICON,
   Modal,
+  adoptedCopyText,
   compareStats,
   conflictCopyStamp,
   conflictOriginalPath,
@@ -23,7 +24,7 @@ import {
 import { MergeView } from "@codemirror/merge";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { VersionHistoryService, assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, separateTaskConflict, isTextLikePath, type FileVersion } from "@plainva/core";
+import { VersionHistoryService, assertComparisonUnchanged, classifyTaskNotes, displacedTaskPath, editorTextOf, separateTaskConflict, isTextLikePath, textOfFileBytes, type FileVersion } from "@plainva/core";
 import { useVault } from "../contexts/VaultContext";
 import { requestSaveFlush } from "../services/saveFlush";
 
@@ -142,11 +143,14 @@ export const CompareModal: React.FC<{
   }, [onClose]);
 
   // The note's current text + modification time (the left side, both cases).
+  // Both sides are SHOWN the way an editor holds them (`editorTextOf`): line
+  // ends and a byte order mark are no difference between two versions. What is
+  // written comes from the snapshots, which are the files as they lie there.
   useEffect(() => {
     let alive = true;
     if (!vaultAdapter || orphan || !isText) return;
     vaultAdapter.exists(path).then(exists => exists ? vaultAdapter.readTextFile(path) : null)
-      .then(text => { if (alive) { originalSnapshot.current = text; setCurrentText(text === null ? (isConflict ? "" : null) : text.replace(/\r\n/g, "\n")); } })
+      .then(text => { if (alive) { originalSnapshot.current = text; setCurrentText(text === null ? (isConflict ? "" : null) : editorTextOf(text)); } })
       .catch(e => { if (alive) setError(String(e)); });
     vaultAdapter
       .getFileInfo(path)
@@ -163,7 +167,7 @@ export const CompareModal: React.FC<{
     if (!vaultAdapter || !conflictPath) return;
     vaultAdapter
       .readTextFile(conflictPath)
-      .then(text => { if (alive) { copySnapshot.current = text; setConflictText(text.replace(/\r\n/g, "\n")); } })
+      .then(text => { if (alive) { copySnapshot.current = text; setConflictText(editorTextOf(text)); } })
       .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       alive = false;
@@ -202,8 +206,8 @@ export const CompareModal: React.FC<{
       ? readWorkspaceRevision(selected.backupPath.slice("workspace:".length))
       : service!.readVersionBinary(selected.backupPath);
     if (isText) {
-      (workspaceHistory ? readBytes().then((bytes) => new TextDecoder("utf-8", { fatal: true }).decode(bytes)) : service!.readVersionText(selected.backupPath))
-        .then((text) => alive && setVersionText(text.replace(/\r\n/g, "\n")))
+      (workspaceHistory ? readBytes().then((bytes) => textOfFileBytes(bytes, { strict: true })) : service!.readVersionText(selected.backupPath))
+        .then((text) => alive && setVersionText(editorTextOf(text)))
         .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
     } else if (isImage) {
       readBytes()
@@ -279,7 +283,7 @@ export const CompareModal: React.FC<{
     if (isTextLikePath(targetPath) && vaultAdapter) {
       // Hand the restored content to any open editor, bypassing its dirty guard.
       const text = await vaultAdapter.readTextFile(targetPath);
-      window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: targetPath, content: text.replace(/\r\n/g, "\n") } }));
+      window.dispatchEvent(new CustomEvent("plainva-file-restored", { detail: { path: targetPath, content: editorTextOf(text) } }));
     }
     await indexer?.indexFile({
       path: targetPath,
@@ -311,7 +315,9 @@ export const CompareModal: React.FC<{
       if (workspaceHistory) {
         const bytes = await readWorkspaceRevision(selected.backupPath.slice("workspace:".length));
         if (!orphan) await backupAdapter?.forceBackup(path);
-        if (isTextLikePath(path)) await vaultAdapter.writeTextFile(path, new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+        // The version as it was, mark included: a plain decoder drops the mark,
+        // and the restored file came back without the one it had.
+        if (isTextLikePath(path)) await vaultAdapter.writeTextFile(path, textOfFileBytes(bytes, { strict: true }));
         else await vaultAdapter.writeBinaryFile(path, bytes);
       } else await service!.restoreVersion({
           backupPath: selected.backupPath,
@@ -346,7 +352,7 @@ export const CompareModal: React.FC<{
     try {
       if (workspaceHistory) {
         const bytes = await readWorkspaceRevision(selected.backupPath.slice("workspace:".length));
-        if (isTextLikePath(candidate)) await vaultAdapter.writeTextFile(candidate, new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+        if (isTextLikePath(candidate)) await vaultAdapter.writeTextFile(candidate, textOfFileBytes(bytes, { strict: true }));
         else await vaultAdapter.writeBinaryFile(candidate, bytes);
       } else await service!.restoreVersion({ backupPath: selected.backupPath, targetPath: candidate, writeAdapter: vaultAdapter });
       await finishRestore(candidate, selected.size);
@@ -379,8 +385,11 @@ export const CompareModal: React.FC<{
 
   /** Take the right side into the note — the copy as it is, or as merged. */
   const adoptRight = async () => {
-    if (!vaultAdapter || !conflictPath || !originalOfConflict || differentTasks) return;
-    const merged = mergeRef.current ? mergeRef.current.b.state.doc.toString() : conflictText ?? "";
+    if (!vaultAdapter || !conflictPath || !originalOfConflict || differentTasks || copySnapshot.current === null) return;
+    // What takes the note's place: the copy as it lies there, or the reader's
+    // text in the copy's shape — never the text of the comparison as it
+    // stands, which has neither the copy's line ends nor its mark.
+    const merged = adoptedCopyText(copySnapshot.current, mergeRef.current ? mergeRef.current.b.state.doc.toString() : conflictText ?? "");
     const ok = await appConfirm({
       title: rightEdited ? t("compare.mergeTitle") : t("compare.adoptTitle"),
       message: rightEdited

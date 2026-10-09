@@ -91,6 +91,30 @@ describe("ExternalVaultAdapter", () => {
     expect(text(files.get("Notes/Ünïcode.md")!)).toBe("ä ö ü — 日本");
   });
 
+  it("hands out a file's text with its byte order mark, and writes it back byte for byte", async () => {
+    // What a user's folder holds: a note and a table that start with a mark
+    // (Excel wants one), with the line ends of the machine they came from.
+    const MARK_BYTES = [0xef, 0xbb, 0xbf];
+    const withMark = (body: string) => new Uint8Array([...MARK_BYTES, ...new TextEncoder().encode(body)]);
+    const files = new Map<string, string | Uint8Array>([
+      ["Note.md", withMark("# Title\r\n\r\none\r\n")],
+      ["Data.csv", withMark("id;name\r\n1;Ada\r\n")],
+      ["Plain.md", "no mark\n"],
+    ]);
+    const { plugin } = fakePlugin(files);
+    const a = new ExternalVaultAdapter(plugin, "h1");
+    for (const path of ["Note.md", "Data.csv", "Plain.md"]) {
+      const before = [...(files.get(path) instanceof Uint8Array ? files.get(path) as Uint8Array : new TextEncoder().encode(files.get(path) as string))];
+      const read = await a.readTextFile(path);
+      // The mark is the text's first character, as with the container adapter
+      // and on the desktop. The decoder used to drop it here: the editor saw a
+      // file without a mark, and its first save wrote one without.
+      expect(read.charCodeAt(0) === 0xfeff, path).toBe(before[0] === 0xef);
+      await a.writeTextFile(path, read);
+      expect([...(files.get(path) as Uint8Array)], path).toEqual(before);
+    }
+  });
+
   it("speaks the shared adapter errors", async () => {
     const files = new Map<string, string | Uint8Array>([["a.md", "a"], ["b.md", "b"]]);
     const { plugin } = fakePlugin(files);
