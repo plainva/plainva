@@ -24,7 +24,11 @@ export interface MailAccountConfig {
   host: string;
   port: number;
   user: string;
-  /** SMTP submission host (mail-client E3 sending); absent = send disabled. */
+  /**
+   * SMTP submission host (mail-client E3 sending). Absent on a mailbox that
+   * only reads — and on every Microsoft mailbox, which sends through Graph.
+   * Whether an account can send is `mailSendRoute`'s call, never this field's.
+   */
   smtpHost?: string;
   /** SMTP submission port (587 STARTTLS by default, 465 implicit TLS). */
   smtpPort?: number;
@@ -202,6 +206,36 @@ export function withoutSignature(
 /** Backend selector: stored accounts without a kind are IMAP. */
 export function mailAccountKind(account: MailAccountConfig): "imap" | "microsoft" | "gmail" {
   return account.kind ?? "imap";
+}
+
+/**
+ * How a message leaves for an account (finding 2026-10-08):
+ *
+ *   - "graph": a Microsoft mailbox. Graph submits the message; the account is
+ *     stored without an SMTP host and has no field to enter one into.
+ *   - "smtp": every other kind, once it carries an SMTP submission host.
+ */
+export type MailSendRoute = "graph" | "smtp";
+
+/**
+ * The route a message takes for this account, or null when it has none — a
+ * mailbox that was connected for reading only.
+ *
+ * ONE answer for the transport and for every surface that offers "Send". The
+ * desktop composer used to ask for the SMTP host on its own while `sendMail`
+ * asked the account kind first, so a Microsoft mailbox could send in code and
+ * never in the window; the phone asked nothing and let a message be written
+ * that could only fail after its composer had closed.
+ */
+export function mailSendRoute(account: MailAccountConfig | null | undefined): MailSendRoute | null {
+  if (!account) return null;
+  if (mailAccountKind(account) === "microsoft") return "graph";
+  return account.smtpHost ? "smtp" : null;
+}
+
+/** Whether "Send" can be offered for this account at all. */
+export function mailAccountCanSend(account: MailAccountConfig | null | undefined): boolean {
+  return mailSendRoute(account) !== null;
 }
 
 export const mailAccountsKey = (vaultPath: string) => `mailAccounts_${btoa(unescape(encodeURIComponent(vaultPath)))}`;

@@ -6,7 +6,7 @@ import { Button, EmptyState, ICON, IconButton, TextInput, toast, listTemplates, 
 import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
 import { getMobileSettings } from "../services/mobileSettings";
 import { getMobileVault } from "../services/vaultService";
-import { UndoSendQueue, secondsLeft, mailErrorText } from "@plainva/ui/mail";
+import { UndoSendQueue, secondsLeft, mailErrorText, mailAccountCanSend } from "@plainva/ui/mail";
 import { App as CapApp } from "@capacitor/app";
 import i18n from "@plainva/ui/i18n";
 
@@ -336,9 +336,15 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
     );
   }
 
+  // Whether the chosen account can send is the shared decision the transport
+  // itself reads (finding 2026-10-08). The phone asked nothing: for a mailbox
+  // connected for reading only, Send was offered, the screen closed, and the
+  // refusal arrived seconds later — after the text was gone.
+  const canSend = mailAccountCanSend(accounts.find((a) => a.id === accountId));
+
   return (
     <div className="m-page">
-      <AppBar onBack={onBack} title={t("mail.newMessage")} actions={<><IconButton label={t("mail.send")} disabled={busy} onClick={() => void send()}>
+      <AppBar onBack={onBack} title={t("mail.newMessage")} actions={<><IconButton label={t("mail.send")} disabled={busy || !canSend} onClick={() => void send()}>
           <Send size={ICON.head} />
         </IconButton></>} />
 
@@ -420,7 +426,8 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
           <FileText size={ICON.ui} /> {t("mail.insertTemplate")}
         </Button>
 
-        <Button variant="primary" disabled={busy} onClick={() => void send()}>
+        {accountsLoaded && !canSend && <p className="m-hint" data-testid="compose-send-hint">{t("mail.noSmtpHint")}</p>}
+        <Button variant="primary" disabled={busy || !canSend} onClick={() => void send()}>
           {t("mail.send")}
         </Button>
       </div>

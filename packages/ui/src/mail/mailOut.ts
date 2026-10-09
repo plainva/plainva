@@ -4,7 +4,7 @@ import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { upsertFrontmatterKeys } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import type { MailAccountConfig } from "./mailAccounts";
-import { mailAccountKind } from "./mailAccounts";
+import { mailAccountKind, mailSendRoute } from "./mailAccounts";
 import { withMailCredentials } from "./mailCredentials";
 import { buildQuoteBlock, quoteText, FORWARD_SEPARATOR } from "./replyQuote";
 import type { MailMessage } from "./types";
@@ -382,8 +382,9 @@ export function utf8ToBase64(text: string): string {
   return btoa(bin);
 }
 
-/** Sends an outgoing message via the account's SMTP submission host
- * (mail-client E3). Requires smtpHost/smtpPort on the account; the sender is
+/** Sends an outgoing message by the account's route (`mailSendRoute`): through
+ * Microsoft Graph for a Microsoft mailbox, otherwise via the account's SMTP
+ * submission host (mail-client E3), which then has to be set. The sender is
  * the account user unless an alias was chosen. Never relays — this only submits
  * the user's own mail. */
 export async function sendMail(
@@ -406,7 +407,9 @@ export async function sendMail(
 ): Promise<void> {
   if (!to.trim()) throw new Error("no recipient");
   const { html, text } = noteToClipboardFlavors(markdown);
-  if (mailAccountKind(account) === "microsoft") {
+  // The same decision the composers offer "Send" by — the two cannot disagree.
+  const route = mailSendRoute(account);
+  if (route === "graph") {
     // Microsoft Graph sends directly (no SMTP) via /me/sendMail. The compose flow
     // lifts the invite OUT of `attachments` into `calendar`; re-attach it as a
     // text/calendar file attachment so Outlook renders it as an invite (Graph has
@@ -417,7 +420,7 @@ export async function sendMail(
     await graphSendMail(vaultPath, account, to, subject, html, msAttachments, cc, bcc, from);
     return;
   }
-  if (!account.smtpHost) throw new Error("no SMTP host configured for this account");
+  if (route !== "smtp") throw new Error("no SMTP host configured for this account");
   await withMailCredentials(vaultPath, account, credential => mailTransport().send({
     ...credential,
     host: account.smtpHost!,

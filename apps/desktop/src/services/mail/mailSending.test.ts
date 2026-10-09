@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  mailAccountCanSend,
+  mailSendRoute,
   normalizeSenderAddress,
   senderKey,
   senderOptions,
@@ -24,6 +26,49 @@ const account = (over: Partial<MailAccountConfig> = {}): MailAccountConfig => ({
   port: 993,
   user: "me@example.org",
   ...over,
+});
+
+/**
+ * Whether — and how — an account sends (finding 2026-10-08). One decision for
+ * the transport and for both composers: the desktop composer asked the SMTP
+ * host on its own, so a Microsoft mailbox, which sends through Graph and is
+ * stored without one, could never be sent from.
+ */
+describe("mailSendRoute", () => {
+  it("sends a Microsoft mailbox through Graph, stored as it is: without an SMTP host", () => {
+    // The shape connecting a Microsoft mailbox writes — there is no field
+    // anywhere to add a host to it.
+    const microsoft = account({ kind: "microsoft", host: "", port: 0, user: "me@outlook.com", clientId: "cid" });
+    expect(microsoft.smtpHost).toBeUndefined();
+    expect(mailSendRoute(microsoft)).toBe("graph");
+    expect(mailAccountCanSend(microsoft)).toBe(true);
+  });
+
+  it("keeps Graph for a Microsoft mailbox even if an SMTP host rides along", () => {
+    // The kind decides, as it does in `sendMail`: a stray host must not turn a
+    // Graph mailbox into an SMTP one without a password to log in with.
+    expect(mailSendRoute(account({ kind: "microsoft", smtpHost: "smtp.example.org" }))).toBe("graph");
+  });
+
+  it("sends every other kind over SMTP once it carries a host", () => {
+    expect(mailSendRoute(account({ smtpHost: "smtp.example.org" }))).toBe("smtp");
+    expect(mailSendRoute(account({ kind: "imap", smtpHost: "smtp.example.org", smtpPort: 465 }))).toBe("smtp");
+    expect(mailSendRoute(account({ kind: "gmail", host: "imap.gmail.com", smtpHost: "smtp.gmail.com", smtpPort: 465 }))).toBe("smtp");
+    expect(mailAccountCanSend(account({ smtpHost: "smtp.example.org" }))).toBe(true);
+  });
+
+  it("has no route for a mailbox that only reads", () => {
+    expect(mailSendRoute(account())).toBeNull();
+    expect(mailSendRoute(account({ smtpHost: "" }))).toBeNull();
+    expect(mailSendRoute(account({ kind: "gmail", host: "imap.gmail.com" }))).toBeNull();
+    expect(mailAccountCanSend(account())).toBe(false);
+  });
+
+  it("has no route without an account — a composer whose list has not arrived", () => {
+    expect(mailSendRoute(undefined)).toBeNull();
+    expect(mailSendRoute(null)).toBeNull();
+    expect(mailAccountCanSend(undefined)).toBe(false);
+  });
 });
 
 describe("senderOptions", () => {

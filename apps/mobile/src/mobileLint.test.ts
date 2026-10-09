@@ -1195,6 +1195,36 @@ describe("mail can file a draft and narrow the list", () => {
 });
 
 /**
+ * Whether an account can send (finding 2026-10-08). The decision is the shared
+ * one the transport itself reads — a Microsoft mailbox sends through Graph and
+ * carries no SMTP host, a mailbox connected for reading only cannot send at
+ * all. The desktop asked the SMTP host instead and locked Microsoft out; the
+ * phone asked nothing, so a message for a read-only mailbox was written, the
+ * screen closed, and the refusal came seconds later with the text already gone.
+ */
+describe("the composer offers Send by the shared decision", () => {
+  const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+
+  it("asks the shared decision, never the SMTP host itself", () => {
+    expect(screen).toMatch(/const canSend = mailAccountCanSend\(/);
+    // A second rule next to the shared one is how the desktop went wrong.
+    expect(screen).not.toMatch(/smtpHost/);
+    expect(screen).not.toMatch(/=== "microsoft"/);
+  });
+
+  it("closes both ways to send, and says what is missing", () => {
+    // The bar's icon and the button under the body: one without the other
+    // leaves a Send that can only fail.
+    expect(screen.match(/disabled=\{busy \|\| !canSend\}/g)).toHaveLength(2);
+    expect(screen).toMatch(/accountsLoaded && !canSend && <p className="m-hint"[^>]*>\{t\("mail\.noSmtpHint"\)\}/);
+  });
+
+  it("leaves saving a draft open — that needs no way to send", () => {
+    expect(screen).toMatch(/<Button variant="ghost" disabled=\{busy\}[^>]*onClick=\{\(\) => void saveDraft\(\)\}>/);
+  });
+});
+
+/**
  * Capturing, one status line, and a delete you can take back (S30).
  */
 describe("mail files, says and deletes carefully", () => {

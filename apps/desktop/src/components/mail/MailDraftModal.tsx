@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button, ChipField, FloatingWindow, ICON, Select, TextInput, toast } from "@plainva/ui";
 import { FileText, Paperclip, SquareArrowOutUpRight, X } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
-import { listMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { listMailAccounts, mailSendRoute, type MailAccountConfig } from "@plainva/ui/mail";
 import { listMailboxesFor } from "@plainva/ui/mail";
 import { resolveDraftsMailbox, bytesToBase64, guessAttachmentMime, mailFolderLabel, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature, type MailAttachment } from "@plainva/ui/mail";
 import { ComposeEditor } from "./ComposeEditor";
@@ -20,9 +20,10 @@ import "./mail.css";
  * from the bottom-right grip, non-modal (does not dim/block the app — work
  * beside it), remembers its position/size for the session, closable via X or
  * Escape. The message body is a Markdown editor with a formatting toolbar and a
- * `/` slash-command menu (see ComposeEditor). Two ways OUT: SEND directly via
- * the account's SMTP submission host, or append the message as a \Draft into
- * the mailbox for the mail program to send.
+ * `/` slash-command menu (see ComposeEditor). Two ways OUT: SEND directly by
+ * the account's route (its SMTP submission host, or Graph for a Microsoft
+ * mailbox), or append the message as a \Draft into the mailbox for the mail
+ * program to send.
  */
 
 interface MailDraftModalProps {
@@ -356,7 +357,11 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     />
   );
 
-  const canSend = !!accounts.find((a) => a.id === accountId)?.smtpHost;
+  // Whether — and how — the chosen account sends is the shared decision the
+  // transport itself reads, not a look at the SMTP host: a Microsoft mailbox
+  // has none and sends through Graph (finding 2026-10-08).
+  const sendRoute = mailSendRoute(accounts.find((a) => a.id === accountId));
+  const canSend = sendRoute !== null;
   const title = t("mail.composeTitle", { defaultValue: "Nachricht verfassen" });
 
   const panel = (
@@ -448,10 +453,10 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
                   <Select ariaLabel={t("mail.draftMailbox", { defaultValue: "Entwurfsordner" })} value={mailbox} onChange={setMailbox} options={mailboxes.map((m) => ({ value: m, label: mailFolderLabel(m, folderDelimiter) }))} />
                 </div>
               )}
-              <p style={{ margin: "var(--space-1) 0 var(--space-2)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                {canSend
-                  ? t("mail.composeHint", { defaultValue: "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach." })
-                  : t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." })}
+              <p style={{ margin: "var(--space-1) 0 var(--space-2)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }} data-testid="draft-send-hint">
+                {sendRoute === "graph" && t("mail.composeHintMicrosoft")}
+                {sendRoute === "smtp" && t("mail.composeHint", { defaultValue: "„Senden“ verschickt direkt über SMTP; „Als Entwurf“ legt die Nachricht ins Postfach." })}
+                {!canSend && t("mail.noSmtpHint", { defaultValue: "Für den Direktversand einen SMTP-Host im Konto hinterlegen." })}
               </p>
             </>
           )}

@@ -576,6 +576,134 @@ test('mail-client: Reply opens a real compose (SMTP), not a note, quoting the or
   expect(sent.text).toContain('Danke, passt!');
 });
 
+/**
+ * A Microsoft mailbox can send (finding 2026-10-08).
+ *
+ * It is stored without an SMTP host — there is nothing to enter one into — and
+ * it never needed one: the message leaves through Graph. The composer asked for
+ * the host all the same, so Send stayed disabled and the line under the body
+ * told the writer to add what the account cannot have.
+ *
+ * What this test asserts is the app's side of the boundary: Send is offered,
+ * the request that leaves is `POST /me/sendMail` with the message in it, and
+ * the SMTP command is never called. The answers below are an empty mailbox and
+ * a bare 202 — enough to let the screen load. That Microsoft accepts the
+ * message is not something a fake can show; that needs a real account.
+ */
+test('a Microsoft mailbox sends from the composer: through Graph, never through SMTP', async ({ page }) => {
+  await page.addInitScript(() => {
+    // Exactly what connecting a Microsoft mailbox stores: no SMTP host.
+    (window as any).__mailAccountsOverride = [
+      { id: 'ms', kind: 'microsoft', label: 'marco@outlook.com', host: '', port: 0, user: 'marco@outlook.com', clientId: 'cid' },
+    ];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    const requests = new Map<number, { method: string; url: string; read: boolean }>();
+    let nextRequest = 1;
+    (window as any).__graphCalls = [];
+    const reply = (method: string, url: string): { status: number; json: unknown } => {
+      const path = url.replace('https://graph.microsoft.com/v1.0', '');
+      if (method === 'POST' && path === '/me/sendMail') return { status: 202, json: null };
+      if (method !== 'GET') return { status: 404, json: { error: { code: 'unexpected' } } };
+      if (path.startsWith('/me/mailFolders?')) {
+        return { status: 200, json: { value: [{ id: 'f-in', displayName: 'Posteingang', childFolderCount: 0 }, { id: 'f-dr', displayName: 'Entwürfe', childFolderCount: 0 }] } };
+      }
+      if (path.startsWith('/me/mailFolders/inbox?')) return { status: 200, json: { id: 'f-in' } };
+      if (path.startsWith('/me/mailFolders/drafts?')) return { status: 200, json: { id: 'f-dr' } };
+      if (/^\/me\/mailFolders\/[^/?]+\/messages\?/.test(path)) return { status: 200, json: { value: [], '@odata.count': 0 } };
+      if (/^\/me\/mailFolders\/f-(in|dr)\?/.test(path)) return { status: 200, json: { unreadItemCount: 0 } };
+      return { status: 404, json: { error: { code: 'ErrorItemNotFound' } } };
+    };
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      // The token relay: a refresh that answers with an access token.
+      if (cmd === 'oauth_token_request') return { status: 200, body: JSON.stringify({ access_token: 'graph-token', refresh_token: 'rt', expires_in: 3600 }) };
+      if (cmd === 'plugin:http|fetch') {
+        const cfg = args.clientConfig;
+        const id = nextRequest++;
+        requests.set(id, { method: cfg.method, url: cfg.url, read: false });
+        (window as any).__graphCalls.push({
+          method: cfg.method,
+          url: cfg.url,
+          authorization: (cfg.headers.find((h: string[]) => h[0].toLowerCase() === 'authorization') ?? [])[1] ?? null,
+          body: cfg.data ? new TextDecoder().decode(new Uint8Array(cfg.data)) : '',
+        });
+        return id;
+      }
+      if (cmd === 'plugin:http|fetch_send') {
+        const request = requests.get(args.rid)!;
+        return { status: reply(request.method, request.url).status, statusText: '', url: request.url, headers: [['content-type', 'application/json']], rid: args.rid };
+      }
+      if (cmd === 'plugin:http|fetch_read_body') {
+        const request = requests.get(args.rid)!;
+        if (request.read) return [1];
+        request.read = true;
+        const { json } = reply(request.method, request.url);
+        return [...new TextEncoder().encode(json === null ? '' : JSON.stringify(json)), 0];
+      }
+      return orig(cmd, args, options);
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-from')).toHaveValue('marco@outlook.com');
+
+  // Send is offered, and the line under the body says how the message leaves
+  // instead of asking for a host.
+  await expect(page.getByTestId('draft-send')).toBeEnabled();
+  await expect(page.getByTestId('draft-send-hint')).toContainText('Microsoft');
+  await expect(page.getByTestId('draft-send-hint')).not.toContainText('SMTP');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('compose-microsoft.png') });
+
+  await page.getByTestId('draft-to').fill('anna@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-subject').fill('Rückfrage');
+  await page.getByTestId('draft-body').locator('.cm-content').click();
+  await page.keyboard.type('Passt der Termin?');
+  await page.getByTestId('draft-send').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // After the undo window the message leaves — once, and through Graph.
+  const sendCalls = () => page.evaluate(() => ((window as any).__graphCalls as any[]).filter((c) => c.url.endsWith('/me/sendMail')));
+  await expect.poll(async () => (await sendCalls()).length, { timeout: 15_000 }).toBe(1);
+  const [call] = await sendCalls();
+  expect(call.method).toBe('POST');
+  expect(call.url).toBe('https://graph.microsoft.com/v1.0/me/sendMail');
+  expect(call.authorization).toBe('Bearer graph-token');
+  const sent = JSON.parse(call.body);
+  expect(sent.saveToSentItems).toBe(true);
+  expect(sent.message.subject).toBe('Rückfrage');
+  expect(sent.message.toRecipients).toEqual([{ emailAddress: { address: 'anna@example.org' } }]);
+  expect(sent.message.body.contentType).toBe('HTML');
+  expect(sent.message.body.content).toContain('Passt der Termin?');
+  // Its own address is the sender: no `from`, which Graph would check for SendAs.
+  expect(sent.message.from).toBeUndefined();
+  expect(await page.evaluate(() => (window as any).__sentMail ?? null)).toBeNull();
+});
+
+/**
+ * The counterpart: an account that really has no way to send keeps the hint.
+ * A mailbox connected for reading only (IMAP without an SMTP host) is a valid
+ * setup, and there the composer still says what is missing instead of offering
+ * a Send that can only fail.
+ */
+test('a mailbox without an SMTP host keeps Send disabled and says what is missing', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__mailAccountsOverride = [
+      { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org' },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-compose').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-send-hint')).toContainText('SMTP');
+  await expect(page.getByTestId('draft-send')).toBeDisabled();
+  // Saving as a draft needs no SMTP and stays available.
+  await expect(page.getByTestId('draft-save')).toBeEnabled();
+});
+
 test('mail-client E4: search, mark seen, and delete to Trash', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-mail').click();

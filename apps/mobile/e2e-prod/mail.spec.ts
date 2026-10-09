@@ -68,17 +68,29 @@ const EXTRA = {
 
 type TestWindow = Window & { __opened?: string[] };
 
-/** The app with one Microsoft mailbox, signed in on this device, in English. */
-async function bootMail(context: BrowserContext, page: Page) {
+type MailboxSeed = Record<string, unknown> & { id: string };
+
+/**
+ * The app with one Microsoft mailbox, signed in on this device, in English.
+ * `mailboxes` lets a test change the list that mailbox is stored in — its own
+ * shape, or a second mailbox beside it.
+ */
+async function bootMail(context: BrowserContext, page: Page, mailboxes?: (list: MailboxSeed[]) => MailboxSeed[]) {
   const origin = new URL(test.info().project.use.baseURL ?? "http://localhost:4174").origin;
   await context.route((url) => url.origin !== origin, (route) => route.abort("blockedbyclient"));
   const mail = await installMailFixture(context, { extra: EXTRA });
   const sql = await installSqlBridge(context);
   // The mailbox, its account record and its sign-in — the fixture's own
   // shapes, so this spec cannot drift from what the screenshot tool boots.
-  const storage = Object.fromEntries(
+  const storage: Record<string, unknown> = Object.fromEntries(
     Object.entries(fixtureStorage()).filter(([key]) => key.startsWith("mailAccounts_") || key.startsWith("secret_mail_") || key === "cloudAccounts_local"),
   );
+  if (mailboxes) {
+    for (const [key, value] of Object.entries(storage)) {
+      const list = value as MailboxSeed[];
+      if (key.startsWith("mailAccounts_") && list.some((m) => m.id === "mail-fixture-1")) storage[key] = mailboxes(list);
+    }
+  }
   await context.addInitScript((seed) => {
     // What the app's opener ends in for a web address (`Browser.open` in the
     // web shell): recorded instead of followed.
@@ -202,6 +214,55 @@ test("a link in a mail: a tap opens it through the app, a hold shows where it le
     await expect(page.getByRole("textbox", { name: "To" })).toHaveValue("buchhaltung@nordlicht.example");
     await expect(page.getByRole("textbox", { name: "Subject" })).toHaveValue("Frage");
     expect(await opened(page)).toHaveLength(3);
+  } finally {
+    await sql.close();
+  }
+});
+
+/**
+ * Whether Send is offered follows the account (finding 2026-10-08).
+ *
+ * The composer asked nothing. That was right for a Microsoft mailbox, which
+ * sends through Graph and carries no SMTP host — and wrong for a mailbox that
+ * was connected for reading only: Send was offered, the screen closed, and the
+ * refusal came seconds later with the text gone. Both shells read the one
+ * shared decision now; here it is shown by switching the sender in one draft.
+ */
+test("the composer offers Send by the sender: a Microsoft mailbox sends, one that only reads says what is missing", async ({ page, context }, testInfo) => {
+  const { sql } = await bootMail(context, page, ([microsoft]) => [
+    // As connecting stores it: a kind and an address, no IMAP or SMTP host.
+    { ...microsoft, host: "", port: 0, smtpHost: undefined, smtpPort: undefined },
+    // Connected for reading only — a valid setup that cannot send.
+    { id: "mail-fixture-readonly", label: "lesen@example.org", host: "imap.example.org", port: 993, user: "lesen@example.org" },
+  ]);
+  try {
+    await page.getByRole("button", { name: "New message" }).click();
+    await expect(page.getByRole("textbox", { name: "To" })).toBeVisible();
+    // The bar's icon and the button under the body: two ways to send.
+    const send = page.getByRole("button", { name: "Send", exact: true });
+    const hint = page.getByTestId("compose-send-hint");
+    await expect(send).toHaveCount(2);
+    await expect(send.first()).toBeEnabled();
+    await expect(send.last()).toBeEnabled();
+    await expect(hint).toHaveCount(0);
+
+    // The other sender: nothing to send through, and the screen says so.
+    await page.getByRole("button", { name: /^From / }).click();
+    await page.getByRole("button", { name: /^lesen@example\.org/ }).click();
+    await expect(send.first()).toBeDisabled();
+    await expect(send.last()).toBeDisabled();
+    await expect(hint).toHaveText("Add an SMTP host to the account to send directly.");
+    // Filing the draft needs no way to send.
+    await expect(page.getByRole("button", { name: "Save draft" })).toBeEnabled();
+    await send.last().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("compose-cannot-send.png") });
+
+    // And back: the decision follows the sender, not the screen.
+    await page.getByRole("button", { name: /^From / }).click();
+    await page.getByRole("button", { name: /^anna@example\.org/ }).click();
+    await expect(send.first()).toBeEnabled();
+    await expect(send.last()).toBeEnabled();
+    await expect(hint).toHaveCount(0);
   } finally {
     await sql.close();
   }
