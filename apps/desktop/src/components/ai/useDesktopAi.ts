@@ -26,6 +26,7 @@ import {
   type AiState,
   type AiVaultHost,
   type AppCommand,
+  watchLearnSurfaces,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
@@ -105,10 +106,13 @@ export function useDesktopAi(input: DesktopAiInput) {
   });
   // Appointments come from the PIM cache of the open vault, when it has one;
   // an AI suggestion round goes through its comment service (plan P1.5).
-  const { pimRuntime, commentOperations, dbAdapter, indexer, triggerFileTreeUpdate, listAllWorkspaceComments, listWorkspaceMembers } = useVault();
+  const { pimRuntime, commentOperations, dbAdapter, indexer, triggerFileTreeUpdate, listAllWorkspaceComments, listWorkspaceMembers, backupAdapter } = useVault();
   const comments = useRef(commentOperations);
+  // The vault's snapshot store, asked when a skill is rewritten (plan P6): read at that moment, like the comment service.
+  const backup = useRef(backupAdapter);
   useLayoutEffect(() => {
     comments.current = commentOperations;
+    backup.current = backupAdapter;
   });
   // A note the assistant's "Keep as a note" wrote (plan P4-6) is made known like any new file: to the index, to the tree,
   // and to whoever follows file operations (the folder's index.md).
@@ -260,6 +264,7 @@ export function useDesktopAi(input: DesktopAiInput) {
       commands,
       db: () => db.current,
       commentOperations: () => comments.current,
+      backup: () => backup.current,
       noteCreated: (path) => created.current(path),
       semantic: () => latest.current.embeddings ?? null,
       gists: () => latest.current.gists ?? null,
@@ -391,6 +396,19 @@ export function useDesktopAi(input: DesktopAiInput) {
     return () => session.setReveal(null);
   }, [session, openCompanion]);
   const toggleCompanion = useStableHandler(() => (companionOpen ? closeCompanion() : openCompanion()));
+  // Learning's dialogs (plan P6-2) are dialogs of the window, and the floating companion is drawn above a dialog: it
+  // makes room while one of them is open and comes back when the last is closed. The conversation is where it was.
+  const madeRoom = useRef(false);
+  const learnDialogs = useStableHandler((open: number) => {
+    if (open > 0 && companionOpen) {
+      madeRoom.current = true;
+      setCompanionOpen(false);
+    } else if (open === 0 && madeRoom.current) {
+      madeRoom.current = false;
+      openCompanion();
+    }
+  });
+  useEffect(() => watchLearnSurfaces(learnDialogs), [learnDialogs]);
   // The skills a person can start now (plan KI-Harness P3): the palette lists them.
   const skills = useMemo(() => (state ? startableSkills((key, vars) => i18n.t(key, vars), state.skills.entries) : []), [state]);
   // A skill from the palette: a new conversation in the companion, bound to it.

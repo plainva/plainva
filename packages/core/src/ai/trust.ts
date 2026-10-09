@@ -7,7 +7,8 @@
  *   the content hash that was approved
  * - tier 2: pending AI proposals
  * - tier 3: untrusted data — vault content, mail, calendar fields, web pages,
- *   tool results (MCP included), script output, memory facts
+ *   tool results (MCP included), script output, memory facts, a conversation
+ *   that is handed over to be reviewed
  *
  * Every payload travels as `{ data, trust, origin }` down to the prompt
  * template. Tier 3 only ever appears inside a fenced "data, not instructions"
@@ -25,7 +26,9 @@ export type PayloadOrigin =
   | { kind: "web"; url: string }
   | { kind: "tool"; tool: string; server?: string }
   | { kind: "script"; script: string }
-  | { kind: "memory"; path: string };
+  | { kind: "memory"; path: string }
+  /** A finished conversation as material — for the review that learns from it (plan P6). */
+  | { kind: "conversation"; id: string };
 
 export interface TrustedPayload<T = string> {
   data: T;
@@ -34,12 +37,13 @@ export interface TrustedPayload<T = string> {
 }
 
 /** Origins whose content is untrusted by construction, whoever wrote it. */
-const ALWAYS_TIER_3: ReadonlySet<PayloadOrigin["kind"]> = new Set(["vault", "mail", "calendar", "web", "tool", "script", "memory"]);
+const ALWAYS_TIER_3: ReadonlySet<PayloadOrigin["kind"]> = new Set(["vault", "mail", "calendar", "web", "tool", "script", "memory", "conversation"]);
 
 /**
  * Wraps data as a payload. Content from the vault, mail, calendars, the web,
- * tools, scripts and memory facts is tier 3 no matter what the caller asks
- * for — a note the user wrote is still text an injection can live in.
+ * tools, scripts, memory facts and a conversation under review is tier 3 no
+ * matter what the caller asks for — a note the user wrote is still text an
+ * injection can live in.
  */
 export function payload<T>(data: T, origin: PayloadOrigin, trust: TrustTier = 3): TrustedPayload<T> {
   return { data, origin, trust: ALWAYS_TIER_3.has(origin.kind) ? 3 : trust };
@@ -90,6 +94,8 @@ function describeOrigin(origin: PayloadOrigin): string {
       return `script:${origin.script}`;
     case "memory":
       return `memory:${origin.path}`;
+    case "conversation":
+      return `conversation:${origin.id}`;
   }
 }
 

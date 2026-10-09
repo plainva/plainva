@@ -6,6 +6,7 @@ import {
   AiConversation,
   AiOpenPanel,
   Button,
+  openLearnSurface,
   openWritesCount,
   useOpenProposals,
   conversationRowActions,
@@ -119,6 +120,8 @@ export function AiTabView({
   const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" });
 
   const capsFor = (id: string, title: string): ConversationRowCaps => ({
+    // What a conversation can teach (plan P6-2): the dialog says first what would go where.
+    learn: () => openLearnSurface({ kind: "learn", conversationId: id }),
     rename: () => {
       void appPrompt({ title: t("ai.history.rename"), initial: title }).then((next) => {
         if (next && next.trim()) void session.rename(id, next);

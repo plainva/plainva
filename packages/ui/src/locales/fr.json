@@ -713,10 +713,23 @@
       "mayAgents": "Instructions permanentes pour chaque nouvelle conversation dans ce vault. Elles ne peuvent pas lever vos règles de confidentialité.",
       "originApp": "Fournie avec Plainva",
       "originPath": "Se trouve dans {{path}}",
+      "rights": {
+        "title": "Par rapport à la version approuvée",
+        "same": "Elle peut faire la même chose que la version que vous avez approuvée.",
+        "toolsAdded": "Peut maintenant aussi utiliser : {{tools}}",
+        "toolsRemoved": "N'utilise plus : {{tools}}",
+        "folders": "Dossiers : {{after}} (avant : {{before}})",
+        "budget": "Sortie maximale par exécution : {{after}} (avant : {{before}})",
+        "wholeVault": "tout le vault",
+        "noBudget": "la limite propre à la conversation",
+        "widened": "Cette version peut faire plus que celle que vous avez approuvée."
+      },
       "approvedHow": {
         "review": "Approuvée sur cet appareil le {{when}}",
         "created": "Créée sur cet appareil le {{when}}",
         "copied": "Copiée sur cet appareil le {{when}}",
+        "learned": "Acceptée sur cet appareil le {{when}}, à partir d'une suggestion",
+        "restored": "Restaurée sur cet appareil le {{when}}",
         "imported": "Importée sur cet appareil le {{when}}"
       },
       "importedFrom": "Importée de {{label}}",
@@ -860,6 +873,151 @@
         "conversation": "Essai · {{skill}} · {{scenario}}"
       },
       "writeFailed":"La compétence n'a pas pu être écrite dans le vault."
+    },
+    "learn": {
+      "action": "Apprendre de cette conversation",
+      "start": "Apprendre",
+      "running": "{{model}} lit la conversation…",
+      "ask": {
+        "lead": "La conversation part une fois encore vers le modèle qui l'a menée — vers aucun autre. Il ne reçoit aucun outil : il ne peut que proposer.",
+        "to": "Destinataire",
+        "local": "{{model}} — sur cet appareil",
+        "what": "Ce qui part",
+        "messages_one": "{{count}} message : ce que vous avez écrit et ce qui a été répondu.",
+        "messages_many": "{{count}} messages : ce que vous avez écrit et ce qui a été répondu.",
+        "messages_other": "{{count}} messages : ce que vous avez écrit et ce qui a été répondu.",
+        "omitted_one": "{{count}} message du milieu n'est pas envoyé : la conversation est trop longue pour être envoyée en entier.",
+        "omitted_many": "{{count}} messages du milieu ne sont pas envoyés : la conversation est trop longue pour être envoyée en entier.",
+        "omitted_other": "{{count}} messages du milieu ne sont pas envoyés : la conversation est trop longue pour être envoyée en entier.",
+        "skills": "Les instructions de {{names}}, afin qu'une meilleure version puisse être proposée.",
+        "notSent": "Rien de ce qu'un outil a renvoyé, et aucune note jointe comme contexte.",
+        "comes": "Ce qui peut revenir",
+        "size": "Taille",
+        "estimate": "Environ {{tokens}} jetons",
+        "estimateCost": "Environ {{tokens}} jetons · environ {{cost}}",
+        "nothingCounts": "Rien de ce qu'il propose n'a d'effet avant que vous l'acceptiez."
+      },
+      "kind": {
+        "memory": "Entrées pour la mémoire",
+        "rule": "Règles",
+        "skill": "Une compétence, ou d'autres instructions pour une compétence existante"
+      },
+      "limit": {
+        "foreign": "Cette conversation a lu des textes d'inconnus — une page web, un e-mail ou un outil externe. Elle ne peut apporter que des faits pour la mémoire : aucune règle, aucune compétence.",
+        "restricted": "Cette conversation repose sur des notes tenues à l'écart du cloud ou d'Internet. Les entrées qui en sont tirées portent cette règle ; elle ne peut apporter ni règle ni compétence.",
+        "memory-off": "La mémoire est désactivée sur cet appareil : aucune entrée n'est proposée.",
+        "read-only": "Cet appareil ne peut écrire ni les instructions du vault ni sa mémoire ; rien n'est donc proposé pour elles."
+      },
+      "result": {
+        "lead": "{{model}} a relu la conversation — le même modèle que celui qui l'a menée ; elle n'a été envoyée nulle part ailleurs. Ce qu'il propose figure ci-dessous et sous « En attente ». Rien de tout cela n'a d'effet avant que vous l'acceptiez.",
+        "none": "Rien à retenir dans cette conversation",
+        "noneHint": "C'est aussi une réponse : une conversation n'apprend pas toujours quelque chose.",
+        "known_one": "{{count}} suggestion figure déjà dans la mémoire.",
+        "known_many": "{{count}} suggestions figurent déjà dans la mémoire.",
+        "known_other": "{{count}} suggestions figurent déjà dans la mémoire.",
+        "dropped_one": "{{count}} suggestion a été écartée : sans preuve, trop longue ou d'un type que cette conversation ne peut pas proposer.",
+        "dropped_many": "{{count}} suggestions ont été écartées : sans preuve, trop longues ou d'un type que cette conversation ne peut pas proposer.",
+        "dropped_other": "{{count}} suggestions ont été écartées : sans preuve, trop longues ou d'un type que cette conversation ne peut pas proposer.",
+        "full": "La liste des brouillons est pleine : tout n'a pas pu être enregistré. Décidez de ce qui attend sous « En attente », puis relancez l'apprentissage.",
+        "usage": "~{{sent}} jetons envoyés · ~{{received}} reçus",
+        "usageCost": "~{{sent}} jetons envoyés · ~{{received}} reçus · {{cost}}"
+      },
+      "refused": {
+        "off": "L'IA est désactivée.",
+        "no-vault": "Aucun vault n'est ouvert.",
+        "gone": "Cette conversation n'existe plus.",
+        "empty": "Rien n'a encore été dit ni répondu dans cette conversation.",
+        "no-model": "Le modèle qui a mené cette conversation n'est plus configuré sur cet appareil. La conversation ne part vers aucun autre.",
+        "kept": "Cette conversation s'est déroulée sur cet appareil et y reste : elle ne part pas vers un modèle dans le cloud.",
+        "denied": "Une note sur laquelle repose cette conversation ne peut plus être envoyée à ce modèle.",
+        "nothing": "Rien ne peut être proposé à partir de cette conversation ici : la mémoire est désactivée ou ne peut pas être écrite sur cet appareil, et cette conversation ne peut proposer ni règle ni compétence.",
+        "busy": "L'IA est occupée en ce moment. Réessayez quand elle aura terminé.",
+        "cancelled": "Arrêté. Rien n'a été enregistré.",
+        "invalid": "La réponse n'était pas une liste de suggestions. Rien n'a été enregistré.",
+        "failed": "Cela n'a pas fonctionné. Rien n'a été enregistré."
+      },
+      "draft": {
+        "why": "Preuve",
+        "changed": "{{name}} — autres instructions",
+        "new": "{{name}} — nouvelle compétence",
+        "rightsStay": "Seules ses instructions changent. Ce qu'elle peut faire reste inchangé.",
+        "newRights": "Elle démarre avec les réglages par défaut de l'app : elle lit et affiche, et ne modifie rien.",
+        "review": "Vérifier"
+      },
+      "draftRefused": {
+        "changed": "Cette compétence n'est plus celle que la suggestion a lue — elle a changé, ou elle attend votre vérification. Le brouillon reste : vérifiez la compétence ou abandonnez le brouillon.",
+        "invalid": "Une compétence ne peut pas avoir ces instructions : elles sont vides ou trop longues.",
+        "gone": "La compétence n'existe plus.",
+        "exists": "Une compétence de ce nom existe désormais. Elle n'est pas écrasée."
+      },
+      "done": {
+        "skill": "Accepté. La compétence est approuvée sur cet appareil telle que vous l'avez vue.",
+        "line": "Accepté : {{name}}"
+      },
+      "review": {
+        "titleChange": "Autres instructions pour « {{name}} »",
+        "titleNew": "Nouvelle compétence « {{name}} »",
+        "purpose": "À quoi elle sert",
+        "changes": "Ce qui change",
+        "rightsSame": "Inchangé.",
+        "rightsNote": "Une suggestion ne change que les instructions. Les outils, dossiers et limites d'une compétence ne sont jamais fixés par un modèle.",
+        "rightsNew": "Une compétence issue d'une suggestion démarre avec les réglages par défaut de l'app. Vous pouvez lui accorder davantage dans son fichier — c'est alors votre modification, et elle redemande votre approbation.",
+        "check": "Test",
+        "testedNow": "La version actuelle — {{note}}.",
+        "untested": "La nouvelle version n'est pas encore testée. Une fois la version acceptée, « {{check}} » dans la ligne de la compétence lui fait passer ses scénarios.",
+        "cost": "Coût",
+        "costMore": "Environ {{tokens}} jetons de plus à chaque exécution de cette compétence.",
+        "costLess": "Environ {{tokens}} jetons de moins à chaque exécution de cette compétence.",
+        "costSame": "Environ la même longueur qu'avant.",
+        "costNew": "Environ {{tokens}} jetons à chaque exécution de cette compétence.",
+        "proposedBy": "Proposé par {{author}} le {{when}}, d'après la conversation « {{conversation}} »",
+        "proposedByBare": "Proposé par {{author}} le {{when}}",
+        "hintChange": "« Accepter » écrit la nouvelle version et l'approuve sur cet appareil — vous l'avez vue ici. La version actuelle reste dans l'historique des versions : « {{versions}} » dans le menu de la ligne la ramène. Sur vos autres appareils, la modification attend sa propre approbation.",
+        "hintNew": "« Accepter » écrit la compétence dans le vault et l'approuve sur cet appareil — vous l'avez vue ici. Sur vos autres appareils, elle attend sa propre approbation.",
+        "take": "Accepter",
+        "rework": "Retravailler",
+        "compare": "Comparer",
+        "reworkHint": "Ce que vous modifiez ici est ce qui sera accepté. Les outils, dossiers et limites de la compétence n'en font pas partie."
+      },
+      "watch": {
+        "title": "Versions surveillées",
+        "row": "surveillée · {{runs}} sur {{of}} exécutions",
+        "rowFailed": "surveillée · exécutions sans réponse : {{failed}} sur {{runs}}",
+        "failed": "« {{name}} » : depuis la nouvelle version, des exécutions se sont terminées sans réponse ({{failed}} sur {{runs}}).",
+        "hint": "La version précédente est conservée. Rien ne revient en arrière tout seul : ce serait aussi une modification que personne n'a vue.",
+        "back": "Revenir à la version précédente",
+        "keep": "Conserver",
+        "backDone": "Retour à la version précédente. Elle est approuvée sur cet appareil, comme avant."
+      },
+      "restoreRefused": {
+        "unavailable": "Cet appareil ne peut pas écrire les compétences du vault.",
+        "gone": "La compétence, ou cette version, n'existe plus.",
+        "changed": "La compétence n'est plus telle qu'elle était affichée ici. Regardez-la à nouveau.",
+        "invalid": "Cette version n'est pas une compétence telle que le format la définit ; elle n'est donc pas restaurée.",
+        "no-history": "Le vault n'a pas pu conserver d'abord la version actuelle ; rien n'a donc été écrasé.",
+        "failed": "Cela n'a pas fonctionné. Rien n'a été modifié."
+      },
+      "versions": {
+        "action": "Versions antérieures…",
+        "title": "Versions antérieures de « {{name}} »",
+        "now": "Maintenant",
+        "earlier": "Version antérieure",
+        "at": "Version du {{when}}",
+        "empty": "Aucune version antérieure n'est conservée",
+        "none": "Ce vault ne conserve aucun historique des versions sur cet appareil",
+        "emptyHint": "Le vault conserve une version lorsque le fichier d'une compétence est modifié — par vous dans l'éditeur, ou en acceptant une suggestion.",
+        "against": "Par rapport à maintenant",
+        "same": "Cette version est identique à la version actuelle.",
+        "rightsSame": "Comme maintenant.",
+        "wider": "Cette version peut faire plus que la compétence actuelle.",
+        "hint": "« Restaurer cette version » réécrit la version choisie et l'approuve sur cet appareil — vous la voyez ici. La version actuelle reste dans l'historique. Ces versions proviennent de l'historique des versions du vault et sont conservées sur cet appareil.",
+        "restore": "Restaurer cette version",
+        "restored": "Restauré. La version est approuvée sur cet appareil telle que vous l'avez vue."
+      },
+      "log": {
+        "title": "Ce qui a été appris",
+        "desc": "Les compétences et règles acceptées à partir d'une suggestion, avec le jour et la conversation. Un fichier du vault, qui voyage avec lui."
+      }
     },
     "memory": {
       "segment": "Mémoire",
@@ -1565,6 +1723,7 @@
           "memory": "Brouillon · Entrée de la mémoire",
           "forget": "Brouillon · Retirer de la mémoire",
           "rule": "Brouillon · Règle pour l'IA",
+          "skill": "Brouillon · Compétence",
           "entry": "Brouillon · Entrée de base de données"
         },
         "what": {
@@ -1576,6 +1735,7 @@
           "memory": "Entrée",
           "forget": "Entrée",
           "rule": "Règle",
+          "skill": "Compétence",
           "entry": "Entrée"
         },
         "landsIn": "Va dans",

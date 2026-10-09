@@ -201,6 +201,16 @@ Two Markdown files hold what the assistant should know about the user: `.agent/a
 
 A tool that writes an entry keeps it to one line of at most 500 characters and leaves the comments of other entries as they are. A comment that is damaged — not closed, there twice, or naming a rule Plainva does not know — keeps the entry from every model. An entry without a comment has no rule of its own, so a tool must never drop the comment of an entry it rewrites. What the assistant should do is not written here: rules are lines of `AGENTS.md`.
 
+### The learning log (`.agent/logs/learning.md`)
+
+One line for everything that was accepted from a suggestion of the assistant — a new skill, other instructions for a skill, a rule in `AGENTS.md` — and for every return to an earlier version of a skill: the minute, what changed, and the title of the conversation it came from. Plainva adds lines and reads none of them back.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+The file is a list under a heading and can be shortened or deleted. It holds no word of the model that made the suggestion and never its name. Past 100,000 characters Plainva drops the oldest lines of the list.
+
 ### Links
 
 - **Wiki link:** `[[Note name]]` — resolved by note name across the vault. With a heading anchor: `[[Note#Section]]` — a click opens the note **at that heading**; `[[#Section]]` jumps within the current note, and a GitHub-style slug (`[[Note#cool-header]]`) resolves as well. With a block reference: `[[Note#^id]]` for a line that ends in `^id`. With display text: `[[Note|shown text]]`.

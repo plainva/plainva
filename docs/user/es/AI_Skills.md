@@ -80,6 +80,32 @@ Una habilidad puede traer escenarios de prueba: un mensaje que la inicia y lo qu
 
 Cada escenario es una ejecución normal de su habilidad: lee tu vault como una ejecución a mano, pasa por el mismo resumen antes de enviar, cuenta para tu consumo y deja su conversación en el historial, donde su siguiente ejecución la sustituye. Después, cada escenario muestra su resultado en palabras, y la fila de la habilidad dice cómo fue su última ejecución. Un resultado vale para un modelo y una versión de la habilidad: si eliges otro modelo o cambias la habilidad, la fila lo dice en lugar de mostrar un resultado que ya no cuenta. Algunos escenarios incluidos preguntan por notas del vault de pruebas de Plainva; en tu vault no valen, y el diálogo los cuenta aparte en lugar de darlos por fallidos.
 
+## Aprender de una conversación
+
+Una conversación puede dejar algo tras de sí: un hecho que vale la pena saber, una regla o una habilidad que se quedó corta. Eso es lo que pide **Aprender de esta conversación**, que está en el menú de una conversación en la lista y bajo su última respuesta. Nada lee tus conversaciones en segundo plano.
+
+Un diálogo dice primero qué ocurriría: la conversación se envía una vez más al modelo que la mantuvo, y a ningún otro — lo que escribiste y lo que se respondió, con los nombres de las herramientas que se usaron. No va incluido nada de lo que devolvió una herramienta, ni ninguna nota. Si en la conversación se ejecutó una habilidad propia, sus instrucciones van incluidas, para que se pueda sugerir una versión mejor. **Aprender** inicia la revisión; cuesta una solicitud.
+
+Lo que vuelve son borradores, cada uno con la **Evidencia** que da la revisión, y nada de ello tiene efecto hasta que lo aceptes. Una entrada de la memoria y una regla se deciden en sus tarjetas, como se describe en [Memoria](AI_Memory.md). El borrador de una habilidad tiene en su lugar el botón **Revisar**.
+
+Una conversación que leyó una página web, un correo o una herramienta externa solo sugiere entradas para la memoria: lo que escribió un desconocido no se convierte en regla ni en habilidad. Lo mismo vale cuando la conversación se apoya en notas que se mantienen fuera de la nube o de Internet, y las entradas que proceden de ella llevan esa regla. Una conversación que se mantuvo con un modelo en este dispositivo se revisa en este dispositivo.
+
+### Aceptar una sugerencia para una habilidad
+
+**Revisar** muestra, línea por línea, qué cambiaría y qué puede hacer la habilidad — eso sigue igual: una sugerencia cambia las instrucciones de una habilidad y nada más. Sus herramientas, carpetas y límites nunca los fija un modelo. El diálogo dice además si la versión actual se ha probado, cuánto más o menos cuesta una ejecución y de qué conversación procede la sugerencia. **Modificar** convierte la comparación en un campo en el que puedes escribir.
+
+**Aceptar** escribe la versión nueva y la aprueba en este dispositivo, porque la viste aquí. En tus otros dispositivos, la habilidad espera entonces su propia aprobación, como ocurre con cualquier cambio. Una sugerencia para una habilidad nueva empieza con los valores predeterminados de Plainva: lee y muestra, y no cambia nada. Una sugerencia nunca reescribe una habilidad que importaste ni las habilidades incluidas en Plainva.
+
+### Versiones en observación y el camino de vuelta
+
+Una versión que procede de una sugerencia queda en observación durante tres ejecuciones, y su fila las cuenta. Si una ejecución no termina con una respuesta, la pantalla de habilidades nombra la habilidad bajo **Versiones en observación** y ofrece dos opciones: **Volver a la versión anterior** o **Mantener**. Nada vuelve atrás por sí solo.
+
+En el menú de una habilidad, **Versiones anteriores…** enumera lo que el historial de versiones del vault conserva del archivo de la habilidad. El diálogo compara la versión que eliges con la habilidad tal como está ahora —sus líneas y lo que puede hacer— y avisa en qué puede hacer más la versión anterior. **Restaurar esta versión** la vuelve a escribir y la aprueba en este dispositivo. Las versiones se guardan en este dispositivo.
+
+Para una habilidad que cambió de cualquier otra forma —por sincronización o por una edición en otro dispositivo—, **Revisar y aprobar** dice lo mismo bajo **En comparación con la versión aprobada**: qué herramientas se añadieron y cuáles se quitaron, las carpetas, el límite.
+
+Bajo **Lo que se aprendió**, la pantalla de habilidades abre `.agent/logs/learning.md`: una línea por cada habilidad y cada regla que se aceptó a partir de una sugerencia, con el día y la conversación. El archivo viaja con tu vault.
+
 ## Qué se envía al proveedor
 
 La vista de envío muestra en **Instrucciones** lo que va incluido: la habilidad de la conversación, la lista de habilidades que la IA puede cargar y `AGENTS.md`. Si instrucciones de tu vault van por primera vez a una nube, la vista vuelve a aparecer. Los caracteres invisibles de una habilidad nunca llegan a un modelo.

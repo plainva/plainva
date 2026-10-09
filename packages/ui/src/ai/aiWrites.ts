@@ -257,8 +257,8 @@ export function machineProposals(byPath: ReadonlyMap<string, readonly WorkspaceC
 /** What a draft says of itself in one line, for a list: its kind's own detail. */
 export function draftDetail(draft: WriteDraft): { folder: string | null; lines: number } | { day: string; time?: string } | { base: string } | Record<string, never> {
   const body = draft.body;
-  // An e-mail and an appointment say what they are in rows of their own (plan P5-6), and so do the memory's drafts (plan P6).
-  if (body.kind === "mail" || body.kind === "event" || body.kind === "memory" || body.kind === "forget" || body.kind === "rule") return {};
+  // An e-mail and an appointment say what they are in rows of their own (plan P5-6), and so do the memory's drafts and a skill's (plan P6).
+  if (body.kind === "mail" || body.kind === "event" || body.kind === "memory" || body.kind === "forget" || body.kind === "rule" || body.kind === "skill") return {};
   if (body.kind === "note") return { folder: body.path ? body.path.slice(0, Math.max(0, body.path.lastIndexOf("/"))) : body.folder, lines: body.content.split("\n").filter((line) => line.trim()).length };
   if (body.kind === "entry") return { base: body.base };
   return body.kind === "journal" ? { day: body.day, time: body.time } : { day: body.day };

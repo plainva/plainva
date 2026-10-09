@@ -80,6 +80,32 @@ Een vaardigheid kan testscenario's meebrengen: een bericht dat haar start, en wa
 
 Elk scenario is een gewone uitvoering van zijn vaardigheid: het leest je vault zoals een uitvoering met de hand, gaat door hetzelfde overzicht vóór het verzenden, telt mee in je verbruik en laat zijn gesprek achter in de geschiedenis, waar zijn volgende uitvoering het vervangt. Daarna toont elk scenario zijn uitkomst in woorden, en de rij van de vaardigheid zegt hoe haar laatste uitvoering verliep. Een uitkomst geldt voor één model en één versie van de vaardigheid: kies je een ander model of wijzig je de vaardigheid, dan zegt de rij dat in plaats van een uitkomst te tonen die niet meer telt. Sommige meegeleverde scenario's vragen naar notities uit Plainva's eigen testvault; in jouw vault gelden ze niet, en het dialoogvenster telt ze apart in plaats van ze als mislukt te rekenen.
 
+## Leren van een gesprek
+
+Een gesprek kan iets achterlaten: een feit dat het weten waard is, een regel of een vaardigheid die niet ver genoeg ging. Dat vraag je met **Leren van dit gesprek**: in het menu van een gesprek in de lijst en onder zijn laatste antwoord. Op de achtergrond leest niets je gesprekken.
+
+Een dialoogvenster zegt eerst wat er zou gebeuren: het gesprek gaat nog één keer naar het model dat het heeft gevoerd, en naar geen ander — wat je hebt geschreven en wat er is geantwoord, met de namen van de gebruikte hulpmiddelen. Niets wat een hulpmiddel teruggaf, gaat mee, en ook geen notitie. Draaide er een eigen vaardigheid in het gesprek, dan gaan haar instructies mee, zodat een betere versie kan worden voorgesteld. **Leren** start het doornemen van het gesprek; dat kost één verzoek.
+
+Er komen concepten terug, elk met de **Onderbouwing** die het model ervoor geeft; niets daarvan geldt voordat je het overneemt. Over een item voor het geheugen en over een regel beslis je op hun kaarten, zoals beschreven in [Geheugen](AI_Memory.md). Het concept van een vaardigheid heeft in plaats daarvan de knop **Controleren**.
+
+Een gesprek dat een webpagina, een e-mail of een extern hulpmiddel heeft gelezen, kan alleen items voor het geheugen voorstellen: wat een vreemde heeft geschreven, wordt geen regel en geen vaardigheid. Hetzelfde geldt als het gesprek berust op notities die niet naar de cloud of niet samen met internet mogen, en items daaruit krijgen die regel mee. Een gesprek dat met een model op dit apparaat is gevoerd, wordt op dit apparaat doorgenomen.
+
+### Een voorstel voor een vaardigheid overnemen
+
+**Controleren** toont regel voor regel wat er zou veranderen, en wat de vaardigheid mag — dat blijft zoals het is: een voorstel wijzigt de instructies van een vaardigheid en verder niets. De hulpmiddelen, mappen en grenzen van een vaardigheid worden nooit door een model ingesteld. Het dialoogvenster zegt ook of de huidige versie is getest, wat een uitvoering meer of minder kost en uit welk gesprek het voorstel komt. **Aanpassen** maakt van de vergelijking een veld waarin je kunt typen.
+
+**Overnemen** schrijft de nieuwe versie weg en keurt haar op dit apparaat goed, omdat je haar hier hebt gezien. Op je andere apparaten wacht de vaardigheid dan op een eigen goedkeuring, zoals na elke wijziging. Een voorstel voor een nieuwe vaardigheid begint met de standaardinstellingen van Plainva: ze leest en toont, en verandert niets. Een vaardigheid die je hebt geïmporteerd en de vaardigheden die met Plainva meekomen, worden nooit door een voorstel herschreven.
+
+### Versies onder observatie en de weg terug
+
+Een versie die uit een voorstel stamt, staat drie uitvoeringen lang onder observatie, en de rij van de vaardigheid telt ze. Eindigt een uitvoering zonder antwoord, dan noemt het vaardighedenscherm de vaardigheid onder **Versies onder observatie** en biedt het twee mogelijkheden aan: **Terug naar de vorige versie** of **Behouden**. Er gaat niets uit zichzelf terug.
+
+**Eerdere versies…** in het menu van een vaardigheid toont de versies van haar bestand die de versiegeschiedenis van de vault bewaart. Het dialoogvenster vergelijkt de versie die je kiest met de vaardigheid zoals ze nu is — haar tekstregels en wat ze mag — en waarschuwt waar de eerdere versie meer mag. **Deze versie herstellen** schrijft haar terug en keurt haar op dit apparaat goed. De versies worden op dit apparaat bewaard.
+
+Voor een vaardigheid die op een andere manier is veranderd — via sync of een bewerking op een ander apparaat — toont **Controleren en goedkeuren** hetzelfde onder **Vergeleken met de goedgekeurde versie**: welke hulpmiddelen erbij kwamen en welke wegvielen, de mappen, de grens.
+
+Onder **Wat er is geleerd** opent het vaardighedenscherm `.agent/logs/learning.md`: één tekstregel voor elke vaardigheid en elke regel die uit een voorstel is overgenomen, met de dag en het gesprek. Het bestand reist met je vault mee.
+
 ## Wat er naar de aanbieder gaat
 
 Het verzendoverzicht noemt onder **Instructies** wat er meegaat: de vaardigheid van het gesprek, de lijst met vaardigheden die de AI mag laden, en `AGENTS.md`. Gaan instructies uit je vault voor het eerst naar een cloud, dan komt het overzicht terug. Onzichtbare tekens in een vaardigheid bereiken nooit een model.

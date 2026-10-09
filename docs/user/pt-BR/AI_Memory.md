@@ -26,6 +26,8 @@ Diga isso em uma conversa: “Lembre-se de que eu cobro por dia, não por hora.�
 
 “Esqueça que …” funciona do mesmo jeito: o cartão diz **Rascunho · Remover da memória**, e **Remover** retira a entrada. Quando você diz à IA que algo mudou, o cartão mostra, em **Substitui**, de qual entrada a nova formulação toma o lugar.
 
+Uma conversa concluída também pode sugerir entradas: **Aprender com esta conversa** lê a conversa mais uma vez e deixa rascunhos, cada um com a sua evidência. Como isso funciona e o que uma revisão assim pode sugerir de fato está descrito em [Habilidades](AI_Skills.md).
+
 ## Uma regra não é uma memória
 
 “Responda sempre em alemão” não é algo a saber — é algo a fazer. Uma regra assim não vai para a memória: ela vira uma linha das **Instruções do vault** (`AGENTS.md`), que todo modelo recebe como instrução. Adicione uma com **Adicionar uma regra**, em **Regras para a IA**, ou peça à IA; o cartão dela então diz **Rascunho · Regra para a IA**, com o botão **Adicionar como regra**.

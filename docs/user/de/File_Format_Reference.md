@@ -201,6 +201,16 @@ Zwei Markdown-Dateien halten fest, was der Assistent über die Nutzerin oder den
 
 Ein Werkzeug, das einen Eintrag schreibt, hält ihn bei einer Zeile mit höchstens 500 Zeichen und lässt die Kommentare anderer Einträge, wie sie sind. Ein beschädigter Kommentar — nicht geschlossen, doppelt vorhanden oder mit einer Regel, die Plainva nicht kennt — hält den Eintrag von jedem Modell fern. Ein Eintrag ohne Kommentar hat keine eigene Regel; ein Werkzeug darf deshalb nie den Kommentar eines Eintrags fallen lassen, den es neu schreibt. Was der Assistent tun soll, steht nicht hier: Regeln sind Zeilen der `AGENTS.md`.
 
+### Das Lern-Protokoll (`.agent/logs/learning.md`)
+
+Eine Zeile für alles, was aus einem Vorschlag des Assistenten übernommen wurde — ein neuer Skill, andere Anweisungen für einen Skill, eine Regel in `AGENTS.md` —, und für jede Rückkehr zu einer früheren Fassung eines Skills: die Minute, was sich geändert hat, und der Titel des Gesprächs, aus dem es stammt. Plainva fügt Zeilen an und liest keine davon zurück.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+Die Datei ist eine Liste unter einer Überschrift und lässt sich kürzen oder löschen. Sie enthält kein Wort des Modells, das den Vorschlag gemacht hat, und nie dessen Namen. Über 100.000 Zeichen hinaus lässt Plainva die ältesten Zeilen der Liste fallen.
+
 ### Links
 
 - **Wiki-Link:** `[[Notizname]]` — über den Notiznamen vault-weit aufgelöst. Mit Überschriften-Anker: `[[Notiz#Abschnitt]]` — ein Klick öffnet die Notiz **an dieser Überschrift**; `[[#Abschnitt]]` springt innerhalb der aktuellen Notiz, und ein Slug im GitHub-Stil (`[[Notiz#cool-header]]`) wird ebenfalls aufgelöst. Mit Block-Referenz: `[[Notiz#^id]]` für eine Zeile, die auf `^id` endet. Mit Anzeigetext: `[[Notiz|angezeigter Text]]`.

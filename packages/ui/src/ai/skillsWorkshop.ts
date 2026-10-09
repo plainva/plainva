@@ -1,6 +1,10 @@
 import {
   blockingProblems,
+  grantChanges,
   nameOf,
+  OBSERVED_RUNS,
+  parseSkillFile,
+  sameGrant,
   SKILL_TEST_MAX_TOKENS,
   SKILL_TEST_NOT_APPLICABLE,
   SKILL_TEST_NOT_RUN,
@@ -12,10 +16,12 @@ import {
   skillTestSummary,
   toolByName,
   WEB_TOOL_NAMES,
+  type GrantChanges,
   type InstructionEntry,
   type InstructionKind,
   type InstructionStatus,
   type SkillCheck,
+  type SkillDefinition,
   type SkillImport,
   type SkillProblem,
   type SkillScenarioResult,
@@ -93,6 +99,13 @@ export interface ApprovalFacts {
   codeSize?: string;
   /** What it may do, in words — one line each. */
   may: string[];
+  /**
+   * A changed skill (plan P6-2): what this version may do that the approved one could not, and the other way
+   * round — one line each, or the one line that says both may do the same. Absent where there is no approved
+   * version to hold it against. `widened`: this version may do more.
+   */
+  rights?: string[];
+  widened?: boolean;
   /** A changed source: its lines since the approved version; null when there is nothing to compare. */
   changes: CompareLine[] | null;
   /** Its instructions as they are now, for a new one (and on request). */
@@ -201,6 +214,54 @@ export function scriptRowDescription(t: Translate, entry: InstructionEntry): str
   return [waits ? t("ai.scripts.kind") : null, status, script?.description || null, waits ? null : calls].filter(Boolean).join(" · ");
 }
 
+/** The bound a skill's grant is measured against in the workshop: what a conversation can reach, and the internet only for a skill that names it. */
+function workshopGrant(skill: SkillDefinition, web: boolean) {
+  return skillGrant(skill, web ? [...SKILL_TOOL_NAMES, ...WEB_TOOL_NAMES] : SKILL_TOOL_NAMES);
+}
+
+/** What a skill may do, in words — one line each: its tools, its folders, its bound, and what that amounts to. */
+export function skillMayLines(t: Translate, skill: SkillDefinition, language: string): string[] {
+  const may: string[] = [];
+  // What a conversation can reach is the upper bound — its own tools and the further ones (mail); the skill can only narrow it.
+  // The internet's tools are in that bound only for a skill that names them itself (plan P4-6): started by the user, it brings them along.
+  const grant = workshopGrant(skill, skillNamesWeb(skill));
+  may.push(grant.tools.length ? t("ai.workshop.mayTools", { tools: toolWords(t, grant.tools) }) : t("ai.workshop.mayNoTools"));
+  may.push(grant.folders ? t("ai.workshop.mayFolders", { folders: grant.folders.join(", ") || "—" }) : t("ai.workshop.mayWholeVault"));
+  if (grant.maxOutputTokens !== null) may.push(t("ai.workshop.mayBudget", { tokens: new Intl.NumberFormat(language).format(grant.maxOutputTokens) }));
+  const reachesWeb = hasWebTools(grant.tools);
+  if (reachesWeb) may.push(t("ai.workshop.mayWeb"));
+  // A tool that reads or shows changes nothing; a request to the internet is the one thing that leaves.
+  // A skill that names writing tools (plan P5) gets them, and the approval says what that means: proposals, drafts and plans — never a change the user did not take.
+  const risks = grant.tools.map((name) => toolByName(name)?.risk);
+  if (risks.some((risk) => risk === "write" || risk === "critical")) may.push(t("ai.workshop.mayPropose"));
+  else if (risks.every((risk) => risk === "read" || risk === "ui")) may.push(t(reachesWeb ? "ai.workshop.mayNoChange" : "ai.workshop.mayReadOnly"));
+  return may;
+}
+
+/** How two versions of a skill differ in what they may use — against one bound, with the internet in it where either names it (plan P6-2). */
+export function skillGrantChanges(before: SkillDefinition, after: SkillDefinition): GrantChanges {
+  const web = skillNamesWeb(before) || skillNamesWeb(after);
+  return grantChanges(workshopGrant(before, web), workshopGrant(after, web));
+}
+
+/**
+ * What changed between two versions in what a skill may do, one line each;
+ * empty where nothing did. Shown wherever a version follows another — a
+ * change that arrived, an earlier version to go back to —, so a skill that
+ * reaches further is never approved as a few changed lines.
+ */
+export function grantChangeLines(t: Translate, changes: GrantChanges, language: string): string[] {
+  const number = new Intl.NumberFormat(language);
+  const folders = (list: readonly string[] | null) => (list === null ? t("ai.workshop.rights.wholeVault") : list.join(", ") || "—");
+  const bound = (value: number | null) => (value === null ? t("ai.workshop.rights.noBudget") : number.format(value));
+  return [
+    ...(changes.toolsAdded.length ? [t("ai.workshop.rights.toolsAdded", { tools: toolWords(t, changes.toolsAdded) })] : []),
+    ...(changes.toolsRemoved.length ? [t("ai.workshop.rights.toolsRemoved", { tools: toolWords(t, changes.toolsRemoved) })] : []),
+    ...(changes.folders ? [t("ai.workshop.rights.folders", { after: folders(changes.folders.after), before: folders(changes.folders.before) })] : []),
+    ...(changes.budget ? [t("ai.workshop.rights.budget", { after: bound(changes.budget.after), before: bound(changes.budget.before) })] : []),
+  ];
+}
+
 export function approvalFacts(t: Translate, entry: InstructionEntry, language: string): ApprovalFacts {
   if (entry.source.kind === "script") return scriptFacts(t, entry, language);
   const { source, approval } = entry;
@@ -208,27 +269,13 @@ export function approvalFacts(t: Translate, entry: InstructionEntry, language: s
   const skill = source.skill;
   const title = app ? t(`ai.skills.${app.key}.title`) : source.kind === "agents" ? "AGENTS.md" : skill?.plainva.title || nameOf(source);
 
-  const may: string[] = [];
-  if (source.kind === "agents") {
-    may.push(t("ai.workshop.mayAgents"));
-  } else if (skill) {
-    // What a conversation can reach is the upper bound — its own tools and the further ones (mail); the skill can only narrow it.
-    // The internet's tools are in that bound only for a skill that names them itself (plan P4-6): started by the user, it brings them along.
-    const web = skillNamesWeb(skill);
-    const grant = skillGrant(skill, web ? [...SKILL_TOOL_NAMES, ...WEB_TOOL_NAMES] : SKILL_TOOL_NAMES);
-    may.push(grant.tools.length ? t("ai.workshop.mayTools", { tools: grant.tools.map((name) => t(`ai.tool.${name}`, { defaultValue: name })).join(" · ") }) : t("ai.workshop.mayNoTools"));
-    may.push(grant.folders ? t("ai.workshop.mayFolders", { folders: grant.folders.join(", ") || "—" }) : t("ai.workshop.mayWholeVault"));
-    if (grant.maxOutputTokens !== null) may.push(t("ai.workshop.mayBudget", { tokens: new Intl.NumberFormat(language).format(grant.maxOutputTokens) }));
-    const reachesWeb = hasWebTools(grant.tools);
-    if (reachesWeb) may.push(t("ai.workshop.mayWeb"));
-    // A tool that reads or shows changes nothing; a request to the internet is the one thing that leaves.
-    // A skill that names writing tools (plan P5) gets them, and the approval says what that means: proposals, drafts and plans — never a change the user did not take.
-    const risks = grant.tools.map((name) => toolByName(name)?.risk);
-    if (risks.some((risk) => risk === "write" || risk === "critical")) may.push(t("ai.workshop.mayPropose"));
-    else if (risks.every((risk) => risk === "read" || risk === "ui")) may.push(t(reachesWeb ? "ai.workshop.mayNoChange" : "ai.workshop.mayReadOnly"));
-  }
+  const may: string[] = source.kind === "agents" ? [t("ai.workshop.mayAgents")] : skill ? skillMayLines(t, skill, language) : [];
 
   const changes = entry.status === "changed" && approval?.text !== undefined && source.text !== null ? compareLines(approval.text, source.text) : null;
+  // A changed skill is held against the version this device approved (plan P6-2): what it may do now that it could
+  // not then is said in words, whatever the lines look like — a skill that reaches further is no "few lines changed".
+  const approved = entry.status === "changed" && source.kind === "skill" && approval?.text !== undefined ? parseSkillFile(approval.text).skill : null;
+  const grantDiff = approved && skill ? skillGrantChanges(approved, skill) : null;
 
   const origin: string[] = [];
   if (app) origin.push(t("ai.workshop.originApp"));
@@ -257,6 +304,7 @@ export function approvalFacts(t: Translate, entry: InstructionEntry, language: s
     kind: source.kind,
     status: entry.status,
     may,
+    ...(grantDiff ? { rights: sameGrant(grantDiff) ? [t("ai.workshop.rights.same")] : grantChangeLines(t, grantDiff, language), widened: grantDiff.widened } : {}),
     changes,
     text: source.text,
     files: source.files.map((f) => ({ path: f.path, size: size(f.bytes, language) })),
@@ -337,7 +385,18 @@ export function skillRowDescription(t: Translate, entry: InstructionEntry, recor
   const about = entry.source.kind === "agents" ? t("ai.workshop.mayAgents") : skillView(t, entry).description;
   const status = entry.status === "active" ? null : t(`ai.workshop.status.${entry.status}`);
   const tested = skillTestNote(t, records.find((record) => record.id === entry.source.id), plan);
-  return [status, tested, about].filter(Boolean).join(" · ");
+  return [status, observedRowNote(t, entry), tested, about].filter(Boolean).join(" · ");
+}
+
+/**
+ * What a skill's row says while its version is watched (plan P6-2): it came
+ * from a proposal the user took over, and its next runs are counted. Null
+ * while it is not watched.
+ */
+export function observedRowNote(t: Translate, entry: InstructionEntry): string | null {
+  const watch = entry.approval?.observe;
+  if (!watch) return null;
+  return watch.failed > 0 ? t("ai.learn.watch.rowFailed", { failed: watch.failed, runs: watch.runs }) : t("ai.learn.watch.row", { runs: watch.runs, of: OBSERVED_RUNS });
 }
 
 /** The workshop's line about the regression runs, and the hint once another model is chosen. */

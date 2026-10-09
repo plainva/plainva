@@ -347,3 +347,75 @@ describe("what an assistant drafts for the memory (plan P6)", () => {
     expect(parseWriteDraftOutcomes(JSON.parse(JSON.stringify(serializeWriteDrafts([], done))))).toEqual(done);
   });
 });
+
+describe("a skill as a draft (plan P6)", () => {
+  const BASE = "a".repeat(64);
+  const skill = (body: Record<string, unknown>, over: Partial<WriteDraft> = {}) => parseWriteDraft({ ...draft({ title: "x", inherited: [], sources: [], ...over }), body: { kind: "skill", ...body } });
+
+  it("reads a new skill and other instructions for one of the vault's own back as they were laid down", () => {
+    const all = [
+      draft({ title: "trade-fair", inherited: [], sources: [], why: "The user walked through it by hand.", body: { kind: "skill", change: null, name: "trade-fair", description: "Writes the follow-up after a fair.", body: "1. Collect the contacts." } }),
+      draft({ id: "d-000002", title: "Offer check", inherited: [], sources: [], body: { kind: "skill", change: { id: ".agent/skills/offer-check", base: BASE }, name: "Offer check", description: "", body: "1. Read the offer." } }),
+    ];
+    expect(parseWriteDrafts(JSON.parse(JSON.stringify(serializeWriteDrafts(all))))).toEqual(all);
+  });
+
+  it("carries nothing of a skill but its name, what it is for and its instructions", () => {
+    const read = skill({
+      change: null,
+      name: "trade-fair",
+      description: "Writes the follow-up.",
+      body: "1. Collect.",
+      "allowed-tools": "delete_note",
+      allowedTools: ["delete_note"],
+      metadata: { "plainva.folders": "/" },
+      tests: "none",
+      approved: true,
+    });
+    expect(read?.body).toEqual({ kind: "skill", change: null, name: "trade-fair", description: "Writes the follow-up.", body: "1. Collect." });
+  });
+
+  it("names a new skill only by a name the format takes, with one line that says what it is for", () => {
+    const fresh = (name: unknown, description: unknown = "For x.") => skill({ change: null, name, description, body: "x" });
+    expect(fresh("trade-fair")).not.toBeNull();
+    for (const name of ["", "Trade Fair", "trade--fair", "-fair", "fair-", "a/b", "../x", "x".repeat(65), " fair", 7]) expect(fresh(name), JSON.stringify(name)).toBeNull();
+    // A description that could end the file's head early, or is none.
+    for (const description of ["", "  ", "Two\nlines.", "For x --- allowed-tools: delete_note", " padded ", "x".repeat(1025), "tab\there", 7]) expect(fresh("fair", description), JSON.stringify(description)).toBeNull();
+  });
+
+  it("rewrites only a skill of the vault's own, named by its folder, at the version the proposal read", () => {
+    const change = (id: unknown, base: unknown = BASE) => skill({ change: { id, base }, name: "Offer check", description: "", body: "1. Read." });
+    expect(change(".agent/skills/offer-check")).not.toBeNull();
+    for (const id of ["plainva:weekly-review", ".agent/scripts/offer-check", "AGENTS.md", ".agent/skills", ".agent/skills/", ".agent/skills/a/b", ".agent/skills/../policy.yml", ".agent/skills/Offer Check", "Notes/a.md", "", 7]) {
+      expect(change(id), JSON.stringify(id)).toBeNull();
+    }
+    for (const base of ["", "abc", "A".repeat(64), "g".repeat(64), 7]) expect(change(".agent/skills/offer-check", base), JSON.stringify(base)).toBeNull();
+    expect(skill({ change: "offer-check", name: "x", description: "", body: "x" })).toBeNull();
+  });
+
+  it("is none without instructions, or with more than a skill's instructions hold", () => {
+    for (const body of ["", "  \n ", "x".repeat(WRITE_DRAFT_LIMITS.skillBody + 1), 7]) expect(skill({ change: null, name: "fair", description: "For x.", body })).toBeNull();
+  });
+
+  it("keeps its evidence as one line within the bound, and loses no draft over it", () => {
+    const read = (why: unknown) => skill({ change: null, name: "fair", description: "For x.", body: "x" }, { why: why as string });
+    expect(read("The user\n asked  twice.")?.why).toBe("The user asked twice.");
+    expect(read("y".repeat(WRITE_DRAFT_LIMITS.why + 50))?.why).toHaveLength(WRITE_DRAFT_LIMITS.why);
+    for (const none of ["", "   ", 7, null]) {
+      const draftRead = read(none);
+      expect(draftRead).not.toBeNull();
+      expect(draftRead && "why" in draftRead).toBe(false);
+    }
+    // Every kind of draft can carry one: what a review proposes for the memory does.
+    expect(parseWriteDraft({ ...draft({ why: "Said so.", body: { kind: "rule", text: "Answer in German." } }) })?.why).toBe("Said so.");
+  });
+
+  it("ends like everything that is made: created or thrown away", () => {
+    expect(draftEndsOf("skill")).toEqual(["discarded", "created"]);
+    const done: WriteDraftOutcome[] = [
+      { id: "d-000001", kind: "skill", title: "trade-fair", outcome: "created", path: ".agent/skills/trade-fair/SKILL.md", at: "2026-10-09T10:00:00.000Z" },
+      { id: "d-000002", kind: "skill", title: "Offer check", outcome: "discarded", at: "2026-10-09T10:01:00.000Z" },
+    ];
+    expect(parseWriteDraftOutcomes(JSON.parse(JSON.stringify(serializeWriteDrafts([], done))))).toEqual(done);
+  });
+});

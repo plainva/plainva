@@ -201,6 +201,16 @@ Due file Markdown contengono ciò che l'assistente deve sapere sull'utente: `.ag
 
 Uno strumento che scrive una voce la limita a una riga di al massimo 500 caratteri e lascia invariati i commenti delle altre voci. Un commento danneggiato — non chiuso, presente due volte o con una regola sconosciuta a Plainva — tiene la voce lontana da ogni modello. Una voce senza commento non ha regole proprie, quindi uno strumento non deve mai omettere il commento di una voce che riscrive. Ciò che l'assistente deve fare non è scritto qui: le regole sono righe di `AGENTS.md`.
 
+### Il registro dell'apprendimento (`.agent/logs/learning.md`)
+
+Una riga per tutto ciò che è stato accettato da una proposta dell'assistente — una nuova competenza, altre istruzioni per una competenza, una regola in `AGENTS.md` — e per ogni ritorno a una versione precedente di una competenza: data e ora al minuto, ciò che è cambiato e il titolo della conversazione da cui proviene. Plainva aggiunge righe e non ne rilegge nessuna.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+Il file è un elenco sotto un titolo e si può accorciare o eliminare. Non contiene nemmeno una parola del modello che ha fatto la proposta, e mai il suo nome. Oltre i 100.000 caratteri Plainva elimina le righe più vecchie dell'elenco.
+
 ### Link
 
 - **Wiki-link:** `[[Nome nota]]` — risolto per nome della nota in tutto il vault. Con un'ancora a un titolo: `[[Nota#Sezione]]` — un clic apre la nota **a quel titolo**; `[[#Sezione]]` salta dentro la nota corrente, e uno slug in stile GitHub (`[[Nota#cool-header]]`) si risolve ugualmente. Con un riferimento a un blocco: `[[Nota#^id]]` per una riga che termina con `^id`. Con testo visualizzato: `[[Nota|testo mostrato]]`.

@@ -98,6 +98,16 @@ export function SkillApprovalModal({ id, onClose }: { id: string; onClose: () =>
             </dd>
           </>
         )}
+        {facts.rights && (
+          <>
+            <dt>{t("ai.workshop.rights.title")}</dt>
+            <dd data-testid="ai-skill-rights">
+              {facts.rights.map((line) => (
+                <span key={line}>{line}</span>
+              ))}
+            </dd>
+          </>
+        )}
         {changed && (
           <>
             <dt>{t("ai.workshop.changes")}</dt>
@@ -143,6 +153,11 @@ export function SkillApprovalModal({ id, onClose }: { id: string; onClose: () =>
           ))}
         </dd>
       </dl>
+      {facts.widened && (
+        <Banner kind="warning" rounded testId="ai-skill-wider">
+          {t("ai.workshop.rights.widened")}
+        </Banner>
+      )}
       {facts.warnings.map((warning) => (
         <Banner key={warning} kind="warning" rounded>
           {warning}

@@ -26,6 +26,8 @@ Zeg het in een gesprek: “Onthoud dat ik per dag factureer, niet per uur.” De
 
 “Vergeet dat …” werkt op dezelfde manier: op de kaart staat **Concept · Uit het geheugen verwijderen**, en **Verwijderen** haalt het item eruit. Als je de AI vertelt dat er iets is veranderd, toont de kaart onder **Vervangt** welk item de nieuwe formulering vervangt.
 
+Ook een afgerond gesprek kan items voorstellen: **Leren van dit gesprek** leest het nog één keer door en laat concepten achter, elk met zijn onderbouwing. Hoe dat werkt, en wat er bij het doornemen van een gesprek mag worden voorgesteld, staat beschreven in [Vaardigheden](AI_Skills.md).
+
 ## Een regel is geen geheugenitem
 
 “Antwoord altijd in het Duits” is niets om te weten — het is iets om te doen. Zo'n regel komt niet in het geheugen, maar wordt een regel van de **Instructies van de vault** (`AGENTS.md`), die elk model als instructie krijgt. Voeg er een toe met **Regel toevoegen** onder **Regels voor de AI**, of vraag het aan de AI; op de kaart staat dan **Concept · Regel voor de AI**, met de knop **Als regel toevoegen**.

@@ -26,6 +26,8 @@ Dites-le dans une conversation : « Retiens que je facture à la journée, pas �
 
 « Oublie que … » fonctionne de la même façon : la carte indique **Brouillon · Retirer de la mémoire**, et **Retirer** enlève l'entrée. Quand vous dites à l'IA que quelque chose a changé, la carte montre sous **Remplace** l'entrée dont la nouvelle formulation prend la place.
 
+Une conversation terminée peut elle aussi proposer des entrées : **Apprendre de cette conversation** la relit et laisse des brouillons, chacun avec sa preuve. Son fonctionnement, et ce qu'une telle relecture peut proposer, sont décrits dans [Compétences](AI_Skills.md).
+
 ## Une règle n'est pas un souvenir
 
 « Réponds toujours en allemand » n'est pas une chose à savoir — c'est une chose à faire. Une règle de ce genre n'entre pas dans la mémoire : elle devient une ligne des **Instructions du vault** (`AGENTS.md`), que chaque modèle reçoit comme instruction. Ajoutez-en une avec **Ajouter une règle** sous **Règles pour l'IA**, ou demandez-le à l'IA ; sa carte indique alors **Brouillon · Règle pour l'IA**, avec le bouton **Ajouter comme règle**.

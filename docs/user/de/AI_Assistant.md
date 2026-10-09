@@ -114,6 +114,10 @@ Skripte sind kleine Programme, die Du für das schreibst, was ein Modell schlech
 
 Was die KI über Dich wissen soll, ohne dass Du es wieder sagst — was Du machst, wie Du Antworten magst —, steht im Gedächtnis des Vaults: zwei Dateien, die Du lesen und bearbeiten kannst. Was unter **Immer dabei** steht, geht in jedes neue Gespräch, der Rest wird nachgeschlagen, wenn eine Frage ihn braucht, und nichts kommt ohne Dein Ja hinein. Siehe [Gedächtnis](AI_Memory.md).
 
+## Aus einem Gespräch lernen
+
+Ein Gespräch kann der KI etwas für später beibringen. **Aus diesem Gespräch lernen** — unter seiner letzten Antwort — schickt es noch einmal an das Modell, das es geführt hat, und bringt Entwürfe zurück: Einträge fürs Gedächtnis, Regeln oder andere Anweisungen für einen Deiner Skills. Nichts davon gilt, bevor Du es übernimmst. Siehe [Skills](AI_Skills.md).
+
 ## Eine Sprachnotiz transkribieren
 
 An jeder Sprachnotiz — im Editor, im Lesemodus, im Journal und auf Karten — macht **Transkribieren** aus der Aufnahme Text. Sie geht unverändert an das Modell des Profils **Audio**, über dieselbe Übersicht wie eine Frage; eine Aufnahme ist eine eigene Art von Daten, deshalb fragt die Übersicht beim ersten Mal. Das Transkript kommt als Vorschlag unter die Aufnahme, mit dem Autor **Plainva KI · ⟨Modell⟩** — unter **Vorschläge** übernimmst oder lehnst Du es ab.

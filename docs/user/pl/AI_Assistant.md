@@ -114,6 +114,10 @@ Skrypty to małe programy, które piszesz do tego, co model robi słabo — licz
 
 To, co AI powinna o Tobie wiedzieć bez przypominania — czym się zajmujesz, jakie odpowiedzi lubisz — jest zapisane w pamięci vaultu: w dwóch plikach, które możesz czytać i edytować. Zawartość miejsca **Zawsze dołączane** trafia do każdej nowej rozmowy, resztę AI sprawdza, gdy pytanie tego wymaga, a bez Twojego „tak” nic nie trafia do pamięci. Zob. [Pamięć](AI_Memory.md).
 
+## Uczenie się z rozmowy
+
+Rozmowa może nauczyć AI czegoś na później. Polecenie **Naucz się z tej rozmowy** — pod jej ostatnią odpowiedzią — wysyła ją jeszcze raz do modelu, który ją prowadził, i przynosi szkice: wpisy do pamięci, reguły albo inne instrukcje dla jednej z Twoich umiejętności. Nic z tego nie obowiązuje, dopóki tego nie zaakceptujesz. Zob. [Umiejętności](AI_Skills.md).
+
 ## Transkrypcja notatki głosowej
 
 Przy każdej notatce głosowej — w edytorze, w trybie czytania, w dzienniku i na kartach — **Transkrybuj** zamienia nagranie w tekst. Trafia ono bez zmian do modelu profilu **Audio**, przez ten sam przegląd co pytanie; nagranie to osobny rodzaj danych, więc przegląd pyta za pierwszym razem. Transkrypcja wraca jako propozycja pod nagraniem, z autorem **Plainva AI · ⟨model⟩** — zaakceptuj ją lub odrzuć w sekcji **Propozycje**.

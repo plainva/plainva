@@ -243,6 +243,8 @@ describe("the settings model", () => {
     fill: null,
     scripts: { available: false, run: null },
     memory: EMPTY_MEMORY_STATE,
+    learning: null,
+    learnLog: false,
     ...patch,
   });
 

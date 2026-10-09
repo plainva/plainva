@@ -834,6 +834,12 @@ textarea {
   gap: var(--space-2);
 }
 
+/* A watched version that had a run that failed (plan KI-Harness P6-2): what happened, and the two things to do about it. */
+.m-skill-watch {
+  display: grid;
+  gap: var(--space-2);
+}
+
 /* The verdicts of a skill's scenarios under its row in the regression run's sheet (plan KI-Harness P3-8). */
 .m-skill-test-lines {
   display: grid;

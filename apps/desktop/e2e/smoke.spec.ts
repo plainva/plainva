@@ -6529,3 +6529,200 @@ test('AI memory: a conversation is started with what a cloud may have; the reade
   await memory.getByTestId('ai-memory-file-long').click();
   await expect(page.locator('.cm-content').last()).toContainText('Harbour Studio pays within 14 days.');
 });
+
+// Learning from a conversation (AI harness P6-2): the reader asks for it, the
+// conversation goes once more to the model that led it — without a tool —, and
+// what comes back are drafts. Other instructions for a skill are reviewed and
+// accepted in a dialog that shows what changes and what stays; the version is
+// watched, a failed run offers the way back, and the vault's history keeps
+// every version. In the real shell, against the mock file system that stands
+// for the vault; the model is the scripted `ai_http`.
+test('AI learning: a review suggests an entry, a rule and other instructions for a skill; the skill is accepted in its review, watched, and taken back', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string, stop = 'end_turn') => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: stop }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const HEAD = "---\nname: offer-check\ndescription: Checks an offer against last year's rates.\nallowed-tools: read_note search_vault\nmetadata:\n  plainva.folders: Projects/\n---";
+  const OLD = "1. Read the offer.\n2. Compare each position with last year's rates.";
+  const NEW = `${OLD}\n3. Check the tax rate of each position.`;
+  const FILE = '/test-vault/.agent/skills/offer-check/SKILL.md';
+  const suggestions = JSON.stringify({
+    proposals: [
+      { kind: 'memory', text: 'Harbour Studio is billed per episode.', why: 'The reader said that they pay per episode.' },
+      { kind: 'rule', text: 'Always name the paragraph in tax questions.', why: 'The reader asked twice where it says that.' },
+      // A reviewer that answers with a whole skill file is not handed the file's head that way.
+      { kind: 'skill', name: 'offer-check', instructions: `---\nname: offer-check\nallowed-tools: delete_note fetch_url\n---\n\n${NEW}`, why: 'The skill ran and did not check the tax rate.', 'allowed-tools': 'delete_note' },
+    ],
+  });
+  const script = [says('Checked: every rate matches last year.'), says(`Here is what I would keep:\n${suggestions}`), says('First I', 'max_tokens')];
+  await page.addInitScript(({ script, file, text }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.agent'] = { isDir: true };
+    fs['/test-vault/.agent/skills'] = { isDir: true };
+    fs['/test-vault/.agent/skills/offer-check'] = { isDir: true };
+    fs[file] = text;
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, file: FILE, text: `${HEAD}\n\n${OLD}\n` });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const files = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([, value]) => typeof value === 'string').map(([path, value]) => ({ path, text: String(value) })));
+  const fileAt = async (path: string) => (await files()).find((file) => file.path === path)?.text ?? null;
+
+  // 1. The skill is the vault's own once it is approved here; then it runs in a conversation of its own.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-skills').click();
+  const workshop = page.getByTestId('ai-skills-workshop');
+  await workshop.getByTestId('ai-skill-review').click();
+  await page.getByTestId('ai-skill-approve').click();
+  await expect(page.getByTestId('ai-skill-approval')).toHaveCount(0);
+  await workshop.getByTestId('ai-skill-more').first().click();
+  await page.getByTestId('ai-skill-action-run').click();
+  const tab = page.getByTestId('ai-tab');
+  await tab.getByTestId('ai-consent-send').click();
+  await expect(tab.getByText('Checked: every rate matches last year.')).toBeVisible();
+
+  // From the floating companion the dialog opens too — and the companion, which is drawn above a dialog, makes room
+  // for it and comes back when it is closed.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-learn-open').click();
+  await expect(page.getByTestId('ai-learn')).toBeVisible();
+  await expect(page.getByTestId('ai-companion')).toHaveCount(0);
+  await page.getByTestId('ai-learn').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByTestId('ai-learn')).toHaveCount(0);
+  await expect(companion).toBeVisible();
+  await companion.getByTestId('ai-companion-close').click();
+  expect(await requests()).toHaveLength(1);
+
+  // 2. "Learn from this conversation" stands under its last answer. The dialog says what would go where; nothing has gone.
+  await tab.getByTestId('ai-learn-open').click();
+  const learn = page.getByTestId('ai-learn');
+  await expect(learn.getByTestId('ai-learn-recipient')).toContainText('m-1');
+  await expect(learn.getByTestId('ai-learn-kinds')).toHaveText('Entries for the memory · Rules · A skill, or other instructions for one');
+  await expect(learn.getByTestId('ai-learn-plan')).toContainText('The instructions of offer-check, so that a better version can be suggested.');
+  await expect(learn).toContainText('Nothing it suggests counts before you accept it.');
+  expect(await requests()).toHaveLength(1);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-learn-ask-desktop.png'), animations: 'disabled' });
+
+  // 3. The review: one request, to the same model, without a tool. What it read is the conversation and the skill's
+  //    instructions — never the skill's head.
+  await learn.getByTestId('ai-learn-start').click();
+  await expect(learn.getByTestId('ai-learn-lead')).toContainText('m-1 read the conversation once more');
+  const sent = await requests();
+  expect(sent).toHaveLength(2);
+  expect(sent[1]).toContain('You review one finished conversation');
+  expect(sent[1]).toContain('Assistant: Checked: every rate matches last year.');
+  expect(sent[1]).toContain('Compare each position with last year');
+  expect(sent[1]).not.toContain('allowed-tools');
+  expect(sent[1]).not.toContain('plainva.folders');
+  expect(sent[1]).not.toContain('"name":"read_note"');
+  await expect(learn.locator('[data-testid="ai-draft"]')).toHaveCount(3);
+  await expect(learn.locator('[data-testid="ai-draft"][data-kind="memory"]').getByTestId('ai-draft-why')).toHaveText('The reader said that they pay per episode.');
+  await expect(learn.getByTestId('ai-learn-usage')).toContainText('tokens sent');
+  // Nothing of it counts yet: no file of the vault changed.
+  expect(await fileAt(FILE)).toBe(`${HEAD}\n\n${OLD}\n`);
+  expect(await fileAt('/test-vault/AGENTS.md')).toBeNull();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-learn-result-desktop.png'), animations: 'disabled' });
+
+  // 4. An entry and a rule are decided on their cards, as everywhere.
+  await learn.locator('[data-testid="ai-draft"][data-kind="memory"]').getByTestId('ai-draft-create').click();
+  await expect.poll(() => fileAt('/test-vault/.agent/MEMORY.md')).toContain('- Harbour Studio is billed per episode. <!-- plainva: added=');
+  await learn.locator('[data-testid="ai-draft"][data-kind="rule"]').getByTestId('ai-draft-create').click();
+  await expect.poll(() => fileAt('/test-vault/AGENTS.md')).toContain('- Always name the paragraph in tax questions.');
+
+  // 5. A skill is accepted where its text is shown. The review says what changes, and that what it may do does not.
+  const card = learn.locator('[data-testid="ai-draft"][data-kind="skill"]');
+  await expect(card.getByTestId('ai-draft-title')).toHaveText('offer-check — other instructions');
+  await expect(card.getByTestId('ai-draft-create')).toHaveCount(0);
+  await card.getByTestId('ai-draft-review').click();
+  const review = page.getByTestId('ai-skill-draft');
+  await expect(review.getByTestId('ai-skill-draft-changes')).toContainText('+ 3. Check the tax rate of each position.');
+  // The head the reviewer sent along was cut off: none of it is among what would be written.
+  await expect(review.getByTestId('ai-skill-draft-changes')).not.toContainText('delete_note');
+  await expect(review.getByTestId('ai-skill-draft-rights')).toContainText('Unchanged.');
+  await expect(review.getByTestId('ai-skill-draft-rights')).toContainText('A suggestion changes the instructions only.');
+  await expect(review.getByTestId('ai-skill-draft-cost')).toContainText('tokens more in every run of this skill.');
+  await expect(review.getByTestId('ai-skill-draft-why')).toHaveText('The skill ran and did not check the tax rate.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-learn-skill-review-desktop.png'), animations: 'disabled' });
+  await review.getByTestId('ai-skill-draft-rework').click();
+  await expect(review.getByTestId('ai-skill-draft-body')).toHaveValue(NEW);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-learn-skill-rework-desktop.png'), animations: 'disabled' });
+  await review.getByTestId('ai-skill-draft-rework').click();
+  await review.getByTestId('ai-skill-draft-take').click();
+  await expect(review).toHaveCount(0);
+  // Written: the instructions, and not one byte of the head. Approved on this device, and watched.
+  await expect.poll(() => fileAt(FILE)).toBe(`${HEAD}\n\n${NEW}\n`);
+  await expect(learn.getByTestId('ai-draft-done').last()).toHaveText('Accepted: offer-check');
+  const approvals = (await files()).filter((file) => file.path.endsWith('instructions.json'));
+  expect(approvals).toHaveLength(1);
+  expect(approvals[0].path.startsWith('/test-vault/')).toBe(false);
+  const approved = (JSON.parse(approvals[0].text).approved as Array<{ id: string }>).find((approval) => approval.id === '.agent/skills/offer-check');
+  expect(approved).toMatchObject({ how: 'learned', observe: { runs: 0, failed: 0 } });
+  // The vault's log says what was accepted — the day, the skill, the conversation; no word of the reviewer.
+  const log = await fileAt('/test-vault/.agent/logs/learning.md');
+  expect(log).toContain('skill `offer-check`: other instructions, from an accepted suggestion');
+  expect(log).toContain('new rule in AGENTS.md, from an accepted suggestion');
+  expect(log).not.toContain('did not check the tax rate');
+  expect(log).not.toContain('m-1');
+  await learn.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await expect(learn).toHaveCount(0);
+
+  // 6. The row says that the version is watched. A run that is cut off counts against it — and still nothing goes back.
+  await page.getByTestId('ai-tab-skills').click();
+  await expect(workshop).toContainText('watched · 0 of 3 runs');
+  await workshop.getByTestId('ai-skill-more').first().click();
+  await page.getByTestId('ai-skill-action-run').click();
+  // Instructions that changed go to the cloud for the first time: where the overview comes back for them, it is answered.
+  const cut = tab.getByText('First I');
+  const again = tab.getByTestId('ai-consent-send');
+  if ((await Promise.race([again.waitFor({ state: 'visible' }).then(() => 'asked'), cut.waitFor({ state: 'visible' }).then(() => 'answered')])) === 'asked') await again.click();
+  await expect(cut).toBeVisible();
+  await page.getByTestId('ai-tab-skills').click();
+  const watch = workshop.getByTestId('ai-skill-watch');
+  await expect(workshop).toContainText('“offer-check”: since the new version, 1 of 1 runs did not end with an answer.');
+  expect(await fileAt(FILE)).toBe(`${HEAD}\n\n${NEW}\n`);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-learn-watch-desktop.png'), animations: 'disabled' });
+  await watch.getByTestId('ai-skill-watch-back').click();
+  await expect.poll(() => fileAt(FILE)).toBe(`${HEAD}\n\n${OLD}\n`);
+  await expect(workshop.getByTestId('ai-skill-watch')).toHaveCount(0);
+  // Back, and approved as it was: nothing waits for a review.
+  await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(0);
+
+  // 7. Earlier versions: the version that was taken back is kept, and can be restored after a look at it.
+  await workshop.getByTestId('ai-skill-more').first().click();
+  await page.getByTestId('ai-skill-action-versions').click();
+  const versions = page.getByTestId('ai-skill-versions');
+  await expect(versions.getByTestId('ai-skill-version-now')).toContainText('Restored on this device on');
+  await expect(versions.getByTestId('ai-skill-version-changes')).toContainText('+ 3. Check the tax rate of each position.');
+  await expect(versions.getByTestId('ai-skill-version-rights')).toHaveText('The same as now.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-learn-versions-desktop.png'), animations: 'disabled' });
+  await versions.getByTestId('ai-skill-version-restore').click();
+  await expect(versions).toHaveCount(0);
+  await expect.poll(() => fileAt(FILE)).toBe(`${HEAD}\n\n${NEW}\n`);
+  expect(await fileAt('/test-vault/.agent/logs/learning.md')).toMatch(/skill `offer-check`: back to the version before\n- .* skill `offer-check`: back to its version of \d{4}-\d\d-\d\d \d\d:\d\d\n$/);
+
+  // 8. What was learned is a file of the vault, and the workshop opens it.
+  await workshop.getByTestId('ai-learn-log').click();
+  await expect(page.locator('.cm-content').last()).toContainText('Learning log');
+});

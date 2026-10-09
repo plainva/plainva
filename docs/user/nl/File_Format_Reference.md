@@ -201,6 +201,16 @@ Twee Markdown-bestanden bevatten wat de assistent over de gebruiker moet weten: 
 
 Een tool die een item schrijft, beperkt het tot één regel van hoogstens 500 tekens en laat de commentaren van andere items zoals ze zijn. Een commentaar dat beschadigd is — niet gesloten, twee keer aanwezig of met een regel die Plainva niet kent — houdt het item van elk model weg. Een item zonder commentaar heeft geen eigen regel, dus bij het herschrijven van een item mag een tool het commentaar nooit weglaten. Wat de assistent moet doen, staat hier niet: regels zijn tekstregels in `AGENTS.md`.
 
+### Het leerlogboek (`.agent/logs/learning.md`)
+
+Eén tekstregel voor alles wat uit een voorstel van de assistent is overgenomen — een nieuwe vaardigheid, andere instructies voor een vaardigheid, een regel in `AGENTS.md` — en voor elke terugkeer naar een eerdere versie van een vaardigheid: het tijdstip tot op de minuut, wat er is veranderd en de titel van het gesprek waaruit het komt. Plainva voegt tekstregels toe en leest er geen van terug.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+Het bestand is een lijst onder een kop en kan worden ingekort of verwijderd. Het bevat geen woord van het model dat het voorstel deed, en nooit zijn naam. Boven de 100.000 tekens laat Plainva de oudste regels van de lijst vallen.
+
 ### Links
 
 - **Wiki-link:** `[[Notitienaam]]` — vault-breed opgelost via de notitienaam. Met een kop-anker: `[[Notitie#Sectie]]` — een klik opent de notitie **bij die kop**; `[[#Sectie]]` springt binnen de huidige notitie, en een slug in GitHub-stijl (`[[Notitie#cool-header]]`) wordt ook opgelost. Met een blokverwijzing: `[[Notitie#^id]]` voor een regel die eindigt op `^id`. Met weergavetekst: `[[Notitie|getoonde tekst]]`.

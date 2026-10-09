@@ -114,6 +114,10 @@ Gli script sono piccoli programmi che scrivi tu per ciò che un modello fa male 
 
 Ciò che l'IA deve sapere su di te senza che tu glielo ripeta — che cosa fai, come preferisci ricevere le risposte — è conservato nella memoria del vault: due file che puoi leggere e modificare. Ciò che sta sotto **Sempre incluso** va in ogni nuova conversazione, il resto viene cercato quando una domanda lo richiede, e nulla entra nella memoria senza il tuo sì. Vedi [Memoria](AI_Memory.md).
 
+## Imparare da una conversazione
+
+Una conversazione può insegnare qualcosa all'IA per il futuro. **Impara da questa conversazione** — sotto la sua ultima risposta — invia la conversazione ancora una volta al modello con cui è stata condotta e restituisce delle bozze: voci per la memoria, regole o altre istruzioni per una delle tue competenze. Nulla di tutto ciò vale finché non lo accetti. Vedi [Competenze](AI_Skills.md).
+
 ## Trascrivere una nota vocale
 
 Su ogni nota vocale — nell'editor, in modalità lettura, nel diario e sulle schede — **Trascrivi** trasforma la registrazione in testo. Va così com'è al modello del profilo **Audio**, attraverso lo stesso riepilogo di una domanda; una registrazione è un tipo di dati a sé, perciò il riepilogo chiede la prima volta. La trascrizione torna come proposta sotto la registrazione, con l'autore **Plainva IA · ⟨modello⟩**: accettala o rifiutala in **Proposte**.

@@ -201,6 +201,16 @@ Dwa pliki Markdown przechowują to, co asystent powinien wiedzieć o użytkownik
 
 Narzędzie zapisujące wpis trzyma go w jednym wierszu o długości do 500 znaków i zostawia komentarze innych wpisów bez zmian. Uszkodzony komentarz — niezamknięty, występujący dwa razy albo wymieniający regułę, której Plainva nie zna — sprawia, że wpis nie trafia do żadnego modelu. Wpis bez komentarza nie ma własnej reguły, więc narzędzie nigdy nie może pominąć komentarza wpisu, który przepisuje. To, co asystent ma robić, nie jest tu zapisane: reguły są wierszami `AGENTS.md`.
 
+### Dziennik uczenia się (`.agent/logs/learning.md`)
+
+Do dziennika trafia jeden wiersz za każdą zaakceptowaną propozycję asystenta — nową umiejętność, inne instrukcje dla umiejętności, regułę w `AGENTS.md` — i za każdy powrót do wcześniejszej wersji umiejętności: czas z dokładnością do minuty, co się zmieniło i tytuł rozmowy, z której to pochodzi. Plainva dopisuje wiersze, ale żadnego z nich później nie odczytuje.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+Plik jest listą pod nagłówkiem i można go skrócić albo usunąć. Nie zawiera ani słowa modelu, który przygotował propozycję, i nigdy nie podaje jego nazwy. Po przekroczeniu 100 000 znaków Plainva usuwa najstarsze wiersze listy.
+
 ### Linki
 
 - **Link wiki:** `[[Nazwa notatki]]` — rozwiązywany według nazwy notatki w całym vaulcie. Z kotwicą nagłówka: `[[Notatka#Sekcja]]` — kliknięcie otwiera notatkę **przy tym nagłówku**; `[[#Sekcja]]` przeskakuje w bieżącej notatce, a slug w stylu GitHuba (`[[Notatka#cool-header]]`) również jest rozwiązywany. Z odwołaniem do bloku: `[[Notatka#^id]]` dla wiersza kończącego się na `^id`. Z tekstem wyświetlanym: `[[Notatka|pokazywany tekst]]`.

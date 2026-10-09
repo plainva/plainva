@@ -1,8 +1,8 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CodeXml, Download, FlaskConical, Plus } from "lucide-react";
-import type { InstructionEntry, SkillImport } from "@plainva/core";
-import { Button, GroupCard, ICON, Row, RowList, SectionLabel, skillRowActions, skillRowDescription, skillTestOverview, skillTestPlanFor, skillView, Switch, toast, useSkillTestPlan, workshopSections, workshopTitle, type SkillRowCaps } from "@plainva/ui";
+import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
+import { Button, GroupCard, ICON, observedFailures, openLearnSurface, Row, RowList, SectionLabel, skillRestoreRefusalText, skillRowActions, skillRowDescription, skillTestOverview, skillTestPlanFor, skillView, Switch, toast, useSkillTestPlan, workshopSections, workshopTitle, type SkillRowCaps } from "@plainva/ui";
 import { RowActionSheet } from "./RowActionSheet";
 import { NewSkillSheet } from "./NewSkillSheet";
 import { ScriptFormSheet } from "./ScriptFormSheet";
@@ -83,6 +83,8 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
         : {}),
       ...(!vault ? { showInstructions: () => setOpen(entry.source.id) } : {}),
       ...(vault ? { edit: () => onOpenNote(mainPath(entry)) } : {}),
+      // What the vault's history keeps of a skill's file, and the way back (plan P6-2).
+      ...(vault && entry.source.kind === "skill" ? { versions: () => openLearnSurface({ kind: "skill-versions", skillId: entry.source.id }) } : {}),
       ...(!vault && entry.source.kind === "skill"
         ? {
             copy: () => {
@@ -96,6 +98,14 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       ...(vault && entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
       ...(vault ? { delete: () => remove(entry, "ai.workshop.deleteConfirm") } : {}),
     };
+  };
+  // A version that came from a proposal and had a run that failed (plan P6-2): the way back is offered, never taken.
+  const failures = observedFailures(t, state.skills.entries);
+  const goBack = (id: string) => {
+    void session.revertObservedSkill(id).then((outcome) => {
+      if (outcome.ok) toast.success(t("ai.learn.watch.backDone"));
+      else toast.error(skillRestoreRefusalText(t, outcome));
+    });
   };
   const switchRow = (entry: InstructionEntry) => (
     <Row
@@ -131,6 +141,25 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
           {t("ai.workshop.newSkill")}
         </Button>
       </div>
+      {failures.length > 0 && (
+        <>
+          <SectionLabel>{t("ai.learn.watch.title")}</SectionLabel>
+          {failures.map((failure) => (
+            <div key={failure.id} className="m-skill-watch" data-testid="ai-skill-watch">
+              <p className="m-hint">{failure.text}</p>
+              <div className="m-skills-actions">
+                <Button variant="ghost" onClick={() => void session.keepObservedSkill(failure.id)} data-testid="ai-skill-watch-keep">
+                  {t("ai.learn.watch.keep")}
+                </Button>
+                <Button variant="tonal" onClick={() => goBack(failure.id)} data-testid="ai-skill-watch-back">
+                  {t("ai.learn.watch.back")}
+                </Button>
+              </div>
+            </div>
+          ))}
+          <p className="m-hint">{t("ai.learn.watch.hint")}</p>
+        </>
+      )}
       {sections.waiting.length > 0 && (
         <>
           <SectionLabel>{t("ai.workshop.waiting")}</SectionLabel>
@@ -188,6 +217,16 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
         </RowList>
       </GroupCard>
       {overview.hint && <p className="m-hint">{overview.hint}</p>}
+      {state.learnLog && (
+        <>
+          <SectionLabel>{t("ai.learn.log.title")}</SectionLabel>
+          <GroupCard>
+            <RowList>
+              <Row title={t("ai.memory.openFile")} subtitle={`${LEARN_LOG_FILE} · ${t("ai.learn.log.desc")}`} wrap onClick={() => onOpenNote(LEARN_LOG_FILE)} data-testid="ai-learn-log" />
+            </RowList>
+          </GroupCard>
+        </>
+      )}
       {testing && <SkillTestSheet ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
       {open && <SkillApprovalSheet id={open} onClose={() => setOpen(null)} />}
       {creating && <NewSkillSheet onClose={() => setCreating(false)} />}

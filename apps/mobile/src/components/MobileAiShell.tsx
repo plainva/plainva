@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { AiSheet } from "./AiSheet";
+import { LearnSheets } from "./LearnSheets";
 import { MobileAiNavigation, type useMobileAi } from "../services/ai/mobileAi";
 
 /*
@@ -77,6 +78,8 @@ export function MobileAiShell({
           onOpenSettings={leaving(() => nav.openSettings?.())}
         />
       )}
+      {/* Learning's sheets (plan P6-2): opened from a conversation, a draft or a skill, wherever those are shown. */}
+      <LearnSheets onOpenNote={(target) => leaving(() => onOpenNote(target))()} />
     </>
   );
 }

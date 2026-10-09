@@ -80,6 +80,32 @@ Une compétence peut apporter des scénarios de test : un message qui la lance, 
 
 Chaque scénario est une exécution ordinaire de sa compétence : il lit votre vault comme une exécution à la main, passe par le même aperçu avant l'envoi, compte dans votre consommation et laisse sa conversation dans l'historique, où sa prochaine exécution la remplace. Ensuite, chaque scénario affiche son résultat en toutes lettres, et la ligne de la compétence indique comment s'est passée sa dernière exécution. Un résultat vaut pour un modèle et une version de la compétence : si vous choisissez un autre modèle ou modifiez la compétence, la ligne le dit au lieu d'afficher un résultat qui ne compte plus. Certains scénarios fournis portent sur des notes du vault de test de Plainva ; dans votre vault ils ne s'appliquent pas, et la boîte de dialogue les compte à part au lieu de les considérer comme échoués.
 
+## Apprendre d'une conversation
+
+Une conversation peut laisser quelque chose derrière elle : un fait bon à savoir, une règle, ou une compétence qui n'est pas allée assez loin. **Apprendre de cette conversation** — dans le menu d'une conversation de la liste et sous sa dernière réponse — permet de le demander. Rien ne lit vos conversations en arrière-plan.
+
+Une boîte de dialogue indique d'abord ce qui se passerait : la conversation part une fois encore vers le modèle qui l'a menée, et vers aucun autre — ce que vous avez écrit et ce qui a été répondu, avec les noms des outils utilisés. Rien de ce qu'un outil a renvoyé n'est joint, et aucune note non plus. Lorsqu'une de vos propres compétences s'est exécutée dans la conversation, ses instructions sont jointes, afin qu'une meilleure version puisse être proposée. **Apprendre** lance la relecture ; elle coûte une requête.
+
+Ce qui revient, ce sont des brouillons, chacun avec la **Preuve** que la relecture en donne, et rien de tout cela n'a d'effet avant que vous ne l'acceptiez. Une entrée de la mémoire et une règle se décident sur leur carte, comme décrit dans [Mémoire](AI_Memory.md). Le brouillon d'une compétence porte à la place le bouton **Vérifier**.
+
+Une conversation qui a lu une page web, un e-mail ou ce qu'un outil externe a renvoyé ne propose que des entrées pour la mémoire : ce qu'un inconnu a écrit ne devient ni une règle ni une compétence. Il en va de même lorsque la conversation repose sur des notes tenues à l'écart du cloud ou d'Internet, et les entrées qui en sont tirées portent cette règle. Une conversation qui s'est déroulée avec un modèle sur cet appareil est relue sur cet appareil.
+
+### Accepter une suggestion pour une compétence
+
+**Vérifier** montre, ligne par ligne, ce qui changerait, ainsi que ce que la compétence peut faire — et cela reste tel quel : une suggestion ne change que les instructions d'une compétence, rien d'autre. Ses outils, ses dossiers et ses limites ne sont jamais fixés par un modèle. La boîte de dialogue indique aussi si la version actuelle a été testée, ce qu'une exécution coûte en plus ou en moins, et de quelle conversation vient la suggestion. **Retravailler** transforme la comparaison en un champ où vous pouvez écrire.
+
+**Accepter** écrit la nouvelle version et l'approuve sur cet appareil, puisque vous l'avez vue ici. Sur vos autres appareils, la compétence attend alors d'y être approuvée à son tour, comme après toute modification. Une nouvelle compétence proposée démarre avec les réglages par défaut de Plainva : elle lit et affiche, et ne modifie rien. Une compétence que vous avez importée et les compétences fournies avec Plainva ne sont jamais réécrites par une suggestion.
+
+### Versions surveillées et retour en arrière
+
+Une version issue d'une suggestion est surveillée pendant trois exécutions, et sa ligne les compte. Si une exécution ne se termine pas par une réponse, l'écran des compétences nomme la compétence sous **Versions surveillées** et propose deux choix : **Revenir à la version précédente** ou **Conserver**. Rien ne revient en arrière tout seul.
+
+Dans le menu d'une compétence, **Versions antérieures…** liste ce que l'historique des versions du vault conserve du fichier de la compétence. La boîte de dialogue compare la version choisie à la compétence telle qu'elle est maintenant — ses lignes, et ce qu'elle peut faire — et avertit lorsque la version antérieure peut faire plus. **Restaurer cette version** réécrit la version choisie et l'approuve sur cet appareil. Les versions sont conservées sur cet appareil.
+
+Pour une compétence qui a changé d'une autre manière — par la synchronisation ou par une modification sur un autre appareil —, **Vérifier et approuver** indique la même chose sous **Par rapport à la version approuvée** : quels outils se sont ajoutés ou ont disparu, les dossiers, la limite.
+
+Sous **Ce qui a été appris**, l'écran des compétences ouvre `.agent/logs/learning.md` : une ligne pour chaque compétence ou règle acceptée à partir d'une suggestion, avec le jour et la conversation. Le fichier voyage avec votre vault.
+
 ## Ce qui part chez le fournisseur
 
 L'aperçu d'envoi indique sous **Instructions** ce qui accompagne la demande : la compétence de la conversation, la liste des compétences que l'IA peut charger, et `AGENTS.md`. Si des instructions de votre vault partent pour la première fois vers un cloud, l'aperçu revient. Les caractères invisibles d'une compétence n'atteignent jamais un modèle.

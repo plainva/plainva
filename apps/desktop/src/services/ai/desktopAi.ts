@@ -16,6 +16,7 @@ import {
   noteMovePlan,
   noteRenamePlan,
   adapterInstructionIO,
+  adapterInstructionVersions,
   adapterInstructionWriter,
   createAcpDeviceStore,
   createAiVaultHost,
@@ -263,6 +264,8 @@ export interface DesktopVaultInput {
   db: () => IDatabaseAdapter | null | undefined;
   /** The vault's comment service: where an AI suggestion round is written (plan P1.5). */
   commentOperations: () => CommentOperationService | null;
+  /** The vault's snapshot store: a skill's version is kept there before a proposal rewrites it (plan P6). Null while there is none. */
+  backup?: () => { ensureSnapshot(path: string): Promise<void> } | null;
   /** Makes a note the assistant's "Keep as a note" wrote known to the index and the file tree (plan P4-6). */
   noteCreated?: (path: string) => Promise<void>;
   /** The vault's search by meaning, for the context package (plan P2b); null while there is none. */
@@ -441,6 +444,7 @@ export function createDesktopVaultHost(input: DesktopVaultInput): { host: AiVaul
     vaultKey: aiVaultKey(input.vaultPath),
     instructionIO: adapterInstructionIO(input.adapter),
     instructionWriter: adapterInstructionWriter(input.adapter),
+    instructionVersions: adapterInstructionVersions(input.adapter, () => input.backup?.() ?? null),
     policy,
     async activeNote() {
       const path = input.activePath();

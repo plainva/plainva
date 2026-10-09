@@ -201,6 +201,16 @@ Dois arquivos Markdown guardam o que o assistente deve saber sobre o usuário: `
 
 Uma ferramenta que escreve uma entrada a mantém em uma linha de no máximo 500 caracteres e deixa os comentários das outras entradas como estão. Um comentário danificado — não fechado, presente duas vezes ou que nomeia uma regra que o Plainva não conhece — mantém a entrada longe de todos os modelos. Uma entrada sem comentário não tem regra própria, por isso uma ferramenta nunca deve apagar o comentário de uma entrada que reescreve. O que o assistente deve fazer não se escreve aqui: regras são linhas do `AGENTS.md`.
 
+### O registro de aprendizado (`.agent/logs/learning.md`)
+
+Uma linha para tudo o que foi aceito a partir de uma sugestão do assistente — uma nova habilidade, outras instruções para uma habilidade, uma regra em `AGENTS.md` — e para cada retorno a uma versão anterior de uma habilidade: a data e a hora até o minuto, o que mudou e o título da conversa de onde veio. O Plainva acrescenta linhas e não lê nenhuma delas de volta.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+O arquivo é uma lista sob um título e pode ser encurtado ou excluído. Ele não contém nenhuma palavra do modelo que fez a sugestão e nunca o nome dele. Ao passar de 100.000 caracteres, o Plainva descarta as linhas mais antigas da lista.
+
 ### Links
 
 - **Link wiki:** `[[Nome da nota]]` — resolvido pelo nome da nota em todo o vault. Com âncora de título: `[[Nota#Seção]]` — um clique abre a nota **naquele título**; `[[#Seção]]` salta dentro da nota atual, e um slug no estilo do GitHub (`[[Nota#cool-header]]`) também é resolvido. Com referência de bloco: `[[Nota#^id]]` para uma linha que termina em `^id`. Com texto de exibição: `[[Nota|texto exibido]]`.

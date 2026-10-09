@@ -34,3 +34,4 @@ export * from "./acp/index.js";
 export * from "./web/index.js";
 export * from "./writes/index.js";
 export * from "./memory/index.js";
+export * from "./learn/index.js";

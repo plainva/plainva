@@ -737,10 +737,23 @@
       "mayAgents": "Stałe instrukcje dla każdej nowej rozmowy w tym vaulcie. Nie mogą uchylić reguł prywatności.",
       "originApp": "Dołączona do Plainva",
       "originPath": "Leży w {{path}}",
+      "rights": {
+        "title": "W porównaniu z zatwierdzoną wersją",
+        "same": "Może robić to samo, co zatwierdzona wersja.",
+        "toolsAdded": "Może teraz używać także: {{tools}}",
+        "toolsRemoved": "Nie używa już: {{tools}}",
+        "folders": "Foldery: {{after}} (wcześniej: {{before}})",
+        "budget": "Odpowiedź na uruchomienie, najwyżej: {{after}} (wcześniej: {{before}})",
+        "wholeVault": "cały vault",
+        "noBudget": "limit samej rozmowy",
+        "widened": "Ta wersja może robić więcej niż zatwierdzona."
+      },
       "approvedHow": {
         "review": "Zatwierdzona na tym urządzeniu {{when}}",
         "created": "Utworzona na tym urządzeniu {{when}}",
         "copied": "Skopiowana na tym urządzeniu {{when}}",
+        "learned": "Zaakceptowana z propozycji na tym urządzeniu {{when}}",
+        "restored": "Przywrócona na tym urządzeniu {{when}}",
         "imported": "Zaimportowana na tym urządzeniu {{when}}"
       },
       "importedFrom": "Zaimportowana z {{label}}",
@@ -891,6 +904,155 @@
         "conversation": "Sprawdzenie · {{skill}} · {{scenario}}"
       },
       "writeFailed":"Nie udało się zapisać umiejętności w vaulcie."
+    },
+    "learn": {
+      "action": "Naucz się z tej rozmowy",
+      "start": "Naucz się",
+      "running": "Model {{model}} czyta rozmowę…",
+      "ask": {
+        "lead": "Rozmowa trafia jeszcze raz do modelu, który ją prowadził — i do żadnego innego. Model nie dostaje żadnego narzędzia: może tylko proponować.",
+        "to": "Odbiorca",
+        "local": "{{model}} — na tym urządzeniu",
+        "what": "Co jest wysyłane",
+        "messages_one": "{{count}} wiadomość: Twój tekst i odpowiedzi.",
+        "messages_few": "{{count}} wiadomości: Twój tekst i odpowiedzi.",
+        "messages_many": "{{count}} wiadomości: Twój tekst i odpowiedzi.",
+        "messages_other": "{{count}} wiadomości: Twój tekst i odpowiedzi.",
+        "omitted_one": "{{count}} wiadomość ze środka zostaje pominięta: rozmowa jest zbyt długa, by wysłać ją w całości.",
+        "omitted_few": "{{count}} wiadomości ze środka zostają pominięte: rozmowa jest zbyt długa, by wysłać ją w całości.",
+        "omitted_many": "{{count}} wiadomości ze środka zostaje pominiętych: rozmowa jest zbyt długa, by wysłać ją w całości.",
+        "omitted_other": "{{count}} wiadomości ze środka zostaje pominiętych: rozmowa jest zbyt długa, by wysłać ją w całości.",
+        "skills": "Instrukcje umiejętności {{names}}, aby można było zaproponować lepszą wersję.",
+        "notSent": "Nic z tego, co zwróciło narzędzie, ani żadna notatka dołączona jako kontekst.",
+        "comes": "Co może wrócić",
+        "size": "Rozmiar",
+        "estimate": "Około {{tokens}} tokenów",
+        "estimateCost": "Około {{tokens}} tokenów · około {{cost}}",
+        "nothingCounts": "Nic z tego, co proponuje, nie obowiązuje, dopóki tego nie zaakceptujesz."
+      },
+      "kind": {
+        "memory": "Wpisy do pamięci",
+        "rule": "Reguły",
+        "skill": "Umiejętność albo inne instrukcje dla istniejącej"
+      },
+      "limit": {
+        "foreign": "Ta rozmowa czytała teksty obcych osób — ze strony internetowej, z e-maila lub z narzędzia zewnętrznego. Można z niej zachować w pamięci tylko fakty; nie powstaje z niej ani reguła, ani umiejętność.",
+        "restricted": "Ta rozmowa opiera się na notatkach trzymanych z dala od chmury lub od internetu. Wpisy z niej niosą tę regułę; nie powstaje z niej ani reguła, ani umiejętność.",
+        "memory-off": "Pamięć jest na tym urządzeniu wyłączona: nie są proponowane żadne wpisy.",
+        "read-only": "To urządzenie nie może zapisywać instrukcji vaultu ani jego pamięci, więc nic się dla nich nie proponuje."
+      },
+      "result": {
+        "lead": "Model {{model}} przeczytał rozmowę jeszcze raz — ten sam, który ją prowadził; rozmowa nie trafiła nigdzie indziej. To, co proponuje, jest poniżej i w sekcji „Oczekujące”. Nic z tego nie obowiązuje, dopóki tego nie zaakceptujesz.",
+        "none": "W tej rozmowie nie ma nic, co warto zachować",
+        "noneHint": "To też odpowiedź: nie każda rozmowa czegoś uczy.",
+        "known_one": "{{count}} propozycja jest już w pamięci.",
+        "known_few": "{{count}} propozycje są już w pamięci.",
+        "known_many": "{{count}} propozycji jest już w pamięci.",
+        "known_other": "{{count}} propozycji jest już w pamięci.",
+        "dropped_one": "{{count}} propozycja została pominięta: bez dowodu, zbyt długa lub rodzaju, którego ta rozmowa nie może proponować.",
+        "dropped_few": "{{count}} propozycje zostały pominięte: bez dowodu, zbyt długie lub rodzaju, którego ta rozmowa nie może proponować.",
+        "dropped_many": "{{count}} propozycji zostało pominiętych: bez dowodu, zbyt długich lub rodzaju, którego ta rozmowa nie może proponować.",
+        "dropped_other": "{{count}} propozycji zostało pominiętych: bez dowodu, zbyt długich lub rodzaju, którego ta rozmowa nie może proponować.",
+        "full": "Lista szkiców jest pełna: nie wszystko udało się na niej umieścić. Zdecyduj o tym, co czeka w sekcji „Oczekujące”, a potem naucz się ponownie.",
+        "usage": "Wysłano ~{{sent}} tokenów · odebrano ~{{received}}",
+        "usageCost": "Wysłano ~{{sent}} tokenów · odebrano ~{{received}} · {{cost}}"
+      },
+      "refused": {
+        "off": "AI jest wyłączona.",
+        "no-vault": "Żaden vault nie jest otwarty.",
+        "gone": "Tej rozmowy już nie ma.",
+        "empty": "W tej rozmowie nic jeszcze nie napisano ani nie odpowiedziano.",
+        "no-model": "Model, który prowadził tę rozmowę, nie jest już skonfigurowany na tym urządzeniu. Rozmowa nie trafia do żadnego innego.",
+        "kept": "Ta rozmowa odbyła się na tym urządzeniu i tu zostaje: nie trafia do modelu w chmurze.",
+        "denied": "Notatka, na której opiera się ta rozmowa, nie może już trafiać do tego modelu.",
+        "nothing": "Z tej rozmowy nie da się tu nic zaproponować: pamięć jest na tym urządzeniu wyłączona lub nie można jej zapisać, a ta rozmowa nie może proponować ani reguły, ani umiejętności.",
+        "busy": "AI jest teraz zajęta. Spróbuj ponownie, gdy skończy.",
+        "cancelled": "Zatrzymano. Nie utworzono żadnych szkiców.",
+        "invalid": "Odpowiedź nie była listą propozycji. Nie utworzono żadnych szkiców.",
+        "failed": "To się nie udało. Nie utworzono żadnych szkiców."
+      },
+      "draft": {
+        "why": "Dowód",
+        "changed": "{{name}} — inne instrukcje",
+        "new": "{{name}} — nowa umiejętność",
+        "rightsStay": "Zmieniają się tylko jej instrukcje. To, co może robić, zostaje bez zmian.",
+        "newRights": "Zaczyna od ustawień domyślnych aplikacji: czyta i pokazuje, niczego nie zmienia.",
+        "review": "Sprawdź"
+      },
+      "draftRefused": {
+        "changed": "Ta umiejętność nie jest już taka, jak w chwili, gdy powstała propozycja — zmieniła się albo czeka na Twoje sprawdzenie. Szkic zostaje: sprawdź umiejętność albo odrzuć szkic.",
+        "invalid": "To nie są instrukcje, jakie może mieć umiejętność: są puste albo za długie.",
+        "gone": "Tej umiejętności już nie ma.",
+        "exists": "Umiejętność o tej nazwie istnieje już w vaulcie. Nie zostanie nadpisana."
+      },
+      "done": {
+        "skill": "Zaakceptowano. Umiejętność jest zatwierdzona na tym urządzeniu w takiej postaci, w jakiej ją pokazano.",
+        "line": "Zaakceptowano: {{name}}"
+      },
+      "review": {
+        "titleChange": "Inne instrukcje dla „{{name}}”",
+        "titleNew": "Nowa umiejętność „{{name}}”",
+        "purpose": "Do czego służy",
+        "changes": "Co się zmienia",
+        "rightsSame": "Bez zmian.",
+        "rightsNote": "Propozycja zmienia tylko instrukcje. Narzędzi, folderów i limitów umiejętności nigdy nie ustawia model.",
+        "rightsNew": "Umiejętność utworzona z propozycji zaczyna od ustawień domyślnych aplikacji. Więcej możesz dać w pliku umiejętności — to Twoja zmiana i znów wymaga Twojego zatwierdzenia.",
+        "check": "Sprawdzanie",
+        "testedNow": "Bieżąca wersja — {{note}}.",
+        "untested": "Nowa wersja nie została jeszcze sprawdzona. Po jej zaakceptowaniu „{{check}}” w wierszu umiejętności uruchomi na niej scenariusze testowe.",
+        "cost": "Koszt",
+        "costMore": "Około {{tokens}} tokenów więcej w każdym uruchomieniu tej umiejętności.",
+        "costLess": "Około {{tokens}} tokenów mniej w każdym uruchomieniu tej umiejętności.",
+        "costSame": "Mniej więcej tyle samo co dotąd.",
+        "costNew": "Około {{tokens}} tokenów w każdym uruchomieniu tej umiejętności.",
+        "proposedBy": "Propozycja od {{author}}, {{when}}, z rozmowy „{{conversation}}”",
+        "proposedByBare": "Propozycja od {{author}}, {{when}}",
+        "hintChange": "„Zaakceptuj” zapisuje nową wersję i zatwierdza ją na tym urządzeniu — to ta, którą widać tutaj. Bieżąca wersja zostaje w historii wersji: „{{versions}}” w menu wiersza pozwala ją przywrócić. Na Twoich innych urządzeniach zmiana czeka na własne zatwierdzenie.",
+        "hintNew": "„Zaakceptuj” zapisuje umiejętność w vaulcie i zatwierdza ją na tym urządzeniu — to ta, którą widać tutaj. Na Twoich innych urządzeniach czeka ona na własne zatwierdzenie.",
+        "take": "Zaakceptuj",
+        "rework": "Przeredaguj",
+        "compare": "Porównaj",
+        "reworkHint": "Zaakceptowane zostanie to, co tu zmienisz. Narzędzi, folderów i limitów umiejętności to nie dotyczy."
+      },
+      "watch": {
+        "title": "Wersje pod obserwacją",
+        "row": "pod obserwacją · uruchomienia: {{runs}} z {{of}}",
+        "rowFailed": "pod obserwacją · uruchomienia bez odpowiedzi: {{failed}} z {{runs}}",
+        "failed": "„{{name}}”: od nowej wersji uruchomienia bez odpowiedzi: {{failed}} z {{runs}}.",
+        "hint": "Poprzednia wersja jest zachowana. Nic nie wraca samo: to też byłaby zmiana, której nikt nie widział.",
+        "back": "Wróć do poprzedniej wersji",
+        "keep": "Zachowaj",
+        "backDone": "Wrócono do poprzedniej wersji. Jest zatwierdzona na tym urządzeniu, tak jak wcześniej."
+      },
+      "restoreRefused": {
+        "unavailable": "To urządzenie nie może zapisywać umiejętności vaultu.",
+        "gone": "Nie ma już tej umiejętności lub tej wersji.",
+        "changed": "Umiejętność nie jest już taka, jaką tu pokazano. Sprawdź ją jeszcze raz.",
+        "invalid": "Ta wersja nie jest umiejętnością w rozumieniu formatu, więc nie zostanie zapisana z powrotem.",
+        "no-history": "Vault nie zdołał najpierw zachować bieżącej wersji, więc niczego nie nadpisano.",
+        "failed": "To się nie udało. Niczego nie zmieniono."
+      },
+      "versions": {
+        "action": "Wcześniejsze wersje…",
+        "title": "Wcześniejsze wersje umiejętności „{{name}}”",
+        "now": "Teraz",
+        "earlier": "Wcześniejsza wersja",
+        "at": "Wersja z {{when}}",
+        "empty": "Nie zachowano żadnej wcześniejszej wersji",
+        "none": "Ten vault nie prowadzi na tym urządzeniu historii wersji",
+        "emptyHint": "Vault zachowuje wersję, gdy plik umiejętności zostaje zmieniony — przez Ciebie w edytorze albo przez zaakceptowanie propozycji.",
+        "against": "W porównaniu z bieżącą wersją",
+        "same": "Ta wersja brzmi tak samo jak bieżąca.",
+        "rightsSame": "Tak samo jak teraz.",
+        "wider": "Ta wersja może robić więcej niż umiejętność teraz.",
+        "hint": "„Przywróć tę wersję” zapisuje wybraną wersję z powrotem i zatwierdza ją na tym urządzeniu — to ta, którą widać tutaj. Bieżąca wersja zostaje w historii. Wersje pochodzą z historii wersji vaultu i są przechowywane na tym urządzeniu.",
+        "restore": "Przywróć tę wersję",
+        "restored": "Przywrócono. Wersja jest zatwierdzona na tym urządzeniu w takiej postaci, w jakiej ją pokazano."
+      },
+      "log": {
+        "title": "Czego się nauczono",
+        "desc": "Umiejętności i reguły zaakceptowane z propozycji, wraz z dniem i rozmową. To plik vaultu, który wędruje razem z nim."
+      }
     },
     "memory": {
       "segment": "Pamięć",
@@ -1601,6 +1763,7 @@
           "memory": "Szkic · Wpis pamięci",
           "forget": "Szkic · Usunięcie z pamięci",
           "rule": "Szkic · Reguła dla AI",
+          "skill": "Szkic · Umiejętność",
           "entry": "Szkic · Wpis bazy danych"
         },
         "what": {
@@ -1612,6 +1775,7 @@
           "memory": "Wpis",
           "forget": "Wpis",
           "rule": "Reguła",
+          "skill": "Umiejętność",
           "entry": "Wpis"
         },
         "landsIn": "Trafia do",

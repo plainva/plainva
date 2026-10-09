@@ -114,6 +114,10 @@ Les scripts sont de petits programmes que vous écrivez pour ce qu'un modèle fa
 
 Ce que l'IA doit savoir sur vous sans qu'on ait à le lui répéter — ce que vous faites, comment vous voulez qu'on vous réponde — est conservé dans la mémoire du vault : deux fichiers que vous pouvez lire et modifier. Ce qui figure sous **Toujours inclus** accompagne chaque nouvelle conversation, le reste est consulté quand une question en a besoin, et rien n'y entre sans votre oui. Voir [Mémoire](AI_Memory.md).
 
+## Apprendre d'une conversation
+
+Une conversation peut apprendre quelque chose à l'IA pour plus tard. **Apprendre de cette conversation** — sous sa dernière réponse — l'envoie une fois encore au modèle qui l'a menée et rapporte des brouillons : des entrées pour la mémoire, des règles ou d'autres instructions pour l'une de vos compétences. Rien de tout cela n'a d'effet avant que vous ne l'acceptiez. Voir [Compétences](AI_Skills.md).
+
 ## Transcrire une note vocale
 
 Sur chaque note vocale — dans l'éditeur, en mode lecture, dans le journal et sur les cartes —, **Transcrire** transforme l'enregistrement en texte. Il part tel quel vers le modèle du profil **Audio**, via le même aperçu qu'une question ; un enregistrement est un type de données à part, l'aperçu demande donc la première fois. La transcription revient comme proposition sous l'enregistrement, avec l'auteur **Plainva IA · ⟨modèle⟩** — acceptez-la ou refusez-la sous **Propositions**.

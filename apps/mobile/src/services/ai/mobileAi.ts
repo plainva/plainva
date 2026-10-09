@@ -9,6 +9,7 @@ import {
   aiVaultKey,
   calendarDay,
   adapterInstructionIO,
+  adapterInstructionVersions,
   adapterInstructionWriter,
   createAiVaultHost,
   createMcpDeviceStore,
@@ -371,6 +372,10 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       vaultKey: aiVaultKey(vault.vaultId),
       instructionIO: adapterInstructionIO(vault.files),
       instructionWriter: adapterInstructionWriter(vault.files),
+      // A skill's version before a suggestion rewrites it, and the way back (plan P6-2): the store the versions panel of
+      // a note reads. A vault without one keeps no versions; the way back is then the copy the approval holds while
+      // the new version is watched.
+      ...(vault.backup ? { instructionVersions: adapterInstructionVersions(vault.adapter, () => vault.backup) } : {}),
       policy: vaultPolicy,
       activeNote: async () => (sheetNote ? note(sheetNote) : null),
       readNote: note,

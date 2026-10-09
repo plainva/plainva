@@ -221,6 +221,27 @@ the settings do, not "assistant". The marks on an entry are whole phrases
 | zh-CN | 记忆 | 始终附带 | 按需查阅 | 条目 | 记住 | 给AI的规则 |
 | ja | 記憶 | 常に含める | 必要なときに参照 | 項目 | 記憶する | AIへのルール |
 
+Learning from a conversation (`ai.learn.*`, AI harness P6-2): what a review of a conversation brings back is a
+**suggestion** — the word the app already uses for a proposed change to a note —, and it waits as a **draft**. The
+user **accepts** it: the verb of the comments' "Accept", never "apply" for a skill and never "approve", which is
+the word for what a device does with a skill it has reviewed. **Evidence** is the one sentence a suggestion rests
+on; it takes the language's plain word for a reason given, not a legal one. A version that came from a suggestion
+is **watched** — observed for a while, not "monitored" or "under surveillance". **Earlier versions…** uses the
+word the version history uses for a version.
+
+| Language | Learn from this conversation | Evidence | Accept | Rework | Watched versions | Earlier versions… |
+|---|---|---|---|---|---|---|
+| en | Learn from this conversation | Evidence | Accept | Rework | Watched versions | Earlier versions… |
+| de | Aus diesem Gespräch lernen | Beleg | Übernehmen | Überarbeiten | Fassungen unter Beobachtung | Frühere Fassungen … |
+| fr | Apprendre de cette conversation | Preuve | Accepter | Retravailler | Versions surveillées | Versions antérieures… |
+| es | Aprender de esta conversación | Evidencia | Aceptar | Modificar | Versiones en observación | Versiones anteriores… |
+| pt-BR | Aprender com esta conversa | Evidência | Aceitar | Ajustar | Versões em observação | Versões anteriores… |
+| it | Impara da questa conversazione | Riscontro | Accetta | Rielabora | Versioni sotto osservazione | Versioni precedenti… |
+| nl | Leren van dit gesprek | Onderbouwing | Overnemen | Aanpassen | Versies onder observatie | Eerdere versies… |
+| pl | Naucz się z tej rozmowy | Dowód | Zaakceptuj | Przeredaguj | Wersje pod obserwacją | Wcześniejsze wersje… |
+| zh-CN | 从此对话中学习 | 依据 | 采纳 | 修改 | 观察中的版本 | 较早的版本… |
+| ja | この会話から学ぶ | 根拠 | 適用 | 修正 | 経過観察中の版 | 以前の版… |
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

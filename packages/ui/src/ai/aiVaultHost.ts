@@ -18,6 +18,7 @@ import {
   scanVaultInstructions,
   recencySignal,
   setFrontmatterPath,
+  VersionHistoryService,
   type AiPolicyDimension,
   type Candidate,
   type ContextNote,
@@ -25,6 +26,7 @@ import {
   type EffectivePolicy,
   type EgressRecipient,
   type InstructionIO,
+  type IVaultAdapter,
   type LinkNameIndex,
   type NamedFile,
   type PackageGists,
@@ -36,7 +38,7 @@ import type { AcpVaultAccess } from "./acpFiles";
 import { createAcpVaultStore } from "./acpStores";
 import { notesEmbedding } from "./aiImage";
 import { createMemoryHost, createMemoryPrefStore, readMemory } from "./aiMemory";
-import type { AiInstructionsHost, AiVaultHost } from "./aiSession";
+import type { AiInstructionsHost, AiVaultHost, InstructionVersions } from "./aiSession";
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
 import { createMcpVaultStore } from "./mcpStores";
 import { createWriteDraftStore, type DraftCreator } from "./aiWrites";
@@ -176,6 +178,8 @@ export interface AiVaultHostInput {
   instructionIO?: InstructionIO;
   /** Writes and removes the workshop's skills (plan P3-5); absent, the workshop only reads. */
   instructionWriter?: InstructionWriter;
+  /** The vault's version history for a skill's file (plan P6): the version before a rewrite, and the way back. Absent where the vault keeps none. */
+  instructionVersions?: InstructionVersions;
   /** What an external agent's session reaches of this vault (plan P4.6); absent where the shell hosts no agents. */
   agents?: { access: AcpVaultAccess; activeNote(): string | null };
 }
@@ -228,13 +232,40 @@ export function adapterInstructionIO(adapter: {
   };
 }
 
-function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore, writer?: InstructionWriter): AiInstructionsHost {
+function instructionsHost(io: InstructionIO, approvals: InstructionApprovalStore, writer?: InstructionWriter, versions?: InstructionVersions): AiInstructionsHost {
+  const decoder = new TextDecoder("utf-8", { fatal: false });
   return {
     scan: () => scanVaultInstructions(io),
     scanOne: (id) => scanInstruction(io, id),
     readFile: (source, rel) => readInstructionFile(io, source, rel),
     approvals,
     ...(writer ? { write: writer.write, remove: writer.remove } : {}),
+    readText: async (path) => {
+      const bytes = await io.read(path);
+      return bytes ? decoder.decode(bytes) : null;
+    },
+    ...(versions ? { versions } : {}),
+  };
+}
+
+/**
+ * The vault's version history for a skill's file (plan P6), over the vault's
+ * own snapshot store: `adapter` reads it — the versions panel of a note reads
+ * the same —, `backup` is asked at the moment of a rewrite, so a vault whose
+ * history comes up later is served then. Without a `backup` no snapshot can
+ * be taken, and `snapshot` says so by throwing: whoever asks for it means not
+ * to write without one.
+ */
+export function adapterInstructionVersions(adapter: IVaultAdapter, backup: () => { ensureSnapshot(path: string): Promise<void> } | null | undefined): InstructionVersions {
+  const history = new VersionHistoryService(adapter);
+  return {
+    async snapshot(path) {
+      const keeper = backup();
+      if (!keeper) throw new Error("The vault keeps no version history.");
+      await keeper.ensureSnapshot(path);
+    },
+    list: async (path) => (await history.listVersions(path)).map((version) => ({ id: version.backupPath, at: version.timestamp, size: version.size })),
+    read: (id) => history.readVersionText(id).catch(() => null),
   };
 }
 
@@ -347,7 +378,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
       const containing = input.retrieval?.notesContaining?.bind(input.retrieval);
       return containing ? notesEmbedding(path, { containing, read: async (note) => (await input.readNote(note))?.text ?? null }) : Promise.resolve(null);
     },
-    ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
+    ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter, input.instructionVersions) } : {}),
     ...(memory ? { memory } : {}),
     tools(
       recipient: EgressRecipient,

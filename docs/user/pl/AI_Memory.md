@@ -26,6 +26,8 @@ Powiedz to w rozmowie: „Zapamiętaj, że rozliczam się stawką dzienną, a ni
 
 „Zapomnij, że …” działa tak samo: na karcie widnieje **Szkic · Usunięcie z pamięci**, a **Usuń** usuwa wpis. Gdy powiesz AI, że coś się zmieniło, karta pokazuje pod **Zastępuje**, którego wpisu miejsce zajmie nowe sformułowanie.
 
+Zakończona rozmowa też może zaproponować wpisy: polecenie **Naucz się z tej rozmowy** czyta ją jeszcze raz i zostawia szkice, każdy ze swoim dowodem. Jak to działa i co taki przegląd w ogóle może zaproponować, opisano na stronie [Umiejętności](AI_Skills.md).
+
 ## Reguła nie jest wpisem pamięci
 
 „Zawsze odpowiadaj po niemiecku” to nic, co AI ma wiedzieć — to coś, co ma robić. Taka reguła nie trafia do pamięci: staje się wierszem w **Instrukcje vaultu** (`AGENTS.md`), które każdy model dostaje jako instrukcję. Dodaj ją przez **Dodaj regułę** w **Reguły dla AI** albo poproś o to AI; na karcie widnieje wtedy **Szkic · Reguła dla AI** z przyciskiem **Dodaj jako regułę**.

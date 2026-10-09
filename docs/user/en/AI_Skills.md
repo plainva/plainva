@@ -80,6 +80,32 @@ A skill can bring test scenarios: a message that starts it, and what a good run 
 
 Each scenario is an ordinary run of its skill: it reads your vault like a run by hand, passes the same overview before sending, counts towards your usage and leaves its conversation in the history, where its next run replaces it. Afterwards every scenario shows its verdict in words, and the skill's row says how its last run went. A result is about one model and one version of the skill: once you choose another model or change the skill, the row says so instead of showing a result that no longer counts. Some scenarios that come with Plainva ask about notes of Plainva's own test vault; in your vault they do not apply, and the dialog counts them apart instead of failing them.
 
+## Learning from a conversation
+
+A conversation can leave something behind: a fact worth knowing, a rule, or a skill that did not go far enough. **Learn from this conversation** — in a conversation's menu in the list, and under its last answer — asks for that. Nothing reads your conversations in the background.
+
+A dialog first says what would happen: the conversation goes once more to the model that led it, and to no other — what you wrote and what was answered, with the names of the tools that were used. Nothing a tool returned goes along, and no note. Where a skill of your own ran in the conversation, its instructions go along, so that a better version can be suggested. **Learn** starts the review; it costs one request.
+
+What comes back are drafts, each with the **Evidence** the review gives for it, and none of it counts before you accept it. An entry for the memory and a rule are decided on their cards, as described in [Memory](AI_Memory.md). The draft of a skill has the button **Review** instead.
+
+A conversation that read a web page, an e-mail or an external tool suggests entries for the memory only: what a stranger wrote does not become a rule or a skill. The same holds where the conversation rests on notes that are kept from the cloud or from the internet, and entries from it carry that rule. A conversation that ran with a model on this device is reviewed on this device.
+
+### Accepting a suggestion for a skill
+
+**Review** shows what would change, line by line, and what the skill may do — which stays as it is: a suggestion changes a skill's instructions and nothing else. Its tools, folders and limits are never set by a model. The dialog also says whether the current version was tested, what a run costs more or less, and which conversation the suggestion came from. **Rework** turns the comparison into a field you can type in.
+
+**Accept** writes the new version and approves it on this device, because you saw it here. On your other devices the skill then waits for their own approval, like any change. A suggestion for a new skill starts with Plainva's defaults: it reads and shows, and changes nothing. A skill you imported and the skills that come with Plainva are never rewritten by a suggestion.
+
+### Watched versions and the way back
+
+A version that came from a suggestion is watched for three runs, and its row counts them. If a run does not end with an answer, the skills view names the skill under **Watched versions** and offers two things: **Back to the version before**, or **Keep**. Nothing goes back by itself.
+
+**Earlier versions…** in a skill's menu lists what the vault's version history keeps of the skill's file. The dialog holds the version you choose against the skill as it is now — its lines, and what it may do — and warns where the earlier version may do more. **Restore this version** writes it back and approves it on this device. The versions are kept on this device.
+
+For a skill that changed in any other way — through sync, or an edit on another device — **Review and approve** says the same under **Compared with the approved version**: which tools came and went, the folders, the limit.
+
+Under **What was learned** the skills view opens `.agent/logs/learning.md`: one line for each skill and each rule that was accepted from a suggestion, with the day and the conversation. The file travels with your vault.
+
 ## What goes to the provider
 
 The send overview lists the instructions that go along under **Instructions**: the skill of the conversation, the list of skills the AI may load, and `AGENTS.md`. Instructions from your vault going to a cloud for the first time bring the overview back. Invisible characters in a skill never reach a model.

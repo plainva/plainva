@@ -25,6 +25,30 @@ import type { PropertyFilterRule } from "../base/filterExpr";
 import { safeFileStem } from "../lib/fileStem";
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
+  appendLearnLog,
+  approvalOf,
+  countObservedRun,
+  endObservation,
+  grantChanges,
+  LEARN_LIMITS,
+  LEARN_LOG_FILE,
+  learnInstruction,
+  learnLogLine,
+  learnLogTime,
+  learnParts,
+  learnTranscript,
+  nameOf,
+  observedRunOf,
+  observeInstruction,
+  parseLearnings,
+  rewriteSkillBody,
+  sameGrant,
+  SKILL_FILE,
+  SKILL_MAIN_MAX_BYTES,
+  skillDraftTarget,
+  TOOL_MANIFESTS,
+  type LearnKind,
+  type LearnLogEvent,
   activeMemoryFor,
   addMemoryEntry,
   addRuleLine,
@@ -244,6 +268,7 @@ import { createMcpExecutor, newRunMcp, type McpCallQuestion } from "./mcpTools";
 import { AiScripts, type AiScriptsHost, type AiScriptsState, type ScriptApprovalRefusal } from "./scriptSession";
 import { createScriptExecutor, newRunScripts, type ActiveScript } from "./scriptTools";
 import { EMPTY_MEMORY_STATE, readMemory, type AiMemoryHost, type AiMemoryState } from "./aiMemory";
+import { canRewriteSkill, draftsFromLearnings, learnTargets, readStrangersText, skillsUsedBy, takenSkillNames, type LearnLimit, type LearnOutcome, type LearnPlanOutcome, type LearnRefusal, type LearnTarget } from "./aiLearn";
 import type { MemoryProblem } from "./memoryView";
 
 /**
@@ -418,6 +443,23 @@ export interface AiInstructionsHost {
   write?(path: string, bytes: Uint8Array): Promise<void>;
   /** Removes a folder of the vault after the user confirmed it: through the adapters, so it is backed up and goes to the trash. */
   remove?(path: string): Promise<void>;
+  /** One text file of the agent area as it is now — the learning log (plan P6); null where there is none. */
+  readText?(path: string): Promise<string | null>;
+  /** The vault's version history for the files of its instructions (plan P6); absent where the vault keeps none. */
+  versions?: InstructionVersions;
+}
+
+/**
+ * The vault's version history as the instructions use it (plan P6): the
+ * version a skill had before it is rewritten, and the way back to one.
+ */
+export interface InstructionVersions {
+  /** Keeps the file as it is now as a version — unless the newest one already holds exactly this text. Throws where it cannot. */
+  snapshot(path: string): Promise<void>;
+  /** The versions kept of a file, newest first. `id` names one for `read`. */
+  list(path: string): Promise<{ id: string; at: number; size: number }[]>;
+  /** One version's text; null where it cannot be read. */
+  read(id: string): Promise<string | null>;
 }
 
 /** How writing a skill from the workshop ended. */
@@ -760,6 +802,10 @@ export interface AiState {
   scripts: AiScriptsState;
   /** The vault's memory for assistants (plan P6): its entries as its two files hold them, and this device's switch. */
   memory: AiMemoryState;
+  /** The conversation a review is learning from right now (plan P6-2), by its id; null while none runs. */
+  learning: string | null;
+  /** The vault has a learning log (plan P6-2): something was taken over from a proposal, and the workshop offers the file. */
+  learnLog: boolean;
 }
 
 /** A column to fill (plan KI-Harness P5-4): the database, the column, and the entries that say nothing in it. */
@@ -812,17 +858,30 @@ export type DraftOutcome =
   /**
    * An entry of the memory was written, or taken out, or a rule was added to the vault's instructions (plan P6):
    * done, and nothing to open. `waits`: the rule is in a file this device has not approved yet — it counts once
-   * the user reviewed that file.
+   * the user reviewed that file. A skill (plan P6-2) was written, or given the instructions of the draft, and is
+   * approved on this device as the user saw it: `id` names it for the workshop.
    */
-  | { kind: "kept"; what: "memory" | "forget" | "rule"; waits?: boolean }
+  | { kind: "kept"; what: "memory" | "forget" | "rule" | "skill"; waits?: boolean; id?: string }
   /**
    * `unavailable`: this shell cannot make that kind of thing. `gone`: the draft is not there any more.
+   * `changed`: the skill a draft would rewrite is not what the proposal read any more — it changed, or it waits for a review.
+   * `invalid`: what would be written is no skill's instructions — nothing, or too much.
    * `no-entry-folder`: the database an entry was drafted for has no folder for new entries (yet, or any more).
    * `exists`: the draft names its own file, and a file of that name is there by now — nothing is written over.
    * `editor-open`: the mail composer is already open with a mail, this one or another — it keeps what it has, and the draft stays.
    * `no-calendar`: no calendar takes an appointment right now — the event editor would have nowhere to save to.
    */
-  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder" | "exists" | "editor-open" | "no-calendar"; message?: string };
+  | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder" | "exists" | "editor-open" | "no-calendar" | "changed" | "invalid"; message?: string };
+
+/**
+ * How going back to an earlier version of a skill ended (plan P6-2). `gone`:
+ * the skill, or the version, is not there any more. `changed`: the skill is
+ * not as the workshop showed it — or the version is not the text that was
+ * shown. `invalid`: the version is no skill as the format defines it.
+ * `no-history`: the vault could not keep the current version first, so
+ * nothing was written over it.
+ */
+export type SkillRestoreOutcome = { ok: true } | { ok: false; reason: "unavailable" | "gone" | "changed" | "invalid" | "no-history" | "failed" };
 
 /** How a change to the vault's memory ended (plan P6): written, or why not. */
 export type MemoryOutcome = { ok: true } | { ok: false; reason: MemoryProblem };
@@ -955,6 +1014,8 @@ export class AiSession {
   private transcribing = new Set<string>();
   /** Ends the run that fills a column, between two of its entries. */
   private fillAbort: AbortController | null = null;
+  /** The review that is learning from a conversation right now (plan P6-2). */
+  private learnAbort: AbortController | null = null;
   /** A sentence is on its way to become filter rules. */
   private filtering = false;
   /** An answer is being kept as a note right now. */
@@ -1013,6 +1074,8 @@ export class AiSession {
       fill: null,
       scripts: this.scripts.state,
       memory: EMPTY_MEMORY_STATE,
+      learning: null,
+      learnLog: false,
     };
   }
 
@@ -1210,8 +1273,12 @@ export class AiSession {
       fill: null,
       // Another vault's memory is not this one's: empty until this vault's own files are read.
       memory: EMPTY_MEMORY_STATE,
+      // A review that was learning from a conversation of the vault that is gone ends with it.
+      learning: null,
+      learnLog: false,
     });
     this.fillAbort?.abort();
+    this.learnAbort?.abort();
     // A script the workshop started ran on the vault that is gone: it ends here, and what it showed goes with it.
     this.scripts.clear();
     // The same for foreign servers: which this vault uses is its own choice, and the connections of the last one end here.
@@ -1417,13 +1484,15 @@ export class AiSession {
    * chip on its card, as on the capture field. The draft is gone once the
    * thing exists; what became of it is kept.
    */
-  async createDraft(id: string, choice: { atProvider?: boolean; place?: MemoryPlace } = {}): Promise<DraftOutcome> {
+  async createDraft(id: string, choice: { atProvider?: boolean; place?: MemoryPlace; body?: string } = {}): Promise<DraftOutcome> {
     const refused = (reason: Extract<DraftOutcome, { kind: "refused" }>["reason"], message?: string): DraftOutcome => ({ kind: "refused", reason, ...(message ? { message } : {}) });
     const vault = this.vault;
     if (!this.state.settings.enabled || !vault) return refused("off");
     // The memory's own drafts (plan P6) are made by the memory's own writer, not by the shell's way of making notes.
     const waiting = this.state.drafts.drafts.find((candidate) => candidate.id === id);
     if (waiting && MEMORY_DRAFT_KINDS.includes(waiting.body.kind)) return this.keepMemoryDraft(vault, waiting, choice.place);
+    // A skill's draft (plan P6-2) is written by the workshop's own writer — `body`: its instructions as the user reworked them in the review.
+    if (waiting && waiting.body.kind === "skill") return this.keepSkillDraft(vault, waiting, waiting.body, choice.body);
     const creates = vault.creates;
     if (!creates || !vault.drafts) return refused("unavailable");
     if (this.creatingDraft) return refused("busy");
@@ -1433,8 +1502,8 @@ export class AiSession {
     this.creatingDraft = true;
     try {
       let path: string;
-      // Handled above, by the memory's own writer.
-      if (body.kind === "memory" || body.kind === "forget" || body.kind === "rule") return refused("unavailable");
+      // Handled above, by the memory's own writer and the workshop's.
+      if (body.kind === "memory" || body.kind === "forget" || body.kind === "rule" || body.kind === "skill") return refused("unavailable");
       if (body.kind === "mail" || body.kind === "event") {
         // An e-mail and an appointment are never made here (plan P5-6): the draft is handed to the app's own composer
         // or event editor, filled in. It stays in the list while that is open, and leaves it only when the user took
@@ -1537,6 +1606,8 @@ export class AiSession {
         if (draft.inherited.length > 0) return refused("unavailable");
         const result = await this.addRule(body.text);
         if (!result.ok && result.reason !== "duplicate") return refused(result.reason === "unavailable" || result.reason === "no-vault" ? "unavailable" : "failed");
+        // What changed in the vault's instructions through a proposal is said in the vault's learning log (plan P6-2).
+        if (result.ok) await this.logLearning(vault, { what: "rule-added", conversation: this.conversationTitle(draft.conversationId) });
         outcome = { kind: "kept", what: "rule", ...(result.ok && !result.approved ? { waits: true } : {}) };
       } else return refused("unavailable");
       const at = this.host.now().toISOString();
@@ -1739,7 +1810,9 @@ export class AiSession {
     const { entries } = await this.instructionEntries(vault);
     // What the regression runs found goes with the list: the workshop shows both.
     const tests = vault.skillTests ? await vault.skillTests.load().catch(() => EMPTY_SKILL_TESTS) : EMPTY_SKILL_TESTS;
-    if (this.vault === vault) this.set({ skills: { entries, omitted: skillCatalog(entries).omitted }, skillTests: { ...this.state.skillTests, records: tests.records } });
+    // Whether there is a learning log to offer: the file, not a guess from the approvals — a rule leaves a line too.
+    const learnLog = vault.instructions?.readText ? (await vault.instructions.readText(LEARN_LOG_FILE).catch(() => null)) !== null : false;
+    if (this.vault === vault) this.set({ skills: { entries, omitted: skillCatalog(entries).omitted }, skillTests: { ...this.state.skillTests, records: tests.records }, learnLog });
     return entries;
   }
 
@@ -1831,15 +1904,18 @@ export class AiSession {
     return { ok: true, id, path: `${id}/SKILL.md` };
   }
 
-  /** A new skill from the workshop's form: name, description, instructions — written and approved here. */
-  async createSkill(input: { name: string; description: string; body: string }): Promise<SkillWriteOutcome> {
+  /**
+   * A new skill from the workshop's form: name, description, instructions — written and approved here. `how`: "learned"
+   * where the three came from a proposal the user took over (plan P6-2); everything else of the skill is the app's default.
+   */
+  async createSkill(input: { name: string; description: string; body: string }, how: Extract<ApprovalHow, "created" | "learned"> = "created"): Promise<SkillWriteOutcome> {
     const name = input.name.trim();
     const text = serializeSkillFile({ name, description: input.description.trim(), body: input.body, metadata: { "plainva.version": "1" } });
     const parsed = parseSkillFile(text, name);
     const problems = blockingProblems(parsed.problems);
     if (!input.body.trim()) problems.push({ code: "description-missing", detail: "body" });
     if (problems.length) return { ok: false, reason: "invalid", problems };
-    return this.writeSkill(name, [{ path: "SKILL.md", bytes: utf8Encode(text) }], "created");
+    return this.writeSkill(name, [{ path: "SKILL.md", bytes: utf8Encode(text) }], how);
   }
 
   /**
@@ -1874,6 +1950,424 @@ export class AiSession {
     await host.approvals.save(pruneInstructionApprovals(revokeInstruction(approvals, id), new Set((await host.scan().catch(() => [] as InstructionSource[])).map((s) => s.id))));
     await this.refreshSkills();
     return true;
+  }
+
+  // --------------------------------------------------------------- learning
+
+  /** What a conversation is called, for a line that says where something came from; null where it is not known any more. */
+  private conversationTitle(id: string | null): string | null {
+    return id ? (this.state.summaries.find((summary) => summary.id === id)?.title ?? null) : null;
+  }
+
+  /**
+   * Everything a review of a conversation rests on (plan P6-2): which model,
+   * which kinds of proposal, which skills it is told about, and the texts
+   * that would go. Put together the same way for the question before the
+   * request and for the request itself, so what the user is shown is what is
+   * sent.
+   *
+   * The model is the one that led the conversation — its last run's —, and
+   * no other: the conversation goes nowhere it has not been. A conversation
+   * that ran on this device stays here; one that rests on a note which may
+   * not go to this model today does not go, whatever held when it ran.
+   */
+  private async learnInput(conversationId: string) {
+    const no = (reason: LearnRefusal) => ({ ok: false as const, reason });
+    const vault = this.vault;
+    if (!this.state.settings.enabled) return no("off");
+    if (!vault) return no("no-vault");
+    const record = this.state.active?.id === conversationId ? this.state.active : await vault.conversations.load(conversationId).catch(() => null);
+    if (!record) return no("gone");
+    const last = record.runs[record.runs.length - 1];
+    const transcript = learnTranscript(record);
+    if (!last || transcript.messages === 0) return no("empty");
+    const choice: ModelChoice = { providerId: last.providerId, model: last.model };
+    const provider = providerById(choice.providerId, this.state.settings.custom);
+    if (!provider) return no("no-model");
+    const recipient: EgressRecipient = recipientOf(provider, choice.model);
+    const cloud = isCloudRecipient(recipient);
+    if (this.keptOnDevice(record, recipient)) return no("kept");
+    const inherited = await this.inheritedBy(vault, record, [], { paths: new Set(), more: false }, new Set());
+    if (cloud && inherited.includes("cloud")) return no("denied");
+
+    const limits: LearnLimit[] = [];
+    const foreign = readStrangersText(record);
+    if (foreign) limits.push("foreign");
+    if (inherited.length > 0) limits.push("restricted");
+    const memoryOn = vault.memory ? (await vault.memory.prefs.load().catch(() => ({ on: false }))).on : false;
+    if (!memoryOn) limits.push("memory-off");
+    // What nobody could take over is not proposed: an entry where the shell cannot write the memory, a rule or a skill where it cannot write the instructions.
+    const remembers = memoryOn && Boolean(vault.memory?.write);
+    const writes = Boolean(vault.instructions?.write);
+    if (!writes || (memoryOn && !remembers)) limits.push("read-only");
+    // What assistants do — a rule, a skill's instructions — goes to every model, and is no stranger's to say.
+    const instructs = writes && !foreign && inherited.length === 0;
+    const kinds: LearnKind[] = [...(remembers ? (["memory"] as const) : []), ...(instructs ? (["rule", "skill"] as const) : [])];
+    if (kinds.length === 0) return no("nothing");
+    const entries = instructs ? (await this.instructionEntries(vault)).entries : [];
+    const targets: LearnTarget[] = instructs ? learnTargets(entries, skillsUsedBy(record)) : [];
+    const instruction = learnInstruction(kinds);
+    const parts = learnParts({ conversationId: record.id, transcript: transcript.text, skills: targets });
+    return { ok: true as const, vault, record, choice, provider, cloud, inherited, limits, kinds, targets, transcript, instruction, parts };
+  }
+
+  /**
+   * "Learn from this conversation", before it is asked (plan P6-2, mockup
+   * chapter 22): to which model the conversation would go once more, how
+   * much of it, and what may come back. Nothing is sent by looking.
+   */
+  async learnPlan(conversationId: string): Promise<LearnPlanOutcome> {
+    const input = await this.learnInput(conversationId).catch(() => ({ ok: false as const, reason: "failed" as const }));
+    if (!input.ok) return input;
+    const tokens = estimateTokens(`${input.instruction}\n${input.parts.join("\n")}`);
+    const price = input.cloud ? this.priceOf(input.choice) : undefined;
+    return {
+      ok: true,
+      plan: {
+        conversationId,
+        title: input.record.title,
+        provider: input.provider.label,
+        model: input.choice.model,
+        local: !input.cloud,
+        kinds: input.kinds,
+        limits: input.limits,
+        messages: input.transcript.messages,
+        omitted: input.transcript.omitted,
+        skills: input.targets.map((target) => target.title),
+        tokens,
+        ...(price ? { costUsd: (tokens / 1_000_000) * price.input } : {}),
+      },
+    };
+  }
+
+  /**
+   * "Learn from this conversation" (plan P6-2, §15 "proposal first"): the
+   * conversation goes once more to the model that led it — the user's words,
+   * the answers, the names of the tools; without a tool, so the answer can
+   * only be words —, and what comes back is laid down as drafts: entries for
+   * the memory, rules, a skill or other instructions for one. Nothing of it
+   * counts before the user takes it, one by one.
+   *
+   * The dialog that starts this names the model and what goes: asking there
+   * is the question before this request, each time. It approves nothing for
+   * a later one.
+   */
+  async learnFrom(conversationId: string): Promise<LearnOutcome> {
+    const refused = (reason: LearnRefusal): LearnOutcome => ({ kind: "refused", reason });
+    if (this.learnAbort || this.filtering || this.fillAbort || this.state.live || this.sending) return refused("busy");
+    const controller = new AbortController();
+    this.learnAbort = controller;
+    this.set({ learning: conversationId });
+    try {
+      const input = await this.learnInput(conversationId);
+      if (!input.ok) return refused(input.reason);
+      if (controller.signal.aborted) return refused("cancelled");
+      const { vault, record, choice, provider } = input;
+      const asked = await this.askOnce(
+        provider,
+        choice,
+        input.instruction,
+        input.parts.map((text): TextPart => ({ type: "text", text })),
+        LEARN_LIMITS.outputTokens,
+        controller.signal,
+      );
+      await this.recordRequests(vault, choice, {
+        id: `learn-${this.host.newId()}`,
+        usage: asked.usage,
+        steps: 1,
+        stop: asked.stop.kind,
+        ...(asked.stop.kind === "failed" ? { failure: asked.stop.failure.kind } : {}),
+      });
+      if (asked.stop.kind === "cancelled") return refused("cancelled");
+      if (asked.stop.kind === "failed") return { kind: "refused", reason: "failed", failure: asked.stop.failure, provider: provider.label, model: choice.model };
+      if (asked.stop.kind !== "answered") return refused("invalid");
+      const read = parseLearnings(asked.answer, input.kinds);
+      if (!read) return refused("invalid");
+      if (this.vault !== vault) return refused("cancelled");
+
+      // The vault as it is now: the review took its time, and an entry or a skill's name may have come since.
+      const memory = input.kinds.includes("memory") && vault.memory ? await readMemory(vault.memory).then((held) => [...held.active, ...held.long]).catch(() => null) : null;
+      const taken = input.kinds.includes("skill") ? takenSkillNames((await this.instructionEntries(vault)).entries) : [];
+      const made = draftsFromLearnings({ proposals: read.proposals, memory, targets: input.targets, taken, userTexts: userTextsOf(record.conversation) });
+      const author = { id: assistantAuthorId(choice.model), label: this.host.label?.("ai.suggestionAuthor", { model: choice.model }) ?? choice.model };
+      const drafts: string[] = [];
+      let full = false;
+      for (const draft of made.drafts) {
+        const left = await this.leaveDraft(vault, {
+          id: `d-${this.host.newId()}`,
+          createdAt: this.host.now().toISOString(),
+          author,
+          conversationId: record.id,
+          title: draft.title,
+          body: draft.body,
+          // An entry takes the rules of what its conversation rested on with it; a rule and a skill are proposed only where there are none.
+          inherited: draft.body.kind === "memory" ? [...input.inherited] : [],
+          sources: [],
+          defused: draft.defused,
+          ...(draft.why ? { why: draft.why } : {}),
+        });
+        if (left.ok) drafts.push(left.id);
+        else if (left.problem === "full") {
+          full = true;
+          break;
+        }
+      }
+      const costUsd = input.cloud ? usageCostUsd(asked.usage, this.priceOf(choice)) : undefined;
+      return {
+        kind: "learned",
+        conversationId,
+        drafts,
+        dropped: read.dropped + made.dropped + (full ? made.drafts.length - drafts.length : 0),
+        known: made.known,
+        full,
+        provider: provider.label,
+        model: choice.model,
+        local: !input.cloud,
+        kinds: input.kinds,
+        limits: input.limits,
+        usage: { inputTokens: asked.usage.inputTokens, outputTokens: asked.usage.outputTokens },
+        ...(costUsd !== undefined ? { costUsd } : {}),
+      };
+    } catch {
+      return refused("failed");
+    } finally {
+      if (this.learnAbort === controller) this.learnAbort = null;
+      this.set({ learning: null });
+    }
+  }
+
+  /** Stops the review that is running: its request is cut off, and nothing is laid down. */
+  stopLearning(): void {
+    this.learnAbort?.abort();
+  }
+
+  /**
+   * One line for the vault's learning log (plan P6-2: "history in the
+   * vault"): what was taken over from a proposal, for whoever shares the
+   * vault — a device that finds a skill changed can read why. A courtesy:
+   * what was taken over holds without it, so a log that cannot be written
+   * stops nothing.
+   */
+  private async logLearning(vault: AiVaultHost, event: LearnLogEvent): Promise<void> {
+    const host = vault.instructions;
+    if (!host?.write || !host.readText) return;
+    try {
+      const existing = await host.readText(LEARN_LOG_FILE);
+      await host.write(LEARN_LOG_FILE, utf8Encode(appendLearnLog(existing, learnLogLine(learnLogTime(this.host.now()), event))));
+      if (this.vault === vault && !this.state.learnLog) this.set({ learnLog: true });
+    } catch {
+      // Said above.
+    }
+  }
+
+  /**
+   * Puts another text in the place of a skill's main file and approves
+   * exactly what was written (plan P6-2): the one way a skill's text changes
+   * here without the user typing it — a proposal they took over, a version
+   * they went back to. The version it replaces is kept in the vault's
+   * history first, and where the vault keeps one, nothing is written without
+   * that. `previous`: the text to go back to while the new version is
+   * watched; null for a version that is not watched.
+   */
+  private async replaceSkillFile(
+    vault: AiVaultHost,
+    before: InstructionSource,
+    next: string,
+    how: Extract<ApprovalHow, "learned" | "restored">,
+    previous: string | null,
+  ): Promise<{ ok: true } | { ok: false; reason: "unavailable" | "changed" | "invalid" | "no-history" | "failed" }> {
+    const host = vault.instructions;
+    if (!host?.write) return { ok: false, reason: "unavailable" };
+    const folder = before.root.slice(before.root.lastIndexOf("/") + 1);
+    const bytes = utf8Encode(next);
+    // What would be written has to be a skill of this folder, as the format defines it — and no larger than one may be.
+    const parsed = parseSkillFile(next, folder);
+    if (!parsed.skill || blockingProblems(parsed.problems).length > 0 || !parsed.skill.body.trim() || bytes.length > SKILL_MAIN_MAX_BYTES) return { ok: false, reason: "invalid" };
+    const path = `${before.id}/${SKILL_FILE}`;
+    if (host.versions) {
+      try {
+        await host.versions.snapshot(path);
+      } catch {
+        return { ok: false, reason: "no-history" };
+      }
+    }
+    try {
+      await host.write(path, bytes);
+    } catch {
+      await this.refreshSkills();
+      return { ok: false, reason: "failed" };
+    }
+    const written = await host.scanOne(before.id).catch(() => null);
+    // Every other file as it was, the main file as it was written: anything else is not what the user saw.
+    const expected = { ...Object.fromEntries(before.files.map((file) => [file.path, file.sha256])), [SKILL_FILE]: instructionFileHash(bytes) };
+    if (!written || !sameFiles(expected, written.files)) {
+      await this.refreshSkills();
+      return { ok: false, reason: "changed" };
+    }
+    const at = this.host.now().toISOString();
+    let approvals = approveInstruction(await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), written, at, how);
+    if (previous !== null) approvals = observeInstruction(approvals, before.id, at, previous);
+    await host.approvals.save(approvals);
+    await this.refreshSkills();
+    return { ok: true };
+  }
+
+  /**
+   * "Take over" on a skill's draft (plan P6-2, mockup chapter 22): the
+   * user's own step, in the review that showed them the text. A new skill is
+   * written like one from the workshop's form — its name, what it is for and
+   * its instructions from the draft, everything else the app's default: no
+   * tool that writes, no folder, no limit of its own. Other instructions for
+   * a skill replace what follows its head and nothing of the head: the
+   * tools, folders, limits and tests of a skill are the same before and
+   * after, which is checked once more on what would be written.
+   *
+   * The skill has to be what the proposal read — the same main file —, one
+   * of the vault's own, approved on this device, and not an imported one. A
+   * skill that changed since, or waits for a review, is not written over:
+   * the draft stays, and the user decides what to do with it.
+   */
+  private async keepSkillDraft(vault: AiVaultHost, draft: WriteDraft, body: Extract<WriteDraftBody, { kind: "skill" }>, edited?: string): Promise<DraftOutcome> {
+    const refused = (reason: Extract<DraftOutcome, { kind: "refused" }>["reason"]): DraftOutcome => ({ kind: "refused", reason });
+    const host = vault.instructions;
+    // Instructions go to every model: none are made from a conversation that carries a note kept from one.
+    if (!host?.write || draft.inherited.length > 0) return refused("unavailable");
+    if (this.creatingDraft) return refused("busy");
+    this.creatingDraft = true;
+    try {
+      const text = (edited ?? body.body).trim();
+      if (!text || text.length > WRITE_DRAFT_LIMITS.skillBody) return refused("invalid");
+      const conversation = this.conversationTitle(draft.conversationId);
+      let id: string;
+      if (body.change === null) {
+        const made = await this.createSkill({ name: body.name, description: body.description, body: text }, "learned");
+        if (!made.ok) return refused(made.reason === "exists" ? "exists" : made.reason === "no-vault" ? "unavailable" : made.reason === "invalid" ? "invalid" : "failed");
+        id = made.id;
+        await this.logLearning(vault, { what: "skill-created", skill: body.name, conversation });
+      } else {
+        const entry = await this.instructionEntry(vault, body.change.id);
+        if (!entry) return refused("gone");
+        const main = entry.source.files.find((file) => file.path === SKILL_FILE);
+        if (!canRewriteSkill(entry) || main?.sha256 !== body.change.base) return refused("changed");
+        const current = entry.source.text!;
+        const next = rewriteSkillBody(current, text);
+        if (next === null) return refused("invalid");
+        // By construction the head is the same bytes. Held against what the tools would grant all the same: a rewrite that changed it is not written.
+        const after = parseSkillFile(next).skill;
+        const every = TOOL_MANIFESTS.map((tool) => tool.name);
+        if (!after || !sameGrant(grantChanges(skillGrant(entry.source.skill!, every), skillGrant(after, every)))) return refused("invalid");
+        const outcome = await this.replaceSkillFile(vault, entry.source, next, "learned", current);
+        if (!outcome.ok) return refused(outcome.reason === "no-history" ? "failed" : outcome.reason);
+        id = body.change.id;
+        await this.logLearning(vault, { what: "skill-rewritten", skill: nameOf(entry.source), conversation });
+      }
+      const at = this.host.now().toISOString();
+      await this.changeDrafts(vault, (state) => ({
+        drafts: withoutWriteDraft(state.drafts, draft.id),
+        done: withWriteDraftOutcome(state.done, { id: draft.id, kind: "skill", title: draft.title, outcome: "created", path: `${id}/${SKILL_FILE}`, at }),
+      })).catch(() => null);
+      return { kind: "kept", what: "skill", id };
+    } finally {
+      this.creatingDraft = false;
+    }
+  }
+
+  /**
+   * What a run says about the versions it used that are watched (plan P6-2):
+   * counted, never acted on. A conversation that was bound to a skill before
+   * it changed still runs the old instructions — it says nothing about the
+   * new ones.
+   */
+  private async countObserved(vault: AiVaultHost, record: ConversationRecord, used: readonly { id: string; how: "bound" | "loaded" }[], stop: string): Promise<void> {
+    const host = vault.instructions;
+    const said = observedRunOf(stop);
+    if (!host || !said || used.length === 0) return;
+    const approvals = await host.approvals.load().catch(() => null);
+    if (!approvals) return;
+    let next = approvals;
+    const counted = new Set<string>();
+    for (const skill of used) {
+      const approval = approvalOf(next, skill.id);
+      if (!approval?.observe || counted.has(skill.id)) continue;
+      if (skill.how === "bound" && record.instructions?.skill?.sha256 !== approval.files[SKILL_FILE]) continue;
+      counted.add(skill.id);
+      next = countObservedRun(next, skill.id, said);
+    }
+    if (next === approvals) return;
+    await host.approvals.save(next);
+    if (this.vault === vault) await this.refreshSkills();
+  }
+
+  /** "Keep" on a version that is watched (plan P6-2): the watch ends, and with it the copy of the version before. */
+  async keepObservedSkill(id: string): Promise<void> {
+    const host = this.vault?.instructions;
+    if (!host) return;
+    const approvals = await host.approvals.load().catch(() => null);
+    if (!approvals) return;
+    await host.approvals.save(endObservation(approvals, id));
+    await this.refreshSkills();
+  }
+
+  /**
+   * "Back to the version before" on a version that is watched (plan P6-2):
+   * the text the skill had before the proposal was taken over is written
+   * back, and approved — it is the version this device had approved until
+   * then. Never by itself: a failed run only makes the workshop offer this.
+   * A skill that changed since the proposal is not written over.
+   */
+  async revertObservedSkill(id: string): Promise<SkillRestoreOutcome> {
+    const vault = this.vault;
+    if (!vault?.instructions?.write) return { ok: false, reason: "unavailable" };
+    const entry = await this.instructionEntry(vault, id);
+    if (!entry) return { ok: false, reason: "gone" };
+    const previous = entry.approval?.observe?.previous;
+    if (previous === undefined || !canRewriteSkill(entry)) return { ok: false, reason: "changed" };
+    const outcome = await this.replaceSkillFile(vault, entry.source, previous, "restored", null);
+    if (!outcome.ok) return outcome;
+    await this.logLearning(vault, { what: "skill-restored", skill: nameOf(entry.source), version: null });
+    return { ok: true };
+  }
+
+  /** The earlier versions the vault keeps of a skill's main file, newest first; null where it keeps none, or the skill is none of the vault's own. */
+  async skillVersions(id: string): Promise<{ id: string; at: number }[] | null> {
+    const versions = this.vault?.instructions?.versions;
+    if (!versions || !skillDraftTarget(id)) return null;
+    return (await versions.list(`${id}/${SKILL_FILE}`).catch(() => [])).map((version) => ({ id: version.id, at: version.at }));
+  }
+
+  /** One of those versions as text — only one the history lists for this skill; null where it cannot be read. */
+  async readSkillVersion(id: string, version: string): Promise<string | null> {
+    const versions = this.vault?.instructions?.versions;
+    if (!versions || !skillDraftTarget(id)) return null;
+    const listed = await versions.list(`${id}/${SKILL_FILE}`).catch(() => []);
+    if (!listed.some((candidate) => candidate.id === version)) return null;
+    const text = await versions.read(version).catch(() => null);
+    return text !== null && text.length <= SKILL_MAIN_MAX_BYTES ? text : null;
+  }
+
+  /**
+   * "Restore this version" (plan P6-2, mockup chapter 22): an earlier
+   * version of a skill's main file is written back and approved on this
+   * device — the dialog showed its text against the current one, and what it
+   * may do against what the current one may. `shown`: that text; a version
+   * that reads otherwise now is not written. The current version is kept in
+   * the history first.
+   */
+  async restoreSkillVersion(id: string, version: string, shown: string): Promise<SkillRestoreOutcome> {
+    const vault = this.vault;
+    if (!vault?.instructions?.write) return { ok: false, reason: "unavailable" };
+    const entry = await this.instructionEntry(vault, id);
+    if (!entry || entry.source.kind !== "skill" || entry.source.origin !== "vault") return { ok: false, reason: "gone" };
+    const listed = (await this.skillVersions(id)) ?? [];
+    const meant = listed.find((candidate) => candidate.id === version);
+    const text = meant ? await this.readSkillVersion(id, version) : null;
+    if (!meant || text === null) return { ok: false, reason: "gone" };
+    if (text !== shown) return { ok: false, reason: "changed" };
+    if (entry.source.tooLarge) return { ok: false, reason: "invalid" };
+    const outcome = await this.replaceSkillFile(vault, entry.source, text, "restored", null);
+    if (!outcome.ok) return outcome;
+    await this.logLearning(vault, { what: "skill-restored", skill: nameOf(entry.source), version: learnLogTime(new Date(meant.at)) });
+    return { ok: true };
   }
 
   // ----------------------------------------------------------------- memory
@@ -4506,6 +5000,9 @@ export class AiSession {
     } catch {
       // The answer stays on screen even when app data cannot be written.
     }
+    // A version of a skill that came from a proposal is watched (plan P6-2): a run of the user's own that used it
+    // is counted — a door's run and a regression run are no use of it.
+    if (input.usedDrafts && skillsUsed.length) await this.countObserved(vault, record, skillsUsed, result.stop.kind).catch(() => undefined);
     const answer = lastAnswerText(result.conversation);
     if (this.vault !== vault) return { stop: result.stop, record, answer };
     const shown = this.state.active?.id === record.id || !this.state.active;

@@ -80,6 +80,32 @@ Una competenza può portare scenari di prova: un messaggio che la avvia e ciò c
 
 Ogni scenario è un'esecuzione normale della sua competenza: legge il tuo vault come un'esecuzione a mano, passa dallo stesso riepilogo prima dell'invio, conta nel tuo consumo e lascia la sua conversazione nella cronologia, dove la sua prossima esecuzione la sostituisce. Poi ogni scenario mostra il suo esito a parole, e la riga della competenza dice com'è andata la sua ultima esecuzione. Un esito vale per un modello e una versione della competenza: se scegli un altro modello o modifichi la competenza, la riga lo dice invece di mostrare un esito che non conta più. Alcuni scenari forniti chiedono di note del vault di prova di Plainva; nel tuo vault non valgono, e la finestra li conta a parte invece di considerarli falliti.
 
+## Imparare da una conversazione
+
+Una conversazione può lasciare qualcosa: un fatto che vale la pena conoscere, una regola o una competenza che non si è spinta abbastanza in là. Per chiederlo c'è **Impara da questa conversazione** — nel menu di una conversazione nell'elenco e sotto la sua ultima risposta. Nulla legge le tue conversazioni in background.
+
+Una finestra dice prima cosa accadrebbe: la conversazione viene inviata ancora una volta al modello con cui è stata condotta, e a nessun altro — ciò che hai scritto e le risposte ricevute, con i nomi degli strumenti usati. Non va insieme nulla di ciò che uno strumento ha restituito, né alcuna nota. Se nella conversazione è stata eseguita una tua competenza, le sue istruzioni vanno insieme, così da poter proporre una versione migliore. **Impara** avvia la rilettura; costa una richiesta.
+
+Ciò che ritorna sono bozze, ciascuna con il **Riscontro** che la rilettura ne dà, e nulla di tutto ciò vale finché non lo accetti. La decisione su una voce per la memoria e su una regola si prende sulla rispettiva scheda, come descritto in [Memoria](AI_Memory.md). La bozza di una competenza ha invece il pulsante **Controlla**.
+
+Una conversazione che ha letto una pagina web, un'e-mail o uno strumento esterno propone solo voci per la memoria: ciò che ha scritto uno sconosciuto non diventa né una regola né una competenza. Lo stesso vale se la conversazione si basa su note tenute lontane dal cloud o da Internet, e le voci che ne derivano portano con sé questa regola. Una conversazione condotta con un modello su questo dispositivo viene riletta su questo dispositivo.
+
+### Accettare una proposta per una competenza
+
+**Controlla** mostra cosa cambierebbe, riga per riga, e cosa può fare la competenza. Ciò che può fare resta com'è: una proposta cambia le istruzioni di una competenza e nient'altro. Strumenti, cartelle e limiti della competenza non li stabilisce mai un modello. La finestra dice inoltre se la versione attuale è stata verificata, quanto costa in più o in meno un'esecuzione e da quale conversazione proviene la proposta. **Rielabora** trasforma il confronto in un campo in cui puoi scrivere.
+
+**Accetta** scrive la nuova versione e la approva su questo dispositivo, perché l'hai vista qui. Sugli altri tuoi dispositivi la competenza attende poi la rispettiva approvazione, come per qualsiasi modifica. Una proposta per una nuova competenza parte con i valori predefiniti di Plainva: legge e mostra, e non cambia nulla. Una competenza che hai importato e le competenze incluse in Plainva non vengono mai riscritte da una proposta.
+
+### Versioni sotto osservazione e la via del ritorno
+
+Una versione nata da una proposta resta sotto osservazione per tre esecuzioni, e la sua riga le conta. Se un'esecuzione non termina con una risposta, la sezione delle competenze nomina la competenza sotto **Versioni sotto osservazione** e offre due possibilità: **Torna alla versione precedente** oppure **Mantieni**. Non si torna mai indietro da soli.
+
+Nel menu di una competenza, **Versioni precedenti…** elenca ciò che la cronologia delle versioni del vault conserva del file della competenza. La finestra mette a confronto la versione che scegli con la competenza com'è ora — le sue righe e ciò che può fare — e avvisa dove la versione precedente può fare di più. **Ripristina questa versione** la riscrive e la approva su questo dispositivo. Le versioni sono conservate su questo dispositivo.
+
+Per una competenza cambiata in qualsiasi altro modo — tramite la sincronizzazione o una modifica su un altro dispositivo — **Controlla e approva** dice lo stesso sotto **Rispetto alla versione approvata**: quali strumenti sono stati aggiunti e quali tolti, le cartelle, il limite.
+
+Sotto **Cosa è stato imparato** la sezione delle competenze apre `.agent/logs/learning.md`: una riga per ogni competenza e ogni regola accettate da una proposta, con il giorno e la conversazione. Il file viaggia con il tuo vault.
+
 ## Cosa va al fornitore
 
 Il riepilogo di invio elenca sotto **Istruzioni** cosa va insieme: la competenza della conversazione, l'elenco delle competenze che l'IA può caricare e `AGENTS.md`. Se istruzioni dal tuo vault vanno per la prima volta a un cloud, il riepilogo ricompare. I caratteri invisibili di una competenza non raggiungono mai un modello.

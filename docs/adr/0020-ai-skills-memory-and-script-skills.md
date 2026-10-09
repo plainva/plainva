@@ -76,7 +76,9 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    capabilities, change provider or egress, install dependencies, activate
    scripts, change security rules or approvals, overwrite foreign skills,
    delete or weaken tests, request or store secrets, or approve an arrived
-   skill.
+   skill. How a suggestion comes to be, what it can carry, and how a skill's
+   new version is watched and taken back is
+   [ADR 0028](0028-ai-learning-suggestions-and-skill-versions.md).
 6. **Scripts are programmatic access to the same tool API.** A script is a
    package of two files under `.agent/scripts/<name>/`: `manifest.json` —
    what it is for, the tools it may call, the inputs it asks for, its limits
@@ -249,5 +251,5 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
 
 ## Links
 
-- ADR 0017, ADR 0018, ADR 0019, ADR 0022, ADR 0027; the Agent Skills specification;
+- ADR 0017, ADR 0018, ADR 0019, ADR 0022, ADR 0027, ADR 0028; the Agent Skills specification;
   SEP-2640 (Skills over MCP).

@@ -26,6 +26,8 @@ Say it in a conversation: "Remember that I bill per day, not per hour." The AI d
 
 "Forget that …" works the same way: the card reads **Draft · Remove from the memory**, and **Remove** takes the entry out. When you tell the AI that something has changed, the card shows under **Replaces** which entry the new wording takes the place of.
 
+A finished conversation can suggest entries too: **Learn from this conversation** reads it once more and leaves drafts, each with its evidence. How that works, and what such a review may suggest at all, is described in [Skills](AI_Skills.md).
+
 ## A rule is not a memory
 
 "Always answer in German" is nothing to know — it is something to do. A rule like that does not go into the memory: it becomes a line of the **Instructions of the vault** (`AGENTS.md`), which every model gets as an instruction. Add one with **Add a rule** under **Rules for the AI**, or ask the AI; its card then reads **Draft · Rule for the AI**, with the button **Add as a rule**.

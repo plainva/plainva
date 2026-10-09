@@ -689,10 +689,23 @@
       "mayAgents": "Vaste instructies voor elk nieuw gesprek in deze vault. Ze kunnen je privacyregels niet opheffen.",
       "originApp": "Meegeleverd met Plainva",
       "originPath": "Staat in {{path}}",
+      "rights": {
+        "title": "Vergeleken met de goedgekeurde versie",
+        "same": "Ze mag hetzelfde doen als de versie die je hebt goedgekeurd.",
+        "toolsAdded": "Mag nu ook gebruiken: {{tools}}",
+        "toolsRemoved": "Gebruikt niet meer: {{tools}}",
+        "folders": "Mappen: {{after}} (eerder: {{before}})",
+        "budget": "Antwoord per uitvoering, hoogstens: {{after}} (eerder: {{before}})",
+        "wholeVault": "de hele vault",
+        "noBudget": "de eigen limiet van het gesprek",
+        "widened": "Deze versie mag meer doen dan de versie die je hebt goedgekeurd."
+      },
       "approvedHow": {
         "review": "Goedgekeurd op dit apparaat op {{when}}",
         "created": "Gemaakt op dit apparaat op {{when}}",
         "copied": "Gekopieerd op dit apparaat op {{when}}",
+        "learned": "Overgenomen uit een voorstel op dit apparaat op {{when}}",
+        "restored": "Hersteld op dit apparaat op {{when}}",
         "imported": "Geïmporteerd op dit apparaat op {{when}}"
       },
       "importedFrom": "Geïmporteerd uit {{label}}",
@@ -829,6 +842,147 @@
         "conversation": "Controle · {{skill}} · {{scenario}}"
       },
       "writeFailed":"De vaardigheid kon niet in de vault worden geschreven."
+    },
+    "learn": {
+      "action": "Leren van dit gesprek",
+      "start": "Leren",
+      "running": "{{model}} leest het gesprek…",
+      "ask": {
+        "lead": "Het gesprek gaat nog één keer naar het model dat het heeft gevoerd — naar geen ander. Dat model krijgt geen hulpmiddel: het kan alleen voorstellen.",
+        "to": "Gaat naar",
+        "local": "{{model}} — op dit apparaat",
+        "what": "Wat er meegaat",
+        "messages_one": "{{count}} bericht: wat je hebt geschreven en wat er is geantwoord.",
+        "messages_other": "{{count}} berichten: wat je hebt geschreven en wat er is geantwoord.",
+        "omitted_one": "{{count}} bericht uit het midden blijft weg: het gesprek is te lang om helemaal mee te gaan.",
+        "omitted_other": "{{count}} berichten uit het midden blijven weg: het gesprek is te lang om helemaal mee te gaan.",
+        "skills": "De instructies van {{names}}, zodat een betere versie kan worden voorgesteld.",
+        "notSent": "Niets wat een hulpmiddel teruggaf, en geen notitie die als context is meegegaan.",
+        "comes": "Wat er terug kan komen",
+        "size": "Omvang",
+        "estimate": "Ongeveer {{tokens}} tokens",
+        "estimateCost": "Ongeveer {{tokens}} tokens · ongeveer {{cost}}",
+        "nothingCounts": "Niets van wat het voorstelt, geldt voordat je het overneemt."
+      },
+      "kind": {
+        "memory": "Items voor het geheugen",
+        "rule": "Regels",
+        "skill": "Een vaardigheid, of andere instructies voor een bestaande"
+      },
+      "limit": {
+        "foreign": "Dit gesprek heeft tekst van vreemden gelezen — een webpagina, een e-mail of een extern hulpmiddel. Wat daaruit te leren valt, zijn feiten voor het geheugen; er komt geen regel en geen vaardigheid uit voort.",
+        "restricted": "Dit gesprek berust op notities die niet naar de cloud of niet samen met internet mogen. Items daaruit krijgen die privacyregel mee; er komt geen regel en geen vaardigheid uit voort.",
+        "memory-off": "Het geheugen staat op dit apparaat uit: er worden geen items voorgesteld.",
+        "read-only": "Dit apparaat kan de instructies of het geheugen van de vault niet schrijven, dus daarvoor wordt niets voorgesteld."
+      },
+      "result": {
+        "lead": "{{model}} heeft het gesprek nog één keer gelezen — hetzelfde model dat het heeft gevoerd; het ging nergens anders heen. Wat het voorstelt, staat hieronder en onder “Open”. Niets daarvan geldt voordat je het overneemt.",
+        "none": "Niets in dit gesprek dat het bewaren waard is",
+        "noneHint": "Ook dat is een antwoord: uit niet elk gesprek valt iets te leren.",
+        "known_one": "{{count}} voorstel staat al in het geheugen.",
+        "known_other": "{{count}} voorstellen staan al in het geheugen.",
+        "dropped_one": "{{count}} voorstel is weggelaten: zonder onderbouwing, te lang of van een soort die dit gesprek niet mag voorstellen.",
+        "dropped_other": "{{count}} voorstellen zijn weggelaten: zonder onderbouwing, te lang of van een soort die dit gesprek niet mag voorstellen.",
+        "full": "De lijst met concepten is vol: niet alles kon worden klaargezet. Beslis over wat onder “Open” wacht en leer daarna opnieuw.",
+        "usage": "~{{sent}} tokens verzonden · ~{{received}} ontvangen",
+        "usageCost": "~{{sent}} tokens verzonden · ~{{received}} ontvangen · {{cost}}"
+      },
+      "refused": {
+        "off": "De AI staat uit.",
+        "no-vault": "Er is geen vault geopend.",
+        "gone": "Dit gesprek bestaat niet meer.",
+        "empty": "In dit gesprek is nog niets gezegd en beantwoord.",
+        "no-model": "Het model dat dit gesprek heeft gevoerd, is op dit apparaat niet meer ingesteld. Het gesprek gaat naar geen ander.",
+        "kept": "Dit gesprek is op dit apparaat gevoerd en blijft hier: het gaat niet naar een model in de cloud.",
+        "denied": "Een notitie waarop dit gesprek berust, mag niet meer naar dit model.",
+        "nothing": "Uit dit gesprek kan hier niets worden voorgesteld: het geheugen staat op dit apparaat uit of kan niet worden geschreven, en dit gesprek mag geen regel en geen vaardigheid voorstellen.",
+        "busy": "De AI is op dit moment bezig. Probeer het opnieuw als hij klaar is.",
+        "cancelled": "Gestopt. Er is niets klaargezet.",
+        "invalid": "Het antwoord was geen lijst met voorstellen. Er is niets klaargezet.",
+        "failed": "Dat is niet gelukt. Er is niets klaargezet."
+      },
+      "draft": {
+        "why": "Onderbouwing",
+        "changed": "{{name}} — andere instructies",
+        "new": "{{name}} — nieuwe vaardigheid",
+        "rightsStay": "Alleen haar instructies veranderen. Wat ze mag, blijft zoals het is.",
+        "newRights": "Ze begint met de standaardinstellingen van de app: ze leest en toont, en verandert niets.",
+        "review": "Controleren"
+      },
+      "draftRefused": {
+        "changed": "Deze vaardigheid is niet meer wat het voorstel heeft gelezen — ze is gewijzigd of wacht op je controle. Het concept blijft staan: controleer de vaardigheid of verwerp het concept.",
+        "invalid": "Dit zijn geen instructies die een vaardigheid kan hebben: leeg of te lang.",
+        "gone": "De vaardigheid bestaat niet meer.",
+        "exists": "Er bestaat inmiddels een vaardigheid met deze naam. Er wordt niets overschreven."
+      },
+      "done": {
+        "skill": "Overgenomen. De vaardigheid is op dit apparaat goedgekeurd zoals je haar hebt gezien.",
+        "line": "Overgenomen: {{name}}"
+      },
+      "review": {
+        "titleChange": "Andere instructies voor ‘{{name}}’",
+        "titleNew": "Nieuwe vaardigheid ‘{{name}}’",
+        "purpose": "Waarvoor ze dient",
+        "changes": "Wat er verandert",
+        "rightsSame": "Ongewijzigd.",
+        "rightsNote": "Een voorstel wijzigt alleen de instructies. De hulpmiddelen, mappen en grenzen van een vaardigheid worden nooit door een model ingesteld.",
+        "rightsNew": "Een vaardigheid uit een voorstel begint met de standaardinstellingen van de app. Meer kun je haar geven in haar bestand — dat is jouw wijziging en vraagt opnieuw om je goedkeuring.",
+        "check": "Testen",
+        "testedNow": "De huidige versie — {{note}}.",
+        "untested": "De nieuwe versie is nog niet getest. Na het overnemen laat “{{check}}” in de rij van de vaardigheid haar scenario's tegen de nieuwe versie draaien.",
+        "cost": "Kosten",
+        "costMore": "Ongeveer {{tokens}} tokens meer in elke uitvoering van deze vaardigheid.",
+        "costLess": "Ongeveer {{tokens}} tokens minder in elke uitvoering van deze vaardigheid.",
+        "costSame": "Ongeveer even lang als voorheen.",
+        "costNew": "Ongeveer {{tokens}} tokens in elke uitvoering van deze vaardigheid.",
+        "proposedBy": "Voorgesteld door {{author}} op {{when}}, uit het gesprek “{{conversation}}”",
+        "proposedByBare": "Voorgesteld door {{author}} op {{when}}",
+        "hintChange": "“Overnemen” schrijft de nieuwe versie weg en keurt haar op dit apparaat goed — je hebt haar hier gezien. De huidige blijft in de geschiedenis: “{{versions}}” in het menu van de rij brengt haar terug. Op je andere apparaten wacht de wijziging op haar eigen goedkeuring.",
+        "hintNew": "“Overnemen” schrijft de vaardigheid in de vault weg en keurt haar op dit apparaat goed — je hebt haar hier gezien. Op je andere apparaten wacht ze op haar eigen goedkeuring.",
+        "take": "Overnemen",
+        "rework": "Aanpassen",
+        "compare": "Vergelijken",
+        "reworkHint": "Wat je hier wijzigt, wordt overgenomen. De hulpmiddelen, mappen en grenzen van de vaardigheid horen daar niet bij."
+      },
+      "watch": {
+        "title": "Versies onder observatie",
+        "row": "onder observatie · {{runs}} van {{of}} uitvoeringen",
+        "rowFailed": "onder observatie · {{failed}} van {{runs}} uitvoeringen zonder antwoord",
+        "failed": "‘{{name}}’: sinds de nieuwe versie eindigden {{failed}} van {{runs}} uitvoeringen zonder antwoord.",
+        "hint": "De vorige versie blijft bewaard. Er gaat niets uit zichzelf terug: ook dat zou een wijziging zijn die niemand heeft gezien.",
+        "back": "Terug naar de vorige versie",
+        "keep": "Behouden",
+        "backDone": "Terug naar de vorige versie. Die is op dit apparaat goedgekeurd, zoals voorheen."
+      },
+      "restoreRefused": {
+        "unavailable": "Dit apparaat kan de vaardigheden van de vault niet schrijven.",
+        "gone": "De vaardigheid of deze versie ervan bestaat niet meer.",
+        "changed": "De vaardigheid is niet meer zoals ze hier werd getoond. Bekijk haar opnieuw.",
+        "invalid": "Deze versie is geen vaardigheid zoals het formaat die voorschrijft, dus ze wordt niet teruggeschreven.",
+        "no-history": "De vault kon de huidige versie niet eerst bewaren, dus er is niets overschreven.",
+        "failed": "Dat is niet gelukt. Er is niets gewijzigd."
+      },
+      "versions": {
+        "action": "Eerdere versies…",
+        "title": "Eerdere versies van ‘{{name}}’",
+        "now": "Nu",
+        "earlier": "Eerdere versie",
+        "at": "Versie van {{when}}",
+        "empty": "Er is geen eerdere versie bewaard",
+        "none": "Deze vault houdt op dit apparaat geen versiegeschiedenis bij",
+        "emptyHint": "De vault bewaart een versie wanneer het bestand van een vaardigheid wordt gewijzigd — door jou in de editor of doordat je een voorstel overneemt.",
+        "against": "Vergeleken met nu",
+        "same": "Deze versie is inhoudelijk gelijk aan de huidige.",
+        "rightsSame": "Hetzelfde als nu.",
+        "wider": "Deze versie mag meer doen dan de vaardigheid nu.",
+        "hint": "“Deze versie herstellen” schrijft de gekozen versie terug en keurt haar op dit apparaat goed — je ziet haar hier. De huidige blijft in de geschiedenis. De versies komen uit de versiegeschiedenis van de vault en worden op dit apparaat bewaard.",
+        "restore": "Deze versie herstellen",
+        "restored": "Hersteld. De versie is op dit apparaat goedgekeurd zoals je haar hebt gezien."
+      },
+      "log": {
+        "title": "Wat er is geleerd",
+        "desc": "Vaardigheden en regels die uit een voorstel zijn overgenomen, met de dag en het gesprek. Een bestand van de vault dat met de vault meereist."
+      }
     },
     "memory": {
       "segment": "Geheugen",
@@ -1529,6 +1683,7 @@
           "memory": "Concept · Geheugenitem",
           "forget": "Concept · Uit het geheugen verwijderen",
           "rule": "Concept · Regel voor de AI",
+          "skill": "Concept · Vaardigheid",
           "entry": "Concept · Database-item"
         },
         "what": {
@@ -1540,6 +1695,7 @@
           "memory": "Item",
           "forget": "Item",
           "rule": "Regel",
+          "skill": "Vaardigheid",
           "entry": "Item"
         },
         "landsIn": "Komt terecht in",

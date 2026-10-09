@@ -689,10 +689,23 @@
       "mayAgents": "Standing instructions for every new conversation in this vault. They cannot lift your privacy rules.",
       "originApp": "Comes with Plainva",
       "originPath": "Lies in {{path}}",
+      "rights": {
+        "title": "Compared with the approved version",
+        "same": "It may do the same as the version you approved.",
+        "toolsAdded": "May now also use: {{tools}}",
+        "toolsRemoved": "No longer uses: {{tools}}",
+        "folders": "Folders: {{after}} (before: {{before}})",
+        "budget": "Output per run at most: {{after}} (before: {{before}})",
+        "wholeVault": "the whole vault",
+        "noBudget": "the conversation's own limit",
+        "widened": "This version may do more than the one you approved."
+      },
       "approvedHow": {
         "review": "Approved on this device on {{when}}",
         "created": "Created on this device on {{when}}",
         "copied": "Copied on this device on {{when}}",
+        "learned": "Accepted from a suggestion on this device on {{when}}",
+        "restored": "Restored on this device on {{when}}",
         "imported": "Imported on this device on {{when}}"
       },
       "importedFrom": "Imported from {{label}}",
@@ -829,6 +842,147 @@
         "conversation": "Test · {{skill}} · {{scenario}}"
       },
       "writeFailed":"The skill could not be written into the vault."
+    },
+    "learn": {
+      "action": "Learn from this conversation",
+      "start": "Learn",
+      "running": "{{model}} is reading the conversation…",
+      "ask": {
+        "lead": "The conversation goes once more to the model that led it — to no other. It gets no tool: it can only suggest.",
+        "to": "Goes to",
+        "local": "{{model}} — on this device",
+        "what": "What goes",
+        "messages_one": "{{count}} message: what you wrote and what was answered.",
+        "messages_other": "{{count}} messages: what you wrote and what was answered.",
+        "omitted_one": "{{count}} message from the middle stays out: the conversation is too long to go in full.",
+        "omitted_other": "{{count}} messages from the middle stay out: the conversation is too long to go in full.",
+        "skills": "The instructions of {{names}}, so that a better version can be suggested.",
+        "notSent": "Nothing a tool returned, and no note that went along as context.",
+        "comes": "What can come back",
+        "size": "Size",
+        "estimate": "About {{tokens}} tokens",
+        "estimateCost": "About {{tokens}} tokens · about {{cost}}",
+        "nothingCounts": "Nothing it suggests counts before you accept it."
+      },
+      "kind": {
+        "memory": "Entries for the memory",
+        "rule": "Rules",
+        "skill": "A skill, or other instructions for one"
+      },
+      "limit": {
+        "foreign": "This conversation read text of strangers — a web page, an e-mail or an external tool. What it teaches is facts for the memory; no rule and no skill comes from it.",
+        "restricted": "This conversation rests on notes that are kept from the cloud or from the internet. Entries from it carry that rule; no rule and no skill comes from it.",
+        "memory-off": "The memory is switched off on this device: no entries are suggested.",
+        "read-only": "This device cannot write the vault's instructions or its memory, so nothing is suggested for them."
+      },
+      "result": {
+        "lead": "{{model}} read the conversation once more — the same model that led it; it went nowhere else. What it suggests is below and under “Open”. Nothing of it counts before you accept it.",
+        "none": "Nothing worth keeping in this conversation",
+        "noneHint": "That is an answer too: not every conversation teaches something.",
+        "known_one": "{{count}} suggestion is in the memory already.",
+        "known_other": "{{count}} suggestions are in the memory already.",
+        "dropped_one": "{{count}} suggestion was left out: without evidence, too long, or of a kind this conversation may not suggest.",
+        "dropped_other": "{{count}} suggestions were left out: without evidence, too long, or of a kind this conversation may not suggest.",
+        "full": "The list of drafts is full: not everything could be laid down. Decide about what waits under “Open”, then learn again.",
+        "usage": "~{{sent}} tokens sent · ~{{received}} received",
+        "usageCost": "~{{sent}} tokens sent · ~{{received}} received · {{cost}}"
+      },
+      "refused": {
+        "off": "The AI is switched off.",
+        "no-vault": "No vault is open.",
+        "gone": "This conversation is not there any more.",
+        "empty": "Nothing was said and answered in this conversation yet.",
+        "no-model": "The model that led this conversation is not set up on this device any more. The conversation goes to no other.",
+        "kept": "This conversation ran on this device and stays here: it does not go to a model in the cloud.",
+        "denied": "A note this conversation rests on may not go to this model any more.",
+        "nothing": "Nothing can be suggested from this conversation here: the memory is switched off or cannot be written on this device, and this conversation may suggest no rule and no skill.",
+        "busy": "The AI is busy right now. Try again when it is done.",
+        "cancelled": "Stopped. Nothing was laid down.",
+        "invalid": "The answer was no list of suggestions. Nothing was laid down.",
+        "failed": "That did not work. Nothing was laid down."
+      },
+      "draft": {
+        "why": "Evidence",
+        "changed": "{{name}} — other instructions",
+        "new": "{{name}} — new skill",
+        "rightsStay": "Only its instructions change. What it may do stays as it is.",
+        "newRights": "It starts with the app's defaults: it reads and shows, and changes nothing.",
+        "review": "Review"
+      },
+      "draftRefused": {
+        "changed": "This skill is not what the suggestion read any more — it changed, or it waits for your review. The draft stays: review the skill, or discard the draft.",
+        "invalid": "These are no instructions a skill can have: empty, or too long.",
+        "gone": "The skill is not there any more.",
+        "exists": "A skill of this name is there by now. Nothing is written over it."
+      },
+      "done": {
+        "skill": "Accepted. The skill is approved on this device as you saw it.",
+        "line": "Accepted: {{name}}"
+      },
+      "review": {
+        "titleChange": "Other instructions for “{{name}}”",
+        "titleNew": "New skill “{{name}}”",
+        "purpose": "What it is for",
+        "changes": "What changes",
+        "rightsSame": "Unchanged.",
+        "rightsNote": "A suggestion changes the instructions only. The tools, folders and limits of a skill are never set by a model.",
+        "rightsNew": "A skill made from a suggestion starts with the app's defaults. You can give it more in its file — that is your change, and asks for your approval again.",
+        "check": "Testing",
+        "testedNow": "The current version — {{note}}.",
+        "untested": "The new version is untested. Once you accepted it, “{{check}}” in the skill's row runs its scenarios against it.",
+        "cost": "Cost",
+        "costMore": "About {{tokens}} tokens more in every run of this skill.",
+        "costLess": "About {{tokens}} tokens fewer in every run of this skill.",
+        "costSame": "About as long as before.",
+        "costNew": "About {{tokens}} tokens in every run of this skill.",
+        "proposedBy": "Suggested by {{author}} on {{when}}, from the conversation “{{conversation}}”",
+        "proposedByBare": "Suggested by {{author}} on {{when}}",
+        "hintChange": "“Accept” writes the new version and approves it on this device — you saw it here. The current one stays in the history: “{{versions}}” in the row's menu brings it back. On your other devices the change waits for their own approval.",
+        "hintNew": "“Accept” writes the skill into the vault and approves it on this device — you saw it here. On your other devices it waits for their own approval.",
+        "take": "Accept",
+        "rework": "Rework",
+        "compare": "Compare",
+        "reworkHint": "What you change here is what is accepted. The skill's tools, folders and limits are not part of this."
+      },
+      "watch": {
+        "title": "Watched versions",
+        "row": "watched · {{runs}} of {{of}} runs",
+        "rowFailed": "watched · {{failed}} of {{runs}} runs without an answer",
+        "failed": "“{{name}}”: since the new version, {{failed}} of {{runs}} runs did not end with an answer.",
+        "hint": "The version before is kept. Nothing goes back by itself: that too would be a change nobody has seen.",
+        "back": "Back to the version before",
+        "keep": "Keep",
+        "backDone": "Back to the version before. It is approved on this device, as it was."
+      },
+      "restoreRefused": {
+        "unavailable": "This device cannot write the vault's skills.",
+        "gone": "The skill, or this version of it, is not there any more.",
+        "changed": "The skill is not as it was shown here any more. Look at it again.",
+        "invalid": "This version is no skill as the format defines it, so it is not written back.",
+        "no-history": "The vault could not keep the current version first, so nothing was written over it.",
+        "failed": "That did not work. Nothing was changed."
+      },
+      "versions": {
+        "action": "Earlier versions…",
+        "title": "Earlier versions of “{{name}}”",
+        "now": "Now",
+        "earlier": "Earlier version",
+        "at": "Version of {{when}}",
+        "empty": "No earlier version is kept",
+        "none": "This vault keeps no version history on this device",
+        "emptyHint": "The vault keeps a version when a skill's file is changed — by you in the editor, or by accepting a suggestion.",
+        "against": "Compared with now",
+        "same": "This version reads the same as the current one.",
+        "rightsSame": "The same as now.",
+        "wider": "This version may do more than the skill does now.",
+        "hint": "“Restore this version” writes the chosen version back and approves it on this device — you see it here. The current one stays in the history. The versions come from the vault's version history and are kept on this device.",
+        "restore": "Restore this version",
+        "restored": "Restored. The version is approved on this device as you saw it."
+      },
+      "log": {
+        "title": "What was learned",
+        "desc": "Skills and rules that were accepted from a suggestion, with the day and the conversation. A file of the vault that travels with it."
+      }
     },
     "memory": {
       "segment": "Memory",
@@ -1529,6 +1683,7 @@
           "memory": "Draft · Memory entry",
           "forget": "Draft · Remove from the memory",
           "rule": "Draft · Rule for the AI",
+          "skill": "Draft · Skill",
           "entry": "Draft · Database entry"
         },
         "what": {
@@ -1540,6 +1695,7 @@
           "memory": "Entry",
           "forget": "Entry",
           "rule": "Rule",
+          "skill": "Skill",
           "entry": "Entry"
         },
         "landsIn": "Goes into",

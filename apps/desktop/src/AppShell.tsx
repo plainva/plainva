@@ -37,6 +37,7 @@ const AiTabView = lazy(() => import('./components/ai/AiTabView').then(m => ({ de
 const AiCompanion = lazy(() => import('./components/ai/AiCompanion').then(m => ({ default: m.AiCompanion })));
 const McpPairing = lazy(() => import('./components/ai/McpPairing').then(m => ({ default: m.McpPairing })));
 const McpPlanDialog = lazy(() => import('./components/ai/McpPlanDialog').then(m => ({ default: m.McpPlanDialog })));
+const LearnDialogs = lazy(() => import('./components/ai/LearnDialogs').then(m => ({ default: m.LearnDialogs })));
 import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
@@ -2033,6 +2034,7 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
           <Suspense fallback={null}>
             <McpPairing />
             <McpPlanDialog />
+            <LearnDialogs onOpenPath={(path) => openInFocusedPane(path, true)} />
           </Suspense>
         )}
         {ai.companionOpen && (

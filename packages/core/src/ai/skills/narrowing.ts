@@ -59,6 +59,50 @@ export function skillGrant(skill: SkillDefinition, available: readonly string[],
   };
 }
 
+/**
+ * How one version of a skill differs from another in what it may use (plan
+ * KI-Harness P6): both grants measured against the same tools. The workshop
+ * shows it wherever one version follows another — a change that arrived, a
+ * proposal, an earlier version to go back to —, so a skill that reaches
+ * further is never approved as "a few lines changed".
+ */
+export interface GrantChanges {
+  /** Tools the later version may use that the earlier could not. */
+  toolsAdded: string[];
+  /** Tools the earlier version could use that the later may not. */
+  toolsRemoved: string[];
+  /** The folders, where they differ; null stands for the whole vault. */
+  folders: { before: string[] | null; after: string[] | null } | null;
+  /** The output tokens of a run at most, where they differ; null stands for the conversation's own bound. */
+  budget: { before: number | null; after: number | null } | null;
+  /** More than before in any way: a tool it did not have, a place outside its folders, a bound that went up or away. */
+  widened: boolean;
+}
+
+export function grantChanges(before: SkillGrant, after: SkillGrant): GrantChanges {
+  const toolsAdded = after.tools.filter((name) => !before.tools.includes(name));
+  const toolsRemoved = before.tools.filter((name) => !after.tools.includes(name));
+  const folded = (folders: readonly string[]) => [...new Set(folders.map(fold))].sort();
+  const sameFolders =
+    before.folders === null || after.folders === null ? before.folders === after.folders : folded(before.folders).join("\n") === folded(after.folders).join("\n");
+  // Wider: the whole vault where there were folders, or a folder that lies in none of the old ones.
+  const foldersWider = !sameFolders && before.folders !== null && (after.folders === null || after.folders.some((folder) => !withinFolders(folder, before.folders!)));
+  const sameBudget = before.maxOutputTokens === after.maxOutputTokens;
+  const budgetWider = !sameBudget && before.maxOutputTokens !== null && (after.maxOutputTokens === null || after.maxOutputTokens > before.maxOutputTokens);
+  return {
+    toolsAdded,
+    toolsRemoved,
+    folders: sameFolders ? null : { before: before.folders ? [...before.folders] : null, after: after.folders ? [...after.folders] : null },
+    budget: sameBudget ? null : { before: before.maxOutputTokens, after: after.maxOutputTokens },
+    widened: toolsAdded.length > 0 || foldersWider || budgetWider,
+  };
+}
+
+/** Whether two versions may use exactly the same: nothing a review would have to show. */
+export function sameGrant(changes: GrantChanges): boolean {
+  return changes.toolsAdded.length === 0 && changes.toolsRemoved.length === 0 && changes.folders === null && changes.budget === null;
+}
+
 /** Lower case, NFC, forward slashes, no slash at either end — compared, never stored. */
 function fold(value: string): string {
   const slashed = value.normalize("NFC").toLowerCase().split("\\").join("/");

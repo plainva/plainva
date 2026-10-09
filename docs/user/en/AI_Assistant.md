@@ -114,6 +114,10 @@ Scripts are small programs you write for what a model does badly — counting, s
 
 What the AI should know about you without being told again — what you do, how you like your answers — is kept in the vault's memory: two files you can read and edit. What stands under **Always included** goes into every new conversation, the rest is looked up when a question needs it, and nothing gets into it without your yes. See [Memory](AI_Memory.md).
 
+## Learning from a conversation
+
+A conversation can teach the AI something for later. **Learn from this conversation** — under its last answer — sends it once more to the model that led it and brings back drafts: entries for the memory, rules, or other instructions for one of your skills. Nothing of it counts before you accept it. See [Skills](AI_Skills.md).
+
 ## Transcribing a voice note
 
 At every voice note — in the editor, in reading mode, in the journal and on cards — **Transcribe** turns the recording into text. It goes as it is to the model of the profile **Audio**, through the same overview as a question; a recording is a kind of data of its own, so the overview asks the first time. The transcript comes back as a suggestion under the recording, authored **Plainva AI · ⟨model⟩** — accept or decline it under **Suggestions**.

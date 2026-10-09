@@ -713,10 +713,23 @@
       "mayAgents": "Istruzioni permanenti per ogni nuova conversazione in questo vault. Non possono annullare le tue regole sulla privacy.",
       "originApp": "Inclusa in Plainva",
       "originPath": "Si trova in {{path}}",
+      "rights": {
+        "title": "Rispetto alla versione approvata",
+        "same": "Può fare le stesse cose della versione che hai approvato.",
+        "toolsAdded": "Ora può usare anche: {{tools}}",
+        "toolsRemoved": "Non usa più: {{tools}}",
+        "folders": "Cartelle: {{after}} (prima: {{before}})",
+        "budget": "Risposta massima per esecuzione: {{after}} (prima: {{before}})",
+        "wholeVault": "tutto il vault",
+        "noBudget": "il limite della conversazione",
+        "widened": "Questa versione può fare più di quella che hai approvato."
+      },
       "approvedHow": {
         "review": "Approvata su questo dispositivo il {{when}}",
         "created": "Creata su questo dispositivo il {{when}}",
         "copied": "Copiata su questo dispositivo il {{when}}",
+        "learned": "Accettata da una proposta su questo dispositivo il {{when}}",
+        "restored": "Ripristinata su questo dispositivo il {{when}}",
         "imported": "Importata su questo dispositivo il {{when}}"
       },
       "importedFrom": "Importata da {{label}}",
@@ -860,6 +873,151 @@
         "conversation": "Prova · {{skill}} · {{scenario}}"
       },
       "writeFailed":"Impossibile scrivere la competenza nel vault."
+    },
+    "learn": {
+      "action": "Impara da questa conversazione",
+      "start": "Impara",
+      "running": "{{model}} sta leggendo la conversazione…",
+      "ask": {
+        "lead": "La conversazione viene inviata ancora una volta al modello con cui è stata condotta — a nessun altro. Non riceve alcuno strumento: può solo proporre.",
+        "to": "Va a",
+        "local": "{{model}} — su questo dispositivo",
+        "what": "Cosa viene inviato",
+        "messages_one": "{{count}} messaggio: ciò che hai scritto e le risposte ricevute.",
+        "messages_many": "{{count}} messaggi: ciò che hai scritto e le risposte ricevute.",
+        "messages_other": "{{count}} messaggi: ciò che hai scritto e le risposte ricevute.",
+        "omitted_one": "{{count}} messaggio della parte centrale resta escluso: la conversazione è troppo lunga per essere inviata per intero.",
+        "omitted_many": "{{count}} messaggi della parte centrale restano esclusi: la conversazione è troppo lunga per essere inviata per intero.",
+        "omitted_other": "{{count}} messaggi della parte centrale restano esclusi: la conversazione è troppo lunga per essere inviata per intero.",
+        "skills": "Le istruzioni di {{names}}, così da poter proporre una versione migliore.",
+        "notSent": "Niente di ciò che uno strumento ha restituito e nessuna nota allegata come contesto.",
+        "comes": "Cosa può tornare",
+        "size": "Dimensione",
+        "estimate": "Circa {{tokens}} token",
+        "estimateCost": "Circa {{tokens}} token · circa {{cost}}",
+        "nothingCounts": "Nulla di ciò che propone vale finché non lo accetti."
+      },
+      "kind": {
+        "memory": "Voci per la memoria",
+        "rule": "Regole per l'IA",
+        "skill": "Una competenza, o altre istruzioni per una già esistente"
+      },
+      "limit": {
+        "foreign": "Questa conversazione ha letto testi altrui — una pagina web, un'e-mail o uno strumento esterno. Ne possono nascere fatti per la memoria, ma nessuna regola per l'IA e nessuna competenza.",
+        "restricted": "Questa conversazione si basa su note tenute lontane dal cloud o da internet. Le voci che ne derivano portano con sé questa regola; non ne nascono regole per l'IA né competenze.",
+        "memory-off": "La memoria è disattivata su questo dispositivo: non viene proposta nessuna voce.",
+        "read-only": "Questo dispositivo non può scrivere né le istruzioni del vault né la sua memoria, quindi al riguardo non viene proposto nulla."
+      },
+      "result": {
+        "lead": "{{model}} ha riletto la conversazione — lo stesso modello con cui è stata condotta; non è stata inviata altrove. Ciò che propone è qui sotto e anche sotto «In attesa». Nulla di tutto questo vale finché non lo accetti.",
+        "none": "In questa conversazione non c'è nulla che valga la pena di conservare",
+        "noneHint": "Anche questa è una risposta: non da ogni conversazione si impara qualcosa.",
+        "known_one": "{{count}} proposta è già nella memoria.",
+        "known_many": "{{count}} proposte sono già nella memoria.",
+        "known_other": "{{count}} proposte sono già nella memoria.",
+        "dropped_one": "{{count}} proposta è stata esclusa: senza riscontro, troppo lunga o di un tipo che questa conversazione non può proporre.",
+        "dropped_many": "{{count}} proposte sono state escluse: senza riscontro, troppo lunghe o di un tipo che questa conversazione non può proporre.",
+        "dropped_other": "{{count}} proposte sono state escluse: senza riscontro, troppo lunghe o di un tipo che questa conversazione non può proporre.",
+        "full": "L'elenco delle bozze è pieno: non tutto ha trovato posto. Decidi su ciò che aspetta sotto «In attesa», poi impara di nuovo.",
+        "usage": "~{{sent}} token inviati · ~{{received}} ricevuti",
+        "usageCost": "~{{sent}} token inviati · ~{{received}} ricevuti · {{cost}}"
+      },
+      "refused": {
+        "off": "L'IA è disattivata.",
+        "no-vault": "Nessun vault è aperto.",
+        "gone": "Questa conversazione non esiste più.",
+        "empty": "In questa conversazione non è ancora stato scritto né risposto nulla.",
+        "no-model": "Il modello con cui è stata condotta questa conversazione non è più configurato su questo dispositivo. La conversazione non va a nessun altro.",
+        "kept": "Questa conversazione si è svolta su questo dispositivo e resta qui: non viene inviata a un modello nel cloud.",
+        "denied": "Una nota su cui si basa questa conversazione non può più andare a questo modello.",
+        "nothing": "Da questa conversazione qui non si può proporre nulla: la memoria è disattivata oppure questo dispositivo non può scriverla, e questa conversazione non può proporre né regole per l'IA né competenze.",
+        "busy": "L'IA è occupata in questo momento. Riprova quando ha finito.",
+        "cancelled": "Interrotto. Non è stata creata nessuna bozza.",
+        "invalid": "La risposta non era un elenco di proposte. Non è stata creata nessuna bozza.",
+        "failed": "L'operazione non è riuscita. Non è stata creata nessuna bozza."
+      },
+      "draft": {
+        "why": "Riscontro",
+        "changed": "{{name}} — altre istruzioni",
+        "new": "{{name}} — nuova competenza",
+        "rightsStay": "Cambiano solo le sue istruzioni. Ciò che può fare resta com'è.",
+        "newRights": "Parte con i valori predefiniti dell'app: legge e mostra, non cambia nulla.",
+        "review": "Controlla"
+      },
+      "draftRefused": {
+        "changed": "Questa competenza non è più quella che la proposta ha letto — è cambiata, oppure attende il tuo controllo. La bozza resta: controlla la competenza oppure scarta la bozza.",
+        "invalid": "Non sono istruzioni che una competenza possa avere: sono vuote o troppo lunghe.",
+        "gone": "La competenza non esiste più.",
+        "exists": "Nel frattempo esiste una competenza con questo nome. Non viene sovrascritta."
+      },
+      "done": {
+        "skill": "Accettata. La competenza è approvata su questo dispositivo così come l'hai vista.",
+        "line": "Accettata: {{name}}"
+      },
+      "review": {
+        "titleChange": "Altre istruzioni per «{{name}}»",
+        "titleNew": "Nuova competenza «{{name}}»",
+        "purpose": "A cosa serve",
+        "changes": "Cosa cambia",
+        "rightsSame": "Invariato.",
+        "rightsNote": "Una proposta cambia solo le istruzioni. Strumenti, cartelle e limiti di una competenza non li stabilisce mai un modello.",
+        "rightsNew": "Una competenza nata da una proposta parte con i valori predefiniti dell'app. Puoi concederle di più nel suo file — è una tua modifica e richiede di nuovo la tua approvazione.",
+        "check": "Verifica",
+        "testedNow": "La versione attuale — {{note}}.",
+        "untested": "La nuova versione non è ancora verificata. Una volta accettata, «{{check}}» nella riga della competenza esegue i suoi scenari con la nuova versione.",
+        "cost": "Costo",
+        "costMore": "Circa {{tokens}} token in più a ogni esecuzione di questa competenza.",
+        "costLess": "Circa {{tokens}} token in meno a ogni esecuzione di questa competenza.",
+        "costSame": "Più o meno della stessa lunghezza di prima.",
+        "costNew": "Circa {{tokens}} token a ogni esecuzione di questa competenza.",
+        "proposedBy": "Proposta da {{author}} il {{when}}, dalla conversazione «{{conversation}}»",
+        "proposedByBare": "Proposta da {{author}} il {{when}}",
+        "hintChange": "«Accetta» scrive la nuova versione e la approva su questo dispositivo — l'hai vista qui. Quella attuale resta nella cronologia delle versioni: «{{versions}}» nel menu della riga permette di recuperarla. Sugli altri tuoi dispositivi la modifica attende la propria approvazione.",
+        "hintNew": "«Accetta» scrive la competenza nel vault e la approva su questo dispositivo — l'hai vista qui. Sugli altri tuoi dispositivi attende la propria approvazione.",
+        "take": "Accetta",
+        "rework": "Rielabora",
+        "compare": "Confronta",
+        "reworkHint": "Ciò che modifichi qui è ciò che viene accettato. Strumenti, cartelle e limiti della competenza non ne fanno parte."
+      },
+      "watch": {
+        "title": "Versioni sotto osservazione",
+        "row": "sotto osservazione · {{runs}} su {{of}} esecuzioni",
+        "rowFailed": "sotto osservazione · {{failed}} su {{runs}} esecuzioni senza risposta",
+        "failed": "«{{name}}»: dalla nuova versione, {{failed}} su {{runs}} esecuzioni sono finite senza una risposta.",
+        "hint": "La versione precedente è conservata. Non si torna mai indietro da soli: anche questo sarebbe un cambiamento che nessuno ha visto.",
+        "back": "Torna alla versione precedente",
+        "keep": "Mantieni",
+        "backDone": "Si è tornati alla versione precedente. È approvata su questo dispositivo, come lo era prima."
+      },
+      "restoreRefused": {
+        "unavailable": "Questo dispositivo non può scrivere le competenze del vault.",
+        "gone": "La competenza, o questa sua versione, non esiste più.",
+        "changed": "La competenza non è più come è stata mostrata qui. Controllala di nuovo.",
+        "invalid": "Questa versione non rispetta il formato di una competenza, quindi non viene riscritta.",
+        "no-history": "Il vault non è riuscito a conservare prima la versione attuale, quindi non è stato sovrascritto nulla.",
+        "failed": "L'operazione non è riuscita. Non è stato modificato nulla."
+      },
+      "versions": {
+        "action": "Versioni precedenti…",
+        "title": "Versioni precedenti di «{{name}}»",
+        "now": "Attuale",
+        "earlier": "Versione precedente",
+        "at": "Versione del {{when}}",
+        "empty": "Nessuna versione precedente conservata",
+        "none": "Su questo dispositivo questo vault non tiene una cronologia delle versioni",
+        "emptyHint": "Il vault conserva una versione quando il file di una competenza viene modificato — da te nell'editor o accettando una proposta.",
+        "against": "Rispetto alla versione attuale",
+        "same": "Questa versione ha lo stesso testo di quella attuale.",
+        "rightsSame": "Uguale alla versione attuale.",
+        "wider": "Questa versione può fare più di quanto faccia ora la competenza.",
+        "hint": "«Ripristina questa versione» riscrive la versione scelta e la approva su questo dispositivo — la vedi qui. Quella attuale resta nella cronologia. Le versioni provengono dalla cronologia delle versioni del vault e si trovano su questo dispositivo.",
+        "restore": "Ripristina questa versione",
+        "restored": "Ripristinata. La versione è approvata su questo dispositivo così come l'hai vista."
+      },
+      "log": {
+        "title": "Cosa è stato imparato",
+        "desc": "Competenze e regole accettate da una proposta, con il giorno e la conversazione. È un file del vault e viaggia con esso."
+      }
     },
     "memory": {
       "segment": "Memoria",
@@ -1565,6 +1723,7 @@
           "memory": "Bozza · Voce della memoria",
           "forget": "Bozza · Togliere dalla memoria",
           "rule": "Bozza · Regola per l'IA",
+          "skill": "Bozza · Competenza",
           "entry": "Bozza · Voce di database"
         },
         "what": {
@@ -1576,6 +1735,7 @@
           "memory": "Voce",
           "forget": "Voce",
           "rule": "Regola",
+          "skill": "Competenza",
           "entry": "Voce"
         },
         "landsIn": "Finisce in",

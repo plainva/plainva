@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { MessageSquare } from "lucide-react";
-import { AiOpenPanel, startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, openWritesCount, Row, RowList, SearchField, SectionLabel, Segmented, useOpenProposals, waitingCount, type ConversationRowCaps } from "@plainva/ui";
+import { AiOpenPanel, startableSkills, conversationRowActions, EmptyState, GroupCard, ICON, openLearnSurface, openWritesCount, Row, RowList, SearchField, SectionLabel, Segmented, useOpenProposals, waitingCount, type ConversationRowCaps } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
@@ -49,6 +49,8 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
   const list = shown === null ? state.summaries : state.summaries.filter((s) => shown.includes(s.id));
   const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium" });
   const capsFor = (id: string, title: string): ConversationRowCaps => ({
+    // What a conversation can teach (plan P6-2): the sheet says first what would go where.
+    learn: () => openLearnSurface({ kind: "learn", conversationId: id }),
     rename: () => {
       void mPrompt({ title: t("ai.history.rename"), initial: title }).then((res) => {
         if (!res.cancelled && res.value.trim()) void session.rename(id, res.value);

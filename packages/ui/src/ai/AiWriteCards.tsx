@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookMarked, CalendarPlus, Check, Database, Eraser, EyeOff, FilePlus2, ListChecks, Mail, NotebookPen, PencilLine, ScrollText, TriangleAlert, Unlink, X } from "lucide-react";
+import { BookMarked, CalendarPlus, Check, Database, Eraser, EyeOff, FilePlus2, GraduationCap, ListChecks, Mail, NotebookPen, PencilLine, ScrollText, TriangleAlert, Unlink, X } from "lucide-react";
 import { machineAuthorKind, machineAuthorSubject, type MemoryPlace, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
@@ -10,8 +10,10 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { ICON } from "../lib/iconSizes";
 import { propertyValueWords } from "../lib/propertySuggestion";
 import { toast } from "../services/toastStore";
+import { openLearnSurface } from "./aiLearn";
 import type { AiSession } from "./aiSession";
 import { draftDetail, type OpenProposal, type WriteDraftState } from "./aiWrites";
+import { skillDraftRefusalText, skillDraftTitle } from "./learnView";
 
 /**
  * What an assistant laid down, where the user decides about it (plan
@@ -68,13 +70,17 @@ export function useDraftActions(session: Pick<AiSession, "createDraft" | "discar
         // yet counts once that file was reviewed — said, because it is the one case where "done" is not "in effect".
         if (outcome.kind === "kept") {
           if (outcome.what === "rule" && outcome.waits) toast.warning(t("ai.memory.done.ruleWaits"));
+          // A skill is taken over in its review, which says so itself; here only for a caller that came another way.
+          else if (outcome.what === "skill") toast.success(t("ai.learn.done.skill"));
           else toast.success(t(`ai.memory.done.${outcome.what}`));
           return;
         }
+        const learned = outcome.kind === "refused" ? skillDraftRefusalText(t, outcome.reason) : null;
         if (outcome.kind === "created") {
           toast.success(t("ai.write.draft.createdToast"));
           onOpenCreated(outcome.path);
-        } else if (outcome.reason === "failed") toast.error(t("ai.write.draft.failed", { reason: outcome.message ?? "" }));
+        } else if (learned && (outcome.reason === "changed" || outcome.reason === "invalid")) toast.error(learned);
+        else if (outcome.reason === "failed") toast.error(t("ai.write.draft.failed", { reason: outcome.message ?? "" }));
         else if (outcome.reason === "unavailable") toast.error(t("ai.write.draft.unavailable"));
         else if (outcome.reason === "exists") toast.error(t("ai.write.draft.exists"));
         else if (outcome.reason === "editor-open") toast.warning(t("ai.write.draft.editorOpen"));
@@ -145,7 +151,9 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
                   ? Eraser
                   : body.kind === "rule"
                     ? ScrollText
-                    : FilePlus2;
+                    : body.kind === "skill"
+                      ? GraduationCap
+                      : FilePlus2;
   const detail = draftDetail(draft);
   // An e-mail and an appointment reach other people (plan P5-6): the card names every one of them in full, says which
   // of them the user did not write in the conversation themselves, and its button makes nothing — it opens the app's
@@ -170,7 +178,16 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
       <dl className="pv-ai-overview-list">
         <dt>{t(`ai.write.draft.what.${body.kind}`)}</dt>
         {/* An entry of the memory and a rule are their whole text; a title would cut them. */}
-        <dd data-testid="ai-draft-title">{body.kind === "journal" || body.kind === "memory" || body.kind === "rule" ? body.text : body.kind === "forget" ? body.entry : draft.title}</dd>
+        <dd data-testid="ai-draft-title">
+          {body.kind === "journal" || body.kind === "memory" || body.kind === "rule" ? body.text : body.kind === "forget" ? body.entry : body.kind === "skill" ? skillDraftTitle(t, draft) : draft.title}
+        </dd>
+        {/* What a review of a conversation rests its proposal on (plan P6-2): one sentence, in its writer's words. */}
+        {draft.why && (
+          <>
+            <dt>{t("ai.learn.draft.why")}</dt>
+            <dd data-testid="ai-draft-why">{draft.why}</dd>
+          </>
+        )}
         {body.kind === "memory" && body.replaces !== null && (
           <>
             <dt>{t("ai.memory.draft.replaces")}</dt>
@@ -268,6 +285,12 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
         </>
       )}
       {body.kind === "rule" && <span className="pv-ai-overview-hint">{t("ai.memory.draft.ruleHint")}</span>}
+      {/* A skill's draft (plan P6-2) changes instructions and nothing else of a skill: said on the card, shown in the review. */}
+      {body.kind === "skill" && (
+        <span className="pv-ai-overview-hint" data-testid="ai-draft-skill-rights">
+          {t(body.change ? "ai.learn.draft.rightsStay" : "ai.learn.draft.newRights")}
+        </span>
+      )}
       {choosesPlace && (
         <div className="pv-capture-quick" role="group" aria-label={t("ai.memory.form.when")}>
           <Chip testId="ai-draft-place-active" selected={place === "active"} disabled={busy} onClick={() => setPlace("active")}>
@@ -317,12 +340,19 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
         <Button variant="ghost" disabled={busy} onClick={() => onDiscard(draft.id)} data-testid="ai-draft-discard">
           {t("ai.write.draft.discard")}
         </Button>
-        {/* The place goes along only where the card asked for one: every other draft is created as before. */}
-        <Button variant="secondary" disabled={busy || !canCreate} onClick={() => (choosesPlace ? onCreate(draft.id, false, place) : onCreate(draft.id, offersList && atProvider))} data-testid="ai-draft-create">
-          {body.kind === "memory" || body.kind === "forget" || body.kind === "rule"
-            ? t(`ai.memory.draft.do.${body.kind}`)
-            : t(body.kind === "mail" ? "ai.write.draft.openMail" : body.kind === "event" ? "ai.write.draft.openEvent" : "ai.write.draft.create")}
-        </Button>
+        {body.kind === "skill" ? (
+          // A skill is taken over where the user sees what would be written: its review, in a dialog of its own.
+          <Button variant="secondary" disabled={busy} onClick={() => openLearnSurface({ kind: "skill-draft", draftId: draft.id })} data-testid="ai-draft-review">
+            {t("ai.learn.draft.review")}
+          </Button>
+        ) : (
+          // The place goes along only where the card asked for one: every other draft is created as before.
+          <Button variant="secondary" disabled={busy || !canCreate} onClick={() => (choosesPlace ? onCreate(draft.id, false, place) : onCreate(draft.id, offersList && atProvider))} data-testid="ai-draft-create">
+            {body.kind === "memory" || body.kind === "forget" || body.kind === "rule"
+              ? t(`ai.memory.draft.do.${body.kind}`)
+              : t(body.kind === "mail" ? "ai.write.draft.openMail" : body.kind === "event" ? "ai.write.draft.openEvent" : "ai.write.draft.create")}
+          </Button>
+        )}
       </div>
     </section>
   );
@@ -338,16 +368,20 @@ export function AiDraftDone({ outcome, onOpenNote }: { outcome: WriteDraftOutcom
   const name = outcome.title;
   // The memory's drafts (plan P6) end in the memory or in the vault's instructions: said in their own words.
   const kept = created && (outcome.kind === "memory" || outcome.kind === "forget" || outcome.kind === "rule");
-  const text = kept
-    ? t(`ai.memory.done.line.${outcome.kind}`, { name })
-    : outcome.outcome === "sent"
+  // A skill that was taken over (plan P6-2) lies in the vault's agent area: said, not linked — the workshop is where it is opened.
+  const skill = created && outcome.kind === "skill";
+  const text = skill
+    ? t("ai.learn.done.line", { name })
+    : kept
+      ? t(`ai.memory.done.line.${outcome.kind}`, { name })
+      : outcome.outcome === "sent"
       ? t("ai.write.draft.done.sent", { name })
       : outcome.outcome === "saved"
         ? t(outcome.kind === "event" ? "ai.write.draft.done.savedEvent" : "ai.write.draft.done.savedMail", { name })
         : outcome.outcome === "opened"
           ? t("ai.write.draft.done.movedMail", { name })
           : t(created ? "ai.write.draft.created" : "ai.write.draft.discarded", { name });
-  return created && path ? (
+  return created && path && !skill ? (
     <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" onClick={() => onOpenNote(path)} data-testid="ai-draft-done" data-outcome="created">
       <Check size={ICON.meta} aria-hidden="true" />
       {text}

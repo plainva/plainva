@@ -26,6 +26,8 @@ Dilo en una conversación: «Recuerda que facturo por día, no por hora». La IA
 
 «Olvida que …» funciona igual: la tarjeta dice **Borrador · Quitar de la memoria**, y **Quitar** retira la entrada. Cuando le dices a la IA que algo ha cambiado, la tarjeta muestra, bajo **Sustituye a**, qué entrada reemplaza la nueva redacción.
 
+Una conversación terminada también puede sugerir entradas: **Aprender de esta conversación** la lee una vez más y deja borradores, cada uno con su evidencia. Cómo funciona esto, y qué puede llegar a sugerir una revisión así, se describe en [Habilidades](AI_Skills.md).
+
 ## Una regla no es un recuerdo
 
 «Responde siempre en alemán» no es algo que saber, sino algo que hacer. Una regla así no entra en la memoria: se convierte en una línea de las **Instrucciones del vault** (`AGENTS.md`), que todo modelo recibe como instrucción. Añade una con **Añadir una regla** bajo **Reglas para la IA**, o pídeselo a la IA; su tarjeta dice entonces **Borrador · Regla para la IA**, con el botón **Añadir como regla**.

@@ -26,6 +26,8 @@ Sag es im Gespräch: „Merk Dir, dass ich nach Tagen abrechne, nicht nach Stund
 
 „Vergiss, dass …“ geht genauso: Die Karte heißt **Entwurf · Aus dem Gedächtnis entfernen**, und **Entfernen** nimmt den Eintrag heraus. Sagst Du der KI, dass sich etwas geändert hat, zeigt die Karte unter **Ersetzt**, an wessen Stelle der neue Wortlaut tritt.
 
+Auch ein abgeschlossenes Gespräch kann Einträge vorschlagen: **Aus diesem Gespräch lernen** liest es noch einmal und hinterlässt Entwürfe, jeden mit seinem Beleg. Wie das geht und was eine solche Durchsicht überhaupt vorschlagen darf, steht unter [Skills](AI_Skills.md).
+
 ## Eine Regel ist kein Gedächtnis
 
 „Antworte immer auf Deutsch“ ist nichts zu wissen — es ist etwas zu tun. So eine Regel kommt nicht ins Gedächtnis: Sie wird eine Zeile der **Anweisungen des Vaults** (`AGENTS.md`), die jedes Modell als Anweisung bekommt. Lege eine über **Regel hinzufügen** unter **Regeln für die KI** an oder bitte die KI darum; ihre Karte heißt dann **Entwurf · Regel für die KI**, mit dem Knopf **Als Regel eintragen**.

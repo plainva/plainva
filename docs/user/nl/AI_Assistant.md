@@ -114,6 +114,10 @@ Scripts zijn kleine programma's die je schrijft voor wat een model slecht kan �
 
 Wat de AI over jou moet weten zonder dat je het opnieuw hoeft te vertellen — wat je doet, hoe je je antwoorden het liefst wilt hebben — wordt bewaard in het geheugen van de vault: twee bestanden die je kunt lezen en bewerken. Wat onder **Altijd erbij** staat, gaat mee in elk nieuw gesprek, de rest wordt opgezocht wanneer een vraag het nodig heeft, en er komt niets in zonder jouw ja. Zie [Geheugen](AI_Memory.md).
 
+## Leren van een gesprek
+
+Een gesprek kan de AI iets leren voor later. **Leren van dit gesprek** — onder zijn laatste antwoord — stuurt het nog één keer naar het model dat het heeft gevoerd en brengt concepten terug: items voor het geheugen, regels of andere instructies voor een van je vaardigheden. Niets daarvan geldt voordat je het overneemt. Zie [Vaardigheden](AI_Skills.md).
+
 ## Een spraaknotitie uitschrijven
 
 Bij elke spraaknotitie — in de editor, in de leesmodus, in het journaal en op kaarten — maakt **Uitschrijven** van de opname tekst. Die gaat ongewijzigd naar het model van het profiel **Audio**, via hetzelfde overzicht als een vraag; een opname is een eigen soort gegevens, dus het overzicht vraagt het de eerste keer. De transcriptie komt terug als voorstel onder de opname, met de auteur **Plainva AI · ⟨model⟩** — accepteer of wijs haar af onder **Voorstellen**.

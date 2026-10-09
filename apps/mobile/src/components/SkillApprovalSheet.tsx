@@ -53,6 +53,7 @@ export function SkillApprovalSheet({ id, onClose }: { id: string; onClose: () =>
         <GroupCard>
           <RowList>
             {facts.may.length > 0 && <Row title={script ? t("ai.scripts.may") : t("ai.workshop.may")} subtitle={facts.may.join(script ? " " : " · ")} wrap />}
+            {facts.rights && <Row title={t("ai.workshop.rights.title")} subtitle={facts.rights.join(" · ")} wrap data-testid="ai-skill-rights" />}
             {facts.limits && <Row title={t("ai.scripts.limits")} subtitle={facts.limits} wrap data-testid="ai-script-limits" />}
             {facts.inputs && <Row title={t("ai.scripts.input")} subtitle={facts.inputs.join(" · ")} wrap />}
             <Row title={t("ai.workshop.files")} subtitle={facts.files.map((f) => `${f.path} · ${f.size}`).join(" · ")} wrap />
@@ -86,6 +87,11 @@ export function SkillApprovalSheet({ id, onClose }: { id: string; onClose: () =>
               facts.codeSize && <p className="m-hint">{facts.codeSize}</p>
             )}
           </>
+        )}
+        {facts.widened && (
+          <Banner kind="warning" testId="ai-skill-wider">
+            {t("ai.workshop.rights.widened")}
+          </Banner>
         )}
         {facts.warnings.map((warning) => (
           <Banner key={warning} kind="warning">

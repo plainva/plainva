@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Ban, Bookmark, BookmarkMinus, CalendarClock, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
-  ExternalLink, Eye, Flag, FlaskConical, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Pin, PinOff, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
+  ExternalLink, Eye, Flag, FlaskConical, FolderInput, GitMerge, GraduationCap, History, ListTree, Mail, MailOpen, Pencil, Pin, PinOff, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
 
@@ -198,13 +198,16 @@ export function journalRowActions(t: RowActionT, c: JournalRowCaps): RowActionSp
 /* ---------------------------------------------------------- conversation */
 
 export interface ConversationRowCaps {
+  /** "Learn from this conversation" (plan P6-2): opens the dialog that says what would go where; nothing is sent by choosing this. */
+  learn?: () => void;
   rename?: () => void;
   delete?: () => void;
 }
 
-/** A conversation in the AI history (plan KI-Harness P1a): the same two actions in both shells. */
+/** A conversation in the AI history (plan KI-Harness P1a): the same actions in both shells. */
 export function conversationRowActions(t: RowActionT, c: ConversationRowCaps): RowActionSpec[] {
   const out: Array<RowActionSpec | null> = [
+    c.learn ? { id: "learn", label: t("ai.learn.action"), icon: GraduationCap, run: c.learn } : null,
     c.rename ? { id: "rename", label: t("ai.history.rename"), icon: Pencil, run: c.rename } : null,
     c.delete ? { id: "delete", label: t("ai.history.delete"), icon: Trash2, danger: true, run: c.delete, swipe: true } : null,
   ];
@@ -223,6 +226,8 @@ export interface SkillRowCaps {
   showLabel?: string;
   /** The vault's own: the file in the editor (any change asks for an approval again). */
   edit?: () => void;
+  /** The vault's own (plan P6-2): what the vault's history keeps of its file, and the way back to one. */
+  versions?: () => void;
   /** The app's own: an own version in the vault, to change there. */
   copy?: () => void;
   revoke?: () => void;
@@ -236,6 +241,7 @@ export function skillRowActions(t: RowActionT, c: SkillRowCaps): RowActionSpec[]
     c.test ? { id: "test", label: c.testLabel ?? t("ai.workshop.test.open"), icon: FlaskConical, run: c.test } : null,
     c.showInstructions ? { id: "showInstructions", label: c.showLabel ?? t("ai.workshop.showInstructions"), icon: Eye, run: c.showInstructions } : null,
     c.edit ? { id: "edit", label: t("ai.workshop.edit"), icon: Pencil, run: c.edit } : null,
+    c.versions ? { id: "versions", label: t("ai.learn.versions.action"), icon: History, run: c.versions } : null,
     c.copy ? { id: "copy", label: t("ai.workshop.copy"), icon: Copy, run: c.copy } : null,
     c.revoke ? { id: "revoke", label: t("ai.workshop.revoke"), icon: ShieldOff, run: c.revoke } : null,
     c.delete ? { id: "delete", label: t("ai.workshop.delete"), icon: Trash2, danger: true, run: c.delete } : null,

@@ -72,6 +72,12 @@ enough. The review runs in parallel and does not block (E33).
    came from (ADR 0027) —, and the memory's view says it in words. A rule
    accepted into `AGENTS.md` carries no mark: it is a line of a file the user
    approves as a whole, and from then on it is the user's instruction.
+8. **Skills from a suggestion.** A skill that was made or rewritten from a
+   suggestion carries no mark in its file either — the file is the Agent
+   Skills format, and its text is the user's once they accepted it. Where it
+   came from is said beside it: the approval on the device names it as
+   accepted from a suggestion, and the vault's learning log holds one line
+   with the day and the conversation (ADR 0028).
 
 ## Consequences
 

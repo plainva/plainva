@@ -80,6 +80,32 @@ Ein Skill kann Testszenarien mitbringen: eine Nachricht, die ihn startet, und wa
 
 Jedes Szenario ist ein gewöhnlicher Lauf seines Skills: es liest Deinen Vault wie ein Lauf von Hand, geht durch dieselbe Übersicht vor dem Senden, zählt zu Deinem Verbrauch und hinterlässt sein Gespräch im Verlauf, wo sein nächster Lauf es ersetzt. Danach zeigt jedes Szenario sein Ergebnis in Worten, und die Zeile des Skills sagt, wie sein letzter Lauf ausging. Ein Ergebnis gilt für ein Modell und eine Fassung des Skills: wählst Du ein anderes Modell oder änderst den Skill, sagt die Zeile das, statt ein Ergebnis zu zeigen, das nicht mehr zählt. Einige der mitgelieferten Szenarien fragen nach Notizen aus Plainvas eigenem Test-Vault; in Deinem Vault gelten sie nicht, und der Dialog zählt sie gesondert, statt sie als nicht bestanden zu werten.
 
+## Aus einem Gespräch lernen
+
+Ein Gespräch kann etwas hinterlassen: einen Fakt, der sich zu wissen lohnt, eine Regel oder einen Skill, der nicht weit genug ging. **Aus diesem Gespräch lernen** — im Menü eines Gesprächs in der Liste und unter seiner letzten Antwort — fragt danach. Nichts liest Deine Gespräche im Hintergrund.
+
+Ein Dialog sagt zuerst, was geschehen würde: das Gespräch geht noch einmal an das Modell, das es geführt hat, und an kein anderes — was Du geschrieben hast und was geantwortet wurde, mit den Namen der benutzten Werkzeuge. Nichts, was ein Werkzeug zurückgab, geht mit, und keine Notiz. Wo ein eigener Skill im Gespräch lief, gehen seine Anweisungen mit, damit eine bessere Fassung vorgeschlagen werden kann. **Lernen** startet die Durchsicht; sie kostet eine Anfrage.
+
+Zurück kommen Entwürfe, jeder mit dem **Beleg**, den die Durchsicht dafür nennt, und nichts davon gilt, bevor Du es übernimmst. Über einen Eintrag fürs Gedächtnis und über eine Regel entscheidest Du auf ihrer Karte, wie unter [Gedächtnis](AI_Memory.md) beschrieben. Der Entwurf eines Skills hat stattdessen den Knopf **Ansehen**.
+
+Ein Gespräch, das eine Webseite, eine E-Mail oder ein externes Werkzeug gelesen hat, schlägt nur Einträge fürs Gedächtnis vor: was ein Fremder geschrieben hat, wird keine Regel und kein Skill. Dasselbe gilt, wo das Gespräch auf Notizen beruht, die nicht in die Cloud oder nicht ins Internet dürfen, und Einträge daraus tragen diese Regel. Ein Gespräch, das mit einem Modell auf diesem Gerät lief, wird auf diesem Gerät durchgesehen.
+
+### Einen Vorschlag für einen Skill übernehmen
+
+**Ansehen** zeigt Zeile für Zeile, was sich ändern würde, und was der Skill darf — das bleibt, wie es ist: ein Vorschlag ändert die Anweisungen eines Skills und sonst nichts. Seine Werkzeuge, Ordner und Grenzen setzt nie ein Modell. Der Dialog sagt außerdem, ob die jetzige Fassung geprüft ist, was ein Lauf mehr oder weniger kostet und aus welchem Gespräch der Vorschlag stammt. **Überarbeiten** macht aus dem Vergleich ein Feld, in dem Du schreiben kannst.
+
+**Übernehmen** schreibt die neue Fassung und gibt sie auf diesem Gerät frei, denn Du hast sie hier gesehen. Auf Deinen anderen Geräten wartet der Skill dann auf die eigene Freigabe, wie nach jeder Änderung. Ein Vorschlag für einen neuen Skill beginnt mit den Vorgaben von Plainva: er liest und zeigt, und ändert nichts. Einen Skill, den Du importiert hast, und die Skills, die mit Plainva kommen, schreibt ein Vorschlag nie um.
+
+### Fassungen unter Beobachtung und der Weg zurück
+
+Eine Fassung, die aus einem Vorschlag stammt, steht drei Läufe lang unter Beobachtung, und ihre Zeile zählt sie. Endet ein Lauf ohne Antwort, nennt die Skills-Ansicht den Skill unter **Fassungen unter Beobachtung** und bietet zweierlei an: **Zurück zur vorigen Fassung** oder **Behalten**. Zurückgegangen wird nie von selbst.
+
+**Frühere Fassungen …** im Menü eines Skills zeigt, was der Versionsverlauf des Vaults von der Datei des Skills aufbewahrt. Der Dialog hält die gewählte Fassung gegen den Skill, wie er jetzt ist — seine Zeilen und was er darf —, und warnt, wo die frühere Fassung mehr darf. **Diese Fassung wiederherstellen** schreibt sie zurück und gibt sie auf diesem Gerät frei. Die Fassungen liegen auf diesem Gerät.
+
+Für einen Skill, der sich auf andere Weise geändert hat — durch Sync oder eine Bearbeitung auf einem anderen Gerät —, sagt **Prüfen und freigeben** dasselbe unter **Gegenüber der freigegebenen Fassung**: welche Werkzeuge dazukamen und wegfielen, die Ordner, die Grenze.
+
+Unter **Was gelernt wurde** öffnet die Skills-Ansicht `.agent/logs/learning.md`: eine Zeile für jeden Skill und jede Regel, die aus einem Vorschlag übernommen wurden, mit Tag und Gespräch. Die Datei reist mit Deinem Vault.
+
 ## Was an den Anbieter geht
 
 Die Sende-Übersicht nennt unter **Anweisungen**, was mitgeht: den Skill des Gesprächs, die Liste der Skills, die die KI laden darf, und die `AGENTS.md`. Gehen Anweisungen aus Deinem Vault zum ersten Mal an eine Cloud, kommt die Übersicht wieder. Unsichtbare Zeichen in einem Skill erreichen nie ein Modell.

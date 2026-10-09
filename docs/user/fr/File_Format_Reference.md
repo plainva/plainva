@@ -201,6 +201,16 @@ Deux fichiers Markdown contiennent ce que l'assistant doit savoir sur l'utilisat
 
 Un outil qui écrit une entrée la limite à une ligne de 500 caractères au plus et laisse tels quels les commentaires des autres entrées. Un commentaire endommagé — non fermé, présent deux fois, ou nommant une règle que Plainva ne connaît pas — tient l'entrée à l'écart de tous les modèles. Une entrée sans commentaire n'a pas de règle propre ; un outil ne doit donc jamais supprimer le commentaire d'une entrée qu'il réécrit. Ce que l'assistant doit faire n'est pas écrit ici : les règles sont des lignes de `AGENTS.md`.
 
+### Le journal d'apprentissage (`.agent/logs/learning.md`)
+
+Une ligne pour tout ce qui a été accepté à partir d'une suggestion de l'assistant — une nouvelle compétence, d'autres instructions pour une compétence, une règle dans `AGENTS.md` — et pour chaque retour à une version antérieure d'une compétence : la date et l'heure à la minute près, ce qui a changé et le titre de la conversation d'où cela provient. Plainva ajoute des lignes et n'en relit aucune.
+
+```markdown
+- 2026-10-09 10:14 · skill `offer-check`: other instructions, from an accepted suggestion — from the conversation "Offer for Harbour Studio"
+```
+
+Le fichier est une liste sous un titre et peut être raccourci ou supprimé. Il ne contient aucun mot du modèle qui a fait la suggestion, et jamais son nom. Au-delà de 100 000 caractères, Plainva retire les lignes les plus anciennes de la liste.
+
 ### Liens
 
 - **Lien wiki :** `[[Nom de la note]]` — résolu par nom de note à travers tout le vault. Avec une ancre de titre : `[[Note#Section]]` — un clic ouvre la note **à ce titre** ; `[[#Section]]` saute dans la note courante, et un slug à la GitHub (`[[Note#cool-header]]`) se résout aussi. Avec une référence de bloc : `[[Note#^id]]` pour une ligne qui se termine par `^id`. Avec un texte d'affichage : `[[Note|texte affiché]]`.

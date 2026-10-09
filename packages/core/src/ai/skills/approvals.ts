@@ -24,8 +24,32 @@ export type InstructionStatus =
   /** Switched off on this device by the user. */
   | "off";
 
-/** How an approval came about — the workshop names it. */
-export type ApprovalHow = "review" | "created" | "copied" | "imported";
+/**
+ * How an approval came about — the workshop names it. `learned`: the user
+ * took a proposal over (plan P6) — they saw the new text in its review —,
+ * `restored`: they went back to an earlier version.
+ */
+export type ApprovalHow = "review" | "created" | "copied" | "imported" | "learned" | "restored";
+
+const APPROVAL_HOWS: readonly ApprovalHow[] = ["review", "created", "copied", "imported", "learned", "restored"];
+
+/** A version taken over from a proposal is watched for this many runs (plan P6); without a failure the watch then ends. */
+export const OBSERVED_RUNS = 3;
+
+/**
+ * A version under observation (plan P6, mockup chapter 22): the runs that
+ * used it since it was taken over, how many of them failed, and the way
+ * back. Nothing goes back by itself — a version nobody looked at would be in
+ * force then —: a failure only makes the workshop offer it.
+ */
+export interface ApprovalObservation {
+  /** Since when (ISO 8601). */
+  since: string;
+  runs: number;
+  failed: number;
+  /** The main file as it was before this version, whole. */
+  previous: string;
+}
 
 export interface InstructionApproval {
   /** The source's id (`InstructionSource.id`). */
@@ -45,6 +69,8 @@ export interface InstructionApproval {
    * script's approval without one that holds is none.
    */
   signature?: string;
+  /** Set while this version is watched: it came from a proposal the user took over. Gone with the next approval. */
+  observe?: ApprovalObservation;
 }
 
 export interface InstructionApprovals {
@@ -60,6 +86,16 @@ export const APPROVED_TEXT_MAX = 65_536;
 
 const isText = (v: unknown): v is string => typeof v === "string";
 const HEX64 = /^[0-9a-f]{64}$/;
+const isCount = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+
+/** An observation as it was stored, or null: one that does not read watches nothing — and offers no way back it cannot name. */
+function readObservation(raw: unknown): ApprovalObservation | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  if (!isText(o.since) || !Number.isFinite(Date.parse(o.since)) || !isCount(o.runs) || !isCount(o.failed) || o.failed > o.runs) return null;
+  if (!isText(o.previous) || !o.previous || o.previous.length > APPROVED_TEXT_MAX) return null;
+  return { since: o.since, runs: o.runs, failed: o.failed, previous: o.previous };
+}
 
 /**
  * The stored approvals, field by field. A damaged file approves nothing —
@@ -82,8 +118,9 @@ export function readInstructionApprovals(raw: string | null): InstructionApprova
     if (!isText(a.id) || !a.id || !isText(a.at) || !a.files || typeof a.files !== "object" || Array.isArray(a.files)) continue;
     const files = Object.entries(a.files as Record<string, unknown>);
     if (!files.length || !files.every(([path, sha]) => path && isText(sha) && HEX64.test(sha))) continue;
-    const how = (["review", "created", "copied", "imported"] as const).find((h) => h === a.how) ?? "review";
+    const how = APPROVAL_HOWS.find((h) => h === a.how) ?? "review";
     const from = a.from && typeof a.from === "object" && isText((a.from as Record<string, unknown>).label) ? (a.from as { label: string; sha256?: unknown }) : null;
+    const observe = readObservation(a.observe);
     approved.push({
       id: a.id,
       files: Object.fromEntries(files) as Record<string, string>,
@@ -92,6 +129,7 @@ export function readInstructionApprovals(raw: string | null): InstructionApprova
       ...(isText(a.text) ? { text: a.text.slice(0, APPROVED_TEXT_MAX) } : {}),
       ...(from ? { from: { label: from.label.slice(0, 200), ...(isText(from.sha256) && HEX64.test(from.sha256) ? { sha256: from.sha256 } : {}) } } : {}),
       ...(isText(a.signature) && a.signature.length <= 128 ? { signature: a.signature } : {}),
+      ...(observe ? { observe } : {}),
     });
   }
   const off = (Array.isArray(value.off) ? value.off : []).filter((id): id is string => isText(id) && id.length > 0);
@@ -159,6 +197,62 @@ export function approveInstruction(approvals: InstructionApprovals, source: Inst
     ...(source.kind === "script" && signature ? { signature } : {}),
   };
   return { ...approvals, approved: [...approvals.approved.filter((a) => a.id !== source.id), entry] };
+}
+
+/**
+ * Puts the approved version of a source under observation (plan P6): its
+ * next runs are counted, and `previous` — the main file as it was before —
+ * is the way back while the watch lasts. Without an approval there is nothing
+ * to watch, and without a text to go back to no watch is begun.
+ */
+export function observeInstruction(approvals: InstructionApprovals, id: string, since: string, previous: string): InstructionApprovals {
+  if (!previous || previous.length > APPROVED_TEXT_MAX) return approvals;
+  return { ...approvals, approved: approvals.approved.map((a) => (a.id === id ? { ...a, observe: { since, runs: 0, failed: 0, previous } } : a)) };
+}
+
+/** What a run says about the version it used. */
+export type ObservedRun = "clean" | "failed";
+
+/**
+ * What the end of a run says about a watched version. An answer is a clean
+ * run. A run that ran out of steps or tokens, went in circles, was cut off
+ * or refused counts against the version. One the user stopped, or one the
+ * provider did not answer, says nothing about the instructions: it is not
+ * counted at all.
+ */
+export function observedRunOf(stop: string): ObservedRun | null {
+  if (stop === "answered") return "clean";
+  return stop === "limit" || stop === "loop" || stop === "circuit_breaker" || stop === "max_tokens" || stop === "refusal" ? "failed" : null;
+}
+
+/**
+ * Counts one run of a watched version. After `OBSERVED_RUNS` runs without a
+ * failure the watch ends by itself, and with it the copy of the version
+ * before. With a failure it stays — and goes on counting — until the user
+ * keeps the version or goes back.
+ */
+export function countObservedRun(approvals: InstructionApprovals, id: string, run: ObservedRun): InstructionApprovals {
+  const approval = approvalOf(approvals, id);
+  const watch = approval?.observe;
+  if (!approval || !watch) return approvals;
+  const cap = 999;
+  const next: ApprovalObservation = { ...watch, runs: Math.min(cap, watch.runs + 1), failed: Math.min(cap, watch.failed + (run === "failed" ? 1 : 0)) };
+  if (next.failed === 0 && next.runs >= OBSERVED_RUNS) return endObservation(approvals, id);
+  return { ...approvals, approved: approvals.approved.map((a) => (a.id === id ? { ...a, observe: next } : a)) };
+}
+
+/** Ends the watch: the user keeps the version — or the runs said nothing against it. */
+export function endObservation(approvals: InstructionApprovals, id: string): InstructionApprovals {
+  if (!approvalOf(approvals, id)?.observe) return approvals;
+  return {
+    ...approvals,
+    approved: approvals.approved.map((a) => {
+      if (a.id !== id) return a;
+      const rest: InstructionApproval = { ...a };
+      delete rest.observe;
+      return rest;
+    }),
+  };
 }
 
 /** Withdraws the approval: the source is "new" again on this device. */

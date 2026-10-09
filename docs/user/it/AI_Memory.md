@@ -26,6 +26,8 @@ Dillo in una conversazione: «Ricorda che fatturo a giornata, non a ore». L'IA 
 
 «Dimentica che …» funziona allo stesso modo: la scheda riporta **Bozza · Togliere dalla memoria**, e **Togli** rimuove la voce. Quando dici all'IA che qualcosa è cambiato, la scheda mostra sotto **Sostituisce** quale voce viene rimpiazzata dalla nuova formulazione.
 
+Anche una conversazione conclusa può proporre voci: **Impara da questa conversazione** la rilegge e lascia delle bozze, ciascuna con il proprio riscontro. Come funziona, e che cosa una rilettura del genere può proporre in generale, è descritto in [Competenze](AI_Skills.md).
+
 ## Una regola non è un ricordo
 
 «Rispondi sempre in tedesco» non è qualcosa da sapere: è qualcosa da fare. Una regola così non va nella memoria: diventa una riga delle **Istruzioni del vault** (`AGENTS.md`), che ogni modello riceve come istruzione. Aggiungine una con **Aggiungi una regola** sotto **Regole per l'IA**, oppure chiedi all'IA; la sua scheda riporta allora **Bozza · Regola per l'IA**, con il pulsante **Aggiungi come regola**.

@@ -1,17 +1,20 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CodeXml, Download, FlaskConical, MoreHorizontal, Plus } from "lucide-react";
-import type { InstructionEntry, SkillImport } from "@plainva/core";
+import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
 import {
   Button,
   ICON,
   IconButton,
   MenuItem,
   MenuSurface,
+  observedFailures,
+  openLearnSurface,
   RowActionList,
   SettingCard,
   SettingCardNote,
   SettingRow,
+  skillRestoreRefusalText,
   skillRowActions,
   skillRowDescription,
   skillTestOverview,
@@ -115,6 +118,8 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       ...(startable && plan && testable(entry) ? { test: () => setTesting({ ids: [entry.source.id] }), testLabel: t("ai.workshop.test.run", { model: plan.choice.model }) } : {}),
       ...(!vault ? { showInstructions: () => setOpen(entry.source.id) } : {}),
       ...(vault ? { edit: () => onOpenFile(mainPath(entry)) } : {}),
+      // What the vault's history keeps of a skill's file, and the way back (plan P6-2).
+      ...(vault && entry.source.kind === "skill" ? { versions: () => openLearnSurface({ kind: "skill-versions", skillId: entry.source.id }) } : {}),
       ...(!vault && entry.source.kind === "skill"
         ? {
             copy: () => {
@@ -128,6 +133,14 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       ...(vault && entry.approval ? { revoke: () => void session.revokeInstruction(entry.source.id) } : {}),
       ...(vault ? { delete: () => remove(entry, "ai.workshop.deleteConfirm") } : {}),
     };
+  };
+  // A version that came from a proposal and had a run that failed (plan P6-2): the way back is offered, never taken.
+  const failures = observedFailures(t, state.skills.entries);
+  const goBack = (id: string) => {
+    void session.revertObservedSkill(id).then((outcome) => {
+      if (outcome.ok) toast.success(t("ai.learn.watch.backDone"));
+      else toast.error(skillRestoreRefusalText(t, outcome));
+    });
   };
   const openMenu = (event: MouseEvent, entry: InstructionEntry) => {
     event.preventDefault();
@@ -171,6 +184,22 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           {t("ai.workshop.newSkill")}
         </Button>
       </div>
+      {failures.length > 0 && (
+        <SettingCard label={t("ai.learn.watch.title")}>
+          {failures.map((failure) => (
+            <SettingRow key={failure.id} label={failure.text} desc={t("ai.learn.watch.hint")}>
+              <div className="pv-ai-rowactions" data-testid="ai-skill-watch">
+                <Button size="sm" variant="ghost" onClick={() => void session.keepObservedSkill(failure.id)} data-testid="ai-skill-watch-keep">
+                  {t("ai.learn.watch.keep")}
+                </Button>
+                <Button size="sm" variant="tonal" onClick={() => goBack(failure.id)} data-testid="ai-skill-watch-back">
+                  {t("ai.learn.watch.back")}
+                </Button>
+              </div>
+            </SettingRow>
+          ))}
+        </SettingCard>
+      )}
       {sections.waiting.length > 0 && (
         <SettingCard label={t("ai.workshop.waiting")}>
           {sections.waiting.map((entry) => (
@@ -227,6 +256,15 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
         </SettingRow>
         {overview.hint && <SettingCardNote>{overview.hint}</SettingCardNote>}
       </SettingCard>
+      {state.learnLog && (
+        <SettingCard label={t("ai.learn.log.title")}>
+          <SettingRow label={LEARN_LOG_FILE} desc={t("ai.learn.log.desc")}>
+            <Button size="sm" variant="ghost" onClick={() => onOpenFile(LEARN_LOG_FILE)} data-testid="ai-learn-log">
+              {t("ai.memory.openFile")}
+            </Button>
+          </SettingRow>
+        </SettingCard>
+      )}
       {testing && <SkillTestModal ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
       {open && <SkillApprovalModal id={open} onClose={() => setOpen(null)} />}
       {creating && <NewSkillModal onClose={() => setCreating(false)} />}

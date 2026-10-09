@@ -253,6 +253,28 @@ export function blockingProblems(problems: readonly SkillProblem[]): SkillProble
   return problems.filter((p) => p.code !== "plainva-value");
 }
 
+/**
+ * A skill's file with other instructions and everything else as it was (plan
+ * KI-Harness P6). The frontmatter is kept byte for byte — the name, what the
+ * skill is for, its tools, folders, limits and tests —, only the Markdown
+ * after it is replaced: a rewrite made this way cannot change what a skill
+ * may do, whatever the new instructions say. The frontmatter ends where the
+ * reader above ends it, at the second `---`. Null where there is none to
+ * keep, or no instructions to write.
+ */
+export function rewriteSkillBody(content: string, body: string): string | null {
+  const start = content.charCodeAt(0) === 0xfeff ? 1 : 0;
+  if (!content.startsWith("---", start)) return null;
+  const close = content.indexOf("---", start + 3);
+  if (close < 0) return null;
+  const head = content.slice(0, close + 3);
+  const lines = body.trim().split(/\r?\n/);
+  if (lines.length === 1 && lines[0] === "") return null;
+  // The file's own line ends, so a rewrite does not leave it with two kinds.
+  const eol = head.includes("\r\n") ? "\r\n" : "\n";
+  return `${head}${eol}${eol}${lines.join(eol)}${eol}`;
+}
+
 /** Writes a skill as `SKILL.md` — for one the user creates or copies here; an existing file is never rewritten. */
 export function serializeSkillFile(skill: Pick<SkillDefinition, "name" | "description" | "body"> & Partial<Pick<SkillDefinition, "license" | "compatibility" | "metadata" | "allowedTools">>): string {
   const front: Record<string, unknown> = { name: skill.name, description: skill.description };

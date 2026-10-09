@@ -689,10 +689,23 @@
       "mayAgents": "Stehende Anweisungen für jedes neue Gespräch in diesem Vault. Deine Datenschutzregeln kann sie nicht aufheben.",
       "originApp": "Kommt mit Plainva",
       "originPath": "Liegt in {{path}}",
+      "rights": {
+        "title": "Gegenüber der freigegebenen Fassung",
+        "same": "Er darf dasselbe wie die Fassung, die Du freigegeben hast.",
+        "toolsAdded": "Darf jetzt auch benutzen: {{tools}}",
+        "toolsRemoved": "Benutzt nicht mehr: {{tools}}",
+        "folders": "Ordner: {{after}} (vorher: {{before}})",
+        "budget": "Ausgabe je Lauf höchstens: {{after}} (vorher: {{before}})",
+        "wholeVault": "der ganze Vault",
+        "noBudget": "die Grenze des Gesprächs",
+        "widened": "Diese Fassung darf mehr als die, die Du freigegeben hast."
+      },
       "approvedHow": {
         "review": "Auf diesem Gerät freigegeben am {{when}}",
         "created": "Auf diesem Gerät angelegt am {{when}}",
         "copied": "Auf diesem Gerät kopiert am {{when}}",
+        "learned": "Auf diesem Gerät aus einem Vorschlag übernommen am {{when}}",
+        "restored": "Auf diesem Gerät wiederhergestellt am {{when}}",
         "imported": "Auf diesem Gerät importiert am {{when}}"
       },
       "importedFrom": "Importiert aus {{label}}",
@@ -829,6 +842,147 @@
         "conversation": "Prüfung · {{skill}} · {{scenario}}"
       },
       "writeFailed":"Der Skill ließ sich nicht in den Vault schreiben."
+    },
+    "learn": {
+      "action": "Aus diesem Gespräch lernen",
+      "start": "Lernen",
+      "running": "{{model}} liest das Gespräch …",
+      "ask": {
+        "lead": "Das Gespräch geht noch einmal an das Modell, das es geführt hat — an kein anderes. Es bekommt kein Werkzeug: es kann nur vorschlagen.",
+        "to": "Geht an",
+        "local": "{{model}} — auf diesem Gerät",
+        "what": "Was geht",
+        "messages_one": "{{count}} Nachricht: was Du geschrieben hast und was geantwortet wurde.",
+        "messages_other": "{{count}} Nachrichten: was Du geschrieben hast und was geantwortet wurde.",
+        "omitted_one": "{{count}} Nachricht aus der Mitte bleibt weg: das Gespräch ist zu lang, um ganz zu gehen.",
+        "omitted_other": "{{count}} Nachrichten aus der Mitte bleiben weg: das Gespräch ist zu lang, um ganz zu gehen.",
+        "skills": "Die Anweisungen von {{names}}, damit eine bessere Fassung vorgeschlagen werden kann.",
+        "notSent": "Nichts, was ein Werkzeug zurückgab, und keine Notiz, die als Kontext mitging.",
+        "comes": "Was zurückkommen kann",
+        "size": "Umfang",
+        "estimate": "Etwa {{tokens}} Token",
+        "estimateCost": "Etwa {{tokens}} Token · etwa {{cost}}",
+        "nothingCounts": "Nichts von dem, was es vorschlägt, gilt, bevor Du es übernimmst."
+      },
+      "kind": {
+        "memory": "Einträge fürs Gedächtnis",
+        "rule": "Regeln",
+        "skill": "Ein Skill oder andere Anweisungen für einen"
+      },
+      "limit": {
+        "foreign": "Dieses Gespräch hat fremde Texte gelesen — eine Webseite, eine E-Mail oder ein externes Werkzeug. Daraus entstehen Fakten fürs Gedächtnis; eine Regel oder ein Skill entsteht daraus nicht.",
+        "restricted": "Dieses Gespräch beruht auf Notizen, die nicht in die Cloud oder nicht ins Internet dürfen. Einträge daraus tragen diese Regel; eine Regel oder ein Skill entsteht daraus nicht.",
+        "memory-off": "Das Gedächtnis ist auf diesem Gerät ausgeschaltet: es werden keine Einträge vorgeschlagen.",
+        "read-only": "Dieses Gerät kann die Anweisungen oder das Gedächtnis des Vaults nicht schreiben; dafür wird nichts vorgeschlagen."
+      },
+      "result": {
+        "lead": "{{model}} hat das Gespräch noch einmal gelesen — dasselbe Modell, das es geführt hat; es ging nirgendwo sonst hin. Was es vorschlägt, steht unten und unter „Offen“. Nichts davon gilt, bevor Du es übernimmst.",
+        "none": "In diesem Gespräch war nichts, was sich festzuhalten lohnt",
+        "noneHint": "Auch das ist eine Antwort: nicht jedes Gespräch lehrt etwas.",
+        "known_one": "{{count}} Vorschlag steht schon im Gedächtnis.",
+        "known_other": "{{count}} Vorschläge stehen schon im Gedächtnis.",
+        "dropped_one": "{{count}} Vorschlag blieb weg: ohne Beleg, zu lang oder von einer Art, die dieses Gespräch nicht vorschlagen darf.",
+        "dropped_other": "{{count}} Vorschläge blieben weg: ohne Beleg, zu lang oder von einer Art, die dieses Gespräch nicht vorschlagen darf.",
+        "full": "Die Liste der Entwürfe ist voll: nicht alles konnte abgelegt werden. Entscheide über das, was unter „Offen“ wartet, und lerne dann noch einmal.",
+        "usage": "~{{sent}} Token gesendet · ~{{received}} empfangen",
+        "usageCost": "~{{sent}} Token gesendet · ~{{received}} empfangen · {{cost}}"
+      },
+      "refused": {
+        "off": "Die KI ist ausgeschaltet.",
+        "no-vault": "Es ist kein Vault geöffnet.",
+        "gone": "Dieses Gespräch gibt es nicht mehr.",
+        "empty": "In diesem Gespräch wurde noch nichts gesagt und beantwortet.",
+        "no-model": "Das Modell, das dieses Gespräch geführt hat, ist auf diesem Gerät nicht mehr eingerichtet. An ein anderes geht das Gespräch nicht.",
+        "kept": "Dieses Gespräch lief auf diesem Gerät und bleibt hier: an ein Modell in der Cloud geht es nicht.",
+        "denied": "Eine Notiz, auf der dieses Gespräch beruht, darf nicht mehr an dieses Modell gehen.",
+        "nothing": "Aus diesem Gespräch lässt sich hier nichts vorschlagen: das Gedächtnis ist auf diesem Gerät ausgeschaltet oder nicht schreibbar, und eine Regel oder einen Skill darf dieses Gespräch nicht vorschlagen.",
+        "busy": "Die KI ist gerade beschäftigt. Versuch es wieder, wenn sie fertig ist.",
+        "cancelled": "Angehalten. Es wurde nichts abgelegt.",
+        "invalid": "Die Antwort war keine Liste von Vorschlägen. Es wurde nichts abgelegt.",
+        "failed": "Das hat nicht geklappt. Es wurde nichts abgelegt."
+      },
+      "draft": {
+        "why": "Beleg",
+        "changed": "{{name}} — geänderte Fassung",
+        "new": "{{name}} — neuer Skill",
+        "rightsStay": "Nur seine Anweisungen ändern sich. Was er darf, bleibt, wie es ist.",
+        "newRights": "Er beginnt mit den Vorgaben der App: er liest und zeigt, und ändert nichts.",
+        "review": "Ansehen"
+      },
+      "draftRefused": {
+        "changed": "Dieser Skill ist nicht mehr der, den der Vorschlag gelesen hat — er hat sich geändert oder wartet auf Deine Prüfung. Der Entwurf bleibt: prüfe den Skill oder verwirf den Entwurf.",
+        "invalid": "Das sind keine Anweisungen, die ein Skill haben kann: leer oder zu lang.",
+        "gone": "Den Skill gibt es nicht mehr.",
+        "exists": "Einen Skill mit diesem Namen gibt es inzwischen. Er wird nicht überschrieben."
+      },
+      "done": {
+        "skill": "Übernommen. Der Skill ist auf diesem Gerät so freigegeben, wie Du ihn gesehen hast.",
+        "line": "Übernommen: {{name}}"
+      },
+      "review": {
+        "titleChange": "Andere Anweisungen für „{{name}}“",
+        "titleNew": "Neuer Skill „{{name}}“",
+        "purpose": "Wofür er ist",
+        "changes": "Was sich ändert",
+        "rightsSame": "Unverändert.",
+        "rightsNote": "Ein Vorschlag ändert nur die Anweisungen. Werkzeuge, Ordner und Grenzen eines Skills setzt nie ein Modell.",
+        "rightsNew": "Ein Skill aus einem Vorschlag beginnt mit den Vorgaben der App. Mehr kannst Du ihm in seiner Datei geben — das ist Deine Änderung und fragt wieder nach Deiner Freigabe.",
+        "check": "Prüfung",
+        "testedNow": "Die jetzige Fassung — {{note}}.",
+        "untested": "Die neue Fassung ist ungeprüft. Nach dem Übernehmen lässt „{{check}}“ in der Zeile des Skills seine Szenarien gegen sie laufen.",
+        "cost": "Kosten",
+        "costMore": "Etwa {{tokens}} Token mehr in jedem Lauf dieses Skills.",
+        "costLess": "Etwa {{tokens}} Token weniger in jedem Lauf dieses Skills.",
+        "costSame": "Etwa so lang wie bisher.",
+        "costNew": "Etwa {{tokens}} Token in jedem Lauf dieses Skills.",
+        "proposedBy": "Vorgeschlagen von {{author}} am {{when}}, aus dem Gespräch „{{conversation}}“",
+        "proposedByBare": "Vorgeschlagen von {{author}} am {{when}}",
+        "hintChange": "Mit „Übernehmen“ wird die neue Fassung geschrieben und auf diesem Gerät freigegeben — Du hast sie hier gesehen. Die jetzige bleibt im Verlauf: „{{versions}}“ im Menü der Zeile bringt sie zurück. Auf Deinen anderen Geräten wartet die Änderung auf die eigene Freigabe.",
+        "hintNew": "Mit „Übernehmen“ wird der Skill in den Vault geschrieben und auf diesem Gerät freigegeben — Du hast ihn hier gesehen. Auf Deinen anderen Geräten wartet er auf die eigene Freigabe.",
+        "take": "Übernehmen",
+        "rework": "Überarbeiten",
+        "compare": "Vergleichen",
+        "reworkHint": "Was Du hier änderst, ist das, was übernommen wird. Werkzeuge, Ordner und Grenzen des Skills gehören nicht dazu."
+      },
+      "watch": {
+        "title": "Fassungen unter Beobachtung",
+        "row": "unter Beobachtung · {{runs}} von {{of}} Läufen",
+        "rowFailed": "unter Beobachtung · {{failed}} von {{runs}} Läufen ohne Antwort",
+        "failed": "„{{name}}“: seit der neuen Fassung endeten {{failed}} von {{runs}} Läufen ohne Antwort.",
+        "hint": "Die vorige Fassung ist aufbewahrt. Zurückgegangen wird nie von selbst: auch das wäre eine Änderung, die niemand gesehen hat.",
+        "back": "Zurück zur vorigen Fassung",
+        "keep": "Behalten",
+        "backDone": "Zurück zur vorigen Fassung. Sie ist auf diesem Gerät freigegeben wie zuvor."
+      },
+      "restoreRefused": {
+        "unavailable": "Dieses Gerät kann die Skills des Vaults nicht schreiben.",
+        "gone": "Den Skill oder diese Fassung gibt es nicht mehr.",
+        "changed": "Der Skill ist nicht mehr so, wie er hier gezeigt wurde. Sieh ihn Dir noch einmal an.",
+        "invalid": "Diese Fassung ist kein Skill, wie das Format ihn festlegt; sie wird nicht zurückgeschrieben.",
+        "no-history": "Der Vault konnte die jetzige Fassung nicht vorher sichern; deshalb wurde nichts überschrieben.",
+        "failed": "Das hat nicht geklappt. Es wurde nichts geändert."
+      },
+      "versions": {
+        "action": "Frühere Fassungen …",
+        "title": "Frühere Fassungen von „{{name}}“",
+        "now": "Jetzt",
+        "earlier": "Frühere Fassung",
+        "at": "Stand vom {{when}}",
+        "empty": "Es ist keine frühere Fassung aufbewahrt",
+        "none": "Dieser Vault führt auf diesem Gerät keinen Versionsverlauf",
+        "emptyHint": "Der Vault bewahrt eine Fassung auf, wenn die Datei eines Skills geändert wird — von Dir im Editor oder durch das Übernehmen eines Vorschlags.",
+        "against": "Gegenüber jetzt",
+        "same": "Diese Fassung liest sich wie die jetzige.",
+        "rightsSame": "Dasselbe wie jetzt.",
+        "wider": "Diese Fassung darf mehr als der Skill jetzt.",
+        "hint": "„Diese Fassung wiederherstellen“ schreibt die gewählte Fassung zurück und gibt sie auf diesem Gerät frei — Du siehst sie hier. Die jetzige bleibt im Verlauf. Die Fassungen stammen aus dem Versionsverlauf des Vaults und liegen auf diesem Gerät.",
+        "restore": "Diese Fassung wiederherstellen",
+        "restored": "Wiederhergestellt. Die Fassung ist auf diesem Gerät so freigegeben, wie Du sie gesehen hast."
+      },
+      "log": {
+        "title": "Was gelernt wurde",
+        "desc": "Skills und Regeln, die aus einem Vorschlag übernommen wurden, mit Tag und Gespräch. Eine Datei des Vaults, die mit ihm reist."
+      }
     },
     "memory": {
       "segment": "Gedächtnis",
@@ -1529,6 +1683,7 @@
           "memory": "Entwurf · Gedächtnis-Eintrag",
           "forget": "Entwurf · Aus dem Gedächtnis entfernen",
           "rule": "Entwurf · Regel für die KI",
+          "skill": "Entwurf · Skill",
           "entry": "Entwurf · Datenbank-Eintrag"
         },
         "what": {
@@ -1540,6 +1695,7 @@
           "memory": "Eintrag",
           "forget": "Eintrag",
           "rule": "Regel",
+          "skill": "Skill",
           "entry": "Eintrag"
         },
         "landsIn": "Landet in",

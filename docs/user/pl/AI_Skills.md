@@ -80,6 +80,32 @@ Umiejętność może mieć scenariusze testowe: wiadomość, która ją uruchami
 
 Każdy scenariusz to zwykłe uruchomienie swojej umiejętności: czyta vault jak uruchomienie ręczne, przechodzi przez ten sam przegląd przed wysłaniem, liczy się do Twojego zużycia i zostawia swoją rozmowę w historii, gdzie zastępuje ją jego następne uruchomienie. Potem każdy scenariusz pokazuje wynik słowami, a wiersz umiejętności mówi, jak poszło jej ostatnie uruchomienie. Wynik dotyczy jednego modelu i jednej wersji umiejętności: gdy wybierzesz inny model albo zmienisz umiejętność, wiersz to powie, zamiast pokazywać wynik, który już się nie liczy. Niektóre dołączone scenariusze pytają o notatki z testowego vaultu Plainvy; w Twoim vaulcie nie mają zastosowania, a okno liczy je osobno, zamiast uznawać je za niezaliczone.
 
+## Uczenie się z rozmowy
+
+Rozmowa może coś po sobie zostawić: fakt, który warto znać, regułę albo umiejętność, która nie poszła wystarczająco daleko. Poleceniem **Naucz się z tej rozmowy** — w menu rozmowy na liście i pod jej ostatnią odpowiedzią — możesz o to poprosić. Nic nie czyta Twoich rozmów w tle.
+
+Okno dialogowe najpierw mówi, co by się stało: rozmowa trafia jeszcze raz do modelu, który ją prowadził, i do żadnego innego — czyli Twój tekst i odpowiedzi, z nazwami użytych narzędzi. Nic z tego, co zwróciło narzędzie, nie jest dołączane, a notatki również nie. Jeśli w rozmowie uruchomiono własną umiejętność, jej instrukcje są dołączane, aby można było zaproponować lepszą wersję. Przycisk **Naucz się** uruchamia przegląd, a ten kosztuje jedno zapytanie.
+
+Wracają szkice, a przy każdym z nich widnieje **Dowód** podany przez przegląd; nic z tego nie obowiązuje, dopóki tego nie zaakceptujesz. O wpisie do pamięci i o regule decydujesz na ich kartach, jak opisano na stronie [Pamięć](AI_Memory.md). Szkic umiejętności ma zamiast tego przycisk **Sprawdź**.
+
+Rozmowa, która czytała treść ze strony internetowej, z e-maila lub z narzędzia zewnętrznego, proponuje tylko wpisy do pamięci: to, co napisał ktoś obcy, nie staje się regułą ani umiejętnością. To samo dotyczy rozmowy opartej na notatkach trzymanych z dala od chmury lub od internetu, a wpisy z niej niosą tę regułę. Rozmowa prowadzona z modelem na tym urządzeniu jest przeglądana na tym urządzeniu.
+
+### Akceptowanie propozycji dla umiejętności
+
+Przycisk **Sprawdź** pokazuje wiersz po wierszu, co by się zmieniło, oraz to, co umiejętność może robić — a to zostaje bez zmian: propozycja zmienia instrukcje umiejętności i nic więcej. Narzędzi, folderów i limitów umiejętności nigdy nie ustawia model. Okno mówi też, czy bieżąca wersja została sprawdzona, ile więcej lub mniej kosztuje jedno uruchomienie i z której rozmowy pochodzi propozycja. Przycisk **Przeredaguj** zamienia porównanie w pole, w którym możesz pisać.
+
+Przycisk **Zaakceptuj** zapisuje nową wersję i zatwierdza ją na tym urządzeniu, ponieważ właśnie tu została Ci pokazana. Na Twoich pozostałych urządzeniach umiejętność czeka wtedy na własne zatwierdzenie, jak po każdej zmianie. Nowa umiejętność z propozycji zaczyna od ustawień domyślnych Plainva: czyta i pokazuje, niczego nie zmienia. Propozycja nigdy nie przepisuje umiejętności zaimportowanej przez Ciebie ani umiejętności dołączonych do Plainva.
+
+### Wersje pod obserwacją i droga powrotna
+
+Wersja, która pochodzi z propozycji, jest obserwowana przez trzy uruchomienia, a wiersz umiejętności je zlicza. Jeśli uruchomienie nie kończy się odpowiedzią, sekcja umiejętności wymienia tę umiejętność pod nagłówkiem **Wersje pod obserwacją** i oferuje dwie możliwości: **Wróć do poprzedniej wersji** albo **Zachowaj**. Nic nie wraca samo.
+
+Polecenie **Wcześniejsze wersje…** w menu umiejętności pokazuje to, co historia wersji vaultu zachowuje z pliku umiejętności. Okno zestawia wybraną przez Ciebie wersję z umiejętnością w obecnej postaci — jej wiersze i to, co może robić — i ostrzega, gdy wcześniejsza wersja może robić więcej. Przycisk **Przywróć tę wersję** zapisuje ją z powrotem i zatwierdza na tym urządzeniu. Wersje są przechowywane na tym urządzeniu.
+
+W przypadku umiejętności zmienionej w inny sposób — przez synchronizację albo edycję na innym urządzeniu — przycisk **Sprawdź i zatwierdź** pokazuje to samo pod nagłówkiem **W porównaniu z zatwierdzoną wersją**: które narzędzia doszły, a które odpadły, a także foldery i limit.
+
+Pod nagłówkiem **Czego się nauczono** sekcja umiejętności otwiera plik `.agent/logs/learning.md`: po jednym wierszu dla każdej umiejętności i każdej reguły zaakceptowanej z propozycji, z dniem i rozmową. Plik podróżuje razem z Twoim vaultem.
+
 ## Co trafia do dostawcy
 
 Podgląd wysyłki wymienia w **Instrukcje**, co idzie razem z prośbą: umiejętność rozmowy, listę umiejętności, które AI może wczytać, oraz `AGENTS.md`. Gdy instrukcje z vaultu po raz pierwszy trafiają do chmury, podgląd pojawia się ponownie. Niewidoczne znaki w umiejętności nigdy nie trafiają do modelu.

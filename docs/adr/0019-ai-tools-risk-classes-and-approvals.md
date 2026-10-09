@@ -109,6 +109,13 @@ a write or an outside effect.
        an entry by its words, and one the gate keeps from its recipient is
        answered like one that is not there. The two tools exist in Plainva's
        own conversations only (ADR 0027).
+     - *What a review of a conversation suggests is a draft* (no tool: the
+       user starts the review, and its one request carries none): an entry,
+       a rule, a new skill or other instructions for a skill of the vault's
+       own, each with the one sentence of evidence it came with. A skill's
+       draft holds a name, what the skill is for and its instructions and
+       nothing else of a skill; it is accepted in a review that shows what
+       changes, never on its card (ADR 0028).
      - *A run that fills a column is not a conversation* (`fillProperty`):
        the app, not a model, walks the entries. Each note that says nothing
        in the column goes in a request of its own — its properties, its

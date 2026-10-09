@@ -1,6 +1,8 @@
 import { parseOkfSources, type OkfSource } from "../../okf-trust.js";
 import { MEMORY_LIMITS, memoryTextProblem, type MemoryPlace } from "../memory/memoryFile.js";
 import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "../policy.js";
+import { SKILL_DESCRIPTION_MAX, skillNameProblems } from "../skills/skillFile.js";
+import { SKILLS_FOLDER } from "../skills/sources.js";
 import { machineAuthorKind } from "./authors.js";
 import { parseMissingLinks } from "./links.js";
 import type { PropertyValue } from "./properties.js";
@@ -74,7 +76,20 @@ export type WriteDraftBody =
    * instructions. A rule is no memory — it says what to do —, so it becomes
    * a line of `AGENTS.md`, which each device approves for itself.
    */
-  | { kind: "rule"; text: string };
+  | { kind: "rule"; text: string }
+  /**
+   * A skill, or other instructions for one the vault has (plan P6, ADR 0020):
+   * what a review of a conversation proposes. `change` names the vault's own
+   * skill it would rewrite — its id, and the SHA-256 of its main file as the
+   * proposal read it, so a skill that changed since is not overwritten —;
+   * null for a new skill, which is then called `name` and is for
+   * `description`. For a change both only say which skill is meant; neither
+   * is written. A draft carries nothing else of a skill: its tools, folders,
+   * limits and tests are no model's to set. Created, a new skill is written
+   * with the app's defaults, and a changed one keeps its frontmatter byte for
+   * byte.
+   */
+  | { kind: "skill"; change: { id: string; base: string } | null; name: string; description: string; body: string };
 
 export type WriteDraftKind = WriteDraftBody["kind"];
 
@@ -105,13 +120,19 @@ export interface WriteDraft {
    * For the user, on this device: these are names of notes the rules keep back, and no model is ever shown them.
    */
   withheld?: string[];
+  /**
+   * What the proposal rests on, in its writer's words (plan P6): the one sentence of evidence a review of a
+   * conversation gives for each thing it proposes. Shown under the draft, written nowhere.
+   */
+  why?: string;
 }
 
-export const WRITE_DRAFT_LIMITS = { drafts: 100, title: 200, content: 200_000, text: 2_000, properties: 40, sources: 50, recipients: 50, subject: 300, place: 300, description: 20_000 } as const;
+export const WRITE_DRAFT_LIMITS = { drafts: 100, title: 200, content: 200_000, text: 2_000, properties: 40, sources: 50, recipients: 50, subject: 300, place: 300, description: 20_000, skillBody: 20_000, why: 400 } as const;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const ID = /^[A-Za-z0-9_-]{6,64}$/;
+const HEX64 = /^[0-9a-f]{64}$/;
 
 /**
  * An e-mail address as a draft may carry it: one address, nothing around it.
@@ -223,9 +244,42 @@ function parseBody(raw: unknown): WriteDraftBody | null {
       return filled(raw.entry, MEMORY_LIMITS.entryChars * 2) ? { kind: "forget", entry: raw.entry } : null;
     case "rule":
       return typeof raw.text === "string" && memoryTextProblem(raw.text) === null ? { kind: "rule", text: raw.text } : null;
+    case "skill": {
+      if (!filled(raw.body, WRITE_DRAFT_LIMITS.skillBody) || !text(raw.name, WRITE_DRAFT_LIMITS.title) || !text(raw.description, SKILL_DESCRIPTION_MAX)) return null;
+      const change = raw.change ?? null;
+      if (change !== null) {
+        // Only a skill of the vault's own, named by its folder: nothing that comes with the app, no script, no other file.
+        if (!isRecord(change) || !skillDraftTarget(change.id) || !text(change.base, 64) || !HEX64.test(change.base)) return null;
+        return { kind: "skill", change: { id: change.id, base: change.base }, name: raw.name, description: raw.description, body: raw.body };
+      }
+      // A new skill is written from these two: a name the format takes, and one line that says what it is for.
+      if (skillNameProblems(raw.name).length > 0 || raw.name !== raw.name.trim().normalize("NFKC") || !skillDraftDescription(raw.description)) return null;
+      return { kind: "skill", change: null, name: raw.name, description: raw.description, body: raw.body };
+    }
     default:
       return null;
   }
+}
+
+/** The id of a skill a draft may rewrite: a folder directly under the vault's skills, by a name the format takes. */
+export function skillDraftTarget(value: unknown): value is string {
+  if (typeof value !== "string" || !value.startsWith(`${SKILLS_FOLDER}/`)) return false;
+  const folder = value.slice(SKILLS_FOLDER.length + 1);
+  return folder.length > 0 && !folder.includes("/") && skillNameProblems(folder).length === 0 && folder === folder.trim().normalize("NFKC");
+}
+
+/**
+ * What a new skill is for, as a draft may say it: one line within the
+ * format's bound. No line break and no `---`: the file's frontmatter ends at
+ * the next `---`, and a description that held one would cut it short.
+ */
+export function skillDraftDescription(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim() || value !== value.trim() || value.length > SKILL_DESCRIPTION_MAX || value.includes("---")) return false;
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (code < 32 || code === 127 || code === 0x2028 || code === 0x2029) return false;
+  }
+  return true;
 }
 
 /** One draft as it was stored, or null where it is none. */
@@ -245,10 +299,13 @@ export function parseWriteDraft(raw: unknown): WriteDraft | null {
   const defused = typeof raw.defused === "number" && Number.isSafeInteger(raw.defused) && raw.defused > 0 ? raw.defused : 0;
   const missing = parseMissingLinks(raw.missing);
   const withheld = parseMissingLinks(raw.withheld);
+  // One line of evidence, as it was laid down: cut to its bound, never a reason to lose the draft.
+  const why = typeof raw.why === "string" ? raw.why.replace(/\s+/g, " ").trim().slice(0, WRITE_DRAFT_LIMITS.why) : "";
   return {
     id: raw.id, createdAt: raw.createdAt, author: { id: author.id, label: author.label }, conversationId: conversationId as string | null, title: raw.title, body, inherited, sources, defused,
     ...(missing.length ? { missing } : {}),
     ...(withheld.length ? { withheld } : {}),
+    ...(why ? { why } : {}),
   };
 }
 
@@ -297,7 +354,7 @@ export interface WriteDraftOutcome {
 
 export const WRITE_DRAFT_DONE_CAP = 200;
 
-const KINDS: readonly WriteDraftKind[] = ["note", "task", "journal", "entry", "mail", "event", "memory", "forget", "rule"];
+const KINDS: readonly WriteDraftKind[] = ["note", "task", "journal", "entry", "mail", "event", "memory", "forget", "rule", "skill"];
 /** The kinds that end in the vault's memory or its standing instructions (plan P6): made by the app, and no note to open. */
 export const MEMORY_DRAFT_KINDS: readonly WriteDraftKind[] = ["memory", "forget", "rule"];
 /** The kinds that are handed to an editor of the app's instead of being made: they are opened, never created. */

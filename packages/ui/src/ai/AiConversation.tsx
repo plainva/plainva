@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
+import { Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
 import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, comparableAddress, hasImages, hasWebTools, knownAddresses, providerById, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
@@ -21,6 +21,7 @@ import { AI_TRANSLATE_LANGUAGES, askMessage, runSuggestAction, type AiSuggestAct
 import { startableSkills } from "./aiSkills";
 import { AiSendOverview } from "./AiSendOverview";
 import { AiRunWrites, useDraftActions } from "./AiWriteCards";
+import { openLearnSurface } from "./aiLearn";
 import { aiFailureText } from "./aiSettingsModel";
 import type { AiDress } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
@@ -125,6 +126,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
 
   const active = state?.active ?? null;
   const items = useMemo(() => (active ? transcriptOf(active) : []), [active]);
+  // The conversation's last run: under it stands the way to learn from the whole of it (plan P6-2).
+  const lastRunKey = useMemo(() => {
+    for (let index = items.length - 1; index >= 0; index--) if (items[index]!.kind === "run") return items[index]!.key;
+    return null;
+  }, [items]);
   // The addresses that stood in front of the model: a link to any other one, the model composed itself (plan P4).
   const known = useMemo(() => (active ? knownAddresses(active.conversation) : null), [active]);
   // A page a run already asked for went out with the user's leave: a link to that very address tells nothing new.
@@ -417,6 +423,13 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" disabled={capturing !== null || running} onClick={() => capture(item.run.userTurn)} data-testid="ai-capture">
                 <FilePlus2 size={ICON.meta} aria-hidden="true" />
                 {t("ai.capture.action")}
+              </Button>
+            )}
+            {/* What this conversation can teach (plan P6-2): asked for by the user, and first shown — nothing is sent by this button. */}
+            {active && item.key === lastRunKey && item.run.stop === "answered" && (
+              <Button size="sm" variant="ghost" className="pv-ai-runline pv-ai-capture" disabled={running || state.learning !== null} onClick={() => openLearnSurface({ kind: "learn", conversationId: active.id })} data-testid="ai-learn-open">
+                <GraduationCap size={ICON.meta} aria-hidden="true" />
+                {t("ai.learn.action")}
               </Button>
             )}
             {open && manifest && (

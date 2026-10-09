@@ -17,6 +17,8 @@ export interface MemoryVaultOptions {
   policy?: string;
   /** The shell cannot write the vault's agent files: the memory is read only. */
   readOnly?: boolean;
+  /** The vault's version history: kept (the default), not there at all, or one that cannot take a snapshot right now. */
+  history?: "kept" | "none" | "failing";
 }
 
 const title = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
@@ -52,6 +54,27 @@ export function memoryVault(files: Record<string, string> = {}, options: MemoryV
     },
   };
   const read = async (path: string) => disk.get(path) ?? null;
+  // The vault's version history, as a skill's rewrite uses it (plan P6-2): a snapshot keeps the file as it is now,
+  // unless the newest one already holds exactly that text — what `BackupVaultAdapter.ensureSnapshot` does.
+  const versions: { id: string; path: string; at: number; text: string }[] = [];
+  let clock = Date.parse("2026-10-01T08:00:00Z");
+  const history = {
+    async snapshot(path: string) {
+      if (options.history === "failing") throw new Error("no snapshot");
+      const text = disk.get(path);
+      if (text === undefined) return;
+      const newest = versions.filter((version) => version.path === path).sort((a, b) => b.at - a.at)[0];
+      if (newest?.text === text) return;
+      clock += 3_600_000;
+      versions.push({ id: `.plainva/backups/${path}.${clock}.bak`, path, at: clock, text });
+    },
+    list: async (path: string) =>
+      versions
+        .filter((version) => version.path === path)
+        .sort((a, b) => b.at - a.at)
+        .map((version) => ({ id: version.id, at: version.at, size: version.text.length })),
+    read: async (id: string) => versions.find((version) => version.id === id)?.text ?? null,
+  };
   const resolveLink = async (target: string) => {
     const wanted = target.toLowerCase();
     return [...disk.keys()].find((path) => title(path).toLowerCase() === wanted || path.toLowerCase() === wanted || path.toLowerCase() === `${wanted}.md`) ?? null;
@@ -111,11 +134,14 @@ export function memoryVault(files: Record<string, string> = {}, options: MemoryV
     },
     instructionIO: io,
     ...(options.readOnly ? {} : { instructionWriter: writer }),
+    ...(options.history === "none" ? {} : { instructionVersions: history }),
   });
   return {
     host,
     /** The vault's files, by path. */
     disk,
+    /** What the version history keeps, oldest first. */
+    versions,
     /** The app's data on this device: the switch, the drafts, the approvals. */
     appData,
     written,

@@ -713,10 +713,23 @@
       "mayAgents": "Instruções permanentes para cada nova conversa neste vault. Elas não podem suspender suas regras de privacidade.",
       "originApp": "Incluída no Plainva",
       "originPath": "Fica em {{path}}",
+      "rights": {
+        "title": "Em comparação com a versão aprovada",
+        "same": "Ela pode fazer o mesmo que a versão que você aprovou.",
+        "toolsAdded": "Agora também pode usar: {{tools}}",
+        "toolsRemoved": "Não usa mais: {{tools}}",
+        "folders": "Pastas: {{after}} (antes: {{before}})",
+        "budget": "Saída máxima por execução: {{after}} (antes: {{before}})",
+        "wholeVault": "o vault inteiro",
+        "noBudget": "o limite da própria conversa",
+        "widened": "Esta versão pode fazer mais do que a que você aprovou."
+      },
       "approvedHow": {
         "review": "Aprovada neste dispositivo em {{when}}",
         "created": "Criada neste dispositivo em {{when}}",
         "copied": "Copiada neste dispositivo em {{when}}",
+        "learned": "Aceita de uma sugestão neste dispositivo em {{when}}",
+        "restored": "Restaurada neste dispositivo em {{when}}",
         "imported": "Importada neste dispositivo em {{when}}"
       },
       "importedFrom": "Importada de {{label}}",
@@ -860,6 +873,151 @@
         "conversation": "Teste · {{skill}} · {{scenario}}"
       },
       "writeFailed":"Não foi possível gravar a habilidade no vault."
+    },
+    "learn": {
+      "action": "Aprender com esta conversa",
+      "start": "Aprender",
+      "running": "{{model}} está lendo a conversa…",
+      "ask": {
+        "lead": "A conversa vai mais uma vez para o modelo que a conduziu — e para nenhum outro. Ele não recebe nenhuma ferramenta: só pode sugerir.",
+        "to": "Vai para",
+        "local": "{{model}} — neste dispositivo",
+        "what": "O que vai",
+        "messages_one": "{{count}} mensagem: o que você escreveu e o que foi respondido.",
+        "messages_many": "{{count}} mensagens: o que você escreveu e o que foi respondido.",
+        "messages_other": "{{count}} mensagens: o que você escreveu e o que foi respondido.",
+        "omitted_one": "{{count}} mensagem do meio fica de fora: a conversa é longa demais para ir por inteiro.",
+        "omitted_many": "{{count}} mensagens do meio ficam de fora: a conversa é longa demais para ir por inteiro.",
+        "omitted_other": "{{count}} mensagens do meio ficam de fora: a conversa é longa demais para ir por inteiro.",
+        "skills": "As instruções de {{names}}, para que uma versão melhor possa ser sugerida.",
+        "notSent": "Nada do que uma ferramenta devolveu e nenhuma nota enviada junto como contexto.",
+        "comes": "O que pode voltar",
+        "size": "Tamanho",
+        "estimate": "Cerca de {{tokens}} tokens",
+        "estimateCost": "Cerca de {{tokens}} tokens · cerca de {{cost}}",
+        "nothingCounts": "Nada do que o modelo sugere vale antes de você aceitar."
+      },
+      "kind": {
+        "memory": "Entradas para a memória",
+        "rule": "Regras",
+        "skill": "Uma habilidade ou outras instruções para uma"
+      },
+      "limit": {
+        "foreign": "Esta conversa leu textos de terceiros — uma página da web, um e-mail ou uma ferramenta externa. O que ela ensina são fatos para a memória; dela não resulta nenhuma regra nem habilidade.",
+        "restricted": "Esta conversa se baseia em notas que não podem ir para a nuvem ou para a internet. As entradas dela recebem essa regra; dela não resulta nenhuma regra nem habilidade.",
+        "memory-off": "A memória está desligada neste dispositivo: nenhuma entrada é sugerida.",
+        "read-only": "Este dispositivo não consegue gravar as instruções nem a memória do vault; por isso, nada é sugerido para elas."
+      },
+      "result": {
+        "lead": "{{model}} leu a conversa mais uma vez — o mesmo modelo que a conduziu; ela não foi para nenhum outro lugar. O que ele sugere está abaixo e em “Pendentes”. Nada disso vale antes de você aceitar.",
+        "none": "Nada que valha a pena guardar nesta conversa",
+        "noneHint": "Isso também é uma resposta: nem toda conversa ensina alguma coisa.",
+        "known_one": "{{count}} sugestão já está na memória.",
+        "known_many": "{{count}} sugestões já estão na memória.",
+        "known_other": "{{count}} sugestões já estão na memória.",
+        "dropped_one": "{{count}} sugestão ficou de fora: sem evidência, longa demais ou de um tipo que esta conversa não pode sugerir.",
+        "dropped_many": "{{count}} sugestões ficaram de fora: sem evidência, longas demais ou de um tipo que esta conversa não pode sugerir.",
+        "dropped_other": "{{count}} sugestões ficaram de fora: sem evidência, longas demais ou de um tipo que esta conversa não pode sugerir.",
+        "full": "A lista de rascunhos está cheia: nem tudo pôde ser guardado. Decida sobre o que aguarda em “Pendentes” e depois aprenda de novo.",
+        "usage": "~{{sent}} tokens enviados · ~{{received}} recebidos",
+        "usageCost": "~{{sent}} tokens enviados · ~{{received}} recebidos · {{cost}}"
+      },
+      "refused": {
+        "off": "A IA está desativada.",
+        "no-vault": "Nenhum vault está aberto.",
+        "gone": "Esta conversa não existe mais.",
+        "empty": "Nesta conversa ainda não se disse nem se respondeu nada.",
+        "no-model": "O modelo que conduziu esta conversa não está mais configurado neste dispositivo. A conversa não vai para nenhum outro.",
+        "kept": "Esta conversa foi conduzida neste dispositivo e fica aqui: ela não vai para um modelo na nuvem.",
+        "denied": "Uma nota em que esta conversa se baseia não pode mais ir para este modelo.",
+        "nothing": "Aqui, nada pode ser sugerido a partir desta conversa: a memória está desligada ou não pode ser gravada neste dispositivo, e esta conversa não pode sugerir regra nem habilidade.",
+        "busy": "A IA está ocupada no momento. Tente de novo quando ela terminar.",
+        "cancelled": "Parado. Nada foi guardado.",
+        "invalid": "A resposta não era uma lista de sugestões. Nada foi guardado.",
+        "failed": "Não deu certo. Nada foi guardado."
+      },
+      "draft": {
+        "why": "Evidência",
+        "changed": "{{name}} — outras instruções",
+        "new": "{{name}} — nova habilidade",
+        "rightsStay": "Só as instruções dela mudam. O que ela pode fazer continua como está.",
+        "newRights": "Ela começa com os padrões do app: lê e mostra, e não altera nada.",
+        "review": "Revisar"
+      },
+      "draftRefused": {
+        "changed": "Esta habilidade não é mais a que a sugestão leu — ela mudou ou aguarda a sua revisão. O rascunho permanece: revise a habilidade ou descarte o rascunho.",
+        "invalid": "Estas não são instruções que uma habilidade possa ter: vazias ou longas demais.",
+        "gone": "A habilidade não existe mais.",
+        "exists": "Já existe uma habilidade com este nome. Nada é sobrescrito."
+      },
+      "done": {
+        "skill": "Aceito. A habilidade está aprovada neste dispositivo como você a viu.",
+        "line": "Aceito: {{name}}"
+      },
+      "review": {
+        "titleChange": "Outras instruções para “{{name}}”",
+        "titleNew": "Nova habilidade “{{name}}”",
+        "purpose": "Para que serve",
+        "changes": "O que muda",
+        "rightsSame": "Sem alteração.",
+        "rightsNote": "Uma sugestão altera apenas as instruções. As ferramentas, as pastas e os limites de uma habilidade nunca são definidos por um modelo.",
+        "rightsNew": "Uma habilidade criada a partir de uma sugestão começa com os padrões do app. No arquivo dela, você pode permitir que ela faça mais — essa é uma alteração sua e pede sua aprovação de novo.",
+        "check": "Teste",
+        "testedNow": "A versão atual — {{note}}.",
+        "untested": "A nova versão ainda não foi testada. Depois de aceitá-la, “{{check}}” na linha da habilidade executa os cenários dela com essa versão.",
+        "cost": "Custo",
+        "costMore": "Cerca de {{tokens}} tokens a mais em cada execução desta habilidade.",
+        "costLess": "Cerca de {{tokens}} tokens a menos em cada execução desta habilidade.",
+        "costSame": "Tem aproximadamente o mesmo tamanho de antes.",
+        "costNew": "Cerca de {{tokens}} tokens em cada execução desta habilidade.",
+        "proposedBy": "Sugerido por {{author}} em {{when}}, a partir da conversa “{{conversation}}”",
+        "proposedByBare": "Sugerido por {{author}} em {{when}}",
+        "hintChange": "“Aceitar” grava a nova versão e a aprova neste dispositivo — você a viu aqui. A atual permanece no histórico: “{{versions}}” no menu da linha a traz de volta. Nos seus outros dispositivos, a alteração aguarda a própria aprovação.",
+        "hintNew": "“Aceitar” grava a habilidade no vault e a aprova neste dispositivo — você a viu aqui. Nos seus outros dispositivos, ela aguarda a própria aprovação.",
+        "take": "Aceitar",
+        "rework": "Ajustar",
+        "compare": "Comparar",
+        "reworkHint": "O que você alterar aqui é o que será aceito. As ferramentas, as pastas e os limites da habilidade não fazem parte disso."
+      },
+      "watch": {
+        "title": "Versões em observação",
+        "row": "em observação · {{runs}} de {{of}} execuções",
+        "rowFailed": "em observação · {{failed}} de {{runs}} execuções sem resposta",
+        "failed": "“{{name}}”: desde a nova versão, {{failed}} de {{runs}} execuções sem resposta.",
+        "hint": "A versão anterior continua salva. Nada volta por conta própria: isso também seria uma alteração que ninguém viu.",
+        "back": "Voltar à versão anterior",
+        "keep": "Manter",
+        "backDone": "De volta à versão anterior. Ela está aprovada neste dispositivo, como estava."
+      },
+      "restoreRefused": {
+        "unavailable": "Este dispositivo não consegue gravar as habilidades do vault.",
+        "gone": "A habilidade, ou esta versão dela, não existe mais.",
+        "changed": "A habilidade não está mais como foi mostrada aqui. Veja-a de novo.",
+        "invalid": "Esta versão não é uma habilidade como o formato a define, por isso não é gravada de volta.",
+        "no-history": "O vault não conseguiu salvar primeiro a versão atual, por isso nada foi sobrescrito.",
+        "failed": "Não deu certo. Nada foi alterado."
+      },
+      "versions": {
+        "action": "Versões anteriores…",
+        "title": "Versões anteriores de “{{name}}”",
+        "now": "Agora",
+        "earlier": "Versão anterior",
+        "at": "Versão de {{when}}",
+        "empty": "Nenhuma versão anterior salva",
+        "none": "Este vault não mantém histórico de versões neste dispositivo",
+        "emptyHint": "O vault salva uma versão quando o arquivo de uma habilidade é alterado — por você no editor ou ao aceitar uma sugestão.",
+        "against": "Em comparação com agora",
+        "same": "Esta versão tem o mesmo texto que a atual.",
+        "rightsSame": "O mesmo que agora.",
+        "wider": "Esta versão pode fazer mais do que a habilidade atual.",
+        "hint": "“Restaurar esta versão” grava a versão escolhida de volta e a aprova neste dispositivo — você a vê aqui. A atual permanece no histórico. As versões vêm do histórico de versões do vault e ficam neste dispositivo.",
+        "restore": "Restaurar esta versão",
+        "restored": "Restaurada. A versão está aprovada neste dispositivo como você a viu."
+      },
+      "log": {
+        "title": "O que foi aprendido",
+        "desc": "Habilidades e regras aceitas a partir de uma sugestão, com o dia e a conversa. Um arquivo do vault que viaja com ele."
+      }
     },
     "memory": {
       "segment": "Memória",
@@ -1565,6 +1723,7 @@
           "memory": "Rascunho · Entrada da memória",
           "forget": "Rascunho · Remover da memória",
           "rule": "Rascunho · Regra para a IA",
+          "skill": "Rascunho · Habilidade",
           "entry": "Rascunho · Entrada de banco de dados"
         },
         "what": {
@@ -1576,6 +1735,7 @@
           "memory": "Entrada",
           "forget": "Entrada",
           "rule": "Regra",
+          "skill": "Habilidade",
           "entry": "Entrada"
         },
         "landsIn": "Vai para",
