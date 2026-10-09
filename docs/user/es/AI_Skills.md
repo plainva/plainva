@@ -2,7 +2,7 @@
 
 Última actualización: 2026-10-09
 
-Una habilidad es un conjunto de instrucciones para un trabajo que se repite: preparar una reunión, ordenar tus tareas, un repaso semanal. Plainva incluye doce y puedes escribir las tuyas. Las habilidades usan el formato abierto Agent Skills —una carpeta con un `SKILL.md`—, así que también funcionan en otras apps de IA que leen ese formato.
+Una habilidad es un conjunto de instrucciones para un trabajo que se repite: preparar una reunión, ordenar tus tareas, un repaso semanal. Plainva incluye trece y puedes escribir las tuyas. Las habilidades usan el formato abierto Agent Skills —una carpeta con un `SKILL.md`—, así que también funcionan en otras apps de IA que leen ese formato.
 
 ## Usar una habilidad
 
@@ -24,10 +24,11 @@ También puedes simplemente preguntar. En cada conversación la IA conoce los no
 | **Escribir y revisar** | Resume, acorta o reescribe una nota, como texto que copias tú. |
 | **Cuidar el conocimiento** | Encuentra notas que dicen lo mismo, están desactualizadas o no están conectadas con nada. |
 | **Revisar enlaces** | Revisa los enlaces de una nota: que no llevan a ninguna parte, que faltan, de un solo sentido. |
+| **Cuidar la memoria** | Encuentra entradas de la memoria que dicen lo mismo, se contradicen o están desactualizadas, y prepara borradores de lo que conviene fusionar y de lo que se puede quitar. |
 | **Revisar privacidad** | Encuentra lo que de una nota debería quedarse en este dispositivo y propone una regla. |
 | **Reflexión** | Repasa contigo las notas de un día o una semana, con amabilidad y nunca con un diagnóstico. |
 
-Todas solo leen: ninguna cambia una nota ni envía nada. Solo **Investigación** usa Internet, y solo **Correo y calendario** lee tu correo — ver más abajo. Revisar privacidad y Reflexión están pensadas para un modelo en este dispositivo; con un modelo en la nube lo indica la vista de envío. Desactiva cualquier habilidad en **Habilidades**: el interruptor vale para este vault en este dispositivo. **Crear tu propia versión** copia una a tu vault, donde puedes cambiarla.
+Todas solo leen: ninguna cambia una nota ni envía nada. La que prepara borradores es **Cuidar la memoria**: lo que sugiere para la memoria espera a que lo aceptes. Solo **Investigación** usa Internet, y solo **Correo y calendario** lee tu correo — ver más abajo. Revisar privacidad y Reflexión están pensadas para un modelo en este dispositivo; con un modelo en la nube lo indica la vista de envío. Desactiva cualquier habilidad en **Habilidades**: el interruptor vale para este vault en este dispositivo. **Crear tu propia versión** copia una a tu vault, donde puedes cambiarla.
 
 ## En Internet y en tu correo
 
@@ -105,6 +106,18 @@ En el menú de una habilidad, **Versiones anteriores…** enumera lo que el hist
 Para una habilidad que cambió de cualquier otra forma —por sincronización o por una edición en otro dispositivo—, **Revisar y aprobar** dice lo mismo bajo **En comparación con la versión aprobada**: qué herramientas se añadieron y cuáles se quitaron, las carpetas, el límite.
 
 Bajo **Lo que se aprendió**, la pantalla de habilidades abre `.agent/logs/learning.md`: una línea por cada habilidad y cada regla que se aceptó a partir de una sugerencia, con el día y la conversación. El archivo viaja con tu vault.
+
+## Poner en orden
+
+Las habilidades se acumulan. En **Poner en orden**, la vista de habilidades indica lo que este dispositivo ha detectado por sí mismo. Para ello no se consulta a ningún modelo ni se envía nada, y cada línea es una pregunta, no un hallazgo:
+
+- Dos habilidades que dicen casi lo mismo, de modo que la IA elige una u otra. **Comparar** las muestra una al lado de la otra.
+- Una habilidad propia que lleva más de 90 días sin ejecutarse. **Desactivar** la saca del catálogo; sigue en el vault.
+- Una habilidad cuya lista nombra una herramienta que Plainva no tiene. Se ejecuta sin esa herramienta.
+- Una habilidad que no superó su prueba con el modelo elegido ahora.
+- Una habilidad cuyas ejecuciones terminan una y otra vez sin respuesta, y un camino que seguiste a mano en tres conversaciones. En ambos casos, una revisión de la última conversación de ese tipo puede sugerir algo, como se describe en «Aprender de una conversación»: cuesta una solicitud y pregunta antes.
+
+Cada línea ofrece un paso, y ninguno se da por sí solo. **No volver a mostrar** oculta una línea en este dispositivo; reaparece cuando el asunto en sí ha cambiado.
 
 ## Qué se envía al proveedor
 

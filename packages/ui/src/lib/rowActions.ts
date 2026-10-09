@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Ban, Bookmark, BookmarkMinus, CalendarClock, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
-  ExternalLink, Eye, Flag, FlaskConical, FolderInput, GitMerge, GraduationCap, History, ListTree, Mail, MailOpen, Pencil, Pin, PinOff, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
+  ArrowRight, Ban, Bookmark, BookmarkMinus, CalendarClock, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
+  ExternalLink, Eye, EyeOff, Flag, FlaskConical, FolderInput, GitMerge, GraduationCap, History, ListTree, Mail, MailOpen, Pencil, Pin, PinOff, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
 
@@ -268,6 +268,25 @@ export function memoryRowActions(t: RowActionT, c: MemoryRowCaps): RowActionSpec
     c.toActive ? { id: "toActive", label: t("ai.memory.action.toActive"), icon: Pin, run: c.toActive } : null,
     c.toLong ? { id: "toLong", label: t("ai.memory.action.toLong"), icon: PinOff, run: c.toLong } : null,
     c.delete ? { id: "delete", label: t("ai.memory.action.delete"), icon: Trash2, danger: true, run: c.delete } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
+/* ---------------------------------------------------------------- upkeep */
+
+export interface UpkeepRowCaps {
+  /** The one step the hint offers, in the hint's own words (`stepLabel`). */
+  step?: () => void;
+  stepLabel?: string;
+  /** "Don't show again": the device remembers it for this hint as it stands. */
+  dismiss?: () => void;
+}
+
+/** A hint of the upkeep (plan KI-Harness P6-3): its one step, and the way to be left alone — the same in both shells. */
+export function upkeepRowActions(t: RowActionT, c: UpkeepRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.step && c.stepLabel ? { id: "step", label: c.stepLabel, icon: ArrowRight, run: c.step } : null,
+    c.dismiss ? { id: "dismiss", label: t("ai.upkeep.dismiss"), icon: EyeOff, run: c.dismiss } : null,
   ];
   return out.filter((a): a is RowActionSpec => a !== null);
 }

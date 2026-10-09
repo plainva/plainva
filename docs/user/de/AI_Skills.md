@@ -2,7 +2,7 @@
 
 Stand: 2026-10-09
 
-Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt zwölf davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
+Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt dreizehn davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
 ## Einen Skill benutzen
 
@@ -24,10 +24,11 @@ Du kannst auch einfach fragen. In jedem Gespräch kennt die KI Namen und Beschre
 | **Schreiben und überarbeiten** | Fasst eine Notiz zusammen, kürzt sie oder schreibt sie um — als Text, den Du übernimmst. |
 | **Wissen pflegen** | Findet Notizen, die dasselbe sagen, veraltet sind oder mit nichts verbunden. |
 | **Links bereinigen** | Prüft die Links einer Notiz: ins Leere, fehlend, einseitig. |
+| **Gedächtnis pflegen** | Sieht das Gedächtnis durch: Einträge, die dasselbe sagen, sich widersprechen oder veraltet sind — und entwirft, was zusammengehört und was gehen kann. |
 | **Datenschutz prüfen** | Findet, was aus einer Notiz besser auf diesem Gerät bleibt, und schlägt eine Regel vor. |
 | **Reflexion** | Blickt mit Dir auf die Notizen eines Tages oder einer Woche zurück — freundlich, nie eine Diagnose. |
 
-Alle lesen nur: keiner ändert eine Notiz oder sendet etwas. Nur **Recherche** benutzt das Internet, und nur **E-Mail und Kalender** liest Deine E-Mails — siehe unten. Datenschutz prüfen und Reflexion sind für ein Modell auf diesem Gerät gedacht; mit einem Cloud-Modell sagt die Sende-Übersicht das. Jeden Skill schaltest Du unter **Skills** aus — der Schalter gilt für diesen Vault auf diesem Gerät. **Eigene Fassung anlegen** kopiert einen in Deinen Vault, wo Du ihn ändern kannst.
+Alle lesen nur: keiner ändert eine Notiz oder sendet etwas. Der eine, der entwirft, ist **Gedächtnis pflegen**: was er fürs Gedächtnis vorschlägt, wartet, bis Du es annimmst. Nur **Recherche** benutzt das Internet, und nur **E-Mail und Kalender** liest Deine E-Mails — siehe unten. Datenschutz prüfen und Reflexion sind für ein Modell auf diesem Gerät gedacht; mit einem Cloud-Modell sagt die Sende-Übersicht das. Jeden Skill schaltest Du unter **Skills** aus — der Schalter gilt für diesen Vault auf diesem Gerät. **Eigene Fassung anlegen** kopiert einen in Deinen Vault, wo Du ihn ändern kannst.
 
 ## Im Internet und in Deinen E-Mails
 
@@ -105,6 +106,18 @@ Eine Fassung, die aus einem Vorschlag stammt, steht drei Läufe lang unter Beoba
 Für einen Skill, der sich auf andere Weise geändert hat — durch Sync oder eine Bearbeitung auf einem anderen Gerät —, sagt **Prüfen und freigeben** dasselbe unter **Gegenüber der freigegebenen Fassung**: welche Werkzeuge dazukamen und wegfielen, die Ordner, die Grenze.
 
 Unter **Was gelernt wurde** öffnet die Skills-Ansicht `.agent/logs/learning.md`: eine Zeile für jeden Skill und jede Regel, die aus einem Vorschlag übernommen wurden, mit Tag und Gespräch. Die Datei reist mit Deinem Vault.
+
+## Aufräumen
+
+Skills sammeln sich an. Unter **Aufräumen** nennt die Skills-Ansicht, was dieses Gerät von selbst bemerkt hat. Dafür wird kein Modell gefragt und nichts gesendet, und jede Zeile ist eine Frage, kein Befund:
+
+- Zwei Skills, die fast dasselbe sagen, sodass die KI mal den einen, mal den anderen wählt. **Vergleichen** stellt sie nebeneinander.
+- Ein eigener Skill, der seit über 90 Tagen nicht lief. **Ausschalten** nimmt ihn aus dem Katalog; er bleibt im Vault.
+- Ein Skill, dessen Liste ein Werkzeug nennt, das Plainva nicht hat. Er läuft ohne dieses Werkzeug.
+- Ein Skill, der seine Prüfung mit dem jetzt gewählten Modell nicht bestanden hat.
+- Ein Skill, dessen Läufe immer wieder ohne Antwort enden, und ein Weg, den Du in drei Gesprächen von Hand gegangen bist. Für beides kann eine Durchsicht des letzten solchen Gesprächs etwas vorschlagen — wie unter „Aus einem Gespräch lernen“ beschrieben: sie kostet eine Anfrage und fragt vorher.
+
+Jede Zeile bietet einen Schritt an, und keiner wird für Dich gegangen. **Nicht mehr zeigen** legt eine Zeile auf diesem Gerät weg; sie kommt wieder, wenn sich die Sache selbst geändert hat.
 
 ## Was an den Anbieter geht
 

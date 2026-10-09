@@ -52,7 +52,7 @@ Three facts shape everything.
 
 17. **Shown, never named.** The send overview has a row for the memory — how many entries go, and that the rest can be looked up — and counts the entries a rule keeps back among what is kept back; the line under an answer says how many entries went along.
 
-18. **Not decided here.** Nothing is written into the memory without the user's yes. The reviewer that proposes entries from a finished conversation is [ADR 0028](0028-ai-learning-suggestions-and-skill-versions.md); the upkeep of a memory that has grown is the next part of [ADR 0020](0020-ai-skills-memory-and-script-skills.md), decision 5. There is no search by meaning over the memory: for at most 2,000 short entries, matching words with their headings needs no index of a hidden file.
+18. **Not decided here.** Nothing is written into the memory without the user's yes. The reviewer that proposes entries from a finished conversation is [ADR 0028](0028-ai-learning-suggestions-and-skill-versions.md); the upkeep of a memory that has grown is [ADR 0029](0029-ai-upkeep-hints-without-a-model.md). There is no search by meaning over the memory: for at most 2,000 short entries, matching words with their headings needs no index of a hidden file.
 
 ## Consequences
 

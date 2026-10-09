@@ -1,6 +1,6 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { BookMarked, FileText, MoreHorizontal, Plus } from "lucide-react";
+import { BookMarked, FileText, MoreHorizontal, Plus, Scale } from "lucide-react";
 import { memoryFileOf, type MemoryPlace } from "@plainva/core";
 import {
   Banner,
@@ -16,22 +16,30 @@ import {
   memoryRowActions,
   MenuItem,
   MenuSurface,
+  Modal,
   RowActionList,
   SearchField,
   SettingCard,
   SettingCardNote,
   SettingRow,
+  skillView,
   Switch,
   toast,
   useAiSession,
   useAiState,
+  useUpkeepRows,
   workshopSections,
   type MemoryRow,
   type MemoryRowCaps,
+  type UpkeepRow,
 } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
 import { MemoryEntryModal } from "./MemoryEntryModal";
 import { MemoryRuleModal } from "./MemoryRuleModal";
+import { UpkeepCard } from "./UpkeepCard";
+
+/** The skill that looks through the memory with a model, when the user starts it (plan P6-3). */
+const MEMORY_CARE = "plainva:memory-care";
 
 /**
  * The vault's memory in the AI tab (plan KI-Harness P6, mockup chapter 22):
@@ -44,7 +52,18 @@ import { MemoryRuleModal } from "./MemoryRuleModal";
  * lists was typed here, typed into the file, or accepted on this device or
  * another one.
  */
-export function MemoryView({ onOpenFile, onOpenWaiting, onReviewRules }: { onOpenFile: (path: string) => void; onOpenWaiting: () => void; onReviewRules: (id: string) => void }) {
+export function MemoryView({
+  onOpenFile,
+  onOpenWaiting,
+  onReviewRules,
+  onRun,
+}: {
+  onOpenFile: (path: string) => void;
+  onOpenWaiting: () => void;
+  onReviewRules: (id: string) => void;
+  /** A skill was started from here: the shell shows its conversation. */
+  onRun: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
@@ -53,6 +72,10 @@ export function MemoryView({ onOpenFile, onOpenWaiting, onReviewRules }: { onOpe
   const [rule, setRule] = useState(false);
   const [query, setQuery] = useState("");
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; caps: MemoryRowCaps } | null>(null);
+  /** The two entries a hint asked to see side by side. */
+  const [pair, setPair] = useState<{ a: string; b: string } | null>(null);
+  // What this device noticed by itself about the memory (plan P6-3): no model is asked for any of it.
+  const upkeep = useUpkeepRows(session, state, "memory");
 
   useEffect(() => {
     void session?.refreshMemory();
@@ -133,6 +156,19 @@ export function MemoryView({ onOpenFile, onOpenWaiting, onReviewRules }: { onOpe
     </div>
   );
 
+  // A hint's one step: the entry's own form, or the two entries side by side with everything a row can do.
+  const takeStep = (row: UpkeepRow) => {
+    const step = row.step?.what;
+    if (step?.do === "compare-entries") setPair({ a: step.a, b: step.b });
+    else if (step?.do === "edit-entry") setForm({ id: step.id });
+  };
+  const rowById = (id: string) => [...groups.active, ...groups.long].find((candidate) => candidate.id === id) ?? null;
+  // Both entries, while both still stand: once one is reworded or gone, there is no pair to look at.
+  const pairRows = pair ? [rowById(pair.a), rowById(pair.b)].filter((found): found is MemoryRow => found !== null) : [];
+  // With a model, when the user starts it: the skill that reads the entries and drafts what to merge and what to take out.
+  const care = state.skills.entries.find((entry) => entry.source.id === MEMORY_CARE && entry.status === "active") ?? null;
+  const canCare = Boolean(care) && state.settings.enabled && memory.on && memory.writable;
+
   /** A group's name with how many entries it holds — "Always included · 4"; the name alone while it is empty. */
   const counted = (name: string, count: number) => (count > 0 ? `${name} · ${count}` : name);
   // The memory is the user's files: each place offers its own, once there is one, in the editor.
@@ -169,6 +205,26 @@ export function MemoryView({ onOpenFile, onOpenWaiting, onReviewRules }: { onOpe
         >
           {t("ai.memory.waiting", { count: waiting })}
         </Banner>
+      )}
+      {upkeep.length > 0 && (
+        <UpkeepCard rows={upkeep} onStep={takeStep} onDismiss={(key) => void session.dismissUpkeepHint(key)} testId="ai-upkeep-memory">
+          {care && canCare && (
+            <SettingRow label={t("ai.upkeep.care.label")} desc={t("ai.upkeep.care.desc", { skill: skillView(t, care).title })}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  const view = skillView(t, care);
+                  onRun();
+                  void session.runSkill(view.id, view.start);
+                }}
+                data-testid="ai-memory-care"
+              >
+                {t("ai.upkeep.care.step")}
+              </Button>
+            </SettingRow>
+          )}
+        </UpkeepCard>
       )}
       <SettingCard label={counted(t("ai.memory.active"), groups.active.length)}>
         <SettingCardNote>
@@ -215,6 +271,24 @@ export function MemoryView({ onOpenFile, onOpenWaiting, onReviewRules }: { onOpe
         </SettingRow>
       </SettingCard>
       <p className="pv-memory-foot">{t("ai.memory.files")}</p>
+      {/* Under the entry's form and the row menus: both open from its rows. */}
+      {pair && pairRows.length === 2 && (
+        <Modal
+          title={t("ai.upkeep.entries.title")}
+          icon={<Scale size={ICON.ui} />}
+          size="md"
+          onClose={() => setPair(null)}
+          testId="ai-memory-compare"
+          footer={
+            <Button variant="ghost" onClick={() => setPair(null)}>
+              {t("common.close")}
+            </Button>
+          }
+        >
+          <div className="pv-setcard">{pairRows.map(rowOf)}</div>
+          <p className="pv-modal-hint">{t("ai.upkeep.entries.hint")}</p>
+        </Modal>
+      )}
       {form && <MemoryEntryModal id={form.id} onClose={() => setForm(null)} />}
       {rule && <MemoryRuleModal onClose={() => setRule(false)} />}
       {menu && (

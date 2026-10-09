@@ -647,6 +647,11 @@
         "description": "Controlla i link della nota aperta: interrotti, mancanti, a senso unico.",
         "prompt": "Controlla i link della nota aperta: quali non portano da nessuna parte, quali menzioni potrebbero diventare link, e quali note dovrebbero rimandarsi a vicenda?"
       },
+      "memory": {
+        "title": "Curare la memoria",
+        "description": "Trova voci della memoria che dicono la stessa cosa, si contraddicono o sono superate.",
+        "prompt": "Rileggi la mia memoria: quali voci dicono la stessa cosa, si contraddicono o sono superate? Prepara bozze di ciò che va unito e di ciò che si può togliere."
+      },
       "privacy": {
         "title": "Controllo privacy",
         "description": "Trova cosa di una nota dovrebbe restare su questo dispositivo.",
@@ -1017,6 +1022,76 @@
       "log": {
         "title": "Cosa è stato imparato",
         "desc": "Competenze e regole accettate da una proposta, con il giorno e la conversazione. È un file del vault e viaggia con esso."
+      }
+    },
+    "upkeep": {
+      "title": "Riordino",
+      "note": "Notato da questo dispositivo, senza chiedere a un modello. Ogni riga è una domanda, non un'affermazione.",
+      "dismiss": "Non mostrare più",
+      "switchedOff": "«{{name}}» è disattivata su questo dispositivo.",
+      "skillsAlike": {
+        "label": "«{{a}}» e «{{b}}» dicono quasi la stessa cosa",
+        "desc": "Due competenze per lo stesso compito: l'IA sceglie ora l'una, ora l'altra.",
+        "step": "Confronta"
+      },
+      "skillUnused": {
+        "label": "«{{name}}» è stata eseguita l'ultima volta il {{date}}",
+        "labelNever": "«{{name}}» non è stata eseguita qui dal {{date}}",
+        "desc": "Non usata da più di {{days}} giorni. Disattivata, non è più nel catalogo, ma resta nel vault.",
+        "step": "Disattiva"
+      },
+      "skillUnknownTool": {
+        "label": "«{{name}}»: non tutti gli strumenti del suo elenco esistono",
+        "desc": "Non è uno strumento di Plainva: {{tools}}. La competenza viene eseguita senza.",
+        "step": "Apri file"
+      },
+      "skillTestFailing": {
+        "label": "«{{name}}» non ha superato la verifica: {{failed}} su {{ran}} fallite",
+        "desc": "Verificata com'è ora, con {{model}}.",
+        "step": "Verifica di nuovo"
+      },
+      "skillFailing": {
+        "label": "«{{name}}»: nelle ultime {{runs}} esecuzioni, {{failed}} senza risposta",
+        "descLearn": "Una rilettura dell'ultima esecuzione di questo tipo può proporre altre istruzioni. Costa una richiesta e chiede prima conferma.",
+        "desc": "Le sue istruzioni potrebbero chiedere più di quanto una singola esecuzione possa fare.",
+        "stepLearn": "Rileggi l'esecuzione",
+        "step": "Apri file"
+      },
+      "stepsRepeated": {
+        "label": "Hai seguito lo stesso percorso in {{times}} conversazioni",
+        "desc": "{{tools}}. Una rilettura dell'ultima conversazione può proporre una competenza per questo percorso. Costa una richiesta e chiede prima conferma.",
+        "step": "Proponi una competenza"
+      },
+      "entriesAlike": {
+        "label": "Due voci dicono quasi la stessa cosa",
+        "desc": "«{{a}}» · «{{b}}»",
+        "step": "Confronta"
+      },
+      "entryOld": {
+        "label": "«{{text}}»",
+        "desc": "Aggiunta il {{date}} — più di un anno fa. È ancora vera?",
+        "step": "Modifica"
+      },
+      "activeOverflow": {
+        "label": "«{{place}}» è pieno",
+        "desc": "Voci che non trovano più posto: {{count}}. Non vengono incluse in nessuna conversazione. Accorcia una voce oppure spostane una in «{{other}}»."
+      },
+      "care": {
+        "label": "Far rileggere la memoria",
+        "desc": "La competenza «{{skill}}» legge le voci e prepara bozze di ciò che va unito e di ciò che si può togliere. Nulla cambia finché non lo accetti. Costa qualche richiesta.",
+        "step": "Esegui"
+      },
+      "compare": {
+        "title": "«{{a}}» e «{{b}}»",
+        "lead": "Entrambe sono attive, quindi all'IA vengono offerte tutte e due. Le loro descrizioni decidono quale delle due sceglie.",
+        "instructions": "Istruzioni a confronto",
+        "same": "Le istruzioni sono uguali.",
+        "switchOff": "Disattiva «{{name}}»",
+        "hint": "Disattivata, una competenza non viene più offerta all'IA su questo dispositivo. Resta nel vault, e il suo interruttore nell'elenco la riattiva."
+      },
+      "entries": {
+        "title": "Due voci che dicono quasi la stessa cosa",
+        "hint": "Mantienile entrambe, riformulane una o eliminane una — i passaggi sono nel menu di ogni voce."
       }
     },
     "memory": {

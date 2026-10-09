@@ -34,6 +34,12 @@ Una conversación terminada también puede sugerir entradas: **Aprender de esta 
 
 Como todas las instrucciones, el archivo debe aprobarse en cada dispositivo antes de que tenga efecto allí (consulta [Habilidades](AI_Skills.md)). Una regla que añades en un dispositivo donde el archivo ya estaba aprobado tiene efecto allí de inmediato; tus otros dispositivos te preguntan antes.
 
+## Poner en orden
+
+Una memoria que ha crecido se repite. En **Poner en orden**, la vista de la memoria indica lo que este dispositivo ha detectado por sí mismo, sin consultar a un modelo: dos entradas que dicen casi lo mismo, una entrada de hace más de un año y entradas de **Siempre incluido** que ya no caben. **Comparar** muestra las dos entradas juntas, cada una con todo lo que ofrece su menú.
+
+Para verlo con más detalle hay una habilidad. **Cuidar la memoria** lee las entradas con el modelo de una conversación y prepara borradores de lo que va junto y de lo que puede quitarse; la fila **Pedir una revisión de la memoria** la inicia. Lo que sugiere son borradores como todos los demás: nada cambia hasta que lo aceptes, y si dos entradas se contradicen, pregunta en lugar de decidir.
+
 ## Privacidad
 
 - Una entrada puede llevar una regla propia: **No a modelos en la nube**, **No en conversaciones con Internet**. Un modelo en este dispositivo recibe todas las entradas.

@@ -2,7 +2,7 @@
 
 Dernière mise à jour : 2026-10-09
 
-Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit douze, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
+Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit treize, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
 
 ## Utiliser une compétence
 
@@ -24,10 +24,11 @@ Vous pouvez aussi simplement demander. Dans chaque conversation, l'IA connaît l
 | **Écrire et réviser** | Résume, raccourcit ou réécrit une note — un texte que vous reprenez. |
 | **Entretenir les connaissances** | Trouve les notes qui disent la même chose, sont dépassées ou ne sont reliées à rien. |
 | **Nettoyer les liens** | Vérifie les liens d'une note : qui ne mènent nulle part, manquants, à sens unique. |
+| **Entretenir la mémoire** | Passe en revue la mémoire : les entrées qui disent la même chose, se contredisent ou sont dépassées — et prépare des brouillons de ce qu'il faut fusionner et de ce qu'il faut retirer. |
 | **Vérifier la confidentialité** | Trouve ce qui, dans une note, devrait rester sur cet appareil, et propose une règle. |
 | **Réflexion** | Revient avec vous sur les notes d'une journée ou d'une semaine — avec bienveillance, jamais un diagnostic. |
 
-Toutes ne font que lire : aucune ne modifie une note ni n'envoie quoi que ce soit. Seule **Se documenter** utilise Internet, et seule **E-mail et calendrier** lit vos e-mails — voir ci-dessous. Vérifier la confidentialité et Réflexion sont prévues pour un modèle sur cet appareil ; avec un modèle cloud, l'aperçu d'envoi le signale. Désactivez n'importe quelle compétence sous **Compétences** — l'interrupteur vaut pour ce vault sur cet appareil. **Créer votre propre version** en copie une dans votre vault, où vous pouvez la modifier.
+Toutes ne font que lire : aucune ne modifie une note ni n'envoie quoi que ce soit. La seule qui prépare des brouillons est **Entretenir la mémoire** : ce qu'elle propose pour la mémoire attend que vous l'acceptiez. Seule **Se documenter** utilise Internet, et seule **E-mail et calendrier** lit vos e-mails — voir ci-dessous. Vérifier la confidentialité et Réflexion sont prévues pour un modèle sur cet appareil ; avec un modèle cloud, l'aperçu d'envoi le signale. Désactivez n'importe quelle compétence sous **Compétences** — l'interrupteur vaut pour ce vault sur cet appareil. **Créer votre propre version** en copie une dans votre vault, où vous pouvez la modifier.
 
 ## Sur Internet et dans vos e-mails
 
@@ -105,6 +106,18 @@ Dans le menu d'une compétence, **Versions antérieures…** liste ce que l'hist
 Pour une compétence qui a changé d'une autre manière — par la synchronisation ou par une modification sur un autre appareil —, **Vérifier et approuver** indique la même chose sous **Par rapport à la version approuvée** : quels outils se sont ajoutés ou ont disparu, les dossiers, la limite.
 
 Sous **Ce qui a été appris**, l'écran des compétences ouvre `.agent/logs/learning.md` : une ligne pour chaque compétence ou règle acceptée à partir d'une suggestion, avec le jour et la conversation. Le fichier voyage avec votre vault.
+
+## Ranger
+
+Les compétences s'accumulent. Sous **Ranger**, la vue des compétences signale ce que cet appareil a remarqué de lui-même. Aucun modèle n'est interrogé pour cela et rien n'est envoyé, et chaque ligne est une question, pas un constat :
+
+- Deux compétences qui disent presque la même chose, si bien que l'IA choisit tantôt l'une, tantôt l'autre. **Comparer** met les deux côte à côte.
+- Une de vos propres compétences qui ne s'est pas exécutée depuis plus de 90 jours. **Désactiver** retire cette compétence du catalogue ; elle reste dans le vault.
+- Une compétence dont la liste nomme un outil que Plainva n'a pas. Elle s'exécute sans cet outil.
+- Une compétence qui n'a pas réussi son test avec le modèle actuellement choisi.
+- Une compétence dont les exécutions se terminent à répétition sans réponse, et un chemin que vous avez suivi à la main dans trois conversations. Dans les deux cas, une relecture de la dernière conversation de ce genre peut proposer quelque chose — comme décrit sous « Apprendre d'une conversation » : elle coûte une requête et demande d'abord confirmation.
+
+Chaque ligne propose une action, et aucune n'est effectuée à votre place. **Ne plus afficher** met une ligne de côté sur cet appareil ; elle revient lorsque la situation elle-même a changé.
 
 ## Ce qui part chez le fournisseur
 

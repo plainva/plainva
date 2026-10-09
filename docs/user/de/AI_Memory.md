@@ -34,6 +34,12 @@ Auch ein abgeschlossenes Gespräch kann Einträge vorschlagen: **Aus diesem Gesp
 
 Wie alle Anweisungen muss die Datei auf jedem Gerät freigegeben sein, bevor sie dort gilt (siehe [Skills](AI_Skills.md)). Eine Regel, die Du auf einem Gerät hinzufügst, auf dem die Datei schon freigegeben war, gilt dort sofort; Deine anderen Geräte fragen Dich vorher.
 
+## Aufräumen
+
+Ein Gedächtnis, das gewachsen ist, wiederholt sich. Unter **Aufräumen** nennt die Gedächtnis-Ansicht, was dieses Gerät von selbst bemerkt hat, ohne ein Modell zu fragen: zwei Einträge, die fast dasselbe sagen, einen Eintrag, der älter als ein Jahr ist, und Einträge von **Immer dabei**, die nicht mehr passen. **Vergleichen** zeigt die zwei Einträge zusammen, jeden mit allem, was sein Menü kann.
+
+Für einen genaueren Blick gibt es einen Skill. **Gedächtnis pflegen** liest die Einträge mit dem Modell eines Gesprächs und entwirft, was zusammengehört und was gehen kann; die Zeile **Das Gedächtnis durchsehen lassen** startet ihn. Was er vorschlägt, sind Entwürfe wie alle anderen: nichts ändert sich, bevor Du es annimmst, und wo zwei Einträge sich widersprechen, fragt er, statt zu entscheiden.
+
 ## Datenschutz
 
 - Ein Eintrag kann eine eigene Regel tragen: **Nicht an Cloud-Modelle**, **Nicht in Gesprächen mit Internet**. Ein Modell auf diesem Gerät bekommt jeden Eintrag.

@@ -129,10 +129,14 @@ describe("the skills workshop", () => {
     const everything = (await factsOf("")).may;
     expect(everything[0]).not.toMatch(/Suggesting|Drafting|Laying out|Asking to delete/);
     expect(everything[everything.length - 1]).toBe("Changes nothing, sends nothing.");
-    // None of the skills that come with the app writes.
-    for (const own of resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS)) {
+    // None of the skills that come with the app writes — and one drafts: memory care, for the memory and nothing else (plan P6-3).
+    const app = resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS);
+    for (const own of app.filter((entry) => entry.source.id !== "plainva:memory-care")) {
       expect(approvalFacts(t, own, "en").may.join("\n"), own.source.id).not.toContain("May suggest changes");
     }
+    const care = approvalFacts(t, app.find((entry) => entry.source.id === "plainva:memory-care")!, "en").may;
+    expect(care[0]).toBe(`Uses: ${t("ai.tool.search_memory")} · ${t("ai.tool.remember")} · ${t("ai.tool.forget")}`);
+    expect(care[care.length - 1]).toBe("May suggest changes, leave drafts and lay out plans. Nothing in the vault changes before you accept, create or confirm.");
   });
 
   it("shows the app's own skills read only, and an invalid one with its problems", async () => {

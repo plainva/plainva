@@ -1,5 +1,5 @@
 import { appSkillSource, type InstructionSource } from "@plainva/core";
-import { CalendarCheck, CalendarClock, CalendarRange, Feather, FolderKanban, Inbox, Link2, ListOrdered, PenLine, ShieldCheck, Sprout, Telescope, type LucideIcon } from "lucide-react";
+import { BookOpenCheck, CalendarCheck, CalendarClock, CalendarRange, Feather, FolderKanban, Inbox, Link2, ListOrdered, PenLine, ShieldCheck, Sprout, Telescope, type LucideIcon } from "lucide-react";
 
 /**
  * The skills that come with the app (plan KI-Harness P3, §14.2): each a
@@ -24,8 +24,12 @@ export interface AppSkill {
 }
 
 /**
- * In the order every list shows them — the most used first. Memory curation
- * waits for memory itself (P6).
+ * In the order every list shows them — the most used first.
+ *
+ * All of them read and show, with one exception (plan P6-3, ADR 0029):
+ * memory care names the memory's two drafting tools, because what it finds is
+ * only useful as something the user can accept — and a draft changes nothing
+ * before they do. `aiSkills.test.ts` holds the exception to exactly that.
  */
 export const APP_SKILLS: readonly AppSkill[] = [
   { name: "daily-orientation", key: "daily", icon: CalendarCheck, featured: true, mcp: true },
@@ -41,6 +45,8 @@ export const APP_SKILLS: readonly AppSkill[] = [
   { name: "writing", key: "writing", icon: PenLine },
   { name: "knowledge-upkeep", key: "upkeep", icon: Sprout },
   { name: "link-cleanup", key: "links", icon: Link2 },
+  // Looks through the memory and drafts what to merge and what to take out; no prompt of the MCP server — the memory is the app's own conversations' only.
+  { name: "memory-care", key: "memory", icon: BookOpenCheck },
   // Meant for a model on this device (a hint in the send overview, never a block): they read what is most private.
   { name: "privacy-check", key: "privacy", icon: ShieldCheck },
   { name: "reflection", key: "reflection", icon: Feather },

@@ -52,7 +52,7 @@ Three facts shape everything.
 
 17. **What was accepted is said in a file of the vault,** `.agent/logs/learning.md`: one line for each skill made or rewritten from a suggestion, each rule, each return to an earlier version — the minute, the skill, the conversation's title. A device that finds a skill changed can read there why. No word of the reviewer and no model's name is written into it; nothing reads it back, and like everything under `.agent/` no model is ever shown it.
 
-18. **Not decided here.** The hints that need no model — a sequence of steps the user took by hand three times, a skill whose runs fail — and the upkeep of skills and memory that have grown are the next part of the same plan. So is a profile of the user's style.
+18. **Decided after this record, and not yet.** The hints that need no model — a sequence of steps the user took by hand three times, a skill whose runs fail — and the upkeep of skills and a memory that have grown are [ADR 0029](0029-ai-upkeep-hints-without-a-model.md). A profile of the user's style is not decided.
 
 ## Consequences
 

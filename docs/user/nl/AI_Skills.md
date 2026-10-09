@@ -2,7 +2,7 @@
 
 Laatst bijgewerkt: 2026-10-09
 
-Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er twaalf mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
+Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er dertien mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
 ## Een vaardigheid gebruiken
 
@@ -24,10 +24,11 @@ Je kunt ook gewoon vragen. In elk gesprek kent de AI de namen en beschrijvingen 
 | **Schrijven en herschrijven** | Vat een notitie samen, kort haar in of herschrijft haar — als tekst die je overneemt. |
 | **Kennis onderhouden** | Vindt notities die hetzelfde zeggen, verouderd zijn of nergens mee verbonden. |
 | **Links opschonen** | Controleert de links van een notitie: die nergens heen leiden, ontbrekende, eenrichting. |
+| **Geheugen onderhouden** | Neemt het geheugen door: items die hetzelfde zeggen, elkaar tegenspreken of verouderd zijn — en stelt een concept op van wat samengevoegd moet worden en wat eruit moet. |
 | **Privacycontrole** | Vindt wat uit een notitie beter op dit apparaat blijft, en stelt een regel voor. |
 | **Reflectie** | Blikt met je terug op de notities van een dag of een week — vriendelijk, nooit een diagnose. |
 
-Ze lezen allemaal alleen: geen enkele verandert een notitie of verstuurt iets. Alleen **Onderzoek** gebruikt internet, en alleen **E-mail en agenda** leest je e-mail — zie hieronder. Privacycontrole en Reflectie zijn bedoeld voor een model op dit apparaat; met een cloudmodel zegt het verzendoverzicht dat. Zet elke vaardigheid uit onder **Vaardigheden** — de schakelaar geldt voor deze vault op dit apparaat. **Eigen versie maken** kopieert er een naar je vault, waar je haar kunt aanpassen.
+Ze lezen allemaal alleen: geen enkele verandert een notitie of verstuurt iets. De enige die concepten opstelt, is **Geheugen onderhouden**: wat ze voor het geheugen voorstelt, wacht tot je het overneemt. Alleen **Onderzoek** gebruikt internet, en alleen **E-mail en agenda** leest je e-mail — zie hieronder. Privacycontrole en Reflectie zijn bedoeld voor een model op dit apparaat; met een cloudmodel zegt het verzendoverzicht dat. Zet elke vaardigheid uit onder **Vaardigheden** — de schakelaar geldt voor deze vault op dit apparaat. **Eigen versie maken** kopieert er een naar je vault, waar je haar kunt aanpassen.
 
 ## Op internet en in je e-mail
 
@@ -105,6 +106,18 @@ Een versie die uit een voorstel stamt, staat drie uitvoeringen lang onder observ
 Voor een vaardigheid die op een andere manier is veranderd — via sync of een bewerking op een ander apparaat — toont **Controleren en goedkeuren** hetzelfde onder **Vergeleken met de goedgekeurde versie**: welke hulpmiddelen erbij kwamen en welke wegvielen, de mappen, de grens.
 
 Onder **Wat er is geleerd** opent het vaardighedenscherm `.agent/logs/learning.md`: één tekstregel voor elke vaardigheid en elke regel die uit een voorstel is overgenomen, met de dag en het gesprek. Het bestand reist met je vault mee.
+
+## Opruimen
+
+Vaardigheden stapelen zich op. Onder **Opruimen** noemt de vaardighedenweergave wat dit apparaat zelf heeft opgemerkt. Daarvoor wordt geen model geraadpleegd en niets verstuurd, en elke regel is een vraag, geen bevinding:
+
+- Twee vaardigheden die bijna hetzelfde zeggen, zodat de AI de ene of de andere kiest. **Vergelijken** zet ze naast elkaar.
+- Een eigen vaardigheid die al meer dan 90 dagen niet heeft gedraaid. **Uitzetten** haalt haar uit de catalogus; ze blijft in de vault.
+- Een vaardigheid waarvan de lijst een hulpmiddel noemt dat Plainva niet heeft. Ze draait zonder dat hulpmiddel.
+- Een vaardigheid die haar test niet heeft doorstaan met het nu gekozen model.
+- Een vaardigheid waarvan de uitvoeringen steeds zonder antwoord eindigen, en een weg die je in drie gesprekken met de hand bent gegaan. Voor beide kan het doornemen van het laatste gesprek van dat soort iets voorstellen — zoals beschreven onder “Leren van een gesprek”: het kost één verzoek en vraagt eerst.
+
+Elke regel biedt één stap aan, en geen enkele wordt voor je gezet. **Niet meer tonen** legt een regel op dit apparaat weg; hij komt terug als de zaak zelf is veranderd.
 
 ## Wat er naar de aanbieder gaat
 

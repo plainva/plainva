@@ -216,6 +216,7 @@ export function AiTabView({
           ) : view === "memory" ? (
             <MemoryView
               onOpenFile={onOpenPath}
+              onRun={() => setView("chats")}
               onOpenWaiting={() => setView("open")}
               onReviewRules={(id) => {
                 // The vault's instructions are reviewed where every instruction is: in the workshop.

@@ -2,12 +2,14 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CodeXml, Download, FlaskConical, Plus } from "lucide-react";
 import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
-import { Button, GroupCard, ICON, observedFailures, openLearnSurface, Row, RowList, SectionLabel, skillRestoreRefusalText, skillRowActions, skillRowDescription, skillTestOverview, skillTestPlanFor, skillView, Switch, toast, useSkillTestPlan, workshopSections, workshopTitle, type SkillRowCaps } from "@plainva/ui";
+import { Button, GroupCard, ICON, observedFailures, openLearnSurface, Row, RowList, SectionLabel, skillRestoreRefusalText, skillRowActions, skillRowDescription, skillTestOverview, skillTestPlanFor, skillView, Switch, takeSharedUpkeepStep, toast, useSkillTestPlan, useUpkeepRows, workshopSections, workshopTitle, type SkillRowCaps, type UpkeepRow } from "@plainva/ui";
+import { MobileUpkeepGroup } from "./MobileUpkeepGroup";
 import { RowActionSheet } from "./RowActionSheet";
 import { NewSkillSheet } from "./NewSkillSheet";
 import { ScriptFormSheet } from "./ScriptFormSheet";
 import { ScriptRunSheet } from "./ScriptRunSheet";
 import { SkillApprovalSheet } from "./SkillApprovalSheet";
+import { SkillCompareSheet } from "./SkillCompareSheet";
 import { SkillImportSheet } from "./SkillImportSheet";
 import { SkillTestSheet } from "./SkillTestSheet";
 import { getMobileAiSession } from "../services/ai/mobileAi";
@@ -39,6 +41,10 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
   /** The regression run's sheet: for some skills, or (null) for all that bring scenarios. */
   const [testing, setTesting] = useState<{ ids: string[] | null } | null>(null);
   const plan = useSkillTestPlan(session, state);
+  /** The two skills a hint asked to see side by side. */
+  const [comparing, setComparing] = useState<{ a: string; b: string } | null>(null);
+  // What this phone noticed by itself about the skills (plan P6-3): no model is asked for any of it.
+  const upkeep = useUpkeepRows(session, state, "skills", plan);
 
   useEffect(() => {
     void session.refreshSkills();
@@ -107,6 +113,21 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       else toast.error(skillRestoreRefusalText(t, outcome));
     });
   };
+  // A hint's one step: what the user could do by hand in the lists below — a review asks first, in its own sheet.
+  const takeStep = (row: UpkeepRow) => {
+    const step = row.step?.what;
+    if (!step) return;
+    if (takeSharedUpkeepStep(session, step)) {
+      if (step.do === "switch-off") toast.success(t("ai.upkeep.switchedOff", { name: step.name }));
+      return;
+    }
+    if (step.do === "compare-skills") setComparing({ a: step.a, b: step.b });
+    else if (step.do === "test") setTesting({ ids: [step.id] });
+    else if (step.do === "open-skill") {
+      const entry = state.skills.entries.find((candidate) => candidate.source.id === step.id);
+      if (entry) onOpenNote(mainPath(entry));
+    }
+  };
   const switchRow = (entry: InstructionEntry) => (
     <Row
       key={entry.source.id}
@@ -172,6 +193,7 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
           </GroupCard>
         </>
       )}
+      <MobileUpkeepGroup rows={upkeep} onStep={takeStep} onDismiss={(key) => void session.dismissUpkeepHint(key)} />
       {/* A group with nothing in it is a sentence on the page's edge, not a card: a card's edge belongs to its rows. */}
       <SectionLabel>{t("ai.workshop.own")}</SectionLabel>
       {sections.own.length === 0 ? (
@@ -229,6 +251,7 @@ export function MobileSkillsWorkshop({ onOpenNote, onRun, review }: { onOpenNote
       )}
       {testing && <SkillTestSheet ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
       {open && <SkillApprovalSheet id={open} onClose={() => setOpen(null)} />}
+      {comparing && <SkillCompareSheet a={comparing.a} b={comparing.b} onClose={() => setComparing(null)} />}
       {creating && <NewSkillSheet onClose={() => setCreating(false)} />}
       {scriptForm && <ScriptFormSheet id={scriptForm.id} onClose={() => setScriptForm(null)} />}
       {running && <ScriptRunSheet id={running} onClose={() => setRunning(null)} onOpenNote={onOpenNote} />}

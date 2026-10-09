@@ -647,6 +647,11 @@
         "description": "Verifique os links da nota aberta: quebrados, faltando, de mão única.",
         "prompt": "Verifique os links da nota aberta: quais não levam a lugar nenhum, quais menções poderiam ser links e quais notas deveriam se referir umas às outras?"
       },
+      "memory": {
+        "title": "Cuidar da memória",
+        "description": "Encontre entradas da memória que dizem o mesmo, se contradizem ou estão desatualizadas.",
+        "prompt": "Revise a minha memória: quais entradas dizem a mesma coisa, se contradizem ou estão desatualizadas? Prepare rascunhos do que unir e do que retirar."
+      },
       "privacy": {
         "title": "Verificar privacidade",
         "description": "Encontre o que de uma nota deveria ficar neste dispositivo.",
@@ -1017,6 +1022,76 @@
       "log": {
         "title": "O que foi aprendido",
         "desc": "Habilidades e regras aceitas a partir de uma sugestão, com o dia e a conversa. Um arquivo do vault que viaja com ele."
+      }
+    },
+    "upkeep": {
+      "title": "Arrumar",
+      "note": "Notado por este dispositivo, sem consultar um modelo. Cada linha é uma pergunta, não uma constatação.",
+      "dismiss": "Não mostrar mais",
+      "switchedOff": "“{{name}}” está desligada neste dispositivo.",
+      "skillsAlike": {
+        "label": "“{{a}}” e “{{b}}” dizem quase o mesmo",
+        "desc": "Duas habilidades para o mesmo trabalho: a IA escolhe uma ou a outra.",
+        "step": "Comparar"
+      },
+      "skillUnused": {
+        "label": "“{{name}}” rodou pela última vez em {{date}}",
+        "labelNever": "“{{name}}” não rodou aqui desde {{date}}",
+        "desc": "Sem uso há mais de {{days}} dias. Desligada, ela não está mais no catálogo, mas continua no vault.",
+        "step": "Desligar"
+      },
+      "skillUnknownTool": {
+        "label": "“{{name}}”: nem todas as ferramentas da lista dela existem",
+        "desc": "Ferramenta que o Plainva não tem: {{tools}}. A habilidade roda sem isso.",
+        "step": "Abrir arquivo"
+      },
+      "skillTestFailing": {
+        "label": "“{{name}}” não passou no teste: {{failed}} de {{ran}} com falha",
+        "desc": "Testada como está agora, com {{model}}.",
+        "step": "Testar novamente"
+      },
+      "skillFailing": {
+        "label": "“{{name}}”: {{failed}} das últimas {{runs}} execuções sem resposta",
+        "descLearn": "Uma revisão da última execução desse tipo pode sugerir outras instruções. Ela custa uma solicitação e pergunta antes.",
+        "desc": "As instruções dela podem pedir mais do que uma execução consegue fazer.",
+        "stepLearn": "Revisar a execução",
+        "step": "Abrir arquivo"
+      },
+      "stepsRepeated": {
+        "label": "Você seguiu o mesmo caminho em {{times}} conversas",
+        "desc": "{{tools}}. Uma revisão da última conversa pode sugerir uma habilidade para isso. Ela custa uma solicitação e pergunta antes.",
+        "step": "Sugerir uma habilidade"
+      },
+      "entriesAlike": {
+        "label": "Duas entradas dizem quase o mesmo",
+        "desc": "“{{a}}” · “{{b}}”",
+        "step": "Comparar"
+      },
+      "entryOld": {
+        "label": "“{{text}}”",
+        "desc": "Adicionada em {{date}} — há mais de um ano. Ainda é verdade?",
+        "step": "Editar"
+      },
+      "activeOverflow": {
+        "label": "“{{place}}” está cheio",
+        "desc": "Entradas que não cabem mais: {{count}}. Elas não são incluídas em nenhuma conversa. Encurte uma entrada ou mova uma para “{{other}}”."
+      },
+      "care": {
+        "label": "Pedir uma revisão da memória",
+        "desc": "A habilidade “{{skill}}” lê as entradas e prepara rascunhos do que pode ser unido e do que pode ser retirado. Nada muda antes de você aceitar. Custa algumas solicitações.",
+        "step": "Executar"
+      },
+      "compare": {
+        "title": "“{{a}}” e “{{b}}”",
+        "lead": "Ambas estão ativas, então as duas são oferecidas à IA. As descrições delas decidem qual ela escolhe.",
+        "instructions": "Instruções comparadas",
+        "same": "As instruções são iguais.",
+        "switchOff": "Desligar “{{name}}”",
+        "hint": "Desligada, uma habilidade deixa de ser oferecida à IA neste dispositivo. Ela continua no vault, e o interruptor dela na lista a traz de volta."
+      },
+      "entries": {
+        "title": "Duas entradas que dizem quase o mesmo",
+        "hint": "Mantenha as duas, reformule uma ou exclua uma — o menu de cada entrada tem os passos."
       }
     },
     "memory": {

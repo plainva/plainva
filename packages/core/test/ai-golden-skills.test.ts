@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 import { aiTestVaultFiles, LOCKED_FACTS } from "../../../scripts/ai-test-vault.mjs";
@@ -39,6 +39,16 @@ import { realSqlite } from "./helpers/realSqlite.js";
 const SKILLS_DIR = new URL("../../ui/src/ai/skills/", import.meta.url);
 /** What one bound request may spend on a skill's instructions, at most. */
 const SKILL_BODY_TOKENS = 700;
+/**
+ * The skills that bring no scenarios, each with why. A regression run brings
+ * neither the vault's memory nor the tools that draft a change to it (ADR
+ * 0027, ADR 0029) — it measures a skill, not what a user happens to have
+ * kept. A scenario of "memory-care" could require nothing such a run can do,
+ * so it would pass or fail for reasons that say nothing about the skill.
+ */
+const WITHOUT_SCENARIOS: Readonly<Record<string, string>> = {
+  "memory-care": "its only tools belong to the memory, which a regression run does not bring",
+};
 
 interface AppSkill {
   folder: string;
@@ -52,8 +62,9 @@ const skills: AppSkill[] = readdirSync(SKILLS_DIR, { withFileTypes: true })
   .map((entry) => {
     const text = readFileSync(new URL(`${entry.name}/${SKILL_FILE}`, SKILLS_DIR), "utf8");
     const parsed = parseSkillFile(text, entry.name);
-    const tests = parsed.skill?.plainva.tests ?? SKILL_SCENARIOS_FILE;
-    const read = readSkillScenarios(readFileSync(new URL(`${entry.name}/${tests}`, SKILLS_DIR), "utf8"));
+    const tests = new URL(`${entry.name}/${parsed.skill?.plainva.tests ?? SKILL_SCENARIOS_FILE}`, SKILLS_DIR);
+    // A skill without the file brings none: whether it may is asked below, by name.
+    const read = existsSync(tests) ? readSkillScenarios(readFileSync(tests, "utf8")) : { scenarios: [], problems: [] };
     return { folder: entry.name, skill: parsed.skill!, scenarios: read.scenarios, problems: [...parsed.problems.map((p) => `${p.code} ${p.detail ?? ""}`.trim()), ...read.problems] };
   });
 
@@ -99,7 +110,13 @@ describe("the golden scenarios of the app's skills", () => {
     expect(skills.map((s) => s.folder).sort()).toEqual(expect.arrayContaining(["daily-orientation", "project-status", "weekly-review"]));
     for (const { folder, scenarios, problems } of skills) {
       expect(problems, folder).toEqual([]);
-      expect(scenarios.length, folder).toBeGreaterThan(0);
+      if (folder in WITHOUT_SCENARIOS) expect(scenarios, folder).toEqual([]);
+      else expect(scenarios.length, folder).toBeGreaterThan(0);
+    }
+    // An exemption names a skill that is there, and says why: one that is gone leaves no entry behind.
+    for (const [folder, why] of Object.entries(WITHOUT_SCENARIOS)) {
+      expect(skills.map((s) => s.folder), folder).toContain(folder);
+      expect(why.trim(), folder).not.toBe("");
     }
   });
 

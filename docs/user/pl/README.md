@@ -1,6 +1,6 @@
 # Podręcznik użytkownika Plainva
 
-Stan na: 2026-10-07
+Stan na: 2026-10-09
 
 To tłumaczenie zostało wygenerowane automatycznie — poprawki są mile widziane.
 
@@ -28,7 +28,7 @@ Plainva to edytor vaultów Markdown: Twoje notatki to zwykłe pliki Markdown w f
 | [Wyszukiwanie](Search.md) | Wyszukiwanie pełnotekstowe, szybkie przełączanie, znajdź i zamień, tagi |
 | [Zadania](Tasks.md) | Widok zadań z całego vaultu: każde pole wyboru we wszystkich Twoich notatkach, z filtrami statusu/tagu/folderu/terminu i przełączaniem jednym kliknięciem |
 | [Asystent AI (Beta)](AI_Assistant.md) | Zadawanie pytań o notatki za pomocą wybranego modelu AI: dostawcy i klucze, profile, kontekst, zasady prywatności i historia |
-| [Umiejętności (Beta)](AI_Skills.md) | Instrukcje do powtarzalnej pracy: dwanaście dołączonych, własne, import i zatwierdzanie tego, co przychodzi, zanim zadziała |
+| [Umiejętności (Beta)](AI_Skills.md) | Instrukcje do powtarzalnej pracy: trzynaście dołączonych, własne, import i zatwierdzanie tego, co przychodzi, zanim zadziała |
 | [Skrypty (Beta)](AI_Scripts.md) | Małe programy, które czytają vault i obliczają wynik: uruchamianie, pisanie, co zwracają ich narzędzia, limity i zatwierdzanie tego, co przychodzi, zanim zadziała |
 | [Pamięć (Beta)](AI_Memory.md) | To, co AI powinna o Tobie wiedzieć bez przypominania: dwa miejsca, samodzielne dodawanie wpisów, prośba do AI o zapamiętanie, reguły, prywatność i dwa pliki |
 | [Łączenie aplikacji AI (beta)](Connect_AI_Apps.md) | Pozwolenie aplikacjom AI na tym komputerze (Claude Code, Claude Desktop, edytory) czytać vault przez serwer MCP Plainva: włączanie, parowanie, foldery, co widzi aplikacja, oraz pozwalanie aplikacji na proponowanie zmian |

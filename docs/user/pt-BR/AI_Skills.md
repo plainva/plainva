@@ -2,7 +2,7 @@
 
 Última revisão: 2026-10-09
 
-Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz doze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
+Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz treze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
 
 ## Usar uma habilidade
 
@@ -24,10 +24,11 @@ Você também pode simplesmente perguntar. Em toda conversa a IA conhece os nome
 | **Escrever e revisar** | Resume, encurta ou reescreve uma nota — como texto que você aproveita. |
 | **Cuidar do conhecimento** | Encontra notas que dizem o mesmo, estão desatualizadas ou não se ligam a nada. |
 | **Revisar links** | Verifica os links de uma nota: que não levam a lugar nenhum, que faltam, de mão única. |
+| **Cuidar da memória** | Revisa a memória: entradas que dizem o mesmo, se contradizem ou estão desatualizadas — e prepara rascunhos do que unir e do que retirar. |
 | **Verificar privacidade** | Encontra o que de uma nota deveria ficar neste dispositivo e sugere uma regra. |
 | **Reflexão** | Revisita com você as notas de um dia ou de uma semana — com gentileza, nunca um diagnóstico. |
 
-Todas apenas leem: nenhuma altera uma nota ou envia algo. Só **Investigar** usa a internet, e só **E-mail e calendário** lê seu e-mail — veja abaixo. Verificar privacidade e Reflexão foram pensadas para um modelo neste dispositivo; com um modelo na nuvem a visão de envio avisa. Desligue qualquer habilidade em **Habilidades** — o interruptor vale para este vault neste dispositivo. **Criar sua própria versão** copia uma para o seu vault, onde você pode alterá-la.
+Todas apenas leem: nenhuma altera uma nota ou envia algo. A que prepara rascunhos é **Cuidar da memória**: o que ela sugere para a memória fica esperando até você aceitar. Só **Investigar** usa a internet, e só **E-mail e calendário** lê seu e-mail — veja abaixo. Verificar privacidade e Reflexão foram pensadas para um modelo neste dispositivo; com um modelo na nuvem a visão de envio avisa. Desligue qualquer habilidade em **Habilidades** — o interruptor vale para este vault neste dispositivo. **Criar sua própria versão** copia uma para o seu vault, onde você pode alterá-la.
 
 ## Na internet e no seu e-mail
 
@@ -105,6 +106,18 @@ Uma versão que veio de uma sugestão fica em observação por três execuções
 Para uma habilidade que mudou de qualquer outra forma — pela sincronização ou por uma edição em outro dispositivo —, **Revisar e aprovar** diz o mesmo sob **Em comparação com a versão aprovada**: quais ferramentas entraram e saíram, as pastas, o limite.
 
 Em **O que foi aprendido**, a tela de habilidades abre `.agent/logs/learning.md`: uma linha para cada habilidade e cada regra aceita a partir de uma sugestão, com o dia e a conversa. O arquivo viaja com o seu vault.
+
+## Arrumar
+
+As habilidades se acumulam. Em **Arrumar**, a visualização de habilidades aponta o que este dispositivo notou por conta própria. Nenhum modelo é consultado para isso e nada é enviado, e cada linha é uma pergunta, não uma constatação:
+
+- Duas habilidades que dizem quase o mesmo, de modo que a IA escolhe uma ou a outra. **Comparar** coloca as duas lado a lado.
+- Uma habilidade sua que não roda há mais de 90 dias. **Desligar** a tira do catálogo; ela continua no vault.
+- Uma habilidade cuja lista menciona uma ferramenta que o Plainva não tem. Ela roda sem essa ferramenta.
+- Uma habilidade que não passou no teste com o modelo escolhido agora.
+- Uma habilidade cujas execuções terminam repetidamente sem resposta, e um caminho que você seguiu manualmente em três conversas. Nos dois casos, uma revisão da última conversa desse tipo pode sugerir algo — como descrito em “Aprender com uma conversa”: ela custa uma solicitação e pergunta antes.
+
+Cada linha oferece um passo, e nenhum acontece sozinho. **Não mostrar mais** tira uma linha da vista neste dispositivo; ela volta quando a situação em si muda.
 
 ## O que vai para o provedor
 

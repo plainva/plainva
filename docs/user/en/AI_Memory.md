@@ -34,6 +34,12 @@ A finished conversation can suggest entries too: **Learn from this conversation*
 
 Like all instructions, the file has to be approved on each device before it counts there (see [Skills](AI_Skills.md)). A rule you add on a device where the file was already approved counts there at once; your other devices ask you first.
 
+## Tidying up
+
+A memory that has grown repeats itself. Under **Tidy up**, the memory view names what this device noticed by itself, without asking a model: two entries that say almost the same, an entry that is more than a year old, and entries of **Always included** that no longer fit. **Compare** shows the two entries together, each with everything its menu can do.
+
+For a closer look there is a skill. **Memory care** reads the entries with the model of a conversation and drafts what belongs together and what can go; the row **Have the memory looked through** starts it. What it suggests are drafts like any other: nothing changes before you accept it, and where two entries contradict each other it asks instead of deciding.
+
 ## Privacy
 
 - An entry can carry a rule of its own: **Not to cloud models**, **Not in conversations with the internet**. A model on this device gets every entry.

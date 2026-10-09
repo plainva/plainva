@@ -242,6 +242,24 @@ word the version history uses for a version.
 | zh-CN | 从此对话中学习 | 依据 | 采纳 | 修改 | 观察中的版本 | 较早的版本… |
 | ja | この会話から学ぶ | 根拠 | 適用 | 修正 | 経過観察中の版 | 以前の版… |
 
+Tidying up (`ai.upkeep.*`, AI harness P6-3): what the device notices by itself is a **hint**, and the card that holds the hints is named by what the user does there — **tidy up**, the household word, not
+"maintenance", "cleanup" (taken by the skill that cleans up links) or "optimise". A hint speaks carefully: two skills or two entries **say almost the same** — never "duplicate", which would be a
+finding the device cannot make. **Don't show again** is how a hint is put away; it is not "ignore" and not "delete". The skill is **Memory care** — care as one looks after a garden, the word the
+language uses for "knowledge upkeep" where it has one — and it **looks through** the memory, which is neither "scan" nor "analyse".
+
+| Language | Tidy up | Don't show again | Compare | Memory care | Have the memory looked through |
+|---|---|---|---|---|---|
+| en | Tidy up | Don't show again | Compare | Memory care | Have the memory looked through |
+| de | Aufräumen | Nicht mehr zeigen | Vergleichen | Gedächtnis pflegen | Das Gedächtnis durchsehen lassen |
+| fr | Ranger | Ne plus afficher | Comparer | Entretenir la mémoire | Faire examiner la mémoire |
+| es | Poner en orden | No volver a mostrar | Comparar | Cuidar la memoria | Pedir una revisión de la memoria |
+| pt-BR | Arrumar | Não mostrar mais | Comparar | Cuidar da memória | Pedir uma revisão da memória |
+| it | Riordino | Non mostrare più | Confronta | Curare la memoria | Far rileggere la memoria |
+| nl | Opruimen | Niet meer tonen | Vergelijken | Geheugen onderhouden | Het geheugen laten doornemen |
+| pl | Porządkowanie | Nie pokazuj więcej | Porównaj | Dbanie o pamięć | Zleć przejrzenie pamięci |
+| zh-CN | 整理 | 不再显示 | 比较 | 记忆维护 | 让AI通读记忆 |
+| ja | 整理 | 今後は表示しない | 比較 | 記憶の手入れ | 記憶に目を通してもらう |
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

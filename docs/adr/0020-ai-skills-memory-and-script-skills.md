@@ -56,12 +56,16 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    status, meeting preparation, task triage, research with source capture,
    writing and summarising, mail and calendar capture, knowledge upkeep, link
    cleanup, memory curation, a privacy check before cloud egress, reflection
-   on explicitly released personal notes without diagnosis). Twelve of them
-   ship with the beta as real skills in the format, read-only: day
-   orientation, weekly review, project status, meeting preparation, task
-   triage, research, mail and calendar, writing and rewriting, knowledge
-   upkeep, link cleanup, the privacy check and reflection. Memory curation
-   follows with memory itself. "Research" is the one skill that names the
+   on explicitly released personal notes without diagnosis). Thirteen of
+   them ship with the beta as real skills in the format. Twelve read and
+   show: day orientation, weekly review, project status, meeting
+   preparation, task triage, research, mail and calendar, writing and
+   rewriting, knowledge upkeep, link cleanup, the privacy check and
+   reflection. The thirteenth, memory care, names the memory's two drafting
+   tools beside its search — what it finds waits as drafts — and is the only
+   skill of the app that does
+   ([ADR 0029](0029-ai-upkeep-hints-without-a-model.md), decision 8).
+   "Research" is the one skill that names the
    internet's tools: what that means for a conversation, and for a skill of
    the vault that names them, is ADR 0019 §11 — a skill still creates no
    right, it names tools a conversation the user starts may carry where the
@@ -251,5 +255,5 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
 
 ## Links
 
-- ADR 0017, ADR 0018, ADR 0019, ADR 0022, ADR 0027, ADR 0028; the Agent Skills specification;
+- ADR 0017, ADR 0018, ADR 0019, ADR 0022, ADR 0027, ADR 0028, ADR 0029; the Agent Skills specification;
   SEP-2640 (Skills over MCP).

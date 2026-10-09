@@ -245,6 +245,7 @@ describe("the settings model", () => {
     memory: EMPTY_MEMORY_STATE,
     learning: null,
     learnLog: false,
+    upkeep: { skills: [], memory: [] },
     ...patch,
   });
 

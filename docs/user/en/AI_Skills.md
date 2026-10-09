@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-10-09
 
-A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with twelve of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
+A skill is a set of instructions for work that comes back: preparing a meeting, sorting your tasks, a weekly review. Plainva comes with thirteen of them, and you can write your own. Skills use the open Agent Skills format — a folder with a `SKILL.md` — so they also work in other AI apps that read the format.
 
 ## Using a skill
 
@@ -24,10 +24,11 @@ You can also simply ask. In every conversation the AI knows the names and descri
 | **Write and rewrite** | Summarises, shortens or rewrites a note — as text you take over. |
 | **Knowledge upkeep** | Finds notes that say the same, are out of date or are connected to nothing. |
 | **Link cleanup** | Checks the links of a note: leading nowhere, missing, one-way. |
+| **Memory care** | Looks through the memory: entries that say the same, contradict each other or are out of date — and drafts what to merge and what to take out. |
 | **Privacy check** | Finds what in a note should stay on this device, and suggests a rule. |
 | **Reflection** | Looks back on the notes of a day or a week with you — kindly, never a diagnosis. |
 
-All of them only read: none changes a note or sends anything. Only **Research** uses the internet, and only **Mail and calendar** reads your mail — see below. The privacy check and reflection are meant for a model on this device; with a cloud model the send overview says so. Switch any skill off under **Skills** — the switch holds for this vault on this device. **Make your own version** copies one into your vault, where you can change it.
+All of them only read: none changes a note or sends anything. The one that drafts is **Memory care**: what it suggests for the memory waits until you accept it. Only **Research** uses the internet, and only **Mail and calendar** reads your mail — see below. The privacy check and reflection are meant for a model on this device; with a cloud model the send overview says so. Switch any skill off under **Skills** — the switch holds for this vault on this device. **Make your own version** copies one into your vault, where you can change it.
 
 ## On the internet and in your mail
 
@@ -105,6 +106,18 @@ A version that came from a suggestion is watched for three runs, and its row cou
 For a skill that changed in any other way — through sync, or an edit on another device — **Review and approve** says the same under **Compared with the approved version**: which tools came and went, the folders, the limit.
 
 Under **What was learned** the skills view opens `.agent/logs/learning.md`: one line for each skill and each rule that was accepted from a suggestion, with the day and the conversation. The file travels with your vault.
+
+## Tidying up
+
+Skills pile up. Under **Tidy up**, the skills view names what this device noticed by itself. No model is asked for it and nothing is sent, and each line is a question, not a finding:
+
+- Two skills that say almost the same, so that the AI picks one or the other. **Compare** puts them side by side.
+- A skill of your own that has not run for more than 90 days. **Switch off** takes it out of the catalog; it stays in the vault.
+- A skill whose list names a tool Plainva does not have. It runs without that tool.
+- A skill that did not pass its test with the model chosen now.
+- A skill whose runs keep ending without an answer, and a way you went by hand in three conversations. For both, a review of the last such conversation can suggest something — as described under "Learning from a conversation": it costs one request and asks first.
+
+Each line offers one step, and none is taken for you. **Don't show again** puts a line away on this device; it comes back when the matter itself has changed.
 
 ## What goes to the provider
 

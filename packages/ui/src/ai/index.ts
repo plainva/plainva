@@ -69,6 +69,8 @@ export * from "./MemoryParts";
 export * from "./aiLearn";
 export * from "./learnView";
 export * from "./LearnParts";
+export * from "./upkeepView";
+export * from "./UpkeepParts";
 export * from "./writeTools";
 export * from "./AiWriteCards";
 export * from "./aiFill";

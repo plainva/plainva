@@ -2,7 +2,7 @@
 
 Ultimo aggiornamento: 2026-10-09
 
-Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include dodici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
+Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include tredici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
 ## Usare una competenza
 
@@ -24,10 +24,11 @@ Puoi anche semplicemente chiedere. In ogni conversazione l'IA conosce i nomi e l
 | **Scrivere e rivedere** | Riassume, accorcia o riscrive una nota, come testo che riprendi tu. |
 | **Curare le conoscenze** | Trova note che dicono la stessa cosa, sono superate o non sono collegate a nulla. |
 | **Sistemare i link** | Controlla i link di una nota: che non portano da nessuna parte, mancanti, a senso unico. |
+| **Curare la memoria** | Rilegge la memoria: voci che dicono la stessa cosa, si contraddicono o sono superate — e prepara bozze di ciò che va unito e di ciò che si può togliere. |
 | **Controllo privacy** | Trova cosa di una nota dovrebbe restare su questo dispositivo e propone una regola. |
 | **Riflessione** | Ripensa con te alle note di un giorno o di una settimana, con gentilezza e mai una diagnosi. |
 
-Tutte si limitano a leggere: nessuna cambia una nota o invia qualcosa. Solo **Documentarsi** usa Internet, e solo **E-mail e calendario** legge le tue e-mail — vedi sotto. Controllo privacy e Riflessione sono pensate per un modello su questo dispositivo; con un modello nel cloud lo segnala il riepilogo di invio. Disattiva qualsiasi competenza sotto **Competenze**: l'interruttore vale per questo vault su questo dispositivo. **Crea la tua versione** ne copia una nel tuo vault, dove puoi modificarla.
+Tutte si limitano a leggere: nessuna cambia una nota o invia qualcosa. La competenza che prepara bozze è **Curare la memoria**: ciò che propone per la memoria resta in attesa finché non lo accetti. Solo **Documentarsi** usa Internet, e solo **E-mail e calendario** legge le tue e-mail — vedi sotto. Controllo privacy e Riflessione sono pensate per un modello su questo dispositivo; con un modello nel cloud lo segnala il riepilogo di invio. Disattiva qualsiasi competenza sotto **Competenze**: l'interruttore vale per questo vault su questo dispositivo. **Crea la tua versione** ne copia una nel tuo vault, dove puoi modificarla.
 
 ## Su Internet e nelle tue e-mail
 
@@ -105,6 +106,18 @@ Nel menu di una competenza, **Versioni precedenti…** elenca ciò che la cronol
 Per una competenza cambiata in qualsiasi altro modo — tramite la sincronizzazione o una modifica su un altro dispositivo — **Controlla e approva** dice lo stesso sotto **Rispetto alla versione approvata**: quali strumenti sono stati aggiunti e quali tolti, le cartelle, il limite.
 
 Sotto **Cosa è stato imparato** la sezione delle competenze apre `.agent/logs/learning.md`: una riga per ogni competenza e ogni regola accettate da una proposta, con il giorno e la conversazione. Il file viaggia con il tuo vault.
+
+## Riordino
+
+Le competenze si accumulano. Sotto **Riordino**, la vista delle competenze segnala ciò che questo dispositivo ha notato da sé. Nessun modello viene interpellato e nulla viene inviato, e ogni riga è una domanda, non un'affermazione:
+
+- Due competenze che dicono quasi la stessa cosa, perciò l'IA sceglie ora l'una, ora l'altra. **Confronta** mostra le due competenze una accanto all'altra.
+- Una tua competenza che non viene eseguita da più di 90 giorni. **Disattiva** toglie la competenza dal catalogo; resta nel vault.
+- Una competenza il cui elenco cita uno strumento che Plainva non ha. Viene eseguita senza quello strumento.
+- Una competenza che non ha superato la sua verifica con il modello scelto ora.
+- Una competenza le cui esecuzioni continuano a finire senza risposta, e un percorso che hai seguito a mano in tre conversazioni. In entrambi i casi una rilettura dell'ultima conversazione di questo tipo può proporre qualcosa — come descritto in «Imparare da una conversazione»: costa una richiesta e chiede prima conferma.
+
+Ogni riga offre un passaggio e nessuno viene eseguito al posto tuo. **Non mostrare più** mette da parte una riga su questo dispositivo; ricompare quando è cambiata la situazione stessa.
 
 ## Cosa va al fornitore
 

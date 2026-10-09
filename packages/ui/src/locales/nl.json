@@ -623,6 +623,11 @@
         "description": "De links van de open notitie controleren: dood, ontbrekend, eenrichting.",
         "prompt": "Controleer de links van de open notitie: welke leiden nergens heen, welke vermeldingen kunnen links worden, en welke notities zouden naar elkaar moeten verwijzen?"
       },
+      "memory": {
+        "title": "Geheugen onderhouden",
+        "description": "Items in het geheugen vinden die hetzelfde zeggen, elkaar tegenspreken of verouderd zijn.",
+        "prompt": "Neem mijn geheugen door: welke items zeggen hetzelfde, spreken elkaar tegen of zijn verouderd? Stel een concept op van wat samengevoegd moet worden en wat eruit moet."
+      },
       "privacy": {
         "title": "Privacycontrole",
         "description": "Vinden wat uit een notitie beter op dit apparaat blijft.",
@@ -982,6 +987,76 @@
       "log": {
         "title": "Wat er is geleerd",
         "desc": "Vaardigheden en regels die uit een voorstel zijn overgenomen, met de dag en het gesprek. Een bestand van de vault dat met de vault meereist."
+      }
+    },
+    "upkeep": {
+      "title": "Opruimen",
+      "note": "Opgemerkt door dit apparaat, zonder een model te raadplegen. Elke regel is een vraag, geen bevinding.",
+      "dismiss": "Niet meer tonen",
+      "switchedOff": "“{{name}}” is op dit apparaat uitgezet.",
+      "skillsAlike": {
+        "label": "“{{a}}” en “{{b}}” zeggen bijna hetzelfde",
+        "desc": "Twee vaardigheden voor hetzelfde werk: de AI kiest de ene of de andere.",
+        "step": "Vergelijken"
+      },
+      "skillUnused": {
+        "label": "“{{name}}” draaide voor het laatst op {{date}}",
+        "labelNever": "“{{name}}” heeft hier sinds {{date}} niet gedraaid",
+        "desc": "Al meer dan {{days}} dagen niet gebruikt. Uitgezet staat de vaardigheid niet meer in de catalogus, maar ze blijft in de vault.",
+        "step": "Uitzetten"
+      },
+      "skillUnknownTool": {
+        "label": "“{{name}}”: niet elk hulpmiddel op de lijst bestaat",
+        "desc": "Geen hulpmiddel van Plainva: {{tools}}. De vaardigheid draait zonder.",
+        "step": "Bestand openen"
+      },
+      "skillTestFailing": {
+        "label": "“{{name}}” heeft de test niet doorstaan: {{failed}} van {{ran}} mislukt",
+        "desc": "Getest zoals de vaardigheid nu is, met {{model}}.",
+        "step": "Opnieuw testen"
+      },
+      "skillFailing": {
+        "label": "“{{name}}”: {{failed}} van de laatste {{runs}} uitvoeringen zonder antwoord geëindigd",
+        "descLearn": "Het doornemen van de laatste uitvoering van dat soort kan andere instructies voorstellen. Het kost één verzoek en vraagt eerst.",
+        "desc": "De instructies vragen misschien meer dan wat één uitvoering aankan.",
+        "stepLearn": "Uitvoering doornemen",
+        "step": "Bestand openen"
+      },
+      "stepsRepeated": {
+        "label": "Je bent in {{times}} gesprekken dezelfde weg gegaan",
+        "desc": "{{tools}}. Het doornemen van het laatste gesprek kan er een vaardigheid voor voorstellen. Het kost één verzoek en vraagt eerst.",
+        "step": "Vaardigheid laten voorstellen"
+      },
+      "entriesAlike": {
+        "label": "Twee items zeggen bijna hetzelfde",
+        "desc": "“{{a}}” · “{{b}}”",
+        "step": "Vergelijken"
+      },
+      "entryOld": {
+        "label": "“{{text}}”",
+        "desc": "Toegevoegd op {{date}} — meer dan een jaar geleden. Klopt het nog?",
+        "step": "Bewerken"
+      },
+      "activeOverflow": {
+        "label": "“{{place}}” is vol",
+        "desc": "Items die niet meer passen: {{count}}. Ze gaan in geen enkel gesprek mee. Kort een item in, of verplaats er een naar “{{other}}”."
+      },
+      "care": {
+        "label": "Het geheugen laten doornemen",
+        "desc": "De vaardigheid “{{skill}}” leest de items en stelt een concept op van wat bij elkaar hoort en wat weg kan. Niets verandert voordat je het overneemt. Dat kost een paar verzoeken.",
+        "step": "Uitvoeren"
+      },
+      "compare": {
+        "title": "“{{a}}” en “{{b}}”",
+        "lead": "Beide zijn actief, dus de AI krijgt beide aangeboden. Hun beschrijvingen bepalen welke de AI kiest.",
+        "instructions": "Instructies vergeleken",
+        "same": "De instructies zijn dezelfde.",
+        "switchOff": "“{{name}}” uitzetten",
+        "hint": "Uitgezet wordt een vaardigheid op dit apparaat niet meer aan de AI aangeboden. Ze blijft in de vault, en haar schakelaar in de lijst haalt haar terug."
+      },
+      "entries": {
+        "title": "Twee items die bijna hetzelfde zeggen",
+        "hint": "Beide behouden, er een herformuleren of er een verwijderen — het menu van elk item biedt de stappen."
       }
     },
     "memory": {

@@ -671,6 +671,11 @@
         "description": "Sprawdzenie linków otwartej notatki: martwe, brakujące, jednokierunkowe.",
         "prompt": "Sprawdź linki otwartej notatki: które prowadzą donikąd, które wzmianki mogłyby być linkami i które notatki powinny odsyłać do siebie nawzajem?"
       },
+      "memory": {
+        "title": "Dbanie o pamięć",
+        "description": "Znajdowanie wpisów w pamięci, które mówią to samo, są ze sobą sprzeczne lub nieaktualne.",
+        "prompt": "Przejrzyj moją pamięć: które wpisy mówią to samo, są ze sobą sprzeczne lub są nieaktualne? Naszkicuj, co połączyć, a co usunąć."
+      },
       "privacy": {
         "title": "Kontrola prywatności",
         "description": "Znajdowanie tego, co z notatki powinno zostać na tym urządzeniu.",
@@ -1052,6 +1057,76 @@
       "log": {
         "title": "Czego się nauczono",
         "desc": "Umiejętności i reguły zaakceptowane z propozycji, wraz z dniem i rozmową. To plik vaultu, który wędruje razem z nim."
+      }
+    },
+    "upkeep": {
+      "title": "Porządkowanie",
+      "note": "Zauważone przez to urządzenie, bez pytania modelu. Każdy wiersz to pytanie, nie stwierdzony fakt.",
+      "dismiss": "Nie pokazuj więcej",
+      "switchedOff": "Umiejętność „{{name}}” jest wyłączona na tym urządzeniu.",
+      "skillsAlike": {
+        "label": "„{{a}}” i „{{b}}” mówią prawie to samo",
+        "desc": "Dwie umiejętności do tego samego zadania: AI wybiera raz jedną, raz drugą.",
+        "step": "Porównaj"
+      },
+      "skillUnused": {
+        "label": "„{{name}}”: ostatnie uruchomienie {{date}}",
+        "labelNever": "Umiejętność „{{name}}” nie była tu uruchamiana od {{date}}",
+        "desc": "Od ponad {{days}} dni bez użycia. Po wyłączeniu przestaje być w katalogu umiejętności, ale z vaultu nie znika.",
+        "step": "Wyłącz"
+      },
+      "skillUnknownTool": {
+        "label": "„{{name}}”: nie wszystkie wymienione narzędzia istnieją",
+        "desc": "Plainva nie zna: {{tools}}. Umiejętność działa bez tego.",
+        "step": "Otwórz plik"
+      },
+      "skillTestFailing": {
+        "label": "Umiejętność „{{name}}” nie przeszła sprawdzenia: nieudane {{failed}} z {{ran}}",
+        "desc": "Sprawdzona w obecnej postaci, z modelem {{model}}.",
+        "step": "Sprawdź ponownie"
+      },
+      "skillFailing": {
+        "label": "„{{name}}”: w {{failed}} z ostatnich {{runs}} uruchomień zabrakło odpowiedzi",
+        "descLearn": "Przegląd ostatniego takiego uruchomienia może zaproponować inne instrukcje. Kosztuje jedno zapytanie i najpierw pyta o zgodę.",
+        "desc": "Instrukcje tej umiejętności mogą wymagać więcej, niż da się zrobić w jednym uruchomieniu.",
+        "stepLearn": "Przejrzyj uruchomienie",
+        "step": "Otwórz plik"
+      },
+      "stepsRepeated": {
+        "label": "Te same kroki powtórzyły się w {{times}} rozmowach",
+        "desc": "{{tools}}. Przegląd ostatniej z tych rozmów może zaproponować do tego umiejętność. Kosztuje jedno zapytanie i najpierw pyta o zgodę.",
+        "step": "Zaproponuj umiejętność"
+      },
+      "entriesAlike": {
+        "label": "Dwa wpisy mówią prawie to samo",
+        "desc": "„{{a}}” · „{{b}}”",
+        "step": "Porównaj"
+      },
+      "entryOld": {
+        "label": "„{{text}}”",
+        "desc": "Dodany {{date}} — ponad rok temu. Czy to nadal prawda?",
+        "step": "Edytuj"
+      },
+      "activeOverflow": {
+        "label": "„{{place}}”: brak miejsca",
+        "desc": "Wpisy, które się już nie mieszczą: {{count}}. Nie są dołączane do żadnej rozmowy. Skróć wpis albo przenieś jeden do sekcji „{{other}}”."
+      },
+      "care": {
+        "label": "Zleć przejrzenie pamięci",
+        "desc": "Umiejętność „{{skill}}” czyta wpisy i szkicuje, co do siebie należy, a co można usunąć. Nic się nie zmienia, dopóki tego nie zaakceptujesz. Kosztuje kilka zapytań.",
+        "step": "Uruchom"
+      },
+      "compare": {
+        "title": "„{{a}}” i „{{b}}”",
+        "lead": "Obie umiejętności są aktywne, więc AI ma do wyboru obie. Ich opisy decydują o tym, którą wybierze.",
+        "instructions": "Porównanie instrukcji",
+        "same": "Instrukcje są takie same.",
+        "switchOff": "Wyłącz „{{name}}”",
+        "hint": "Wyłączona umiejętność nie jest już oferowana AI na tym urządzeniu. Nie znika z vaultu, a jej przełącznik na liście przywraca ją."
+      },
+      "entries": {
+        "title": "Dwa wpisy, które mówią prawie to samo",
+        "hint": "Zachowaj oba, przeformułuj jeden albo usuń jeden — kroki znajdziesz w menu każdego wpisu."
       }
     },
     "memory": {

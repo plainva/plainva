@@ -3,10 +3,13 @@ import {
   readConversationRecord,
   readInstructionApprovals,
   readSkillTests,
+  readUpkeepPrefs,
   readWebSettings,
   serializeInstructionApprovals,
   serializeSkillTests,
+  serializeUpkeepPrefs,
   serializeWebSettings,
+  type UpkeepPrefs,
   type WebSettings,
   type InstructionApprovals,
   type SkillTestRecords,
@@ -106,6 +109,17 @@ export interface WebSettingsStore {
   save(settings: WebSettings): Promise<void>;
 }
 
+/**
+ * The upkeep hints this device was told not to show again (plan KI-Harness
+ * P6-3): per vault, in the app's data. A device's own choice about what it
+ * wants to be asked — nothing a vault's writers should be able to settle. A
+ * missing or damaged file dismisses nothing.
+ */
+export interface UpkeepPrefStore {
+  load(): Promise<UpkeepPrefs>;
+  save(prefs: UpkeepPrefs): Promise<void>;
+}
+
 export const RELATED_DISMISSED_CAP = 500;
 export const RELATED_PAUSED_CAP = 200;
 
@@ -180,6 +194,7 @@ export function createAiVaultStores(
   instructionApprovals: InstructionApprovalStore;
   skillTests: SkillTestStore;
   web: WebSettingsStore;
+  upkeep: UpkeepPrefStore;
 } {
   if (!SAFE_ID.test(vaultKey)) throw new Error("invalid vault key");
   const dir = vaultKey;
@@ -271,7 +286,12 @@ export function createAiVaultStores(
     save: (settings) => files.write(`${dir}/web.json`, serializeWebSettings(settings)),
   };
 
-  return { conversations, ledger, approvals, related, instructionApprovals, skillTests, web };
+  const upkeep: UpkeepPrefStore = {
+    load: async () => readUpkeepPrefs(await files.read(`${dir}/upkeep.json`)),
+    save: (value) => files.write(`${dir}/upkeep.json`, serializeUpkeepPrefs(value)),
+  };
+
+  return { conversations, ledger, approvals, related, instructionApprovals, skillTests, web, upkeep };
 }
 
 /** A stable, file-name-safe handle for a vault (FNV-1a over its path or id). */

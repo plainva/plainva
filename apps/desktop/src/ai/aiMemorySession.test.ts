@@ -164,7 +164,11 @@ describe("a conversation and the vault's memory", () => {
     const vault = memoryVault({});
     const { s, fake } = await memorySession([turn({ text: "Hello." })], vault);
     await s.send("Hello?");
-    expect(body(fake.sent[0])).not.toContain("memory for assistants");
+    // Neither the sentence that introduces the memory nor the tool that looks into it. (The catalog still names the
+    // skill that looks through a memory — a skill's description is no memory.)
+    expect(body(fake.sent[0])).not.toContain("The user keeps a memory for assistants");
+    expect(body(fake.sent[0])).not.toContain("untrusted_data origin=\\\"memory:");
+    expect(toolNames(fake.sent[0])).not.toContain("search_memory");
     expect(s.getState().active!.instructions?.memory).toBeUndefined();
     expect(s.getState().memory).toMatchObject({ loaded: true, available: true, writable: true, on: true, active: [], long: [], files: [] });
   });

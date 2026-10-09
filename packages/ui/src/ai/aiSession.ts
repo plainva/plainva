@@ -1,6 +1,6 @@
 import { withoutReadCursor, type ToolScope } from "./vaultTools";
 import { APP_SKILL_SOURCES, appSkillOf, appSkillScenarios } from "./appSkills";
-import type { InstructionApprovalStore, SkillTestStore, WebSettingsStore } from "./aiStores";
+import type { InstructionApprovalStore, SkillTestStore, UpkeepPrefStore, WebSettingsStore } from "./aiStores";
 import { createWebExecutor, newRunWeb, webToolNames } from "./webTools";
 import { createPrivateDataExecutor, newRunReading, readSomething, type QuarantineReader } from "./privateData";
 import type { PreparedImage, PrepareFailure } from "./aiImage";
@@ -128,7 +128,17 @@ import {
   skillCatalog,
   skillGrant,
   skillTestBudgetLeft,
+  skillTestState,
+  skillTestSummary,
   skillTestVersion,
+  dismissUpkeep,
+  EMPTY_UPKEEP_PREFS,
+  memoryUpkeep,
+  shownUpkeep,
+  skillUpkeep,
+  sameStoredValue,
+  type UpkeepHint,
+  type UpkeepTestResult,
   switchInstruction,
   aiMonthlyTotals,
   allProviders,
@@ -412,6 +422,8 @@ export interface AiVaultHost {
   reply?(reply: { path: string; parentCommentId: string; body: string; author: SuggestionAuthor }): Promise<void>;
   /** What the regression runs of the skills found on this device (plan P3-8); absent, results are not kept. */
   skillTests?: SkillTestStore;
+  /** The upkeep hints this device was told not to show again (plan P6-3); absent, every hint comes back. */
+  upkeep?: UpkeepPrefStore;
   /**
    * The vault's own instructions — skills in `.agent/skills/` and a root
    * `AGENTS.md` — and their approvals on this device (plan KI-Harness P3);
@@ -806,7 +818,20 @@ export interface AiState {
   learning: string | null;
   /** The vault has a learning log (plan P6-2): something was taken over from a proposal, and the workshop offers the file. */
   learnLog: boolean;
+  /** What this device noticed by itself about the skills and the memory (plan P6-3) — without the hints it was told not to show again. */
+  upkeep: AiUpkeepState;
 }
+
+/**
+ * Upkeep hints as the views show them (plan KI-Harness P6-3, ADR 0029):
+ * computed on this device from what it already holds — no model, no request.
+ */
+export interface AiUpkeepState {
+  skills: UpkeepHint[];
+  memory: UpkeepHint[];
+}
+
+export const EMPTY_UPKEEP_STATE: AiUpkeepState = { skills: [], memory: [] };
 
 /** A column to fill (plan KI-Harness P5-4): the database, the column, and the entries that say nothing in it. */
 export interface FillRequest {
@@ -1076,6 +1101,7 @@ export class AiSession {
       memory: EMPTY_MEMORY_STATE,
       learning: null,
       learnLog: false,
+      upkeep: EMPTY_UPKEEP_STATE,
     };
   }
 
@@ -1276,7 +1302,9 @@ export class AiSession {
       // A review that was learning from a conversation of the vault that is gone ends with it.
       learning: null,
       learnLog: false,
+      upkeep: EMPTY_UPKEEP_STATE,
     });
+    this.upkeepPlan = null;
     this.fillAbort?.abort();
     this.learnAbort?.abort();
     // A script the workshop started ran on the vault that is gone: it ends here, and what it showed goes with it.
@@ -2368,6 +2396,62 @@ export class AiSession {
     if (!outcome.ok) return outcome;
     await this.logLearning(vault, { what: "skill-restored", skill: nameOf(entry.source), version: learnLogTime(new Date(meant.at)) });
     return { ok: true };
+  }
+
+  // ----------------------------------------------------------------- upkeep
+
+  /** The regression plan the workshop last showed: what a hint about a test is measured against. */
+  private upkeepPlan: SkillTestPlan | null = null;
+
+  /** The newest regression result of each skill, where it still speaks for the skill and the model as they are now. */
+  private upkeepTests(plan: SkillTestPlan): UpkeepTestResult[] {
+    return this.state.skillTests.records.flatMap((record) => {
+      const target = plan.targets.find((candidate) => candidate.id === record.id);
+      if (!target || skillTestState(record, { version: target.version, providerId: plan.choice.providerId, model: plan.choice.model }) !== "current") return [];
+      const summary = skillTestSummary(record.scenarios);
+      return [{ id: record.id, at: record.at, model: record.model, failed: summary.failed, ran: summary.passed + summary.failed }];
+    });
+  }
+
+  /**
+   * What this device can say by itself about the skills and the memory (plan
+   * KI-Harness P6-3, ADR 0029): arithmetic over the instructions and their
+   * approvals, the run ledger, the regression results and the memory's
+   * entries as the state holds them. No model is asked, nothing is sent, and
+   * nothing is written — a hint ends in a step the user takes, or in "don't
+   * show again". The views call this when they open and when what it reads
+   * changed. `plan`: the regression plan a view holds (null: none); left out,
+   * the last one given still counts.
+   */
+  async refreshUpkeep(plan?: SkillTestPlan | null): Promise<void> {
+    const vault = this.vault;
+    if (!vault) return;
+    if (plan !== undefined) this.upkeepPlan = plan;
+    const [ledger, prefs] = await Promise.all([vault.ledger.load().catch((): LedgerEntry[] => []), vault.upkeep ? vault.upkeep.load().catch(() => EMPTY_UPKEEP_PREFS) : Promise.resolve(EMPTY_UPKEEP_PREFS)]);
+    if (this.vault !== vault) return;
+    const now = this.host.now();
+    const conversations = new Set(this.state.summaries.map((summary) => summary.id));
+    const tests = this.upkeepPlan ? this.upkeepTests(this.upkeepPlan) : [];
+    const skills = shownUpkeep(skillUpkeep({ entries: this.state.skills.entries, ledger, tests, now, conversations }), prefs);
+    // A memory that is switched off on this device goes nowhere from here: there is nothing to tidy for it.
+    const kept = this.state.memory;
+    const memory = kept.available && kept.on ? shownUpkeep(memoryUpkeep({ active: kept.active, long: kept.long, over: kept.budget.over, now }), prefs) : [];
+    // Nothing new to show: the views keep what they have. Compared by content, never as JSON text.
+    if (sameStoredValue(skills, this.state.upkeep.skills) && sameStoredValue(memory, this.state.upkeep.memory)) return;
+    this.set({ upkeep: { skills, memory } });
+  }
+
+  /**
+   * "Don't show again" on a hint (plan P6-3): remembered on this device, for
+   * this vault. A hint's key holds the state it was about, so it returns when
+   * the matter itself has changed.
+   */
+  async dismissUpkeepHint(key: string): Promise<void> {
+    const vault = this.vault;
+    if (!vault?.upkeep) return;
+    const prefs = await vault.upkeep.load().catch(() => EMPTY_UPKEEP_PREFS);
+    await vault.upkeep.save(dismissUpkeep(prefs, key)).catch(() => undefined);
+    if (this.vault === vault) await this.refreshUpkeep();
   }
 
   // ----------------------------------------------------------------- memory
@@ -4995,6 +5079,8 @@ export class AiSession {
             : {}),
           // How many pictures the message brought — never which.
           ...(imagesOf(input.parts).length ? { images: imagesOf(input.parts).length } : {}),
+          // A door's answer, an action at a note, a regression run: nobody typed it, and no habit shows in it (plan P6-3).
+          ...(input.usedDrafts ? {} : { aside: true as const }),
         }),
       );
     } catch {

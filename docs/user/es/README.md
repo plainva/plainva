@@ -1,6 +1,6 @@
 # Guía de usuario de Plainva
 
-Última actualización: 2026-10-07
+Última actualización: 2026-10-09
 
 Esta traducción se generó automáticamente — las correcciones son bienvenidas.
 
@@ -28,7 +28,7 @@ Plainva es un editor de vaults en Markdown: tus notas son archivos Markdown norm
 | [Buscar](Search.md) | Búsqueda de texto completo, selector rápido, buscar y reemplazar, etiquetas |
 | [Tareas](Tasks.md) | La vista de tareas de todo el vault: todas las casillas de tus notas, con filtros de estado, etiqueta, carpeta y fecha límite, y cambio de estado con un clic |
 | [Asistente de IA (Beta)](AI_Assistant.md) | Hacer preguntas sobre tus notas con un modelo de IA de tu elección: proveedores y claves, perfiles, contexto, reglas de privacidad e historial |
-| [Habilidades (Beta)](AI_Skills.md) | Instrucciones para trabajo recurrente: las doce incluidas, las tuyas, importar y aprobar lo que llega antes de que se ejecute |
+| [Habilidades (Beta)](AI_Skills.md) | Instrucciones para trabajo recurrente: las trece incluidas, las tuyas, importar y aprobar lo que llega antes de que se ejecute |
 | [Scripts (Beta)](AI_Scripts.md) | Programas pequeños que leen tu vault y calculan un resultado: ejecutar uno, escribir uno, qué devuelven sus herramientas, sus límites y aprobar lo que llega antes de que se ejecute |
 | [Memoria (Beta)](AI_Memory.md) | Lo que la IA debe saber sobre ti sin que tengas que repetírselo: los dos lugares, añadir entradas por tu cuenta, dejar que la IA recuerde, reglas, privacidad y los dos archivos |
 | [Conectar apps de IA (Beta)](Connect_AI_Apps.md) | Dejar que las apps de IA de este ordenador (Claude Code, Claude Desktop, editores) lean el vault a través del servidor MCP de Plainva: activarlo, emparejar, carpetas, lo que ve una app, y dejar que una app sugiera cambios |

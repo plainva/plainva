@@ -34,6 +34,12 @@ Ook een afgerond gesprek kan items voorstellen: **Leren van dit gesprek** leest 
 
 Zoals alle instructies moet het bestand op elk apparaat worden goedgekeurd voordat het daar geldt (zie [Vaardigheden](AI_Skills.md)). Een regel die je toevoegt op een apparaat waar het bestand al is goedgekeurd, geldt daar meteen; je andere apparaten vragen je eerst om goedkeuring.
 
+## Opruimen
+
+Een geheugen dat is gegroeid, herhaalt zichzelf. Onder **Opruimen** noemt de geheugenweergave wat dit apparaat zelf heeft opgemerkt, zonder een model te raadplegen: twee items die bijna hetzelfde zeggen, een item dat meer dan een jaar oud is, en items van **Altijd erbij** die niet meer passen. **Vergelijken** toont de twee items samen, elk met alles wat zijn menu kan.
+
+Voor een nadere blik is er een vaardigheid. **Geheugen onderhouden** leest de items met het model van een gesprek en stelt een concept op van wat bij elkaar hoort en wat weg kan; de rij **Het geheugen laten doornemen** start haar. Wat ze voorstelt, zijn concepten zoals alle andere: niets verandert voordat je het overneemt, en waar twee items elkaar tegenspreken, vraagt ze het je in plaats van te beslissen.
+
 ## Privacy
 
 - Een item kan een eigen regel dragen: **Niet naar cloudmodellen**, **Niet in gesprekken met internet**. Een model op dit apparaat krijgt elk item.

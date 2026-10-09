@@ -6726,3 +6726,189 @@ test('AI learning: a review suggests an entry, a rule and other instructions for
   await workshop.getByTestId('ai-learn-log').click();
   await expect(page.locator('.cm-content').last()).toContainText('Learning log');
 });
+
+// Tidying up (AI harness P6-3): what this device notices by itself about the
+// skills and the memory — two skills that say almost the same, a tool that
+// does not exist, two entries that say almost the same, an entry of years ago.
+// No model is asked for any of it: each hint is a question with one step the
+// reader takes, or with "don't show again". The skill that looks through the
+// memory with a model is started by hand, has the memory's three tools and no
+// other, and what it finds waits as drafts. In the real shell, against the mock
+// file system that stands for the vault; the model is the scripted `ai_http`.
+test('AI tidying up: the device names what it noticed without a model; a hint is one step or put away; memory care drafts and changes nothing', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  // A conversation bound to a skill carries the skill's tools itself: they are called by their names.
+  const calls = (...list: Array<[id: string, name: string, args: unknown]>) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ...list.flatMap(([id, name, args], index): Array<[string, unknown]> => [
+      ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name, input: {} } }],
+      ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(args) } }],
+      ['content_block_stop', { type: 'content_block_stop', index }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const skill = (name: string, description: string, body: string, tools: string) => `---\nname: ${name}\ndescription: ${description}\nallowed-tools: ${tools}\n---\n\n${body}\n`;
+  const SKILLS: Record<string, string> = {
+    'client-letter': skill('client-letter', 'Drafts a letter to a client in the tone of the last three letters to this client.', '1. Read the last three letters.\n2. Write the letter.', 'search_vault read_note'),
+    'letter-to-client': skill('letter-to-client', 'Drafts a letter to a client in the tone of the last letters to that client.', '1. Read the last letters.\n2. Compose it.', 'search_vault read_note'),
+    'fair-follow-up': skill('fair-follow-up', 'Writes the follow-up after a trade fair, one note per contact.', '1. Collect the contacts.\n2. Draft a note per contact.', 'search_vault send_mail'),
+  };
+  const ACTIVE = '# Active memory\n\n- Harbour Studio bills per episode. <!-- plainva: added=2026-09-01; by=user -->\n';
+  const LONG = '# Memory\n\n- Harbour Studio bills per episode, not per hour. <!-- plainva: added=2026-10-01; by=user -->\n- Ms Petersen is my tax adviser. <!-- plainva: added=2024-01-15; by=user -->\n';
+  const script = [
+    calls(['c1', 'search_memory', { query: '' }]),
+    calls(['c2', 'remember', { text: 'Harbour Studio bills per episode and never per hour.', replaces: 'Harbour Studio bills per episode.' }], ['c3', 'forget', { entry: 'Harbour Studio bills per episode, not per hour.' }]),
+    says('Drafted: one entry instead of two. Both drafts wait for you.'),
+  ];
+  await page.addInitScript(({ script, skills, active, long }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.agent'] = { isDir: true };
+    fs['/test-vault/.agent/skills'] = { isDir: true };
+    for (const [name, text] of Object.entries(skills)) {
+      fs[`/test-vault/.agent/skills/${name}`] = { isDir: true };
+      fs[`/test-vault/.agent/skills/${name}/SKILL.md`] = text;
+    }
+    fs['/test-vault/.agent/active_memory.md'] = active;
+    fs['/test-vault/.agent/MEMORY.md'] = long;
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, skills: SKILLS, active: ACTIVE, long: LONG });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const files = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([, value]) => typeof value === 'string').map(([path, value]) => ({ path, text: String(value) })));
+  const fileAt = async (path: string) => (await files()).find((file) => file.path === path)?.text ?? null;
+  // What the assistant's side of the vault holds: the skills, the memory, the instructions. (The app's own housekeeping
+  // under `.plainva/` moves by itself and is nobody's instruction.)
+  const vaultFiles = async () => (await files()).filter((file) => file.path.startsWith('/test-vault/.agent/') || file.path === '/test-vault/AGENTS.md').sort((a, b) => a.path.localeCompare(b.path));
+
+  // 1. Three skills arrived; each is read and approved here. Before that the device says nothing about them:
+  //    a skill nobody reviewed is named nowhere.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-skills')));
+  await page.getByTestId('ai-tab-skills').click();
+  const workshop = page.getByTestId('ai-skills-workshop');
+  await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(3);
+  await expect(page.getByTestId('ai-upkeep-skills')).toHaveCount(0);
+  for (let left = 3; left > 0; left--) {
+    await workshop.getByTestId('ai-skill-review').first().click();
+    await page.getByTestId('ai-skill-approve').click();
+    await expect(page.getByTestId('ai-skill-approval')).toHaveCount(0);
+    await expect(workshop.getByTestId('ai-skill-review')).toHaveCount(left - 1);
+  }
+  const before = await vaultFiles();
+
+  // 2. "Tidy up": a tool that does not exist, and two skills that say almost the same. Sentences of the app's own,
+  //    one step each — and the card says that no model was asked.
+  const tidy = page.getByTestId('ai-upkeep-skills');
+  await expect(tidy).toContainText('Tidy up · 2');
+  const unknown = tidy.locator('.pv-setrow', { hasText: 'not every tool on its list exists' });
+  await expect(unknown).toContainText('“fair-follow-up”: not every tool on its list exists');
+  await expect(unknown).toContainText("Not a tool of Plainva's: send_mail. The skill runs without.");
+  const alike = tidy.locator('.pv-setrow', { hasText: 'say almost the same' });
+  await expect(alike).toContainText('“client-letter” and “letter-to-client” say almost the same');
+  await expect(tidy).toContainText('Noticed by this device, without asking a model.');
+  expect(await requests()).toHaveLength(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-upkeep-skills-desktop.png'), animations: 'disabled' });
+
+  // 3. "Compare": both side by side — what each is for, what each may do, their instructions line against line.
+  await alike.getByTestId('ai-upkeep-step').click();
+  const compare = page.getByTestId('ai-skill-compare');
+  await expect(compare.getByTestId('ai-skill-compare-side')).toHaveCount(2);
+  await expect(compare.getByTestId('ai-skill-compare-side').first()).toContainText('in the tone of the last three letters to this client');
+  // What the first skill says and the second does not is marked as gone, what only the second says as come.
+  await expect(compare.getByTestId('ai-skill-compare-lines')).toContainText('2. Write the letter.');
+  await expect(compare.getByTestId('ai-skill-compare-lines')).toContainText('+ 2. Compose it.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-upkeep-compare-desktop.png'), animations: 'disabled' });
+  // Switching one of the two off is the switch its row has: this device's list, and no file of the vault.
+  await compare.getByTestId('ai-skill-compare-off').last().click();
+  await expect(compare).toHaveCount(0);
+  await expect(page.getByText('“letter-to-client” is switched off on this device.')).toBeVisible();
+  await expect(tidy).toContainText('Tidy up · 1');
+  await expect(tidy.locator('.pv-setrow', { hasText: 'say almost the same' })).toHaveCount(0);
+  expect(await vaultFiles()).toEqual(before);
+
+  // 4. "Don't show again" puts the other hint away — on this device, in the app's data, never in the vault.
+  await unknown.getByTestId('ai-upkeep-dismiss').click();
+  await expect(page.getByTestId('ai-upkeep-skills')).toHaveCount(0);
+  const kept = (await files()).filter((file) => file.path.endsWith('upkeep.json'));
+  expect(kept).toHaveLength(1);
+  expect(kept[0].path.startsWith('/test-vault/')).toBe(false);
+  expect(JSON.parse(kept[0].text).dismissed).toHaveLength(1);
+  expect(await vaultFiles()).toEqual(before);
+
+  // 5. The memory has its own card: two entries that say almost the same, and one from years ago.
+  await page.getByTestId('ai-tab-memory').click();
+  const memory = page.getByTestId('ai-memory');
+  const tidyMemory = page.getByTestId('ai-upkeep-memory');
+  await expect(tidyMemory).toContainText('Tidy up · 2');
+  await expect(tidyMemory).toContainText('Two entries say almost the same');
+  await expect(tidyMemory).toContainText('“Harbour Studio bills per episode.” · “Harbour Studio bills per episode, not per hour.”');
+  await expect(tidyMemory).toContainText('“Ms Petersen is my tax adviser.”');
+  await expect(tidyMemory).toContainText('more than a year ago. Is it still true?');
+  await expect(tidyMemory).toContainText('Have the memory looked through');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-upkeep-memory-desktop.png'), animations: 'disabled' });
+  // "Compare" shows the two entries as the list shows them, each with its menu; "Edit" opens the old entry's form.
+  await tidyMemory.locator('.pv-setrow', { hasText: 'Two entries say almost the same' }).getByTestId('ai-upkeep-step').click();
+  const pair = page.getByTestId('ai-memory-compare');
+  await expect(pair.getByTestId('ai-memory-entry')).toHaveCount(2);
+  await expect(pair.getByTestId('ai-memory-more')).toHaveCount(2);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-upkeep-entries-desktop.png'), animations: 'disabled' });
+  await pair.getByRole('button', { name: 'Close', exact: true }).last().click();
+  await expect(pair).toHaveCount(0);
+  await tidyMemory.locator('.pv-setrow', { hasText: 'Ms Petersen is my tax adviser.' }).getByTestId('ai-upkeep-step').click();
+  await expect(page.getByTestId('ai-memory-text')).toHaveValue('Ms Petersen is my tax adviser.');
+  await page.getByTestId('ai-memory-dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByTestId('ai-memory-dialog')).toHaveCount(0);
+  // Still: not one request, and the vault as it was.
+  expect(await requests()).toHaveLength(0);
+  expect(await vaultFiles()).toEqual(before);
+
+  // 6. With a model, when the reader starts it: memory care. Its conversation carries the memory's three tools and no
+  //    other; what it finds are drafts, and both files of the memory are as they were.
+  await tidyMemory.getByTestId('ai-memory-care').click();
+  const tab = page.getByTestId('ai-tab');
+  await tab.getByTestId('ai-consent-send').click();
+  await expect(tab.getByText('Drafted: one entry instead of two.')).toBeVisible();
+  const sent = await requests();
+  expect(sent).toHaveLength(3);
+  const tools = (JSON.parse(sent[0]).tools as Array<{ name: string }>).map((tool) => tool.name).sort();
+  expect(tools).toEqual(['forget', 'remember', 'search_memory']);
+  expect(sent[0]).toContain('This conversation runs the skill');
+  await expect(tab.locator('[data-testid="ai-draft"]')).toHaveCount(2);
+  expect(await fileAt('/test-vault/.agent/active_memory.md')).toBe(ACTIVE);
+  expect(await fileAt('/test-vault/.agent/MEMORY.md')).toBe(LONG);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-upkeep-care-desktop.png'), animations: 'disabled' });
+
+  // 7. The reader's step writes: the entry that says it once takes the place of the first, and the twin goes.
+  await tab.locator('[data-testid="ai-draft"][data-kind="memory"]').getByTestId('ai-draft-create').click();
+  await expect.poll(() => fileAt('/test-vault/.agent/active_memory.md')).toContain('- Harbour Studio bills per episode and never per hour.');
+  await tab.locator('[data-testid="ai-draft"][data-kind="forget"]').getByTestId('ai-draft-create').click();
+  await expect.poll(() => fileAt('/test-vault/.agent/MEMORY.md')).not.toContain('not per hour');
+  // The hint about the two entries is settled by that; the old entry is still asked about.
+  await page.getByTestId('ai-tab-memory').click();
+  await expect(memory).toBeVisible();
+  await expect(page.getByTestId('ai-upkeep-memory')).toContainText('Tidy up · 1');
+});

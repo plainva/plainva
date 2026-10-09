@@ -90,6 +90,7 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
       ) : view === "memory" ? (
         <MobileMemoryView
           onOpenNote={onOpenNote}
+          onRun={onBack}
           onOpenWaiting={() => setView("open")}
           onReviewRules={(id) => {
             // The vault's instructions are reviewed where every instruction is: in the workshop.

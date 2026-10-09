@@ -34,6 +34,12 @@ Zakończona rozmowa też może zaproponować wpisy: polecenie **Naucz się z tej
 
 Podobnie jak wszystkie instrukcje, plik musi zostać zatwierdzony na każdym urządzeniu, zanim tam zacznie obowiązywać (zob. [Umiejętności](AI_Skills.md)). Reguła dodana na urządzeniu, na którym plik był już zatwierdzony, obowiązuje tam od razu; Twoje pozostałe urządzenia najpierw Cię pytają.
 
+## Porządkowanie
+
+Pamięć, która się rozrosła, zaczyna się powtarzać. W sekcji **Porządkowanie** widok pamięci wymienia rzeczy, które to urządzenie zauważyło samo, bez pytania modelu: dwa wpisy, które mówią prawie to samo, wpis starszy niż rok oraz wpisy w sekcji **Zawsze dołączane**, które już się nie mieszczą. **Porównaj** pokazuje oba wpisy razem, każdy ze wszystkimi działaniami ze swojego menu.
+
+Do dokładniejszego przyjrzenia się pamięci służy umiejętność. **Dbanie o pamięć** czyta wpisy za pomocą modelu rozmowy i szkicuje, co do siebie należy, a co można usunąć; uruchamia ją wiersz **Zleć przejrzenie pamięci**. To, co proponuje, to szkice jak każde inne: nic się nie zmienia, dopóki ich nie zaakceptujesz, a gdy dwa wpisy są ze sobą sprzeczne, pyta zamiast rozstrzygać.
+
 ## Prywatność
 
 - Wpis może nieść własną regułę: **Nie do modeli w chmurze**, **Nie w rozmowach z internetem**. Model na tym urządzeniu dostaje każdy wpis.

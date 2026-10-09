@@ -604,6 +604,12 @@ export interface LedgerEntry {
   reading?: { mailSearches: number; messages: number; descriptions: number; onDevice: boolean; inputTokens: number; outputTokens: number };
   /** Pictures the message of this run brought (plan P4-5): how many — never which. */
   images?: number;
+  /**
+   * A run nobody typed into the composer or started as a skill: a door's
+   * answer, an action at a note, a regression run. What the device says about
+   * habits — a skill nobody used, a way gone by hand — reads past them (plan P6-3).
+   */
+  aside?: boolean;
 }
 
 export const AI_LEDGER_LIMIT = 500;

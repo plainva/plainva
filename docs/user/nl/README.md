@@ -1,6 +1,6 @@
 # Plainva-gebruikershandleiding
 
-Laatst bijgewerkt: 2026-10-07
+Laatst bijgewerkt: 2026-10-09
 
 Deze vertaling is automatisch gegenereerd — correcties zijn welkom.
 
@@ -28,7 +28,7 @@ Plainva is een Markdown-vault-editor: je notities zijn gewone Markdown-bestanden
 | [Zoeken](Search.md) | Volledige-tekstzoekfunctie, snelkiezer, zoeken & vervangen, tags |
 | [Taken](Tasks.md) | De vault-brede Taken-weergave: elk selectievakje in al je notities, met filters op status, tag, map en vervaldatum, en met één klik omschakelen |
 | [AI-assistent (Beta)](AI_Assistant.md) | Vragen stellen over je notities met een AI-model van jouw keuze: providers en sleutels, profielen, context, privacyregels en geschiedenis |
-| [Vaardigheden (Beta)](AI_Skills.md) | Instructies voor terugkerend werk: de twaalf meegeleverde, je eigen, importeren en goedkeuren wat binnenkomt voordat het draait |
+| [Vaardigheden (Beta)](AI_Skills.md) | Instructies voor terugkerend werk: de dertien meegeleverde, je eigen, importeren en goedkeuren wat binnenkomt voordat het draait |
 | [Scripts (Beta)](AI_Scripts.md) | Kleine programma's die je vault lezen en een resultaat berekenen: een script uitvoeren en schrijven, wat de hulpmiddelen teruggeven, de grenzen, en goedkeuren wat binnenkomt voordat het draait |
 | [Geheugen (Beta)](AI_Memory.md) | Wat de AI over jou moet weten zonder dat je het opnieuw hoeft te vertellen: de twee plekken, zelf items toevoegen, de AI iets laten onthouden, regels, privacy en de twee bestanden |
 | [AI-apps koppelen (bèta)](Connect_AI_Apps.md) | AI-apps op deze computer (Claude Code, Claude Desktop, editors) de vault laten lezen via de MCP-server van Plainva: inschakelen, koppelen, mappen, wat een app ziet, en een app wijzigingen laten voorstellen |

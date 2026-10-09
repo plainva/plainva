@@ -21,13 +21,16 @@ import {
   skillTestPlanFor,
   skillView,
   Switch,
+  takeSharedUpkeepStep,
   toast,
   useAiSession,
   useAiState,
   useSkillTestPlan,
+  useUpkeepRows,
   workshopSections,
   workshopTitle,
   type SkillRowCaps,
+  type UpkeepRow,
 } from "@plainva/ui";
 import { appConfirm } from "../../services/appDialogs";
 import { pickSkillArchive } from "../../services/ai/skillImport";
@@ -35,8 +38,10 @@ import { NewSkillModal } from "./NewSkillModal";
 import { ScriptFormModal } from "./ScriptFormModal";
 import { ScriptRunModal } from "./ScriptRunModal";
 import { SkillApprovalModal } from "./SkillApprovalModal";
+import { SkillCompareModal } from "./SkillCompareModal";
 import { SkillImportModal } from "./SkillImportModal";
 import { SkillTestModal } from "./SkillTestModal";
+import { UpkeepCard } from "./UpkeepCard";
 
 /**
  * The skills workshop in the AI tab (plan KI-Harness P3-5, mockup chapter
@@ -67,6 +72,10 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
   /** The regression run's dialog: for some skills, or (null) for all that bring scenarios. */
   const [testing, setTesting] = useState<{ ids: string[] | null } | null>(null);
   const plan = useSkillTestPlan(session, state);
+  /** The two skills a hint asked to see side by side. */
+  const [comparing, setComparing] = useState<{ a: string; b: string } | null>(null);
+  // What this device noticed by itself about the skills (plan P6-3): no model is asked for any of it.
+  const upkeep = useUpkeepRows(session, state, "skills", plan);
 
   useEffect(() => {
     void session?.refreshSkills();
@@ -142,6 +151,21 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       else toast.error(skillRestoreRefusalText(t, outcome));
     });
   };
+  // A hint's one step: what the user could do by hand in the lists below — a review asks first, in its own dialog.
+  const takeStep = (row: UpkeepRow) => {
+    const step = row.step?.what;
+    if (!step) return;
+    if (takeSharedUpkeepStep(session, step)) {
+      if (step.do === "switch-off") toast.success(t("ai.upkeep.switchedOff", { name: step.name }));
+      return;
+    }
+    if (step.do === "compare-skills") setComparing({ a: step.a, b: step.b });
+    else if (step.do === "test") setTesting({ ids: [step.id] });
+    else if (step.do === "open-skill") {
+      const entry = state.skills.entries.find((candidate) => candidate.source.id === step.id);
+      if (entry) onOpenFile(mainPath(entry));
+    }
+  };
   const openMenu = (event: MouseEvent, entry: InstructionEntry) => {
     event.preventDefault();
     event.stopPropagation();
@@ -211,6 +235,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
           ))}
         </SettingCard>
       )}
+      <UpkeepCard rows={upkeep} onStep={takeStep} onDismiss={(key) => void session.dismissUpkeepHint(key)} testId="ai-upkeep-skills" />
       <SettingCard label={t("ai.workshop.own")}>
         {sections.own.length === 0 ? (
           <SettingCardNote>{t("ai.workshop.noOwn")}</SettingCardNote>
@@ -267,6 +292,7 @@ export function SkillsWorkshop({ onOpenFile, onRun, review, onReviewOpened }: { 
       )}
       {testing && <SkillTestModal ids={testing.ids} plan={skillTestPlanFor(plan, testing.ids)} onClose={() => setTesting(null)} />}
       {open && <SkillApprovalModal id={open} onClose={() => setOpen(null)} />}
+      {comparing && <SkillCompareModal a={comparing.a} b={comparing.b} onClose={() => setComparing(null)} />}
       {creating && <NewSkillModal onClose={() => setCreating(false)} />}
       {scriptForm && <ScriptFormModal id={scriptForm.id} onClose={() => setScriptForm(null)} />}
       {running && <ScriptRunModal id={running} onClose={() => setRunning(null)} onOpenNote={onOpenFile} />}

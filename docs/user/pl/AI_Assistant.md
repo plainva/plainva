@@ -106,7 +106,7 @@ Wątek trafia do modelu tak jak pytanie: jego komentarze, fragment, do którego 
 
 ## Umiejętności
 
-Umiejętności to instrukcje do powtarzalnej pracy. Dwanaście jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
+Umiejętności to instrukcje do powtarzalnej pracy. Trzynaście jest dołączonych do Plainva — w tym **Orientacja na dziś**, **Przegląd tygodnia** i **Stan projektu** jako chipy w pustej rozmowie — a własne można pisać lub importować. Umiejętność uruchamia się jednym kliknięciem albo po prostu pytaniem: AI sama wczytuje pasującą. Własne umiejętności działają dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Umiejętności](AI_Skills.md).
 
 Skrypty to małe programy, które piszesz do tego, co model robi słabo — liczenia, sortowania, sumowania. Działają w zamkniętej piaskownicy, czytają Twój vault przez te same narzędzia co AI i uruchamiają się dopiero po zatwierdzeniu na tym urządzeniu. Wszystko o nich: [Skrypty](AI_Scripts.md).
 

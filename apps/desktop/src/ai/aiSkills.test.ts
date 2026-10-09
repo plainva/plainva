@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import i18n from "@plainva/ui/i18n";
-import { EMPTY_INSTRUCTION_APPROVALS, resolveInstructions, skillCatalog, switchInstruction } from "@plainva/core";
-import { APP_SKILL_FOLDERS, APP_SKILL_SOURCES, APP_SKILLS, buildAppCommands, mcpSkillPrompts, startableSkills, type CommandDeps } from "@plainva/ui";
+import { EMPTY_INSTRUCTION_APPROVALS, resolveInstructions, skillCatalog, skillGrant, switchInstruction, TOOL_MANIFESTS } from "@plainva/core";
+import { APP_SKILL_FOLDERS, APP_SKILL_SOURCES, APP_SKILLS, appSkillScenarios, buildAppCommands, mcpSkillPrompts, startableSkills, type CommandDeps } from "@plainva/ui";
 
 const t = (key: string, vars?: Record<string, unknown>) => i18n.t(key, vars);
 const entries = () => resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS);
@@ -15,8 +15,26 @@ describe("the app's own skills", () => {
       expect(source.skill!.name).toBe(source.id.slice("plainva:".length));
       expect(source.skill!.body.length, source.id).toBeGreaterThan(200);
       // English instructions for the model; the user's words come from the locales.
-      expect(source.skill!.plainva.risk).toBe("read");
+      // They read and show — with one exception that is held to exactly its three tools (the next test).
+      if (source.id !== "plainva:memory-care") expect(source.skill!.plainva.risk, source.id).toBe("read");
     }
+  });
+
+  it("only memory care names tools that draft, and only the memory's own: what it suggests waits for the user", () => {
+    const care = APP_SKILL_SOURCES.find((source) => source.id === "plainva:memory-care")!.skill!;
+    // A skill has a tool that drafts only by naming it; the cap `plainva.risk` knows reading and showing, so it sets none.
+    expect(care.plainva.risk).toBeUndefined();
+    expect(care.allowedTools).toEqual(["search_memory", "remember", "forget"]);
+    const offered = TOOL_MANIFESTS.map((tool) => tool.name);
+    // Whatever a conversation carries, the skill gets these three and nothing that proposes into a note, plans or acts.
+    expect(skillGrant(care, offered).tools.sort()).toEqual(["forget", "remember", "search_memory"]);
+    // No other skill of the app is given a tool that is more than reading and showing.
+    for (const source of APP_SKILL_SOURCES.filter((candidate) => candidate.id !== "plainva:memory-care")) {
+      const risks = skillGrant(source.skill!, offered).tools.map((name) => TOOL_MANIFESTS.find((tool) => tool.name === name)!.risk);
+      expect(risks.filter((risk) => risk !== "read" && risk !== "ui"), source.id).toEqual([]);
+    }
+    // It brings no scenarios: a regression run is given no memory, so there is nothing it could measure.
+    expect(appSkillScenarios("plainva:memory-care")).toBeNull();
   });
 
   it("start with the user's sentence in the app's language", async () => {

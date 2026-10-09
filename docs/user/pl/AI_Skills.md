@@ -2,7 +2,7 @@
 
 Stan na: 2026-10-09
 
-Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma dwanaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
+Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma trzynaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
 ## Korzystanie z umiejętności
 
@@ -24,10 +24,11 @@ Można też po prostu zapytać. W każdej rozmowie AI zna nazwy i opisy aktywnyc
 | **Pisanie i redakcja** | Streszcza, skraca lub przepisuje notatkę — jako tekst do przejęcia. |
 | **Dbanie o wiedzę** | Znajduje notatki, które mówią to samo, są nieaktualne lub z niczym niepołączone. |
 | **Porządkowanie linków** | Sprawdza linki notatki: prowadzące donikąd, brakujące, jednokierunkowe. |
+| **Dbanie o pamięć** | Przegląda pamięć: wpisy, które mówią to samo, są ze sobą sprzeczne lub nieaktualne — i szkicuje, co połączyć, a co usunąć. |
 | **Kontrola prywatności** | Znajduje to, co z notatki powinno zostać na tym urządzeniu, i proponuje regułę. |
 | **Refleksja** | Spogląda razem z użytkownikiem na notatki z dnia lub tygodnia — życzliwie, nigdy z diagnozą. |
 
-Wszystkie tylko czytają: żadna nie zmienia notatki ani niczego nie wysyła. Tylko **Badanie tematu** korzysta z internetu i tylko **E-mail i kalendarz** czyta Twoje e-maile — zob. niżej. Kontrola prywatności i Refleksja są przeznaczone dla modelu na tym urządzeniu; przy modelu w chmurze mówi o tym podgląd wysyłki. Każdą umiejętność można wyłączyć w sekcji **Umiejętności** — przełącznik obowiązuje dla tego vaultu na tym urządzeniu. **Utwórz własną wersję** kopiuje jedną z nich do vaultu, gdzie można ją zmienić.
+Wszystkie tylko czytają: żadna nie zmienia notatki ani niczego nie wysyła. Jedyna, która szkicuje, to **Dbanie o pamięć**: jej propozycje dla pamięci czekają, aż je zaakceptujesz. Tylko **Badanie tematu** korzysta z internetu i tylko **E-mail i kalendarz** czyta Twoje e-maile — zob. niżej. Kontrola prywatności i Refleksja są przeznaczone dla modelu na tym urządzeniu; przy modelu w chmurze mówi o tym podgląd wysyłki. Każdą umiejętność można wyłączyć w sekcji **Umiejętności** — przełącznik obowiązuje dla tego vaultu na tym urządzeniu. **Utwórz własną wersję** kopiuje jedną z nich do vaultu, gdzie można ją zmienić.
 
 ## W internecie i w Twoich e-mailach
 
@@ -105,6 +106,18 @@ Polecenie **Wcześniejsze wersje…** w menu umiejętności pokazuje to, co hist
 W przypadku umiejętności zmienionej w inny sposób — przez synchronizację albo edycję na innym urządzeniu — przycisk **Sprawdź i zatwierdź** pokazuje to samo pod nagłówkiem **W porównaniu z zatwierdzoną wersją**: które narzędzia doszły, a które odpadły, a także foldery i limit.
 
 Pod nagłówkiem **Czego się nauczono** sekcja umiejętności otwiera plik `.agent/logs/learning.md`: po jednym wierszu dla każdej umiejętności i każdej reguły zaakceptowanej z propozycji, z dniem i rozmową. Plik podróżuje razem z Twoim vaultem.
+
+## Porządkowanie
+
+Umiejętności się gromadzą. W sekcji **Porządkowanie** widok umiejętności wymienia rzeczy, które to urządzenie zauważyło samo. Nie pyta się o to żadnego modelu i nic nie jest wysyłane, a każdy wiersz to pytanie, nie stwierdzony fakt:
+
+- Dwie umiejętności, które mówią prawie to samo, przez co AI wybiera raz jedną, raz drugą. **Porównaj** zestawia je obok siebie.
+- Własna umiejętność, która nie była uruchamiana od ponad 90 dni. **Wyłącz** zdejmuje ją z katalogu umiejętności; z vaultu nie znika.
+- Umiejętność, której lista wymienia narzędzie, jakiego Plainva nie ma. Działa bez tego narzędzia.
+- Umiejętność, która nie przeszła sprawdzenia z aktualnie wybranym modelem.
+- Umiejętność, której uruchomienia wciąż kończą się bez odpowiedzi, oraz ta sama sekwencja kroków wykonana ręcznie w trzech rozmowach. W obu przypadkach przegląd ostatniej takiej rozmowy może coś zaproponować — jak opisano w sekcji „Uczenie się z rozmowy”: kosztuje jedno zapytanie i najpierw pyta o zgodę.
+
+Każdy wiersz proponuje jeden krok i żaden nie jest wykonywany automatycznie. **Nie pokazuj więcej** chowa wiersz na tym urządzeniu; wraca, gdy zmieni się to, czego dotyczy.
 
 ## Co trafia do dostawcy
 

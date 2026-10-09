@@ -106,7 +106,7 @@ O tópico vai para o modelo como uma pergunta: seus comentários, o trecho ao qu
 
 ## Habilidades
 
-Habilidades são instruções para trabalho recorrente. Doze vêm com o Plainva — entre elas **Orientação do dia**, **Revisão semanal** e **Status do projeto** como chips em uma conversa vazia — e você pode escrever ou importar as suas. Inicie uma com um clique ou simplesmente pergunte: a IA carrega sozinha uma habilidade adequada. Suas próprias habilidades só rodam depois que você as aprova neste dispositivo. Tudo sobre elas: [Habilidades](AI_Skills.md).
+Habilidades são instruções para trabalho recorrente. Treze vêm com o Plainva — entre elas **Orientação do dia**, **Revisão semanal** e **Status do projeto** como chips em uma conversa vazia — e você pode escrever ou importar as suas. Inicie uma com um clique ou simplesmente pergunte: a IA carrega sozinha uma habilidade adequada. Suas próprias habilidades só rodam depois que você as aprova neste dispositivo. Tudo sobre elas: [Habilidades](AI_Skills.md).
 
 Scripts são pequenos programas que você escreve para o que um modelo faz mal — contar, ordenar, somar. Eles rodam em uma caixa fechada e leem o seu vault pelas mesmas ferramentas da IA, mas só depois de você os aprovar neste dispositivo. Tudo sobre eles: [Scripts](AI_Scripts.md).
 

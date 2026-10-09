@@ -647,6 +647,11 @@
         "description": "Vérifier les liens de la note ouverte : morts, manquants, à sens unique.",
         "prompt": "Vérifiez les liens de la note ouverte : lesquels ne mènent nulle part, quelles mentions pourraient devenir des liens, et quelles notes devraient se citer mutuellement ?"
       },
+      "memory": {
+        "title": "Entretenir la mémoire",
+        "description": "Trouver les entrées de la mémoire qui disent la même chose, se contredisent ou sont dépassées.",
+        "prompt": "Passez ma mémoire en revue : quelles entrées disent la même chose, se contredisent ou sont dépassées ? Préparez des brouillons de ce qu'il faut fusionner et de ce qu'il faut retirer."
+      },
       "privacy": {
         "title": "Vérifier la confidentialité",
         "description": "Trouver ce qui, dans une note, devrait rester sur cet appareil.",
@@ -1017,6 +1022,76 @@
       "log": {
         "title": "Ce qui a été appris",
         "desc": "Les compétences et règles acceptées à partir d'une suggestion, avec le jour et la conversation. Un fichier du vault, qui voyage avec lui."
+      }
+    },
+    "upkeep": {
+      "title": "Ranger",
+      "note": "Remarqué par cet appareil, sans interroger de modèle. Chaque ligne est une question, pas un constat.",
+      "dismiss": "Ne plus afficher",
+      "switchedOff": "« {{name}} » est désactivée sur cet appareil.",
+      "skillsAlike": {
+        "label": "« {{a}} » et « {{b}} » disent presque la même chose",
+        "desc": "Deux compétences pour la même tâche : l'IA choisit tantôt l'une, tantôt l'autre.",
+        "step": "Comparer"
+      },
+      "skillUnused": {
+        "label": "« {{name}} » s'est exécutée pour la dernière fois le {{date}}",
+        "labelNever": "« {{name}} » ne s'est pas exécutée ici depuis le {{date}}",
+        "desc": "Inutilisée depuis plus de {{days}} jours. Désactivée, elle ne figure plus dans le catalogue, mais reste dans le vault.",
+        "step": "Désactiver"
+      },
+      "skillUnknownTool": {
+        "label": "« {{name}} » : au moins un outil de sa liste n'existe pas",
+        "desc": "Outils que Plainva n'a pas : {{tools}}. La compétence s'exécute sans eux.",
+        "step": "Ouvrir le fichier"
+      },
+      "skillTestFailing": {
+        "label": "« {{name}} » n'a pas réussi son test : {{failed}} sur {{ran}} en échec",
+        "desc": "Testée dans son état actuel, avec {{model}}.",
+        "step": "Tester à nouveau"
+      },
+      "skillFailing": {
+        "label": "« {{name}} » : sur ses {{runs}} dernières exécutions, {{failed}} sans réponse",
+        "descLearn": "Une relecture de la dernière exécution de ce genre peut proposer d'autres instructions. Elle coûte une requête et demande d'abord confirmation.",
+        "desc": "Ses instructions demandent peut-être plus qu'une exécution ne peut accomplir.",
+        "stepLearn": "Relire l'exécution",
+        "step": "Ouvrir le fichier"
+      },
+      "stepsRepeated": {
+        "label": "Vous avez suivi le même chemin dans {{times}} conversations",
+        "desc": "{{tools}}. Une relecture de la dernière peut proposer une compétence pour cela. Elle coûte une requête et demande d'abord confirmation.",
+        "step": "Proposer une compétence"
+      },
+      "entriesAlike": {
+        "label": "Deux entrées disent presque la même chose",
+        "desc": "« {{a}} » · « {{b}} »",
+        "step": "Comparer"
+      },
+      "entryOld": {
+        "label": "« {{text}} »",
+        "desc": "Ajoutée le {{date}} — il y a plus d'un an. Est-ce toujours vrai ?",
+        "step": "Modifier"
+      },
+      "activeOverflow": {
+        "label": "« {{place}} » est plein",
+        "desc": "Entrées qui ne tiennent plus : {{count}}. Elles ne sont incluses dans aucune conversation. Raccourcissez une entrée ou déplacez-en une vers « {{other}} »."
+      },
+      "care": {
+        "label": "Faire examiner la mémoire",
+        "desc": "La compétence « {{skill}} » lit les entrées et prépare des brouillons de ce qui peut être regroupé et de ce qui peut disparaître. Rien ne change avant que vous les acceptiez. Cela coûte quelques requêtes.",
+        "step": "Exécuter"
+      },
+      "compare": {
+        "title": "« {{a}} » et « {{b}} »",
+        "lead": "Les deux sont actives, donc les deux sont proposées à l'IA. Leurs descriptions déterminent laquelle elle choisit.",
+        "instructions": "Instructions comparées",
+        "same": "Les instructions sont identiques.",
+        "switchOff": "Désactiver « {{name}} »",
+        "hint": "Désactivée, une compétence n'est plus proposée à l'IA sur cet appareil. Elle reste dans le vault, et son interrupteur dans la liste la réactive."
+      },
+      "entries": {
+        "title": "Deux entrées qui disent presque la même chose",
+        "hint": "Conservez les deux, reformulez-en une ou supprimez-en une — le menu de chaque entrée propose ces actions."
       }
     },
     "memory": {

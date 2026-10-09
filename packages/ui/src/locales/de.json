@@ -623,6 +623,11 @@
         "description": "Die Links der offenen Notiz prüfen: ins Leere, fehlend, einseitig.",
         "prompt": "Prüfe die Links der offenen Notiz: welche führen ins Leere, welche Erwähnungen könnten Links sein, und welche Notizen sollten aufeinander verweisen?"
       },
+      "memory": {
+        "title": "Gedächtnis pflegen",
+        "description": "Einträge im Gedächtnis finden, die dasselbe sagen, sich widersprechen oder veraltet sind.",
+        "prompt": "Sieh mein Gedächtnis durch: welche Einträge sagen dasselbe, widersprechen sich oder sind veraltet? Entwirf, was zusammengehört und was gehen kann."
+      },
       "privacy": {
         "title": "Datenschutz prüfen",
         "description": "Finden, was aus einer Notiz besser auf diesem Gerät bleibt.",
@@ -982,6 +987,76 @@
       "log": {
         "title": "Was gelernt wurde",
         "desc": "Skills und Regeln, die aus einem Vorschlag übernommen wurden, mit Tag und Gespräch. Eine Datei des Vaults, die mit ihm reist."
+      }
+    },
+    "upkeep": {
+      "title": "Aufräumen",
+      "note": "Von diesem Gerät bemerkt, ohne ein Modell zu fragen. Jede Zeile ist eine Frage, kein Befund.",
+      "dismiss": "Nicht mehr zeigen",
+      "switchedOff": "„{{name}}“ ist auf diesem Gerät ausgeschaltet.",
+      "skillsAlike": {
+        "label": "„{{a}}“ und „{{b}}“ sagen fast dasselbe",
+        "desc": "Zwei Skills mit derselben Aufgabe: die KI wählt mal den einen, mal den anderen.",
+        "step": "Vergleichen"
+      },
+      "skillUnused": {
+        "label": "„{{name}}“ lief zuletzt am {{date}}",
+        "labelNever": "„{{name}}“ lief hier seit dem {{date}} nicht",
+        "desc": "Seit über {{days}} Tagen nicht benutzt. Ausgeschaltet steht er nicht mehr im Katalog, bleibt aber im Vault.",
+        "step": "Ausschalten"
+      },
+      "skillUnknownTool": {
+        "label": "„{{name}}“: nicht jedes Werkzeug seiner Liste gibt es",
+        "desc": "Kein Werkzeug von Plainva: {{tools}}. Der Skill läuft ohne.",
+        "step": "Datei öffnen"
+      },
+      "skillTestFailing": {
+        "label": "„{{name}}“ hat seine Prüfung nicht bestanden: {{failed}} von {{ran}} gescheitert",
+        "desc": "Geprüft, wie er jetzt ist, mit {{model}}.",
+        "step": "Erneut prüfen"
+      },
+      "skillFailing": {
+        "label": "„{{name}}“: {{failed}} seiner letzten {{runs}} Läufe endeten ohne Antwort",
+        "descLearn": "Eine Durchsicht des letzten solchen Laufs kann andere Anweisungen vorschlagen. Sie kostet eine Anfrage und fragt vorher.",
+        "desc": "Seine Anweisungen verlangen vielleicht mehr, als ein Lauf schafft.",
+        "stepLearn": "Lauf durchsehen",
+        "step": "Datei öffnen"
+      },
+      "stepsRepeated": {
+        "label": "Du bist in {{times}} Gesprächen denselben Weg gegangen",
+        "desc": "{{tools}}. Eine Durchsicht des letzten kann einen Skill dafür vorschlagen. Sie kostet eine Anfrage und fragt vorher.",
+        "step": "Skill vorschlagen lassen"
+      },
+      "entriesAlike": {
+        "label": "Zwei Einträge sagen fast dasselbe",
+        "desc": "„{{a}}“ · „{{b}}“",
+        "step": "Vergleichen"
+      },
+      "entryOld": {
+        "label": "„{{text}}“",
+        "desc": "Hinzugefügt am {{date}} — vor über einem Jahr. Stimmt er noch?",
+        "step": "Bearbeiten"
+      },
+      "activeOverflow": {
+        "label": "„{{place}}“ ist voll",
+        "desc": "Einträge, die nicht mehr passen: {{count}}. Sie gehen in kein Gespräch mit. Kürze einen Eintrag oder verschiebe einen nach „{{other}}“."
+      },
+      "care": {
+        "label": "Das Gedächtnis durchsehen lassen",
+        "desc": "Der Skill „{{skill}}“ liest die Einträge und entwirft, was zusammengehört und was gehen kann. Nichts ändert sich, bevor Du es annimmst. Das kostet ein paar Anfragen.",
+        "step": "Ausführen"
+      },
+      "compare": {
+        "title": "„{{a}}“ und „{{b}}“",
+        "lead": "Beide sind aktiv, also werden der KI beide angeboten. Ihre Beschreibungen entscheiden, welchen sie wählt.",
+        "instructions": "Anweisungen im Vergleich",
+        "same": "Die Anweisungen sind dieselben.",
+        "switchOff": "„{{name}}“ ausschalten",
+        "hint": "Ausgeschaltet wird ein Skill der KI auf diesem Gerät nicht mehr angeboten. Er bleibt im Vault, und sein Schalter in der Liste holt ihn zurück."
+      },
+      "entries": {
+        "title": "Zwei Einträge, die fast dasselbe sagen",
+        "hint": "Beide behalten, einen umformulieren oder einen löschen — das Menü jedes Eintrags hat die Schritte."
       }
     },
     "memory": {

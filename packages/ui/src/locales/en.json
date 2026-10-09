@@ -623,6 +623,11 @@
         "description": "Check the links of the open note: broken, missing, one-way.",
         "prompt": "Check the links of the open note: which lead nowhere, which mentions could be links, and which notes should link to each other?"
       },
+      "memory": {
+        "title": "Memory care",
+        "description": "Find entries of the memory that say the same, contradict each other or are out of date.",
+        "prompt": "Look through my memory: which entries say the same thing, contradict each other or are out of date? Draft what to merge and what to take out."
+      },
       "privacy": {
         "title": "Privacy check",
         "description": "Find what in a note should stay on this device.",
@@ -982,6 +987,76 @@
       "log": {
         "title": "What was learned",
         "desc": "Skills and rules that were accepted from a suggestion, with the day and the conversation. A file of the vault that travels with it."
+      }
+    },
+    "upkeep": {
+      "title": "Tidy up",
+      "note": "Noticed by this device, without asking a model. Each line is a question, not a finding.",
+      "dismiss": "Don't show again",
+      "switchedOff": "“{{name}}” is switched off on this device.",
+      "skillsAlike": {
+        "label": "“{{a}}” and “{{b}}” say almost the same",
+        "desc": "Two skills for the same job: the AI picks one or the other.",
+        "step": "Compare"
+      },
+      "skillUnused": {
+        "label": "“{{name}}” last ran on {{date}}",
+        "labelNever": "“{{name}}” has not run here since {{date}}",
+        "desc": "Not used for more than {{days}} days. Switched off, it is no longer in the catalog, but it stays in the vault.",
+        "step": "Switch off"
+      },
+      "skillUnknownTool": {
+        "label": "“{{name}}”: not every tool on its list exists",
+        "desc": "Not a tool of Plainva's: {{tools}}. The skill runs without.",
+        "step": "Open file"
+      },
+      "skillTestFailing": {
+        "label": "“{{name}}” did not pass its test: {{failed}} of {{ran}} failed",
+        "desc": "Tested as it is now, with {{model}}.",
+        "step": "Test again"
+      },
+      "skillFailing": {
+        "label": "“{{name}}”: {{failed}} of its last {{runs}} runs ended without an answer",
+        "descLearn": "A review of the last such run can suggest other instructions. It costs one request and asks first.",
+        "desc": "Its instructions may ask for more than one run can do.",
+        "stepLearn": "Review the run",
+        "step": "Open file"
+      },
+      "stepsRepeated": {
+        "label": "You went the same way in {{times}} conversations",
+        "desc": "{{tools}}. A review of the last one can suggest a skill for it. It costs one request and asks first.",
+        "step": "Suggest a skill"
+      },
+      "entriesAlike": {
+        "label": "Two entries say almost the same",
+        "desc": "“{{a}}” · “{{b}}”",
+        "step": "Compare"
+      },
+      "entryOld": {
+        "label": "“{{text}}”",
+        "desc": "Added on {{date}} — more than a year ago. Is it still true?",
+        "step": "Edit"
+      },
+      "activeOverflow": {
+        "label": "“{{place}}” is full",
+        "desc": "Entries that no longer fit: {{count}}. They go along with no conversation. Shorten an entry, or move one to “{{other}}”."
+      },
+      "care": {
+        "label": "Have the memory looked through",
+        "desc": "The skill “{{skill}}” reads the entries and drafts what belongs together and what can go. Nothing changes before you accept it. It costs a few requests.",
+        "step": "Run"
+      },
+      "compare": {
+        "title": "“{{a}}” and “{{b}}”",
+        "lead": "Both are active, so the AI is offered both. Their descriptions decide which one it picks.",
+        "instructions": "Instructions, compared",
+        "same": "The instructions are the same.",
+        "switchOff": "Switch off “{{name}}”",
+        "hint": "Switched off, a skill is no longer offered to the AI on this device. It stays in the vault, and its switch in the list brings it back."
+      },
+      "entries": {
+        "title": "Two entries that say almost the same",
+        "hint": "Keep both, reword one or delete one — each entry's menu has the steps."
       }
     },
     "memory": {
