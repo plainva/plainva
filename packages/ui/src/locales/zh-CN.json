@@ -71,6 +71,7 @@
       "offline": "无法连接到{{provider}}。",
       "streamBroken": "连接在回答过程中中断了。",
       "providerError": "{{provider}}报告了一个错误：{{message}}",
+      "keptOnDevice": "此对话是与此设备上的模型进行的。它读取的内容从未针对云端检查过，因此留在此设备上。请为 {{provider}} 开始新对话。",
       "openSetup": "打开设置",
       "platform": {
         "deviceNotEligible": "此设备无法运行{{provider}}。",

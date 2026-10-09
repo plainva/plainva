@@ -73,6 +73,7 @@
       "offline": "{{provider}} ist nicht erreichbar.",
       "streamBroken": "Die Verbindung brach mitten in der Antwort ab.",
       "providerError": "{{provider}} meldet einen Fehler: {{message}}",
+      "keptOnDevice": "Dieses Gespräch lief mit einem Modell auf diesem Gerät. Was es dabei gelesen hat, wurde nie für eine Cloud geprüft — es bleibt deshalb hier. Für {{provider}} beginne ein neues Gespräch.",
       "openSetup": "Einstellungen öffnen",
       "platform": {
         "deviceNotEligible": "{{provider}} läuft auf diesem Gerät nicht.",

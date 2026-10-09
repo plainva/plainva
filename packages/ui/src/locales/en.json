@@ -73,6 +73,7 @@
       "offline": "Could not reach {{provider}}.",
       "streamBroken": "The connection broke off in the middle of the answer.",
       "providerError": "{{provider}} reported an error: {{message}}",
+      "keptOnDevice": "This conversation ran with a model on this device. What it read there was never checked for a cloud, so it stays here. Start a new conversation for {{provider}}.",
       "openSetup": "Open settings",
       "platform": {
         "deviceNotEligible": "{{provider}} cannot run on this device.",

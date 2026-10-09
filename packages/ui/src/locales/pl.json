@@ -77,6 +77,7 @@
       "offline": "Nie udało się połączyć z {{provider}}.",
       "streamBroken": "Połączenie urwało się w trakcie odpowiedzi.",
       "providerError": "{{provider}} zgłosił błąd: {{message}}",
+      "keptOnDevice": "Ta rozmowa toczyła się z modelem na tym urządzeniu. To, co w niej przeczytano, nigdy nie zostało sprawdzone pod kątem chmury, dlatego zostaje tutaj. Zacznij nową rozmowę dla {{provider}}.",
       "openSetup": "Otwórz ustawienia",
       "platform": {
         "deviceNotEligible": "{{provider}} nie działa na tym urządzeniu.",

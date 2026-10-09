@@ -75,6 +75,7 @@
       "offline": "No se pudo contactar con {{provider}}.",
       "streamBroken": "La conexión se cortó en mitad de la respuesta.",
       "providerError": "{{provider}} informó de un error: {{message}}",
+      "keptOnDevice": "Esta conversación se mantuvo con un modelo en este dispositivo. Lo que leyó nunca se comprobó para una nube, así que se queda aquí. Empieza una conversación nueva para {{provider}}.",
       "openSetup": "Abrir configuración",
       "platform": {
         "deviceNotEligible": "{{provider}} no funciona en este dispositivo.",

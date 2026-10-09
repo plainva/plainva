@@ -160,6 +160,36 @@ thinking blocks are involved).
       0019 §6): a link in an assistant's text leads "nowhere" only where no
       note could be meant by it, and is said to lead to a note the writer
       may not read only where every note it could mean is kept back.
+13. **A conversation that ran on this device stays on this device** (built
+    with P6). A conversation is append-only (decision 7): every request
+    carries all of it, to whichever model is chosen now — and the model of
+    an open conversation can be changed. What a model on the device is given
+    is put together for a reader that may see everything: a note kept from
+    the cloud is read like any other, a link to one keeps its name (decision
+    2 withholds it for a cloud only), nothing is hinted at or redacted for a
+    provider. The gate decides at the moment something is read; it had no
+    say when the past of a conversation went to another recipient. Found
+    with a test before memory was built: a note under `cloud: deny`, read
+    with a local model, went to a cloud provider with the next message after
+    the model was switched — the overview named a new recipient and nothing
+    else.
+    - *The rule is the simple one.* A conversation that was begun for a
+      model on this device (`onDevice` in its record), or had one run there,
+      does not go to a cloud recipient: nothing is built, asked or sent, the
+      message stays in the field, and a notice says why and offers a new
+      conversation with the model that was chosen (`keptOnDevice` in the
+      session, the failure `kept_on_device`). Back with a model on the
+      device it goes on as before.
+    - *Not: checking the past again.* Telling what such a conversation
+      carries beyond what a cloud may have would mean knowing every text it
+      was ever given — the notes its context held, each tool result with the
+      links in it, gists written from notes a cloud may not see. One channel
+      overlooked is a leak, and the texts cannot be changed afterwards. A
+      run whose provider is no longer known counts as one that ran here.
+    - *The other direction is free.* A conversation that only ever went to
+      clouds carries nothing that was not passed for one: it changes its
+      model as before, to another provider (the overview comes back, a new
+      recipient) or to a model on the device.
 
 ## Consequences
 
@@ -185,6 +215,11 @@ thinking blocks are involved).
 - The names of all files are read from the index once per burst of
   questions — one query, a moment on a large vault — and each note a link
   could mean is read for its own rule, once per run.
+- Starting with a model on the device and going on with a stronger one in a
+  cloud means starting a new conversation: the question has to be asked
+  again, and the cloud then gets what the gate passes for it. That is the
+  price of decision 13, and it is paid also by a conversation that read
+  nothing a cloud could not have had.
 
 ## Alternatives
 

@@ -2351,6 +2351,7 @@ export class AiSession {
         usage: EMPTY_USAGE,
         runs: [],
         pins: [],
+        ...(isCloudRecipient(recipient) ? {} : { onDevice: true as const }),
       };
       const { stop, answer, record: saved } = await this.execute({
         vault,
@@ -3502,6 +3503,12 @@ export class AiSession {
       return { stop };
     }
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
+    // A conversation that ran on this device stays here (ADR 0018): before anything is built, asked or sent.
+    if (this.state.active && !apart && this.keptOnDevice(this.state.active, recipient)) {
+      const stop: RunStop = { kind: "failed", failure: { kind: "kept_on_device" } };
+      this.set({ notice: { conversationId: this.state.active.id, stop } });
+      return { stop };
+    }
     // Redacted for the whole conversation (P2b-6): in its context, and in what the model reads itself through the tools.
     // One set for both: a choice in the overview below reaches the tools of this run too.
     // A door starts a conversation of its own: what the composer's next message was given is not its to use.
@@ -3544,6 +3551,8 @@ export class AiSession {
         runs: [],
         pins: door ? door.pins : detached ? [] : this.state.draftPins,
         ...(start.instructions ? { instructions: start.instructions } : {}),
+        // Begun for a reader on this device: what it is given from the first message on was never checked for a cloud.
+        ...(isCloudRecipient(recipient) ? {} : { onDevice: true as const }),
       };
     }
     // A skill narrows the run (plan KI-Harness P3): the bound one's folders from the start, a loaded one's from its load.
@@ -3752,6 +3761,27 @@ export class AiSession {
       ...(writing ? { writes: writesLog } : {}),
       ...(related.length ? { related } : {}),
     });
+  }
+
+  /**
+   * Whether a conversation must not go to `recipient` (ADR 0018, decision 13). A conversation is append-only: each
+   * request takes all of it along. What a model on this device is given is put together for a reader that may see
+   * everything — a note kept from the cloud is read like any other, a link to one keeps its name, nothing is
+   * hinted at or redacted for a provider. None of that can be taken back out of a conversation afterwards, and
+   * checking it again for a cloud would mean knowing every text it ever carried. So the rule is the simple one: a
+   * conversation that was begun here, or had one run here, goes on here. One that only ever went to clouds carries
+   * nothing that was not passed for one, and changes its model freely.
+   */
+  private keptOnDevice(record: ConversationRecord, recipient: EgressRecipient): boolean {
+    if (!isCloudRecipient(recipient)) return false;
+    return record.onDevice === true || record.runs.some((run) => !this.wentToCloud(run));
+  }
+
+  /** Whether a run went to a cloud. One whose provider is no longer known counts as one that ran here. */
+  private wentToCloud(run: RunMeta): boolean {
+    if (run.manifest) return !run.manifest.local;
+    const provider = providerById(run.providerId, this.state.settings.custom);
+    return provider ? isCloudRecipient(recipientOf(provider, run.model)) : false;
   }
 
   /**

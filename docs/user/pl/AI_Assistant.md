@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-10-08
+Stan na: 2026-10-09
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama nigdy nie zmienia notatki. Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -228,6 +228,8 @@ plainva:
 ```
 
 albo, dla całego folderu, w **Ustawienia → AI & automatyzacja** (część vaultu), skąd reguły trafiają do `.agent/policy.yml`. Notatka trzymana z dala od chmury nie wnosi niczego — ani tekstu, ani tytułu — a linki do niej w innych notatkach są wstrzymywane. Dotyczy to każdego sposobu zapisania notatki w linku — nazwą pliku, tytułem albo ścieżką —; a gdy dwie notatki mają tę samą nazwę i jedna z nich jest trzymana z dala, wstrzymywany jest także link z samą nazwą. Wpisz folder w linku, aby wskazać tę, o którą chodzi. Modele na tym urządzeniu pozostają dozwolone. Zaszyfrowane obszary robocze trzymają chmurę z dala, chyba że zostanie tam dopuszczona. Dokładny format znajduje się w [Dokumentacji formatu plików](File_Format_Reference.md).
+
+Rozmowa prowadzona z modelem na tym urządzeniu zostaje na tym urządzeniu. Taki model może czytać to, czego nie może żadna chmura, a rozmowa zawsze trafia do swojego modelu w całości; dlatego gdy rozmowa choć raz toczyła się tutaj, przełączenie jej na model w chmurze niczego nie wysyła: informuje o tym komunikat, Twoje słowa zostają w polu wpisywania, a **Nowa rozmowa** zaczyna rozmowę z wybranym modelem. W drugą stronę to działa: rozmowę z modelem w chmurze można kontynuować z modelem na tym urządzeniu.
 
 Obraz należy do notatek, które go pokazują: obraz osadzony w notatce trzymanej z dala od chmury również nie trafia do żadnego modelu w chmurze (zob. Wyjaśnianie obrazu wyżej).
 

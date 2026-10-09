@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-10-08
+Laatst bijgewerkt: 2026-10-09
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen voor — als voorstellen bij een notitie, als concepten voor iets nieuws of als een plan dat jij bevestigt. Een notitie verandert het nooit zelf. De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -228,6 +228,8 @@ plainva:
 ```
 
 of, voor een hele map, in **Instellingen → AI & automatisering** (het Vault-deel), dat de regels naar `.agent/policy.yml` schrijft. Een notitie die van de cloud wordt weggehouden draagt niets bij — geen tekst en geen titel —, en links ernaartoe in andere notities worden achtergehouden. Dat geldt hoe een link de notitie ook schrijft — met de bestandsnaam, de titel of een pad —; en hebben twee notities dezelfde naam en wordt een ervan weggehouden, dan wordt ook een link met alleen die naam achtergehouden. Schrijf de map in de link om de bedoelde te noemen. Modellen op dit apparaat blijven toegestaan. Versleutelde workspaces sluiten de cloud uit, tenzij je die daar toestaat. Het exacte formaat staat in de [Bestandsformaat-referentie](File_Format_Reference.md).
+
+Een gesprek dat met een model op dit apparaat is gevoerd, blijft op dit apparaat. Zo'n model mag lezen wat geen cloud mag, en een gesprek gaat altijd in zijn geheel naar zijn model; daarom stuurt overschakelen naar een cloudmodel niets meer zodra een gesprek hier heeft gelopen: een melding zegt het, je woorden blijven in het invoerveld staan en **Nieuw gesprek** begint er een met het gekozen model. Andersom kan wel: een gesprek met een cloudmodel kan verdergaan met een model op dit apparaat.
 
 Een afbeelding hoort bij de notities die haar tonen: een afbeelding die is ingesloten in een notitie die van de cloud wordt weggehouden, gaat ook naar geen enkel cloudmodel (zie Een afbeelding uitleggen hierboven).
 

@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-10-08
+Stand: 2026-10-09
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen vor — als Vorschläge an einer Notiz, als Entwürfe für Neues oder als Plan, den Du bestätigst. Eine Notiz ändert es nie selbst. Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -228,6 +228,8 @@ plainva:
 ```
 
 oder, für einen ganzen Ordner, in **Einstellungen → KI & Automatisierung** (dem Vault-Teil), das die Regeln in `.agent/policy.yml` schreibt. Eine von der Cloud ferngehaltene Notiz trägt nichts bei — weder Text noch Titel —, und Links auf sie in anderen Notizen werden zurückgehalten. Das gilt, wie auch immer ein Link die Notiz schreibt — mit ihrem Dateinamen, ihrem Titel oder einem Pfad —; und tragen zwei Notizen denselben Namen und eine davon ist ferngehalten, wird auch ein Link mit dem bloßen Namen zurückgehalten. Schreib den Ordner in den Link, um die gemeinte zu nennen. Modelle auf diesem Gerät bleiben erlaubt. Verschlüsselte Workspaces halten die Cloud aus, solange Du sie dort nicht erlaubst. Das genaue Format steht in der [Dateiformat-Referenz](File_Format_Reference.md).
+
+Ein Gespräch, das mit einem Modell auf diesem Gerät geführt wurde, bleibt auf diesem Gerät. Ein solches Modell darf lesen, was keine Cloud darf, und ein Gespräch geht immer als Ganzes an sein Modell — ist ein Gespräch einmal hier gelaufen, sendet ein Wechsel zu einem Cloud-Modell deshalb nichts: ein Hinweis sagt es, Deine Worte bleiben im Eingabefeld, und **Neues Gespräch** beginnt eines mit dem gewählten Modell. Umgekehrt geht es: ein Gespräch mit einem Cloud-Modell kann mit einem Modell auf diesem Gerät weitergehen.
 
 Ein Bild gehört zu den Notizen, die es zeigen: Eines, das eine von der Cloud ferngehaltene Notiz einbettet, geht ebenfalls an kein Cloud-Modell (siehe Ein Bild erklären weiter oben).
 

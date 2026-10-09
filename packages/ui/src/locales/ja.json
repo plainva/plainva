@@ -71,6 +71,7 @@
       "offline": "{{provider}}に接続できませんでした。",
       "streamBroken": "接続が回答の途中で切断されました。",
       "providerError": "{{provider}}がエラーを報告しました: {{message}}",
+      "keptOnDevice": "この会話はこの端末上のモデルで行われました。そこで読んだ内容はクラウド向けに確認されていないため、この端末にとどまります。{{provider}} では新しい会話を始めてください。",
       "openSetup": "設定を開く",
       "platform": {
         "deviceNotEligible": "この端末では{{provider}}を利用できません。",

@@ -77,6 +77,8 @@ const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
 
 /** Failures the settings can fix: the notice offers the way there. */
 const SETUP_FAILURES = new Set<ModelFailure["kind"]>(["no_key", "invalid_key", "not_found", "unknown_endpoint", "platform_unavailable"]);
+/** Nothing was sent because the conversation ran on this device and was to go to a cloud (ADR 0018). */
+const isKeptOnDevice = (stop: RunStop): boolean => stop.kind === "failed" && stop.failure.kind === "kept_on_device";
 
 /** How a provider answers a picture its model cannot read (plan P4-5): it turns the request down. */
 const PICTURE_REFUSALS = new Set<ModelFailure["kind"]>(["refused_by_provider", "provider_error"]);
@@ -230,10 +232,16 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     const text = draft.trim();
     if (!text || running || consent || effect || !state.hasVault) return;
     setDraft("");
-    // Nothing sent (the overview was cancelled): the words come back to the field.
+    // Nothing sent (the overview was cancelled, or the conversation stays on this device): the words come back to the field.
     void session.send(text).then((stop) => {
-      if (stop === null) setDraft((current) => current || text);
+      if (stop === null || isKeptOnDevice(stop)) setDraft((current) => current || text);
     });
+  };
+  // A conversation that ran on this device does not go to a cloud (ADR 0018): the way on is a new one, with the model that was chosen.
+  const startAnew = () => {
+    const chosen = session.choice();
+    session.newConversation();
+    if (chosen) void session.setChoice(chosen);
   };
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     // A soft keyboard has no Shift+Enter: on touch, Enter stays a line break and the button sends.
@@ -531,12 +539,17 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         )}
         {noticeText && (
           <Banner
-            kind={notice!.kind === "failed" ? "error" : "info"}
+            // A conversation that stays on this device is a rule that held, not something that went wrong.
+            kind={notice!.kind === "failed" && !isKeptOnDevice(notice!) ? "error" : "info"}
             rounded
             actions={
               notice!.kind === "failed" && SETUP_FAILURES.has(notice!.failure.kind) ? (
                 <Button size="sm" variant="secondary" onClick={onOpenSettings}>
                   {t("ai.error.openSetup")}
+                </Button>
+              ) : isKeptOnDevice(notice!) ? (
+                <Button size="sm" variant="secondary" onClick={startAnew} data-testid="ai-kept-new">
+                  {t("ai.newConversation")}
                 </Button>
               ) : undefined
             }

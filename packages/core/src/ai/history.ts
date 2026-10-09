@@ -203,6 +203,12 @@ export interface ConversationRecord {
   redact?: string[];
   /** The skill, the catalog and AGENTS.md its system prompt carries (plan KI-Harness P3). */
   instructions?: ConversationInstructions;
+  /**
+   * The conversation was begun for a model on this device (ADR 0018): what it
+   * was given from its first message on was put together for a reader that
+   * may see what no cloud may. It goes on with a model on this device only.
+   */
+  onDevice?: true;
 }
 
 export interface ConversationSummary {
@@ -263,6 +269,7 @@ export function readConversationRecord(raw: unknown): ConversationRecord | null 
     pins: Array.isArray(r.pins) ? r.pins.filter((p): p is string => typeof p === "string") : [],
     ...(Array.isArray(r.redact) ? { redact: r.redact.filter((p): p is string => typeof p === "string") } : {}),
     ...(readInstructions(r.instructions) ? { instructions: readInstructions(r.instructions)! } : {}),
+    ...(r.onDevice === true ? { onDevice: true as const } : {}),
   };
 }
 

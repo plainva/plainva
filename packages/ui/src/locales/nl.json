@@ -73,6 +73,7 @@
       "offline": "Kon {{provider}} niet bereiken.",
       "streamBroken": "De verbinding brak midden in het antwoord af.",
       "providerError": "{{provider}} meldde een fout: {{message}}",
+      "keptOnDevice": "Dit gesprek liep met een model op dit apparaat. Wat het daarbij las, is nooit voor een cloud gecontroleerd; daarom blijft het hier. Begin een nieuw gesprek voor {{provider}}.",
       "openSetup": "Instellingen openen",
       "platform": {
         "deviceNotEligible": "{{provider}} werkt niet op dit apparaat.",

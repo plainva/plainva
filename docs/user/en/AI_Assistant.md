@@ -1,6 +1,6 @@
 # AI Assistant (Beta)
 
-Last reviewed: 2026-10-08
+Last reviewed: 2026-10-09
 
 Plainva can answer questions about your notes with an AI model of your choice. It reads your vault, cites the notes it used, opens notes and views for you and proposes changes — as suggestions on a note, as drafts of something new, or as a plan you confirm. It never changes a note itself. The assistant is **experimental** and switched off until you switch it on, separately on every device.
 
@@ -228,6 +228,8 @@ plainva:
 ```
 
 or, for a whole folder, in **Settings → AI & automation** (the Vault part), which writes the rules to `.agent/policy.yml`. A note kept from the cloud contributes nothing — neither text nor title — and links to it in other notes are withheld. That holds however a link spells the note — by its file's name, its title or a path —, and where two notes share a name and one of them is kept back, a link by that bare name is withheld as well; write the folder into the link to name the one you mean. Models on this device stay allowed. Encrypted workspaces keep the cloud off unless you allow it there. The exact format is in the [File Format Reference](File_Format_Reference.md).
+
+A conversation led with a model on this device stays on this device. Such a model may read what no cloud may, and a conversation always goes to its model as a whole — so once a conversation has run here, switching it to a cloud model sends nothing: a notice says so, your words stay in the input, and **New conversation** starts one with the model you chose. The other way round works: a conversation with a cloud model can go on with a model on this device.
 
 A picture belongs to the notes that show it: one that a note kept from the cloud embeds goes to no cloud model either (see Explaining an image above).
 

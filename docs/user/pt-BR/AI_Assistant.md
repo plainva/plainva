@@ -1,6 +1,6 @@
 # Assistente de IA (Beta)
 
-Última revisão: 2026-10-08
+Última revisão: 2026-10-09
 
 O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações — como sugestões em uma nota, como rascunhos de algo novo ou como um plano que você confirma. Ele nunca muda uma nota sozinho. O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
 
@@ -228,6 +228,8 @@ plainva:
 ```
 
 ou, para uma pasta inteira, em **Configurações → IA e automação** (a parte do Vault), que grava as regras em `.agent/policy.yml`. Uma nota mantida fora da nuvem não contribui com nada — nem texto, nem título — e os links para ela em outras notas são retidos. Isso vale seja como for que um link escreva a nota — pelo nome do arquivo, pelo título ou por um caminho —; e, quando duas notas têm o mesmo nome e uma delas é mantida fora, um link só com esse nome também é retido. Escreva a pasta no link para indicar a que você quer dizer. Modelos neste dispositivo continuam permitidos. Workspaces criptografados mantêm a nuvem desligada, a menos que você a permita ali. O formato exato está na [Referência do Formato de Arquivo](File_Format_Reference.md).
+
+Uma conversa conduzida com um modelo neste dispositivo fica neste dispositivo. Um modelo assim pode ler o que nenhuma nuvem pode, e uma conversa sempre vai inteira para o seu modelo; por isso, depois que uma conversa aconteceu aqui, trocá-la para um modelo na nuvem não envia nada: um aviso informa isso, suas palavras ficam no campo de entrada e **Nova conversa** começa uma com o modelo escolhido. O contrário funciona: uma conversa com um modelo na nuvem pode continuar com um modelo neste dispositivo.
 
 Uma imagem pertence às notas que a mostram: uma imagem incorporada em uma nota mantida fora da nuvem também não vai para nenhum modelo na nuvem (veja Explicar uma imagem acima).
 

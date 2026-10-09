@@ -1,6 +1,6 @@
 # Assistente IA (Beta)
 
-Ultimo aggiornamento: 2026-10-08
+Ultimo aggiornamento: 2026-10-09
 
 Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa, apre note e viste per te e propone modifiche — come proposte su una nota, come bozze di qualcosa di nuovo o come un piano che confermi tu. Non cambia mai una nota da solo. L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
 
@@ -228,6 +228,8 @@ plainva:
 ```
 
 oppure, per un'intera cartella, in **Impostazioni → IA e automazione** (la parte Vault), che scrive le regole in `.agent/policy.yml`. Una nota tenuta lontana dal cloud non contribuisce con nulla — né testo né titolo — e i link ad essa in altre note vengono trattenuti. Questo vale comunque un link scriva la nota — con il nome del file, con il titolo o con un percorso —; e se due note hanno lo stesso nome e una delle due è tenuta lontana, viene trattenuto anche un link con il solo nome. Scrivi la cartella nel link per indicare quella che intendi. I modelli su questo dispositivo restano consentiti. I workspace cifrati tengono il cloud disattivato, a meno che tu non lo consenta lì. Il formato esatto si trova nella [File Format Reference](File_Format_Reference.md).
+
+Una conversazione condotta con un modello su questo dispositivo resta su questo dispositivo. Un modello così può leggere ciò che nessun cloud può leggere, e una conversazione va sempre per intero al suo modello; perciò, una volta che una conversazione si è svolta qui, passarla a un modello cloud non invia nulla: un avviso lo dice, le tue parole restano nel campo di immissione e **Nuova conversazione** ne inizia una con il modello scelto. Il contrario funziona: una conversazione con un modello cloud può proseguire con un modello su questo dispositivo.
 
 Un'immagine appartiene alle note che la mostrano: anche un'immagine incorporata in una nota tenuta lontana dal cloud non va a nessun modello cloud (vedi Spiegare un'immagine più sopra).
 

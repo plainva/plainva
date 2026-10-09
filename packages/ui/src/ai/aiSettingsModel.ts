@@ -63,6 +63,8 @@ export function aiFailureText(t: T, failure: ModelFailure, provider: string, mod
       return t("ai.error.providerError", { provider, message: failure.message });
     case "platform_unavailable":
       return PLATFORM_REASONS.has(failure.reason) ? t(`ai.error.platform.${failure.reason}`, { provider }) : t("ai.error.platform.unavailable", { provider });
+    case "kept_on_device":
+      return t("ai.error.keptOnDevice", { provider });
   }
 }
 

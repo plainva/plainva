@@ -64,7 +64,15 @@ export type ModelFailure =
    * Apple Intelligence is off, the model is still loading or can be loaded,
    * the app is in the background — `reason` names which, for the settings to say.
    */
-  | { kind: "platform_unavailable"; reason: string };
+  | { kind: "platform_unavailable"; reason: string }
+  /**
+   * Nothing was sent: the conversation carries what this recipient may not
+   * have (ADR 0018). A conversation is append-only, so each request takes all
+   * of it along — and a model on this device may have been given a note whose
+   * rule keeps it from every cloud. Such a conversation goes on with a model
+   * on this device, or not at all; no provider ever answers with this.
+   */
+  | { kind: "kept_on_device" };
 
 export interface ModelCallResult {
   stop: StopReason | "cancelled" | null;

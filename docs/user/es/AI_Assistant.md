@@ -1,6 +1,6 @@
 # Asistente de IA (Beta)
 
-Última actualización: 2026-10-08
+Última actualización: 2026-10-09
 
 Plainva puede responder preguntas sobre tus notas con un modelo de IA de tu elección. Lee tu vault, cita las notas que usó, abre notas y vistas por ti y propone cambios — como sugerencias en una nota, como borradores de algo nuevo o como un plan que tú confirmas. Nunca cambia una nota por sí mismo. El asistente es **experimental** y está desactivado hasta que lo actives, por separado en cada dispositivo.
 
@@ -228,6 +228,8 @@ plainva:
 ```
 
 o, para toda una carpeta, en **Configuración → IA y automatización** (la parte del vault), que escribe las reglas en `.agent/policy.yml`. Una nota que se mantiene fuera de la nube no aporta nada — ni texto ni título —, y los enlaces hacia ella en otras notas se retienen. Esto vale escriba como escriba el enlace la nota — por el nombre de su archivo, por su título o por una ruta —; y si dos notas comparten nombre y una de ellas se mantiene fuera, también se retiene un enlace con solo ese nombre. Escribe la carpeta en el enlace para nombrar la que quieres decir. Los modelos en este dispositivo siguen permitidos. Los espacios cifrados mantienen la nube desactivada, salvo que la permitas allí. El formato exacto está en la [Referencia del formato de archivo](File_Format_Reference.md).
+
+Una conversación mantenida con un modelo en este dispositivo se queda en este dispositivo. Un modelo así puede leer lo que ninguna nube puede, y una conversación siempre va entera a su modelo; por eso, una vez que una conversación se ha mantenido aquí, cambiarla a un modelo en la nube no envía nada: un aviso lo dice, tus palabras se quedan en el campo de entrada y **Nueva conversación** empieza una con el modelo que elegiste. Al revés sí funciona: una conversación con un modelo en la nube puede continuar con un modelo en este dispositivo.
 
 Una imagen pertenece a las notas que la muestran: la que está incrustada en una nota mantenida fuera de la nube tampoco va a ningún modelo en la nube (ver Explicar una imagen más arriba).
 

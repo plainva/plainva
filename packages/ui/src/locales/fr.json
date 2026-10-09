@@ -75,6 +75,7 @@
       "offline": "Impossible de joindre {{provider}}.",
       "streamBroken": "La connexion s'est interrompue en pleine réponse.",
       "providerError": "{{provider}} a signalé une erreur : {{message}}",
+      "keptOnDevice": "Cette conversation s'est déroulée avec un modèle sur cet appareil. Ce qu'elle a lu n'a jamais été vérifié pour un cloud ; elle reste donc ici. Commencez une nouvelle conversation pour {{provider}}.",
       "openSetup": "Ouvrir les paramètres",
       "platform": {
         "deviceNotEligible": "{{provider}} ne fonctionne pas sur cet appareil.",

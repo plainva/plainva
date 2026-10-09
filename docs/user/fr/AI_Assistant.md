@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-10-08
+Dernière mise à jour : 2026-10-09
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications — sous forme de propositions sur une note, de brouillons pour ce qui est nouveau, ou d'un plan que vous confirmez. Il ne modifie jamais une note lui-même. L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -228,6 +228,8 @@ plainva:
 ```
 
 ou, pour un dossier entier, dans **Paramètres → IA & automatisation** (la partie Vault), qui écrit les règles dans `.agent/policy.yml`. Une note tenue à l'écart du cloud n'apporte rien — ni texte, ni titre —, et les liens vers elle dans d'autres notes sont retenus. Cela vaut quelle que soit la façon dont un lien écrit la note — par le nom de son fichier, par son titre ou par un chemin — ; et lorsque deux notes portent le même nom et que l'une d'elles est tenue à l'écart, un lien par ce seul nom est retenu lui aussi. Écrivez le dossier dans le lien pour nommer celle que vous visez. Les modèles sur cet appareil restent autorisés. Les espaces chiffrés tiennent le cloud à l'écart, sauf si vous l'y autorisez. Le format exact se trouve dans la [Référence du format de fichier](File_Format_Reference.md).
+
+Une conversation menée avec un modèle sur cet appareil reste sur cet appareil. Un tel modèle peut lire ce qu'aucun cloud ne peut lire, et une conversation part toujours en entier vers son modèle ; une fois qu'une conversation s'est déroulée ici, la basculer vers un modèle cloud n'envoie donc rien : un message le dit, vos mots restent dans le champ de saisie, et **Nouvelle conversation** en commence une avec le modèle choisi. L'inverse fonctionne : une conversation avec un modèle cloud peut se poursuivre avec un modèle sur cet appareil.
 
 Une image appartient aux notes qui l'affichent : une image intégrée dans une note tenue à l'écart du cloud ne part pas non plus vers un modèle cloud (voir Expliquer une image plus haut).
 

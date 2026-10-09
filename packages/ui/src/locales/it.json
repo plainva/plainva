@@ -75,6 +75,7 @@
       "offline": "Impossibile raggiungere {{provider}}.",
       "streamBroken": "La connessione si è interrotta a metà della risposta.",
       "providerError": "{{provider}} ha segnalato un errore: {{message}}",
+      "keptOnDevice": "Questa conversazione si è svolta con un modello su questo dispositivo. Ciò che ha letto non è mai stato controllato per un cloud, quindi resta qui. Inizia una nuova conversazione per {{provider}}.",
       "openSetup": "Apri le impostazioni",
       "platform": {
         "deviceNotEligible": "{{provider}} non funziona su questo dispositivo.",
