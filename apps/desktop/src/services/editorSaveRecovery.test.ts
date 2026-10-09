@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import ts from "typescript";
 import { EditorState } from "@codemirror/state";
 import { ConflictError, containsTextChanges, mergeEditorText } from "@plainva/core";
-import { applyTextShape, readTextShape } from "@plainva/ui";
+import { applyTextShape, editorTextOf, openEditorText, readTextShape } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { ConflictAwareVaultAdapter } from "../../../../packages/core/src/vault/ConflictAwareVaultAdapter";
 import { SyncStateRepository } from "../../../../packages/core/src/vault/SyncStateRepository";
@@ -67,7 +67,7 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
   const ui = { saving: vi.fn(), error: vi.fn(), content: vi.fn(), conflict: vi.fn() };
   const deps = {
     activePath: path, vaultPath: root, vaultAdapter: files, saveState: lifetime, sessionRef, contentRef,
-    withPendingWrite, mergeEditorText, containsTextChanges, ConflictError, applyTextShape, readTextShape, dirtyStore,
+    withPendingWrite, mergeEditorText, containsTextChanges, ConflictError, applyTextShape, editorTextOf, dirtyStore,
     loadJournal: async () => ({ recordDraft, clearDraft }),
     setIsSaving: ui.saving, setSaveError: ui.error, setContent: ui.content, setConflictInfo: ui.conflict,
     indexer: null, triggerFileTreeUpdate: vi.fn(), window, CustomEvent, crypto,
@@ -163,6 +163,69 @@ describe("original desktop save completion", () => {
     h.lifetime.shape = null;
     release.resolve(); await Promise.all([prior, saving]);
     expect(await raw.readTextFile("Settings.ini")).toBe("\ufeffnew\r\nmiddle\r\nend");
+  });
+
+  /** What the load does with a file (Editor.tsx): the one opener of both shells. */
+  function open(path: string, fileText: string) {
+    const opened = openEditorText(path, fileText)!;
+    const h = harness(path, opened.text); h.lifetime.shape = opened.shape;
+    return h;
+  }
+  // Built at run time: the mark is never typed into this file.
+  const MARK = String.fromCharCode(0xfeff);
+
+  it("saves a note in the house form — \\n — and keeps the mark it arrived with, which the editor does not hold", async () => {
+    const windows = `${MARK}base\r\nmiddle\r\nend\r\n`;
+    await raw.writeTextFile("Windows.md", windows);
+    const h = open("Windows.md", windows);
+    // No mark in the buffer (finding 2026-10-08): it used to be the note's
+    // first character, while the comment operation read the note without it.
+    expect(h.session.view.state.doc.toString()).toBe("base\nmiddle\nend\n");
+    h.edit("base!\nmiddle\nend\n"); await h.persist("base!\nmiddle\nend\n");
+    expect(await raw.readTextFile("Windows.md")).toBe(`${MARK}base!\nmiddle\nend\n`);
+    expect(h.lifetime.persisted).toBe("base!\nmiddle\nend\n");
+    expect(h.lifetime.dirty).toBe(false);
+    expect(await files.getConflictSession("Windows.md")).toBeNull();
+  });
+
+  it("does not write a text that did not change: leaving the suggestion mode costs a note from Windows nothing", async () => {
+    const windows = `${MARK}base\r\nmiddle\r\nend\r\n`;
+    await raw.writeTextFile("Windows.md", windows);
+    const h = open("Windows.md", windows);
+    const write = vi.spyOn(raw, "writeTextFile");
+    // What the suggestion mode's exit does (and an edit taken back before the
+    // save came): the text the note already has, reported as an edit. It used
+    // to be written — a version, an upload, and every "\r\n" of the note.
+    h.edit("base\nmiddle\nend\n"); await h.persist("base\nmiddle\nend\n");
+    expect(write).not.toHaveBeenCalled();
+    expect(await raw.readTextFile("Windows.md")).toBe(windows);
+    expect(h.lifetime.dirty).toBe(false);
+    expect(dirtyStore.get().has("Windows.md")).toBe(false);
+    expect(h.journals.size).toBe(0);
+    // The first real edit is saved as ever.
+    h.edit("base!\nmiddle\nend\n"); await h.persist("base!\nmiddle\nend\n");
+    expect(await raw.readTextFile("Windows.md")).toBe(`${MARK}base!\nmiddle\nend\n`);
+  });
+
+  it("writes a foreign file with one stray line end back in its majority — one line of diff, not the whole file", async () => {
+    const mixed = "a\r\nb\r\nc\nd\r\n";
+    await raw.writeTextFile("Settings.ini", mixed);
+    const h = open("Settings.ini", mixed);
+    h.edit("a!\nb\nc\nd\n"); await h.persist("a!\nb\nc\nd\n");
+    expect(await raw.readTextFile("Settings.ini")).toBe("a!\r\nb\r\nc\r\nd\r\n");
+    expect(h.lifetime.dirty).toBe(false);
+  });
+
+  it("keeps a foreign file's line ends and mark when a change made elsewhere merges into the save", async () => {
+    const windows = `${MARK}a\r\nb\r\nc\r\nd\r\n`;
+    await raw.writeTextFile("Settings.ini", windows);
+    const h = open("Settings.ini", windows);
+    await raw.writeTextFile("Settings.ini", `${MARK}a\r\nb\r\nc\r\nd from elsewhere\r\n`);
+    h.edit("a!\nb\nc\nd\n"); await h.persist("a!\nb\nc\nd\n");
+    expect(await raw.readTextFile("Settings.ini")).toBe(`${MARK}a!\r\nb\r\nc\r\nd from elsewhere\r\n`);
+    // The editor adopts the merge in ITS text.
+    expect(h.session.view.state.doc.toString()).toBe("a!\nb\nc\nd from elsewhere\n");
+    expect(await files.getConflictSession("Settings.ini")).toBeNull();
   });
 
   it("keeps the external merge in a later save with further typing", async () => {

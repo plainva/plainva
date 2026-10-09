@@ -1,5 +1,4 @@
-import { commentOperationStore, createCommentOperationService, type CommentOperation, type CommentOperationInput, type CommentOperationService, type CommentStore, type IVaultAdapter } from "@plainva/core";
-import { applyTextShape, readTextShape } from "@plainva/ui";
+import { commentOperationStore, createCommentOperationService, editorTextFiles, type CommentOperation, type CommentOperationInput, type CommentOperationService, type CommentStore, type IVaultAdapter } from "@plainva/core";
 import { desktopCommentOperationJournal } from "./commentOperationJournal";
 import { withPendingWrite } from "./pendingWrites";
 
@@ -19,6 +18,9 @@ export function desktopCommentOperations(deps: {
     return commentOperationStore(store, journal, operation);
   };
   const paths = new Map<string, string>();
+  // Planned on the editor's text, written back in the note's own shape — the
+  // one rule both shells take from the core.
+  const noteFiles = editorTextFiles({ read: (path) => adapter.readTextFile(path), write: (path, text) => adapter.writeTextFile(path, text) });
   return createCommentOperationService({
     contextKey: vaultPath,
     journal,
@@ -38,10 +40,9 @@ export function desktopCommentOperations(deps: {
       return path;
     },
     withNoteLock: (path, work) => withPendingWrite(vaultPath, path, work),
-    readText: async (path) => readTextShape(await adapter.readTextFile(path)).text,
+    readText: noteFiles.readText,
     writeText: async (path, text) => {
-      const { shape } = readTextShape(await adapter.readTextFile(path));
-      await adapter.writeTextFile(path, applyTextShape(text, shape));
+      await noteFiles.writeText(path, text);
       // Indexing is derived work. Its failure must not turn a retained note
       // into an unconfirmed write or prevent recording the text receipt.
       try { await deps.noteWritten(path); }

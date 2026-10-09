@@ -37,9 +37,10 @@ import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNo
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity, editorTextOf } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
-import { getLastPersistedText, noteSaver, rememberPersistedText, reportMoveFailure, vaultOps, type MobileVault } from "../services/vaultService";
+import { getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, type MobileVault } from "../services/vaultService";
+import { shareVaultFile } from "../services/shareFile";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
@@ -111,6 +112,13 @@ export function NoteScreen({
     [doc]
   );
   const [loadError, setLoadError] = useState(false);
+  /**
+   * The name says text, the bytes do not (C15, S13 — the desktop's `notText`).
+   * Nothing of such a file is shown: what the editor would hold is a lossy
+   * decode, and its first save would destroy the file. It is offered to
+   * another app instead, which knows what it is.
+   */
+  const [notText, setNotText] = useState(false);
   /**
    * A note that could not be read is looked for first (issue 110, E9): the
    * phone's own vault is visible in the iOS Files app, and a note moved there
@@ -476,6 +484,7 @@ export function NoteScreen({
       .then(async (text) => {
         if (stale) return;
         setLoadError(false);
+        setNotText(false);
         setDoc(text);
         // What was loaded, for the day the file vanishes (issue 110, E9).
         if (vault.db) {
@@ -485,15 +494,24 @@ export function NoteScreen({
         }
         // Draft recovery (package G): offer an unsaved draft that is newer
         // than the file on disk and differs from it.
-        const d = await readDraft(vault, path);
+        const stored = await readDraft(vault, path);
+        // A draft is an editor's text. One journalled before the editor
+        // stopped holding a note's byte order mark still starts with it;
+        // restoring that as it is would write the mark twice.
+        const d = stored && { ...stored, text: editorTextOf(stored.text) };
         if (stale || !d || d.text === text) return;
         const info = await vault.adapter.getFileInfo(path).catch(() => null);
         if (!stale && (!info || d.ts > info.mtime)) setDraft(d);
       })
-      .catch(() => {
-        // The note is gone (a stale bookmark/recent, or deleted while open) —
-        // show a friendly not-found body instead of a fatal unhandled rejection.
-        if (!stale) setLoadError(true);
+      .catch((error) => {
+        if (stale) return;
+        // Its name says text, its bytes do not: not shown, and not "missing".
+        const refused = error instanceof NotTextFileError;
+        setNotText(refused);
+        // Otherwise the note is gone (a stale bookmark/recent, or deleted while
+        // open) — show a friendly not-found body instead of a fatal unhandled
+        // rejection.
+        setLoadError(!refused);
       });
     void vaultOps.getBookmarks(vault).then((marks) => {
       if (!stale) setMarked(marks.some((m) => m.type === "file" && m.path === path));
@@ -609,6 +627,8 @@ export function NoteScreen({
     setEditing(false);
     noteSaver.discard(path, vault);
     if (base !== null) rememberPersistedText(vault, to, base);
+    // …and it is the same file, so it is saved in the same shape.
+    keepTextShape(vault, path, to);
     noteSaver.schedule(vault, to, text);
     try {
       await noteSaver.flush(to, vault);
@@ -630,8 +650,9 @@ export function NoteScreen({
     if (text === null) return;
     try {
       // The plain write on purpose: the editor save refuses to recreate a
-      // vanished file; this is the reader saying it should.
-      await vaultOps.save(vault, path, text);
+      // vanished file; this is the reader saying it should. In the shape the
+      // file was read in — the text here is the editor's.
+      await vaultOps.saveEditorText(vault, path, text);
     } catch {
       toast.error(t("editor.saveFailed"));
       return;
@@ -712,7 +733,7 @@ export function NoteScreen({
       const ok = await mConfirm({ title: t("indexMd.editAnyway"), message: t("indexMd.editAnywayConfirm") });
       if (!ok) return;
       const stripped = stripPlainvaIndexMarker(doc);
-      await vaultOps.save(vault, path, stripped);
+      await vaultOps.saveEditorText(vault, path, stripped);
       setDoc(stripped);
       setReloadTick((n) => n + 1);
       setEditing(true);
@@ -1042,8 +1063,8 @@ export function NoteScreen({
   /** The editor's find panel is open (see `readerOverlay`). */
   const [finding, setFinding] = useState(false);
   const readerConflict = useSyncExternalStore(subscribeConflicts, () => getConflict(path));
-  /** The load failed: no text on this screen, only its states ("Moved?", not found). */
-  const loadFailed = doc === null && loadError;
+  /** The load failed: no text on this screen, only its states ("Moved?", not found, not text). */
+  const loadFailed = doc === null && (loadError || notText);
   // A floating bar is for reading under it. The failed-load states sit in the
   // flow below the bar instead — laid under it, they lost their icon and
   // title (issue 110: "Moved?" was the part that was hidden) — and so does a
@@ -1316,6 +1337,30 @@ export function NoteScreen({
             // and the screen follows if it finds the file (issue 110, E9).
             <p className="m-hint" data-testid="note-still-looking">{t("editor.movedFileStillLooking")}</p>
           )}
+        </EmptyState>
+      )}
+      {doc === null && notText && (
+        /* C15 (S13): the extension promised text, the bytes did not keep the
+           promise. Showing it anyway would mean holding a lossy decode and
+           writing that back on the first save — so the file is offered to
+           another app instead, which knows what it is (the phone's way of
+           "open in the default app": the share sheet, as for any attachment). */
+        <EmptyState
+          action={
+            <div role="group" aria-label={t("editor.notTextTitle")} className="m-moved-choice">
+              <Button data-testid="note-not-text-share" onClick={() => { void shareVaultFile(vault, path).catch(() => toast.warning(t("mobile.vaultExportFailed"))); }} variant="tonal">
+                <Share2 size={ICON.ui} />
+                {t("mobile.share")}
+              </Button>
+              <Button data-testid="note-not-text-back" onClick={onBack} variant="ghost">
+                {t("common.back")}
+              </Button>
+            </div>
+          }
+          icon={<FileX size={ICON.touch} />}
+          title={t("editor.notTextTitle")}
+        >
+          <span data-testid="note-not-text">{t("editor.notTextBody")}</span>
         </EmptyState>
       )}
       {/* Nothing to edit when the load failed: the pencil only switched the

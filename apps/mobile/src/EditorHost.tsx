@@ -41,6 +41,7 @@ import { EmojiPickSheet } from "./components/EmojiPickSheet";
 import { TableMenuSheet, type TableMenuAction } from "./components/TableMenuSheet";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import {
+  editorDiskText,
   getLastPersistedText,
   noteSaver,
   rememberPersistedText,
@@ -750,7 +751,8 @@ export function EditorHost({
       // replace newer typing nor cancel the queued save that carries it.
       try {
         if (!vault.files.preserveConflict) throw new Error("Conflict-safe editing is unavailable");
-        const conflictSession = await vault.files.preserveConflict(path, draft, "editor-external");
+        // The copy is a file like the one it stands beside: in that file's shape.
+        const conflictSession = await vault.files.preserveConflict(path, editorDiskText(vault, path, draft), "editor-external");
         noteConflict(path, conflictSession.workingCopyPath, vault.vaultId, conflictSession);
       } catch (e) {
         console.error("[EditorHost] preserving conflict copy failed", e);

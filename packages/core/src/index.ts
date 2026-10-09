@@ -121,6 +121,7 @@ export { PathSpellings, withStoredSpelling, isNotFoundError, type SpellingSource
 
 export { projectCommentRecords } from "./comments/commentProjection.js";
 export * from "./textScan.js";
+export * from "./textFileShape.js";
 export * from "./markdownListItem.js";
 export * from "./markdownBlockLine.js";
 export * from "./mailText.js";

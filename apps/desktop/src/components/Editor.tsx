@@ -22,7 +22,7 @@ import { DocumentHeaderRead } from "./DocumentHeaderRead";
 import { NoteDatabaseBar } from "./NoteDatabaseBar";
 import { isVirtualPath } from "./graph/virtualPaths";
 import { loadNoteDatabaseContextCached } from "../services/noteDatabaseContextCache";
-import { applyTextShape, isVaultPathLink, looksBinary, planRelativeLinkOpen, readTextShape, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
+import { applyTextShape, editorTextOf, isVaultPathLink, openEditorText, planRelativeLinkOpen, resolveOpenAction, resolveRelativeTarget, type LinkKind } from "@plainva/ui";
 import { ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor } from "@plainva/ui";
 import { EMPTY_NOTE_DATABASE_CONTEXT, noteDisplayName, type NoteDatabaseContext } from "@plainva/ui";
 import { answerEditorPathProbe } from "@plainva/ui";
@@ -762,15 +762,6 @@ export const Editor: React.FC<{
   // prevents mounting a session with the PREVIOUS file's text during a switch.
   const contentRef = useRef<string>("");
   const loadedPathRef = useRef<string | null>(null);
-  /**
-   * The shape a foreign text file arrived in (C15, S13).
-   *
-   * Notes are UTF-8/LF by house rule and keep being normalised on load. A
-   * `.ini` from Windows or a `.csv` carrying the BOM Excel wants is not ours:
-   * saving it back as LF would rewrite every line in the file — one edit, a
-   * whole-file diff, and for a `.bat` a change in what the file DOES. Null for
-   * anything that is not opened as text.
-   */
   // Scroll container around the read view / editor. Used to scope outline
   // navigation to this pane's read view instead of a document-wide id lookup
   // (which would hit the first/left pane in a split — #4).
@@ -803,19 +794,30 @@ export const Editor: React.FC<{
       saveState.update({ activeWrites: saveState.activeWrites + 1 });
       if (current()) { setIsSaving(true); setSaveError(null); }
       try {
-        const normalize = (text: string) => shape ? readTextShape(text).text : text.replace(/\r\n/g, "\n");
-        const disk = normalize(await vaultAdapter.readTextFile(path));
         const base = saveState.baseInput;
+        // Nothing to write: the editor holds what the file last said — the
+        // suggestion mode put its base back, or an edit was taken back before
+        // the save came. Writing it anyway cost a version and an upload for
+        // nothing, and a note that arrived with `\r\n` every one of its line
+        // ends, for an edit that never happened (finding 2026-10-08; the
+        // phone's saver has the same guard). A file that changed elsewhere
+        // meanwhile is the external update's business.
+        const unchanged = base !== null && val === base && val === saveState.persisted;
         let candidate = val;
         let conflictSession: import("@plainva/core").ConflictEditSession | null = null;
         let confirmed: string;
-        if (vaultAdapter.writeEditorText) {
+        if (unchanged) {
+          confirmed = val;
+        } else if (vaultAdapter.writeEditorText) {
           const result = await vaultAdapter.writeEditorText(path, shape ? applyTextShape(val, shape) : val,
             base === null ? null : shape ? applyTextShape(base, shape) : base);
           conflictSession = result.session;
-          confirmed = normalize(result.stored);
+          confirmed = editorTextOf(result.stored);
           if (current()) setConflictInfo(conflictSession ? { conflictPath: conflictSession.workingCopyPath, working: true, foreignCopySnapshot: conflictSession.foreignCopySnapshot } : null);
         } else {
+        // Whatever comes from disk is compared in the editor's text (ONE text
+        // space, see the core's textFileShape.ts).
+        const disk = editorTextOf(await vaultAdapter.readTextFile(path));
         // A pull may already have advanced the sync index. The editor's own
         // base still identifies changes it has not incorporated into its buffer.
         if (base !== null && disk !== base && disk !== val) {
@@ -826,7 +828,7 @@ export const Editor: React.FC<{
           candidate = merged.mergedText;
         }
         await vaultAdapter.writeTextFile(path, shape ? applyTextShape(candidate, shape) : candidate);
-        confirmed = normalize(await vaultAdapter.readTextFile(path));
+        confirmed = editorTextOf(await vaultAdapter.readTextFile(path));
         if (!containsTextChanges(disk, candidate, confirmed)) throw new Error("The saved note could not be confirmed");
         }
         const stored = confirmed;
@@ -845,7 +847,8 @@ export const Editor: React.FC<{
             saveState.update({ baseInput: stored });
             saveState.update({ dirty: false });
             dirtyStore.set(path, false, saveState.id);
-            if (!conflictSession) setConflictInfo(null);
+            // Nothing was written, so nothing was learnt about a conflict.
+            if (!conflictSession && !unchanged) setConflictInfo(null);
           }
         }
         if (draftVault) {
@@ -857,6 +860,8 @@ export const Editor: React.FC<{
             saveState.update({ recoveredDraft: null });
           }
         }
+        // No file was touched: no index to refresh, and no "saved" to announce.
+        if (unchanged) return;
         // The note is committed even if refreshing its derived index fails.
         try {
           if (indexer) {
@@ -1970,20 +1975,20 @@ export const Editor: React.FC<{
     readAfterWrites.then(text => {
       if (isMounted) {
         loadedPathRef.current = activePath;
-        // A foreign text file keeps its own shape; a note is normalised as it
-        // always was (C15, S13).
-        const isText = resolveOpenAction(activePath) === "text";
-        // …and only if its bytes agree with its name. The check runs on the
-        // decoded text we already hold: a 0x00 byte decodes to U+0000, so this
-        // is the same evidence without reading the file a second time.
-        if (isText && looksBinary(text)) {
+        // One rule for both shells (C15, S13; finding 2026-10-08): the editor
+        // gets `\n` text without a byte order mark, the save gets the shape to
+        // put back — a foreign text file's own, a note's house form — and a
+        // file whose bytes do not agree with its name is not shown at all. The
+        // check runs on the decoded text we already hold: a 0x00 byte decodes
+        // to U+0000, so this is the same evidence without a second read.
+        const opened = openEditorText(activePath, text);
+        if (!opened) {
           setNotText(true);
           setIsLoading(false);
           return;
         }
-        const shaped = isText ? readTextShape(text) : null;
-        saveState.update({ shape: shaped?.shape ?? null });
-        const normalized = shaped ? shaped.text : text.replace(/\r\n/g, '\n');
+        saveState.update({ shape: opened.shape });
+        const normalized = opened.text;
         // The freshly loaded disk state counts as "our" persisted baseline.
         saveState.update({ persisted: normalized });
         saveState.update({ baseInput: normalized });
@@ -1999,8 +2004,12 @@ export const Editor: React.FC<{
         if (vaultPath) {
           void import("../services/draftJournal").then(async ({ readDraft }) => {
             const draft = await readDraft(vaultPath, activePath, normalized);
-            if (isMounted && draft && draft.text !== normalized) {
-              setDraftOffer({ text: draft.text, savedAt: draft.savedAt, revision: draft.revision, sessionId: draft.sessionId });
+            // A draft is an editor's text. One journalled before the editor
+            // stopped holding a note's byte order mark still starts with it;
+            // restoring that as it is would write the mark twice.
+            const draftText = draft ? editorTextOf(draft.text) : null;
+            if (isMounted && draft && draftText !== null && draftText !== normalized) {
+              setDraftOffer({ text: draftText, savedAt: draft.savedAt, revision: draft.revision, sessionId: draft.sessionId });
             }
           }).catch(() => {});
         }
@@ -2324,7 +2333,12 @@ export const Editor: React.FC<{
         if (current()) setConflictInfo(conflict ? { conflictPath: conflict.workingCopyPath, working: true, foreignCopySnapshot: conflict.foreignCopySnapshot } : null);
         const raw = await vaultAdapter.readTextFile(conflict?.workingCopyPath ?? path);
         if (!current() || sessionRef.current !== capturedSession) return;
-        const disk = saveState.shape ? readTextShape(raw).text : raw.replace(/\r\n/g, "\n");
+        // The shape is that of the file as it lies there NOW: another program
+        // may have changed the line ends along with the text, and neither the
+        // next save nor a conflict copy beside the file may turn them back.
+        const reopened = openEditorText(path, raw);
+        if (reopened) saveState.update({ shape: reopened.shape });
+        const disk = editorTextOf(raw);
         const draft = capturedSession?.view.state.doc.toString() ?? contentRef.current;
         const revision = saveState.revision;
         const action = saveState.dirty

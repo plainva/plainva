@@ -18,7 +18,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { bookmarkKey, toast, Button, conflictOriginalPath, DocIcon, EmptyState, errorText, fileRowActions, GroupCard, ICON, IconButton, isConflictCopyPath, isLargeDeletion, pickRowActions, Row, RowList, SearchField, SectionLabel, type RowActionSpec } from "@plainva/ui";
-import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
+import { matchesFolderQuery, nextFolderSort, readStoredFolderSort, resolveOpenAction, sortFolderEntries, timesAreUniform, writeStoredFolderSort, type FolderSort, type FolderSortKey } from "@plainva/ui";
 import { countFolderFiles, countVaultFiles } from "../lib/folderDeletion";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 import { reportMoveFailure, rereadVault, vaultOps, type FolderListing, type MobileVault } from "../services/vaultService";
@@ -554,14 +554,18 @@ export function BrowseScreen({
       {/* Attachments (S42). They were in the vault, synced and backed up, and
           no screen admitted they existed — a photo inserted into a note simply
           vanished from view. An image opens in the viewer; everything else is
-          handed to the system, which knows what a PDF is and Plainva does not. */}
+          handed to the system, which knows what a PDF is and Plainva does not.
+          A text file is the one kind of row here that is neither (C15, finding
+          2026-10-08): the shared rule says it opens inside Plainva, and from a
+          link, a bookmark or the search it did — only this list sent the same
+          `.csv` to the share sheet. */}
       {shown.attachments.map((a) => (
         <Row
           icon={a.isImage
             ? <ImageIcon className="m-accent" size={ICON.ui} />
             : <Paperclip className="m-accent" size={ICON.ui} />}
           key={a.path}
-          onClick={() => onOpenAttachment(a.path, a.isImage)}
+          onClick={() => (resolveOpenAction(a.path) === "text" ? onOpenNote(a.path) : onOpenAttachment(a.path, a.isImage))}
           title={a.name}
         />
       ))}

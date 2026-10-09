@@ -91,6 +91,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { rememberLastOpen, splitLinkAnchor, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
+import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, openEditorText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 
@@ -1161,10 +1162,35 @@ export const vaultOps = {
     return v.files.readTextFile(path);
   },
 
+  /**
+   * The file as an editor holds it: `\n` line ends, no byte order mark — the
+   * ONE text everything on a note screen works with and compares against
+   * (finding 2026-10-08, desktop twin in Editor.tsx's load). It used to be the
+   * raw file, while the editor it was handed to held it without `\r`: a note
+   * from Windows counted as edited the moment it was opened, a pull that
+   * rewrote it ended in a conflict copy, its comment marks sat a character
+   * further right with every line, and no suggestion on it could be accepted.
+   *
+   * The shape the editor's save puts back is remembered here, per file. A file
+   * whose name says text and whose bytes do not is refused (`NotTextFileError`).
+   */
   async readEditor(v: MobileVault, path: string): Promise<string> {
     const session = await v.files.getConflictSession?.(path);
     if (session) noteConflict(path, session.workingCopyPath, v.vaultId, session);
-    return v.files.readTextFile(session?.workingCopyPath ?? path);
+    const opened = openEditorText(path, await v.files.readTextFile(session?.workingCopyPath ?? path));
+    if (!opened) throw new NotTextFileError(path);
+    editorTextShape.set(JSON.stringify([v.vaultId, path]), opened.shape);
+    return opened.text;
+  },
+
+  /**
+   * The plain write of a text an editor holds, in the shape its file was read
+   * in — for the two places that write around the save coordinator on purpose
+   * ("save here again" for a file that vanished, the overview handed back to
+   * the user). Everything else an editor holds goes through `noteSaver`.
+   */
+  async saveEditorText(v: MobileVault, path: string, text: string): Promise<void> {
+    await this.save(v, path, editorDiskText(v, path, text));
   },
 
   async save(v: MobileVault, path: string, text: string): Promise<void> {
@@ -1350,9 +1376,35 @@ export const vaultOps = {
  * the desktop's lastPersisted tracking (2026-07-16). decideDirtyExternalUpdate
  * compares the on-disk content against this to tell our own save echo from a
  * genuinely foreign version reaching the disk (sync pull, auto-merge).
+ *
+ * Both maps hold the EDITOR's text (`\n`, no byte order mark), never the raw
+ * file: they are compared with what the editor holds, and two texts in two
+ * shapes are never equal (finding 2026-10-08). The way back to the file is the
+ * third map — the shape taken when the file was read for the editor
+ * (`vaultOps.readEditor`), which the save below puts around the text again.
  */
 const lastPersistedText = new Map<string, string>();
 const editorBaseText = new Map<string, string>();
+const editorTextShape = new Map<string, TextFileShape>();
+
+/** The name says text, the bytes do not (C15): nothing of the file may be shown or saved. */
+export class NotTextFileError extends Error {
+  constructor(readonly path: string) {
+    super("The file is not text");
+    this.name = "NotTextFileError";
+  }
+}
+
+/** An editor's text as its file holds it: in the shape the file was read in. */
+export function editorDiskText(vault: MobileVault, path: string, text: string): string {
+  return applyTextShape(text, editorTextShape.get(JSON.stringify([vault.vaultId, path])) ?? DEFAULT_TEXT_SHAPE);
+}
+
+/** A file that moved is still saved in the shape it was read in. */
+export function keepTextShape(vault: MobileVault, from: string, to: string): void {
+  const shape = editorTextShape.get(JSON.stringify([vault.vaultId, from]));
+  if (shape) editorTextShape.set(JSON.stringify([vault.vaultId, to]), shape);
+}
 
 export function rememberPersistedText(vault: MobileVault, path: string, text: string): void {
   const key = JSON.stringify([vault.vaultId, path]);
@@ -1372,6 +1424,7 @@ export function getLastPersistedText(vault: MobileVault, path: string): string |
 export function clearPersistedTextCache(): void {
   lastPersistedText.clear();
   editorBaseText.clear();
+  editorTextShape.clear();
 }
 
 /**
@@ -1386,17 +1439,30 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
   contextKey: (vault) => vault.vaultId,
   write: async (vault, path, text, revision) => {
     const key = JSON.stringify([vault.vaultId, path]);
+    // The editor's text leaves in the shape its file was read in, and what the
+    // disk answers is read back into the editor's text — so everything this
+    // module remembers and compares stays in one text space.
+    const shape = editorTextShape.get(key) ?? DEFAULT_TEXT_SHAPE;
+    const base = editorBaseText.get(key);
+    // Nothing to write: the editor holds what the file last said — the
+    // suggestion mode put its base back, or an edit was taken back before the
+    // save came. Writing it anyway cost a version and an upload for nothing,
+    // and a note that arrived with `\r\n` every one of its line ends, for an
+    // edit that never happened (finding 2026-10-08; the desktop's save has the
+    // same guard). A file that changed elsewhere meanwhile is the external
+    // update's business — this text has nothing to add to it.
+    if (base !== undefined && text === base && text === lastPersistedText.get(key)) return;
     if (vault.files.writeEditorText) {
-      const result = await vault.files.writeEditorText(path, text, editorBaseText.get(key) ?? null);
+      const result = await vault.files.writeEditorText(path, applyTextShape(text, shape), base === undefined ? null : applyTextShape(base, shape));
       if (result.session) noteConflict(path, result.session.workingCopyPath, vault.vaultId, result.session);
+      const stored = editorTextOf(result.stored);
       editorBaseText.set(key, text);
-      lastPersistedText.set(key, result.stored);
+      lastPersistedText.set(key, stored);
       try { await vault.reindexPaths([result.session?.workingCopyPath ?? path]); } catch { /* a later index pass repairs the derived data */ }
-      window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored: result.stored, revision } }));
+      window.dispatchEvent(new CustomEvent("m-editor-save-confirmed", { detail: { vaultId: vault.vaultId, path, input: text, stored, revision } }));
       return;
     }
-    const disk = await vault.files.readTextFile(path);
-    const base = editorBaseText.get(key);
+    const disk = editorTextOf(await vault.files.readTextFile(path));
     let candidate = text;
     // A pull can advance the sync index while the editor still holds its old
     // base. Preserve that ancestry through delayed saves and further typing.
@@ -1407,8 +1473,8 @@ export const noteSaver = createSaveCoordinator<MobileVault>({
       }
       candidate = merged.mergedText;
     }
-    await vaultOps.save(vault, path, candidate);
-    const stored = await vault.files.readTextFile(path);
+    await vaultOps.save(vault, path, applyTextShape(candidate, shape));
+    const stored = editorTextOf(await vault.files.readTextFile(path));
     if (!containsTextChanges(disk, candidate, stored)) throw new Error("The saved note could not be confirmed");
     editorBaseText.set(key, text);
     lastPersistedText.set(key, stored);

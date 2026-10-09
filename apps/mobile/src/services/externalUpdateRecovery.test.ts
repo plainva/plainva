@@ -67,6 +67,8 @@ function createHandler() {
     vaultOps: { readEditor: async (v: MobileVault, path: string) => v.files.readTextFile((await v.files.getConflictSession!(path))?.workingCopyPath ?? path) },
     getLastPersistedText: () => "base",
     rememberPersistedText: vi.fn(),
+    // These files have no shape to put back; editorTextSpace.test.ts runs the real one.
+    editorDiskText: (_vault: MobileVault, _path: string, text: string) => text,
     decideDirtyExternalUpdate: () => "preserve-conflict",
     conflictCopyPath: () => "Note.CONFLICT-test.md",
     toast: { error: errors }, t: (s: string) => s, noteConflict: conflicts,

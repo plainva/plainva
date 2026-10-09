@@ -1,6 +1,7 @@
 import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
+import { inShapeOf } from "../textFileShape.js";
 import { parseBackupFileName } from "./backupNaming.js";
 import { withPathMutation } from "./pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
@@ -81,7 +82,11 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
           const session = await this.preserveLocked(gate, path, text, requestedState, "editor-save");
           return { stored: await this.inner.readTextFile(session.workingCopyPath), session };
         }
-        candidate = merged.mergedText;
+        // A merge joins its lines with "\n". What reaches the disk keeps the
+        // shape the editor asked for — otherwise a "\r\n" file with one stray
+        // line end, or one that changed elsewhere meanwhile, came back with
+        // every line end rewritten (finding 2026-10-08).
+        candidate = inShapeOf(text, merged.mergedText);
       }
       if (baseText !== null) {
         // This request carries the actual editor ancestry; merging it again

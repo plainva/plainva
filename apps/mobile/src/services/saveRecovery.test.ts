@@ -8,7 +8,7 @@ import ts from "typescript";
 import { createRequire } from "node:module";
 import { CommentActionNotStartedError } from "@plainva/core";
 import type { CommentEditorSnapshot } from "@plainva/ui";
-import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, mergeEditorText, containsTextChanges, type IDatabaseAdapter } from "@plainva/core";
+import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, type IDatabaseAdapter } from "@plainva/core";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
@@ -40,7 +40,7 @@ function visit(node: ts.Node) {
 visit(file);
 if (!saveMethod || !saverInit || parts.length !== 6) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(vault); const lastPersistedText = new Map(); const editorBaseText = new Map();\n" +
+  "let bootPromise = Promise.resolve(vault); const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   },
@@ -81,7 +81,7 @@ function harness(vault: MobileVault) {
   const stopped = vi.fn(async () => {});
   const activated = vi.fn(async () => {});
   const deps = {
-    vault, createSaveCoordinator, ConflictError, mergeEditorText, containsTextChanges,
+    vault, createSaveCoordinator, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>
       drafts.set(JSON.stringify([v.vaultId, path]), { text, revision }),
     clearDraft: (v: MobileVault, path: string, revision: number) => {

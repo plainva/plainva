@@ -7,6 +7,13 @@ export class EditorSaveLifetime {
   dirty = false;
   persisted: string | null = null;
   revision = 0;
+  /**
+   * The shape this editor's save puts back around its text (C15, S13), taken
+   * where the file is loaded (`openEditorText`): a foreign text file's own
+   * line ends and mark — a `.ini` from Windows, a `.csv` carrying the BOM
+   * Excel wants are not ours to reformat —, a note's house form. Null until
+   * a file is loaded.
+   */
   shape: TextFileShape | null = null;
   recoveredDraft: { revision: number; sessionId?: string } | null = null;
   baseInput: string | null = null;

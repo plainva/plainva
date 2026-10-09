@@ -40,15 +40,27 @@ export async function leaveApp(page: Page) {
   await reportHidden(page, [true]);
 }
 
+export const EXAMPLE_NOTE = "---\ntype: Note\n---\n# Example\n\nA sentence to review.\n";
+
+/** The same note as an editor on Windows may leave it: a byte order mark and `\r\n` (the mark is built here, never typed). */
+export const EXAMPLE_NOTE_FROM_WINDOWS = String.fromCharCode(0xfeff) + EXAMPLE_NOTE.replace(/\n/g, "\r\n");
+
 /** Explicit test data. Reopening an empty user vault must never seed notes. */
-export async function seedExampleNote(page: Page) {
+export async function seedExampleNote(page: Page, data: string = EXAMPLE_NOTE) {
   await waitForVaultDirectory(page);
-  await page.evaluate(async () => {
+  await page.evaluate(async (text) => {
     await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.writeFile({
-      path: "vault/Example.md", data: "---\ntype: Note\n---\n# Example\n\nA sentence to review.\n",
+      path: "vault/Example.md", data: text,
       directory: "DATA", encoding: "utf8", recursive: true,
     });
-  });
+  }, data);
   await page.reload();
   await expect(page.locator("#root > *").first()).toBeVisible({ timeout: 20_000 });
+}
+
+/** A vault file exactly as it lies there — line ends and mark included. */
+export async function readVaultFile(page: Page, path: string): Promise<string> {
+  return page.evaluate(async (file) => String((await (globalThis as MobileTestGlobals).Capacitor.Plugins.Filesystem.readFile({
+    path: "vault/" + file, directory: "DATA", encoding: "utf8",
+  })).data), path);
 }
