@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { accountCredentialGrants, createTokenBroker, GOOGLE_MAIL_SCOPES, tokenCoversService, type StoredAccountToken } from "@plainva/ui";
 
-const state = vi.hoisted(() => ({ authorize: vi.fn(), clearToken: vi.fn(), fetch: vi.fn(), appIdentity: vi.fn() }));
-vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => "android" }, registerPlugin: () => ({ authorize: state.authorize, clearToken: state.clearToken, appIdentity: state.appIdentity, takeOrphanResult: async () => ({}) }) }));
+const state = vi.hoisted(() => ({ authorize: vi.fn(), clearToken: vi.fn(), fetch: vi.fn() }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => "android" }, registerPlugin: () => ({ authorize: state.authorize, clearToken: state.clearToken, takeOrphanResult: async () => ({}) }) }));
 vi.mock("../adapters/webdavHttp", () => ({ webdavFetch: state.fetch }));
 let native: typeof import("./googleNativeAuthorization");
 const grant: StoredAccountToken = { clientId: "android-registration", refreshToken: "", nativeGoogle: { email: "person@example.test" }, providerIdentity: { issuer: "google", subject: "subject" }, scopes: GOOGLE_MAIL_SCOPES };
@@ -10,7 +10,6 @@ beforeEach(async () => {
   vi.resetModules();
   state.authorize.mockReset().mockResolvedValue({ accessToken: "ephemeral", scopes: GOOGLE_MAIL_SCOPES.split(" ") });
   state.clearToken.mockReset().mockResolvedValue(undefined);
-  state.appIdentity.mockReset();
   state.fetch.mockReset().mockImplementation(async () => Response.json({ sub: "subject", email: "person@example.test", email_verified: true }));
   native = await import("./googleNativeAuthorization");
 });
@@ -45,7 +44,7 @@ describe("Android Google authorization", () => {
       data: { stage: "result", resultCode: 0, hadIntent: true, status: 10, statusName: "DEVELOPER_ERROR", detail: "not set up for person@example.test https://www.googleapis.com/auth/calendar" } });
     const error = await native.authorizeNativeGoogle(calendar, true).catch((e: unknown) => e);
     expect(error).toMatchObject({ name: "GoogleAuthorizationError", code: "DEVELOPER_ERROR", status: 10 });
-    expect(serviceConnectionMessage(error, (key) => key)).toBe("connection.googleBuildNotRegistered");
+    expect(serviceConnectionMessage(error, (key) => key)).toBe("connection.googleSystemSignInUnavailable");
     const lines = getDiagnostics().filter((entry) => entry.source === "google-signin").map((entry) => entry.message);
     expect(lines).toEqual(["calendar sign-in failed: DEVELOPER_ERROR, interactive, account chooser, stage result, status 10 DEVELOPER_ERROR, resultCode 0, intent present, detail: not set up for <address> <link>"]);
     expect(lines.join(" ")).not.toMatch(/person@|googleapis/);
@@ -80,12 +79,23 @@ describe("Android Google authorization", () => {
     }
     expect(getDiagnostics().filter((entry) => entry.source === "google-signin")).toHaveLength(1);
   });
-  it("reads the installed build's package and certificate fingerprint, or nothing", async () => {
-    const sha1 = "AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01";
-    state.appIdentity.mockResolvedValueOnce({ packageName: "com.plainva.app", sha1: [sha1, "not a fingerprint"] });
-    expect(await native.nativeGoogleAppIdentity()).toEqual({ packageName: "com.plainva.app", sha1: [sha1] });
-    state.appIdentity.mockRejectedValueOnce(new Error("not implemented"));
-    expect(await native.nativeGoogleAppIdentity()).toBeNull();
+  it("uses the system sign-in only with the build's own client or to renew a grant it already holds", async () => {
+    const own = "plainva-android.apps.googleusercontent.com";
+    expect(native.hasGooglePlayServices()).toBe(true);
+    // No client ships with this build: whatever the user enters goes through the browser.
+    expect(native.googleSignInFlow("users-own.apps.googleusercontent.com")).toBe("browser");
+    expect(native.googleSignInFlow(own)).toBe("browser");
+    // ...except to sign in again an account whose grant Play services holds, with the same client.
+    expect(native.googleSignInFlow("users-own.apps.googleusercontent.com", ["users-own.apps.googleusercontent.com"])).toBe("native");
+    expect(native.googleSignInFlow("another.apps.googleusercontent.com", ["users-own.apps.googleusercontent.com"])).toBe("browser");
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_MAIL_STATE", "testing");
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_ANDROID_CLIENT_ID", own);
+    expect(native.googleSignInFlow(own)).toBe("native");
+    expect(native.googleSignInFlow("users-own.apps.googleusercontent.com")).toBe("browser");
+    // The gate of the shipped entry stays: outside "testing" there is none.
+    vi.stubEnv("VITE_PLAINVA_GOOGLE_MAIL_STATE", "production");
+    expect(native.googleSignInFlow(own)).toBe("browser");
+    vi.unstubAllEnvs();
   });
   it("rejects another subject and a partial consent", async () => {
     state.fetch.mockResolvedValueOnce(Response.json({ sub: "other", email: "person@example.test", email_verified: true }));

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chooseGoogleSignInFlow,
   GOOGLE_AUTHORIZATION_CODES,
   GoogleAuthorizationError,
   googleAuthorizationDiagnostic,
@@ -32,7 +33,7 @@ describe("a failed Android Google sign-in names its cause", () => {
   it("gives every code its sentence", () => {
     const sentence = (code: (typeof GOOGLE_AUTHORIZATION_CODES)[number], status?: number) =>
       serviceConnectionMessage(new GoogleAuthorizationError({ code, status }), key);
-    expect(sentence("DEVELOPER_ERROR", 10)).toBe("connection.googleBuildNotRegistered");
+    expect(sentence("DEVELOPER_ERROR", 10)).toBe("connection.googleSystemSignInUnavailable");
     expect(sentence("NETWORK_ERROR", 7)).toBe("connection.googleUnreachable");
     expect(sentence("TIMEOUT", 15)).toBe("connection.googleUnreachable");
     expect(sentence("SIGN_IN_REQUIRED", 4)).toBe("connection.googleAccountNotOnDevice");
@@ -52,8 +53,8 @@ describe("a failed Android Google sign-in names its cause", () => {
     const error = new GoogleAuthorizationError({ code: "DEVELOPER_ERROR", status: 10 });
     expect(error.message).toBe("google_authorization:DEVELOPER_ERROR:10");
     expect(googleAuthorizationMarker(error.message)).toEqual({ code: "DEVELOPER_ERROR", status: 10 });
-    expect(serviceConnectionMessage(new Error(error.message), key)).toBe("connection.googleBuildNotRegistered");
-    expect(serviceConnectionMessage(error.message, key)).toBe("connection.googleBuildNotRegistered");
+    expect(serviceConnectionMessage(new Error(error.message), key)).toBe("connection.googleSystemSignInUnavailable");
+    expect(serviceConnectionMessage(error.message, key)).toBe("connection.googleSystemSignInUnavailable");
     expect(googleAuthorizationMessage(new Error("access_denied"), key)).toBeNull();
     expect(googleAuthorizationMarker("google_authorization:NOT_A_CODE")).toBeNull();
   });
@@ -65,12 +66,30 @@ describe("a failed Android Google sign-in names its cause", () => {
     expect(isGoogleAuthorizationCancelled(new Error("Google authorization cancelled"))).toBe(false);
   });
 
-  it("says in the configuration sentence what Google looks at, in plain words", () => {
-    const text = (en as { connection: Record<string, string> }).connection.googleBuildNotRegistered;
-    expect(text).toMatch(/package name/);
-    expect(text).toMatch(/signing certificate of the installed build/);
-    expect(text).toMatch(/SHA-1/);
+  it("points a refused system sign-in to the browser sign-in, and asks nobody to register the build", () => {
+    const text = (en as { connection: Record<string, string> }).connection.googleSystemSignInUnavailable;
+    expect(text).toMatch(/browser/);
+    expect(text).toMatch(/your own client ID/);
+    // Google accepts package + fingerprint in one project only; telling users to register them was the dead end.
+    expect(text).not.toMatch(/SHA-1|fingerprint|package name|register/i);
     expect(text).not.toMatch(/cancel/i);
+  });
+
+  it("sends a client ID the user entered through the browser, and keeps Play services where it can work", () => {
+    const builtIn = "plainva-android.apps.googleusercontent.com";
+    const own = "users-own.apps.googleusercontent.com";
+    // A user's own client: the browser, with or without a shipped client.
+    expect(chooseGoogleSignInFlow({ playServices: true, clientId: own })).toBe("browser");
+    expect(chooseGoogleSignInFlow({ playServices: true, clientId: own, builtInClientId: builtIn })).toBe("browser");
+    // The entry the build ships.
+    expect(chooseGoogleSignInFlow({ playServices: true, clientId: builtIn, builtInClientId: builtIn })).toBe("native");
+    expect(chooseGoogleSignInFlow({ playServices: true, clientId: ` ${builtIn} `, builtInClientId: builtIn })).toBe("native");
+    // An account that already works through Play services stays there - with the same client only.
+    expect(chooseGoogleSignInFlow({ playServices: true, clientId: own, nativeGrantClientIds: [null, own] })).toBe("native");
+    expect(chooseGoogleSignInFlow({ playServices: true, clientId: "typed-anew.apps.googleusercontent.com", nativeGrantClientIds: [own] })).toBe("browser");
+    // iOS, the desktop, the browser preview: there is no Play services to choose.
+    expect(chooseGoogleSignInFlow({ playServices: false, clientId: builtIn, builtInClientId: builtIn, nativeGrantClientIds: [builtIn] })).toBe("browser");
+    expect(chooseGoogleSignInFlow({ playServices: true, clientId: "", builtInClientId: "", nativeGrantClientIds: [""] })).toBe("browser");
   });
 
   it("writes a line that tells the cases apart and carries nothing personal", () => {

@@ -4692,13 +4692,10 @@
     "clipboardFailed": "The path could not be copied. Select and copy it in the file details.",
     "retrySaved": "Complete connection",
     "clientSecret": "Client secret (if provided)",
-    "googleBuildNotRegistered": "Google does not accept this installation of Plainva. On Android, Google recognises the app by its package name and by the signing certificate of the installed build, not by a client ID. The Google project needs an OAuth client of type “Android” with the package name and SHA-1 of this build. Plainva shows both where you add a Google account. The Google guide describes the steps.",
+    "googleSystemSignInUnavailable": "Google's system sign-in is not available for this installation of Plainva. Sign in through the browser with your own client ID instead: enter it in the Google form. The Google guide describes how to create it.",
     "googleUnreachable": "Google could not be reached. Check the internet connection and try again.",
     "googleAccountNotOnDevice": "Google reports that this account is not signed in on this device. Check it in the Android settings under accounts, then try again.",
     "googlePlayServicesFailed": "Google Play services could not complete the sign-in (code {{code}}). Try again. If it keeps failing, update Google Play services.",
-    "googleAndroidRegistration": "On Android, Google recognises Plainva by its package name and by the signing certificate of this installed build, not by a client ID. Your Google project needs an OAuth client of type “Android” with these two values. The Google guide describes the steps.",
-    "googleAndroidPackage": "Package name",
-    "googleAndroidFingerprint": "SHA-1 certificate fingerprint",
     "googleClientUnsupported": "The Google registration does not match this device’s return path. Check the client type and mobile setup in the Google guide."
   },
   "connectionFailure": {

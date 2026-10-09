@@ -1,7 +1,6 @@
 import { sameStoredValue } from "@plainva/core";
 import { Browser } from "@capacitor/browser";
-import { Capacitor } from "@capacitor/core";
-import { authorizeNativeGoogle } from "./googleNativeAuthorization";
+import { authorizeNativeGoogle, googleSignInFlow, hasGooglePlayServices } from "./googleNativeAuthorization";
 import {
   buildAuthUrl,
   buildDropboxAuthUrl,
@@ -26,24 +25,28 @@ import { getActiveVaultEntry } from "./vaultRegistry";
 import { APP_ID, APP_URL } from "./appScheme";
 
 /**
- * Mobile OAuth: Android Google uses native AuthorizationClient consent. The
- * other flows use the system browser and PKCE with the custom-scheme callback.
+ * Mobile OAuth: the system browser and PKCE with the custom-scheme callback,
+ * for every provider on both phones. Android Google additionally has Play
+ * services' AuthorizationClient, used only where it can work (the client this
+ * build ships, or a vault that already holds a Play-services grant).
  * A received grant remains in protected storage until its destination is saved.
  *
  * Console prerequisites (maintainer, one-time):
  *  - Dropbox app: add redirect URI  com.plainva.app://oauth
  *  - Entra (OneDrive): platform "Mobile and desktop applications", add
  *    redirect URI  com.plainva.app://oauth
- *  - Google Drive: register the Android package and installed signing SHA-1,
- *    or the iOS bundle and redirect scheme. Native clients have no secret.
- *    See docs/engineering/Google_Mail.md for the public test-client setup.
+ *  - Google Drive, a user's own project (both phones): an OAuth client of type
+ *    iOS with the app id as bundle ID; it has no secret. An Android-type client
+ *    cannot be a user's: package + fingerprint are unique across all projects.
+ *    See docs/engineering/Google_Mail.md.
  *  - The Labs build (com.plainva.app.labs) is a separate app to every provider:
  *    each of the above again with that id, see docs/engineering/Labs_Channel.md.
  */
 
 export const OAUTH_REDIRECT_URI = `${APP_URL}oauth`;
 /**
- * iOS Google installed-app redirect. Android Google returns through the SDK's
+ * Google's installed-app redirect on both phones (the custom scheme of an
+ * iOS-type client). A Play-services consent returns through the SDK's
  * activity result and does not use this URI.
  */
 export const DRIVE_REDIRECT_URI = `${APP_ID}:/oauth2redirect`;
@@ -302,11 +305,24 @@ export async function reconnectVault(vaultId: string): Promise<void> {
 /** Opens the provider consent page in the system browser. */
 export async function beginOAuth(provider: OAuthProviderId, extras: OAuthExtras): Promise<void> {
   extras = { ...extras, serviceContext: extras.serviceContext ?? await connectionContextFor("files") ?? { vaultId: (await getActiveVaultEntry()).id } };
-  if (provider === "drive" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+  if (provider === "drive" && await driveSignsInThroughPlayServices(extras)) {
     const captured = structuredClone(extras);
     return withAccountCredentialLock("native-google-consent", () => beginNativeDrive(captured));
   }
   return beginBrowserOAuth(provider, extras);
+}
+
+/**
+ * Browser or Play services for Drive (`chooseGoogleSignInFlow`): a client ID
+ * the user entered opens the browser. Play services is kept for the client
+ * this build ships and for reconnecting a vault whose stored grant already is
+ * a Play-services one with the same client.
+ */
+async function driveSignsInThroughPlayServices(extras: OAuthExtras): Promise<boolean> {
+  if (!hasGooglePlayServices() || !extras.clientId) return false;
+  const stored = extras.reconnectVaultId ? await getStoredProvider(extras.reconnectVaultId).catch(() => null) : null;
+  const held = stored?.provider === "drive" && stored.creds.nativeGoogle?.email ? stored.creds.clientId : null;
+  return googleSignInFlow(extras.clientId, [held]) === "native";
 }
 
 async function beginNativeDrive(extras: OAuthExtras): Promise<void> {

@@ -15,7 +15,6 @@ import {
 } from "./services/syncService";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { beginOAuth, beginStoredFilesConnection, type OAuthProviderId } from "./services/oauthService";
-import { GoogleAndroidRegistration } from "./components/GoogleAndroidRegistration";
 import { lookupOAuthClientForNewAccount } from "./services/pim/pimClientLookup";
 import { getPimCredentials } from "./services/pim/pimCredentials";
 import { loadCloudAccounts } from "./services/cloudAccountsStore";
@@ -386,7 +385,6 @@ export function AddVaultScreen({
 
           {provider === "drive" && (
             <>
-              <GoogleAndroidRegistration />
               <label className="m-field">
                 <span>{t("mobile.syncClientId")}</span>
                 <TextInput onChange={(e) => setDriveClientId(e.target.value)} value={driveClientId} />

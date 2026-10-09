@@ -4635,13 +4635,10 @@
     "clipboardFailed": "无法复制路径。请在文件详情中选中并复制。",
     "retrySaved": "完成连接",
     "clientSecret": "客户端密钥（如有）",
-    "googleBuildNotRegistered": "Google 不接受此 Plainva 安装。在 Android 上，Google 通过软件包名称和已安装版本的签名证书识别应用，而不是通过客户端 ID。Google 项目需要一个“Android”类型的 OAuth 客户端，并填入此版本的软件包名称和 SHA-1。Plainva 会在添加 Google 账号的位置显示这两个值。步骤见 Google 指南。",
+    "googleSystemSignInUnavailable": "此 Plainva 安装无法使用 Google 的系统登录。请改为在浏览器中使用你自己的客户端 ID 登录：在 Google 表单中填入该 ID。创建方法见 Google 指南。",
     "googleUnreachable": "无法连接到 Google。请检查网络连接后重试。",
     "googleAccountNotOnDevice": "Google 表示此账号未在本设备上登录。请在 Android 设置的账号中检查，然后重试。",
     "googlePlayServicesFailed": "Google Play 服务无法完成登录(代码 {{code}})。请重试。如果问题仍然存在，请更新 Google Play 服务。",
-    "googleAndroidRegistration": "在 Android 上，Google 通过软件包名称和此已安装版本的签名证书识别 Plainva，而不是通过客户端 ID。你的 Google 项目需要一个“Android”类型的 OAuth 客户端，并填入这两个值。步骤见 Google 指南。",
-    "googleAndroidPackage": "软件包名称",
-    "googleAndroidFingerprint": "SHA-1 证书指纹",
     "googleClientUnsupported": "Google 注册配置与此设备的返回路径不匹配。请在 Google 指南中检查客户端类型和移动端设置。"
   },
   "connectionFailure": {

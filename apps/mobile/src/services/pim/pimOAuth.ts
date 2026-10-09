@@ -1,7 +1,6 @@
 import { sameStoredValue } from "@plainva/core";
 import { Browser } from "@capacitor/browser";
-import { Capacitor } from "@capacitor/core";
-import { authorizeNativeGoogle } from "../googleNativeAuthorization";
+import { authorizeNativeGoogle, googleSignInFlow, hasGooglePlayServices } from "../googleNativeAuthorization";
 import {
   buildAuthUrl,
   buildOneDriveAuthUrl,
@@ -15,7 +14,7 @@ import { getPlatformServices, PLAINVA_ONEDRIVE_CLIENT_ID, ServiceConnectionError
 import i18n from "@plainva/ui/i18n";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { addPimAccount, reauthorizePimAccount } from "./pimService";
-import type { PimStoredCredentials } from "./pimCredentials";
+import { getPimCredentials, type PimStoredCredentials } from "./pimCredentials";
 import type { CloudAccountRecord, CloudServiceId, StoredAccountToken } from "@plainva/ui";
 import type { ServiceConnectionContext } from "@plainva/ui";
 import { getActiveVaultEntry } from "../vaultRegistry";
@@ -32,21 +31,27 @@ export interface AccountOAuthContext {
 }
 
 /**
- * Mobile OAuth for calendar, mail and combined account grants. Android Google
- * uses the native AuthorizationClient; iOS Google and Microsoft use the system
- * browser with PKCE. Both paths persist the originating account and vault until
- * the service handler has durably acknowledged the granted credentials.
+ * Mobile OAuth for calendar, mail and combined account grants. Google and
+ * Microsoft sign in through the system browser with PKCE, on both phones.
+ * Android additionally has Play services' AuthorizationClient, used only where
+ * it can work (`chooseGoogleSignInFlow`): with the client this build ships, and
+ * to renew an account that already holds a Play-services grant. Both paths
+ * persist the originating account and vault until the service handler has
+ * durably acknowledged the granted credentials.
  *
- * Console prerequisites (one-time, maintainer):
- *  - Google: the appropriate Android package/signing-certificate registration
- *    or iOS bundle registration, with the requested APIs and consent scopes.
- *    See docs/engineering/Google_Mail.md for the optional public test clients.
+ * Console prerequisites:
+ *  - Google, a user's own project (both phones): an OAuth client of type iOS
+ *    whose bundle ID is the app id — its custom-scheme return is the redirect
+ *    below. An Android-type client is NOT an option for a user: Google lets
+ *    the package name + signing fingerprint of the Play build be registered in
+ *    exactly one project. See docs/engineering/Google_Mail.md.
  *  - Microsoft: the central Plainva Entra app (same as the OneDrive sync)
  *    already carries delegated Calendars/Tasks scopes — just connect + consent.
  */
 
-// Browser redirects: Google uses this URI only on iOS. Android Google consent
-// returns through the native activity result, without a custom-scheme redirect.
+// Browser redirects. The Android manifest's intent filter and the iOS URL type
+// both answer on the app id as a scheme; a Play-services consent returns
+// through the activity result instead and uses neither.
 const MS_REDIRECT_URI = `${APP_URL}oauth`;
 const GOOGLE_REDIRECT_URI = `${APP_ID}:/oauth2redirect`;
 
@@ -232,7 +237,7 @@ type PimOAuthOptions = { clientId: string; clientSecret?: string; label?: string
 /** Native Google consent and its durable completion form one operation, shared
  * with Drive, so another screen cannot replace an unacknowledged result. */
 export async function beginPimOAuth(provider: PimOAuthProvider, opts: PimOAuthOptions): Promise<void> {
-  if (provider === "google" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+  if (provider === "google" && await signsInThroughPlayServices(opts)) {
     const purpose = opts.purpose ?? "calendar";
     const context = purpose === "account" ? undefined : opts.serviceContext ?? await connectionContextFor(purpose === "gmail" ? "mail" : purpose) ?? { vaultId: (await getActiveVaultEntry()).id };
     const captured = structuredClone({ ...opts, serviceContext: context });
@@ -249,15 +254,48 @@ export async function beginPimOAuth(provider: PimOAuthProvider, opts: PimOAuthOp
           && saved.flow.serviceContext?.cloudAccountId === captured.serviceContext?.cloudAccountId
           && saved.flow.accountContext?.record.id === captured.accountContext?.record.id) return;
       }
-      return beginPimOAuthFlow(provider, captured);
+      return beginPimOAuthFlow(provider, captured, true);
     });
   }
-  return beginPimOAuthFlow(provider, opts);
+  return beginPimOAuthFlow(provider, opts, false);
+}
+
+/** The client ID of a stored Google grant, when Play services holds it. */
+function nativeGrantClientId(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const grant = value as { clientId?: unknown; nativeGoogle?: { email?: unknown } | null; creds?: unknown; grants?: unknown };
+  if (grant.nativeGoogle?.email && typeof grant.clientId === "string") return grant.clientId;
+  // A file-sync provider keeps its grant under `creds`, an account slot under `grants`.
+  if (Array.isArray(grant.grants)) return grant.grants.map(nativeGrantClientId).find((id) => !!id) ?? null;
+  return grant.creds ? nativeGrantClientId(grant.creds) : null;
+}
+
+/**
+ * Whether this Google sign-in goes through Play services (Android) or through
+ * the browser — the rule is `chooseGoogleSignInFlow`; this collects what it
+ * needs to know: which Play-services grants the sign-in would replace.
+ *
+ * A NEW connection has none, so a client ID the user entered opens the
+ * browser. Signing an account in again that already works through Play
+ * services stays there, as long as it is asked for with the same client.
+ */
+async function signsInThroughPlayServices(opts: PimOAuthOptions): Promise<boolean> {
+  if (!hasGooglePlayServices()) return false;
+  const held: (string | null)[] = [nativeGrantClientId(opts.accountContext?.expectedToken)];
+  for (const source of Object.values(opts.accountContext?.serviceSources ?? {})) {
+    try { held.push(nativeGrantClientId(JSON.parse(source ?? "null"))); } catch { /* not a stored grant */ }
+  }
+  if (opts.accountId && (opts.purpose ?? "calendar") === "calendar") {
+    const vaultId = opts.serviceContext?.vaultId ?? (await getActiveVaultEntry()).id;
+    held.push(nativeGrantClientId(await getPimCredentials(vaultId, opts.accountId).catch(() => null)));
+  }
+  return googleSignInFlow(opts.clientId, held) === "native";
 }
 
 async function beginPimOAuthFlow(
   provider: PimOAuthProvider,
   opts: PimOAuthOptions,
+  playServices: boolean,
 ): Promise<void> {
   const pkce = await generatePkcePair();
   const state = randomState();
@@ -291,7 +329,7 @@ async function beginPimOAuthFlow(
     }); }
     catch (error) { pending = null; throw error; }
   }
-  if (provider === "google" && Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android") {
+  if (provider === "google" && playServices) {
     const flow = pending;
     try {
       if (await getPlatformServices().credentials.readSecret(RESULT_KEY)) throw new Error("storageFailed: a previous sign-in must finish first");

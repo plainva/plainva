@@ -12,7 +12,42 @@
  * failure happened and what Play services answered. This module is the pure
  * half: it reads such a rejection, names it, and writes the one diagnostics
  * line — no address, no scope, no token.
+ *
+ * It also holds the rule for WHICH way an Android sign-in goes
+ * ({@link chooseGoogleSignInFlow}).
  */
+
+/**
+ * Browser or Play services — the one rule, for calendar, Drive and Gmail.
+ *
+ * Play services recognises the app by package name and signing certificate,
+ * and Google lets that pair be registered in exactly ONE Google Cloud project
+ * ("the Android package name and fingerprint are already in use"). So the
+ * system sign-in can only ever work with the project that owns the pair; for
+ * a user's own project it is a dead end, whatever client ID they type. From
+ * 0.8.3 on it was nevertheless the only way on Android.
+ *
+ * The browser sign-in with the user's own client ID is the way that works for
+ * everyone, and it is the default again. Play services is used only
+ *   - with the client this build ships (`builtInClientId`, gated by
+ *     `googlePublicClient`), or
+ *   - to sign an account in again that already holds a Play-services grant
+ *     with this very client — it works for that account, and moving it to the
+ *     browser unasked would break it.
+ */
+export function chooseGoogleSignInFlow(input: {
+  /** Whether this shell has Play services at all (Android, native). */
+  playServices: boolean;
+  clientId: string;
+  builtInClientId?: string | null;
+  /** Client IDs of the Play-services grants this sign-in would replace. */
+  nativeGrantClientIds?: readonly (string | null | undefined)[];
+}): "native" | "browser" {
+  const clientId = input.clientId.trim();
+  if (!input.playServices || !clientId) return "browser";
+  if (input.builtInClientId && input.builtInClientId === clientId) return "native";
+  return (input.nativeGrantClientIds ?? []).some((id) => !!id && id === clientId) ? "native" : "browser";
+}
 
 export const GOOGLE_AUTHORIZATION_CODES = [
   "CANCELLED",
@@ -146,7 +181,10 @@ export function googleAuthorizationMessage(error: unknown, t: Translate): string
     case "CANCELLED":
       return t("settings.oauthCancelled");
     case "DEVELOPER_ERROR":
-      return t("connection.googleBuildNotRegistered");
+      // Google does not know this package and certificate for the project
+      // asked. Nobody but the owner of the one project that holds the pair
+      // can change that, so the sentence points to the way that works.
+      return t("connection.googleSystemSignInUnavailable");
     case "NETWORK_ERROR":
     case "TIMEOUT":
       return t("connection.googleUnreachable");

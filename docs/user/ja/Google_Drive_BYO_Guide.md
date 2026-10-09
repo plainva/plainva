@@ -1,6 +1,6 @@
 # Google Drive同期の設定（Bring Your Own Credentials）
 
-最終更新: 2026-10-07
+最終更新: 2026-10-09
 
 Plainvaでローカル保管庫をGoogle Driveと同期するには、自前のGoogle API認証情報（Credentials）を使用できます。Plainvaはまだ（今のところ）Googleの中央CASA検証を通過していないため、この**Bring Your Own Credentials（BYO）**方式は、あなたの個人ファイルを安全に同期する方法を提供します。
 
@@ -66,9 +66,7 @@ Plainvaがあなたの認証情報を使用するには、同意画面（「OAut
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-上記のデスクトップ手順では、デスクトップ用クライアント ID と対応するシークレットを使います。Android は Google Identity Services を使います。パッケージ `com.plainva.app` と、実際にインストールするビルドの SHA-1 証明書を登録してください。Play ビルドはアプリ署名証明書を使い、ローカルビルドでは異なる場合があります。Android はブラウザーのリダイレクトやクライアントシークレットを使いません。iOS ではバンドル ID `com.plainva.app` と戻り先 `com.plainva.app:/oauth2redirect` を持つ iOS クライアントを使います。デスクトップ用クライアントはモバイル登録の代わりにはなりません。カレンダーには Google Calendar API と Google Tasks API も有効にしてください。
-
-**Plainva 0.8.3 以降の Android:** それ以前のバージョンは、ブラウザでクライアント ID を使って Google にサインインしていました。そのために用意した Google プロジェクトには Android クライアントがなく、現在はアカウントを選んだ直後にサインインが失敗します。Google アカウントを追加する画面に、インストール済みビルドの **パッケージ名** と **SHA-1証明書フィンガープリント** が、それぞれ **コピー** 付きで表示されます。同じ Google プロジェクトに、この2つの値で Android タイプの OAuth クライアントを作成してください。これがないと、Plainva は Google がこのインストールを受け付けないと表示します。「**サインインを中止しました。**」は、Google の画面を自分で閉じたときだけ表示されます。Google Play のビルドと GitHub のインストールファイルは異なる証明書で署名されていることがあり、その場合はそれぞれに Android クライアントが必要です。
+上記のデスクトップ手順では、デスクトップ用クライアント ID と対応するシークレットを使います。スマートフォンでは、Android でも iOS でも、Plainva はブラウザで Google にサインインします。Google プロジェクトに、Android の場合も含めて、バンドル ID `com.plainva.app` の **iOS** タイプの OAuth クライアントを作成してください。Plainva には `com.plainva.app:/oauth2redirect` で戻ります。クライアント シークレットはありません。クライアント ID は Plainva の Google のフォームに入力します。Android タイプのクライアントは作成しないでください。Google は Play ビルドのパッケージ名と証明書フィンガープリントの組み合わせを世界で 1 つのプロジェクトにしか認めず、ほかはすべて拒否します(「Android パッケージ名とフィンガープリントはすでに使用されています」)。Plainva 0.8.3 または 0.8.4 用に設定した Android クライアントは、新しいサインインには使えません。すでにサインイン済みのアカウントは引き続き動作します。デスクトップ用クライアントはモバイルの登録の代わりになりません。カレンダーを使う場合は Google Calendar API と Google Tasks API も有効にしてください。
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

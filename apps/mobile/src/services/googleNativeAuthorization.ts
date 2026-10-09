@@ -1,6 +1,6 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import {
-  GoogleAuthorizationError, googleAuthorizationDiagnostic, googleOrphanResultDiagnostic, googleServicesOfScope, logDiagnostic,
+  chooseGoogleSignInFlow, GoogleAuthorizationError, googleAuthorizationDiagnostic, googleOrphanResultDiagnostic, googlePublicClient, googleServicesOfScope, logDiagnostic,
   oauthScopesCover, parseGoogleUserInfo, readGoogleAuthorizationFailure, verifiedProviderIdentityKey, withAccountCredentialLock,
   type GoogleAuthorizationFailure, type StoredAccountToken,
 } from "@plainva/ui";
@@ -10,15 +10,32 @@ interface GoogleAuthorizationPort {
   authorize(options: { scopes: string[]; email?: string; interactive: boolean }): Promise<{ accessToken: string; scopes: string[] }>;
   clearToken(options: { token: string }): Promise<void>;
   takeOrphanResult(): Promise<{ orphan?: unknown }>;
-  appIdentity(): Promise<{ packageName?: unknown; sha1?: unknown }>;
 }
 const native = registerPlugin<GoogleAuthorizationPort>("GoogleAuthorization");
 const issued = new Set<string>();
 const rejected = new Set<string>();
 
-/** Android signs in to Google through Play services; every other platform uses a browser. */
-export function usesNativeGoogleAuthorization(): boolean {
+/** Whether this shell has Google's system sign-in at all: Android, as an app. */
+export function hasGooglePlayServices(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
+}
+
+/**
+ * Which way a Google sign-in goes on this device — the shared rule
+ * (`chooseGoogleSignInFlow`) with this build's own client filled in.
+ *
+ * `nativeGrantClientIds` are the client IDs of the Play-services grants the
+ * sign-in would replace (the account being signed in again); a new account has
+ * none, so a client ID the user entered always goes through the browser.
+ */
+export function googleSignInFlow(clientId: string, nativeGrantClientIds: readonly (string | null | undefined)[] = []): "native" | "browser" {
+  const playServices = hasGooglePlayServices();
+  return chooseGoogleSignInFlow({
+    playServices,
+    clientId,
+    builtInClientId: playServices ? googlePublicClient(import.meta.env, "android")?.clientId : null,
+    nativeGrantClientIds,
+  });
 }
 
 /** Queued until the next request, which awaits clearing before obtaining a token. */
@@ -53,7 +70,7 @@ async function noteOrphanResult(): Promise<void> {
 }
 
 async function authorize(scope: string, interactive: boolean, expected?: StoredAccountToken) {
-  if (!usesNativeGoogleAuthorization()) throw new Error("Native Google authorization requires Android");
+  if (!hasGooglePlayServices()) throw new Error("Native Google authorization requires Android");
   for (const token of [...rejected]) { await native.clearToken({ token }); rejected.delete(token); }
   const scopes = scope.split(/\s+/).filter(Boolean);
   const services = googleServicesOfScope(scope);
@@ -87,26 +104,4 @@ async function authorize(scope: string, interactive: boolean, expected?: StoredA
   issued.add(response.accessToken);
   if (issued.size > 64) issued.delete(issued.values().next().value!);
   return { accessToken: response.accessToken, scope: response.scopes.join(" "), expiresIn: 300, profile };
-}
-
-/** What a Google project registers an Android client with. Public, not a secret. */
-export interface NativeGoogleAppIdentity {
-  packageName: string;
-  /** SHA-1 of the certificate the INSTALLED build is signed with, `AB:CD:…`. */
-  sha1: string[];
-}
-
-const SHA1_PATTERN = /^(?:[0-9A-F]{2}:){19}[0-9A-F]{2}$/;
-
-/** Null off Android and whenever the system does not answer in the expected form. */
-export async function nativeGoogleAppIdentity(): Promise<NativeGoogleAppIdentity | null> {
-  if (!usesNativeGoogleAuthorization()) return null;
-  try {
-    const value = await native.appIdentity();
-    if (typeof value.packageName !== "string" || !/^[A-Za-z0-9_.]{1,200}$/.test(value.packageName)) return null;
-    const sha1 = Array.isArray(value.sha1) ? value.sha1.filter((entry): entry is string => typeof entry === "string" && SHA1_PATTERN.test(entry)) : [];
-    return { packageName: value.packageName, sha1 };
-  } catch {
-    return null;
-  }
 }

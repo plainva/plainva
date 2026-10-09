@@ -8,11 +8,22 @@ const state = vi.hoisted(() => ({
   secrets: new Map<string, unknown>(), records: [] as CloudAccountRecord[], urls: [] as string[],
   granted: "", storageFails: false, failKey: "", platform: "ios", nativeAuthorize: vi.fn(),
   savedPim: vi.fn(), restarted: vi.fn(), success: vi.fn(), error: vi.fn(),
-  pim: { kind: "google", clientId: "client", clientSecret: "secret", refreshToken: "old-service" },
+  pim: { kind: "google", clientId: "client", clientSecret: "secret", refreshToken: "old-service" } as { kind: string; clientId: string; clientSecret: string; refreshToken: string; nativeGoogle?: { email: string } },
+  /** The Android client this build ships ("" = none): the only one the system sign-in is offered with. */
+  builtIn: "",
 }));
 vi.mock("@capacitor/browser", () => ({ Browser: { open: async ({ url }: { url: string }) => { state.urls.push(url); }, close: async () => {} } }));
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => state.platform }, registerPlugin: () => ({}) }));
-vi.mock("../googleNativeAuthorization", () => ({ authorizeNativeGoogle: state.nativeAuthorize }));
+// The plugin is mocked; the rule that picks browser or Play services is the real one.
+vi.mock("../googleNativeAuthorization", async () => {
+  const { chooseGoogleSignInFlow } = await vi.importActual<typeof import("@plainva/ui")>("@plainva/ui");
+  return {
+    authorizeNativeGoogle: state.nativeAuthorize,
+    hasGooglePlayServices: () => state.platform === "android",
+    googleSignInFlow: (clientId: string, held: readonly (string | null | undefined)[] = []) =>
+      chooseGoogleSignInFlow({ playServices: state.platform === "android", clientId, builtInClientId: state.builtIn, nativeGrantClientIds: held }),
+  };
+});
 vi.mock("../../adapters/webdavHttp", () => ({ webdavFetch: async () => Response.json({ sub: "subject", email: "person@example.test", email_verified: true }) }));
 vi.mock("@plainva/ui", async (original) => ({
   ...await original<typeof import("@plainva/ui")>(),
@@ -53,7 +64,7 @@ beforeEach(async () => {
   vi.resetModules();
   vi.stubGlobal("window", new EventTarget());
   state.secrets.clear(); state.urls.length = 0; state.storageFails = false; state.failKey = "";
-  state.platform = "ios";
+  state.platform = "ios"; state.builtIn = "";
   state.nativeAuthorize.mockReset().mockImplementation(async (scope: string) => ({ accessToken: "native-access", scope, profile: { identity: { issuer: "google", subject: "subject" }, label: "person@example.test" } }));
   state.records = [{ id: "account", family: "google", label: "Person", services: { calendar: { pimAccountId: "calendar" } } }];
   state.pim = { kind: "google", clientId: "client", clientSecret: "secret", refreshToken: "old-service" };
@@ -80,7 +91,7 @@ async function coldReturn(url: string): Promise<void> {
 
 describe("the real mobile account redirect after a process restart", () => {
   it("does not mistake recovery of a narrower native grant for a new wider consent", async () => {
-    state.platform = "android";
+    state.platform = "android"; state.builtIn = "android-client";
     const { beginPimOAuth, setOAuthPurposeHandler } = await import("./pimOAuth");
     const { GOOGLE_MAIL_SCOPES } = await import("@plainva/ui");
     const handler = vi.fn().mockRejectedValueOnce(new Error("storage unavailable")).mockResolvedValue(undefined);
@@ -94,7 +105,7 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
   });
   it("serializes native authorization until the first durable handler has acknowledged its result", async () => {
-    state.platform = "android";
+    state.platform = "android"; state.builtIn = "android-client";
     const { beginPimOAuth, setOAuthPurposeHandler } = await import("./pimOAuth");
     const { GOOGLE_MAIL_SCOPES } = await import("@plainva/ui");
     let release!: () => void;
@@ -112,7 +123,7 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
   });
   it("keeps existing credentials when Android consent is cancelled", async () => {
-    state.platform = "android";
+    state.platform = "android"; state.builtIn = "client";
     state.nativeAuthorize.mockRejectedValueOnce(Object.assign(new Error("cancelled"), { code: "CANCELLED" }));
     const { registerAccountLoginHandler, beginAccountLogin } = await import("../accountLogin"); registerAccountLoginHandler();
     await expect(beginAccountLogin("original-vault", state.records[0])).rejects.toThrow("cancelled");
@@ -121,7 +132,7 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
   });
   it("leaves nothing behind after a refused Android sign-in: the same button asks Google again and says the same", async () => {
-    state.platform = "android";
+    state.platform = "android"; state.builtIn = "android-client";
     const { beginPimOAuth, setOAuthPurposeHandler } = await import("./pimOAuth");
     const { GoogleAuthorizationError, serviceConnectionMessage } = await import("@plainva/ui");
     const accept = vi.fn(); setOAuthPurposeHandler("calendar", accept);
@@ -134,7 +145,7 @@ describe("the real mobile account redirect after a process restart", () => {
       expect(state.secrets.has("pim_oauth_pending_tx")).toBe(false);
       expect(state.secrets.has("pim_oauth_received")).toBe(false);
     }
-    expect(texts).toEqual(["connection.googleBuildNotRegistered", "connection.googleBuildNotRegistered"]);
+    expect(texts).toEqual(["connection.googleSystemSignInUnavailable", "connection.googleSystemSignInUnavailable"]);
     expect(state.nativeAuthorize).toHaveBeenCalledTimes(2);
     // ...and once Google accepts, the third tap on the same button connects.
     await beginPimOAuth("google", options);
@@ -142,7 +153,7 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
   });
   it("renews an Android calendar through the native SDK and keeps its account identity", async () => {
-    state.platform = "android";
+    state.platform = "android"; state.builtIn = "client";
     const { registerAccountLoginHandler, beginAccountLogin } = await import("../accountLogin");
     registerAccountLoginHandler();
     await beginAccountLogin("original-vault", state.records[0]);
@@ -152,7 +163,7 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.restarted).toHaveBeenCalledWith("original-vault", "calendar");
   });
   it("keeps an Android Gmail grant recoverable when its mailbox write fails", async () => {
-    state.platform = "android";
+    state.platform = "android"; state.builtIn = "android-client";
     const { beginPimOAuth, setOAuthPurposeHandler } = await import("./pimOAuth");
     const { GOOGLE_MAIL_SCOPES } = await import("@plainva/ui");
     setOAuthPurposeHandler("gmail", async () => { throw new Error("mailbox storage unavailable"); });
@@ -167,13 +178,92 @@ describe("the real mobile account redirect after a process restart", () => {
     expect(state.secrets.has("pim_oauth_received")).toBe(false);
   });
   it("opens the durable Drive folder picker from Android authorization without a browser redirect", async () => {
-    state.platform = "android";
+    state.platform = "android"; state.builtIn = "android-client";
     const { beginOAuth } = await import("../oauthService");
     const { DRIVE_DEFAULT_SCOPE } = await import("@plainva/core");
     await beginOAuth("drive", { clientId: "android-client", serviceContext: { vaultId: "original-vault" } });
     expect(state.urls).toEqual([]);
     expect(state.nativeAuthorize).toHaveBeenCalledWith(DRIVE_DEFAULT_SCOPE, true);
     expect([...state.secrets.values()]).toContainEqual(expect.objectContaining({ provider: expect.objectContaining({ provider: "drive", creds: expect.objectContaining({ nativeGoogle: { email: "person@example.test" }, grantedScope: DRIVE_DEFAULT_SCOPE, refreshToken: "" }) }), context: { vaultId: "original-vault" } }));
+  });
+  // Since 0.8.3 Android knew only Play services, which serves ONE Google project
+  // in the world. A client ID the user entered signs in through the browser again.
+  it("signs an Android user's own client in through the browser and stores an ordinary grant", async () => {
+    state.platform = "android";
+    const { beginPimOAuth, setOAuthPurposeHandler, handlePimOAuthRedirect } = await import("./pimOAuth");
+    const accept = vi.fn(); setOAuthPurposeHandler("calendar", accept);
+    await beginPimOAuth("google", { clientId: "users-own", label: "Person", serviceContext: { vaultId: "original-vault" } });
+    expect(state.nativeAuthorize).not.toHaveBeenCalled();
+    const url = new URL(state.urls[0]);
+    expect(url.hostname).toBe("accounts.google.com");
+    expect(url.searchParams.get("client_id")).toBe("users-own");
+    expect(url.searchParams.get("redirect_uri")).toBe("com.plainva.app:/oauth2redirect");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    // The return arrives through the manifest's scheme filter as an app URL.
+    expect(await handlePimOAuthRedirect(`com.plainva.app:/oauth2redirect?code=code&state=${url.searchParams.get("state")}`)).toBe(true);
+    expect(accept).toHaveBeenCalledTimes(1);
+    expect(accept.mock.calls[0][0]).toMatchObject({ provider: "google", clientId: "users-own", refreshToken: "new-account" });
+    expect(accept.mock.calls[0][0].nativeGoogle).toBeUndefined();
+    expect(state.secrets.has("pim_oauth_pending_tx")).toBe(false);
+    expect(state.secrets.has("pim_oauth_received")).toBe(false);
+  });
+  it("keeps the user's own client in the browser even when the build ships a client of its own", async () => {
+    state.platform = "android"; state.builtIn = "android-client";
+    const { beginPimOAuth } = await import("./pimOAuth");
+    await beginPimOAuth("google", { clientId: "users-own", serviceContext: { vaultId: "original-vault" } });
+    expect(state.nativeAuthorize).not.toHaveBeenCalled();
+    expect(state.urls).toHaveLength(1);
+  });
+  it("signs an account in again through Play services when its stored grant is one, with the same client only", async () => {
+    state.platform = "android";
+    state.pim = { kind: "google", clientId: "client", clientSecret: "", refreshToken: "", nativeGoogle: { email: "person@example.test" } };
+    const { beginPimOAuth, setOAuthPurposeHandler } = await import("./pimOAuth");
+    setOAuthPurposeHandler("calendar", vi.fn());
+    await beginPimOAuth("google", { clientId: "client", accountId: "calendar", serviceContext: { vaultId: "original-vault" } });
+    expect(state.nativeAuthorize).toHaveBeenCalledTimes(1);
+    expect(state.urls).toEqual([]);
+    // Another client typed into the form is the user's decision to move to the browser.
+    await beginPimOAuth("google", { clientId: "users-own", accountId: "calendar", serviceContext: { vaultId: "original-vault" } });
+    expect(state.nativeAuthorize).toHaveBeenCalledTimes(1);
+    expect(state.urls).toHaveLength(1);
+    // A new account never inherits the system sign-in from a neighbour.
+    await beginPimOAuth("google", { clientId: "client", serviceContext: { vaultId: "original-vault" } });
+    expect(state.nativeAuthorize).toHaveBeenCalledTimes(1);
+    expect(state.urls).toHaveLength(2);
+  });
+  it("leaves the button working after an abandoned and after a refused browser sign-in on Android", async () => {
+    state.platform = "android";
+    const { beginPimOAuth, setOAuthPurposeHandler, handlePimOAuthRedirect } = await import("./pimOAuth");
+    const accept = vi.fn(); setOAuthPurposeHandler("calendar", accept);
+    const options = { clientId: "users-own", label: "Person", serviceContext: { vaultId: "original-vault" } };
+    const stateOf = (index: number) => new URL(state.urls[index]).searchParams.get("state");
+    // 1. The browser tab is closed without an answer; the same button opens Google again.
+    await beginPimOAuth("google", options);
+    await beginPimOAuth("google", options);
+    expect(state.urls).toHaveLength(2);
+    expect(stateOf(1)).not.toBe(stateOf(0));
+    // A late return of the abandoned attempt is not this sign-in.
+    expect(await handlePimOAuthRedirect(`com.plainva.app:/oauth2redirect?code=code&state=${stateOf(0)}`)).toBe(false);
+    expect(accept).not.toHaveBeenCalled();
+    // 2. Google returns a refusal: consumed, nothing stored, nothing left waiting.
+    expect(await handlePimOAuthRedirect(`com.plainva.app:/oauth2redirect?error=access_denied&state=${stateOf(1)}`)).toBe(true);
+    expect(state.secrets.has("pim_oauth_pending_tx")).toBe(false);
+    expect(state.secrets.has("pim_oauth_received")).toBe(false);
+    expect(state.error).not.toHaveBeenCalled();
+    // 3. The same button once more, and this time it connects.
+    await beginPimOAuth("google", options);
+    expect(await handlePimOAuthRedirect(`com.plainva.app:/oauth2redirect?code=code&state=${stateOf(2)}`)).toBe(true);
+    expect(accept).toHaveBeenCalledTimes(1);
+    expect(state.nativeAuthorize).not.toHaveBeenCalled();
+  });
+  it("opens the browser for an Android user's own Drive client", async () => {
+    state.platform = "android";
+    const { beginOAuth } = await import("../oauthService");
+    await beginOAuth("drive", { clientId: "users-own", serviceContext: { vaultId: "original-vault" } });
+    expect(state.nativeAuthorize).not.toHaveBeenCalled();
+    const url = new URL(state.urls[0]);
+    expect(url.searchParams.get("client_id")).toBe("users-own");
+    expect(url.searchParams.get("redirect_uri")).toBe("com.plainva.app:/oauth2redirect");
   });
   it("restores an iOS Gmail consent to its mail handler with PKCE and state", async () => {
     const { beginPimOAuth } = await import("./pimOAuth");

@@ -4806,13 +4806,10 @@
     "clipboardFailed": "Nie udało się skopiować ścieżki. Zaznacz ją i skopiuj w szczegółach pliku.",
     "retrySaved": "Dokończ połączenie",
     "clientSecret": "Sekret klienta (jeśli podano)",
-    "googleBuildNotRegistered": "Google nie akceptuje tej instalacji Plainva. Na Androidzie Google rozpoznaje aplikację po nazwie pakietu i certyfikacie podpisu zainstalowanej wersji, a nie po identyfikatorze klienta. Projekt Google potrzebuje klienta OAuth typu „Android” z nazwą pakietu i odciskiem SHA-1 tej wersji. Plainva pokazuje obie wartości tam, gdzie dodajesz konto Google. Kroki opisuje instrukcja Google.",
+    "googleSystemSignInUnavailable": "Systemowe logowanie Google nie jest dostępne dla tej instalacji Plainva. Zaloguj się zamiast tego w przeglądarce, używając własnego identyfikatora klienta: wpisz go w formularzu Google. Instrukcja Google opisuje, jak go utworzyć.",
     "googleUnreachable": "Nie udało się połączyć z Google. Sprawdź połączenie z internetem i spróbuj ponownie.",
     "googleAccountNotOnDevice": "Google zgłasza, że to konto nie jest zalogowane na tym urządzeniu. Sprawdź je w ustawieniach Androida w sekcji kont, a potem spróbuj ponownie.",
     "googlePlayServicesFailed": "Usługi Google Play nie mogły dokończyć logowania (kod {{code}}). Spróbuj ponownie. Jeśli błąd się powtarza, zaktualizuj Usługi Google Play.",
-    "googleAndroidRegistration": "Na Androidzie Google rozpoznaje Plainva po nazwie pakietu i certyfikacie podpisu tej zainstalowanej wersji, a nie po identyfikatorze klienta. Twój projekt Google potrzebuje klienta OAuth typu „Android” z tymi dwiema wartościami. Kroki opisuje instrukcja Google.",
-    "googleAndroidPackage": "Nazwa pakietu",
-    "googleAndroidFingerprint": "Odcisk SHA-1 certyfikatu",
     "googleClientUnsupported": "Rejestracja Google nie pasuje do ścieżki powrotu tego urządzenia. Sprawdź typ klienta i konfigurację mobilną w instrukcji Google."
   },
   "connectionFailure": {

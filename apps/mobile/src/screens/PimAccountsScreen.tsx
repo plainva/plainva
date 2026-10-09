@@ -24,9 +24,7 @@ import {
   getPimCache,
 } from "../services/pim/pimService";
 import { beginPimOAuth } from "../services/pim/pimOAuth";
-import { usesNativeGoogleAuthorization } from "../services/googleNativeAuthorization";
 import { toastConnectionFailure } from "../services/connectionToast";
-import { GoogleAndroidRegistration } from "../components/GoogleAndroidRegistration";
 import { lookupOAuthClientForNewAccount } from "../services/pim/pimClientLookup";
 import { caldavUrlFromFiles, getConnectSecrets, rememberConnectSecrets } from "../services/connectSecrets";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
@@ -83,8 +81,6 @@ export function PimAccountsScreen({
   family?: CloudProviderFamily;
 }) {
   const { t } = useTranslation();
-  // Android signs in to Google through Play services; a client ID has no part in it.
-  const nativeGoogle = usesNativeGoogleAuthorization();
   const run = useConnectionRun();
   const calendarRun = run?.pending[0] === "calendar" && run.context.vaultId === vault.vaultId ? run : null;
   const calendarOutcome = calendarRun?.outcomes.calendar;
@@ -616,7 +612,7 @@ export function PimAccountsScreen({
     }
     if (out.kind === "failed") {
       // A cancel is a note. Anything else opens the Google form: it shows the
-      // sentence and, on Android, what the Google project has to register.
+      // sentence, and the client ID it would sign in with can be changed there.
       if (a.provider !== "google" || isGoogleAuthorizationCancelled(out.error)) { toastConnectionFailure(out.error); return; }
       setAddProvider("google");
       setLabel(a.label);
@@ -971,10 +967,7 @@ export function PimAccountsScreen({
 
             {addProvider === "google" && (
               <>
-                {/* Android: Google goes by package and certificate, so that is
-                    what the form says - before the button, not after it failed. */}
-                <GoogleAndroidRegistration />
-                {nativeGoogle && clientFromDevice ? null : clientFromDevice && !editClientId ? (
+                {clientFromDevice && !editClientId ? (
                   <p className="m-hint" data-testid="pim-client-from-device">
                     {t("pim.clientFromDevice", { defaultValue: "Client-ID von diesem Gerät übernommen." })}{" "}
                     <Button onClick={() => setEditClientId(true)} size="sm" variant="ghost">

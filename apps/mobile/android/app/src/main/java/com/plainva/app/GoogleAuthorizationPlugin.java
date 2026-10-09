@@ -3,10 +3,6 @@ package com.plainva.app;
 import android.accounts.Account;
 import android.app.Activity;
 import android.content.Intent;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.Signature;
-import android.os.Build;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.IntentSenderRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -23,12 +19,18 @@ import com.google.android.gms.auth.api.identity.Identity;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.common.api.Scope;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Google Play services owns access-token renewal. No web client secret or
- * refresh-token exchange is embedded in the Android application.
+/** Google's system sign-in. Play services owns access-token renewal; no web
+ * client secret or refresh-token exchange is embedded in the Android
+ * application.
+ *
+ * It recognises the app by package name and signing certificate, and Google
+ * lets that pair be registered in exactly one Cloud project. So this is NOT
+ * the way a user's own Google project signs in - that is the browser flow
+ * (pimOAuth.ts, oauthService.ts). The JS side calls this plugin only for the
+ * client the build ships and to renew accounts that already hold such a grant.
  *
  * Every failure names its class. "Cancelled" used to cover a refused
  * registration, a network error and a closed sheet alike, and the reason Play
@@ -161,45 +163,6 @@ public class GoogleAuthorizationPlugin extends Plugin {
         if (orphan != null) value.put("orphan", orphan);
         orphan = null;
         call.resolve(value);
-    }
-
-    /** What Google identifies this installation by: the package name and the
-     * SHA-1 of the certificate the INSTALLED build is signed with (the Play
-     * app-signing certificate for a build from Play). Public information - it
-     * is what an OAuth client of type Android is registered with. */
-    @PluginMethod public void appIdentity(PluginCall call) {
-        try {
-            String packageName = getContext().getPackageName();
-            PackageManager manager = getContext().getPackageManager();
-            Signature[] signatures;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                PackageInfo info = manager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES);
-                signatures = info.signingInfo == null ? null : info.signingInfo.getApkContentsSigners();
-            } else {
-                signatures = legacySignatures(manager, packageName);
-            }
-            JSArray fingerprints = new JSArray();
-            if (signatures != null) {
-                for (Signature signature : signatures) {
-                    byte[] digest = MessageDigest.getInstance("SHA-1").digest(signature.toByteArray());
-                    StringBuilder text = new StringBuilder();
-                    for (int i = 0; i < digest.length; i++) {
-                        if (i > 0) text.append(':');
-                        text.append(String.format("%02X", digest[i] & 0xff));
-                    }
-                    fingerprints.put(text.toString());
-                }
-            }
-            JSObject value = new JSObject();
-            value.put("packageName", packageName);
-            value.put("sha1", fingerprints);
-            call.resolve(value);
-        } catch (Exception error) { call.reject("App identity could not be read", "IDENTITY_FAILED"); }
-    }
-
-    @SuppressWarnings("deprecation")
-    private static Signature[] legacySignatures(PackageManager manager, String packageName) throws PackageManager.NameNotFoundException {
-        return manager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES).signatures;
     }
 
     @PluginMethod public void clearToken(PluginCall call) {
