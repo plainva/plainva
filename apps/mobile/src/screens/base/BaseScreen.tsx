@@ -398,6 +398,24 @@ export function BaseScreen({
     [vault, cache, path, title, t, queryEpoch],
   );
 
+  // One property write of this screen. Answers whether the value reached the
+  // note, and says so when it did not: three of the four ways to write a cell
+  // here had no `.catch`, and the fourth announced a retry that nothing makes
+  // (finding 2026-10-09). The rows come from the index and are queried anew
+  // only after a write that landed, so a cell goes on showing the note's value.
+  const writeCell = useCallback(
+    async (notePath: string, col: string, value: unknown): Promise<boolean> => {
+      try {
+        await commitCellValue(vault, notePath, col, value);
+        return true;
+      } catch (e) {
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+        return false;
+      }
+    },
+    [vault, t],
+  );
+
   useEffect(() => {
     if (!config) return;
     requery(config, viewIndex);
@@ -680,7 +698,7 @@ export function BaseScreen({
     // Checkboxes toggle in place (no sheet).
     if (input === "checkbox") {
       const next = !(r[col] === true);
-      void commitCellValue(vault, rowPath(r), col, next).then(() => requery(config, viewIndex));
+      void writeCell(rowPath(r), col, next).then((written) => { if (written) requery(config, viewIndex); });
       return;
     }
     // May this device remark on the entry? Asked when the sheet opens, not per
@@ -704,9 +722,7 @@ export function BaseScreen({
     const target = cellEdit;
     setCellEdit(null);
     if (!target) return;
-    void commitCellValue(vault, target.notePath, target.col, value)
-      .then(() => requery(config, viewIndex))
-      .catch(() => toast.warning(t("mobile.saveRetry")));
+    void writeCell(target.notePath, target.col, value).then((written) => { if (written) requery(config, viewIndex); });
   };
 
   // ── Entry actions (S20; desktop parity with issue #34) ──────────────────
@@ -1417,7 +1433,7 @@ export function BaseScreen({
         if (row) {
           const next = boardDropValue(row[boardGroupBy], drag.fromKey, drag.overKey);
           haptics.light();
-          void commitCellValue(vault, drag.path, boardGroupBy, next).then(() => requery(config, viewIndex));
+          void writeCell(drag.path, boardGroupBy, next).then((written) => { if (written) requery(config, viewIndex); });
         }
       } else if (outcome === "menu" && drag) {
         // Held and released in place: the same entry menu the other views
@@ -1886,9 +1902,10 @@ export function BaseScreen({
         currentEnd: endProp ? row[endProp] : undefined,
         hasEnd: !!endProp,
       });
-      if (patch.start) await commitCellValue(vault, d.path, dateProp, patch.start);
-      if (patch.end && endProp) await commitCellValue(vault, d.path, endProp, patch.end);
-      if (patch.start || patch.end) {
+      // A start that did not reach the note is not followed by the end.
+      const startWritten = patch.start ? await writeCell(d.path, dateProp, patch.start) : true;
+      const endWritten = startWritten && patch.end && endProp ? await writeCell(d.path, endProp, patch.end) : false;
+      if ((patch.start && startWritten) || endWritten) {
         haptics.medium();
         await requery(config, viewIndex);
       }

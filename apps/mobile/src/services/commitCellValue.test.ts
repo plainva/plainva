@@ -106,6 +106,29 @@ describe("commitCellValue: what counts as empty", () => {
   });
 });
 
+describe("commitCellValue: a block that cannot be written to", () => {
+  /**
+   * The error goes to the caller (who says so, see `silentFailures.test.ts`)
+   * and the note stays as it is. The third and fourth case are the ones that
+   * used to be written: a proper YAML map the reader's schema rejects came
+   * back as "no properties", and the rewrite then removed every key but the
+   * one being set.
+   */
+  it.each([
+    ["a YAML list", `---\n- a\n- list\n---\nText\n`],
+    ["YAML that cannot be parsed", `---\ntitle: [unclosed\nowner: Anna\n---\nText\n`],
+    ["an empty tags key", `---\ntags:\nstatus: Offen\nowner: Anna\n---\nText\n`],
+    ["a year among the tags", `---\ntags:\n  - 2024\n  - journal\nowner: Anna\n---\nText\n`],
+  ])("refuses %s and leaves the note byte for byte", async (_label, note) => {
+    files.set(NOTE, note);
+
+    await expect(commitCellValue(vault, NOTE, "status", "Erledigt")).rejects.toThrow(/^Frontmatter /);
+
+    expect(files.get(NOTE)).toBe(note);
+    expect(synced).not.toHaveBeenCalled();
+  });
+});
+
 describe("commitCellValue: the surrounding contract", () => {
   it("lands the editor's pending keystrokes before rewriting the frontmatter", async () => {
     files.set(NOTE, `---\ntype: task\n---\n\n# Bericht\n`);

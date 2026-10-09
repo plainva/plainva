@@ -304,6 +304,42 @@ up to it was read as YAML.
    search in `VaultQueryService.ts`, `textDirection.ts`). They also hide a
    block closed by the YAML document end `...`, which is no properties
    block. `frontmatterDefinition.test.ts` names them as its exemptions.
+8. **"Could not be read" is not "has none".** The writers that go through
+   `updateFrontmatterString` work on the whole set: read the note's
+   properties, change one, hand all of them back; what the new set no longer
+   names is removed. They took their set from the reader of the index and the
+   panel, and that reader answers "failed" for more than YAML it cannot
+   parse: its schema also rejects a proper YAML map with a value it does not
+   take — an empty `tags:`, a year among the tags, a number as `title`, a
+   `resource` that is no URL. The writers read "failed" as an empty set, and
+   setting one property through a database cell or the properties panel
+   removed every other property of such a note. Every whole-set write now
+   starts from `writableProperties` (`packages/ui/src/base/writeProperty.ts`),
+   which refuses these notes like a block that is no map; the refusal names
+   the property the reader stumbled over. Two things are left as they were
+   and are known: the reader's schema is stricter than the notes people
+   write, so such a note also shows no properties in the panel and in a
+   database; and a whole-set write still re-serialises values it does not
+   change (a comma-separated `tags` comes back as a list, a flow list as a
+   block list without its trailing comment). Both end where the property
+   writers set one key surgically, like `setFrontmatterPath` does.
+9. **A refused write is said, and nothing is shown that the note does not
+   hold.** A database cell and the properties panel of the desktop showed the
+   new value first and wrote afterwards; a refusal went to the console and
+   the value stayed. Now the value shown goes back to the note's and one
+   sentence says why, the same one in both shells; a loop over many notes
+   reports one count of the notes it wrote and the notes it could not. The
+   reason is put in the user's language where the error is shown
+   (`errorText`), without the YAML parser's own text: that quotes the line it
+   failed on, and an error message is copied into the diagnostics trail. One
+   writer stays quiet on purpose — the reconcile that lets an entry follow
+   its appointment runs after every calendar cycle and tries again on the
+   next. `silentPropertyWrites.test.ts` lists every call of
+   `writeNoteProperty` and of what it is built on, in both shells, with how
+   its failure reaches the user. The callers of the surgical helpers (a
+   note's icon and colour, a column renamed or removed across its notes, the
+   task and pinboard write paths) are not covered by it and have not all
+   been read for this.
 
 ## Addendum 2026-10-09 (the write rule for new files, on the phone too)
 

@@ -54,6 +54,8 @@ A **bold** thought that links to [[Another Note]].
 
 Blok może być pusty: `---`, po którym bezpośrednio następuje `---`, to blok bez właściwości, a nie dwa separatory — treść notatki zaczyna się w następnej linii. Plainva nie zostawia pustego bloku: gdy usuwana jest ostatnia właściwość, obie linie `---` znikają razem z nią. Pozostają tylko wtedy, gdy sama treść zaczyna się od linii `---`, która w przeciwnym razie zostałaby odczytana jako początek bloku.
 
+Blok, którego Plainva nie potrafi odczytać jako właściwości, pozostaje dokładnie taki, jaki jest: tekst między dwiema liniami `---`, który nie jest YAML-em, YAML będący listą zamiast linii `klucz: wartość` albo wartość w postaci, której jej właściwość nie przyjmuje. Zmiana właściwości takiej notatki — w sekcji **Właściwości** lub w bazie danych — niczego nie zmienia, a Plainva o tym informuje: **Nie udało się zapisać właściwości**, a dalej przyczyna, która wskazuje właściwość, gdy powodem jest pojedyncza wartość. Popraw blok w treści notatki, a zmiana zostanie zapisana.
+
 ### Pola frontmatter OKF
 
 Plainva stosuje się do OKF (Open Knowledge Format), minimalnej konwencji — obecnie w **wersji 0.2**. Jedno pole najwyższego poziomu jest wymagane, wszystko inne jest opcjonalne:

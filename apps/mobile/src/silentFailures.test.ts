@@ -100,6 +100,39 @@ describe("a property change that fails, says it failed", () => {
   });
 });
 
+describe("a database cell that cannot be written, says so", () => {
+  const text = strip(read("screens", "base", "BaseScreen.tsx"));
+  const from = (anchor: string, length: number) => text.slice(text.indexOf(anchor), text.indexOf(anchor) + length);
+
+  it("writes every cell through the one function that catches", () => {
+    // The checkbox in the table, a card carried to another column and a bar's
+    // edge in the timeline each called `commitCellValue` with a bare `.then()`
+    // or none at all: a refused write — a properties block that is no YAML map,
+    // a read-only membership — was an unhandled rejection and nothing on screen.
+    expect(text.indexOf("const writeCell"), "BaseScreen lost its one cell write").toBeGreaterThan(-1);
+    expect([...text.matchAll(/commitCellValue\(/g)].length, "a cell is written past writeCell").toBe(1);
+    const write = from("const writeCell", 500);
+    expect(write).toMatch(/await commitCellValue\(/);
+    expect(write).toMatch(/catch \(e\)/);
+    expect(write).toMatch(/mobile\.propertyWriteFailed/);
+    expect(write, "the caller has to learn that nothing was written").toMatch(/return false;/);
+  });
+
+  it("does not announce a retry that nothing makes", () => {
+    // `mobile.saveRetry` is the editor's sentence — its saver does try again.
+    // The cell editor said it too, and a refused write is never tried again.
+    expect(from("const commitCell", 300)).not.toMatch(/mobile\.saveRetry/);
+  });
+
+  it("queries the rows anew only after a write that landed", () => {
+    // The screen shows the index's rows, not the value being written: left
+    // alone after a failure, the cell goes on showing what the note says.
+    for (const call of text.matchAll(/void writeCell\([^\n]*/g)) {
+      expect(call[0], "a cell write that re-queries without asking").toMatch(/\.then\(\(written\) => \{ if \(written\) requery\(/);
+    }
+  });
+});
+
 describe("saving with .eml saves the .eml", () => {
   const text = strip(read("screens", "MailMessageScreen.tsx"));
 

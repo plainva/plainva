@@ -1,4 +1,5 @@
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString } from "@plainva/core";
+import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, FrontmatterSurgicalError } from "@plainva/core";
+import { UNREADABLE_PROPERTY_VALUE } from "../lib/errorText";
 import { resolvePropertyWriteKey } from "./propertyModel";
 
 /**
@@ -32,6 +33,33 @@ export function isEmptyPropertyValue(value: unknown): boolean {
   );
 }
 
+/**
+ * The properties a write starts from.
+ *
+ * The writers that go through `updateFrontmatterString` work on the WHOLE set:
+ * they read the note's properties, change one and hand all of them back, and
+ * what the new set no longer names is removed from the note. So "could not be
+ * read" must never pass for "has none" (finding 2026-10-09). It did: a block
+ * that is a proper YAML map but holds a value the reader's schema rejects — an
+ * empty `tags:`, a year among the tags, a number as `title` — came back as no
+ * properties at all, and writing one property removed every other one.
+ *
+ * Such a note is refused, like a block that is no YAML map (ADR 0009). The
+ * refusal names the property the reader stumbled over and nothing of the
+ * note's text: the YAML parser's own message quotes the line it failed on.
+ * `errorText` says all three refusals in the user's language.
+ */
+export function writableProperties(text: string): Record<string, unknown> {
+  const parsed = extractFrontmatter(parseMarkdownAst(text));
+  if (parsed.success) return parsed.data ? { ...(parsed.data as Record<string, unknown>) } : {};
+  // The schema's refusal carries where it failed; the YAML parser's has no such list.
+  const issues = (parsed.error as unknown as { issues?: { path?: unknown[] }[] }).issues;
+  if (!Array.isArray(issues)) throw new FrontmatterSurgicalError("Frontmatter is not parseable YAML");
+  const key = issues[0]?.path?.[0];
+  if (typeof key !== "string") throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
+  throw new FrontmatterSurgicalError(`${UNREADABLE_PROPERTY_VALUE}${key}`);
+}
+
 export async function writeNoteProperty(
   adapter: PropertyWriteAdapter,
   path: string,
@@ -39,9 +67,7 @@ export async function writeNoteProperty(
   value: unknown
 ): Promise<void> {
   const text = await adapter.readTextFile(path);
-  const ast = parseMarkdownAst(text);
-  const parsed = extractFrontmatter(ast);
-  const props: Record<string, unknown> = parsed.success && parsed.data ? (parsed.data as Record<string, unknown>) : {};
+  const props = writableProperties(text);
   // A note may carry the property under a different CASING than the column key
   // ("Frist" vs. column "frist" — the panel capitalizes bare keys for display,
   // so both spellings occur in the wild). Update the existing key in place

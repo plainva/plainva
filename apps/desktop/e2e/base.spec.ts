@@ -1068,6 +1068,40 @@ test('Base board: pointer drag moves a card and writes the frontmatter', async (
     .toContain('status: paused');
 });
 
+test('Base board: a card whose note refuses the write goes back to its column and says why', async ({ page }) => {
+  await page.goto('/');
+  // A block at the top of the note that is a YAML list: nothing a property can
+  // be written into. The index still lists the note under "active".
+  const refused = '---\n- a\n- list\n---\n# Alpha\n';
+  await page.evaluate((text) => { (window as any).mockFs['/test-vault/Projekte/Alpha.md'] = text; }, refused);
+  await openBase(page, 'Board');
+
+  const card = page.locator('[data-tip="Alpha"]');
+  await expect(card).toBeVisible({ timeout: 10000 });
+  const pausedHeader = page.getByText('paused', { exact: true }).first();
+  await expect(pausedHeader).toBeVisible();
+  await expect(page.getByTestId('board-col-count-active')).toHaveText('2');
+  await expect(page.getByTestId('board-col-count-paused')).toHaveText('1');
+
+  const cardBox = (await card.boundingBox())!;
+  const targetBox = (await pausedHeader.boundingBox())!;
+  await page.mouse.move(cardBox.x + cardBox.width / 2, cardBox.y + cardBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  // One sentence says why (the card used to stay in the new column, and the
+  // failure went to the console), …
+  await expect(
+    page.locator('.pv-toast--error', { hasText: /Property could not be saved|Eigenschaft konnte nicht gespeichert werden/ }),
+  ).toHaveCount(1);
+  // … the card is back in the column the note puts it in, …
+  await expect(page.getByTestId('board-col-count-active')).toHaveText('2');
+  await expect(page.getByTestId('board-col-count-paused')).toHaveText('1');
+  // … and the note is what it was, byte for byte.
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Projekte/Alpha.md'])).toBe(refused);
+});
+
 test('Base board: dragging a column header reorders the group options (report 2026-07-07)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');

@@ -111,10 +111,10 @@ export function JournalScreen({
         refreshPath(day.path);
         syncSoon();
       } catch (error) {
-        toast.error(errorText(error));
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(error) }));
       }
     })();
-  }, [vault, ms.journalMoodProperty, refreshPath]);
+  }, [vault, ms.journalMoodProperty, refreshPath, t]);
   const links = useMemo(() => ({
     // Read from the day's note the entry stands in, as the editor reads it there.
     onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {

@@ -4,7 +4,7 @@ import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { upsertFrontmatterKeys, wikiTargetChooser, wikiTargetForPath, trimEndChars } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
-import { Button, chipClass, inferType, propertyFolder, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
+import { Button, chipClass, errorText, inferType, propertyFolder, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, toast, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
 import { PlainInput, SelectChip } from "../PropertyValues";
 import { InlineMultiSelect, InlineRelationEditor, type RelationSearchResult } from "../BaseInlineEditors";
 import { CustomDatePicker } from "../DatePicker";
@@ -224,27 +224,61 @@ export function useBaseCells({
     return value;
   };
 
+  // What a cell's NOTE holds while writes to it are under way: the value the
+  // cell falls back to when one of them fails. dbData shows the value being
+  // written; this is kept beside it and advances with every write that lands.
+  const settledRef = useRef(new Map<string, { had: boolean; value: unknown; pending: number }>());
+
   // Write a final value to a note's frontmatter and reflect it in dbData. Does NOT
   // close the inline editor — used by the multi-value editors (multiselect/relation)
   // that stay open so the user can add several entries.
-  const commitCellValue = async (path: string, col: string, newValue: any) => {
-    if (!vaultAdapter) return;
+  //
+  // Answers whether the value reached the note. A write that fails — a
+  // properties block the writer refuses, an error of the vault — used to end in
+  // the console while the cell went on showing the new value (finding
+  // 2026-10-09). Now the cell takes the note's value back and a message says
+  // why; every view reads dbData, so a card goes back to its column as well.
+  const commitCellValue = async (path: string, col: string, newValue: any): Promise<boolean> => {
+    if (!vaultAdapter) return false;
+    const cell = JSON.stringify([path, col]);
+    const shown = dbData.find(row => row['file.path'] === path);
+    const settled = settledRef.current.get(cell) ?? { had: !!shown && col in shown, value: shown?.[col], pending: 0 };
+    settled.pending += 1;
+    settledRef.current.set(cell, settled);
     setDbData(prev => prev.map(row => (row['file.path'] === path ? { ...row, [col]: newValue } : row)));
     try {
       // Shared with the calendar overlay (S18) — including the casing rule.
       await writeNoteProperty(vaultAdapter, path, col, newValue);
+      settled.had = true;
+      settled.value = newValue;
+      return true;
     } catch (e) {
       console.error("Failed to update file property", e);
+      // Only where the cell still shows THIS value: a later edit of the same
+      // cell, or rows queried anew in the meantime, have already replaced it.
+      setDbData(prev => prev.map(row => {
+        if (row['file.path'] !== path || row[col] !== newValue) return row;
+        const back = { ...row };
+        if (settled.had) back[col] = settled.value;
+        else delete back[col];
+        return back;
+      }));
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      return false;
+    } finally {
+      settled.pending -= 1;
+      if (settled.pending === 0) settledRef.current.delete(cell);
     }
   };
 
-  const handleCellSave = async (path: string, col: string, rawValue: any) => {
-    if (!vaultAdapter) return;
+  const handleCellSave = async (path: string, col: string, rawValue: any): Promise<boolean> => {
+    if (!vaultAdapter) return false;
     const newValue = coerceValue(col, rawValue);
     const row = dbData.find(r => r['file.path'] === path);
-    if (row && row[col] === newValue) { setEditingCell(null); return; }
-    await commitCellValue(path, col, newValue);
+    if (row && row[col] === newValue) { setEditingCell(null); return true; }
+    const written = await commitCellValue(path, col, newValue);
     setEditingCell(null);
+    return written;
   };
 
   // Editing a computed reverse column writes the OWNING property in the
