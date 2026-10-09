@@ -107,3 +107,5 @@ Three facts about the current app shape every decision below:
 - Plan (maintainer workspace): AI harness plan v5, §5, §6, §11, §12.
 - ADR 0007 (fs scope), ADR 0014 (encrypted workspace protocol),
   ADR 0015 (installation-local OAuth), ADR 0018–0022.
+- [ADR 0030](0030-ai-fully-local-and-models-on-this-device.md): "Fully local" is told to the native side, which
+  holds it a second time where it sends.

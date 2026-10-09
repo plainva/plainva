@@ -24,7 +24,7 @@ use tauri::{AppHandle, Manager, State};
 use super::registry::{read_secret, server, Server};
 use super::sandbox;
 use super::McpClientState;
-use crate::ai_egress::only_main;
+use crate::ai_egress::{not_while_local, only_main};
 use crate::atomic_write::WriteRoots;
 
 /// One protocol message; the web view's protocol code reads no longer one either.
@@ -193,6 +193,8 @@ pub async fn mcp_client_start(
     on_event: Channel<McpPipe>,
 ) -> Result<(), String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     // The reasons a start fails are a fixed set of words (`MCP_START_PROBLEMS` in packages/core): the
     // settings say each in the user's language, and none of them carries a path or a system message.
     let Some(Server::Program { program, args, env, sandbox: sandboxed }) = server(&app, &state, &server_id)? else {

@@ -105,6 +105,8 @@ function InternetCard() {
   return (
     <SettingCard label={t("ai.web.settings.title")}>
       <SettingCardNote>{t("ai.web.settings.desc")}</SettingCardNote>
+      {/* Fully local (plan P7): no conversation reads a page or searches, whatever this vault allows. */}
+      {state.settings.localOnly && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
       <SettingRow label={t("ai.web.settings.switch")} desc={t("ai.web.settings.switchDesc")}>
         <Switch checked={web.enabled} onChange={(enabled) => void session.setWebEnabled(enabled)} label={t("ai.web.settings.switch")} />
       </SettingRow>

@@ -13,6 +13,7 @@ export * from "./AiConversation";
 export * from "./aiStores";
 export * from "./aiVaultHost";
 export * from "./aiSettingsModel";
+export * from "./localMode";
 export * from "./aiPolicyEditor";
 export * from "./aiSituation";
 export * from "./AiSendOverview";

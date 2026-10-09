@@ -27,6 +27,7 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         CAPPluginMethod(name: "deleteKey", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "addEndpoint", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "removeEndpoint", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setLocalOnly", returnType: CAPPluginReturnPromise),
     ]
 
     private static let keyService = "com.plainva.app.ai-provider-keys"
@@ -151,7 +152,7 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
 
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 180 // silence between two packets
+        config.timeoutIntervalForRequest = AiLocalOnly.silence // silence between two packets
         config.httpCookieStorage = nil
         config.urlCache = nil
         return URLSession(configuration: config, delegate: self, delegateQueue: nil)
@@ -172,6 +173,10 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         }
         guard AiNetPlugin.urlAllowed(endpoint, url) else {
             call.resolve(["type": "failed", "code": "url_not_allowed", "message": "request URL is not under the endpoint"]); return
+        }
+        // Fully local (ADR 0030): a request for anyone but this device is answered here and sent nowhere.
+        if AiLocalOnly.on && !AiLocalOnly.onThisDevice(url.host) {
+            call.resolve(["type": "failed", "code": "local_only", "message": "fully local: the recipient is not this device"]); return
         }
         var payload: Data? = nil
         var rawType: String? = nil
@@ -203,6 +208,8 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
             call.resolve(["type": "failed", "code": "no_key", "message": "no key stored for this provider"]); return
         }
         var request = URLRequest(url: url)
+        // A model on this device may read for minutes before it says a word (ADR 0030): its request may be silent longer.
+        if AiLocalOnly.onThisDevice(url.host) { request.timeoutInterval = AiLocalOnly.localSilence }
         request.httpMethod = isGet ? "GET" : "POST"
         request.httpBody = payload
         for (name, value) in (call.getObject("headers") ?? [:]) {
@@ -227,6 +234,12 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         tasksByRequest[requestId] = task
         streamLock.unlock()
         task.resume()
+    }
+
+    /// Tells this side whether the device is fully local (ADR 0030): the rule the web view holds, once more behind it.
+    @objc func setLocalOnly(_ call: CAPPluginCall) {
+        AiLocalOnly.set(call.getBool("on") ?? false)
+        call.resolve()
     }
 
     @objc func cancel(_ call: CAPPluginCall) {
@@ -348,4 +361,44 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         keyLock.lock(); try? writeKey(endpointId, nil); keyLock.unlock()
         call.resolve()
     }
+}
+
+/// "Fully local" as the native side holds it (plan KI-Harness P7, ADR 0030).
+///
+/// While the switch is on, nothing the assistant handles goes anywhere but this
+/// device. The web view holds that promise first: its one egress answers every
+/// request for anyone else itself. This flag is the same rule once more, behind
+/// it — against a mistake in the web view's own code, not against a web view
+/// that was taken over, which could switch it off the way it is switched on.
+///
+/// The web view tells it through `AiNet.setLocalOnly` when the settings are read
+/// and whenever the switch changes; until then it is off, like the switch
+/// itself. Every plugin that sends something for the assistant reads it first.
+enum AiLocalOnly {
+    private static let lock = NSLock()
+    private static var value = false
+
+    static var on: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+
+    static func set(_ next: Bool) {
+        lock.lock()
+        value = next
+        lock.unlock()
+    }
+
+    /// A host on this device: the names plain http is accepted for. A server in
+    /// the home network is not this device, however near it stands.
+    static func onThisDevice(_ host: String?) -> Bool {
+        guard let host = host?.lowercased() else { return false }
+        return ["localhost", "127.0.0.1", "::1"].contains(host)
+    }
+
+    /// Seconds a recipient may be silent before its request counts as dead.
+    static let silence: TimeInterval = 180
+    /// A model on this device gets this long instead: it may read for minutes before its first word.
+    static let localSilence: TimeInterval = 900
 }

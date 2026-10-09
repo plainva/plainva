@@ -51,6 +51,7 @@ describe("desktop: the Rust egress", () => {
       "ai_key_delete",
       "ai_key_present",
       "ai_key_set",
+      "ai_local_only_set",
     ]);
     for (const [, name, , returns] of commands) expect(returns, name).toMatch(/^Result<(\(\)|bool), String>$/);
   });
@@ -132,8 +133,9 @@ describe("the assistant's page fetch", () => {
   });
 
   it("has no way to a key on any platform", () => {
-    // The desktop command shares the egress's list of running requests, so STOP reaches it — and nothing else.
-    expect([...code(rustWeb).matchAll(/crate::(\w+)::\{?([^;}]+)\}?;/g)].map((m) => `${m[1]}: ${m[2]!.trim()}`)).toEqual(["ai_egress: only_main, AiEgress"]);
+    // The desktop command shares the egress's list of running requests, so STOP reaches it, and reads whether the
+    // device is fully local (aiLocalOnlyBoundary) — and nothing else.
+    expect([...code(rustWeb).matchAll(/crate::(\w+)::\{?([^;}]+)\}?;/g)].map((m) => `${m[1]}: ${m[2]!.trim()}`)).toEqual(["ai_egress: not_while_local, only_main, AiEgress"]);
     expect([...code(rustWeb).matchAll(/\bstate\.(\w+)\(/g)].map((m) => m[1]).sort()).toEqual(["track", "untrack"]);
     for (const word of ["read_slot", "write_slot", "AI_KEY_PREFIX", "secure_store", "keyring", "AUTHORIZATION", "COOKIE"]) expect(code(rustWeb), word).not.toContain(word);
     for (const word of ["KeystoreBox", "SharedPreferences", "getContext", "AiNetPlugin", "SecureStore", "authorization", "cookie"]) expect(code(androidWeb), word).not.toContain(word);

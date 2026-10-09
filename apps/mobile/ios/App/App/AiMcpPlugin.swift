@@ -193,6 +193,8 @@ public class AiMcpPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         guard let requestId = call.getString("requestId"), let serverId = call.getString("serverId") else {
             call.reject("requestId and serverId required"); return
         }
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if AiLocalOnly.on { call.reject("local_only"); return }
         guard let address = registry()[serverId], let url = URL(string: address) else {
             call.resolve(AiMcpPlugin.failed("refused", "no such server on this device")); return
         }

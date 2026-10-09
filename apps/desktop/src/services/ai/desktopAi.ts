@@ -60,7 +60,7 @@ import { getSettingsStore } from "../settingsStore";
 import { getTaskDatabasePath } from "../taskDatabase";
 import { isOwnerWindow } from "../windowContext";
 import { createDesktopAcpHost } from "./desktopAcp";
-import { createDesktopAiEgress } from "./desktopAiEgress";
+import { createDesktopAiEgress, setDesktopLocalOnly } from "./desktopAiEgress";
 import { createDesktopWebFetcher } from "./desktopAiWeb";
 import { createDesktopMcpBrowser, createDesktopMcpHost } from "./desktopMcp";
 import { mcpStatus } from "./mcpBridge";
@@ -213,6 +213,8 @@ export function getDesktopAiSession(defaults: AiAppSettings = aiDefaultSettings(
       now: () => new Date(),
       newId: () => crypto.randomUUID(),
       label: (key, vars) => i18n.t(key, vars),
+      // Fully local (plan KI-Harness P7): the native side holds the rule once more.
+      localOnly: setDesktopLocalOnly,
       // The assistant's page fetch (plan KI-Harness P4): native, like the egress.
       web: createDesktopWebFetcher(),
       // Foreign MCP servers (plan KI-Harness P4.5): the native registry, and what was approved on this device.

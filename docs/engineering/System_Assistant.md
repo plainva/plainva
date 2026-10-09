@@ -54,7 +54,7 @@ Both lie in the App Group container under `intents-v1/`, excluded from backups. 
 | the app leaves | write, not debounced — the file is read while the app is closed |
 | a note was saved and indexed, files came, went or moved, the index was rebuilt, the folder rules were saved | write a moment later; the file on disk stays until the new one replaces it |
 | another vault is open, a vault went away, a vault became an encrypted workspace | wipe, then write |
-| a workspace was locked, the switch or the AI went off | wipe |
+| a workspace was locked, the switch or the AI went off, the device became fully local ([ADR 0030](../adr/0030-ai-fully-local-and-models-on-this-device.md)) | wipe |
 | the write failed | wipe: the older file may name what the newer one no longer does |
 | the wipe failed | the status keeps saying what is there, and the next pass tries again |
 

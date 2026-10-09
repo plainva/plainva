@@ -18,6 +18,7 @@ import {
   type WebSettings,
 } from "@plainva/core";
 import { AiSession, transcriptOf, WEB_OFF, type AiVaultHost, type EffectRequest } from "@plainva/ui";
+import { chat } from "./mcpSessionHarness";
 
 /**
  * The internet in the session (plan KI-Harness P4-3). Three decisions have to
@@ -501,6 +502,55 @@ describe("the internet in a conversation", () => {
     expect(await s.runSkill("plainva:daily-orientation", "What matters today?")).toEqual({ kind: "answered" });
     expect(s.getState().active!.conversation.tools.some((name) => name === "fetch_url" || name === "web_search")).toBe(false);
     expect(s.getState().active!.runs[0]!.manifest).toMatchObject({ web: false });
+  });
+});
+
+/**
+ * "Fully local" (plan KI-Harness P7, ADR 0030): while the device is fully
+ * local the internet rests — whatever the vault allows, and whatever a
+ * conversation was begun with. The model on this device answers from the
+ * notes.
+ */
+describe("the internet while the device is fully local", () => {
+  const here = { providerId: "ollama", model: "granite3.3:8b" };
+  const fullyLocal = (s: AiSession) => s.updateSettings((settings) => ({ ...settings, localOnly: true }));
+  const fetchByChat = (id: string, url: string) => chat({ calls: [{ id, name: "fetch_url", args: { url, question: "What is the day rate?" } }] });
+
+  it("rests: it is not offered, cannot be chosen, and a new conversation carries none of its tools", async () => {
+    const vault = webVault({ web: ON });
+    const { s, fake, asked: fetched } = await session([chat({ text: "From the notes only." })], vault, undefined, here);
+    expect(s.webOffer()).toEqual({ fetch: true, search: false });
+    s.setDraftWeb(true);
+    expect(s.getState().draftWeb).toBe(true);
+    await fullyLocal(s);
+    // The choice made before the switch is taken back with it, and none can be made after.
+    expect(s.getState().draftWeb).toBe(false);
+    expect(s.webOffer()).toBeNull();
+    s.setDraftWeb(true);
+    expect(s.getState().draftWeb).toBe(false);
+
+    expect(await s.send(`Read ${RATES} for me.`)).toEqual({ kind: "answered" });
+    expect(s.getState().active!.conversation.tools).not.toContain("fetch_url");
+    expect(body(fake.sent[0])).not.toMatch(/fetch_url|web_search|may use the internet/);
+    expect(s.getState().active!.runs[0]!.manifest).toMatchObject({ web: false, local: true });
+    expect(fetched).toEqual([]);
+    // The vault's own switch is as the user left it: it rests, it was not changed.
+    expect(vault.web()).toEqual(ON);
+  });
+
+  it("a conversation that was begun with the internet reads no page from then on, and nobody is asked", async () => {
+    const vault = webVault({ web: ON });
+    const { s, asked: fetched } = await session([chat({ text: "Ready." }), fetchByChat("c1", RATES), chat({ text: "I could not look it up." })], vault, undefined, here);
+    s.setDraftWeb(true);
+    expect(await s.send("Hello.")).toEqual({ kind: "answered" });
+    expect(s.getState().active!.conversation.tools).toContain("fetch_url");
+    await fullyLocal(s);
+    expect(await s.send(`Read ${RATES} for me.`)).toEqual({ kind: "answered" });
+    expect(fetched).toEqual([]);
+    expect(s.getState().effect).toBeNull();
+    // The model is told that it could not look it up, and says so.
+    expect(JSON.stringify(s.getState().active!.conversation.turns)).toContain(WEB_OFF);
+    expect(s.getState().active!.runs[1]!.web).toBeUndefined();
   });
 });
 

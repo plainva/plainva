@@ -1,5 +1,5 @@
 import type { Conversation, Turn } from "./conversation.js";
-import type { ContextBudget } from "./context/package.js";
+import { DEFAULT_CONTEXT_BUDGET, type ContextBudget } from "./context/package.js";
 
 /**
  * Platform models (plan KI-Harness P2c, ADR 0021 decision 5): the model the
@@ -17,6 +17,8 @@ export const PLATFORM_CONTEXT_DEFAULT = 4_096;
 export const PLATFORM_ANSWER_TOKENS = 700;
 /** A small model below this window gets the smaller context package. */
 const SMALL_WINDOW = 32_000;
+/** What a request carries beside the notes where nothing else is known: the instructions, the situation and the answer. */
+const BASE_CARRIED = 1_600;
 
 const CJK = /[぀-ヿ㐀-䶿一-鿿가-힯豈-﫿]/g;
 
@@ -34,17 +36,23 @@ export function estimatePromptTokens(text: string): number {
  * The context package for a small window (plan P2c): fewer and shorter
  * sources, so the notes, the question and the answer fit together. Null for
  * a window large enough for the default package.
+ *
+ * `carried`: the tokens the request takes before this message's notes —
+ * its instructions, its tools, its earlier turns, room for the answer —
+ * where the caller knows them (plan P7: a model on this device that is
+ * given tools carries far more than the system's own model does). No part
+ * of a small package is ever larger than the default one.
  */
-export function contextBudgetFor(contextTokens: number | undefined): Partial<ContextBudget> | null {
+export function contextBudgetFor(contextTokens: number | undefined, carried?: number): Partial<ContextBudget> | null {
   if (!contextTokens || contextTokens >= SMALL_WINDOW) return null;
-  // What is left for the notes after the instructions, the situation and the answer, in characters (about 2.6 each across scripts).
-  const room = Math.max(1_000, contextTokens - 1_600) * 2.6;
+  // What is left for the notes after what the request carries anyway, in characters (about 2.6 each across scripts).
+  const room = Math.max(1_000, contextTokens - Math.max(BASE_CARRIED, carried ?? 0)) * 2.6;
   const small = contextTokens < 8_192;
   return {
     evidence: 2,
-    evidenceChars: Math.round(room * 0.7),
-    activeChars: Math.round(room * 0.45),
-    sectionChars: Math.round(room * 0.35),
+    evidenceChars: Math.min(DEFAULT_CONTEXT_BUDGET.evidenceChars, Math.round(room * 0.7)),
+    activeChars: Math.min(DEFAULT_CONTEXT_BUDGET.activeChars, Math.round(room * 0.45)),
+    sectionChars: Math.min(DEFAULT_CONTEXT_BUDGET.sectionChars, Math.round(room * 0.35)),
     cards: small ? 2 : 4,
     map: small ? 4 : 8,
   };

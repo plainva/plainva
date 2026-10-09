@@ -111,6 +111,11 @@ public class AiWebPlugin extends Plugin {
             call.reject("requestId and url required");
             return;
         }
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if (AiLocalOnly.on()) {
+            call.reject("local_only");
+            return;
+        }
         AiWebRules.Check start = AiWebRules.checkWebUrl(urlText);
         if (start.target == null) {
             call.resolve(refused(start.problem));

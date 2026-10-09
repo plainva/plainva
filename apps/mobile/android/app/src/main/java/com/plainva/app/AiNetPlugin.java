@@ -54,12 +54,15 @@ public class AiNetPlugin extends Plugin {
     static final OkHttpClient client = new OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         // Read timeout = silence between two bytes: a live stream never trips it.
-        .readTimeout(180, TimeUnit.SECONDS)
+        .readTimeout(AiNetRules.SILENCE_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .followRedirects(false)
         .followSslRedirects(false)
         .retryOnConnectionFailure(false)
         .build();
+
+    /** The same client with the patience a model on this device needs before its first word (ADR 0030). */
+    static final OkHttpClient patient = client.newBuilder().readTimeout(AiNetRules.LOCAL_SILENCE_SECONDS, TimeUnit.SECONDS).build();
 
     private static final Map<String, Call> running = new ConcurrentHashMap<>();
 
@@ -159,6 +162,11 @@ public class AiNetPlugin extends Plugin {
             call.resolve(failed("url_not_allowed", "request URL is not under the endpoint"));
             return;
         }
+        // Fully local (ADR 0030): a request for anyone but this device is answered here and sent nowhere.
+        if (AiLocalOnly.on() && !AiNetRules.onThisDevice(url.host())) {
+            call.resolve(failed("local_only", "fully local: the recipient is not this device"));
+            return;
+        }
         byte[] payload = null;
         String rawType = null;
         if (!get && raw != null && body == null) {
@@ -232,7 +240,7 @@ public class AiNetPlugin extends Plugin {
 
         call.setKeepAlive(true);
         final String scrubKey = key;
-        Call http = client.newCall(builder.build());
+        Call http = (AiNetRules.silenceSeconds(url.host()) == AiNetRules.LOCAL_SILENCE_SECONDS ? patient : client).newCall(builder.build());
         running.put(requestId, http);
         http.enqueue(new Callback() {
             @Override
@@ -309,6 +317,13 @@ public class AiNetPlugin extends Plugin {
                 }
             }
         });
+    }
+
+    /** Tells this side whether the device is fully local (ADR 0030): the rule the web view holds, once more behind it. */
+    @PluginMethod
+    public void setLocalOnly(PluginCall call) {
+        AiLocalOnly.set(Boolean.TRUE.equals(call.getBoolean("on", false)));
+        call.resolve();
     }
 
     @PluginMethod

@@ -1,4 +1,4 @@
-import { BUILTIN_PROVIDERS, DEFAULT_AI_APP_SETTINGS, providerById, type AiAppSettings, type ModelFailure, type ProviderInfo } from "@plainva/core";
+import { BUILTIN_PROVIDERS, DEFAULT_AI_APP_SETTINGS, providerById, runsOnDevice, type AiAppSettings, type ModelFailure, type ProviderInfo } from "@plainva/core";
 import { buildInfo, type BuildInfo } from "../lib/buildInfo";
 import type { AiState, ProviderTest } from "./aiSession";
 
@@ -36,8 +36,25 @@ const PLATFORM_REASONS: ReadonlySet<string> = new Set([
   "unsupportedLanguage",
 ]);
 
+/**
+ * Who a failure is about: its name, and whether it is this device. A server on
+ * this computer that does not answer is not "unreachable" — it is not running,
+ * or its model is too large (plan KI-Harness P7).
+ */
+export interface FailureRecipient {
+  label: string;
+  here?: boolean;
+}
+
+/** A provider as the one a failure is about. */
+export function failureRecipient(provider: Pick<ProviderInfo, "label" | "kind">): FailureRecipient {
+  return { label: provider.label, here: runsOnDevice(provider) };
+}
+
 /** A failure in words the reader can act on — the chat and the settings say it alike. */
-export function aiFailureText(t: T, failure: ModelFailure, provider: string, model = ""): string {
+export function aiFailureText(t: T, failure: ModelFailure, recipient: string | FailureRecipient, model = ""): string {
+  const provider = typeof recipient === "string" ? recipient : recipient.label;
+  const here = typeof recipient !== "string" && recipient.here === true;
   switch (failure.kind) {
     case "no_key":
       return t("ai.error.noKey", { provider });
@@ -56,15 +73,19 @@ export function aiFailureText(t: T, failure: ModelFailure, provider: string, mod
     case "unknown_endpoint":
       return t("ai.error.unknownEndpoint");
     case "offline":
-      return t("ai.error.offline", { provider });
+      return here ? t("ai.error.offlineHere", { provider }) : t("ai.error.offline", { provider });
     case "stream_broken":
-      return t("ai.error.streamBroken");
+      return here ? t("ai.error.streamBrokenHere", { provider }) : t("ai.error.streamBroken");
     case "provider_error":
       return t("ai.error.providerError", { provider, message: failure.message });
     case "platform_unavailable":
       return PLATFORM_REASONS.has(failure.reason) ? t(`ai.error.platform.${failure.reason}`, { provider }) : t("ai.error.platform.unavailable", { provider });
     case "kept_on_device":
       return t("ai.error.keptOnDevice", { provider });
+    case "local_only":
+      return t("ai.error.localOnly", { provider });
+    case "window_too_small":
+      return t("ai.error.windowTooSmall", { needed: failure.needed, window: failure.window, model });
   }
 }
 
@@ -100,11 +121,11 @@ export function providerStatus(t: T, row: ProviderRowModel): string {
   if (row.provider.kind === "platform-device") {
     // The system's own model (plan P2c): ready with its window, or why it is not there.
     if (test?.state === "ok") return t("ai.settings.onDeviceReady", { tokens: test.models?.[0]?.contextTokens ?? row.provider.contextTokens ?? 0 });
-    if (test?.state === "failed" && test.failure) return aiFailureText(t, test.failure, row.provider.label);
+    if (test?.state === "failed" && test.failure) return aiFailureText(t, test.failure, failureRecipient(row.provider));
     return t("ai.settings.onDevice");
   }
   if (test?.state === "ok") return t("ai.settings.testOk", { count: test.models?.length ?? 0 });
-  if (test?.state === "failed" && test.failure) return t("ai.settings.testFailed", { reason: aiFailureText(t, test.failure, row.provider.label) });
+  if (test?.state === "failed" && test.failure) return t("ai.settings.testFailed", { reason: aiFailureText(t, test.failure, failureRecipient(row.provider)) });
   if (!row.needsKey) return row.provider.kind === "local" ? t("ai.hint.local") : t("ai.settings.noKeyNeeded");
   return row.hasKey ? t("ai.settings.keyStored") : t("ai.settings.noKey");
 }

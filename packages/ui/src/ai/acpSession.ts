@@ -282,6 +282,12 @@ export class AiAcp {
     private readonly clock: AcpClock,
     private readonly t: Translate,
     private readonly publish: (state: AiAcpState) => void,
+    /**
+     * True while the device is fully local (plan KI-Harness P7, ADR 0030):
+     * no agent is started — it is a program of another maker with a way out
+     * of its own. The agents of this device stay registered.
+     */
+    private readonly resting: () => boolean = () => false,
   ) {
     this.current = host ? { ...NO_ACP, available: true } : NO_ACP;
   }
@@ -322,6 +328,11 @@ export class AiAcp {
     this.generation++;
     this.set({ vault: Boolean(vault), encrypted: vault ? vault.access.encrypted() : false, session: null, sessions: [], loaded: false });
     if (this.host) void this.refresh();
+  }
+
+  /** The device became fully local: a session that runs ends, as if the user had ended it. What it left as drafts stays. */
+  rest(): void {
+    void this.end().catch(() => undefined);
   }
 
   /** Reads everything again — the native registry, the device's record, what is installed — and publishes it. */
@@ -406,7 +417,7 @@ export class AiAcp {
   async start(agentId: string): Promise<void> {
     const host = this.host;
     const vault = this.vault;
-    if (!host || !vault || this.live || vault.access.encrypted()) return;
+    if (!host || !vault || this.live || vault.access.encrypted() || this.resting()) return;
     const agent = this.current.agents.find((entry) => entry.id === agentId);
     if (!agent) return;
     const live: Live = {

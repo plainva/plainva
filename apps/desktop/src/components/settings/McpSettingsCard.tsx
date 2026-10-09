@@ -13,7 +13,7 @@ import { claudeCodeCommand, mcpClientConfig, mcpRevoke, mcpSetWrites, mcpStatus,
  * — stage 2 — whether each may propose changes there) and what they asked
  * for lately. Desktop only (parity catalog `mcp-server`).
  */
-export function McpSettingsCard({ session, enabled }: { session: AiSession; enabled: boolean }) {
+export function McpSettingsCard({ session, enabled, resting = false }: { session: AiSession; enabled: boolean; resting?: boolean }) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<McpStatus | null>(null);
 
@@ -68,6 +68,8 @@ export function McpSettingsCard({ session, enabled }: { session: AiSession; enab
 
   return (
     <SettingCard label={t("ai.mcp.title")}>
+      {/* Fully local (plan P7): nothing listens — what an app does with what it reads, nobody here can see. */}
+      {resting && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
       <SettingRow label={t("ai.mcp.switch")} desc={t("ai.mcp.switchDesc")}>
         <Switch
           checked={enabled}

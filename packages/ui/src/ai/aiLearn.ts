@@ -70,7 +70,8 @@ export interface LearnPlan {
  */
 export type LearnRefusal = "off" | "no-vault" | "gone" | "empty" | "no-model" | "kept" | "denied" | "nothing" | "busy" | "cancelled" | "invalid" | "failed";
 
-export type LearnPlanOutcome = { ok: true; plan: LearnPlan } | { ok: false; reason: LearnRefusal };
+/** `failure`: where the reason is a request that could not go — which one, and to whom. */
+export type LearnPlanOutcome = { ok: true; plan: LearnPlan } | { ok: false; reason: LearnRefusal; failure?: ModelFailure; provider?: string };
 
 export type LearnOutcome =
   | {

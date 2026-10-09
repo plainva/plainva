@@ -260,6 +260,24 @@ language uses for "knowledge upkeep" where it has one — and it **looks through
 | zh-CN | 整理 | 不再显示 | 比较 | 记忆维护 | 让AI通读记忆 |
 | ja | 整理 | 今後は表示しない | 比較 | 記憶の手入れ | 記憶に目を通してもらう |
 
+Fully local (`ai.mode.*`, AI harness P7-1): the **mode** is a line that says what holds, so its states are named like states — **Cloud**, **Hybrid** — and take the language's own word where it has one; "Hybrid" is not left in English where the
+language declines it. The one switch is **Fully local**: the way the language names a setting that is on or off — not "offline mode" (sync and mail go on), not "private mode" (it says nothing about the vault), not "local only" as a
+noun. What the switch leaves alone **rests**: it stays set up and receives nothing — never "disabled", "blocked" or "removed", which would say that the user has to set it up again. A model's **context window** is the field's own term
+in every language. **Can call tools** is said of the model, as something it can do; its opposite is something the user does: "Give it no tools". "On this device" keeps the catalog's word for the device, not the one for a computer.
+
+| Language | Mode | Fully local | Cloud | Hybrid | rests | Context window | Can call tools |
+|---|---|---|---|---|---|---|---|
+| en | Mode | Fully local | Cloud | Hybrid | rests | Context window | Can call tools |
+| de | Betriebsart | Voll-lokal | Cloud | Hybrid | ruht | Kontextfenster | Kann Werkzeuge aufrufen |
+| fr | Mode | Entièrement local | Cloud | Hybride | en sommeil | Fenêtre de contexte | Peut appeler des outils |
+| es | Modo de funcionamiento | Totalmente local | Nube | Híbrido | en reposo | Ventana de contexto | Puede llamar a herramientas |
+| pt-BR | Modo | Totalmente local | Nuvem | Híbrido | em espera | Janela de contexto | Pode chamar ferramentas |
+| it | Modalità | Completamente locale | Cloud | Ibrido | in pausa | Finestra di contesto | Può chiamare strumenti |
+| nl | Werkwijze | Volledig lokaal | Cloud | Hybride | ligt stil | Contextvenster | Kan hulpmiddelen aanroepen |
+| pl | Tryb pracy | W pełni lokalnie | Chmura | Hybryda | wstrzymane | Okno kontekstowe | Może wywoływać narzędzia |
+| zh-CN | 运行模式 | 完全本地 | 云端 | 混合 | 暂不使用 | 上下文窗口 | 可调用工具 |
+| ja | 動作モード | 完全ローカル | クラウド | ハイブリッド | 休止 | コンテキストウィンドウ | ツールを呼び出せる |
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

@@ -14,6 +14,16 @@ function wire(requestId: string, spec: HttpRequestSpec) {
   return { requestId, endpointId: spec.endpointId, url: spec.url, method: spec.method, headers: spec.headers, body: spec.body ?? null, rawBody: spec.rawBody ?? null };
 }
 
+/**
+ * Tells the native side whether the device is fully local (plan KI-Harness
+ * P7, ADR 0030). While it is, the commands that send something for the
+ * assistant or start a program for it refuse — the session's own egress
+ * holds the rule first; this is the same rule once more, behind it.
+ */
+export async function setDesktopLocalOnly(on: boolean): Promise<void> {
+  await invoke("ai_local_only_set", { on });
+}
+
 export function createDesktopAiEgress(confirmText: () => EndpointConfirmText): AiEgress {
   return {
     send(requestId, spec, onChunk) {

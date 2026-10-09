@@ -3,6 +3,7 @@ import { runModelCall, type AiEgress, type ModelCallResult, type ModelFailure } 
 import { preWriteLint } from "../preWriteLint.js";
 import type { ProviderEndpoint } from "../providers.js";
 import { fenceUntrusted, payload, stripInvisible, type PayloadOrigin } from "../trust.js";
+import { fitsWindow } from "../window.js";
 import type { PageContent, PageLink } from "./extract.js";
 import { checkWebUrl } from "./rules.js";
 
@@ -237,6 +238,12 @@ export interface ProcessorCall {
   signal?: AbortSignal;
   /** The reader's window, where it is small (the system's own model): the request is cut to it. */
   contextTokens?: number;
+  /**
+   * The window its user stated for a reader on this device (plan KI-Harness
+   * P7): a document that cannot fit is not sent — the server would cut it
+   * without a word, and the report would rest on a text nobody read whole.
+   */
+  window?: number;
 }
 
 /**
@@ -246,6 +253,10 @@ export interface ProcessorCall {
  */
 export async function runDocumentProcessor(input: ProcessorCall & { task: DocumentTask }): Promise<PageProcessorResult> {
   const conversation = documentTaskConversation(input.task, input.requestId, input.at);
+  if (input.window) {
+    const fit = fitsWindow(conversation, [], input.window);
+    if (!fit.fits) return { ok: false, reason: "failed", failure: { kind: "window_too_small", needed: fit.needed, window: input.window }, usage: { inputTokens: 0, outputTokens: 0 } };
+  }
   let answer = "";
   const result = await runModelCall(
     input.egress,

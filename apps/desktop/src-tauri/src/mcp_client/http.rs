@@ -15,7 +15,7 @@ use tauri::{AppHandle, State};
 
 use super::registry::{read_secret, server, Server};
 use super::McpClientState;
-use crate::ai_egress::{only_main, take_text};
+use crate::ai_egress::{not_while_local, only_main, take_text};
 
 /// A listing of two hundred tools fits many times over; the protocol code in
 /// the web view stops reading at four megabytes of text.
@@ -137,6 +137,8 @@ fn refused(message: &'static str) -> McpChunk {
 #[tauri::command]
 pub async fn mcp_client_http(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, request: McpHttpRequest, on_event: Channel<McpChunk>) -> Result<(), String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     let answer = |chunk: McpChunk| {
         let _ = on_event.send(chunk);
         Ok(())

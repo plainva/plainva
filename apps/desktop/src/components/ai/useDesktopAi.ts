@@ -342,7 +342,8 @@ export function useDesktopAi(input: DesktopAiInput) {
   }, []);
   // What the native side serves: on only with the AI and the device switch,
   // and always for the vault open now — a new vault closes older connections.
-  const mcpOn = Boolean(enabled && state?.settings.mcpEnabled);
+  // And never while the device is fully local (plan P7): what an app does with what it reads, nobody here can see.
+  const mcpOn = Boolean(enabled && state?.settings.mcpEnabled && !state.settings.localOnly);
   const { i18n: translator } = useTranslation();
   const language = translator.language;
   useEffect(() => {

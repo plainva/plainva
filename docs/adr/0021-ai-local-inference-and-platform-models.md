@@ -111,3 +111,5 @@ the answer itself comes from a cloud provider (the recommended hybrid mode).
 
 - ADR 0017, ADR 0018; `packages/core/src/ai/embeddings/`;
   `packages/core/src/db/Schema.ts`; `db_batch.rs`.
+- [ADR 0030](0030-ai-fully-local-and-models-on-this-device.md): the fully local mode as one switch with one
+  promise, and what a user states about a model on a server of this device.

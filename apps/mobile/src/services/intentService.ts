@@ -1,5 +1,5 @@
 import { Preferences } from "@capacitor/preferences";
-import { DEFAULT_AI_POLICY, effectivePolicy, gateDecision, notePolicyFrom, parsePolicyFile, type EgressRecipient, type ParsedPolicyFile } from "@plainva/core";
+import { DEFAULT_AI_POLICY, effectivePolicy, gateDecision, notePolicyFrom, parsePolicyFile, systemFindOn, type EgressRecipient, type ParsedPolicyFile } from "@plainva/core";
 import {
   AI_POLICY_FILE,
   buildIntentDirectory,
@@ -209,7 +209,8 @@ async function aiSettings(): Promise<{ enabled: boolean; systemFind: boolean } |
   const session = getMobileAiSession();
   const loaded = () => {
     const state = session.getState();
-    return state.loaded ? { enabled: state.settings.enabled, systemFind: state.settings.systemFind } : null;
+    // While the device is fully local (plan KI-Harness P7) the list of titles is not kept: the switch reads as off.
+    return state.loaded ? { enabled: state.settings.enabled, systemFind: systemFindOn(state.settings) } : null;
   };
   const now = loaded();
   if (now) return now;
@@ -573,10 +574,12 @@ export function initIntentService(): void {
       unsubscribeAi = session.subscribe(() => {
         const state = session.getState();
         if (!state.loaded) return;
-        const now = `${state.settings.enabled}/${state.settings.systemFind}`;
+        // The AI on, the switch on, and the device not fully local (plan KI-Harness P7): switching that on wipes the list like switching this off.
+        const on = systemFindOn(state.settings);
+        const now = String(on);
         if (now === before) return;
         before = now;
-        if (state.settings.enabled && state.settings.systemFind) scheduleIntentDirectory();
+        if (on) scheduleIntentDirectory();
         else void clearIntentDirectoryNow("off");
       });
     })

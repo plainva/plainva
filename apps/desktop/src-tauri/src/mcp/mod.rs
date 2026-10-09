@@ -504,6 +504,9 @@ pub fn mcp_configure(
     prompts: Option<Vec<PromptSpec>>,
 ) -> Result<(), String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): nothing listens — what an app does with what it reads, nobody here can see. The web
+    // view asks for nothing else while the switch is on; this is the same answer once more.
+    let enabled = enabled && !crate::ai_egress::local_only();
     let mut inner = state.lock();
     let vault_changed = inner.vault != vault;
     inner.vault = vault;

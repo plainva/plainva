@@ -71,7 +71,7 @@ vi.mock("@plainva/ui/i18n", async () => {
   };
 });
 
-let ai = { enabled: true, systemFind: true };
+let ai: { enabled: boolean; systemFind: boolean; localOnly?: boolean } = { enabled: true, systemFind: true };
 const aiListeners = new Set<() => void>();
 vi.mock("./ai/mobileAi", () => ({
   getMobileAiSession: () => ({
@@ -402,6 +402,17 @@ describe("when the list is written, and when it is wiped", () => {
     await refreshIntentDirectory();
     expect(written).toEqual([]);
     expect(getIntentDirectoryStatus().why).toBe("off");
+  });
+
+  it("is off while the device is fully local: what the system does with a title is not Plainva's to know", async () => {
+    // Plan KI-Harness P7, ADR 0030: the switch for the list stays as it is; the list is not kept.
+    ai = { enabled: true, systemFind: true, localOnly: true };
+    const { getIntentDirectoryStatus, readIntentRefs, refreshIntentDirectory } = await service();
+    await refreshIntentDirectory();
+    expect(written).toEqual([]);
+    expect(cleared).toBe(1);
+    expect(getIntentDirectoryStatus()).toEqual({ count: 0, why: "off" });
+    expect((await readIntentRefs())!.refs).toEqual({});
   });
 
   it("names nothing of an encrypted workspace — asked of the device's record and of the vault in memory", async () => {

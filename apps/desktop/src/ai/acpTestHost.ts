@@ -282,7 +282,7 @@ export const acpLabel = (key: string, vars?: Record<string, string>) => (vars ? 
 /** The controller over a scripted native side and a vault in memory, with one agent added ("gemini") unless the test adds its own. */
 export async function acpHarness(
   script: AcpScript = () => ({}),
-  options: { vault?: MemoryAcpVault | null; add?: boolean; toolbox?: AcpMcpServer | null; label?: (key: string, vars?: Record<string, string>) => string } = {},
+  options: { vault?: MemoryAcpVault | null; add?: boolean; toolbox?: AcpMcpServer | null; label?: (key: string, vars?: Record<string, string>) => string; resting?: () => boolean } = {},
 ): Promise<AcpHarness> {
   const native = scriptedAcpNative(script);
   native.installed = { gemini: "/usr/bin/gemini", "codex-acp": "/usr/local/bin/codex-acp" };
@@ -299,7 +299,7 @@ export async function acpHarness(
   const agents = new AiAcp(host, { now: () => NOW, later: (run) => run() }, options.label ?? acpLabel, (state) => {
     states.push(state);
     for (const listener of [...listeners]) listener();
-  });
+  }, options.resting);
   const vault = options.vault === undefined ? memoryAcpVault() : options.vault;
   const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
   Object.assign(harness, {

@@ -20,6 +20,7 @@ import {
   semanticReadyLine,
   semanticRunFailureText,
   semanticUnusedLine,
+  searchRests,
   SettingCard,
   SettingCardNote,
   SettingRow,
@@ -124,6 +125,8 @@ export function SemanticSearchCard({ session, onChooseModel }: { session: AiSess
   return (
     <SettingCard label={t("ai.semantic.title")}>
       <SettingCardNote>{t("ai.semantic.description")}</SettingCardNote>
+      {/* Fully local (plan P7): search by meaning through a provider rests; with a package on this device it goes on. */}
+      {settings && searchRests(settings) && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
       <div className="pv-semantic-choices" role="radiogroup" aria-label={t("ai.semantic.title")}>
         <Radio name="semantic-model" checked={!chosen} disabled={Boolean(download)} onChange={() => void choose(null)} label={<strong>{t("ai.semantic.off")}</strong>} />
         {rows.map((row) => (

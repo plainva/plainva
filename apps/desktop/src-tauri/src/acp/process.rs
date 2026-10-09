@@ -25,7 +25,7 @@ use tauri::{AppHandle, Manager, State};
 
 use super::registry::{agent, command_text};
 use super::AcpState;
-use crate::ai_egress::only_main;
+use crate::ai_egress::{not_while_local, only_main};
 use crate::atomic_write::WriteRoots;
 use crate::mcp_client::program::{child_path, keep_tail, read_lines, shown_log, tree, wait_for_exit, McpPipe, EXIT_GRACE};
 use crate::mcp_client::registry::{confirmed, search_path, McpConfirmText};
@@ -152,6 +152,8 @@ pub async fn acp_start(
     on_event: Channel<McpPipe>,
 ) -> Result<(), String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     // The reasons a start fails are a fixed set of words (`ACP_START_PROBLEMS` in packages/core): the
     // surfaces say each in the user's language, and none of them carries a path or a system message.
     let Some(entry) = agent(&app, &state, &agent_id)? else {

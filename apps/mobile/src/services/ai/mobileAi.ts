@@ -45,7 +45,7 @@ import {
 } from "@plainva/ui";
 import { atomicWriteText } from "../../platform/atomicFile";
 import { mConfirm } from "../mobileDialogs";
-import { createMobileAiEgress } from "../../platform/aiNet";
+import { createMobileAiEgress, setMobileLocalOnly } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
 import { createMobileMcpHost } from "../../platform/aiMcp";
 import { createMobileMcpBrowser } from "./mobileMcpBrowser";
@@ -135,6 +135,8 @@ export function getMobileAiSession(): AiSession {
       now: () => new Date(),
       newId: () => crypto.randomUUID(),
       label: (key, vars) => i18n.t(key, vars),
+      // Fully local (plan KI-Harness P7): the native side holds the rule once more.
+      localOnly: setMobileLocalOnly,
       // The assistant's page fetch (plan KI-Harness P4): the plugin of its own, apart from the egress.
       web: createMobileWebFetcher(),
       // Foreign MCP servers (plan KI-Harness P4.5): the plugin's registry, and what was approved on this phone.

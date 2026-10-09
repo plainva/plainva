@@ -13,6 +13,7 @@ import {
   MenuItem,
   MenuSeparator,
   MenuSurface,
+  profileFacts,
   providerStatus,
   Select,
   SettingCard,
@@ -27,6 +28,7 @@ import { appConfirm } from "../../services/appDialogs";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
 import { AiAddProviderDialog, AiKeyDialog, AiModelDialog } from "./AiDialogs";
+import { AiModeCard } from "./AiModeCard";
 import { ExternalAgentsCard } from "./ExternalAgentsCard";
 import { McpSettingsCard } from "./McpSettingsCard";
 import { SemanticSearchCard } from "./SemanticSearchCard";
@@ -75,7 +77,9 @@ function AiSettingsBody({ session }: { session: AiSession }) {
   const profileLine = (id: AiProfileSlot) => {
     const choice = settings.profiles[id];
     if (!choice) return t("ai.settings.profileEmpty");
-    return `${session.providers().find((p) => p.id === choice.providerId)?.label ?? choice.providerId} · ${choice.model}`;
+    const line = `${session.providers().find((p) => p.id === choice.providerId)?.label ?? choice.providerId} · ${choice.model}`;
+    // What the user said about a model on a server of this device (plan P7): its window, and that it takes no tools.
+    return [line, ...profileFacts(t, choice, (value) => number.format(value))].join(" · ");
   };
 
   return (
@@ -93,6 +97,9 @@ function AiSettingsBody({ session }: { session: AiSession }) {
         </SettingRow>
         <SettingCardNote>{t("ai.settings.experimental")}</SettingCardNote>
       </SettingCard>
+
+      {/* The mode this device is in, and the one switch that promises something (plan KI-Harness P7). */}
+      {settings.enabled && <AiModeCard session={session} state={state} onSetUp={() => setAdding(true)} />}
 
       <SettingCard label={t("ai.settings.providers")}>
         {rows.map((row) => (
@@ -172,7 +179,7 @@ function AiSettingsBody({ session }: { session: AiSession }) {
 
       {settings.enabled && <SemanticSearchCard session={session} onChooseModel={() => setModelFor(AI_EMBEDDING_PROFILE)} />}
       {settings.enabled && <GistsCard session={session} />}
-      {settings.enabled && <McpSettingsCard session={session} enabled={settings.mcpEnabled} />}
+      {settings.enabled && <McpSettingsCard session={session} enabled={settings.mcpEnabled} resting={settings.localOnly} />}
       {/* External agents (plan KI-Harness P4.6): which programs of other makers this computer may start in a vault. */}
       {settings.enabled && <ExternalAgentsCard />}
 

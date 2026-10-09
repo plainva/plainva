@@ -27,7 +27,7 @@ use tauri::{AppHandle, Manager, State};
 
 use super::registry::{normalize_url, server, Server, MCP_KEY_PREFIX};
 use super::McpClientState;
-use crate::ai_egress::only_main;
+use crate::ai_egress::{not_while_local, only_main};
 use crate::ai_web::{check_web_url, is_public_address};
 
 const LINKS_FILE: &str = "ai-mcp-oauth.json";
@@ -671,6 +671,8 @@ pub struct OAuthDocument {
 #[tauri::command]
 pub async fn mcp_client_oauth_document(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, url: String) -> Result<OAuthDocument, String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     let server_url = remote(&app, &state, &server_id)?;
     let address = oauth_address(&url, &server_url).ok_or("oauth-address")?;
     let reply = ask(&address, &server_url, Ask::Get).await?;
@@ -691,6 +693,8 @@ pub struct OAuthIssuerInfo {
 #[tauri::command]
 pub async fn mcp_client_oauth_issuer(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, issuer: String, url: String) -> Result<OAuthIssuerInfo, String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     let server_url = remote(&app, &state, &server_id)?;
     if !issuer_document_url_ok(&issuer, &url) {
         return Err("oauth-address".into());
@@ -733,6 +737,8 @@ pub struct OAuthBegin {
 #[tauri::command]
 pub async fn mcp_client_oauth_begin(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String, request: OAuthBegin) -> Result<String, String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     let server_url = remote(&app, &state, &server_id)?;
     let endpoints = state.oauth.issuers.lock().map_err(|_| "sign-in lock failed".to_string())?.get(&server_id).filter(|known| known.issuer == request.issuer).cloned().ok_or("oauth-no-metadata")?;
     if !resource_covers(&request.resource, &server_url) {
@@ -775,6 +781,8 @@ pub async fn mcp_client_oauth_begin(window: tauri::Window, app: AppHandle, state
 #[tauri::command]
 pub async fn mcp_client_oauth_finish(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, redirect: OAuthRedirect) -> Result<String, String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     let (flow, code) = {
         let mut pending = state.oauth.pending.lock().map_err(|_| "sign-in lock failed".to_string())?;
         let live = pending.as_ref().filter(|flow| flow.begun.elapsed() < PENDING);
@@ -826,6 +834,8 @@ pub fn mcp_client_oauth_cancel(window: tauri::Window, state: State<'_, McpClient
 #[tauri::command]
 pub async fn mcp_client_oauth_renew(window: tauri::Window, app: AppHandle, state: State<'_, McpClientState>, server_id: String) -> Result<bool, String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     let server_url = remote(&app, &state, &server_id)?;
     let _lane = state.oauth.lane.lock().await;
     if state.oauth.renewed.lock().map_err(|_| "sign-in lock failed".to_string())?.get(&server_id).is_some_and(|at| at.elapsed() < RECENT) {

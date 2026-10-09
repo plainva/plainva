@@ -11,6 +11,7 @@ import {
   packageInstalled,
   Row,
   RowList,
+  searchRests,
   SectionLabel,
   semanticFailureText,
   semanticModelRows,
@@ -116,6 +117,8 @@ export function MobileSemanticSection({ session, onChooseModel }: { session: AiS
     <>
       <SectionLabel>{t("ai.semantic.title")}</SectionLabel>
       <p className="m-hint">{t("ai.semantic.description")}</p>
+      {/* Fully local (plan P7): search by meaning through a provider rests; with a package on this device it goes on. */}
+      {searchRests(settings) && <p className="m-hint" data-testid="ai-rests-search">{t("ai.mode.restsHere")}</p>}
       <GroupCard>
         <RowList>
           <Row title={t("ai.semantic.off")} end={<ChoiceMark on={!chosen} />} onClick={() => void choose(null)} disabled={Boolean(download)} />

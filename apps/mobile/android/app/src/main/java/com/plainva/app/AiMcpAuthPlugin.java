@@ -164,6 +164,11 @@ public class AiMcpAuthPlugin extends Plugin {
     /** A document a server names for its sign-in (its resource metadata, RFC 9728). No secret, and none is sent. */
     @PluginMethod
     public void document(PluginCall call) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if (AiLocalOnly.on()) {
+            call.reject("local_only");
+            return;
+        }
         String serverUrl = address(call.getString("serverId"));
         String target = serverUrl == null ? null : AiMcpOAuthRules.oauthAddress(call.getString("url"), serverUrl);
         if (target == null) {
@@ -186,6 +191,11 @@ public class AiMcpAuthPlugin extends Plugin {
     /** Reads an authorization server's metadata from an address on its own origin and keeps it for the sign-in. */
     @PluginMethod
     public void issuer(PluginCall call) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if (AiLocalOnly.on()) {
+            call.reject("local_only");
+            return;
+        }
         String serverId = call.getString("serverId");
         String issuer = call.getString("issuer");
         String url = call.getString("url");
@@ -224,6 +234,11 @@ public class AiMcpAuthPlugin extends Plugin {
      */
     @PluginMethod
     public void begin(PluginCall call) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if (AiLocalOnly.on()) {
+            call.reject("local_only");
+            return;
+        }
         String serverId = call.getString("serverId");
         String issuer = call.getString("issuer");
         String resource = call.getString("resource");
@@ -326,6 +341,11 @@ public class AiMcpAuthPlugin extends Plugin {
      */
     @PluginMethod
     public void finish(PluginCall call) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if (AiLocalOnly.on()) {
+            call.reject("local_only");
+            return;
+        }
         String state = call.getString("state");
         String code = call.getString("code");
         String iss = call.getString("iss");
@@ -396,6 +416,11 @@ public class AiMcpAuthPlugin extends Plugin {
     /** Gets a new token with the one kept for that. False where there is none, or it was refused. */
     @PluginMethod
     public void renew(PluginCall call) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if (AiLocalOnly.on()) {
+            call.reject("local_only");
+            return;
+        }
         String serverId = call.getString("serverId");
         String serverUrl = address(serverId);
         work.execute(() -> {

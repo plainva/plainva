@@ -72,7 +72,64 @@ export type ModelFailure =
    * rule keeps it from every cloud. Such a conversation goes on with a model
    * on this device, or not at all; no provider ever answers with this.
    */
-  | { kind: "kept_on_device" };
+  | { kind: "kept_on_device" }
+  /**
+   * Nothing was sent: the device is fully local (ADR 0030), and this request
+   * was for a recipient that is not the device. No provider answers with
+   * this either — the egress refused before anything left.
+   */
+  | { kind: "local_only" }
+  /**
+   * Nothing was sent: the request would not fit the window the user stated
+   * for a model on this device (ADR 0030). A local server would cut it
+   * without a word; `needed` and `window` say by how much it misses.
+   */
+  | { kind: "window_too_small"; needed: number; window: number };
+
+/** The code an egress refuses with while the device is fully local. */
+export const LOCAL_ONLY_CODE = "local_only";
+
+/**
+ * The one place "fully local" holds (plan P7, ADR 0030). Every request to
+ * a model passes the session's egress — a conversation, a review, a
+ * transcription, a picture, embeddings through a provider, a connection
+ * test —, so the promise is kept here and not at each of them: while the
+ * device is fully local, a request whose endpoint is not on the device is
+ * answered with a failure and handed to nobody. Keys and endpoints can
+ * still be managed; managing sends nothing.
+ */
+export interface LocalOnlyEgress extends AiEgress {
+  /** The switch was turned on: every request under way to anyone but this device is stopped, like the user's own STOP. */
+  rest(): void;
+}
+
+export function localOnlyEgress(inner: AiEgress, guard: { on(): boolean; onDevice(endpointId: string): boolean }): LocalOnlyEgress {
+  /** Request id to endpoint id, for as long as a request is under way. */
+  const underWay = new Map<string, string>();
+  return {
+    async send(requestId, spec, onChunk) {
+      if (guard.on() && !guard.onDevice(spec.endpointId)) {
+        onChunk({ type: "failed", code: LOCAL_ONLY_CODE, message: "fully local: the recipient is not this device" });
+        return;
+      }
+      underWay.set(requestId, spec.endpointId);
+      try {
+        await inner.send(requestId, spec, onChunk);
+      } finally {
+        underWay.delete(requestId);
+      }
+    },
+    rest() {
+      for (const [requestId, endpointId] of underWay) if (!guard.onDevice(endpointId)) void inner.cancel(requestId).catch(() => undefined);
+    },
+    cancel: (requestId) => inner.cancel(requestId),
+    setKey: (endpointId, key) => inner.setKey(endpointId, key),
+    hasKey: (endpointId) => inner.hasKey(endpointId),
+    deleteKey: (endpointId) => inner.deleteKey(endpointId),
+    addEndpoint: (endpointId, baseUrl) => inner.addEndpoint(endpointId, baseUrl),
+    removeEndpoint: (endpointId) => inner.removeEndpoint(endpointId),
+  };
+}
 
 export interface ModelCallResult {
   stop: StopReason | "cancelled" | null;
@@ -128,6 +185,8 @@ export function failureFromChunk(code: string, message: string): ModelFailure {
       return { kind: "refused_by_provider", status: 0, message };
     case "platform_error":
       return { kind: "provider_error", message };
+    case LOCAL_ONLY_CODE:
+      return { kind: "local_only" };
     default:
       return { kind: "offline", message };
   }

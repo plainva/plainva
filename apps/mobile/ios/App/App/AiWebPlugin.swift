@@ -37,6 +37,8 @@ public class AiWebPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("requestId and url required")
             return
         }
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if AiLocalOnly.on { call.reject("local_only"); return }
         let start: AiWebRules.Target
         switch AiWebRules.checkWebUrl(urlText) {
         case .refused(let problem):

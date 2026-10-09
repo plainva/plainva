@@ -31,22 +31,23 @@ afterEach(() => {
   appConfirm.mockClear();
 });
 
-/** Just enough of the assistant's session for the card: its agents. */
-function sessionOver(h: AcpHarness): AiSession {
-  let state = { agents: h.state() };
+/** Just enough of the assistant's session for the card: its agents, and whether the device is fully local. */
+function sessionOver(h: AcpHarness, localOnly: boolean): AiSession {
+  const settings = { localOnly };
+  let state = { agents: h.state(), settings };
   return {
     agents: h.agents,
     subscribe: (listener: () => void) => h.subscribe(listener),
     getState: () => {
-      if (state.agents !== h.state()) state = { agents: h.state() };
+      if (state.agents !== h.state()) state = { agents: h.state(), settings };
       return state;
     },
   } as unknown as AiSession;
 }
 
-async function mount(h: AcpHarness): Promise<void> {
+async function mount(h: AcpHarness, localOnly = false): Promise<void> {
   await i18n.changeLanguage("en");
-  current.session = sessionOver(h);
+  current.session = sessionOver(h, localOnly);
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -128,6 +129,19 @@ describe("the card of external agents", () => {
     await click(h, $$("settings-ai-agent-remove")[0]);
     expect(h.state().agents).toEqual([]);
     expect(h.native.registry).toEqual([]);
+  });
+
+  it("says that it rests while the device is fully local, and keeps what was added", async () => {
+    const h = await acpHarness();
+    await mount(h);
+    expect(host!.textContent).not.toContain("Rests while “Fully local” is on.");
+    act(() => root?.unmount());
+    host?.remove();
+    await mount(h, true);
+    expect(host!.textContent).toContain("Rests while “Fully local” is on.");
+    // Resting is not removing: the agent that was added is still listed, with its command.
+    expect(host!.textContent).toContain("Gemini CLI");
+    expect(h.state().agents).toHaveLength(1);
   });
 
   it("shows nothing where the shell hosts no agents", async () => {

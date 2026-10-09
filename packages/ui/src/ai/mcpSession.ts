@@ -103,6 +103,13 @@ export class AiMcp {
     host: AiMcpHost | undefined,
     clock: { now(): Date; newId(): string },
     private readonly publish: (state: AiMcpState) => void,
+    /**
+     * True while the device is fully local (plan KI-Harness P7, ADR 0030):
+     * no server is connected to, asked or called — a program on this
+     * computer included, because what it passes on nobody here can see.
+     * What is registered and approved stays as it is.
+     */
+    private readonly resting: () => boolean = () => false,
   ) {
     this.runtime = host
       ? new McpRuntime({
@@ -161,6 +168,11 @@ export class AiMcp {
     });
   }
 
+  /** The device became fully local: connections end, and the programs behind them with them. Nothing is forgotten. */
+  rest(): void {
+    this.runtime?.dispose();
+  }
+
   /** Reads everything again and publishes it for the settings. */
   async refresh(): Promise<void> {
     if (!this.runtime) return;
@@ -173,14 +185,14 @@ export class AiMcp {
 
   /** The names a new conversation carries for the foreign tools it may find. Fixed for the conversation, like every tool name. */
   async offeredNames(): Promise<string[]> {
-    if (!this.runtime || !this.vault) return [];
+    if (!this.runtime || !this.vault || this.resting()) return [];
     return mcpOfferedTools(await this.servers().catch(() => [])).map((tool) => tool.exposed);
   }
 
   /** The foreign tools of one run: of the names its conversation was started with, the ones that are offered now. */
   async manifests(names: readonly string[]): Promise<ToolManifest[]> {
     const wanted = new Set(names.filter(isMcpExposedToolName));
-    if (!wanted.size || !this.runtime || !this.vault) return [];
+    if (!wanted.size || !this.runtime || !this.vault || this.resting()) return [];
     const servers = await this.servers().catch(() => []);
     return mcpOfferedTools(servers)
       .filter((tool) => wanted.has(tool.exposed))
@@ -220,12 +232,12 @@ export class AiMcp {
 
   /** How a remote server can be signed in to; `challenge` is the line it refused a request with. */
   signInPlan(id: string, challenge?: string): Promise<{ ok: true; plan: McpSignInPlan } | { ok: false; problem: McpSignInProblem }> {
-    return this.runtime ? this.runtime.signInPlan(id, challenge) : Promise.resolve({ ok: false, problem: "not-offered" });
+    return this.runtime && !this.resting() ? this.runtime.signInPlan(id, challenge) : Promise.resolve({ ok: false, problem: "not-offered" });
   }
 
   /** Makes the sign-in in the browser. What comes of it is the native side's; this side learns whether it worked. */
   async signIn(id: string, plan: McpSignInPlan, clientId?: string, signal?: AbortSignal): Promise<{ ok: true } | { ok: false; problem: McpSignInProblem }> {
-    if (!this.runtime) return { ok: false, problem: "failed" };
+    if (!this.runtime || this.resting()) return { ok: false, problem: "failed" };
     const result = await this.runtime.signIn(id, plan, clientId, signal);
     await this.refresh();
     return result;
@@ -259,7 +271,7 @@ export class AiMcp {
 
   /** Connects to a server and reads what it lists now, for the review. A listing that differs from the approved one blocks the server. */
   async inspect(id: string, signal?: AbortSignal): Promise<McpInspection> {
-    if (!this.runtime) throw new Error("unavailable");
+    if (!this.runtime || this.resting()) throw new Error("unavailable");
     try {
       return await this.runtime.inspect(id, signal);
     } finally {
@@ -297,19 +309,21 @@ export class AiMcp {
 
   /** Before a use: the listing again, against the approved one. A difference blocks the server, and the settings show it. */
   async check(id: string, signal?: AbortSignal): Promise<McpCheck> {
-    if (!this.runtime) return { ok: false, reason: "not-approved" };
+    if (!this.runtime || this.resting()) return { ok: false, reason: "not-approved" };
     const result = await this.runtime.check(id, signal);
     if (!result.ok && result.reason === "blocked") void this.refresh();
     return result;
   }
 
   call(id: string, tool: string, args: Record<string, unknown>, inputSchema: unknown, signal?: AbortSignal): Promise<Record<string, unknown>> {
-    if (!this.runtime) return Promise.reject(new Error("unavailable"));
+    if (!this.runtime || this.resting()) return Promise.reject(new Error("unavailable"));
     return this.runtime.call(id, tool, args, inputSchema, signal);
   }
 
   /** What a prompt of a server expands to, compared with what was approved. */
   async prompt(id: string, name: string, args: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<McpPromptLook> {
+    // A resting server is asked nothing; the session does not get here while the device is fully local.
+    if (this.resting()) throw new Error("unavailable");
     if (!this.runtime) return { standing: "changed" };
     const look = await this.runtime.prompt(id, name, args, signal);
     if (look.standing === "changed") void this.refresh();

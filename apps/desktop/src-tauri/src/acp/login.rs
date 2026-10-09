@@ -28,7 +28,7 @@ use tauri::{AppHandle, Manager, State};
 use super::process::{agent_path, start_confirmed, vault_folder};
 use super::registry::agent;
 use super::AcpState;
-use crate::ai_egress::only_main;
+use crate::ai_egress::{not_while_local, only_main};
 use crate::atomic_write::WriteRoots;
 use crate::mcp_client::registry::{clean_text, valid_env_name};
 
@@ -275,6 +275,8 @@ pub async fn acp_login(
     env: BTreeMap<String, String>,
 ) -> Result<i32, String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+    not_while_local()?;
     let Some(entry) = agent(&app, &state, &agent_id)? else {
         return Err("not-registered".into());
     };

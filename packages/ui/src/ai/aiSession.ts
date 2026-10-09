@@ -181,6 +181,13 @@ import {
   expiredConversations,
   fetchProviderJson,
   initialModelChoice,
+  localOnlyEgress,
+  runsOnDevice,
+  choiceOnDevice,
+  statedModelFacts,
+  estimateRequestTokens,
+  WINDOW_BUDGET_ROOM,
+  type LocalOnlyEgress,
   manifestOf,
   modelListSpec,
   parseModelList,
@@ -336,6 +343,13 @@ export interface AiSessionHost {
    * approvals with. Absent, this shell shows scripts and runs none.
    */
   scripts?: AiScriptsHost;
+  /**
+   * The shell's native side is told whether the device is fully local (plan
+   * KI-Harness P7, ADR 0030): it holds the same rule once more behind the
+   * session, at the places where it sends something itself. Absent, the
+   * session's egress is the one place the rule holds.
+   */
+  localOnly?(on: boolean): Promise<void>;
 }
 
 export interface AiVaultHost {
@@ -1066,9 +1080,24 @@ export class AiSession {
   /** Scripts (plan P5.5): this device's key for their approvals, and the run the workshop started. */
   readonly scripts: AiScripts;
 
+  /**
+   * The one egress of this session (plan P7, ADR 0030): whatever it sends to
+   * a model passes here, and while the device is fully local a request for
+   * anyone but this device is answered here and handed to nobody. Until the
+   * settings are read nothing leaves either — what the switch says is not
+   * known yet.
+   */
+  private readonly out: LocalOnlyEgress;
+
   constructor(private readonly host: AiSessionHost) {
-    this.mcp = new AiMcp(host.mcp, { now: () => host.now(), newId: () => host.newId() }, (mcp) => this.set({ mcp }));
-    this.agents = new AiAcp(host.acp, { now: () => host.now() }, (key, vars) => host.label?.(key, vars) ?? key, (agents) => this.set({ agents }));
+    this.out = localOnlyEgress(host.egress, {
+      on: () => !this.state.loaded || this.state.settings.localOnly,
+      onDevice: (endpointId) => runsOnDevice(providerById(endpointId, this.state.settings.custom)),
+    });
+    // Foreign servers and external agents rest while the device is fully local: each has a way out of its own.
+    const resting = () => this.state.settings.localOnly;
+    this.mcp = new AiMcp(host.mcp, { now: () => host.now(), newId: () => host.newId() }, (mcp) => this.set({ mcp }), resting);
+    this.agents = new AiAcp(host.acp, { now: () => host.now() }, (key, vars) => host.label?.(key, vars) ?? key, (agents) => this.set({ agents }), resting);
     this.scripts = new AiScripts(host.scripts, (scripts) => this.set({ scripts }));
     this.state = {
       loaded: false,
@@ -1109,7 +1138,7 @@ export class AiSession {
 
   /** The native egress, for search by meaning's own provider (plan P2a-5): the keys stay native. */
   get egress(): AiEgress {
-    return this.host.egress;
+    return this.out;
   }
 
   readonly subscribe = (listener: Listener): (() => void) => {
@@ -1157,22 +1186,94 @@ export class AiSession {
     } catch {
       raw = undefined;
     }
-    this.set({ settings: readAiAppSettings(raw, this.host.defaults), loaded: true });
+    const settings = readAiAppSettings(raw, this.host.defaults);
+    // The native side learns what the switch says before the first request can pass this side's own check.
+    await this.tellNative(settings.localOnly);
+    this.set({ settings, loaded: true });
     await this.refreshKeys();
   }
 
   async updateSettings(change: (current: AiAppSettings) => AiAppSettings): Promise<void> {
-    const settings = change(this.state.settings);
+    const before = this.state.settings;
+    const settings = change(before);
     this.set({ settings });
+    if (settings.localOnly !== before.localOnly) {
+      // Switched on: this side's check holds from the line above on, and what rests ends before the choice is even stored.
+      if (settings.localOnly) this.restForLocalOnly();
+      await this.tellNative(settings.localOnly);
+    }
     await this.host.saveSettings(settings);
   }
 
+  /** Tells the shell's native side what the switch says. A side that cannot be told leaves this side's check as the one that holds. */
+  private async tellNative(on: boolean): Promise<void> {
+    await this.host.localOnly?.(on).catch(() => undefined);
+  }
+
   /**
-   * The window of the chosen model where it is known (plan P2c): what the
-   * provider's model list reported, else what a platform model has.
+   * "Fully local" was switched on (plan P7, ADR 0030): whatever is under way
+   * to anyone but this device ends now — a request to a provider, a page or
+   * a search that waits for its answer, the connections to foreign servers
+   * and the programs behind them, an agent's session. What is set up stays
+   * set up; it rests.
+   */
+  private restForLocalOnly(): void {
+    this.out.rest();
+    this.settleEffect("deny");
+    this.answerConsent(false);
+    const draft = this.state.draftChoice;
+    this.set({ draftWeb: false, ...(draft && !choiceOnDevice(this.state.settings, draft) ? { draftChoice: null } : {}) });
+    this.mcp.rest();
+    this.agents.rest();
+  }
+
+  /**
+   * The window of the chosen model where it is known: what its user stated
+   * (plan P7 — a server on this device tells nobody), else what the
+   * provider's model list reported, else what a platform model has (plan P2c).
    */
   private windowOf(provider: ProviderInfo, model: string): number | undefined {
-    return this.state.tests[provider.id]?.models?.find((m) => m.id === model)?.contextTokens ?? provider.contextTokens;
+    return statedModelFacts(this.state.settings, provider.id, model).contextTokens ?? this.state.tests[provider.id]?.models?.find((m) => m.id === model)?.contextTokens ?? provider.contextTokens;
+  }
+
+  /** A model that is given no tools: the system's own (plan P2c), and one on this device whose user said so (plan P7). */
+  private toolless(provider: ProviderInfo, model: string): boolean {
+    return provider.endpoint.api === "platform" || statedModelFacts(this.state.settings, provider.id, model).tools === false;
+  }
+
+  /**
+   * What a request to this model is told about it. The system's own model:
+   * its window, to which the request is cut (plan P2c). A model on this
+   * device as its user described it (plan P7): that it takes no tools, and
+   * the window a request has to fit — one that cannot is not sent.
+   */
+  private modelLimits(provider: ProviderInfo, model: string): { contextTokens?: number; toolless?: true; window?: number } {
+    if (provider.endpoint.api === "platform") return { contextTokens: this.windowOf(provider, model) ?? PLATFORM_CONTEXT_DEFAULT };
+    const stated = statedModelFacts(this.state.settings, provider.id, model);
+    return { ...(stated.tools === false ? { toolless: true as const } : {}), ...(stated.contextTokens ? { window: stated.contextTokens } : {}) };
+  }
+
+  /**
+   * The tokens a request of this conversation takes before a message's own
+   * notes (plan P7): what the context package of a small window is made
+   * smaller by. Undefined where no window is known, and for the system's own
+   * model, whose request is put together anew each time.
+   */
+  private carriedTokens(provider: ProviderInfo, model: string, conversation: ConversationRecord["conversation"]): number | undefined {
+    if (provider.endpoint.api === "platform" || this.windowOf(provider, model) === undefined) return undefined;
+    const tools = this.toolless(provider, model) ? [] : conversation.tools.map((name) => toolByName(name)).filter((tool): tool is ToolManifest => Boolean(tool));
+    return estimateRequestTokens(conversation, tools) + WINDOW_BUDGET_ROOM;
+  }
+
+  /**
+   * Fully local (plan P7, ADR 0030): a model that is not on this device is
+   * not asked. A door checks this before it reads, asks or builds anything —
+   * a question about sending what cannot be sent would be no question — and
+   * reports it as the failure it is, in the words every surface has for it.
+   */
+  private notThisDevice(provider: ProviderInfo): { failure: ModelFailure; text: string } | null {
+    if (!this.state.settings.localOnly || runsOnDevice(provider)) return null;
+    return { failure: { kind: "local_only" }, text: this.host.label?.("ai.error.localOnly", { provider: provider.label }) ?? "local_only" };
   }
 
   providers(): ProviderInfo[] {
@@ -1184,7 +1285,7 @@ export class AiSession {
     for (const provider of this.providers()) {
       if (!provider.endpoint.needsKey) continue;
       try {
-        keys[provider.id] = await this.host.egress.hasKey(provider.id);
+        keys[provider.id] = await this.out.hasKey(provider.id);
       } catch {
         keys[provider.id] = false;
       }
@@ -1193,12 +1294,12 @@ export class AiSession {
   }
 
   async setKey(providerId: string, key: string): Promise<void> {
-    await this.host.egress.setKey(providerId, key.trim());
+    await this.out.setKey(providerId, key.trim());
     this.set({ keys: { ...this.state.keys, [providerId]: true } });
   }
 
   async deleteKey(providerId: string): Promise<void> {
-    await this.host.egress.deleteKey(providerId);
+    await this.out.deleteKey(providerId);
     const tests = { ...this.state.tests };
     delete tests[providerId];
     this.set({ keys: { ...this.state.keys, [providerId]: false }, tests });
@@ -1233,14 +1334,14 @@ export class AiSession {
 
   /** Adds an OpenAI-compatible server after the shell's native confirmation. */
   async addCustom(label: string, baseUrl: string, id: string, local: boolean): Promise<boolean> {
-    const added = await this.host.egress.addEndpoint(id, baseUrl);
+    const added = await this.out.addEndpoint(id, baseUrl);
     if (!added) return false;
     await this.updateSettings((s) => ({ ...s, custom: [...s.custom.filter((c) => c.id !== id), { id, label, baseUrl, api: "openai-chat", local }] }));
     return true;
   }
 
   async removeCustom(id: string): Promise<void> {
-    await this.host.egress.removeEndpoint(id);
+    await this.out.removeEndpoint(id);
     await this.updateSettings((s) => ({
       ...s,
       custom: s.custom.filter((c) => c.id !== id),
@@ -1256,7 +1357,7 @@ export class AiSession {
     this.set({ tests: { ...this.state.tests, [providerId]: { ...this.state.tests[providerId], state: "testing" } } });
     let test: ProviderTest;
     try {
-      const answer = await fetchProviderJson(this.host.egress, modelListSpec(provider.endpoint), `test-${this.host.newId()}`);
+      const answer = await fetchProviderJson(this.out, modelListSpec(provider.endpoint), `test-${this.host.newId()}`);
       test = answer.ok
         ? { state: "ok", at, models: parseModelList(provider.endpoint, answer.json) }
         : { state: "failed", at, failure: answer.failure };
@@ -1696,7 +1797,8 @@ export class AiSession {
    */
   async startMcpPrompt(serverId: string, name: string, args: Readonly<Record<string, string>>): Promise<McpPromptStart> {
     const vault = this.vault;
-    if (!vault || this.state.live || !this.state.settings.enabled) return { kind: "unavailable" };
+    // Fully local (plan P7): no server is asked for anything.
+    if (!vault || this.state.live || !this.state.settings.enabled || this.state.settings.localOnly) return { kind: "unavailable" };
     const server = (await this.mcp.servers().catch(() => [])).find((entry) => entry.id === serverId);
     if (!server || mcpServerStanding(server) !== "ready" || !server.snapshot?.prompts.some((prompt) => prompt.name === name)) return { kind: "unavailable" };
     // The listing again before the server is asked for a text: a server that changed is blocked here already.
@@ -1769,7 +1871,8 @@ export class AiSession {
   webOffer(): { fetch: boolean; search: boolean } | null {
     const choice = this.choice();
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
-    if (!this.vault || !this.state.web.enabled || !provider || provider.endpoint.api === "platform") return null;
+    // Fully local (plan P7): the internet rests. And a model that takes no tools has none to reach it with.
+    if (!this.vault || !this.state.web.enabled || this.state.settings.localOnly || !choice || !provider || this.toolless(provider, choice.model)) return null;
     const names = webToolNames(this.host.web ?? null, provider.endpoint);
     return names.length ? { fetch: names.includes("fetch_url"), search: names.includes("web_search") } : null;
   }
@@ -1777,7 +1880,7 @@ export class AiSession {
   /** Starts the next new conversation with the internet, or without. An open conversation keeps what it started with. */
   setDraftWeb(on: boolean): void {
     if (this.state.active) return;
-    this.set({ draftWeb: on && this.state.web.enabled });
+    this.set({ draftWeb: on && this.state.web.enabled && !this.state.settings.localOnly });
   }
 
   /** The user's answer to a page or a search that waits. */
@@ -2000,7 +2103,7 @@ export class AiSession {
    * not go to this model today does not go, whatever held when it ran.
    */
   private async learnInput(conversationId: string) {
-    const no = (reason: LearnRefusal) => ({ ok: false as const, reason });
+    const no = (reason: LearnRefusal, why: { failure?: ModelFailure; provider?: string } = {}) => ({ ok: false as const, reason, ...why });
     const vault = this.vault;
     if (!this.state.settings.enabled) return no("off");
     if (!vault) return no("no-vault");
@@ -2012,6 +2115,9 @@ export class AiSession {
     const choice: ModelChoice = { providerId: last.providerId, model: last.model };
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) return no("no-model");
+    // Fully local (plan P7): a review goes to the model that led the conversation, or to none.
+    const rests = this.notThisDevice(provider);
+    if (rests) return no("failed", { failure: rests.failure, provider: provider.label });
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     const cloud = isCloudRecipient(recipient);
     if (this.keptOnDevice(record, recipient)) return no("kept");
@@ -2088,7 +2194,7 @@ export class AiSession {
     this.set({ learning: conversationId });
     try {
       const input = await this.learnInput(conversationId);
-      if (!input.ok) return refused(input.reason);
+      if (!input.ok) return { kind: "refused", reason: input.reason, ...(input.failure ? { failure: input.failure, ...(input.provider ? { provider: input.provider } : {}) } : {}) };
       if (controller.signal.aborted) return refused("cancelled");
       const { vault, record, choice, provider } = input;
       const asked = await this.askOnce(
@@ -2852,7 +2958,13 @@ export class AiSession {
 
   /** The provider and model a new conversation starts with — what a skill started from the workshop runs on. */
   newConversationChoice(): ModelChoice | null {
-    return this.state.draftChoice ?? initialModelChoice(this.state.settings);
+    return this.draftChoice() ?? initialModelChoice(this.state.settings);
+  }
+
+  /** The model chosen for the next new conversation — while the device is fully local, only one that runs on it (plan P7). */
+  private draftChoice(): ModelChoice | null {
+    const draft = this.state.draftChoice;
+    return draft && this.state.settings.localOnly && !choiceOnDevice(this.state.settings, draft) ? null : draft;
   }
 
   /**
@@ -3179,6 +3291,9 @@ export class AiSession {
     if (range.text.length > SELECTION_MAX_CHARS) return { kind: "refused", reason: "too-long" };
     const provider = providerById(choice.providerId, this.state.settings.custom);
     if (!provider) return { kind: "refused", reason: "no-model" };
+    // Fully local (plan P7): said before the passage is looked at.
+    const rests = this.notThisDevice(provider);
+    if (rests) return { kind: "refused", reason: "failed", message: rests.text };
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     const run = { recipient, webTools: false };
     // The note passes the gate with the text in the editor: an unsaved `cloud: deny` counts.
@@ -3309,6 +3424,9 @@ export class AiSession {
     const choice = this.state.settings.profiles.audio ?? null;
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
     if (!choice || !provider) return refused("no-model");
+    // Fully local (plan P7): said before the note is read or anyone is asked.
+    const rests = this.notThisDevice(provider);
+    if (rests) return refused("failed", { failure: rests.failure, provider: provider.label, model: choice.model });
     const route = transcriptionRoute(provider.endpoint);
     if (!route) return refused("no-route", { provider: provider.label });
     const { audio, notePath, target } = request;
@@ -3349,7 +3467,7 @@ export class AiSession {
     const t = (key: string, vars?: Record<string, string>) => this.host.label?.(key, vars) ?? key;
     try {
       const spec = transcriptionRequest(provider.endpoint, route, choice.model, audio);
-      const answer = await fetchProviderJson(this.host.egress, spec, `ai-${this.host.newId()}`);
+      const answer = await fetchProviderJson(this.out, spec, `ai-${this.host.newId()}`);
       await this.recordTranscription(vault, choice, answer.ok ? transcriptionUsage(answer.json) : EMPTY_USAGE, answer.ok ? undefined : answer.failure.kind);
       if (!answer.ok) return refused("failed", { failure: answer.failure, provider: provider.label, model: choice.model });
       const transcript = transcriptOf(route, answer.json);
@@ -3423,13 +3541,13 @@ export class AiSession {
     const conversation = appendTurn(startConversation(`once-${this.host.newId()}`, instruction, []), { role: "user", parts, at: this.host.now().toISOString() });
     const result = await runAgent({
       conversation,
-      egress: this.host.egress,
+      egress: this.out,
       endpoint: provider.endpoint,
       model: choice.model,
       executor: { execute: async () => ({ content: "No tools.", isError: true }) },
       context: { privateContext: true, untrustedContext: true },
       limits: { maxSteps: 1, maxToolCalls: 0, maxOutputTokens },
-      ...(provider.endpoint.api === "platform" ? { contextTokens: this.windowOf(provider, choice.model) ?? PLATFORM_CONTEXT_DEFAULT } : {}),
+      ...this.modelLimits(provider, choice.model),
       ...(signal ? { signal } : {}),
       newRequestId: () => `ai-${this.host.newId()}`,
       now: () => this.host.now().toISOString(),
@@ -3459,6 +3577,9 @@ export class AiSession {
     const choice = this.newConversationChoice();
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
     if (!choice || !provider) return refused("no-model");
+    // Fully local (plan P7): said before an entry is read or anyone is asked — a run that proposed nothing, with why.
+    const rests = this.notThisDevice(provider);
+    if (rests) return { kind: "done", proposed: 0, silent: 0, kept: 0, failed: 0, stopped: false, provider: provider.label, model: choice.model, failure: rests.failure };
     if (this.fillAbort || this.state.live || this.sending) return refused("busy");
     const { column } = request;
     if (!isFillColumn(column)) return refused("unfit");
@@ -3702,6 +3823,9 @@ export class AiSession {
     const choice = this.newConversationChoice();
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
     if (!choice || !provider) return refused("no-model");
+    // Fully local (plan P7): said before anyone is asked.
+    const rests = this.notThisDevice(provider);
+    if (rests) return { kind: "refused", reason: "failed", failure: rests.failure, provider: provider.label, model: choice.model };
     if (this.filtering || this.state.live || this.sending) return refused("busy");
     const words = request.words.replace(/\s+/g, " ").trim().slice(0, FILTER_WORDS_LIMITS.words);
     const columns = request.columns.slice(0, FILTER_WORDS_LIMITS.columns);
@@ -3787,6 +3911,9 @@ export class AiSession {
     const choice = this.newConversationChoice();
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
     if (!choice || !provider) return refused("no-model");
+    // Fully local (plan P7): said before the picture is read.
+    const rests = this.notThisDevice(provider);
+    if (rests) return refused("failed", { provider: provider.label, message: rests.text });
     if (!imageRoute(provider.endpoint)) return refused("no-route", { provider: provider.label });
     if (this.state.live || this.sending) return refused("busy");
     const { path } = request;
@@ -4005,6 +4132,9 @@ export class AiSession {
     const choice = this.choice();
     const provider = choice ? providerById(choice.providerId, this.state.settings.custom) : undefined;
     if (!choice || !provider) return refused("no-model");
+    // Fully local (plan P7): said before the note is read.
+    const rests = this.notThisDevice(provider);
+    if (rests) return refused("failed", { message: rests.text });
     if (this.state.live || this.sending) return refused("busy");
     const question = request.question.trim();
     const quote = request.quote?.trim() ?? "";
@@ -4136,13 +4266,13 @@ export class AiSession {
         const conversation = appendTurn(startConversation(`gist-${this.host.newId()}`, instruction, []), { role: "user", parts: [{ type: "text", text }], at });
         const result = await runAgent({
           conversation,
-          egress: this.host.egress,
+          egress: this.out,
           endpoint: provider.endpoint,
           model: choice.model,
           executor: { execute: async () => ({ content: "No tools.", isError: true }) },
           context: { privateContext: true, untrustedContext: true },
           limits: { maxSteps: 1, maxToolCalls: 0, maxOutputTokens: 1_000 },
-          ...(provider.endpoint.api === "platform" ? { contextTokens: this.windowOf(provider, choice.model) ?? PLATFORM_CONTEXT_DEFAULT } : {}),
+          ...this.modelLimits(provider, choice.model),
           ...(signal ? { signal } : {}),
           newRequestId: () => `ai-${this.host.newId()}`,
           now: () => this.host.now().toISOString(),
@@ -4181,23 +4311,42 @@ export class AiSession {
     const record = this.state.active;
     // A new conversation shows what it would start with: the catalog, AGENTS.md, the tools — the internet's too, where it is chosen.
     const recipient = recipientOf(provider, choice.model);
-    const start = record
-      ? null
-      : this.conversationStart(
-          (await this.instructionEntries(vault)).entries,
-          this.offeredTools(vault, provider, recipient, this.state.draftWeb && this.state.web.enabled),
-          undefined,
-          await this.furtherTools(vault, provider, recipient, true),
-        );
-    const tools = record ? record.conversation.tools : (start?.tools ?? []);
+    const withWeb = this.state.draftWeb && this.state.web.enabled && !this.state.settings.localOnly;
+    const entries = record ? [] : (await this.instructionEntries(vault)).entries;
     // The memory a new conversation would begin with (plan P6): the same reading its first message makes.
-    const fresh = record ? null : await this.memoryStart(vault, recipient, this.state.draftWeb && this.state.web.enabled);
-    const memory = record ? manifestMemoryOf(record.instructions) : fresh ? { entries: fresh.record.entries, withheld: fresh.record.withheld, tokens: fresh.record.tokens, lookup: fresh.lookup && tools.length > 0 } : undefined;
+    const fresh = record ? null : await this.memoryStart(vault, recipient, withWeb);
+    // Put together the way a send does it: the memory's lookup among the tools, the vault's scripts among the further ones.
+    const served = record ? [] : this.offeredTools(vault, provider, recipient, withWeb);
+    const start = record ? null : this.conversationStart(entries, fresh?.lookup && served.length ? [...served, MEMORY_SEARCH_TOOL] : served, undefined, await this.furtherTools(vault, provider, recipient, true, entries));
+    const tools = record ? record.conversation.tools : (start?.tools ?? []);
+    const lookup = tools.includes(MEMORY_SEARCH_TOOL);
+    const memory = record ? manifestMemoryOf(record.instructions) : fresh ? { entries: fresh.record.entries, withheld: fresh.record.withheld, tokens: fresh.record.tokens, lookup } : undefined;
+    // What the request carries before this message's notes (plan P7): the conversation as it stands, or the one a first message would start.
+    const carried = this.carriedTokens(
+      provider,
+      choice.model,
+      record
+        ? record.conversation
+        : startConversation(
+            "preview",
+            assistantSystemPrompt({
+              language: this.host.language(),
+              today: this.host.today(),
+              tools: start?.tools ?? [],
+              more: start?.more ?? [],
+              ...(start?.prompt ?? {}),
+              ...(fresh && (fresh.text || lookup) ? { memory: { text: fresh.text, lookup } } : {}),
+            }),
+            start?.tools ?? [],
+            start?.more ?? [],
+          ),
+    );
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
       tools,
       more: record ? (record.conversation.more ?? []) : (start?.more ?? []),
       instructions: manifestInstructionsOf(record ? record.instructions : (start?.instructions ?? undefined)),
       ...(memory ? { memory } : {}),
+      ...(carried !== undefined ? { carried } : {}),
       web: hasWebTools(tools),
     });
     const built = await context.build(new Set(this.state.leaveOutNext), new Set(record ? (record.redact ?? []) : this.state.draftRedact));
@@ -4219,16 +4368,20 @@ export class AiSession {
     provider: ProviderInfo,
     pins: readonly string[],
     turns: ConversationRecord["conversation"]["turns"],
-    conversation: { tools: readonly string[]; more?: readonly string[]; instructions?: ManifestInstructions; memory?: ManifestMemory; withoutActive?: boolean; web?: boolean },
+    // `carried`: the tokens the request takes before this message's notes, where a window is known (plan P7).
+    conversation: { tools: readonly string[]; more?: readonly string[]; instructions?: ManifestInstructions; memory?: ManifestMemory; withoutActive?: boolean; web?: boolean; carried?: number },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // The system's own model takes no tools, and a small window a smaller package (plan P2c).
     const platform = provider.endpoint.api === "platform";
+    // Nor does a model on this device whose user said it takes none (plan P7).
+    const toolless = this.toolless(provider, choice.model);
     // A conversation that carries the internet's tools (plan P4): notes whose rules say `web: deny` stay out of it.
-    const web = !platform && conversation.web === true;
-    const budget = contextBudgetFor(this.windowOf(provider, choice.model));
+    const web = !toolless && conversation.web === true;
+    // What the request carries anyway counts against a small window before the notes do (plan P7).
+    const budget = contextBudgetFor(this.windowOf(provider, choice.model), platform ? undefined : conversation.carried);
     // The tools the conversation carries — what the model may call, as the overview lists them.
-    const tools = platform ? [] : conversation.tools;
+    const tools = toolless ? [] : conversation.tools;
     const situation = await vault.situation().catch(() => this.bareSituation());
     const seen = this.state.excludeActive || conversation.withoutActive ? { ...situation, active: null } : situation;
     const candidates = await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
@@ -4262,13 +4415,13 @@ export class AiSession {
       const manifest = manifestOf(pack, { id: provider.id, label: provider.label, local: !isCloudRecipient(recipient) }, choice.model, {
         tools,
         // What the tool search reaches is said with the tools: it is in the conversation's reach, though each kind asks first.
-        ...(!platform && conversation.more?.length ? { more: conversation.more } : {}),
+        ...(!toolless && conversation.more?.length ? { more: conversation.more } : {}),
         questionChars: message.length,
         // Shown as allowed only while the vault's switch is on: switched off since, the tools answer that it is off.
         ...(web && this.state.web.enabled ? { web: true, webHosts: this.state.web.allow } : {}),
         ...(conversation.instructions ? { instructions: conversation.instructions } : {}),
-        // The system's own model gets the memory too; what the overview says of the lookup follows the tools it has.
-        ...(conversation.memory ? { memory: platform ? { ...conversation.memory, lookup: false } : conversation.memory } : {}),
+        // A model without tools gets the memory too; what the overview says of the lookup follows the tools it has.
+        ...(conversation.memory ? { memory: toolless ? { ...conversation.memory, lookup: false } : conversation.memory } : {}),
         ...(this.priceOf(choice) ? { priceUsdPerMillionInput: this.priceOf(choice)!.input } : {}),
       });
       return { pack, manifest };
@@ -4304,7 +4457,7 @@ export class AiSession {
   /** The provider and model the next message goes to. */
   choice(): ModelChoice | null {
     const active = this.state.active;
-    return active ? { providerId: active.providerId, model: active.model } : (this.state.draftChoice ?? initialModelChoice(this.state.settings));
+    return active ? { providerId: active.providerId, model: active.model } : (this.draftChoice() ?? initialModelChoice(this.state.settings));
   }
 
   /** Switches the model of the open conversation, or of the next new one. */
@@ -4409,6 +4562,13 @@ export class AiSession {
       this.set({ notice: { conversationId: this.state.active?.id ?? "", stop } });
       return { stop };
     }
+    // Fully local (plan P7, ADR 0030): a model that is not on this device is not asked — said before anything is
+    // built, asked or sent. The egress would refuse the request as well; this is the same answer, earlier.
+    if (this.state.settings.localOnly && !runsOnDevice(provider)) {
+      const stop: RunStop = { kind: "failed", failure: { kind: "local_only" } };
+      this.set({ notice: { conversationId: this.state.active?.id ?? "", stop } });
+      return { stop };
+    }
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // A conversation that ran on this device stays here (ADR 0018): before anything is built, asked or sent.
     if (this.state.active && !apart && this.keptOnDevice(this.state.active, recipient)) {
@@ -4420,8 +4580,10 @@ export class AiSession {
     // One set for both: a choice in the overview below reaches the tools of this run too.
     // A door starts a conversation of its own: what the composer's next message was given is not its to use.
     const redact = new Set<string>(apart ? [] : this.state.active ? (this.state.active.redact ?? []) : this.state.draftRedact);
-    // The system's own model takes no tools (plan P2c).
-    const platform = provider.endpoint.api === "platform";
+    // The system's own model takes no tools (plan P2c), nor does one on this device whose user said so (plan P7).
+    const toolless = this.toolless(provider, choice.model);
+    // What a request to this model is told about it: a stated window holds for the page it reads as well.
+    const told = this.modelLimits(provider, choice.model);
     const now = this.host.now().toISOString();
 
     let record: ConversationRecord;
@@ -4438,7 +4600,8 @@ export class AiSession {
       // conversation, and the overview says so. No other skill reaches the internet, and a regression run never does.
       const boundSkill = skills?.bind ? entries.find((entry) => entry.source.id === skills.bind && entry.status === "active")?.source.skill : undefined;
       const skillWeb = Boolean(boundSkill && skillNamesWeb(boundSkill));
-      const withWeb = !apart && this.state.web.enabled && (skills?.bind ? skillWeb : this.state.draftWeb);
+      // Fully local (plan P7): the internet rests, whoever chose it.
+      const withWeb = !apart && this.state.web.enabled && !this.state.settings.localOnly && (skills?.bind ? skillWeb : this.state.draftWeb);
       // The vault's memory (plan P6, ADR 0027): what this recipient may have of it goes into the system prompt of a
       // conversation the user began — never of a door, which answers one question where it was asked, nor of a
       // regression run, which measures a skill and not what the user happens to have kept.
@@ -4475,12 +4638,12 @@ export class AiSession {
     // A skill narrows the run (plan KI-Harness P3): the bound one's folders from the start, a loaded one's from its load.
     const skillState = newSkillRunState();
     const bound = record.instructions?.skill;
-    const toolNames = platform ? [] : record.conversation.tools;
+    const toolNames = toolless ? [] : record.conversation.tools;
     // A conversation that carries the internet's tools (plan P4): its vault tools and its context leave `web: deny` notes out.
     const web = hasWebTools(toolNames);
     const webLog = web ? newRunWeb() : null;
     // The conversation's further tools (ADR 0019), as fixed as its own.
-    const moreNames = platform ? [] : (record.conversation.more ?? []);
+    const moreNames = toolless ? [] : (record.conversation.more ?? []);
     // What passes the tools here although a rule restricts it elsewhere (plan P4-6) — a note kept from the cloud read by a
     // model on this device, a note kept from the internet in a conversation without it: the run's record keeps the rule,
     // never the path, and a note made of its answer inherits it.
@@ -4552,7 +4715,7 @@ export class AiSession {
       ? createPrivateDataExecutor(
           base.executor,
           {
-            egress: this.host.egress,
+            egress: this.out,
             reader: () => this.quarantineReader(provider, choice),
             // A regression run has nobody to ask: what this session has not allowed yet does not happen in it.
             approve: (dataClass, tool, call, signal) => this.approveData(dataClass, tool, call, { provider, choice, recipient, signal, ...(detached ? { silent: true } : {}) }),
@@ -4569,11 +4732,13 @@ export class AiSession {
             guarded,
             {
               fetcher: this.host.web ?? null,
-              egress: this.host.egress,
+              egress: this.out,
               endpoint: provider.endpoint,
               model: choice.model,
               providerLabel: provider.label,
-              enabled: () => this.vault === vault && this.state.web.enabled,
+              ...(told.window ? { window: told.window } : {}),
+              // Asked at every call: switched off since, or the device fully local since (plan P7), the next call does not go out.
+              enabled: () => this.vault === vault && this.state.web.enabled && !this.state.settings.localOnly,
               newRequestId: () => `ai-${this.host.newId()}`,
               now: () => this.host.now().toISOString(),
             },
@@ -4619,11 +4784,14 @@ export class AiSession {
 
     // The context of this message: what "View context" showed, without the notes left out there.
     const carriedMemory = manifestMemoryOf(record.instructions);
+    // What the request carries before this message's notes (plan P7): a small window's package is made smaller by it.
+    const carried = this.carriedTokens(provider, choice.model, record.conversation);
     const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, {
       tools: toolNames,
       more: moreNames,
       instructions: manifestInstructionsOf(record.instructions),
       ...(carriedMemory ? { memory: carriedMemory } : {}),
+      ...(carried !== undefined ? { carried } : {}),
       // A regression run measures the skill, not whatever note happens to be open.
       ...(detached ? { withoutActive: true } : {}),
       web,
@@ -4792,8 +4960,8 @@ export class AiSession {
 
   /** The tools a new conversation with this model is offered: the vault's, and the internet's where it was chosen for it. */
   private offeredTools(vault: AiVaultHost, provider: ProviderInfo, recipient: EgressRecipient, web: boolean): string[] {
-    // The system's own model takes no tools (plan P2c).
-    if (provider.endpoint.api === "platform") return [];
+    // The system's own model takes no tools (plan P2c), nor does one on this device whose user said so (plan P7).
+    if (this.toolless(provider, recipient.model)) return [];
     const names = [...(vault.tools(recipient)?.names ?? [])];
     return web && names.length ? [...names, ...webToolNames(this.host.web ?? null, provider.endpoint)] : names;
   }
@@ -4805,7 +4973,7 @@ export class AiSession {
    * The same goes for the vault's scripts (plan P5.5): the ones active on this device, where it can run scripts at all.
    */
   private async furtherTools(vault: AiVaultHost, provider: ProviderInfo, recipient: EgressRecipient, services: boolean, entries: readonly InstructionEntry[] = []): Promise<string[]> {
-    if (provider.endpoint.api === "platform") return [];
+    if (this.toolless(provider, recipient.model)) return [];
     const served = vault.tools(recipient);
     const own = [...(served?.more ?? [])];
     if (!services) return own;
@@ -4834,8 +5002,16 @@ export class AiSession {
   private quarantineReader(provider: ProviderInfo, choice: ModelChoice): QuarantineReader {
     const here = provider.kind === "local" || provider.kind === "platform-device" ? { provider, model: choice.model } : this.deviceModel();
     if (!here) return { endpoint: provider.endpoint, model: choice.model, label: provider.label, onDevice: false };
-    const window = here.provider.endpoint.api === "platform" ? (this.windowOf(here.provider, here.model) ?? PLATFORM_CONTEXT_DEFAULT) : undefined;
-    return { endpoint: here.provider.endpoint, model: here.model, label: `${here.provider.label} · ${here.model}`, onDevice: true, ...(window ? { contextTokens: window } : {}) };
+    const told = this.modelLimits(here.provider, here.model);
+    return {
+      endpoint: here.provider.endpoint,
+      model: here.model,
+      label: `${here.provider.label} · ${here.model}`,
+      onDevice: true,
+      ...(told.contextTokens ? { contextTokens: told.contextTokens } : {}),
+      // A window its user stated (plan P7): a text that cannot fit is not sent to be cut without a word.
+      ...(told.window ? { window: told.window } : {}),
+    };
   }
 
   /**
@@ -4876,7 +5052,8 @@ export class AiSession {
     tool: ToolManifest,
     run: { provider: ProviderInfo; signal: AbortSignal; conversation(): ConversationRecord["conversation"]; skillState?: SkillRunState },
   ): Promise<boolean> {
-    if (!this.state.web.enabled) return true;
+    // Switched off for the vault, or the device fully local (plan P7): nothing goes out, so nobody is asked.
+    if (!this.state.web.enabled || this.state.settings.localOnly) return true;
     const loaded = run.skillState?.loaded;
     if (loaded && !loaded.tools.includes(tool.name)) return true;
     const args = (call.args ?? {}) as { url?: unknown; question?: unknown; query?: unknown };
@@ -4953,7 +5130,7 @@ export class AiSession {
     const carriesVault = input.carriesVault;
     const result = await runAgent({
       conversation: record.conversation,
-      egress: this.host.egress,
+      egress: this.out,
       endpoint: provider.endpoint,
       model: choice.model,
       executor: input.executor ?? { execute: async () => ({ content: "This conversation has no tools.", isError: true }) },
@@ -4981,7 +5158,7 @@ export class AiSession {
           }
         : {}),
       cache: true,
-      ...(provider.endpoint.api === "platform" ? { contextTokens: this.windowOf(provider, choice.model) ?? PLATFORM_CONTEXT_DEFAULT } : {}),
+      ...this.modelLimits(provider, choice.model),
       newRequestId: () => `ai-${this.host.newId()}`,
       now: () => this.host.now().toISOString(),
       onEvent: (event) => {

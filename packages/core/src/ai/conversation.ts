@@ -137,3 +137,29 @@ export function openToolCalls(conversation: Conversation): ToolCallPart[] {
   if (!last || last.role !== "assistant") return [];
   return last.parts.filter((p): p is ToolCallPart => p.type === "tool_call");
 }
+
+/**
+ * A conversation as a model that takes no tools reads it (plan KI-Harness
+ * P7, ADR 0030): its words and its pictures. What was called earlier and
+ * what came back stay in the record and are not sent again — a request
+ * cannot name tools to a model that calls none, and a result without its
+ * call is a message no chat endpoint takes. The system's own model reads a
+ * conversation the same way (`platformPrompt`).
+ *
+ * Two turns of one role that a call stood between become one message: a
+ * chat template wants the roles to alternate. A conversation that was begun
+ * without tools and holds nothing but words is returned as it is.
+ */
+export function withoutTools(conversation: Conversation): Conversation {
+  const said = (part: Part): boolean => part.type === "text" || part.type === "image";
+  if (!conversation.tools.length && !conversation.more?.length && conversation.turns.every((turn) => turn.parts.every(said))) return conversation;
+  const turns: Turn[] = [];
+  for (const turn of conversation.turns) {
+    const parts = turn.parts.filter(said);
+    if (!parts.length) continue;
+    const before = turns[turns.length - 1];
+    if (before && before.role === turn.role) turns[turns.length - 1] = { ...before, parts: [...before.parts, ...parts] };
+    else turns.push(parts.length === turn.parts.length ? turn : { ...turn, parts });
+  }
+  return { id: conversation.id, system: conversation.system, tools: [], turns };
+}

@@ -28,6 +28,8 @@ export interface QuarantineReader {
   onDevice: boolean;
   /** Its window, where it is small (the system's own model). */
   contextTokens?: number;
+  /** The window its user stated for a model on this device (plan P7): a text that cannot fit is not sent. */
+  window?: number;
 }
 
 /** The kinds of data that ask before their first call. */
@@ -72,6 +74,7 @@ export function createPrivateDataExecutor(inner: ToolExecutor, host: PrivateData
         at: host.now(),
         ...(signal ? { signal } : {}),
         ...(reader.contextTokens ? { contextTokens: reader.contextTokens } : {}),
+        ...(reader.window ? { window: reader.window } : {}),
       });
       log.inputTokens += report.usage.inputTokens;
       log.outputTokens += report.usage.outputTokens;

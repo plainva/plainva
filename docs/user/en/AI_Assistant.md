@@ -37,6 +37,20 @@ A fifth slot, **Audio**, holds the model that transcribes voice notes; it is nev
 
 A sixth slot, **Embeddings**, holds the model search by meaning computes with when you choose **Own provider** under **Semantic search** — see [Search](Search.md).
 
+**A model on this computer.** A server on your own computer names its models, but not how much one of them can read at once, or whether it can call tools. When you choose such a model for a profile you can say both: **Context window**, in tokens — leave it empty if you do not know — and **Can call tools**. With a small window Plainva sends along fewer and shorter notes, and it stops before a request that would not fit instead of letting the server cut it silently; the notice then says how many tokens the request needs and what you stated. With the tools switched off the model answers from what goes along: without tools, without the internet and without looking anything up. A model on this device is given time: it may stay silent for up to fifteen minutes before its first word, and the conversation counts along while it works.
+
+## Fully local
+
+**Settings → AI & automation** (the App part) shows under **Mode** what holds on this device right now: that a provider answers ("Cloud"), that this device also computes something itself — search by meaning, the gists, reading e-mails and appointments — ("Hybrid"), or that a model on this device answers. That line is a state, not a choice: it follows from the providers and helpers you set up.
+
+**Fully local** is the one switch there, and it is a promise: while it is on, only models on this device answer — a server on this computer, or the system's own model on a phone —, and nothing the AI handles goes to a provider, to the internet or to another program. It applies to this device, in every vault.
+
+- **Who answers.** A new conversation starts with a model of your own profiles that runs on this device: the one of the default profile, otherwise the one of **Local**, otherwise the one of the first profile that names such a model. Plainva picks no model for you — if none runs here, the settings and the conversation say so and offer the way to set one up.
+- **What rests.** The settings list it: providers stay set up and receive nothing, and their profiles do not answer; no conversation uses the internet; external tools (MCP) and external agents are not used — a program on this computer included, because what it passes on Plainva cannot see; AI apps on this computer cannot read the vault; search by meaning through a provider stays with the words; Siri and Shortcuts are given no list of titles. Nothing is removed: switch it off again, and everything is as you set it up.
+- **Open conversations.** A conversation that ran with a provider's model does not go on while the switch is on — no conversation changes its model silently. It stays readable, and **New conversation** starts one with the model on this device.
+- **What "on this device" means.** A server under this computer's own address, or the system's own model on the device. Not a server in your home network, and not Apple's Private Cloud Compute: an address outside this device is not this device, however near it stands.
+- **What the switch is not.** It is about the AI. Sync, e-mail, calendars and updates are functions of their own, with switches of their own. Loading a package for search by meaning is a download you start yourself; it carries nothing from your vault. And a note's own rule — never to the cloud — holds whether the switch is on or off.
+
 ## Asking
 
 - **Desktop:** the AI button in the action bar, **Ctrl+J** (⌘J on macOS) or **Ask AI** in the command palette opens the companion — a small window over your work. **Open as tab** moves the same conversation into the AI tab, where your conversations are listed.

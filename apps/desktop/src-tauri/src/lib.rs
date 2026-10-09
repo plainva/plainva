@@ -453,6 +453,7 @@ pub fn run() {
             ai_egress::ai_key_delete,
             ai_egress::ai_endpoint_add,
             ai_egress::ai_endpoint_remove,
+            ai_egress::ai_local_only_set,
             mcp::mcp_configure,
             mcp::mcp_status,
             mcp::mcp_pair_answer,

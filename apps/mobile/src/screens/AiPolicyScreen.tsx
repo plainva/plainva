@@ -159,6 +159,8 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { 
         {vault.workspaceRuntime !== null && <p className="m-hint">{t("ai.policy.encrypted")}</p>}
         {/* The internet for this vault (plan KI-Harness P4): off until the user decides, on this device — as on the desktop. */}
         <SectionLabel>{t("ai.web.settings.title")}</SectionLabel>
+        {/* Fully local (plan KI-Harness P7): no conversation reads a page or searches, whatever this vault allows. */}
+        {aiState.settings.localOnly && <p className="m-hint" data-testid="ai-rests-web">{t("ai.mode.restsHere")}</p>}
         <GroupCard>
           <RowList>
             <Row
@@ -180,6 +182,8 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { 
         {aiState.mcp.available && aiState.mcp.loaded && (
           <>
             <SectionLabel>{t("ai.ext.title")}</SectionLabel>
+            {/* Fully local (plan KI-Harness P7): no server is asked or called. */}
+            {aiState.settings.localOnly && <p className="m-hint" data-testid="ai-rests-ext">{t("ai.mode.restsHere")}</p>}
             <GroupCard>
               <RowList>
                 {aiState.mcp.servers.map((server) => {

@@ -27,11 +27,22 @@ interface AiNetNative {
   deleteKey(options: { endpointId: string }): Promise<void>;
   addEndpoint(options: { endpointId: string; baseUrl: string; title: string; message: string; confirm: string; cancel: string }): Promise<{ added: boolean }>;
   removeEndpoint(options: { endpointId: string }): Promise<void>;
+  setLocalOnly(options: { on: boolean }): Promise<void>;
 }
 
 const AiNet = registerPlugin<AiNetNative>("AiNet");
 
 const TERMINAL: ReadonlySet<EgressChunk["type"]> = new Set(["done", "cancelled", "failed", "httpError"]);
+
+/**
+ * Tells the native side whether the device is fully local (plan KI-Harness
+ * P7, ADR 0030). While it is, the plugins that send something for the
+ * assistant refuse — the session's own egress holds the rule first; this is
+ * the same rule once more, behind it.
+ */
+export async function setMobileLocalOnly(on: boolean): Promise<void> {
+  await AiNet.setLocalOnly({ on });
+}
 
 export function createMobileAiEgress(confirmText: () => EndpointConfirmText): AiEgress {
   /** Requests the system's own model is answering (plan P2c): a cancel goes where the request went. */

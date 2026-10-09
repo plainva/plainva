@@ -39,7 +39,9 @@ export function MobileSystemAssistantSection({ session }: { session: AiSession }
   const settings = useSyncExternalStore(session.subscribe, session.getState).settings;
   const status = useSyncExternalStore(subscribeIntentDirectoryStatus, getIntentDirectoryStatus);
   if (!systemIntentsAvailable()) return null;
-  const line = settings.systemFind ? statusLine((key, values) => t(key, values ?? {}), status) : null;
+  // Fully local (plan KI-Harness P7): the list of titles is not kept — what the system does with a title is not Plainva's to know.
+  const resting = settings.localOnly && settings.systemFind;
+  const line = settings.systemFind && !resting ? statusLine((key, values) => t(key, values ?? {}), status) : null;
   return (
     <>
       <SectionLabel>{t("ai.system.title")}</SectionLabel>
@@ -53,6 +55,7 @@ export function MobileSystemAssistantSection({ session }: { session: AiSession }
             data-testid="ai-system-find"
           />
           {line && <Row wrap title={line} data-testid="ai-system-status" />}
+          {resting && <Row wrap title={t("ai.mode.restsHere")} data-testid="ai-rests-system" />}
         </RowList>
       </GroupCard>
       <p className="m-hint">{t("ai.system.captureHint")}</p>

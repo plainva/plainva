@@ -125,6 +125,28 @@ describe("an agent with its own sign-in works in the vault", () => {
     expect(open.native.processes).toHaveLength(1);
   });
 
+  it("is not started while the device is fully local, and a session that runs ends when it becomes so — the agents stay registered", async () => {
+    // An agent is a program of another maker with a way out of its own (plan KI-Harness P7, ADR 0030).
+    let local = false;
+    const h = await acpHarness(undefined, { resting: () => local });
+    await h.agents.start("geminicli");
+    expect(h.state().session!.phase).toBe("ready");
+    local = true;
+    h.agents.rest();
+    await h.settle();
+    expect(h.state().session!.phase).toBe("ended");
+    h.agents.dismiss();
+    await h.agents.start("geminicli");
+    expect(h.native.processes).toHaveLength(1);
+    expect(h.state().session).toBeNull();
+    expect(h.state().agents.map((agent) => agent.id)).toEqual(["geminicli"]);
+    // Switched off again, it starts like before — and without the question the first start answered.
+    local = false;
+    await h.agents.start("geminicli");
+    expect(h.native.processes).toHaveLength(2);
+    expect(h.state().session!.phase).toBe("ready");
+  });
+
   it("shows a turn as it happens: the user's words, the agent's text as one piece, its steps, its plan once", async () => {
     const h = await acpHarness(
       turns([

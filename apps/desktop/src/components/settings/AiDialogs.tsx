@@ -5,9 +5,14 @@ import {
   addableProviders,
   Banner,
   Button,
+  describesItself,
   getPlatformServices,
   Modal,
+  readStatedWindow,
   Select,
+  statedChoice,
+  STATED_WINDOW_BOUNDS,
+  Switch,
   TextInput,
   toast,
   type AiSession,
@@ -169,19 +174,30 @@ export function AiKeyDialog({ session, provider, onClose }: { session: AiSession
 
 /** Choose a profile's model: from the provider's own list, or any id typed in. */
 export function AiModelDialog({ session, state, profile, onClose }: { session: AiSession; state: AiState; profile: AiProfileSlot; onClose: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const current = state.settings.profiles[profile];
   const providers = useMemo(() => session.providers().filter((p) => state.settings.providers.includes(p.id) || p.custom || state.keys[p.id] || p.id === current?.providerId), [session, state, current]);
   const [providerId, setProviderId] = useState(current?.providerId ?? providers[0]?.id ?? "");
   const [model, setModel] = useState(current?.model ?? "");
+  // What the user says about a model on a server of this device (plan KI-Harness P7): its window, and whether it
+  // takes tools. Such a server names its models and nothing about them; a provider's list and the system's own
+  // model say both themselves, and neither is asked of a model that transcribes or embeds.
+  const [windowText, setWindowText] = useState(current?.contextTokens ? String(current.contextTokens) : "");
+  const [tools, setTools] = useState(current?.tools !== false);
+  const provider = providers.find((p) => p.id === providerId);
+  const stating = !describesItself(provider) && profile !== AI_AUDIO_PROFILE && profile !== AI_EMBEDDING_PROFILE;
+  const stated = readStatedWindow(windowText);
+  const number = new Intl.NumberFormat(i18n.language);
   const test = state.tests[providerId];
   // "Audio" lists what can transcribe, "Embeddings" what embeds, every other profile what can chat. Any id can still be typed.
   const fits = (m: { chat: boolean; transcribe?: boolean; embed?: boolean }) =>
     profile === AI_AUDIO_PROFILE ? Boolean(m.transcribe) : profile === AI_EMBEDDING_PROFILE ? Boolean(m.embed) : m.chat;
   const models = (test?.models ?? []).filter((m) => fits(m) && (!model.trim() || m.id.toLowerCase().includes(model.trim().toLowerCase()) || (m.label ?? "").toLowerCase().includes(model.trim().toLowerCase())));
   const save = () => {
-    if (!providerId || !model.trim()) return;
-    void session.updateSettings((s) => ({ ...s, profiles: { ...s.profiles, [profile]: { providerId, model: model.trim() } } })).then(onClose);
+    if (!providerId || !model.trim() || (stating && !stated.ok)) return;
+    const named = { providerId, model: model.trim() };
+    const choice = stating && stated.ok ? statedChoice(provider, named, { window: stated.value, tools }) : named;
+    void session.updateSettings((s) => ({ ...s, profiles: { ...s.profiles, [profile]: choice } })).then(onClose);
   };
   const clear = () => {
     void session
@@ -197,7 +213,7 @@ export function AiModelDialog({ session, state, profile, onClose }: { session: A
         <>
           {current && <Button variant="ghost" onClick={clear}>{t("ai.settings.clearProfile")}</Button>}
           <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-          <Button variant="primary" disabled={!providerId || !model.trim()} onClick={save} data-testid="ai-model-save">{t("common.save")}</Button>
+          <Button variant="primary" disabled={!providerId || !model.trim() || (stating && !stated.ok)} onClick={save} data-testid="ai-model-save">{t("common.save")}</Button>
         </>
       }
     >
@@ -224,6 +240,31 @@ export function AiModelDialog({ session, state, profile, onClose }: { session: A
               </Button>
             ))}
           </div>
+        )}
+        {stating && (
+          <>
+            <label className="pv-modal-label" htmlFor="pv-ai-model-window">
+              {t("ai.settings.modelWindow")}
+            </label>
+            <TextInput
+              id="pv-ai-model-window"
+              value={windowText}
+              onChange={(e) => setWindowText(e.target.value)}
+              placeholder={t("ai.settings.modelWindowPlaceholder")}
+              purpose="number"
+              inputMode="numeric"
+              data-testid="ai-model-window"
+            />
+            <p className="pv-ai-tilehint" data-testid="ai-model-window-hint">
+              {stated.ok ? t("ai.settings.modelWindowDesc") : t("ai.settings.modelWindowInvalid", { min: number.format(STATED_WINDOW_BOUNDS.min), max: number.format(STATED_WINDOW_BOUNDS.max) })}
+            </p>
+            <span className="pv-ai-notewithaction">
+              <span className="pv-modal-label">{t("ai.settings.modelTools")}</span>
+              <Switch checked={tools} label={t("ai.settings.modelTools")} onChange={setTools} data-testid="ai-model-tools" />
+            </span>
+            <p className="pv-ai-tilehint">{t("ai.settings.modelToolsDesc")}</p>
+            <p className="pv-ai-tilehint">{t("ai.settings.modelFactsHint")}</p>
+          </>
         )}
         <p className="pv-ai-tilehint">{t("ai.settings.profilesHint")}</p>
       </div>

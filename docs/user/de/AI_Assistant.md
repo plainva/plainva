@@ -37,6 +37,20 @@ Ein fünfter Platz, **Audio**, hält das Modell, das Sprachnotizen transkribiert
 
 Ein sechster Platz, **Einbettungen**, hält das Modell, mit dem die Suche nach Bedeutung rechnet, wenn Du unter **Semantische Suche** **Eigener Anbieter** wählst — siehe [Suche](Search.md).
 
+**Ein Modell auf diesem Rechner.** Ein Server auf Deinem eigenen Rechner nennt seine Modelle, aber nicht, wie viel eines davon auf einmal lesen kann oder ob es Werkzeuge aufrufen kann. Wenn Du ein solches Modell für ein Profil wählst, kannst Du beides angeben: **Kontextfenster**, in Token — lass es leer, wenn Du es nicht weißt — und **Kann Werkzeuge aufrufen**. Mit einem kleinen Fenster gibt Plainva weniger und kürzere Notizen mit, und es hält vor einer Anfrage an, die nicht hineinpasst, statt dass der Server still abschneidet; der Hinweis sagt dann, wie viele Token die Anfrage braucht und was Du angegeben hast. Sind die Werkzeuge ausgeschaltet, antwortet das Modell aus dem, was mitgeht: ohne Werkzeuge, ohne Internet und ohne etwas nachzuschlagen. Ein Modell auf diesem Gerät bekommt Zeit: Es darf bis zu fünfzehn Minuten schweigen, bevor es das erste Wort sagt, und das Gespräch zählt mit, solange es rechnet.
+
+## Voll-lokal
+
+**Einstellungen → KI & Automatisierung** (der App-Teil) zeigt unter **Betriebsart**, was auf diesem Gerät gerade gilt: dass ein Anbieter antwortet („Cloud“), dass dieses Gerät außerdem etwas selbst rechnet — die Suche nach Bedeutung, die Gists, das Lesen von E-Mails und Terminen — („Hybrid“), oder dass ein Modell auf diesem Gerät antwortet. Diese Zeile ist ein Zustand, keine Wahl: Sie folgt aus den Anbietern und Helfern, die Du eingerichtet hast.
+
+**Voll-lokal** ist dort der eine Schalter, und er ist eine Zusage: Solange er an ist, antworten nur Modelle auf diesem Gerät — ein Server auf diesem Rechner oder am Telefon das Modell des Systems —, und nichts, was die KI anfasst, geht an einen Anbieter, ins Internet oder an ein anderes Programm. Er gilt für dieses Gerät, in jedem Vault.
+
+- **Wer antwortet.** Ein neues Gespräch beginnt mit einem Modell Deiner eigenen Profile, das auf diesem Gerät läuft: dem des Standardprofils, sonst dem von **Lokal**, sonst dem des ersten Profils, das ein solches Modell nennt. Plainva sucht kein Modell für Dich aus — läuft hier keines, sagen es die Einstellungen und das Gespräch und bieten den Weg an, eines einzurichten.
+- **Was ruht.** Die Einstellungen zählen es auf: Anbieter bleiben eingerichtet und bekommen nichts, und ihre Profile antworten nicht; kein Gespräch benutzt das Internet; externe Werkzeuge (MCP) und externe Agenten werden nicht benutzt — auch kein Programm auf diesem Rechner, denn was es weitergibt, sieht Plainva nicht; KI-Apps auf diesem Rechner können den Vault nicht lesen; die Suche nach Bedeutung über einen Anbieter bleibt bei den Wörtern; Siri und Kurzbefehle bekommen keine Liste von Titeln. Entfernt wird nichts: Schalte ihn wieder aus, und alles ist, wie Du es eingerichtet hast.
+- **Offene Gespräche.** Ein Gespräch, das mit dem Modell eines Anbieters lief, geht nicht weiter, solange der Schalter an ist — kein Gespräch wechselt still sein Modell. Es bleibt lesbar, und **Neues Gespräch** beginnt eines mit dem Modell auf diesem Gerät.
+- **Was „auf diesem Gerät“ heißt.** Ein Server unter der eigenen Adresse dieses Rechners oder das Modell des Systems auf dem Gerät. Nicht ein Server in Deinem Heimnetz und nicht Apples Private Cloud Compute: Eine Adresse außerhalb dieses Geräts ist nicht dieses Gerät, so nah sie auch liegt.
+- **Was der Schalter nicht ist.** Er gilt der KI. Sync, E-Mail, Kalender und Updates sind eigene Funktionen mit eigenen Schaltern. Ein Paket für die Suche nach Bedeutung zu laden ist ein Download, den Du selbst startest; er trägt nichts aus Deinem Vault. Und die eigene Regel einer Notiz — nie in die Cloud — gilt, ob der Schalter an ist oder aus.
+
 ## Fragen
 
 - **Desktop:** der KI-Knopf in der Aktionsleiste, **Strg+J** (⌘J unter macOS) oder **KI fragen** in der Befehlspalette öffnet den Begleiter — ein kleines Fenster über Deiner Arbeit. **Als Tab öffnen** holt dasselbe Gespräch in den KI-Tab, wo Deine Gespräche aufgelistet sind.

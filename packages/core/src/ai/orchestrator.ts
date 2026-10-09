@@ -1,4 +1,4 @@
-import { appendTurn, type Conversation, type Part, type ToolCallPart, type ToolResultPart } from "./conversation.js";
+import { appendTurn, withoutTools, type Conversation, type Part, type ToolCallPart, type ToolResultPart } from "./conversation.js";
 import { runModelCall, type AiEgress, type ModelCallResult, type ModelFailure } from "./egress.js";
 import { retryDelayMs } from "../sync/httpRetry.js";
 import type { ProviderEndpoint } from "./providers.js";
@@ -6,6 +6,7 @@ import { isEffectTool, ruleOfTwo, runTraits, type RunContextTraits } from "./rul
 import type { StreamEvent } from "./streams.js";
 import { DISPATCH_TOOL, dispatchedArgs, FIND_TOOL, META_TOOL_NAMES, parseToolInput, toolByName, type ToolManifest } from "./tools.js";
 import { fenceUntrusted, payload, type PayloadOrigin } from "./trust.js";
+import { fitsWindow } from "./window.js";
 
 /**
  * The orchestrator (§20): model call → tool calls → results → model call …
@@ -176,6 +177,17 @@ export interface RunInput {
   cache?: boolean;
   /** The model's window, where it is small (platform models, plan P2c): the request is cut to it. */
   contextTokens?: number;
+  /**
+   * The model takes no tools — its user said so of a model on this device
+   * (plan P7): none are sent, whatever the conversation was started with.
+   */
+  toolless?: boolean;
+  /**
+   * The window the user stated for a model on this device (plan P7): a
+   * request that cannot fit it is not sent — a local server would cut it
+   * without a word.
+   */
+  window?: number;
   /** Test seams: the pause before a retried call, and its jitter. */
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
   random?: () => number;
@@ -231,7 +243,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   const now = input.now ?? (() => new Date().toISOString());
   const newId = input.newRequestId ?? (() => `ai-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
   const known = (names: readonly string[] | undefined) => (names ?? []).map((name) => toolByName(name)).filter((t): t is ToolManifest => Boolean(t));
-  const tools = known(input.conversation.tools);
+  const tools = input.toolless ? [] : known(input.conversation.tools);
   // Further tools are only reachable where the dispatcher is one of the conversation's tools. A foreign tool is one of
   // them only under a name the conversation was started with, and never under the name of a tool of the app's own.
   const named = new Set(input.conversation.more ?? []);
@@ -263,6 +275,13 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
   while (true) {
     if (input.signal?.aborted) return { conversation, stop: { kind: "cancelled" }, usage };
     if (usage.steps >= limits.maxSteps) return { conversation, stop: { kind: "limit", which: "maxSteps" }, usage };
+    // A model that takes no tools reads the conversation's words: what was called earlier is not sent to it again.
+    const sent = input.toolless ? withoutTools(conversation) : conversation;
+    if (input.window) {
+      // Held against the stated window before every call: tool results grow a conversation within one run.
+      const fit = fitsWindow(sent, tools, input.window);
+      if (!fit.fits) return { conversation, stop: { kind: "failed", failure: { kind: "window_too_small", needed: fit.needed, window: input.window } }, usage };
+    }
     usage.steps++;
     warn("maxSteps", usage.steps);
 
@@ -280,7 +299,7 @@ export async function runAgent(input: RunInput): Promise<RunResult> {
         input.endpoint,
         {
           model: input.model,
-          conversation,
+          conversation: sent,
           tools,
           maxOutputTokens: Math.max(256, limits.maxOutputTokens - usage.outputTokens),
           cache: input.cache,

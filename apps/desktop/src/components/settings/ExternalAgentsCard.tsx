@@ -52,6 +52,8 @@ export function ExternalAgentsCard() {
     <>
       <SettingCard label={t("ai.agent.title")}>
         <SettingCardNote>{t("ai.agent.settings.desc")}</SettingCardNote>
+        {/* Fully local (plan P7): no agent is started. */}
+        {state.settings.localOnly && <SettingCardNote>{t("ai.mode.restsHere")}</SettingCardNote>}
         {agents.length === 0 && <SettingCardNote>{t("ai.agent.settings.none")}</SettingCardNote>}
         {agents.map((agent) => (
           <SettingRow key={agent.id} label={agent.label} desc={`${acpCommandText(agent.program, agent.args)} · ${agentSeenText(t, agent, i18n.language)}`}>

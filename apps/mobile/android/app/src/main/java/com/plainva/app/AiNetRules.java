@@ -21,4 +21,28 @@ final class AiNetRules {
         return contentType.toLowerCase(Locale.ROOT).startsWith("multipart/form-data; boundary=")
                 && path.endsWith("/audio/transcriptions");
     }
+
+    /**
+     * A host on this device: the names plain http is accepted for. While the
+     * device is fully local (ADR 0030) a request goes to such a host or
+     * nowhere — a server in the home network is not this device, however
+     * near it stands.
+     */
+    static boolean onThisDevice(String host) {
+        if (host == null) return false;
+        return host.equals("localhost") || host.equals("127.0.0.1") || host.equals("::1");
+    }
+
+    /** Seconds a recipient may be silent before its request counts as dead. */
+    static final int SILENCE_SECONDS = 180;
+
+    /**
+     * A model on this device may read for minutes before it says a word: it
+     * gets this long instead (ADR 0030).
+     */
+    static final int LOCAL_SILENCE_SECONDS = 900;
+
+    static int silenceSeconds(String host) {
+        return onThisDevice(host) ? LOCAL_SILENCE_SECONDS : SILENCE_SECONDS;
+    }
 }

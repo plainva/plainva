@@ -6912,3 +6912,151 @@ test('AI tidying up: the device names what it noticed without a model; a hint is
   await expect(memory).toBeVisible();
   await expect(page.getByTestId('ai-upkeep-memory')).toContainText('Tidy up · 1');
 });
+
+// "Fully local" (AI harness P7-1, ADR 0030): the settings name the state the
+// user's own choices amount to, and one switch promises that only models on
+// this device answer. A model on a server of this computer is what its user
+// says it is — its window, and whether it takes tools. Switched on, nothing is
+// handed to a provider: a conversation that ran with one rests and says so, a
+// new one is answered by the model on this computer, and what is set up is
+// listed as resting, none of it removed. The native side is told what the
+// switch says. `ai_http` is the mock: it keeps the endpoint of every request.
+test('AI fully local: the settings say what holds; switched on, a conversation with a provider rests, a new one is answered on this computer, and no request names a provider', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const cloudSays = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const chunk = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
+  const localSays = (text: string) =>
+    `${chunk({ choices: [{ delta: { content: text } }] })}${chunk({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 300, completion_tokens: 40 } })}data: [DONE]\n\n`;
+  await page.addInitScript(({ cloud, local }) => {
+    // A provider answers new conversations; the profile "Local" names a model on a server of this computer.
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic', 'ollama'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' }, local: { providerId: 'ollama', model: 'granite3.3:8b' } } } };
+    (window as any).__aiRequests = [];
+    (window as any).__localOnly = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      // One key on this device: the provider's. A server on this computer needs none.
+      if (cmd === 'ai_key_present') return args.endpointId === 'anthropic';
+      if (cmd === 'ai_local_only_set') {
+        (window as any).__localOnly.push(args.on);
+        return null;
+      }
+      if (cmd === 'ai_http') {
+        const endpoint = String(args.request.endpointId);
+        (window as any).__aiRequests.push({ endpoint, tools: Array.isArray(args.request.body.tools) ? args.request.body.tools.length : 0 });
+        const text = (endpoint === 'ollama' ? local : cloud).shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { cloud: [cloudSays('Answered by a provider.')], local: [localSays('Answered on this computer.')] });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as Array<{ endpoint: string; tools: number }>);
+  const told = () => page.evaluate(() => (window as any).__localOnly as boolean[]);
+  const openAppAi = async () => {
+    await page.keyboard.press('Control+,');
+    const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+    await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+    await expect(dialog.getByTestId('settings-ai')).toBeVisible();
+    return dialog;
+  };
+
+  // 1. As it is set up, a provider answers. The conversation says who.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Where do you run?');
+  await companion.getByTestId('ai-send').click();
+  const consent = companion.getByTestId('ai-consent-send');
+  await expect(consent.or(companion.getByText('Answered by a provider.'))).toBeVisible();
+  if (await consent.isVisible()) await consent.click();
+  await expect(companion.getByText('Answered by a provider.')).toBeVisible();
+  expect((await requests()).map((request) => request.endpoint)).toEqual(['anthropic']);
+  await expect(companion.getByTestId('ai-local-marking')).toHaveCount(0);
+  // The companion floats above everything else: it is put away while the settings are read.
+  await companion.getByTestId('ai-companion-close').click();
+  await expect(companion).toHaveCount(0);
+
+  // 2. The settings name the state these choices amount to — a line, not a control: a provider answers, and this
+  //    computer reads e-mails and appointments itself. Only "Fully local" is a switch.
+  let dialog = await openAppAi();
+  let app = dialog.getByTestId('settings-ai');
+  await expect(app).toContainText('Now: Hybrid — this device sorts, a provider answers');
+  await expect(app).toContainText('New conversations start with Anthropic · m-1.');
+  await expect(app).toContainText('reading e-mails and appointments (granite3.3:8b)');
+  await expect(app).toContainText('Only “Fully local” is a switch, because only it promises something.');
+  await expect(app.getByTestId('ai-local-only')).toHaveAttribute('aria-checked', 'false');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-state-desktop.png'), animations: 'disabled' });
+
+  // 3. What the user says about the model on this computer: its window, and that it takes no tools. The server
+  //    itself tells neither; the profile's line says both from then on.
+  await app.getByTestId('ai-profile-local').click();
+  await expect(page.getByTestId('ai-model-window-hint')).toContainText('A server on this device does not tell Plainva');
+  await page.getByTestId('ai-model-window').fill('eight thousand');
+  await expect(page.getByTestId('ai-model-window-hint')).toContainText('A whole number between');
+  await expect(page.getByTestId('ai-model-save')).toBeDisabled();
+  await page.getByTestId('ai-model-window').fill('8192');
+  await page.getByTestId('ai-model-tools').click();
+  await expect(page.getByTestId('ai-model-tools')).toHaveAttribute('aria-checked', 'false');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-model-desktop.png'), animations: 'disabled' });
+  await page.getByTestId('ai-model-save').click();
+  await expect(app).toContainText('Ollama · granite3.3:8b · window 8,192 · no tools');
+
+  // 4. Switched on: the line names the model that answers, and under the switch stands what rests — the provider that
+  //    stays set up, the profile that will not answer. Nothing is removed. The native side is told.
+  await app.getByTestId('ai-local-only').click();
+  await expect(app.getByTestId('ai-local-only')).toHaveAttribute('aria-checked', 'true');
+  await expect(app).toContainText('Now: Fully local — nothing leaves this device');
+  await expect(app).toContainText('Ollama · granite3.3:8b answers, the model of the profile “Local”.');
+  await expect(app).toContainText('While “Fully local” is on, this rests');
+  await expect(app).toContainText('Stays set up and receives nothing. This profile does not answer: Balanced.');
+  await expect(app).toContainText('The switch is about the AI.');
+  await expect(app).toContainText('Anthropic · m-1');
+  await expect.poll(async () => (await told()).at(-1)).toBe(true);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-on-desktop.png'), animations: 'disabled' });
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // 5. The conversation that ran with the provider rests, and says so before anyone types: no conversation changes
+  //    its model silently. It stays readable; nothing can be sent in it.
+  await page.keyboard.press('Control+j');
+  await expect(companion.getByText('Answered by a provider.')).toBeVisible();
+  await expect(companion.getByTestId('ai-local-rests')).toContainText('This conversation ran with m-1 via Anthropic.');
+  await companion.getByTestId('ai-input').fill('And now?');
+  await expect(companion.getByTestId('ai-send')).toBeDisabled();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-rests-desktop.png'), animations: 'disabled' });
+
+  // 6. The way on is a new conversation: it is answered on this computer — without tools, as its user said, and
+  //    without an overview, because nothing leaves. No further request named the provider.
+  await companion.getByTestId('ai-local-new').click();
+  await expect(companion.getByTestId('ai-local-rests')).toHaveCount(0);
+  await companion.getByTestId('ai-input').fill('Where do you run now?');
+  await companion.getByTestId('ai-send').click();
+  await expect(companion.getByText('Answered on this computer.')).toBeVisible();
+  await expect(companion.getByTestId('ai-local-marking')).toHaveText('Fully local: nothing leaves this device.');
+  const sent = await requests();
+  expect(sent.map((request) => request.endpoint)).toEqual(['anthropic', 'ollama']);
+  expect(sent[1].tools).toBe(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-local-answer-desktop.png'), animations: 'disabled' });
+
+  // 7. Switched off again, everything is as it was set up: the provider answers new conversations.
+  await companion.getByTestId('ai-companion-close').click();
+  await expect(companion).toHaveCount(0);
+  dialog = await openAppAi();
+  app = dialog.getByTestId('settings-ai');
+  await app.getByTestId('ai-local-only').click();
+  await expect(app.getByTestId('ai-local-only')).toHaveAttribute('aria-checked', 'false');
+  await expect(app).toContainText('Now: Hybrid — this device sorts, a provider answers');
+  await expect(app).not.toContainText('this rests');
+  await expect.poll(async () => (await told()).at(-1)).toBe(false);
+});

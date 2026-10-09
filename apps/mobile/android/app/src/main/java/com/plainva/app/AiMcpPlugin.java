@@ -241,6 +241,11 @@ public class AiMcpPlugin extends Plugin {
             call.reject("requestId and serverId required");
             return;
         }
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if (AiLocalOnly.on()) {
+            call.reject("local_only");
+            return;
+        }
         String address = servers().getString(serverId, null);
         HttpUrl url = address == null ? null : HttpUrl.parse(address);
         if (url == null) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, Check, CircleAlert, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, PenLine, Pin, Plug, Plus, Scissors, Send, Sparkles, Square } from "lucide-react";
-import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, comparableAddress, hasImages, hasWebTools, knownAddresses, providerById, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
+import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMeta, type RunStop } from "@plainva/core";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -22,7 +22,7 @@ import { startableSkills } from "./aiSkills";
 import { AiSendOverview } from "./AiSendOverview";
 import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { openLearnSurface } from "./aiLearn";
-import { aiFailureText } from "./aiSettingsModel";
+import { aiFailureText, failureRecipient } from "./aiSettingsModel";
 import type { AiDress } from "./aiSession";
 import { externalFailureText, externalOverviewLines, externalPrompts, externalToolLabel, type ExternalPrompt } from "./externalTools";
 import type { McpPromptReview } from "./mcpSession";
@@ -80,9 +80,44 @@ const STOP_KEYS: Partial<Record<RunStop["kind"], string>> = {
 const SETUP_FAILURES = new Set<ModelFailure["kind"]>(["no_key", "invalid_key", "not_found", "unknown_endpoint", "platform_unavailable"]);
 /** Nothing was sent because the conversation ran on this device and was to go to a cloud (ADR 0018). */
 const isKeptOnDevice = (stop: RunStop): boolean => stop.kind === "failed" && stop.failure.kind === "kept_on_device";
+/** Nothing was sent because the device is fully local and the model is not on it (ADR 0030). */
+const isLocalOnly = (stop: RunStop): boolean => stop.kind === "failed" && stop.failure.kind === "local_only";
+/** A rule that held, not something that went wrong: the notice is no error, and the words come back to the field. */
+const isRuleHeld = (stop: RunStop): boolean => isKeptOnDevice(stop) || isLocalOnly(stop);
 
 /** How a provider answers a picture its model cannot read (plan P4-5): it turns the request down. */
 const PICTURE_REFUSALS = new Set<ModelFailure["kind"]>(["refused_by_provider", "provider_error"]);
+
+/** Seconds of silence after which the line of a model on this device says where the thinking happens, and counts. */
+export const WORKING_HERE_AFTER = 10;
+
+/** Minutes and seconds, as a stopwatch shows them. */
+const stopwatch = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+/**
+ * The line that says a run is under way. A model on this device may read for
+ * minutes before its first word (plan KI-Harness P7, ADR 0030): after a few
+ * seconds the line says where the thinking happens and counts along. The
+ * count is hidden from a screen reader, which would otherwise read a number
+ * every second; it hears the line once.
+ */
+export function AiWorkingLine({ here }: { here: boolean }) {
+  const { t } = useTranslation();
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!here) return;
+    const timer = setInterval(() => setSeconds((value) => value + 1), 1000);
+    return () => clearInterval(timer);
+  }, [here]);
+  const counting = here && seconds >= WORKING_HERE_AFTER;
+  return (
+    <p className="pv-ai-working" data-testid={counting ? "ai-working-here" : "ai-working"}>
+      <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
+      {counting ? t("ai.workingHere") : t("ai.working")}
+      {counting && <span aria-hidden="true">· {stopwatch(seconds)}</span>}
+    </p>
+  );
+}
 
 export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, onOpenUrl, onOpenSettings, onPickNote, selection }: AiConversationProps) {
   const { t, i18n } = useTranslation();
@@ -174,6 +209,22 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     );
   }
 
+  // Fully local (plan P7, ADR 0030): only a model on this device answers. A new conversation without one says what
+  // is missing, with the way there; an open one that ran with a provider's model says that it rests.
+  const localOnly = state.settings.localOnly;
+  const rests = localOnly && !runsOnDevice(provider);
+  /** Where a new conversation would start while the device is fully local: one of the user's own choices, or nowhere. */
+  const localStart = localOnly ? localAnswerer(state.settings) : null;
+  if (rests && !active) {
+    return (
+      <div className={cx("pv-ai", touch && "pv-ai--touch")} data-testid="ai-local-empty">
+        <EmptyState icon={<Sparkles size={ICON.empty} />} title={t("ai.mode.emptyTitle")} action={<Button variant="tonal" onClick={onOpenSettings}>{t("ai.empty.setupAction")}</Button>}>
+          {t("ai.mode.emptyBody")}
+        </EmptyState>
+      </div>
+    );
+  }
+
   const live = state.live;
   const running = Boolean(live);
   // A round of this run that is over stands in the transcript already: the live list shows what is still going on.
@@ -187,7 +238,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const effect = state.effect;
   // The internet (plan P4): what a new conversation could do on it, and whether the open one carries it.
   const webOffer = session.webOffer();
-  const withWeb = active ? hasWebTools(active.conversation.tools) && state.web.enabled : state.draftWeb && Boolean(webOffer);
+  // While the device is fully local the internet rests, also for a conversation that was started with it.
+  const withWeb = active ? hasWebTools(active.conversation.tools) && state.web.enabled && !localOnly : state.draftWeb && Boolean(webOffer);
   const toggleWeb = () => {
     // Decided when a conversation starts: an open one may already carry notes that must never meet the internet.
     if (active) toast.info(t("ai.web.fixed"));
@@ -236,11 +288,11 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   };
   const send = () => {
     const text = draft.trim();
-    if (!text || running || consent || effect || !state.hasVault) return;
+    if (!text || running || consent || effect || !state.hasVault || rests) return;
     setDraft("");
-    // Nothing sent (the overview was cancelled, or the conversation stays on this device): the words come back to the field.
+    // Nothing sent (the overview was cancelled, or a rule held — the conversation stays on this device, the device is fully local): the words come back to the field.
     void session.send(text).then((stop) => {
-      if (stop === null || isKeptOnDevice(stop)) setDraft((current) => current || text);
+      if (stop === null || isRuleHeld(stop)) setDraft((current) => current || text);
     });
   };
   // A conversation that ran on this device does not go to a cloud (ADR 0018): the way on is a new one, with the model that was chosen.
@@ -249,6 +301,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     session.newConversation();
     if (chosen) void session.setChoice(chosen);
   };
+  // A conversation that rests while the device is fully local (ADR 0030): the way on is a new one — it starts with the model that answers here.
+  const startLocal = () => session.newConversation();
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     // A soft keyboard has no Shift+Enter: on touch, Enter stays a line break and the button sends.
     if (!touch && event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -459,7 +513,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const pictureRefused = notice?.kind === "failed" && PICTURE_REFUSALS.has(notice.failure.kind) && Boolean(active && hasImages(active.conversation));
   const noticeText = notice
     ? notice.kind === "failed"
-      ? aiFailureText(t, notice.failure, provider.label, choice.model)
+      ? aiFailureText(t, notice.failure, failureRecipient(provider), choice.model)
       : STOP_KEYS[notice.kind]
         ? t(STOP_KEYS[notice.kind]!)
         : null
@@ -473,6 +527,12 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
         {active && withWeb && (
           <span className="pv-ai-marking-web" data-testid="ai-web-marking">
             {t("ai.web.marking")}
+          </span>
+        )}
+        {/* Fully local (plan P7): said for as long as it holds, wherever a conversation is shown. */}
+        {localOnly && !rests && (
+          <span className="pv-ai-marking-web" data-testid="ai-local-marking">
+            {t("ai.mode.marking")}
           </span>
         )}
       </p>
@@ -508,6 +568,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               ))}
             {/* The prompts of foreign servers this vault uses (plan P4.5): started by the user, like a skill — never by the model. */}
             {!extPrompt &&
+              !localOnly &&
               externalPrompts(state.mcp.servers).map((prompt) => (
                 <Chip
                   key={`${prompt.serverId}/${prompt.name}`}
@@ -544,18 +605,37 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             ) : (
               // While a page or a search waits for its answer, nothing is being thought: the question below is the state.
               !effect && (
-                <p className="pv-ai-working">
-                  <LoaderCircle size={ICON.meta} className="pv-ai-spin" aria-hidden="true" />
-                  {t("ai.working")}
-                </p>
+                // Each step waits anew: the line of a model on this device starts to count from its first second.
+                <AiWorkingLine key={live.steps} here={runsOnDevice(provider)} />
               )
             )}
           </div>
         )}
-        {noticeText && (
+        {/* An open conversation whose model is not on this device, while the device is fully local (plan P7): said
+            before anyone types — no conversation changes its model silently. */}
+        {rests && active && (
           <Banner
-            // A conversation that stays on this device is a rule that held, not something that went wrong.
-            kind={notice!.kind === "failed" && !isKeptOnDevice(notice!) ? "error" : "info"}
+            kind="info"
+            rounded
+            actions={
+              localStart ? (
+                <Button size="sm" variant="secondary" onClick={startLocal} data-testid="ai-local-new">
+                  {t("ai.newConversation")}
+                </Button>
+              ) : (
+                <Button size="sm" variant="secondary" onClick={onOpenSettings} data-testid="ai-local-setup">
+                  {t("ai.error.openSetup")}
+                </Button>
+              )
+            }
+          >
+            <span data-testid="ai-local-rests">{t("ai.mode.conversationRests", { model: choice.model, provider: provider.label })}</span>
+          </Banner>
+        )}
+        {noticeText && !(rests && active && isLocalOnly(notice!)) && (
+          <Banner
+            // A conversation that stays on this device, a device that is fully local: a rule that held, not something that went wrong.
+            kind={notice!.kind === "failed" && !isRuleHeld(notice!) ? "error" : "info"}
             rounded
             actions={
               notice!.kind === "failed" && SETUP_FAILURES.has(notice!.failure.kind) ? (
@@ -565,6 +645,10 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               ) : isKeptOnDevice(notice!) ? (
                 <Button size="sm" variant="secondary" onClick={startAnew} data-testid="ai-kept-new">
                   {t("ai.newConversation")}
+                </Button>
+              ) : isLocalOnly(notice!) && !localStart ? (
+                <Button size="sm" variant="secondary" onClick={onOpenSettings} data-testid="ai-local-setup">
+                  {t("ai.error.openSetup")}
                 </Button>
               ) : undefined
             }
@@ -710,7 +794,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
               <Square size={touch ? ICON.touch : ICON.ui} />
             </IconButton>
           ) : (
-            <IconButton label={t("ai.send")} active={Boolean(draft.trim())} disabled={!draft.trim() || !state.hasVault || Boolean(consent)} onClick={send} data-testid="ai-send">
+            <IconButton label={t("ai.send")} active={Boolean(draft.trim()) && !rests} disabled={!draft.trim() || !state.hasVault || Boolean(consent) || rests} onClick={send} data-testid="ai-send">
               <Send size={touch ? ICON.touch : ICON.ui} />
             </IconButton>
           )}
@@ -741,7 +825,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
           <MenuSurface open={menuOpen} onClose={() => setMenuOpen(false)} anchorRef={modelButton} ariaLabel={t("ai.settings.profiles")}>
             {AI_PROFILE_IDS.map((id) => {
               const profile = state.settings.profiles[id];
-              if (!profile) return null;
+              // While the device is fully local, only the profiles whose model runs on it are a choice.
+              if (!profile || (localOnly && !choiceOnDevice(state.settings, profile))) return null;
               const selected = profile.providerId === choice.providerId && profile.model === choice.model;
               return (
                 <MenuItem key={id} active={selected} hint={`${providerLabel(profile.providerId)} · ${profile.model}`} onSelect={() => void session.setChoice(profile)}>

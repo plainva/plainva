@@ -39,6 +39,8 @@ export interface WebToolsHost {
   endpoint: ProviderEndpoint;
   model: string;
   providerLabel: string;
+  /** The window its user stated for a model on this device (plan P7): a page that cannot fit is not sent to be cut without a word. */
+  window?: number;
   /** The vault's switch, asked at every call: switched off in the middle of a conversation, the next call does not go out. */
   enabled(): boolean;
   newRequestId(): string;
@@ -105,6 +107,7 @@ export function createWebExecutor(inner: ToolExecutor, host: WebToolsHost, log: 
         requestId: host.newRequestId(),
         at,
         ...(signal ? { signal } : {}),
+        ...(host.window ? { window: host.window } : {}),
       });
       log.inputTokens += report.usage.inputTokens;
       log.outputTokens += report.usage.outputTokens;

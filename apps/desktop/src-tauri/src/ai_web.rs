@@ -16,7 +16,7 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::State;
 
-use crate::ai_egress::{only_main, AiEgress};
+use crate::ai_egress::{not_while_local, only_main, AiEgress};
 
 const URL_MAX: usize = 2048;
 const MAX_REDIRECTS: usize = 5;
@@ -368,6 +368,8 @@ async fn fetch(start: WebTarget) -> WebFetchResult {
 #[tauri::command]
 pub async fn ai_web_fetch(window: tauri::Window, state: State<'_, AiEgress>, url: String, request_id: String) -> Result<WebFetchResult, String> {
     only_main(&window)?;
+    // Fully local (ADR 0030): no page is read — refused here once more, behind the web view's own check.
+    not_while_local()?;
     let target = match check_web_url(&url) {
         Ok(target) => target,
         Err(problem) => return Ok(refused(problem)),

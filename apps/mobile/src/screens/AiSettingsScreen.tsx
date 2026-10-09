@@ -2,19 +2,25 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, Plus } from "lucide-react";
-import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
+import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ModelChoice, type ProviderInfo } from "@plainva/core";
 import {
   AI_FEEDBACK_URL,
   addableProviders,
   configuredProviders,
+  describesItself,
   getPlatformServices,
   GroupCard,
   HISTORY_DAY_CHOICES,
   ICON,
+  modeFacts,
+  profileFacts,
   providerStatus,
+  readStatedWindow,
   Row,
   RowList,
   SectionLabel,
+  statedChoice,
+  STATED_WINDOW_BOUNDS,
   Switch,
   toast,
   type AiSession,
@@ -70,6 +76,10 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
   const settings = state.settings;
   const rows = configuredProviders(state);
   const labelOf = (id: string) => providerById(id, settings.custom)?.label ?? id;
+  // The mode this device is in (plan KI-Harness P7): the same view model the desktop's card draws.
+  const mode = modeFacts(t, state, i18n.language);
+  /** A profile's line: its provider and model, and what the user said about a model on a server of this device. */
+  const choiceLine = (choice: ModelChoice) => [`${labelOf(choice.providerId)} · ${choice.model}`, ...profileFacts(t, choice, (value) => number.format(value))].join(" · ");
 
   const enterKey = async (provider: ProviderInfo) => {
     const res = await mPrompt({ title: t("ai.settings.keyTitle", { provider: provider.label }), message: t("ai.settings.keyHint"), placeholder: t("ai.settings.keyField"), secure: true });
@@ -176,7 +186,45 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
       if (typed.cancelled || !typed.value.trim()) return;
       model = typed.value.trim();
     }
-    await session.updateSettings((s) => ({ ...s, profiles: { ...s.profiles, [profile]: { providerId, model: model! } } }));
+    if (!model) return;
+    const named = { providerId, model };
+    let choice: ModelChoice = named;
+    // What the user says about a model on a server of this device (plan KI-Harness P7): its window, and whether it
+    // takes tools. A provider's list and the system's own model say both themselves, and neither is asked of a
+    // model that transcribes or embeds.
+    const provider = providerById(providerId, settings.custom);
+    if (!describesItself(provider) && profile !== AI_AUDIO_PROFILE && profile !== AI_EMBEDDING_PROFILE) {
+      const before = settings.profiles[profile];
+      const same = before && before.providerId === providerId && before.model === model ? before : undefined;
+      let window: number | undefined;
+      for (;;) {
+        const typed = await mPrompt({
+          title: t("ai.settings.modelWindow"),
+          message: t("ai.settings.modelWindowDesc"),
+          placeholder: t("ai.settings.modelWindowPlaceholder"),
+          initial: same?.contextTokens ? String(same.contextTokens) : "",
+        });
+        if (typed.cancelled) return;
+        const read = readStatedWindow(typed.value);
+        if (read.ok) {
+          window = read.value;
+          break;
+        }
+        await mConfirm({ title: t("ai.settings.modelWindowInvalid", { min: number.format(STATED_WINDOW_BOUNDS.min), max: number.format(STATED_WINDOW_BOUNDS.max) }) });
+      }
+      const tools = await mSelect({
+        title: t("ai.settings.modelTools"),
+        message: t("ai.settings.modelToolsDesc"),
+        options: [
+          { value: "on", label: t("ai.settings.modelTools") },
+          { value: "off", label: t("ai.settings.modelToolsNo") },
+        ],
+        value: same?.tools === false ? "off" : "on",
+      });
+      if (!tools) return;
+      choice = statedChoice(provider, named, { window, tools: tools === "on" });
+    }
+    await session.updateSettings((s) => ({ ...s, profiles: { ...s.profiles, [profile]: choice } }));
   };
 
   return (
@@ -202,6 +250,44 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
         </GroupCard>
         <p className="m-hint">{t("ai.settings.experimental")}</p>
 
+        {/* The mode this device is in, and the one switch that promises something (plan KI-Harness P7). */}
+        {settings.enabled && (
+          <>
+            <SectionLabel>{t("ai.mode.title")}</SectionLabel>
+            <GroupCard>
+              <RowList>
+                <Row wrap title={mode.title} subtitle={mode.body} data-testid="ai-mode-now" />
+                {mode.empty && <Row icon={<Plus size={ICON.ui} />} title={t("ai.mode.setUp")} onClick={() => void addProvider()} data-testid="ai-mode-setup" />}
+                <Row
+                  wrap
+                  title={t("ai.mode.switch")}
+                  subtitle={t("ai.mode.switchDesc")}
+                  end={<Switch checked={mode.localOnly} label={t("ai.mode.switch")} onChange={(on) => void session.updateSettings((s) => ({ ...s, localOnly: on }))} />}
+                  data-testid="ai-local-only"
+                />
+              </RowList>
+            </GroupCard>
+            {mode.localOnly ? (
+              <>
+                {/* Only what is set up is listed: a row per thing that rests, each with what resting means for it. */}
+                <p className="m-hint">{mode.rests.length ? t("ai.mode.rests.title") : t("ai.mode.rests.none")}</p>
+                {mode.rests.length > 0 && (
+                  <GroupCard>
+                    <RowList>
+                      {mode.rests.map((rest) => (
+                        <Row key={rest.kind} wrap title={rest.label} subtitle={rest.desc} data-testid="ai-mode-rest" />
+                      ))}
+                    </RowList>
+                  </GroupCard>
+                )}
+                <p className="m-hint">{t("ai.mode.notThis")}</p>
+              </>
+            ) : (
+              <p className="m-hint">{t("ai.mode.note")}</p>
+            )}
+          </>
+        )}
+
         <SectionLabel>{t("ai.settings.providers")}</SectionLabel>
         <GroupCard>
           <RowList>
@@ -225,9 +311,10 @@ export function AiSettingsScreen({ onBack }: { onBack: () => void }) {
                 <Row
                   key={id}
                   title={t(`ai.profile.${id}`)}
-                  subtitle={choice ? `${labelOf(choice.providerId)} · ${choice.model}` : t("ai.settings.profileEmpty")}
+                  subtitle={choice ? choiceLine(choice) : t("ai.settings.profileEmpty")}
                   disabled={rows.length === 0}
                   onClick={() => void chooseModel(id)}
+                  data-testid={`ai-profile-${id}`}
                 />
               );
             })}

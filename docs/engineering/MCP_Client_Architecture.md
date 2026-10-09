@@ -190,6 +190,8 @@ added ──► new ──(the user reviews the listing)──► approved
 
 Nothing of a `new` or `blocked` server is offered to a model.
 
+While "Fully local" is on ([ADR 0030](../adr/0030-ai-fully-local-and-models-on-this-device.md), decision 4) nothing of any server is: none is offered, listed anew, asked, signed in to or called — a program on this computer included, because what it passes on nobody here can see. Switching it on ends the connections and the programs that run, and the native commands that send or start (`mcp_client_http`, `mcp_client_start`, the sign-in's requests) refuse on their own. A server keeps its state; it rests.
+
 ## What Plainva remembers, and where
 
 Three places, because three things are decided in three places.

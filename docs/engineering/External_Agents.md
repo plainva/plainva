@@ -92,6 +92,8 @@ Where "Let AI apps on this computer read this vault" is on, `session/new` names 
 
 No agent's modes, models, configuration or commands; no images or audio in a prompt; no history and no reloading of a session; no withdrawal of an earlier round when a later turn changes the same note; no fence around the process. The reasons are in ADR 0025 under "Deferred".
 
+While "Fully local" is on ([ADR 0030](../adr/0030-ai-fully-local-and-models-on-this-device.md), decision 4) no agent is started and none signs in: the session refuses before it asks anything, `acp_start` and `acp_login` refuse on the native side, and switching it on ends the sessions that run. The card and the agent's view say that it rests; what is registered stays.
+
 ## Verified, and not
 
 - The protocol client, the files' rules, the session and the surfaces run against the scripted agent: unit tests in `packages/core/src/ai/acp/` and `apps/desktop/src/ai/`, one end-to-end test (`apps/desktop/e2e/smoke.spec.ts`, "AI external agents").

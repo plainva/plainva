@@ -221,6 +221,22 @@ export const SEMANTIC_BY_PROVIDER = "provider";
 export interface ModelChoice {
   providerId: string;
   model: string;
+  /**
+   * What the user said about a model on this device (plan P7, ADR 0030): a
+   * server on this computer names its models, but neither their window nor
+   * whether they call tools. Unset means unknown.
+   */
+  contextTokens?: number;
+  /** False: the model is given no tools and answers from what goes along. */
+  tools?: boolean;
+}
+
+/** The window a user may state: no smaller than a model worth a context has, no larger than any model has. */
+export const MODEL_WINDOW_MIN = 1_024;
+export const MODEL_WINDOW_MAX = 2_000_000;
+
+export function isModelWindow(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= MODEL_WINDOW_MIN && value <= MODEL_WINDOW_MAX;
 }
 
 export interface AiAppSettings {
@@ -274,6 +290,14 @@ export interface AiAppSettings {
    * it tells the system nothing.
    */
   systemFind: boolean;
+  /**
+   * "Fully local" (plan P7, ADR 0030): while it is on, only models on this
+   * device answer — a server on this computer or the system's own model —,
+   * and nothing the assistant handles goes to a provider, to the internet
+   * or to another program. Per device, off until chosen. It chooses no
+   * model and changes no profile; the egress holds it (`localOnlyEgress`).
+   */
+  localOnly: boolean;
 }
 
 export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
@@ -291,6 +315,7 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   relatedNotes: true,
   gists: false,
   systemFind: false,
+  localOnly: false,
 };
 
 /** Reads stored settings defensively: a damaged value falls back field by field. */
@@ -301,7 +326,13 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
   for (const id of [...AI_PROFILE_IDS, AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE] as const) {
     const choice = rawProfiles[id] as Partial<ModelChoice> | undefined;
     if (choice && typeof choice.providerId === "string" && typeof choice.model === "string" && choice.model.trim()) {
-      profiles[id] = { providerId: choice.providerId, model: choice.model.trim() };
+      profiles[id] = {
+        providerId: choice.providerId,
+        model: choice.model.trim(),
+        // What the user said about the model: kept only where it reads as what it must be.
+        ...(isModelWindow(choice.contextTokens) ? { contextTokens: choice.contextTokens } : {}),
+        ...(choice.tools === false ? { tools: false } : {}),
+      };
     }
   }
   const custom = Array.isArray(value.custom)
@@ -344,10 +375,120 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
     relatedNotes: typeof value.relatedNotes === "boolean" ? value.relatedNotes : defaults.relatedNotes,
     gists: typeof value.gists === "boolean" ? value.gists : defaults.gists,
     systemFind: typeof value.systemFind === "boolean" ? value.systemFind : defaults.systemFind,
+    localOnly: typeof value.localOnly === "boolean" ? value.localOnly : defaults.localOnly,
   };
 }
 
-/** The model a new conversation starts with: the default profile, else the first filled one. */
+/** A model that runs on this device: a server on this computer, or the system's own model on the device. */
+export function runsOnDevice(provider: Pick<ProviderInfo, "kind"> | null | undefined): boolean {
+  return provider?.kind === "local" || provider?.kind === "platform-device";
+}
+
+/** Whether a choice of model names one that runs on this device. */
+export function choiceOnDevice(settings: Pick<AiAppSettings, "custom">, choice: Pick<ModelChoice, "providerId"> | null | undefined): boolean {
+  return choice ? runsOnDevice(providerById(choice.providerId, settings.custom)) : false;
+}
+
+/** The model a new conversation starts with by the profiles alone: the default one, else the first filled one. */
+function profileStart(settings: Pick<AiAppSettings, "profiles" | "defaultProfile">): { profile: AiProfileId; choice: ModelChoice } | null {
+  for (const profile of [settings.defaultProfile, ...AI_PROFILE_IDS]) {
+    const choice = settings.profiles[profile];
+    if (choice) return { profile, choice };
+  }
+  return null;
+}
+
+/**
+ * The model that answers while a device is fully local: the default profile
+ * where its model runs here, else the profile "Local", else the first chat
+ * profile whose model does. Null where none does — the switch picks no
+ * provider, it only says which of the user's own choices qualify.
+ */
+export function localAnswerer(settings: Pick<AiAppSettings, "profiles" | "defaultProfile" | "custom">): { profile: AiProfileId; choice: ModelChoice } | null {
+  for (const profile of [settings.defaultProfile, "local" as const, ...AI_PROFILE_IDS]) {
+    const choice = settings.profiles[profile];
+    if (choice && choiceOnDevice(settings, choice)) return { profile, choice };
+  }
+  return null;
+}
+
+/**
+ * The model a new conversation starts with: the default profile, else the
+ * first filled one. While the device is fully local it is the one of the
+ * user's choices that runs on it; where none does, the ordinary one stays
+ * named — the egress then refuses it, and the reader is told which provider
+ * is not this device instead of that nothing was chosen.
+ */
 export function initialModelChoice(settings: AiAppSettings): ModelChoice | null {
-  return settings.profiles[settings.defaultProfile] ?? AI_PROFILE_IDS.map((id) => settings.profiles[id]).find(Boolean) ?? null;
+  const start = profileStart(settings)?.choice ?? null;
+  return settings.localOnly ? (localAnswerer(settings)?.choice ?? start) : start;
+}
+
+/**
+ * What the user said about a model, wherever a profile names it (plan P7):
+ * its window, and whether it is given tools. A conversation knows its
+ * provider and its model, not the profile it was started from — so the
+ * statement belongs to the pair, and the first profile that makes one counts.
+ */
+export function statedModelFacts(settings: Pick<AiAppSettings, "profiles">, providerId: string, model: string): { contextTokens?: number; tools?: false } {
+  for (const id of [...AI_PROFILE_IDS, AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE] as const) {
+    const choice = settings.profiles[id];
+    if (!choice || choice.providerId !== providerId || choice.model !== model) continue;
+    if (choice.contextTokens === undefined && choice.tools !== false) continue;
+    return { ...(choice.contextTokens !== undefined ? { contextTokens: choice.contextTokens } : {}), ...(choice.tools === false ? { tools: false as const } : {}) };
+  }
+  return {};
+}
+
+/** What this device computes for the AI by itself, beside whoever answers (plan §19.2). */
+export type DeviceHelper = "search" | "reader" | "gists";
+
+/**
+ * The helpers that run on this device: search by meaning with a package of
+ * its own or an embedding model on it; the model of the profile "Local",
+ * which reads e-mails and appointments for a conversation; and the gists it
+ * writes, where they are switched on.
+ */
+export function deviceHelpers(settings: Pick<AiAppSettings, "profiles" | "custom" | "semanticModel" | "gists">): DeviceHelper[] {
+  const helpers: DeviceHelper[] = [];
+  const byProvider = settings.semanticModel === SEMANTIC_BY_PROVIDER;
+  if (settings.semanticModel !== null && (!byProvider || choiceOnDevice(settings, settings.profiles[AI_EMBEDDING_PROFILE]))) helpers.push("search");
+  if (choiceOnDevice(settings, settings.profiles.local)) {
+    helpers.push("reader");
+    if (settings.gists) helpers.push("gists");
+  }
+  return helpers;
+}
+
+/**
+ * The state a device is in (plan §19.2). Only "local" is chosen and
+ * promises something; the others are what the user's own choices amount
+ * to: "none" while no profile names a model, "cloud" where a provider
+ * answers and this device computes nothing itself, "hybrid" where a
+ * provider answers and this device helps, "device" where a model on this
+ * device answers new conversations — without any promise about the rest.
+ */
+export type OperatingMode = "none" | "cloud" | "hybrid" | "device" | "local";
+
+export function operatingMode(settings: AiAppSettings): OperatingMode {
+  if (settings.localOnly) return "local";
+  const start = profileStart(settings);
+  if (!start) return "none";
+  if (choiceOnDevice(settings, start.choice)) return "device";
+  return deviceHelpers(settings).length ? "hybrid" : "cloud";
+}
+
+/** The profile and model the state line names: who answers a new conversation. */
+export function modeAnswerer(settings: AiAppSettings): { profile: AiProfileId; choice: ModelChoice } | null {
+  return settings.localOnly ? localAnswerer(settings) : profileStart(settings);
+}
+
+/** The AI apps on this computer are served: with the AI on, the switch on, and the device not fully local. */
+export function mcpServerOn(settings: Pick<AiAppSettings, "enabled" | "mcpEnabled" | "localOnly">): boolean {
+  return settings.enabled && settings.mcpEnabled && !settings.localOnly;
+}
+
+/** The system's assistant is told the titles of notes: with the AI on, the switch on, and the device not fully local. */
+export function systemFindOn(settings: Pick<AiAppSettings, "enabled" | "systemFind" | "localOnly">): boolean {
+  return settings.enabled && settings.systemFind && !settings.localOnly;
 }

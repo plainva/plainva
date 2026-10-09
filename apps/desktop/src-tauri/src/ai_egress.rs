@@ -19,6 +19,7 @@
 use base64::Engine as _;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -35,6 +36,19 @@ const MAX_ERROR_BODY_BYTES: usize = 64 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 /// A stream that sends nothing for this long is dead, not slow.
 const IDLE_TIMEOUT: Duration = Duration::from_secs(180);
+/// A model on this computer may read for minutes before it says a word: a
+/// server on a laptop's processor takes that long with a long conversation and
+/// sends nothing until it has read it. It gets this long instead (ADR 0030).
+const LOCAL_IDLE_TIMEOUT: Duration = Duration::from_secs(900);
+
+/// "Fully local" (ADR 0030): while it is on, nothing of the assistant leaves
+/// this device. The web view holds that promise first — its one egress answers
+/// every request for anyone but this device itself. This is the same rule once
+/// more, behind it: against a mistake in the web view's own code, not against a
+/// web view that was taken over, which could switch it off the way it is
+/// switched on. The web view tells it when the settings are read and whenever
+/// the switch changes; until then it is off, like the switch itself.
+static LOCAL_ONLY: AtomicBool = AtomicBool::new(false);
 
 /// Where a provider expects its key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -144,6 +158,21 @@ fn normalize_base(raw: &str) -> Result<String, String> {
 
 fn is_loopback(host: &str) -> bool {
     host == "localhost" || host == "127.0.0.1" || host == "[::1]" || host == "::1"
+}
+
+/// An endpoint on this device: a server under this computer's own address.
+/// A server in the home network is not this device, however near it stands.
+fn on_this_device(endpoint: &Endpoint) -> bool {
+    reqwest::Url::parse(&endpoint.base).ok().and_then(|url| url.host_str().map(is_loopback)).unwrap_or(false)
+}
+
+/// How long a recipient may be silent before its request counts as dead.
+fn silence_limit(endpoint: &Endpoint) -> Duration {
+    if on_this_device(endpoint) {
+        LOCAL_IDLE_TIMEOUT
+    } else {
+        IDLE_TIMEOUT
+    }
 }
 
 /// The request URL must lie under the endpoint's base — compared on the
@@ -308,6 +337,21 @@ pub(crate) fn only_main(window: &tauri::Window) -> Result<(), String> {
     }
 }
 
+/// Whether the device is fully local right now (see `LOCAL_ONLY`).
+pub(crate) fn local_only() -> bool {
+    LOCAL_ONLY.load(Ordering::SeqCst)
+}
+
+/// For a command that sends something for the assistant, or starts a program
+/// for it: refused while the device is fully local.
+pub(crate) fn not_while_local() -> Result<(), String> {
+    if local_only() {
+        Err("local_only".into())
+    } else {
+        Ok(())
+    }
+}
+
 impl AiEgress {
     /// Registers a running request so STOP (`ai_http_cancel`) reaches it; the receiver fires when it is named.
     /// The page fetch (ai_web.rs) shares the one list: the web view stops a model call and a fetch the same way.
@@ -341,6 +385,11 @@ pub async fn ai_http(
         Ok(endpoint) => endpoint,
         Err(message) => return fail("unknown_endpoint", &message),
     };
+    // Fully local: a request for anyone but this device is answered here and sent nowhere.
+    if local_only() && !on_this_device(&endpoint) {
+        return fail("local_only", "fully local: the recipient is not this device");
+    }
+    let idle = silence_limit(&endpoint);
     let url = match url_allowed(&endpoint, &request.url) {
         Ok(url) => url,
         Err(message) => return fail("url_not_allowed", &message),
@@ -410,7 +459,7 @@ pub async fn ai_http(
     let outcome = async {
         let mut response = tokio::select! {
             _ = &mut cancel_rx => return AiChunk::Cancelled,
-            result = tokio::time::timeout(IDLE_TIMEOUT, builder.send()) => match result {
+            result = tokio::time::timeout(idle, builder.send()) => match result {
                 Err(_) => return AiChunk::Failed { code: "idle_timeout".into(), message: "the provider did not answer".into() },
                 Ok(Err(e)) => return AiChunk::Failed { code: "network".into(), message: redact(&e.to_string(), key.as_deref()) },
                 Ok(Ok(response)) => response,
@@ -429,7 +478,7 @@ pub async fn ai_http(
             while body.len() < MAX_ERROR_BODY_BYTES {
                 let next = tokio::select! {
                     _ = &mut cancel_rx => return AiChunk::Cancelled,
-                    chunk = tokio::time::timeout(IDLE_TIMEOUT, response.chunk()) => chunk,
+                    chunk = tokio::time::timeout(idle, response.chunk()) => chunk,
                 };
                 match next {
                     Ok(Ok(Some(bytes))) => body.extend_from_slice(&bytes),
@@ -445,7 +494,7 @@ pub async fn ai_http(
         loop {
             let next = tokio::select! {
                 _ = &mut cancel_rx => return AiChunk::Cancelled,
-                chunk = tokio::time::timeout(IDLE_TIMEOUT, response.chunk()) => chunk,
+                chunk = tokio::time::timeout(idle, response.chunk()) => chunk,
             };
             match next {
                 Err(_) => return AiChunk::Failed { code: "idle_timeout".into(), message: "the provider stopped sending".into() },
@@ -478,6 +527,14 @@ pub async fn ai_http(
 pub fn ai_http_cancel(state: State<'_, AiEgress>, request_id: String) -> Result<bool, String> {
     let sender = state.running.lock().map_err(|_| "lock failed".to_string())?.remove(&request_id);
     Ok(sender.map(|s| s.send(()).is_ok()).unwrap_or(false))
+}
+
+/// Tells this side whether the device is fully local (see `LOCAL_ONLY`).
+#[tauri::command]
+pub fn ai_local_only_set(window: tauri::Window, on: bool) -> Result<(), String> {
+    only_main(&window)?;
+    LOCAL_ONLY.store(on, Ordering::SeqCst);
+    Ok(())
 }
 
 /// Stores a provider key. Write-only: there is no command that reads it back.
@@ -668,5 +725,44 @@ mod tests {
         assert!(normalize_base("http://example.org/v1").is_err());
         assert!(normalize_base("https://user:pw@example.org/").is_err());
         assert!(normalize_base("file:///etc/passwd").is_err());
+    }
+
+    #[test]
+    fn only_a_server_under_this_computers_own_address_is_this_device() {
+        for id in ["ollama", "lmstudio"] {
+            assert!(on_this_device(&builtin(id).unwrap()), "{id}");
+        }
+        for id in ["anthropic", "openai", "gemini", "openrouter"] {
+            assert!(!on_this_device(&builtin(id).unwrap()), "{id}");
+        }
+        let user = |base: &str| Endpoint { base: base.to_string(), auth: AuthStyle::Bearer, needs_key: false, official_openai: false };
+        assert!(on_this_device(&user("http://localhost:8080/v1/")));
+        assert!(on_this_device(&user("http://127.0.0.1:1234/")));
+        assert!(on_this_device(&user("http://[::1]:8080/")));
+        // A server in the home network is not this device, however near it stands.
+        assert!(!on_this_device(&user("https://nas.example/v1/")));
+        assert!(!on_this_device(&user("https://192.168.1.20/v1/")));
+        assert!(!on_this_device(&user("not a url")));
+    }
+
+    #[test]
+    fn a_model_on_this_computer_may_be_silent_longer_than_anyone_else() {
+        let user = |base: &str| Endpoint { base: base.to_string(), auth: AuthStyle::Bearer, needs_key: false, official_openai: false };
+        assert_eq!(silence_limit(&builtin("ollama").unwrap()), LOCAL_IDLE_TIMEOUT);
+        assert_eq!(silence_limit(&user("http://localhost:8080/v1/")), LOCAL_IDLE_TIMEOUT);
+        assert_eq!(silence_limit(&openai()), IDLE_TIMEOUT);
+        assert_eq!(silence_limit(&user("https://nas.example/v1/")), IDLE_TIMEOUT);
+        assert!(LOCAL_IDLE_TIMEOUT > IDLE_TIMEOUT);
+    }
+
+    #[test]
+    fn fully_local_is_off_until_told_and_refuses_while_it_is_on() {
+        assert!(!local_only());
+        assert!(not_while_local().is_ok());
+        LOCAL_ONLY.store(true, Ordering::SeqCst);
+        assert!(local_only());
+        assert_eq!(not_while_local(), Err("local_only".to_string()));
+        LOCAL_ONLY.store(false, Ordering::SeqCst);
+        assert!(not_while_local().is_ok());
     }
 }

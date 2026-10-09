@@ -233,6 +233,8 @@ public class AiMcpAuthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// A document a server names for its sign-in (its resource metadata, RFC 9728). No secret, and none is sent.
     @objc func document(_ call: CAPPluginCall) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if AiLocalOnly.on { call.reject("local_only"); return }
         guard let serverUrl = address(call.getString("serverId")), let target = AiMcpOAuthRules.oauthAddress(call.getString("url"), serverUrl: serverUrl) else {
             call.reject("oauth-address"); return
         }
@@ -248,6 +250,8 @@ public class AiMcpAuthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// Reads an authorization server's metadata from an address on its own origin and keeps it for the sign-in.
     @objc func issuer(_ call: CAPPluginCall) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if AiLocalOnly.on { call.reject("local_only"); return }
         let issuer = call.getString("issuer")
         let url = call.getString("url")
         guard let serverId = call.getString("serverId"), let serverUrl = address(serverId), let named = issuer,
@@ -273,6 +277,8 @@ public class AiMcpAuthPlugin: CAPPlugin, CAPBridgedPlugin {
     /// makes the verifier and the state, and answers with the address to open.
     /// The verifier stays here.
     @objc func begin(_ call: CAPPluginCall) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if AiLocalOnly.on { call.reject("local_only"); return }
         let kind = call.getString("clientKind") ?? ""
         let givenId = call.getString("clientId") ?? ""
         let clientName = call.getString("clientName") ?? "Plainva"
@@ -334,6 +340,8 @@ public class AiMcpAuthPlugin: CAPPlugin, CAPBridgedPlugin {
     /// what was begun, exchanges the code and keeps the tokens. Answers with
     /// the id of the server that is signed in to now — and with nothing else.
     @objc func finish(_ call: CAPPluginCall) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if AiLocalOnly.on { call.reject("local_only"); return }
         let state = call.getString("state")
         let code = call.getString("code")
         let iss = call.getString("iss")
@@ -386,6 +394,8 @@ public class AiMcpAuthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// Gets a new token with the one kept for that. False where there is none, or it was refused.
     @objc func renew(_ call: CAPPluginCall) {
+        // Fully local (ADR 0030): refused here once more — the web view does not get this far while the switch is on.
+        if AiLocalOnly.on { call.reject("local_only"); return }
         guard let serverId = call.getString("serverId"), let serverUrl = address(serverId) else { call.resolve(["renewed": false]); return }
         AiMcpAuthPlugin.work.async {
             if let last = AiMcpAuthPlugin.renewed[serverId], Date().timeIntervalSince(last) < AiMcpAuthPlugin.recentSeconds {

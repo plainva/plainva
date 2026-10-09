@@ -462,6 +462,7 @@ function AgentSession({ current, activeNote, onOpenNote, onOpenPath, onOpenUrl }
 }
 
 export function AiAgentView({ activeNote, onOpenNote, onOpenPath, onOpenUrl, onOpenSettings }: AiAgentViewProps) {
+  const { t } = useTranslation();
   const session = useAiSession();
   const state = useAiState();
   useEffect(() => {
@@ -471,5 +472,22 @@ export function AiAgentView({ activeNote, onOpenNote, onOpenPath, onOpenUrl, onO
   if (!session || !state || !state.agents.available) return null;
   const current = state.agents.session;
   if (current) return <AgentSession current={current} activeNote={activeNote} onOpenNote={onOpenNote} onOpenPath={onOpenPath} onOpenUrl={onOpenUrl} />;
+  // Fully local (plan KI-Harness P7, ADR 0030): no agent is started — it is another maker's program with a way out
+  // of its own. The agents of this device stay registered; a session that ran ended with the switch.
+  if (state.settings.localOnly) {
+    return (
+      <EmptyState
+        icon={<Bot size={ICON.empty} />}
+        title={t("ai.agent.title")}
+        action={
+          <Button variant="secondary" onClick={onOpenSettings} data-testid="ai-agent-rests-setup">
+            {t("ai.error.openSetup")}
+          </Button>
+        }
+      >
+        <span data-testid="ai-agent-rests">{`${t("ai.mode.restsHere")} ${t("ai.mode.rests.agents")}`}</span>
+      </EmptyState>
+    );
+  }
   return <AgentStart agents={state.agents} onOpenSettings={onOpenSettings} toolsOn={state.settings.mcpEnabled === true} />;
 }

@@ -17,6 +17,7 @@ import {
   type InstructionIO,
   type LedgerEntry,
   type McpServerGrant,
+  type ModelChoice,
   type ScriptedMcpServer,
   type ScriptedOAuth,
   type ToolResultPart,
@@ -188,7 +189,8 @@ export const LOCAL = { providerId: "ollama", model: "granite3.3:8b" };
 export interface McpSessionOptions {
   /** The server behind the tracker's address; `tracker()` where none is given. */
   server?: ScriptedMcpServer;
-  profiles?: Record<string, { providerId: string; model: string }>;
+  /** The profiles' choices — with what a user said about a model on this device, where a case needs it. */
+  profiles?: Record<string, ModelChoice>;
   /** Further servers: a remote one by its address, a program by its command line. */
   others?: Record<string, ScriptedMcpServer>;
   /** The shell starts programs, as the desktop does. */
