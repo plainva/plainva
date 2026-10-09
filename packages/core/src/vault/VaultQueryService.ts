@@ -17,8 +17,8 @@ function needsTaskProgress(config: any): boolean {
 import { findMatchesInText, type FindReplaceOptions, type TextMatch } from "./findReplace.js";
 import { contentHasTag } from "./renameTag.js";
 import { readFrontmatterPath } from "../frontmatter-surgical.js";
-import { likeContainsAnySpelling } from "../db/likeEscape.js";
-import type { LinkTargetIndex } from "./LinkResolver.js";
+import { likeAnySpelling } from "../db/likeEscape.js";
+import { buildLinkTargetIndex, linkTargetName, resolveLinkTargetIndexed, type LinkTargetIndex } from "./LinkResolver.js";
 import { aggregateRollup, normalizeRollup, wikiLinkTarget, type RollupSpec } from "./rollup.js";
 import { findSearchOccurrences, markSearchMatches, type SearchOccurrence } from "./searchOccurrences.js";
 import { hasSpacelessText } from "./spacelessText.js";
@@ -93,7 +93,7 @@ export interface TaskAnchorRecord {
 }
 
 // The pre-filter of the backlinks; the pickers above the core narrow a list of names with it too.
-export { likeContainsAnySpelling };
+export { likeAnySpelling };
 
 /** A file as the link rule reads it from the index (`VaultQueryService.linkTargets`). */
 export interface LinkTargetRow {
@@ -620,50 +620,44 @@ export class VaultQueryService {
    * the name: the note beside the linking one can then not come first.
    */
   async resolveNotePath(target: string, sourcePath?: string): Promise<string | null> {
-    const { resolveLinkTargetIndexed, linkTargetName } = await import("./LinkResolver.js");
     const name = linkTargetName(target);
     if (!name) return null;
     return resolveLinkTargetIndexed(sourcePath ?? "", name, await this.linkLookup());
   }
 
   /**
-   * The lookup over `linkTargets()` for one answer. Callers that ask while a
-   * read is under way share it — a note full of embeds asks once, not once
-   * per embed — and nothing is kept once it has answered: the next question
-   * reads the index again, so an answer is never older than its own read.
+   * The lookup over `linkTargets()` for one answer. Callers that ask in one
+   * turn share a read — a note full of embeds asks once, not once per embed.
+   * The read begins only after they have all asked, and whoever asks once it
+   * has begun gets a read of its own: an answer is never older than the
+   * question, so a note the indexer has just taken in is found by the very
+   * next question (a shared read that was already under way answered "no such
+   * note" for it). Nothing is kept once it has answered.
    */
   private linkLookup(): Promise<LinkTargetIndex> {
-    this.linkLookupUnderWay ??= (async () => {
-      const { buildLinkTargetIndex } = await import("./LinkResolver.js");
+    this.linkLookupAhead ??= Promise.resolve().then(async () => {
+      this.linkLookupAhead = null;
       return buildLinkTargetIndex(await this.linkTargets());
-    })().finally(() => {
-      this.linkLookupUnderWay = null;
     });
-    return this.linkLookupUnderWay;
+    return this.linkLookupAhead;
   }
-  private linkLookupUnderWay: Promise<LinkTargetIndex> | null = null;
+  private linkLookupAhead: Promise<LinkTargetIndex> | null = null;
 
   /**
    * A file by its bare basename, anywhere in the vault — how Obsidian writes
    * and finds attachments (`![[foto.png]]`, the file in its attachments
-   * folder). Notes and attachments alike; the note's own folder wins on a
-   * tie, then the shortest path (the same rule as the link resolver).
-   * Folder segments are compared in NFC so a folder the iOS Files app hands
-   * back decomposed still matches (Build-91 feedback, P3).
+   * folder). Notes and attachments alike, by the link rule
+   * (`resolveLinkTargetIndexed`), read from the note at `nearPath`: of several
+   * files of one name the one beside that note comes first, then the shorter
+   * path, then the alphabet. A query of its own stood here until 2026-10-09 —
+   * it folded A to Z only (`![[übersicht.png]]` did not find `Übersicht.png`,
+   * which the phone and the graph did), looked at fifty rows at most and left
+   * two paths of one length to the order the database handed them out.
    */
   async findByFileName(basename: string, nearPath?: string): Promise<string | null> {
-    const name = basename.trim().normalize("NFC");
+    const name = basename.trim();
     if (!name || name.includes("/") || name.includes("\\")) return null;
-    const escaped = name.replace(/[\\%_]/g, "\\$&");
-    const rows = await this.db.query<{ path: string }>(
-      `SELECT path FROM files WHERE path = ? COLLATE NOCASE OR path LIKE ? ESCAPE '\\' COLLATE NOCASE ORDER BY length(path) LIMIT 50`,
-      [name, `%/${escaped}`],
-    );
-    const hits = rows.map((r) => r.path).filter((p) => (p.split(/[/\\]/).pop() ?? "").normalize("NFC").toLowerCase() === name.toLowerCase());
-    if (hits.length === 0) return null;
-    const nearDir = nearPath && nearPath.includes("/") ? nearPath.slice(0, nearPath.lastIndexOf("/")).normalize("NFC") : "";
-    const sameFolder = hits.find((p) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "").normalize("NFC") === nearDir);
-    return sameFolder ?? hits[0];
+    return resolveLinkTargetIndexed(nearPath ?? "", name, await this.linkLookup());
   }
 
   /**
@@ -677,37 +671,45 @@ export class VaultQueryService {
     // renames silently broke every reference.
     const files = await this.linkTargets();
 
-    // 2. Fetch the links that COULD mean this file: their target contains its
-    // name or, for a note whose properties carry a title of their own, that
-    // title (step 5 of the rule) — in any spelling the rule reads as the same
-    // name (`likeContainsAnySpelling`); the resolution below decides.
+    // 2. Fetch the links that COULD mean this file. A link the rule leads here
+    // names the file at its END — the file's name alone or behind folders, for
+    // a note with or without `.md` — or is, as a whole, the title a note's
+    // properties carry (step 5 of the rule). Each in any spelling the rule
+    // reads as the same name (`likeAnySpelling`); the resolution below decides.
+    // The patterns are anchored at the end of the target: "contains the name"
+    // fetched every link onto `Briefkasten` and `Briefe/…` for the note
+    // `Brief`, and for a name written in letters beyond ASCII every link row
+    // of the vault.
     // Ordered (finding 2026-09-19): the statement had no ORDER BY, so the rows
     // came in whatever order the link table held them and the same note could
     // list its backlinks differently from one open to the next. Path and line
     // make the base order definite; the panels sort by the reader's choice on
     // top of it, using the title and the time that ride along here.
-    const isNote = /\.md$/i.test(targetPath);
-    const names = [(targetPath.split(/[/\\]/).pop() ?? "").replace(/\.md$/i, "")];
+    const fileName = targetPath.split(/[/\\]/).pop() ?? "";
+    const isNote = /\.md$/i.test(fileName);
+    const patterns = new Set<string>();
+    for (const spelling of likeAnySpelling(isNote ? fileName.replace(/\.md$/i, "") : fileName)) {
+      for (const tail of isNote ? [spelling, `${spelling}.md`] : [spelling]) {
+        patterns.add(tail);
+        patterns.add(`%/${tail}`);
+      }
+    }
     const ownTitle = isNote ? files.find((f) => f.path === targetPath)?.title : null;
-    if (typeof ownTitle === "string" && ownTitle.trim()) names.push(ownTitle.trim());
-    const patterns = [...new Set(names.map(likeContainsAnySpelling))];
+    if (typeof ownTitle === "string" && ownTitle.trim()) for (const spelling of likeAnySpelling(ownTitle.trim())) patterns.add(spelling);
     const sql = `
       SELECT f.path as source_path, f.title as source_title, f.mtime_local as source_mtime,
         l.target_path, l.link_type, l.anchor, l.line_number, l.property_key
       FROM links l
       JOIN files f ON f.id = l.source_id
-      WHERE ${patterns.map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")}
+      WHERE ${[...patterns].map(() => `l.target_path LIKE ? ESCAPE '\\'`).join(" OR ")}
       ORDER BY f.path COLLATE NOCASE ASC, l.line_number ASC
     `;
-    const candidateLinks = await this.db.query<LinkRecord>(sql, patterns);
+    const candidateLinks = await this.db.query<LinkRecord>(sql, [...patterns]);
 
     // 3. Resolve each link and filter by exact match to targetPath. The corpus
     // index is built ONCE (P2.3) — resolving per candidate against the raw
     // array was O(candidates × files) and ran on every file switch.
     const resolvedLinks: LinkRecord[] = [];
-
-    // Dynamically import resolveLinkTarget to avoid circular deps or complex setup
-    const { buildLinkTargetIndex, resolveLinkTargetIndexed } = await import("./LinkResolver.js");
     const corpus = buildLinkTargetIndex(files);
 
     for (const link of candidateLinks) {
@@ -1093,11 +1095,14 @@ export class VaultQueryService {
    * file reads). Powers the bookmarks list, which only stores paths yet must
    * show the same display name as the file tree: `title` is the frontmatter
    * `title` or, by default, the file name, and `mode` distinguishes
-   * attachments so they keep their extension.
+   * attachments so they keep their extension. The rows are those of
+   * `linkTargets()` — a file queued for deletion is none of them: both shells
+   * draw their links from this map, and a link is drawn as "not created yet"
+   * exactly where a click would create the note.
    */
   async getDocumentTitles(): Promise<Map<string, { title: string; mode: string }>> {
     const rows = await this.db.query<{ path: string; title: string | null; mode: string | null }>(
-      `SELECT path, title, mode FROM files`,
+      `SELECT path, title, mode FROM files WHERE is_deleted IS NULL OR is_deleted = 0`,
       [],
     );
     const titles = new Map<string, { title: string; mode: string }>();

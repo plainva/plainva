@@ -198,10 +198,16 @@ export interface WikilinkConversionResult {
  * Converts the wikilinks of ONE document into relative markdown links (used by
  * "OKF-konform aufbereiten" when adopting a note as index.md). Embeds and
  * unresolvable targets are preserved and reported.
+ *
+ * `allFilePaths` is what the link rule resolves over — the whole vault, so a
+ * link leads where it leads in the editor. `only` names the files a link may
+ * be converted for (the notes a listing points at); a link that leads to any
+ * other file stays a wikilink and counts as unresolved. Without `only`, every
+ * file of the list may be linked.
  */
 export function convertWikilinksToMarkdownLinks(
   ast: MarkdownAst,
-  opts: { sourcePath: string; allFilePaths: readonly (string | LinkCorpusFile)[] }
+  opts: { sourcePath: string; allFilePaths: readonly (string | LinkCorpusFile)[]; only?: ReadonlySet<string> }
 ): WikilinkConversionResult {
   const result: WikilinkConversionResult = { converted: 0, embeds: 0, unresolved: 0 };
   const sourceFolder = opts.sourcePath.includes("/")
@@ -226,7 +232,7 @@ export function convertWikilinksToMarkdownLinks(
     const anchor = hashIdx >= 0 ? pipe[0].slice(hashIdx) : "";
 
     const resolved = resolveLinkTargetIndexed(opts.sourcePath, target, corpusIndex);
-    if (!resolved) {
+    if (!resolved || (opts.only && !opts.only.has(resolved.replace(/\\/g, "/")))) {
       result.unresolved++;
       return;
     }

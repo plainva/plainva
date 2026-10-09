@@ -1346,9 +1346,16 @@ export const vaultOps = {
     // as it always was. A wiki link — `kind` "wiki" — names a NOTE and is the
     // rule's alone, so it leads where the desktop and the graph say.
     if (kind !== "wiki") {
-      for (const c of relativeLinkCandidates(target, hostPath)) {
+      const places = relativeLinkCandidates(target, hostPath);
+      for (const c of places) {
         if (await v.files.exists(c)) return c;
       }
+      // A Markdown link that names a path leads nowhere where that path leads
+      // nowhere — as it did before the rule, and as the desktop reads it. The
+      // rule would go on to "a file anywhere that ends so", which is a wiki
+      // link's reading: `[x](Ablage/Plan.md)` must not open `Archiv/Ablage/Plan.md`.
+      // A bare name (`[x](Brief)`) has no places and is the rule's, as before.
+      if (kind === "markdown" && places.length > 0) return null;
     }
     const viaIndex = v.queryService ? await v.queryService.resolveNotePath(target, hostPath).catch(() => null) : null;
     if (viaIndex) return viaIndex;

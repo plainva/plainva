@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Columns2, ExternalLink, Palette, Pin, PinOff, Tags, Trash2 } from "lucide-react";
-import type { NoteCardData } from "@plainva/core";
-import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
+import type { NoteCardData, VaultQueryService } from "@plainva/core";
+import { AudioEmbed, Button, applyPin, applyUnpin, noteCardTint, tagColorAttrs, withNoteColor, searchableCellText, chipClass, distributeCards, DocIcon, dropSlotAt, filterCardPaths, filterCardPathsByText, cardRevision, BaseSearchField, useBaseSearch, ICON, imageBasename, imageCandidates, isRenderableDocIcon, loadImageBlob, MenuItem, MenuSeparator, MenuSurface, NoteCardBody, orderCards, parsedPinboardCard, pinboardCache, usePinboardCards, usePinboardScroll, useVisibleImage, parseSourceClause, pinboardColumnCount, resolveVaultRelative, spliceIntoSequence, splitMultiValue, toast, toggleTaskAtIndex, type ParsedNoteCard, type PinboardDropSlot } from "@plainva/ui";
 import { setFrontmatterPath, deleteFrontmatterPath, readFrontmatterPath } from "@plainva/core";
 import { ColorPopover } from "../ColorPopover";
 import type { BaseCells } from "./useBaseCells";
@@ -46,7 +46,7 @@ interface CardVM {
  * off-screen card costs a header rather than a picture.
  */
 function CardAudio({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
-  const { vaultAdapter } = useVault();
+  const { vaultAdapter, queryService } = useVault();
   const [url, setUrl] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!vaultAdapter) return;
@@ -54,29 +54,49 @@ function CardAudio({ target, alt, notePath }: { target: string; alt: string; not
     let objectUrl: string | null = null;
     setUrl(undefined);
     void (async () => {
-      for (const rel of imageCandidates(target, { notePath })) {
+      const candidates = imageCandidates(target, { notePath });
+      const load = async (rel: string): Promise<boolean> => {
         try {
           const blob = await loadImageBlob(vaultAdapter, rel);
-          if (!alive) return;
-          objectUrl = URL.createObjectURL(blob);
-          setUrl(objectUrl);
-          return;
+          if (alive) {
+            objectUrl = URL.createObjectURL(blob);
+            setUrl(objectUrl);
+          }
+          return true;
         } catch {
-          /* try the next candidate */
+          return false; // try the next candidate
         }
-      }
+      };
+      for (const rel of candidates) if (await load(rel)) return;
+      const named = await fileByName(target, notePath, queryService);
+      if (alive && named && !candidates.includes(named) && (await load(named))) return;
       if (alive) setUrl(null);
     })();
     return () => {
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vaultAdapter, target, notePath]);
+  }, [vaultAdapter, queryService, target, notePath]);
   return <AudioEmbed url={url} label={alt || target} compact />;
 }
 
+/**
+ * The last place a card's picture or sound is looked for: by its bare file
+ * name anywhere in the vault, as Obsidian writes an attachment (`![[foto.png]]`,
+ * the file in its attachments folder) — the link rule's answer, read from the
+ * card's note. The phone's cards asked this already; the desktop's stopped at
+ * the path as written and the note's folder, so such a card showed its
+ * picture on the phone and its file name here. Asked last: it is the one
+ * place that costs a query.
+ */
+async function fileByName(target: string, notePath: string, queryService: VaultQueryService | null | undefined): Promise<string | null> {
+  const byName = imageBasename(target);
+  if (!byName || !queryService) return null;
+  return queryService.findByFileName(byName, notePath).catch(() => null);
+}
+
 function CardImage({ target, alt, notePath }: { target: string; alt: string; notePath: string }) {
-  const { vaultAdapter } = useVault();
+  const { vaultAdapter, queryService } = useVault();
   const { ref: imageRef, visible: imageVisible, loaded: onImageLoad, placeholderStyle } = useVisibleImage(vaultAdapter!, `${notePath}#${target}`);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -91,24 +111,28 @@ function CardImage({ target, alt, notePath }: { target: string; alt: string; not
     const candidates = [resolveVaultRelative(target), noteDir ? resolveVaultRelative(`${noteDir}/${target}`) : null]
       .filter((p): p is string => !!p);
     void (async () => {
-      for (const p of candidates) {
+      const load = async (p: string): Promise<boolean> => {
         try {
           const blob = await loadImageBlob(vaultAdapter, p);
-          if (!alive) return;
-          objectUrl = URL.createObjectURL(blob);
-          setUrl(objectUrl);
-          return;
+          if (alive) {
+            objectUrl = URL.createObjectURL(blob);
+            setUrl(objectUrl);
+          }
+          return true;
         } catch {
-          /* try the next candidate */
+          return false; // try the next candidate
         }
-      }
+      };
+      for (const p of candidates) if (await load(p)) return;
+      const named = await fileByName(target, notePath, queryService);
+      if (alive && named && !candidates.includes(named) && (await load(named))) return;
       if (alive) setFailed(true);
     })();
     return () => {
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [vaultAdapter, target, notePath, imageVisible]);
+  }, [vaultAdapter, queryService, target, notePath, imageVisible]);
   if (failed) return <span style={{ color: "var(--text-muted)", fontStyle: "italic", fontSize: "var(--text-xs)" }}>{alt || target}</span>;
   if (!url) return <span ref={imageRef} aria-hidden="true" style={{ display: "block", height: 48, ...placeholderStyle }} />;
   return <img src={url} alt={alt} onLoad={onImageLoad} style={{ maxWidth: "100%", borderRadius: "var(--radius-xs)", display: "block" }} />;

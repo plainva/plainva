@@ -1,6 +1,7 @@
 import { flushPendingSave } from "../platform/services";
-import { buildLinkTargetIndex, editInShape, frontmatterSpan, nextWhere, resolveLinkTargetIndexed, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { buildLinkTargetIndex, editInShape, frontmatterSpan, linkTargetName, nextWhere, resolveLinkTargetIndexed, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
+import { wikiTargetToPath } from "../lib/wikiResolver";
 
 /**
  * Write actions shared by the graph views (accept a suggestion, connect-drag).
@@ -104,10 +105,13 @@ export async function removeLinksTo(
   const current = await adapter.readTextFile(sourcePath);
   let removed = 0;
   const next = replaceWikiLinks(current, (full, target, alias) => {
-    const resolved = resolveLinkTargetIndexed(sourcePath, target.trim(), corpus);
-    if (resolved !== targetPath) return full;
+    // The name the index lists the link under: an anchor may begin with `^`
+    // as well (`[[Note^block]]`) — such a link is an edge in the graph and
+    // was not found here.
+    const name = linkTargetName(target);
+    if (resolveLinkTargetIndexed(sourcePath, name, corpus) !== targetPath) return full;
     removed++;
-    return alias ?? target.trim();
+    return alias ?? name;
   });
   if (removed > 0) await adapter.writeTextFile(sourcePath, next);
   return removed;
@@ -129,10 +133,33 @@ export async function createConnectedNote(
     path = opts.folder ? `${opts.folder}/${base} ${counter}.md` : `${base} ${counter}.md`;
     counter++;
   }
+  // A broken link may name a folder that is not there yet (`[[Ablage/Neu]]`).
+  if (opts.folder && !(await adapter.exists(opts.folder))) await adapter.createDir(opts.folder);
   await adapter.writeTextFile(path, buildNewNoteContent(opts.noteType, base));
   // Broken-link repairs create the missing target only — the link exists.
   if (opts.sourcePath) await appendWikiLink(adapter, queryService, opts.sourcePath, path);
   return path;
+}
+
+/**
+ * Creates the note a broken link names — where the link will find it, which is
+ * where a click on the link creates it (`wikiTargetToPath`): beside the linking
+ * note for a bare name, at the path for a target that names one (`[[Ablage/Neu]]`,
+ * `[[../Neu]]`). The clean-up views of both shells put every such note into the
+ * folder of the linking note under the last piece of the target; a link with a
+ * path then stayed broken. Returns the new note's path, or null where the
+ * target names no place in the vault.
+ */
+export async function createBrokenLinkTarget(
+  adapter: IVaultAdapter,
+  queryService: VaultQueryService,
+  link: { sourcePath: string; targetRaw: string },
+  noteType: string
+): Promise<string | null> {
+  const { path, title } = wikiTargetToPath(link.targetRaw, link.sourcePath);
+  if (!path || !title) return null;
+  const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  return createConnectedNote(adapter, queryService, { folder, title, noteType });
 }
 
 export interface InlineOccurrence {

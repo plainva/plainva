@@ -1,5 +1,6 @@
 import {
   buildLinkTargetIndex,
+  explicitLinkPath,
   parseMarkdownAst,
   resolveLinkTargetIndexed,
   serializeMarkdownAst,
@@ -123,6 +124,15 @@ export async function planLinkUpdates(
   );
 
   const newTargetFor = (raw: string): string => {
+    // An explicit path (`./Brief`, `../Ablage/Brief.md`, `/Projekte/Brief`)
+    // names a place, and a rename leaves the file in its folder: only the name
+    // at the end changes. Such links are found since the link rule reads them
+    // (2026-10-09); the vault path the branches below write would make
+    // `[x](./Brief.md)` in `Projekte/` read `Projekte/Projekte/…` on the desktop.
+    if (explicitLinkPath("", raw) !== undefined) {
+      const place = raw.slice(0, raw.lastIndexOf("/") + 1);
+      return place + (!isNote || raw.toLowerCase().endsWith(".md") ? newBasename : newBase);
+    }
     if (raw.toLowerCase().endsWith(".md")) {
       // Markdown-style link: keep the extension; same-directory rename keeps
       // relative references valid via the plain new file name.

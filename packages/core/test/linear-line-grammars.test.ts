@@ -3,7 +3,7 @@ import { peelBlockquotes, readAtxHeading, readBlockquoteLine } from "../src/mark
 import { readFilterComparison } from "../src/vault/filterComparison.js";
 import { bumpRootOkfDeclaration, hasOkfVersionKey, readRootOkfDeclaration } from "../src/okf-migration.js";
 import { displacedTaskPath, taskNotePath } from "../src/pim/taskNoteIdentity.js";
-import { brokenLinkNoteTitle } from "../src/vault/GraphService.js";
+import { linkTargetName } from "../src/vault/LinkResolver.js";
 
 /**
  * Line grammars read in linear time (plan Befunde 24.09., E6): Markdown block
@@ -133,16 +133,19 @@ describe("task note names", () => {
   });
 });
 
-describe("the note a broken link asks for", () => {
-  it("takes the last path segment and cuts its anchor, like /#.*$/", () => {
-    expect(brokenLinkNoteTitle("Folder/Note#Heading")).toBe("Note");
-    expect(brokenLinkNoteTitle("a\\b#h")).toBe("b");
-    expect(brokenLinkNoteTitle("#only")).toBe("");
-    // The cut falls after the last line break; a `#` before it stays.
-    expect(brokenLinkNoteTitle("Note#a\n#b")).toBe("Note#a\n");
+describe("the name a link's target carries", () => {
+  // What the note a broken link asks for is called comes from here since
+  // 2026-10-09 (`createBrokenLinkTarget` over `wikiTargetToPath`); the cut
+  // `/#.*$/` it replaced retried a long run of `#` from each of them.
+  it("cuts the alias and the anchor, which may begin with `#` or `^`", () => {
+    expect(linkTargetName("Folder/Note#Heading")).toBe("Folder/Note");
+    expect(linkTargetName(" Note ^block | shown ")).toBe("Note");
+    expect(linkTargetName("#only")).toBe("");
+    expect(linkTargetName("Note|a#b")).toBe("Note");
   });
 
   it("runs in one pass over a long run of `#`", () => {
-    within(1_000, () => expect(brokenLinkNoteTitle(`${"#".repeat(N)}\n`)).toBe(`${"#".repeat(N)}\n`));
+    within(1_000, () => expect(linkTargetName(`x${"#".repeat(N)}`)).toBe("x"));
+    within(1_000, () => expect(linkTargetName(`${"x".repeat(N)}|${"#".repeat(N)}`)).toBe("x".repeat(N)));
   });
 });

@@ -96,7 +96,8 @@ describe("VaultQueryService", () => {
     const backlinks = await queryService.getBacklinks("world.md");
     expect(backlinks.length).toBe(1);
     expect(db.queries[1].query).toContain("FROM links");
-    expect((db.queries[1].params as any[])[0]).toBe("%world%");
+    // A link leads here by naming the file at its end: alone or behind folders, with or without `.md`.
+    expect(db.queries[1].params as any[]).toEqual(["world", "%/world", "world.md", "%/world.md"]);
   });
 
   it("collects incoming relation refs across all property keys (cascade plan)", async () => {
@@ -374,14 +375,38 @@ describe("VaultQueryService", () => {
     expect(backlinks[0].property_key).toBe("projekt");
   });
 
-  it("pre-filters the links by the file's name and by a title of its own, in any spelling", async () => {
+  it("pre-filters the links by the END of their target and by a title of its own, in any spelling", async () => {
     db.mockedResults.push([{ path: "a.md" }, { path: "Projekte/Käse.md", title: "Angebot 100%" }]);
     db.mockedResults.push([]);
     await queryService.getBacklinks("Projekte/Käse.md");
     expect(db.queries[1].query).toContain("l.target_path LIKE ? ESCAPE '\\' OR l.target_path LIKE ? ESCAPE '\\'");
-    // A letter beyond ASCII that has a second case or a decomposed form is a
-    // wildcard (LIKE folds A to Z only); a wildcard of the name itself is escaped.
-    expect(db.queries[1].params as any[]).toEqual(["%K%se%", "%Angebot 100\\%%"]);
+    // LIKE folds A to Z only. A letter beyond ASCII that has a second case is
+    // ONE character of any kind (`_`), and the name is spelled composed and
+    // decomposed; each form may be the whole target or stand behind a folder,
+    // with or without `.md`. The title is the whole target, its own wildcard escaped.
+    const decomposed = "Käse".normalize("NFD");
+    expect(decomposed).toHaveLength(5);
+    expect(db.queries[1].params as any[]).toEqual([
+      "K_se", "%/K_se", "K_se.md", "%/K_se.md",
+      decomposed, `%/${decomposed}`, `${decomposed}.md`, `%/${decomposed}.md`,
+      "Angebot 100\\%",
+    ]);
+  });
+
+  it("keeps the pre-filter selective for a name written in letters beyond ASCII", async () => {
+    // Every letter of such a name has a second case. A `%` per letter (the
+    // first form of this filter) asked for EVERY link row of the vault on
+    // every note switch; one `_` per letter keeps the length of the name.
+    db.mockedResults.push([{ path: "Заметки.md" }]);
+    db.mockedResults.push([]);
+    await queryService.getBacklinks("Заметки.md");
+    expect(db.queries[1].params as any[]).toEqual(["_______", "%/_______", "_______.md", "%/_______.md"]);
+    // A name without letter case stays itself: Korean, composed and decomposed.
+    db.mockedResults.push([{ path: "한글.md" }]);
+    db.mockedResults.push([]);
+    await queryService.getBacklinks("한글.md");
+    const jamo = "한글".normalize("NFD");
+    expect(db.queries[3].params as any[]).toEqual(["한글", "%/한글", "한글.md", "%/한글.md", jamo, `%/${jamo}`, `${jamo}.md`, `%/${jamo}.md`]);
   });
 
   /**

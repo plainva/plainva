@@ -1,4 +1,4 @@
-import { likeContainsAnySpelling, wikiTargetForPath } from "@plainva/core";
+import { likeAnySpelling, wikiTargetForPath } from "@plainva/core";
 
 /**
  * The text Plainva writes for a link to a note someone picked from a list.
@@ -27,14 +27,24 @@ export interface LinkTextSource {
  * The files whose name could be taken for the name of one of `paths` — all
  * `wikiTargetForPath` has to see to tell whether a bare name is still the
  * only one. One query for a whole list of picks instead of every path of the
- * vault per keystroke.
+ * vault per keystroke. A file shares a name when its path IS that name or
+ * ends with it behind a folder, in any spelling the link rule reads as the
+ * same name (`likeAnySpelling`).
  */
 export async function pathsSharingNames(source: LinkTextSource, paths: readonly string[]): Promise<string[]> {
-  const names = [...new Set(paths.map((path) => path.split(/[/\\]/).pop() ?? "").filter(Boolean))];
-  if (names.length === 0) return [];
+  const patterns = new Set<string>();
+  for (const path of paths) {
+    const name = path.split(/[/\\]/).pop() ?? "";
+    if (!name) continue;
+    for (const spelling of likeAnySpelling(name)) {
+      patterns.add(spelling);
+      patterns.add(`%/${spelling}`);
+    }
+  }
+  if (patterns.size === 0) return [];
   const rows = await source.db.query(
-    `SELECT path FROM files WHERE ${names.map(() => "path LIKE ? ESCAPE '\\'").join(" OR ")}`,
-    names.map(likeContainsAnySpelling),
+    `SELECT path FROM files WHERE ${[...patterns].map(() => "path LIKE ? ESCAPE '\\'").join(" OR ")}`,
+    [...patterns],
   );
   return (rows ?? []).map((row: { path?: unknown }) => String(row.path ?? "")).filter(Boolean);
 }
@@ -42,10 +52,11 @@ export async function pathsSharingNames(source: LinkTextSource, paths: readonly 
 /**
  * `[[target]]`, or `[[target|title]]` where the note's title reads otherwise.
  * `sharing` is `pathsSharingNames` for this path (or every note path of the
- * vault, where a caller holds that anyway).
+ * vault, where a caller holds that anyway) — or, for a caller that writes many
+ * links over one list, the chooser made from it once (`wikiTargetChooser`).
  */
-export function wikiLinkTextFor(path: string, title: string | null | undefined, sharing: readonly string[]): string {
-  const target = wikiTargetForPath(path, [...sharing]);
+export function wikiLinkTextFor(path: string, title: string | null | undefined, sharing: readonly string[] | ((path: string) => string)): string {
+  const target = typeof sharing === "function" ? sharing(path) : wikiTargetForPath(path, sharing);
   const shown = (title ?? "").trim();
   // A text that would end the link or read as its alias mark cannot be one.
   return shown === "" || shown === target || /[[\]|\r\n]/.test(shown) ? `[[${target}]]` : `[[${target}|${shown}]]`;

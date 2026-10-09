@@ -35,6 +35,7 @@ import { listShownPimEvents } from "../../services/pim/pimService";
 import { parseWikiLinkValue, buildPropertyCommentCells, buildSubItemsTree, Button, capitalizeFirst, Chip, dueModelOf, groupRowsByLane, propertyAliasResolver, eventDayKeys, EmptyState, Fab, formatDateValue, ICON, rowDueTone, IconButton, inferType, toPropId, orderBoardGroups, SectionLabel, Segmented, splitMultiValue, splitOverflow, type SubItemNode, UNGROUPED_KEY } from "@plainva/ui";
 import { haptics } from "../../services/haptics";
 import { toast } from "@plainva/ui";
+import { buildWikiTargetSet, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
 import { BaseExportDialog } from "@plainva/ui";
 import { shareVaultText } from "../../services/shareFile";
 import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNewItemFolder } from "@plainva/ui";
@@ -1039,6 +1040,31 @@ export function BaseScreen({
   // cover column's value resolves to a vault file and loads as a blob URL.
   const coverCol =
     effectiveRender === "gallery" && view.coverImage ? String(view.coverImage) : null;
+
+  // The link rule's lookup over the vault, for the two places of this screen
+  // that have to know WHICH file a stored link means for many rows at once: a
+  // table that nests rows under their parent, and the gallery's covers. Read
+  // once per load of the rows — asked row by row, sixty covers were sixty
+  // reads of the index's file list. It is kept with the rows it was read for:
+  // `undefined` until the read for the rows on screen has answered, `null`
+  // where there is none (no index, or the read failed).
+  const needsLinkLookup = !!subItemsProperty || !!coverCol;
+  const [linkState, setLinkState] = useState<{ rows: Row[]; lookup: WikiTargetSet | null } | null>(null);
+  useEffect(() => {
+    const qs = vault.queryService;
+    if (!needsLinkLookup || !qs || !allRows) return;
+    let stale = false;
+    void qs.linkTargets().then((files) => {
+      if (!stale) setLinkState({ rows: allRows, lookup: buildWikiTargetSet(files) });
+    }).catch(() => {
+      if (!stale) setLinkState({ rows: allRows, lookup: null });
+    });
+    return () => {
+      stale = true;
+    };
+  }, [vault, allRows, needsLinkLookup]);
+  const linkLookup: WikiTargetSet | null | undefined = !vault.queryService ? null : linkState && linkState.rows === allRows ? linkState.lookup : undefined;
+
   const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const coverUrlsRef = useRef<string[]>([]);
   useEffect(() => {
@@ -1048,6 +1074,9 @@ export function BaseScreen({
       setCoverUrls({});
       return;
     }
+    // The lookup of this load answers for every row; until it is there, wait
+    // rather than load the covers twice.
+    if (linkLookup === undefined) return;
     let stale = false;
     const created: string[] = [];
     const MIME: Record<string, string> = {
@@ -1074,7 +1103,7 @@ export function BaseScreen({
         if (!rel) continue;
         try {
           if (!(await vault.files.exists(rel))) {
-            const resolved = await vaultOps.resolveWikiTarget(vault, rel, rowPath(r), "wiki");
+            const resolved = linkLookup ? wikiTargetPath(rel, linkLookup, rowPath(r)) : await vaultOps.resolveWikiTarget(vault, rel, rowPath(r), "wiki");
             if (!resolved) continue;
             rel = resolved;
           }
@@ -1099,7 +1128,7 @@ export function BaseScreen({
     return () => {
       stale = true;
     };
-  }, [coverCol, rows, vault]);
+  }, [coverCol, rows, vault, linkLookup]);
   useEffect(
     () => () => {
       coverUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
@@ -1198,6 +1227,10 @@ export function BaseScreen({
           titleOf: (r) => rowTitle(r),
           parentRefOf: (r) => r[subItemsProperty],
           expandedKeys: expandedSubItems,
+          // A row nests under the note its parent link LEADS to — the answer a
+          // tap on the chip gives. Until the lookup is there (or without an
+          // index), the rows of the result stand in for the vault.
+          resolveRef: linkLookup ? (fromPath, target) => wikiTargetPath(target, linkLookup, fromPath) : undefined,
         })
       : rows!.map((row) => ({ row, depth: 0, hasChildren: false, childCount: 0, isExpanded: false }));
     return (

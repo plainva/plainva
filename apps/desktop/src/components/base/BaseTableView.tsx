@@ -52,7 +52,7 @@ export function BaseTableView({
   };
 }) {
   const { t } = useTranslation();
-  const { editingCell, columnLabel, formatValueForDisplay, renderEditableCell } = cells;
+  const { editingCell, columnLabel, formatValueForDisplay, renderEditableCell, resolveTarget, linksReady } = cells;
 
   const displayRows: SubItemNode<any>[] = subItems
     ? buildSubItemsTree(dbData, {
@@ -60,6 +60,10 @@ export function BaseTableView({
         titleOf: (r) => String(r["file.name"] ?? r["file.path"] ?? ""),
         parentRefOf: (r) => r[subItems.property],
         expandedKeys: subItems.expandedKeys,
+        // A row nests under the note its parent link LEADS to — the answer a
+        // click on the chip gives. Until the link lookup is there, the rows of
+        // the result stand in for the vault.
+        resolveRef: linksReady ? (fromPath, target) => resolveTarget(target, fromPath) ?? null : undefined,
       })
     : dbData.map((row) => ({ row, depth: 0, hasChildren: false, childCount: 0, isExpanded: false }));
 

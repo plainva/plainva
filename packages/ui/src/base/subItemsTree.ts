@@ -10,15 +10,16 @@ import { parseWikiLinkValue } from "./propertyModel";
  *
  * Semantics:
  * - The parent reference is the row's self-relation value (a wiki link; lists
- *   use their first entry). It resolves against the FILTERED result set only —
- *   a parent outside the result makes the child a top-level row.
+ *   use their first entry). Where it leads is the link rule's answer for the
+ *   vault (`resolveRef`); a parent outside the FILTERED result set makes the
+ *   child a top-level row.
  * - Sibling order preserves the input order, so the query's sort applies per
  *   nesting level for free.
  * - Collapsed nodes contribute their child count but no descendants.
  * - Cycle guard: a covered-set DFS emits every row exactly once; rows only
  *   reachable through a cycle become additional top-level roots in input order.
- * - Two rows of one name: the link rule's order decides — the row beside the
- *   child's own note, then the shorter path, then the alphabet.
+ * - Two notes of one name: the link rule's order decides — the note beside
+ *   the child's own, then the shorter path, then the alphabet.
  */
 
 export interface SubItemNode<R = unknown> {
@@ -37,6 +38,16 @@ export function buildSubItemsTree<R>(
     parentRefOf(r: R): unknown;
     expandedKeys: ReadonlySet<string>;
     maxDepth?: number;
+    /**
+     * Where a link leads in the vault — the link rule over ALL its files, as a
+     * click on the link is answered (`wikiTargetPath` over the shell's lookup).
+     * With it a row is the parent only where the link leads to that row: of two
+     * notes of one name, one in the result and one outside, the table nests
+     * under the one the chip opens, or not at all. Absent (the lookup is not
+     * loaded yet, or there is no index), the rows of the result stand in for
+     * the vault.
+     */
+    resolveRef?(fromPath: string, target: string): string | null;
   }
 ): SubItemNode<R>[] {
   const maxDepth = opts.maxDepth ?? 32;
@@ -49,20 +60,22 @@ export function buildSubItemsTree<R>(
     byKey.set(key, r);
     corpus.push({ path: key, title: opts.titleOf(r) });
   }
-  // Which row a parent link means is the link rule's answer over the rows of
-  // this result (`LinkResolver.ts` in the core): the file's name, part of its
-  // path or the title of its properties, read from the child's own folder. A
-  // set of lowercased titles and paths used to stand here — a row with a
-  // title of its own was not found under its file's name (finding 2026-10-08).
-  const refIndex = buildLinkTargetIndex(corpus);
+  // Which row a parent link means is the link rule's answer (`LinkResolver.ts`
+  // in the core): the file's name, part of its path or the title of its
+  // properties, read from the child's own folder. A set of lowercased titles
+  // and paths used to stand here — a row with a title of its own was not found
+  // under its file's name (finding 2026-10-08).
+  const rowsOnly = opts.resolveRef ? null : buildLinkTargetIndex(corpus);
 
   const parentKeyOf = (r: R): string | null => {
     let ref = opts.parentRefOf(r);
     if (Array.isArray(ref)) ref = ref[0];
     if (typeof ref !== "string" || !ref.trim()) return null;
     const own = opts.keyOf(r);
-    const key = resolveLinkTargetIndexed(own, linkTargetName(parseWikiLinkValue(ref)?.target ?? ref), refIndex);
-    return key !== null && key !== own ? key : null;
+    const target = linkTargetName(parseWikiLinkValue(ref)?.target ?? ref);
+    const key = rowsOnly ? resolveLinkTargetIndexed(own, target, rowsOnly) : opts.resolveRef!(own, target);
+    // A parent outside the result set makes the child a top-level row.
+    return key !== null && key !== own && byKey.has(key) ? key : null;
   };
 
   const children = new Map<string, string[]>();

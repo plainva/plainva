@@ -1,6 +1,24 @@
 import { useMemo } from "react";
 import { buildWikiTargetSet, type WikiTargetSet } from "@plainva/ui";
-import { useDocumentTitles } from "./useDocumentTitles";
+import { useDocumentTitles, type DocTitleEntry } from "./useDocumentTitles";
+
+// One lookup per titles map. The map is the shared answer of one query per
+// index version (useDocumentTitles), and every editor pane, reading view,
+// embedded note, database view and properties panel asks for the lookup over
+// it — built per hook instance, a note with ten embeds folded every path of
+// the vault ten times over.
+const lookups = new WeakMap<Map<string, DocTitleEntry>, WikiTargetSet>();
+
+function lookupFor(titles: Map<string, DocTitleEntry>): WikiTargetSet {
+  let lookup = lookups.get(titles);
+  if (!lookup) {
+    const files: { title: string; path: string }[] = [];
+    titles.forEach((v, path) => files.push({ title: v.title, path }));
+    lookup = buildWikiTargetSet(files);
+    lookups.set(titles, lookup);
+  }
+  return lookup;
+}
 
 /**
  * The lookup over every indexed file — path and title — for telling resolved
@@ -13,10 +31,5 @@ import { useDocumentTitles } from "./useDocumentTitles";
  */
 export function useWikiResolver(): WikiTargetSet | null {
   const titles = useDocumentTitles();
-  return useMemo(() => {
-    if (titles.size === 0) return null;
-    const files: { title: string; path: string }[] = [];
-    titles.forEach((v, path) => files.push({ title: v.title, path }));
-    return buildWikiTargetSet(files);
-  }, [titles]);
+  return useMemo(() => (titles.size === 0 ? null : lookupFor(titles)), [titles]);
 }

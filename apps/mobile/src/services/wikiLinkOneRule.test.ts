@@ -97,6 +97,26 @@ describe("what the phone adds around the rule", () => {
     await db.close();
   });
 
+  it("a Markdown link whose path leads nowhere leads nowhere — also where a file elsewhere ends alike", async () => {
+    // "A file anywhere in the vault that ends so" is a wiki link's reading. The
+    // rule must not lend it to a Markdown link: the desktop reads such a link
+    // as a path and says "not found", and so did the phone before the rule.
+    const { vault, db } = await phoneVault({
+      "Projekte/Plan.md": "[the plan](Ablage/Plan.md), [a shot](img/shot.png), [the letter](Brief.md), [[Ablage/Plan]] and [the letter](Brief)\n",
+      "Archiv/Ablage/Plan.md": "An old plan.\n",
+      "Archiv/img/shot.png": "PNG\n",
+      "Archiv/Brief.md": "An old letter.\n",
+    });
+    expect(await resolveWikiTarget(vault, "Ablage/Plan.md", "Projekte/Plan.md", "markdown")).toBeNull();
+    expect(await resolveWikiTarget(vault, "img/shot.png", "Projekte/Plan.md", "markdown")).toBeNull();
+    expect(await resolveWikiTarget(vault, "Brief.md", "Projekte/Plan.md", "markdown")).toBeNull();
+    // The wiki link of the same text is a name, and finds the file by the end of its path.
+    expect(await resolveWikiTarget(vault, "Ablage/Plan", "Projekte/Plan.md", "wiki")).toBe("Archiv/Ablage/Plan.md");
+    // A bare name in a Markdown link has no path to read: it is found by name, as it always was.
+    expect(await resolveWikiTarget(vault, "Brief", "Projekte/Plan.md", "markdown")).toBe("Archiv/Brief.md");
+    await db.close();
+  });
+
   it("an anchor or an alias left on the target does not change where it leads", async () => {
     const { vault, db } = await phoneVault({ "Start.md": "[[Brief#Absatz|der Brief]]\n", "Projekte/Brief.md": "## Absatz\n" });
     expect(await resolveWikiTarget(vault, "Brief#Absatz", "Start.md", "wiki")).toBe("Projekte/Brief.md");

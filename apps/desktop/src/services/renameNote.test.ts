@@ -65,6 +65,38 @@ describe("renameFileWithLinkUpdates", () => {
     expect(store.get("b.md")).toContain("(Projects/index.md)");
   });
 
+  // Since the link rule reads an explicit path (2026-10-09), such a link is a
+  // backlink and is rewritten. A rename leaves the file in its folder, so only
+  // the name at the end changes — the whole vault path, which a link with a
+  // folder gets, would read `Projekte/Projekte/…` from a note in `Projekte/`.
+  it("keeps the place an explicit path names and changes only the name at its end", async () => {
+    const { store, adapter, queryService } = makeVault(
+      {
+        "Projekte/Brief.md": "# Brief\n",
+        "Projekte/Plan.md": "[the letter](./Brief.md), [[./Brief#Anrede|shown]] and ![[./Brief]]\n",
+        "Projekte/Hafen/Notiz.md": "[up](../Brief.md) and [[/Projekte/Brief]]\n",
+      },
+      [
+        { source_path: "Projekte/Plan.md", target_path: "./Brief.md" },
+        { source_path: "Projekte/Plan.md", target_path: "./Brief" },
+        { source_path: "Projekte/Hafen/Notiz.md", target_path: "../Brief.md" },
+        { source_path: "Projekte/Hafen/Notiz.md", target_path: "/Projekte/Brief" },
+      ]
+    );
+
+    const result = await renameFileWithLinkUpdates({ adapter, queryService, oldPath: "Projekte/Brief.md", newPath: "Projekte/Letter.md" });
+
+    expect(result.linkUpdateFailed).toBe(false);
+    const plan = store.get("Projekte/Plan.md")!;
+    expect(plan).toContain("(./Letter.md)");
+    expect(plan).toContain("[[./Letter#Anrede|shown]]");
+    expect(plan).toContain("![[./Letter]]");
+    const note = store.get("Projekte/Hafen/Notiz.md")!;
+    expect(note).toContain("(../Letter.md)");
+    expect(note).toContain("[[/Projekte/Letter]]");
+    expect(plan + note).not.toContain("Brief");
+  });
+
   it("qualifies bare wikilinks when the new basename collides with another file", async () => {
     const { store, adapter, queryService } = makeVault(
       {

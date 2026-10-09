@@ -145,4 +145,28 @@ describe("convertWikilinksToMarkdownLinks", () => {
     expect(out).toContain("![[Alpha]]");
     expect(out).toContain("[[Nowhere]]");
   });
+
+  // One rule for where a link leads (2026-10-09): the link is resolved over the
+  // WHOLE vault and converted only where it leads to a note a listing may point
+  // at. Resolved over those notes alone, `[[Brief]]` became a link to ANOTHER
+  // `Brief.md` whenever the file it means is not one of them.
+  it("resolves over the whole vault and converts only a link that leads to a listed note", () => {
+    const vault = [
+      { path: "Brief.md", title: "Brief" },
+      { path: "Projects/Archiv/Brief.md", title: "Brief" },
+      { path: "Projects/Alpha.md", title: "Alpha" },
+      { path: "Daten/Aufgaben.base", title: "Aufgaben.base" },
+    ];
+    // A listing leaves the root's `Brief.md` out; the link leads there all the same.
+    const only = new Set(["Projects/Archiv/Brief.md", "Projects/Alpha.md"]);
+    const ast = parseMarkdownAst("See [[Brief]], [[Alpha]] and [[Aufgaben.base]].", { preserveObsidianSyntax: true });
+    const result = convertWikilinksToMarkdownLinks(ast, { sourcePath: "Projects/MOC.md", allFilePaths: vault, only });
+
+    expect(result).toEqual({ converted: 1, embeds: 0, unresolved: 2 });
+    const out = serializeMarkdownAst(ast);
+    expect(out).toContain("[[Brief]]");
+    expect(out).not.toContain("Archiv/Brief.md");
+    expect(out).toContain("[Alpha](Alpha.md)");
+    expect(out).toContain("[[Aufgaben.base]]");
+  });
 });

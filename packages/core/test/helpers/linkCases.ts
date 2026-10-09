@@ -125,4 +125,47 @@ export const LINK_CASES: LinkCase[] = [
       { from: "Start.md", target: "Aufgaben", leadsTo: null },
     ],
   },
+  {
+    id: "h",
+    shows: "a target without an extension is a note wherever one answers, and a file without an extension is found by its own name",
+    files: {
+      "Start.md": "See [[License]], [[license]], [[LICENSE]], [[Makefile]] and [[makefile]].\n",
+      LICENSE: "MIT\n",
+      "License.md": "What the licence means for this vault.\n",
+      "Werkzeug/Makefile": "all:\n",
+    },
+    links: [
+      // The note — although the file beside it reads the same once letter case is set aside.
+      { from: "Start.md", target: "License", leadsTo: "License.md" },
+      { from: "Start.md", target: "license", leadsTo: "License.md" },
+      // Spelled exactly like the file, it is the file.
+      { from: "Start.md", target: "LICENSE", leadsTo: "LICENSE" },
+      // No note is called so: the file, by its name, anywhere in the vault.
+      { from: "Start.md", target: "Makefile", leadsTo: "Werkzeug/Makefile" },
+      { from: "Start.md", target: "makefile", leadsTo: "Werkzeug/Makefile" },
+    ],
+  },
+  {
+    id: "i",
+    shows: "an explicit path names one place, from the vault's root or from the folder of the linking note",
+    files: {
+      "Projekte/Hafenkante/Plan.md": "See [[./Brief]], [[../Brief]], [[/Archiv/Brief]], [[../../Brief]], [[./заметки]], [[../Hafenkante]] and [[../Hafenkante/]].\n",
+      "Projekte/Hafenkante/Brief.md": "The letter of the project.\n",
+      "Projekte/Hafenkante/Заметки.md": "Notes, in letters that all have a second case.\n",
+      "Projekte/Hafenkante.md": "A note called like the folder beside it.\n",
+      "Projekte/Brief.md": "The letter of the folder above.\n",
+      "Archiv/Brief.md": "An old letter.\n",
+    },
+    links: [
+      { from: "Projekte/Hafenkante/Plan.md", target: "./Brief", leadsTo: "Projekte/Hafenkante/Brief.md" },
+      { from: "Projekte/Hafenkante/Plan.md", target: "../Brief", leadsTo: "Projekte/Brief.md" },
+      { from: "Projekte/Hafenkante/Plan.md", target: "/Archiv/Brief", leadsTo: "Archiv/Brief.md" },
+      // Nothing else is tried for a path that names one place: no `Brief.md` lies at the root.
+      { from: "Projekte/Hafenkante/Plan.md", target: "../../Brief", leadsTo: null },
+      { from: "Projekte/Hafenkante/Plan.md", target: "./заметки", leadsTo: "Projekte/Hafenkante/Заметки.md" },
+      { from: "Projekte/Hafenkante/Plan.md", target: "../Hafenkante", leadsTo: "Projekte/Hafenkante.md" },
+      // A path that ends in a folder names no file — not the note called like that folder either.
+      { from: "Projekte/Hafenkante/Plan.md", target: "../Hafenkante/", leadsTo: null },
+    ],
+  },
 ];

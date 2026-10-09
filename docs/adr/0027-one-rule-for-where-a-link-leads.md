@@ -58,12 +58,15 @@ file's name.
    1. An explicit path: `/Folder/Note` from the vault's root, `./Note` and
       `../Folder/Note` from the folder of the linking note. Nothing else is
       tried for such a target.
-   2. The vault path as written, then with `.md`.
-   3. The end of a path — the file's name alone, or with folders in front of
-      it — as Obsidian finds a note anywhere in a vault.
-   4. The same for a target that names another kind of file by its extension
-      (`plan.pdf`, `Tasks.base`). A target without an extension names a note:
-      `[[Tasks]]` never becomes `Tasks.base`.
+   2. The vault path as written — a file spelled exactly so —, then the note
+      at that path (`.md`).
+   3. The end of a note's path — the file's name alone, or with folders in
+      front of it — as Obsidian finds a note anywhere in a vault.
+   4. A file that is no note (`plan.pdf`, `Tasks.base`, `LICENSE`): at the
+      vault path in another spelling, then by the end of its path. After the
+      notes, so a target without an extension names a note wherever one
+      answers: `[[Tasks]]` never becomes `Tasks.base`, and `[[License]]` is
+      the note `License.md` although a file `LICENSE` lies beside it.
    5. The `title` of a note's properties.
 
    Names are compared without regard to letter case, and a composed and a
@@ -102,7 +105,19 @@ file's name.
 6. **A Markdown link stays a path.** `[text](Folder/Note.md)` is read from the
    linking note's folder as before; the rule above is for wiki links, embeds
    and relation values. On the phone `resolveWikiTarget` tells the two apart
-   by how the link was written (`kind`), no longer by the shape of the target.
+   by how the link was written (`kind`), no longer by the shape of the target,
+   and a Markdown link whose path leads nowhere leads nowhere: the rule's "a
+   file anywhere that ends so" is a wiki link's reading and is not lent to it.
+
+7. **Whoever asks about many links, or about one link while typing, does not
+   read the vault per question.** The lookup keeps each file's path in both
+   readings (`LinkIndexEntry`), so a link onto one of a thousand `index.md`
+   files folds no path again. `resolveNotePath` shares one read among the
+   callers of one turn and starts it only after they have all asked — a
+   caller that asks once a read has begun gets a read of its own, so an
+   answer is never older than its question and a note the indexer has just
+   taken in is not answered with "no such note". Nothing is cached beyond
+   that: a stale "no such note" is how a click creates a second note.
 
 ## Consequences
 
@@ -120,11 +135,28 @@ file's name.
 - A click reads the list of indexed files (path, title, mode) instead of one
   indexed row. That is one query and a few milliseconds per click; surfaces
   that resolve many links build the lookup once. The backlinks keep their SQL
-  pre-filter, widened to every spelling the rule treats as one name
-  (`likeContainsAnySpelling`).
+  pre-filter. It is anchored at the END of a link's target — a link leads to
+  a file by naming it there, or by being the note's title as a whole — and
+  spells the name every way the rule reads as one (`likeAnySpelling`): a
+  letter beyond ASCII that has a second case is one character of any kind, so
+  a name written entirely in such letters still asks for its own length
+  instead of for every link row.
 - The phone no longer walks the directory for every tap. It falls back to the
   files on disk — by the same rule — only where the index finds nothing, so a
   note the index has not seen yet is opened instead of created twice.
+- A picture or a sound embedded by its bare file name (`![[foto.png]]`) is
+  found by the rule in both shells (`findByFileName`); the desktop's own query
+  for it folded A to Z only and left ties to the database's order.
+- What has to know WHICH note a stored link means asks the rule over the
+  whole vault and then looks whether that note is one of its own: the
+  sub-items of a table, the dependencies of a timeline, "linked already" in a
+  relation editor, the conversion of a listing's wiki links.
+- The clean-up's "create note" puts the note where a click on the broken link
+  would (`createBrokenLinkTarget`), so the link is no longer broken afterwards
+  when its target names a folder.
+- A rename changes only the name at the end of an explicit path
+  (`[x](./Brief.md)` becomes `[x](./Letter.md)`); such links are found since
+  the rule reads them.
 
 ## Alternatives
 

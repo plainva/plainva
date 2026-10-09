@@ -64,7 +64,10 @@ export function wikiTargetPath(target: string, set: WikiTargetSet | null | undef
  * and mobile.
  */
 export function wikiTargetToPath(target: string, hostPath?: string): { path: string; title: string } {
-  const clean = target.split("#")[0].split("|")[0].trim();
+  // The name the rule resolves: without the alias and without the anchor,
+  // which may begin with `^` as well — `[[Neu^block]]` creates `Neu.md`, the
+  // note the link then finds.
+  const clean = linkTargetName(target);
   const base = clean.replace(/\.md$/i, "");
   const title = (base.split("/").pop() || base).trim();
   // `/Folder/Note`, `./Note`, `../Folder/Note`: the note is created where the

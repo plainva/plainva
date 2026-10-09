@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../../services/fileActions";
 import { CheckSquare, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { upsertFrontmatterKeys, wikiTargetForPath, trimEndChars } from "@plainva/core";
+import { upsertFrontmatterKeys, wikiTargetChooser, wikiTargetForPath, trimEndChars } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { Button, chipClass, inferType, propertyFolder, Rating, propertyIndexTypes, usePropertyValues, formatDateValue, groupOptions, ICON, inlineOptionsFrom, optionSwatch, parseWikiLinkValue, splitMultiValue, writeNoteProperty, toIsoDateTime, type CuratedOption, type DateDisplayFormat } from "@plainva/ui";
 import { PlainInput, SelectChip } from "../PropertyValues";
@@ -13,7 +13,7 @@ import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShare
 import { segmentInlineText, safeHref, tagColorAttrs } from "@plainva/ui";
 import { FILE_DAY, parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
-import { isWikiTargetResolved } from "@plainva/ui";
+import { isWikiTargetResolved, wikiTargetPath } from "@plainva/ui";
 import { useWikiResolver } from "../../hooks/useWikiResolver";
 import { addRelationLink, removeRelationLinksToNote } from "../../services/relations";
 import { buildNewNoteContent, getConfiguredNoteType } from "../../services/newNote";
@@ -68,10 +68,11 @@ export function useBaseCells({
   const { t, i18n } = useTranslation();
   const { vaultAdapter, queryService, vaultPath, indexer, fileTreeVersion, triggerFileTreeUpdate } = useVault();
 
-  // Vault-wide note index for the relation editors: the raw path list
-  // (collision-safe link text). One listNotes() per index change, never per
-  // cell/chip.
-  const [noteIndex, setNoteIndex] = useState<{ paths: string[] } | null>(null);
+  // Vault-wide note index for the relation editors: the raw path list and the
+  // collision-safe link text over it (the names are counted once — a list of
+  // fifty candidates asked every path of the vault fifty times). One
+  // listNotes() per index change, never per cell/chip.
+  const [noteIndex, setNoteIndex] = useState<{ paths: string[]; targetFor: (path: string) => string } | null>(null);
   useEffect(() => {
     let alive = true;
     if (!queryService) { setNoteIndex(null); return; }
@@ -79,7 +80,8 @@ export function useBaseCells({
       .listNotes()
       .then((notes) => {
         if (!alive) return;
-        setNoteIndex({ paths: notes.map((n) => n.path) });
+        const paths = notes.map((n) => n.path);
+        setNoteIndex({ paths, targetFor: wikiTargetChooser(paths) });
       })
       .catch(() => { if (alive) setNoteIndex(null); });
     return () => { alive = false; };
@@ -92,6 +94,14 @@ export function useBaseCells({
   // file's name, a database or an attachment always (finding 2026-10-08).
   const linkLookup = useWikiResolver();
   const isBrokenTarget = useCallback((target: string, fromPath?: string) => !isWikiTargetResolved(target, linkLookup, fromPath), [linkLookup]);
+  // Where a stored link leads, read from the row's note — for whoever has to
+  // know WHICH note a value means: the relation editor ("linked already") and
+  // a table that nests rows under their parent. Undefined until the lookup is
+  // there.
+  const resolveTarget = useCallback(
+    (target: string, fromPath?: string): string | null | undefined => (linkLookup ? wikiTargetPath(target, linkLookup, fromPath) : undefined),
+    [linkLookup],
+  );
 
   // Relation candidates per target `.base`, cached until the next re-index.
   const candCacheRef = useRef<{ version: number; map: Map<string, { path: string; title: string }[]> }>({ version: -1, map: new Map() });
@@ -264,7 +274,7 @@ export function useBaseCells({
         owningLimit = cfg?.columns?.[rev.property]?.relationLimit === "one" ? "one" : undefined;
       } catch { /* default: unlimited */ }
 
-      const rowLinkText = noteIndex ? wikiTargetForPath(rowPath, noteIndex.paths) : String(row["file.name"] ?? rowPath);
+      const rowLinkText = noteIndex ? noteIndex.targetFor(rowPath) : String(row["file.name"] ?? rowPath);
       const changedPaths = new Map<string, "added" | "removed">();
       for (const [, rawValue] of added) {
         const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
@@ -339,7 +349,7 @@ export function useBaseCells({
         .slice(0, 50)
         .map((c) => ({
           ...c,
-          linkTarget: noteIndex ? wikiTargetForPath(c.path, noteIndex.paths) : undefined,
+          linkTarget: noteIndex ? noteIndex.targetFor(c.path) : undefined,
         }));
     } catch (e) {
       console.warn("[BaseViewer] note search for the relation editor failed", e);
@@ -354,7 +364,7 @@ export function useBaseCells({
   // note lands in the target base's configured storage folder (plan Base-Neu P2:
   // `newItemFolder`, else the first folder source, else the .base file's folder)
   // and inherits the base's tag sources as frontmatter so it becomes a member.
-  const createRelationTarget = async (col: string, title: string): Promise<string | null> => {
+  const createRelationTarget = async (col: string, title: string): Promise<RelationSearchResult | null> => {
     if (!vaultAdapter || !vaultPath) return null;
     const safeTitle = title.replace(/[\\/:*?"<>|]/g, "-").trim();
     if (!safeTitle) return null;
@@ -373,9 +383,18 @@ export function useBaseCells({
       }
     }
     const path = (folder ? trimEndChars(folder, "/") + "/" : "") + safeTitle + ".md";
+    // The note as a candidate: what is written is the name that leads to THIS
+    // note — the path where another note of the vault is called the same. The
+    // bare title stood here; with a `Meier.md` elsewhere the new link led
+    // there instead of to the note just created.
+    const asCandidate: RelationSearchResult = {
+      path,
+      title: safeTitle,
+      linkTarget: noteIndex ? wikiTargetForPath(path, [...noteIndex.paths, path]) : undefined,
+    };
     try {
       await vaultAdapter.readTextFile(path);
-      return safeTitle; // already exists — just link it
+      return asCandidate; // already exists — just link it
     } catch {
       // expected: the note does not exist yet
     }
@@ -388,7 +407,7 @@ export function useBaseCells({
         triggerFileTreeUpdate();
         notifyFileOps([{ type: "create", path }]);
       }).catch(() => {});
-      return safeTitle;
+      return asCandidate;
     } catch (e) {
       console.error("[BaseViewer] creating a relation target failed", path, e);
       return null;
@@ -628,7 +647,7 @@ export function useBaseCells({
             value={val}
             search={(q) => searchCandidatesForBase(q, rev.base)}
             excludeTitles={[String(row['file.name'] ?? '')]}
-            isBrokenTarget={(target) => isBrokenTarget(target, path)}
+            resolveTarget={linkLookup ? (target) => resolveTarget(target, path) ?? null : undefined}
             onCommit={(arr) => commitReverseCellValue(row, col, arr)}
             onClose={() => setEditingCell(null)}
             t={t}
@@ -646,7 +665,7 @@ export function useBaseCells({
             search={(q) => searchRelationCandidates(q, col)}
             limit={limit}
             excludeTitles={[String(row['file.name'] ?? '')]}
-            isBrokenTarget={(target) => isBrokenTarget(target, path)}
+            resolveTarget={linkLookup ? (target) => resolveTarget(target, path) ?? null : undefined}
             onCreateNew={(title) => createRelationTarget(col, title)}
             onCommit={(arr) => commitCellValue(path, col, limit === 'one' ? (arr[arr.length - 1] ?? '') : arr)}
             onClose={() => setEditingCell(null)}
@@ -746,6 +765,9 @@ export function useBaseCells({
     renderEditableCell,
     handleCellSave,
     commitCellValue,
+    resolveTarget,
+    /** Whether `resolveTarget` has its lookup — false while the index is loading. */
+    linksReady: linkLookup !== null,
   };
 }
 

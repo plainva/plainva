@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { brokenLinkNoteTitle, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
+import type { BrokenLinkInfo, GraphNodeInfo, GraphSuggestion } from "@plainva/core";
 import { useVault } from "../../contexts/VaultContext";
 import { requestCascadeDelete } from "../../services/cascadeDelete";
 import { ICON, toast } from "@plainva/ui";
-import { applyMentionLink, createConnectedNote } from "../../services/graphActions";
+import { applyMentionLink, createBrokenLinkTarget } from "../../services/graphActions";
 import { getConfiguredNoteType } from "../../services/newNote";
 import { getGraphState, suggestionKey } from "../../services/graphState";
 
@@ -105,10 +105,10 @@ export function CleanupPanel({ onClose, onOpenPath, onHighlight, refreshToken }:
     async (item: BrokenLinkInfo) => {
       if (!vaultAdapter || !queryService) return;
       try {
-        const folder = item.sourcePath.includes("/") ? item.sourcePath.substring(0, item.sourcePath.lastIndexOf("/")) : "";
         const noteType = vaultPath ? await getConfiguredNoteType(vaultPath) : "Note";
-        const title = brokenLinkNoteTitle(item.targetRaw);
-        const path = await createConnectedNote(vaultAdapter, queryService, { folder, title, noteType });
+        // Where the link will find it — the place a click on the link creates the note.
+        const path = await createBrokenLinkTarget(vaultAdapter, queryService, item, noteType);
+        if (!path) { toast.error(t("graph.cleanupActionFailed", { defaultValue: "Aktion fehlgeschlagen." })); return; }
         setBroken((prev) => prev.filter((b) => b !== item));
         toast.success(t("graph.cleanupCreated", { defaultValue: "Notiz erstellt: {{name}}", name: path }));
       } catch {

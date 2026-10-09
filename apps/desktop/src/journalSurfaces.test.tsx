@@ -171,6 +171,26 @@ describe("JournalDayList", () => {
     expect(onOpenTag).toHaveBeenCalledWith("client");
     expect(onOpenEntry).not.toHaveBeenCalled();
   });
+
+  // One rule for where a link leads (finding 2026-10-08): a link in an entry is
+  // read from the day's note. The handler for that is made per entry — a list
+  // that only renders again must not draw its entries anew: a selection in an
+  // entry would collapse, and the phone's inline editor would redraw every
+  // other row on each keystroke.
+  it("reads a link from the day's note, and does not draw an entry anew when the list only renders again", async () => {
+    const onOpenNote = vi.fn();
+    const links = { onOpenNote };
+    const raw = "## Journal\n\n- 09:12 See [[Brief]] today\n";
+    const list = () => <JournalDayList days={[dayOf("2026-09-20", raw, "Journal/2026-09-20.md")]} todayKey="2026-09-20" {...listProps} links={links} />;
+    const { host, root } = await mount(list());
+    const drawn = host.querySelector(".pv-journal-text")!.firstChild;
+    expect(drawn).not.toBeNull();
+    // A new array of the same day, as the sidebar and the Today section hand it over on every render.
+    await act(async () => { root.render(list()); });
+    expect(host.querySelector(".pv-journal-text")!.firstChild).toBe(drawn);
+    await act(async () => { (host.querySelector(".pv-journal-text a") as HTMLElement).click(); });
+    expect(onOpenNote).toHaveBeenCalledWith("Brief", false, "wiki", "Journal/2026-09-20.md");
+  });
 });
 
 describe("JournalCaptureField", () => {

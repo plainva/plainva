@@ -72,7 +72,7 @@ export function BaseTimelineView({
   onDropToSplit?: (path: string) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { handleCellSave, formatValueForDisplay } = cells;
+  const { handleCellSave, formatValueForDisplay, resolveTarget, linksReady } = cells;
   const locale = i18n.language || "de";
 
   const days = React.useMemo(() => windowDays(timelineWindow), [timelineWindow]);
@@ -209,21 +209,26 @@ export function BaseTimelineView({
   // user's statement about the world, and silently moving one would rewrite a
   // note nobody asked to change.
   const depNodes: DependencyNode[] = React.useMemo(() => {
-    // Which row a predecessor link means is the link rule's answer over the
-    // rows of this view (`LinkResolver.ts` in the core), read from the
-    // successor's own note — the same answer a click on the link gives.
-    const inView = buildLinkTargetIndex(rows.map((r) => ({ path: String(r["file.path"] ?? ""), title: String(r["file.name"] ?? "") })));
-    const resolve = (uid: string, fromPath: string): string | null =>
-      resolveLinkTargetIndexed(fromPath, linkTargetName(uid.trim().replace(/^\[\[/, "").replace(/\]\]$/, "")), inView);
+    // Which note a predecessor link means is the link rule's answer for the
+    // vault (`LinkResolver.ts` in the core), read from the successor's own
+    // note — the same answer a click on the link gives. Until the lookup is
+    // there, the rows of this view stand in for the vault.
+    const inView = new Set(rows.map((r) => String(r["file.path"] ?? "")));
+    const rowsOnly = linksReady ? null : buildLinkTargetIndex(rows.map((r) => ({ path: String(r["file.path"] ?? ""), title: String(r["file.name"] ?? "") })));
+    const resolve = (uid: string, fromPath: string): string | null => {
+      const target = linkTargetName(uid.trim().replace(/^\[\[/, "").replace(/\]\]$/, ""));
+      const path = rowsOnly ? resolveLinkTargetIndexed(fromPath, target, rowsOnly) : (resolveTarget(target, fromPath) ?? null);
+      // A predecessor outside this view simply has no line to draw.
+      return path !== null && inView.has(path) ? path : null;
+    };
     return rows.map((r) => ({
       key: String(r["file.path"] ?? ""),
       blockedBy: parseDependencies(r["blockedBy"] ?? r["note.blockedBy"]).flatMap((d) => {
         const key = resolve(d.uid, String(r["file.path"] ?? ""));
-        // A predecessor outside this view simply has no line to draw.
         return key ? [{ key, reltype: d.reltype, gap: d.gap }] : [];
       }),
     }));
-  }, [rows]);
+  }, [rows, resolveTarget, linksReady]);
 
   const conflicts = React.useMemo(() => {
     const dates = new Map(

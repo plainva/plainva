@@ -7,6 +7,7 @@ import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
 import { buildWikiTargetSet, wikiLinkTextFor, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
+import { wikiTargetChooser } from "@plainva/core";
 
 /**
  * Typed cell editor (R4.3, desktop useBaseCells contract): the sheet renders
@@ -110,24 +111,37 @@ export function CellEditSheet({
   // used to compare and write TITLES: a value the desktop had written with the
   // file's name was not shown as chosen here, and the two shells wrote
   // different text for the same pick (finding 2026-10-08).
-  const [links, setLinks] = useState<{ lookup: WikiTargetSet; notePaths: string[] } | null>(null);
+  //
+  // `undefined` while the lookup is being read, `null` where there is none to
+  // read (no index, or the read failed — then titles are compared, as before).
+  // Nothing can be picked while it is being read: a tap in that moment wrote
+  // the title and compared by title, and a note that was linked under its
+  // file's name got linked a second time.
+  const [links, setLinks] = useState<{ lookup: WikiTargetSet; textFor: (c: { path: string; title: string }) => string } | null | undefined>(
+    () => (vault.queryService ? undefined : null),
+  );
   useEffect(() => {
     const qs = vault.queryService;
     if (!isRelation || !qs) return;
     let stale = false;
     void qs.linkTargets().then((files) => {
-      if (!stale) setLinks({ lookup: buildWikiTargetSet(files), notePaths: files.filter((f) => f.mode !== "attachment").map((f) => f.path) });
-    }).catch(() => {});
+      if (stale) return;
+      // The names are counted once: every row of the list asks what a pick would write.
+      const targetFor = wikiTargetChooser(files.filter((f) => f.mode !== "attachment").map((f) => f.path));
+      setLinks({ lookup: buildWikiTargetSet(files), textFor: (c) => wikiLinkTextFor(c.path, c.title, targetFor) });
+    }).catch(() => {
+      if (!stale) setLinks(null);
+    });
     return () => {
       stale = true;
     };
   }, [vault, isRelation]);
 
   const targetOf = (v: string) => parseWikiLinkValue(v)?.target ?? v;
-  /** Whether a stored value links this candidate. By title only until the lookup is there (or where there is no index). */
+  /** Whether a stored value links this candidate. By title only where there is no index to ask. */
   const means = (v: string, c: { path: string; title: string }) =>
     links ? wikiTargetPath(targetOf(v), links.lookup, target.notePath) === c.path : targetOf(v).toLowerCase() === c.title.toLowerCase();
-  const linkTextOf = (c: { path: string; title: string }) => (links ? wikiLinkTextFor(c.path, c.title, links.notePaths) : `[[${c.title}]]`);
+  const linkTextOf = (c: { path: string; title: string }) => (links ? links.textFor(c) : `[[${c.title}]]`);
 
   const relationToggle = (c: { path: string; title: string }) => {
     const link = linkTextOf(c);
@@ -231,7 +245,7 @@ export function CellEditSheet({
                 value={query}
               />
             </div>
-            {filteredCandidates.slice(0, 60).map((c) => {
+            {links !== undefined && filteredCandidates.slice(0, 60).map((c) => {
               const on = beat.picked
                 ? beat.picked.value === linkTextOf(c)
                 : toArray(value).some((v) => means(v, c));

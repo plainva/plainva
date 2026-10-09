@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText, Link2, Plus, Trash2 } from "lucide-react";
-import { brokenLinkNoteTitle, GraphService, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
+import { GraphService, type BrokenLinkInfo, type GraphNodeInfo, type GraphSuggestion } from "@plainva/core";
 import {
   applyMentionLink,
   Button,
-  createConnectedNote,
+  createBrokenLinkTarget,
   EmptyState,
   getGraphState,
   type GraphStateStore,
@@ -127,15 +127,12 @@ export function CleanupScreen({
     const service = vault.queryService;
     if (!service) return;
     try {
-      const folder = item.sourcePath.includes("/")
-        ? item.sourcePath.substring(0, item.sourcePath.lastIndexOf("/"))
-        : "";
-      const title = brokenLinkNoteTitle(item.targetRaw);
-      const path = await createConnectedNote(vault.files, service, {
-        folder,
-        title,
-        noteType: getMobileSettings().defaultNoteType,
-      });
+      // Where the link will find it — the place a tap on the link creates the note.
+      const path = await createBrokenLinkTarget(vault.files, service, item, getMobileSettings().defaultNoteType);
+      if (!path) {
+        toast.error(t("graph.cleanupActionFailed"));
+        return;
+      }
       setBroken((prev) => prev.filter((b) => b !== item));
       syncSoon();
       toast.info(t("graph.cleanupCreated", { name: path }));

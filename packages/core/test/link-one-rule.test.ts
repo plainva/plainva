@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GraphService } from "../src/vault/GraphService.js";
-import { buildLinkTargetIndex, resolveLinkTargetIndexed } from "../src/vault/LinkResolver.js";
+import { buildLinkTargetIndex, resolveLinkTargetIndexed, wikiTargetChooser, wikiTargetForPath } from "../src/vault/LinkResolver.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";
 import { LINK_CASES, type LinkCase } from "./helpers/linkCases.js";
@@ -103,6 +103,57 @@ describe("what the rule keeps apart", () => {
     expect(await vault.query.resolveNotePath("Brief", "Start.md")).toBe("Projekte/Brief.md");
     await vault.db.execute("UPDATE files SET is_deleted = 1 WHERE path = ?", ["Projekte/Brief.md"]);
     expect(await vault.query.resolveNotePath("Brief", "Start.md")).toBeNull();
+    // Nor is it drawn as existing: both shells draw their links from this map.
+    expect((await vault.query.getDocumentTitles()).has("Projekte/Brief.md")).toBe(false);
     await vault.db.close();
+  });
+
+  it("a file that is no note is found in another spelling only once no note answers", () => {
+    const index = buildLinkTargetIndex(["Bilder/foto.png", "bilder/Foto.PNG.md", "Notizen/foto.png.md"]);
+    // Spelled exactly like the file: the file.
+    expect(resolveLinkTargetIndexed("Start.md", "Bilder/foto.png", index)).toBe("Bilder/foto.png");
+    // Spelled otherwise, the note at that path comes first …
+    expect(resolveLinkTargetIndexed("Start.md", "bilder/foto.PNG", index)).toBe("bilder/Foto.PNG.md");
+    // … and where there is none, the file in its other spelling.
+    expect(resolveLinkTargetIndexed("Start.md", "BILDER/FOTO.PNG", buildLinkTargetIndex(["Bilder/foto.png"]))).toBe("Bilder/foto.png");
+    // By name alone: a note called so before a file called so.
+    expect(resolveLinkTargetIndexed("Start.md", "foto.png", index)).toBe("Notizen/foto.png.md");
+  });
+});
+
+describe("what the rule costs", () => {
+  it("names a list of picks like one pick at a time", () => {
+    const paths = ["Brief.md", "Projekte/Brief.md", "Projekte/Plan.md", "Archiv/plan.md", "Übersicht.md", "x/übersicht.md", "Einzeln.md", "Daten/Aufgaben.base"];
+    const targetFor = wikiTargetChooser(paths);
+    for (const path of [...paths, "Neu/Einzeln.md", "Neu/Ganz Neu.md"]) expect({ path, target: targetFor(path) }).toEqual({ path, target: wikiTargetForPath(path, paths) });
+    // A list that names a path twice still knows it as one file.
+    expect(wikiTargetChooser(["Einzeln.md", "Einzeln.md"])("Einzeln.md")).toBe("Einzeln");
+  });
+
+  it("answers the questions of one turn with one read, and never with a read older than the question", async () => {
+    // A hand-held index: its rows can change while a read is under way.
+    const rows = [{ path: "Start.md", title: "Start", mode: "obsidian" }];
+    const reads: Array<() => void> = [];
+    const db = {
+      query: (_sql: string) => new Promise((resolve) => { const snapshot = [...rows]; reads.push(() => resolve(snapshot)); }),
+    };
+    const query = new VaultQueryService(db as never);
+    const turn = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    // A note full of embeds: every embed asks in the same turn.
+    const together = [query.resolveNotePath("Start"), query.resolveNotePath("Neu"), query.findByFileName("Start.md")];
+    await turn();
+    expect(reads).toHaveLength(1);
+
+    // The indexer takes a new note in while that read is under way — and the
+    // editor asks about it right away. Its answer must come from a read begun
+    // after the note was there, not from the one already on its way.
+    rows.push({ path: "Neu.md", title: "Neu", mode: "obsidian" });
+    const after = query.resolveNotePath("Neu");
+    await turn();
+    expect(reads).toHaveLength(2);
+    reads.forEach((answer) => answer());
+    expect(await Promise.all(together)).toEqual(["Start.md", null, "Start.md"]);
+    expect(await after).toBe("Neu.md");
   });
 });

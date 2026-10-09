@@ -101,4 +101,35 @@ describe("buildSubItemsTree", () => {
     expect(out.length).toBe(1);
     expect(out[0]!.row.title).toBe("Erste");
   });
+
+  // One rule for where a link leads (finding 2026-10-08): the table nests a
+  // row under the note its parent link LEADS to — the answer a click on the
+  // chip gives —, not under whichever row of the result happens to carry the
+  // name. The shells hand in the vault's lookup; the rows of the result only
+  // stand in for it until it is loaded.
+  describe("with the vault's link lookup", () => {
+    const rows = [row("Aufgaben/Planung.md", "Planung"), row("Aufgaben/Teil.md", "Teil", "[[Planung]]"), row("Aufgaben/Rest.md", "Rest", "[[Planung]]")];
+    const nested = [["Planung", 0], ["Teil", 1], ["Rest", 1]];
+    const flat = [["Planung", 0], ["Teil", 0], ["Rest", 0]];
+    const shape = (resolveRef?: (fromPath: string, target: string) => string | null) =>
+      buildSubItemsTree(rows, { ...opts(["Aufgaben/Planung.md"]), resolveRef }).map((n) => [n.row.title, n.depth]);
+
+    it("nests under the row the link leads to", () => {
+      expect(shape((_from, target) => (target === "Planung" ? "Aufgaben/Planung.md" : null))).toEqual(nested);
+    });
+
+    it("leaves a row at the top where its parent link leads to a note outside the result", () => {
+      // A `Planung.md` at the vault's root, not part of this view: the link
+      // leads there (the chip opens it), so the row in the view is no parent.
+      const asked: string[][] = [];
+      expect(shape((from, target) => { asked.push([from, target]); return "Planung.md"; })).toEqual(flat);
+      // Read from the child's own note, with the target as the rule takes it.
+      expect(asked).toContainEqual(["Aufgaben/Teil.md", "Planung"]);
+    });
+
+    it("leaves a row at the top where its parent link leads nowhere, and falls back to the rows without a lookup", () => {
+      expect(shape(() => null)).toEqual(flat);
+      expect(shape(undefined)).toEqual(nested);
+    });
+  });
 });

@@ -69,6 +69,13 @@ export function wikiQueryBefore(context: CompletionContext): { from: number; to:
 // and renders it as a working link, so the app was producing references it
 // would not help you write.
 export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
+  // The note behind `[[Note#`, kept while its heading is being typed: every
+  // letter after the `#` asks again, and where the name leads does not change
+  // with the letters behind it — the answer costs a read of the index's file
+  // list. For a few seconds only, so a note created or renamed meanwhile is
+  // found by the next question.
+  let named: { key: string; path: string | null; at: number } | null = null;
+  const NAMED_FOR_MS = 3_000;
   return async (context: CompletionContext): Promise<CompletionResult | null> => {
     const word = wikiQueryBefore(context);
     if (!word) return null;
@@ -94,8 +101,14 @@ export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
         } else {
           // The note the link names — by the link rule, as a click finds it.
           // What was typed stays: it is a name that leads there.
-          const path = deps.readNote && qs.resolveNotePath ? await qs.resolveNotePath(notePart, deps.hostPath?.()) : null;
-          if (!path || !deps.readNote) return null;
+          if (!deps.readNote || !qs.resolveNotePath) return null;
+          const host = deps.hostPath?.();
+          const key = `${host ?? ""}\n${notePart}`;
+          if (!named || named.key !== key || Date.now() - named.at > NAMED_FOR_MS) {
+            named = { key, path: await qs.resolveNotePath(notePart, host), at: Date.now() };
+          }
+          const path = named.path;
+          if (!path) return null;
           noteLabel = notePart;
           content = await deps.readNote(path);
         }
