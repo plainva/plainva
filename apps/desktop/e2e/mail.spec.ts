@@ -504,6 +504,48 @@ test('mail-client E3: compose sends via SMTP once the undo window is over', asyn
 });
 
 /**
+ * What a forward carries (finding 2026-10-09).
+ *
+ * The handbook said a forward takes the attachments along. No build ever did:
+ * the draft a forward opens is the original's text under a header block
+ * (`buildForwardBody`), and nothing between the button and the transport asks
+ * the mailbox for a file. The reader lists the file, the composer opens
+ * without it, and the message goes out without it.
+ *
+ * This holds the two ends the handbook sentence is about — what the composer
+ * shows and what the transport is handed — so the page and the app cannot come
+ * apart on it unnoticed again. Whoever teaches a forward to bring the files
+ * changes this test and the sentence in `docs/user/<lang>/Email_Capture.md`
+ * ("Composing and sending") in the same commit; the phone holds the same in
+ * `apps/mobile/e2e-prod/mail-forward.spec.ts`.
+ */
+test('a forward carries the text of the original, and none of its files', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  // The message has a file on it, and the reader says so.
+  await expect(page.getByText('rechnung.pdf (20 KB)')).toBeVisible();
+
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Fwd: Rechnung Q3');
+  // The text of the original is in the draft; its file is not.
+  await expect(page.getByTestId('draft-body')).toContainText('anbei die Rechnung.');
+  await expect(page.getByTestId('draft-attachments')).toHaveCount(0);
+
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.to).toBe('ben@example.org');
+  expect(sent.subject).toBe('Fwd: Rechnung Q3');
+  expect(sent.text).toContain('anbei die Rechnung.');
+  // The transport is handed the text and no file.
+  expect(sent.attachments).toBeNull();
+});
+
+/**
  * Taking a send back (S23).
  *
  * The point of the undo window is that the message NEVER reaches the transport
