@@ -79,14 +79,23 @@ const armed = new Map<string, TaskDeletionOrder>();
 let deps: TaskDeletionDeps | null = null;
 let toastId: number | null = null;
 
+/**
+ * The toast dies WITH the window: a visible "undo" that no longer works is
+ * worse than no button at all.
+ *
+ * Every way a window ends comes through here — carried out, taken back, or
+ * cancelled because the app is going away. The toast is persistent, so a way
+ * out that skips this leaves it on screen for good.
+ */
+function dropNotice(): void {
+  if (toastId === null) return;
+  toast.dismiss(toastId);
+  toastId = null;
+}
+
 const queue = new UndoSendQueue<PendingDeletion[]>(async (batch) => {
   for (const p of batch) armed.set(orderKey(p.order), p.order);
-  if (toastId !== null) {
-    // The toast dies WITH the window: a visible "undo" that no longer works is
-    // worse than no button at all.
-    toast.dismiss(toastId);
-    toastId = null;
-  }
+  dropNotice();
   deps?.runTaskSync?.();
 });
 
@@ -110,10 +119,16 @@ const queue = new UndoSendQueue<PendingDeletion[]>(async (batch) => {
  * not vanish, while an interrupted deletion is safest when the task survives.
  * Both follow from one question — "what is the safe outcome?" — so do not
  * unify them.
+ *
+ * The notice goes with the window. On the desktop nobody is left to read it;
+ * on the phone the reader comes BACK to this screen, and would find it still
+ * counting down to a deletion that is no longer going to happen, with an
+ * "undo" that no longer brings the note back.
  */
 export function cancelInFlightTaskDeletion(): void {
   const entry = queue.current();
   if (entry) queue.cancel(entry.id);
+  dropNotice();
 }
 
 export function initTaskDeletion(d: TaskDeletionDeps): void {
@@ -171,10 +186,7 @@ export function requestTaskDeletion(
 }
 
 async function restore(batch: PendingDeletion[]): Promise<void> {
-  if (toastId !== null) {
-    toast.dismiss(toastId);
-    toastId = null;
-  }
+  dropNotice();
   const restored: string[] = [];
   for (const p of batch) {
     try {

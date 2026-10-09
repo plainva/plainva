@@ -21,13 +21,19 @@ import i18n from "@plainva/ui/i18n";
  */
 let undoToastId: number | null = null;
 const undoQueue = new UndoSendQueue<() => Promise<void>>(async (deliver) => {
+  // The notice ends WITH the window, before the transport is asked. Whatever
+  // brought the message here — the timer, the app going to the background, a
+  // second message pushing this one out — "Undo" can no longer stop it, and
+  // the notice is persistent: nothing but this takes it down. It is also the
+  // last moment the id still names THIS message's notice; by the time the
+  // transport has answered, a message sent in between has its own behind it.
+  if (undoToastId !== null) toast.dismiss(undoToastId);
+  undoToastId = null;
   try {
     await deliver();
     toast.success(i18n.t("mail.sent"));
   } catch (e) {
     toast.error(String(e instanceof Error ? e.message : e));
-  } finally {
-    undoToastId = null;
   }
 });
 // Guarded: the module is imported by tests that run in plain Node, where the

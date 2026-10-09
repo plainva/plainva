@@ -34,6 +34,7 @@ vi.mock("@plainva/ui", () => ({
     dismiss: () => {},
     info: () => {},
     error: () => {},
+    success: () => {},
   },
 }));
 

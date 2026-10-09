@@ -58,13 +58,19 @@ let queue: UndoSendQueue<() => Promise<void>> | null = null;
 function undoQueue(): UndoSendQueue<() => Promise<void>> {
   if (queue) return queue;
   queue = new UndoSendQueue<() => Promise<void>>(async (deliver) => {
+    // The notice ends WITH the window, before the transport is asked. Whatever
+    // brought the message here — the timer, Plainva closing, a second message
+    // pushing this one out — "Undo" can no longer stop it, and the notice is
+    // persistent: nothing but this takes it down. It is also the last moment
+    // the id still names THIS message's notice; by the time the transport has
+    // answered, a message sent in between has its own behind it. The outcome
+    // is therefore said on its own, as the phone says it.
+    if (undoToastId !== null) toast.dismiss(undoToastId);
+    undoToastId = null;
     try {
       await deliver();
-      if (undoToastId !== null) toast.dismiss(undoToastId);
-      undoToastId = null;
+      toast.success(i18n.t("mail.sent"));
     } catch (e) {
-      if (undoToastId !== null) toast.dismiss(undoToastId);
-      undoToastId = null;
       toast.error(e instanceof Error ? e.message : String(e));
     }
   });

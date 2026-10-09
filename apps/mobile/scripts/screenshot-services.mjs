@@ -60,7 +60,9 @@ const MESSAGES = [
  * (`junkemail`, `archive` ...) - the inbox itself stays the three messages the
  * screenshot baseline counts. A list request with `$search` answers with the
  * messages whose subject or preview contains the term, like the server does;
- * `observed.searches` records what was asked. */
+ * `observed.searches` records what was asked. `POST /me/sendMail` is accepted
+ * the way the server accepts it - 202, no body - and `observed.sent` keeps
+ * what the mailbox was asked to send. */
 export async function installMailFixture(context, { extra = {} } = {}) {
   const messages = structuredClone(MESSAGES);
   const others = Object.fromEntries(Object.entries(structuredClone(extra)).map(([folder, list]) => [folder, list.map((m, i) => ({
@@ -70,7 +72,7 @@ export async function installMailFixture(context, { extra = {} } = {}) {
     bodyPreview: "", ...m,
   }))]));
   const everything = () => [...messages, ...Object.values(others).flat()];
-  const observed = { lists: 0, bodies: 0, searches: [], tokenRefreshes: 0, unexpected: [] };
+  const observed = { lists: 0, bodies: 0, searches: [], sent: [], tokenRefreshes: 0, unexpected: [] };
   await context.route("https://login.microsoftonline.com/**", async (route) => {
     if (!route.request().url().includes("/oauth2/v2.0/token")) return route.abort("blockedbyclient");
     observed.tokenRefreshes++;
@@ -107,6 +109,10 @@ export async function installMailFixture(context, { extra = {} } = {}) {
     if (request.method() === "PATCH") {
       const item = everything().find(m => path === `/me/messages/${m.id}`);
       if (item) { Object.assign(item, request.postDataJSON()); return route.fulfill({ status: 204 }); }
+    }
+    if (request.method() === "POST" && path === "/me/sendMail") {
+      observed.sent.push(request.postDataJSON());
+      return route.fulfill({ status: 202, body: "" });
     }
     observed.unexpected.push(`${request.method()} ${path}`);
     return route.fulfill({ status: 501, json: { error: { message: "Unsupported local fixture request" } } });

@@ -74,7 +74,10 @@ export const toast = {
    *  dismisses it when done (e.g. an update download that ends in a relaunch).
    *  It may carry an action: "undo send" (S23) is exactly this shape — an
    *  operation that is running, with one chance to stop it, and a window whose
-   *  length the CALLER owns rather than the toast's own timer. */
+   *  length the CALLER owns rather than the toast's own timer. Owning it means
+   *  taking the toast down in the moment the window ends, on EVERY way it can
+   *  end (carried out, taken back, cancelled because the app goes away): a way
+   *  out that skips the dismiss leaves the toast, and its action, for good. */
   progress: (message: string, action?: ToastAction) => push("info", message, action, true),
   dismiss: remove,
   /** Hover pause: stop the auto-dismiss timer … */

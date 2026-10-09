@@ -1,7 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
 import { installMailFixture } from "../scripts/screenshot-services.mjs";
-import { waitForVaultDirectory } from "./exampleVault";
+import { leaveApp, returnToApp, waitForVaultDirectory } from "./exampleVault";
 
 /**
  * Mail on the phone, against the locally routed Graph fixture (plan Befunde
@@ -14,6 +14,9 @@ import { waitForVaultDirectory } from "./exampleVault";
  *    does not reach into the junk folder.
  *  - M4: the search (TestFlight 02.10., "the search field in the mails does
  *    not seem to work").
+ *  - Sending: the notice that keeps "Undo" ready while a message waits. It
+ *    stayed after every sent mail, over the tab bar, until it was closed by
+ *    hand.
  */
 
 const SAFE_TARGET = "https://nordlicht.example/kunden/rechnungen/2026-10";
@@ -291,6 +294,60 @@ test("remote images: the phone has the switch, and it does not reach into the ju
     await expect.poll(() => srcdoc(page)).toContain("Klicken Sie hier");
     expect(await srcdoc(page)).not.toContain("spam-tracker.example");
     await expect(page.getByTestId("mail-blocked-junk")).toBeVisible();
+  } finally {
+    await sql.close();
+  }
+});
+
+test("a sent mail: the notice with Undo ends with its window, and nothing stays over the bar", async ({ page, context }, testInfo) => {
+  test.setTimeout(90_000);
+  const { mail, sql } = await bootMail(context, page);
+  try {
+    const toasts = page.locator(".pv-toast");
+    const notice = toasts.filter({ hasText: /Sending in \d+ s/ });
+    const confirmation = toasts.filter({ hasText: "Message sent." });
+    const recipients = (index: number) => mail.sent[index].message.toRecipients.map((r: { emailAddress: { address: string } }) => r.emailAddress.address);
+    /** From the folder: open the message, answer it, send. Ends on the message, the composer closed. */
+    const replyAndSend = async () => {
+      await page.locator("button.m-mailrow", { hasText: "Newsletter September" }).click();
+      await page.getByRole("button", { name: /^Reply$/ }).click();
+      await expect(page.getByRole("textbox", { name: "To" })).toHaveValue("Ben Beispiel <ben@example.org>");
+      await page.getByRole("button", { name: /^Send$/ }).first().click();
+      await expect(page.getByRole("textbox", { name: "To" })).toHaveCount(0);
+    };
+
+    // 1. The window runs out. While the message waits, the notice is the way
+    //    back; nothing has been asked of the mailbox yet.
+    await replyAndSend();
+    await expect(notice).toBeVisible();
+    await expect(notice.locator(".pv-toast-action")).toHaveText("Undo");
+    expect(mail.sent).toEqual([]);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mail-send-waiting.png") });
+
+    await expect.poll(() => mail.sent.length, { timeout: 20_000 }).toBe(1);
+    expect(mail.sent[0].message.subject).toBe("Re: Newsletter September");
+    expect(recipients(0)).toEqual(["ben@example.org"]);
+    // THE DEFECT: the notice is persistent, and the queue that raised it never
+    // took it down — "Sending in 8 s · Undo" stayed after the message was out.
+    await expect(notice).toHaveCount(0);
+    await expect(confirmation).toBeVisible();
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mail-send-sent.png") });
+    // What is said in passing fades on its own: nothing is left over the bar.
+    await expect(toasts).toHaveCount(0, { timeout: 15_000 });
+    await back(page);
+    await expect(page.locator("button.m-mailrow")).toHaveCount(3);
+
+    // 2. Leaving the app ends the window too. The message is sent at once
+    //    rather than dropped — and the notice is not waiting for whoever comes
+    //    back, counting down to something that has already happened.
+    await replyAndSend();
+    await expect(notice).toBeVisible();
+    await leaveApp(page);
+    await expect.poll(() => mail.sent.length, { timeout: 5_000 }).toBe(2);
+    expect(recipients(1)).toEqual(["ben@example.org"]);
+    await expect(notice).toHaveCount(0);
+    await returnToApp(page);
+    await expect(notice).toHaveCount(0);
   } finally {
     await sql.close();
   }
