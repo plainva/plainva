@@ -100,6 +100,64 @@ const open = new Map<string, AuxWindowRecord>();
 let counter = 0;
 
 /**
+ * Windows that said they hold unsaved work (finding 2026-10-09); the window's
+ * half is `windowCloseGuard.ts`.
+ *
+ * The owner destroys a window when its close is asked for, and nothing in the
+ * window can stop that. So a window that holds a changed mail draft says so,
+ * and for exactly those windows the close waits for one fresh answer. Every
+ * other window closes as it always has: it is not in this set, and none of
+ * what follows runs for it.
+ */
+const holdsWork = new Set<string>();
+/** A close waiting for its window's answer — one per window, however often the close is asked for meanwhile. */
+const closeAnswers = new Map<string, { answer: Promise<boolean>; settle: (held: boolean) => void }>();
+
+/**
+ * How long a close waits for a window that said it holds work. Long enough for
+ * a busy window to answer, short enough that one which hung can still be
+ * closed: after it the close goes ahead as if nothing were held.
+ */
+export const CLOSE_ANSWER_TIMEOUT_MS = 2_000;
+
+/** A client window reports whether closing it now would lose something. */
+export function noteWindowCloseHold(label: string, held: boolean): void {
+  if (held) holdsWork.add(label);
+  else holdsWork.delete(label);
+  closeAnswers.get(label)?.settle(held);
+}
+
+/**
+ * Does this window still hold unsaved work, now that its close was asked for?
+ * False at once for a window that never reported any. What a window reported
+ * earlier is only the reason to ask: the answer that counts is the one it gives
+ * now, because a message that was sent a moment ago still stands in its fields.
+ */
+async function stillHoldsWork(label: string): Promise<boolean> {
+  if (!holdsWork.has(label)) return false;
+  const waiting = closeAnswers.get(label);
+  if (waiting) return waiting.answer;
+  let settle!: (held: boolean) => void;
+  const answer = new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => settle(false), CLOSE_ANSWER_TIMEOUT_MS);
+    settle = (held) => {
+      clearTimeout(timer);
+      closeAnswers.delete(label);
+      resolve(held);
+    };
+  });
+  closeAnswers.set(label, { answer, settle });
+  try {
+    const bus = await getWindowBus();
+    await bus.broadcast("close-requested", { label }, null);
+  } catch {
+    // Nobody to ask: the window closes as it always has.
+    settle(false);
+  }
+  return answer;
+}
+
+/**
  * Allocates the next window label. Separate from opening because a compose
  * window needs its label BEFORE it exists (to stash the draft under it), and
  * because opening yields at its first await: two requests in flight must not
@@ -324,7 +382,22 @@ export async function openAuxWindow(params: {
 
   // A window can also be closed by the OS (Alt+F4, the system menu), so the
   // registry follows the window rather than the code path that closed it.
-  void win.onCloseRequested(() => {
+  void win.onCloseRequested(async (event) => {
+    // A window that holds unsaved work is asked first (finding 2026-10-09). It
+    // stays open and puts the question to the person itself; it closes once
+    // they said so. The question must not be asked where nobody sees it: the
+    // close may have come from the taskbar while the window was minimised, and
+    // while a tray icon is registered the close has already HIDDEN the window
+    // (`tray::hide_instead_of_quit` runs for every window). So it comes back
+    // to the front first — the three calls `focusAuxWindow` makes.
+    if (await stillHoldsWork(label)) {
+      event.preventDefault();
+      await win.unminimize().catch(() => {});
+      await win.show().catch(() => {});
+      await win.setFocus().catch(() => {});
+      return;
+    }
+    holdsWork.delete(label);
     // Its CURRENT vault, not the one it opened with: since stage D a window can
     // switch, and persisting the old list would leave the record it just lost
     // in place while the list it actually belongs to keeps a stale entry.
@@ -701,4 +774,6 @@ export function resetWindowRegistryForTest(): void {
   open.clear();
   ownerContents = new Set();
   counter = 0;
+  holdsWork.clear();
+  for (const waiting of [...closeAnswers.values()]) waiting.settle(false);
 }

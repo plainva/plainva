@@ -119,6 +119,13 @@ export interface BroadcastMap {
    * its tag pane on that tag (a tag clicked in a note, finding 2026-09-19).
    */
   "reveal-path": { label: string; path?: string; tag?: string };
+  /**
+   * Owner to one window: your close was asked for, and you had said you hold
+   * unsaved work — say whether you still do (finding 2026-10-09). The window
+   * answers with `window-close-hold` and, when it holds something, asks the
+   * person. The owner does not send this to a window that never reported any.
+   */
+  "close-requested": { label: string };
 }
 
 export type BroadcastChannel = keyof BroadcastMap;
@@ -368,6 +375,17 @@ export interface RpcMap {
   /** An auxiliary window reports its always-on-top pin so it survives a restart. */
   "window-always-on-top": { args: { label: string; value: boolean }; result: void };
   /**
+   * A client window says whether closing it now would lose something
+   * (finding 2026-10-09): a message composer whose draft was changed.
+   *
+   * The owner creates every other window and is the one that destroys it, so
+   * it is the one that has to know. The sender's own label is the address —
+   * a window speaks for itself, never for another. Sent when the answer
+   * changes, and again when the owner asks (`close-requested`), so what the
+   * owner acts on is what is true at the moment of the close.
+   */
+  "window-close-hold": { args: { held: boolean }; result: void };
+  /**
    * Re-read the vault, or rebuild the index from scratch (multi-window C1).
    *
    * The indexer stays with the owner — a client holds a read-only connection to
@@ -428,6 +446,7 @@ export const BROADCAST_SCOPE: Record<BroadcastChannel, "vault" | "app"> = {
   "focus-content": "app",
   "set-content": "app",
   "reveal-path": "app",
+  "close-requested": "app",
 };
 
 /**
@@ -498,6 +517,7 @@ export const RPC_SCOPE: Record<RpcKind, "vault" | "app"> = {
   "window-bounds": "app",
   "window-contents": "app",
   "window-always-on-top": "app",
+  "window-close-hold": "app",
   // About a WINDOW and the process-wide runtime registry, and it names its
   // vault in the arguments — addressing it by vault would be circular.
   "hold-vault": "app",

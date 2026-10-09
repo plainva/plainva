@@ -41,6 +41,7 @@ export * from "./inviteIcs";
 export * from "./composeMarkdown";
 export * from "./composeSession";
 export * from "./composeLinks";
+export * from "./composeChange";
 export * from "./mailCapture";
 export * from "./mailCache";
 export * from "./autoRead";

@@ -9,6 +9,15 @@ import { cx } from "./cx";
  * modals (Settings → Shortcuts, appConfirm over anything) unwind one by one. */
 const modalStack: symbol[] = [];
 
+/**
+ * Whether a modal is open right now. A surface outside this stack that takes
+ * Escape for itself can ask this first, so that the key still goes to the
+ * dialog on top — the floating composer does, for the question about itself.
+ */
+export function isModalOpen(): boolean {
+  return modalStack.length > 0;
+}
+
 export type ModalSize = "sm" | "md" | "lg" | "xl";
 
 export interface ModalProps {

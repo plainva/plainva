@@ -1676,6 +1676,178 @@ test('multi-window P3: the composer pops out into its own window, losing nothing
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
 });
 
+/**
+ * Leaving the composer (finding 2026-10-09).
+ *
+ * Escape, the close button and "Cancel" dropped whatever stood in the composer
+ * without a word, while the phone asked. All three ask now — when the draft
+ * was changed against what the composer opened with, and only then.
+ *
+ * "Only then" is half of the test: a reply opens with a recipient, a quoted
+ * original and the account's signature, none of it written by anyone, and it
+ * runs through the real editor, which hands a body back the moment the composer
+ * signs it. A measure that takes any of that for typing asks on every reply —
+ * the question would be answered without reading within a day.
+ */
+test('the composer asks before a changed draft is discarded, and only then', async ({ page }) => {
+  await page.addInitScript(() => {
+    // A mailbox that signs its mail.
+    (window as any).__mailAccountsOverride = [
+      { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org', smtpHost: 'smtp.example.org', smtpPort: 587, signature: 'Marco\nPlainva' },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  const form = page.getByTestId('draft-form');
+  const question = page.locator('.pv-overlay--dialog');
+  const answer = question.locator('.pv-modal-footer button');
+  const reply = async () => {
+    await page.getByTestId('mail-reply').click();
+    await expect(form).toBeVisible();
+    await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+    // The signature has landed, above the quoted original.
+    await expect(page.getByTestId('draft-body')).toContainText('Marco');
+    await expect(page.getByTestId('draft-body')).toContainText('anbei die Rechnung.');
+  };
+
+  // Untouched: each of the three ways out closes it, and none of them asks.
+  const waysOut = [
+    () => page.keyboard.press('Escape'),
+    () => page.getByTestId('draft-close').click(),
+    () => page.getByTestId('draft-cancel').click(),
+  ];
+  for (const leave of waysOut) {
+    await reply();
+    await leave();
+    await expect(form).toHaveCount(0);
+    await expect(question).toHaveCount(0);
+  }
+
+  // Changed: the same three ask, and "Cancel" in the question leaves the
+  // composer standing with what was typed.
+  await reply();
+  await page.getByTestId('draft-body').locator('.cm-content').click();
+  await page.keyboard.type('Danke, passt!');
+  for (const leave of waysOut) {
+    await leave();
+    await expect(question).toBeVisible();
+    await expect(form).toBeVisible();
+    if (process.env.PLAINVA_EVIDENCE) {
+      // The dialog fades in; a picture taken at once shows it half there.
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: test.info().outputPath('compose-discard-question.png') });
+    }
+    await answer.first().click();
+    await expect(question).toHaveCount(0);
+    await expect(form).toBeVisible();
+    await expect(page.getByTestId('draft-body')).toContainText('Danke, passt!');
+  }
+
+  // Escape belongs to the question while it stands: it answers "Cancel"
+  // instead of closing the composer underneath or asking a second time.
+  await page.keyboard.press('Escape');
+  await expect(question).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(question).toHaveCount(0);
+  await expect(page.getByTestId('draft-body')).toContainText('Danke, passt!');
+
+  // And it belongs to what is open INSIDE the composer before it is the
+  // composer's: the command menu closes, and nothing asks about the message.
+  // The floating window used to take the key first — in the capture phase —
+  // so this Escape closed the composer with everything in it.
+  await page.getByTestId('draft-body').locator('.cm-content').click();
+  await page.keyboard.type(' /');
+  const commands = page.getByTestId('compose-slash-menu');
+  await expect(commands).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(commands).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+  await expect(form).toBeVisible();
+
+  // "Discard" is the one answer that lets it go.
+  await page.getByTestId('draft-close').click();
+  await answer.last().click();
+  await expect(form).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+});
+
+/**
+ * What a draft ARRIVES with is not unsaved work, and filing it is not leaving
+ * it (finding 2026-10-09). A note sent as an attachment opens the composer
+ * with the file already on it: closing that composer untouched loses nothing.
+ * Taking the file off by hand is a change. And "Save as draft" closes a changed
+ * composer without the question — the message is in the mailbox, not gone.
+ */
+test('the composer: a file the draft arrived with is not unsaved work, a filed draft is not a discarded one', async ({ page }) => {
+  await openVault(page);
+  const form = page.getByTestId('draft-form');
+  const question = page.locator('.pv-overlay--dialog');
+  const sendNoteAsAttachment = () =>
+    page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('plainva-compose-mail', {
+        detail: { subject: 'Meine Notiz', markdown: '', to: 'anna@example.org', attachments: [{ name: 'Note.md', mime: 'text/markdown', contentBase64: btoa('# Hallo') }] },
+      }));
+    });
+
+  await sendNoteAsAttachment();
+  await expect(page.getByTestId('draft-attachments')).toContainText('Note.md');
+  await page.keyboard.press('Escape');
+  await expect(form).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+
+  await sendNoteAsAttachment();
+  await page.getByTestId('draft-attach-remove').click();
+  await expect(page.getByTestId('draft-attachments')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(question).toBeVisible();
+  await question.locator('.pv-modal-footer button').first().click();
+  await expect(form).toBeVisible();
+
+  // Filing the changed draft: no question, and it reaches the mailbox.
+  await page.getByTestId('draft-save').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__appendedDraft ?? null)).toBeTruthy();
+  await expect(form).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+});
+
+/**
+ * The composer is a floating window to work beside — it must survive the tab
+ * it was opened from (finding 2026-10-09). The mail view rendered a composer
+ * of its own, so opening a note to look something up unmounted the view and
+ * the written message with it: no Escape, no close button, no question. The
+ * draft now lives with the window's shell.
+ */
+test('the composer outlives the mail tab it was opened from', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-view')).toBeVisible();
+  await page.getByTestId('mail-compose').click();
+  const form = page.getByTestId('draft-form');
+  await expect(form).toBeVisible();
+  await page.getByTestId('draft-subject').fill('Nicht verlieren');
+
+  // Look something up: the note replaces the mail view.
+  await page.getByTestId('file-tree').getByText('Todo').first().click();
+  await expect(page.locator('.cm-content').getByText('Some note content.').first()).toBeVisible();
+  await expect(page.getByTestId('mail-view')).toHaveCount(0);
+
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Nicht verlieren');
+
+  // Working beside it: an Escape pressed in the note is the note's. It neither
+  // closes the composer nor asks about a message nobody was thinking of. (The
+  // caret is put into the note without a click: the composer floats over the
+  // middle of the pane, and a click there would land in the composer.)
+  await page.locator('.cm-content').filter({ hasText: 'Some note content.' }).first().focus();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.pv-overlay--dialog')).toHaveCount(0);
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Nicht verlieren');
+});
+
 test('conversations: the arrow keys read INTO a folded conversation instead of stopping on it', async ({ page }) => {
   // Reported 2026-09-07: with conversations on, Up/Down landed on a folded
   // conversation's header and opened nothing — from the reader's point of view

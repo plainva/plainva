@@ -1,4 +1,4 @@
-import type { MailAttachment } from "@plainva/ui/mail";
+import type { ComposeContent, MailAttachment } from "@plainva/ui/mail";
 
 /**
  * What a compose window is opened with (multi-window P3).
@@ -21,6 +21,18 @@ export interface ComposeSnapshot {
   body: string;
   attachments: MailAttachment[];
   mailbox: string;
+  /**
+   * What the composer OPENED with, before anything was typed (finding
+   * 2026-10-09). The leave question is asked when the draft differs from that,
+   * and a draft does not become untouched by moving to another window: without
+   * this the new window would measure against the moment of the pop-out, and
+   * a whole written message could be closed there without a word.
+   *
+   * Absent means the snapshot is itself the opened state. The files a draft
+   * arrived with travel a second time here — a note or an invitation, never
+   * what the writer attached by hand.
+   */
+  opened?: ComposeContent;
 }
 
 const drafts = new Map<string, ComposeSnapshot>();

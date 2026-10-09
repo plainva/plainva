@@ -190,6 +190,17 @@ describe("leaving the composer", () => {
     expect(recipient().value).toBe("ben@example.org");
   });
 
+  it("asks nothing about how the recipients are written, only about who they are", async () => {
+    // The measure is the shared rule since the desktop composer asks too: a
+    // recipient field names a list, and a separator typed behind the last
+    // address is somebody still typing, not a recipient that would be lost.
+    await open({ accountId: "m1", to: "ben@example.org", subject: "Angebot", body: "" });
+    await type(recipient(), "ben@example.org, ");
+    expect(activeLeaveGuard()).toBeNull();
+    await type(recipient(), "ben@example.org, carla@example.org");
+    expect(activeLeaveGuard()?.id).toBe("mail-compose");
+  });
+
   it("asks when a file was taken off by hand", async () => {
     await open(fromNote());
     await tap(q("compose-attachment-remove"));

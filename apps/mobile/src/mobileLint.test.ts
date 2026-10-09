@@ -1225,6 +1225,32 @@ describe("the composer offers Send by the shared decision", () => {
 });
 
 /**
+ * Leaving the composer asks, and by the shared measure (finding 2026-10-09).
+ * The desktop composer asks the same question since then; what the phone has
+ * on top is that its composer is a screen — every ordinary route to another
+ * vault leaves it first. The catalog entry this pins says where the desktop
+ * still drops a draft without a word, and names the one route on which the
+ * phone does too.
+ */
+describe("the composer asks before a changed draft is left", () => {
+  const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+
+  // @parity-mobile mail-draft-survives-vault-switch
+  it("arms the leave guard, which the routes that leave the screen ask", () => {
+    // The bar, the back arrow and Android back. Not the share inbox's "choose
+    // vault", which pushes the vault list on top — the catalog entry says so.
+    expect(screen).toMatch(/useLeaveGuard\(\s*"mail-compose",/);
+  });
+
+  it("measures by the rule both shells share, not by an expression of its own", () => {
+    // Two measures are how the shells came apart: the phone counted the
+    // signature as typing while the desktop did not ask at all.
+    expect(screen).toMatch(/useLeaveGuard\(\s*"mail-compose",\s*composeChanged\(/);
+    expect(screen).not.toMatch(/!==\s*untouchedBody/);
+  });
+});
+
+/**
  * Capturing, one status line, and a delete you can take back (S30).
  */
 describe("mail files, says and deletes carefully", () => {

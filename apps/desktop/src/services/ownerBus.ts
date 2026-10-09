@@ -15,6 +15,7 @@ import {
   noteWindowContent,
   noteWindowContents,
   noteWindowAlwaysOnTop,
+  noteWindowCloseHold,
   openComposeWindow,
   openOrFocusContent,
   noteWindowVault,
@@ -616,6 +617,15 @@ export async function installOwnerAppBus(): Promise<() => void> {
   offs.push(
     await bus.handle("window-always-on-top", async ({ label, value }) => {
       noteWindowAlwaysOnTop(label, value);
+    }),
+  );
+
+  offs.push(
+    await bus.handle("window-close-hold", async ({ held }, from) => {
+      // This window destroys the others, so it has to know which of them holds
+      // a changed draft before it lets one go. A window reports for ITSELF:
+      // the sender is the address, not an argument it could get wrong.
+      noteWindowCloseHold(from, held);
     }),
   );
 

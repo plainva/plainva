@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-10-06
+Laatst bijgewerkt: 2026-10-09
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -59,6 +59,7 @@ Zodra een account kan verzenden — een **Microsoft**-account, of een **IMAP**-a
 - **Sjabloon invoegen…** zet een notitiesjabloon in de berichttekst. De vragen van het sjabloon (`{{prompt:…}}`) worden **één keer, in één dialoogvenster** gesteld in plaats van als tijdelijke aanduiding mee te reizen; de frontmatter blijft erbuiten — een mailtekst heeft er geen, en de ontvanger zou anders YAML krijgen. Annuleer je, dan wordt er niets ingevoegd.
 - **Beantwoorden**, **Allen beantwoorden** en **Doorsturen** bij elk bericht openen hetzelfde venster met het origineel geciteerd en de ontvangers vooraf ingevuld; bij doorsturen gaan de bijlagen mee.
 - **Verzenden** gaat via SMTP (IMAP-accounts) of Microsoft Graph (Microsoft-accounts).
+- **Annuleren**, de sluitknop en `Esc` vragen **Invoer verwerpen?** voordat een bericht dat je hebt gewijzigd verloren gaat. **Annuleren** in die vraag brengt je terug naar het bericht, met alles wat erin staat; **Verwerpen** sluit het. Een bericht dat je niet hebt aangeraakt sluit meteen — de handtekening die Plainva invoegt en een bestand waarmee het bericht binnenkwam (een notitie als bijlage, een uitnodiging) tellen niet als jouw wijzigingen. **Verzenden**, **Concept opslaan** en het losmaken naar een eigen venster vragen nooit, en het venster blijft open terwijl je ernaast een notitie opent of van tabblad wisselt.
 - **Deze notitie per e-mail** (⋮-menu van een notitie, of het opdrachtenpalet) start een bericht met de huidige notitie als bijlage, of inline als tekst.
 
 ## E-mail in een eigen venster
@@ -67,7 +68,7 @@ Rechtsklik op **E-mail** in de actiebalk om de mailbox in een eigen venster te o
 
 Tijdens het opstellen zet het uitklapicoon het opstelvenster om in een eigen venster — ontvangers, onderwerp, tekst en bijlagen gaan mee, ook een adres dat je net hebt getypt en nog niet hebt bevestigd. **Verzenden gebeurt nog steeds vanuit het hoofdvenster**: het opstelvenster draagt het bericht over en sluit, de melding met **Ongedaan maken** verschijnt waar je verder werkt. Zo bepaalt het sluiten van een venster nooit tussen versturen en verliezen.
 
-Een opstelvenster wordt bij de volgende start **niet** hersteld — wat erin staat, leeft in het geheugen. Maak een langer bericht dus af, of sla het op als concept.
+Een opstelvenster wordt bij de volgende start **niet** hersteld — wat erin staat, leeft in het geheugen. Maak een langer bericht dus af, of sla het op als concept. Sluit je zo'n venster met een gewijzigd bericht, dan komt eerst dezelfde vraag — net als bij elk tweede Plainva-venster waarin een opstelvenster ligt. Bij het afsluiten van Plainva, het wisselen van vault of **Index opnieuw opbouwen** wordt niets gevraagd.
 
 ## Een notitie doorgeven zonder de mailclient
 

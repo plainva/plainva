@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-09
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -59,6 +59,7 @@ Once an account can send — a **Microsoft** account, or an **IMAP** account wit
 - **Insert template…** puts a note template into the body. The template's questions (`{{prompt:…}}`) are asked **once, in one dialog**, rather than travelling along as placeholders; its frontmatter stays out — a mail body has none, and the recipient would otherwise receive YAML. Cancel the dialog and nothing is inserted.
 - **Reply**, **reply-all** and **forward** on any message open the same window with the original quoted and the recipients pre-filled; a forward carries the attachments along.
 - **Send** goes out over SMTP (IMAP accounts) or Microsoft Graph (Microsoft accounts).
+- **Cancel**, the close button and `Esc` ask **Discard your input?** before a message you have changed is thrown away. **Cancel** in that question takes you back to the message with everything in place; **Discard** closes it. A message you have not touched closes at once — the signature Plainva puts in and a file the message arrived with (a note sent as an attachment, an invitation) are not your changes. **Send**, **Save draft** and lifting the composer into its own window never ask, and the window stays open while you open a note or switch tabs beside it.
 - **Email this note** (a note's `⋮` menu, or the command palette) starts a message with the current note attached, or inlined as text.
 
 ## Email in its own window
@@ -67,7 +68,7 @@ Right-click **Email** in the ribbon to open the mailbox in a window of its own; 
 
 While composing, the pop-out icon lifts the composer into its own window — recipients, subject, body and attachments travel with it, including an address you have just typed and not yet confirmed. **Sending still happens in the main window**: the composer hands the message over and closes, and the notice with **Undo** appears where you keep working. That way closing a window never decides between sending and losing.
 
-A composer window is **not** restored on the next start — what it holds lives in memory. So finish a longer message, or save it as a draft.
+A composer window is **not** restored on the next start — what it holds lives in memory. So finish a longer message, or save it as a draft. Closing such a window over a changed message asks the same question first, and so does closing any second Plainva window with a composer in it. Quitting Plainva, switching to another vault or **Rebuild index** does not ask.
 
 ## Handing a note off without the mail client
 

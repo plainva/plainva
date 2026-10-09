@@ -44,7 +44,7 @@ if (typeof document !== "undefined") {
   });
 }
 import type { MailAccountConfig, MailAttachment } from "@plainva/ui/mail";
-import { appendDraft, bytesToBase64, guessAttachmentMime, listMailboxesFor, resolveDraftsMailbox, sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
+import { appendDraft, bytesToBase64, composeChanged, guessAttachmentMime, listMailboxesFor, resolveDraftsMailbox, sendMail, senderKey, senderOptions, splitSenderKey, withSignature, withoutSignature } from "@plainva/ui/mail";
 import { mSelect, mTargets } from "../services/mobileDialogs";
 import { MailComposeEditor } from "./mail/MailComposeEditor";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
@@ -188,13 +188,15 @@ export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault
    *    put on or taken off by hand is, and it went without a word.
    *
    * Sending and filing do not come past here — they leave through `onDone`.
-   * The desktop composer asks nothing on its way out, so none of this could
-   * occur there; it is a floating window that only its own controls close.
+   * The measure itself is the shared one (`composeChanged`): the desktop
+   * composer asks the same question on its way out, and by the same rule.
    */
   useLeaveGuard(
     "mail-compose",
-    to !== draft.to || cc !== "" || bcc !== "" || subject !== draft.subject || body !== untouchedBody ||
-      attach.length !== arrived.length || attach.some((file, i) => file !== arrived[i]),
+    composeChanged(
+      { to: draft.to, cc: "", bcc: "", subject: draft.subject, body: untouchedBody, attachments: arrived },
+      { to, cc, bcc, subject, body, attachments: attach },
+    ),
     t("mobile.leaveCompose", { defaultValue: "Der Entwurf wird nicht gespeichert." }),
   );
 

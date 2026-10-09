@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-10-06
+Dernière mise à jour : 2026-10-09
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -59,6 +59,7 @@ Dès qu'un compte peut envoyer — un compte **Microsoft**, ou un compte **IMAP*
 - **Insérer un modèle…** place un modèle de note dans le corps du message. Les questions du modèle (`{{prompt:…}}`) sont posées **une fois, dans une seule boîte de dialogue**, au lieu de partir telles quelles ; son frontmatter reste dehors — un corps de mail n'en a pas, et le destinataire recevrait sinon du YAML. Si tu annules, rien n'est inséré.
 - **Répondre**, **Répondre à tous** et **Transférer** sur n'importe quel message ouvrent la même fenêtre avec l'original cité et les destinataires préremplis ; un transfert emporte les pièces jointes.
 - **Envoyer** part par SMTP (comptes IMAP) ou Microsoft Graph (comptes Microsoft).
+- **Annuler**, le bouton de fermeture et `Esc` demandent **Abandonner la saisie ?** avant qu'un message que vous avez modifié ne soit perdu. **Annuler** dans cette question vous ramène au message, avec tout ce qu'il contient ; **Abandonner** le ferme. Un message auquel vous n'avez pas touché se ferme aussitôt — la signature que Plainva insère et un fichier avec lequel le message est arrivé (une note envoyée en pièce jointe, une invitation) ne comptent pas comme vos modifications. **Envoyer**, **Enregistrer le brouillon** et le détachement dans une fenêtre indépendante ne demandent jamais rien, et la fenêtre reste ouverte pendant que vous ouvrez une note ou changez d'onglet à côté.
 - **Cette note par e-mail** (menu `⋮` d'une note ou palette de commandes) démarre un message avec la note actuelle en pièce jointe, ou intégrée en texte.
 
 ## E-mail dans sa propre fenêtre
@@ -67,7 +68,7 @@ Faites un clic droit sur **E-mail** dans la barre d'actions pour ouvrir la boît
 
 Pendant la rédaction, l'icône de détachement en fait une fenêtre indépendante — destinataires, objet, corps et pièces jointes voyagent avec elle, y compris une adresse que vous venez de taper et n'avez pas encore validée. **L'envoi a toujours lieu dans la fenêtre principale** : la fenêtre de rédaction transmet le message et se ferme, et l'avis avec **Annuler** apparaît là où vous continuez à travailler. Ainsi, fermer une fenêtre ne décide jamais entre envoyer et perdre.
 
-Une fenêtre de rédaction n'est **pas** restaurée au démarrage suivant — ce qu'elle contient vit dans la mémoire. Terminez donc un message plus long, ou enregistrez-le comme brouillon.
+Une fenêtre de rédaction n'est **pas** restaurée au démarrage suivant — ce qu'elle contient vit dans la mémoire. Terminez donc un message plus long, ou enregistrez-le comme brouillon. Fermer une telle fenêtre avec un message modifié pose d'abord la même question, tout comme fermer n'importe quelle deuxième fenêtre de Plainva qui contient une fenêtre de rédaction. Quitter Plainva, changer de vault ou lancer **Reconstruire l'index** ne demande rien.
 
 ## Transmettre une note sans le client de messagerie
 

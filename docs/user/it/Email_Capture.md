@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-09
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -59,6 +59,7 @@ Non appena un account può inviare — un account **Microsoft**, oppure un accou
 - **Inserisci modello…** mette un modello di nota nel corpo del messaggio. Le domande del modello (`{{prompt:…}}`) vengono poste **una volta sola, in un'unica finestra**, invece di viaggiare come segnaposto; il suo frontmatter resta fuori — un corpo di posta non ne ha, e il destinatario riceverebbe YAML. Se annulli, non viene inserito nulla.
 - **Rispondi**, **Rispondi a tutti** e **Inoltra** su qualsiasi messaggio aprono la stessa finestra con l'originale citato e i destinatari precompilati; un inoltro porta con sé gli allegati.
 - **Invia** parte via SMTP (account IMAP) o Microsoft Graph (account Microsoft).
+- **Annulla**, il pulsante di chiusura e `Esc` chiedono **Scartare i dati inseriti?** prima che un messaggio che hai modificato vada perso. **Annulla** in quella domanda ti riporta al messaggio con tutto al suo posto; **Scarta** lo chiude. Un messaggio che non hai toccato si chiude subito — la firma che Plainva inserisce e un file con cui il messaggio è arrivato (una nota inviata come allegato, un invito) non contano come tue modifiche. **Invia**, **Salva bozza** e lo spostamento in una finestra propria non chiedono mai, e la finestra resta aperta mentre apri una nota o cambi scheda accanto.
 - **Questa nota via e-mail** (menu `⋮` di una nota, o la palette dei comandi) avvia un messaggio con la nota attuale come allegato, oppure incorporata come testo.
 
 ## La posta in una finestra propria
@@ -67,7 +68,7 @@ Fai clic destro su **E-mail** nella barra delle azioni per aprire la casella in 
 
 Durante la composizione, l'icona a comparsa solleva la finestra di composizione in una finestra propria — destinatari, oggetto, testo e allegati viaggiano con essa, compreso un indirizzo appena digitato e non ancora confermato. **L'invio avviene comunque nella finestra principale**: la finestra di composizione consegna il messaggio e si chiude, e l'avviso con **Annulla** compare dove stai continuando a lavorare. Così chiudere una finestra non decide mai tra inviare e perdere.
 
-Una finestra di composizione **non** viene ripristinata al prossimo avvio — quello che contiene vive in memoria. Quindi finisci un messaggio lungo, oppure salvalo come bozza.
+Una finestra di composizione **non** viene ripristinata al prossimo avvio — quello che contiene vive in memoria. Quindi finisci un messaggio lungo, oppure salvalo come bozza. Chiudere una finestra così con un messaggio modificato fa prima la stessa domanda, come chiudere qualsiasi seconda finestra di Plainva che contiene una finestra di composizione. Uscendo da Plainva, cambiando vault o con **Ricostruisci indice** non viene chiesto nulla.
 
 ## Consegnare una nota senza il client di posta
 

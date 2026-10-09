@@ -47,8 +47,22 @@ import {
 } from "./mailColumns";
 import { createTaskInDatabase } from "../../services/taskPromotion";
 import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
-import { MailDraftModal } from "./MailDraftModal";
-import { popOutCompose } from "../../services/mail/composeWindow";
+
+/**
+ * Opens the composer — the one the window's shell hosts, through the event the
+ * editor's "send this note" already uses (finding 2026-10-09).
+ *
+ * This view used to render a composer of its own. The composer is a floating
+ * window to work BESIDE, and the view is a tab: opening a note to look
+ * something up replaced the tab, the view was unmounted, and the composer went
+ * with it — a written message gone without a word, on the one route that asks
+ * nobody. Every shell that shows this view answers the event (the central and
+ * the full window in AppShell, an auxiliary window through `useAuxBridge`), so
+ * the draft now lives where no tab can take it away.
+ */
+function composeMail(draft: { subject: string; markdown: string; to?: string }): void {
+  window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: draft }));
+}
 
 /**
  * Mail workspace (virtual path plainva://mail): a provider-neutral browser for
@@ -141,7 +155,6 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   /** Stale-response guards: only the newest request per channel writes state. */
   const listSeq = useRef(0);
   const msgSeq = useRef(0);
-  const [compose, setCompose] = useState<{ subject: string; markdown: string; to?: string } | null>(null);
   const [envelopes, setEnvelopes] = useState<MailEnvelope[]>([]);
   const envelopesRef = useRef<MailEnvelope[]>([]);
   useEffect(() => { envelopesRef.current = envelopes; }, [envelopes]);
@@ -921,7 +934,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     if (unsubRoute.kind === "mailto") {
       // A mailto route is a message the reader SENDS — it opens the composer
       // rather than going out behind their back.
-      setCompose({
+      composeMail({
         to: unsubRoute.target,
         subject: unsubRoute.subject || "unsubscribe",
         markdown: "",
@@ -1618,11 +1631,11 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
   const handleReply = useCallback(() => {
     if (!message) return;
-    setCompose({ subject: replySubject(message), markdown: buildReplyBody(message, replyAttribution(message)), to: fromAddr(message.from) });
+    composeMail({ subject: replySubject(message), markdown: buildReplyBody(message, replyAttribution(message)), to: fromAddr(message.from) });
   }, [message, replySubject, replyAttribution]);
   const handleReplyAll = useCallback(() => {
     if (!message) return;
-    setCompose({
+    composeMail({
       subject: replySubject(message),
       markdown: buildReplyBody(message, replyAttribution(message)),
       to: replyAllRecipients(message, account?.user ?? ""),
@@ -1749,7 +1762,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <span className="pv-mail-acct-name">{account?.label}</span>
           )}
         </div>
-        <button type="button" className="pv-mail-compose" data-testid="mail-compose" onClick={() => setCompose({ subject: "", markdown: "" })}>
+        <button type="button" className="pv-mail-compose" data-testid="mail-compose" onClick={() => composeMail({ subject: "", markdown: "" })}>
           <Pencil size={ICON.ui} /> {t("mail.newMessage", { defaultValue: "Neue Nachricht" })}
         </button>
         <div className="pv-mail-flist" data-testid="mail-folders">
@@ -2181,7 +2194,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setCompose({ subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
+                onClick={() => composeMail({ subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
                 data-testid="mail-forward"
                 icon={<Forward size={ICON.ui} />}
               >
@@ -2323,15 +2336,6 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
         )}
       </div>
     </div>
-    {compose && (
-      <MailDraftModal
-        subject={compose.subject}
-        markdown={compose.markdown}
-        initialTo={compose.to}
-        onPopOut={vaultPath ? (snap) => void popOutCompose(vaultPath, snap) : undefined}
-        onClose={() => setCompose(null)}
-      />
-    )}
     {moveMenu && (
       <MenuSurface open at={{ x: moveMenu.x, y: moveMenu.y }} onClose={() => setMoveMenu(null)} ariaLabel={t("mail.moveTo", { defaultValue: "Verschieben nach…" })}>
         {folders.filter((f) => f !== mailbox).map((f) => (

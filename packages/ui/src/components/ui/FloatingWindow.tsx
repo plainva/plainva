@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { createPortal } from "react-dom";
 import { GripVertical } from "lucide-react";
 import { cx } from "./cx";
+import { isModalOpen } from "./Modal";
 
 /**
  * FloatingWindow (design sweep 2026-07-19): THE free-floating, non-modal
@@ -13,7 +14,9 @@ import { cx } from "./cx";
  *
  * The window does NOT dim the app and never closes on an outside click —
  * that is its contract (work beside it). `onEscape` opts into Escape-to-close
- * (peek yes; compose decides for itself to avoid data loss).
+ * and `escapeScope` says whose key it is first: a preview closes on Escape
+ * wherever the focus is, the composer lets its own menus and the work beside
+ * it have the key, and asks before a changed draft goes.
  */
 
 const MARGIN = 8;
@@ -55,9 +58,26 @@ export interface FloatingWindowProps {
   /** Head-row content after the grip: nav, title, actions (head buttons keep
    * working during drag — pointer-down on a button never starts a drag). */
   head: ReactNode;
-  /** Escape handler (capture phase, wins over inner editors). Omit to keep
-   * Escape for the window's content (compose). */
+  /** Escape handler; who gets the key first is `escapeScope`. Omit to keep
+   * Escape for the window's content. */
   onEscape?: () => void;
+  /**
+   * Whose key Escape is (finding 2026-10-09).
+   *
+   * `"window"`, the default and the behaviour every preview has always had:
+   * this window's, wherever the focus is and before anything else — in the
+   * capture phase, so a preview closes on Escape even while the editor it
+   * shows has the caret.
+   *
+   * `"content"`: the content's first. The window takes the key only when
+   * nothing inside used it, never when it was pressed in something else, and
+   * not while a `Modal` is open on top of it. That is for a window people
+   * WRITE in beside their other work, the composer: its command menu and its
+   * sender list close on Escape themselves, an Escape meant for a note or a
+   * palette next to it has nothing to do with the message, and Escape in the
+   * question "discard this draft?" answers the question.
+   */
+  escapeScope?: "window" | "content";
   children: ReactNode;
   className?: string;
   testId?: string;
@@ -72,6 +92,7 @@ export function FloatingWindow({
   ariaLabel,
   head,
   onEscape,
+  escapeScope = "window",
   children,
   className,
   testId,
@@ -83,17 +104,42 @@ export function FloatingWindow({
     savedRects.set(persistKey, rect);
   }, [persistKey, rect]);
 
+  const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!onEscape) return;
+    const contentFirst = escapeScope === "content";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onEscape();
+      if (e.key !== "Escape") return;
+      if (contentFirst) {
+        // A dialog on top owns the key — first of all the question about this
+        // very window: Escape there answers "Cancel", it is not a second
+        // request to close.
+        if (isModalOpen()) return;
+        // Something inside used the key: the composer's command menu
+        // (CodeMirror prevents the default), its sender list (stops the event
+        // before it gets here).
+        if (e.defaultPrevented) return;
+        // Pressed in something else — a note, a palette, a search field. With
+        // the focus nowhere (the page itself) the window still takes it:
+        // nothing else is claiming the key.
+        const at = e.target;
+        if (at instanceof Node && at !== document.body && at !== document.documentElement && !rootRef.current?.contains(at)) return;
+        // Used, and marked as used for whoever reads the event after this.
+        e.preventDefault();
       }
+      // Nobody further out acts on a key this window used.
+      e.stopPropagation();
+      onEscape();
     };
+    // "window": first of all, in the capture phase. "content": last, once the
+    // event has passed everything inside and React's handlers on the way up.
+    if (contentFirst) {
+      document.addEventListener("keydown", onKey);
+      return () => document.removeEventListener("keydown", onKey);
+    }
     window.addEventListener("keydown", onKey, { capture: true });
     return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [onEscape]);
+  }, [onEscape, escapeScope]);
 
   // --- Drag (by head) and resize (bottom-right grip) via pointer capture ---
   const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
@@ -147,6 +193,7 @@ export function FloatingWindow({
 
   return createPortal(
     <div
+      ref={rootRef}
       className={cx("pv-peek-card", "pv-peek-window", className)}
       role="dialog"
       aria-label={ariaLabel}

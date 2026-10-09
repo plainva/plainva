@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-10-06
+Stand: 2026-10-09
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -59,6 +59,7 @@ Sobald ein Konto senden kann — ein **Microsoft**-Konto oder ein **IMAP**-Konto
 - **Vorlage einfügen…** setzt eine Notiz-Vorlage in den Textkörper. Fragen der Vorlage (`{{prompt:…}}`) werden **einmal in einem Dialog** gestellt, nicht als Platzhalter mitgeschickt; das Frontmatter der Vorlage bleibt draußen — ein Mail-Text hat keins, und der Empfänger bekäme sonst YAML. Bricht der Dialog ab, wird nichts eingefügt.
 - **Antworten**, **Allen antworten** und **Weiterleiten** an jeder Nachricht öffnen dasselbe Fenster mit zitiertem Original und vorbelegten Empfängern; beim Weiterleiten kommen die Anhänge mit.
 - **Senden** läuft über SMTP (IMAP-Konten) oder Microsoft Graph (Microsoft-Konten).
+- **Abbrechen**, der Schließen-Knopf und `Esc` fragen **Eingaben verwerfen?**, bevor eine geänderte Nachricht verloren geht. **Abbrechen** in dieser Frage bringt Dich zur Nachricht zurück, mit allem, was darin steht; **Verwerfen** schließt sie. Eine Nachricht, die Du nicht angefasst hast, schließt sofort — die Signatur, die Plainva einsetzt, und eine Datei, mit der die Nachricht ankam (eine Notiz als Anhang, eine Einladung), zählen nicht als Deine Änderung. **Senden**, **Als Entwurf** und das Herauslösen in ein eigenes Fenster fragen nie, und das Fenster bleibt offen, während Du daneben eine Notiz öffnest oder den Tab wechselst.
 - **Diese Notiz per Mail** (⋮-Menü einer Notiz oder Befehlspalette) startet eine Nachricht mit der aktuellen Notiz als Anhang oder inline als Text.
 
 ## E-Mail in einem eigenen Fenster
@@ -67,7 +68,7 @@ Ein Rechtsklick auf **E-Mail** in der Aktionsleiste öffnet das Postfach in eine
 
 Beim Verfassen löst das Ausklapp-Symbol das Verfassen-Fenster heraus — Empfänger, Betreff, Text und Anhänge wandern mit, auch eine Adresse, die Du gerade erst getippt und noch nicht bestätigt hast. **Gesendet wird weiterhin aus dem Hauptfenster**: Das Verfassen-Fenster übergibt die Nachricht und schließt, der Hinweis mit **Rückgängig** erscheint dort, wo Du weiterarbeitest. So entscheidet das Schließen eines Fensters nie zwischen Senden und Verlieren.
 
-Ein Verfassen-Fenster wird beim nächsten Start **nicht** wiederhergestellt — was darin steht, lebt im Arbeitsspeicher. Schreib eine längere Nachricht also zu Ende oder speichere sie als Entwurf.
+Ein Verfassen-Fenster wird beim nächsten Start **nicht** wiederhergestellt — was darin steht, lebt im Arbeitsspeicher. Schreib eine längere Nachricht also zu Ende oder speichere sie als Entwurf. Schließt Du ein solches Fenster mit einer geänderten Nachricht, kommt zuerst dieselbe Frage — ebenso bei jedem zweiten Plainva-Fenster, in dem ein Verfassen-Fenster liegt. Beim Beenden von Plainva, beim Wechsel des Vaults und bei **Index neu aufbauen** wird nicht gefragt.
 
 ## Eine Notiz ohne den Mail-Client weitergeben
 

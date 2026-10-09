@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-10-06
+Stan na: 2026-10-09
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -59,6 +59,7 @@ Gdy tylko konto może wysyłać — konto **Microsoft** albo konto **IMAP** ze s
 - **Wstaw szablon…** umieszcza szablon notatki w treści wiadomości. Pytania szablonu (`{{prompt:…}}`) są zadawane **raz, w jednym oknie**, zamiast wędrować dalej jako symbole zastępcze; jego frontmatter zostaje na zewnątrz — treść maila go nie ma, a odbiorca dostałby YAML. Po anulowaniu nic nie zostaje wstawione.
 - **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej** przy dowolnej wiadomości otwierają to samo okno z zacytowanym oryginałem i wstępnie wypełnionymi odbiorcami; przekazanie zabiera ze sobą załączniki.
 - **Wyślij** wychodzi przez SMTP (konta IMAP) lub Microsoft Graph (konta Microsoft).
+- **Anuluj**, przycisk zamykania i `Esc` pytają **Odrzucić wpisane dane?**, zanim zmieniona wiadomość przepadnie. **Anuluj** w tym pytaniu wraca do wiadomości ze wszystkim, co w niej jest; **Odrzuć** ją zamyka. Wiadomość, w której nic nie zostało zmienione, zamyka się od razu — podpis wstawiany przez Plainva i plik, z którym wiadomość przyszła (notatka wysłana jako załącznik, zaproszenie), nie liczą się jako Twoje zmiany. **Wyślij**, **Zapisz roboczą** i przeniesienie do własnego okna nigdy nie pytają, a okno pozostaje otwarte, gdy obok otwierasz notatkę albo zmieniasz kartę.
 - **Ta notatka e-mailem** (menu `⋮` notatki lub paleta poleceń) rozpoczyna wiadomość z bieżącą notatką w załączniku lub wstawioną jako tekst.
 
 ## E-mail we własnym oknie
@@ -67,7 +68,7 @@ Kliknij prawym przyciskiem **E-mail** na pasku akcji, aby otworzyć skrzynkę we
 
 Podczas pisania ikona wysunięcia wynosi okno tworzenia wiadomości na zewnątrz — odbiorcy, temat, treść i załączniki wędrują razem z nim, łącznie z adresem, który dopiero co wpisałeś i jeszcze nie potwierdziłeś. **Wysyłanie nadal odbywa się w oknie głównym**: okno tworzenia wiadomości przekazuje wiadomość i się zamyka, a komunikat z przyciskiem **Cofnij** pojawia się tam, gdzie dalej pracujesz. Dzięki temu zamknięcie okna nigdy nie decyduje między wysłaniem a utratą.
 
-Okno tworzenia wiadomości **nie** jest przywracane przy następnym uruchomieniu — to, co w nim jest, żyje w pamięci. Dokończ więc dłuższą wiadomość albo zapisz ją jako szkic.
+Okno tworzenia wiadomości **nie** jest przywracane przy następnym uruchomieniu — to, co w nim jest, żyje w pamięci. Dokończ więc dłuższą wiadomość albo zapisz ją jako szkic. Zamknięcie takiego okna ze zmienioną wiadomością najpierw zadaje to samo pytanie — tak samo jak zamknięcie każdego drugiego okna Plainva, w którym jest okno tworzenia wiadomości. Przy zamykaniu Plainva, przy przełączaniu vaultu i przy **Odbuduj indeks** pytania nie ma.
 
 ## Przekazanie notatki bez klienta pocztowego
 

@@ -536,6 +536,35 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
+    id: "mail-draft-survives-vault-switch",
+    title: "Asking before a vault switch or an index rebuild takes a changed mail draft with it",
+    area: "pim",
+    kind: "gap",
+    desktop: null,
+    desktopReason:
+      "Both composers ask before a changed draft is discarded, by one rule " +
+      "(mail/composeChange.ts), on every way out of the composer itself - and on " +
+      "the desktop also when a second window that holds one is closed. Nothing " +
+      "asks when the shell under a floating composer is rebuilt. The composer " +
+      "stays open beside the vault menu and the settings, and switching or closing " +
+      "the vault (VaultHost keys the provider by the vault) or rebuilding the " +
+      "index (App.tsx shows the loading screen in place of the shell) remounts the " +
+      "shell: the draft goes without a question - measured for the vault switch in " +
+      "the running build, read in the code for the rebuild. Closing this means " +
+      "asking the same question before all three; for the vault in AppContext, " +
+      "before openVault and closeVault change the shown vault, in the central " +
+      "window and in a full second one - without leaving a tab that is handed back " +
+      "to the central window waiting on it, which opens its vault through the same " +
+      "function (finding 2026-10-09).",
+    mobile: "partial",
+    mobileReason:
+      "The phone's composer is a pushed screen: the bar, the back arrow and Android " +
+      "back all leave it before the vault list can be reached, and leaving asks. One " +
+      "route does not: the share inbox draws over the composer, its 'choose vault' " +
+      "pushes the vault list on top (App.tsx), and switchVault asks nobody.",
+    verified: "2026-10-09",
+  },
+  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",
