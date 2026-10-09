@@ -34,9 +34,13 @@ export interface EditorTriggerDeps {
   getQueryService: () => {
     db: { query: (sql: string, params?: any[]) => Promise<any[]> };
     getAllTags: () => Promise<{ tag: string; count: number }[]>;
+    /** Where a link leads (`VaultQueryService.resolveNotePath`) — which note `[[Note#` means. */
+    resolveNotePath?: (target: string, sourcePath?: string) => Promise<string | null>;
   } | null;
   /** A note's text, for the headings behind `[[Note#` (issue #92); absent = no heading completion for other notes. */
   readNote?: (path: string) => Promise<string | null>;
+  /** The note being edited: a link is read from its folder. */
+  hostPath?: () => string | undefined;
 }
 
 type TriggerCompletion = Completion & { description?: string };
@@ -88,14 +92,12 @@ export function wikiLinkCompletionSource(deps: EditorTriggerDeps) {
         if (!notePart) {
           content = context.state.doc.toString();
         } else {
-          const rows = await qs.db.query(
-            `SELECT path, title FROM files WHERE title = ? COLLATE NOCASE OR path = ? COLLATE NOCASE OR path = ? COLLATE NOCASE LIMIT 1`,
-            [notePart, notePart, `${notePart}.md`],
-          );
-          const row = rows?.[0];
-          if (!row || !deps.readNote) return null;
-          noteLabel = row.title || notePart;
-          content = await deps.readNote(row.path);
+          // The note the link names — by the link rule, as a click finds it.
+          // What was typed stays: it is a name that leads there.
+          const path = deps.readNote && qs.resolveNotePath ? await qs.resolveNotePath(notePart, deps.hostPath?.()) : null;
+          if (!path || !deps.readNote) return null;
+          noteLabel = notePart;
+          content = await deps.readNote(path);
         }
         if (!content) return null;
         const headings = parseHeadings(content).filter((h) => !headPart || h.text.toLowerCase().includes(headPart)).slice(0, 12);

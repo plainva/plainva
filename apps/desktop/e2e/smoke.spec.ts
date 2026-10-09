@@ -101,22 +101,12 @@ test.beforeEach(async ({ page }) => {
                .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p) && p.endsWith('.base'))
                .map(p => ({ path: p.replace('/test-vault/', ''), title: null }));
            }
-           // Wiki-link resolution (Editor.openWikiTarget): exact title or path,
-           // with `.md` appended as the third candidate. Without this branch the
-           // mock answered every link with "no such note", which sent the app
-           // down the create-a-note path — so a test could never see what
-           // clicking an existing link does.
-           if (q.includes('SELECT path FROM files') && q.includes('title = ?')) {
-             const [needle, , withMd] = (args.values ?? []).map((v: any) => String(v).toLowerCase());
-             const hit = Object.keys(fs)
-               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
-               .map(p => p.replace('/test-vault/', ''))
-               .find(rel => {
-                 const base = rel.split('/').pop()!.replace(/\.md$/i, '').toLowerCase();
-                 return base === needle || rel.toLowerCase() === needle || rel.toLowerCase() === withMd;
-               });
-             return hit ? [{ path: hit }] : [];
-           }
+           // Wiki-link resolution needs no branch of its own: the app reads the
+           // link rule's corpus (`SELECT path, title, mode FROM files WHERE
+           // is_deleted …`, VaultQueryService.linkTargets) and resolves in
+           // JavaScript — the rows come from the path/title/mode branch below,
+           // so a link to a file of the mock vault opens it and any other
+           // offers to create the note.
            // Conflict lookup of the sync-error dialog (P3.11): LIKE over paths.
            if (q.includes('WHERE path LIKE')) {
              const pattern = String(args.values?.[0] ?? '');
@@ -1675,14 +1665,8 @@ test('Table widget: cells render inline formatting and clickable links', async (
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/Tabelle.md'] =
       '# Tabelle\n\n| Spalte A | Spalte B |\n| --- | --- |\n| **fett** und *kursiv* | [[Welcome]] mit https://example.org<br>Zeile 2 |\n';
-    // The wiki-link resolver queries files by title/path — answer for the fixture.
-    const orig = (window as any).__TAURI_INTERNALS__.invoke;
-    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
-      if (cmd === 'plugin:sql|select' && String(args?.query || '').includes('WHERE title = ?')) {
-        return String(args?.values?.[0] ?? '') === 'Welcome' ? [{ path: 'Welcome.md' }] : [];
-      }
-      return orig(cmd, args, options);
-    };
+    // `[[Welcome]]` is resolved by the link rule over the mock vault's files:
+    // Welcome.md is one of them.
   });
   await page.goto('/');
   await expect(page.getByText('Tabelle', { exact: true })).toBeVisible({ timeout: 10000 });
@@ -2677,15 +2661,8 @@ test('Settings window keeps one stable height across areas (sized by the tallest
 test('Clicking an unresolved wiki link creates and opens the note', async ({ page }) => {
   await page.addInitScript(() => {
     (window as any).mockFs['/test-vault/LinkTest.md'] = '# Link Test\n\nGo to [[Ghost]] now.\n';
-    // The wiki resolver must report "Ghost" as non-existent so the click creates it.
-    const orig = (window as any).__TAURI_INTERNALS__.invoke;
-    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
-      if (cmd === 'plugin:sql|select' && String(args?.query || '').includes('WHERE title = ?')
-        && String(args?.values?.[0] ?? '') === 'Ghost') {
-        return [];
-      }
-      return orig(cmd, args, options);
-    };
+    // No file of the mock vault is called "Ghost": the link rule finds none,
+    // so the click creates it.
   });
   await page.goto('/');
   await expect(page.getByText('LinkTest', { exact: true })).toBeVisible({ timeout: 10000 });

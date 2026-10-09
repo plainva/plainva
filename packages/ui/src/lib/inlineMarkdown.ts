@@ -25,8 +25,14 @@ export type InlineNode =
   | { kind: "url"; href: string };
 
 export interface InlineLinkHandlers {
-  /** Open a note by wiki target / vault-relative path (newTab on Ctrl/Cmd). */
-  onOpenNote?: (target: string, newTab: boolean) => void;
+  /**
+   * Open a note by wiki target / vault-relative path (newTab on Ctrl/Cmd).
+   * `kind` says how the link was written: a wiki link names a note and is
+   * resolved by the link rule alone, a Markdown link names a path. `fromPath`
+   * is the note the link stands in, where the surface that draws it knows —
+   * the rule reads a link from that note's folder.
+   */
+  onOpenNote?: (target: string, newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => void;
   /** Open an external http(s) URL in the system browser. */
   onOpenUrl?: (url: string) => void;
   /** Open the notes that carry a tag - a click on a tag pill (finding 2026-09-19). */
@@ -412,11 +418,11 @@ function appendInlineNodes(parent: Node, nodes: InlineNode[], handlers: InlineLi
         break;
       }
       case "wikiLink":
-        parent.appendChild(makeLink(n.display, (e) => handlers.onOpenNote?.(n.target, e.ctrlKey || e.metaKey)));
+        parent.appendChild(makeLink(n.display, (e) => handlers.onOpenNote?.(n.target, e.ctrlKey || e.metaKey, "wiki")));
         break;
       case "link":
         if (n.external) parent.appendChild(makeLink(n.label, () => handlers.onOpenUrl?.(n.href)));
-        else parent.appendChild(makeLink(n.label, (e) => handlers.onOpenNote?.(n.href, e.ctrlKey || e.metaKey)));
+        else parent.appendChild(makeLink(n.label, (e) => handlers.onOpenNote?.(n.href, e.ctrlKey || e.metaKey, "markdown")));
         break;
       case "url":
         parent.appendChild(makeLink(n.href, () => handlers.onOpenUrl?.(n.href)));

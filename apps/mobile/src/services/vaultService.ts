@@ -34,6 +34,7 @@ import {
   formatFullScan,
   scanChangedNothing,
 } from "@plainva/core";
+import { isInternalPath, linkTargetName, resolveLinkTarget } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
@@ -89,7 +90,7 @@ import {
   type VaultTemplateDefinition,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
-import { rememberLastOpen, splitLinkAnchor, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
+import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName } from "@plainva/ui";
 import { applyTextShape, DEFAULT_TEXT_SHAPE, editorTextOf, openEditorText, type TextFileShape } from "@plainva/ui";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
@@ -1326,34 +1327,38 @@ export const vaultOps = {
     return ensured;
   },
 
-  async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
+  /**
+   * Where a link in the note at `hostPath` leads — the phone's side of the ONE
+   * link rule (`LinkResolver.ts` in the core); null where it leads nowhere and
+   * a tap offers to create the note.
+   *
+   * The phone used to follow a link by a rule of its own: the first note of
+   * that FILE NAME in the directory listing, while the desktop asked the index
+   * for a note's title. `[[Brief]]` opened a note here that the desktop
+   * offered to create a second time, and a link written with a title did the
+   * reverse (finding 2026-10-08). Both ask `resolveNotePath` now.
+   */
+  async resolveWikiTarget(v: MobileVault, target: string, hostPath?: string, kind?: "wiki" | "markdown"): Promise<string | null> {
     if (!target.trim()) return null;
-    // Path-style target (markdown relative/absolute link, incl. generated
-    // index.md links): resolve against the host folder, then the vault root.
-    // This used to match by note TITLE only, so markdown links never opened on
-    // mobile (maintainer, 2026-07-15).
-    for (const c of relativeLinkCandidates(target, hostPath)) {
-      if (await v.files.exists(c)) return c;
+    // A Markdown link names a PATH (incl. generated index.md links): read from
+    // the host folder, then from the vault root (maintainer, 2026-07-15). A
+    // caller that cannot say how the link was written is served the same way,
+    // as it always was. A wiki link — `kind` "wiki" — names a NOTE and is the
+    // rule's alone, so it leads where the desktop and the graph say.
+    if (kind !== "wiki") {
+      for (const c of relativeLinkCandidates(target, hostPath)) {
+        if (await v.files.exists(c)) return c;
+      }
     }
-    // Bare wiki target ([[Note]]): match by note title — and, failing that, by
-    // FILE NAME including the extension, which is how an attachment is written
-    // (issue #55). Dropping a PDF into a note produces `[[Report.pdf]]`; the
-    // title-only match never resolved that, so the app went on to CREATE
-    // `Report.pdf.md`. Notes keep precedence: the loop below runs over notes
-    // first and only then considers attachments, so a note called "Report"
-    // still wins over a file called "Report".
-    const name = splitLinkAnchor(target).target.split("|")[0].trim().toLowerCase();
-    const all = await v.files.listDir("", true);
-    const files = all.filter((e) => !e.isDirectory);
-    for (const e of files) {
-      if (!/\.md$/i.test(e.name)) continue;
-      if (noteTitle(e.path).toLowerCase() === name) return e.path;
-    }
-    for (const e of files) {
-      if (/\.md$/i.test(e.name)) continue;
-      if (e.name.toLowerCase() === name) return e.path;
-    }
-    return null;
+    const viaIndex = v.queryService ? await v.queryService.resolveNotePath(target, hostPath).catch(() => null) : null;
+    if (viaIndex) return viaIndex;
+    // The index follows a save by one pass, and the web build has none: the
+    // same rule over the files on disk, so a note that exists is opened
+    // instead of created a second time. The title of a note's properties is
+    // all a listing cannot know. The app's own folders are no link targets —
+    // the index never holds them, and the listing must not hand them in.
+    const listed = (await v.files.listDir("", true)).filter((e) => !e.isDirectory && !isInternalPath(e.path)).map((e) => e.path);
+    return resolveLinkTarget(hostPath ?? "", linkTargetName(target), listed);
   },
 
   async search(v: MobileVault, query: string): Promise<SearchResult[]> {

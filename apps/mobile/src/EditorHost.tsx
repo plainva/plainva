@@ -366,7 +366,7 @@ export function EditorHost({
           if (anchor) jumpAnchor(anchor);
           return;
         }
-        void vaultOps.resolveWikiTarget(vault, target, path).then(async (resolved) => {
+        void vaultOps.resolveWikiTarget(vault, target, path, kind === "wiki" || kind === "markdown" ? kind : undefined).then(async (resolved) => {
           if (resolved) {
             // Parked under the path: the host that mounts for the note takes it.
             if (anchor) requestAnchorJump(resolved, anchor);
@@ -487,7 +487,7 @@ export function EditorHost({
       imageLookup: () => ({
         notePath: path,
         attachmentFolder: getMobileSettings().attachmentFolder,
-        resolveByName: (name) => vaultOps.resolveWikiTarget(vault, name, path),
+        resolveByName: (name) => vaultOps.resolveWikiTarget(vault, name, path, "wiki"),
       }),
       // Note embeds (package H): the shared CM core scans ![[...]] lines;
       // mobile renders a tappable preview card — note text stripped to
@@ -499,9 +499,9 @@ export function EditorHost({
               let stale = false;
               container.classList.add("m-embed");
               void (async () => {
+                // An embed shows the file the same text opens as a link.
                 const resolvedTarget = await resolveNoteEmbed(target, path, {
-                  exists: (candidate) => vault.files.exists(candidate), db: vault.db,
-                  list: () => vault.files.listDir("", true),
+                  resolve: (name, from) => vaultOps.resolveWikiTarget(vault, name, from, "wiki"),
                 });
                 const resolved = resolvedTarget.status === "found" ? resolvedTarget.path : null;
                 if (stale) return;
@@ -532,8 +532,8 @@ export function EditorHost({
                     const fragment = selectNoteFragment(text, resolvedTarget.status === "found" ? resolvedTarget.anchor : null);
                     if (fragment.status === "found") {
                       const preview = await noteEmbedPreview(fragment.text, path0, {
-                        exists: (candidate) => vault.files.exists(candidate), db: vault.db,
-                        list: () => vault.files.listDir("", true), read: (candidate) => vaultOps.read(vault, candidate),
+                        resolve: (name, from) => vaultOps.resolveWikiTarget(vault, name, from, "wiki"),
+                        read: (candidate) => vaultOps.read(vault, candidate),
                         message: (kind, nestedTarget) => t("noteEmbed." + kind, { target: nestedTarget }),
                       });
                       if (stale) return;

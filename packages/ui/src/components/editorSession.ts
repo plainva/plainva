@@ -385,7 +385,7 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
         (abs) => deps.current.onOpenImage?.(abs),
       ),
       deps.current.buildNoteEmbedExtension(embedContextProps, isLive),
-      wikiLinkPlugin((target, newTab, kind, anchor) => (anchor ? deps.current.openWikiTarget(target, newTab, kind, anchor) : deps.current.openWikiTarget(target, newTab, kind)), isLive),
+      wikiLinkPlugin((target, newTab, kind, anchor) => (anchor ? deps.current.openWikiTarget(target, newTab, kind, anchor) : deps.current.openWikiTarget(target, newTab, kind)), isLive, () => deps.current.hostPath),
       // Tags as pills (finding 2026-09-19): live mode only - source mode shows
       // the note as it is written.
       isLive ? tagPillPlugin((tag) => deps.current.onOpenTag?.(tag)) : [],
@@ -579,10 +579,12 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
     // Block handles (#7): grip per block; click opens the menu, drag reorders.
     blockHandles(),
     markdownTheme(),
-    editorCompletion({ getQueryService: () => deps.current.queryService, readNote: (path) => deps.current.readNote?.(path) ?? Promise.resolve(null) }),
+    editorCompletion({ getQueryService: () => deps.current.queryService, readNote: (path) => deps.current.readNote?.(path) ?? Promise.resolve(null), hostPath: () => deps.current.hostPath }),
     // Rendered table cells share the note-link semantics of the wiki link plugin.
     tableLinkHandlers.of({
-      onOpenNote: (target, newTab) => deps.current.openWikiTarget(target, newTab),
+      // A wiki link in a cell says so: the shells follow it by the link rule
+      // alone. A Markdown link is handed on as before, without a kind.
+      onOpenNote: (target, newTab, kind) => (kind === "wiki" ? deps.current.openWikiTarget(target, newTab, "wiki") : deps.current.openWikiTarget(target, newTab)),
       onOpenUrl: (url) => deps.current.openExternalUrl(url),
       onOpenTag: (tag) => deps.current.onOpenTag?.(tag),
     }),

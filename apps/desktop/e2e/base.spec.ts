@@ -405,6 +405,21 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:sql|select') {
           const query: string = args.query || '';
           const values: any[] = args.values || [];
+          // The link rule's corpus (VaultQueryService.linkTargets): the indexed
+          // notes with their titles, and every other file of the vault — a
+          // database, an attachment — under its file name, as the indexer
+          // registers them. A click on a link, the reverse columns, the
+          // rollups and the relation writes are all resolved against these
+          // rows in JavaScript; there is no lookup in SQL to answer any more.
+          if (query.includes('FROM files WHERE is_deleted IS NULL OR is_deleted = 0')) {
+            const others = Object.keys(fs)
+              .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/\.md$/i.test(p) && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
+              .map(p => p.replace('/test-vault/', ''));
+            return [
+              ...dbFiles.map(f => ({ path: f.path, title: f.title, mode: 'obsidian' })),
+              ...others.map(path => ({ path, title: path.split('/').pop()!, mode: 'attachment' })),
+            ];
+          }
           if (query.includes('SELECT path, title, mode FROM files')) {
             return Object.keys(fs)
               .filter(p => !fs[p].isDir && p.startsWith('/test-vault/') && !/(^|\/)(\.plainva|\.git|node_modules|\.obsidian|\.trash|\.smart-env|\.stfolder)/.test(p))
@@ -430,17 +445,9 @@ test.beforeEach(async ({ page }) => {
           if (query.includes(`SELECT path FROM files WHERE mode != 'attachment'`)) {
             return dbFiles.map(f => ({ path: f.path }));
           }
-          // resolveNotePath (title/path, case-insensitive).
-          if (query.includes('COLLATE NOCASE')) {
-            const target = String(values[0] ?? '').toLowerCase();
-            const hit = dbFiles.find(f =>
-              f.title.toLowerCase() === target || f.path.toLowerCase() === target || f.path.toLowerCase() === `${target}.md`
-            );
-            if (hit) return [{ path: hit.path }];
-            // Also resolve a `.base` file by its path/name (peek base navigation).
-            const baseHit = Object.keys(fs).find(p => !fs[p].isDir && p.replace('/test-vault/', '').toLowerCase() === target);
-            return baseHit ? [{ path: baseHit.replace('/test-vault/', '') }] : [];
-          }
+          // The backlinks' link rows (`ORDER BY f.path COLLATE NOCASE …`): this
+          // fixture keeps no body links, so a note has no backlinks.
+          if (query.includes('COLLATE NOCASE')) return [];
           // Property-scoped reverse lookup (links.property_key), P3.
           if (query.includes('l.property_key = ?')) {
             return dbLinks.filter(l => l.property_key === values[0]).map(l => ({ ...l }));

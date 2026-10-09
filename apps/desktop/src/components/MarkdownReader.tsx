@@ -206,7 +206,7 @@ export const EmbeddedNote: React.FC<{ target: string; depth: number; onOpenPath?
     if (depth >= 3) { setResult({ error: t("noteEmbed.depth") }); return; }
     if (!vaultAdapter) return;
     void (async () => {
-      const resolved = await resolveNoteEmbed(target, hostPath, { exists: (path) => vaultAdapter.exists(path), db: queryService?.db });
+      const resolved = await resolveNoteEmbed(target, hostPath, { resolve: async (name, from) => queryService ? queryService.resolveNotePath(name, from) : null });
       if (!alive) return;
       if (resolved.status !== "found") { setResult({ error: t("noteEmbed." + resolved.status, { target }) }); return; }
       if (resolved.path.toLowerCase().endsWith(".base")) { setResult(resolved); return; }
@@ -393,17 +393,11 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
       return;
     }
 
-    const sql = `
-      SELECT path FROM files
-      WHERE title = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-      LIMIT 1
-    `;
-    const rows = await queryService.db.query(sql, [searchTarget, searchTarget, searchTarget + ".md"]);
-    if (rows && rows.length > 0) {
-      onOpenPath(rows[0].path, newTab);
-      if (anchor) requestAnchorJump(rows[0].path, anchor);
+    // The link rule's answer (`resolveNotePath`), as the editor asks it.
+    const resolved = await queryService.resolveNotePath(searchTarget, sourcePath);
+    if (resolved) {
+      onOpenPath(resolved, newTab);
+      if (anchor) requestAnchorJump(resolved, anchor);
     } else {
       // Not created yet — create the note (Obsidian parity, maintainer 2026-07-18).
       window.dispatchEvent(new CustomEvent("plainva-create-note-from-link", { detail: { target: searchTarget, hostPath: sourcePath, newTab } }));
@@ -449,7 +443,7 @@ export const MarkdownReader: React.FC<MarkdownReaderProps> = ({ content, onOpenP
           a: ({ node: _node, href, children, ...props }) => {
             if (href?.startsWith('wiki://')) {
               const target = decodeURIComponent(href.replace('wiki://', ''));
-              const unresolved = !isWikiTargetResolved(target, wikiResolver);
+              const unresolved = !isWikiTargetResolved(target, wikiResolver, sourcePath);
               return (
                 <a
                   href="#"

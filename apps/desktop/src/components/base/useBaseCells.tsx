@@ -13,6 +13,8 @@ import { formatBytes, columnLabel as sharedColumnLabel } from "./baseViewerShare
 import { segmentInlineText, safeHref, tagColorAttrs } from "@plainva/ui";
 import { FILE_DAY, parseBaseConfig } from "@plainva/ui";
 import { resolveNewItemTarget } from "@plainva/ui";
+import { isWikiTargetResolved } from "@plainva/ui";
+import { useWikiResolver } from "../../hooks/useWikiResolver";
 import { addRelationLink, removeRelationLinksToNote } from "../../services/relations";
 import { buildNewNoteContent, getConfiguredNoteType } from "../../services/newNote";
 import { notifyFileOps } from "../../services/indexMdAutoUpdate";
@@ -66,10 +68,10 @@ export function useBaseCells({
   const { t, i18n } = useTranslation();
   const { vaultAdapter, queryService, vaultPath, indexer, fileTreeVersion, triggerFileTreeUpdate } = useVault();
 
-  // Vault-wide note index for the relation editors: lowercase titles + paths
-  // (broken-chip detection) and the raw path list (collision-safe link text).
-  // One listNotes() per index change, never per cell/chip.
-  const [noteIndex, setNoteIndex] = useState<{ titleSet: Set<string>; paths: string[] } | null>(null);
+  // Vault-wide note index for the relation editors: the raw path list
+  // (collision-safe link text). One listNotes() per index change, never per
+  // cell/chip.
+  const [noteIndex, setNoteIndex] = useState<{ paths: string[] } | null>(null);
   useEffect(() => {
     let alive = true;
     if (!queryService) { setNoteIndex(null); return; }
@@ -77,30 +79,31 @@ export function useBaseCells({
       .listNotes()
       .then((notes) => {
         if (!alive) return;
-        const titleSet = new Set<string>();
-        const paths: string[] = [];
-        for (const n of notes) {
-          titleSet.add(n.title.toLowerCase());
-          titleSet.add(n.path.toLowerCase());
-          titleSet.add(n.path.toLowerCase().replace(/\.md$/, ""));
-          paths.push(n.path);
-        }
-        setNoteIndex({ titleSet, paths });
+        setNoteIndex({ paths: notes.map((n) => n.path) });
       })
       .catch(() => { if (alive) setNoteIndex(null); });
     return () => { alive = false; };
   }, [queryService, fileTreeVersion]);
 
+  // Which chip is "broken" is the link rule's answer, over the lookup the
+  // editor draws its links with: a chip is marked exactly where a click finds
+  // no file. The lowercased set of titles and paths this used to keep was a
+  // rule of its own — a note with a title of its own was "broken" under its
+  // file's name, a database or an attachment always (finding 2026-10-08).
+  const linkLookup = useWikiResolver();
+  const isBrokenTarget = useCallback((target: string, fromPath?: string) => !isWikiTargetResolved(target, linkLookup, fromPath), [linkLookup]);
+
   // Relation candidates per target `.base`, cached until the next re-index.
   const candCacheRef = useRef<{ version: number; map: Map<string, { path: string; title: string }[]> }>({ version: -1, map: new Map() });
 
   // Open a note referenced by a wikilink / internal markdown link. Resolution
-  // goes through the index (title or path, case-insensitive) like editor links
-  // do; the naive `target + ".md"` only remains as the not-indexed fallback.
-  const openNoteLink = async (target: string, ev?: React.MouseEvent) => {
+  // is the link rule's, read from the row's note (`fromPath`) as the editor
+  // reads a link from the note it stands in; the naive `target + ".md"` only
+  // remains as the not-indexed fallback.
+  const openNoteLink = async (target: string, ev?: React.MouseEvent, fromPath?: string) => {
     let path = /\.(md|base)$/i.test(target) ? target : `${target}.md`;
     try {
-      const resolved = await queryService?.resolveNotePath(target);
+      const resolved = await queryService?.resolveNotePath(target, fromPath);
       if (resolved) path = resolved;
     } catch (e) {
       console.warn("[BaseViewer] resolving a cell link failed", target, e);
@@ -265,14 +268,14 @@ export function useBaseCells({
       const changedPaths = new Map<string, "added" | "removed">();
       for (const [, rawValue] of added) {
         const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
-        const notePath = await queryService.resolveNotePath(target);
+        const notePath = await queryService.resolveNotePath(target, rowPath);
         if (!notePath || notePath === rowPath) continue;
         await addRelationLink({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath, limit: owningLimit });
         changedPaths.set(notePath, "added");
       }
       for (const [, rawValue] of removed) {
         const target = parseWikiLinkValue(rawValue)?.target ?? rawValue.replace(/^\[\[/, "").replace(/\]\]$/, "");
-        const notePath = await queryService.resolveNotePath(target);
+        const notePath = await queryService.resolveNotePath(target, rowPath);
         if (!notePath) continue;
         await removeRelationLinksToNote({ adapter: vaultAdapter, queryService, notePath, propertyKey: rev.property, targetNotePath: rowPath });
         changedPaths.set(notePath, "removed");
@@ -420,7 +423,7 @@ export function useBaseCells({
   // Render links inside free text like the editor does (plan W4/P11):
   // [[wikilinks|alias]], [label](target) and bare URLs become clickable; other
   // text stays plain. Returns the raw string when it contains no link.
-  const renderInlineString = (text: string): React.ReactNode => {
+  const renderInlineString = (text: string, rowPath?: string): React.ReactNode => {
     const segments = segmentInlineText(text);
     if (!segments.some((s) => s.type !== "text")) return text;
     const linkStyle: React.CSSProperties = { color: "var(--accent-color)", textDecoration: "underline", cursor: "pointer" };
@@ -436,9 +439,9 @@ export function useBaseCells({
             if (/^https?:\/\//.test(seg.target)) {
               return <a key={i} href={safeHref(seg.target)} target="_blank" rel="noopener noreferrer" style={linkStyle} onClick={(e) => e.stopPropagation()}>{label}</a>;
             }
-            return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(decodeURIComponent(seg.target), e); }}>{label}</span>;
+            return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(decodeURIComponent(seg.target), e, rowPath); }}>{label}</span>;
           }
-          return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(seg.target, e); }}>{seg.display}</span>;
+          return <span key={i} style={linkStyle} onClick={(e) => { e.stopPropagation(); openNoteLink(seg.target, e, rowPath); }}>{seg.display}</span>;
         })}
       </span>
     );
@@ -447,7 +450,8 @@ export function useBaseCells({
   // Render select/status/multiselect/relation values as colored chips using the curated
   // `.base` colors, so every view shows typed values instead of raw text. Returns null
   // for columns that are not option/relation typed (caller falls back to generic display).
-  const renderTypedDisplay = (col: string, val: any): React.ReactNode | null => {
+  // `rowPath` is the note the value belongs to: a link is read from that note.
+  const renderTypedDisplay = (col: string, val: any, rowPath?: string): React.ReactNode | null => {
     if (col.startsWith("file.")) return null;
     const input = getColumnInput(col);
     const opts = getColumnOptions(col);
@@ -478,11 +482,8 @@ export function useBaseCells({
             const parsed = parseWikiLinkValue(v);
             const target = parsed?.target ?? v.replace(/^\[\[/, "").replace(/\]\]$/, "");
             const display = parsed?.display ?? target;
-            const broken =
-              noteIndex != null &&
-              !noteIndex.titleSet.has(target.toLowerCase()) &&
-              !noteIndex.titleSet.has(`${target.toLowerCase()}.md`);
-            return renderChip(display, undefined, i, (e) => openNoteLink(target, e), false, broken);
+            const broken = isBrokenTarget(target, rowPath);
+            return renderChip(display, undefined, i, (e) => openNoteLink(target, e, rowPath), false, broken);
           })}
         </span>
       );
@@ -490,12 +491,12 @@ export function useBaseCells({
     return null;
   };
 
-  const formatValueForDisplay = (val: any, col?: string) => {
+  const formatValueForDisplay = (val: any, col?: string, rowPath?: string) => {
     const isMissing = val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0);
     if (isMissing) {
       return { displayVal: <span style={{ color: "var(--text-faint)", fontStyle: "italic" }}>-</span>, isMissing: true };
     }
-    const typed = col ? renderTypedDisplay(col, val) : null;
+    const typed = col ? renderTypedDisplay(col, val, rowPath) : null;
     if (typed) return { displayVal: typed, isMissing: false };
 
     let displayVal: React.ReactNode = val;
@@ -521,7 +522,7 @@ export function useBaseCells({
     } else if (input === "text" && Array.isArray(val)) {
       // Explicit text columns never split into chips (P1): a list value shows
       // as plain readable text, links inside stay clickable.
-      displayVal = renderInlineString(val.map((v) => String(v)).join(", "));
+      displayVal = renderInlineString(val.map((v) => String(v)).join(", "), rowPath);
     } else if ((input === "email" || input === "phone") && typeof val === "string" && val.trim() !== "") {
       // Contact types (P7): the value opens the matching handler, like the
       // markdown panel's external-link button.
@@ -534,7 +535,7 @@ export function useBaseCells({
     } else if ((input === "date" || input === "datetime") && typeof val === "string") {
       displayVal = formatDateValue(val, input === "datetime", i18n.language, dateFormat);
     } else if (typeof val === 'string') {
-      displayVal = renderInlineString(val);
+      displayVal = renderInlineString(val, rowPath);
     } else if (typeof val === 'object') {
       displayVal = JSON.stringify(val);
     }
@@ -627,7 +628,7 @@ export function useBaseCells({
             value={val}
             search={(q) => searchCandidatesForBase(q, rev.base)}
             excludeTitles={[String(row['file.name'] ?? '')]}
-            brokenTitles={noteIndex?.titleSet}
+            isBrokenTarget={(target) => isBrokenTarget(target, path)}
             onCommit={(arr) => commitReverseCellValue(row, col, arr)}
             onClose={() => setEditingCell(null)}
             t={t}
@@ -645,7 +646,7 @@ export function useBaseCells({
             search={(q) => searchRelationCandidates(q, col)}
             limit={limit}
             excludeTitles={[String(row['file.name'] ?? '')]}
-            brokenTitles={noteIndex?.titleSet}
+            isBrokenTarget={(target) => isBrokenTarget(target, path)}
             onCreateNew={(title) => createRelationTarget(col, title)}
             onCommit={(arr) => commitCellValue(path, col, limit === 'one' ? (arr[arr.length - 1] ?? '') : arr)}
             onClose={() => setEditingCell(null)}

@@ -161,7 +161,10 @@ export async function adoptFileAsIndex(opts: {
     await backupIndexFile(adapter, candidatePath, content);
     const body = noteBodyOf(content);
     const ast = parseMarkdownAst(body, { preserveObsidianSyntax: true });
-    const allFilePaths = await listMarkdownPaths(queryService);
+    // The notes a listing may point at, with the title the index holds for
+    // each: a wiki link is resolved by the link rule, title included.
+    const listed = new Set(await listMarkdownPaths(queryService));
+    const allFilePaths = (await queryService.linkTargets()).filter((file) => listed.has(file.path.replace(/\\/g, "/")));
     preparation = convertWikilinksToMarkdownLinks(ast, { sourcePath: candidatePath, allFilePaths });
     // In the shape the note has: the serializer writes `\n` and no mark.
     await adapter.writeTextFile(candidatePath, inShapeOf(content, serializeMarkdownAst(ast)));

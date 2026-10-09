@@ -1,5 +1,5 @@
 import {
-  resolveLinkTarget,
+  noteLinkResolver,
   type IVaultAdapter,
 
   type VaultQueryService,
@@ -38,17 +38,15 @@ import type { IndexerApi } from "./remoteIndexer";
 export function buildDesktopPlanDeps(adapter: IVaultAdapter, queryService: VaultQueryService): DeletionPlanDeps {
   // One resolver corpus per plan build — getOutgoingRelationTargets runs per
   // cascade candidate and must not re-list the vault every time.
-  let corpus: Promise<string[]> | null = null;
-  const allPaths = () => {
-    corpus ??= queryService.db
-      .query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment'`)
-      .then((rows) => rows.map((r) => r.path));
+  let corpus: Promise<ReturnType<typeof noteLinkResolver>> | null = null;
+  const linkedNote = () => {
+    corpus ??= queryService.linkTargets().then(noteLinkResolver);
     return corpus;
   };
   return {
     getIncomingRelationRefs: (targets) => queryService.getIncomingRelationRefs(targets),
     async getOutgoingRelationTargets(sourcePath, propertyKey) {
-      const [props, paths] = await Promise.all([queryService.getFileProperties(sourcePath), allPaths()]);
+      const [props, resolve] = await Promise.all([queryService.getFileProperties(sourcePath), linkedNote()]);
       const raw = props[propertyKey];
       const values = Array.isArray(raw) ? raw.map(String) : raw != null && raw !== "" ? [String(raw)] : [];
       const out: string[] = [];
@@ -56,7 +54,7 @@ export function buildDesktopPlanDeps(adapter: IVaultAdapter, queryService: Vault
         const m = value.match(/\[\[([^\]|#]+)/);
         const targetText = (m ? m[1] : value).trim();
         if (!targetText) continue;
-        const resolved = resolveLinkTarget(sourcePath, targetText, paths);
+        const resolved = resolve(sourcePath, targetText);
         if (resolved) out.push(resolved);
       }
       return out;

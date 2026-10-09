@@ -41,7 +41,7 @@ function CardAudio({ vault, target, alt, notePath }: { vault: MobileVault; targe
       const candidates = imageCandidates(target, { notePath });
       const byName = imageBasename(target);
       if (byName) {
-        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath).catch(() => null);
+        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath, "wiki").catch(() => null);
         if (resolved && !candidates.includes(resolved)) candidates.push(resolved);
       }
       if (!alive) return;
@@ -82,7 +82,7 @@ function CardImage({ vault, target, alt, notePath }: { vault: MobileVault; targe
     void (async () => {
       const byName = imageBasename(target);
       if (byName) {
-        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath).catch(() => null);
+        const resolved = await vaultOps.resolveWikiTarget(vault, byName, notePath, "wiki").catch(() => null);
         if (resolved && !candidates.includes(resolved)) candidates.push(resolved);
       }
       if (!alive) return;

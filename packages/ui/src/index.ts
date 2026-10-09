@@ -136,6 +136,7 @@ export * from "./components/CustomThemePreviewBanner";
 export * from "./lib/concurrencyLimiter";
 export * from "./lib/iconSizes";
 export * from "./lib/wikiResolver";
+export * from "./lib/wikiLinkText";
 export * from "./lib/conflictFiles";
 export * from "./lib/editableField";
 export * from "./lib/growingField";

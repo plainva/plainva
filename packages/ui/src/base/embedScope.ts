@@ -1,4 +1,4 @@
-import { resolveLinkTarget } from "@plainva/core";
+import { noteLinkResolver, type LinkTargetRow } from "@plainva/core";
 
 /**
  * Auto-scoping for embedded databases: when a `.base` is embedded inside a
@@ -165,7 +165,8 @@ type ScopeQueryService = {
     propertyKey: string
   ): Promise<Map<string, { path: string; title: string }[]>>;
   getFileProperties(path: string): Promise<Record<string, any>>;
-  listNotes(limit?: number): Promise<{ path: string }[]>;
+  /** The link rule's corpus (`VaultQueryService.linkTargets`). */
+  linkTargets(): Promise<LinkTargetRow[]>;
 };
 
 /**
@@ -208,13 +209,13 @@ export async function computeScopePaths(
   const raw = relation.hostProperty ? props[relation.hostProperty] : undefined;
   const values = Array.isArray(raw) ? raw.map(String) : raw != null && raw !== "" ? [String(raw)] : [];
   if (values.length === 0) return new Set();
-  const allPaths = (await queryService.listNotes()).map((n) => n.path);
+  const linkedNote = noteLinkResolver(await queryService.linkTargets());
   const scope = new Set<string>();
   for (const value of values) {
     const m = value.match(/\[\[([^\]|#]+)/);
     const targetText = (m ? m[1] : value).trim();
     if (!targetText) continue;
-    const resolved = resolveLinkTarget(hostPath, targetText, allPaths);
+    const resolved = linkedNote(hostPath, targetText);
     if (resolved) scope.add(resolved);
   }
   return scope;

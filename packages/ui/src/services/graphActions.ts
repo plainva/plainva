@@ -1,5 +1,5 @@
 import { flushPendingSave } from "../platform/services";
-import { editInShape, frontmatterSpan, nextWhere, resolveLinkTarget, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { buildLinkTargetIndex, editInShape, frontmatterSpan, nextWhere, resolveLinkTargetIndexed, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 
 /**
@@ -99,13 +99,12 @@ export async function removeLinksTo(
   sourcePath: string,
   targetPath: string
 ): Promise<number> {
-  const notes = await queryService.listNotes();
-  const allPaths = notes.map((n) => n.path);
+  const corpus = buildLinkTargetIndex(await queryService.linkTargets());
   await flushPendingSave(sourcePath);
   const current = await adapter.readTextFile(sourcePath);
   let removed = 0;
   const next = replaceWikiLinks(current, (full, target, alias) => {
-    const resolved = resolveLinkTarget(sourcePath, target.trim(), allPaths);
+    const resolved = resolveLinkTargetIndexed(sourcePath, target.trim(), corpus);
     if (resolved !== targetPath) return full;
     removed++;
     return alias ?? target.trim();

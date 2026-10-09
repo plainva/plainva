@@ -404,6 +404,28 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-22",
   },
   {
+    id: "markdown-path-links",
+    title: "Follow a Markdown link that names a path",
+    area: "editor",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "A Markdown link `[text](path)` is read from the note's folder only (from the " +
+      "vault root with a leading slash) and has to name the file exactly " +
+      "(planRelativeLinkOpen). The phone also tries the vault root and adds `.md` or " +
+      "`.base` where the extension is missing (relativeLinkCandidates), so a link " +
+      "the phone opens can say \"not found\" on the desktop. Found on 2026-10-09 " +
+      "while the rule for WIKI links became one for both shells (ADR 0027); a " +
+      "Markdown link still has two. Listed in the maintainer's open-items plan.",
+    mobile: "partial",
+    mobileReason:
+      "A Markdown link to a FOLDER has no rule of its own on the phone: the desktop " +
+      "opens the folder's index.md or reveals the folder in the tree, the phone " +
+      "looks for a file of that path. Same finding and the same open item as the " +
+      "desktop side of this entry.",
+    verified: "2026-10-09",
+  },
+  {
     id: "print-note",
     title: "Print a note or save it as PDF",
     area: "editor",

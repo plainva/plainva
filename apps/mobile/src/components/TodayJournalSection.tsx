@@ -53,8 +53,9 @@ export function TodayJournalSection({ vault, bump, dayKey, onOpenNote, onOpenJou
 
   const loadImage = useCallback((imagePath: string) => loadImageBlob(vault.adapter, imagePath), [vault]);
   const links = useMemo(() => ({
-    onOpenNote: (target: string) => {
-      void vaultOps.resolveWikiTarget(vault, target).then((resolved) => { if (resolved) onOpenNote(resolved); }).catch(() => undefined);
+    // Read from the day's note the entry stands in, as the editor reads it there.
+    onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
+      void vaultOps.resolveWikiTarget(vault, target, fromPath, kind).then((resolved) => { if (resolved) onOpenNote(resolved); }).catch(() => undefined);
     },
     onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
     onOpenTag: onOpenJournal,

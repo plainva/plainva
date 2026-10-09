@@ -1,4 +1,4 @@
-import { resolveLinkTarget } from "@plainva/core";
+import { noteLinkResolver } from "@plainva/core";
 import {
   buildDeletionPlan,
   cleanupRefsFor,
@@ -22,17 +22,15 @@ import { collectTaskAnchors, requestTaskDeletion } from "@plainva/ui";
 export function buildMobilePlanDeps(v: MobileVault): DeletionPlanDeps | null {
   const qs = v.queryService;
   if (!qs) return null;
-  let corpus: Promise<string[]> | null = null;
-  const allPaths = () => {
-    corpus ??= qs.db
-      .query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment'`)
-      .then((rows) => rows.map((r) => r.path));
+  let corpus: Promise<ReturnType<typeof noteLinkResolver>> | null = null;
+  const linkedNote = () => {
+    corpus ??= qs.linkTargets().then(noteLinkResolver);
     return corpus;
   };
   return {
     getIncomingRelationRefs: (targets) => qs.getIncomingRelationRefs(targets),
     async getOutgoingRelationTargets(sourcePath, propertyKey) {
-      const [props, paths] = await Promise.all([qs.getFileProperties(sourcePath), allPaths()]);
+      const [props, resolve] = await Promise.all([qs.getFileProperties(sourcePath), linkedNote()]);
       const raw = props[propertyKey];
       const values = Array.isArray(raw) ? raw.map(String) : raw != null && raw !== "" ? [String(raw)] : [];
       const out: string[] = [];
@@ -40,7 +38,7 @@ export function buildMobilePlanDeps(v: MobileVault): DeletionPlanDeps | null {
         const m = value.match(/\[\[([^\]|#]+)/);
         const targetText = (m ? m[1] : value).trim();
         if (!targetText) continue;
-        const resolved = resolveLinkTarget(sourcePath, targetText, paths);
+        const resolved = resolve(sourcePath, targetText);
         if (resolved) out.push(resolved);
       }
       return out;
@@ -81,10 +79,7 @@ export async function executeMobileCascade(
     const cleanupDeps = {
       readTextFile: (p: string) => v.files.readTextFile(p),
       writeTextFile: (p: string, c: string) => v.files.writeTextFile(p, c),
-      listNotePaths: async () =>
-        (await qs.db.query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment'`)).map(
-          (r) => r.path
-        ),
+      listLinkTargets: () => qs.linkTargets(),
     };
     for (const ref of cleanupRefsFor(plan, pathSet)) {
       try {

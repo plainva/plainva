@@ -3,7 +3,8 @@ import {
   extractFrontmatter,
   upsertFrontmatterKeys,
   deleteFrontmatterPath,
-  resolveLinkTarget,
+  noteLinkResolver,
+  type LinkTargetRow,
 } from "@plainva/core";
 
 /**
@@ -18,8 +19,8 @@ import {
 export interface RelationCleanupDeps {
   readTextFile(path: string): Promise<string>;
   writeTextFile(path: string, content: string): Promise<void>;
-  /** Resolver corpus: every non-attachment file path in the vault. */
-  listNotePaths(): Promise<string[]>;
+  /** The link rule's corpus (`VaultQueryService.linkTargets`): every file a link can lead to. */
+  listLinkTargets(): Promise<readonly LinkTargetRow[]>;
 }
 
 const WIKILINK_VALUE_RE = /^\s*\[\[([^[\]]+)\]\]\s*$/;
@@ -50,14 +51,15 @@ export async function removeRelationLinksToNoteShared(
   opts: { notePath: string; propertyKey: string; targetNotePath: string }
 ): Promise<{ changed: boolean; removed: number }> {
   const { notePath, propertyKey, targetNotePath } = opts;
-  const [content, allFilePaths] = await Promise.all([deps.readTextFile(notePath), deps.listNotePaths()]);
+  const [content, files] = await Promise.all([deps.readTextFile(notePath), deps.listLinkTargets()]);
+  const linkedNote = noteLinkResolver(files);
   const fm = extractFrontmatter(parseMarkdownAst(content));
   const props: Record<string, unknown> = fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
   if (!(propertyKey in props)) return { changed: false, removed: 0 };
 
   const resolvesToTarget = (value: unknown): boolean => {
     const base = linkBaseOf(value);
-    return base != null && resolveLinkTarget(notePath, base, allFilePaths) === targetNotePath;
+    return base != null && linkedNote(notePath, base) === targetNotePath;
   };
 
   const values = currentValues(props, propertyKey);

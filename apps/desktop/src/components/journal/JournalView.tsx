@@ -111,9 +111,10 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
     })();
   }, [vaultAdapter, settings, refreshPath]);
   const links = useMemo(() => ({
-    // A wiki link names a note, not a path: the index resolves it as the editor does.
-    onOpenNote: (target: string, newTab: boolean) => {
-      void (queryService ? queryService.resolveNotePath(target) : Promise.resolve(null))
+    // A wiki link names a note, not a path: the index resolves it as the editor
+    // does — read from the day's note the entry stands in.
+    onOpenNote: (target: string, newTab: boolean, _kind?: "wiki" | "markdown", fromPath?: string) => {
+      void (queryService ? queryService.resolveNotePath(target, fromPath) : Promise.resolve(null))
         .then((path) => onOpenPath(path ?? target, newTab))
         .catch(() => onOpenPath(target, newTab));
     },

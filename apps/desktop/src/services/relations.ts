@@ -2,7 +2,7 @@ import {
   parseMarkdownAst,
   extractFrontmatter,
   upsertFrontmatterKeys,
-  resolveLinkTarget,
+  noteLinkResolver,
   wikiTargetForPath,
   type VaultQueryService,
 } from "@plainva/core";
@@ -51,19 +51,21 @@ async function loadNote(
   adapter: RelationWriteAdapter,
   queryService: VaultQueryService,
   notePath: string
-): Promise<{ content: string; props: Record<string, unknown>; allFilePaths: string[] }> {
-  const [content, pathRows] = await Promise.all([
-    adapter.readTextFile(notePath),
-    queryService.db.query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment'`),
-  ]);
+): Promise<{ content: string; props: Record<string, unknown>; allFilePaths: string[]; linkedNote: LinkedNote }> {
+  // The link rule's corpus: what a stored value leads to is asked of every
+  // file, what a new link is called of the notes alone.
+  const [content, files] = await Promise.all([adapter.readTextFile(notePath), queryService.linkTargets()]);
   const fm = extractFrontmatter(parseMarkdownAst(content));
   const props: Record<string, unknown> = fm.success && fm.data ? (fm.data as Record<string, unknown>) : {};
-  return { content, props, allFilePaths: pathRows.map((r) => r.path) };
+  const allFilePaths = files.filter((f) => f.mode !== "attachment").map((f) => f.path);
+  return { content, props, allFilePaths, linkedNote: noteLinkResolver(files) };
 }
 
-function resolvesToTarget(value: unknown, notePath: string, targetNotePath: string, allFilePaths: string[]): boolean {
+type LinkedNote = ReturnType<typeof noteLinkResolver>;
+
+function resolvesToTarget(value: unknown, notePath: string, targetNotePath: string, linkedNote: LinkedNote): boolean {
   const base = linkBaseOf(value);
-  return base != null && resolveLinkTarget(notePath, base, allFilePaths) === targetNotePath;
+  return base != null && linkedNote(notePath, base) === targetNotePath;
 }
 
 /**
@@ -82,20 +84,20 @@ export async function addRelationLink(opts: {
   limit?: "one";
 }): Promise<{ changed: boolean }> {
   const { adapter, queryService, notePath, propertyKey, targetNotePath, limit } = opts;
-  const { content, props, allFilePaths } = await loadNote(adapter, queryService, notePath);
+  const { content, props, allFilePaths, linkedNote } = await loadNote(adapter, queryService, notePath);
   const values = currentValues(props, propertyKey);
 
   const linkText = `[[${wikiTargetForPath(targetNotePath, allFilePaths)}]]`;
 
   if (limit === "one") {
     const already =
-      values.length === 1 && resolvesToTarget(values[0], notePath, targetNotePath, allFilePaths);
+      values.length === 1 && resolvesToTarget(values[0], notePath, targetNotePath, linkedNote);
     if (already) return { changed: false };
     await adapter.writeTextFile(notePath, upsertFrontmatterKeys(content, { [propertyKey]: linkText }));
     return { changed: true };
   }
 
-  if (values.some((v) => resolvesToTarget(v, notePath, targetNotePath, allFilePaths))) {
+  if (values.some((v) => resolvesToTarget(v, notePath, targetNotePath, linkedNote))) {
     return { changed: false };
   }
   await adapter.writeTextFile(
@@ -124,10 +126,7 @@ export async function removeRelationLinksToNote(opts: {
     {
       readTextFile: (p) => adapter.readTextFile(p),
       writeTextFile: (p, c) => adapter.writeTextFile(p, c),
-      listNotePaths: async () =>
-        (await queryService.db.query<{ path: string }>(`SELECT path FROM files WHERE mode != 'attachment'`)).map(
-          (r) => r.path
-        ),
+      listLinkTargets: () => queryService.linkTargets(),
     },
     { notePath, propertyKey, targetNotePath }
   );

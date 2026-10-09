@@ -76,8 +76,9 @@ export function JournalSidebarSection({ activeDate, onOpenPath, onOpenJournal, o
 
   const loadImage = useMemo(() => (vaultAdapter ? (imagePath: string) => loadImageBlob(vaultAdapter, imagePath) : undefined), [vaultAdapter]);
   const links = useMemo(() => ({
-    onOpenNote: (target: string, newTab: boolean) => {
-      void (queryService ? queryService.resolveNotePath(target) : Promise.resolve(null))
+    // Read from the day's note the entry stands in, as the editor reads it there.
+    onOpenNote: (target: string, newTab: boolean, _kind?: "wiki" | "markdown", fromPath?: string) => {
+      void (queryService ? queryService.resolveNotePath(target, fromPath) : Promise.resolve(null))
         .then((resolved) => onOpenPath(resolved ?? target, newTab))
         .catch(() => onOpenPath(target, newTab));
     },

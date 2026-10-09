@@ -1408,9 +1408,9 @@ export function NoteScreen({
           onRetryPending={commentHasOutbox ? outboxId => { void mobileCommentStore(vault).retry(outboxId).catch(error => toast.error(errorText(error))); } : undefined}
           onDiscardPending={commentHasOutbox ? outboxId => { void mobileCommentStore(vault).discard(outboxId).catch(error => toast.error(errorText(error))); } : undefined}
           onRevealAnchor={revealAnchor}
-          onOpenNote={(target) => {
+          onOpenNote={(target: string, kind?: "wiki" | "markdown") => {
             // The same resolution the editor's wiki links take (K4).
-            void vaultOps.resolveWikiTarget(vault, target, path).then((resolved) => { if (resolved) onOpenNote(resolved); });
+            void vaultOps.resolveWikiTarget(vault, target, path, kind).then((resolved) => { if (resolved) onOpenNote(resolved); });
           }}
           onOpenUrl={(url) => { void getPlatformServices().openExternal(url); }}
         />

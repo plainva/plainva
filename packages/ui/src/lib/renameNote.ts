@@ -1,5 +1,7 @@
 import {
+  buildLinkTargetIndex,
   parseMarkdownAst,
+  resolveLinkTargetIndexed,
   serializeMarkdownAst,
   renameVaultLink,
   renameFrontmatterWikiLinks,
@@ -93,6 +95,13 @@ export async function planLinkUpdates(
     failed = true;
   }
   const plan: LinkUpdatePlan = { oldPath, newPath, sources: [] };
+  // Only a link that names the FILE is rewritten. The backlinks also hold
+  // links that reach the note by the `title` of its properties (the link
+  // rule's last step): a rename leaves that title alone, so such a link keeps
+  // leading there — and `[[Angebotsbrief]]` must not turn into the new file
+  // name. A link names the file when the rule finds it without any title.
+  const byName = buildLinkTargetIndex([...new Set([...allPaths, oldPath])]);
+  backlinks = backlinks.filter((link) => resolveLinkTargetIndexed(link.source_path, link.target_path, byName) === oldPath);
   if (backlinks.length === 0) return { plan, failed };
 
   const newBasename = newPath.split(/[/\\]/).pop()!;
@@ -103,12 +112,14 @@ export async function planLinkUpdates(
   // basename is not unique (e.g. many index.md files). Non-.md renames keep
   // their extension in the link text (`[[Tasks.base]]`), so their collision
   // check compares the full basename instead of the `.md`-appended stem.
-  const collisionKey = isNote ? `${newBase.toLowerCase()}.md` : newBasename.toLowerCase();
+  // Names are compared as the link rule reads them: case and composition aside.
+  const nameKey = (text: string) => text.normalize("NFC").toLowerCase();
+  const collisionKey = nameKey(isNote ? `${newBase}.md` : newBasename);
   const baseCollision = allPaths.some(
     (p) =>
       p !== oldPath &&
       p !== newPath &&
-      p.split(/[/\\]/).pop()?.toLowerCase() === collisionKey
+      nameKey(p.split(/[/\\]/).pop() ?? "") === collisionKey
   );
 
   const newTargetFor = (raw: string): string => {

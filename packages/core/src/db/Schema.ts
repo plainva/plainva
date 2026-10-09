@@ -383,8 +383,10 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_props_kv ON properties(key, value);`,
     // P2.1: every per-file re-index starts with DELETE FROM files WHERE id=?,
     // whose ON DELETE CASCADE otherwise full-scans links + properties on EVERY
-    // save; wiki-link resolution matches files.title with COLLATE NOCASE, so
-    // the index must carry the same collation to be usable.
+    // save. The title index carries COLLATE NOCASE because the statements that
+    // read it compare and sort that way (the `[[` completion's prefix match,
+    // a search ordered by title). Wiki-link RESOLUTION no longer asks SQL: it
+    // reads the corpus once and resolves in JavaScript (LinkResolver.ts).
     `CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_id);`,
     `CREATE INDEX IF NOT EXISTS idx_props_file ON properties(file_id);`,
     `CREATE INDEX IF NOT EXISTS idx_files_title ON files(title COLLATE NOCASE);`

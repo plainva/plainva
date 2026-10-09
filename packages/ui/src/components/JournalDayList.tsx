@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Ellipsis, FileText } from "lucide-react";
 import { trimSpaceBeforeLineEnds, type JournalEntry } from "@plainva/core";
@@ -204,6 +204,19 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
   const locale = i18n.language;
   const yesterdayKey = addDaysToKey(todayKey, -1);
 
+  // A link in an entry is read from the note it stands in — the day's note —
+  // exactly as the editor reads it there: of two notes with one name, the one
+  // beside the day's note comes first. One handler set per day, kept while the
+  // days and the shell's handlers stay the same, so a row's text is not drawn anew.
+  const linksByNote = useMemo(() => {
+    const byNote = new Map<string, InlineLinkHandlers>();
+    const open = links?.onOpenNote;
+    if (!links || !open) return byNote;
+    for (const day of days) byNote.set(day.path, { ...links, onOpenNote: (target, newTab, kind) => open(target, newTab, kind, day.path) });
+    return byNote;
+  }, [links, days]);
+  const linksFor = (notePath: string): InlineLinkHandlers | undefined => linksByNote.get(notePath) ?? links;
+
   // "until 04:00" on the day that is still collecting entries (plan X2). Only
   // there: it says where a line written after midnight goes, which is a fact
   // about NOW, not about a day three weeks back.
@@ -258,7 +271,7 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
                   onContextMenu={(e) => { e.preventDefault(); onMenu(day, entry, { x: e.clientX, y: e.clientY }); }}
                 >
                   <time className="pv-journal-time" dateTime={clockOf(entry)}>{formatJournalTime(entry, locale)}</time>
-                  <EntryText text={splitMedia(entry.text).prose} links={links} />
+                  <EntryText text={splitMedia(entry.text).prose} links={linksFor(day.path)} />
                   {entry.task && (
                     <span
                       className={cx("pv-journal-mark", closed && "pv-journal-mark--closed")}
@@ -323,7 +336,7 @@ export function JournalDayList({ days, todayKey, links, loadImage, onToggleTask,
                             </IconButton>
                           </span>
                         )}
-                        <EntryBody entry={entry} notePath={day.path} links={links} loadImage={loadImage} />
+                        <EntryBody entry={entry} notePath={day.path} links={linksFor(day.path)} loadImage={loadImage} />
                       </span>
                     }
                     end={

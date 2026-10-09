@@ -669,7 +669,7 @@ export function BaseScreen({
       const first = Array.isArray(r[col]) ? r[col][0] : r[col];
       const target = first ? parseWikiLinkValue(String(first))?.target : null;
       if (target) {
-        void vaultOps.resolveWikiTarget(vault, target).then((p) => {
+        void vaultOps.resolveWikiTarget(vault, target, rowPath(r), "wiki").then((p) => {
           if (p) onOpenNote(p);
         });
       }
@@ -1074,7 +1074,7 @@ export function BaseScreen({
         if (!rel) continue;
         try {
           if (!(await vault.files.exists(rel))) {
-            const resolved = await vaultOps.resolveWikiTarget(vault, rel);
+            const resolved = await vaultOps.resolveWikiTarget(vault, rel, rowPath(r), "wiki");
             if (!resolved) continue;
             rel = resolved;
           }

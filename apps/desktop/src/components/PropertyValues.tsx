@@ -6,11 +6,20 @@ import {
 } from "lucide-react";
 import { CustomDatePicker } from "./DatePicker";
 import {
-  PropertyType, tagSegments, stripWikiLink, toWikiLink, chipClass,
+  PropertyType, tagSegments, stripWikiLink, toWikiLink, chipClass, parseWikiLinkValue,
   formatDateValue, filterTagSuggestions, TagSuggestion, CuratedOption, groupOptions,
 } from "@plainva/ui";
 
-export interface RelationCandidate { path: string; title: string; }
+export interface RelationCandidate {
+  path: string;
+  title: string;
+  /**
+   * The `[[…]]` a pick writes (`wikiLinkTextFor`): the file's name, the title
+   * as the link's text where it reads otherwise — the text every other picker
+   * writes. Without it the title is wrapped as it stands.
+   */
+  link?: string;
+}
 
 type TFn = (key: string, opts?: any) => string;
 
@@ -211,9 +220,13 @@ function RelationPicker(props: {
     return () => { alive = false; };
   }, [open, query, getRelationCandidates]);
 
-  const existing = new Set(items.map((it) => stripWikiLink(it).toLowerCase()));
-  const add = (title: string) => {
-    const w = toWikiLink(title);
+  // A stored value may carry an alias (`[[Brief|Angebotsbrief]]`): the chip
+  // shows its text, a click follows its target.
+  const targetOf = (it: string) => parseWikiLinkValue(it)?.target ?? stripWikiLink(it);
+  const shownOf = (it: string) => parseWikiLinkValue(it)?.display ?? stripWikiLink(it);
+  const existing = new Set(items.flatMap((it) => [targetOf(it).toLowerCase(), shownOf(it).toLowerCase()]));
+  const add = (title: string, link?: string) => {
+    const w = link ?? toWikiLink(title);
     if (!title.trim()) return;
     // Limit "one" (Notion "Limit to 1 page"): a pick replaces the value and
     // keeps it scalar; unlimited relations append to the list.
@@ -230,13 +243,14 @@ function RelationPicker(props: {
     <div className="pv-tags" ref={wrapRef}>
       <div className="pv-chips" onClick={focusChipInput}>
         {items.map((it, i) => {
-          const target = stripWikiLink(it);
+          const target = targetOf(it);
+          const shown = shownOf(it);
           return (
             <span key={`${it}-${i}`} className="pv-chip pv-chip--removable pv-chip-link">
               {/* The tooltip is the full target: a chip longer than the row
                   shortens with an ellipsis, and this is where the rest is. */}
-              <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} aria-label={`${t("properties.openLink")}: ${target}`} data-tip={target}>
-                <Link2 size={ICON.meta} /><span className="pv-chip-text">{target}</span>
+              <button type="button" className="pv-chip-link-open" onClick={() => onOpenLink?.(target)} aria-label={`${t("properties.openLink")}: ${shown}`} data-tip={target}>
+                <Link2 size={ICON.meta} /><span className="pv-chip-text">{shown}</span>
               </button>
               <button type="button" className="pv-chip-x" aria-label={t("properties.removeItem")} onClick={() => remove(i)}><X size={ICON.meta} /></button>
             </span>
@@ -247,7 +261,7 @@ function RelationPicker(props: {
           onFocus={() => setOpen(true)}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); if (matches[0]) add(matches[0].title); else if (canCreate) add(query.trim()); }
+            if (e.key === "Enter") { e.preventDefault(); if (matches[0]) add(matches[0].title, matches[0].link); else if (canCreate) add(query.trim()); }
             else if (e.key === "Backspace" && query === "" && items.length) remove(items.length - 1);
             else if (e.key === "Escape") setOpen(false);
           }}
@@ -257,7 +271,7 @@ function RelationPicker(props: {
         <div ref={popRef} className="pv-popover pv-popover--fixed">
           {matches.length > 0 && <div className="pv-popover-label">{t("properties.linkNotes")}</div>}
           {matches.slice(0, 12).map((c) => (
-            <button key={c.path} type="button" className="pv-popover-row" onMouseDown={(e) => { e.preventDefault(); add(c.title); }}>
+            <button key={c.path} type="button" className="pv-popover-row" onMouseDown={(e) => { e.preventDefault(); add(c.title, c.link); }}>
               <Link2 size={ICON.ui} className="pv-popover-ic" /> <span className="pv-chip-text">{c.title}</span>
             </button>
           ))}

@@ -5,16 +5,16 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@
 import { toast } from "../services/toastStore";
 import { getPlatformServices } from "../platform/services";
 import { findLinkAtOffset } from "../lib/linkParser";
-import { isWikiTargetResolved } from "../lib/wikiResolver";
+import { isWikiTargetResolved, type WikiTargetSet } from "../lib/wikiResolver";
 import { isEditorInteractive } from "./editorInteractive";
 import i18n from "../i18n";
 
-// Resolver set of existing wiki targets (lowercased titles + paths), pushed in
-// from the shell whenever the vault index changes. A wiki link whose target is
-// NOT in the set renders "unresolved" (muted, dashed) — Obsidian parity
+// The lookup over the vault's files (`buildWikiTargetSet`), pushed in from the
+// shell whenever the vault index changes. A wiki link that the link rule finds
+// no file for renders "unresolved" (muted, dashed) — Obsidian parity
 // (maintainer 2026-07-18). null = index not loaded yet → nothing flagged.
-export const setWikiResolver = StateEffect.define<Set<string> | null>();
-export const wikiResolverField = StateField.define<Set<string> | null>({
+export const setWikiResolver = StateEffect.define<WikiTargetSet | null>();
+export const wikiResolverField = StateField.define<WikiTargetSet | null>({
   create: () => null,
   update(value, tr) {
     for (const e of tr.effects) if (e.is(setWikiResolver)) return e.value;
@@ -139,7 +139,12 @@ function openLinkAtCoords(
   return openParsedLink(view, link.type, link.target, newTab, onOpenPath, timeStamp, link.type === "wiki" ? link.anchor : undefined);
 }
 
-export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
+/**
+ * `hostPath` names the note the editor shows: a link that names a path from
+ * its own folder (`./Note`, `../Folder/Note`) exists or not depending on it.
+ * A getter, because the session's extensions outlive a rename of the note.
+ */
+export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean, hostPath?: () => string | undefined) {
   return [
     ViewPlugin.fromClass(class {
       decorations: DecorationSet;
@@ -284,7 +289,7 @@ export function wikiLinkPlugin(onOpenPath: OpenLinkFn, hideSyntax: boolean) {
 
           // Unresolved = a wiki link whose target note does not exist yet
           // (only wiki links carry the "not created yet" meaning).
-          const unresolved = m.type === "wiki" && !isWikiTargetResolved(m.target, resolver);
+          const unresolved = m.type === "wiki" && !isWikiTargetResolved(m.target, resolver, hostPath?.());
           const linkClass = unresolved ? "cm-wiki-link cm-wiki-link--unresolved" : "cm-wiki-link";
           const linkAttrs: Record<string, string> = { "data-link-target": m.target, "data-link-type": m.type };
           if (m.anchor) linkAttrs["data-link-anchor"] = m.anchor;

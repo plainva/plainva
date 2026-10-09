@@ -1,7 +1,7 @@
 import { encodeMarkdownLinkAnchor, encodeMarkdownLinkPath } from "./linkEncoding.js";
 import { visit } from "unist-util-visit";
 import { MarkdownAst, MarkdownHtmlNode } from "./markdown-ast.js";
-import { buildLinkTargetIndex, resolveLinkTargetIndexed } from "./vault/LinkResolver.js";
+import { buildLinkTargetIndex, resolveLinkTargetIndexed, type LinkCorpusFile } from "./vault/LinkResolver.js";
 import { OKF_VERSION } from "./metadata.js";
 
 /**
@@ -201,7 +201,7 @@ export interface WikilinkConversionResult {
  */
 export function convertWikilinksToMarkdownLinks(
   ast: MarkdownAst,
-  opts: { sourcePath: string; allFilePaths: string[] }
+  opts: { sourcePath: string; allFilePaths: readonly (string | LinkCorpusFile)[] }
 ): WikilinkConversionResult {
   const result: WikilinkConversionResult = { converted: 0, embeds: 0, unresolved: 0 };
   const sourceFolder = opts.sourcePath.includes("/")

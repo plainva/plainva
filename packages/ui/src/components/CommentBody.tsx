@@ -19,8 +19,8 @@ import { parseInlineMarkdown, type InlineNode } from "../lib/inlineMarkdown";
 export interface CommentBodyProps {
   body: string;
   names: ReadonlyMap<string, string>;
-  /** Wiki target (or vault path) of a link the reader tapped. */
-  onOpenNote?: (target: string) => void;
+  /** Wiki target (or vault path) of a link the reader tapped, and how it was written: a wiki link names a note, a Markdown link a path. */
+  onOpenNote?: (target: string, kind?: "wiki" | "markdown") => void;
   /** External http(s) URL the reader tapped. */
   onOpenUrl?: (url: string) => void;
 }
@@ -45,7 +45,7 @@ function renderNodes(nodes: InlineNode[], keyPrefix: string, handlers: Pick<Comm
             href="#"
             className="pv-comment-card__link"
             data-wiki-target={node.target}
-            onClick={(event) => { stop(event); handlers.onOpenNote?.(node.target); }}
+            onClick={(event) => { stop(event); handlers.onOpenNote?.(node.target, "wiki"); }}
           >
             {node.display}
           </a>
@@ -56,7 +56,7 @@ function renderNodes(nodes: InlineNode[], keyPrefix: string, handlers: Pick<Comm
             key={key}
             href={node.href}
             className="pv-comment-card__link"
-            onClick={(event) => { stop(event); if (node.external) handlers.onOpenUrl?.(node.href); else handlers.onOpenNote?.(node.href); }}
+            onClick={(event) => { stop(event); if (node.external) handlers.onOpenUrl?.(node.href); else handlers.onOpenNote?.(node.href, "markdown"); }}
           >
             {node.label}
           </a>

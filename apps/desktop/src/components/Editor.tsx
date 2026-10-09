@@ -69,7 +69,7 @@ import { createEditorSession, type EditorSession, type EditorSessionDeps } from 
 import { consumePendingSearchJump, consumePendingTemplateCaret, resolveSearchJump, findSourceTextRange, type SearchJump, findTextRange, selectAndRevealRange } from "@plainva/ui";
 import { setHtmlCheckboxChecked, toggleTaskAtIndex } from "@plainva/ui";
 import { decideDirtyExternalUpdate } from "@plainva/ui";
-import { setWikiResolver } from "@plainva/ui";
+import { setWikiResolver, type WikiTargetSet } from "@plainva/ui";
 import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
@@ -755,7 +755,7 @@ export const Editor: React.FC<{
   // into the CM view via a StateEffect; the ref lets the session-creation
   // effect seed a freshly created view without re-running on every resolver bump.
   const wikiResolver = useWikiResolver();
-  const wikiResolverRef = useRef<Set<string> | null>(null);
+  const wikiResolverRef = useRef<WikiTargetSet | null>(null);
   useEffect(() => {
     wikiResolverRef.current = wikiResolver;
     const view = sessionRef.current?.view;
@@ -1513,19 +1513,14 @@ export const Editor: React.FC<{
 
     const searchTarget = split.target;
 
-    const sql = `
-      SELECT path FROM files
-      WHERE title = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-         OR path = ? COLLATE NOCASE
-      LIMIT 1
-    `;
-    const rows = await queryService.db.query(sql, [searchTarget, searchTarget, searchTarget + ".md"]);
-    if (rows && rows.length > 0) {
-      onOpenPath(rows[0].path, newTab);
+    // Where the link leads is the link rule's answer (`resolveNotePath`) — the
+    // one the reading view, the graph and the phone give for the same text.
+    const resolved = await queryService.resolveNotePath(searchTarget, activePath ?? undefined);
+    if (resolved) {
+      onOpenPath(resolved, newTab);
       // Parked under the path: the pane that shows the note — this one after
       // the switch, or a fresh tab — takes it once the text is in.
-      if (anchorPart) requestAnchorJump(rows[0].path, anchorPart);
+      if (anchorPart) requestAnchorJump(resolved, anchorPart);
     } else {
       // Target note doesn't exist yet — create it (Obsidian parity, maintainer
       // 2026-07-18). App owns the write/index/open (+ optional confirm).

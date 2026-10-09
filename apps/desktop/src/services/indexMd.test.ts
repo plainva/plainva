@@ -43,6 +43,11 @@ function makeVault(files: Record<string, string>, properties: { path: string; va
   };
   const queryService = {
     getBacklinks: async () => [],
+    // The link rule's corpus, as the index holds it (VaultQueryService.linkTargets).
+    linkTargets: async () =>
+      Array.from(store.keys())
+        .filter((p) => !p.startsWith(".plainva/"))
+        .map((path) => ({ path, title: path.split("/").pop()!.replace(/\.md$/i, ""), mode: /\.md$/i.test(path) ? "obsidian" : "attachment" })),
     db: {
       query: async (sql: string) => {
         if (sql.includes("p.key = 'description'")) return properties;

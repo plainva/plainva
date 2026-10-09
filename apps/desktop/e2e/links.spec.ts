@@ -6,8 +6,9 @@ import { test, expect } from '@playwright/test';
  * P5): `[[#Heading]]`, `[[Note#Heading]]`, `[text](#heading)`,
  * `[text](other.md#heading)`, `[[Note#^block]]` — in the live preview and
  * in the reading view. The fixture is the shortcuts suite's (a plain vault,
- * no PIM); the SQL mock answers every note query with ALL rows, so the note
- * that a wiki lookup must find is listed FIRST.
+ * no PIM); the SQL mock answers every note query with ALL rows. A wiki link
+ * is resolved from them by the link rule in JavaScript (ADR 0027), so their
+ * order no longer decides which note a click finds.
  */
 
 test.beforeEach(async ({ page }) => {

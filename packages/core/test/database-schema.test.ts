@@ -41,8 +41,9 @@ describe("Database Schema", () => {
     // ON DELETE CASCADE of the per-save re-index otherwise full-scans these:
     expect(queries.some(q => q.includes("idx_links_source") && q.includes("ON links(source_id)"))).toBe(true);
     expect(queries.some(q => q.includes("idx_props_file") && q.includes("ON properties(file_id)"))).toBe(true);
-    // Wiki-link lookups compare COLLATE NOCASE — the index must match, or
-    // SQLite ignores it and scans `files` on every link resolution.
+    // Title lookups compare and sort COLLATE NOCASE — the index must match,
+    // or SQLite ignores it (the `[[` completion's prefix match, a search
+    // ordered by title).
     expect(queries.some(q => q.includes("idx_files_title") && q.includes("ON files(title COLLATE NOCASE)"))).toBe(true);
   });
 

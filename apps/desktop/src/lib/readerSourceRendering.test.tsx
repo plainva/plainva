@@ -37,12 +37,19 @@ describe("original source in the real Markdown renderer", () => {
     expect(container.querySelector('[data-source-line="5"]')).toBeTruthy();
   });
 
-  it("resolves local paths before names and reports duplicate names", async () => {
-    const exists = async (path: string) => path === "Project/Note.md";
-    expect(await resolveNoteEmbed("Note#^block", "Project/Home.md", { exists })).toEqual({ status: "found", path: "Project/Note.md", anchor: "#^block" });
-    expect(await resolveNoteEmbed("#Heading", "Home.md", { exists })).toEqual({ status: "found", path: "Home.md", anchor: "#Heading" });
-    const list = async () => [{ path: "One/Same.md", isDirectory: false }, { path: "Two/Same.md", isDirectory: false }];
-    expect(await resolveNoteEmbed("Same", "Home.md", { exists: async () => false, list })).toEqual({ status: "ambiguous" });
+  // An embed shows the file the same text opens as a link: it asks the
+  // shell's own link resolution (the link rule) with the target and the note
+  // it stands in, and keeps the anchor for the fragment. Which file the rule
+  // picks — also of two notes with one name — is pinned in wikiLinkOneRule.test.ts.
+  it("asks the shell where the link leads and keeps the anchor", async () => {
+    const asked: Array<[string, string | undefined]> = [];
+    const resolve = async (target: string, hostPath?: string) => { asked.push([target, hostPath]); return target === "Note" ? "Project/Note.md" : null; };
+    expect(await resolveNoteEmbed("Note#^block|shown", "Project/Home.md", { resolve })).toEqual({ status: "found", path: "Project/Note.md", anchor: "#^block" });
+    expect(await resolveNoteEmbed("Missing", "Home.md", { resolve })).toEqual({ status: "missing" });
+    expect(asked).toEqual([["Note", "Project/Home.md"], ["Missing", "Home.md"]]);
+    // A bare anchor is a place in the note itself — nothing to look up.
+    expect(await resolveNoteEmbed("#Heading", "Home.md", { resolve })).toEqual({ status: "found", path: "Home.md", anchor: "#Heading" });
+    expect(asked).toHaveLength(2);
   });
 
   it("selects the requested occurrence across formatting and inside code", () => {

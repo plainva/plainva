@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { OPEN_SPLIT_TARGET, SplitDropZone } from "./baseViewerShared";
 import type { BaseCells } from "./useBaseCells";
+import { buildLinkTargetIndex, linkTargetName, resolveLinkTargetIndexed } from "@plainva/core";
 
 // Timeline view of the BaseViewer — a ROW per entry since S21 (plan P10).
 //
@@ -208,21 +209,16 @@ export function BaseTimelineView({
   // user's statement about the world, and silently moving one would rewrite a
   // note nobody asked to change.
   const depNodes: DependencyNode[] = React.useMemo(() => {
-    const titleToKey = new Map<string, string>();
-    for (const r of rows) {
-      const path = String(r["file.path"] ?? "");
-      titleToKey.set(String(r["file.name"] ?? ""), path);
-      titleToKey.set(path, path);
-      titleToKey.set(path.replace(/\.md$/i, ""), path);
-    }
-    const resolve = (uid: string): string | null => {
-      const inner = uid.trim().replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0]!.trim();
-      return titleToKey.get(inner) ?? titleToKey.get(inner.replace(/\.md$/i, "")) ?? null;
-    };
+    // Which row a predecessor link means is the link rule's answer over the
+    // rows of this view (`LinkResolver.ts` in the core), read from the
+    // successor's own note — the same answer a click on the link gives.
+    const inView = buildLinkTargetIndex(rows.map((r) => ({ path: String(r["file.path"] ?? ""), title: String(r["file.name"] ?? "") })));
+    const resolve = (uid: string, fromPath: string): string | null =>
+      resolveLinkTargetIndexed(fromPath, linkTargetName(uid.trim().replace(/^\[\[/, "").replace(/\]\]$/, "")), inView);
     return rows.map((r) => ({
       key: String(r["file.path"] ?? ""),
       blockedBy: parseDependencies(r["blockedBy"] ?? r["note.blockedBy"]).flatMap((d) => {
-        const key = resolve(d.uid);
+        const key = resolve(d.uid, String(r["file.path"] ?? ""));
         // A predecessor outside this view simply has no line to draw.
         return key ? [{ key, reltype: d.reltype, gap: d.gap }] : [];
       }),
@@ -422,7 +418,7 @@ export function BaseTimelineView({
                       {entryColumns.map((col) => {
                         let v = row[col];
                         if (v === undefined && col.startsWith("note.")) v = row[col.substring(5)];
-                        const { displayVal, isMissing } = formatValueForDisplay(v, col);
+                        const { displayVal, isMissing } = formatValueForDisplay(v, col, path);
                         if (isMissing) return null;
                         return (
                           <div key={col} style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

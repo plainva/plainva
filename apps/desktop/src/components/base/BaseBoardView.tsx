@@ -375,7 +375,7 @@ export function BaseBoardView({
                     {visibleColumns.filter(c => c !== 'file.name' && c !== 'file.tasks' && c !== boardGroupBy && c !== boardLaneBy).map(col => {
                       let val = row[col];
                       if (val === undefined && col.startsWith('note.')) val = row[col.substring(5)];
-                      const { displayVal } = formatValueForDisplay(val, col);
+                      const { displayVal } = formatValueForDisplay(val, col, row['file.path']);
                       const input = getColumnSchema(col)?.input;
                       const due = input === "date" || input === "datetime" ? dueChipStyle(rowDueTone(row, dueModel, val)) : undefined;
                       return (

@@ -16,6 +16,8 @@ function makeVault(files: Record<string, string>) {
   };
   const queryService = {
     db: { query: async () => Array.from(store.keys()).map((path) => ({ path })) },
+    // The link rule's corpus, as the index holds it: a note's title is its file's name.
+    linkTargets: async () => Array.from(store.keys()).map((path) => ({ path, title: path.split("/").pop()!.replace(/\.md$/, ""), mode: "obsidian" })),
   } as any;
   return { store, adapter, queryService };
 }

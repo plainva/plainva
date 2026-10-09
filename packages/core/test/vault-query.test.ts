@@ -88,15 +88,15 @@ describe("VaultQueryService", () => {
   });
 
   it("finds backlinks", async () => {
-    // 1st query: links
-    db.mockedResults.push([{ source_path: "hello.md", target_path: "world" }]);
-    // 2nd query: all files
+    // 1st query: the files a link can lead to
     db.mockedResults.push([{ path: "hello.md" }, { path: "world.md" }]);
+    // 2nd query: the links that could mean this file
+    db.mockedResults.push([{ source_path: "hello.md", target_path: "world" }]);
 
     const backlinks = await queryService.getBacklinks("world.md");
     expect(backlinks.length).toBe(1);
-    expect(db.queries[0].query).toContain("FROM links");
-    expect((db.queries[0].params as any[])[0]).toBe("%world%");
+    expect(db.queries[1].query).toContain("FROM links");
+    expect((db.queries[1].params as any[])[0]).toBe("%world%");
   });
 
   it("collects incoming relation refs across all property keys (cascade plan)", async () => {
@@ -364,12 +364,24 @@ describe("VaultQueryService", () => {
     expect(db.queries.length).toBe(2);
   });
 
+  // The corpus is read first: the pre-filter of the links needs the title the
+  // index holds for the target (a link may name a note by that title).
   it("returns property_key on backlinks", async () => {
-    db.mockedResults.push([{ source_path: "a.md", target_path: "world", property_key: "projekt" }]);
     db.mockedResults.push([{ path: "a.md" }, { path: "world.md" }]);
+    db.mockedResults.push([{ source_path: "a.md", target_path: "world", property_key: "projekt" }]);
     const backlinks = await queryService.getBacklinks("world.md");
-    expect(db.queries[0].query).toContain("l.property_key");
+    expect(db.queries[1].query).toContain("l.property_key");
     expect(backlinks[0].property_key).toBe("projekt");
+  });
+
+  it("pre-filters the links by the file's name and by a title of its own, in any spelling", async () => {
+    db.mockedResults.push([{ path: "a.md" }, { path: "Projekte/Käse.md", title: "Angebot 100%" }]);
+    db.mockedResults.push([]);
+    await queryService.getBacklinks("Projekte/Käse.md");
+    expect(db.queries[1].query).toContain("l.target_path LIKE ? ESCAPE '\\' OR l.target_path LIKE ? ESCAPE '\\'");
+    // A letter beyond ASCII that has a second case or a decomposed form is a
+    // wildcard (LIKE folds A to Z only); a wildcard of the name itself is escaped.
+    expect(db.queries[1].params as any[]).toEqual(["%K%se%", "%Angebot 100\\%%"]);
   });
 
   /**
@@ -378,12 +390,12 @@ describe("VaultQueryService", () => {
    * now, and the title and time a sort menu needs ride along.
    */
   it("returns backlinks in a definite order, with the title and time of each source", async () => {
-    db.mockedResults.push([{ source_path: "a.md", source_title: "Alpha", source_mtime: 42, target_path: "world", line_number: 3 }]);
     db.mockedResults.push([{ path: "a.md" }, { path: "world.md" }]);
+    db.mockedResults.push([{ source_path: "a.md", source_title: "Alpha", source_mtime: 42, target_path: "world", line_number: 3 }]);
     const backlinks = await queryService.getBacklinks("world.md");
-    expect(db.queries[0].query).toContain("f.title as source_title");
-    expect(db.queries[0].query).toContain("f.mtime_local as source_mtime");
-    expect(db.queries[0].query).toMatch(/ORDER BY f\.path COLLATE NOCASE ASC, l\.line_number ASC/);
+    expect(db.queries[1].query).toContain("f.title as source_title");
+    expect(db.queries[1].query).toContain("f.mtime_local as source_mtime");
+    expect(db.queries[1].query).toMatch(/ORDER BY f\.path COLLATE NOCASE ASC, l\.line_number ASC/);
     expect(backlinks[0]).toMatchObject({ source_title: "Alpha", source_mtime: 42 });
   });
 
@@ -591,18 +603,26 @@ describe("VaultQueryService", () => {
     expect(db.queries[0].params as any[]).toEqual([0, 1000]);
   });
 
-  it("resolves a note path by title or path (editor link semantics)", async () => {
-    db.mockedOneResults.push({ path: "notes/World.md" });
-    const path = await queryService.resolveNotePath("World");
-    expect(path).toBe("notes/World.md");
-    expect(db.queries[0].query).toContain("COLLATE NOCASE");
-    expect(db.queries[0].params as any[]).toEqual(["World", "World", "World.md"]);
+  // What a link leads to is the link rule's answer over ONE corpus read from
+  // the index (finding 2026-10-08) — the rule itself is pinned against a real
+  // index in link-one-rule.test.ts. Here: the corpus query, and that the
+  // answer is computed from its rows.
+  it("resolves a link by the link rule over the files of the index", async () => {
+    db.mockedResults.push([{ path: "notes/World.md", title: "World", mode: "obsidian" }, { path: "notes/Other.md", title: "A title of its own", mode: "obsidian" }]);
+    expect(await queryService.resolveNotePath("world#Section|shown", "notes/Start.md")).toBe("notes/World.md");
+    expect(db.queries).toHaveLength(1);
+    // Every file with the title the index holds; a file queued for deletion is no target.
+    expect(db.queries[0].query).toBe("SELECT path, title, mode FROM files WHERE is_deleted IS NULL OR is_deleted = 0");
+    db.mockedResults.push([{ path: "notes/Other.md", title: "A title of its own", mode: "obsidian" }]);
+    expect(await queryService.resolveNotePath("a title of its own")).toBe("notes/Other.md");
   });
 
-  it("returns null when a link target does not resolve", async () => {
-    // no mocked row -> queryOne yields null
-    const path = await queryService.resolveNotePath("missing");
-    expect(path).toBeNull();
+  it("returns null when a link target does not resolve, and asks nothing for an empty one", async () => {
+    db.mockedResults.push([{ path: "notes/World.md", title: "World", mode: "obsidian" }]);
+    expect(await queryService.resolveNotePath("missing")).toBeNull();
+    const asked = db.queries.length;
+    expect(await queryService.resolveNotePath("#Heading")).toBeNull();
+    expect(db.queries.length).toBe(asked);
   });
 });
 

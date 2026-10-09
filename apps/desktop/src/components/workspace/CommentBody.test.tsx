@@ -34,7 +34,8 @@ describe("CommentBody", () => {
       expect(link.textContent).toBe("Budgetzeile verlinken");
       expect(host.textContent).not.toContain("[[");
       act(() => { link.click(); });
-      expect(onOpenNote).toHaveBeenCalledWith("Aufgaben/Budgetzeile verlinken");
+      // The target, and that it was written as a wiki link: the shell follows it by the link rule alone.
+      expect(onOpenNote).toHaveBeenCalledWith("Aufgaben/Budgetzeile verlinken", "wiki");
       expect(cardClick).not.toHaveBeenCalled();
     } finally { unmount(); }
   });

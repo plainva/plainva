@@ -6,6 +6,7 @@ import { asSingleLineValue, type CuratedOption, dateTimeEditorValue, GrowingFiel
 import { relationCandidates } from "../../services/baseOps";
 import type { MobileVault } from "../../services/vaultService";
 import { ChoiceMark, useChoiceBeat } from "../../components/ChoiceMark";
+import { buildWikiTargetSet, wikiLinkTextFor, wikiTargetPath, type WikiTargetSet } from "@plainva/ui";
 
 /**
  * Typed cell editor (R4.3, desktop useBaseCells contract): the sheet renders
@@ -102,27 +103,41 @@ export function CellEditSheet({
   // a status picked here used to vanish with the sheet before it showed.
   const beat = useChoiceBeat<string>((picked) => onCommit(picked));
 
-  const selectedTargets = useMemo(() => {
-    const set = new Set<string>();
-    for (const v of toArray(value)) {
-      const parsed = parseWikiLinkValue(v);
-      set.add((parsed?.target ?? v).toLowerCase());
-    }
-    return set;
-  }, [value]);
+  // Which note a stored link means, and what a pick writes, is the link
+  // rule's — as in the desktop's relation editor. A stored value may name its
+  // note by file name, path or title; a pick writes the file's name, the title
+  // as the link's text where it reads otherwise (`wikiLinkTextFor`). This sheet
+  // used to compare and write TITLES: a value the desktop had written with the
+  // file's name was not shown as chosen here, and the two shells wrote
+  // different text for the same pick (finding 2026-10-08).
+  const [links, setLinks] = useState<{ lookup: WikiTargetSet; notePaths: string[] } | null>(null);
+  useEffect(() => {
+    const qs = vault.queryService;
+    if (!isRelation || !qs) return;
+    let stale = false;
+    void qs.linkTargets().then((files) => {
+      if (!stale) setLinks({ lookup: buildWikiTargetSet(files), notePaths: files.filter((f) => f.mode !== "attachment").map((f) => f.path) });
+    }).catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [vault, isRelation]);
 
-  const relationToggle = (title: string) => {
-    const link = `[[${title}]]`;
+  const targetOf = (v: string) => parseWikiLinkValue(v)?.target ?? v;
+  /** Whether a stored value links this candidate. By title only until the lookup is there (or where there is no index). */
+  const means = (v: string, c: { path: string; title: string }) =>
+    links ? wikiTargetPath(targetOf(v), links.lookup, target.notePath) === c.path : targetOf(v).toLowerCase() === c.title.toLowerCase();
+  const linkTextOf = (c: { path: string; title: string }) => (links ? wikiLinkTextFor(c.path, c.title, links.notePaths) : `[[${c.title}]]`);
+
+  const relationToggle = (c: { path: string; title: string }) => {
+    const link = linkTextOf(c);
     if (target.relationLimit === "one") {
       beat.pick(link);
       return;
     }
     const current = toArray(value);
-    const key = title.toLowerCase();
-    const exists = current.some((v) => (parseWikiLinkValue(v)?.target ?? v).toLowerCase() === key);
-    const next = exists
-      ? current.filter((v) => (parseWikiLinkValue(v)?.target ?? v).toLowerCase() !== key)
-      : [...current, link];
+    const exists = current.some((v) => means(v, c));
+    const next = exists ? current.filter((v) => !means(v, c)) : [...current, link];
     onCommit(next);
   };
 
@@ -218,10 +233,10 @@ export function CellEditSheet({
             </div>
             {filteredCandidates.slice(0, 60).map((c) => {
               const on = beat.picked
-                ? beat.picked.value === `[[${c.title}]]`
-                : selectedTargets.has(c.title.toLowerCase());
+                ? beat.picked.value === linkTextOf(c)
+                : toArray(value).some((v) => means(v, c));
               return (
-                <button className="m-row" key={c.path} onClick={() => relationToggle(c.title)}>
+                <button className="m-row" key={c.path} onClick={() => relationToggle(c)}>
                   <span>{c.title}</span>
                   {/* One note is a ring, several are boxes — it was a tick
                       for one and a ring for several. */}

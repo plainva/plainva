@@ -53,6 +53,9 @@ const MembershipBlock: React.FC<{
   const fields = shownComputedFields(membership.computed);
   const viewLabel = membership.viewName ? t("dbContext.viewLabel", { view: membership.viewName }) : "";
   const listed = listNames(membership.shownAsProperties.map((col) => cells.columnLabel(col)), i18n.language);
+  // The note the row stands for: a link in one of its values is read from there.
+  const rowFile = membership.row?.["file.path"];
+  const rowPath = typeof rowFile === "string" ? rowFile : undefined;
 
   return (
     <div className="pv-dbinsp-block" data-testid="db-membership">
@@ -95,7 +98,7 @@ const MembershipBlock: React.FC<{
         return (
           <PropRow key={field.column} data-testid="db-computed" data-column={field.column} kind={field.kind} icon={fieldIcon(field)} name={cells.columnLabel(field.column)}>
             {rich
-              ? cells.formatValueForDisplay(field.value, field.column).displayVal
+              ? cells.formatValueForDisplay(field.value, field.column, rowPath).displayVal
               : <span className="pv-prow-static">{text || "–"}</span>}
           </PropRow>
         );

@@ -262,7 +262,7 @@ export function BaseTableView({
                 let val = row[col];
                 if (val === undefined && col.startsWith('note.')) val = row[col.substring(5)];
 
-                const { displayVal, isMissing } = formatValueForDisplay(val, col);
+                const { displayVal, isMissing } = formatValueForDisplay(val, col, row['file.path']);
                 const cell = renderEditableCell(row, col, val, displayVal);
 
                 // Sub-items mode: the first visible column carries the indent,

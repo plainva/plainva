@@ -1,37 +1,27 @@
-import type { IDatabaseAdapter } from "@plainva/core";
 import { prepareReaderSource, selectNoteFragment } from "@plainva/core";
-import { relativeLinkCandidates } from "./relativeLink";
 import { splitLinkAnchor } from "./linkAnchor";
 
-export type NoteEmbedTarget = { status: "found"; path: string; anchor: string | null } | { status: "missing" | "ambiguous" };
+export type NoteEmbedTarget = { status: "found"; path: string; anchor: string | null } | { status: "missing" };
 
-/** Both shells resolve the same reference; duplicates never pick an arbitrary row. */
+/**
+ * Which file an embed shows: the one the same text opens as a link.
+ *
+ * `resolve` is the shell's own "where does this link lead" — the desktop asks
+ * `VaultQueryService.resolveNotePath`, the phone `vaultOps.resolveWikiTarget` —
+ * and both answer by the one link rule (`LinkResolver.ts` in the core). The
+ * embed used to carry a lookup of its own (a path beside the note, then a
+ * title or the end of a path in SQL), and where two notes shared a name it
+ * showed "matches more than one note" while the link beside it opened one and
+ * the graph drew an edge to one (finding 2026-10-08). The rule picks the same
+ * note everywhere now, so an embed shows it.
+ */
 export async function resolveNoteEmbed(raw: string, hostPath: string | undefined, ports: {
-  exists(path: string): Promise<boolean>;
-  db?: Pick<IDatabaseAdapter, "query"> | null;
-  list?: () => Promise<{ path: string; isDirectory: boolean }[]>;
+  resolve(target: string, hostPath?: string): Promise<string | null>;
 }): Promise<NoteEmbedTarget> {
   const { target, anchor } = splitLinkAnchor(raw.split("|")[0]);
   if (!target) return hostPath ? { status: "found", path: hostPath, anchor } : { status: "missing" };
-  const pathTarget = /\.(?:md|base)$/i.test(target) ? target : `${target}.md`;
-  for (const candidate of relativeLinkCandidates(pathTarget, hostPath)) {
-    if (await ports.exists(candidate)) return { status: "found", path: candidate, anchor };
-  }
-  const name = target.replace(/\.(?:md|base)$/i, "").normalize("NFC").toLowerCase();
-  let paths: string[];
-  if (ports.db) {
-    const escaped = target.replace(/[\\%_]/g, "\\$&");
-    const rows = await ports.db.query<{ path: string }>(
-      "SELECT path FROM files WHERE title = ? COLLATE NOCASE OR path = ? COLLATE NOCASE OR path = ? COLLATE NOCASE OR path LIKE ? ESCAPE '\\' COLLATE NOCASE OR path LIKE ? ESCAPE '\\' COLLATE NOCASE LIMIT 3",
-      [target, target, pathTarget, `%/${escaped}`, `%/${escaped}.md`],
-    );
-    paths = [...new Set(rows.map((row) => row.path))];
-  } else {
-    paths = (await ports.list?.() ?? []).filter((file) => !file.isDirectory && file.path.split("/").pop()!.replace(/\.(?:md|base)$/i, "").normalize("NFC").toLowerCase() === name).map((file) => file.path);
-  }
-  const exact = paths.find((path) => path.normalize("NFC").toLowerCase() === pathTarget.normalize("NFC").toLowerCase());
-  if (exact) return { status: "found", path: exact, anchor };
-  return paths.length === 1 ? { status: "found", path: paths[0], anchor } : { status: paths.length ? "ambiguous" : "missing" };
+  const path = await ports.resolve(target, hostPath);
+  return path ? { status: "found", path, anchor } : { status: "missing" };
 }
 
 /** Mobile's text card expands the same fragments with a bounded amount of IO. */

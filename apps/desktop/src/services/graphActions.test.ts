@@ -53,7 +53,11 @@ function fakeAdapter(files: Record<string, string>): IVaultAdapter {
 }
 
 function fakeQuery(paths: string[]): VaultQueryService {
-  return { listNotes: async () => paths.map((p) => ({ path: p, title: p })) } as unknown as VaultQueryService;
+  return {
+    listNotes: async () => paths.map((p) => ({ path: p, title: p })),
+    // The link rule's corpus, as the index holds it: a note's title is its file's name.
+    linkTargets: async () => paths.map((p) => ({ path: p, title: p.split("/").pop()!.replace(/\.md$/, ""), mode: "obsidian" })),
+  } as unknown as VaultQueryService;
 }
 
 describe("appendWikiLink", () => {

@@ -96,9 +96,9 @@ export interface RelationSearchResult {
  * Notion parity (Gesamtplan Base-Relationen, P7): `limit: "one"` makes a pick
  * REPLACE the value and close the editor; `excludeTitles` hides the row's own
  * note (no self-link); `onCreateNew` offers creating a missing note inline;
- * `brokenTitles` renders chips whose target no longer exists as muted/inert.
+ * `isBrokenTarget` renders chips whose target no longer exists as muted/inert.
  */
-export function InlineRelationEditor({ value, search, onCommit, onClose, t, limit, excludeTitles, onCreateNew, brokenTitles }: {
+export function InlineRelationEditor({ value, search, onCommit, onClose, t, limit, excludeTitles, onCreateNew, isBrokenTarget }: {
   value: unknown;
   search: (q: string) => Promise<RelationSearchResult[]>;
   onCommit: (next: string[]) => void;
@@ -110,8 +110,8 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
   excludeTitles?: string[];
   /** Create a missing note in the target base's source folder; resolves to its title. */
   onCreateNew?: (title: string) => Promise<string | null>;
-  /** Lowercase titles/paths that exist; chips outside this set render as broken. */
-  brokenTitles?: ReadonlySet<string>;
+  /** Whether a link target leads nowhere — the link rule's answer for the row's note; such a chip renders as broken. */
+  isBrokenTarget?: (target: string) => boolean;
 }) {
   const ref = useDismiss(onClose);
   const [q, setQ] = useState("");
@@ -127,11 +127,7 @@ export function InlineRelationEditor({ value, search, onCommit, onClose, t, limi
 
   const displayOf = (v: string) => parseWikiLinkValue(v)?.display ?? v.replace(/^\[\[/, "").replace(/\]\]$/, "");
   const targetOf = (v: string) => parseWikiLinkValue(v)?.target ?? v.replace(/^\[\[/, "").replace(/\]\]$/, "");
-  const isBroken = (v: string) => {
-    if (!brokenTitles) return false;
-    const target = targetOf(v).toLowerCase();
-    return !brokenTitles.has(target) && !brokenTitles.has(`${target}.md`);
-  };
+  const isBroken = (v: string) => (isBrokenTarget ? isBrokenTarget(targetOf(v)) : false);
 
   const add = (r: RelationSearchResult) => {
     const target = r.linkTarget ?? r.title;

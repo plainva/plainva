@@ -1,3 +1,4 @@
+import { buildLinkTargetIndex, linkTargetName, resolveLinkTargetIndexed } from "@plainva/core";
 import { parseWikiLinkValue } from "./propertyModel";
 
 /**
@@ -16,7 +17,8 @@ import { parseWikiLinkValue } from "./propertyModel";
  * - Collapsed nodes contribute their child count but no descendants.
  * - Cycle guard: a covered-set DFS emits every row exactly once; rows only
  *   reachable through a cycle become additional top-level roots in input order.
- * - Duplicate titles: the first row wins the title mapping (vault convention).
+ * - Two rows of one name: the link rule's order decides — the row beside the
+ *   child's own note, then the shorter path, then the alphabet.
  */
 
 export interface SubItemNode<R = unknown> {
@@ -39,27 +41,28 @@ export function buildSubItemsTree<R>(
 ): SubItemNode<R>[] {
   const maxDepth = opts.maxDepth ?? 32;
   const byKey = new Map<string, R>();
-  const refIndex = new Map<string, string>(); // lowercase title/path/path-sans-md -> key
+  const corpus: { path: string; title: string }[] = [];
 
   for (const r of rows) {
     const key = opts.keyOf(r);
     if (byKey.has(key)) continue;
     byKey.set(key, r);
-    const title = opts.titleOf(r).toLowerCase();
-    if (!refIndex.has(title)) refIndex.set(title, key);
-    const lower = key.toLowerCase();
-    if (!refIndex.has(lower)) refIndex.set(lower, key);
-    const sansMd = lower.replace(/\.md$/, "");
-    if (!refIndex.has(sansMd)) refIndex.set(sansMd, key);
+    corpus.push({ path: key, title: opts.titleOf(r) });
   }
+  // Which row a parent link means is the link rule's answer over the rows of
+  // this result (`LinkResolver.ts` in the core): the file's name, part of its
+  // path or the title of its properties, read from the child's own folder. A
+  // set of lowercased titles and paths used to stand here — a row with a
+  // title of its own was not found under its file's name (finding 2026-10-08).
+  const refIndex = buildLinkTargetIndex(corpus);
 
   const parentKeyOf = (r: R): string | null => {
     let ref = opts.parentRefOf(r);
     if (Array.isArray(ref)) ref = ref[0];
     if (typeof ref !== "string" || !ref.trim()) return null;
-    const target = (parseWikiLinkValue(ref)?.target ?? ref).trim().toLowerCase();
-    const key = refIndex.get(target) ?? refIndex.get(`${target}.md`) ?? null;
-    return key !== null && key !== opts.keyOf(r) ? key : null;
+    const own = opts.keyOf(r);
+    const key = resolveLinkTargetIndexed(own, linkTargetName(parseWikiLinkValue(ref)?.target ?? ref), refIndex);
+    return key !== null && key !== own ? key : null;
   };
 
   const children = new Map<string, string[]>();

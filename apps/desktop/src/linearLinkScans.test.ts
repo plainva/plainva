@@ -107,7 +107,7 @@ describe("unlinking in the graph", () => {
       readTextFile: async (path: string) => files[path],
       writeTextFile: async (path: string, content: string) => { files[path] = content; },
     } as unknown as IVaultAdapter;
-    const query = { listNotes: async () => [] } as unknown as VaultQueryService;
+    const query = { listNotes: async () => [], linkTargets: async () => [] } as unknown as VaultQueryService;
     await within(1_000, async () => expect(await removeLinksTo(adapter, query, "a.md", "x.md")).toBe(0));
     await within(1_000, async () => expect(await removeLinksTo(adapter, query, "b.md", "x.md")).toBe(0));
   });

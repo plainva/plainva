@@ -12,6 +12,8 @@
  * order.
  */
 
+import { pathsSharingNames, wikiLinkTextFor } from "./wikiLinkText";
+
 /** The slice of the query service a search needs; both shells' service satisfies it. */
 export interface TriggerQuerySource {
   db: { query: (sql: string, params?: unknown[]) => Promise<any[]> };
@@ -83,26 +85,29 @@ export function inlineTriggerAt(text: string, caret: number): InlineTrigger | nu
 
 /**
  * Notes first, then attachments — the ORDER BY carries the ranking. `.base`
- * files stay out: they are opened, not linked to as text. A note is linked by
- * its title, an attachment by its path (it has no title, and the bare stem
- * would not resolve).
+ * files stay out: they are opened, not linked to as text. The list names a
+ * note by its title; what a pick WRITES is the file's name — the title as the
+ * link's text where it reads otherwise (`wikiLinkTextFor`), so the link leads
+ * back to the note that was picked. An attachment is linked by its path (it
+ * has no title, and the bare stem would not resolve).
  */
 export async function searchLinkTargets(source: TriggerQuerySource, term: string, limit = 12): Promise<InlineSuggestion[]> {
   const like = `%${term}%`;
-  const rows = await source.db.query(
+  const rows: { path: string; title?: string | null; is_attachment?: number }[] = (await source.db.query(
     `SELECT path, title, (CASE WHEN path LIKE '%.md' THEN 0 ELSE 1 END) AS is_attachment FROM files
          WHERE (title LIKE ? OR path LIKE ?) AND path NOT LIKE '%.base'
          ORDER BY is_attachment, (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), mtime_local DESC
          LIMIT ${Math.max(1, Math.floor(limit))}`,
     [like, like, `${term}%`],
-  );
-  return (rows ?? []).map((row: { path: string; title?: string | null; is_attachment?: number }): InlineSuggestion => {
+  )) ?? [];
+  const sharing = await pathsSharingNames(source, rows.filter((row) => !row.is_attachment).map((row) => row.path));
+  return rows.map((row): InlineSuggestion => {
     if (row.is_attachment) {
       const name = row.path.split(/[/\\]/).pop() || row.path;
       return { kind: "attachment", label: name, insert: `[[${row.path}]]`, detail: row.path };
     }
     const title = row.title || row.path.split(/[/\\]/).pop()?.replace(/\.md$/i, "") || row.path;
-    return { kind: "note", label: title, insert: `[[${title}]]`, detail: row.path };
+    return { kind: "note", label: title, insert: wikiLinkTextFor(row.path, title, sharing), detail: row.path };
   });
 }
 

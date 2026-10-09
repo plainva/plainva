@@ -1,6 +1,6 @@
 import { foldPathNormalization } from "../sync/pathIdentity.js";
 import { IDatabaseAdapter } from "../db/IDatabaseAdapter.js";
-import { buildLinkTargetIndex, resolveLinkTargetIndexed } from "./LinkResolver.js";
+import { buildLinkTargetIndex, resolveLinkTargetIndexed, type LinkCorpusFile } from "./LinkResolver.js";
 import { isReservedOkfName } from "../okf-conversion.js";
 import { ftsExactTerm } from "./ftsQuery.js";
 import { isSpacelessChar, wordBoundedPattern } from "./spacelessText.js";
@@ -205,18 +205,18 @@ export class GraphService {
     }
 
     const nodes = new Map<string, GraphNodeInfo>();
-    const attachmentPaths: string[] = [];
     const attachmentInfo = new Map<string, GraphNodeInfo>();
-    // .base files are never nodes, but they must stay resolvable: a link to an
-    // EXISTING database is silently dropped, not reported as broken.
-    const basePaths: string[] = [];
+    // Resolution corpus: notes + attachments (embeds resolve onto attachments)
+    // + .base files, each with the title the index holds for it — a link may
+    // name a note by the `title` of its properties (step 5 of the link rule).
+    const corpusFiles: LinkCorpusFile[] = [];
     for (const row of fileRows) {
       const path = String((row as any).path ?? (row as any).PATH ?? "");
       if (!path) continue;
-      if (path.endsWith(".base")) {
-        basePaths.push(path);
-        continue;
-      }
+      corpusFiles.push({ path, title: (row as any).title ?? (row as any).TITLE ?? null });
+      // .base files are never nodes, but they must stay resolvable: a link to an
+      // EXISTING database is silently dropped, not reported as broken.
+      if (path.endsWith(".base")) continue;
       const mode = String((row as any).mode ?? (row as any).MODE ?? "obsidian");
       const info: GraphNodeInfo = {
         path,
@@ -228,7 +228,6 @@ export class GraphService {
         ctime: (row as any).ctime ?? (row as any).CTIME ?? null,
       };
       if (mode === "attachment") {
-        attachmentPaths.push(path);
         attachmentInfo.set(path, info);
       } else {
         nodes.set(path, info);
@@ -247,10 +246,9 @@ export class GraphService {
        FROM links l JOIN files f ON f.id = l.source_id`
     );
 
-    // Resolution corpus: notes + attachments (embeds resolve onto attachments)
-    // + .base files (resolvable but dropped as edges). Built ONCE per load
-    // (P2.3) — resolving per link would rebuild it for every row.
-    const corpusIndex = buildLinkTargetIndex([...nodes.keys(), ...attachmentPaths, ...basePaths]);
+    // The corpus index (.base files resolve but are dropped as edges) is built
+    // ONCE per load (P2.3) — resolving per link would rebuild it for every row.
+    const corpusIndex = buildLinkTargetIndex(corpusFiles);
 
     const bundles = new Map<string, GraphEdgeInfo>();
     const broken: BrokenLinkInfo[] = [];

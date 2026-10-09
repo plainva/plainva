@@ -116,8 +116,9 @@ export function JournalScreen({
     })();
   }, [vault, ms.journalMoodProperty, refreshPath]);
   const links = useMemo(() => ({
-    onOpenNote: (target: string) => {
-      void vaultOps.resolveWikiTarget(vault, target).then((path) => { if (path) onOpenNote(path); }).catch(() => undefined);
+    // Read from the day's note the entry stands in, as the editor reads it there.
+    onOpenNote: (target: string, _newTab: boolean, kind?: "wiki" | "markdown", fromPath?: string) => {
+      void vaultOps.resolveWikiTarget(vault, target, fromPath, kind).then((path) => { if (path) onOpenNote(path); }).catch(() => undefined);
     },
     onOpenUrl: (url: string) => { void Browser.open({ url }).catch(() => undefined); },
     onOpenTag: (tag: string) => setFilter((f) => ({ ...f, tag })),

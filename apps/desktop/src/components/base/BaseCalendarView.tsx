@@ -193,7 +193,7 @@ export function BaseCalendarView({
         {entryColumns.map((col) => {
           let v = row[col];
           if (v === undefined && col.startsWith("note.")) v = row[col.substring(5)];
-          const { displayVal, isMissing } = formatValueForDisplay(v, col);
+          const { displayVal, isMissing } = formatValueForDisplay(v, col, row["file.path"]);
           if (isMissing) return null;
           return (
             <div key={col} style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>

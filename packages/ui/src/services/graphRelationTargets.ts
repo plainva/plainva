@@ -109,16 +109,15 @@ export async function removeRelationLink(
   targetPath: string,
   propertyKey: string
 ): Promise<number> {
-  const notes = await queryService.listNotes();
-  const allPaths = notes.map((n) => n.path);
-  const { resolveLinkTarget } = await import("@plainva/core");
+  const { noteLinkResolver } = await import("@plainva/core");
+  const linkedNote = noteLinkResolver(await queryService.linkTargets());
   const props = await queryService.getFileProperties(sourcePath);
   const raw = props[propertyKey];
   const list = Array.isArray(raw) ? raw.map((v) => String(v)) : raw != null ? [String(raw)] : [];
   const resolves = (value: string): boolean => {
     const m = value.match(/\[\[([^\]|#]+)/);
     const target = (m ? m[1] : value).trim();
-    return !!target && resolveLinkTarget(sourcePath, target, allPaths) === targetPath;
+    return !!target && linkedNote(sourcePath, target) === targetPath;
   };
   const kept = list.filter((v) => !resolves(v));
   const removed = list.length - kept.length;

@@ -613,7 +613,7 @@ export function BasePinboardView({
                 // display — a card is an overview, not a form.
                 const input = cells.getColumnSchema(col)?.input;
                 const editable = input === "date" || input === "datetime";
-                const shown = cells.formatValueForDisplay(val, col).displayVal;
+                const shown = cells.formatValueForDisplay(val, col, path).displayVal;
                 return (
                   <div key={col} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: "var(--text-xs)", minWidth: 0 }}>
                     <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>{cells.columnLabel(col)}</span>

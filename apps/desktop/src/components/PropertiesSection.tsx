@@ -38,6 +38,8 @@ import { getConfiguredNoteType, getConfiguredDailyNoteType } from "../services/n
 import { loadPropertyTypes, setPropertyType, clearPropertyType, renamePropertyType } from "./propertyTypeStore";
 import { resolveGoverningBase, clearGoverningBaseCache, governingBasesBelongTo, governingBaseMemory, type GoverningBase } from "../services/baseSchema";
 import { PropertyRow, AddPropertyPopover, type RelationCandidate } from "./PropertyValues";
+import { parseWikiLinkValue, pathsSharingNames, stripWikiLink, wikiLinkTextFor, wikiTargetPath } from "@plainva/ui";
+import { useWikiResolver } from "../hooks/useWikiResolver";
 import {
   propertyCommentStore,
   usePropertyCommentCounts,
@@ -132,6 +134,8 @@ function SourceLine({ source }: { source: OkfSource }) {
 export function PropertiesSection({ onCountChange, onOpenPath, channel = activeDocument }: PropertiesSectionProps) {
   const { t, i18n } = useTranslation();
   const { queryService, vaultAdapter, vaultPath, fileTreeVersion } = useVault();
+  // The link rule's lookup, as the editor draws its links with it.
+  const linkLookup = useWikiResolver();
   const [doc, setDoc] = useState<ActiveDoc>(() => channel.get());
   const [properties, setProperties] = useState<ReadableFrontmatter>({});
   const [typeReg, setTypeReg] = useState<Record<string, PropertyType>>({});
@@ -338,8 +342,12 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   // Relation candidates: from the target `.base`'s notes if the column declares one,
   // else any note in the vault. Cached per scope; filtered by the typed query.
-  const relationCandidates = useCallback(async (query: string, relationBase?: string): Promise<RelationCandidate[]> => {
+  const relationCandidates = useCallback(async (query: string, relationBase?: string, current?: unknown): Promise<RelationCandidate[]> => {
     if (!queryService) return [];
+    // The notes the value links already — by the link rule, read from this
+    // note: a stored link may name its note by file name, path or title.
+    const stored = Array.isArray(current) ? current : current == null || current === "" ? [] : [current];
+    const linked = new Set(stored.map((v) => wikiTargetPath(parseWikiLinkValue(v)?.target ?? stripWikiLink(String(v)), linkLookup, doc.path ?? undefined)));
     const cacheKey = relationBase || "__all__";
     let list = relationCandidateCache.get(cacheKey);
     if (!list) {
@@ -360,23 +368,27 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       relationCandidateCache.set(cacheKey, list);
     }
     const q = query.trim().toLowerCase();
-    return list
-      .filter((c) => c.path !== doc.path)
+    const shown = list
+      .filter((c) => c.path !== doc.path && !linked.has(c.path))
       .filter((c) => q === "" || c.title.toLowerCase().includes(q) || c.path.toLowerCase().includes(q))
       .slice(0, 30);
-  }, [queryService, vaultAdapter, doc.path]);
+    // What a pick writes: the file's name, the title as the link's text where
+    // it reads otherwise — a target that leads back to the picked note.
+    const sharing = await pathsSharingNames(queryService, shown.map((c) => c.path)).catch(() => shown.map((c) => c.path));
+    return shown.map((c) => ({ ...c, link: wikiLinkTextFor(c.path, c.title === c.path ? null : c.title, sharing) }));
+  }, [queryService, vaultAdapter, doc.path, linkLookup]);
 
   // Relation chips open a note: resolve the wikilink target like the editor does.
   const onOpenLink = useCallback(async (target: string) => {
     if (!onOpenPath || !queryService) return;
     const search = target.split("#")[0].trim();
     try {
-      const path = await queryService.resolveNotePath(search);
+      const path = await queryService.resolveNotePath(search, doc.path ?? undefined);
       if (path) onOpenPath(path, false);
     } catch (e) {
       console.warn("[PropertiesSection] resolving relation link target failed", e);
     }
-  }, [onOpenPath, queryService]);
+  }, [onOpenPath, queryService, doc.path]);
 
   const locale = i18n.language || "de";
 
@@ -470,7 +482,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       lockValue={lockValue}
       commentCount={commentCounts.get(key)}
       onComment={canCommentOnProps && key in properties ? requestComment : undefined}
-      getRelationCandidates={(q) => relationCandidates(q, relationBase)}
+      getRelationCandidates={(q) => relationCandidates(q, relationBase, properties[key])}
       onOpenLink={onOpenLink}
       relationLimit={relationLimit}
       t={t}

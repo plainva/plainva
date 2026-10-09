@@ -50,7 +50,7 @@ export function BaseListView({
             {visibleColumns.filter(c => c !== 'file.name').map(col => {
               let val = row[col];
               if (val === undefined && col.startsWith('note.')) val = row[col.substring(5)];
-              const { displayVal } = formatValueForDisplay(val, col);
+              const { displayVal } = formatValueForDisplay(val, col, row['file.path']);
               return (
                 <div key={col} style={{ display: "flex", flexDirection: "column", gap: "2px", flex: 1, minWidth: "150px" }}>
                   <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", textTransform: "uppercase" }}>{columnLabel(col)}</span>
