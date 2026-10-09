@@ -131,6 +131,9 @@ export function BasePeekModal({
       defaultWidth={920}
       defaultHeight={680}
       ariaLabel={title}
+      // The entry the HOST opened: another one opened into this window brings
+      // it forward. Links followed inside the window do not change it.
+      subject={path}
       onEscape={onClose}
       head={
         <>

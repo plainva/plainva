@@ -1,6 +1,6 @@
 # Sneltoetsen
 
-Laatst bijgewerkt: 2026-09-28
+Laatst bijgewerkt: 2026-10-09
 
 Druk op `F1` (of **Opdrachtenpalet → Sneltoetsen tonen**) om op elk moment het venster met sneltoetsen te openen. Het groepeert elke sneltoets en muisgebaar in gebieden waartussen je bovenaan met de chips wisselt, heeft een zoekveld dat over alle gebieden werkt, en herkent je platform automatisch: het toont `Ctrl`/`Alt` onder Windows en Linux en `⌘`/`⌥` onder macOS. In de tabellen hieronder betekent `Ctrl` daarom `⌘` op macOS en `Alt` betekent `⌥`.
 
@@ -129,7 +129,7 @@ Muis: **scrollen** om te zoomen; **middelste muisknop + slepen** of `Ctrl`+slepe
 - **Actiebalk (uiterst links):** een knop kort ingedrukt houden en slepen om hem te herordenen (bovenste en onderste groep blijven gescheiden); `Esc` breekt af.
 - **Links:** klik op een wiki-/Markdown-link om hem te openen (`Ctrl`+klik voor een nieuw tabblad).
 - **Rechtsklik** op een selectie of een veld voor Plainva's eigen kopieer-/knip-/plakmenu.
-- **Peek-venster:** kop slepen om te verplaatsen, hoekgreep om het formaat te wijzigen; `◀ ▶` is een eigen geschiedenis.
+- **Peek-venster:** kop slepen om te verplaatsen, hoekgreep om het formaat te wijzigen; `◀ ▶` is een eigen geschiedenis. Staan er meerdere zwevende vensters open — een peek-venster, het afspraakvoorbeeld, een e-mail die je aan het schrijven bent —, dan komt het venster waarop je klikt naar voren, en `Esc` sluit het voorste.
 - **Kalender:** klik op de titel in het kalendertabblad of op de maandnaam in de zijbalk (of bereik hem met `Tab` en druk op `Enter`) voor de datumkiezer — de pijltoetsen bewegen door het raster, `PgUp/PgDn` bladeren maanden, `Enter` springt, `Esc` sluit; klik op een dag voor zijn dagnotitie.
 - **Afbeeldingseditor:** teken met de muis (pen/pijl/rechthoek/tekst/bijsnijden); zoom via de knoppen.
 

@@ -452,7 +452,7 @@
       </div>
       <div class="card spec">
         <h4>Schatten &amp; Z-Ebenen</h4>
-        <p><code>--shadow-1</code> Karten · <code>--shadow-2</code> Menüs/Popover · <code>--shadow-3</code> Modale/Peek. Sechs handkopierte Fast-Schatten werden ersetzt (schwarze Themes pinnen Schatten auf <i>none</i> — Literale bleiben sonst stehen).<br>Z nur aus <code>--z-popover/modal/menu/dialog/toast/tooltip</code>; beseitigt 4000/2000/999/60/59 … und die private Mobile-Skala.</p>
+        <p><code>--shadow-1</code> Karten · <code>--shadow-2</code> Menüs/Popover · <code>--shadow-3</code> Modale/Peek. Sechs handkopierte Fast-Schatten werden ersetzt (schwarze Themes pinnen Schatten auf <i>none</i> — Literale bleiben sonst stehen).<br>Z nur aus <code>--z-popover/floating/modal/menu/dialog/toast/tooltip</code>; beseitigt 4000/2000/999/60/59 … und die private Mobile-Skala. Die Reihenfolge und was auf welcher Ebene liegt: <a href="#overlays">Überlagerungen</a>.</p>
       </div>
       <div class="card spec">
         <h4>Motion &amp; Fokus</h4>
@@ -650,7 +650,7 @@
   <!-- ================= OVERLAYS ================= -->
   <section id="overlays">
     <h2><span class="no">6</span>Überlagerungen</h2>
-    <p class="sec-sub">Vier Ebenen, klar getrennt: Modal (zentriert) · appDialogs (Bestätigungen, über allem) · FloatingWindow (frei schwebend, nicht-modal) · mobile Sheets. Toasts und Tooltips obendrüber.</p>
+    <p class="sec-sub">Vier Ebenen, klar getrennt: Modal (zentriert) · appDialogs (Bestätigungen, über allem) · FloatingWindow (frei schwebend, nicht-modal, <b>unter</b> den Dialogen) · mobile Sheets. Toasts und Tooltips obendrüber. Was vor was liegt, steht in der Ebenen-Ordnung am Ende des Abschnitts.</p>
     <div class="grid g2">
       <div class="card spec">
         <h4>Modal-Anatomie + Footer-Vertrag</h4>
@@ -692,6 +692,27 @@
         </div>
         <p>Mobile Sheets bleiben das Modal-Pendant — bekommen aber die <b>Severity-Icons</b> der Dialoge (heute nur Buttonfarbe) und denselben Footer-Vertrag. Tooltips ausschließlich über <code>data-tip</code> — die ~170 <code>title=</code> werden migriert.</p>
       </div>
+    </div>
+    <div class="card spec" style="margin-top:14px;">
+      <h4>Ebenen-Ordnung <span class="tagnew">neu: <code>--z-floating</code></span></h4>
+      <div class="scrollbox">
+      <table class="plain">
+        <tr><th>Ebene (von vorn nach hinten)</th><th>Token</th><th>Was dort liegt</th></tr>
+        <tr><td>Tooltip</td><td><code>--z-tooltip</code> 1400</td><td><code>data-tip</code>-Hinweise, Drag-Geister (<code>.pv-fixed-ghost</code>)</td></tr>
+        <tr><td>Toast</td><td><code>--z-toast</code> 1300</td><td>Meldungen unten rechts</td></tr>
+        <tr><td>Bestätigung</td><td><code>--z-dialog</code> 1250</td><td>appDialogs (Bestätigen, Eingabe, Hinweis) — auch aus einem Modal heraus</td></tr>
+        <tr><td>Menü · Popover</td><td><code>--z-menu</code> 1100</td><td><code>MenuSurface</code>, <code>.pv-popover--fixed</code>, Select-Liste, Picker — auch aus einem Modal heraus</td></tr>
+        <tr><td>Dialog · Palette</td><td><code>--z-modal</code> 1000</td><td><code>Modal</code>, Befehlspalette, Schnellwechsler, Vorlagenwahl; dunkelt alles darunter ab</td></tr>
+        <tr><td><b>Schwebendes Fenster</b></td><td><code>--z-floating</code> 900</td><td><code>FloatingWindow</code>: Notiz-Vorschau, Mail-Entwurf, Termin-Vorschau</td></tr>
+        <tr><td>In der Fläche</td><td><code>--z-popover</code> 500</td><td>klebende Tabellenköpfe, Ablagezonen, Fensterleiste — alles, was zu einem Bereich der App gehört</td></tr>
+      </table>
+      </div>
+      <p>Ein schwebendes Fenster ist <b>nicht modal</b>: es dunkelt nichts ab und bleibt offen, während daneben gearbeitet wird. Deshalb kann sich neben ihm ein Dialog, eine Palette oder ein Menü öffnen — und jedes davon liegt <b>vor</b> dem Fenster; unter einem Dialog gehört das Fenster zu dem, was der Dialog abdunkelt. Vier Regeln, alle in der Primitive, keine beim Aufrufer:</p>
+      <p><b>1 · Was ein Fenster öffnet, gehört zu ihm.</b> Menüs, Popover, Select-Listen und Dialoge aus dem Fenster hängen in ihm und liegen damit vor ihm.<br>
+      <b>2 · Das benutzte Fenster liegt vorn.</b> Ein Zeiger, der im Fenster drückt, oder eine Taste, während die Tastatur im Fenster steht, holt es vor die anderen schwebenden Fenster (Fokus allein nicht — den setzt auch Code); ebenso, wenn sein Gastgeber etwas anderes in ihm zeigt (<code>subject</code> — eine angeklickte Zeile darf sich nicht hinter einem anderen Fenster öffnen). <code>--peek-order</code> zählt die Fenster von hinten nach vorn, ein neues öffnet vorn. Wegen Regel 1 liegt damit auch alles, was das benutzte Fenster öffnet, vor den anderen.<br>
+      <b>3 · Ein Fenster, das ein Dialog öffnet, gehört zum Dialog</b> und liegt vor ihm (<code>.pv-peek-window[data-over-dialog]</code>) — gelesen daran, wo das Fenster im Dokument hängt, damit es auch für eine in eine Notiz eingebettete Datenbank gilt. Ein Fenster, das sich nur zufällig öffnet, während ein fremder Dialog steht, kommt nicht vor ihn.<br>
+      <b>4 · Escape geht an das, was vorn liegt — und an genau einen.</b> Ein schwebendes Fenster reagiert auf Escape nur, wenn es das vorderste ist und nichts vor ihm die Taste nimmt. Ein <code>Modal</code>, eine Palette und ein <code>MenuSurface</code>-Menü nehmen sie, wo auch immer die Tastatur steht; ein Popover, eine Select-Liste oder ein handgebautes Menü nur, solange die Tastatur in ihnen steht — sonst haben sie kein eigenes Escape, und ein Fenster, das auf sie wartete, hörte die Taste nicht mehr. Ein Tastendruck schließt eine Sache (das Fenster markiert die Taste als verbraucht), und eine gehaltene Taste läuft nicht durch die Fenster. Gegenüber dem eigenen Inhalt gewinnt das Fenster weiterhin (ein Editor im Fenster schluckt die Taste nicht). Dieselbe Reihenfolge gilt zwischen den Ebenen darüber: ein Menü liegt vor jedem Dialog, also überlässt ein <code>Modal</code> Escape einem offenen <code>MenuSurface</code>-Menü — beide lauschen am Dokument, und ohne diese Regel schloss der Dialog samt Menü, wann immer er zufällig zuerst angehängt war.</p>
+      <p>Das Telefon hat keine schwebenden Fenster; seine Sheets haben eine eigene Leiter (<code>--z-m-sheet</code> &lt; <code>--z-m-sheet-dialog</code>), auf der ein Dialog-Sheet schon über einem Inhalts-Sheet liegt.</p>
     </div>
   </section>
 

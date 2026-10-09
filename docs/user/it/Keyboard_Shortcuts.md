@@ -1,6 +1,6 @@
 # Scorciatoie da tastiera
 
-Ultimo aggiornamento: 2026-09-28
+Ultimo aggiornamento: 2026-10-09
 
 Premi `F1` (oppure **Palette dei comandi → Mostra le scorciatoie da tastiera**) per aprire in qualsiasi momento la finestra delle scorciatoie. Raggruppa ogni scorciatoia e gesto del mouse in aree che puoi cambiare con i chip in alto, ha un campo di ricerca che copre tutte le aree e rileva automaticamente la tua piattaforma: mostra `Ctrl`/`Alt` su Windows e Linux e `⌘`/`⌥` su macOS. Nelle tabelle qui sotto, `Ctrl` indica quindi `⌘` su macOS e `Alt` indica `⌥`.
 
@@ -129,7 +129,7 @@ Mouse: **scorri** per lo zoom; **trascinamento con il tasto centrale** o `Ctrl`+
 - **Barra delle azioni (estrema sinistra):** tieni premuto brevemente un pulsante e trascinalo per riordinarlo (il gruppo superiore e quello inferiore restano separati); `Esc` annulla.
 - **Link:** fai clic su un link interno / Markdown per aprirlo (`Ctrl`+clic per una nuova scheda).
 - **Clic destro** su una selezione o un campo per il menu di copia / taglia / incolla proprio di Plainva.
-- **Finestra di anteprima:** trascina l'intestazione per spostarla, l'angolo per ridimensionarla; `◀ ▶` hanno una cronologia propria.
+- **Finestra di anteprima:** trascina l'intestazione per spostarla, l'angolo per ridimensionarla; `◀ ▶` hanno una cronologia propria. Con più finestre fluttuanti aperte — una finestra di anteprima, l'anteprima evento, un'e-mail che stai scrivendo —, quella su cui fai clic passa in primo piano, e `Esc` chiude quella in primo piano.
 - **Calendario:** fai clic sul titolo nella scheda calendario o sul nome del mese nella barra laterale (o raggiungilo con `Tab` e premi `Invio`) per il selettore di data: le frecce si muovono nella griglia, `PgSu/PgGiù` cambiano mese, `Invio` salta, `Esc` chiude; fai clic su un giorno per la sua nota giornaliera.
 - **Editor di immagini:** disegna con il mouse (penna/freccia/rettangolo/testo/ritaglio); zoom con i pulsanti.
 

@@ -1,6 +1,6 @@
 # Atajos de teclado
 
-Última actualización: 2026-09-28
+Última actualización: 2026-10-09
 
 Pulsa `F1` (o **Paleta de comandos → Mostrar atajos de teclado**) para abrir en cualquier momento la ventana de atajos. Agrupa todos los atajos y gestos del ratón en zonas entre las que cambias con los chips de arriba, tiene un campo de búsqueda que abarca todas las zonas, y detecta tu plataforma automáticamente: muestra `Ctrl`/`Alt` en Windows y Linux, y `⌘`/`⌥` en macOS. Por eso, en las tablas de abajo `Ctrl` significa `⌘` en macOS y `Alt` significa `⌥`.
 
@@ -129,7 +129,7 @@ Ratón: **la rueda** hace zoom; **arrastre con el botón central** o `Ctrl`+arra
 - **Barra de acciones (extremo izquierdo):** mantén pulsado un botón brevemente y arrástralo para reordenarlo (el grupo superior y el inferior permanecen separados); `Esc` cancela.
 - **Enlaces:** haz clic en un enlace wiki o Markdown para abrirlo (`Ctrl`+clic para una pestaña nueva).
 - **Clic derecho** en una selección o un campo abre el menú propio de Plainva para copiar / cortar / pegar.
-- **Ventana de vista rápida:** arrastra el encabezado para moverla, el asa de la esquina para cambiar el tamaño; `◀ ▶` tiene su propio historial.
+- **Ventana de vista rápida:** arrastra el encabezado para moverla, el asa de la esquina para cambiar el tamaño; `◀ ▶` tiene su propio historial. Si hay varias ventanas flotantes abiertas — una vista rápida, la vista previa del evento, un correo que estás redactando —, la que pulsas pasa al frente, y `Esc` cierra la que está al frente.
 - **Calendario:** haz clic en el título de la pestaña de calendario o en el nombre del mes de la barra lateral (o llega con `Tab` y pulsa `Intro`) para el selector de fecha: las flechas se mueven por la cuadrícula, `RePág/AvPág` cambian de mes, `Intro` salta, `Esc` cierra; haz clic en un día para su nota diaria.
 - **Editor de imágenes:** dibuja con el ratón (lápiz/flecha/rectángulo/texto/recorte); haz zoom con los botones.
 

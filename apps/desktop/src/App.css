@@ -551,8 +551,13 @@ option {
 
 /* Peek window for notes opened from a .base view (Base-UX2 P5) */
 /* Floating peek window: free-floating (non-modal), draggable + resizable. The
-   dynamic position/size come in as CSS vars set inline by BasePeekModal. */
-.pv-peek-window { position: fixed; left: var(--peek-x); top: var(--peek-y); width: var(--peek-w); height: var(--peek-h); z-index: var(--z-modal); display: flex; flex-direction: column; overflow: hidden; }
+   dynamic position/size come in as CSS vars set inline by FloatingWindow, and
+   so does --peek-order: the open windows from back to front, the one in use
+   in front. They count up from a layer of their own, below the dialogs — a
+   dialog, a palette or a menu that opens beside a window lies in front of it. */
+.pv-peek-window { position: fixed; left: var(--peek-x); top: var(--peek-y); width: var(--peek-w); height: var(--peek-h); z-index: calc(var(--z-floating) + var(--peek-order, 0)); display: flex; flex-direction: column; overflow: hidden; }
+/* A window a dialog opened belongs to that dialog and lies in front of it. */
+.pv-peek-window[data-over-dialog] { z-index: calc(var(--z-modal) + var(--peek-order, 0)); }
 .pv-peek-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); box-shadow: var(--shadow-3); }
 .pv-peek-head { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.5rem 0.4rem 0.5rem; border-bottom: 1px solid var(--border-color); background: var(--surface-container-low); flex-shrink: 0; cursor: move; user-select: none; touch-action: none; }
 .pv-peek-grip { display: flex; align-items: center; color: var(--text-faint); flex-shrink: 0; }

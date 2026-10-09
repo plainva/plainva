@@ -129,6 +129,8 @@ export function EventPeek({
       minHeight={280}
       ariaLabel={t("pim.eventPreview", { defaultValue: "Termin-Vorschau" })}
       testId="event-peek"
+      // Another event clicked while the preview is open brings it forward.
+      subject={`${event.accountId} ${event.calendarId} ${event.uid} ${event.start.ts}`}
       onEscape={onClose}
       head={
         <>

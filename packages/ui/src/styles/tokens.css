@@ -125,8 +125,15 @@
   /* Stacking layers (replaces the 50/1000/1200/4000 ad-hoc values). Menus sit
      above modals (dropdowns open from inside dialogs); appDialogs (confirm/
      prompt) sit above EVERY modal — legacy hand-rolled overlays go up to 1200
-     until they migrate onto <Modal> (plan P4). Toasts/tooltips top it all. */
+     until they migrate onto <Modal> (plan P4). Toasts/tooltips top it all.
+     Floating windows have a layer of their own BELOW the modals: a window is
+     not modal, so a dialog, a palette or a menu opens beside it and must lie
+     in front of it. Sharing --z-modal left that to the order in the document,
+     and the window, portalled to the end of the body, won. The open windows
+     count up from this layer (--peek-order, the one in use in front), so the
+     gap to --z-modal is the room they have. */
   --z-popover: 500;
+  --z-floating: 900;
   --z-modal: 1000;
   --z-menu: 1100;
   --z-dialog: 1250;

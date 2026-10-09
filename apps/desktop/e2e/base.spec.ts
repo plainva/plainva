@@ -1554,6 +1554,85 @@ test('Peek: a .base opened from inside the peek renders in-window and joins the 
   await expect(peek.locator('.cm-editor')).toBeVisible();
 });
 
+// The peek is a floating window: it stays open while the rest of the app is
+// used, so a dialog can open beside it. Until 2026-10-09 the two shared a
+// layer, and the window — portalled to the end of the body — lay over the
+// dialog: here, where both are centered and the dialog is no larger than the
+// window, the dialog was not to be seen at all, and a click into it landed in
+// the note. The rules themselves (what a window opens, two windows, a window
+// opened from a dialog) are asked of the primitives in floatingLayer.spec.ts;
+// this is the app's own window and two of its own dialogs, in the default
+// theme and in the two that redraw every surface.
+for (const theme of [
+  null,
+  { name: 'lcars', mode: 'dark', variant: 'make-it-so' },
+  { name: 'win95', mode: 'light', variant: null },
+] as const) {
+  test(`Peek (${theme?.name ?? 'default theme'}): a dialog and a palette opened beside the peek lie in front of it, and Escape closes them first`, async ({ page }) => {
+    await page.goto('/');
+    await openBase(page, 'Board');
+    if (theme) {
+      await page.evaluate((t) => {
+        const root = document.documentElement;
+        root.setAttribute('data-theme-name', t.name);
+        root.setAttribute('data-theme', t.mode);
+        if (t.variant) root.setAttribute('data-theme-variant', t.variant);
+        else root.removeAttribute('data-theme-variant');
+      }, theme);
+    }
+    await page.locator('[data-tip="Alpha"]').click();
+    const peek = page.locator('.pv-peek-card');
+    await expect(peek).toBeVisible();
+    await expect(peek.locator('.cm-editor')).toBeVisible({ timeout: 15000 });
+
+    // What lies at the centre of an element: the element, the peek, or neither.
+    const atCentreOf = (testId: string) =>
+      page.getByTestId(testId).evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (top && (top === el || el.contains(top))) return 'the element';
+        return top?.closest('.pv-peek-window') ? 'the floating window' : 'something else';
+      });
+    // The POINT is clicked, not the locator: whatever lies there takes the click.
+    const clickCentreOf = async (testId: string) => {
+      const box = (await page.getByTestId(testId).boundingBox())!;
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    };
+
+    // F1 opens the shortcuts window — a dialog as wide as the peek.
+    await page.keyboard.press('F1');
+    await expect(page.getByTestId('shortcuts-modal')).toBeVisible();
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ animations: 'disabled', path: test.info().outputPath(`peek-under-dialog-${theme?.name ?? 'default'}.png`) });
+    expect(await atCentreOf('shortcuts-search')).toBe('the element');
+    await clickCentreOf('shortcuts-search');
+    await page.keyboard.type('F1');
+    await expect(page.getByTestId('shortcuts-search')).toHaveValue('F1');
+    // Escape belongs to the dialog; the peek under it stays.
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('shortcuts-modal')).toHaveCount(0);
+    await expect(peek).toBeVisible();
+
+    // The command palette is no Modal, but the same layer.
+    await page.keyboard.press('Control+p');
+    const palette = page.getByTestId('command-palette');
+    await expect(palette).toBeVisible();
+    const paletteInput = palette.locator('.pv-palette-input');
+    const hit = await paletteInput.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return top === el ? 'the element' : top?.closest('.pv-peek-window') ? 'the floating window' : 'something else';
+    });
+    expect(hit).toBe('the element');
+    await page.keyboard.press('Escape');
+    await expect(palette).toHaveCount(0);
+    await expect(peek).toBeVisible();
+
+    // With nothing over it, Escape is the peek's again.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.pv-peek-card')).toHaveCount(0);
+  });
+}
+
 test('Board: Ctrl+click on a card opens it in the split pane (P5)', async ({ page }) => {
   await page.goto('/');
   await openBase(page, 'Board');

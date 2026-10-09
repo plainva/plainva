@@ -1,6 +1,6 @@
 # Skróty klawiszowe
 
-Stan na: 2026-09-28
+Stan na: 2026-10-09
 
 `F1` (lub **Paleta poleceń → Pokaż skróty klawiszowe**) w każdej chwili otwiera okno skrótów. Grupuje ono każdy skrót i gest myszy w obszary, między którymi przełącza się za pomocą chipów u góry, ma pole wyszukiwania obejmujące wszystkie obszary i automatycznie wykrywa platformę: pokazuje `Ctrl`/`Alt` w Windows i Linux oraz `⌘`/`⌥` w macOS. W tabelach poniżej `Ctrl` oznacza więc `⌘` w macOS, a `Alt` — `⌥`.
 
@@ -129,7 +129,7 @@ Mysz: **przewijanie kółkiem** zmienia powiększenie; **przeciąganie środkowy
 - **Pasek akcji (skrajnie po lewej):** przytrzymaj przycisk chwilę i przeciągnij, aby zmienić jego kolejność (górna i dolna grupa pozostają oddzielne); `Esc` anuluje.
 - **Linki:** kliknięcie linku wewnętrznego lub linku Markdown otwiera go (`Ctrl`+klik w nowej karcie).
 - **Kliknięcie prawym przyciskiem** na zaznaczeniu lub polu otwiera własne menu kontekstowe Plainva: kopiuj / wytnij / wklej.
-- **Okno podglądu:** przeciąganie nagłówka przesuwa je, uchwyt w rogu zmienia rozmiar; `◀ ▶` ma własną historię.
+- **Okno podglądu:** przeciąganie nagłówka przesuwa je, uchwyt w rogu zmienia rozmiar; `◀ ▶` ma własną historię. Gdy otwartych jest kilka pływających okien — okno podglądu, podgląd wydarzenia, pisana właśnie wiadomość e-mail —, kliknięte okno wychodzi na wierzch, a `Esc` zamyka to, które jest na wierzchu.
 - **Kalendarz:** kliknięcie tytułu w karcie kalendarza lub nazwy miesiąca na pasku bocznym (albo `Tab` i `Enter`) otwiera wybór daty — strzałki poruszają się po siatce, `PgUp/PgDn` przewijają miesiące, `Enter` przechodzi, `Esc` zamyka; kliknięcie dnia otwiera jego notatkę dzienną.
 - **Edytor obrazów:** rysowanie myszą (pisak/strzałka/prostokąt/tekst/kadrowanie); powiększenie za pomocą przycisków.
 
