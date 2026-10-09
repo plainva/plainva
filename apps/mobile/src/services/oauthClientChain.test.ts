@@ -11,6 +11,20 @@ import { pickOAuthClient } from "./oauthClientChain";
  * its own client id" for an id the device was already holding twice over.
  */
 describe("pickOAuthClient", () => {
+  it("does not offer a new connection a client that only works through Play services", () => {
+    const native = { kind: "google" as const, clientId: "android-type", clientSecret: "", refreshToken: "", nativeGoogle: { email: "person@example.test" } };
+    const sources = {
+      own: null,
+      accountToken: { clientId: "android-type", nativeGoogle: { email: "person@example.test" } },
+      syncProvider: { provider: "drive", creds: { clientId: "android-type", nativeGoogle: { email: "person@example.test" } } },
+      siblings: [native, { kind: "google" as const, clientId: "browser-client", clientSecret: "", refreshToken: "r" }],
+    };
+    expect(pickOAuthClient("google", { ...sources, withoutPlayServicesGrants: true })).toEqual({ clientId: "browser-client" });
+    expect(pickOAuthClient("google", { ...sources, siblings: [native], withoutPlayServicesGrants: true })).toBeNull();
+    // The account's own renewal keeps the client its grant was made with.
+    expect(pickOAuthClient("google", { ...sources, own: native })).toEqual({ clientId: "android-type" });
+  });
+
   it("prefers the account's own slot over everything else", () => {
     const found = pickOAuthClient("google", {
       own: { kind: "google", clientId: "own", clientSecret: "s", refreshToken: "r" },

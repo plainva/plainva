@@ -1,6 +1,6 @@
 # 配置Google Drive同步（自备凭据）
 
-更新日期：2026-09-15
+更新日期：2026-10-09
 
 要在Plainva中把本地仓库与你的Google Drive同步，你可以使用自己的Google API凭据。由于Plainva尚未通过Google的中心化CASA验证，这种**自备凭据（BYO）**方式为同步你的私人文件提供了一种安全的途径。
 
@@ -66,7 +66,7 @@
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-上面的桌面步骤需要桌面客户端 ID 及对应的客户端密钥。Android 使用 Google Identity Services：注册包名 `com.plainva.app` 和实际安装版本的 SHA-1 签名证书。Play 版本使用应用签名证书，本地签名版本可能不同。Android 不使用浏览器重定向或客户端密钥。iOS 请使用包标识为 `com.plainva.app` 的 iOS 客户端，返回地址为 `com.plainva.app:/oauth2redirect`。桌面客户端不能代替移动端注册。如需日历，还要启用 Google Calendar API 和 Google Tasks API。
+上面的桌面端步骤需要桌面客户端的客户端 ID 及其对应的密钥。在手机上，无论 Android 还是 iOS，Plainva 都在浏览器中登录 Google：请在你的 Google 项目中创建一个 **iOS** 类型的 OAuth 客户端(Android 也是如此)，软件包 ID 填写 `com.plainva.app`。Plainva 通过 `com.plainva.app:/oauth2redirect` 返回；没有客户端密钥。请把客户端 ID 填入 Plainva 的 Google 表单。不要创建 Android 类型的客户端：Google 在全球只允许一个项目登记 Play 版本的软件包名称和证书指纹，其他项目一律被拒绝(“Android 软件包名称和指纹已被使用”)。为 Plainva 0.8.3 或 0.8.4 配置的 Android 客户端无法用于新的登录；已登录的账号继续可用。桌面客户端不能替代移动端注册。使用日历时，还需启用 Google Calendar API 和 Google Tasks API。
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

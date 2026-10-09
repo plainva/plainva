@@ -40,6 +40,20 @@ export interface ClientSources {
   syncProvider?: { provider: string; creds: unknown } | null;
   /** Credential slots of other calendar accounts of the same provider. */
   siblings?: readonly PimStoredCredentials[];
+  /**
+   * Leave out every source whose grant is held by Play services (Android).
+   *
+   * Such a grant names the client it was made with, but that client only works
+   * through Play services — and a NEW connection signs in through the browser
+   * (`chooseGoogleSignInFlow`). Offering it as "client ID taken from this
+   * device" would open a consent page Google rejects. The account's own
+   * renewal does not set this: it stays where its grant is.
+   */
+  withoutPlayServicesGrants?: boolean;
+}
+
+function heldByPlayServices(value: unknown): boolean {
+  return !!(value as { nativeGoogle?: { email?: unknown } | null } | null | undefined)?.nativeGoogle?.email;
 }
 
 function fromCredentials(creds: PimStoredCredentials | null | undefined, provider: string): OAuthClient | null {
@@ -50,10 +64,11 @@ function fromCredentials(creds: PimStoredCredentials | null | undefined, provide
 }
 
 export function pickOAuthClient(provider: "google" | "microsoft", sources: ClientSources): OAuthClient | null {
-  const own = fromCredentials(sources.own, provider);
+  const usable = (value: unknown) => !sources.withoutPlayServicesGrants || !heldByPlayServices(value);
+  const own = usable(sources.own) ? fromCredentials(sources.own, provider) : null;
   if (own) return own;
 
-  const shared = sources.accountToken;
+  const shared = usable(sources.accountToken) ? sources.accountToken : null;
   if (shared?.clientId) {
     return { clientId: shared.clientId, ...(shared.clientSecret ? { clientSecret: shared.clientSecret } : {}) };
   }
@@ -62,7 +77,7 @@ export function pickOAuthClient(provider: "google" | "microsoft", sources: Clien
   // Microsoft, so a mismatched provider is not a candidate.
   const sync = sources.syncProvider;
   const syncFamily = sync?.provider === "drive" ? "google" : sync?.provider === "onedrive" ? "microsoft" : null;
-  if (sync && syncFamily === provider) {
+  if (sync && syncFamily === provider && usable(sync.creds)) {
     const creds = sync.creds as { clientId?: string; clientSecret?: string };
     if (creds.clientId) {
       return { clientId: creds.clientId, ...(creds.clientSecret ? { clientSecret: creds.clientSecret } : {}) };
@@ -70,6 +85,7 @@ export function pickOAuthClient(provider: "google" | "microsoft", sources: Clien
   }
 
   for (const sibling of sources.siblings ?? []) {
+    if (!usable(sibling)) continue;
     const found = fromCredentials(sibling, provider);
     if (found) return found;
   }

@@ -24,6 +24,7 @@ import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { loadAccountCards, type AccountCard } from "../services/cloudAccountCards";
 import { backfillMobileCalendarIdentity, backfillMobileSyncIdentity } from "../services/cloudIdentityBackfill";
 import { beginAccountLogin, canUnifyMobileAccount } from "../services/accountLogin";
+import { toastConnectionFailure } from "../services/connectionToast";
 import { loadCloudAccounts } from "../services/cloudAccountsStore";
 import {
   guideMobileAccountRepair,
@@ -162,7 +163,7 @@ export function CloudAccountsScreen({
         const out = await beginAccountLogin((await getActiveVaultEntry()).id, record, fallback);
         setNeedClient(out.kind === "needsClientId" ? { record, family: out.family } : null);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        toastConnectionFailure(e);
       } finally {
         setSigningIn(false);
       }

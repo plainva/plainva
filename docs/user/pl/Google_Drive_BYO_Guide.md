@@ -1,6 +1,6 @@
 # Konfiguracja synchronizacji Google Drive (własne dane dostępowe)
 
-Stan na: 2026-09-15
+Stan na: 2026-10-09
 
 Aby zsynchronizować lokalny vault z Google Drive w Plainva, możesz użyć własnych danych dostępowych Google API. Ponieważ Plainva nie przeszła (jeszcze) przez centralną weryfikację CASA Google, podejście **Bring Your Own Credentials (BYO)** oferuje bezpieczny sposób na synchronizację Twoich prywatnych plików.
 
@@ -66,7 +66,7 @@ Twój vault synchronizuje się teraz bezpiecznie z Google Drive za pomocą Twoic
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-Instrukcja komputerowa wymaga klienta desktopowego z identyfikatorem i odpowiadającym mu sekretem. Android używa Google Identity Services: zarejestruj pakiet `com.plainva.app` z certyfikatem SHA-1 zainstalowanej wersji. Wersje Play używają certyfikatu podpisu aplikacji; lokalna wersja może mieć inny. Android nie używa przekierowania przeglądarki ani sekretu klienta. Na iOS użyj klienta iOS z identyfikatorem pakietu `com.plainva.app` i adresem powrotu `com.plainva.app:/oauth2redirect`. Klient desktopowy nie zastępuje rejestracji mobilnej. Dla kalendarza włącz także Google Calendar API i Google Tasks API.
+Powyższa instrukcja dla komputera wymaga klienta typu komputerowego z identyfikatorem klienta i odpowiadającym mu sekretem. Na telefonie, zarówno na Androidzie, jak i na iOS, Plainva loguje się do Google w przeglądarce: utwórz w swoim projekcie Google klienta OAuth typu **iOS**, także dla Androida, z identyfikatorem pakietu `com.plainva.app`. Plainva wraca przez `com.plainva.app:/oauth2redirect`; sekretu klienta nie ma. Wpisz identyfikator klienta w formularzu Google w Plainva. Nie twórz klienta typu Android: Google dopuszcza nazwę pakietu i odcisk certyfikatu wersji z Play w dokładnie jednym projekcie na świecie i odrzuca każdy kolejny („nazwa pakietu Androida i odcisk cyfrowy są już używane”). Klient Android skonfigurowany dla Plainva 0.8.3 lub 0.8.4 nie działa przy nowym logowaniu; konta już zalogowane działają dalej. Klient komputerowy nie zastępuje rejestracji mobilnej. Dla kalendarzy włącz dodatkowo Google Calendar API i Google Tasks API.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

@@ -11,6 +11,7 @@ import type { CloudAccountRecord, CloudServiceId } from "./cloudAccounts";
 import { sameOAuthClient, tokenCoversService, type StoredAccountToken } from "./tokenBroker";
 import { AccountGrantMissingPermissionsError } from "./accountLoginGrant";
 import { connectionFailureCode } from "@plainva/core";
+import { googleAuthorizationMessage } from "./googleAuthorization";
 
 /** Non-secret destination carried across screens and native browser returns. */
 export interface ServiceConnectionContext {
@@ -61,7 +62,8 @@ function rawText(error: unknown): string {
  * printed whatever it caught — which is how "storageFailed" stood on the
  * screen where a sentence belonged. Now there is one rule:
  *   - a code Plainva knows becomes its sentence (`ServiceConnectionError`
- *     reasons first, then the connection and loopback markers, then the
+ *     reasons first, then the classes of a failed Android Google sign-in,
+ *     then the connection and loopback markers, then the
  *     storage and transfer wordings of older throw sites);
  *   - anything else is the provider's own answer and is shown VERBATIM, framed
  *     as such — "access_denied: the app is not verified" says more than any
@@ -70,6 +72,10 @@ function rawText(error: unknown): string {
  */
 export function serviceConnectionMessage(error: unknown, t: ConnectionTranslate): string {
   if (error instanceof ServiceConnectionError) return t(REASON_KEYS[error.reason]);
+  // Android: Play services said why (lib/googleAuthorization.ts). Asked before
+  // anything else, so that a refused registration never reads as "cancelled".
+  const google = googleAuthorizationMessage(error, t);
+  if (google) return google;
   const connection = connectionFailureCode(error);
   if (connection) return t(`connectionFailure.${connection}`);
   if (error instanceof AccountGrantMissingPermissionsError) return t("cloudAccounts.loginGrantIncomplete");

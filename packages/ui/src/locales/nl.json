@@ -4693,6 +4693,10 @@
     "clipboardFailed": "Het pad kon niet worden gekopieerd. Selecteer en kopieer het in de bestandsdetails.",
     "retrySaved": "Verbinding voltooien",
     "clientSecret": "Clientgeheim (indien beschikbaar)",
+    "googleSystemSignInUnavailable": "De systeemaanmelding van Google is niet beschikbaar voor deze installatie van Plainva. Meld je in plaats daarvan in de browser aan met je eigen client-ID: vul die in het Google-formulier in. De Google-handleiding beschrijft hoe je die aanmaakt.",
+    "googleUnreachable": "Google was niet bereikbaar. Controleer de internetverbinding en probeer het opnieuw.",
+    "googleAccountNotOnDevice": "Google meldt dat dit account niet is aangemeld op dit apparaat. Controleer het in de Android-instellingen onder accounts en probeer het daarna opnieuw.",
+    "googlePlayServicesFailed": "Google Play-services kon het aanmelden niet voltooien (code {{code}}). Probeer het opnieuw. Blijft de fout, werk dan Google Play-services bij.",
     "googleClientUnsupported": "De Google-registratie past niet bij het terugkeerpad van dit apparaat. Controleer het clienttype en de mobiele instelling in de Google-handleiding."
   },
   "connectionFailure": {

@@ -60,6 +60,7 @@ import {
   resolveOrCreateMeetingNote,
   setPendingTemplateCaret,
   splitCalendarKey,
+  verifiedProviderIdentityKey,
   verifiedProviderIdentityOf,
   VERIFIED_PROVIDER_IDENTITY_KEY,
   writableCalendarsOf,
@@ -71,6 +72,7 @@ import {
   runtime,
   setPimState,
   startPimRuntime,
+  stopPim,
 } from "./pimRuntime";
 
 export {
@@ -234,6 +236,30 @@ function wirePendingEventWrites(): void {
   window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
 }
 
+/**
+ * Restarts the runtime after accounts arrived through the settings sync — but
+ * never under a sign-in that is being stored.
+ *
+ * The import fires when the app returns to the foreground, which is exactly
+ * when Google's or Microsoft's dialog hands back: the plain stop-and-start
+ * replaced the runtime in the middle of `addPimAccount`, the connection failed
+ * with "pim runtime changed", and the screen said the target account or vault
+ * had changed. Neither had. The restart now queues behind the connection (and
+ * a connection that starts during the restart waits for the new runtime).
+ */
+export function restartPimAfterImport(vault: MobileVault): Promise<void> {
+  const restart = withAccountCredentialLock(`pim-connect:${vault.vaultId}`, async () => {
+    stopPim();
+    await startPim(vault);
+  }).finally(() => { if (pendingRestart === settled) pendingRestart = null; });
+  // What a connection awaits never rejects: a failed restart is the caller's
+  // to report, and the connection then says "not started" on its own.
+  const settled = restart.catch(() => {});
+  pendingRestart = settled;
+  return restart;
+}
+let pendingRestart: Promise<void> | null = null;
+
 let idCounter = 0;
 function newAccountId(): string {
   // Time-free (no Date.now dependency for determinism in tests); a per-boot
@@ -272,10 +298,12 @@ async function fetchVerifiedProfile(
 export async function addPimAccount(
   provider: PimStoredCredentials["kind"], label: string, creds: PimStoredCredentials, context?: ServiceConnectionContext,
 ): Promise<string> {
+  await pendingRestart;
   const owner = runtime;
   if (!owner) throw new Error("pim runtime not started");
   return withAccountCredentialLock(`pim-connect:${owner.vaultId}`, () => {
-    if (runtime !== owner) throw new Error("pim runtime changed");
+    // Another vault is a different target; the same vault restarted is not.
+    if (runtime?.vaultId !== owner.vaultId) throw new Error("pim runtime changed");
     return addPimAccountInVault(provider, label, creds, context);
   });
 }
@@ -335,9 +363,26 @@ async function addPimAccountInVault(
   assertCurrent();
   const known = await owner.cache.listAccounts();
   assertCurrent();
-  const adoptInto = accountToAdoptInto(known, {
+  let adoptInto = accountToAdoptInto(known, {
     id, provider, identity: verifiedProviderIdentityOf({ config }),
   });
+  // The account's calendar row arrived with the settings of another device and
+  // was never signed in here. "Add the calendar" for that account IS the
+  // sign-in of that row: a second row beside it was refused below as "the
+  // target account changed", which nothing had. Only a row without a
+  // credential on this device is taken over, and only when the sign-in is
+  // proven to be the account's - by its verified identity or, for a record
+  // that has none yet, by its address.
+  const boundId = source?.services.calendar?.pimAccountId;
+  if (!adoptInto && source && boundId && boundId !== id) {
+    const bound = known.find((a) => a.id === boundId && a.provider === provider);
+    const verified = verifiedProviderIdentityOf({ config });
+    const sameAccount = source.verifiedProviderIdentity
+      ? !!verified && verifiedProviderIdentityKey(verified) === verifiedProviderIdentityKey(source.verifiedProviderIdentity)
+      : source.label.includes("@") && source.label.trim().toLowerCase() === resolvedLabel.trim().toLowerCase();
+    if (bound && sameAccount && !(await getPimCredentials(owner.vaultId, bound.id))) adoptInto = bound;
+    assertCurrent();
+  }
   if (source) {
     const connectedId = adoptInto?.id ?? id;
     const records = await loadCloudAccounts(owner.vaultId);
@@ -418,6 +463,18 @@ async function addPimAccountInVault(
  * credential.
  */
 export async function reauthorizePimAccount(accountId: string, creds: PimStoredCredentials, context?: ServiceConnectionContext): Promise<void> {
+  await pendingRestart;
+  const owner = runtime;
+  if (!owner) throw new Error("pim runtime not started");
+  // Under the same lock as a new connection, so that a restart of the runtime
+  // (restartPimAfterImport) waits for a sign-in that is being stored.
+  return withAccountCredentialLock(`pim-connect:${owner.vaultId}`, () => {
+    if (runtime?.vaultId !== owner.vaultId) throw new ServiceConnectionError("accountChanged");
+    return reauthorizePimAccountInVault(accountId, creds, context);
+  });
+}
+
+async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredCredentials, context?: ServiceConnectionContext): Promise<void> {
   creds = { ...creds, loginRevision: crypto.randomUUID() };
   const target = runtime;
   if (!target) throw new Error("pim runtime not started");

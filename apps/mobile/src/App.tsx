@@ -26,7 +26,7 @@ import { backupVaultNow } from "./services/vaultBackup";
 import { rebuildVaultIndex } from "./services/indexMaintenance";
 import { useIndexAutoUpdate } from "./services/useIndexAutoUpdate";
 import { usePinboardDraftSweep } from "./services/usePinboardDraftSweep";
-import { startPim, stopPim } from "./services/pim/pimService";
+import { restartPimAfterImport, startPim, stopPim } from "./services/pim/pimService";
 import { onAppBackground, onAppForeground } from "./services/appLifecycle";
 import { recordProcessExitsOnBoot } from "./services/processExits";
 import { startMobileMail, stopMobileMail } from "./services/mail/mailRuntime";
@@ -261,8 +261,8 @@ export default function App() {
     // the mailbox invisible until the next app start.
     const onAccountsImported = () => {
       void getMobileVault().then((v) => {
-        stopPim();
-        void startPim(v).catch((e) => console.error("[import] pim restart failed", e));
+        // Queued behind a sign-in that is being stored (pimService).
+        void restartPimAfterImport(v).catch((e) => console.error("[import] pim restart failed", e));
         stopMobileMail();
         startMobileMail(v);
         setBump((n) => n + 1);

@@ -1,6 +1,6 @@
 # Setting up Google Drive Sync (Bring Your Own Credentials)
 
-Last updated: 2026-09-15
+Last updated: 2026-10-09
 
 To sync a local vault with your Google Drive in Plainva, you can use your own Google API credentials. Since Plainva has not (yet) gone through Google's central CASA verification, this **Bring Your Own Credentials (BYO)** approach offers a safe way to sync your private files.
 
@@ -66,7 +66,7 @@ Your vault now syncs safely with Google Drive through your own credentials.
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-The desktop instructions above require a Desktop client ID and its matching client secret. Android uses Google Identity Services: register package `com.plainva.app` with the SHA-1 certificate of the installed build. Play builds use the app-signing certificate; locally signed builds may use a different certificate. Android uses no browser redirect and no client secret. On iOS, use an iOS client with bundle ID `com.plainva.app` and return URI `com.plainva.app:/oauth2redirect`. A desktop client cannot replace mobile registration. For calendars, also enable Google Calendar API and Google Tasks API.
+The desktop instructions above require a Desktop client ID and its matching client secret. On the phone, Android and iOS alike, Plainva signs in to Google in the browser: create an OAuth client of type **iOS** in your Google project, also for Android, with the bundle ID `com.plainva.app`. Plainva returns through `com.plainva.app:/oauth2redirect`; there is no client secret. Enter the client ID in Plainva's Google form. Do not create a client of type Android: Google accepts the package name and certificate fingerprint of the Play build in one single project worldwide and refuses every other one (“the Android package name and fingerprint are already in use”). An Android client that was set up for Plainva 0.8.3 or 0.8.4 does not work for a new sign-in; accounts that are already signed in keep working. A desktop client cannot replace the mobile registration. For calendars, also enable Google Calendar API and Google Tasks API.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

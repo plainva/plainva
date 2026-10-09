@@ -4693,6 +4693,10 @@
     "clipboardFailed": "The path could not be copied. Select and copy it in the file details.",
     "retrySaved": "Complete connection",
     "clientSecret": "Client secret (if provided)",
+    "googleSystemSignInUnavailable": "Google's system sign-in is not available for this installation of Plainva. Sign in through the browser with your own client ID instead: enter it in the Google form. The Google guide describes how to create it.",
+    "googleUnreachable": "Google could not be reached. Check the internet connection and try again.",
+    "googleAccountNotOnDevice": "Google reports that this account is not signed in on this device. Check it in the Android settings under accounts, then try again.",
+    "googlePlayServicesFailed": "Google Play services could not complete the sign-in (code {{code}}). Try again. If it keeps failing, update Google Play services.",
     "googleClientUnsupported": "The Google registration does not match this device’s return path. Check the client type and mobile setup in the Google guide."
   },
   "connectionFailure": {

@@ -4636,6 +4636,10 @@
     "clipboardFailed": "パスをコピーできませんでした。ファイルの詳細でパスを選択してコピーしてください。",
     "retrySaved": "接続を完了",
     "clientSecret": "クライアントシークレット（提供されている場合）",
+    "googleSystemSignInUnavailable": "このPlainvaのインストールでは、Googleのシステムサインインを利用できません。代わりに、自分のクライアント IDを使ってブラウザでサインインしてください。クライアント IDはGoogleのフォームに入力します。作成方法はGoogleの手順に記載されています。",
+    "googleUnreachable": "Googleに接続できませんでした。インターネット接続を確認して、もう一度お試しください。",
+    "googleAccountNotOnDevice": "Googleによると、このアカウントはこのデバイスでサインインされていません。Androidの設定のアカウントで確認してから、もう一度お試しください。",
+    "googlePlayServicesFailed": "Google Play開発者サービスがサインインを完了できませんでした(コード {{code}})。もう一度お試しください。解消しない場合はGoogle Play開発者サービスを更新してください。",
     "googleClientUnsupported": "Googleの登録設定がこのデバイスの戻り先に対応していません。Googleの手順でクライアントの種類とモバイル設定を確認してください。"
   },
   "connectionFailure": {

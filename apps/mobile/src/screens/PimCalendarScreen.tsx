@@ -9,6 +9,7 @@ import { isoOf } from "../lib/dates";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { usePageSwipe } from "../lib/usePageSwipe";
 import { reauthorizeCalendarAccount } from "../services/pim/pimReauth";
+import { toastConnectionFailure } from "../services/connectionToast";
 import {
   subscribePimStatus,
   getPimStatus,
@@ -175,7 +176,7 @@ export function PimCalendarScreen({
       onOpenSettings?.();
       return;
     }
-    if (out.kind === "failed") toast.error(out.error);
+    if (out.kind === "failed") toastConnectionFailure(out.error);
   }, [needsSignIn, onOpenSettings, t]);
 
   const days = useMemo(() => {

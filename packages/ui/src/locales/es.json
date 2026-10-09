@@ -4750,6 +4750,10 @@
     "clipboardFailed": "No se pudo copiar la ruta. Selecciónala y cópiala en los detalles del archivo.",
     "retrySaved": "Completar conexión",
     "clientSecret": "Secreto del cliente (si existe)",
+    "googleSystemSignInUnavailable": "El inicio de sesión del sistema de Google no está disponible para esta instalación de Plainva. Inicia sesión en el navegador con tu propio ID de cliente: introdúcelo en el formulario de Google. La guía de Google describe cómo crearlo.",
+    "googleUnreachable": "No se pudo contactar con Google. Comprueba la conexión a internet e inténtalo de nuevo.",
+    "googleAccountNotOnDevice": "Google indica que esta cuenta no ha iniciado sesión en este dispositivo. Compruébalo en los ajustes de Android, en cuentas, e inténtalo de nuevo.",
+    "googlePlayServicesFailed": "Los Servicios de Google Play no pudieron completar el inicio de sesión (código {{code}}). Inténtalo de nuevo. Si sigue fallando, actualiza los Servicios de Google Play.",
     "googleClientUnsupported": "El registro de Google no corresponde al retorno de este dispositivo. Comprueba el tipo de cliente y la configuración móvil en la guía de Google."
   },
   "connectionFailure": {

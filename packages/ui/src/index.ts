@@ -69,6 +69,7 @@ export * from "./lib/accountCredentials";
 export * from "./lib/accountGrantMigration";
 export * from "./lib/oauthScopes";
 export * from "./lib/googlePublicClient";
+export * from "./lib/googleAuthorization";
 export * from "./components/accounts/GmailSignInButton";
 export * from "./lib/tokenRefreshCoordinator";
 export * from "./lib/whatsNew";

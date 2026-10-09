@@ -4636,6 +4636,10 @@
     "clipboardFailed": "无法复制路径。请在文件详情中选中并复制。",
     "retrySaved": "完成连接",
     "clientSecret": "客户端密钥（如有）",
+    "googleSystemSignInUnavailable": "此 Plainva 安装无法使用 Google 的系统登录。请改为在浏览器中使用你自己的客户端 ID 登录：在 Google 表单中填入该 ID。创建方法见 Google 指南。",
+    "googleUnreachable": "无法连接到 Google。请检查网络连接后重试。",
+    "googleAccountNotOnDevice": "Google 表示此账号未在本设备上登录。请在 Android 设置的账号中检查，然后重试。",
+    "googlePlayServicesFailed": "Google Play 服务无法完成登录(代码 {{code}})。请重试。如果问题仍然存在，请更新 Google Play 服务。",
     "googleClientUnsupported": "Google 注册配置与此设备的返回路径不匹配。请在 Google 指南中检查客户端类型和移动端设置。"
   },
   "connectionFailure": {

@@ -1,6 +1,6 @@
 # Google Drive Sync einrichten (Bring Your Own Credentials)
 
-Stand: 2026-09-15
+Stand: 2026-10-09
 
 Um in Plainva einen lokalen Vault mit Deinem Google Drive zu synchronisieren, kannst Du eigene Google API Zugangsdaten ("Credentials") verwenden. Da Plainva (noch) keine zentrale CASA-Verifizierung durch Google durchlaufen hat, bietet dieser **Bring Your Own Credentials (BYO)** Ansatz eine sichere Methode, um Deine privaten Dateien zu synchronisieren.
 
@@ -66,7 +66,7 @@ Dein Vault wird nun sicher über Deine eigenen Credentials mit Google Drive sync
 <!-- accounts-tasks-2026-09-11 -->
 ## Google OAuth — Desktop / Android / iOS
 
-Die Desktop-Anleitung oben benötigt einen Desktop-Client mit Client-ID und zugehörigem Client-Secret. Android verwendet Google Identity Services: Registriere das Paket `com.plainva.app` mit dem SHA-1-Zertifikat des tatsächlich installierten Builds. Bei Play-Builds zählt das App-Signing-Zertifikat; ein lokal signierter Build kann ein anderes haben. Android verwendet keinen Browser-Rücksprung und kein Client-Secret. Unter iOS verwende einen iOS-Client mit Bundle-ID `com.plainva.app` und dem Rücksprung `com.plainva.app:/oauth2redirect`. Ein Desktop-Client ersetzt keine mobile Registrierung. Aktiviere für den Kalender auch Google Calendar API und Google Tasks API.
+Die Desktop-Anleitung oben benötigt einen Desktop-Client mit Client-ID und zugehörigem Client-Secret. Am Telefon, unter Android wie unter iOS, meldet sich Plainva im Browser bei Google an: Lege in Deinem Google-Projekt einen OAuth-Client vom Typ **iOS** an, auch für Android, mit der Bundle-ID `com.plainva.app`. Plainva kehrt über `com.plainva.app:/oauth2redirect` zurück; ein Client-Secret gibt es nicht. Trage die Client-ID in Plainvas Google-Formular ein. Lege keinen Client vom Typ Android an: Google lässt Paketname und Zertifikatfingerabdruck des Play-Builds weltweit in genau einem Projekt zu und lehnt jedes weitere ab („der Android-Paketname und der Fingerabdruck werden bereits verwendet“). Ein Android-Client, der für Plainva 0.8.3 oder 0.8.4 eingerichtet wurde, funktioniert für eine neue Anmeldung nicht; bereits angemeldete Konten laufen weiter. Ein Desktop-Client ersetzt die mobile Registrierung nicht. Für Kalender aktiviere zusätzlich die Google Calendar API und die Google Tasks API.
 
 [Google: iOS / Desktop](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google: Android](https://developer.android.com/identity/authorization)
 

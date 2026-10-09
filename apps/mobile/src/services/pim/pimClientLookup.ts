@@ -40,7 +40,9 @@ export async function lookupOAuthClientForNewAccount(
           .map((row) => getPimCredentials(vault.id, row.id).catch(() => null)),
       )
     ).filter((creds): creds is NonNullable<typeof creds> => !!creds);
-    return pickOAuthClient(provider, { own: null, accountToken, syncProvider, siblings }) ?? (record?.byoClientId ? { clientId: record.byoClientId } : null);
+    // A new account signs in through the browser; a client that only works
+    // through Play services is not one this form can offer.
+    return pickOAuthClient(provider, { own: null, accountToken, syncProvider, siblings, withoutPlayServicesGrants: true }) ?? (record?.byoClientId ? { clientId: record.byoClientId } : null);
   } catch {
     // A lookup that fails must never block the form — it falls back to asking.
     return null;

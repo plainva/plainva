@@ -4750,6 +4750,10 @@
     "clipboardFailed": "Não foi possível copiar o caminho. Selecione e copie nos detalhes do arquivo.",
     "retrySaved": "Concluir conexão",
     "clientSecret": "Segredo do cliente (se fornecido)",
+    "googleSystemSignInUnavailable": "O login do sistema do Google não está disponível para esta instalação do Plainva. Em vez disso, faça login pelo navegador com o seu próprio ID do cliente: informe-o no formulário do Google. O guia do Google descreve como criá-lo.",
+    "googleUnreachable": "Não foi possível acessar o Google. Verifique a conexão com a internet e tente de novo.",
+    "googleAccountNotOnDevice": "O Google informa que esta conta não está conectada neste dispositivo. Confira nas configurações do Android, em contas, e tente de novo.",
+    "googlePlayServicesFailed": "O Google Play Services não conseguiu concluir o login (código {{code}}). Tente de novo. Se o erro continuar, atualize o Google Play Services.",
     "googleClientUnsupported": "O registro do Google não corresponde ao retorno deste dispositivo. Confira o tipo de cliente e a configuração móvel no guia do Google."
   },
   "connectionFailure": {

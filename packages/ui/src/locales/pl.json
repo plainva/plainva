@@ -4807,6 +4807,10 @@
     "clipboardFailed": "Nie udało się skopiować ścieżki. Zaznacz ją i skopiuj w szczegółach pliku.",
     "retrySaved": "Dokończ połączenie",
     "clientSecret": "Sekret klienta (jeśli podano)",
+    "googleSystemSignInUnavailable": "Systemowe logowanie Google nie jest dostępne dla tej instalacji Plainva. Zaloguj się zamiast tego w przeglądarce, używając własnego identyfikatora klienta: wpisz go w formularzu Google. Instrukcja Google opisuje, jak go utworzyć.",
+    "googleUnreachable": "Nie udało się połączyć z Google. Sprawdź połączenie z internetem i spróbuj ponownie.",
+    "googleAccountNotOnDevice": "Google zgłasza, że to konto nie jest zalogowane na tym urządzeniu. Sprawdź je w ustawieniach Androida w sekcji kont, a potem spróbuj ponownie.",
+    "googlePlayServicesFailed": "Usługi Google Play nie mogły dokończyć logowania (kod {{code}}). Spróbuj ponownie. Jeśli błąd się powtarza, zaktualizuj Usługi Google Play.",
     "googleClientUnsupported": "Rejestracja Google nie pasuje do ścieżki powrotu tego urządzenia. Sprawdź typ klienta i konfigurację mobilną w instrukcji Google."
   },
   "connectionFailure": {

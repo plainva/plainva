@@ -4693,6 +4693,10 @@
     "clipboardFailed": "Der Pfad konnte nicht kopiert werden. Du kannst ihn im Dateidetail markieren und kopieren.",
     "retrySaved": "Verbindung abschließen",
     "clientSecret": "Client-Secret (nur falls vorhanden)",
+    "googleSystemSignInUnavailable": "Googles Systemanmeldung steht dieser Installation von Plainva nicht zur Verfügung. Melde Dich stattdessen im Browser mit Deiner eigenen Client-ID an: Trage sie im Google-Formular ein. Die Google-Anleitung beschreibt, wie Du sie anlegst.",
+    "googleUnreachable": "Google war nicht erreichbar. Prüfe die Internetverbindung und versuche es erneut.",
+    "googleAccountNotOnDevice": "Google meldet, dass dieses Konto auf diesem Gerät nicht angemeldet ist. Prüfe es in den Android-Einstellungen unter Konten und versuche es dann erneut.",
+    "googlePlayServicesFailed": "Die Google Play-Dienste konnten die Anmeldung nicht abschließen (Code {{code}}). Versuche es erneut. Bleibt der Fehler, aktualisiere die Google Play-Dienste.",
     "googleClientUnsupported": "Die Google-Registrierung passt nicht zum Rückkehrweg dieses Geräts. Prüfe den Client-Typ und die mobile Einrichtung in der Google-Anleitung."
   },
   "connectionFailure": {
