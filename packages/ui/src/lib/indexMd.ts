@@ -1,8 +1,10 @@
 import {
   findIndexCandidates,
   convertWikilinksToMarkdownLinks,
+  frontmatterSpan,
   isPlainvaManagedIndex,
   isReservedOkfName,
+  noteBodyOf,
   parseMarkdownAst,
   serializeMarkdownAst,
   type IndexCandidate,
@@ -32,8 +34,6 @@ export interface IndexMdAdapter extends RenameAdapter {
   createDir(path: string): Promise<void>;
   exists(path: string): Promise<boolean>;
 }
-
-const FM_RE = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
 
 export interface FolderIndexInfo {
   /** "" for the vault root. */
@@ -111,12 +111,10 @@ export async function collectFolderIndexInfos(opts: {
     if (hasIndex) {
       try {
         const content = await opts.adapter.readTextFile(folder ? `${folder}/index.md` : "index.md");
-        indexIsConcept = FM_RE.test(content) && folder !== "";
-        if (folder === "" && FM_RE.test(content)) {
-          // Root may carry exactly okf_version; anything else is a violation.
-          const block = content.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? "";
-          indexIsConcept = !/^\s*okf_version\s*:/.test(block) || block.trim().split(/\r?\n/).length > 1;
-        }
+        // A block that declares nothing makes no concept document of the file.
+        const block = frontmatterSpan(content)?.yaml.trim() ?? "";
+        // Root may carry exactly okf_version; anything else is a violation.
+        if (block) indexIsConcept = folder !== "" || !/^\s*okf_version\s*:/.test(block) || block.split(/\r?\n/).length > 1;
       } catch {
         /* unreadable — leave flags conservative */
       }
@@ -160,7 +158,7 @@ export async function adoptFileAsIndex(opts: {
   if (prepare) {
     const content = await adapter.readTextFile(candidatePath);
     await backupIndexFile(adapter, candidatePath, content);
-    const body = content.replace(FM_RE, "");
+    const body = noteBodyOf(content);
     const ast = parseMarkdownAst(body, { preserveObsidianSyntax: true });
     const allFilePaths = await listMarkdownPaths(queryService);
     preparation = convertWikilinksToMarkdownLinks(ast, { sourcePath: candidatePath, allFilePaths });

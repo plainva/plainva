@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-09-24
+Stand: 2026-10-09
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -51,6 +51,8 @@ Ein **fetter** Gedanke mit einem Link zu [[Andere Notiz]].
 
 - [ ] Erste Aufgabe
 ```
+
+Ein Block darf leer sein: `---` direkt gefolgt von `---` ist ein Block ohne Eigenschaften, nicht zwei Trennlinien — der Text der Notiz beginnt in der Zeile danach. Plainva lässt keinen leeren Block zurück: Wird die letzte Eigenschaft entfernt, verschwinden die beiden `---`-Zeilen mit. Sie bleiben nur stehen, wenn der Text selbst mit einer `---`-Zeile beginnt, die sonst als Beginn eines Blocks gelesen würde.
 
 ### OKF-Frontmatter-Felder
 

@@ -74,7 +74,7 @@ import { parkTreeReveal } from "@plainva/ui";
 import { imageMimeType } from "@plainva/ui";
 import { openContextMenu } from "../services/contextMenuStore";
 import { pendingWriteFor, withPendingWrite, waitForPendingWrites } from "../services/pendingWrites";
-import { mergeEditorText, containsTextChanges, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
+import { frontmatterSpan, mergeEditorText, containsTextChanges, readIndexedIdentity, type MissingFileOutcome } from "@plainva/core";
 import { EditorSaveLifetime } from "../services/editorSaveLifetime";
 import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
@@ -1026,42 +1026,29 @@ export const Editor: React.FC<{
   // Frontmatter edits from the properties panel. The CURRENT text comes from
   // the view (the source of truth while an editor is mounted) — the `content`
   // state may lag behind by the E3 debounce and would yield stale offsets.
+  //
+  // Only what stands in front of the note's text is exchanged: the properties
+  // block, and with it a byte order mark the note starts with. A block that got
+  // its first entry, lost its last one or merely changed is one and the same
+  // step — and the empty block `---` on `---` is a block here like anywhere
+  // else: it used to count as none, so the next entry landed in a second block
+  // on top of it.
   const handlePropertiesChange = (newContent: string) => {
     const view = sessionRef.current?.view;
     if (view) {
       const current = view.state.doc.toString();
-      const fmRegex = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-      const oldMatch = current.match(fmRegex);
-      const newMatch = newContent.match(fmRegex);
+      const oldBlock = frontmatterSpan(current);
+      const newBlock = frontmatterSpan(newContent);
+      const headEnd = (text: string, block: typeof oldBlock) => block?.end ?? (text.charCodeAt(0) === 0xfeff ? 1 : 0);
 
       if (current.trim() === "") {
         view.dispatch({
           changes: { from: 0, to: view.state.doc.length, insert: newContent },
           selection: { anchor: newContent.length }
         });
-      } else if (oldMatch && newMatch) {
+      } else if (oldBlock || newBlock) {
         view.dispatch({
-          changes: {
-            from: 0,
-            to: oldMatch[0].replace(/\r\n/g, '\n').length,
-            insert: newMatch[0]
-          }
-        });
-      } else if (!oldMatch && newMatch) {
-        view.dispatch({
-          changes: {
-            from: 0,
-            to: 0,
-            insert: newMatch[0]
-          }
-        });
-      } else if (oldMatch && !newMatch) {
-        view.dispatch({
-          changes: {
-            from: 0,
-            to: oldMatch[0].replace(/\r\n/g, '\n').length,
-            insert: ""
-          }
+          changes: { from: 0, to: headEnd(current, oldBlock), insert: newContent.slice(0, headEnd(newContent, newBlock)) }
         });
       } else {
         view.dispatch({

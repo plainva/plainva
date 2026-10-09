@@ -445,6 +445,19 @@ describe("field helpers", () => {
     expect(readNoteFields(content, db)).toEqual({ title: "Titel der Aufgabe", due: "2026-08-15", completed: true });
   });
 
+  it("reads and rewrites the title behind the block of a CRLF note, never a YAML comment in it", () => {
+    // The scan this module carried only knew `---\n`. In a note with CRLF line
+    // endings it found no block, so the first `# ...` line was the title — a
+    // comment in the YAML — and a new title was written over that comment.
+    const content = "---\r\n# kept by the task sync\r\nstatus: Offen\r\n---\r\n\r\n# Titel\r\n";
+    const fields = readNoteFields(content, db);
+    expect(fields.title).toBe("Titel");
+    const out = applyFieldsToNote(content, { ...fields, title: "Neuer Titel" }, fields, db);
+    expect(out).toBe("---\r\n# kept by the task sync\r\nstatus: Offen\r\n---\r\n\r\n# Neuer Titel\r\n");
+    // A block without entries is a block: the title stands behind it.
+    expect(readNoteFields("---\n---\n# Titel\n\n---\n", db).title).toBe("Titel");
+  });
+
   it("an intermediate status option counts as not completed and is never clobbered", () => {
     const content = `---\nstatus: In Arbeit\n---\n# T\n`;
     const fields = readNoteFields(content, db);

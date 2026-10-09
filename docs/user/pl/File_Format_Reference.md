@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-09-24
+Stan na: 2026-10-09
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -51,6 +51,8 @@ A **bold** thought that links to [[Another Note]].
 
 - [ ] First task
 ```
+
+Blok może być pusty: `---`, po którym bezpośrednio następuje `---`, to blok bez właściwości, a nie dwa separatory — treść notatki zaczyna się w następnej linii. Plainva nie zostawia pustego bloku: gdy usuwana jest ostatnia właściwość, obie linie `---` znikają razem z nią. Pozostają tylko wtedy, gdy sama treść zaczyna się od linii `---`, która w przeciwnym razie zostałaby odczytana jako początek bloku.
 
 ### Pola frontmatter OKF
 

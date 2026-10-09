@@ -4,8 +4,10 @@ import {
   setFrontmatterPath,
   deleteFrontmatterPath,
   renameFrontmatterKey,
+  renameFrontmatterTag,
   renameFrontmatterWikiLinks,
   ensureOkfFrontmatter,
+  frontmatterKeys,
   readFrontmatterPath,
   FrontmatterSurgicalError
 } from "../src/frontmatter-surgical.js";
@@ -126,10 +128,117 @@ describe("setFrontmatterPath / deleteFrontmatterPath", () => {
     expect(deleteFrontmatterPath("no frontmatter\n", ["plainva"])).toBe("no frontmatter\n");
   });
 
-  it("emits an empty frontmatter block when the last key is deleted", () => {
+  it("removes the block with its last key: the text is the note", () => {
     const single = "---\nonly: value\n---\nBody\n";
     const removed = deleteFrontmatterPath(single, ["only"]);
-    expect(removed).toBe("---\n---\nBody\n");
+    expect(removed).toBe("Body\n");
+  });
+});
+
+/**
+ * `---` directly on `---` (finding 2026-10-07): what the writers left behind
+ * when a block lost its last entry, and what no reader took for a block. The
+ * next write put a second block on top; the two old fences became rules.
+ */
+describe("a properties block without entries", () => {
+  it.each([
+    ["LF", "\n"],
+    ["CRLF", "\r\n"],
+  ])("delete the only property, then set one: exactly one block (%s)", (_name, eol) => {
+    const note = ["---", "stage: open", "---", "# Single", ""].join(eol);
+    const emptied = deleteFrontmatterPath(note, ["stage"]);
+    expect(emptied).toBe(["# Single", ""].join(eol));
+
+    const again = setFrontmatterPath(emptied, ["owner"], "Anna");
+    expect(again).toBe(["---", "owner: Anna", "---", "# Single", ""].join(eol));
+    expect(again.split(eol).filter((line) => line === "---")).toHaveLength(2);
+  });
+
+  it("set and removed again, a property leaves the note as it was", () => {
+    for (const note of ["# Note\n", "\n# Note\n\nText\n", "# Note\r\n\r\nText\r\n", "Text without a line break at the end"]) {
+      const withIcon = setFrontmatterPath(note, ["plainva", "icon"], "🚀");
+      expect(frontmatterKeys(withIcon)).toEqual(["plainva"]);
+      expect(deleteFrontmatterPath(withIcon, ["plainva", "icon"])).toBe(note);
+    }
+    // A note without any text got a line to write on behind its block; the line stays.
+    expect(deleteFrontmatterPath(setFrontmatterPath("", ["plainva", "icon"], "🚀"), ["plainva", "icon"])).toBe("\n");
+  });
+
+  it.each([
+    ["LF", "\n"],
+    ["CRLF", "\r\n"],
+  ])("reads a note that already carries the empty block as a note without properties (%s)", (_name, eol) => {
+    const note = ["---", "---", "# Single", ""].join(eol);
+    expect(frontmatterKeys(note)).toEqual([]);
+    expect(readFrontmatterPath(note, ["owner"])).toBeUndefined();
+    expect(readFrontmatterPath(note, ["plainva", "icon"])).toBeUndefined();
+  });
+
+  it.each([
+    ["LF", "\n"],
+    ["CRLF", "\r\n"],
+  ])("writes into the empty block a note already carries, instead of a second one on top (%s)", (_name, eol) => {
+    const note = ["---", "---", "# Single", ""].join(eol);
+    const expected = ["---", "owner: Anna", "---", "# Single", ""].join(eol);
+    expect(setFrontmatterPath(note, ["owner"], "Anna")).toBe(expected);
+    expect(upsertFrontmatterKeys(note, { owner: "Anna" })).toBe(expected);
+    expect(ensureOkfFrontmatter(note, { type: "Note" }).content).toBe(["---", "type: Note", "---", "# Single", ""].join(eol));
+    // Nothing to do on a block that has nothing: the note stays untouched.
+    expect(deleteFrontmatterPath(note, ["owner"])).toBe(note);
+    expect(renameFrontmatterKey(note, "owner", "lead")).toBe(note);
+    expect(renameFrontmatterTag(note, "old", "new")).toEqual({ content: note, changed: false });
+    expect(renameFrontmatterWikiLinks(note, [{ key: "owner", oldTarget: "A", newTarget: "B" }])).toEqual({ content: note, renamed: 0 });
+  });
+
+  it.each([
+    ["LF", "\n"],
+    ["CRLF", "\r\n"],
+  ])("does not read the text behind an empty block as YAML up to the next rule (%s)", (_name, eol) => {
+    // The lazy pattern ran from the opening fence across the text to the
+    // thematic break; `title: ...` in that text came back as a property.
+    const body = ["title: not a property", "", "Text.", "", "---", "", "More text.", ""].join(eol);
+    const note = ["---", "---", body].join(eol);
+    expect(frontmatterKeys(note)).toEqual([]);
+    expect(readFrontmatterPath(note, ["title"])).toBeUndefined();
+
+    const written = setFrontmatterPath(note, ["owner"], "Anna");
+    expect(written).toBe(["---", "owner: Anna", "---", body].join(eol));
+    // And back: the text has not moved a byte, rule included.
+    expect(deleteFrontmatterPath(written, ["owner"])).toBe(body);
+  });
+
+  it("keeps the empty fences where the text itself opens with a `---` line", () => {
+    // Without them the text's rule would open a block at the top of the file
+    // and "Intro" would be read as its YAML.
+    const note = "---\nonly: value\n---\n---\nIntro\n---\nRest\n";
+    const emptied = deleteFrontmatterPath(note, ["only"]);
+    expect(emptied).toBe("---\n---\n---\nIntro\n---\nRest\n");
+    expect(frontmatterKeys(emptied)).toEqual([]);
+    expect(setFrontmatterPath(emptied, ["only"], "value")).toBe(note);
+  });
+
+  it("makes no block for no entry, and tidies none away in passing", () => {
+    expect(upsertFrontmatterKeys("# Note\n", {})).toBe("# Note\n");
+    expect(upsertFrontmatterKeys("", {})).toBe("");
+    expect(upsertFrontmatterKeys("---\n---\n# Note\n", {})).toBe("---\n---\n# Note\n");
+    expect(upsertFrontmatterKeys("---\r\n\r\n---\r\n# Note\r\n", {})).toBe("---\r\n\r\n---\r\n# Note\r\n");
+  });
+
+  it("keeps a byte order mark at the very start of the file", () => {
+    // In front of the block it used to hide the block from the writers; in
+    // front of the text it ended up behind the new block, in the first line.
+    expect(setFrontmatterPath("\uFEFF# Note\n", ["a"], 1)).toBe("\uFEFF---\na: 1\n---\n# Note\n");
+    expect(setFrontmatterPath("\uFEFF---\na: 1\n---\n# Note\n", ["b"], 2)).toBe("\uFEFF---\na: 1\nb: 2\n---\n# Note\n");
+    expect(deleteFrontmatterPath("\uFEFF---\na: 1\n---\n# Note\n", ["a"])).toBe("\uFEFF# Note\n");
+    expect(readFrontmatterPath("\uFEFF---\na: 1\n---\n# Note\n", ["a"])).toBe(1);
+  });
+
+  it("edits a block whose fences carry blanks in place", () => {
+    // The Markdown parser takes it for a block, so the index shows its
+    // properties; the writers must find the same block.
+    const note = "--- \na: 1\n---  \n# Note\n";
+    expect(frontmatterKeys(note)).toEqual(["a"]);
+    expect(setFrontmatterPath(note, ["b"], 2)).toBe("---\na: 1\nb: 2\n---\n# Note\n");
   });
 });
 

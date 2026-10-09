@@ -26,6 +26,10 @@ keeps the class closed.
      (`wikiLinks`, `bracketLinks`, `replaceBracketLinks`, the matchers and the
      `nextWhere` cursor they are built on), used by the editor plugins, the
      inline renderer, the importers, publications and the reader;
+   - `packages/core/src/frontmatter-block.ts` — the properties block at the top
+     of a note: `frontmatterSpan` for where it is, `noteBodyOf` for the text
+     behind it. Every reader and writer asks there; a pattern or a search of
+     one's own for the two `---` lines fails `frontmatterDefinition.test.ts`;
    - `packages/core/src/vault/htmlCheckbox.ts` — the tag tokenizer behind the
      HTML task box, shared by both renderers and the writer;
    - `packages/core/src/vault/filterComparison.ts` — the `column op "value"`

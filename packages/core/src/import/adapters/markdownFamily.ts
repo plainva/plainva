@@ -10,6 +10,7 @@ import {
   UnpackedFile,
   isTextEntry,
 } from '../ImportTypes.js';
+import { frontmatterSpan } from '../../frontmatter-surgical.js';
 import { copyArchiveAttachments } from '../archiveAttachments.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { timesFromFile } from '../sourceTimes.js';
@@ -56,14 +57,13 @@ const UPDATED_KEYS = ['updated', 'updated at', 'updatedat', 'updated_at', 'modif
  * avoid. Spellings differ per app, so the lookup is case- and separator-blind.
  */
 export function frontmatterTimes(content: string): SourceTimestamps | undefined {
-  if (!content.startsWith('---')) return undefined;
-  const end = content.indexOf('\n---', 3);
-  if (end < 0) return undefined;
+  const block = frontmatterSpan(content);
+  if (!block) return undefined;
 
   let createdMs: number | undefined;
   let modifiedMs: number | undefined;
 
-  for (const line of content.slice(3, end).split('\n')) {
+  for (const line of block.yaml.split('\n')) {
     const colon = line.indexOf(':');
     if (colon < 0) continue;
     const key = line.slice(0, colon).trim().toLowerCase().replace(/^["']|["']$/g, '');

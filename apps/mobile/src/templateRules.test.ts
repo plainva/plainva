@@ -109,4 +109,15 @@ describe("OKF header of a new note on the phone", () => {
     expect(built?.content.startsWith("---\ntype: Note\n---\n")).toBe(true);
     expect(built?.content).not.toContain("okf_version");
   });
+
+  it("asks the shared definition whether the text carries a block: a rule is none, `---` on `---` is one", async () => {
+    // The phone looked at the first line only. A body that opens with a rule
+    // counted as "has frontmatter" and the note got no header at all.
+    const build = (fallbackBody: string) =>
+      buildNewNoteFromTemplate({ read: async () => "", exists: async () => false, vaultName: "Vault", folder: "Archiv", title: "Neu", type: "Note", fallbackBody });
+    expect((await build("---\n\nText unter einer Linie\n"))?.content).toBe("---\ntype: Note\n---\n\n---\n\nText unter einer Linie\n");
+    // A block is left as the template wrote it — also the empty one.
+    expect((await build("---\n---\n# Neu\n"))?.content).toBe("---\n---\n# Neu\n");
+    expect((await build("---\ntype: Meeting\n---\n# Neu\n"))?.content).toBe("---\ntype: Meeting\n---\n# Neu\n");
+  });
 });

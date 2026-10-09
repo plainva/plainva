@@ -1,4 +1,4 @@
-import { deleteFrontmatterPath, readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
+import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
 import { finalizeItemContent } from "../lib/newItemContent";
 import { resolveNewItemTarget } from "./baseRelations";
 import { viewPrefill } from "./newItemPrefill";
@@ -142,18 +142,7 @@ function cleanFolder(folder: string): string {
 
 /** Offset where the body starts, after a leading frontmatter block (0 when there is none). */
 export function frontmatterEndOf(content: string): number {
-  const first = content.startsWith("---\r\n") ? 5 : content.startsWith("---\n") ? 4 : -1;
-  if (first < 0) return 0;
-  let from = first - 1;
-  for (;;) {
-    const at = content.indexOf("\n---", from);
-    if (at < 0) return 0;
-    const after = at + 4;
-    if (after === content.length) return after;
-    if (content[after] === "\n") return after + 1;
-    if (content[after] === "\r" && content[after + 1] === "\n") return after + 2;
-    from = at + 1;
-  }
+  return frontmatterSpan(content)?.end ?? 0;
 }
 
 function listOf(value: unknown): string[] {
@@ -202,8 +191,7 @@ export async function planPinboardEntry(files: PinboardEntryFiles, opts: PlanPin
   // through unchanged at the END of the note — only the frontmatter in front
   // of it is rewritten — so the caret is measured from where that text starts
   // in the note, not from the end of the new frontmatter: writing the OKF
-  // header can put a blank line in between, and a block the frontmatter
-  // reader does not take as one ends up in front of the body as well.
+  // header can put a blank line in between.
   let caret: number | null = null;
   if (template && template.caret !== null) {
     const bodyInTemplate = frontmatterEndOf(body);

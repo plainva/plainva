@@ -1,6 +1,7 @@
 import { parseDocument, stringify } from "yaml";
 import { sha256Hex, utf8Encode } from "./encoding.js";
 import { protocolAssert } from "./errors.js";
+import { byteOrderMarkOf, composeNote, frontmatterSpan } from "../frontmatter-block.js";
 import { nextWhere } from "../linkScan.js";
 import type { WorkspaceCapability } from "./documents.js";
 import type { WorkspaceListPage, WorkspaceObjectInfo, WorkspaceObjectStore, WorkspaceRequestOptions } from "./objectStore.js";
@@ -581,23 +582,25 @@ export function projectPublishedMarkdown(input: {
   const removedEmbeds = new Set<string>();
   let markdown = input.markdown;
 
-  if (markdown.startsWith("---\n") || markdown.startsWith("---\r\n")) {
-    const newline = markdown.startsWith("---\r\n") ? "\r\n" : "\n";
-    const end = markdown.indexOf(`${newline}---${newline}`, 4);
-    if (end >= 0) {
-      const bodyStart = end + (`${newline}---${newline}`).length;
-      const doc = parseDocument(markdown.slice(4, end), { uniqueKeys: true });
-      protocolAssert(doc.errors.length === 0, "format", "published slice frontmatter is invalid");
-      const source = doc.toJS() as Record<string, unknown> | null;
-      const clean: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(source ?? {})) {
-        const normalized = normalizePropertyKey(key);
-        if (privateKeys.has(normalized) || !allow.has(normalized)) removedProperties.add(key);
-        else clean[key] = value;
-      }
-      const yaml = Object.keys(clean).length ? stringify(clean).trimEnd() : "";
-      markdown = yaml ? `---${newline}${yaml.replace(/\n/g, newline)}${newline}---${newline}${markdown.slice(bodyStart)}` : markdown.slice(bodyStart);
+  // The block is found by the one definition every reader shares. This used to
+  // be a search of its own for `---` lines with the first line's ending, and it
+  // missed a block the readers on the other side take for one: closed by a
+  // fence with another line ending or at the very end of the file, or standing
+  // behind a byte order mark. Such a note left with every property it had.
+  const block = frontmatterSpan(markdown);
+  if (block) {
+    const newline = markdown[block.yamlStart - 2] === "\r" ? "\r\n" : "\n";
+    const doc = parseDocument(block.yaml, { uniqueKeys: true });
+    protocolAssert(doc.errors.length === 0, "format", "published slice frontmatter is invalid");
+    const source = doc.toJS() as Record<string, unknown> | null;
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(source ?? {})) {
+      const normalized = normalizePropertyKey(key);
+      if (privateKeys.has(normalized) || !allow.has(normalized)) removedProperties.add(key);
+      else clean[key] = value;
     }
+    const yaml = Object.keys(clean).length ? stringify(clean).trimEnd().replace(/\n/g, newline) : "";
+    markdown = composeNote({ byteOrderMark: byteOrderMarkOf(markdown), yaml, body: markdown.slice(block.end), eol: newline });
   }
 
   markdown = replaceOutsideFences(markdown, wikiLinks, (whole, [embed, rawTarget, , alias]) => {

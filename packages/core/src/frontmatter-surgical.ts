@@ -1,4 +1,11 @@
-import { parseDocument, Document, YAMLMap, isMap, isScalar, isSeq } from "yaml";
+import { isMap, isScalar, isSeq } from "yaml";
+import {
+  FrontmatterSurgicalError,
+  ensureMapContents,
+  joinDocument,
+  splitDocument,
+  type SplitDocument,
+} from "./frontmatter-block.js";
 
 /**
  * Surgical frontmatter edits: unlike updateFrontmatterString (which replaces
@@ -7,71 +14,13 @@ import { parseDocument, Document, YAMLMap, isMap, isScalar, isSeq } from "yaml";
  * and YAML comments; the markdown body is preserved byte-for-byte. This is the
  * only write path allowed for bulk operations over files the user never
  * opened (OKF conversion), where silent reformatting would be unacceptable.
+ *
+ * What a properties block is, and what becomes of one that loses its last
+ * entry, is decided in `frontmatter-block.ts` — for these helpers and for
+ * updateFrontmatterString alike.
  */
 
-/** Raised when a document cannot be edited safely (caller should skip the file). */
-export class FrontmatterSurgicalError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "FrontmatterSurgicalError";
-  }
-}
-
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
-
-interface SplitDocument {
-  doc: Document;
-  body: string;
-  hadFrontmatter: boolean;
-  eol: string;
-}
-
-function splitDocument(content: string): SplitDocument {
-  const eol = content.includes("\r\n") ? "\r\n" : "\n";
-  const match = content.match(FRONTMATTER_RE);
-
-  if (!match) {
-    const doc = new Document({});
-    return { doc, body: content, hadFrontmatter: false, eol };
-  }
-
-  const doc = parseDocument(match[1]);
-  if (doc.errors.length > 0) {
-    throw new FrontmatterSurgicalError(
-      `Frontmatter is not parseable YAML: ${doc.errors[0].message}`
-    );
-  }
-  if (doc.contents !== null && !isMap(doc.contents)) {
-    throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
-  }
-  return { doc, body: content.slice(match[0].length), hadFrontmatter: true, eol };
-}
-
-function ensureMapContents(doc: Document): YAMLMap {
-  if (doc.contents === null || doc.contents === undefined) {
-    doc.contents = doc.createNode({}) as unknown as Document["contents"];
-  }
-  if (!isMap(doc.contents)) {
-    throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
-  }
-  return doc.contents;
-}
-
-function joinDocument(split: SplitDocument): string {
-  const { doc, eol } = split;
-  let body = split.body;
-  if (!body) {
-    body = eol;
-  }
-
-  let yamlString = doc.toString().trim();
-  yamlString = yamlString.replace(/\r?\n/g, eol);
-
-  if (yamlString === "{}" || yamlString === "") {
-    return `---${eol}---${eol}${body}`;
-  }
-  return `---${eol}${yamlString}${eol}---${eol}${body}`;
-}
+export { FrontmatterSurgicalError, frontmatterSpan, noteBodyOf, type FrontmatterSpan } from "./frontmatter-block.js";
 
 /**
  * Sets the given top-level keys (nested plain objects/arrays allowed as
@@ -222,7 +171,9 @@ export function renameFrontmatterTag(
 
 /**
  * Deletes a nested key. Parent maps that become empty through this deletion
- * are removed as well (an empty `plainva:` namespace should not linger).
+ * are removed as well (an empty `plainva:` namespace should not linger) — and
+ * so is the block itself once its last entry is gone: a property set and
+ * removed again leaves the note as it was.
  * Returns the content unchanged if the path does not exist.
  */
 export function deleteFrontmatterPath(content: string, path: readonly string[]): string {

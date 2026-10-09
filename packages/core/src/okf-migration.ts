@@ -1,5 +1,5 @@
 import { OKF_VERSION } from "./metadata.js";
-import { deleteFrontmatterPath, readFrontmatterPath } from "./frontmatter-surgical.js";
+import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath } from "./frontmatter-surgical.js";
 import { isExcludedFromOkfScan, isReservedOkfName } from "./okf-conversion.js";
 
 /**
@@ -19,8 +19,6 @@ import { isExcludedFromOkfScan, isReservedOkfName } from "./okf-conversion.js";
  */
 
 export const OKF_ROOT_INDEX_PATH = "index.md";
-
-const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 
 const WHITESPACE = /\s/;
 const isWhitespace = (ch: string | undefined): boolean => ch !== undefined && WHITESPACE.test(ch);
@@ -143,9 +141,9 @@ export function hasOkfVersionKey(frontmatter: string): boolean {
  * whatever is written there is reported as the trimmed string.
  */
 export function readRootOkfDeclaration(content: string): string | null {
-  const fm = content.match(FM_RE);
+  const fm = frontmatterSpan(content);
   if (!fm) return null;
-  const m = findDeclarationLine(fm[1]);
+  const m = findDeclarationLine(fm.yaml);
   if (!m) return null;
   const value = (m.doubleQuoted ?? m.singleQuoted ?? m.plain ?? "").trim();
   return value === "" ? null : value;
@@ -169,14 +167,13 @@ export interface OkfRootBumpResult {
 export function bumpRootOkfDeclaration(content: string, version: string = OKF_VERSION): OkfRootBumpResult {
   const from = readRootOkfDeclaration(content);
   if (from === null || from === version) return { content, changed: false, from };
-  const fm = content.match(FM_RE)!;
-  const block = fm[1];
+  const fm = frontmatterSpan(content)!;
+  const block = fm.yaml;
   const decl = findDeclarationLine(block);
   const newBlock = decl
     ? block.slice(0, decl.index) + `${decl.key} "${version}"${decl.comment ? ` ${decl.comment}` : ""}` + block.slice(decl.end)
     : block;
-  const start = fm.index! + fm[0].indexOf(block);
-  const next = content.slice(0, start) + newBlock + content.slice(start + block.length);
+  const next = content.slice(0, fm.yamlStart) + newBlock + content.slice(fm.yamlStart + block.length);
   return { content: next, changed: next !== content, from };
 }
 

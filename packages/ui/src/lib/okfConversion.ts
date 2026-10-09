@@ -1,6 +1,7 @@
 import {
   convertFileToOkf,
   classifyOkfFile,
+  frontmatterSpan,
   migrateOkfFile,
   OKF_ROOT_INDEX_PATH,
   readRootOkfDeclaration,
@@ -61,11 +62,9 @@ export interface OkfRunReport {
   cancelled: boolean;
 }
 
-const FM_RE = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
-
 function frontmatterPreview(content: string): string {
-  const match = content.match(FM_RE);
-  return match ? match[0].trimEnd() : "";
+  const block = frontmatterSpan(content);
+  return block ? content.slice(0, block.end).trimEnd() : "";
 }
 
 async function ensureDirs(adapter: OkfConversionAdapter, dirPath: string, created?: Set<string>): Promise<void> {

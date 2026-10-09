@@ -294,6 +294,12 @@ describe("carryMirroredHeading", () => {
     expect(carryMirroredHeading(src, "Task_1", "Steuer")).toBe("---\ntype: Note\nstatus: Offen\n---\n\n# Steuer\n\nBody\n");
   });
 
+  it("finds the heading behind a block without entries, and leaves a YAML comment alone", () => {
+    expect(carryMirroredHeading("---\n---\n# Task_1\n\nBody\n", "Task_1", "Steuer")).toBe("---\n---\n# Steuer\n\nBody\n");
+    expect(carryMirroredHeading("---\n# Task_1\ntype: Note\n---\n\n# Task_1\n", "Task_1", "Steuer")).toBe("---\n# Task_1\ntype: Note\n---\n\n# Steuer\n");
+    expect(carryMirroredHeading("---\n# Task_1\ntype: Note\n---", "Task_1", "Steuer")).toBeNull();
+  });
+
   it("leaves a heading the user wrote alone", () => {
     expect(carryMirroredHeading("# My own title\n\nBody\n", "Task_1", "Fencing quote")).toBeNull();
   });

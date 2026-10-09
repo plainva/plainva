@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-10-09
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -51,6 +51,8 @@ A **bold** thought that links to [[Another Note]].
 
 - [ ] First task
 ```
+
+A block may be empty: `---` directly followed by `---` is a block without properties, not two dividers — the note's text begins on the line after it. Plainva leaves no empty block behind: when the last property is removed, the two `---` lines go with it. They only stay where the text itself begins with a `---` line, which would otherwise be read as the start of a block.
 
 ### OKF frontmatter fields
 

@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-09-24
+Última revisão: 2026-10-09
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -51,6 +51,8 @@ A **bold** thought that links to [[Another Note]].
 
 - [ ] First task
 ```
+
+Um bloco pode estar vazio: `---` seguido diretamente de `---` é um bloco sem propriedades, não dois divisores — o texto da nota começa na linha seguinte. O Plainva não deixa nenhum bloco vazio para trás: quando a última propriedade é removida, as duas linhas `---` somem junto. Elas só permanecem quando o próprio texto começa com uma linha `---`, que de outra forma seria lida como o início de um bloco.
 
 ### Campos de frontmatter do OKF
 

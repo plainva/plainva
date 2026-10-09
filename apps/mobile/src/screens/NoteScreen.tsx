@@ -37,7 +37,7 @@ import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNo
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity } from "@plainva/core";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { getLastPersistedText, noteSaver, rememberPersistedText, reportMoveFailure, vaultOps, type MobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
@@ -778,7 +778,7 @@ export function NoteScreen({
 
   const share = () => {
     void (async () => {
-      const body = markdownToPlainText((doc ?? "").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""));
+      const body = markdownToPlainText(noteBodyOf(doc ?? ""));
       try {
         await Share.share({ title, text: `${title}\n\n${body}`.trim(), dialogTitle: t("mobile.share") });
       } catch {
@@ -799,7 +799,7 @@ export function NoteScreen({
    * and attachments are available. Copying as rich text is deliberately absent:
    * a phone clipboard has no HTML flavour to paste into.
    */
-  const noteBody = () => markdownToPlainText((doc ?? "").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, ""));
+  const noteBody = () => markdownToPlainText(noteBodyOf(doc ?? ""));
 
   const sendViaMailto = () => {
     const res = buildMailtoUrl(title, noteBody());

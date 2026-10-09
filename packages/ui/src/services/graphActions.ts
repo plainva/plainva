@@ -1,5 +1,5 @@
 import { flushPendingSave } from "../platform/services";
-import { nextWhere, resolveLinkTarget, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { frontmatterSpan, nextWhere, resolveLinkTarget, wikiTargetForPath, wordBoundedPattern, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
 import { buildNewNoteContent } from "../lib/newNoteContent";
 
 /**
@@ -145,12 +145,8 @@ export interface InlineOccurrence {
  * YAML value must never be turned into a wiki link (it would corrupt the YAML).
  */
 export function frontmatterBodyOffset(content: string): number {
-  const open = /^---\r?\n/.exec(content);
-  if (!open) return 0;
-  // Closing fence: a line that is exactly `---` (optional trailing spaces).
-  const close = /\r?\n---[ \t]*(\r?\n|$)/.exec(content.slice(open[0].length));
-  if (!close) return 0; // unterminated block — treat everything as body.
-  return open[0].length + close.index + close[0].length;
+  // An unterminated block is no block — everything is body then.
+  return frontmatterSpan(content)?.end ?? 0;
 }
 
 /**

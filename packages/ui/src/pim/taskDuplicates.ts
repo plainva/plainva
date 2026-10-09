@@ -1,4 +1,4 @@
-import type { TaskAnchorRecord } from "@plainva/core";
+import { noteBodyOf, type TaskAnchorRecord } from "@plainva/core";
 import type { TaskCompletionModel } from "../lib/taskDatabase";
 import { chooseAnchorToAdopt, fieldsEqual, readNoteFields } from "./taskSync";
 
@@ -66,10 +66,8 @@ const fileStem = (path: string) => (path.split("/").pop() ?? path).replace(/\.md
 const originalStem = (stem: string) => stem.replace(/ \d+$/, "");
 
 function bodyOf(content: string): string {
-  const m = content.match(/^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/);
-  const body = m ? content.slice(m[0].length) : content;
   // The H1 is a FIELD (the task's title), compared separately — not body text.
-  return body.replace(/^#[ \t]+\S[^\r\n]*\r?\n?/m, "").replace(/\s+/g, " ").trim();
+  return noteBodyOf(content).replace(/^#[ \t]+\S[^\r\n]*\r?\n?/m, "").replace(/\s+/g, " ").trim();
 }
 
 /**

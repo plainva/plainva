@@ -97,4 +97,9 @@ describe("Templater-lite tokens ({{cursor}}, {{prompt}})", () => {
     const body = interpolateTemplateBody("---\nf: m\n---\n{{title}} {{cursor}}{{prompt:Z}}", "T", now);
     expect(body).toBe("T {{cursor}}{{prompt:Z}}");
   });
+
+  it("interpolateTemplateBody strips a block without entries, and nothing of the text up to the next rule", () => {
+    expect(interpolateTemplateBody("---\n---\n{{title}}\n", "T", now)).toBe("T\n");
+    expect(interpolateTemplateBody("---\n---\n{{title}}\n\n---\n\nRest\n", "T", now)).toBe("T\n\n---\n\nRest\n");
+  });
 });

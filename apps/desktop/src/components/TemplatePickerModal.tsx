@@ -3,6 +3,7 @@ import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ICON, useFocusTrap } from "@plainva/ui";
+import { noteBodyOf } from "@plainva/core";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
 import { applyTemplateInteractive, withShellContext } from "../services/templateInteractive";
@@ -81,7 +82,7 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
       const activePath = activeDocument.get().path;
       const title = activePath ? (activePath.split("/").pop() ?? "").replace(/\.md$/i, "") : "";
       const folder = activePath ? activePath.split("/").slice(0, -1).join("/") : "";
-      const body = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+      const body = noteBodyOf(raw);
       const now = new Date();
       const result = await applyTemplateInteractive(
         body,

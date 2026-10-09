@@ -7,6 +7,7 @@ import {
   type TemplateContext,
 } from "@plainva/ui";
 import { getWeekStartSetting, weekStartDayOf } from "@plainva/ui";
+import { frontmatterSpan } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { mTemplateAnswers } from "./mobileDialogs";
 import { getMobileSettings } from "./mobileSettings";
@@ -187,6 +188,6 @@ export async function answerTemplateFile(opts: {
 
 /** Prepends the OKF header unless the text already carries frontmatter. */
 function ensureOkf(text: string, type: string): string {
-  if (/^---\r?\n/.test(text)) return text;
+  if (frontmatterSpan(text)) return text;
   return `---\ntype: ${type}\n---\n\n${text.replace(/^\n+/, "")}`;
 }

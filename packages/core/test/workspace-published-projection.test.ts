@@ -81,6 +81,40 @@ describe("published property policy", () => {
   });
 });
 
+describe("published properties, wherever a reader sees a block", () => {
+  // The sanitizer carried a search of its own for the block: `---` lines with
+  // the line ending of the first one. What it did not find it did not filter,
+  // and the note left with every property it had — while the reader on the
+  // other side took the same lines for properties (finding 2026-10-07).
+  it.each([
+    ["closed at the very end of the file", "---\ntitle: Public\nsecret: hidden-value\n---"],
+    ["closed by a fence with another line ending", "---\r\ntitle: Public\r\nsecret: hidden-value\n---\nBody."],
+    ["opened with CRLF, the rest LF", "---\r\ntitle: Public\nsecret: hidden-value\n---\nBody."],
+    ["closed by a fence with a blank behind it", "---\ntitle: Public\nsecret: hidden-value\n--- \nBody."],
+    ["opened by a fence with a blank behind it", "--- \ntitle: Public\nsecret: hidden-value\n---\nBody."],
+    ["behind a byte order mark", "\uFEFF---\ntitle: Public\nsecret: hidden-value\n---\nBody."],
+  ])("withholds a private property of a block %s", (_form, markdown) => {
+    const result = project(markdown);
+    expect(result.markdown).not.toContain("hidden-value");
+    expect(result.markdown).not.toContain("secret");
+    expect(result.markdown).toContain("title: Public");
+    expect(result.report.removedProperties).toEqual(["secret"]);
+  });
+
+  it("keeps the text behind a block without entries, rule included", () => {
+    // `---` on `---` was not found as a block; the search ran on to the rule
+    // in the text and everything in between was dropped as "properties".
+    expect(project("---\n---\nIntro.\n\n---\n\nRest.\n").markdown).toBe("Intro.\n\n---\n\nRest.\n");
+    expect(project("---\r\n---\r\nIntro.\r\n\r\n---\r\n\r\nRest.\r\n").markdown).toBe("Intro.\r\n\r\n---\r\n\r\nRest.\r\n");
+  });
+
+  it("leaves no block behind when every property is withheld, unless the text opens with a rule", () => {
+    expect(project("---\nsecret: hidden-value\n---\nBody.\n").markdown).toBe("Body.\n");
+    // Dropped, the text's own `---` would open a block on the other side.
+    expect(project("---\nsecret: hidden-value\n---\n---\nIntro.\n---\n").markdown).toBe("---\n---\n---\nIntro.\n---\n");
+  });
+});
+
 describe("published link projection", () => {
   it("neutralizes reference links and removes the definition that carried the path", () => {
     // The definition is the actual leak: neutralizing [label][ref] while

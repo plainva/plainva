@@ -1,5 +1,5 @@
 import { retargetDesktopBookmarks } from "./bookmarks";
-import { isTextFile, toPathIdentity, type VaultQueryService } from "@plainva/core";
+import { frontmatterSpan, isTextFile, toPathIdentity, type VaultQueryService } from "@plainva/core";
 import { errorText, landedAtDestination, moveItemName, retargetTemplateForInFolder, sweepPinboardRefs, type PinboardSweepDeps } from "@plainva/ui";
 import { copyCandidate, parentOf } from "../components/fileTreeModel";
 import { renameFileWithLinkUpdates, type RenameAdapter } from "./renameNote";
@@ -120,8 +120,7 @@ function firstHeadingLine(body: string): HeadingLine | null {
  * Frontmatter is skipped, never rewritten.
  */
 export function carryMirroredHeading(content: string, oldName: string, newName: string): string | null {
-  const fm = content.startsWith("---") ? content.indexOf("\n---", 3) : -1;
-  const bodyStart = fm >= 0 ? content.indexOf("\n", fm + 1) + 1 : 0;
+  const bodyStart = frontmatterSpan(content)?.end ?? 0;
   const body = content.slice(bodyStart);
   // The heading must be the first non-empty body line — a "# Task_1" buried in
   // the middle of a note is prose, not a title.

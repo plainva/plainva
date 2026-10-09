@@ -1,4 +1,6 @@
 import {
+  frontmatterSpan,
+  noteBodyOf,
   readFrontmatterPath,
   upsertFrontmatterKeys,
   deleteFrontmatterPath,
@@ -826,13 +828,13 @@ export function applyFieldsToNote(content: string, merged: PimTaskFields, curren
 }
 
 function firstH1(content: string): string | null {
-  const body = stripFrontmatterBlock(content);
+  const body = noteBodyOf(content);
   const m = body.match(/^#[ \t]+(\S[^\r\n]*)/m);
   return m ? m[1].trim() : null;
 }
 
 function replaceFirstH1(content: string, title: string): string {
-  const fmEnd = frontmatterEnd(content);
+  const fmEnd = frontmatterSpan(content)?.end ?? 0;
   const head = content.slice(0, fmEnd);
   const body = content.slice(fmEnd);
   if (/^#[ \t]+\S[^\r\n]*/m.test(body)) {
@@ -841,14 +843,3 @@ function replaceFirstH1(content: string, title: string): string {
   return head + `# ${title}\n` + body;
 }
 
-function frontmatterEnd(content: string): number {
-  if (!content.startsWith("---\n")) return 0;
-  const close = content.indexOf("\n---", 3);
-  if (close === -1) return 0;
-  const lineEnd = content.indexOf("\n", close + 4);
-  return lineEnd === -1 ? content.length : lineEnd + 1;
-}
-
-function stripFrontmatterBlock(content: string): string {
-  return content.slice(frontmatterEnd(content));
-}

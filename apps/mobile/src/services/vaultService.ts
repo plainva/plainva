@@ -33,6 +33,7 @@ import {
   toPathIdentity,
   formatFullScan,
   scanChangedNothing,
+  frontmatterSpan,
 } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -1244,7 +1245,7 @@ export const vaultOps = {
       },
     });
     if (!answered) return null; // cancelled → nothing is created
-    const content = /^---\r?\n/.test(answered.text)
+    const content = frontmatterSpan(answered.text)
       ? answered.text
       : `---\ntype: ${ms.defaultNoteType}\n---\n\n${answered.text.replace(/^\n+/, "")}`;
     await this.save(v, path, content);

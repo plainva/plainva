@@ -154,6 +154,20 @@ describe("frontmatterBodyOffset", () => {
   it("treats an unterminated block as body (safe fallback)", () => {
     expect(frontmatterBodyOffset("---\nno closing fence\nmore")).toBe(0);
   });
+
+  it("points past a block without entries, and no further", () => {
+    // Up to the rule in the text, the mention scan saw "frontmatter" and left
+    // a mention there unlinked.
+    const c = "---\n---\nWe met Ziel today.\n\n---\n\nMore.";
+    expect(c.slice(frontmatterBodyOffset(c))).toBe("We met Ziel today.\n\n---\n\nMore.");
+    expect(findFirstUnlinkedOccurrence(c, ["Ziel"])).toEqual({ index: "---\n---\nWe met ".length, matched: "Ziel" });
+  });
+
+  it("keeps a closing fence with blanks behind it a closing fence", () => {
+    const c = "---\nalias: Ziel\n---  \nBody text";
+    expect(c.slice(frontmatterBodyOffset(c))).toBe("Body text");
+    expect(findFirstUnlinkedOccurrence(c, ["Ziel"])).toBeNull();
+  });
 });
 
 describe("findFirstUnlinkedOccurrence", () => {

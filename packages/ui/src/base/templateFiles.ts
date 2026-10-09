@@ -1,6 +1,6 @@
 import { scanTemplate, replaceTemplateTokens, type TemplateToken } from "./templateEngine";
 import { parse as parseYaml } from "yaml";
-import { deleteFrontmatterPath, setFrontmatterPath, wikiTargetForFile } from "@plainva/core";
+import { deleteFrontmatterPath, noteBodyOf, setFrontmatterPath, wikiTargetForFile } from "@plainva/core";
 import { frontmatterBlockOf } from "../services/docMeta";
 import { resolveTemplate, type TemplateContext } from "./templateEngine";
 
@@ -380,13 +380,11 @@ export function groupTemplatesForBase<T extends ScopedTemplateItem>(
   return { forBase, others };
 }
 
-const LEADING_FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
-
 /** Interpolated template BODY for an interactive insert: frontmatter stripped,
  * date/time/title filled, but {{cursor}}/{{prompt}} PRESERVED so the caller can
  * extractTemplatePrompts → ask the user → finalizeTemplate. */
 export function interpolateTemplateBody(raw: string, title: string, now: Date = new Date()): string {
-  return resolveTemplate(raw.replace(LEADING_FRONTMATTER, ""), { title, now }, "interactive").text;
+  return resolveTemplate(noteBodyOf(raw), { title, now }, "interactive").text;
 }
 
 /** Insert-into-note parts WITH caret placement (prompts already answered). */

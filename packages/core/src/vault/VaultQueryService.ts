@@ -477,6 +477,12 @@ export class VaultQueryService {
    */
   /** Board-local substring search, Unicode case folding, bounded reads and path-only results.
    * Search the note body, not hidden YAML properties. Metadata matches use the visible row fields.
+   *
+   * The pattern is deliberately wider than `frontmatterSpan`: a card hides what
+   * merely looks like a block as well (one closed by the YAML document end
+   * `...`), so the search over cards does. Like the definition it lets the
+   * closing line follow the opening one directly — an empty block ends there,
+   * not at a rule further down in the text.
    */
   async searchCardContent(paths: string[], query: string, signal?: AbortSignal): Promise<string[]> {
     const needle = query.trim().normalize("NFC").toLocaleLowerCase();
@@ -490,7 +496,7 @@ export class VaultQueryService {
         `SELECT path, content FROM fts_notes WHERE path IN (${chunk.map(() => "?").join(",")})`, chunk,
       );
       for (const row of rows) {
-        const body = (row.content ?? "").replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/, "");
+        const body = (row.content ?? "").replace(/^\uFEFF?---[ \t]*\r?\n(?:[\s\S]*?\r?\n)??(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/, "");
         if (body.normalize("NFC").toLocaleLowerCase().includes(needle)) found.push(row.path);
       }
     }

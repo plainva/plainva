@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { updateFrontmatterString } from "../src/frontmatter-string-updater.js";
+import { FrontmatterSurgicalError } from "../src/frontmatter-surgical.js";
 
 describe("updateFrontmatterString", () => {
   it("should preserve golden corpus exact markdown body including obsidian specific syntax", () => {
@@ -85,10 +86,54 @@ This is a horizontal rule.
   });
 
   it("should correctly update empty frontmatter", () => {
-    const original = `---\n---\nBody`;
-    const result = updateFrontmatterString(original, { title: "Test" });
-    expect(result.includes("title: Test")).toBe(true);
-    expect(result.endsWith("\nBody")).toBe(true);
+    // Exactly: `includes` and `endsWith` held for the second block on top of
+    // the two old fences as well (finding 2026-10-07).
+    expect(updateFrontmatterString(`---\n---\nBody`, { title: "Test" })).toBe("---\ntitle: Test\n---\nBody");
+    expect(updateFrontmatterString(`---\r\n---\r\nBody`, { title: "Test" })).toBe("---\r\ntitle: Test\r\n---\r\nBody");
+    expect(updateFrontmatterString(`---\n\n---\nBody`, { title: "Test" })).toBe("---\ntitle: Test\n---\nBody");
+  });
+
+  it.each([
+    ["LF", "\n"],
+    ["CRLF", "\r\n"],
+  ])("all properties removed, then one added: exactly one block (%s)", (_name, eol) => {
+    // The way the properties panel goes: the last property is removed, then a
+    // new one is added.
+    const note = ["---", "stage: open", "tags:", "  - a", "---", "# Single", ""].join(eol);
+    const emptied = updateFrontmatterString(note, {});
+    expect(emptied).toBe(["# Single", ""].join(eol));
+
+    const again = updateFrontmatterString(emptied, { owner: "Anna" });
+    expect(again).toBe(["---", "owner: Anna", "---", "# Single", ""].join(eol));
+    expect(again.split(eol).filter((line) => line === "---")).toHaveLength(2);
+  });
+
+  it("does not take the text behind an empty block for YAML up to the next rule", () => {
+    const body = "\ntext\n\n---\n\nmore\n";
+    const written = updateFrontmatterString(`---\n---\n${body}`, { owner: "Anna" });
+    expect(written).toBe(`---\nowner: Anna\n---\n${body}`);
+    expect(updateFrontmatterString(written, {})).toBe(body);
+  });
+
+  it("makes no block for no property, and leaves an empty one a note carries alone", () => {
+    // Clearing an already empty cell of a note without properties used to put
+    // `---` on `---` in front of the note.
+    expect(updateFrontmatterString("# Just a note\n", {})).toBe("# Just a note\n");
+    expect(updateFrontmatterString("---\n---\n# Just a note\n", {})).toBe("---\n---\n# Just a note\n");
+  });
+
+  it("keeps the empty fences where the text itself opens with a `---` line", () => {
+    expect(updateFrontmatterString("---\nstage: open\n---\n---\nIntro\n---\n", {})).toBe("---\n---\n---\nIntro\n---\n");
+  });
+
+  it("refuses a block that is not a map instead of rewriting the text in it", () => {
+    // Two rules with text between them at the top of a note read as a block
+    // whose YAML is that text. It used to come back re-serialised - lines
+    // folded into one - and without the property that was to be written.
+    const note = "---\nSome intro text\nover two lines\n---\nBody\n";
+    expect(() => updateFrontmatterString(note, { owner: "Anna" })).toThrow(FrontmatterSurgicalError);
+    expect(() => updateFrontmatterString("---\n- a\n- list\n---\nBody\n", { owner: "Anna" })).toThrow(FrontmatterSurgicalError);
+    expect(() => updateFrontmatterString("---\ntitle: [unclosed\n---\nBody\n", { owner: "Anna" })).toThrow(FrontmatterSurgicalError);
   });
 
   it("should correctly handle deleting a property", () => {

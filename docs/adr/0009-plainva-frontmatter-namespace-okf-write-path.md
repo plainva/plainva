@@ -213,3 +213,59 @@ is accepted.
    better tool in Plainva), mechanical per-save entries would miss the
    spec's prose intent, and a per-save log would be the most conflict-prone
    file in a synced vault.
+
+## Addendum 2026-10-09 (one definition of the properties block)
+
+Finding 2026-10-07: the writers left a block that had lost its last entry
+behind as `---` directly on `---`, and no reader in the code took that form
+for a block. The next write put a second block on top and the two old fences
+stood in the note as rules; with a rule further down in the text, everything
+up to it was read as YAML.
+
+1. **One definition.** What a properties block is — it opens on the note's
+   first line, which is `---`, and closes on the next line that is `---` — is
+   decided in one place: `frontmatterSpan` in
+   `packages/core/src/frontmatter-block.ts`. Some thirty places had carried a
+   pattern or a search of their own. The definition follows the Markdown
+   parser that fills the index and the properties panel
+   (`remark-frontmatter`), including what that parser tolerates: blanks
+   behind a fence, and a byte order mark in front of the first one. A test
+   holds the two together (`frontmatter-block.test.ts`), and
+   `frontmatterDefinition.test.ts` fails a file that spells the block out for
+   itself again.
+2. **The empty block is a block.** `---` directly on `---` is a properties
+   block without entries. The Markdown parser reads it that way, the editor
+   hides and protects it that way, and Obsidian reads it that way. A closing
+   fence is never looked for behind one that already stands there: a rule
+   further down belongs to the text.
+3. **Writers leave no empty block behind.** This extends the rule for the
+   namespace in point 1 of the decision: a block that loses its last entry is
+   removed, fences included, and the text stays byte for byte. A property set
+   and removed again leaves the note as it was — an icon on a note without
+   properties used to leave two fences behind for good. Obsidian's property
+   editor removes an emptied section as well (since 1.4.10). Three limits:
+   - Where the text itself opens with a `---` line, the empty pair of fences
+     stays. Without it that line would open a block at the top of the file,
+     and the text below it would turn into properties.
+   - An empty block a note already carries is not tidied away in passing: a
+     write that has nothing to write returns the note untouched. Existing
+     vaults are not reformatted. And no block is created for no entry.
+   - A byte order mark stays the first character of the file.
+4. **Only a YAML map is rewritten — in both write paths.** Point 2 of the
+   decision ("unparsable or non-map frontmatter … is skipped and reported,
+   never repaired") held for the surgical helpers only.
+   `updateFrontmatterString` (the properties panel, a database cell) silently
+   re-serialised a block that was no map — two rules with text between them at
+   the top of a note came back with their lines folded — and dropped the
+   property it was asked to write. It now throws `FrontmatterSurgicalError`
+   like the surgical helpers; both share one split and one join.
+5. **The sanitizer for published slices uses the definition, too.** Its own
+   search missed a block closed at the very end of the file, closed by a
+   fence with another line ending than the first line, or standing behind a
+   byte order mark; such a note left the vault with every property it had.
+6. **Deliberately outside the definition:** the editor's own scanners, which
+   read the editor's lines rather than a string and already took the empty
+   block for a block (they stay stricter: a fence with blanks behind it or
+   behind a byte order mark is not hidden in the editor), and the readers
+   that only decide what a card or a paragraph's direction shows — they also
+   hide a block closed by the YAML document end `...`.

@@ -40,6 +40,14 @@ describe("renameTagInText", () => {
     expect(r.changed).toBe(false);
   });
 
+  it("renames a body tag behind an empty properties block, rule or not", () => {
+    // `---` on `---` was read as a block that ran to the next rule: the tags
+    // in between counted as its text and were left alone.
+    const r = renameTagInText("---\n---\nDo #work today.\n\n---\n\nAnd #work/later.\n", "work", "job");
+    expect(r.content).toBe("---\n---\nDo #job today.\n\n---\n\nAnd #job/later.\n");
+    expect(contentHasTag("---\r\n---\r\n#work\r\n\r\n---\r\n", "work")).toBe(true);
+  });
+
   it("is a no-op when the tag is absent or the names are equal", () => {
     expect(renameTagInText("nothing here", "work", "job").changed).toBe(false);
     expect(renameTagInText("#work", "work", "work").changed).toBe(false);

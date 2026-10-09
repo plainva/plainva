@@ -27,6 +27,7 @@ import {
   setAreaVisible,
   sanitizeAreaOrder,
   propertyPanelModel,
+  frontmatterBlockOf,
   type AreaOrder,
   type NoteDatabaseContext,
 } from "@plainva/ui";
@@ -53,10 +54,10 @@ import {
  * user's in the frontmatter at all — and decides whether the section appears.
  */
 export function propertySectionCounts(content: string): { present: number; shown: number } {
-  const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!m) return { present: 0, shown: 0 };
+  const block = frontmatterBlockOf(content);
+  if (!block) return { present: 0, shown: 0 };
   try {
-    const o = yaml.parse(m[1]);
+    const o = yaml.parse(block);
     if (!o || typeof o !== "object" || Array.isArray(o)) return { present: 0, shown: 0 };
     const model = propertyPanelModel(o as Record<string, unknown>);
     return { present: model.userKeys.length, shown: model.shownCount };

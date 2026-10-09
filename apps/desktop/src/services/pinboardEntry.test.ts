@@ -189,13 +189,17 @@ describe("planPinboardEntry: the draft exists before a word is typed", () => {
     const textA = withHeader.store.get(a.path)!;
     expect(a.caret).toBe(textA.length);
     expect(textA.slice(0, a.caret!).endsWith("\n\n- [ ] ")).toBe(true);
-    // An empty header block (`---` twice) is not taken as frontmatter when the
-    // OKF header is written, so a whole new block lands in front of it — the
-    // caret still lands after "- [ ] ", not somewhere in the frontmatter.
+    // An empty header block (`---` on `---`) is a block like any other: the
+    // OKF header and the view's filters go between its fences. It used to be
+    // taken for no block at all, so a whole new block landed in front of it
+    // and its two fences stood in the note as rules (finding 2026-10-07).
     const emptyHeader = memoryFiles();
     const b = await ready(emptyHeader.files, { template: async () => ({ text: "---\n---\n- [ ] ", caret: "---\n---\n- [ ] ".length }) });
     const textB = emptyHeader.store.get(b.path)!;
-    expect(textB.slice(0, b.caret!).endsWith("---\n---\n- [ ] ")).toBe(true);
+    expect(textB.split("\n").filter((line) => line === "---")).toHaveLength(2);
+    expect(frontmatter(textB)).toMatchObject({ type: "Note", status: "offen" });
+    expect(textB.endsWith("\n---\n- [ ] ")).toBe(true);
+    expect(b.caret).toBe(textB.length);
     // A template that is only frontmatter: the caret goes to the end, never
     // into the header.
     const onlyHeader = memoryFiles();

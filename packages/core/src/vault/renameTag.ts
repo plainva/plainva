@@ -1,4 +1,4 @@
-import { renameFrontmatterTag } from "../frontmatter-surgical.js";
+import { frontmatterSpan, renameFrontmatterTag } from "../frontmatter-surgical.js";
 import { findInlineTagsInSource } from "../tagRule.js";
 
 const SENTINEL = "\u0000pv-tag-probe";
@@ -11,8 +11,6 @@ const SENTINEL = "\u0000pv-tag-probe";
  * segment happens to be the old name (`#parent/old` stays). The caller writes the
  * changed notes back through the atomic + backup chain.
  */
-
-const FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/;
 
 /** True when a string is usable as a fresh tag name (no `#`, no whitespace). */
 export function isValidTagName(name: string): boolean {
@@ -40,9 +38,9 @@ export function renameTagInText(
   //    also rewrote `[[#old]]` and `[text](#old)` - links to a heading - and
   //    code. The old name must be the tag or its full first segment(s): `old`
   //    and `old/sub`, never `parent/old` and never `older`.
-  const m = out.match(FRONTMATTER_RE);
-  const fmPart = m ? m[0] : "";
-  const body = m ? out.slice(m[0].length) : out;
+  const bodyStart = frontmatterSpan(out)?.end ?? 0;
+  const fmPart = out.slice(0, bodyStart);
+  const body = out.slice(bodyStart);
   let newBody = body;
   const tags = findInlineTagsInSource(body);
   for (let i = tags.length - 1; i >= 0; i--) {

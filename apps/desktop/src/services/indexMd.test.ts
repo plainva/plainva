@@ -82,6 +82,21 @@ describe("collectFolderIndexInfos", () => {
     expect(other.indexIsConcept).toBe(true);
     expect(root.fileCount).toBe(1);
   });
+
+  it("takes an index.md whose block declares nothing for a listing, not for a concept", async () => {
+    // One answer for every form of "no entries": `---` on `---` counted as no
+    // frontmatter, a blank line between the fences as a violation.
+    const { adapter, queryService } = makeVault({
+      "index.md": "---\n---\n# Vault\n",
+      "A/index.md": "---\n---\n# A\n",
+      "B/index.md": "---\r\n\r\n---\r\n# B\r\n",
+      "C/index.md": "---\n---\ntype: Note\n\n---\n",
+      "D/index.md": "---\ntype: Note\n---\n",
+    });
+    const infos = await collectFolderIndexInfos({ queryService, adapter });
+    const concept = Object.fromEntries(infos.map((i) => [i.folder, i.indexIsConcept]));
+    expect(concept).toEqual({ "": false, A: false, B: false, C: false, D: true });
+  });
 });
 
 describe("generateIndexForFolder", () => {
