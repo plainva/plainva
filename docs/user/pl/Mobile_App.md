@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-10-06
+Stan na: 2026-10-09
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -161,7 +161,7 @@ Rozpoczętej wiadomości nie musisz wysyłać: **Zapisz roboczą** umieści ją 
 
 Z otwartej wiadomości do sejfu prowadzą trzy drogi: **Zapisz jako notatkę**, **→ Zadanie** w menu ⋮ (tworzy wpis w Twojej domyślnej bazie zadań — z jej szablonem, statusem i datą wiadomości) oraz **+ .eml**, co dodatkowo zachowuje oryginalną wiadomość i odsyła do niej z poziomu notatki. Wszystkie trzy są zakotwiczone: przechwycenie tej samej wiadomości dwa razy otwiera to, co już istnieje. **Usuń** znajduje się teraz również w menu ⋮ zamiast obok strzałki wstecz; na liście wystarczy przesunięcie. Przeniesienie do kosza oferuje **Cofnij**, ponieważ można to odwrócić — trwałe usunięcie z kosza nadal pyta o potwierdzenie, ponieważ tego cofnąć się nie da. A zamiast kilku komunikatów ułożonych jeden na drugim jest teraz **jedna** linia: błąd, w przeciwnym razie niedostępne konta (od dwóch, jako liczba), w przeciwnym razie informacja o zapisanej kopii.
 
-Notatkę możesz wysłać z jej własnego menu ⋮: **Wyślij notatkę e-mailem (mailto)** przekazuje ją do aplikacji pocztowej telefonu — Plainva nie potrzebuje do tego własnego konta — a **Wyślij e-mailem** otwiera własny edytor wiadomości Plainva z tematem i treścią.
+Notatkę możesz wysłać z jej własnego menu ⋮: **Wyślij notatkę e-mailem (mailto)** przekazuje ją do aplikacji pocztowej telefonu — Plainva nie potrzebuje do tego własnego konta — a **Wyślij e-mailem** otwiera własny edytor wiadomości Plainva z tematem i treścią. **Wyślij jako załącznik** otwiera ten sam edytor z notatką dołączoną jako plik — dokładnie tak, jak jest zapisana.
 
 ## Import z innej aplikacji
 

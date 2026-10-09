@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-09
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -161,7 +161,7 @@ Un messaggio che hai iniziato non deve per forza essere inviato: **Salva bozza**
 
 Da un messaggio aperto, tre strade portano nel vault: **Salva come nota**, **→ Attività** nel menu ⋮ (crea una voce nel tuo database attività predefinito — con il suo modello, lo stato e la data del messaggio) e **+ .eml**, che salva inoltre il messaggio originale e vi rimanda dalla nota. Tutte e tre sono ancorate: catturare due volte lo stesso messaggio apre ciò che c'è già. **Elimina** ora si trova anche nel menu ⋮ invece che accanto alla freccia indietro; nell'elenco basta uno scorrimento. Spostare nel cestino offre **Annulla**, perché è reversibile — l'eliminazione definitiva dal cestino continua a chiedere conferma, perché non lo è. E invece di più avvisi impilati uno sopra l'altro c'è ora **una sola** riga: l'errore, altrimenti gli account non raggiungibili (da due in su, come numero), altrimenti la nota sulla copia salvata.
 
-Una nota può essere inviata dal proprio menu ⋮: **Invia la nota via e-mail (mailto)** la consegna all'app di posta del telefono — per questo Plainva non ha bisogno di un proprio account — mentre **Invia per email** apre l'editor di composizione proprio di Plainva con oggetto e testo.
+Una nota può essere inviata dal proprio menu ⋮: **Invia la nota via e-mail (mailto)** la consegna all'app di posta del telefono — per questo Plainva non ha bisogno di un proprio account — mentre **Invia per email** apre l'editor di composizione proprio di Plainva con oggetto e testo. **Invia come allegato** apre lo stesso editor con la nota allegata come file, così com'è salvata.
 
 ## Importa da un'altra app
 

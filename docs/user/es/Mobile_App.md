@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-10-06
+Última actualización: 2026-10-09
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -161,7 +161,7 @@ Un mensaje que has empezado no tiene por qué enviarse: **Guardar borrador** lo 
 
 Desde un mensaje abierto hay tres caminos hacia la bóveda: **Guardar como nota**, **→ Tarea** en el menú ⋮ (crea una entrada en tu base de datos de tareas predeterminada — con su plantilla, su estado y la fecha del mensaje) y **+ .eml**, que además guarda el mensaje original y enlaza a él desde la nota. Los tres quedan anclados: capturar el mismo correo dos veces abre lo que ya existe. **Eliminar** vive ahora también en el menú ⋮ en lugar de junto a la flecha de retroceso; en la lista basta con deslizar. Mover a la papelera ofrece **Deshacer**, porque se puede revertir — eliminar definitivamente desde la papelera sigue preguntando, porque eso no se puede. Y en lugar de varios avisos apilados unos sobre otros, ahora hay **una** sola línea: el error; si no, las cuentas inalcanzables (a partir de dos, como número); si no, el aviso sobre la copia guardada.
 
-Una nota se puede enviar desde su propio menú ⋮: **Enviar la nota por correo (mailto)** la entrega a la aplicación de correo del teléfono — Plainva no necesita cuenta propia para eso —, mientras que **Enviar por correo** abre el propio compositor de Plainva con asunto y texto.
+Una nota se puede enviar desde su propio menú ⋮: **Enviar la nota por correo (mailto)** la entrega a la aplicación de correo del teléfono — Plainva no necesita cuenta propia para eso —, mientras que **Enviar por correo** abre el propio compositor de Plainva con asunto y texto. **Enviar como adjunto** abre ese mismo compositor con la nota adjunta como archivo, tal como está guardada.
 
 ## Importar de otra aplicación
 

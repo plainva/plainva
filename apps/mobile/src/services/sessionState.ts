@@ -36,14 +36,18 @@ const PATH_KINDS = new Set<NavKind>(["note", "base", "folder", "imageviewer"]);
 const KIND_SET = new Set<string>(NAV_KINDS);
 const TAB_IDS = new Set<string>(Object.keys(emptyStacks()));
 
+/**
+ * Unfinished input never comes back — except the note, whose draft journal is
+ * the thing that keeps typed text safe. One rule for the reader AND the writer.
+ */
+const isUnfinishedInput = (kind: NavKind): boolean => INPUT_KINDS.has(kind) && kind !== "note";
+
 function sanitizeEntry(raw: unknown): NavEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const kind = (raw as { kind?: unknown }).kind;
   const path = (raw as { path?: unknown }).path;
   if (typeof kind !== "string" || !KIND_SET.has(kind) || typeof path !== "string") return null;
-  // Unfinished input never comes back — except the note, whose draft journal
-  // is the thing that keeps typed text safe.
-  if (INPUT_KINDS.has(kind as NavKind) && kind !== "note") return null;
+  if (isUnfinishedInput(kind as NavKind)) return null;
   return { kind: kind as NavKind, path };
 }
 
@@ -71,7 +75,12 @@ export function parseNavState(raw: string | null): NavState | null {
 export function serializeNavState(nav: NavState): string {
   // Only what a restart can use: kind and path. `configOpen` and the
   // connect-wizard carry-overs belong to the moment they were set.
-  const strip = (list: NavEntry[]) => list.map(({ kind, path }) => ({ kind, path }));
+  //
+  // Unfinished input is not written at all (finding 2026-10-09). The reader
+  // has always dropped it, but the PATH of a mail draft is the draft: the
+  // text of a message, and a note attached to it, stood in local storage in
+  // the clear until the next navigation overwrote them.
+  const strip = (list: NavEntry[]) => list.filter((e) => !isUnfinishedInput(e.kind)).map(({ kind, path }) => ({ kind, path }));
   const stacks: Record<string, { kind: NavKind; path: string }[]> = {};
   for (const tab of Object.keys(nav.stacks) as TabScreenId[]) stacks[tab] = strip(nav.stacks[tab]);
   return JSON.stringify({ activeTab: nav.activeTab, stacks, overlay: strip(nav.overlay) });

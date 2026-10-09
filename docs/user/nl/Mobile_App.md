@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-10-06
+Laatst bijgewerkt: 2026-10-09
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -161,7 +161,7 @@ Een bericht dat je bent begonnen hoeft niet verstuurd te worden: **Concept opsla
 
 Vanuit een geopend bericht leiden drie wegen naar de kluis: **Opslaan als notitie**, **→ Taak** in het ⋮-menu (maakt een item aan in je standaard takendatabase — met sjabloon, status en de datum van het bericht) en **+ .eml**, dat bovendien het oorspronkelijke bericht bewaart en er vanuit de notitie naar verwijst. Alle drie zijn verankerd: hetzelfde bericht twee keer vastleggen opent wat er al is. **Verwijderen** staat nu ook in het ⋮-menu in plaats van naast de terugpijl; in de lijst volstaat een veeg. Naar de prullenbak verplaatsen biedt **Ongedaan maken**, omdat het terug te draaien is — definitief verwijderen uit de prullenbak vraagt nog steeds om bevestiging, omdat dat niet kan. En in plaats van meerdere meldingen boven elkaar staat er nu **één** regel: de fout, anders de onbereikbare accounts (vanaf twee, als aantal), anders de melding over de opgeslagen kopie.
 
-Een notitie kun je vanuit haar eigen ⋮-menu versturen: **Notitie per e-mail versturen (mailto)** geeft haar door aan de mail-app van de telefoon — daarvoor heeft Plainva zelf geen account nodig —, terwijl **Verzenden per e-mail** Plainva's eigen opstelvenster opent met onderwerp en tekst.
+Een notitie kun je vanuit haar eigen ⋮-menu versturen: **Notitie per e-mail versturen (mailto)** geeft haar door aan de mail-app van de telefoon — daarvoor heeft Plainva zelf geen account nodig —, terwijl **Verzenden per e-mail** Plainva's eigen opstelvenster opent met onderwerp en tekst. **Verzenden als bijlage** opent hetzelfde opstelvenster met de notitie als bestand in de bijlage, precies zoals ze is opgeslagen.
 
 ## Importeren uit een andere app
 

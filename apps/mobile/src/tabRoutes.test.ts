@@ -111,4 +111,20 @@ describe("mobile routes", () => {
     expect(nav, "in-app back arrow").toContain("askBeforeLeaving");
     expect(source, "shell is not wired to the shared nav actions").toContain("createNavActions(setNav, setBump)");
   });
+
+  /**
+   * The counterpart (finding 2026-10-09): a surface that ENDS ITSELF — the mail
+   * was sent, the key activated — must not leave through the exit that asks.
+   * Both of these did. The composer's fields still held the message it had just
+   * sent, the wizard's guard had not yet heard that its draft was gone, and the
+   * shell asked whether to discard what had succeeded a moment before.
+   */
+  it("gives a surface that finished its work an exit that does not ask", () => {
+    const ctx = { pop: () => {}, done: () => {}, push: () => {}, vault: {} } as unknown as RouteContext;
+    for (const [kind, path] of [["mailcompose", "{}"], ["securitywizard", "encryption"]] as const) {
+      const { props } = PUSHED_ROUTES[kind]({ kind, path }, ctx) as { props: { onBack: unknown; onDone: unknown } };
+      expect(props.onBack, `${kind}: the back arrow asks`).toBe(ctx.pop);
+      expect(props.onDone, `${kind}: its own exit does not`).toBe(ctx.done);
+    }
+  });
 });

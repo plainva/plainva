@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initialNavState, pushEntry, type NavState } from "../navigation";
+import { draftPath } from "../screens/mail/mailNavRefs";
 import {
   flushNavSave,
   markSessionReady,
@@ -69,6 +70,27 @@ describe("sessionState", () => {
     expect(parseNavState("{not json")).toBeNull();
     expect(parseNavState(JSON.stringify({ activeTab: "nowhere", stacks: {} }))).toBeNull();
     expect(parseNavState(null)).toBeNull();
+  });
+
+  it("never writes unfinished input — the path of a mail draft IS the draft", () => {
+    // The reader has always dropped these kinds. The writer stored them all the
+    // same (until 2026-10-09), so the text of a message and a note attached to
+    // it stood in local storage in the clear until the next navigation.
+    const storage = fakeStorage();
+    let s = pushEntry(
+      session(),
+      {
+        kind: "mailcompose",
+        path: draftPath({ accountId: "", to: "", subject: "Angebot", body: "vertraulich", attachments: [{ name: "Angebot.md", mime: "text/markdown", contentBase64: "dmVydHJhdWxpY2g=" }] }),
+      },
+    );
+    s = pushEntry(s, { kind: "securitywizard", path: "workspace" });
+    s = pushEntry(s, { kind: "note", path: "Entwurf.md" });
+    writeNavState("v", s, storage);
+    const raw = storage.map.get(sessionKey("v"))!;
+    for (const leaked of ["vertraulich", "dmVydHJhdWxpY2g=", "Angebot", "mailcompose", "securitywizard"]) expect(raw).not.toContain(leaked);
+    // The note is the one exception on both sides: its draft has its own journal.
+    expect(readNavState("v", storage)?.stacks.today.map((e) => e.path)).toEqual(["Tagebuch/26.08.31.md", "Entwurf.md"]);
   });
 
   it("restores only what still exists and keeps the tab inside the bar", async () => {

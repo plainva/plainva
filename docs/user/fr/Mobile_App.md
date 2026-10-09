@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-10-06
+Dernière mise à jour : 2026-10-09
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -161,7 +161,7 @@ Un message que tu as commencé n'a pas besoin d'être envoyé : **Enregistrer le
 
 Depuis un message ouvert, trois chemins mènent vers le coffre : **Enregistrer comme note**, **→ Tâche** dans le menu ⋮ (crée une entrée dans ta base de tâches par défaut — avec son modèle, son statut et la date du message) et **+ .eml**, qui conserve en plus le message d'origine et y renvoie depuis la note. Les trois sont ancrés : capturer deux fois le même message ouvre ce qui existe déjà. **Supprimer** se trouve désormais lui aussi dans le menu ⋮ plutôt qu'à côté de la flèche de retour ; dans la liste, un glissement suffit. Déplacer vers la corbeille propose **Annuler**, car c'est réversible — la suppression définitive depuis la corbeille demande toujours confirmation, car elle ne l'est pas. Et au lieu de plusieurs bandeaux empilés les uns sur les autres, il n'y a désormais plus qu'**une seule** ligne : l'erreur, sinon les comptes inaccessibles (à partir de deux, sous forme de nombre), sinon la note à propos de la copie enregistrée.
 
-Tu peux envoyer une note depuis son propre menu ⋮ : **Envoyer la note par e-mail (mailto)** la transmet à l'application de messagerie du téléphone — Plainva n'a besoin d'aucun compte pour cela —, tandis que **Envoyer par e-mail** ouvre la fenêtre de rédaction propre à Plainva, avec objet et texte.
+Tu peux envoyer une note depuis son propre menu ⋮ : **Envoyer la note par e-mail (mailto)** la transmet à l'application de messagerie du téléphone — Plainva n'a besoin d'aucun compte pour cela —, tandis que **Envoyer par e-mail** ouvre la fenêtre de rédaction propre à Plainva, avec objet et texte. **Envoyer en pièce jointe** ouvre la même fenêtre avec la note jointe sous forme de fichier, telle qu'elle est enregistrée.
 
 ## Importer depuis une autre application
 

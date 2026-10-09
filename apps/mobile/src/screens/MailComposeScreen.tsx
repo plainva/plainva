@@ -77,8 +77,19 @@ export interface MailDraft {
  * and a "/" menu (`MailComposeEditor`), not a plain text area: the same message
  * now writes the same way on both platforms.
  */
-export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { draft: MailDraft; onBack: () => void; onOpenAccounts?: () => void; vault: MobileVault }) {
+export function MailComposeScreen({ draft, onBack, onDone, onOpenAccounts, vault }: {
+  draft: MailDraft;
+  /** The reader wants out. The shell asks first when the draft was changed. */
+  onBack: () => void;
+  /** The composer's own exit once the message is sent or filed as a draft:
+   *  nothing is left to lose, so the shell must not ask about it. A host with
+   *  one exit only gets `onBack` for both, and answers the question itself. */
+  onDone?: () => void;
+  onOpenAccounts?: () => void;
+  vault: MobileVault;
+}) {
   const { t } = useTranslation();
+  const leaveDone = onDone ?? onBack;
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
   // Distinguishes "still loading" from "there is no mailbox": without it the
   // composer looks the same in both states, and the empty state would flash.
@@ -92,6 +103,13 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [subject, setSubject] = useState(draft.subject);
   const [body, setBody] = useState(draft.body);
+  /**
+   * The body as an untouched composer shows it: the draft's own text plus what
+   * the composer puts there itself, the sender's signature. Every change the
+   * composer makes to the body on its own is made to this one too, so the two
+   * differ exactly when a person changed something.
+   */
+  const [untouchedBody, setUntouchedBody] = useState(draft.body);
   const [busy, setBusy] = useState(false);
   const vaultId = mailVaultId();
   /**
@@ -99,8 +117,13 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
    * the type, the base64 encoding, the multipart MIME, both backends. The
    * phone's send call simply passed a hard-coded empty array, so a message
    * that needed a file with it could not be written here at all.
+   *
+   * `arrived` is what the draft came with (a note sent as an attachment) and is
+   * held from the first render: the route reads the draft out of its nav path
+   * on every render, so `draft.attachments` is a new list each time.
    */
-  const [attach, setAttach] = useState<MailAttachment[]>(draft.attachments ?? []);
+  const [arrived] = useState<MailAttachment[]>(() => draft.attachments ?? []);
+  const [attach, setAttach] = useState<MailAttachment[]>(arrived);
   const [picking, setPicking] = useState(false);
 
   /**
@@ -151,10 +174,27 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
     }
   };
 
-  // A tap on the navigation bar used to drop the whole draft without a word.
+  /*
+   * A tap on the navigation bar used to drop the whole draft without a word.
+   *
+   * The question is asked when the draft was CHANGED, and changed is measured
+   * against what the composer opened with (finding 2026-10-09):
+   *
+   *  - the body against the signed body, not the draft's. Compared with the
+   *    draft, the signature alone counted as unsaved work, and every composer
+   *    of an account that signs its mail asked on the way out untouched;
+   *  - the files against the files it arrived with. They were not looked at
+   *    at all: a note that comes as an attachment is not unsaved work, a file
+   *    put on or taken off by hand is, and it went without a word.
+   *
+   * Sending and filing do not come past here — they leave through `onDone`.
+   * The desktop composer asks nothing on its way out, so none of this could
+   * occur there; it is a floating window that only its own controls close.
+   */
   useLeaveGuard(
     "mail-compose",
-    to !== draft.to || cc !== "" || bcc !== "" || subject !== draft.subject || body !== draft.body,
+    to !== draft.to || cc !== "" || bcc !== "" || subject !== draft.subject || body !== untouchedBody ||
+      attach.length !== arrived.length || attach.some((file, i) => file !== arrived[i]),
     t("mobile.leaveCompose", { defaultValue: "Der Entwurf wird nicht gespeichert." }),
   );
 
@@ -166,7 +206,11 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
       if (account?.id !== accountId) setAccountId(account?.id ?? "");
       const first = account ? (senderOptions(account)[0] ?? "") : "";
       setFromAddress(first);
-      if (account) setBody((b) => withSignature(b, account, first));
+      if (account) {
+        const sign = (b: string) => withSignature(b, account, first);
+        setBody(sign);
+        setUntouchedBody(sign);
+      }
     });
     // The account list is fixed while a draft is open; re-reading it on every
     // keystroke would be pointless.
@@ -198,7 +242,9 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
     // P8.2: keyed by ADDRESS, so switching between two aliases of one account
     // swaps too (the old id comparison silently kept the first signature).
     if (previous?.id !== next?.id || address !== fromAddress) {
-      setBody((b) => withSignature(withoutSignature(b, previous, fromAddress), next, address));
+      const resign = (b: string) => withSignature(withoutSignature(b, previous, fromAddress), next, address);
+      setBody(resign);
+      setUntouchedBody(resign);
     }
   };
 
@@ -228,7 +274,7 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
       }
       await appendDraft(vaultId, account, box, to.trim(), subject, body, attach, cc.trim(), bcc.trim());
       toast.success(t("mail.draftSaved"));
-      onBack();
+      leaveDone();
     } catch (e) {
       toast.error(isImapUnavailable(e) ? t("mail.imapMobileUnavailable") : mailErrorText(e, t));
     } finally {
@@ -248,7 +294,9 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
       const entry = undoQueue.enqueue(() =>
         sendMail(vaultId, account, to.trim(), subject, body, attach, undefined, cc.trim(), bcc.trim(), fromAddress)
       );
-      onBack();
+      // Not `onBack`: that one asks whether to discard the draft, and this
+      // draft is on its way.
+      leaveDone();
       undoToastId = toast.progress(t("mail.sendingWithUndo", { seconds: secondsLeft(entry) }), {
         label: t("common.undo"),
         run: () => {
@@ -334,26 +382,27 @@ export function MailComposeScreen({ draft, onBack, onOpenAccounts, vault }: { dr
             list you cannot correct is worse than none — the file is already
             encoded at this point, so removing it must not need a restart. */}
         {attach.map((a, i) => (
-          <div className="m-row m-row--split" key={`${a.name}:${i}`}>
+          <div className="m-row m-row--split" data-testid="compose-attachment" key={`${a.name}:${i}`}>
             <span className="m-linestack">
               <Paperclip size={ICON.meta} /> {a.name}
               <small>{a.mime}</small>
             </span>
             <IconButton
               label={t("mail.removeAttachment")}
+              data-testid="compose-attachment-remove"
               onClick={() => setAttach((prev) => prev.filter((_, j) => j !== i))}
             >
               <X size={ICON.ui} />
             </IconButton>
           </div>
         ))}
-        <Button variant="ghost" onClick={() => setPicking(true)}>
+        <Button variant="ghost" data-testid="compose-attach" onClick={() => setPicking(true)}>
           <Paperclip size={ICON.meta} /> {t("mail.attachFile")}
         </Button>
         {/* The other way out of the composer (S29): a message started here and
             finished at a desk. It lands in the account's own drafts folder, so
             every mail program on that mailbox sees it. */}
-        <Button variant="ghost" disabled={busy} onClick={() => void saveDraft()}>
+        <Button variant="ghost" disabled={busy} data-testid="compose-save-draft" onClick={() => void saveDraft()}>
           <FileText size={ICON.meta} /> {t("mail.draftAction")}
         </Button>
 

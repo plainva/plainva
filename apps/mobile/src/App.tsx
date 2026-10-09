@@ -407,7 +407,7 @@ export default function App() {
 
   // push / pop / replace live together in services/navActions: `pop` is the
   // only asynchronous one, and that asymmetry is what #47 tripped over.
-  const { push, pop, replace } = createNavActions(setNav, setBump);
+  const { push, pop, done, replace } = createNavActions(setNav, setBump);
 
 
   // What a tapped vault path becomes. Declared before `openNote` because that
@@ -659,7 +659,7 @@ export default function App() {
   });
 
   const routeCtx = {
-    vault, vaultName, bump, push, pop, replace, setNav,
+    vault, vaultName, bump, push, pop, done, replace, setNav,
     openNote, openBase, openDaily, createVaultFlow, quickNewDatabase,
     openAttachment,
     captureNote: capture,

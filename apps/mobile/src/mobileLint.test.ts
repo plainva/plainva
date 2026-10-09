@@ -1238,6 +1238,13 @@ describe("mail files, says and deletes carefully", () => {
    * — while the phone had grown it on 2026-08-20 (draft field, composer, send
    * path) and this assertion, pinning the other two, never noticed. The entry
    * is gone; what keeps the capability from quietly leaving is this line.
+   *
+   * It pins that the menu OFFERS the three routes, and no more than that: it
+   * stayed green from 2026-08-21 to 2026-10-09 while the third one opened the
+   * composer without the attachment, because the file was lost two modules
+   * further on. That it ARRIVES is held where it can be seen —
+   * mailRoutes.test.ts (through the route tables) and mailComposeDraft.test.tsx
+   * (on screen and in the send call).
    */
   it("offers the note itself as mail — handoff, body and attachment", () => {
     const note = stripComments(readFileSync(join(SRC, "screens/NoteScreen.tsx"), "utf8"));

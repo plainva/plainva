@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-10-06
+Última atualização: 2026-10-09
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -161,7 +161,7 @@ Uma mensagem que você começou não precisa ser enviada: **Salvar rascunho** a 
 
 A partir de uma mensagem aberta, três caminhos levam ao cofre: **Salvar como nota**, **→ Tarefa** no menu ⋮ (cria uma entrada no seu banco de tarefas padrão — com o modelo, o status e a data da mensagem) e **+ .eml**, que também guarda a mensagem original e cria um link para ela a partir da nota. Os três são ancorados: capturar a mesma mensagem duas vezes abre o que já existe. **Excluir** agora também fica no menu ⋮ em vez de ao lado da seta de voltar; na lista, basta um deslize. Mover para a lixeira oferece **Desfazer**, porque pode ser revertido — excluir definitivamente da lixeira continua perguntando, porque isso não pode. E, em vez de vários avisos empilhados uns sobre os outros, agora há **uma** única linha: o erro; senão, as contas inacessíveis (a partir de duas, como número); senão, o aviso sobre a cópia salva.
 
-Uma nota pode ser enviada pelo seu próprio menu ⋮: **Enviar nota por e-mail (mailto)** a entrega ao aplicativo de e-mail do telefone — o Plainva não precisa de uma conta própria para isso —, enquanto **Enviar por e-mail** abre o próprio editor de e-mails do Plainva com assunto e texto.
+Uma nota pode ser enviada pelo seu próprio menu ⋮: **Enviar nota por e-mail (mailto)** a entrega ao aplicativo de e-mail do telefone — o Plainva não precisa de uma conta própria para isso —, enquanto **Enviar por e-mail** abre o próprio editor de e-mails do Plainva com assunto e texto. **Enviar como anexo** abre o mesmo editor com a nota anexada como arquivo, exatamente como está salva.
 
 ## Importar de outro aplicativo
 

@@ -53,7 +53,7 @@ import { VaultsScreen } from "./screens/VaultsScreen";
 import { AboutAreaScreen, BackupAreaScreen, ContentAreaScreen, EditorAreaScreen } from "./screens/SettingsAreaScreens";
 import { SecurityAreaScreen } from "./screens/SecurityAreaScreen";
 import { SecurityWizardScreen, type SecurityWizardFlow } from "./screens/SecurityWizardScreen";
-import { parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
+import { draftPath, mailRefPath, parseDraft, parseMailRef } from "./screens/mail/mailNavRefs";
 import { startConnectQueue } from "./services/connectQueue";
 import { startAccountService } from "./services/cloudAccountConnections";
 import type { CloudServiceId } from "@plainva/ui";
@@ -93,6 +93,9 @@ export interface RouteContext {
   bump: number;
   push: (entry: NavEntry) => void;
   pop: () => void;
+  /** The exit a screen takes itself once its work is sent or saved. Unlike
+   *  `pop` it does not ask about unsaved input — there is none left to lose. */
+  done: () => void;
   /** Forward step that drops the current screen. Never `pop()` then `push()` —
    *  `pop` is asynchronous (it asks about unsaved input first), so the push
    *  would run before it and the late pop would close the new screen (#47). */
@@ -310,12 +313,14 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       key={e.path}
       onBack={c.pop}
       onComposeMail={(d) =>
-        // The draft rides through the nav stack as JSON. That carries an
-        // attachment fine because the stack is in memory and a note is text —
-        // a large binary would want a park store instead (2026-08-20).
+        // The draft rides through the nav stack as its entry's path. That
+        // carries an attachment fine because a note is text and the entry
+        // stays in memory — a draft is never written into the stored session
+        // (services/sessionState.ts); a large binary would want a park store
+        // instead (2026-08-20).
         c.push({
           kind: "mailcompose",
-          path: JSON.stringify({ accountId: "", to: "", subject: d.subject, body: d.body, attachments: d.attachments }),
+          path: draftPath({ accountId: "", to: "", subject: d.subject, body: d.body, attachments: d.attachments }),
         })
       }
       onOpenCommands={() => {
@@ -369,11 +374,11 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       vault={c.vault}
       bump={c.bump}
       onBack={c.pop}
-      onOpenMessage={(a, m, id, f, s) => c.push({ kind: "mailmsg", path: JSON.stringify({ a, m, id, f, s }) })}
-      onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
-      onCompose={(accountId) =>
-        c.push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })
+      onOpenMessage={(accountId, mailbox, messageId, flagged, seen) =>
+        c.push({ kind: "mailmsg", path: mailRefPath({ accountId, mailbox, messageId, flagged, seen }) })
       }
+      onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
+      onCompose={(accountId) => c.push({ kind: "mailcompose", path: draftPath({ accountId, to: "", subject: "", body: "" }) })}
     />
   ),
   mailmsg: (e, c) => (
@@ -382,13 +387,14 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
       {...parseMailRef(e.path)}
       onBack={c.pop}
       onOpenNote={c.openNote}
-      onReply={(d) => c.push({ kind: "mailcompose", path: JSON.stringify(d) })}
+      onReply={(d) => c.push({ kind: "mailcompose", path: draftPath(d) })}
     />
   ),
   mailcompose: (e, c) => (
     <MailComposeScreen
       draft={parseDraft(e.path)}
       onBack={c.pop}
+      onDone={c.done}
       onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
       vault={c.vault}
     />
@@ -426,11 +432,14 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   // The security wizards are a DESTINATION (S37), not a state inside the
   // security area and not a sheet: the bar is hidden here, and Back — which
   // the leave guard intercepts — is the only way out of a prepared key.
+  // Its own exit after activation is `done`: the passphrase flow clears its
+  // draft and leaves in the same breath, so through `pop` the guard was still
+  // armed and asked whether to cancel a setup that had just succeeded.
   securitywizard: (e, c) => (
     <SecurityWizardScreen
       flow={(e.path || "workspace") as SecurityWizardFlow}
       onBack={c.pop}
-      onDone={c.pop}
+      onDone={c.done}
       vault={c.vault}
     />
   ),
@@ -511,11 +520,11 @@ export const TAB_ROUTES: Record<TabScreenId, TabRoute> = {
       onMenu={() => c.push({ kind: "settings", path: "" })}
       vault={c.vault}
       bump={c.bump}
-      onOpenMessage={(acc, mb, id, f) => c.push({ kind: "mailmsg", path: JSON.stringify({ a: acc, m: mb, id, f }) })}
-      onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
-      onCompose={(accountId) =>
-        c.push({ kind: "mailcompose", path: JSON.stringify({ accountId, to: "", subject: "", body: "" }) })
+      onOpenMessage={(accountId, mailbox, messageId, flagged, seen) =>
+        c.push({ kind: "mailmsg", path: mailRefPath({ accountId, mailbox, messageId, flagged, seen }) })
       }
+      onOpenAccounts={() => c.push({ kind: "mailaccounts", path: "" })}
+      onCompose={(accountId) => c.push({ kind: "mailcompose", path: draftPath({ accountId, to: "", subject: "", body: "" }) })}
     />
   ),
   graph: (c) => (

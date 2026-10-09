@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-10-06
+Last updated: 2026-10-09
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -161,7 +161,7 @@ A message you have started does not have to be sent: **Save draft** files it in 
 
 From an open message, three routes lead into the vault: **Save as note**, **→ Task** in the ⋮ menu (creates an entry in your default task database — with its template, status and the mail's date) and **+ .eml**, which additionally stores the original message and links to it from the note. All three are anchored: capturing the same mail twice opens what is already there. **Delete** now also lives in the ⋮ menu rather than beside the back arrow; in the list a swipe is enough. Moving to Trash offers **Undo**, because it can be taken back — deleting permanently from Trash still asks, because it cannot. And instead of several notices stacked on top of each other there is now **one** line: the error, else the unreachable accounts (from two on, as a count), else the note about the stored copy.
 
-A note can be sent from its own ⋮ menu: **Send note by email (mailto)** hands it to the phone's mail app — Plainva needs no account of its own for that — while **Send by mail** opens Plainva's own composer with subject and text.
+A note can be sent from its own ⋮ menu: **Send note via email (mailto)** hands it to the phone's mail app — Plainva needs no account of its own for that — while **Send via email** opens Plainva's own composer with subject and text. **Send as email attachment** opens the same composer with the note attached as a file, exactly as it is saved.
 
 ## Importing from another app
 

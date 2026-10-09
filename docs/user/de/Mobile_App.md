@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-10-06
+Stand: 2026-10-09
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -161,7 +161,7 @@ Schicken musst Du eine begonnene Nachricht nicht: **Als Entwurf** legt sie im En
 
 Aus einer geöffneten Nachricht führen drei Wege in den Vault: **Als Notiz speichern**, im ⋮-Menü **→ Aufgabe** (legt einen Eintrag in Deiner Standard-Aufgabendatenbank an — mit Vorlage, Status und dem Datum der Mail) und **+ .eml**, das zusätzlich die Originalnachricht sichert und aus der Notiz darauf verlinkt. Alle drei sind verankert: dieselbe Mail zweimal zu erfassen öffnet, was schon da ist. **Löschen** liegt jetzt ebenfalls im ⋮-Menü statt neben dem Zurück-Pfeil; in der Liste genügt ein Wisch. Verschieben in den Papierkorb bietet **Rückgängig** an, weil es umkehrbar ist — endgültiges Löschen aus dem Papierkorb fragt weiterhin nach, weil es das nicht ist. Und statt mehrerer Hinweisbalken übereinander steht jetzt **eine** Zeile: der Fehler, sonst die nicht erreichbaren Konten (ab zwei als Anzahl), sonst der Hinweis auf die gespeicherte Kopie.
 
-Eine Notiz kannst Du aus deren ⋮-Menü verschicken: **Notiz per E-Mail senden (mailto)** übergibt sie der Mail-App des Telefons — dafür braucht Plainva selbst kein Konto —, **Per Mail verschicken** öffnet Plainvas eigenes Verfassen-Fenster mit Betreff und Text.
+Eine Notiz kannst Du aus deren ⋮-Menü verschicken: **Notiz per E-Mail senden (mailto)** übergibt sie der Mail-App des Telefons — dafür braucht Plainva selbst kein Konto —, **Per Mail verschicken** öffnet Plainvas eigenes Verfassen-Fenster mit Betreff und Text. **Per Mail als Anhang** öffnet dasselbe Fenster mit der Notiz als Datei im Anhang — so, wie sie gespeichert ist.
 
 ## Aus einer anderen App importieren
 
