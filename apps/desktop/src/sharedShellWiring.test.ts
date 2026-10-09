@@ -23,6 +23,12 @@ const contracts = [
   ["sweepPinboardDrafts", "services/pinboardDrafts.ts", "services/baseOps.ts"],
   ["pinboardDraftLedger", "components/BaseViewer.tsx", "services/baseOps.ts"],
   ["answerEditorPathProbe", "components/Editor.tsx", "EditorHost.tsx"],
+  // A new note from a template (finding 2026-10-09): ONE builder for the OKF
+  // header and for where `{{cursor}}` stands in what is written. The phone had
+  // a header string of its own, and a template's block without `type` stayed
+  // without one there.
+  ["templateAsNewNote", "services/newNoteTemplate.ts", "services/templateInteractive.ts"],
+  ["templateCaretInNote", "components/BaseViewer.tsx", "services/baseOps.ts"],
 ] as const;
 
 function usesFeature(source: string, name: string): boolean {

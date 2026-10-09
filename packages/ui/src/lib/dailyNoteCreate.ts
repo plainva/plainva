@@ -20,7 +20,7 @@ import { applyTemplatePlaceholders } from "../base/templateFiles";
 import type { TemplateContext } from "../base/templateEngine";
 import { buildDailyNotePath } from "./dailyNotePath";
 import { DEFAULT_DAILY_NOTE_FORMAT } from "./dailyNotes";
-import { withOkfDefaults } from "./newNoteContent";
+import { templateAsNewNote } from "./newNoteContent";
 
 export interface DailyNoteCreateConfig {
   /** Vault-relative folder of the daily notes, "" for the root. */
@@ -121,9 +121,9 @@ export async function ensureDailyNote(
   if (!body) body = `# ${title}\n`;
 
   // OKF write rule: a template's own `type` wins, missing pieces are added.
-  const content = withOkfDefaults(body, config.noteType);
+  // `{{cursor}}` was measured in the template; the shared builder finds it
+  // again behind the frontmatter the file carries in front of the text.
+  const { content, caret: cursor } = templateAsNewNote({ text: body, cursor: caret }, config.noteType);
   await files.createNote(path, content);
-  // `{{cursor}}` was measured in the template body; the file may carry
-  // frontmatter in front of it.
-  return { path, title, created: true, content, cursor: caret === null ? null : caret + (content.length - body.length) };
+  return { path, title, created: true, content, cursor };
 }

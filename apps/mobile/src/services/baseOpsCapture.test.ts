@@ -47,13 +47,14 @@ vi.mock("./syncService", () => ({ syncSoon: () => {} }));
 vi.mock("./vaultRegistry", () => ({ getActiveVaultEntry: async () => ({ name: "Vault" }) }));
 const answerTemplateFile = vi.fn();
 const buildNewNoteFromTemplate = vi.fn();
-const skeleton = async (o: { type: string; fallbackBody: string }) => ({ content: `---\ntype: ${o.type}\n---\n\n${o.fallbackBody}`, caret: null });
+// What the real builder writes for a note without a template: the header directly on the text.
+const skeleton = async (o: { type: string; fallbackBody: string }) => ({ content: `---\ntype: ${o.type}\n---\n${o.fallbackBody}`, caret: null });
 vi.mock("./templateInteractive", () => ({
   answerTemplateFile: (opts: unknown) => answerTemplateFile(opts),
   buildNewNoteFromTemplate: (opts: { type: string; fallbackBody: string }) => buildNewNoteFromTemplate(opts),
 }));
 
-import { pinboardDraftHash, pinboardDraftKey, pinboardDraftLedger } from "@plainva/ui";
+import { consumePendingTemplateCaret, pinboardDraftHash, pinboardDraftKey, pinboardDraftLedger } from "@plainva/ui";
 import { createBaseItem, discardMobilePinboardEntry, finalizeMobilePinboardEntry, planMobilePinboardEntry, sweepMobilePinboardDrafts } from "./baseOps";
 
 const vault = {
@@ -231,6 +232,26 @@ describe("createBaseItem", () => {
     expect(text).not.toMatch(/status: offen/);
     expect(text).toMatch(/prio: hoch/);
     expect(text).toMatch(/tags:\n\s+- vorlage\n\s+- zettel/);
+  });
+
+  it("finds the template's caret again behind what the source tag and the view's filter wrote into the block", async () => {
+    // The builder hands back `{{cursor}}` as a place in ITS note; the tag and
+    // the filter's value go into the block after that.
+    const built = "---\ntype: Note\n---\n# Zettel_1\n\n- [ ] \n";
+    buildNewNoteFromTemplate.mockResolvedValueOnce({ content: built, caret: built.indexOf("- [ ] ") + "- [ ] ".length });
+    const config = {
+      filters: { and: ['file.hasTag("zettel")'] },
+      newItemFolder: "Zettel",
+      newItemTemplate: "Templates/Z.md",
+      views: [{ type: "table", name: "T", filters: { and: ['status == "offen"'] } }],
+    };
+    const made = await createBaseItem(vault, "Zettel.base", config, 0);
+    if (made.status !== "created") throw new Error(`not created: ${made.status}`);
+    const text = files.get(made.path)!;
+    expect(text).toMatch(/status: offen/);
+    expect(text.endsWith("# Zettel_1\n\n- [ ] \n")).toBe(true);
+    const caret = consumePendingTemplateCaret(made.path);
+    expect(caret && text.slice(caret.offset)).toBe("\n");
   });
 });
 

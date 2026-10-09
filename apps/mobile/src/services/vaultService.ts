@@ -33,7 +33,6 @@ import {
   toPathIdentity,
   formatFullScan,
   scanChangedNothing,
-  frontmatterSpan,
 } from "@plainva/core";
 import { mActions } from "./mobileDialogs";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -67,10 +66,10 @@ import {
   forgetVaultStoreKeys,
 } from "./vaultForget";
 import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
-import { buildNewNoteFromTemplate, applyTemplateInteractive } from "./templateInteractive";
+import { buildNewNoteFromTemplate, buildNewNoteFromTemplateText, applyTemplateInteractive } from "./templateInteractive";
 import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
-  buildDailyNotePath,
+  buildNewNoteContent,
   ensureDailyNote as ensureSharedDailyNote, type EnsuredDailyNote,
   conflictCopyPath,
   importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk, type BookmarkEntry,
@@ -150,9 +149,6 @@ export interface MobileVault {
   /** Closes the per-vault database (used when switching vaults). */
   dispose(): Promise<void>;
 }
-
-const OKF = (type: string, title: string, body: string) =>
-  `---\ntype: ${type}\n---\n\n# ${title}\n\n${body}\n`;
 
 const isInternal = (path: string) => path.startsWith(".plainva") || path.includes(".CONFLICT");
 
@@ -1211,6 +1207,11 @@ export const vaultOps = {
    * here too, questions are asked in one sheet, and `{{cursor}}` is parked for
    * the editor that opens next. Cancelling the questions creates nothing —
    * hence the nullable return.
+   *
+   * Without a template the note is the skeleton the desktop writes: the
+   * header, and the heading directly under it. The phone had a string of its
+   * own for this, with a blank line above the heading and two below it
+   * (finding 2026-10-09).
    */
   async createNote(v: MobileVault, folder: string, type: string): Promise<string | null> {
     for (let n = 1; ; n++) {
@@ -1229,7 +1230,7 @@ export const vaultOps = {
         folder,
         title,
         type,
-        fallbackBody: OKF(type, title, ""),
+        fallbackBody: `# ${title}\n`,
       });
       if (!built) return null;
       await this.save(v, path, built.content);
@@ -1241,9 +1242,9 @@ export const vaultOps = {
 
   /**
    * New note from a template (R3.4): the full template text with the
-   * placeholders interpolated against the chosen title; a template without
-   * frontmatter gets the OKF header so every created note stays conformant.
-   * Name collisions count up ("Name 2", "Name 3", …).
+   * placeholders interpolated against the chosen title, and the OKF header as
+   * every new note gets it — `type` also goes into a block the template
+   * carries without one. Name collisions count up ("Name 2", "Name 3", …).
    */
   async createNoteFromTemplate(
     v: MobileVault,
@@ -1255,36 +1256,26 @@ export const vaultOps = {
     let n = 2;
     while (await v.files.exists(`${folder}/${name}.md`)) name = `${title} ${n++}`;
     const path = `${folder}/${name}.md`;
-    const ms = getMobileSettings();
     // The raw text is already in hand (picked template / share capture), so the
     // engine runs on it directly — the file-based rule lookup would only find
     // the same thing, and the share path has no file at all.
-    const answered = await applyTemplateInteractive(templateRaw, {
-      title: name,
-      now: new Date(),
-      folder,
+    const built = await buildNewNoteFromTemplateText({
+      raw: templateRaw,
       vaultName: (await getActiveVaultEntry()).name || "Plainva",
-      dailyPath: (offset) => {
-        const d = new Date();
-        d.setDate(d.getDate() + offset);
-        return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
-      },
+      folder,
+      title: name,
+      type: getMobileSettings().defaultNoteType,
     });
-    if (!answered) return null; // cancelled → nothing is created
-    const content = frontmatterSpan(answered.text)
-      ? answered.text
-      : `---\ntype: ${ms.defaultNoteType}\n---\n\n${answered.text.replace(/^\n+/, "")}`;
-    await this.save(v, path, content);
+    if (!built) return null; // cancelled → nothing is created
+    await this.save(v, path, built.content);
     reportCreated(path);
-    if (answered.cursor !== null) {
-      setPendingTemplateCaret({ path, offset: answered.cursor + (content.length - answered.text.length) });
-    }
+    if (built.caret !== null) setPendingTemplateCaret({ path, offset: built.caret });
     return path;
   },
 
   async ensureNote(v: MobileVault, path: string, type: string, title: string): Promise<string> {
     if (!(await v.files.exists(path))) {
-      await this.save(v, path, OKF(type, title, ""));
+      await this.save(v, path, buildNewNoteContent(type, title));
       reportCreated(path);
     }
     return path;
@@ -1300,7 +1291,7 @@ export const vaultOps = {
     const { path, title } = wikiTargetToPath(target, hostPath);
     if (!title) return null;
     if (await v.files.exists(path)) return path;
-    await this.save(v, path, OKF("Note", title, ""));
+    await this.save(v, path, buildNewNoteContent("Note", title));
     reportCreated(path);
     return path;
   },

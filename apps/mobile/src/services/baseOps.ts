@@ -33,6 +33,7 @@ import {
   resolveNewItemTarget,
   serializeBaseConfig,
   setPendingTemplateCaret,
+  templateCaretInNote,
   viewPrefill,
   writeNoteProperty,
   type PinboardDraft,
@@ -412,10 +413,10 @@ export async function createBaseItem(
   const content = finalizeItemContent(built.content, type, tags, inherited.props);
 
   await vaultOps.save(v, path, content);
-  // `{{cursor}}` was measured before the prefill rewrote the frontmatter, so
-  // the offset shifts by whatever grew in front of the body.
+  // `{{cursor}}` was found before the prefill rewrote the frontmatter; the
+  // shared rule finds it again behind whatever grew in front of the text.
   if (built.caret !== null) {
-    setPendingTemplateCaret({ path, offset: built.caret + (content.length - built.content.length) });
+    setPendingTemplateCaret({ path, offset: templateCaretInNote(built.content, content, built.caret) });
   }
   syncSoon();
   return { status: "created", path };

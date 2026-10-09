@@ -7,6 +7,7 @@ import {
   type PimEventRow,
 } from "@plainva/core";
 import { buildNewNoteContent, withOkfDefaults } from "../lib/newNoteContent";
+import { templateCaretInNote } from "../lib/templateCaret";
 import { taskDbFileStem } from "../lib/taskDatabase";
 import {
   resolveTemplateForNewNote,
@@ -256,9 +257,9 @@ export async function buildMeetingNoteFromTemplate(
   const content = withEventFields(withOkfDefaults(withoutTemplateOnlyKeys(body), noteType), event, dayKey);
   if (content === null) return { content: buildMeetingNoteContent(event, dayKey, noteType), cursor: null };
   // Everything above rewrote the frontmatter only; `{{cursor}}` was measured
-  // in the body, which moved by exactly what grew in front of it.
-  const shifted = cursor === null ? null : cursor + (content.length - body.length);
-  return { content, cursor: shifted !== null && shifted >= 0 && shifted <= content.length ? shifted : null };
+  // in the template, and the shared rule finds it again behind what grew or
+  // went in front of the text.
+  return { content, cursor: cursor === null ? null : templateCaretInNote(body, content, cursor) };
 }
 
 /** The content a new note gets: from its template, else the built-in one. */

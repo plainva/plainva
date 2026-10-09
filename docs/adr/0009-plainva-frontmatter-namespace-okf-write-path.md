@@ -304,3 +304,42 @@ up to it was read as YAML.
    search in `VaultQueryService.ts`, `textDirection.ts`). They also hide a
    block closed by the YAML document end `...`, which is no properties
    block. `frontmatterDefinition.test.ts` names them as its exemptions.
+
+## Addendum 2026-10-09 (the write rule for new files, on the phone too)
+
+Finding 2026-10-09: point 3 of the decision — every creation path produces
+its content via `ensureOkfFrontmatter`, template frontmatter wins, only
+missing fields are added — did not hold on the phone. Three places there set
+the header as a string of their own (`---`, `type`, `---` and a blank line):
+the plain new note, and two that took a template's text and set the header
+only where that text carried no properties block.
+
+1. **One writer, both shells.** The header of a new note comes from
+   `withOkfDefaults` in `packages/ui/src/lib/newNoteContent.ts`: directly,
+   through `buildNewNoteContent` (a note without a template) or through
+   `templateAsNewNote` (a template the engine has resolved). `type` goes into
+   the block the content carries — also the empty one, `---` directly on
+   `---` — and a block is put in front only where there is none. On the phone
+   a template whose block named no `type` made a note without one.
+   `frontmatterDefinition.test.ts` fails a shipped file that sets the header
+   as a string again.
+2. **Nothing stands between the header and the text.** The phone's strings
+   set a blank line behind the header, and for a template dropped the blank
+   lines it opened with; the shared writer sets none and hands the text on
+   byte for byte, line endings included. The shared writer's form is the one
+   for both shells. It is what every other new note had on both shells all
+   along — the daily note, the meeting note, a pinboard entry, a captured
+   mail — and what the property writers produce when a note gets its first
+   property (`composeNote`); the phone's three strings were the only places
+   that wrote something else, so the phone itself made two kinds of new
+   notes. This concerns new notes only: a note that carries a blank line
+   behind its block keeps it, because no writer touches the text.
+3. **Where a template's `{{cursor}}` stands in the note is one rule, too:**
+   `templateCaretInNote` in `packages/ui/src/lib/templateCaret.ts`. A caret in
+   the text keeps its distance from where the template's text starts in the
+   note. A caret the template puts in front of its text — into its properties
+   block — goes to the start of the text: the block may have been written
+   anew, and the live editor hides it and takes no caret in it. Every builder
+   had counted the offset on by what the note had grown, which is the same
+   for a caret in the text and pointed a caret from the block at wherever
+   that sum fell.

@@ -3,11 +3,12 @@ import {
   finalizeTemplate,
   resolveTemplate,
   resolveTemplateForNewNote,
+  templateAsNewNote,
   templateFilePath,
+  withOkfDefaults,
   type TemplateContext,
 } from "@plainva/ui";
 import { getWeekStartSetting, weekStartDayOf } from "@plainva/ui";
-import { frontmatterSpan } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import { mTemplateAnswers } from "./mobileDialogs";
 import { getMobileSettings } from "./mobileSettings";
@@ -109,6 +110,47 @@ export interface NewNoteContent {
 }
 
 /**
+ * A template's text as the content of a new note titled `title` in `folder`:
+ * its questions asked, the OKF header on it, `{{cursor}}` found in the result.
+ * `null`: the questions were cancelled, and nothing is created.
+ *
+ * The ONE place the phone turns a template into a note. The template a rule
+ * or a database names (`buildNewNoteFromTemplate`) and the one picked by hand
+ * (`vaultOps.createNoteFromTemplate`) both end here, and the header is the
+ * shared writer's (`templateAsNewNote`), as on the desktop: `type` goes into
+ * the block the template carries, a `type` of its own wins, and the text
+ * arrives byte for byte.
+ *
+ * Both places used to set a header string of their own (finding 2026-10-09),
+ * and only in front of a text without a properties block: a template whose
+ * block named no `type` — also the empty block — made a note without one, and
+ * a blank line stood between header and text that the desktop does not write.
+ */
+export async function buildNewNoteFromTemplateText(opts: {
+  /** The template as it was read, placeholders unresolved. */
+  raw: string;
+  vaultName: string;
+  folder: string;
+  title: string;
+  type: string;
+}): Promise<NewNoteContent | null> {
+  const ms = getMobileSettings();
+  const now = new Date();
+  const answered = await applyTemplateInteractive(opts.raw, {
+    title: opts.title,
+    now,
+    folder: opts.folder,
+    vaultName: opts.vaultName,
+    dailyPath: (offset) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() + offset);
+      return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
+    },
+  });
+  return answered ? templateAsNewNote(answered, opts.type) : null;
+}
+
+/**
  * Content for a new note, template rules applied (plan Vorlagen-Engine P6).
  *
  * Returns `null` when the person cancelled the template's questions — the
@@ -125,34 +167,21 @@ export async function buildNewNoteFromTemplate(opts: {
   type: string;
   /** Template chosen explicitly; beats every rule. */
   explicitTemplate?: string;
-  /** Body used when no template applies (`# Title`, the OKF skeleton, …). */
+  /** Text used when no template applies (`# Title`); it gets its header here, like a template's. */
   fallbackBody: string;
 }): Promise<NewNoteContent | null> {
-  const ms = getMobileSettings();
   const name = opts.explicitTemplate?.trim() || templateForNewNote(opts.folder, opts.type);
   const path = name ? templatePathOf(name) : "";
-
-  let body = opts.fallbackBody;
   if (path && (await opts.exists(path).catch(() => false))) {
-    const raw = await opts.read(path);
-    const now = new Date();
-    const answered = await applyTemplateInteractive(raw, {
-      title: opts.title,
-      now,
-      folder: opts.folder,
+    return buildNewNoteFromTemplateText({
+      raw: await opts.read(path),
       vaultName: opts.vaultName,
-      dailyPath: (offset) => {
-        const d = new Date(now);
-        d.setDate(d.getDate() + offset);
-        return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
-      },
+      folder: opts.folder,
+      title: opts.title,
+      type: opts.type,
     });
-    if (!answered) return null;
-    body = answered.text;
-    const secured = ensureOkf(body, opts.type);
-    return { content: secured, caret: answered.cursor === null ? null : answered.cursor + (secured.length - body.length) };
   }
-  return { content: ensureOkf(body, opts.type), caret: null };
+  return { content: withOkfDefaults(opts.fallbackBody, opts.type), caret: null };
 }
 
 /**
@@ -184,10 +213,4 @@ export async function answerTemplateFile(opts: {
       return buildDailyNotePath(d, ms.dailyFormat, ms.dailyFolder).fullPath.replace(/\.md$/i, "");
     },
   });
-}
-
-/** Prepends the OKF header unless the text already carries frontmatter. */
-function ensureOkf(text: string, type: string): string {
-  if (frontmatterSpan(text)) return text;
-  return `---\ntype: ${type}\n---\n\n${text.replace(/^\n+/, "")}`;
 }

@@ -4,8 +4,8 @@ import {
   parseFolderTemplateRules,
   parseTypeTemplateRules,
   resolveTemplateForNewNote,
+  templateAsNewNote,
   templateFilePath,
-  withOkfDefaults,
   type FolderTemplateRule,
   type TypeTemplateRule,
 } from "@plainva/ui";
@@ -117,10 +117,7 @@ export async function buildNewNoteFromTemplate(req: NewNoteRequest): Promise<New
   );
   if (!answered) return null;
 
-  // `{{cursor}}` is measured in the template body; OKF frontmatter may be
-  // prepended, so the offset shifts by however much grew in front.
-  const bodyLength = answered.text.length;
-  const content = withOkfDefaults(answered.text, type);
-  const caret = answered.cursor === null ? null : answered.cursor + (content.length - bodyLength);
-  return { content, caret, templatePath };
+  // The shared builder, which the phone calls for its notes too: the OKF
+  // defaults on the template, and `{{cursor}}` where it stands in the result.
+  return { ...templateAsNewNote(answered, type), templatePath };
 }

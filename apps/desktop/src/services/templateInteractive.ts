@@ -84,14 +84,15 @@ export async function applyTemplateInteractive(
 }
 
 /**
- * Parks the caret for a note that is about to be opened. `offset` is measured
- * in the template body; `prefixLength` accounts for whatever the write path put
- * in front of it (OKF frontmatter, an H1), so the caret lands where the
- * template said even though the file starts differently.
+ * Parks the caret for a note that is about to be opened. `offset` is the place
+ * in the WRITTEN note: the builders find a template's `{{cursor}}` there with
+ * the shared `templateCaretInNote`, behind whatever the write path put in
+ * front of the template's text (the OKF header, a view's prefills). `null`:
+ * the template had no cursor marker, and nothing is parked.
  */
-export function parkTemplateCaret(path: string, offset: number | null, prefixLength = 0): void {
+export function parkTemplateCaret(path: string, offset: number | null): void {
   if (offset === null) return;
-  setPendingTemplateCaret({ path, offset: offset + prefixLength });
+  setPendingTemplateCaret({ path, offset });
 }
 
 /** Pokes an already-mounted editor after the note was opened. */

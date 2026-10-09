@@ -71,15 +71,17 @@ describe("applyTemplateInteractive", () => {
 describe("parkTemplateCaret", () => {
   beforeEach(() => clearPendingTemplateCaret());
 
-  it("shifts the offset by whatever the write path put in front", () => {
-    // The offset is measured in the template body; the file starts with OKF
-    // frontmatter, so the caret has to move by its length.
-    parkTemplateCaret("Notes/A.md", 5, 42);
+  it("parks the place in the written note it is given", () => {
+    // Until 2026-10-09 this took a second number — what the write path had put
+    // in front of the template — and added it to an offset measured in the
+    // template. Where a template's caret stands in the note is the shared
+    // `templateCaretInNote`'s to say now (newNote.test.ts); parking only parks.
+    parkTemplateCaret("Notes/A.md", 47);
     expect(consumePendingTemplateCaret("Notes/A.md")).toEqual({ path: "Notes/A.md", offset: 47 });
   });
 
   it("parks nothing when the template had no cursor marker", () => {
-    parkTemplateCaret("Notes/A.md", null, 42);
+    parkTemplateCaret("Notes/A.md", null);
     expect(consumePendingTemplateCaret("Notes/A.md")).toBeNull();
   });
 

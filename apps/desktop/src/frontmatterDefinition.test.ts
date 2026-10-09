@@ -98,3 +98,44 @@ describe("the properties block has one definition", () => {
     }
   });
 });
+
+/**
+ * And one writer of the header a new note gets (finding 2026-10-09).
+ *
+ * The phone set that header as a string, in three places: `---`, `type`, `---`
+ * and a blank line, in front of any text that carried no block. A template
+ * whose block named no `type` — also the empty block — made a note without
+ * one, where the shared writer (`withOkfDefaults` in
+ * `packages/ui/src/lib/newNoteContent.ts`, over `ensureOkfFrontmatter`) puts
+ * `type` into the block that is there; and the blank line stood in no other
+ * new note. This reads the shape those three had. A header put together some
+ * other way it cannot know.
+ */
+const OWN_HEADER = /---(?:\\r)?\\ntype:/;
+
+describe("the header of a new note has one writer", () => {
+  it("no shipped file sets it as a string", () => {
+    const offenders = shippedSources()
+      .filter(({ text }) => OWN_HEADER.test(text))
+      .map(({ rel }) => `${rel}: build the note with withOkfDefaults(), buildNewNoteContent() or templateAsNewNote() from @plainva/ui`);
+    expect(offenders).toEqual([]);
+  });
+
+  it("recognises the shape the copies had, and leaves other blocks alone", () => {
+    for (const copy of [
+      "return `---\\ntype: ${type}\\n---\\n\\n${text}`;",
+      "const OKF = (type: string, title: string) => `---\\ntype: ${type}\\n---\\n\\n# ${title}\\n`;",
+      String.raw`const header = "---\r\ntype: Note\r\n---\r\n";`,
+    ]) {
+      expect(OWN_HEADER.test(copy), copy).toBe(true);
+    }
+    for (const fine of [
+      String.raw`lines.push("---", "tags:");`,
+      "lines.push(\"---\", `okf_version: \"${version}\"`, \"---\", \"\");",
+      String.raw`return withOkfDefaults(heading ? "# " + heading + "\n" : "", type);`,
+      String.raw`if (frontmatterSpan(text)) return text;`,
+    ]) {
+      expect(OWN_HEADER.test(fine), fine).toBe(false);
+    }
+  });
+});

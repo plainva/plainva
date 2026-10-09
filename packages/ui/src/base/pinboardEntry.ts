@@ -1,5 +1,6 @@
 import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, setFrontmatterPath } from "@plainva/core";
 import { finalizeItemContent } from "../lib/newItemContent";
+import { templateCaretInNote } from "../lib/templateCaret";
 import { resolveNewItemTarget } from "./baseRelations";
 import { viewPrefill } from "./newItemPrefill";
 import { sweepPinboardDrafts, type PinboardDraftLedger, type PinboardDraftSweepFiles } from "./pinboardDraftLedger";
@@ -187,18 +188,10 @@ export async function planPinboardEntry(files: PinboardEntryFiles, opts: PlanPin
 
   const body = template?.text ?? "";
   const initial = finalizeItemContent(body, opts.noteType, tags, props);
-  // `{{cursor}}` is measured in the template. The template's body text comes
-  // through unchanged at the END of the note — only the frontmatter in front
-  // of it is rewritten — so the caret is measured from where that text starts
-  // in the note, not from the end of the new frontmatter: writing the OKF
-  // header can put a blank line in between.
-  let caret: number | null = null;
-  if (template && template.caret !== null) {
-    const bodyInTemplate = frontmatterEndOf(body);
-    const bodyText = body.slice(bodyInTemplate);
-    const bodyStart = initial.endsWith(bodyText) ? initial.length - bodyText.length : frontmatterEndOf(initial);
-    caret = Math.min(initial.length, bodyStart + Math.max(0, template.caret - bodyInTemplate));
-  }
+  // `{{cursor}}` is measured in the template; the shared rule finds it in the
+  // note, from where the template's text starts there. The rule was written
+  // here first and is every new note's now (`templateCaretInNote`).
+  const caret = template && template.caret !== null ? templateCaretInNote(body, initial, template.caret) : null;
 
   // Chips only for what actually landed — a template key wins over a filter,
   // and a chip for a value the note does not carry would lie.

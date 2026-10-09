@@ -33,7 +33,7 @@ import {
 } from "../services/newItemFlow";
 import { planPinboardEntry, pinboardDraftLedger, pinboardLabelProperty, viewPrefill, type PinboardDraft, type PinboardEntryFiles, type PinboardEntryResult } from "@plainva/ui";
 import { desktopDraftFiles } from "../services/pinboardDrafts";
-import { addTemplateForAssignment, removeTemplateForAssignment } from "@plainva/ui";
+import { addTemplateForAssignment, removeTemplateForAssignment, templateCaretInNote } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
@@ -1107,9 +1107,9 @@ export function BaseViewer({
         prefills,
       });
       await vaultAdapter.writeTextFile(path, content);
-      // The caret offset is measured in the template body; the written file
-      // carries the OKF frontmatter in front of it.
-      parkTemplateCaret(path, caretInBody, content.length - (templateText?.length ?? 0));
+      // `{{cursor}}` is measured in the template; the written file carries the
+      // OKF header and the view's prefills in front of the template's text.
+      parkTemplateCaret(path, templateText === null || caretInBody === null ? null : templateCaretInNote(templateText, content, caretInBody));
       await linkHostTo(path);
       // Reindex the new note (and the host note if its relation was written) —
       // no full-vault scan per new entry (Issue #9).
