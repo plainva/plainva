@@ -4884,7 +4884,9 @@
     "imapValue": "Wyszukiwany tekst, nazwa folderu lub dane konta zawierają nieobsługiwane znaki. Usuń podziały wierszy i spróbuj ponownie.",
     "smtpValue": "Nadawca lub odbiorca zawiera nieprawidłowe znaki. Sprawdź adresy e-mail i spróbuj ponownie.",
     "driveFolder": "Dostawca zwrócił nieprawidłowy identyfikator folderu. Operacja została zatrzymana.",
-    "htmlDepth": "Ten HTML ma zbyt wiele poziomów zagnieżdżenia. Uprość go lub zaimportuj eksport w formacie Markdown."
+    "htmlDepth": "Ten HTML ma zbyt wiele poziomów zagnieżdżenia. Uprość go lub zaimportuj eksport w formacie Markdown.",
+    "propertiesBlock": "Bloku na początku notatki nie da się odczytać jako właściwości. Popraw go w tekście notatki i spróbuj ponownie.",
+    "propertyValue": "Właściwość „{{key}}” zawiera wartość, której nie da się odczytać. Popraw ją w tekście notatki i spróbuj ponownie."
   },
   "audio": {
     "play": "Odtwórz {{name}}",

@@ -454,11 +454,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         await writeNoteProperty(vaultAdapter, entry.path, entry.dateField, day);
         if (indexer) await applyIndexChanges(indexer, { added: [entry.path] });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : String(e));
+        // The sentence every refused property write gets, with the reason as
+        // `errorText` reads it: the bare message of a block that is no YAML
+        // quotes the note's own line.
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
         setOverlayEntries((prev) => prev.map((x) => (x.path === entry.path && x.basePath === entry.basePath ? { ...x, day: entry.day } : x)));
       }
     },
-    [vaultAdapter, indexer]
+    [vaultAdapter, indexer, t]
   );
 
   /**

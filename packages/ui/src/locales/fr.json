@@ -4827,7 +4827,9 @@
     "imapValue": "La recherche, le nom du dossier ou les informations du compte contiennent des caractères non pris en charge. Supprimez les sauts de ligne et réessayez.",
     "smtpValue": "Un expéditeur ou un destinataire contient des caractères non valides. Vérifiez les adresses e-mail et réessayez.",
     "driveFolder": "Le fournisseur a renvoyé un identifiant de dossier non valide. L’opération a été arrêtée.",
-    "htmlDepth": "Ce HTML contient trop de niveaux d’imbrication. Simplifiez-le ou importez une exportation Markdown."
+    "htmlDepth": "Ce HTML contient trop de niveaux d’imbrication. Simplifiez-le ou importez une exportation Markdown.",
+    "propertiesBlock": "Le bloc au début de la note ne peut pas être lu comme des propriétés. Corrigez-le dans le texte de la note et réessayez.",
+    "propertyValue": "La propriété « {{key}} » contient une valeur qui ne peut pas être lue. Corrigez-la dans le texte de la note et réessayez."
   },
   "audio": {
     "play": "Lire {{name}}",

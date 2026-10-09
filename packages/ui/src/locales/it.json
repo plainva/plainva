@@ -4827,7 +4827,9 @@
     "imapValue": "Il testo di ricerca, il nome della cartella o i dati dell’account contengono caratteri non supportati. Rimuovi le interruzioni di riga e riprova.",
     "smtpValue": "Un mittente o destinatario contiene caratteri non validi. Controlla gli indirizzi e-mail e riprova.",
     "driveFolder": "Il provider ha restituito un identificatore di cartella non valido. L’operazione è stata interrotta.",
-    "htmlDepth": "Questo HTML contiene troppi livelli di annidamento. Semplificalo o importa un’esportazione Markdown."
+    "htmlDepth": "Questo HTML contiene troppi livelli di annidamento. Semplificalo o importa un’esportazione Markdown.",
+    "propertiesBlock": "Il blocco all’inizio della nota non può essere letto come proprietà. Correggilo nel testo della nota e riprova.",
+    "propertyValue": "La proprietà \"{{key}}\" contiene un valore che non può essere letto. Correggilo nel testo della nota e riprova."
   },
   "audio": {
     "play": "Riproduci {{name}}",

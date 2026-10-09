@@ -9,8 +9,8 @@ import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette } from "lucide-react";
-import { parseMarkdownAst, extractFrontmatter, updateFrontmatterString, renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
-import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
+import { renameFrontmatterKey, deleteFrontmatterPath, PLAINVA_NAMESPACE_KEY, type WorkspaceCommentRecord } from "@plainva/core";
+import { deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, rewriteNoteProperties, isEmptyPropertyValue, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, useStableHandler } from "@plainva/ui";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import {
@@ -1608,6 +1608,23 @@ export function BaseViewer({
     commitSetViewType(type);
   };
 
+  // What the loops over many notes say when some could not be written: one
+  // message with both counts. Each of them used to log the note to the console
+  // and then show every row as changed (finding 2026-10-09).
+  const reportRewrite = (result: { written: string[]; failed: { path: string; message: string }[] }, what: string) => {
+    for (const failure of result.failed) console.error(what, failure.path, failure.message);
+    if (result.failed.length > 0) toast.error(t("database.bulkSetPartial", { done: result.written.length, failed: result.failed.length }));
+  };
+
+  // Writes a property (empty) into the notes that lack it and answers which
+  // ones got it. A note that turns out to hold a value there — the index was
+  // behind — keeps it.
+  const fillPropertyIn = async (adapter: NonNullable<typeof vaultAdapter>, paths: string[], col: string): Promise<string[]> => {
+    const result = await rewriteNoteProperties(adapter, paths, (props) => (isEmptyPropertyValue(props[col]) ? { ...props, [col]: "" } : null));
+    reportRewrite(result, "Failed to add property to file");
+    return result.written;
+  };
+
   const applyRequirement = async (selectedColumn: string, isNew: boolean, requiredType: string, targetViewType: string, dateInput?: "date" | "datetime") => {
     const newConfig = dbConfig ? JSON.parse(JSON.stringify(dbConfig)) : {};
     if (!newConfig.columns || Array.isArray(newConfig.columns)) newConfig.columns = {};
@@ -1630,22 +1647,9 @@ export function BaseViewer({
       // Update all markdown files to include the new property
       if (vaultAdapter) {
         // Run asynchronously so we don't block the UI
-        setTimeout(async () => {
-          for (const row of dbData) {
-            if (row[selectedColumn] === undefined) {
-              try {
-                const text = await vaultAdapter.readTextFile(row['file.path']);
-                const ast = parseMarkdownAst(text);
-                const fmResult = extractFrontmatter(ast);
-                const props = fmResult.success && fmResult.data ? fmResult.data : {};
-                const newProps = { ...props, [selectedColumn]: "" };
-                const newText = updateFrontmatterString(text, newProps);
-                await vaultAdapter.writeTextFile(row['file.path'], newText);
-              } catch (e) {
-                console.error("Failed to add property to file", row['file.path'], e);
-              }
-            }
-          }
+        setTimeout(() => {
+          const missing = dbData.filter((row) => row[selectedColumn] === undefined).map((row) => String(row['file.path']));
+          void fillPropertyIn(vaultAdapter, missing, selectedColumn);
         }, 0);
       }
     }
@@ -1729,20 +1733,10 @@ export function BaseViewer({
       kind: "warning",
     });
     if (!ok) return;
-    for (const row of missing) {
-      try {
-        const text = await vaultAdapter.readTextFile(row["file.path"]);
-        const ast = parseMarkdownAst(text);
-        const fmResult = extractFrontmatter(ast);
-        const props = fmResult.success && fmResult.data ? fmResult.data : {};
-        const newText = updateFrontmatterString(text, { ...props, [col]: "" });
-        await vaultAdapter.writeTextFile(row["file.path"], newText);
-      } catch (e) {
-        console.error("Failed to add property to file", row["file.path"], e);
-      }
-    }
+    const written = new Set(await fillPropertyIn(vaultAdapter, missing.map((row) => String(row["file.path"])), col));
     // Reflect the new (empty) values right away — the re-index lags the writes.
-    setDbData((prev) => prev.map((r) => (r[col] === undefined ? { ...r, [col]: "" } : r)));
+    // Only in the notes that got one: the others still lack the property.
+    setDbData((prev) => prev.map((r) => (r[col] === undefined && written.has(String(r["file.path"])) ? { ...r, [col]: "" } : r)));
   };
 
   // Rename a property from this base (Base-UX2 follow-up): move every config
@@ -2278,27 +2272,18 @@ export function BaseViewer({
     };
 
     // Rewrite the affected frontmatter values in every matching note.
+    const notConverted = new Set<string>();
     if (vaultAdapter) {
-      for (const row of dbData) {
-        const path = row['file.path'];
-        try {
-          const text = await vaultAdapter.readTextFile(path);
-          const ast = parseMarkdownAst(text);
-          const fmResult = extractFrontmatter(ast);
-          const props = fmResult.success && fmResult.data ? { ...fmResult.data } : {};
-          let changed = false;
-          for (const f of fields) {
-            const nv = convert(props[f]);
-            if (nv !== props[f]) { props[f] = nv; changed = true; }
-          }
-          if (changed) {
-            const newText = updateFrontmatterString(text, props);
-            await vaultAdapter.writeTextFile(path, newText);
-          }
-        } catch (e) {
-          console.error("Failed to convert date field type in", path, e);
+      const result = await rewriteNoteProperties(vaultAdapter, dbData.map((row) => String(row['file.path'])), (props) => {
+        let changed = false;
+        for (const f of fields) {
+          const nv = convert(props[f]);
+          if (nv !== props[f]) { props[f] = nv; changed = true; }
         }
-      }
+        return changed ? props : null;
+      });
+      reportRewrite(result, "Failed to convert date field type in");
+      for (const failure of result.failed) notConverted.add(failure.path);
     }
 
     const newConfig = JSON.parse(JSON.stringify(dbConfig));
@@ -2308,8 +2293,11 @@ export function BaseViewer({
     }
     await saveConfig(newConfig);
 
-    // The DB re-index lags the file writes; reflect the converted values right away.
+    // The DB re-index lags the file writes; reflect the converted values right
+    // away — except in a note that could not be written: its row keeps what
+    // the note says.
     setDbData(prev => prev.map(row => {
+      if (notConverted.has(String(row['file.path']))) return row;
       const updated = { ...row };
       for (const f of fields) updated[f] = convert(updated[f]);
       return updated;

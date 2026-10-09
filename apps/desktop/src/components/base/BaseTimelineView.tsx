@@ -133,7 +133,9 @@ export function BaseTimelineView({
       d.mode === "move"
         ? moveBar({ ...opts, toDay: days[Math.max(0, Math.min(days.length - 1, (barFor(opts.currentStart, opts.currentEnd, days)?.startCol ?? 0) + (d.col - d.fromCol)))]! })
         : edgeDrag({ ...opts, edge: d.mode, toDay });
-    if (res.start !== undefined) await handleCellSave(d.path, dateProp, res.start);
+    // A start that did not reach the note is not followed by the end: the bar
+    // stays as the note has it instead of moving with one edge only.
+    if (res.start !== undefined && !(await handleCellSave(d.path, dateProp, res.start))) return;
     if (res.end !== undefined && endProp) await handleCellSave(d.path, endProp, res.end);
   };
 

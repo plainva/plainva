@@ -106,10 +106,10 @@ export function JournalView({ onOpenPath, onHandoverTask }: {
         await writeNoteProperty(vaultAdapter, day.path, key, value > 0 ? value : "");
         refreshPath(day.path);
       } catch (error) {
-        toast.error(errorText(error));
+        toast.error(t("mobile.propertyWriteFailed", { message: errorText(error) }));
       }
     })();
-  }, [vaultAdapter, settings, refreshPath]);
+  }, [vaultAdapter, settings, refreshPath, t]);
   const links = useMemo(() => ({
     // A wiki link names a note, not a path: the index resolves it as the editor
     // does — read from the day's note the entry stands in.

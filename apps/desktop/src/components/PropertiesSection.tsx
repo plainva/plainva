@@ -3,6 +3,7 @@ import { BadgeCheck, Check, ExternalLink, Link2, Plus, ShieldCheck, Sparkles } f
 import { useTranslation } from "react-i18next";
 import {
   appendVerification,
+  errorText,
   formatActor,
   formatStampDate,
   generatedAtOf,
@@ -17,6 +18,7 @@ import {
   TRUST_LEVEL_I18N,
   trustLevelOf,
   useKeptResolution,
+  writableProperties,
 } from "@plainva/ui";
 import {
   parseMarkdownAst,
@@ -228,16 +230,31 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   useEffect(() => { onCountChange?.(model.shownCount); }, [model.shownCount, onCountChange]);
 
-  const apply = useCallback((newProps: ReadableFrontmatter) => {
+  // Rows are drawn anew after a refused write, so an editor that keeps what
+  // was typed or picked falls back to the note's value with the rest.
+  const [refusals, setRefusals] = useState(0);
+
+  // Hands a new set of properties to the editor and answers whether it got
+  // there. A refused set — a block that is no YAML map, or one the panel could
+  // not read, whose rows are then NOT the note's properties and whose write
+  // would remove the ones it does not show — used to end in the console while
+  // the panel went on showing it (finding 2026-10-09). Now the panel keeps
+  // what the note says and a message names the reason. What a handler does
+  // beside the note (the type registry, a notice of success) follows a true.
+  const commit = useCallback((next: ReadableFrontmatter): boolean => {
     try {
-      const newContent = updateFrontmatterString(doc.content, newProps);
-      channel.applyFrontmatter(newContent);
+      writableProperties(doc.content);
+      const newContent = updateFrontmatterString(doc.content, next);
+      if (!channel.applyFrontmatter(newContent)) throw new Error(t("rightPanel.propertiesUnavailable"));
     } catch (e) {
       console.error("Failed to update properties", e);
+      setRefusals((n) => n + 1);
+      toast.error(t("mobile.propertyWriteFailed", { message: errorText(e) }));
+      return false;
     }
-  }, [doc.content, channel]);
-
-  const commit = useCallback((next: ReadableFrontmatter) => { setProperties(next); apply(next); }, [apply]);
+    setProperties(next);
+    return true;
+  }, [doc.content, channel, t]);
 
   // "Mark as reviewed" (OKF 0.2, plan P3b): appends `human:<name>` with the
   // current instant to the note's `verified` list. The name is asked for once
@@ -270,8 +287,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     // Plain `{ by, at }` objects — the frontmatter value type wants shapes it
     // can serialise, not the core interface.
     const verified = appendVerification(properties.verified, name).map((v) => ({ by: v.by, at: v.at }));
-    commit({ ...properties, verified });
-    toast.success(t("trust.verifiedToast", { name }));
+    if (commit({ ...properties, verified })) toast.success(t("trust.verifiedToast", { name }));
   }, [doc.kind, vaultPath, properties, commit, t]);
 
   const onChangeProp = useCallback((key: string, value: any) => {
@@ -291,18 +307,18 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
     if (oldKey === newKey || !newKey.trim() || properties[newKey] !== undefined) return;
     const next: ReadableFrontmatter = {};
     for (const [k, v] of Object.entries(properties)) next[k === oldKey ? newKey : k] = v;
+    if (!commit(next)) return;
     renamePropertyType(vaultPath, oldKey, newKey);
     setTypeReg(loadPropertyTypes(vaultPath));
-    commit(next);
   }, [commit, properties, vaultPath]);
 
   const onDeleteProp = useCallback((key: string) => {
     if (OKF_SYSTEM_KEYS.has(key)) return;
     const next = { ...properties };
     delete next[key];
+    if (!commit(next)) return;
     clearPropertyType(vaultPath, key);
     setTypeReg(loadPropertyTypes(vaultPath));
-    commit(next);
   }, [commit, properties, vaultPath]);
 
   const onAddProp = useCallback((name: string, type: PropertyType) => {
@@ -315,16 +331,16 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
       while (properties[finalName] !== undefined) finalName = `${base} ${n++}`;
     }
     if (Object.prototype.hasOwnProperty.call(properties, finalName) || reservedPropertyName(finalName)) return;
+    if (!commit({ ...properties, [finalName]: defaultValueForType(type) as any })) return;
     setPropertyType(vaultPath, finalName, type);
     setTypeReg(loadPropertyTypes(vaultPath));
-    commit({ ...properties, [finalName]: defaultValueForType(type) as any });
   }, [commit, properties, vaultPath, t]);
 
   const onChangeType = useCallback((key: string, type: PropertyType) => {
     if (OKF_SYSTEM_KEYS.has(key) || OKF_LIFECYCLE_KEYS.has(key)) return;
+    if (!commit({ ...properties, [key]: coerceForType(normalizeFrontmatterValue(properties[key]), type) as any })) return;
     setPropertyType(vaultPath, key, type);
     setTypeReg(loadPropertyTypes(vaultPath));
-    commit({ ...properties, [key]: coerceForType(normalizeFrontmatterValue(properties[key]), type) as any });
   }, [commit, properties, vaultPath]);
 
   // Folder of the active note — scopes select/status discovery so a generic key
@@ -466,7 +482,7 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
 
   const renderRow = ({ key, value, type, curatedOptions, relationBase, relationLimit, lockMeta, lockValue }: Row) => (
     <PropertyRow
-      key={key}
+      key={`${refusals}:${key}`}
       propKey={key}
       displayLabel={lockedLabel(key, lockMeta)}
       value={value}

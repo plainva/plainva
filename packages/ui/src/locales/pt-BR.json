@@ -4827,7 +4827,9 @@
     "imapValue": "O texto de busca, o nome da pasta ou os dados da conta contêm caracteres não compatíveis. Remova as quebras de linha e tente novamente.",
     "smtpValue": "Um remetente ou destinatário contém caracteres inválidos. Confira os endereços de e-mail e tente novamente.",
     "driveFolder": "O provedor retornou um identificador de pasta inválido. A operação foi interrompida.",
-    "htmlDepth": "Este HTML tem níveis de aninhamento demais. Simplifique-o ou importe uma exportação em Markdown."
+    "htmlDepth": "Este HTML tem níveis de aninhamento demais. Simplifique-o ou importe uma exportação em Markdown.",
+    "propertiesBlock": "O bloco no início da nota não pode ser lido como propriedades. Corrija-o no texto da nota e tente novamente.",
+    "propertyValue": "A propriedade \"{{key}}\" contém um valor que não pode ser lido. Corrija-o no texto da nota e tente novamente."
   },
   "audio": {
     "play": "Reproduzir {{name}}",

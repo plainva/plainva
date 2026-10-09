@@ -54,6 +54,8 @@ A **bold** thought that links to [[Another Note]].
 
 A block may be empty: `---` directly followed by `---` is a block without properties, not two dividers — the note's text begins on the line after it. Plainva leaves no empty block behind: when the last property is removed, the two `---` lines go with it. They only stay where the text itself begins with a `---` line, which would otherwise be read as the start of a block.
 
+A block Plainva cannot read as properties is left exactly as it is: text between the two `---` lines that is not YAML, YAML that is a list instead of `key: value` lines, or a value in a form its property does not take. Changing a property of such a note — under **Properties** or in a database — changes nothing and says so: **Property could not be saved**, followed by the reason, which names the property when a single value is the cause. Correct the block in the note's text and the change goes through.
+
 ### OKF frontmatter fields
 
 Plainva follows OKF (Open Knowledge Format), a minimal convention — currently **version 0.2**. One top-level field is required, everything else is optional:

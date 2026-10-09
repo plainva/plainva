@@ -4770,7 +4770,9 @@
     "imapValue": "Suchtext, Ordnername oder Kontodaten enthalten nicht unterstützte Zeichen. Entferne Zeilenumbrüche und versuche es erneut.",
     "smtpValue": "Ein Absender oder Empfänger enthält ungültige Zeichen. Prüfe die Mailadressen und versuche es erneut.",
     "driveFolder": "Der Anbieter hat eine ungültige Ordnerkennung zurückgegeben. Der Vorgang wurde abgebrochen.",
-    "htmlDepth": "Dieses HTML ist zu tief verschachtelt. Vereinfache es oder importiere einen Markdown-Export."
+    "htmlDepth": "Dieses HTML ist zu tief verschachtelt. Vereinfache es oder importiere einen Markdown-Export.",
+    "propertiesBlock": "Der Block am Anfang der Notiz lässt sich nicht als Eigenschaften lesen. Korrigiere ihn im Text der Notiz und versuche es erneut.",
+    "propertyValue": "Die Eigenschaft „{{key}}“ enthält einen Wert, der sich nicht lesen lässt. Korrigiere ihn im Text der Notiz und versuche es erneut."
   },
   "audio": {
     "play": "{{name}} abspielen",

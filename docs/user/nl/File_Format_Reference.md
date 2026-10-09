@@ -54,6 +54,8 @@ A **bold** thought that links to [[Another Note]].
 
 Een blok mag leeg zijn: `---` direct gevolgd door `---` is een blok zonder eigenschappen, niet twee scheidingslijnen — de tekst van de notitie begint op de regel erna. Plainva laat geen leeg blok achter: wordt de laatste eigenschap verwijderd, dan verdwijnen de twee `---`-regels mee. Ze blijven alleen staan als de tekst zelf met een `---`-regel begint, die anders als het begin van een blok zou worden gelezen.
 
+Een blok dat Plainva niet als eigenschappen kan lezen, blijft precies zoals het is: tekst tussen de twee `---`-regels die geen YAML is, YAML dat een lijst is in plaats van `sleutel: waarde`-regels, of een waarde in een vorm die de eigenschap niet aanneemt. Wijzig je bij zo'n notitie een eigenschap — onder **Eigenschappen** of in een database —, dan verandert er niets, en Plainva meldt dat: **Eigenschap kon niet worden opgeslagen**, gevolgd door de reden, die de eigenschap noemt wanneer één waarde de oorzaak is. Corrigeer het blok in de tekst van de notitie, dan lukt de wijziging.
+
 ### OKF-frontmattervelden
 
 Plainva volgt OKF (Open Knowledge Format), een minimale conventie — momenteel **versie 0.2**. Eén top-level veld is verplicht, de rest is optioneel:

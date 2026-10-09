@@ -4770,7 +4770,9 @@
     "imapValue": "The search text, folder name or account details contain unsupported characters. Remove line breaks and try again.",
     "smtpValue": "A sender or recipient contains invalid characters. Check the mail addresses and try again.",
     "driveFolder": "The provider returned an invalid folder identifier. The operation was stopped.",
-    "htmlDepth": "This HTML is too deeply nested. Simplify it or import a Markdown export."
+    "htmlDepth": "This HTML is too deeply nested. Simplify it or import a Markdown export.",
+    "propertiesBlock": "The block at the top of the note cannot be read as properties. Correct it in the note's text and try again.",
+    "propertyValue": "The property \"{{key}}\" holds a value that cannot be read. Correct it in the note's text and try again."
   },
   "audio": {
     "play": "Play {{name}}",

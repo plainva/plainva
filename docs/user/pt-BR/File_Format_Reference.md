@@ -54,6 +54,8 @@ A **bold** thought that links to [[Another Note]].
 
 Um bloco pode estar vazio: `---` seguido diretamente de `---` é um bloco sem propriedades, não dois divisores — o texto da nota começa na linha seguinte. O Plainva não deixa nenhum bloco vazio para trás: quando a última propriedade é removida, as duas linhas `---` somem junto. Elas só permanecem quando o próprio texto começa com uma linha `---`, que de outra forma seria lida como o início de um bloco.
 
+Um bloco que o Plainva não consegue ler como propriedades é deixado exatamente como está: texto entre as duas linhas `---` que não é YAML, YAML que é uma lista em vez de linhas `chave: valor`, ou um valor em um formato que a propriedade não aceita. Alterar uma propriedade de uma nota assim — em **Propriedades** ou em um banco de dados — não muda nada, e o Plainva avisa: **Não foi possível salvar a propriedade**, seguido do motivo, que cita a propriedade quando a causa é um único valor. Corrija o bloco no texto da nota e a alteração será aplicada.
+
 ### Campos de frontmatter do OKF
 
 O Plainva segue o OKF (Open Knowledge Format), uma convenção mínima — atualmente na **versão 0.2**. Um campo de nível superior é obrigatório, todo o resto é opcional:

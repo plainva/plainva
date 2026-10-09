@@ -4770,7 +4770,9 @@
     "imapValue": "De zoektekst, mapnaam of accountgegevens bevatten niet-ondersteunde tekens. Verwijder regeleinden en probeer het opnieuw.",
     "smtpValue": "Een afzender of ontvanger bevat ongeldige tekens. Controleer de e-mailadressen en probeer het opnieuw.",
     "driveFolder": "De provider heeft een ongeldige mapidentificatie teruggestuurd. De bewerking is gestopt.",
-    "htmlDepth": "Deze HTML is te diep genest. Vereenvoudig de structuur of importeer een Markdown-export."
+    "htmlDepth": "Deze HTML is te diep genest. Vereenvoudig de structuur of importeer een Markdown-export.",
+    "propertiesBlock": "Het blok bovenaan de notitie kan niet als eigenschappen worden gelezen. Corrigeer het in de tekst van de notitie en probeer het opnieuw.",
+    "propertyValue": "De eigenschap \"{{key}}\" bevat een waarde die niet kan worden gelezen. Corrigeer die in de tekst van de notitie en probeer het opnieuw."
   },
   "audio": {
     "play": "{{name}} afspelen",

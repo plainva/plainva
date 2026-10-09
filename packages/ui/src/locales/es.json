@@ -4827,7 +4827,9 @@
     "imapValue": "El texto de búsqueda, el nombre de la carpeta o los datos de la cuenta contienen caracteres no admitidos. Elimina los saltos de línea e inténtalo de nuevo.",
     "smtpValue": "Un remitente o destinatario contiene caracteres no válidos. Revisa las direcciones de correo e inténtalo de nuevo.",
     "driveFolder": "El proveedor devolvió un identificador de carpeta no válido. La operación se ha detenido.",
-    "htmlDepth": "Este HTML tiene demasiados niveles de anidación. Simplifícalo o importa una exportación en Markdown."
+    "htmlDepth": "Este HTML tiene demasiados niveles de anidación. Simplifícalo o importa una exportación en Markdown.",
+    "propertiesBlock": "El bloque al principio de la nota no se puede leer como propiedades. Corrígelo en el texto de la nota e inténtalo de nuevo.",
+    "propertyValue": "La propiedad “{{key}}” contiene un valor que no se puede leer. Corrígelo en el texto de la nota e inténtalo de nuevo."
   },
   "audio": {
     "play": "Reproducir {{name}}",

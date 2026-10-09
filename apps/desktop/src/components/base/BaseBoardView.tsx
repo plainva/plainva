@@ -109,16 +109,17 @@ export function BaseBoardView({
     }
   };
 
-  const regroupRelation = (path: string, sourceGroup: string, targetGroup: string) => {
-    if (!boardGroupBy || isReverseGroup) return;
+  /** Answers false only when the write was tried and failed; where there is nothing to write, the lane may still move. */
+  const regroupRelation = async (path: string, sourceGroup: string, targetGroup: string): Promise<boolean> => {
+    if (!boardGroupBy || isReverseGroup) return true;
     const row = dbData.find((r) => r["file.path"] === path);
-    if (!row) return;
+    if (!row) return true;
     const raw = row[boardGroupBy];
     const values: string[] = Array.isArray(raw) ? raw.map(String) : raw == null || raw === "" ? [] : [String(raw)];
     let next = values.filter((v) => v !== sourceGroup);
     if (targetGroup !== "__UNGROUPED__" && !next.includes(targetGroup)) next = [...next, targetGroup];
     const limit = getRelationLimit(boardGroupBy);
-    void commitCellValue(path, boardGroupBy, limit === "one" ? (next[next.length - 1] ?? "") : next);
+    return commitCellValue(path, boardGroupBy, limit === "one" ? (next[next.length - 1] ?? "") : next);
   };
 
   const { cardHandlers, registerTarget, draggingPath, overTarget, ghostProps } = useCardPointerDrag<string>({
@@ -129,14 +130,15 @@ export function BaseBoardView({
       if (!boardGroupBy) return;
       const target = parseTargetKey(targetKey);
       // The lane write follows the column write — two frontmatter edits of one
-      // note, one after the other, never side by side.
-      const laneWrite = async () => {
-        if (!boardLaneBy || target.lane === null || target.lane === card.lane) return;
+      // note, one after the other, never side by side. And only a column
+      // write that landed is followed: a refused one has said so and put the
+      // card back, and the same note would refuse the lane as well.
+      const laneWrite = async (columnWritten: boolean) => {
+        if (!columnWritten || !boardLaneBy || target.lane === null || target.lane === card.lane) return;
         await handleCellSave(path, boardLaneBy, laneWriteValue(lanes.map((l) => ({ key: l.key ?? "", value: l.value })), target.lane));
       };
       if (isRelationGroup) {
-        regroupRelation(path, card.group, target.group);
-        void laneWrite();
+        void regroupRelation(path, card.group, target.group).then(laneWrite);
         return;
       }
       void Promise.resolve(handleCellSave(path, boardGroupBy, target.group === "__UNGROUPED__" ? "" : target.group)).then(laneWrite);
