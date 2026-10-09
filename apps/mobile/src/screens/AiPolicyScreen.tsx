@@ -8,6 +8,7 @@ import {
   externalStatusText,
   GroupCard,
   ICON,
+  memorySummary,
   Row,
   RowList,
   ruleOf,
@@ -33,13 +34,14 @@ import type { MobileVault } from "../services/vaultService";
  * the privacy rules that travel with this vault, written as `.agent/policy.yml`
  * — the same file the desktop edits.
  */
-export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileVault; onBack: () => void; onOpenSkills: (review?: string) => void }) {
+export function AiPolicyScreen({ vault, onBack, onOpenSkills, onOpenMemory }: { vault: MobileVault; onBack: () => void; onOpenSkills: (review?: string) => void; onOpenMemory: () => void }) {
   const { t } = useTranslation();
   // Skills and memory (plan KI-Harness P3-5): the summary, what waits, and the way into the workshop.
   const session = getMobileAiSession();
   const aiState = useSyncExternalStore(session.subscribe, session.getState);
   useEffect(() => {
     void session.refreshSkills();
+    void session.refreshMemory();
     void session.mcp.refresh();
   }, [session]);
   const sections = workshopSections(aiState.skills.entries);
@@ -224,6 +226,8 @@ export function AiPolicyScreen({ vault, onBack, onOpenSkills }: { vault: MobileV
                   data-testid="settings-ai-skill-review"
                 />
               ))}
+            {/* The vault's memory (plan P6): how much it holds, and the way to it in the AI screen. */}
+            <Row wrap title={t("ai.memory.open")} subtitle={memorySummary(t, aiState.memory)} disabled={!aiState.memory.available} onClick={onOpenMemory} data-testid="settings-ai-memory-open" />
           </RowList>
         </GroupCard>
         <p className="m-hint">{t("ai.workshop.settingsDesc")}</p>

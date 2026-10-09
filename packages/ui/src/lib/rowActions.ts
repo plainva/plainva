@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Ban, Bookmark, BookmarkMinus, CalendarClock, CalendarPlus, CheckSquare, ClipboardCopy, Clock, Columns2, Copy, Database,
-  ExternalLink, Eye, Flag, FlaskConical, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
+  ExternalLink, Eye, Flag, FlaskConical, FolderInput, GitMerge, History, ListTree, Mail, MailOpen, Pencil, Pin, PinOff, Play, Repeat, Rows2, ShieldOff, Square, SquareSlash, Star, StarOff,
   Trash2, XCircle,
 } from "lucide-react";
 
@@ -239,6 +239,29 @@ export function skillRowActions(t: RowActionT, c: SkillRowCaps): RowActionSpec[]
     c.copy ? { id: "copy", label: t("ai.workshop.copy"), icon: Copy, run: c.copy } : null,
     c.revoke ? { id: "revoke", label: t("ai.workshop.revoke"), icon: ShieldOff, run: c.revoke } : null,
     c.delete ? { id: "delete", label: t("ai.workshop.delete"), icon: Trash2, danger: true, run: c.delete } : null,
+  ];
+  return out.filter((a): a is RowActionSpec => a !== null);
+}
+
+/* ---------------------------------------------------------------- memory */
+
+export interface MemoryRowCaps {
+  /** Rewords the entry. */
+  edit?: () => void;
+  /** Into "always included": it then goes with every conversation. */
+  toActive?: () => void;
+  /** Into "on demand": it is then only looked up. */
+  toLong?: () => void;
+  delete?: () => void;
+}
+
+/** An entry of the memory (plan KI-Harness P6): the same actions in both shells. */
+export function memoryRowActions(t: RowActionT, c: MemoryRowCaps): RowActionSpec[] {
+  const out: Array<RowActionSpec | null> = [
+    c.edit ? { id: "edit", label: t("ai.memory.action.edit"), icon: Pencil, run: c.edit } : null,
+    c.toActive ? { id: "toActive", label: t("ai.memory.action.toActive"), icon: Pin, run: c.toActive } : null,
+    c.toLong ? { id: "toLong", label: t("ai.memory.action.toLong"), icon: PinOff, run: c.toLong } : null,
+    c.delete ? { id: "delete", label: t("ai.memory.action.delete"), icon: Trash2, danger: true, run: c.delete } : null,
   ];
   return out.filter((a): a is RowActionSpec => a !== null);
 }

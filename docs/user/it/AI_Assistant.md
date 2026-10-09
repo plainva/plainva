@@ -110,6 +110,10 @@ Le competenze sono istruzioni per lavori ricorrenti. Dodici sono incluse in Plai
 
 Gli script sono piccoli programmi che scrivi tu per ciò che un modello fa male — contare, ordinare, sommare. Si eseguono in un ambiente chiuso e leggono il tuo vault con gli stessi strumenti dell'IA, ma solo dopo che li hai approvati su questo dispositivo. Tutto su di essi: [Script](AI_Scripts.md).
 
+## Memoria
+
+Ciò che l'IA deve sapere su di te senza che tu glielo ripeta — che cosa fai, come preferisci ricevere le risposte — è conservato nella memoria del vault: due file che puoi leggere e modificare. Ciò che sta sotto **Sempre incluso** va in ogni nuova conversazione, il resto viene cercato quando una domanda lo richiede, e nulla entra nella memoria senza il tuo sì. Vedi [Memoria](AI_Memory.md).
+
 ## Trascrivere una nota vocale
 
 Su ogni nota vocale — nell'editor, in modalità lettura, nel diario e sulle schede — **Trascrivi** trasforma la registrazione in testo. Va così com'è al modello del profilo **Audio**, attraverso lo stesso riepilogo di una domanda; una registrazione è un tipo di dati a sé, perciò il riepilogo chiede la prima volta. La trascrizione torna come proposta sotto la registrazione, con l'autore **Plainva IA · ⟨modello⟩**: accettala o rifiutala in **Proposte**.

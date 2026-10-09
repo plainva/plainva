@@ -110,6 +110,10 @@ Habilidades são instruções para trabalho recorrente. Doze vêm com o Plainva 
 
 Scripts são pequenos programas que você escreve para o que um modelo faz mal — contar, ordenar, somar. Eles rodam em uma caixa fechada e leem o seu vault pelas mesmas ferramentas da IA, mas só depois de você os aprovar neste dispositivo. Tudo sobre eles: [Scripts](AI_Scripts.md).
 
+## Memória
+
+O que a IA deve saber sobre você sem que você precise repetir — o que você faz, como prefere as respostas — fica guardado na memória do vault: dois arquivos que você pode ler e editar. O que está em **Sempre incluído** entra em toda nova conversa, o resto é consultado quando uma pergunta precisa, e nada entra na memória sem o seu sim. Veja [Memória](AI_Memory.md).
+
 ## Transcrever uma nota de voz
 
 Em cada nota de voz — no editor, no modo de leitura, no diário e nos cartões — **Transcrever** transforma a gravação em texto. Ela vai como está para o modelo do perfil **Áudio**, pelo mesmo resumo de uma pergunta; uma gravação é um tipo de dado próprio, por isso o resumo pergunta na primeira vez. A transcrição volta como sugestão abaixo da gravação, com o autor **Plainva IA · ⟨modelo⟩** — aceite ou recuse em **Sugestões**.

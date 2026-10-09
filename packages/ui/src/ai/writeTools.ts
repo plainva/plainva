@@ -1,5 +1,11 @@
 import {
   AI_POLICY_DIMENSIONS,
+  MEMORY_DRAFT_TOOL_NAMES,
+  MEMORY_LIMITS,
+  cleanMemoryText,
+  findMemoryEntry,
+  memoryTextProblem,
+  type MemoryEntry,
   PIM_DRAFT_TOOL_NAMES,
   PLAN_TOOL_NAMES,
   PROPOSAL_TOOL_NAMES,
@@ -209,12 +215,20 @@ export interface WriteToolContext {
    * model — a name must not be found out by trying it — and two to the user (`LinkedNoteState`).
    */
   linked(target: string, from: string): Promise<LinkedNoteState>;
+  /**
+   * The entries of the vault's memory this run may know of (plan P6): what a
+   * model can name to reword or to take out — an entry the rules keep from
+   * the recipient is not among them, and is answered like one that is not
+   * there. Null where the memory is switched off on this device or cannot be
+   * read; absent where the shell has none.
+   */
+  memory?(): Promise<readonly MemoryEntry[] | null>;
   /** The id of the call that runs, where the run has one: a question about it is asked under it. */
   callId?: string;
 }
 
 /** The writing tools that have hands, in the order the tool search lists them. */
-const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry", "draft_mail", "draft_event", "rename_note", "move_note", "delete_note"];
+const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "set_property", "create_note", "create_entry", "create_task", "add_journal_entry", ...MEMORY_DRAFT_TOOL_NAMES, "draft_mail", "draft_event", "rename_note", "move_note", "delete_note"];
 
 /**
  * The writing tools a shell with these deps offers a new conversation. Inside
@@ -224,9 +238,10 @@ const SERVED_WRITE_TOOLS: readonly string[] = ["propose_edit", "set_property", "
  * them only where the shell has mail or calendars at all; whether an account
  * is connected is asked when one is used (`pimDraftReady`).
  */
-export function writeToolNames(deps: VaultWriteDeps | undefined): string[] {
+export function writeToolNames(deps: VaultWriteDeps | undefined, memory = false): string[] {
   if (!deps || deps.sealed()) return [];
-  return SERVED_WRITE_TOOLS.filter((name) => deps.pim !== undefined || !PIM_DRAFT_TOOL_NAMES.includes(name));
+  // The memory's drafts (plan P6) only where the shell reaches the memory files at all.
+  return SERVED_WRITE_TOOLS.filter((name) => (deps.pim !== undefined || !PIM_DRAFT_TOOL_NAMES.includes(name)) && (memory || !MEMORY_DRAFT_TOOL_NAMES.includes(name)));
 }
 
 /** Whether a draft of this kind has anywhere to go right now: a mail account, a calendar that takes appointments. */
@@ -559,6 +574,59 @@ async function addJournalEntry(deps: VaultWriteDeps, run: WriteRun, a: Record<st
 }
 
 /**
+ * "Remember this" (plan P6, ADR 0027): an entry for the vault's memory, as a
+ * draft. Nothing is written — the user's "Remember" on the draft is what
+ * writes, and the entry then carries the rules of everything this
+ * conversation rested on, so it reaches no model those notes may not reach.
+ * An address the user did not type is written inert, as in every text a
+ * model lays down. `as: "rule"`: what assistants should always do is no
+ * memory but a line of the vault's instructions — and none is drafted from a
+ * conversation that carries a restricted note, since a rule goes to every
+ * model.
+ */
+async function remember(run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
+  const known = ctx.memory ? await ctx.memory().catch(() => null) : null;
+  if (known === null) return refuse("no-memory");
+  const raw = typeof a.text === "string" ? a.text.trim() : "";
+  if (!raw) return refuse("empty");
+  const linted = defuseNewAddresses(raw, run.userTexts());
+  const text = cleanMemoryText(flattenInertLinks(linted.text)).text;
+  if (memoryTextProblem(text) !== null) return refuse("memory-entry");
+  const title = oneLine(text, 200);
+  if (a.as === "rule") {
+    if ((await run.inherited()).length > 0) return refuse("restricted-rule");
+    const left = await run.draft({ title, body: { kind: "rule", text }, defused: linted.defused });
+    if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
+    run.writes.drafts.push({ id: left.id, kind: "rule", title });
+    return said(WRITE_RESULTS.ruleDrafted(linted.defused), { drafted: true, kind: "rule" });
+  }
+  // The entry it rewords, among those this run may know of: one it may not know of is not there for it.
+  const replaces = typeof a.replaces === "string" && a.replaces.trim() ? findMemoryEntry(known, a.replaces) : null;
+  if (typeof a.replaces === "string" && a.replaces.trim() && !replaces) return refuse("no-memory-entry");
+  if (!replaces && findMemoryEntry(known, text)) return refuse("memory-known");
+  // A reworded entry stays where it is; a new one is proposed for "always included" while there is room for it.
+  const used = known.filter((entry) => entry.place === "active").reduce((sum, entry) => sum + entry.text.length, 0);
+  const place = replaces ? replaces.place : used + text.length <= MEMORY_LIMITS.activeChars ? "active" : "long";
+  const left = await run.draft({ title, body: { kind: "memory", text, place, replaces: replaces ? replaces.text : null }, defused: linted.defused });
+  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
+  run.writes.drafts.push({ id: left.id, kind: "memory", title });
+  return said(WRITE_RESULTS.remembered(Boolean(replaces), linted.defused), { drafted: true, kind: "memory" });
+}
+
+/** "Forget this" (plan P6): taking an entry out of the memory, as a draft — the entry goes when the user says so. */
+async function forget(run: WriteRun, a: Record<string, unknown>, ctx: WriteToolContext): Promise<ToolOutcome> {
+  const known = ctx.memory ? await ctx.memory().catch(() => null) : null;
+  if (known === null) return refuse("no-memory");
+  const entry = typeof a.entry === "string" ? findMemoryEntry(known, a.entry) : null;
+  if (!entry) return refuse("no-memory-entry");
+  const title = oneLine(entry.text, 200);
+  const left = await run.draft({ title, body: { kind: "forget", entry: entry.text }, defused: 0 });
+  if (!left.ok) return refuse(left.problem === "full" ? "full" : "failed");
+  run.writes.drafts.push({ id: left.id, kind: "forget", title });
+  return said(WRITE_RESULTS.forgotten, { drafted: true, kind: "forget" });
+}
+
+/**
  * The addresses a model gave for one field, each a plain address; null where
  * one of them is none. Twice the same counts once.
  */
@@ -762,6 +830,10 @@ export async function writeToolOutcome(deps: VaultWriteDeps | undefined, run: Wr
         return await createTask(deps, run, a, ctx);
       case "add_journal_entry":
         return await addJournalEntry(deps, run, a, ctx);
+      case "remember":
+        return await remember(run, a, ctx);
+      case "forget":
+        return await forget(run, a, ctx);
       case "draft_mail":
         return await draftMail(deps, run, a);
       case "draft_event":

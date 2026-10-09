@@ -25,6 +25,28 @@ import type { PropertyFilterRule } from "../base/filterExpr";
 import { safeFileStem } from "../lib/fileStem";
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
+  activeMemoryFor,
+  addMemoryEntry,
+  addRuleLine,
+  AGENTS_FILE,
+  findMemoryEntry,
+  MEMORY_DRAFT_KINDS,
+  MEMORY_SEARCH_TOOL,
+  memoryDeniedFor,
+  memoryEntryAllowed,
+  memoryFileOf,
+  memoryMetaOf,
+  memoryPlaceOfId,
+  memoryText,
+  parseMemory,
+  removeMemoryEntry,
+  replaceMemoryEntry,
+  type ConversationMemory,
+  type ManifestMemory,
+  type MemoryChange,
+  type MemoryEntry,
+  type MemoryPlace,
+  type MemoryWriter,
   addressOrigin,
   addUsage,
   AI_POLICY_DIMENSIONS,
@@ -221,6 +243,8 @@ import type { McpVaultStore } from "./mcpStores";
 import { createMcpExecutor, newRunMcp, type McpCallQuestion } from "./mcpTools";
 import { AiScripts, type AiScriptsHost, type AiScriptsState, type ScriptApprovalRefusal } from "./scriptSession";
 import { createScriptExecutor, newRunScripts, type ActiveScript } from "./scriptTools";
+import { EMPTY_MEMORY_STATE, readMemory, type AiMemoryHost, type AiMemoryState } from "./aiMemory";
+import type { MemoryProblem } from "./memoryView";
 
 /**
  * THE conversation state of the AI harness (plan §19.1): one store, whatever
@@ -369,6 +393,12 @@ export interface AiVaultHost {
    * absent where the shell cannot read them.
    */
   instructions?: AiInstructionsHost;
+  /**
+   * The vault's memory for assistants (plan KI-Harness P6, ADR 0027): its
+   * two files, and this device's switch for it. Absent where the shell cannot
+   * read the hidden agent area.
+   */
+  memory?: AiMemoryHost;
   /** The drafts of this vault on this device (plan KI-Harness P5): what an assistant wants to exist, until the user decides. */
   drafts?: WriteDraftStore;
   /** How this shell makes what a draft describes — a note, a task, a line in the journal — through the app's own ways. Absent where it cannot. */
@@ -728,6 +758,8 @@ export interface AiState {
   fill: FillProgress | null;
   /** Scripts on this device (plan P5.5): whether it can run them, and the run the workshop started. */
   scripts: AiScriptsState;
+  /** The vault's memory for assistants (plan P6): its entries as its two files hold them, and this device's switch. */
+  memory: AiMemoryState;
 }
 
 /** A column to fill (plan KI-Harness P5-4): the database, the column, and the entries that say nothing in it. */
@@ -778,6 +810,12 @@ export type DraftOutcome =
    */
   | { kind: "opened" }
   /**
+   * An entry of the memory was written, or taken out, or a rule was added to the vault's instructions (plan P6):
+   * done, and nothing to open. `waits`: the rule is in a file this device has not approved yet — it counts once
+   * the user reviewed that file.
+   */
+  | { kind: "kept"; what: "memory" | "forget" | "rule"; waits?: boolean }
+  /**
    * `unavailable`: this shell cannot make that kind of thing. `gone`: the draft is not there any more.
    * `no-entry-folder`: the database an entry was drafted for has no folder for new entries (yet, or any more).
    * `exists`: the draft names its own file, and a file of that name is there by now — nothing is written over.
@@ -785,6 +823,9 @@ export type DraftOutcome =
    * `no-calendar`: no calendar takes an appointment right now — the event editor would have nowhere to save to.
    */
   | { kind: "refused"; reason: "off" | "unavailable" | "gone" | "busy" | "failed" | "no-entry-folder" | "exists" | "editor-open" | "no-calendar"; message?: string };
+
+/** How a change to the vault's memory ended (plan P6): written, or why not. */
+export type MemoryOutcome = { ok: true } | { ok: false; reason: MemoryProblem };
 
 type Listener = () => void;
 
@@ -809,6 +850,12 @@ function manifestInstructionsOf(instructions: ConversationInstructions | undefin
   }
   if (instructions.vaultTokens) out.vault = { tokens: instructions.vaultTokens };
   return Object.keys(out).length ? out : undefined;
+}
+
+/** What the overview says of the memory a conversation was started with (plan P6): counts, never an entry. */
+function manifestMemoryOf(instructions: ConversationInstructions | undefined): ManifestMemory | undefined {
+  const memory = instructions?.memory;
+  return memory ? { entries: memory.entries, withheld: memory.withheld, tokens: memory.tokens, lookup: memory.lookup } : undefined;
 }
 
 /** What a new conversation starts with: its tools, the blocks of its system prompt, and the record of both. */
@@ -965,6 +1012,7 @@ export class AiSession {
       drafts: EMPTY_WRITE_DRAFTS,
       fill: null,
       scripts: this.scripts.state,
+      memory: EMPTY_MEMORY_STATE,
     };
   }
 
@@ -1160,6 +1208,8 @@ export class AiSession {
       drafts: EMPTY_WRITE_DRAFTS,
       // A column that was being filled belongs to the vault that is gone; its run ends with its next entry.
       fill: null,
+      // Another vault's memory is not this one's: empty until this vault's own files are read.
+      memory: EMPTY_MEMORY_STATE,
     });
     this.fillAbort?.abort();
     // A script the workshop started ran on the vault that is gone: it ends here, and what it showed goes with it.
@@ -1173,6 +1223,7 @@ export class AiSession {
     void this.refreshSkills();
     void this.loadWebSettings(vault);
     void this.loadDrafts(vault);
+    void this.refreshMemory();
     const summaries: ConversationSummary[] = await vault.conversations.list().catch(() => []);
     const old = expiredConversations(summaries, this.state.settings.historyDays, this.host.now());
     for (const id of old) await vault.conversations.remove(id).catch(() => undefined);
@@ -1366,10 +1417,13 @@ export class AiSession {
    * chip on its card, as on the capture field. The draft is gone once the
    * thing exists; what became of it is kept.
    */
-  async createDraft(id: string, choice: { atProvider?: boolean } = {}): Promise<DraftOutcome> {
+  async createDraft(id: string, choice: { atProvider?: boolean; place?: MemoryPlace } = {}): Promise<DraftOutcome> {
     const refused = (reason: Extract<DraftOutcome, { kind: "refused" }>["reason"], message?: string): DraftOutcome => ({ kind: "refused", reason, ...(message ? { message } : {}) });
     const vault = this.vault;
     if (!this.state.settings.enabled || !vault) return refused("off");
+    // The memory's own drafts (plan P6) are made by the memory's own writer, not by the shell's way of making notes.
+    const waiting = this.state.drafts.drafts.find((candidate) => candidate.id === id);
+    if (waiting && MEMORY_DRAFT_KINDS.includes(waiting.body.kind)) return this.keepMemoryDraft(vault, waiting, choice.place);
     const creates = vault.creates;
     if (!creates || !vault.drafts) return refused("unavailable");
     if (this.creatingDraft) return refused("busy");
@@ -1379,6 +1433,8 @@ export class AiSession {
     this.creatingDraft = true;
     try {
       let path: string;
+      // Handled above, by the memory's own writer.
+      if (body.kind === "memory" || body.kind === "forget" || body.kind === "rule") return refused("unavailable");
       if (body.kind === "mail" || body.kind === "event") {
         // An e-mail and an appointment are never made here (plan P5-6): the draft is handed to the app's own composer
         // or event editor, filled in. It stays in the list while that is open, and leaves it only when the user took
@@ -1441,6 +1497,65 @@ export class AiSession {
     } finally {
       this.creatingDraft = false;
     }
+  }
+
+  /**
+   * "Remember", "Remove" and "Add as a rule" on a draft of the memory (plan
+   * P6): the user's own step, as "Create" is on every other draft. An entry
+   * is written with the rules its conversation rested on — it goes to no
+   * model those notes may not go to. `place`: where the user wants it, where
+   * that differs from what the writer proposed. A rule goes into the vault's
+   * instructions, and never from a conversation that carries a restricted
+   * note: a rule is sent to every model.
+   */
+  private async keepMemoryDraft(vault: AiVaultHost, draft: WriteDraft, place?: MemoryPlace): Promise<DraftOutcome> {
+    const refused = (reason: Extract<DraftOutcome, { kind: "refused" }>["reason"]): DraftOutcome => ({ kind: "refused", reason, message: this.host.label?.("ai.memory.problem.failed") ?? "" });
+    if (this.creatingDraft) return { kind: "refused", reason: "busy" };
+    const body = draft.body;
+    this.creatingDraft = true;
+    try {
+      let outcome: DraftOutcome;
+      if (body.kind === "memory") {
+        const source = draft.conversationId ? (this.state.summaries.find((summary) => summary.id === draft.conversationId)?.title ?? null) : null;
+        // The entry it rewords, as the files hold it now: gone since, the new wording is simply an entry.
+        const held = body.replaces ? await this.memoryEntryNamed(vault, body.replaces) : null;
+        const result = held
+          ? // A reworded entry keeps the rules it had and takes those of this conversation as well.
+            await this.editMemory(held.id, body.text, { deny: AI_POLICY_DIMENSIONS.filter((dimension) => held.deny.includes(dimension) || draft.inherited.includes(dimension)) })
+          : await this.addMemory({ text: body.text, place: place ?? body.place, deny: draft.inherited, by: "assistant", source });
+        // The memory holds these words already: that is what was asked for.
+        if (!result.ok && result.reason !== "duplicate") return refused(result.reason === "unavailable" || result.reason === "no-vault" ? "unavailable" : "failed");
+        outcome = { kind: "kept", what: "memory" };
+      } else if (body.kind === "forget") {
+        const held = await this.memoryEntryNamed(vault, body.entry);
+        if (held) {
+          const result = await this.removeMemory(held.id);
+          if (!result.ok && result.reason !== "gone") return refused(result.reason === "unavailable" || result.reason === "no-vault" ? "unavailable" : "failed");
+        }
+        outcome = { kind: "kept", what: "forget" };
+      } else if (body.kind === "rule") {
+        if (draft.inherited.length > 0) return refused("unavailable");
+        const result = await this.addRule(body.text);
+        if (!result.ok && result.reason !== "duplicate") return refused(result.reason === "unavailable" || result.reason === "no-vault" ? "unavailable" : "failed");
+        outcome = { kind: "kept", what: "rule", ...(result.ok && !result.approved ? { waits: true } : {}) };
+      } else return refused("unavailable");
+      const at = this.host.now().toISOString();
+      await this.changeDrafts(vault, (state) => ({
+        drafts: withoutWriteDraft(state.drafts, draft.id),
+        done: withWriteDraftOutcome(state.done, { id: draft.id, kind: body.kind, title: draft.title, outcome: "created", at }),
+      })).catch(() => null);
+      return outcome;
+    } finally {
+      this.creatingDraft = false;
+    }
+  }
+
+  /** The entry of the memory a text names, read from the files as they are now; null where none, or more than one, reads so. */
+  private async memoryEntryNamed(vault: AiVaultHost, text: string): Promise<MemoryEntry | null> {
+    const host = vault.memory;
+    if (!host) return null;
+    const read = await readMemory(host).catch(() => null);
+    return read ? findMemoryEntry([...read.active, ...read.long], text) : null;
   }
 
   /** "Discard" on a draft: it is gone, and its conversation can still say that it was. */
@@ -1759,6 +1874,212 @@ export class AiSession {
     await host.approvals.save(pruneInstructionApprovals(revokeInstruction(approvals, id), new Set((await host.scan().catch(() => [] as InstructionSource[])).map((s) => s.id))));
     await this.refreshSkills();
     return true;
+  }
+
+  // ----------------------------------------------------------------- memory
+
+  /** One lane for the memory files: a change reads the file it changes at that moment, and no two of them cross. */
+  private memoryLane: Promise<unknown> = Promise.resolve();
+  private inMemoryLane<T>(work: () => Promise<T>): Promise<T> {
+    const run = this.memoryLane.catch(() => undefined).then(work);
+    this.memoryLane = run;
+    return run;
+  }
+
+  /** Reads the vault's memory — both files and this device's switch — into the state (plan KI-Harness P6). */
+  async refreshMemory(): Promise<void> {
+    const vault = this.vault;
+    const host = vault?.memory;
+    if (!vault || !host) {
+      if (this.vault === vault) this.set({ memory: { ...EMPTY_MEMORY_STATE, loaded: true } });
+      return;
+    }
+    // A switch that cannot be read is off: nothing of the memory goes anywhere on a guess.
+    const [read, prefs] = await Promise.all([readMemory(host).catch(() => null), host.prefs.load().catch(() => ({ on: false }))]);
+    if (this.vault !== vault) return;
+    this.set({
+      memory: {
+        loaded: true,
+        available: read !== null,
+        writable: read !== null && Boolean(host.write),
+        on: prefs.on,
+        active: read?.active ?? [],
+        long: read?.long ?? [],
+        budget: read?.budget ?? EMPTY_MEMORY_STATE.budget,
+        cut: read?.cut ?? [],
+        files: read?.files ?? [],
+      },
+    });
+  }
+
+  /** This device's switch for the memory: off, nothing of it goes to a model from here, and no tool reads or proposes into it. */
+  async switchMemory(on: boolean): Promise<void> {
+    const host = this.vault?.memory;
+    if (!host) return;
+    await host.prefs.save({ on }).catch(() => undefined);
+    await this.refreshMemory();
+  }
+
+  /**
+   * Changes one of the two memory files: the file is read at this moment,
+   * changed as text and written back as a whole — through the vault's own
+   * adapters, so the file that was there is backed up first. Nothing is
+   * written where the change does not apply.
+   */
+  private changeMemory(place: MemoryPlace, change: (file: string | null) => MemoryChange): Promise<MemoryOutcome> {
+    const vault = this.vault;
+    const host = vault?.memory;
+    if (!vault) return Promise.resolve({ ok: false, reason: "no-vault" });
+    if (!host?.write) return Promise.resolve({ ok: false, reason: "unavailable" });
+    const write = host.write;
+    return this.inMemoryLane(async (): Promise<MemoryOutcome> => {
+      try {
+        const read = await host.read(place);
+        // A file that is too large to be read is none this app writes over.
+        if (read.tooLarge) return { ok: false, reason: "unavailable" };
+        const changed = change(read.text);
+        if (!changed.ok) return { ok: false, reason: changed.problem };
+        if (changed.text !== read.text) await write(place, changed.text);
+        return { ok: true };
+      } catch {
+        return { ok: false, reason: "write-failed" };
+      } finally {
+        await this.refreshMemory();
+      }
+    });
+  }
+
+  /**
+   * A new entry of the memory, as the user wrote it here — or as a draft of
+   * an assistant they accepted (`by`, `source`). `deny`: the rules it carries.
+   */
+  addMemory(input: { text: string; place: MemoryPlace; deny?: readonly AiPolicyDimension[]; by?: MemoryWriter; source?: string | null }): Promise<MemoryOutcome> {
+    const meta = { added: this.host.today(), by: input.by ?? ("user" as const), source: input.source ?? null, deny: [...(input.deny ?? [])] };
+    return this.changeMemory(input.place, (file) => addMemoryEntry(file, input.place, input.text, meta));
+  }
+
+  /** Rewords an entry. What the app knows about it stays; `deny` sets its rules anew where the form could read them. */
+  editMemory(id: string, text: string, options: { deny?: readonly AiPolicyDimension[] } = {}): Promise<MemoryOutcome> {
+    const place = memoryPlaceOfId(id);
+    if (!place) return Promise.resolve({ ok: false, reason: "gone" });
+    return this.changeMemory(place, (file) => (file === null ? { ok: false, problem: "gone" } : replaceMemoryEntry(file, place, id, text, options.deny ? { deny: [...options.deny] } : {})));
+  }
+
+  removeMemory(id: string): Promise<MemoryOutcome> {
+    const place = memoryPlaceOfId(id);
+    if (!place) return Promise.resolve({ ok: false, reason: "gone" });
+    return this.changeMemory(place, (file) => (file === null ? { ok: false, problem: "gone" } : removeMemoryEntry(file, place, id)));
+  }
+
+  /**
+   * Moves an entry into the other file — "always included" or "on demand" —
+   * with everything the app knows about it. It is written into the file it
+   * goes to first and taken out of its own after: an entry is never in
+   * neither. Where the other file holds the same words already, it only goes
+   * from this one.
+   */
+  moveMemory(id: string, to: MemoryPlace): Promise<MemoryOutcome> {
+    const vault = this.vault;
+    const host = vault?.memory;
+    const from = memoryPlaceOfId(id);
+    if (!vault) return Promise.resolve({ ok: false, reason: "no-vault" });
+    if (!host?.write) return Promise.resolve({ ok: false, reason: "unavailable" });
+    if (!from || from === to) return Promise.resolve({ ok: false, reason: "gone" });
+    const write = host.write;
+    return this.inMemoryLane(async (): Promise<MemoryOutcome> => {
+      try {
+        const [source, target] = await Promise.all([host.read(from), host.read(to)]);
+        if (source.tooLarge || target.tooLarge || source.text === null) return { ok: false, reason: source.text === null ? "gone" : "unavailable" };
+        const entry = parseMemory(source.text, from).entries.find((candidate) => candidate.id === id);
+        if (!entry) return { ok: false, reason: "gone" };
+        const added = addMemoryEntry(target.text, to, entry.text, memoryMetaOf(entry));
+        if (!added.ok && added.problem !== "duplicate") return { ok: false, reason: added.problem };
+        if (added.ok) await write(to, added.text);
+        const removed = removeMemoryEntry(source.text, from, id);
+        if (removed.ok) await write(from, removed.text);
+        return { ok: true };
+      } catch {
+        return { ok: false, reason: "write-failed" };
+      } finally {
+        await this.refreshMemory();
+      }
+    });
+  }
+
+  /**
+   * A rule for assistants (plan P6): one more line of the vault's standing
+   * instructions, `AGENTS.md`. A rule is no memory — it says what to do —, so
+   * it goes where instructions go, and counts on a device only once that
+   * device approved the file. Written here, into a file this device had
+   * approved as it stood (or that was not there), it is approved here with
+   * exactly what was written: the user wrote the one line that changed. A
+   * file that was waiting for a review keeps waiting — the rule is in it, and
+   * the user reads the whole of it first.
+   */
+  addRule(text: string): Promise<{ ok: true; approved: boolean } | { ok: false; reason: MemoryProblem | "too-large" }> {
+    const vault = this.vault;
+    const host = vault?.instructions;
+    if (!vault) return Promise.resolve({ ok: false, reason: "no-vault" });
+    if (!host?.write) return Promise.resolve({ ok: false, reason: "unavailable" });
+    const write = host.write;
+    return this.inMemoryLane(async () => {
+      try {
+        const [before, approvals] = await Promise.all([host.scanOne(AGENTS_FILE).catch(() => null), host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS)]);
+        if (before?.tooLarge) return { ok: false as const, reason: "too-large" as const };
+        const status = before ? instructionStatus(before, approvals) : null;
+        const changed = addRuleLine(before?.text ?? null, text);
+        if (!changed.ok) return { ok: false as const, reason: changed.problem === "too-large" ? ("too-large" as const) : changed.problem };
+        const bytes = new TextEncoder().encode(changed.text);
+        await write(AGENTS_FILE, bytes);
+        const written = await host.scanOne(AGENTS_FILE).catch(() => null);
+        // Approved only what reads back as written, and only where the file was this device's own before.
+        const own = status === null || status === "active" || status === "off";
+        const approved = own && written !== null && written.files.length === 1 && written.files[0]!.sha256 === instructionFileHash(bytes);
+        if (approved) await host.approvals.save(approveInstruction(await host.approvals.load().catch(() => EMPTY_INSTRUCTION_APPROVALS), written, this.host.now().toISOString(), "created"));
+        return { ok: true as const, approved };
+      } catch {
+        return { ok: false as const, reason: "write-failed" as const };
+      } finally {
+        await this.refreshSkills();
+      }
+    });
+  }
+
+  /**
+   * What of the vault's memory a new conversation is started with (plan P6,
+   * ADR 0027). Asked once, when the conversation begins: its system prompt
+   * is fixed from then on. The file's own rules come first — a folder rule
+   * over the agent area, a rule in the file's properties —, then each
+   * entry's: an entry goes to no recipient one of its rules keeps out, and
+   * one whose rules cannot be read goes nowhere. `lookup`: the long-term
+   * memory holds something this recipient may have, so the tool that
+   * searches it is worth carrying.
+   */
+  private async memoryStart(vault: AiVaultHost, recipient: EgressRecipient, web: boolean): Promise<{ text: string; lookup: boolean; record: Omit<ConversationMemory, "lookup"> } | null> {
+    const host = vault.memory;
+    if (!host) return null;
+    const prefs = await host.prefs.load().catch(() => ({ on: false }));
+    if (!prefs.on) return null;
+    const read = await readMemory(host).catch(() => null);
+    if (!read) return null;
+    const run: GateRun = { recipient, webTools: web };
+    const gate = { denied: memoryDeniedFor(recipient, web) };
+    const fileRules = async (place: MemoryPlace): Promise<{ allowed: boolean; denies: AiPolicyDimension[] }> => {
+      const text = read.texts[place];
+      if (text === null) return { allowed: false, denies: [] };
+      const effective = await vault.policy.policyOf(memoryFileOf(place), text).catch(() => null);
+      // A rule that cannot be looked up says no.
+      if (!effective) return { allowed: false, denies: [...AI_POLICY_DIMENSIONS] };
+      return { allowed: gateDecision(effective, run).allowed, denies: AI_POLICY_DIMENSIONS.filter((dimension) => effective.policy[dimension] === "deny") };
+    };
+    const [activeFile, longFile] = await Promise.all([fileRules("active"), fileRules("long")]);
+    const active = activeFile.allowed ? activeMemoryFor(read.active, gate) : { entries: [], withheld: read.active.length, left: 0, chars: 0 };
+    const lookup = longFile.allowed && read.long.some((entry) => memoryEntryAllowed(entry, gate));
+    if (active.entries.length === 0 && active.withheld === 0 && !lookup) return null;
+    const text = memoryText(active.entries);
+    // What went although a rule restricts it elsewhere: a conversation without the internet may carry an entry kept from it.
+    const restricted = AI_POLICY_DIMENSIONS.filter((dimension) => active.entries.length > 0 && (activeFile.denies.includes(dimension) || active.entries.some((entry) => entry.deny.includes(dimension))));
+    return { text, lookup, record: { entries: active.entries.length, withheld: active.withheld, left: active.left, tokens: estimateTokens(text), restricted } };
   }
 
   // ---------------------------------------------------------------- scripts
@@ -3009,6 +3330,8 @@ export class AiSession {
     // this device made from a note that must never reach a cloud must not reach one as a note either. A rule that
     // cannot be looked up counts as one that says no.
     const inherited = new Set<AiPolicyDimension>();
+    // The entries of the memory the conversation began with (plan P6) stand behind every answer of it.
+    for (const rule of record.instructions?.memory?.restricted ?? []) inherited.add(rule);
     const carried = new Set<string>(record.pins);
     let unknown = false;
     for (const earlier of record.runs) {
@@ -3289,10 +3612,14 @@ export class AiSession {
           await this.furtherTools(vault, provider, recipient, true),
         );
     const tools = record ? record.conversation.tools : (start?.tools ?? []);
+    // The memory a new conversation would begin with (plan P6): the same reading its first message makes.
+    const fresh = record ? null : await this.memoryStart(vault, recipient, this.state.draftWeb && this.state.web.enabled);
+    const memory = record ? manifestMemoryOf(record.instructions) : fresh ? { entries: fresh.record.entries, withheld: fresh.record.withheld, tokens: fresh.record.tokens, lookup: fresh.lookup && tools.length > 0 } : undefined;
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
       tools,
       more: record ? (record.conversation.more ?? []) : (start?.more ?? []),
       instructions: manifestInstructionsOf(record ? record.instructions : (start?.instructions ?? undefined)),
+      ...(memory ? { memory } : {}),
       web: hasWebTools(tools),
     });
     const built = await context.build(new Set(this.state.leaveOutNext), new Set(record ? (record.redact ?? []) : this.state.draftRedact));
@@ -3314,7 +3641,7 @@ export class AiSession {
     provider: ProviderInfo,
     pins: readonly string[],
     turns: ConversationRecord["conversation"]["turns"],
-    conversation: { tools: readonly string[]; more?: readonly string[]; instructions?: ManifestInstructions; withoutActive?: boolean; web?: boolean },
+    conversation: { tools: readonly string[]; more?: readonly string[]; instructions?: ManifestInstructions; memory?: ManifestMemory; withoutActive?: boolean; web?: boolean },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
     // The system's own model takes no tools, and a small window a smaller package (plan P2c).
@@ -3362,6 +3689,8 @@ export class AiSession {
         // Shown as allowed only while the vault's switch is on: switched off since, the tools answer that it is off.
         ...(web && this.state.web.enabled ? { web: true, webHosts: this.state.web.allow } : {}),
         ...(conversation.instructions ? { instructions: conversation.instructions } : {}),
+        // The system's own model gets the memory too; what the overview says of the lookup follows the tools it has.
+        ...(conversation.memory ? { memory: platform ? { ...conversation.memory, lookup: false } : conversation.memory } : {}),
         ...(this.priceOf(choice) ? { priceUsdPerMillionInput: this.priceOf(choice)!.input } : {}),
       });
       return { pack, manifest };
@@ -3532,11 +3861,21 @@ export class AiSession {
       const boundSkill = skills?.bind ? entries.find((entry) => entry.source.id === skills.bind && entry.status === "active")?.source.skill : undefined;
       const skillWeb = Boolean(boundSkill && skillNamesWeb(boundSkill));
       const withWeb = !apart && this.state.web.enabled && (skills?.bind ? skillWeb : this.state.draftWeb);
+      // The vault's memory (plan P6, ADR 0027): what this recipient may have of it goes into the system prompt of a
+      // conversation the user began — never of a door, which answers one question where it was asked, nor of a
+      // regression run, which measures a skill and not what the user happens to have kept.
+      const memory = apart ? null : await this.memoryStart(vault, recipient, withWeb);
       // A door answers where it was asked: it reads the vault, it does not move the app — and it looks for no further tool.
-      const offered = this.offeredTools(vault, provider, recipient, withWeb).filter((name) => !door || name !== "run_command");
+      const served = this.offeredTools(vault, provider, recipient, withWeb).filter((name) => !door || name !== "run_command");
+      // The tool that looks into the long-term memory is carried where there is something in it for this recipient — and tools at all.
+      const offered = memory?.lookup && served.length ? [...served, MEMORY_SEARCH_TOOL] : served;
       const further = door ? [] : await this.furtherTools(vault, provider, recipient, !detached && !skills?.bind, entries);
       // A door runs without skills (plan P3-6): the vault's standing instructions still apply, the catalog does not.
       const start = this.conversationStart(door ? entries.filter((e) => e.source.kind === "agents") : entries, offered, skills?.bind, further);
+      // A skill the conversation is bound to may leave the tool out: what the prompt says of it follows the list.
+      const lookup = start.tools.includes(MEMORY_SEARCH_TOOL);
+      const memoryPrompt = memory && (memory.text || lookup) ? { memory: { text: memory.text, lookup } } : {};
+      const instructions: ConversationInstructions | null = memory ? { ...(start.instructions ?? {}), memory: { ...memory.record, lookup } } : start.instructions;
       const id = this.host.newId();
       record = {
         version: 1 as const,
@@ -3546,11 +3885,11 @@ export class AiSession {
         updatedAt: now,
         providerId: choice.providerId,
         model: choice.model,
-        conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, more: start.more, ...start.prompt }), start.tools, start.more),
+        conversation: startConversation(id, assistantSystemPrompt({ language: this.host.language(), today: this.host.today(), tools: start.tools, more: start.more, ...start.prompt, ...memoryPrompt }), start.tools, start.more),
         usage: EMPTY_USAGE,
         runs: [],
         pins: door ? door.pins : detached ? [] : this.state.draftPins,
-        ...(start.instructions ? { instructions: start.instructions } : {}),
+        ...(instructions ? { instructions } : {}),
         // Begun for a reader on this device: what it is given from the first message on was never checked for a cloud.
         ...(isCloudRecipient(recipient) ? {} : { onDevice: true as const }),
       };
@@ -3575,6 +3914,8 @@ export class AiSession {
       ...skillScope(bound?.folders, skillState),
       passed: (path, rules) => {
         for (const rule of rules) restricted.add(rule);
+        // An entry of the memory (plan P6) is no note that was read: its rules count, its file is no source of anything.
+        if (isAiHiddenPath(path)) return;
         if (reads.paths.size < RUN_READ_CAP) reads.paths.add(path);
         else if (!reads.paths.has(path)) reads.more = true;
       },
@@ -3672,6 +4013,9 @@ export class AiSession {
               check: (serverId, signal) => this.mcp.check(serverId, signal),
               carried: () => this.carriedBy(vault, startedWith, sending.sources, reads),
               keptFromCloud: (serverId, paths) => this.keptFromCloud(vault, serverId, paths),
+              // What no path names (plan P6): an entry of the memory that is kept from every cloud, given to a model
+              // on this device. A foreign server is a cloud recipient; such a conversation calls none.
+              keptByRule: () => restricted.has("cloud") || startedWith.runs.some((earlier) => earlier.restricted?.includes("cloud")) || Boolean(startedWith.instructions?.memory?.restricted.includes("cloud")),
               ask: (question, signal) => this.askMcp(question, signal),
               call: (serverId, tool, args, inputSchema, signal) => this.mcp.call(serverId, tool, args, inputSchema, signal),
               log: (entry) => this.mcp.log({ ...entry, at: this.host.now().toISOString(), conversation: startedWith.id }),
@@ -3696,10 +4040,12 @@ export class AiSession {
           : undefined);
 
     // The context of this message: what "View context" showed, without the notes left out there.
+    const carriedMemory = manifestMemoryOf(record.instructions);
     const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, {
       tools: toolNames,
       more: moreNames,
       instructions: manifestInstructionsOf(record.instructions),
+      ...(carriedMemory ? { memory: carriedMemory } : {}),
       // A regression run measures the skill, not whatever note happens to be open.
       ...(detached ? { withoutActive: true } : {}),
       web,
@@ -3831,6 +4177,8 @@ export class AiSession {
   ): Promise<AiPolicyDimension[]> {
     const inherited = new Set<AiPolicyDimension>(restricted);
     for (const run of record.runs) for (const rule of run.restricted ?? []) inherited.add(rule);
+    // The entries of the memory the conversation was started with (plan P6) are part of what it rests on.
+    for (const rule of record.instructions?.memory?.restricted ?? []) inherited.add(rule);
     const carried = await this.carriedBy(vault, record, sending, reads);
     if (carried.more) return [...AI_POLICY_DIMENSIONS];
     for (const path of carried.paths) {

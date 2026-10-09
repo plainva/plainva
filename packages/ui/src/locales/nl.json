@@ -39,6 +39,7 @@
       "get_event": "Leest een afspraak",
       "search_mail": "Zoekt in je e-mail",
       "read_mail": "Leest een bericht",
+      "search_memory": "Zoekt in het geheugen",
       "find_tools": "Zoekt andere hulpmiddelen",
       "call_tool": "Gebruikt een ander hulpmiddel",
       "propose_edit": "Stelt wijzigingen in een notitie voor",
@@ -47,6 +48,8 @@
       "create_task": "Maakt een concept van een taak",
       "add_journal_entry": "Maakt een concept van een journaalitem",
       "create_entry": "Maakt een concept van een database-item",
+      "remember": "Maakt een concept van een geheugenitem",
+      "forget": "Maakt een concept om een geheugenitem te verwijderen",
       "draft_mail": "Maakt een concept van een e-mail",
       "draft_event": "Maakt een concept van een afspraak",
       "rename_note": "Legt een plan voor om te hernoemen",
@@ -288,8 +291,13 @@
         "audio": "een opname",
         "searches": "je zoekvragen",
         "comments": "een discussie in de opmerkingen",
+        "memory": "het geheugen van de vault",
         "images": "een afbeelding"
       },
+      "memory": "Geheugen",
+      "memoryEntries_one": "{{count}} item uit “Altijd erbij”",
+      "memoryEntries_other": "{{count}} items uit “Altijd erbij”",
+      "memoryLookup": "“Om op te zoeken” kan worden doorzocht",
       "keptBack": "Achtergehouden",
       "keptNotes_one": "{{count}} notitie die je regels blokkeren",
       "keptNotes_other": "{{count}} notities die je regels blokkeren",
@@ -301,6 +309,8 @@
       "keptMood_other": "{{count}} stemmingswaarden",
       "keptSensitive_one": "{{count}} weggelakt gegeven",
       "keptSensitive_other": "{{count}} weggelakte gegevens",
+      "keptMemory_one": "{{count}} geheugenitem dat je regels blokkeren",
+      "keptMemory_other": "{{count}} geheugenitems die je regels blokkeren",
       "tools": "Hulpmiddelen",
       "instructions": "Instructies",
       "skillApp": "Vaardigheid ‘{{title}}’ (meegeleverd met Plainva)",
@@ -819,6 +829,116 @@
         "conversation": "Controle · {{skill}} · {{scenario}}"
       },
       "writeFailed":"De vaardigheid kon niet in de vault worden geschreven."
+    },
+    "memory": {
+      "segment": "Geheugen",
+      "open": "Geheugen openen",
+      "use": "Het geheugen op dit apparaat gebruiken",
+      "useDesc": "Een nieuw gesprek krijgt mee wat onder “Altijd erbij” staat en kan de rest opzoeken.",
+      "off": "Uit op dit apparaat: een gesprek hier krijgt niets uit het geheugen en voegt er niets aan toe. De items kun je nog steeds bewerken.",
+      "offShort": "Uit op dit apparaat",
+      "unavailable": "Het geheugen is hier niet beschikbaar: er is een geopende vault nodig waarvan dit apparaat de bestanden kan lezen.",
+      "none": "Er staat nog niets in",
+      "summary": "{{active}} altijd erbij · {{long}} om op te zoeken",
+      "newEntry": "Nieuw item",
+      "active": "Altijd erbij",
+      "long": "Om op te zoeken",
+      "budget": "{{used}} van {{limit}} tekens",
+      "activeEmpty": "Nog niets. Wat hier staat, gaat mee in elk nieuw gesprek — beperk het tot wat de AI altijd over je moet weten.",
+      "longEmpty": "Nog niets. Wat hier staat, wordt niet meegestuurd; de AI zoekt het op wanneer een gesprek het nodig heeft.",
+      "cut": "Niet alles in dit bestand wordt gelezen: het is te groot of bevat te veel items. Kort het in de editor in.",
+      "search": "Items doorzoeken",
+      "searchNone": "Geen item komt overeen.",
+      "openFile": "Bestand openen",
+      "files": "Het geheugen bestaat uit twee bestanden van deze vault: .agent/active_memory.md en .agent/MEMORY.md. Je kunt ze lezen en bewerken zoals elke notitie, en ze synchroniseren mee met de vault.",
+      "waiting_one": "{{count}} voorstel van de AI voor het geheugen wacht onder “Open”. Het staat niet in het geheugen voordat je het aanvaardt.",
+      "waiting_other": "{{count}} voorstellen van de AI voor het geheugen wachten onder “Open”. Geen ervan staat in het geheugen voordat je het aanvaardt.",
+      "waitingShow": "Tonen",
+      "deleteConfirm": "Dit item verwijderen?",
+      "deleteBody": "Het wordt uit het bestand gehaald en geen nieuw gesprek krijgt het nog mee. Gesprekken die al begonnen zijn, houden wat ze gekregen hebben.",
+      "sentLine_one": "{{count}} geheugenitem",
+      "sentLine_other": "{{count}} geheugenitems",
+      "by": {
+        "user": "Door jou toegevoegd",
+        "userOn": "Door jou toegevoegd op {{day}}",
+        "assistant": "Voorgesteld door de AI, door jou aanvaard",
+        "assistantOn": "Voorgesteld door de AI, aanvaard op {{day}}",
+        "file": "In het bestand geschreven",
+        "fileOn": "In het bestand sinds {{day}}",
+        "source": "Gesprek: {{source}}"
+      },
+      "mark": {
+        "cloud": "Niet naar cloudmodellen",
+        "web": "Niet in gesprekken met internet",
+        "unreadable": "Regels onleesbaar — gaat naar geen enkel model",
+        "tooLong": "Langer dan {{limit}} tekens — wordt niet gebruikt",
+        "over": "Geen plaats meer — gaat niet mee",
+        "hidden_one": "{{count}} verborgen deel weggelaten",
+        "hidden_other": "{{count}} verborgen delen weggelaten"
+      },
+      "action": {
+        "edit": "Bewerken",
+        "toActive": "Altijd meegeven",
+        "toLong": "Alleen nog opzoeken",
+        "delete": "Verwijderen"
+      },
+      "problem": {
+        "empty": "Het item is leeg.",
+        "tooLong": "Een item bevat hoogstens {{limit}} tekens.",
+        "lines": "Een item is één regel: schrijf het zonder regeleinde.",
+        "duplicate": "Dat staat er al, woord voor woord.",
+        "gone": "Het item staat niet meer in het bestand. Misschien is het op een ander apparaat gewijzigd.",
+        "failed": "Het geheugen kon niet worden gewijzigd."
+      },
+      "form": {
+        "titleNew": "Nieuw geheugenitem",
+        "titleEdit": "Geheugenitem bewerken",
+        "text": "Wat onthouden moet worden",
+        "textHint": "Eén ding per item: een zin over jou of je werk. Wat de AI moet doen, hoort bij de regels.",
+        "count": "{{used}} van {{limit}} tekens.",
+        "when": "Wanneer het erbij is",
+        "whenActive": "Gaat mee in elk nieuw gesprek. Daar zijn nog {{left}} tekens vrij.",
+        "whenLong": "Wordt niet meegestuurd; de AI zoekt het op wanneer een gesprek het nodig heeft.",
+        "whom": "Wie het mag krijgen",
+        "local": "Alleen modellen op dit apparaat",
+        "locked": "De regels van dit item zijn in het bestand niet leesbaar, dus het gaat naar geen enkel model. Corrigeer de opmerking achter het item in het bestand, of verwijder het item en voeg het opnieuw toe.",
+        "over": "“Altijd erbij” heeft er geen plaats meer voor: het wordt opgeslagen, maar niet meegegeven. Kort het in, maak plaats of kies “Om op te zoeken”.",
+        "create": "Toevoegen",
+        "save": "Opslaan",
+        "cancel": "Annuleren"
+      },
+      "rules": {
+        "title": "Regels voor de AI",
+        "desc": "Een regel zegt wat de AI moet doen. Het is geen geheugenitem, maar een zin in de vaste instructies van de vault (AGENTS.md).",
+        "add": "Regel toevoegen",
+        "open": "Instructies openen",
+        "formTitle": "Nieuwe regel voor de AI",
+        "text": "Wat de AI moet doen",
+        "hint": "Eén instructie in één zin, bijvoorbeeld “Antwoord kort.” Elk model krijgt ze; je andere apparaten vragen het je eerst.",
+        "create": "Regel toevoegen",
+        "tooLarge": "Het instructiebestand is te groot voor nog een regel."
+      },
+      "draft": {
+        "replaces": "Vervangt",
+        "inherits": "Het item krijgt de privacyregels van de notities waarop dit gesprek berustte.",
+        "do": {
+          "memory": "Onthouden",
+          "forget": "Verwijderen",
+          "rule": "Als regel toevoegen"
+        },
+        "ruleHint": "Een regel komt in de instructies van de vault (AGENTS.md) en gaat naar elk model."
+      },
+      "done": {
+        "memory": "Aan het geheugen toegevoegd.",
+        "forget": "Uit het geheugen verwijderd.",
+        "rule": "Aan de instructies van de vault toegevoegd.",
+        "line": {
+          "memory": "Onthouden: {{name}}",
+          "forget": "Uit het geheugen verwijderd: {{name}}",
+          "rule": "Als regel toegevoegd: {{name}}"
+        },
+        "ruleWaits": "Aan de instructies van de vault toegevoegd. Ze gelden op dit apparaat zodra je het bestand hebt nagekeken en goedgekeurd."
+      }
     },
     "scripts": {
       "group": "Scripts",
@@ -1406,6 +1526,9 @@
           "journal": "Concept · Journaalitem",
           "mail": "Concept · E-mail",
           "event": "Concept · Afspraak",
+          "memory": "Concept · Geheugenitem",
+          "forget": "Concept · Uit het geheugen verwijderen",
+          "rule": "Concept · Regel voor de AI",
           "entry": "Concept · Database-item"
         },
         "what": {
@@ -1414,6 +1537,9 @@
           "journal": "Item",
           "mail": "Onderwerp",
           "event": "Afspraak",
+          "memory": "Item",
+          "forget": "Item",
+          "rule": "Regel",
           "entry": "Item"
         },
         "landsIn": "Komt terecht in",

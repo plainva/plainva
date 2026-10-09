@@ -1,6 +1,6 @@
 # Umiejętności (Beta)
 
-Stan na: 2026-10-08
+Stan na: 2026-10-09
 
 Umiejętność to zestaw instrukcji do pracy, która się powtarza: przygotowanie spotkania, porządkowanie zadań, przegląd tygodnia. Plainva ma dwanaście wbudowanych, a własne można pisać samodzielnie. Umiejętności korzystają z otwartego formatu Agent Skills — folderu z plikiem `SKILL.md` — dlatego działają też w innych aplikacjach AI, które czytają ten format.
 
@@ -53,7 +53,7 @@ Własna umiejętność proponuje zmiany tylko wtedy, gdy jej wiersz `allowed-too
 
 Umiejętność w vaulcie, która jest nowa lub zmieniona — przez synchronizację, import albo edycję na tym lub innym urządzeniu — nie działa, dopóki nie zostanie zatwierdzona **na tym urządzeniu**. Takie umiejętności czekają na górze sekcji **Umiejętności** w **Czekają na zatwierdzenie** oraz w **Ustawienia → AI & automatyzacja** (część vaultu). **Sprawdź i zatwierdź** pokazuje, co umiejętność może robić, co się zmieniło od ostatniego zatwierdzenia, jej instrukcje, pliki i miejsce. Zatwierdzenie obowiązuje dokładnie tę wersję; każda zmiana je znosi. Zatwierdzenia są przechowywane na tym urządzeniu, nigdy w vaulcie.
 
-To samo dotyczy pliku `AGENTS.md` na najwyższym poziomie vaultu: po zatwierdzeniu jego stałe instrukcje trafiają do każdej nowej rozmowy. Ani umiejętność, ani `AGENTS.md` nie może uchylić reguł prywatności, a umiejętność nigdy nie dostaje więcej, niż ma rozmowa — może to tylko zawęzić.
+To samo dotyczy pliku `AGENTS.md` na najwyższym poziomie vaultu: po zatwierdzeniu jego stałe instrukcje trafiają do każdej nowej rozmowy. Ani umiejętność, ani `AGENTS.md` nie może uchylić reguł prywatności, a umiejętność nigdy nie dostaje więcej, niż ma rozmowa — może to tylko zawęzić. Reguła dodana w pamięci albo zaakceptowana ze szkicu AI to kolejny wiersz tego pliku; zob. [Pamięć](AI_Memory.md).
 
 ## Sprawdzanie umiejętności z modelem
 

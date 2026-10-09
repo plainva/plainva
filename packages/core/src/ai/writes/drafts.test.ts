@@ -19,6 +19,7 @@ import {
   type WriteDraft,
   type WriteDraftOutcome,
 } from "./drafts.js";
+import { MEMORY_LIMITS } from "../memory/memoryFile.js";
 
 const draft = (over: Partial<WriteDraft> = {}): WriteDraft => ({
   id: "d-000001",
@@ -308,5 +309,41 @@ describe("an e-mail and an appointment as drafts", () => {
       ],
     };
     expect(parseWriteDraftOutcomes(stored).map((outcome) => `${outcome.id}:${outcome.outcome}`)).toEqual(["d-event1:saved", "d-moved1:opened", "d-saved1:saved", "d-sent01:sent"]);
+  });
+});
+
+describe("what an assistant drafts for the memory (plan P6)", () => {
+  const entry = (body: WriteDraft["body"], id = "d-000001") => draft({ id, title: "x", body, inherited: [], sources: [] });
+
+  it("reads all of them back as they were laid down", () => {
+    const all = [
+      entry({ kind: "memory", text: "I bill per day.", place: "active", replaces: null }),
+      entry({ kind: "memory", text: "My rate is 1000.", place: "long", replaces: "My rate is 950." }, "d-000002"),
+      entry({ kind: "forget", entry: "Offers hold for 30 days." }, "d-000003"),
+      entry({ kind: "rule", text: "Answer in German." }, "d-000004"),
+    ];
+    expect(parseWriteDrafts(JSON.parse(JSON.stringify(serializeWriteDrafts(all))))).toEqual(all);
+  });
+
+  it("takes as an entry or a rule only what can be written as one: a single line, within the bound, with something to see", () => {
+    const stored = (body: unknown) => parseWriteDraft({ ...entry({ kind: "rule", text: "x" }), body });
+    for (const text of ["", "   ", "One.\nTwo.", "x".repeat(MEMORY_LIMITS.entryChars + 1), "<!-- only a comment -->"]) {
+      expect(stored({ kind: "memory", text, place: "active", replaces: null }), JSON.stringify(text.slice(0, 20))).toBeNull();
+      expect(stored({ kind: "rule", text }), JSON.stringify(text.slice(0, 20))).toBeNull();
+    }
+    // A place nobody knows is the first one, never a third file.
+    expect(stored({ kind: "memory", text: "A.", place: "elsewhere" })?.body).toEqual({ kind: "memory", text: "A.", place: "active", replaces: null });
+    expect(stored({ kind: "memory", text: "A.", place: "long", replaces: "" })).toBeNull();
+    expect(stored({ kind: "forget", entry: "" })).toBeNull();
+    expect(stored({ kind: "forget" })).toBeNull();
+  });
+
+  it("what became of one is kept like every other outcome", () => {
+    const done: WriteDraftOutcome[] = [
+      { id: "d-000001", kind: "memory", title: "I bill per day.", outcome: "created", at: "2026-10-09T10:00:00.000Z" },
+      { id: "d-000002", kind: "forget", title: "Offers hold.", outcome: "created", at: "2026-10-09T10:01:00.000Z" },
+      { id: "d-000003", kind: "rule", title: "Answer in German.", outcome: "discarded", at: "2026-10-09T10:02:00.000Z" },
+    ];
+    expect(parseWriteDraftOutcomes(JSON.parse(JSON.stringify(serializeWriteDrafts([], done))))).toEqual(done);
   });
 });

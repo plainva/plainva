@@ -48,7 +48,9 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
    data (tier 3, ADR 0018).
 3. **Memory is not policy.** Facts and preferences live in memory; security
    and permission rules are enforced by the policy engine. A memory note
-   cannot unlock a capability.
+   cannot unlock a capability. What a memory is in its two files, what of it
+   a conversation gets, and how an entry or a rule comes to be is
+   [ADR 0027](0027-ai-memory-entries-and-their-rules.md).
 4. **Skills create no rights.** A skill can only narrow what the tools allow.
    Core skills ship with the app (day orientation, weekly review, project
    status, meeting preparation, task triage, research with source capture,
@@ -247,5 +249,5 @@ build provenance, `AGENTS.md` files loaded from untrusted checkouts.
 
 ## Links
 
-- ADR 0017, ADR 0018, ADR 0019, ADR 0022; the Agent Skills specification;
+- ADR 0017, ADR 0018, ADR 0019, ADR 0022, ADR 0027; the Agent Skills specification;
   SEP-2640 (Skills over MCP).

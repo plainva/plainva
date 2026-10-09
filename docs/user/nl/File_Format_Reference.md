@@ -1,6 +1,6 @@
 # Bestandsformaat-referentie
 
-Laatst bijgewerkt: 2026-09-24
+Laatst bijgewerkt: 2026-10-09
 
 Deze pagina is het exacte, op-de-schijf-contract voor **elk bestand in een Plainva-vault**. Ze is zo geschreven dat een tool — een ander programma, script of KI-assistent — vault-bestanden rechtstreeks kan lezen en veilig bewerken, zonder de omweg via Plainva's gebruikersinterface. Gebruik je alleen de app, dan heb je deze pagina nooit nodig; de [overige handleidingpagina's](README.md) behandelen normaal gebruik.
 
@@ -185,6 +185,21 @@ folders:
 ```
 
 `true`/`false` gelden als `allow`/`deny`; elke andere waarde wordt genegeerd en zet nooit iets open. De rest van de verborgen map `.agent/` — skills (`skills/<name>/SKILL.md`), geheugen en gespreksnotities — hoort bij de assistent van Plainva. Plainva volgt een nieuw of gewijzigd bestand daar pas als de gebruiker het op dat apparaat heeft goedgekeurd; een tool zou dus alleen in `.agent/` moeten schrijven als de gebruiker precies dat vraagt.
+
+### Het geheugen van de assistent (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Twee Markdown-bestanden bevatten wat de assistent over de gebruiker moet weten: `.agent/active_memory.md` gaat mee in elk nieuw gesprek, `.agent/MEMORY.md` wordt opgezocht wanneer een vraag het nodig heeft. Een item is een lijstitem op het hoogste niveau (`-`, `*` of `+`); ingesprongen regels zetten het voort, koppen groeperen items, en een YAML-blok bovenaan het bestand en codeblokken worden overgeslagen. Wat Plainva over een item weet, staat in één HTML-commentaar erachter:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — de dag waarop het item is toegevoegd (`YYYY-MM-DD`).
+- `by` — `user`, of `assistant` voor een concept dat de gebruiker heeft geaccepteerd.
+- `source` — de titel van het gesprek waaruit een concept afkomstig is.
+- `deny` — `cloud`, `web` of beide: de ontvangers voor wie het item wordt achtergehouden, zoals bij een notitie.
+
+Een tool die een item schrijft, beperkt het tot één regel van hoogstens 500 tekens en laat de commentaren van andere items zoals ze zijn. Een commentaar dat beschadigd is — niet gesloten, twee keer aanwezig of met een regel die Plainva niet kent — houdt het item van elk model weg. Een item zonder commentaar heeft geen eigen regel, dus bij het herschrijven van een item mag een tool het commentaar nooit weglaten. Wat de assistent moet doen, staat hier niet: regels zijn tekstregels in `AGENTS.md`.
 
 ### Links
 

@@ -1,6 +1,6 @@
 # Competenze (Beta)
 
-Ultimo aggiornamento: 2026-10-08
+Ultimo aggiornamento: 2026-10-09
 
 Una competenza è un insieme di istruzioni per un lavoro che ritorna: preparare una riunione, ordinare le tue attività, un riepilogo settimanale. Plainva ne include dodici e puoi scriverne di tue. Le competenze usano il formato aperto Agent Skills — una cartella con uno `SKILL.md` — e quindi funzionano anche in altre app di IA che leggono questo formato.
 
@@ -53,7 +53,7 @@ Una tua competenza propone modifiche solo quando la sua riga `allowed-tools` nom
 
 Una competenza del tuo vault che è nuova o modificata — tramite la sincronizzazione, un'importazione o una modifica su questo o un altro dispositivo — non si esegue finché non la approvi **su questo dispositivo**. Queste competenze aspettano in alto in **Competenze**, sotto **In attesa della tua approvazione**, e in **Impostazioni → IA e automazione** (la parte Vault). **Controlla e approva** mostra cosa può fare la competenza, cosa è cambiato dalla tua ultima approvazione, le sue istruzioni, i suoi file e dove si trova. L'approvazione vale esattamente per questa versione; qualsiasi modifica la annulla. Le approvazioni sono salvate su questo dispositivo, mai nel vault.
 
-Lo stesso vale per un `AGENTS.md` in cima al tuo vault: una volta approvato, le sue istruzioni permanenti accompagnano ogni nuova conversazione. Né una competenza né `AGENTS.md` possono annullare le tue regole sulla privacy, e una competenza non ottiene mai più di quanto ha una conversazione: può solo restringerlo.
+Lo stesso vale per un `AGENTS.md` in cima al tuo vault: una volta approvato, le sue istruzioni permanenti accompagnano ogni nuova conversazione. Né una competenza né `AGENTS.md` possono annullare le tue regole sulla privacy, e una competenza non ottiene mai più di quanto ha una conversazione: può solo restringerlo. Una regola che aggiungi nella memoria, o che accetti dall'IA, è una riga in più di questo file; vedi [Memoria](AI_Memory.md).
 
 ## Verificare le competenze con un modello
 

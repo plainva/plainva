@@ -60,6 +60,12 @@ export interface McpToolsHost {
   carried(): Promise<{ paths: readonly string[]; more: boolean }>;
   /** Whether one of these notes must not reach this server — a cloud recipient. A rule that cannot be read counts as "must not". */
   keptFromCloud(serverId: string, paths: readonly string[]): Promise<boolean>;
+  /**
+   * The conversation carries something a rule keeps from every cloud that no
+   * path names (plan P6): an entry of the vault's memory, given to a model on
+   * this device. Absent where the caller has no such thing to carry.
+   */
+  keptByRule?(): boolean;
   /** Shows the call and waits for the user. False when declined, or when nobody is there to ask. */
   ask(question: McpCallQuestion, signal?: AbortSignal): Promise<boolean>;
   call(serverId: string, tool: string, args: Record<string, unknown>, inputSchema: unknown, signal?: AbortSignal): Promise<Record<string, unknown>>;
@@ -73,7 +79,7 @@ export const newRunMcp = (): RunMcp => ({ calls: [] });
 export const MCP_BLOCKED =
   "Plainva stopped using this service: what it says about its tools changed after the user approved it. Do not try again. Tell the user that the service has to be looked at again in the settings.";
 const MCP_GONE = "This service is not available in this vault. Answer without it.";
-const MCP_KEPT = "This conversation has read a note that must not leave this device, so nothing is sent to a service from here. Answer without it, and say so.";
+const MCP_KEPT = "This conversation carries something that must not leave this device — a note, or an entry of the memory —, so nothing is sent to a service from here. Answer without it, and say so.";
 const MCP_UNKNOWN =
   "This conversation has read more notes than can be checked one by one, so nothing is sent to a service from here. Answer without it, and tell the user that a new conversation can use the service.";
 
@@ -132,6 +138,7 @@ export function createMcpExecutor(inner: ToolExecutor, host: McpToolsHost, log: 
       if (!decision.allowed) return refuse(REFUSAL[decision.reason]);
       // Notes that were read but are not kept by path could lie anywhere and carry any rule: nothing is assumed of them.
       if (carried.more) return refuse(MCP_UNKNOWN);
+      if (host.keptByRule?.()) return refuse(MCP_KEPT);
       if (carried.paths.length > 0 && (await host.keptFromCloud(server.id, carried.paths))) return refuse(MCP_KEPT);
 
       // 4. The user — asked in the words of what the call can do there (plan P5-6): reading, changing, or destroying.

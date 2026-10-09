@@ -1,4 +1,5 @@
 import { parseOkfSources, type OkfSource } from "../../okf-trust.js";
+import { MEMORY_LIMITS, memoryTextProblem, type MemoryPlace } from "../memory/memoryFile.js";
 import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "../policy.js";
 import { machineAuthorKind } from "./authors.js";
 import { parseMissingLinks } from "./links.js";
@@ -57,7 +58,23 @@ export type WriteDraftBody =
    * inclusive. `unnamed` as for a mail: an invitee is somebody a provider
    * writes to.
    */
-  | { kind: "event"; title: string; allDay: boolean; day: string; endDay: string; start: string; end: string; location: string; description: string; attendees: string[]; unnamed: string[] };
+  | { kind: "event"; title: string; allDay: boolean; day: string; endDay: string; start: string; end: string; location: string; description: string; attendees: string[]; unnamed: string[] }
+  /**
+   * An entry for the vault's memory (plan P6, ADR 0027): one sentence an
+   * assistant should know. `place`: where the writer would put it — the user
+   * can choose the other on the card. `replaces`: the text of the entry it
+   * stands in for, where it rewords one. Created, it is a line in one of the
+   * two memory files, with the rules the draft inherited.
+   */
+  | { kind: "memory"; text: string; place: MemoryPlace; replaces: string | null }
+  /** Taking an entry out of the memory, named by its text. Created, the line is gone from its file. */
+  | { kind: "forget"; entry: string }
+  /**
+   * A rule for assistants (plan P6): one line for the vault's standing
+   * instructions. A rule is no memory — it says what to do —, so it becomes
+   * a line of `AGENTS.md`, which each device approves for itself.
+   */
+  | { kind: "rule"; text: string };
 
 export type WriteDraftKind = WriteDraftBody["kind"];
 
@@ -195,6 +212,17 @@ function parseBody(raw: unknown): WriteDraftBody | null {
       if (!isClockTime(raw.start) || !isClockTime(raw.end) || raw.end <= raw.start) return null;
       return { kind: "event", title: raw.title, allDay, day: raw.day, endDay: raw.day, start: raw.start, end: raw.end, location: raw.location, description: raw.description, attendees, unnamed: unnamedOf(raw.unnamed, attendees) };
     }
+    case "memory": {
+      // What can be written as an entry, and nothing else: one line of what a reader sees, within the bound.
+      if (typeof raw.text !== "string" || memoryTextProblem(raw.text) !== null) return null;
+      const replaces = raw.replaces ?? null;
+      if (replaces !== null && !filled(replaces, MEMORY_LIMITS.entryChars * 2)) return null;
+      return { kind: "memory", text: raw.text, place: raw.place === "long" ? "long" : "active", replaces: replaces as string | null };
+    }
+    case "forget":
+      return filled(raw.entry, MEMORY_LIMITS.entryChars * 2) ? { kind: "forget", entry: raw.entry } : null;
+    case "rule":
+      return typeof raw.text === "string" && memoryTextProblem(raw.text) === null ? { kind: "rule", text: raw.text } : null;
     default:
       return null;
   }
@@ -269,7 +297,9 @@ export interface WriteDraftOutcome {
 
 export const WRITE_DRAFT_DONE_CAP = 200;
 
-const KINDS: readonly WriteDraftKind[] = ["note", "task", "journal", "entry", "mail", "event"];
+const KINDS: readonly WriteDraftKind[] = ["note", "task", "journal", "entry", "mail", "event", "memory", "forget", "rule"];
+/** The kinds that end in the vault's memory or its standing instructions (plan P6): made by the app, and no note to open. */
+export const MEMORY_DRAFT_KINDS: readonly WriteDraftKind[] = ["memory", "forget", "rule"];
 /** The kinds that are handed to an editor of the app's instead of being made: they are opened, never created. */
 export const OPENED_DRAFT_KINDS: readonly WriteDraftKind[] = ["mail", "event"];
 

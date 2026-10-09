@@ -1,6 +1,6 @@
 # Habilidades (Beta)
 
-Última revisão: 2026-10-08
+Última revisão: 2026-10-09
 
 Uma habilidade é um conjunto de instruções para um trabalho que se repete: preparar uma reunião, organizar suas tarefas, uma revisão semanal. O Plainva traz doze, e você pode escrever as suas. As habilidades usam o formato aberto Agent Skills — uma pasta com um `SKILL.md` — e por isso também funcionam em outros apps de IA que leem esse formato.
 
@@ -53,7 +53,7 @@ Uma habilidade sua só propõe alterações quando a linha `allowed-tools` dela 
 
 Uma habilidade do seu vault que é nova ou foi alterada — pela sincronização, por uma importação ou por uma edição neste ou em outro dispositivo — só roda quando você a aprova **neste dispositivo**. Essas habilidades aguardam no topo de **Habilidades**, em **Aguardando sua aprovação**, e em **Configurações → IA e automação** (a parte do vault). **Revisar e aprovar** mostra o que a habilidade pode fazer, o que mudou desde a sua última aprovação, as instruções, os arquivos e onde ela fica. A aprovação vale exatamente para esta versão; qualquer alteração a anula. As aprovações ficam neste dispositivo, nunca no vault.
 
-O mesmo vale para um `AGENTS.md` no topo do seu vault: depois de aprovado, suas instruções permanentes vão em toda nova conversa. Nem uma habilidade nem o `AGENTS.md` podem suspender suas regras de privacidade, e uma habilidade nunca recebe mais do que uma conversa tem — ela só pode restringir.
+O mesmo vale para um `AGENTS.md` no topo do seu vault: depois de aprovado, suas instruções permanentes vão em toda nova conversa. Nem uma habilidade nem o `AGENTS.md` podem suspender suas regras de privacidade, e uma habilidade nunca recebe mais do que uma conversa tem — ela só pode restringir. Uma regra que você adiciona na memória, ou aceita da IA, é mais uma linha deste arquivo; veja [Memória](AI_Memory.md).
 
 ## Testar habilidades com um modelo
 

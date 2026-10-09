@@ -37,6 +37,7 @@
       "get_event": "正在读取一个日程",
       "search_mail": "正在搜索邮件",
       "read_mail": "正在读取一封邮件",
+      "search_memory": "正在查阅记忆",
       "find_tools": "正在查找其他工具",
       "call_tool": "正在使用另一个工具",
       "propose_edit": "正在为笔记提出修改建议",
@@ -45,6 +46,8 @@
       "create_task": "正在起草任务",
       "add_journal_entry": "正在起草日志条目",
       "create_entry": "正在起草数据库条目",
+      "remember": "正在起草记忆条目",
+      "forget": "正在起草移除记忆条目",
       "draft_mail": "正在起草邮件",
       "draft_event": "正在起草日程",
       "rename_note": "正在提交重命名计划",
@@ -282,14 +285,19 @@
         "audio": "一段录音",
         "searches": "你的搜索问题",
         "comments": "一段评论讨论",
+        "memory": "仓库的记忆",
         "images": "一张图片"
       },
+      "memory": "记忆",
+      "memoryEntries_other": "“始终附带”中的{{count}}条",
+      "memoryLookup": "可查阅“按需查阅”",
       "keptBack": "未发送",
       "keptNotes_other": "{{count}}条被规则屏蔽的笔记",
       "keptLinks_other": "{{count}}个指向被屏蔽笔记的链接",
       "keptPlaces_other": "{{count}}个日志中的地点",
       "keptMood_other": "{{count}}个心情值",
       "keptSensitive_other": "{{count}}处已遮盖的信息",
+      "keptMemory_other": "{{count}}条被规则屏蔽的记忆条目",
       "tools": "工具",
       "instructions": "指令",
       "skillApp": "技能“{{title}}”（Plainva自带）",
@@ -790,6 +798,113 @@
         "conversation": "测试 · {{skill}} · {{scenario}}"
       },
       "writeFailed":"无法将技能写入仓库。"
+    },
+    "memory": {
+      "segment": "记忆",
+      "open": "打开记忆",
+      "use": "在此设备上使用记忆",
+      "useDesc": "新对话会收到“始终附带”中的内容，其余内容可按需查阅。",
+      "off": "已在此设备上关闭：这里的对话不会从记忆中得到任何内容，也不会向其中添加内容。你仍然可以编辑条目。",
+      "offShort": "已在此设备上关闭",
+      "unavailable": "这里无法使用记忆：需要打开一个此设备能读取其文件的仓库。",
+      "none": "还没有内容",
+      "summary": "始终附带{{active}}条 · 按需查阅{{long}}条",
+      "newEntry": "新建条目",
+      "active": "始终附带",
+      "long": "按需查阅",
+      "budget": "{{used}} / {{limit}} 个字符",
+      "activeEmpty": "还没有内容。这里的内容会进入每一次新对话——只保留AI始终需要了解的关于你的事。",
+      "longEmpty": "还没有内容。这里的内容不会随对话发送；对话需要时，AI会来查阅。",
+      "cut": "此文件未被完整读取：文件过大或条目过多。请在编辑器中精简。",
+      "search": "搜索条目",
+      "searchNone": "没有匹配的条目。",
+      "openFile": "打开文件",
+      "files": "记忆是此仓库中的两个文件：.agent/active_memory.md 和 .agent/MEMORY.md。你可以像普通笔记一样阅读和编辑它们，它们会随仓库同步。",
+      "waiting_other": "AI有{{count}}条记忆建议在“待处理”中等待。在你接受之前，它们不会进入记忆。",
+      "waitingShow": "查看",
+      "deleteConfirm": "删除这个条目？",
+      "deleteBody": "它会从文件中移除，新对话不会再收到它。已经开始的对话会保留已收到的内容。",
+      "sentLine_other": "{{count}}条记忆条目",
+      "by": {
+        "user": "由你添加",
+        "userOn": "由你于{{day}}添加",
+        "assistant": "由AI建议，经你接受",
+        "assistantOn": "由AI建议，于{{day}}接受",
+        "file": "直接写入文件",
+        "fileOn": "自{{day}}起在文件中",
+        "source": "对话：{{source}}"
+      },
+      "mark": {
+        "cloud": "不发送给云端模型",
+        "web": "不用于联网的对话",
+        "unreadable": "规则无法读取——不会发送给任何模型",
+        "tooLong": "超过{{limit}}个字符——不会使用",
+        "over": "空间已满——不会附带",
+        "hidden_other": "已略去{{count}}处隐藏内容"
+      },
+      "action": {
+        "edit": "编辑",
+        "toActive": "始终附带",
+        "toLong": "仅按需查阅",
+        "delete": "删除"
+      },
+      "problem": {
+        "empty": "条目是空的。",
+        "tooLong": "一个条目最多{{limit}}个字符。",
+        "lines": "一个条目只占一行：请不要换行。",
+        "duplicate": "已经有一模一样的内容了。",
+        "gone": "文件中已没有这个条目。它可能已在另一台设备上被修改。",
+        "failed": "无法修改记忆。"
+      },
+      "form": {
+        "titleNew": "新建记忆条目",
+        "titleEdit": "编辑记忆条目",
+        "text": "要记住的内容",
+        "textHint": "每个条目只写一件事：一句关于你或你的工作的话。希望AI做的事，请写进规则。",
+        "count": "{{used}} / {{limit}} 个字符",
+        "when": "何时附带",
+        "whenActive": "会进入每一次新对话。那里还剩{{left}}个字符。",
+        "whenLong": "不会随对话发送；对话需要时，AI会来查阅。",
+        "whom": "谁可以收到",
+        "local": "仅此设备上的模型",
+        "locked": "文件中这个条目的规则无法读取，因此它不会发送给任何模型。请在文件中修正条目后面的注释，或删除该条目后重新添加。",
+        "over": "“始终附带”已没有空间容纳它：它会被保存，但不会附带。请缩短它、腾出空间，或选择“按需查阅”。",
+        "create": "添加",
+        "save": "保存",
+        "cancel": "取消"
+      },
+      "rules": {
+        "title": "给AI的规则",
+        "desc": "规则说明AI应该做什么。它不是记忆条目，而是仓库常设指令（AGENTS.md）中的一行。",
+        "add": "添加规则",
+        "open": "打开指令",
+        "formTitle": "给AI的新规则",
+        "text": "AI应该做什么",
+        "hint": "用一句话写一条指令，例如“回答要简短”。每个模型都会收到；你的其他设备会先征求你的同意。",
+        "create": "添加规则",
+        "tooLarge": "指令文件太大，无法再添加一行。"
+      },
+      "draft": {
+        "replaces": "替换",
+        "inherits": "这个条目会沿用本次对话所依据笔记的隐私规则。",
+        "do": {
+          "memory": "记住",
+          "forget": "移除",
+          "rule": "添加为规则"
+        },
+        "ruleHint": "规则会写入仓库的指令（AGENTS.md），并发送给每个模型。"
+      },
+      "done": {
+        "memory": "已添加到记忆。",
+        "forget": "已从记忆中移除。",
+        "rule": "已添加到仓库的指令。",
+        "line": {
+          "memory": "已记住：{{name}}",
+          "forget": "已从记忆中移除：{{name}}",
+          "rule": "已添加为规则：{{name}}"
+        },
+        "ruleWaits": "已添加到仓库的指令。在你检查并批准该文件后，它们才会在此设备上生效。"
+      }
     },
     "scripts": {
       "group": "脚本",
@@ -1375,6 +1490,9 @@
           "journal": "草稿 · 日志条目",
           "mail": "草稿 · 邮件",
           "event": "草稿 · 日程",
+          "memory": "草稿 · 记忆条目",
+          "forget": "草稿 · 从记忆中移除",
+          "rule": "草稿 · 给AI的规则",
           "entry": "草稿 · 数据库条目"
         },
         "what": {
@@ -1383,6 +1501,9 @@
           "journal": "条目",
           "mail": "主题",
           "event": "日程",
+          "memory": "条目",
+          "forget": "条目",
+          "rule": "规则",
           "entry": "条目"
         },
         "landsIn": "存放位置",

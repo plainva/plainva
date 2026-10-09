@@ -1,6 +1,6 @@
 # Dokumentacja formatu plików
 
-Stan na: 2026-09-24
+Stan na: 2026-10-09
 
 Ta strona to precyzyjny kontrakt formatu na dysku dla **każdego pliku w vaulcie Plainva**. Jest napisana tak, aby narzędzie — inny program, skrypt lub asystent AI — mógł czytać i bezpiecznie edytować pliki vaultu bezpośrednio, bez przechodzenia przez interfejs użytkownika Plainva. Jeśli używasz tylko aplikacji, ta strona nigdy nie jest Ci potrzebna; [pozostałe strony podręcznika](README.md) opisują zwykłe użycie.
 
@@ -185,6 +185,21 @@ folders:
 ```
 
 `true`/`false` są odczytywane jako `allow`/`deny`; każda inna wartość jest pomijana i nigdy niczego nie otwiera. Reszta ukrytego folderu `.agent/` — skille (`skills/<name>/SKILL.md`), pamięć i notatki z rozmów — należy do asystenta Plainva. Plainva stosuje się do nowego lub zmienionego pliku w tym miejscu dopiero wtedy, gdy użytkownik zatwierdzi go na danym urządzeniu; narzędzie powinno więc zapisywać w `.agent/` tylko wtedy, gdy użytkownik dokładnie o to prosi.
+
+### Pamięć asystenta (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Dwa pliki Markdown przechowują to, co asystent powinien wiedzieć o użytkowniku: `.agent/active_memory.md` trafia do każdej nowej rozmowy, `.agent/MEMORY.md` jest przeszukiwany, gdy pytanie tego wymaga. Wpis to element listy najwyższego poziomu (`-`, `*` lub `+`); wcięte wiersze go kontynuują, nagłówki grupują wpisy, a blok YAML na początku pliku i bloki kodu są pomijane. To, co Plainva wie o wpisie, jest zapisane w jednym komentarzu HTML za nim:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — dzień dodania wpisu (`YYYY-MM-DD`).
+- `by` — `user` albo `assistant` dla szkicu zaakceptowanego przez użytkownika.
+- `source` — tytuł rozmowy, z której pochodzi szkic.
+- `deny` — `cloud`, `web` lub oba: odbiorcy, od których wpis jest trzymany z dala, tak jak w notatce.
+
+Narzędzie zapisujące wpis trzyma go w jednym wierszu o długości do 500 znaków i zostawia komentarze innych wpisów bez zmian. Uszkodzony komentarz — niezamknięty, występujący dwa razy albo wymieniający regułę, której Plainva nie zna — sprawia, że wpis nie trafia do żadnego modelu. Wpis bez komentarza nie ma własnej reguły, więc narzędzie nigdy nie może pominąć komentarza wpisu, który przepisuje. To, co asystent ma robić, nie jest tu zapisane: reguły są wierszami `AGENTS.md`.
 
 ### Linki
 

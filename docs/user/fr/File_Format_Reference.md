@@ -1,6 +1,6 @@
 # Référence du format de fichier
 
-Dernière mise à jour : 2026-09-24
+Dernière mise à jour : 2026-10-09
 
 Cette page est le contrat précis, tel qu'il est stocké sur le disque, pour **chaque fichier d'un vault Plainva**. Elle est écrite pour qu'un outil — un autre programme, un script ou un assistant IA — puisse lire et modifier en toute sécurité les fichiers du vault directement, sans passer par l'interface de Plainva. Si vous utilisez seulement l'application, vous n'avez jamais besoin de cette page ; les [autres pages du guide](README.md) couvrent l'usage normal.
 
@@ -185,6 +185,21 @@ folders:
 ```
 
 `true`/`false` valent `allow`/`deny` ; toute autre valeur est ignorée et n'ouvre jamais rien. Le reste du dossier caché `.agent/` — skills (`skills/<name>/SKILL.md`), mémoire et notes de conversation — appartient à l'assistant de Plainva. Plainva ne suit un fichier nouveau ou modifié à cet endroit qu'après l'approbation de l'utilisateur sur cet appareil ; un outil ne devrait donc écrire dans `.agent/` que si l'utilisateur demande exactement cela.
+
+### La mémoire de l'assistant (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Deux fichiers Markdown contiennent ce que l'assistant doit savoir sur l'utilisateur : `.agent/active_memory.md` accompagne chaque nouvelle conversation, `.agent/MEMORY.md` est consulté quand une question en a besoin. Une entrée est un élément de liste de premier niveau (`-`, `*` ou `+`) ; les lignes indentées la prolongent, les titres regroupent les entrées, et un bloc YAML en tête de fichier ainsi que les blocs de code délimités sont ignorés. Ce que Plainva sait d'une entrée figure dans un seul commentaire HTML placé derrière elle :
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — le jour où l'entrée a été ajoutée (`YYYY-MM-DD`).
+- `by` — `user`, ou `assistant` pour un brouillon que l'utilisateur a accepté.
+- `source` — le titre de la conversation d'où vient un brouillon.
+- `deny` — `cloud`, `web` ou les deux : les destinataires dont l'entrée est tenue à l'écart, comme pour une note.
+
+Un outil qui écrit une entrée la limite à une ligne de 500 caractères au plus et laisse tels quels les commentaires des autres entrées. Un commentaire endommagé — non fermé, présent deux fois, ou nommant une règle que Plainva ne connaît pas — tient l'entrée à l'écart de tous les modèles. Une entrée sans commentaire n'a pas de règle propre ; un outil ne doit donc jamais supprimer le commentaire d'une entrée qu'il réécrit. Ce que l'assistant doit faire n'est pas écrit ici : les règles sont des lignes de `AGENTS.md`.
 
 ### Liens
 

@@ -198,6 +198,29 @@ The skill **Research** never uses the word of the search field.
 | zh-CN | 保留为笔记 | 调研 |
 | ja | ノートとして残す | リサーチ |
 
+The vault's memory (`ai.memory.*`, AI harness P6): **Memory** is what the AI
+knows about the user — the word the settings already use beside "Skills". Its
+two places are named by what happens, never by the file: **Always included**
+and **On demand**, not "active" and "long-term". An **entry** takes the word
+the language uses for a database entry. **Remember** is the button on a draft
+and what the user says to the AI; it is never "save". A **rule** is no entry:
+it takes the word of the privacy rules, and "Rules for the AI" names the AI as
+the settings do, not "assistant". The marks on an entry are whole phrases
+(**Not to cloud models**) and are quoted in the user guide as they stand.
+
+| Language | Memory | Always included | On demand | Entry | Remember | Rules for the AI |
+|---|---|---|---|---|---|---|
+| en | Memory | Always included | On demand | entry | Remember | Rules for the AI |
+| de | Gedächtnis | Immer dabei | Zum Nachschlagen | Eintrag | Merken | Regeln für die KI |
+| fr | Mémoire | Toujours inclus | À consulter | entrée | Retenir | Règles pour l'IA |
+| es | Memoria | Siempre incluido | Para consultar | entrada | Recordar | Reglas para la IA |
+| pt-BR | Memória | Sempre incluído | Para consulta | entrada | Lembrar | Regras para a IA |
+| it | Memoria | Sempre incluso | Da consultare | voce | Ricorda | Regole per l'IA |
+| nl | Geheugen | Altijd erbij | Om op te zoeken | item | Onthouden | Regels voor de AI |
+| pl | Pamięć | Zawsze dołączane | Do sprawdzenia | wpis | Zapamiętaj | Reguły dla AI |
+| zh-CN | 记忆 | 始终附带 | 按需查阅 | 条目 | 记住 | 给AI的规则 |
+| ja | 記憶 | 常に含める | 必要なときに参照 | 項目 | 記憶する | AIへのルール |
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

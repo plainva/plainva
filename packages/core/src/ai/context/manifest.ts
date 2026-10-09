@@ -99,6 +99,13 @@ export interface EgressManifest {
    */
   instructions?: ManifestInstructions;
   /**
+   * The vault's memory as the conversation carries it (plan KI-Harness P6,
+   * ADR 0027): how many entries go along with every request of it, and how
+   * many a rule kept back for this recipient. Data, not instructions — the
+   * first time it goes to a cloud, the scope grows by the kind `memory`.
+   */
+  memory?: ManifestMemory;
+  /**
    * A run that fills a column of a database (plan KI-Harness P5-4): the notes
    * in `sources` go one at a time, each in a request of its own with nothing
    * of another, and the estimate is the run's as a whole. `column` is the
@@ -114,6 +121,14 @@ export interface ManifestInstructions {
   catalog?: { count: number; vault: string[]; tokens: number };
   /** The vault owner's `AGENTS.md`. */
   vault?: { tokens: number };
+}
+
+export interface ManifestMemory {
+  entries: number;
+  withheld: number;
+  tokens: number;
+  /** The conversation can also look into the long-term memory. */
+  lookup: boolean;
 }
 
 /** The ids of the vault's own instructions a request carries — what the scope counts. */
@@ -135,7 +150,7 @@ export function manifestOf(
   pack: ContextPackage,
   provider: { id: string; label: string; local: boolean },
   model: string,
-  options: { tools: readonly string[]; more?: readonly string[]; web?: boolean; webHosts?: readonly string[]; priceUsdPerMillionInput?: number; questionChars?: number; instructions?: ManifestInstructions },
+  options: { tools: readonly string[]; more?: readonly string[]; web?: boolean; webHosts?: readonly string[]; priceUsdPerMillionInput?: number; questionChars?: number; instructions?: ManifestInstructions; memory?: ManifestMemory },
 ): EgressManifest {
   const sources: ManifestSource[] = pack.refs.map((ref) => ({
     path: ref.path,
@@ -151,14 +166,17 @@ export function manifestOf(
   }));
   const folders = [...new Set(pack.refs.map((ref) => topFolder(ref.path)))].sort();
   const instructionTokens = (options.instructions?.skill?.tokens ?? 0) + (options.instructions?.catalog?.tokens ?? 0) + (options.instructions?.vault?.tokens ?? 0);
-  const estimatedTokens = pack.estimatedTokens + Math.ceil((options.questionChars ?? 0) / 3.5) + instructionTokens;
+  // Entries of the memory go with every request of the conversation: they are a kind of data the overview names.
+  const memory = options.memory && (options.memory.entries > 0 || options.memory.withheld > 0 || options.memory.lookup) ? options.memory : null;
+  const dataClasses = memory && memory.entries > 0 && !pack.dataClasses.includes("memory") ? [...pack.dataClasses, "memory" as const] : pack.dataClasses;
+  const estimatedTokens = pack.estimatedTokens + Math.ceil((options.questionChars ?? 0) / 3.5) + instructionTokens + (memory?.tokens ?? 0);
   return {
     providerId: provider.id,
     providerLabel: provider.label,
     model,
     local: provider.local,
     sources,
-    dataClasses: pack.dataClasses,
+    dataClasses,
     folders,
     withheld: {
       notes: pack.excluded.length,
@@ -177,6 +195,7 @@ export function manifestOf(
     web: options.web ?? false,
     ...(options.web && options.webHosts?.length ? { webHosts: [...options.webHosts] } : {}),
     ...(options.instructions && (options.instructions.skill || options.instructions.catalog || options.instructions.vault) ? { instructions: options.instructions } : {}),
+    ...(memory ? { memory } : {}),
   };
 }
 

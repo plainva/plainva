@@ -41,6 +41,7 @@
       "get_event": "Lendo um compromisso",
       "search_mail": "Pesquisando no e-mail",
       "read_mail": "Lendo uma mensagem",
+      "search_memory": "Pesquisando na memória",
       "find_tools": "Procurando outras ferramentas",
       "call_tool": "Usando outra ferramenta",
       "propose_edit": "Sugerindo alterações em uma nota",
@@ -49,6 +50,8 @@
       "create_task": "Preparando o rascunho de uma tarefa",
       "add_journal_entry": "Preparando o rascunho de uma entrada de diário",
       "create_entry": "Preparando o rascunho de uma entrada de banco de dados",
+      "remember": "Preparando o rascunho de uma entrada da memória",
+      "forget": "Preparando o rascunho para remover uma entrada da memória",
       "draft_mail": "Preparando o rascunho de um e-mail",
       "draft_event": "Preparando o rascunho de um evento",
       "rename_note": "Apresentando um plano para renomear",
@@ -294,8 +297,14 @@
         "audio": "uma gravação",
         "searches": "suas perguntas de pesquisa",
         "comments": "uma conversa nos comentários",
+        "memory": "a memória do vault",
         "images": "uma imagem"
       },
+      "memory": "Memória",
+      "memoryEntries_one": "{{count}} entrada de “Sempre incluído”",
+      "memoryEntries_many": "{{count}} entradas de “Sempre incluído”",
+      "memoryEntries_other": "{{count}} entradas de “Sempre incluído”",
+      "memoryLookup": "é possível pesquisar em “Para consulta”",
       "keptBack": "Retido",
       "keptNotes_one": "{{count}} nota bloqueada por suas regras",
       "keptNotes_many": "{{count}} notas bloqueadas por suas regras",
@@ -312,6 +321,9 @@
       "keptSensitive_one": "{{count}} dado ocultado",
       "keptSensitive_many": "{{count}} dados ocultados",
       "keptSensitive_other": "{{count}} dados ocultados",
+      "keptMemory_one": "{{count}} entrada da memória bloqueada por suas regras",
+      "keptMemory_many": "{{count}} entradas da memória bloqueadas por suas regras",
+      "keptMemory_other": "{{count}} entradas da memória bloqueadas por suas regras",
       "tools": "Ferramentas",
       "instructions": "Instruções",
       "skillApp": "Habilidade “{{title}}” (incluída no Plainva)",
@@ -848,6 +860,119 @@
         "conversation": "Teste · {{skill}} · {{scenario}}"
       },
       "writeFailed":"Não foi possível gravar a habilidade no vault."
+    },
+    "memory": {
+      "segment": "Memória",
+      "open": "Abrir a memória",
+      "use": "Usar a memória neste dispositivo",
+      "useDesc": "Uma conversa nova recebe o que está em “Sempre incluído” e pode consultar o resto.",
+      "off": "Desligada neste dispositivo: uma conversa aqui não recebe nada da memória nem acrescenta nada a ela. Você ainda pode editar as entradas.",
+      "offShort": "Desligada neste dispositivo",
+      "unavailable": "A memória não está disponível aqui: ela precisa de um vault aberto cujos arquivos este dispositivo consiga ler.",
+      "none": "Ainda não há nada",
+      "summary": "{{active}} sempre incluídas · {{long}} para consulta",
+      "newEntry": "Nova entrada",
+      "active": "Sempre incluído",
+      "long": "Para consulta",
+      "budget": "{{used}} de {{limit}} caracteres",
+      "activeEmpty": "Ainda nada. O que está aqui vai em toda conversa nova — limite ao que a IA deve sempre saber sobre você.",
+      "longEmpty": "Ainda nada. O que está aqui não é enviado; a IA consulta quando uma conversa precisa.",
+      "cut": "Nem tudo neste arquivo é lido: ele é grande demais ou tem entradas demais. Encurte-o no editor.",
+      "search": "Pesquisar nas entradas",
+      "searchNone": "Nenhuma entrada corresponde.",
+      "openFile": "Abrir arquivo",
+      "files": "A memória são dois arquivos deste vault: .agent/active_memory.md e .agent/MEMORY.md. Você pode lê-los e editá-los como qualquer nota, e eles sincronizam com o vault.",
+      "waiting_one": "{{count}} sugestão da IA para a memória aguarda em “Pendentes”. Ela não está na memória antes de você aceitar.",
+      "waiting_many": "{{count}} sugestões da IA para a memória aguardam em “Pendentes”. Nenhuma está na memória antes de você aceitar.",
+      "waiting_other": "{{count}} sugestões da IA para a memória aguardam em “Pendentes”. Nenhuma está na memória antes de você aceitar.",
+      "waitingShow": "Mostrar",
+      "deleteConfirm": "Excluir esta entrada?",
+      "deleteBody": "Ela é retirada do arquivo, e nenhuma conversa nova a recebe. As conversas já iniciadas mantêm o que receberam.",
+      "sentLine_one": "{{count}} entrada da memória",
+      "sentLine_many": "{{count}} entradas da memória",
+      "sentLine_other": "{{count}} entradas da memória",
+      "by": {
+        "user": "Adicionada por você",
+        "userOn": "Adicionada por você em {{day}}",
+        "assistant": "Sugerida pela IA, aceita por você",
+        "assistantOn": "Sugerida pela IA, aceita em {{day}}",
+        "file": "Escrita no arquivo",
+        "fileOn": "No arquivo desde {{day}}",
+        "source": "Conversa: {{source}}"
+      },
+      "mark": {
+        "cloud": "Não para modelos na nuvem",
+        "web": "Não em conversas com a internet",
+        "unreadable": "Regras ilegíveis — não vai para nenhum modelo",
+        "tooLong": "Mais de {{limit}} caracteres — não é usada",
+        "over": "Sem espaço — não é incluída",
+        "hidden_one": "{{count}} trecho oculto omitido",
+        "hidden_many": "{{count}} trechos ocultos omitidos",
+        "hidden_other": "{{count}} trechos ocultos omitidos"
+      },
+      "action": {
+        "edit": "Editar",
+        "toActive": "Incluir sempre",
+        "toLong": "Só para consulta",
+        "delete": "Excluir"
+      },
+      "problem": {
+        "empty": "A entrada está vazia.",
+        "tooLong": "Uma entrada comporta no máximo {{limit}} caracteres.",
+        "lines": "Uma entrada é uma única linha: escreva-a sem quebras de linha.",
+        "duplicate": "Isso já está lá, palavra por palavra.",
+        "gone": "A entrada não está mais no arquivo. Talvez tenha sido alterada em outro dispositivo.",
+        "failed": "Não foi possível alterar a memória."
+      },
+      "form": {
+        "titleNew": "Nova entrada da memória",
+        "titleEdit": "Editar entrada da memória",
+        "text": "O que deve ser lembrado",
+        "textHint": "Uma coisa por entrada: uma frase sobre você ou seu trabalho. O que a IA deve fazer vai nas regras.",
+        "count": "{{used}} de {{limit}} caracteres.",
+        "when": "Quando ela é incluída",
+        "whenActive": "Vai em toda conversa nova. Ainda há {{left}} caracteres livres lá.",
+        "whenLong": "Não é enviada; a IA a consulta quando uma conversa precisa.",
+        "whom": "Quem pode recebê-la",
+        "local": "Somente modelos neste dispositivo",
+        "locked": "As regras desta entrada não podem ser lidas no arquivo, por isso ela não vai para nenhum modelo. Corrija o comentário depois da entrada no arquivo, ou exclua a entrada e adicione-a de novo.",
+        "over": "“Sempre incluído” não tem mais espaço para ela: ela é salva, mas não é enviada. Encurte-a, abra espaço ou escolha “Para consulta”.",
+        "create": "Adicionar",
+        "save": "Salvar",
+        "cancel": "Cancelar"
+      },
+      "rules": {
+        "title": "Regras para a IA",
+        "desc": "Uma regra diz o que a IA deve fazer. Não é uma entrada da memória, e sim uma linha das instruções permanentes do vault (AGENTS.md).",
+        "add": "Adicionar uma regra",
+        "open": "Abrir as instruções",
+        "formTitle": "Nova regra para a IA",
+        "text": "O que a IA deve fazer",
+        "hint": "Uma instrução em uma frase, por exemplo “Responda de forma breve.” Todo modelo a recebe; seus outros dispositivos perguntam a você antes.",
+        "create": "Adicionar regra",
+        "tooLarge": "O arquivo de instruções é grande demais para mais uma linha."
+      },
+      "draft": {
+        "replaces": "Substitui",
+        "inherits": "A entrada recebe as regras de privacidade das notas em que esta conversa se baseou.",
+        "do": {
+          "memory": "Lembrar",
+          "forget": "Remover",
+          "rule": "Adicionar como regra"
+        },
+        "ruleHint": "Uma regra vai para as instruções do vault (AGENTS.md) e para todo modelo."
+      },
+      "done": {
+        "memory": "Adicionado à memória.",
+        "forget": "Removido da memória.",
+        "rule": "Adicionado às instruções do vault.",
+        "line": {
+          "memory": "Lembrado: {{name}}",
+          "forget": "Removido da memória: {{name}}",
+          "rule": "Adicionado como regra: {{name}}"
+        },
+        "ruleWaits": "Adicionado às instruções do vault. Elas valem neste dispositivo assim que você revisar e aprovar o arquivo."
+      }
     },
     "scripts": {
       "group": "Scripts",
@@ -1437,6 +1562,9 @@
           "journal": "Rascunho · Entrada de diário",
           "mail": "Rascunho · E-mail",
           "event": "Rascunho · Evento",
+          "memory": "Rascunho · Entrada da memória",
+          "forget": "Rascunho · Remover da memória",
+          "rule": "Rascunho · Regra para a IA",
           "entry": "Rascunho · Entrada de banco de dados"
         },
         "what": {
@@ -1445,6 +1573,9 @@
           "journal": "Entrada",
           "mail": "Assunto",
           "event": "Evento",
+          "memory": "Entrada",
+          "forget": "Entrada",
+          "rule": "Regra",
           "entry": "Entrada"
         },
         "landsIn": "Vai para",

@@ -1,6 +1,6 @@
 # Skills (Beta)
 
-Stand: 2026-10-08
+Stand: 2026-10-09
 
 Ein Skill ist eine Anleitung für Arbeit, die wiederkommt: ein Meeting vorbereiten, die Aufgaben sortieren, ein Wochenrückblick. Plainva bringt zwölf davon mit, und Du kannst eigene schreiben. Skills nutzen das offene Format Agent Skills — ein Ordner mit einer `SKILL.md` — und funktionieren deshalb auch in anderen KI-Apps, die das Format lesen.
 
@@ -53,7 +53,7 @@ Ein eigener Skill schlägt Änderungen nur vor, wenn seine Zeile `allowed-tools`
 
 Ein Skill in Deinem Vault, der neu ist oder sich geändert hat — per Sync, durch einen Import oder eine Bearbeitung auf diesem oder einem anderen Gerät —, läuft erst, wenn Du ihn **auf diesem Gerät** freigibst. Solche Skills warten oben unter **Skills** bei **Warten auf Deine Freigabe** und in **Einstellungen → KI & Automatisierung** (Teil Vault). **Prüfen und freigeben** zeigt, was der Skill darf, was sich seit Deiner letzten Freigabe geändert hat, seine Anweisungen, Dateien und wo er liegt. Die Freigabe gilt genau dieser Fassung; jede Änderung hebt sie wieder auf. Freigaben liegen auf diesem Gerät, nie im Vault.
 
-Dasselbe gilt für eine `AGENTS.md` oben in Deinem Vault: freigegeben, gehen ihre stehenden Anweisungen in jedes neue Gespräch. Weder ein Skill noch die `AGENTS.md` kann Deine Datenschutzregeln aufheben, und ein Skill bekommt nie mehr, als ein Gespräch hat — er kann es nur enger machen.
+Dasselbe gilt für eine `AGENTS.md` oben in Deinem Vault: freigegeben, gehen ihre stehenden Anweisungen in jedes neue Gespräch. Weder ein Skill noch die `AGENTS.md` kann Deine Datenschutzregeln aufheben, und ein Skill bekommt nie mehr, als ein Gespräch hat — er kann es nur enger machen. Eine Regel, die Du im Gedächtnis hinzufügst oder von der KI annimmst, ist eine weitere Zeile dieser Datei; siehe [Gedächtnis](AI_Memory.md).
 
 ## Skills mit einem Modell prüfen
 

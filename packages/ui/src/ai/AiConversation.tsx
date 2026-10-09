@@ -259,6 +259,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     // The pictures the message brought (plan P4-5).
     const pictures = run.manifest?.sources.filter((source) => source.image).length ?? 0;
     if (pictures) parts.push(t("ai.image.sentLine", { count: pictures }));
+    // The entries of the memory that went along (plan P6): how many, never which.
+    if (run.manifest?.memory?.entries) parts.push(t("ai.memory.sentLine", { count: run.manifest.memory.entries }));
     if (run.web?.pages.length) parts.push(t("ai.web.runPages", { count: run.web.pages.length }));
     if (run.web?.searches.length) parts.push(t("ai.web.runSearches", { count: run.web.searches.length }));
     // What it read of the user's mail (plan P4-4): a number, never a subject.

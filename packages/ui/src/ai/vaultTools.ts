@@ -10,7 +10,16 @@ import {
   isNotePath,
   LINK_CANDIDATE_LIMIT,
   linkCandidatesOf,
+  LONG_MEMORY_FILE,
   MAIL_TOOL_NAMES,
+  MEMORY_PLACES,
+  MEMORY_SEARCH_LIMIT,
+  MEMORY_SEARCH_TOOL,
+  memoryDeniedFor,
+  memoryEntryAllowed,
+  memoryFileOf,
+  memoryText,
+  searchMemory,
   PIM_DRAFT_TOOL_NAMES,
   WRITE_TOOL_NAMES,
   outlineOf,
@@ -25,9 +34,12 @@ import {
   withholdDeniedLinks,
   withholdPlaces,
   withoutSensitiveProperties,
+  WRITE_REFUSALS,
   type AiPolicyDimension,
   type EffectivePolicy,
   type GateRun,
+  type MemoryEntry,
+  type MemoryPlace,
   type ToolExecutor,
   type ToolManifest,
   type ToolOutcome,
@@ -98,6 +110,19 @@ export interface VaultToolDeps {
   mail?: MailSource;
   /** How this shell proposes, drafts and carries out a plan (plan KI-Harness P5); absent where it cannot write. */
   writes?: VaultWriteDeps;
+  /**
+   * The vault's memory as its two files hold it right now (plan KI-Harness
+   * P6); null where it is switched off on this device or cannot be read.
+   * Absent where the shell does not reach the agent area.
+   */
+  memory?(): Promise<VaultMemory | null>;
+}
+
+/** Both memory files, read and parsed: their entries, and each file's text for its own rules. */
+export interface VaultMemory {
+  active: MemoryEntry[];
+  long: MemoryEntry[];
+  texts: Record<MemoryPlace, string | null>;
 }
 
 /**
@@ -159,9 +184,9 @@ export const CHAT_TOOL_NAMES = [
  * search, never part of a conversation's own list. Mail, where the shell has
  * a mail client — whether an account is connected is asked when it is used.
  */
-export function furtherToolNames(deps: Pick<VaultToolDeps, "mail" | "writes">): string[] {
+export function furtherToolNames(deps: Pick<VaultToolDeps, "mail" | "writes" | "memory">): string[] {
   // The writing tools first: "change", "create" and "rename" are what a tool search is asked for most.
-  return [...writeToolNames(deps.writes), ...(deps.mail ? MAIL_TOOL_NAMES : [])];
+  return [...writeToolNames(deps.writes, Boolean(deps.memory)), ...(deps.mail ? MAIL_TOOL_NAMES : [])];
 }
 
 /**
@@ -170,7 +195,7 @@ export function furtherToolNames(deps: Pick<VaultToolDeps, "mail" | "writes">): 
  * the skill may do — so a skill that names a mail tool, or names none and
  * leaves everything, is approved with mail in view.
  */
-export const SKILL_TOOL_NAMES: readonly string[] = [...CHAT_TOOL_NAMES, ...MAIL_TOOL_NAMES, ...WRITE_TOOL_NAMES];
+export const SKILL_TOOL_NAMES: readonly string[] = [...CHAT_TOOL_NAMES, MEMORY_SEARCH_TOOL, ...MAIL_TOOL_NAMES, ...WRITE_TOOL_NAMES];
 
 const NOT_FOUND = "No note is available at this path.";
 
@@ -348,6 +373,30 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
       } else if (last !== null) values[last] += `\n${line}`;
     }
     return { ...values };
+  };
+  /** The gate's rules for an entry of the memory in this run (plan P6): a cloud, a conversation with the internet. */
+  const memoryGate = { denied: memoryDeniedFor(run.recipient, run.webTools) };
+  /**
+   * The entries of the vault's memory whose FILE this run may read — each
+   * entry's own rules are asked after —, and the rules those files carry.
+   * The file's rules come first, like a note's: a folder rule over the agent
+   * area, a rule in the file's properties; one that cannot be looked up says
+   * no. Null where the memory is switched off on this device or not readable.
+   */
+  const memoryPool = async (): Promise<{ entries: MemoryEntry[]; fileDenies: Set<AiPolicyDimension> } | null> => {
+    const memory = deps.memory ? await deps.memory().catch(() => null) : null;
+    if (!memory) return null;
+    const entries: MemoryEntry[] = [];
+    const fileDenies = new Set<AiPolicyDimension>();
+    for (const place of MEMORY_PLACES) {
+      const text = memory.texts[place];
+      if (text === null) continue;
+      const effective = await deps.policyOf(memoryFileOf(place), text).catch(() => null);
+      if (!effective || !gateDecision(effective, run).allowed) continue;
+      for (const dimension of AI_POLICY_DIMENSIONS) if (effective.policy[dimension] === "deny") fileDenies.add(dimension);
+      entries.push(...(place === "active" ? memory.active : memory.long));
+    }
+    return { entries, fileDenies };
   };
   /** `data`: the same result as values (plan P5.5) — every piece of it one the text is written from. */
   const result = (tool: string, content: string, data?: unknown): ToolOutcome => ({ content, origin: { kind: "tool", tool }, ...(data !== undefined ? { data } : {}) });
@@ -542,6 +591,17 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
           }
           return result(tool.name, lines.length ? `Linked with ${note.path}:\n${lines.join("\n")}` : `${note.path} has no links to other notes.`, { path: note.path, notes: linked });
         }
+        case "search_memory": {
+          const pool = await memoryPool();
+          // Switched off on this device, or not readable here: the tool says so, and nothing of the memory is in the answer.
+          if (!pool) return { content: WRITE_REFUSALS["no-memory"], isError: true };
+          const found = searchMemory(pool.entries, typeof a.query === "string" ? a.query : "", memoryGate, Number(a.limit) || MEMORY_SEARCH_LIMIT);
+          if (found.entries.length === 0) return { content: "The memory holds nothing that matches.", origin: { kind: "memory", path: LONG_MEMORY_FILE }, data: { entries: [] } };
+          // What passes here although one of its rules restricts it elsewhere — an entry kept from the internet in a
+          // conversation without it — stays on the run's record: what is made of the answer inherits the rule.
+          scope?.passed?.(LONG_MEMORY_FILE, AI_POLICY_DIMENSIONS.filter((dimension) => pool.fileDenies.has(dimension) || found.entries.some((entry) => entry.deny.includes(dimension))));
+          return { content: memoryText(found.entries), origin: { kind: "memory", path: LONG_MEMORY_FILE }, data: { entries: found.entries.map((entry) => entry.text) } };
+        }
         case "get_recent": {
           const kind = a.kind === "edited" ? "edited" : "opened";
           const limit = Number(a.limit) || 10;
@@ -680,6 +740,16 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
               // More notes of the name than are asked about: there is a note to mean, and nothing to say.
               return notes.length > LINK_CANDIDATE_LIMIT ? "note" : "withheld";
             },
+            // The entries of the memory this run may know of (plan P6): what a model can name to reword or to take
+            // out. One the rules keep from it is answered like one that is not there. Null: no memory to write to here.
+            ...(deps.memory
+              ? {
+                  memory: async () => {
+                    const pool = await memoryPool();
+                    return pool ? pool.entries.filter((entry) => memoryEntryAllowed(entry, memoryGate)) : null;
+                  },
+                }
+              : {}),
             ...(call ? { callId: call.id } : {}),
           });
           return written ?? { content: `The tool ${tool.name} is not available in this version of Plainva.`, isError: true };

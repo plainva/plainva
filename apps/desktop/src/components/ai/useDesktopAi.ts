@@ -36,7 +36,7 @@ import { getConfiguredNoteType } from "../../services/newNote";
 import { requestSaveFlush } from "../../services/saveFlush";
 import { getTaskDatabasePath } from "../../services/taskDatabase";
 import { providerListLabel, sendTaskToProviderList } from "../../services/pim/taskToProvider";
-import { AI_OPEN_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, createDesktopVaultHost, getDesktopAiSession, requestWaitingView, type DesktopWriteHost } from "../../services/ai/desktopAi";
+import { AI_MEMORY_EVENT, AI_OPEN_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, createDesktopVaultHost, getDesktopAiSession, requestWaitingView, type DesktopWriteHost } from "../../services/ai/desktopAi";
 import { configureMcp, listenForMcpCalls, vaultName } from "../../services/ai/mcpBridge";
 import { mcpPlans } from "../../services/ai/mcpPlans";
 import { AI_TAB_PATH, CALENDAR_TAB_PATH, isVirtualPath } from "../graph/virtualPaths";
@@ -405,11 +405,15 @@ export function useDesktopAi(input: DesktopAiInput) {
     session?.present("tab");
     latest.current.openView(AI_TAB_PATH);
   });
-  // "Open skills" in the settings: the AI tab takes the request when it shows (plan P3-5).
+  // "Open skills" in the settings: the AI tab takes the request when it shows (plan P3-5). "Open memory" likewise (plan P6).
   useEffect(() => {
     const open = () => latest.current.openView(AI_TAB_PATH);
     window.addEventListener(AI_SKILLS_EVENT, open);
-    return () => window.removeEventListener(AI_SKILLS_EVENT, open);
+    window.addEventListener(AI_MEMORY_EVENT, open);
+    return () => {
+      window.removeEventListener(AI_SKILLS_EVENT, open);
+      window.removeEventListener(AI_MEMORY_EVENT, open);
+    };
   }, []);
   const openNoteTarget = useStableHandler((target: string) => {
     const query = latest.current.queryService;

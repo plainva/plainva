@@ -1,6 +1,6 @@
 # Dateiformat-Referenz
 
-Stand: 2026-09-24
+Stand: 2026-10-09
 
 Diese Seite ist der genaue Formatvertrag für **jede Datei in einem Plainva-Vault**, so wie sie auf der Platte liegt. Sie ist so geschrieben, dass ein Werkzeug — ein anderes Programm, ein Skript oder ein KI-Assistent — Vault-Dateien direkt lesen und sicher bearbeiten kann, ohne den Umweg über Plainvas Oberfläche. Wenn Du nur die App nutzt, brauchst Du diese Seite nie; der normale Gebrauch steht in den [übrigen Handbuchseiten](README.md).
 
@@ -185,6 +185,21 @@ folders:
 ```
 
 `true`/`false` gelten als `allow`/`deny`; jeder andere Wert wird ignoriert und öffnet nie etwas. Der Rest des versteckten Ordners `.agent/` — Skills (`skills/<name>/SKILL.md`), Gedächtnis und Gesprächsnotizen — gehört Plainvas Assistenten. Plainva folgt einer Datei dort, die neu oder geändert ist, erst, wenn Du sie auf dem jeweiligen Gerät freigegeben hast; ein Werkzeug sollte deshalb nur dann in `.agent/` schreiben, wenn Du genau das verlangst.
+
+### Das Gedächtnis des Assistenten (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Zwei Markdown-Dateien halten fest, was der Assistent über die Nutzerin oder den Nutzer wissen soll: `.agent/active_memory.md` geht in jedes neue Gespräch, `.agent/MEMORY.md` wird nachgeschlagen, wenn eine Frage es braucht. Ein Eintrag ist ein Listenpunkt der obersten Ebene (`-`, `*` oder `+`); eingerückte Zeilen setzen ihn fort, Überschriften gruppieren Einträge, und ein YAML-Block am Anfang der Datei sowie eingezäunter Code werden übersprungen. Was Plainva über einen Eintrag weiß, steht in genau einem HTML-Kommentar dahinter:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — der Tag, an dem der Eintrag hinzukam (`YYYY-MM-DD`).
+- `by` — `user`, oder `assistant` für einen Entwurf, den die Nutzerin oder der Nutzer angenommen hat.
+- `source` — der Titel des Gesprächs, aus dem ein Entwurf stammt.
+- `deny` — `cloud`, `web` oder beides: die Empfänger, von denen der Eintrag ferngehalten wird, wie bei einer Notiz.
+
+Ein Werkzeug, das einen Eintrag schreibt, hält ihn bei einer Zeile mit höchstens 500 Zeichen und lässt die Kommentare anderer Einträge, wie sie sind. Ein beschädigter Kommentar — nicht geschlossen, doppelt vorhanden oder mit einer Regel, die Plainva nicht kennt — hält den Eintrag von jedem Modell fern. Ein Eintrag ohne Kommentar hat keine eigene Regel; ein Werkzeug darf deshalb nie den Kommentar eines Eintrags fallen lassen, den es neu schreibt. Was der Assistent tun soll, steht nicht hier: Regeln sind Zeilen der `AGENTS.md`.
 
 ### Links
 

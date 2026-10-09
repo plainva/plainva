@@ -30,6 +30,7 @@ Plainva es un editor de vaults en Markdown: tus notas son archivos Markdown norm
 | [Asistente de IA (Beta)](AI_Assistant.md) | Hacer preguntas sobre tus notas con un modelo de IA de tu elección: proveedores y claves, perfiles, contexto, reglas de privacidad e historial |
 | [Habilidades (Beta)](AI_Skills.md) | Instrucciones para trabajo recurrente: las doce incluidas, las tuyas, importar y aprobar lo que llega antes de que se ejecute |
 | [Scripts (Beta)](AI_Scripts.md) | Programas pequeños que leen tu vault y calculan un resultado: ejecutar uno, escribir uno, qué devuelven sus herramientas, sus límites y aprobar lo que llega antes de que se ejecute |
+| [Memoria (Beta)](AI_Memory.md) | Lo que la IA debe saber sobre ti sin que tengas que repetírselo: los dos lugares, añadir entradas por tu cuenta, dejar que la IA recuerde, reglas, privacidad y los dos archivos |
 | [Conectar apps de IA (Beta)](Connect_AI_Apps.md) | Dejar que las apps de IA de este ordenador (Claude Code, Claude Desktop, editores) lean el vault a través del servidor MCP de Plainva: activarlo, emparejar, carpetas, lo que ve una app, y dejar que una app sugiera cambios |
 | [Agentes externos (Beta)](External_Agents.md) | Iniciar un agente de IA de otro fabricante en la carpeta de un vault: qué controla Plainva en su sesión y qué no, añadir un agente, iniciar sesión, sugerencias y notas nuevas |
 | [Diario](Journal.md) | La entrada rápida en la nota diaria de hoy: capturar desde cualquier lugar, la vista del diario en todos los días, cómo se guardan las entradas y el atajo global opcional |

@@ -39,6 +39,7 @@
       "get_event": "Reading an appointment",
       "search_mail": "Searching mail",
       "read_mail": "Reading a message",
+      "search_memory": "Looking in the memory",
       "find_tools": "Looking for further tools",
       "call_tool": "Using a further tool",
       "propose_edit": "Suggesting changes to a note",
@@ -47,6 +48,8 @@
       "create_task": "Drafting a task",
       "add_journal_entry": "Drafting a journal entry",
       "create_entry": "Drafting a database entry",
+      "remember": "Drafting a memory entry",
+      "forget": "Drafting the removal of a memory entry",
       "draft_mail": "Drafting an e-mail",
       "draft_event": "Drafting an event",
       "rename_note": "Laying out a plan to rename",
@@ -288,8 +291,13 @@
         "audio": "a recording",
         "searches": "your search questions",
         "comments": "a comment thread",
+        "memory": "the vault's memory",
         "images": "an image"
       },
+      "memory": "Memory",
+      "memoryEntries_one": "{{count}} entry from “Always included”",
+      "memoryEntries_other": "{{count}} entries from “Always included”",
+      "memoryLookup": "“On demand” can be looked up",
       "keptBack": "Kept back",
       "keptNotes_one": "{{count}} note your rules block",
       "keptNotes_other": "{{count}} notes your rules block",
@@ -301,6 +309,8 @@
       "keptMood_other": "{{count}} mood values",
       "keptSensitive_one": "{{count}} redacted number or secret",
       "keptSensitive_other": "{{count}} redacted numbers or secrets",
+      "keptMemory_one": "{{count}} memory entry your rules block",
+      "keptMemory_other": "{{count}} memory entries your rules block",
       "tools": "Tools",
       "instructions": "Instructions",
       "skillApp": "Skill “{{title}}” (comes with Plainva)",
@@ -819,6 +829,116 @@
         "conversation": "Test · {{skill}} · {{scenario}}"
       },
       "writeFailed":"The skill could not be written into the vault."
+    },
+    "memory": {
+      "segment": "Memory",
+      "open": "Open memory",
+      "use": "Use the memory on this device",
+      "useDesc": "A new conversation gets what stands under “Always included” and can look up the rest.",
+      "off": "Off on this device: a conversation here gets nothing from the memory and adds nothing to it. You can still edit the entries.",
+      "offShort": "Off on this device",
+      "unavailable": "The memory is not available here: it needs an open vault whose files this device can read.",
+      "none": "Nothing in it yet",
+      "summary": "{{active}} always included · {{long}} on demand",
+      "newEntry": "New entry",
+      "active": "Always included",
+      "long": "On demand",
+      "budget": "{{used}} of {{limit}} characters",
+      "activeEmpty": "Nothing yet. What stands here goes into every new conversation — keep it to what the AI should always know about you.",
+      "longEmpty": "Nothing yet. What stands here is not sent along; the AI looks it up when a conversation needs it.",
+      "cut": "Not everything in this file is read: it is too large or holds too many entries. Shorten it in the editor.",
+      "search": "Search the entries",
+      "searchNone": "No entry matches.",
+      "openFile": "Open file",
+      "files": "The memory is two files of this vault: .agent/active_memory.md and .agent/MEMORY.md. You can read and edit them like any note, and they sync with the vault.",
+      "waiting_one": "{{count}} suggestion of the AI for the memory is waiting under “Open”. It is not in the memory before you accept it.",
+      "waiting_other": "{{count}} suggestions of the AI for the memory are waiting under “Open”. None is in the memory before you accept it.",
+      "waitingShow": "Show",
+      "deleteConfirm": "Delete this entry?",
+      "deleteBody": "It is taken out of the file, and no new conversation gets it. Conversations that have already begun keep what they were given.",
+      "sentLine_one": "{{count}} memory entry",
+      "sentLine_other": "{{count}} memory entries",
+      "by": {
+        "user": "Added by you",
+        "userOn": "Added by you on {{day}}",
+        "assistant": "Suggested by the AI, accepted by you",
+        "assistantOn": "Suggested by the AI, accepted on {{day}}",
+        "file": "Written in the file",
+        "fileOn": "In the file since {{day}}",
+        "source": "Conversation: {{source}}"
+      },
+      "mark": {
+        "cloud": "Not to cloud models",
+        "web": "Not in conversations with the internet",
+        "unreadable": "Rules unreadable — goes to no model",
+        "tooLong": "Longer than {{limit}} characters — not used",
+        "over": "No room left — not included",
+        "hidden_one": "{{count}} hidden part left out",
+        "hidden_other": "{{count}} hidden parts left out"
+      },
+      "action": {
+        "edit": "Edit",
+        "toActive": "Always include",
+        "toLong": "Only on demand",
+        "delete": "Delete"
+      },
+      "problem": {
+        "empty": "The entry is empty.",
+        "tooLong": "An entry holds at most {{limit}} characters.",
+        "lines": "An entry is a single line: write it without line breaks.",
+        "duplicate": "That is in there already, word for word.",
+        "gone": "The entry is no longer in the file. It may have been changed on another device.",
+        "failed": "The memory could not be changed."
+      },
+      "form": {
+        "titleNew": "New memory entry",
+        "titleEdit": "Edit memory entry",
+        "text": "What should be remembered",
+        "textHint": "One thing per entry: a sentence about you or your work. What the AI should do belongs in the rules.",
+        "count": "{{used}} of {{limit}} characters.",
+        "when": "When it is included",
+        "whenActive": "Goes into every new conversation. {{left}} characters are still free there.",
+        "whenLong": "Is not sent along; the AI looks it up when a conversation needs it.",
+        "whom": "Who may get it",
+        "local": "Only models on this device",
+        "locked": "The rules of this entry cannot be read in the file, so it goes to no model. Correct the comment behind the entry in the file, or delete the entry and add it again.",
+        "over": "“Always included” has no room for it: it is saved, but not sent along. Shorten it, make room, or choose “On demand”.",
+        "create": "Add",
+        "save": "Save",
+        "cancel": "Cancel"
+      },
+      "rules": {
+        "title": "Rules for the AI",
+        "desc": "A rule says what the AI should do. It is not a memory entry but a line of the vault's standing instructions (AGENTS.md).",
+        "add": "Add a rule",
+        "open": "Open the instructions",
+        "formTitle": "New rule for the AI",
+        "text": "What the AI should do",
+        "hint": "One instruction in one sentence, for example “Answer briefly.” Every model gets it; your other devices ask you first.",
+        "create": "Add rule",
+        "tooLarge": "The instructions file is too large for another line."
+      },
+      "draft": {
+        "replaces": "Replaces",
+        "inherits": "The entry gets the privacy rules of the notes this conversation rested on.",
+        "do": {
+          "memory": "Remember",
+          "forget": "Remove",
+          "rule": "Add as a rule"
+        },
+        "ruleHint": "A rule goes into the vault's instructions (AGENTS.md) and to every model."
+      },
+      "done": {
+        "memory": "Added to the memory.",
+        "forget": "Removed from the memory.",
+        "rule": "Added to the vault's instructions.",
+        "line": {
+          "memory": "Remembered: {{name}}",
+          "forget": "Removed from the memory: {{name}}",
+          "rule": "Added as a rule: {{name}}"
+        },
+        "ruleWaits": "Added to the vault's instructions. They count on this device once you have reviewed and approved the file."
+      }
     },
     "scripts": {
       "group": "Scripts",
@@ -1406,6 +1526,9 @@
           "journal": "Draft · Journal entry",
           "mail": "Draft · E-mail",
           "event": "Draft · Event",
+          "memory": "Draft · Memory entry",
+          "forget": "Draft · Remove from the memory",
+          "rule": "Draft · Rule for the AI",
           "entry": "Draft · Database entry"
         },
         "what": {
@@ -1414,6 +1537,9 @@
           "journal": "Entry",
           "mail": "Subject",
           "event": "Event",
+          "memory": "Entry",
+          "forget": "Entry",
+          "rule": "Rule",
           "entry": "Entry"
         },
         "landsIn": "Goes into",

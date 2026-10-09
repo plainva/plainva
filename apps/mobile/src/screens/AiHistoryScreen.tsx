@@ -7,6 +7,7 @@ import { RowActionSheet } from "../components/RowActionSheet";
 import { SwipeRow } from "../components/SwipeRow";
 import { useLongPress } from "../lib/useLongPress";
 import { getMobileAiSession, takeSkillReview } from "../services/ai/mobileAi";
+import { MobileMemoryView } from "../components/MobileMemoryView";
 import { MobileSkillsWorkshop } from "../components/MobileSkillsWorkshop";
 import { mConfirm, mPrompt } from "../services/mobileDialogs";
 
@@ -16,7 +17,7 @@ import { mConfirm, mPrompt } from "../services/mobileDialogs";
  * loud action — both read the shared list (rename, delete), the same words as
  * the desktop's context menu.
  */
-export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: { onBack: () => void; onOpenNote: (path: string) => void; initialView?: "chats" | "skills" }) {
+export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: { onBack: () => void; onOpenNote: (path: string) => void; initialView?: "chats" | "skills" | "memory" }) {
   const { t, i18n } = useTranslation();
   const session = getMobileAiSession();
   const state = useSyncExternalStore(session.subscribe, session.getState);
@@ -25,8 +26,9 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
   const [sheet, setSheet] = useState<{ title: string; caps: ConversationRowCaps } | null>(null);
   // The skills workshop is this screen's second segment (plan KI-Harness P3-5).
   // And everything that waits for the user is its third (plan P5): the drafts of this phone, the notes with a machine's open proposals.
-  const [view, setView] = useState<"chats" | "skills" | "open">(initialView);
-  const [review] = useState(() => takeSkillReview());
+  // And the vault's memory (plan P6): what an assistant is told about the user in every conversation, or can look up.
+  const [view, setView] = useState<"chats" | "skills" | "memory" | "open">(initialView);
+  const [review, setReview] = useState(() => takeSkillReview());
   const proposals = useOpenProposals(session);
   const waiting = openWritesCount(state.drafts, proposals);
 
@@ -76,11 +78,23 @@ export function AiHistoryScreen({ onBack, onOpenNote, initialView = "chats" }: {
         options={[
           { value: "chats", label: t("ai.workshop.segmentChats"), testId: "ai-history-chats" },
           { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-history-skills" },
+          { value: "memory", label: t("ai.memory.segment"), testId: "ai-history-memory" },
           { value: "open", label: waiting ? `${t("ai.write.open.segment")} · ${waiting}` : t("ai.write.open.segment"), testId: "ai-history-waiting" },
         ]}
       />
       {view === "skills" ? (
-        <MobileSkillsWorkshop onOpenNote={onOpenNote} onRun={onBack} review={review} />
+        // Keyed by the review it was asked for: the workshop opens that one when it shows.
+        <MobileSkillsWorkshop key={review ?? ""} onOpenNote={onOpenNote} onRun={onBack} review={review} />
+      ) : view === "memory" ? (
+        <MobileMemoryView
+          onOpenNote={onOpenNote}
+          onOpenWaiting={() => setView("open")}
+          onReviewRules={(id) => {
+            // The vault's instructions are reviewed where every instruction is: in the workshop.
+            setReview(id);
+            setView("skills");
+          }}
+        />
       ) : view === "open" ? (
         <AiOpenPanel session={session} state={state.drafts} proposals={proposals} onOpenNote={onOpenNote} touch />
       ) : (

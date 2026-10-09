@@ -189,8 +189,15 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
     manifest.withheld.places ? t("ai.overview.keptPlaces", { count: manifest.withheld.places }) : null,
     manifest.withheld.moodProperties ? t("ai.overview.keptMood", { count: manifest.withheld.moodProperties }) : null,
     manifest.withheld.sensitive ? t("ai.overview.keptSensitive", { count: manifest.withheld.sensitive }) : null,
+    // Entries of the memory a rule keeps from this recipient (plan P6): counted, never named.
+    manifest.memory?.withheld ? t("ai.overview.keptMemory", { count: manifest.memory.withheld }) : null,
   ].filter((line): line is string => Boolean(line));
-  const classes = manifest.dataClasses.filter((c) => c !== "notes");
+  // The memory has a row of its own, with how much of it goes.
+  const classes = manifest.dataClasses.filter((c) => c !== "notes" && c !== "memory");
+  const memory = manifest.memory;
+  const memoryLine = memory
+    ? [memory.entries > 0 ? t("ai.overview.memoryEntries", { count: memory.entries }) : null, memory.lookup ? t("ai.overview.memoryLookup") : null].filter((line): line is string => Boolean(line)).join(" · ")
+    : "";
   const estimate =
     manifest.estimatedCostUsd !== undefined
       ? t("ai.overview.estimateCost", { tokens: number.format(manifest.estimatedTokens), cost: money.format(manifest.estimatedCostUsd) })
@@ -286,6 +293,12 @@ export function AiSendOverview({ manifest, growth = [], onSend, onCancel, onLeav
               {classes.map((c) => t(`ai.overview.class.${c}`)).join(" · ")}
               {manifest.situationHint && sensitiveLine(SITUATION_SOURCE, manifest.situationHint.sensitive, Boolean(manifest.situationHint.redacted), true)}
             </dd>
+          </>
+        )}
+        {memoryLine && (
+          <>
+            <dt>{t("ai.overview.memory")}</dt>
+            <dd data-testid="ai-overview-memory">{memoryLine}</dd>
           </>
         )}
         {kept.length > 0 && (

@@ -96,6 +96,24 @@ export function takeSkillsRequest(): { review: string | null } | null {
 }
 
 /**
+ * Opens the AI tab on the vault's memory — the settings' "Open memory" (plan
+ * KI-Harness P6). Like the skills request, it waits here until the tab takes it.
+ */
+export const AI_MEMORY_EVENT = "plainva-ai-memory";
+let pendingMemory = false;
+
+export function requestMemoryView(): void {
+  pendingMemory = true;
+  window.dispatchEvent(new CustomEvent(AI_MEMORY_EVENT));
+}
+
+export function takeMemoryRequest(): boolean {
+  const request = pendingMemory;
+  pendingMemory = false;
+  return request;
+}
+
+/**
  * Opens the AI tab on everything that waits for the user — the toast that
  * says an app left a draft (plan KI-Harness P5-5). Like the skills request,
  * it waits here until the tab takes it.

@@ -66,6 +66,12 @@ enough. The review runs in parallel and does not block (E33).
 6. The OKF trust fields are a critical write class (ADR 0019): the harness
    can never write `verified` with a `human:` actor or remove a `generated`
    stamp.
+7. **Entries of the memory.** An entry of the vault's memory that an
+   assistant drafted and the user accepted says so in the comment the app
+   keeps behind it — `by=assistant`, the day, and the conversation the draft
+   came from (ADR 0027) —, and the memory's view says it in words. A rule
+   accepted into `AGENTS.md` carries no mark: it is a line of a file the user
+   approves as a whole, and from then on it is the user's instruction.
 
 ## Consequences
 
@@ -85,4 +91,4 @@ enough. The review runs in parallel and does not block (E33).
 
 ## Links
 
-- ADR 0009 (OKF write path), ADR 0017, ADR 0019; `packages/core/src/okf-trust.ts`.
+- ADR 0009 (OKF write path), ADR 0017, ADR 0019, ADR 0027; `packages/core/src/okf-trust.ts`.

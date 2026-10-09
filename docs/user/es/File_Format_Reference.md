@@ -1,6 +1,6 @@
 # Referencia del formato de archivo
 
-Última actualización: 2026-09-24
+Última actualización: 2026-10-09
 
 Esta página es el contrato exacto, tal como queda en el disco, para **cada archivo de un vault de Plainva**. Está escrita para que una herramienta — u otro programa, un script o un asistente de IA — pueda leer y editar con seguridad los archivos del vault directamente, sin pasar por la interfaz de Plainva. Si solo usas la aplicación, nunca necesitas esta página; las [demás páginas de la guía](README.md) cubren el uso normal.
 
@@ -185,6 +185,21 @@ folders:
 ```
 
 `true`/`false` se leen como `allow`/`deny`; cualquier otro valor se ignora y nunca abre nada. El resto de la carpeta oculta `.agent/` — skills (`skills/<name>/SKILL.md`), memoria y notas de conversación — pertenece al asistente de Plainva. Plainva no sigue un archivo nuevo o modificado allí hasta que el usuario lo aprueba en ese dispositivo, así que una herramienta no debería escribir en `.agent/` salvo que el usuario pida exactamente eso.
+
+### La memoria del asistente (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Dos archivos Markdown guardan lo que el asistente debe saber sobre el usuario: `.agent/active_memory.md` va en cada conversación nueva y `.agent/MEMORY.md` se consulta cuando una pregunta lo necesita. Una entrada es un elemento de lista de primer nivel (`-`, `*` o `+`); las líneas con sangría la continúan, los encabezados agrupan entradas, y se omiten un bloque YAML al principio del archivo y los bloques de código. Lo que Plainva sabe de una entrada está en un único comentario HTML que la sigue:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — el día en que se añadió la entrada (`YYYY-MM-DD`).
+- `by` — `user`, o `assistant` para un borrador que el usuario aceptó.
+- `source` — el título de la conversación de la que viene un borrador.
+- `deny` — `cloud`, `web` o ambos: los destinatarios a los que no debe llegar la entrada, igual que en una nota.
+
+Una herramienta que escribe una entrada la limita a una línea de 500 caracteres como máximo y deja los comentarios de las demás entradas como están. Un comentario dañado —sin cerrar, presente dos veces o con una regla que Plainva no conoce— mantiene la entrada fuera de todo modelo. Una entrada sin comentario no tiene regla propia, así que una herramienta nunca debe quitar el comentario de una entrada que reescribe. Lo que el asistente debe hacer no se escribe aquí: las reglas son líneas de `AGENTS.md`.
 
 ### Enlaces
 

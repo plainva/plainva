@@ -1,6 +1,6 @@
 # File Format Reference
 
-Ultimo aggiornamento: 2026-09-24
+Ultimo aggiornamento: 2026-10-09
 
 Questa pagina è il contratto esatto, così come sta su disco, per **ogni file in un vault Plainva**. È scritta in modo che uno strumento — un altro programma, uno script o un assistente IA — possa leggere e modificare in sicurezza i file del vault direttamente, senza passare dall'interfaccia di Plainva. Se usi solo l'app, non ti serve mai questa pagina; le [altre pagine della guida](README.md) coprono l'uso normale.
 
@@ -185,6 +185,21 @@ folders:
 ```
 
 `true`/`false` valgono come `allow`/`deny`; qualsiasi altro valore viene ignorato e non apre mai nulla. Il resto della cartella nascosta `.agent/` — skill (`skills/<name>/SKILL.md`), memoria e note di conversazione — appartiene all'assistente di Plainva. Plainva segue un file nuovo o modificato in quella cartella solo dopo che l'utente lo ha approvato su quel dispositivo; uno strumento dovrebbe quindi scrivere in `.agent/` solo se l'utente chiede esattamente questo.
+
+### La memoria dell'assistente (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Due file Markdown contengono ciò che l'assistente deve sapere sull'utente: `.agent/active_memory.md` va in ogni nuova conversazione, `.agent/MEMORY.md` viene consultato quando una domanda lo richiede. Una voce è un elemento di elenco di primo livello (`-`, `*` o `+`); le righe rientrate la continuano, i titoli raggruppano le voci, e un blocco YAML in cima al file e i blocchi di codice delimitati vengono ignorati. Ciò che Plainva sa di una voce è scritto in un unico commento HTML che la segue:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — il giorno in cui è stata aggiunta la voce (`YYYY-MM-DD`).
+- `by` — `user`, oppure `assistant` per una bozza che l'utente ha accettato.
+- `source` — il titolo della conversazione da cui proviene una bozza.
+- `deny` — `cloud`, `web` o entrambi: i destinatari da cui la voce viene tenuta lontana, come per una nota.
+
+Uno strumento che scrive una voce la limita a una riga di al massimo 500 caratteri e lascia invariati i commenti delle altre voci. Un commento danneggiato — non chiuso, presente due volte o con una regola sconosciuta a Plainva — tiene la voce lontana da ogni modello. Una voce senza commento non ha regole proprie, quindi uno strumento non deve mai omettere il commento di una voce che riscrive. Ciò che l'assistente deve fare non è scritto qui: le regole sono righe di `AGENTS.md`.
 
 ### Link
 

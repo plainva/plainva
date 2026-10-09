@@ -1,6 +1,6 @@
 # File Format Reference
 
-Last reviewed: 2026-09-24
+Last reviewed: 2026-10-09
 
 This page is the precise, on-disk contract for **every file in a Plainva vault**. It is written so that a tool — or another program, script or AI assistant — can read and safely edit vault files directly, without going through Plainva's user interface. If you only use the app, you never need this page; the [other guide pages](README.md) cover normal use.
 
@@ -185,6 +185,21 @@ folders:
 ```
 
 `true`/`false` are read as `allow`/`deny`; any other value is ignored and never widens anything. The rest of the hidden `.agent/` folder — skills (`skills/<name>/SKILL.md`), memory and conversation notes — belongs to Plainva's assistant. Plainva does not follow a file there that is new or changed until the user has approved it on that device, so a tool should not write into `.agent/` unless the user asked for exactly that.
+
+### The assistant's memory (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Two Markdown files hold what the assistant should know about the user: `.agent/active_memory.md` goes into every new conversation, `.agent/MEMORY.md` is looked up when a question needs it. An entry is a top-level list item (`-`, `*` or `+`); indented lines continue it, headings group entries, and a YAML block at the top of the file and fenced code are skipped. What Plainva knows about an entry stands in one HTML comment behind it:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — the day the entry was added (`YYYY-MM-DD`).
+- `by` — `user`, or `assistant` for a draft the user accepted.
+- `source` — the title of the conversation a draft came from.
+- `deny` — `cloud`, `web` or both: the recipients the entry is kept from, as for a note.
+
+A tool that writes an entry keeps it to one line of at most 500 characters and leaves the comments of other entries as they are. A comment that is damaged — not closed, there twice, or naming a rule Plainva does not know — keeps the entry from every model. An entry without a comment has no rule of its own, so a tool must never drop the comment of an entry it rewrites. What the assistant should do is not written here: rules are lines of `AGENTS.md`.
 
 ### Links
 

@@ -169,6 +169,16 @@
   .pv-security-choices label > span > span { color:var(--text-muted); font-size:var(--text-sm); }
   .pv-security-progress { height:6px; margin:var(--space-2) 0; overflow:hidden; background:var(--bg-secondary); border-radius:var(--radius-xs); }
   .pv-security-progress-bar { height:100%; background:var(--accent-color); border-radius:var(--radius-xs); }
+  /* The vault's memory (AI harness P6): a row is a sentence; marks only where there is something to say. In the app the row is a .pv-setrow. */
+  .pv-memory-row { display:flex; flex-direction:column; gap:2px; padding:var(--space-2) 0; border-top:1px solid var(--border-color); }
+  .pv-memory-text { font-weight:500; line-height:1.45; overflow-wrap:anywhere; }
+  .pv-memory-row--blocked .pv-memory-text { color:var(--text-muted); }
+  .pv-memory-desc { color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-memory-marks { display:flex; flex-wrap:wrap; gap:var(--space-1); margin-top:var(--space-1); }
+  .pv-memory-mark { display:inline-flex; align-items:center; padding:0 var(--space-2); border-radius:var(--radius-pill); background:var(--surface-container); color:var(--text-muted); font-size:var(--text-xs); line-height:1.7; }
+  .pv-memory-mark--problem { color:var(--warning-text); }
+  .pv-memory-meter { display:flex; align-items:center; gap:var(--space-2); color:var(--text-muted); font-size:var(--text-sm); }
+  .pv-memory-meter > .pv-security-progress { flex:0 0 6rem; margin:0; }
   .pv-security-recovery-demo { display:grid; gap:var(--space-3); margin-top:var(--space-4); padding:var(--space-4); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--surface-container-low); }
   .pv-security-recovery-task { display:grid; grid-template-columns:auto minmax(0,1fr); gap:var(--space-3); padding:var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--bg-primary); }
   .pv-security-task-number { display:grid; place-items:center; width:var(--control-md); height:var(--control-md); border-radius:var(--radius-pill); background:var(--accent-container); color:var(--on-accent-container); font-weight:700; }
@@ -1477,6 +1487,24 @@
             <div class="pv-script-input"><input class="pv-field pv-field--compact" value="path" aria-label="Name of the input" /><select class="pv-field pv-field--select pv-field--compact" aria-label="Type"><option>text</option></select><label class="pv-checkrow"><input type="checkbox" class="pv-check" checked /><span>Required</span></label><button type="button" class="pv-iconbtn pv-iconbtn--sm" aria-label="Remove this input">×</button></div>
           </div>
         </div>
+      </div>
+    </div>
+    <p class="sec-sub">AI harness P6 (2026-10-09): the vault's memory, a segment of the AI tab beside the skills. A row is a sentence, not a name (<code>.pv-memory-row</code>): the text wraps in the weight of running text, under it who added the entry and when, and marks only where there is something to say (<code>.pv-memory-mark</code>) — a rule the entry carries in the muted tone; a reason it reaches no model in the warning tone, with the row toned down, never hidden. “Always included” begins with its budget (<code>MemoryMeter</code>): the progress track at a fixed width beside the count in words. A draft for the memory is the draft card with the whole text, the two places as chips and a button that names the act.</p>
+    <div class="card" style="max-width: 560px; display: grid; gap: var(--space-1)">
+      <span class="pv-memory-meter"><span class="pv-security-progress" role="progressbar" aria-valuenow="31" aria-valuemin="0" aria-valuemax="100" aria-label="620 of 2,000 characters"><span class="pv-security-progress-bar" style="display: block; width: 31%"></span></span><span>620 of 2,000 characters</span></span>
+      <div class="pv-memory-row">
+        <div class="pv-memory-text">I write offers for film studios and bill per day, not per hour.</div>
+        <div class="pv-memory-desc">Added by you on Oct 1, 2026</div>
+      </div>
+      <div class="pv-memory-row">
+        <div class="pv-memory-text">My day rate is 950.</div>
+        <div class="pv-memory-desc">Suggested by the AI, accepted on Oct 8, 2026 · Conversation: Offer for Harbour Studio</div>
+        <div class="pv-memory-marks"><span class="pv-memory-mark">Not to cloud models</span></div>
+      </div>
+      <div class="pv-memory-row pv-memory-row--blocked">
+        <div class="pv-memory-text">Offers hold for 30 days.</div>
+        <div class="pv-memory-desc">Written in the file</div>
+        <div class="pv-memory-marks"><span class="pv-memory-mark pv-memory-mark--problem">Rules unreadable — goes to no model</span></div>
       </div>
     </div>
     <p class="sec-sub">AI harness P2c (2026-10-01): the system's own model on the phone is a provider row like the others — “Add provider” lists it first; its line reads “Ready on this device · window of about 4,096 tokens” or, in the failure words, why not; the sheet offers “Check availability” and, on Android while the system offers the download, “Load model”. No new visual pattern.</p>

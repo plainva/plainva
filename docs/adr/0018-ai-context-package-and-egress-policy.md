@@ -261,6 +261,8 @@ thinking blocks are involved).
 
 - ADR 0009 (`plainva:` namespace and OKF write path), ADR 0014 (encrypted
   workspaces), ADR 0017, ADR 0019.
+- The vault's memory — tier 3 like a note, with a rule per entry, a budget
+  and a row of its own in the overview: ADR 0027.
 - Pictures: `packages/core/src/ai/images.ts`, the image part in
   `packages/core/src/ai/conversation.ts` and the request codecs in
   `providers.ts`; `packages/ui/src/ai/aiImage.ts` (drawing anew, the lookup

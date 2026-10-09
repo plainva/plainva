@@ -35,6 +35,7 @@ import {
 import type { AcpVaultAccess } from "./acpFiles";
 import { createAcpVaultStore } from "./acpStores";
 import { notesEmbedding } from "./aiImage";
+import { createMemoryHost, createMemoryPrefStore, readMemory } from "./aiMemory";
 import type { AiInstructionsHost, AiVaultHost } from "./aiSession";
 import { createAiVaultStores, type AiFileStore, type InstructionApprovalStore } from "./aiStores";
 import { createMcpVaultStore } from "./mcpStores";
@@ -307,6 +308,16 @@ export async function gatherCandidates(retrieval: CandidateRetrieval, question: 
 
 export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
   const stores = createAiVaultStores(input.files, input.vaultKey);
+  // The vault's memory (plan P6): its two files through the reader and the writer the skills use, the switch in the app's data.
+  const memory = input.instructionIO ? createMemoryHost(input.instructionIO, input.instructionWriter, createMemoryPrefStore(input.files, input.vaultKey)) : null;
+  /** The memory as the tools read it: both files at this moment — or nothing, while it is switched off on this device. */
+  const memoryForTools = memory
+    ? async () => {
+        if (!(await memory.prefs.load().catch(() => ({ on: false }))).on) return null;
+        const read = await readMemory(memory);
+        return { active: read.active, long: read.long, texts: read.texts };
+      }
+    : null;
   return {
     ...stores,
     // What this vault's data is filed under on this device: a script's approval is signed for it (plan P5.5).
@@ -337,6 +348,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
       return containing ? notesEmbedding(path, { containing, read: async (note) => (await input.readNote(note))?.text ?? null }) : Promise.resolve(null);
     },
     ...(input.instructionIO ? { instructions: instructionsHost(input.instructionIO, stores.instructionApprovals, input.instructionWriter) } : {}),
+    ...(memory ? { memory } : {}),
     tools(
       recipient: EgressRecipient,
       scope?: ToolScope,
@@ -357,6 +369,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
         resolveLink: input.policy.resolveLink,
         // Which notes a link could mean, for the gate and the source check: the policy's own answer, in both shells.
         ...(input.policy.linkCandidates ? { linkCandidates: input.policy.linkCandidates } : {}),
+        ...(memoryForTools ? { memory: memoryForTools } : {}),
       };
       // What this shell serves beyond a conversation's own list: found with the tool search, never loaded on its own.
       const more = furtherToolNames(deps);

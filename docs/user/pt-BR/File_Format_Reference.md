@@ -1,6 +1,6 @@
 # Referência do Formato de Arquivo
 
-Última revisão: 2026-09-24
+Última revisão: 2026-10-09
 
 Esta página é o contrato exato, tal como gravado em disco, para **todo arquivo em um vault do Plainva**. Ela é escrita para que uma ferramenta — outro programa, script ou assistente de IA — possa ler e editar arquivos do vault diretamente, com segurança, sem passar pela interface do Plainva. Se você só usa o app, nunca precisa desta página; as [demais páginas do guia](README.md) cobrem o uso normal.
 
@@ -185,6 +185,21 @@ folders:
 ```
 
 `true`/`false` valem como `allow`/`deny`; qualquer outro valor é ignorado e nunca libera nada. O restante da pasta oculta `.agent/` — skills (`skills/<name>/SKILL.md`), memória e notas de conversa — pertence ao assistente do Plainva. O Plainva só segue um arquivo novo ou alterado ali depois que o usuário o aprova naquele dispositivo; por isso, uma ferramenta só deve escrever em `.agent/` se o usuário pedir exatamente isso.
+
+### A memória do assistente (`.agent/active_memory.md`, `.agent/MEMORY.md`)
+
+Dois arquivos Markdown guardam o que o assistente deve saber sobre o usuário: `.agent/active_memory.md` entra em toda nova conversa, `.agent/MEMORY.md` é consultado quando uma pergunta precisa. Uma entrada é um item de lista de nível superior (`-`, `*` ou `+`); linhas recuadas continuam a entrada, os títulos agrupam as entradas, e um bloco YAML no topo do arquivo e os blocos de código são ignorados. O que o Plainva sabe sobre uma entrada fica em um único comentário HTML depois dela:
+
+```markdown
+- I bill per day, not per hour. <!-- plainva: added=2026-10-09; by=assistant; source=Offer for Harbour Studio; deny=cloud,web -->
+```
+
+- `added` — o dia em que a entrada foi adicionada (`YYYY-MM-DD`).
+- `by` — `user`, ou `assistant` quando o usuário aceitou um rascunho.
+- `source` — o título da conversa de onde veio um rascunho.
+- `deny` — `cloud`, `web` ou ambos: os destinatários que não podem receber a entrada, como em uma nota.
+
+Uma ferramenta que escreve uma entrada a mantém em uma linha de no máximo 500 caracteres e deixa os comentários das outras entradas como estão. Um comentário danificado — não fechado, presente duas vezes ou que nomeia uma regra que o Plainva não conhece — mantém a entrada longe de todos os modelos. Uma entrada sem comentário não tem regra própria, por isso uma ferramenta nunca deve apagar o comentário de uma entrada que reescreve. O que o assistente deve fazer não se escreve aqui: regras são linhas do `AGENTS.md`.
 
 ### Links
 

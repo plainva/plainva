@@ -110,6 +110,10 @@ Skills are instructions for recurring work. Twelve come with Plainva — among t
 
 Scripts are small programs you write for what a model does badly — counting, sorting, adding up. They run in a closed box, read your vault through the same tools as the AI, and only after you approved them on this device. Everything about them: [Scripts](AI_Scripts.md).
 
+## Memory
+
+What the AI should know about you without being told again — what you do, how you like your answers — is kept in the vault's memory: two files you can read and edit. What stands under **Always included** goes into every new conversation, the rest is looked up when a question needs it, and nothing gets into it without your yes. See [Memory](AI_Memory.md).
+
 ## Transcribing a voice note
 
 At every voice note — in the editor, in reading mode, in the journal and on cards — **Transcribe** turns the recording into text. It goes as it is to the model of the profile **Audio**, through the same overview as a question; a recording is a kind of data of its own, so the overview asks the first time. The transcript comes back as a suggestion under the recording, authored **Plainva AI · ⟨model⟩** — accept or decline it under **Suggestions**.

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarPlus, Check, Database, EyeOff, FilePlus2, ListChecks, Mail, NotebookPen, PencilLine, TriangleAlert, Unlink, X } from "lucide-react";
-import { machineAuthorKind, machineAuthorSubject, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
+import { BookMarked, CalendarPlus, Check, Database, Eraser, EyeOff, FilePlus2, ListChecks, Mail, NotebookPen, PencilLine, ScrollText, TriangleAlert, Unlink, X } from "lucide-react";
+import { machineAuthorKind, machineAuthorSubject, type MemoryPlace, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -56,14 +56,21 @@ export function useDraftActions(session: Pick<AiSession, "createDraft" | "discar
       alive = false;
     };
   }, [session]);
-  const create = (id: string, atProvider = false) => {
+  const create = (id: string, atProvider = false, place?: MemoryPlace) => {
     if (!session) return;
     setBusy(id);
     void session
-      .createDraft(id, { atProvider })
+      .createDraft(id, { atProvider, ...(place ? { place } : {}) })
       .then((outcome) => {
         // "Opened": the composer or the event editor is in front of the user now, and says itself what it is.
         if (outcome.kind === "opened") return;
+        // The memory's drafts (plan P6): written, and nothing to open. A rule in a file this device has not approved
+        // yet counts once that file was reviewed — said, because it is the one case where "done" is not "in effect".
+        if (outcome.kind === "kept") {
+          if (outcome.what === "rule" && outcome.waits) toast.warning(t("ai.memory.done.ruleWaits"));
+          else toast.success(t(`ai.memory.done.${outcome.what}`));
+          return;
+        }
         if (outcome.kind === "created") {
           toast.success(t("ai.write.draft.createdToast"));
           onOpenCreated(outcome.path);
@@ -96,8 +103,11 @@ export interface AiDraftCardProps {
   /** Whether this shell can make what the draft describes. */
   canCreate: boolean;
   busy: boolean;
-  /** `atProvider`: a task is also created in its provider list — only said where the card offered that and it stayed on. */
-  onCreate(id: string, atProvider?: boolean): void;
+  /**
+   * `atProvider`: a task is also created in its provider list — only said where the card offered that and it stayed on.
+   * `place`: where an entry of the memory goes, where the user chose on the card.
+   */
+  onCreate(id: string, atProvider?: boolean, place?: MemoryPlace): void;
   onDiscard(id: string): void;
   /** Says who wrote it — in the list of everything that waits, where drafts of several writers stand together. */
   showAuthor?: boolean;
@@ -114,8 +124,28 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
   // and the chip is there so a single task can stay in the vault.
   const [atProvider, setAtProvider] = useState(true);
   const body = draft.body;
+  // Where an entry of the memory goes (plan P6): the writer proposes, the user chooses — a reworded entry stays where it is.
+  const [place, setPlace] = useState<MemoryPlace>(body.kind === "memory" ? body.place : "active");
+  const choosesPlace = body.kind === "memory" && body.replaces === null;
   const offersList = body.kind === "task" && Boolean(taskList);
-  const Icon = body.kind === "task" ? ListChecks : body.kind === "journal" ? NotebookPen : body.kind === "entry" ? Database : body.kind === "mail" ? Mail : body.kind === "event" ? CalendarPlus : FilePlus2;
+  const Icon =
+    body.kind === "task"
+      ? ListChecks
+      : body.kind === "journal"
+        ? NotebookPen
+        : body.kind === "entry"
+          ? Database
+          : body.kind === "mail"
+            ? Mail
+            : body.kind === "event"
+              ? CalendarPlus
+              : body.kind === "memory"
+                ? BookMarked
+                : body.kind === "forget"
+                  ? Eraser
+                  : body.kind === "rule"
+                    ? ScrollText
+                    : FilePlus2;
   const detail = draftDetail(draft);
   // An e-mail and an appointment reach other people (plan P5-6): the card names every one of them in full, says which
   // of them the user did not write in the conversation themselves, and its button makes nothing — it opens the app's
@@ -139,7 +169,14 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
       </h4>
       <dl className="pv-ai-overview-list">
         <dt>{t(`ai.write.draft.what.${body.kind}`)}</dt>
-        <dd data-testid="ai-draft-title">{body.kind === "journal" ? body.text : draft.title}</dd>
+        {/* An entry of the memory and a rule are their whole text; a title would cut them. */}
+        <dd data-testid="ai-draft-title">{body.kind === "journal" || body.kind === "memory" || body.kind === "rule" ? body.text : body.kind === "forget" ? body.entry : draft.title}</dd>
+        {body.kind === "memory" && body.replaces !== null && (
+          <>
+            <dt>{t("ai.memory.draft.replaces")}</dt>
+            <dd data-testid="ai-draft-replaces">{body.replaces}</dd>
+          </>
+        )}
         {"folder" in detail && (
           <>
             <dt>{t("ai.write.draft.landsIn")}</dt>
@@ -213,6 +250,34 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
         </span>
       )}
       {draft.inherited.length > 0 && (body.kind === "note" || body.kind === "entry") && <span className="pv-ai-overview-hint">{t("ai.write.draft.inherits")}</span>}
+      {/* The memory's drafts (plan P6): an entry takes the rules of what its conversation rested on with it — said,
+          because it decides which models will ever be told it —, and a rule is no memory. */}
+      {draft.inherited.length > 0 && body.kind === "memory" && (
+        <>
+          <span className="pv-ai-overview-hint" data-testid="ai-draft-memory-rules">
+            {t("ai.memory.draft.inherits")}
+          </span>
+          {/* Which rules, in the words the memory's own list marks an entry with: `ai.memory.mark.cloud`, `.web`. */}
+          <span className="pv-memory-marks">
+            {draft.inherited.map((rule) => (
+              <span key={rule} className="pv-memory-mark" data-testid="ai-draft-memory-rule">
+                {t(`ai.memory.mark.${rule}`)}
+              </span>
+            ))}
+          </span>
+        </>
+      )}
+      {body.kind === "rule" && <span className="pv-ai-overview-hint">{t("ai.memory.draft.ruleHint")}</span>}
+      {choosesPlace && (
+        <div className="pv-capture-quick" role="group" aria-label={t("ai.memory.form.when")}>
+          <Chip testId="ai-draft-place-active" selected={place === "active"} disabled={busy} onClick={() => setPlace("active")}>
+            {t("ai.memory.active")}
+          </Chip>
+          <Chip testId="ai-draft-place-long" selected={place === "long"} disabled={busy} onClick={() => setPlace("long")}>
+            {t("ai.memory.long")}
+          </Chip>
+        </div>
+      )}
       {unnamed.length > 0 && (
         // Where a mail goes and whom a provider invites is the one thing on this card a stranger's text could have chosen.
         <span className="pv-ai-effect-warn" data-testid="ai-draft-unnamed">
@@ -252,8 +317,11 @@ export function AiDraftCard({ draft, canCreate, busy, onCreate, onDiscard, showA
         <Button variant="ghost" disabled={busy} onClick={() => onDiscard(draft.id)} data-testid="ai-draft-discard">
           {t("ai.write.draft.discard")}
         </Button>
-        <Button variant="secondary" disabled={busy || !canCreate} onClick={() => onCreate(draft.id, offersList && atProvider)} data-testid="ai-draft-create">
-          {t(body.kind === "mail" ? "ai.write.draft.openMail" : body.kind === "event" ? "ai.write.draft.openEvent" : "ai.write.draft.create")}
+        {/* The place goes along only where the card asked for one: every other draft is created as before. */}
+        <Button variant="secondary" disabled={busy || !canCreate} onClick={() => (choosesPlace ? onCreate(draft.id, false, place) : onCreate(draft.id, offersList && atProvider))} data-testid="ai-draft-create">
+          {body.kind === "memory" || body.kind === "forget" || body.kind === "rule"
+            ? t(`ai.memory.draft.do.${body.kind}`)
+            : t(body.kind === "mail" ? "ai.write.draft.openMail" : body.kind === "event" ? "ai.write.draft.openEvent" : "ai.write.draft.create")}
         </Button>
       </div>
     </section>
@@ -268,8 +336,11 @@ export function AiDraftDone({ outcome, onOpenNote }: { outcome: WriteDraftOutcom
   const created = outcome.outcome !== "discarded";
   const path = outcome.path;
   const name = outcome.title;
-  const text =
-    outcome.outcome === "sent"
+  // The memory's drafts (plan P6) end in the memory or in the vault's instructions: said in their own words.
+  const kept = created && (outcome.kind === "memory" || outcome.kind === "forget" || outcome.kind === "rule");
+  const text = kept
+    ? t(`ai.memory.done.line.${outcome.kind}`, { name })
+    : outcome.outcome === "sent"
       ? t("ai.write.draft.done.sent", { name })
       : outcome.outcome === "saved"
         ? t(outcome.kind === "event" ? "ai.write.draft.done.savedEvent" : "ai.write.draft.done.savedMail", { name })
@@ -295,7 +366,7 @@ export interface AiRunWritesProps {
   canCreate: boolean;
   busy: boolean;
   onOpenNote(path: string): void;
-  onCreate(id: string, atProvider?: boolean): void;
+  onCreate(id: string, atProvider?: boolean, place?: MemoryPlace): void;
   onDiscard(id: string): void;
   taskList?: string | null;
   touch?: boolean;
@@ -417,7 +488,7 @@ export interface AiOpenWritesProps {
   canCreate: boolean;
   busy: boolean;
   onOpenNote(path: string): void;
-  onCreate(id: string, atProvider?: boolean): void;
+  onCreate(id: string, atProvider?: boolean, place?: MemoryPlace): void;
   onDiscard(id: string): void;
   taskList?: string | null;
   touch?: boolean;

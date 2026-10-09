@@ -1,6 +1,6 @@
 # Compétences (Bêta)
 
-Dernière mise à jour : 2026-10-08
+Dernière mise à jour : 2026-10-09
 
 Une compétence est un ensemble d'instructions pour un travail qui revient : préparer une réunion, trier vos tâches, un bilan de la semaine. Plainva en fournit douze, et vous pouvez écrire les vôtres. Les compétences utilisent le format ouvert Agent Skills — un dossier avec un `SKILL.md` — et fonctionnent donc aussi dans d'autres apps d'IA qui lisent ce format.
 
@@ -53,7 +53,7 @@ Une de vos propres compétences ne propose des modifications que lorsque sa lign
 
 Une compétence de votre vault qui est nouvelle ou modifiée — par la synchronisation, une importation ou une modification sur cet appareil ou un autre — ne s'exécute pas tant que vous ne l'avez pas approuvée **sur cet appareil**. Ces compétences attendent en haut de **Compétences**, sous **En attente de votre approbation**, et dans **Paramètres → IA & automatisation** (la partie Vault). **Vérifier et approuver** montre ce que la compétence peut faire, ce qui a changé depuis votre dernière approbation, ses instructions, ses fichiers et où elle se trouve. L'approbation vaut exactement pour cette version ; toute modification l'annule. Les approbations sont enregistrées sur cet appareil, jamais dans le vault.
 
-Il en va de même pour un `AGENTS.md` à la racine de votre vault : une fois approuvé, ses instructions permanentes accompagnent chaque nouvelle conversation. Ni une compétence ni `AGENTS.md` ne peuvent lever vos règles de confidentialité, et une compétence n'obtient jamais plus que ce dont dispose une conversation — elle ne peut que le restreindre.
+Il en va de même pour un `AGENTS.md` à la racine de votre vault : une fois approuvé, ses instructions permanentes accompagnent chaque nouvelle conversation. Ni une compétence ni `AGENTS.md` ne peuvent lever vos règles de confidentialité, et une compétence n'obtient jamais plus que ce dont dispose une conversation — elle ne peut que le restreindre. Une règle que vous ajoutez dans la mémoire, ou que vous acceptez de la part de l'IA, est une ligne de plus dans ce fichier ; voir [Mémoire](AI_Memory.md).
 
 ## Tester des compétences avec un modèle
 

@@ -8,6 +8,7 @@ import {
   configuredProviders,
   createAiVaultStores,
   createVaultPolicy,
+  EMPTY_MEMORY_STATE,
   NO_ACP,
   NO_MCP,
   transcriptOf,
@@ -241,6 +242,7 @@ describe("the settings model", () => {
     drafts: { drafts: [], done: [] },
     fill: null,
     scripts: { available: false, run: null },
+    memory: EMPTY_MEMORY_STATE,
     ...patch,
   });
 

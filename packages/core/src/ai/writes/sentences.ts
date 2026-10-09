@@ -52,6 +52,14 @@ export const WRITE_REFUSALS = {
   "bad-name": "This is no name a note can have.",
   exists: "A note of this name is there already.",
   "same-place": "The note is there already.",
+  // The vault's memory (plan P6). An entry the rules keep from this recipient is answered like one that is not there.
+  "no-memory": "The memory is not available in this vault on this device.",
+  "no-memory-entry": "No such entry is in the memory. search_memory lists entries; quote one exactly as it stands there.",
+  "memory-entry": "A memory entry is one or two sentences on a single line, at most 500 characters. Keep longer things in a note.",
+  "memory-known": "The memory holds this already.",
+  // A rule goes to every model this vault is used with: it has no rule of its own to carry.
+  "restricted-rule":
+    "This conversation carries notes or memory entries that are kept from the cloud or from the internet. A rule for assistants goes to every model, so Plainva drafts none from it. Tell the user the rule in your answer instead: they can add it to the vault's instructions themselves.",
   // The run's own words for a no: the step is shown as declined, like every question the user answered with no.
   declined: EFFECT_DECLINED,
   nobody: "Nobody is there to confirm this, so it was not done.",
@@ -98,6 +106,12 @@ export const WRITE_RESULTS = {
   // The property's name is the one the model gave; its value is never repeated.
   proposedProperty: (path: string, key: string, removed: boolean, defused: number) =>
     `Proposed on ${path}: ${removed ? `the property ${key} removed` : `a value for the property ${key}`}. ${WAITS} The user accepts or declines it in Plainva.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  // The vault's memory (plan P6): a draft like every other — the entry is in the memory once the user says so.
+  remembered: (replaces: boolean, defused: number) =>
+    `Drafted: ${replaces ? "a new wording for an entry of the memory" : "an entry for the memory"}. ${WAITS} It is in the memory once the user says so in Plainva; until then no conversation knows it.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
+  forgotten: `Drafted: taking an entry out of the memory. ${WAITS} The entry goes once the user says so in Plainva.`,
+  ruleDrafted: (defused: number) =>
+    `Drafted: a rule for assistants. ${WAITS} It becomes a line of the vault's instructions once the user says so, and counts on each device only after that device approved the file.${defused ? " Web addresses you added were made inert: the user sees them as text." : ""}`,
   ruleSet: (path: string, set: boolean) => (set ? `Done. The rule is written into ${path}.` : `Done. The rule is removed from ${path}.`),
   renamed: (path: string) => `Renamed. The note is now ${path}.`,
   moved: (path: string) => `Moved. The note is now ${path}.`,

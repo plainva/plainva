@@ -177,6 +177,25 @@ export interface ConversationInstructions {
   skillTokens?: number;
   /** The vault owner's AGENTS.md went in, this many tokens. */
   vaultTokens?: number;
+  /** What of the vault's memory went in (plan KI-Harness P6): data in a fence, never an instruction. */
+  memory?: ConversationMemory;
+}
+
+/**
+ * The vault's memory as a conversation was started with it (ADR 0027). The
+ * entries themselves are in the system prompt; this is what the record and
+ * the overview say about them — how many went, how many a rule kept back, how
+ * many no longer fit —, and the rules the entries that went carry: what is
+ * made of the conversation inherits them, as it does those of a note it read.
+ */
+export interface ConversationMemory {
+  entries: number;
+  withheld: number;
+  left: number;
+  tokens: number;
+  restricted: AiPolicyDimension[];
+  /** The conversation was given the tool that looks into the long-term memory. */
+  lookup: boolean;
 }
 
 export interface ConversationRecord {
@@ -302,6 +321,18 @@ function readInstructions(raw: unknown): ConversationInstructions | null {
   if (count(r.catalogTokens)) out.catalogTokens = count(r.catalogTokens);
   if (count(r.skillTokens)) out.skillTokens = count(r.skillTokens);
   if (count(r.vaultTokens)) out.vaultTokens = count(r.vaultTokens);
+  const m = r.memory as Record<string, unknown> | undefined;
+  if (m && typeof m === "object") {
+    out.memory = {
+      entries: count(m.entries),
+      withheld: count(m.withheld),
+      left: count(m.left),
+      tokens: count(m.tokens),
+      // A rule that does not read is no rule here; what cannot be read at all keeps every rule.
+      restricted: Array.isArray(m.restricted) ? AI_POLICY_DIMENSIONS.filter((dimension) => (m.restricted as unknown[]).includes(dimension)) : [...AI_POLICY_DIMENSIONS],
+      lookup: m.lookup === true,
+    };
+  }
   return Object.keys(out).length ? out : null;
 }
 
@@ -507,6 +538,9 @@ function readManifest(raw: unknown): EgressManifest | null {
     web: m.web === true,
     ...(m.web === true && strings(m.webHosts).length ? { webHosts: strings(m.webHosts) } : {}),
     ...(readManifestInstructions(m.instructions) ? { instructions: readManifestInstructions(m.instructions)! } : {}),
+    ...(m.memory && typeof m.memory === "object"
+      ? { memory: { entries: count(m.memory.entries), withheld: count(m.memory.withheld), tokens: count(m.memory.tokens), lookup: m.memory.lookup === true } }
+      : {}),
   };
 }
 

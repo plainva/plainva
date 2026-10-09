@@ -27,7 +27,8 @@ import {
   type ConversationRowCaps,
 } from "@plainva/ui";
 import { appConfirm, appPrompt } from "../../services/appDialogs";
-import { AI_SKILLS_EVENT, AI_WAITING_EVENT, takeSkillsRequest, takeWaitingRequest } from "../../services/ai/desktopAi";
+import { AI_MEMORY_EVENT, AI_SKILLS_EVENT, AI_WAITING_EVENT, takeMemoryRequest, takeSkillsRequest, takeWaitingRequest } from "../../services/ai/desktopAi";
+import { MemoryView } from "./MemoryView";
 import { SkillsWorkshop } from "./SkillsWorkshop";
 import { editorSelectionReader } from "../../services/editorSelection";
 
@@ -62,7 +63,8 @@ export function AiTabView({
   // The workshop (plan KI-Harness P3-5) beside the conversation; the settings may ask for it, with one review.
   // And an external agent's place (plan P4.6): a session of its own, apart from the assistant's conversations.
   // And everything that waits for the user (plan P5): the drafts of this device, the notes with a machine's open proposals.
-  const [view, setView] = useState<"chats" | "skills" | "agent" | "open">("chats");
+  // And the vault's memory (plan P6): what an assistant is told about the user in every conversation, or can look up.
+  const [view, setView] = useState<"chats" | "skills" | "memory" | "agent" | "open">("chats");
   const proposals = useOpenProposals(session);
   const [review, setReview] = useState<string | null>(null);
   useEffect(() => {
@@ -84,6 +86,15 @@ export function AiTabView({
     take();
     window.addEventListener(AI_WAITING_EVENT, take);
     return () => window.removeEventListener(AI_WAITING_EVENT, take);
+  }, []);
+  // "Open memory" in the settings (plan P6): the tab opens on the vault's memory.
+  useEffect(() => {
+    const take = () => {
+      if (takeMemoryRequest()) setView("memory");
+    };
+    take();
+    window.addEventListener(AI_MEMORY_EVENT, take);
+    return () => window.removeEventListener(AI_MEMORY_EVENT, take);
   }, []);
   const reviewOpened = useCallback(() => setReview(null), []);
 
@@ -137,6 +148,7 @@ export function AiTabView({
           options={[
             { value: "chats", label: t("ai.workshop.segmentChats"), testId: "ai-tab-chats" },
             { value: "skills", label: waitingCount(state.skills.entries) ? `${t("ai.workshop.segmentSkills")} · ${waitingCount(state.skills.entries)}` : t("ai.workshop.segmentSkills"), testId: "ai-tab-skills" },
+            { value: "memory", label: t("ai.memory.segment"), testId: "ai-tab-memory" },
             // Only where this window hosts agents at all (the desktop's central window).
             ...(state.agents.available ? [{ value: "agent" as const, label: t("ai.agent.segment"), testId: "ai-tab-agent" }] : []),
             { value: "open", label: waiting ? `${t("ai.write.open.segment")} · ${waiting}` : t("ai.write.open.segment"), testId: "ai-tab-waiting" },
@@ -198,6 +210,16 @@ export function AiTabView({
         <section className="pv-ai-tabmain">
           {view === "skills" ? (
             <SkillsWorkshop onOpenFile={onOpenPath} onRun={() => setView("chats")} review={review} onReviewOpened={reviewOpened} />
+          ) : view === "memory" ? (
+            <MemoryView
+              onOpenFile={onOpenPath}
+              onOpenWaiting={() => setView("open")}
+              onReviewRules={(id) => {
+                // The vault's instructions are reviewed where every instruction is: in the workshop.
+                setReview(id);
+                setView("skills");
+              }}
+            />
           ) : view === "agent" ? (
             <AiAgentView activeNote={activeNote} onOpenNote={onOpenNote} onOpenPath={onOpenPath} onOpenUrl={onOpenUrl} onOpenSettings={onOpenSettings} />
           ) : view === "open" ? (

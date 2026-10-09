@@ -39,6 +39,7 @@
       "get_event": "Liest einen Termin",
       "search_mail": "Durchsucht E-Mails",
       "read_mail": "Liest eine E-Mail",
+      "search_memory": "Schlägt im Gedächtnis nach",
       "find_tools": "Sucht weitere Werkzeuge",
       "call_tool": "Nutzt ein weiteres Werkzeug",
       "propose_edit": "Schlägt Änderungen an einer Notiz vor",
@@ -47,6 +48,8 @@
       "create_task": "Entwirft eine Aufgabe",
       "add_journal_entry": "Entwirft einen Journal-Eintrag",
       "create_entry": "Entwirft einen Datenbank-Eintrag",
+      "remember": "Entwirft einen Gedächtnis-Eintrag",
+      "forget": "Entwirft das Entfernen eines Gedächtnis-Eintrags",
       "draft_mail": "Entwirft eine E-Mail",
       "draft_event": "Entwirft einen Termin",
       "rename_note": "Legt einen Plan zum Umbenennen vor",
@@ -288,8 +291,13 @@
         "audio": "eine Aufnahme",
         "searches": "Deine Suchfragen",
         "comments": "ein Kommentar-Faden",
+        "memory": "das Gedächtnis des Vaults",
         "images": "ein Bild"
       },
+      "memory": "Gedächtnis",
+      "memoryEntries_one": "{{count}} Eintrag aus „Immer dabei“",
+      "memoryEntries_other": "{{count}} Einträge aus „Immer dabei“",
+      "memoryLookup": "„Zum Nachschlagen“ kann durchsucht werden",
       "keptBack": "Zurückgehalten",
       "keptNotes_one": "{{count}} Notiz, die Deine Regeln sperren",
       "keptNotes_other": "{{count}} Notizen, die Deine Regeln sperren",
@@ -301,6 +309,8 @@
       "keptMood_other": "{{count}} Stimmungswerte",
       "keptSensitive_one": "{{count}} geschwärzte Angabe",
       "keptSensitive_other": "{{count}} geschwärzte Angaben",
+      "keptMemory_one": "{{count}} Gedächtnis-Eintrag, den Deine Regeln sperren",
+      "keptMemory_other": "{{count}} Gedächtnis-Einträge, die Deine Regeln sperren",
       "tools": "Werkzeuge",
       "instructions": "Anweisungen",
       "skillApp": "Skill „{{title}}“ (mitgeliefert)",
@@ -819,6 +829,116 @@
         "conversation": "Prüfung · {{skill}} · {{scenario}}"
       },
       "writeFailed":"Der Skill ließ sich nicht in den Vault schreiben."
+    },
+    "memory": {
+      "segment": "Gedächtnis",
+      "open": "Gedächtnis öffnen",
+      "use": "Gedächtnis auf diesem Gerät nutzen",
+      "useDesc": "Ein neues Gespräch bekommt mit, was unter „Immer dabei“ steht, und kann den Rest nachschlagen.",
+      "off": "Auf diesem Gerät aus: Ein Gespräch hier erfährt nichts aus dem Gedächtnis und trägt nichts hinein. Die Einträge kannst Du weiter bearbeiten.",
+      "offShort": "Auf diesem Gerät aus",
+      "unavailable": "Das Gedächtnis ist hier nicht verfügbar: Es braucht einen geöffneten Vault, dessen Dateien dieses Gerät lesen kann.",
+      "none": "Noch nichts darin",
+      "summary": "{{active}} immer dabei · {{long}} zum Nachschlagen",
+      "newEntry": "Neuer Eintrag",
+      "active": "Immer dabei",
+      "long": "Zum Nachschlagen",
+      "budget": "{{used}} von {{limit}} Zeichen",
+      "activeEmpty": "Noch nichts. Was hier steht, geht in jedes neue Gespräch — halte es bei dem, was die KI immer über Dich wissen soll.",
+      "longEmpty": "Noch nichts. Was hier steht, wird nicht mitgeschickt; die KI schlägt es nach, wenn ein Gespräch es braucht.",
+      "cut": "Nicht alles in dieser Datei wird gelesen: Sie ist zu groß oder hat zu viele Einträge. Kürze sie im Editor.",
+      "search": "Einträge durchsuchen",
+      "searchNone": "Kein Eintrag passt.",
+      "openFile": "Datei öffnen",
+      "files": "Das Gedächtnis sind zwei Dateien dieses Vaults: .agent/active_memory.md und .agent/MEMORY.md. Du kannst sie wie jede Notiz lesen und bearbeiten, und sie synchronisieren mit dem Vault.",
+      "waiting_one": "{{count}} Vorschlag der KI für das Gedächtnis wartet unter „Offen“. Er steht nicht im Gedächtnis, bevor Du ihn annimmst.",
+      "waiting_other": "{{count}} Vorschläge der KI für das Gedächtnis warten unter „Offen“. Keiner steht im Gedächtnis, bevor Du ihn annimmst.",
+      "waitingShow": "Ansehen",
+      "deleteConfirm": "Diesen Eintrag löschen?",
+      "deleteBody": "Er wird aus der Datei genommen, und kein neues Gespräch bekommt ihn mehr. Gespräche, die schon begonnen haben, behalten, was sie bekommen haben.",
+      "sentLine_one": "{{count}} Gedächtnis-Eintrag",
+      "sentLine_other": "{{count}} Gedächtnis-Einträge",
+      "by": {
+        "user": "Von Dir eingetragen",
+        "userOn": "Von Dir eingetragen am {{day}}",
+        "assistant": "Von der KI vorgeschlagen, von Dir angenommen",
+        "assistantOn": "Von der KI vorgeschlagen, angenommen am {{day}}",
+        "file": "In der Datei geschrieben",
+        "fileOn": "In der Datei seit {{day}}",
+        "source": "Gespräch: {{source}}"
+      },
+      "mark": {
+        "cloud": "Nicht an Cloud-Modelle",
+        "web": "Nicht in Gesprächen mit Internet",
+        "unreadable": "Regeln nicht lesbar — geht an kein Modell",
+        "tooLong": "Länger als {{limit}} Zeichen — wird nicht verwendet",
+        "over": "Kein Platz mehr — wird nicht mitgegeben",
+        "hidden_one": "{{count}} versteckte Stelle weggelassen",
+        "hidden_other": "{{count}} versteckte Stellen weggelassen"
+      },
+      "action": {
+        "edit": "Bearbeiten",
+        "toActive": "Immer mitgeben",
+        "toLong": "Nur noch nachschlagen",
+        "delete": "Löschen"
+      },
+      "problem": {
+        "empty": "Der Eintrag ist leer.",
+        "tooLong": "Ein Eintrag fasst höchstens {{limit}} Zeichen.",
+        "lines": "Ein Eintrag ist eine einzige Zeile: Schreibe ihn ohne Zeilenumbruch.",
+        "duplicate": "Das steht dort schon, Wort für Wort.",
+        "gone": "Der Eintrag steht nicht mehr in der Datei. Vielleicht wurde er auf einem anderen Gerät geändert.",
+        "failed": "Das Gedächtnis ließ sich nicht ändern."
+      },
+      "form": {
+        "titleNew": "Neuer Gedächtnis-Eintrag",
+        "titleEdit": "Gedächtnis-Eintrag bearbeiten",
+        "text": "Was behalten werden soll",
+        "textHint": "Eine Sache je Eintrag: ein Satz über Dich oder Deine Arbeit. Was die KI tun soll, gehört in die Regeln.",
+        "count": "{{used}} von {{limit}} Zeichen.",
+        "when": "Wann er dabei ist",
+        "whenActive": "Geht in jedes neue Gespräch. Dort sind noch {{left}} Zeichen frei.",
+        "whenLong": "Wird nicht mitgeschickt; die KI schlägt ihn nach, wenn ein Gespräch ihn braucht.",
+        "whom": "Wer ihn bekommen darf",
+        "local": "Nur Modelle auf diesem Gerät",
+        "locked": "Die Regeln dieses Eintrags sind in der Datei nicht lesbar, deshalb geht er an kein Modell. Korrigiere den Kommentar hinter dem Eintrag in der Datei, oder lösche den Eintrag und lege ihn neu an.",
+        "over": "„Immer dabei“ hat keinen Platz mehr dafür: Er wird gespeichert, aber nicht mitgegeben. Kürze ihn, schaffe Platz oder wähle „Zum Nachschlagen“.",
+        "create": "Anlegen",
+        "save": "Speichern",
+        "cancel": "Abbrechen"
+      },
+      "rules": {
+        "title": "Regeln für die KI",
+        "desc": "Eine Regel sagt, was die KI tun soll. Sie ist kein Gedächtnis-Eintrag, sondern eine Zeile der stehenden Anweisungen des Vaults (AGENTS.md).",
+        "add": "Regel hinzufügen",
+        "open": "Anweisungen öffnen",
+        "formTitle": "Neue Regel für die KI",
+        "text": "Was die KI tun soll",
+        "hint": "Eine Anweisung in einem Satz, zum Beispiel „Antworte knapp.“ Jedes Modell bekommt sie; Deine anderen Geräte fragen Dich vorher.",
+        "create": "Regel hinzufügen",
+        "tooLarge": "Die Anweisungsdatei ist zu groß für eine weitere Zeile."
+      },
+      "draft": {
+        "replaces": "Ersetzt",
+        "inherits": "Der Eintrag bekommt die Datenschutzregeln der Notizen, auf denen dieses Gespräch beruhte.",
+        "do": {
+          "memory": "Merken",
+          "forget": "Entfernen",
+          "rule": "Als Regel eintragen"
+        },
+        "ruleHint": "Eine Regel kommt in die Anweisungen des Vaults (AGENTS.md) und geht an jedes Modell."
+      },
+      "done": {
+        "memory": "Ins Gedächtnis eingetragen.",
+        "forget": "Aus dem Gedächtnis entfernt.",
+        "rule": "In die Anweisungen des Vaults eingetragen.",
+        "line": {
+          "memory": "Gemerkt: {{name}}",
+          "forget": "Aus dem Gedächtnis entfernt: {{name}}",
+          "rule": "Als Regel eingetragen: {{name}}"
+        },
+        "ruleWaits": "In die Anweisungen des Vaults eingetragen. Sie gelten auf diesem Gerät, sobald Du die Datei geprüft und freigegeben hast."
+      }
     },
     "scripts": {
       "group": "Skripte",
@@ -1406,6 +1526,9 @@
           "journal": "Entwurf · Journal-Eintrag",
           "mail": "Entwurf · E-Mail",
           "event": "Entwurf · Termin",
+          "memory": "Entwurf · Gedächtnis-Eintrag",
+          "forget": "Entwurf · Aus dem Gedächtnis entfernen",
+          "rule": "Entwurf · Regel für die KI",
           "entry": "Entwurf · Datenbank-Eintrag"
         },
         "what": {
@@ -1414,6 +1537,9 @@
           "journal": "Eintrag",
           "mail": "Betreff",
           "event": "Termin",
+          "memory": "Eintrag",
+          "forget": "Eintrag",
+          "rule": "Regel",
           "entry": "Eintrag"
         },
         "landsIn": "Landet in",

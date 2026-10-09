@@ -4228,6 +4228,21 @@ pre.pv-comment-card__quote { white-space: pre-wrap; }
 .pv-script-limits label { display: grid; gap: var(--space-1); min-width: 0; color: var(--text-muted); font-size: var(--text-sm); }
 .pv-script-editor { font-family: var(--font-mono); white-space: pre; overflow-wrap: normal; tab-size: 2; }
 
+/* The vault's memory (AI harness P6, mockup chapter 22). A row is a sentence, not a name: it wraps, in the weight of
+   running text, and what the app knows of the entry stands below it. An entry that reaches no model as it stands is
+   toned down, with the reason as a mark. */
+.pv-memory { min-width: 0; }
+.pv-memory-row { align-items: flex-start; }
+.pv-memory-text { font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.pv-memory-row--blocked .pv-memory-text { color: var(--text-muted); }
+.pv-memory-marks { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.pv-memory-mark { display: inline-flex; align-items: center; padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--surface-container); color: var(--text-muted); font-size: var(--text-xs); line-height: 1.7; }
+.pv-memory-mark--problem { color: var(--warning-text); }
+/* The budget of "always included": the bar the app uses for a run's progress, beside the count in words. */
+.pv-memory-meter { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.pv-memory-meter > .pv-security-progress { flex: 0 0 6rem; margin: 0; }
+.pv-memory-foot { margin: 0; color: var(--text-faint); font-size: var(--text-sm); overflow-wrap: anywhere; }
+
 /* Pinboard loading retains a readable file identity, independently of content. */
 .pv-pinboard-placeholder {
   display: flex;

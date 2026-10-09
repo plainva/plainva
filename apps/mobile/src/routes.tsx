@@ -176,6 +176,7 @@ function settingsAreaScreen(id: string, ctx: RouteContext): ReactNode {
             requestSkillReview(review ?? null);
             ctx.push({ kind: "aihistory", path: "skills" });
           }}
+          onOpenMemory={() => ctx.push({ kind: "aihistory", path: "memory" })}
         />
       );
     // An unknown id is a bug, not a screen. It used to render About, which
@@ -445,7 +446,7 @@ export const PUSHED_ROUTES: Record<NavKind, PushedRoute> = {
   ai: (_e, c) => (
     <AiScreen onBack={c.pop} onHistory={() => c.push({ kind: "aihistory", path: "" })} onOpenNote={(target) => openAiNoteTarget(c.vault, target, c.openNote)} onOpenSettings={() => c.push({ kind: "settingsArea", path: "ai" })} />
   ),
-  aihistory: (e, c) => <AiHistoryScreen onBack={c.pop} onOpenNote={c.openNote} initialView={e.path === "skills" ? "skills" : "chats"} />,
+  aihistory: (e, c) => <AiHistoryScreen onBack={c.pop} onOpenNote={c.openNote} initialView={e.path === "skills" ? "skills" : e.path === "memory" ? "memory" : "chats"} />,
   cleanup: (_e, c) => <CleanupScreen onBack={c.pop} onOpenNote={c.openNote} vault={c.vault} />,
   // The security wizards are a DESTINATION (S37), not a state inside the
   // security area and not a sheet: the bar is hidden here, and Back — which

@@ -1,6 +1,6 @@
 # Vaardigheden (Beta)
 
-Laatst bijgewerkt: 2026-10-08
+Laatst bijgewerkt: 2026-10-09
 
 Een vaardigheid is een set instructies voor werk dat terugkomt: een vergadering voorbereiden, je taken ordenen, een weekoverzicht. Plainva levert er twaalf mee, en je kunt je eigen schrijven. Vaardigheden gebruiken het open formaat Agent Skills — een map met een `SKILL.md` — en werken daardoor ook in andere AI-apps die dat formaat lezen.
 
@@ -53,7 +53,7 @@ Een eigen vaardigheid stelt alleen wijzigingen voor als haar `allowed-tools`-reg
 
 Een vaardigheid in je vault die nieuw is of veranderd — via sync, een import of een bewerking op dit of een ander apparaat — draait pas wanneer je haar **op dit apparaat** goedkeurt. Zulke vaardigheden wachten bovenaan in **Vaardigheden** onder **Wachten op je goedkeuring**, en in **Instellingen → AI & automatisering** (het Vault-deel). **Controleren en goedkeuren** toont wat de vaardigheid mag, wat er sinds je laatste goedkeuring veranderde, haar instructies, bestanden en waar ze staat. De goedkeuring geldt precies voor deze versie; elke wijziging heft haar weer op. Goedkeuringen worden op dit apparaat bewaard, nooit in de vault.
 
-Hetzelfde geldt voor een `AGENTS.md` bovenaan in je vault: eenmaal goedgekeurd gaan de vaste instructies mee in elk nieuw gesprek. Noch een vaardigheid noch `AGENTS.md` kan je privacyregels opheffen, en een vaardigheid krijgt nooit meer dan een gesprek heeft — ze kan het alleen beperken.
+Hetzelfde geldt voor een `AGENTS.md` bovenaan in je vault: eenmaal goedgekeurd gaan de vaste instructies mee in elk nieuw gesprek. Noch een vaardigheid noch `AGENTS.md` kan je privacyregels opheffen, en een vaardigheid krijgt nooit meer dan een gesprek heeft — ze kan het alleen beperken. Een regel die je in het geheugen toevoegt of van de AI accepteert, wordt een extra regel in dit bestand; zie [Geheugen](AI_Memory.md).
 
 ## Vaardigheden testen met een model
 

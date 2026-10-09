@@ -6363,3 +6363,169 @@ test('AI external agents: an agent is added and started after the surface said w
   await expect(sessions).toContainText(/through Plainva: 2 · written itself: 1|über Plainva: 2 · selbst geschrieben: 1/);
   if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-agent-ended-desktop.png'), animations: 'disabled' });
 });
+
+// The vault's memory (AI harness P6): two files of the vault. A conversation
+// is started with what its recipient may have of "always included"; an entry
+// comes to be as a draft the reader accepts, and a rule becomes a line of the
+// vault's instructions — in the real shell, with the real wiring, against the
+// mock file system that stands for the vault. The model is the scripted
+// `ai_http`.
+test('AI memory: a conversation is started with what a cloud may have; the reader writes an entry by accepting a draft; a rule goes to the instructions', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  // A found tool is called through the conversation's dispatcher.
+  const calls = (...list: Array<[id: string, name: string, args: unknown]>) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ...list.flatMap(([id, name, args], index): Array<[string, unknown]> => [
+      ['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id, name: 'call_tool', input: {} } }],
+      ['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ name, args }) } }],
+      ['content_block_stop', { type: 'content_block_stop', index }],
+    ]),
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const ACTIVE = '# Active memory\n\n- I write offers for film studios.\n- My day rate is 950. <!-- plainva: added=2026-10-01; by=user; deny=cloud -->\n';
+  const LONG = '# Memory\n\n## Clients\n- Harbour Studio pays within 14 days.\n';
+  const script = [
+    calls(['c1', 'remember', { text: 'I prefer short offers.' }]),
+    says('I drafted an entry for the memory. It waits for you.'),
+    calls(['c2', 'remember', { text: 'Answer in German.', as: 'rule' }]),
+    says('I drafted a rule. It waits for you as well.'),
+  ];
+  await page.addInitScript(({ script, active, long }) => {
+    const fs = (window as any).mockFs;
+    fs['/test-vault/.agent'] = { isDir: true };
+    fs['/test-vault/.agent/active_memory.md'] = active;
+    fs['/test-vault/.agent/MEMORY.md'] = long;
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, active: ACTIVE, long: LONG });
+
+  await page.goto('/');
+  await expect(page.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const files = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([, value]) => typeof value === 'string').map(([path, value]) => ({ path, text: String(value) })));
+  const fileAt = async (path: string) => (await files()).find((file) => file.path === path)?.text ?? null;
+
+  // 1. A conversation. The overview names the memory before anything leaves: how much of it goes, never which entry.
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-companion');
+  await companion.getByTestId('ai-input').fill('Remember that I prefer short offers.');
+  await companion.getByTestId('ai-send').click();
+  await expect(companion.getByTestId('ai-overview-memory')).toHaveText('1 entry from “Always included” · “On demand” can be looked up');
+  await expect(companion.getByTestId('ai-consent')).toContainText('1 memory entry your rules block');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-memory-overview-desktop.png'), animations: 'disabled' });
+  await companion.getByTestId('ai-consent-send').click();
+  await expect(companion.getByText('I drafted an entry for the memory.')).toBeVisible();
+
+  // What the cloud was started with: the entry it may have — not the one kept from it, and nothing of the long-term file.
+  const sent = await requests();
+  expect(sent[0]).toContain('I write offers for film studios.');
+  expect(sent[0]).not.toContain('My day rate is 950.');
+  expect(sent[0]).not.toContain('Harbour Studio');
+  expect(sent[0]).not.toContain('plainva:');
+  expect(sent[0]).toContain('"name":"search_memory"');
+  // What the model read back: that it waits — never that something was remembered.
+  expect(sent[1]).toContain('Drafted: an entry for the memory. Nothing in the vault has changed.');
+
+  // 2. The draft changed nothing. Its card shows the whole entry and lets the reader choose where it goes.
+  expect(await fileAt('/test-vault/.agent/active_memory.md')).toBe(ACTIVE);
+  const draft = companion.locator('[data-testid="ai-draft"][data-kind="memory"]');
+  await expect(draft.getByTestId('ai-draft-title')).toHaveText('I prefer short offers.');
+  await expect(draft.getByTestId('ai-draft-place-active')).toHaveAttribute('aria-pressed', 'true');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-memory-draft-desktop.png'), animations: 'disabled' });
+  await draft.getByTestId('ai-draft-create').click();
+  await expect.poll(() => fileAt('/test-vault/.agent/active_memory.md')).toMatch(/^- I prefer short offers\. <!-- plainva: added=\d{4}-\d\d-\d\d; by=assistant; source=Remember that I prefer short offers\. -->$/m);
+  await expect(companion.locator('[data-testid="ai-draft"][data-kind="memory"]')).toHaveCount(0);
+
+  // 3. A rule is no memory: its draft says so, and accepting it writes a line of the vault's instructions.
+  await companion.getByTestId('ai-input').fill('Always answer in German.');
+  await companion.getByTestId('ai-send').click();
+  await expect(companion.getByText('I drafted a rule.')).toBeVisible();
+  const rule = companion.locator('[data-testid="ai-draft"][data-kind="rule"]');
+  await expect(rule.getByTestId('ai-draft-title')).toHaveText('Answer in German.');
+  await expect(rule).toContainText('AGENTS.md');
+  expect(await fileAt('/test-vault/AGENTS.md')).toBeNull();
+  await rule.getByTestId('ai-draft-create').click();
+  await expect.poll(() => fileAt('/test-vault/AGENTS.md')).toBe('# Instructions for assistants\n\n- Answer in German.\n');
+  // The memory files do not hold it.
+  expect(await fileAt('/test-vault/.agent/active_memory.md')).not.toContain('German');
+  await companion.getByTestId('ai-companion-close').click();
+
+  // 4. The memory in the AI tab (the settings' "Open memory" sends the same event): both groups, the budget, the
+  //    rule an entry carries.
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('plainva-ai-memory')));
+  await page.getByTestId('ai-tab-memory').click();
+  const memory = page.getByTestId('ai-memory');
+  await expect(memory).toBeVisible();
+  await expect(memory.locator('[data-testid="ai-memory-entry"][data-place="active"]')).toHaveCount(3);
+  await expect(memory.locator('[data-testid="ai-memory-entry"][data-place="long"]')).toHaveCount(1);
+  await expect(memory.getByTestId('ai-memory-budget')).toContainText('of 2,000 characters');
+  await expect(memory.getByTestId('ai-memory-mark')).toHaveText(['Not to cloud models']);
+  await expect(memory.getByTestId('ai-memory-rules-open')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-memory-desktop.png'), animations: 'disabled' });
+
+  // 5. An entry by hand: the form, then one more line in the file it was meant for — kept from the cloud, as ticked.
+  await memory.getByTestId('ai-memory-new').click();
+  const dialog = page.getByTestId('ai-memory-dialog');
+  await dialog.getByTestId('ai-memory-text').fill('Yard 7 owes me 4200.');
+  await dialog.getByTestId('ai-memory-place-long').click();
+  await dialog.getByTestId('ai-memory-local').check();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-memory-form-desktop.png'), animations: 'disabled' });
+  await dialog.getByTestId('ai-memory-save').click();
+  await expect(dialog).toHaveCount(0);
+  expect(await fileAt('/test-vault/.agent/MEMORY.md')).toMatch(/^- Yard 7 owes me 4200\. <!-- plainva: added=\d{4}-\d\d-\d\d; by=user; deny=cloud -->$/m);
+  await expect(memory.locator('[data-testid="ai-memory-entry"][data-place="long"]')).toHaveCount(2);
+
+  // 6. What a row can do: moved to the other place, it is a line of the other file and gone from this one.
+  await memory.locator('[data-testid="ai-memory-entry"][data-place="long"]').filter({ hasText: 'Yard 7' }).getByTestId('ai-memory-more').click();
+  await expect(page.getByTestId('ai-memory-action-edit')).toBeVisible();
+  await expect(page.getByTestId('ai-memory-action-delete')).toBeVisible();
+  await page.getByTestId('ai-memory-action-toActive').click();
+  await expect(memory.locator('[data-testid="ai-memory-entry"][data-place="active"]')).toHaveCount(4);
+  expect(await fileAt('/test-vault/.agent/MEMORY.md')).not.toContain('Yard 7');
+  expect(await fileAt('/test-vault/.agent/active_memory.md')).toContain('- Yard 7 owes me 4200. <!-- plainva: added=');
+
+  // A rule by hand: one more line of the instructions, behind the one the draft left there.
+  await memory.getByTestId('ai-memory-rule-new').click();
+  const ruleDialog = page.getByTestId('ai-memory-rule-dialog');
+  await ruleDialog.getByTestId('ai-memory-rule-text').fill('Use the metric system.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-memory-rule-desktop.png'), animations: 'disabled' });
+  await ruleDialog.getByTestId('ai-memory-rule-save').click();
+  await expect(ruleDialog).toHaveCount(0);
+  await expect.poll(() => fileAt('/test-vault/AGENTS.md')).toBe('# Instructions for assistants\n\n- Answer in German.\n- Use the metric system.\n');
+
+  // 7. The switch is this device's: it lies in the app's data, and the vault's files do not change with it.
+  const before = await fileAt('/test-vault/.agent/active_memory.md');
+  await memory.getByTestId('ai-memory-switch').click();
+  await expect(memory).toContainText('Off on this device');
+  const prefs = (await files()).filter((file) => file.path.endsWith('/memory.json'));
+  expect(prefs).toHaveLength(1);
+  expect(prefs[0].path.startsWith('/test-vault/')).toBe(false);
+  expect(JSON.parse(prefs[0].text)).toEqual({ version: 1, on: false });
+  expect(await fileAt('/test-vault/.agent/active_memory.md')).toBe(before);
+
+  // 8. The memory is the reader's files: each place opens its own in the editor, comments and all.
+  await memory.getByTestId('ai-memory-file-long').click();
+  await expect(page.locator('.cm-content').last()).toContainText('Harbour Studio pays within 14 days.');
+});

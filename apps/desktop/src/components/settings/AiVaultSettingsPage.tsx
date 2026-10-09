@@ -7,6 +7,7 @@ import {
   Banner,
   Button,
   ICON,
+  memorySummary,
   skillView,
   waitingCount,
   workshopSections,
@@ -25,7 +26,7 @@ import {
   type PolicyChoice,
 } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
-import { currentAiPolicy, getDesktopAiSession, requestSkillsView } from "../../services/ai/desktopAi";
+import { currentAiPolicy, getDesktopAiSession, requestMemoryView, requestSkillsView } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";
 import { ExternalToolsCard } from "./ExternalToolsCard";
 
@@ -43,12 +44,13 @@ const NONE = () => null;
  * chapter 7): a summary, what waits for an approval on this device, and the
  * way into the workshop in the AI tab — reviewing one entry right away.
  */
-function SkillsCard({ onOpenSkills }: { onOpenSkills: (review?: string) => void }) {
+function SkillsCard({ onOpenSkills, onOpenMemory }: { onOpenSkills: (review?: string) => void; onOpenMemory: () => void }) {
   const { t } = useTranslation();
   const session = getDesktopAiSession();
   const state = useSyncExternalStore(session ? session.subscribe : NOOP, session ? session.getState : NONE, session ? session.getState : NONE);
   useEffect(() => {
     void session?.refreshSkills();
+    void session?.refreshMemory();
   }, [session]);
   if (!session || !state) return null;
   const entries = state.skills.entries;
@@ -71,6 +73,12 @@ function SkillsCard({ onOpenSkills }: { onOpenSkills: (review?: string) => void 
             </Button>
           </SettingRow>
         ))}
+      {/* The vault's memory (plan P6): how much it holds, and the way to it in the AI tab. */}
+      <SettingRow label={t("ai.memory.segment")} desc={memorySummary(t, state.memory)}>
+        <Button size="sm" variant="secondary" disabled={!state.memory.available} onClick={onOpenMemory} data-testid="settings-ai-memory-open">
+          {t("ai.memory.open")}
+        </Button>
+      </SettingRow>
     </SettingCard>
   );
 }
@@ -136,6 +144,10 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
   const { t } = useTranslation();
   const openSkills = (review?: string) => {
     requestSkillsView(review ?? null);
+    onClose?.();
+  };
+  const openMemory = () => {
+    requestMemoryView();
     onClose?.();
   };
   const { vaultAdapter, queryService, workspaceSecurityStatus } = useVault();
@@ -255,7 +267,7 @@ export function AiVaultSettingsPage({ isActiveVault, onClose }: { isActiveVault:
       </SettingCard>
       <InternetCard />
       <ExternalToolsCard />
-      <SkillsCard onOpenSkills={openSkills} />
+      <SkillsCard onOpenSkills={openSkills} onOpenMemory={openMemory} />
     </div>
   );
 }

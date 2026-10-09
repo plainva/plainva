@@ -101,6 +101,14 @@ a write or an outside effect.
        that question is the user's, and an assistant never answers it.
        "Create" is the user's step and writes the note the way the
        database's own "New entry" does without a template.
+     - *What should be remembered is a draft* (`remember`, `forget`): an
+       entry for the vault's memory, a new wording for one, the removal of
+       one, or — named as such — a rule for assistants. Nothing is written;
+       the user's step on the draft's card is what writes, and an entry then
+       carries the rules of what its conversation rested on. A model names
+       an entry by its words, and one the gate keeps from its recipient is
+       answered like one that is not there. The two tools exist in Plainva's
+       own conversations only (ADR 0027).
      - *A run that fills a column is not a conversation* (`fillProperty`):
        the app, not a model, walks the entries. Each note that says nothing
        in the column goes in a request of its own — its properties, its
@@ -209,7 +217,8 @@ a write or an outside effect.
        `create_task`, `add_journal_entry`) are the ones a script can name;
        mail, an appointment's description, the internet, foreign servers'
        tools, skills, the tool search, other scripts, the plans (rename,
-       move, delete) and the drafts of an e-mail or an appointment are not.
+       move, delete), the drafts of an e-mail or an appointment and the
+       memory's tools (ADR 0027) are not.
    - `forbidden` — reading the keychain, raw secrets, an unbounded shell,
      direct DB or file writes outside the adapters, raw SQL. Never a tool.
 3. **A small, stable surface.** A conversation loads the tools an answer
