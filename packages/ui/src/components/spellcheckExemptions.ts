@@ -1,6 +1,7 @@
 import { syntaxTree } from "@codemirror/language";
-import type { EditorState, Extension, Range } from "@codemirror/state";
+import type { Extension, Range } from "@codemirror/state";
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from "@codemirror/view";
+import { frontmatterLines } from "./editorFrontmatter";
 
 /**
  * What a spell checker must leave alone inside a note (plan Befunde
@@ -33,16 +34,6 @@ const BLOCKS = new Set(["FencedCode", "CodeBlock", "HTMLBlock", "CommentBlock", 
 /** Inline ranges that hold no prose. */
 const SPANS = new Set(["InlineCode", "URL", "Autolink", "HTMLTag", "Comment", "ProcessingInstruction"]);
 
-/** End of the YAML frontmatter (offset after its closing line), or 0. */
-function frontmatterEnd(state: EditorState): number {
-  const doc = state.doc;
-  if (doc.lines < 2 || doc.line(1).text !== "---") return 0;
-  for (let i = 2; i <= doc.lines; i += 1) {
-    if (doc.line(i).text === "---") return doc.line(i).to;
-  }
-  return 0;
-}
-
 function build(view: EditorView): DecorationSet {
   const { state } = view;
   const ranges: Range<Decoration>[] = [];
@@ -56,7 +47,8 @@ function build(view: EditorView): DecorationSet {
     }
   };
 
-  const fmEnd = frontmatterEnd(state);
+  // The frontmatter ends with its closing line; lezer has no node for it.
+  const fmEnd = frontmatterLines(state.doc)?.closeTo ?? 0;
   for (const visible of view.visibleRanges) {
     if (fmEnd > 0 && visible.from < fmEnd) lineOffAt(visible.from, Math.min(visible.to, fmEnd));
     syntaxTree(state).iterate({

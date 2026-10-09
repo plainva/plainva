@@ -5,6 +5,7 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { frontmatterSpan, noteBodyOf } from "../src/frontmatter-surgical.js";
 import { composeNote } from "../src/frontmatter-block.js";
+import { FRONTMATTER_FORMS } from "./fixtures/frontmatterForms.js";
 
 /**
  * The one definition of a note's properties block (finding 2026-10-07).
@@ -134,41 +135,7 @@ describe("frontmatterSpan", () => {
 describe("frontmatterSpan and the Markdown parser", () => {
   const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]);
 
-  const FORMS = [
-    "---\na: 1\n---\nBody\n",
-    "---\r\na: 1\r\nb: 2\r\n---\r\nBody\r\n",
-    "---\n---\n# Single\n",
-    "---\r\n---\r\n# Single\r\n",
-    "---\n---",
-    "---\n---\n",
-    "---\n\n---\n# Single\n",
-    "---\n---\n\ntext\n\n---\n\nmore\n",
-    "---\n---\n---\ntext\n",
-    "---\na: 1\n---\n\n---\n\nrule\n",
-    "---\na: 1\n---",
-    "--- \na: 1\n---\nBody\n",
-    "---\na: 1\n--- \nBody\n",
-    "---\n---  \nBody\n",
-    "---\t\n---\nBody\n",
-    "\uFEFF---\na: 1\n---\nBody\n",
-    "\uFEFF---\n---\nBody\n",
-    "---\n# only a comment\n---\nBody\n",
-    "---\n{}\n---\nBody\n",
-    "---\na: 1\n...\nBody\n",
-    "\n---\na: 1\n---\nBody\n",
-    " ---\na: 1\n---\nBody\n",
-    "----\na: 1\n----\nBody\n",
-    "---\na: 1\n----\nBody\n---\n",
-    "---\na: 1\n ---\nBody\n---\n",
-    "---\na: 1\nBody\n",
-    "---\n",
-    "---",
-    "---a\n---\n",
-    "# Heading\n\n---\na: 1\n---\n",
-    "",
-  ];
-
-  it.each(FORMS.map((form) => [JSON.stringify(form), form] as const))("agrees on %s", (_label, form) => {
+  it.each(FRONTMATTER_FORMS.map((form) => [JSON.stringify(form), form] as const))("agrees on %s", (_label, form) => {
     // The parser drops a leading byte order mark before it counts offsets.
     const shift = form.charCodeAt(0) === 0xfeff ? 1 : 0;
     const first = parser.parse(form).children[0] as { type: string; value?: string; position?: { end: { offset?: number } } } | undefined;

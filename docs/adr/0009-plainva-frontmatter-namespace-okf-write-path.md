@@ -263,9 +263,44 @@ up to it was read as YAML.
    search missed a block closed at the very end of the file, closed by a
    fence with another line ending than the first line, or standing behind a
    byte order mark; such a note left the vault with every property it had.
-6. **Deliberately outside the definition:** the editor's own scanners, which
-   read the editor's lines rather than a string and already took the empty
-   block for a block (they stay stricter: a fence with blanks behind it or
-   behind a byte order mark is not hidden in the editor), and the readers
-   that only decide what a card or a paragraph's direction shows — they also
-   hide a block closed by the YAML document end `...`.
+6. **The editor reads the same rule on its lines.** The editor holds lines,
+   not a string, and must not turn the document into one on every
+   transaction, so it cannot ask `frontmatterSpan`. It has one reader of its
+   own, `frontmatterLines` in
+   `packages/ui/src/components/editorFrontmatter.ts`: hiding and protecting
+   the block, the decorations, the block model, the live header, the
+   spell-check exemptions and the tag pills all ask it, and
+   `editorFrontmatter.test.ts` holds it against the definition on the table
+   of forms the definition is held against the parser with. (The first
+   version of this addendum left the editor's five line scans outside. They
+   took the empty block for a block, but wanted a line that is exactly
+   `---`: a fence with blanks behind it was a block for the index and the
+   properties panel and text in the editor — a rule and a heading, open to
+   typing.)
+   - **A byte order mark.** An editor holds a note without its mark: the
+     mark is part of the file's shape, taken off when the file is opened and
+     put back when it is saved (`openEditorText`, since 2026-10-09). So an
+     editor's document does not normally start with one. Where one does —
+     text that was pasted or set from elsewhere —, the editor still answers
+     like the definition: the block behind the mark is the block, and the
+     mark counts to its range, hidden with it in live mode and protected
+     with it against typing. The editor has no second opinion on where a
+     block is.
+   - **Line breaks.** The editor's lines are what it split the text at —
+     `\n`, `\r\n`, and a carriage return of its own — and it writes `\n`
+     back. Its answer is the definition's for the text it writes.
+   - **Cost.** The answer is kept per document: a transaction that changes
+     nothing asks for free, and an edit costs one pass that ends at the
+     closing fence. Only a note that opens with `---` and never closes is
+     read to its end, once per edit — about 0.2 ms at 10 000 lines and 2 to
+     3 ms at 100 000. The scans it replaces took 0.6 to 0.9 ms and 10 to
+     12 ms each on the same notes, four of them per keystroke in live mode.
+     The live header no longer gives up after 300 lines: it shares that
+     pass and reads the YAML again only when an edit touches the block. A
+     longer block had its icon, stripe and badge in the read view and none
+     in the live editor.
+7. **Deliberately outside the definition:** the readers that only decide what
+   a card or a paragraph's direction shows (`noteCardModel.ts`, the card
+   search in `VaultQueryService.ts`, `textDirection.ts`). They also hide a
+   block closed by the YAML document end `...`, which is no properties
+   block. `frontmatterDefinition.test.ts` names them as its exemptions.

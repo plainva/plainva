@@ -29,7 +29,11 @@ keeps the class closed.
    - `packages/core/src/frontmatter-block.ts` — the properties block at the top
      of a note: `frontmatterSpan` for where it is, `noteBodyOf` for the text
      behind it. Every reader and writer asks there; a pattern or a search of
-     one's own for the two `---` lines fails `frontmatterDefinition.test.ts`;
+     one's own for the two `---` lines fails `frontmatterDefinition.test.ts`.
+     The editor holds lines, not a string, and reads the same rule on them in
+     one place, `frontmatterLines` in
+     `packages/ui/src/components/editorFrontmatter.ts` — kept per document, so
+     no part of the editor scans the lines for itself on a transaction;
    - `packages/core/src/vault/htmlCheckbox.ts` — the tag tokenizer behind the
      HTML task box, shared by both renderers and the writer;
    - `packages/core/src/vault/filterComparison.ts` — the `column op "value"`

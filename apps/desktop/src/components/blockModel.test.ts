@@ -39,6 +39,34 @@ describe("listBlocks", () => {
     expect(blocks.map((b) => b.type)).toEqual(["heading", "paragraph"]);
     expect(blocks[0].firstLine).toBe(5); // first real block is the heading on line 5
   });
+
+  // The block as the one definition reads it (finding 2026-10-09): the scan of
+  // this module wanted a line that is exactly `---`, so a fence with a blank
+  // behind it surfaced as a rule block and a heading block with handles.
+  it("excludes the frontmatter in every form the definition reads as a block", () => {
+    const MARK = String.fromCharCode(0xfeff);
+    for (const head of [
+      "--- \ntitle: x\n---\t\n", // blanks behind either fence
+      "---\n---\n", // the empty block
+      "---\n\n---\n", // a blank line between the fences
+      `${MARK}---\ntitle: x\n---\n`, // behind a byte order mark
+      `${MARK}---\n---\n`,
+    ]) {
+      const state = st(`${head}# Heading\n\npara`);
+      const blocks = listBlocks(state);
+      expect(blocks.map((b) => b.type), JSON.stringify(head)).toEqual(["heading", "paragraph"]);
+      expect(blocks[0].firstLine, JSON.stringify(head)).toBe(head.split("\n").length);
+      // No block answers for a position inside the frontmatter.
+      expect(blockAt(state, 1), JSON.stringify(head)).toBeNull();
+    }
+  });
+
+  it("keeps the lines of a note that only opens with a rule", () => {
+    // No closing fence, no frontmatter: the rule and the text are blocks.
+    expect(listBlocks(st("---\n\npara\n\nmore")).map((b) => b.type)).toEqual(["hr", "paragraph", "paragraph"]);
+    // An empty block closes on the next line; the rule further down is a block of the text.
+    expect(listBlocks(st("---\n---\n\npara\n\n---\n\nmore")).map((b) => b.type)).toEqual(["paragraph", "hr", "paragraph"]);
+  });
 });
 
 describe("blockAt", () => {
