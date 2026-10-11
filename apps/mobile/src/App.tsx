@@ -435,10 +435,10 @@ export default function App() {
   };
 
   const capture = () => {
-    // Context-aware (P3): capture into the folder the user is looking at,
-    // else the configurable inbox (R3.6).
+    // Context-aware (P3): capture into the folder the user is looking at, else
+    // the configurable inbox (R3.6). `createNote` asks for the note's type.
     const folder = browseFolder() || getMobileSettings().inboxFolder;
-    void vaultOps.createNote(vault, folder, "Note").then((path) => {
+    void vaultOps.createNote(vault, folder).then((path) => {
       // null = the template's questions were cancelled, so nothing was created.
       if (path) setNav((s) => pushCapturedNote(s, slots, path));
     });

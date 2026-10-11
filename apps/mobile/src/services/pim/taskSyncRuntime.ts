@@ -14,6 +14,7 @@ import {
 } from "@plainva/ui";
 import type { PimAccountRow, PimCacheRepository, IPimTarget } from "@plainva/core";
 import { getMobileSettings } from "../mobileSettings";
+import { configuredNoteType } from "../newNote";
 import { currentDeletionJournal, firstSyncSettled } from "../syncService";
 import type { MobileVault } from "../vaultService";
 
@@ -115,7 +116,7 @@ export async function runMobileTaskSync(): Promise<void> {
       cache: w.cache,
       buildTarget: w.buildTarget,
       taskDbPath,
-      noteType: getMobileSettings().defaultNoteType.trim() || "Note",
+      noteType: configuredNoteType(),
       allNotePaths: (await query.listNotes()).map((n) => n.path),
       // OKF 0.2 provenance (plan P3b): the same `plainva-task-sync/<version>`
       // actor the desktop writes — one producer name for both shells.

@@ -42,6 +42,7 @@ import { resolveGoverningBaseOf } from "../services/baseOps";
 import { getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, type MobileVault } from "../services/vaultService";
 import { shareVaultFile } from "../services/shareFile";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
 import { mPrompt } from "../services/mobileDialogs";
 import { confirmDeleteFile } from "../lib/deleteFile";
 import { clearDraft, readDraft, type NoteDraft } from "../services/draftJournal";
@@ -910,7 +911,7 @@ export function NoteScreen({
       adapter: vault.files,
       dbPath,
       title,
-      noteType: getMobileSettings().defaultNoteType,
+      noteType: configuredNoteType(),
       trailer: commentTaskTrailer({
         body: comment.body,
         quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,

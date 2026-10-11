@@ -10,6 +10,7 @@ import { Browser } from "@capacitor/browser";
 import { DEFAULT_JOURNAL_HEADING, normalizeJournalHeading } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { type DefaultView } from "../services/mobileSettings";
+import { dailyNoteTypeOf, noteTypeOf } from "../services/newNote";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { deletionLogChecker } from "../services/syncService";
 import { AppBar } from "../components/AppBar";
@@ -302,9 +303,16 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
                 value={settings.dailyFormat}
               />
             </SettingField>
+            {/* The two type fields save what the creation paths read
+                (`services/newNote.ts`): the name without blanks around it, and
+                the default for a field left empty — which the placeholder
+                names while it is empty. A blank used to be saved as it was
+                and written into new notes as an empty `type`. */}
             <SettingField label={t("settings.dailyNoteType")}>
               <CommittedTextInput
+                normalize={dailyNoteTypeOf}
                 onSave={(v) => update({ dailyNoteType: v })}
+                placeholder={dailyNoteTypeOf("")}
                 value={settings.dailyNoteType}
               />
             </SettingField>
@@ -328,7 +336,9 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
             </SettingField>
             <SettingField hint={t("settings.defaultNoteTypeDesc")} label={t("settings.defaultNoteType")}>
               <CommittedTextInput
+                normalize={noteTypeOf}
                 onSave={(v) => update({ defaultNoteType: v })}
+                placeholder={noteTypeOf("")}
                 value={settings.defaultNoteType}
               />
             </SettingField>

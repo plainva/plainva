@@ -172,6 +172,74 @@ describe("a settings field while its save is in flight (E23)", () => {
   });
 });
 
+/**
+ * "type for new notes" and "type for daily notes" save what the creation paths
+ * read (`services/newNote.ts`; finding 2026-10-09): the name without blanks
+ * around it, and the default for a field left empty. A cleared field used to be
+ * saved as it was, and the phone wrote an empty `type` into new notes — the
+ * desktop's fields have saved the default all along.
+ */
+describe("the type fields save a type", () => {
+  const NEW = "settings.defaultNoteType", DAILY = "settings.dailyNoteType";
+  /** The field under this label (the test's `t` answers with the key). */
+  const typeField = (label: string) =>
+    [...host.querySelectorAll("label.pv-rowfield")]
+      .find((row) => row.querySelector(".pv-rowfield-label")?.textContent === label)!
+      .querySelector<HTMLInputElement>("input")!;
+  async function stored(patch: Record<string, unknown>) {
+    await act(async () => {
+      Object.assign(store.live, patch);
+      window.dispatchEvent(new CustomEvent("m-settings-changed"));
+    });
+  }
+
+  it("an empty field names the type new notes get", () => {
+    expect(typeField(NEW).value).toBe("");
+    expect(typeField(NEW).placeholder).toBe("Note");
+    expect(typeField(DAILY).value).toBe("");
+    expect(typeField(DAILY).placeholder).toBe("Daily Note");
+  });
+
+  it("a cleared field saves the default, and is not refilled under the thumb", async () => {
+    await stored({ defaultNoteType: "Zettel", dailyNoteType: "Tagebuch" });
+    for (const [label, key, fallback] of [[NEW, "defaultNoteType", "Note"], [DAILY, "dailyNoteType", "Daily Note"]] as const) {
+      store.writes = [];
+      const el = typeField(label);
+      expect(el.value).toBe(store.live[key]);
+      el.focus();
+      await act(async () => { edit(el, "", 0); });
+      expect(el.value).toBe("");
+      await act(async () => { el.blur(); });
+      await ackAll();
+      expect(store.writes).toEqual([{ [key]: fallback }]);
+      expect(store.live[key]).toBe(fallback);
+      expect(el.value).toBe(fallback);
+    }
+  });
+
+  it("blanks around a name are not saved with it", async () => {
+    const el = typeField(NEW);
+    el.focus();
+    await act(async () => { typeAt(el, "  Zettel "); });
+    // What was typed stays while typing.
+    expect(el.value).toBe("  Zettel ");
+    await act(async () => { el.blur(); });
+    await ackAll();
+    expect(store.writes).toEqual([{ defaultNoteType: "Zettel" }]);
+    expect(el.value).toBe("Zettel");
+  });
+
+  it("a field of blanks only saves the default", async () => {
+    const el = typeField(DAILY);
+    el.focus();
+    await act(async () => { typeAt(el, "   "); });
+    await act(async () => { vi.advanceTimersByTime(FIELD_DRAFT_DELAY_MS); });
+    await ackAll();
+    expect(store.writes).toEqual([{ dailyNoteType: "Daily Note" }]);
+    expect(store.live.dailyNoteType).toBe("Daily Note");
+  });
+});
+
 describe("the settings state is optimistic (E23)", () => {
   function Probe() {
     const { settings, update } = useSettingsState();

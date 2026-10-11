@@ -431,3 +431,55 @@ only where that text carried no properties block.
    to the editor as it was: for a template written on Windows the caret stood
    one character too far right for every line above it, and one more behind
    a mark.
+
+## Addendum 2026-10-11 (the type of a new file, on the phone too)
+
+Finding 2026-10-09, seen while the phone's header moved to the shared writer:
+point 3 of the decision makes the default `type` a setting of the vault, and
+every creation path owes a new file that type. On the phone the setting did
+not reach two creation paths, a blank setting reached the others as an empty
+`type`, and one path wrote no properties block at all.
+
+1. **One place per shell names the type of a new note.** The desktop asks
+   `getConfiguredNoteType` and `getConfiguredDailyNoteType`
+   (`apps/desktop/src/services/newNote.ts`), the phone `configuredNoteType`
+   and `configuredDailyNoteType` (`apps/mobile/src/services/newNote.ts`).
+   Every creation path of the phone asks there: the capture button, a note
+   made from a link, a note from a template, a database and a pinboard entry,
+   every way a task note comes about, a new template, the target of a broken
+   link, a shared note and the daily note. The capture button and the note
+   made from a link wrote `Note` whatever the setting said, so a "note type →
+   template" rule for the configured type never applied on capture.
+   `vaultOps.createNote` takes no type any more; it asks.
+2. **A blank setting is an unset one, on both shells.** The setting is read
+   as the name without the blanks around it, and as the default (`Note`,
+   `Daily Note`) where nothing is left. The phone handed the stored text on
+   as it was, and a field that had been cleared wrote `type: ""` — a note
+   that fails point 4 of the decision, made by Plainva itself. The phone's
+   two settings fields save by the same rule now, as the desktop's always
+   did, and name the default while they are empty.
+3. **The rule sits where the setting is read, not where it is loaded.**
+   Eleven places on the phone read the setting themselves, and all of them
+   moved to the one function. The alternative — tidying the stored value
+   when the settings record is filled — would have had to hold at each way
+   into that record (the store on start and on a vault switch, the settings
+   fields, the settings sync, which writes its patch into the live record
+   directly) and at every way added later, with nothing to notice one that
+   was missed. It would also have changed what the settings sync publishes —
+   and, with the next save, the stored value — on a device where nobody
+   changed the setting. A reader that asks the one function is something a
+   test can hold: `apps/mobile/src/services/newNote.test.ts` fails a shipped
+   phone file that reads the setting itself or names the default type as a
+   literal. This is also how the desktop reads its store, and how the phone
+   already read the journal heading.
+4. **A shared note is a new note.** The share import
+   (`apps/mobile/src/services/shareImport.ts`) built the note from a
+   heading, the shared text and the attachment links, without a properties
+   block. The text now goes through `withOkfDefaults` with the vault's type
+   for new notes, which the host names like the folder — before the plan is
+   made, so the header is part of the durable plan: a retry writes the
+   planned note, and a plan an earlier version made without a block is
+   finished as planned. A share that becomes a task brings the task's header;
+   a share that goes into the journal is an entry of the daily note and no
+   file of its own. The desktop has no share target (parity catalog,
+   `share-target`), so this path is the phone's alone.

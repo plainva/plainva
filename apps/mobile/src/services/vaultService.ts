@@ -67,6 +67,7 @@ import {
   forgetVaultStoreKeys,
 } from "./vaultForget";
 import { getMobileSettings, reloadMobileSettingsForActiveVault } from "./mobileSettings";
+import { configuredDailyNoteType, configuredNoteType } from "./newNote";
 import { buildNewNoteFromTemplate, buildNewNoteFromTemplateText, applyTemplateInteractive } from "./templateInteractive";
 import { relativeLinkCandidates } from "../lib/relativeLink";
 import {
@@ -1217,8 +1218,14 @@ export const vaultOps = {
    * header, and the heading directly under it. The phone had a string of its
    * own for this, with a blank line above the heading and two below it
    * (finding 2026-10-09).
+   *
+   * The note's `type` is the vault's type for new notes, asked here and not
+   * handed in: the capture button passed `Note`, so the setting never reached
+   * the note it is named after, and a "note type → template" rule for the
+   * configured type did not apply on capture (finding 2026-10-09).
    */
-  async createNote(v: MobileVault, folder: string, type: string): Promise<string | null> {
+  async createNote(v: MobileVault, folder: string): Promise<string | null> {
+    const type = configuredNoteType();
     for (let n = 1; ; n++) {
       // The name follows the APP's language (issue 105): the phone invents
       // where the desktop asks for it, and an invented name that is always
@@ -1269,7 +1276,7 @@ export const vaultOps = {
       vaultName: (await getActiveVaultEntry()).name || "Plainva",
       folder,
       title: name,
-      type: getMobileSettings().defaultNoteType,
+      type: configuredNoteType(),
     });
     if (!built) return null; // cancelled → nothing is created
     await this.save(v, path, built.content);
@@ -1291,12 +1298,15 @@ export const vaultOps = {
    * (maintainer 2026-07-18, Obsidian parity). Same placement rules as desktop
    * (shared wikiTargetToPath): explicit folder, else the host note's folder,
    * else the vault root. Existing target = just return it (race-safe).
+   * The note starts with the vault's type for new notes, as on the desktop
+   * (`createNoteFromLink`); it was `Note` here whatever the setting said
+   * (finding 2026-10-09).
    */
   async createNoteFromWikiTarget(v: MobileVault, target: string, hostPath?: string): Promise<string | null> {
     const { path, title } = wikiTargetToPath(target, hostPath);
     if (!title) return null;
     if (await v.files.exists(path)) return path;
-    await this.save(v, path, buildNewNoteContent("Note", title));
+    await this.save(v, path, buildNewNoteContent(configuredNoteType(), title));
     reportCreated(path);
     return path;
   },
@@ -1312,13 +1322,16 @@ export const vaultOps = {
    * "interactive" is a PERSON opening the note: a `{{prompt:…}}` in the daily
    * template asks (P6). "headless" is the journal capture creating the note on
    * the way: questions resolve to nothing (decision E4).
+   *
+   * A blank "type for daily notes" is an unset one (`configuredDailyNoteType`);
+   * it used to reach the note as a blank `type` (finding 2026-10-09).
    */
   async ensureDailyNote(v: MobileVault, date: Date, mode: "interactive" | "headless" = "interactive"): Promise<EnsuredDailyNote | null> {
     const ms = getMobileSettings();
     const vaultName = (await getActiveVaultEntry()).name || "Plainva";
     const ensured = await ensureSharedDailyNote(
       date,
-      { folder: ms.dailyFolder, format: ms.dailyFormat, templateFolder: ms.templateFolder, template: ms.dailyTemplate, noteType: ms.dailyNoteType },
+      { folder: ms.dailyFolder, format: ms.dailyFormat, templateFolder: ms.templateFolder, template: ms.dailyTemplate, noteType: configuredDailyNoteType() },
       { exists: (path) => v.files.exists(path), readTextFile: (path) => this.read(v, path), createNote: (path, content) => this.save(v, path, content) },
       {
         resolveTemplate: mode === "interactive" ? (raw, ctx) => applyTemplateInteractive(raw, { ...ctx, vaultName }) : undefined,
