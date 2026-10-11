@@ -32,6 +32,14 @@ export function MobileGistsSection({ session }: { session: AiSession }) {
             <Row title={state.paused ? t("ai.semantic.resume") : t("ai.semantic.pause")} onClick={() => (state.paused ? controller?.resume() : controller?.pause())} data-testid="gists-pause" />
           )}
           {state?.kind === "on" && <Row title={t("ai.gists.clear")} onClick={() => void clear()} data-testid="gists-clear" />}
+          {/* A summary above a long transcript (plan KI-Harness P7): the same model, on this device, and checked. */}
+          <Row
+            wrap
+            title={t("ai.transcribe.summary")}
+            subtitle={t("ai.transcribe.summaryDesc")}
+            end={<Switch checked={settings.transcriptSummary} label={t("ai.transcribe.summary")} onChange={(on) => void session.updateSettings((s) => ({ ...s, transcriptSummary: on }))} />}
+            data-testid="transcript-summary"
+          />
         </RowList>
       </GroupCard>
     </>

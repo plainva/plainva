@@ -134,13 +134,13 @@ Una conversación puede enseñar algo a la IA para más adelante. **Aprender de 
 
 ## Transcribir una nota de voz
 
-En cada nota de voz —en el editor, en el modo de lectura, en el diario y en las tarjetas— **Transcribir** convierte la grabación en texto. Va tal cual al modelo del perfil **Audio**, a través del mismo resumen que una pregunta; una grabación es un tipo de datos propio, por eso el resumen pregunta la primera vez. La transcripción vuelve como sugerencia debajo de la grabación, con el autor **Plainva IA · ⟨modelo⟩**: acéptala o recházala en **Sugerencias**.
+En cada nota de voz —en el editor, en el modo de lectura, en el diario y en las tarjetas— **Transcribir** convierte la grabación en texto. Va tal cual al modelo del perfil **Audio**, a través del mismo resumen que una pregunta; una grabación es un tipo de datos propio, por eso el resumen pregunta la primera vez. La transcripción vuelve como sugerencia debajo de la grabación, con el autor **Plainva IA · ⟨modelo⟩**: acéptala o recházala en **Sugerencias**. Con **Resumir las transcripciones en este dispositivo** (en **Configuración → IA y automatización**, bajo **Resúmenes**), una transcripción larga recibe encima un resumen breve, escrito por el modelo del perfil **Local** en este dispositivo y comprobado: no nombra ningún número, fecha ni enlace que la grabación no contenga. Sin un modelo así, o si la comprobación falla, la transcripción llega sola.
 
 **Audio** necesita un proveedor con ruta de audio: OpenAI (por ejemplo `gpt-4o-transcribe` o `whisper-1`), Gemini o un servidor compatible propio; uno en este equipo mantiene la grabación en el dispositivo. Se pueden transcribir grabaciones de hasta 11 MB. Una grabación en una nota que tus reglas mantienen fuera de la nube no va a ningún modelo en la nube, y los espacios cifrados aún no lo ofrecen.
 
 ## Explicar una imagen
 
-En cada imagen del vault, **Explicar imagen** pregunta a la IA qué muestra la imagen.
+En cada imagen del vault, **Explicar imagen** pregunta a la IA qué muestra la imagen. **Convertir en nota**, a su lado, pide en cambio una nota: un título, lo que muestra la imagen, el texto que contiene palabra por palabra y, si muestra cosas por hacer, una lista de tareas. La respuesta es la nota: llega a tu vault cuando pulsas **Conservar como nota**.
 
 - **Escritorio:** en la barra de herramientas de una imagen abierta y en el menú que abre un clic derecho sobre una imagen en una nota — al editar y en el modo de lectura.
 - **Teléfono:** debajo de una imagen abierta (en una imagen de una nota, **Abrir imagen** te lleva hasta allí).
@@ -229,7 +229,7 @@ Una habilidad tiene estas capacidades solo cuando las nombra, y su revisión lo 
 
 ## Conservar una respuesta como nota
 
-Bajo cada respuesta terminada, **Conservar como nota** convierte la respuesta en una nota de tu vault. Tú lo pulsas y Plainva escribe la nota — el asistente en sí sigue sin cambiar nada.
+Bajo cada respuesta terminada, **Conservar como nota** convierte la respuesta en una nota de tu vault. Tú lo pulsas y Plainva escribe la nota — el asistente en sí sigue sin cambiar nada. Una nota conservada a partir de una respuesta sobre una imagen muestra esa imagen, y una respuesta que empieza con un título propio da su nombre a la nota.
 
 - **Adónde va.** A la **Carpeta de entrada** del vault (**Configuración → Contenido y estructura**), con un nombre tomado de tu pregunta — en una conversación iniciada por una habilidad, de la habilidad y de la nota que estaba abierta, o del día. Una nota que ya está allí nunca se toca: la nueva recibe el siguiente nombre libre. Plainva la abre enseguida.
 - **Quién la escribió.** La primera línea lo dice con palabras — una respuesta de Plainva IA, con el modelo, la hora y tu pregunta. Las propiedades de la nota dicen lo mismo para otras herramientas: `generated`, con el modelo y la hora. Nada marca la nota como revisada; eso sigue siendo cosa tuya — ver [OKF](OKF.md).

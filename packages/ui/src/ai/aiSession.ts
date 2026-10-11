@@ -168,11 +168,15 @@ import {
   withholdPlaces,
   IMAGE_MAX_BYTES,
   imageLead,
+  imageNoteLead,
   imageRoute,
   imagesOf,
   imageTokens,
   isAiHiddenPath,
   TRANSCRIPTION_MAX_BYTES,
+  TRANSCRIPT_SUMMARY_INSTRUCTION,
+  TRANSCRIPT_SUMMARY_MIN,
+  checkTranscriptSummary,
   transcriptBlock,
   transcriptionRequest,
   transcriptionRoute,
@@ -632,6 +636,11 @@ export interface ImageRequest {
   path: string;
   /** The note it is embedded in, where the door stood on an embed: that note's rules decide too. */
   notePath?: string;
+  /**
+   * What is asked about the picture: an explanation, or a note of it (plan P7) — the same door with another task.
+   * The answer is the note; it comes into the vault when the user keeps it.
+   */
+  purpose?: "explain" | "note";
   load(): Promise<PreparedImage | PrepareFailure>;
 }
 
@@ -3472,6 +3481,10 @@ export class AiSession {
       if (!answer.ok) return refused("failed", { failure: answer.failure, provider: provider.label, model: choice.model });
       const transcript = transcriptOf(route, answer.json);
       if (!transcript) return refused("empty");
+      // A summary above a long transcript (plan P7), where the user switched it on: written by the model of the
+      // profile "Local" on this device — nothing goes to anyone new for it — and checked, or left out. It never
+      // holds the transcript back.
+      const summary = await this.transcriptSummary(vault, transcript, notePath, note.text, audio.path);
       // The note may have moved on meanwhile: the round is laid on it as it is now, under the one line with the recording.
       const base = (await vault.readNote(notePath))?.text ?? "";
       const at = base.indexOf(target);
@@ -3480,12 +3493,14 @@ export class AiSession {
       const end = lineEnd < 0 ? base.length : lineEnd;
       // What was said in a recording is text a model wrote down: an address in it is made inert like any other.
       const linted = defuseNewAddresses(transcript, [base]);
-      const roundNote = t("ai.transcribe.roundNote", { name: audio.name });
+      // The summary names no address the transcript does not hold (its check); what it holds is made inert like the transcript's.
+      const above = summary ? defuseNewAddresses(summary.text, [base]) : null;
+      const roundNote = summary ? t("ai.transcribe.roundNoteSummary", { name: audio.name, model: summary.model }) : t("ai.transcribe.roundNote", { name: audio.name });
       await vault.propose({
         path: notePath,
         base,
-        chunks: [{ fromA: end, toA: end, replacement: transcriptBlock(linted.text) }],
-        note: linted.defused ? `${roundNote} ${t("ai.lint.defused")}` : roundNote,
+        chunks: [{ fromA: end, toA: end, replacement: transcriptBlock(linted.text, above ? { label: t("ai.transcribe.summaryLabel"), text: above.text } : undefined) }],
+        note: linted.defused || above?.defused ? `${roundNote} ${t("ai.lint.defused")}` : roundNote,
         author: { id: `plainva-ai/${choice.model}`, displayName: t("ai.suggestionAuthor", { model: choice.model }) },
       });
       return { kind: "proposed", model: choice.model };
@@ -3493,6 +3508,30 @@ export class AiSession {
       return refused("failed", { message: error instanceof Error ? error.message : String(error), provider: provider.label, model: choice.model });
     } finally {
       this.transcribing.delete(audio.path);
+    }
+  }
+
+  /**
+   * A checked summary of a transcript by the model on this device (plan P7), or null: switched off, no such model,
+   * a transcript too short to need one, rules that keep the note from that model, a model that failed, or a
+   * summary that names something the recording does not.
+   */
+  private async transcriptSummary(vault: AiVaultHost, transcript: string, notePath: string, noteText: string, audioPath: string): Promise<{ text: string; model: string } | null> {
+    if (!this.state.settings.transcriptSummary || transcript.trim().length < TRANSCRIPT_SUMMARY_MIN) return null;
+    const local = this.localCompletion();
+    const provider = local ? providerById(local.providerId, this.state.settings.custom) : undefined;
+    if (!local || !provider) return null;
+    try {
+      // The note's rules and the recording's own decide for this reader as they did for the one that transcribed.
+      const run = { recipient: recipientOf(provider, local.model), webTools: false };
+      if (!gateDecision(await vault.policy.policyOf(notePath, noteText), run).allowed) return null;
+      if (!gateDecision(await vault.policy.policyOf(audioPath), run).allowed) return null;
+      const answer = await local.complete(TRANSCRIPT_SUMMARY_INSTRUCTION, transcript);
+      await this.recordRequests(vault, { providerId: local.providerId, model: local.model }, { id: `summary-${this.host.newId()}`, usage: { ...EMPTY_USAGE, ...answer.usage }, steps: 1, stop: "answered" });
+      const text = answer.text.replace(/\s+/g, " ").trim();
+      return checkTranscriptSummary(transcript, text).ok ? { text, model: local.model } : null;
+    } catch {
+      return null;
     }
   }
 
@@ -3947,7 +3986,10 @@ export class AiSession {
       if (prepared.bytes > IMAGE_MAX_BYTES) return refused("too-large");
       const name = path.slice(path.lastIndexOf("/") + 1);
       const picture: ImagePart = { type: "image", mime: prepared.mime, data: prepared.data, name, width: prepared.width, height: prepared.height, path };
-      const lead: TextPart = { type: "text", text: imageLead({ path, ...(noteTitle ? { noteTitle } : {}) }), context: [] };
+      // "Make a note of it" (plan P7) is the same door with another task: the answer is the note.
+      const asNote = request.purpose === "note";
+      const place = { path, ...(noteTitle ? { noteTitle } : {}) };
+      const lead: TextPart = { type: "text", text: asNote ? imageNoteLead(place) : imageLead(place), context: [] };
       const folder = path.includes("/") ? path.slice(0, path.indexOf("/")) : "";
       const price = this.priceOf(choice);
       const disclose = (manifest: EgressManifest): EgressManifest => {
@@ -3967,8 +4009,10 @@ export class AiSession {
       const listed = this.state.tests[choice.providerId]?.models?.find((model) => model.id === choice.model)?.vision;
       // The answer is read in the conversation: it comes on screen before anything is asked.
       if (this.surfaces === 0) this.reveal?.();
-      const outcome = await this.runMessage(t("ai.image.ask"), vault, choice, {
-        door: { title: t("ai.image.title", { name }), pins: [], lead: [lead, picture], disclose, ...(listed === false ? { blind: true } : {}) },
+      // A note is called after the picture, not after its file: the name without its ending.
+      const stem = name.replace(/\.[^.]+$/, "") || name;
+      const outcome = await this.runMessage(asNote ? t("ai.image.noteAsk") : t("ai.image.ask"), vault, choice, {
+        door: { title: asNote ? t("ai.image.noteTitle", { name: stem }) : t("ai.image.title", { name }), pins: [], lead: [lead, picture], disclose, ...(listed === false ? { blind: true } : {}) },
       });
       if (!outcome) return refused("cancelled");
       conversationId = outcome.record?.id;
@@ -4022,6 +4066,8 @@ export class AiSession {
     for (const source of run.manifest?.sources ?? []) {
       if (!source.image && source.audioBytes === undefined && source.tier !== "map") notes.set(source.path, source.title);
     }
+    // The pictures the question was about (plan P7): a note made of the answer shows them.
+    const pictures = (run.manifest?.sources ?? []).filter((source) => Boolean(source.image)).map((source) => ({ path: source.path }));
     const failed = new Set(mine.flatMap((turn) => turn.parts.flatMap((part) => (part.type === "tool_result" && part.isError ? [part.callId] : []))));
     for (const turn of mine) {
       for (const part of turn.parts) {
@@ -4074,6 +4120,10 @@ export class AiSession {
       {
         question,
         ...(named ? { title: named } : {}),
+        // A door at a picture opens with the app's own sentence, the same every time: where the answer names nothing
+        // itself, such a note is called what its conversation is called — after the picture.
+        ...(pictures.length && userTurn === Math.min(...record.runs.map((other) => other.userTurn)) ? { fallback: record.title } : {}),
+        ...(pictures.length ? { pictures } : {}),
         answer: text,
         model: run.model,
         now: this.host.now(),

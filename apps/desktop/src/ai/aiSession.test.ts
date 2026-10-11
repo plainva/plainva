@@ -613,6 +613,67 @@ describe("transcribing a voice note", () => {
     expect(vault.saved.size).toBe(0);
   });
 
+  /** Plan KI-Harness P7: a summary above a long transcript, by the model of the profile "Local" on this device. */
+  const long = `We agreed on 12 March 2026 to raise the day rate to 1,900 euros. ${"Tom wants ten episodes and a call every Monday. ".repeat(18)}`.trim();
+  const SUMMARY = "On 12 March 2026 the day rate was raised to 1,900 euros; Tom wants ten episodes and a call every Monday.";
+  /** An answer of a server on this computer, as its chat endpoint streams it. */
+  const said = (words: string): EgressChunk[] => {
+    const line = (data: unknown) => `data: ${JSON.stringify(data)}\n\n`;
+    return [{ type: "open", status: 200 }, { type: "data", text: `${line({ choices: [{ delta: { content: words } }] })}${line({ choices: [{ delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 900, completion_tokens: 40 } })}data: [DONE]\n\n` }, { type: "done" }];
+  };
+  async function summarising(script: EgressChunk[][], patch: Record<string, unknown> = {}) {
+    const made = await transcribing(script);
+    await made.s.updateSettings((current) => ({ ...current, transcriptSummary: true, profiles: { ...current.profiles, local: { providerId: "ollama", model: "granite3.3:8b" } }, ...patch }));
+    return made;
+  }
+
+  it("lays a checked summary above a long transcript, written on this device: one suggestion, and both requests in the audit", async () => {
+    const { s, fake, vault, rounds } = await summarising([json({ text: long }), said(SUMMARY)]);
+    expect(await s.transcribe({ notePath: day, target, audio: recording })).toEqual({ kind: "proposed", model: "gpt-4o-transcribe" });
+    expect(fake.sent.map((spec) => spec.endpointId)).toEqual(["openai", "ollama"]);
+    // What the model on this device was asked: the instruction, and the transcript as the one message — no tools.
+    const body = fake.sent[1]!.body as { messages: { role: string; content: string }[]; tools?: unknown };
+    expect(body.messages[0]!.content).toContain("Summarise the transcript of a voice recording");
+    expect(body.messages[1]).toEqual({ role: "user", content: long });
+    expect(body.tools).toBeUndefined();
+    expect(rounds).toHaveLength(1);
+    expect(rounds[0]!.chunks).toHaveLength(1);
+    expect(rounds[0]!.chunks[0]!.replacement).toBe(`\n\nai.transcribe.summaryLabel ${SUMMARY}\n\n> ${long}\n`);
+    expect(rounds[0]!.note).toBe(`ai.transcribe.roundNoteSummary {"name":"${target}","model":"granite3.3:8b"}`);
+    // The suggestion is still the transcriber's; the note of the round names who summed it up.
+    expect(rounds[0]!.author.id).toBe("plainva-ai/gpt-4o-transcribe");
+    expect(vault.ledger().map((entry) => [entry.providerId, entry.model, entry.stop])).toEqual([["openai", "gpt-4o-transcribe", "answered"], ["ollama", "granite3.3:8b", "answered"]]);
+  });
+
+  it("leaves the summary out where it names something the recording does not — the transcript comes alone", async () => {
+    const { s, fake, rounds } = await summarising([json({ text: long }), said("The day rate was raised to 2,400 euros.")]);
+    expect(await s.transcribe({ notePath: day, target, audio: recording })).toEqual({ kind: "proposed", model: "gpt-4o-transcribe" });
+    expect(fake.sent).toHaveLength(2);
+    expect(rounds[0]!.chunks[0]!.replacement).toBe(`\n\n> ${long}\n`);
+    expect(rounds[0]!.note).toBe(`ai.transcribe.roundNote {"name":"${target}"}`);
+  });
+
+  it("never holds the transcript back: a model on this device that fails costs the summary, nothing else", async () => {
+    const { s, rounds } = await summarising([json({ text: long })]);
+    expect(await s.transcribe({ notePath: day, target, audio: recording })).toEqual({ kind: "proposed", model: "gpt-4o-transcribe" });
+    expect(rounds[0]!.chunks[0]!.replacement).toBe(`\n\n> ${long}\n`);
+  });
+
+  it("asks no model for a summary where it is switched off, the transcript is short, or the profile Local names a provider", async () => {
+    const off = await summarising([json({ text: long }), said(SUMMARY)], { transcriptSummary: false });
+    await off.s.transcribe({ notePath: day, target, audio: recording });
+    expect(off.fake.sent.map((spec) => spec.endpointId)).toEqual(["openai"]);
+    const short = await summarising([json({ text: "Call Tom about ten episodes." }), said(SUMMARY)]);
+    await short.s.transcribe({ notePath: day, target, audio: recording });
+    expect(short.fake.sent.map((spec) => spec.endpointId)).toEqual(["openai"]);
+    // The summary is the device's own work: a provider behind the profile Local is never asked for it.
+    const cloud = await summarising([json({ text: long }), answer(SUMMARY)]);
+    await cloud.s.updateSettings((current) => ({ ...current, profiles: { ...current.profiles, local: { providerId: "anthropic", model: "m-1" } } }));
+    await cloud.s.transcribe({ notePath: day, target, audio: recording });
+    expect(cloud.fake.sent.map((spec) => spec.endpointId)).toEqual(["openai"]);
+    expect(cloud.rounds[0]!.chunks[0]!.replacement).toBe(`\n\n> ${long}\n`);
+  });
+
   it("asks with the send overview first, naming the recording and its data class; declined, nothing goes", async () => {
     const { s, fake, rounds } = await transcribing([json({ text: "x" })], undefined, { approve: false });
     const asked = consentAsked(s);

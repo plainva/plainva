@@ -35,6 +35,13 @@ export interface AnswerToCapture {
    * stands in the note's first line — it is what was sent.
    */
   title?: string;
+  /**
+   * What the note is called where neither a title is given nor the answer opens with a heading of its own — in
+   * place of the question: a door at a picture asks the same sentence every time (plan P7).
+   */
+  fallback?: string;
+  /** The pictures the question was about, by their path in the vault: the note shows them. */
+  pictures?: readonly { path: string }[];
   answer: string;
   /** The model that wrote the answer, exactly as it was chosen. */
   model: string;
@@ -149,17 +156,29 @@ export interface CapturedNote {
 
 /** The note an answer becomes. Pure: the same answer gives the same note. */
 export function captureNote(input: AnswerToCapture, t: Translate): CapturedNote {
-  const title = conversationTitleFrom(input.title?.trim() ? inline(input.title) : input.question, t("ai.capture.fallbackTitle"));
+  const linted = defuseNewAddresses(input.answer.trim(), []);
+  // An answer that opens with its own heading names the note (plan P7): the heading becomes the title instead of
+  // standing under it a second time. A title that is given — a skill's — comes first; without either, the question.
+  // Read without a pattern: the first line, a `#` and a blank at its start, the marks and blanks around its words.
+  const lineEnd = linted.text.indexOf("\n");
+  const firstLine = lineEnd < 0 ? linted.text : linted.text.slice(0, lineEnd);
+  const opens = !input.title?.trim() && (firstLine.startsWith("# ") || firstLine.startsWith("#\t"));
+  const heading = opens ? inline(trimChars(firstLine.slice(1), " \t#")) : "";
+  const answer = heading ? linted.text.slice(firstLine.length).trimStart() : linted.text;
+  const named = input.title?.trim() ? inline(input.title) : heading || (input.fallback?.trim() ? inline(input.fallback) : input.question);
+  const title = conversationTitleFrom(named, t("ai.capture.fallbackTitle"));
   // The file's name is the title without the mark that says it was cut: a name does not end in "…".
   const stem = safeFileStem(title.endsWith("…") ? title.slice(0, -1).trimEnd() : title) ?? safeFileStem(t("ai.capture.fallbackTitle")) ?? "AI answer";
-  const linted = defuseNewAddresses(input.answer.trim(), []);
+  // The pictures the question was about: the note shows them, each once — a path, never an address.
+  const pictures = (input.pictures ?? []).map((picture) => picture.path).filter((path, index, all) => Boolean(path) && !/[\]|\n\r]/.test(path) && all.indexOf(path) === index);
   const pages = input.pages.filter((page, index, all) => all.findIndex((other) => other.url === page.url) === index);
   const notes = input.notes.filter((note, index, all) => /\.md$/i.test(note.path) && all.findIndex((other) => other.path === note.path) === index);
 
   const body: string[] = [];
   // Who wrote this, in words — the stamp in the frontmatter says it for machines.
   body.push(`> ${t("ai.capture.intro", { model: input.model, date: captureStamp(input.now), question: inline(input.question) })}`);
-  body.push(flattenInertLinks(linted.text));
+  if (pictures.length) body.push(pictures.map((path) => `![[${path}]]`).join("\n"));
+  body.push(flattenInertLinks(answer));
   if (pages.length || input.searches.length || notes.length) {
     body.push(`## ${t("ai.capture.sources")}`);
     if (pages.length || input.searches.length) {
@@ -181,6 +200,7 @@ export function captureNote(input: AnswerToCapture, t: Translate): CapturedNote 
   const sources: OkfSource[] = [
     ...pages.map((page) => ({ resource: page.url, ...(inline(page.title) ? { title: inline(page.title) } : {}) })),
     ...notes.map((note) => ({ resource: note.path, ...(inline(note.title) ? { title: inline(note.title) } : {}) })),
+    ...pictures.map((path) => ({ resource: path })),
   ];
   // Stamped once, at the moment of creation (ADR 0023 §3). The stamp is the marking: without it nothing is written.
   content = upsertFrontmatterKeys(content, {

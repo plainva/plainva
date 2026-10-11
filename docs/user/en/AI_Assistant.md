@@ -134,13 +134,13 @@ A conversation can teach the AI something for later. **Learn from this conversat
 
 ## Transcribing a voice note
 
-At every voice note — in the editor, in reading mode, in the journal and on cards — **Transcribe** turns the recording into text. It goes as it is to the model of the profile **Audio**, through the same overview as a question; a recording is a kind of data of its own, so the overview asks the first time. The transcript comes back as a suggestion under the recording, authored **Plainva AI · ⟨model⟩** — accept or decline it under **Suggestions**.
+At every voice note — in the editor, in reading mode, in the journal and on cards — **Transcribe** turns the recording into text. It goes as it is to the model of the profile **Audio**, through the same overview as a question; a recording is a kind of data of its own, so the overview asks the first time. The transcript comes back as a suggestion under the recording, authored **Plainva AI · ⟨model⟩** — accept or decline it under **Suggestions**. With **Summarise transcripts on this device** (in **Settings → AI & automation**, under **Gists**), a long transcript gets a short summary above it — written by the model of the profile **Local** on this device and checked: it names no number, date or link the recording does not. Without such a model, or when the check fails, the transcript comes alone.
 
 **Audio** needs a provider with an audio route: OpenAI (for example `gpt-4o-transcribe` or `whisper-1`), Gemini, or a compatible server of your own — one on this computer keeps the recording on the device. Recordings up to 11 MB can be transcribed. A recording in a note your rules keep from the cloud goes to no cloud model, and encrypted workspaces do not offer it yet.
 
 ## Explaining an image
 
-At every picture of the vault, **Explain image** asks the AI what it shows.
+At every picture of the vault, **Explain image** asks the AI what it shows. **Make a note of it**, beside it, asks for a note instead: a heading, what the picture shows, the text in it word for word and, where it shows things to be done, a task list. The answer is the note — it comes into your vault when you press **Keep as a note**.
 
 - **Desktop:** in the toolbar of an open image, and in the menu a right-click on a picture in a note opens — while editing and in reading mode.
 - **Phone:** below an open image (at a picture in a note, **Open image** takes you there).
@@ -229,7 +229,7 @@ A skill has these abilities only when it names them, and its review says so — 
 
 ## Keeping an answer as a note
 
-Under every finished answer, **Keep as a note** turns the answer into a note of your vault. You press it and Plainva writes the note — the assistant itself still changes nothing.
+Under every finished answer, **Keep as a note** turns the answer into a note of your vault. You press it and Plainva writes the note — the assistant itself still changes nothing. A note kept from an answer about a picture shows that picture, and an answer that opens with a heading of its own gives the note its name.
 
 - **Where it goes.** Into the vault's **Inbox folder** (**Settings → Content & structure**), under a name taken from your question — in a conversation a skill started, from the skill and the note that was open, or the day. A note that is already there is never touched: the new one gets the next free name. Plainva opens it right away.
 - **Who wrote it.** The first line says it in words — an answer by Plainva AI, with the model, the time and your question. The note's properties say the same for other tools: `generated`, with the model and the time. Nothing marks the note as checked; that stays yours to do — see [OKF](OKF.md).

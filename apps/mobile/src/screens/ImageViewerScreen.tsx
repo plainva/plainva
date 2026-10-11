@@ -1,7 +1,7 @@
 import { ZoomableImage } from "../components/ZoomableImage";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Share2, Sparkles } from "lucide-react";
+import { FilePlus2, Share2, Sparkles } from "lucide-react";
 import { Button, ICON, imageMimeType, toast, useImageExplainer } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { MissingFileState } from "../components/MissingFileState";
@@ -72,7 +72,7 @@ export function ImageViewerScreen({
       ) : (
         url && <ZoomableImage key={`${path}:${url}`} url={url} name={name} onError={() => setFailed(true)} />
       )}
-      <div className="m-sync-actions">
+      <div className="m-sync-actions m-sync-actions--wrap">
         {/* "Explain image" (plan KI-Harness P4-5): there while the AI is on. */}
         {explain && (
           <Button
@@ -86,6 +86,21 @@ export function ImageViewerScreen({
           >
             <Sparkles size={ICON.ui} />
             {t("ai.image.action")}
+          </Button>
+        )}
+        {/* "Make a note of it" (plan KI-Harness P7): the same door with another task — the answer is the note, kept by the reader. */}
+        {explain && (
+          <Button
+            disabled={!url || failed || missing.lookup !== null || explaining}
+            onClick={() => {
+              setExplaining(true);
+              void explain({ path }, "note").finally(() => setExplaining(false));
+            }}
+            variant="tonal"
+            data-testid="image-note"
+          >
+            <FilePlus2 size={ICON.ui} />
+            {t("ai.image.noteAction")}
           </Button>
         )}
         <Button

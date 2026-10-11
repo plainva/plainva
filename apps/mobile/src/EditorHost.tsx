@@ -482,10 +482,20 @@ export function EditorHost({
         const picture = absolutePath.replace(/^\/+/, "");
         void mActions({
           title: t("contextMenu.openImage"),
-          options: [{ value: "open", label: t("contextMenu.openImage") }, ...(explain ? [{ value: "explain", label: t("ai.image.action") }] : [])],
+          options: [
+            { value: "open", label: t("contextMenu.openImage") },
+            ...(explain
+              ? [
+                  { value: "explain", label: t("ai.image.action") },
+                  // "Make a note of it" (plan KI-Harness P7): the same door with another task.
+                  { value: "note", label: t("ai.image.noteAction") },
+                ]
+              : []),
+          ],
         }).then((choice) => {
           if (choice === "open") onOpenNote(picture);
           else if (choice === "explain") void explain?.({ path: picture, notePath: path });
+          else if (choice === "note") void explain?.({ path: picture, notePath: path }, "note");
         });
         return true;
       },

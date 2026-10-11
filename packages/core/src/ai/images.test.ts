@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { appendTurn, startConversation, type ImagePart } from "./conversation.js";
-import { base64Bytes, embedFileName, fileNameSpellings, hasImages, IMAGE_IS_DATA, IMAGE_MAX_EDGE, imageLead, imageRoute, imagesOf, imageTokens, prefersPng, scaledImageSize } from "./images.js";
+import { base64Bytes, embedFileName, fileNameSpellings, hasImages, IMAGE_IS_DATA, IMAGE_MAX_EDGE, imageLead, imageNoteLead, imageRoute, imagesOf, imageTokens, prefersPng, scaledImageSize } from "./images.js";
 import { BUILTIN_ENDPOINTS } from "./providers.js";
 import { toBase64 } from "../crypto/cryptoPrimitives.js";
 
@@ -87,6 +87,19 @@ describe("what goes before a picture", () => {
     expect(lead).toContain('the file "Projects/Assets/Whiteboard.jpg" from the user\'s vault.');
     expect(lead).toContain(IMAGE_IS_DATA);
     expect(imageLead({ path: "a.png", noteTitle: "Kickoff" })).toContain("embedded in the note [[Kickoff]]");
+  });
+
+  it("asks for a note instead where the door says so: a heading, the text word for word, tasks — and the same warning", () => {
+    const lead = imageNoteLead({ path: "Projects/Assets/Whiteboard.jpg", noteTitle: "Kickoff" });
+    const [origin, task, warning, ...more] = lead.split("\n");
+    expect(more).toEqual([]);
+    expect(origin).toBe(imageLead({ path: "Projects/Assets/Whiteboard.jpg", noteTitle: "Kickoff" }).split("\n")[0]);
+    expect(task).toContain("Write a note of it in Markdown");
+    expect(task).toContain("Begin with one heading line");
+    expect(task).toContain("word for word");
+    expect(task).toContain("- [ ] …");
+    expect(task).toContain("say so instead of guessing");
+    expect(warning).toBe(IMAGE_IS_DATA);
   });
 
   it("carries a path as one inert line: no line break, no live address, no end", () => {

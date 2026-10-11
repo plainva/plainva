@@ -134,13 +134,13 @@ Una conversazione può insegnare qualcosa all'IA per il futuro. **Impara da ques
 
 ## Trascrivere una nota vocale
 
-Su ogni nota vocale — nell'editor, in modalità lettura, nel diario e sulle schede — **Trascrivi** trasforma la registrazione in testo. Va così com'è al modello del profilo **Audio**, attraverso lo stesso riepilogo di una domanda; una registrazione è un tipo di dati a sé, perciò il riepilogo chiede la prima volta. La trascrizione torna come proposta sotto la registrazione, con l'autore **Plainva IA · ⟨modello⟩**: accettala o rifiutala in **Proposte**.
+Su ogni nota vocale — nell'editor, in modalità lettura, nel diario e sulle schede — **Trascrivi** trasforma la registrazione in testo. Va così com'è al modello del profilo **Audio**, attraverso lo stesso riepilogo di una domanda; una registrazione è un tipo di dati a sé, perciò il riepilogo chiede la prima volta. La trascrizione torna come proposta sotto la registrazione, con l'autore **Plainva IA · ⟨modello⟩**: accettala o rifiutala in **Proposte**. Con **Riassumi le trascrizioni su questo dispositivo** (in **Impostazioni → IA e automazione**, sotto **Sintesi**), una trascrizione lunga riceve sopra di sé un breve riassunto, scritto dal modello del profilo **Locale** su questo dispositivo e verificato: non cita numeri, date o link che la registrazione non contiene. Senza un modello del genere, o se la verifica fallisce, la trascrizione arriva da sola.
 
 **Audio** richiede un provider con una via audio: OpenAI (per esempio `gpt-4o-transcribe` o `whisper-1`), Gemini o un tuo server compatibile — uno su questo computer tiene la registrazione sul dispositivo. Si possono trascrivere registrazioni fino a 11 MB. Una registrazione in una nota che le tue regole tengono lontana dal cloud non va a nessun modello cloud, e i workspace cifrati non lo offrono ancora.
 
 ## Spiegare un'immagine
 
-Su ogni immagine del vault, **Spiega immagine** chiede all'IA che cosa mostra l'immagine.
+Su ogni immagine del vault, **Spiega immagine** chiede all'IA che cosa mostra l'immagine. **Ricavane una nota**, accanto, chiede invece una nota: un titolo, che cosa mostra l'immagine, il testo che contiene parola per parola e, se mostra cose da fare, un elenco di attività. La risposta è la nota: entra nel tuo vault quando premi **Conserva come nota**.
 
 - **Desktop:** nella barra degli strumenti di un'immagine aperta e nel menu che si apre con un clic destro su un'immagine in una nota — in modifica come in modalità lettura.
 - **Telefono:** sotto un'immagine aperta (su un'immagine in una nota, **Apri immagine** ti porta lì).
@@ -229,7 +229,7 @@ Una competenza ha queste capacità solo se le nomina, e il suo controllo lo dice
 
 ## Conservare una risposta come nota
 
-Sotto ogni risposta terminata, **Conserva come nota** trasforma la risposta in una nota del tuo vault. La premi tu e Plainva scrive la nota — l'assistente stesso continua a non cambiare nulla.
+Sotto ogni risposta terminata, **Conserva come nota** trasforma la risposta in una nota del tuo vault. La premi tu e Plainva scrive la nota — l'assistente stesso continua a non cambiare nulla. Una nota conservata da una risposta su un'immagine mostra quell'immagine, e una risposta che si apre con un titolo proprio dà il nome alla nota.
 
 - **Dove va.** Nella **Cartella Inbox** del vault (**Impostazioni → Contenuto e struttura**), con un nome ricavato dalla tua domanda — in una conversazione avviata da una competenza, dalla competenza e dalla nota che era aperta, o dal giorno. Una nota che è già lì non viene mai toccata: la nuova riceve il primo nome libero. Plainva la apre subito.
 - **Chi l'ha scritta.** La prima riga lo dice a parole — una risposta di Plainva IA, con il modello, l'ora e la tua domanda. Le proprietà della nota dicono lo stesso per altri strumenti: `generated`, con il modello e l'ora. Nulla segna la nota come revisionata; questo resta compito tuo — vedi [OKF](OKF.md).

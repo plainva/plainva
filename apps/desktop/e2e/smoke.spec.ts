@@ -7060,3 +7060,103 @@ test('AI fully local: the settings say what holds; switched on, a conversation w
   await expect(app).not.toContainText('this rests');
   await expect.poll(async () => (await told()).at(-1)).toBe(false);
 });
+
+
+// "Make a note of it" (AI harness P7-3): the second door at a picture asks for a
+// note instead of an explanation — the same overview, the same rules, no tool
+// that writes. The answer becomes a note when the reader keeps it: called by
+// the answer's own heading, with the picture in it. And the switch that lets
+// the model on this computer sum up a long transcript sits with the gists.
+// The model is the scripted `ai_http`; the vault is the mock file system.
+test('AI capture: a picture becomes a note the reader keeps — named by the answer, showing the picture; the summary of transcripts is a switch of this device', async ({ page }) => {
+  const sse = (events: Array<[string, unknown]>) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+  const says = (text: string) => sse([
+    ['message_start', { type: 'message_start', message: { usage: { input_tokens: 40 } } }],
+    ['content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }],
+    ['content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }],
+    ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+    ['message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } }],
+    ['message_stop', { type: 'message_stop' }],
+  ]);
+  const NOTE = '# Release plan\n\nA whiteboard with three columns: now, next, later.\n\n- [ ] Book the room\n- [ ] Send the invitation';
+  const script = [says(NOTE)];
+  await serveImages(page);
+  await page.addInitScript(({ script, png }) => {
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: true, providers: ['anthropic'], profiles: { balanced: { providerId: 'anthropic', model: 'm-1' } } } };
+    Object.assign((window as any).mockFs, { '/test-vault/board.png': `png:${png}` });
+    (window as any).__aiRequests = [];
+    const orig = (window as any).__TAURI_INTERNALS__.invoke;
+    (window as any).__TAURI_INTERNALS__.invoke = async (cmd: string, args: any, options: any) => {
+      if (cmd === 'ai_key_present') return true;
+      if (cmd === 'ai_http') {
+        (window as any).__aiRequests.push(JSON.stringify(args.request.body));
+        const text = script.shift();
+        const send = (chunk: unknown) => args.onEvent.onmessage(chunk);
+        if (text === undefined) send({ type: 'failed', code: 'network', message: 'offline' });
+        else { send({ type: 'open', status: 200 }); send({ type: 'data', text }); send({ type: 'done' }); }
+        return null;
+      }
+      return orig(cmd, args, options);
+    };
+  }, { script, png: RED_PNG });
+
+  await page.goto('/');
+  const aside = page.locator('aside[aria-label="Left Sidebar"]');
+  await expect(aside.getByText('Welcome', { exact: true })).toBeVisible({ timeout: 15000 });
+  const requests = () => page.evaluate(() => (window as any).__aiRequests as string[]);
+  const kept = () => page.evaluate(() => Object.entries((window as any).mockFs as Record<string, unknown>).filter(([path, value]) => path.startsWith('/test-vault/Inbox/') && typeof value === 'string').map(([path, text]) => ({ path, text: String(text) })));
+
+  // 1. Two doors stand at the opened picture: what it shows, and a note of it.
+  await aside.getByText('board.png', { exact: true }).click();
+  await expect(page.getByTestId('image-viewer')).toBeVisible();
+  await expect(page.getByTestId('image-explain')).toBeVisible();
+  await expect(page.getByTestId('image-note')).toHaveText('Make a note of it');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-picnote-doors-desktop.png'), animations: 'disabled' });
+  await page.getByTestId('image-note').click();
+
+  // 2. The same overview as for an explanation: the picture as it would go, and nothing sent before the yes.
+  const companion = page.getByTestId('ai-companion');
+  const overview = companion.getByTestId('ai-consent');
+  await expect(overview.getByTestId('ai-overview-pictures').locator('img')).toHaveCount(1);
+  expect(await requests()).toEqual([]);
+  await companion.getByTestId('ai-consent-send').click();
+
+  // 3. The answer is the note, still only words in the conversation. What was asked: a note, not an explanation —
+  //    and the door brought no tool that writes or moves the app.
+  await expect(companion.getByText('A whiteboard with three columns: now, next, later.')).toBeVisible();
+  await expect(companion.getByText('Make a note of this image.')).toBeVisible();
+  const [first] = await requests();
+  expect(first).toContain('Write a note of it in Markdown');
+  expect(first).toContain('"type":"image"');
+  expect(first).not.toMatch(/"name":"(run_command|find_tools|call_tool|fetch_url|web_search|draft_note|propose_edit)"/);
+  expect(await kept()).toEqual([]);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-picnote-answer-desktop.png'), animations: 'disabled' });
+
+  // 4. Kept by the reader: the note is called by the answer's own heading, shows the picture above the text, and says
+  //    who wrote it. The heading stands once.
+  await companion.getByTestId('ai-capture').click();
+  await expect.poll(async () => (await kept()).length).toBe(1);
+  const [note] = await kept();
+  expect(note.path).toBe('/test-vault/Inbox/Release plan.md');
+  expect(note.text.match(/^# /gm)).toHaveLength(1);
+  expect(note.text).toContain('# Release plan');
+  expect(note.text).toContain('![[board.png]]');
+  expect(note.text.indexOf('![[board.png]]')).toBeLessThan(note.text.indexOf('A whiteboard with three columns'));
+  expect(note.text).toContain('- [ ] Book the room');
+  expect(note.text).toMatch(/generated:\s*\n\s+by: "?plainva-ai\/m-1/);
+  expect(note.text).toContain('to: “Make a note of this image.”');
+
+  // 5. The summary of transcripts is a switch of this device, with the gists — off until chosen.
+  await companion.getByTestId('ai-companion-close').click();
+  await expect(companion).toHaveCount(0);
+  await page.keyboard.press('Control+,');
+  const dialog = page.getByRole('dialog', { name: /Einstellungen|Settings/ });
+  await dialog.getByRole('button', { name: /^(AI & automation|KI & Automatisierung)$/ }).first().click();
+  const summary = dialog.getByTestId('transcript-summary');
+  await summary.scrollIntoViewIfNeeded();
+  await expect(summary).toHaveAttribute('aria-checked', 'false');
+  await expect(dialog.getByTestId('settings-ai')).toContainText('Summarise transcripts on this device');
+  await summary.click();
+  await expect(summary).toHaveAttribute('aria-checked', 'true');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('ai-picnote-summary-desktop.png'), animations: 'disabled' });
+});

@@ -134,13 +134,13 @@ Une conversation peut apprendre quelque chose à l'IA pour plus tard. **Apprendr
 
 ## Transcrire une note vocale
 
-Sur chaque note vocale — dans l'éditeur, en mode lecture, dans le journal et sur les cartes —, **Transcrire** transforme l'enregistrement en texte. Il part tel quel vers le modèle du profil **Audio**, via le même aperçu qu'une question ; un enregistrement est un type de données à part, l'aperçu demande donc la première fois. La transcription revient comme proposition sous l'enregistrement, avec l'auteur **Plainva IA · ⟨modèle⟩** — acceptez-la ou refusez-la sous **Propositions**.
+Sur chaque note vocale — dans l'éditeur, en mode lecture, dans le journal et sur les cartes —, **Transcrire** transforme l'enregistrement en texte. Il part tel quel vers le modèle du profil **Audio**, via le même aperçu qu'une question ; un enregistrement est un type de données à part, l'aperçu demande donc la première fois. La transcription revient comme proposition sous l'enregistrement, avec l'auteur **Plainva IA · ⟨modèle⟩** — acceptez-la ou refusez-la sous **Propositions**. Avec **Résumer les transcriptions sur cet appareil** (dans **Paramètres → IA & automatisation**, sous **Résumés**), une longue transcription reçoit au-dessus d'elle un court résumé, écrit par le modèle du profil **Local** sur cet appareil et vérifié : il ne cite aucun nombre, aucune date ni aucun lien que l'enregistrement ne contient pas. Sans un tel modèle, ou si la vérification échoue, la transcription arrive seule.
 
 **Audio** nécessite un fournisseur avec une voie audio : OpenAI (par exemple `gpt-4o-transcribe` ou `whisper-1`), Gemini ou votre propre serveur compatible — un serveur sur cet ordinateur garde l'enregistrement sur l'appareil. Les enregistrements jusqu'à 11 Mo peuvent être transcrits. Un enregistrement dans une note que vos règles tiennent à l'écart du cloud ne part vers aucun modèle cloud, et les espaces chiffrés ne le proposent pas encore.
 
 ## Expliquer une image
 
-Sur chaque image du vault, **Expliquer l'image** demande à l'IA ce que montre l'image.
+Sur chaque image du vault, **Expliquer l'image** demande à l'IA ce que montre l'image. **En faire une note**, juste à côté, demande une note à la place : un titre, ce que montre l'image, le texte qu'elle contient mot pour mot et, si elle montre des choses à faire, une liste de tâches. La réponse est la note — elle entre dans votre vault quand vous appuyez sur **Conserver comme note**.
 
 - **Ordinateur :** dans la barre d'outils d'une image ouverte, et dans le menu qu'ouvre un clic droit sur une image dans une note — en édition comme en mode lecture.
 - **Téléphone :** sous une image ouverte (sur une image dans une note, **Ouvrir l’image** y mène).
@@ -229,7 +229,7 @@ Une compétence n'a ces capacités que si elle les nomme, et sa vérification le
 
 ## Conserver une réponse comme note
 
-Sous chaque réponse terminée, **Conserver comme note** transforme la réponse en une note de votre vault. Vous appuyez dessus et Plainva écrit la note — l'assistant lui-même ne modifie toujours rien.
+Sous chaque réponse terminée, **Conserver comme note** transforme la réponse en une note de votre vault. Vous appuyez dessus et Plainva écrit la note — l'assistant lui-même ne modifie toujours rien. Une note conservée à partir d'une réponse sur une image montre cette image, et une réponse qui commence par son propre titre donne son nom à la note.
 
 - **Où elle va.** Dans le **Dossier de la boîte de réception** du vault (**Paramètres → Contenu et structure**), sous un nom tiré de votre question — dans une conversation lancée par une compétence, de la compétence et de la note qui était ouverte, ou du jour. Une note déjà présente n'est jamais touchée : la nouvelle reçoit le nom libre suivant. Plainva l'ouvre aussitôt.
 - **Qui l'a écrite.** La première ligne le dit en toutes lettres — une réponse de Plainva IA, avec le modèle, l'heure et votre question. Les propriétés de la note disent la même chose pour d'autres outils : `generated`, avec le modèle et l'heure. Rien ne marque la note comme relue ; cela reste à vous de le faire — voir [OKF](OKF.md).

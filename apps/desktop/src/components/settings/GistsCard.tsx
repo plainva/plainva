@@ -35,6 +35,15 @@ export function GistsCard({ session }: { session: AiSession }) {
         </SettingRow>
       )}
       {state?.kind === "no-model" && line && <SettingCardNote>{line}</SettingCardNote>}
+      {/* A summary above a long transcript (plan KI-Harness P7): the same model, on this device, and checked. */}
+      <SettingRow label={t("ai.transcribe.summary")} desc={t("ai.transcribe.summaryDesc")}>
+        <Switch
+          checked={settings.transcriptSummary}
+          label={t("ai.transcribe.summary")}
+          onChange={(on) => void session.updateSettings((s) => ({ ...s, transcriptSummary: on }))}
+          data-testid="transcript-summary"
+        />
+      </SettingRow>
     </SettingCard>
   );
 }

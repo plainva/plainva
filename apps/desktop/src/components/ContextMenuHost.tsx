@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Scissors, Copy, ClipboardPaste, Download, Sparkles, TextSelect, ExternalLink } from "lucide-react";
+import { Scissors, Copy, ClipboardPaste, Download, FilePlus2, Sparkles, TextSelect, ExternalLink } from "lucide-react";
 import { ICON, MenuItem, MenuSurface, useImageExplainer } from "@plainva/ui";
 import { useContextMenu, closeContextMenu, type ImageContextTarget } from "../services/contextMenuStore";
 import { insertIntoEditable, deleteEditableSelection, selectAllInEditable } from "@plainva/ui";
@@ -68,6 +68,11 @@ export function ContextMenuHost() {
           {explain && place && (
             <MenuItem icon={<Sparkles size={ICON.ui} />} data-testid="image-explain-menu" onSelect={() => void explain(place)}>
               {t("ai.image.action")}
+            </MenuItem>
+          )}
+          {explain && place && (
+            <MenuItem icon={<FilePlus2 size={ICON.ui} />} data-testid="image-note-menu" onSelect={() => void explain(place, "note")}>
+              {t("ai.image.noteAction")}
             </MenuItem>
           )}
         </>

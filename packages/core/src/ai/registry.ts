@@ -282,6 +282,12 @@ export interface AiAppSettings {
    */
   gists: boolean;
   /**
+   * A long transcript gets a short summary above it (plan P7): written by the
+   * model of the profile "Local" on this device and checked, so nothing goes
+   * to anyone new for it. Off until chosen, per device.
+   */
+  transcriptSummary: boolean;
+  /**
    * Let the system's assistant find and open notes of the open vault (plan
    * P4.7; iPhone and iPad). On: the app keeps a list of titles for the
    * system — only notes the privacy rules allow for both the cloud and web
@@ -314,6 +320,7 @@ export const DEFAULT_AI_APP_SETTINGS: AiAppSettings = {
   searchMode: DEFAULT_SEARCH_MODE,
   relatedNotes: true,
   gists: false,
+  transcriptSummary: false,
   systemFind: false,
   localOnly: false,
 };
@@ -374,6 +381,7 @@ export function readAiAppSettings(raw: unknown, defaults: AiAppSettings = DEFAUL
     searchMode: isSearchMode(value.searchMode) ? value.searchMode : defaults.searchMode,
     relatedNotes: typeof value.relatedNotes === "boolean" ? value.relatedNotes : defaults.relatedNotes,
     gists: typeof value.gists === "boolean" ? value.gists : defaults.gists,
+    transcriptSummary: typeof value.transcriptSummary === "boolean" ? value.transcriptSummary : defaults.transcriptSummary,
     systemFind: typeof value.systemFind === "boolean" ? value.systemFind : defaults.systemFind,
     localOnly: typeof value.localOnly === "boolean" ? value.localOnly : defaults.localOnly,
   };

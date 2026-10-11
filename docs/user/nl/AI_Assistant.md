@@ -134,13 +134,13 @@ Een gesprek kan de AI iets leren voor later. **Leren van dit gesprek** — onder
 
 ## Een spraaknotitie uitschrijven
 
-Bij elke spraaknotitie — in de editor, in de leesmodus, in het journaal en op kaarten — maakt **Uitschrijven** van de opname tekst. Die gaat ongewijzigd naar het model van het profiel **Audio**, via hetzelfde overzicht als een vraag; een opname is een eigen soort gegevens, dus het overzicht vraagt het de eerste keer. De transcriptie komt terug als voorstel onder de opname, met de auteur **Plainva AI · ⟨model⟩** — accepteer of wijs haar af onder **Voorstellen**.
+Bij elke spraaknotitie — in de editor, in de leesmodus, in het journaal en op kaarten — maakt **Uitschrijven** van de opname tekst. Die gaat ongewijzigd naar het model van het profiel **Audio**, via hetzelfde overzicht als een vraag; een opname is een eigen soort gegevens, dus het overzicht vraagt het de eerste keer. De transcriptie komt terug als voorstel onder de opname, met de auteur **Plainva AI · ⟨model⟩** — accepteer of wijs haar af onder **Voorstellen**. Met **Transcripties op dit apparaat samenvatten** (in **Instellingen → AI & automatisering**, onder **Samenvattingen**) komt boven een lange transcriptie een korte samenvatting, geschreven door het model van het profiel **Lokaal** op dit apparaat en gecontroleerd: ze noemt geen getal, datum of link die niet in de opname voorkomt. Zonder zo'n model, of als de controle mislukt, komt de transcriptie alleen.
 
 **Audio** vereist een provider met een audioroute: OpenAI (bijvoorbeeld `gpt-4o-transcribe` of `whisper-1`), Gemini of een eigen compatibele server — een server op deze computer houdt de opname op het apparaat. Opnamen tot 11 MB kunnen worden uitgeschreven. Een opname in een notitie die je regels bij de cloud weghouden, gaat naar geen enkel cloudmodel, en versleutelde workspaces bieden het nog niet aan.
 
 ## Een afbeelding uitleggen
 
-Bij elke afbeelding in de vault vraagt **Afbeelding uitleggen** de AI wat erop te zien is.
+Bij elke afbeelding in de vault vraagt **Afbeelding uitleggen** de AI wat erop te zien is. **Er een notitie van maken**, ernaast, vraagt in plaats daarvan om een notitie: een kop, wat de afbeelding toont, de tekst erin woordelijk en, als ze dingen toont die gedaan moeten worden, een takenlijst. Het antwoord is de notitie — ze komt in je vault als je op **Bewaren als notitie** drukt.
 
 - **Desktop:** in de werkbalk van een geopende afbeelding en in het menu dat een rechtsklik op een afbeelding in een notitie opent — tijdens het bewerken en in de leesmodus.
 - **Telefoon:** onder een geopende afbeelding (bij een afbeelding in een notitie brengt **Afbeelding openen** je erheen).
@@ -229,7 +229,7 @@ Een vaardigheid heeft deze mogelijkheden alleen als ze die noemt, en haar contro
 
 ## Een antwoord als notitie bewaren
 
-Onder elk afgerond antwoord maakt **Bewaren als notitie** van het antwoord een notitie in je vault. Jij drukt erop en Plainva schrijft de notitie — de assistent zelf verandert nog steeds niets.
+Onder elk afgerond antwoord maakt **Bewaren als notitie** van het antwoord een notitie in je vault. Jij drukt erop en Plainva schrijft de notitie — de assistent zelf verandert nog steeds niets. Een notitie die uit een antwoord over een afbeelding is bewaard, toont die afbeelding, en een antwoord dat met een eigen kop begint, geeft de notitie haar naam.
 
 - **Waar de notitie terechtkomt.** In de **Inbox-map** van de vault (**Instellingen → Inhoud en structuur**), onder een naam die uit je vraag is afgeleid — in een gesprek dat door een vaardigheid is gestart, uit de vaardigheid en de notitie die openstond, of de dag. Een notitie die daar al staat, wordt nooit aangeraakt: de nieuwe krijgt de eerstvolgende vrije naam. Plainva opent haar meteen.
 - **Wie de notitie schreef.** De eerste regel zegt het in woorden — een antwoord van Plainva AI, met het model, het tijdstip en je vraag. De eigenschappen van de notitie zeggen hetzelfde voor andere hulpmiddelen: `generated`, met het model en het tijdstip. Niets markeert de notitie als gecontroleerd; dat blijft aan jou — zie [OKF](OKF.md).

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
 import { Banner, Button, ICON, Modal, Swatch, toast, useImageExplainer } from "@plainva/ui";
 import {
-  ArrowUpRight, Bookmark, Crop, FlipHorizontal2, FlipVertical2, Maximize, MousePointer2,
+  ArrowUpRight, Bookmark, Crop, FilePlus2, FlipHorizontal2, FlipVertical2, Maximize, MousePointer2,
   PenLine, Redo2, RotateCcw, RotateCw, Scaling, Sparkles, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut,
 } from "lucide-react";
 import { useVault } from "../contexts/VaultContext";
@@ -523,6 +523,22 @@ export function ImageViewer({ path, onOpenPath, isBookmarked, onToggleBookmark, 
               >
                 <Sparkles size={ICON.ui} />
                 {t("ai.image.action")}
+              </Button>
+            )}
+            {/* "Make a note of it" (plan KI-Harness P7): the same door with another task — the answer is the note, kept by the reader. */}
+            {explain && objectUrl && !error && (
+              <Button
+                size="sm"
+                variant="ghost"
+                data-testid="image-note"
+                disabled={explaining}
+                onClick={() => {
+                  setExplaining(true);
+                  void explain({ path }, "note").finally(() => setExplaining(false));
+                }}
+              >
+                <FilePlus2 size={ICON.ui} />
+                {t("ai.image.noteAction")}
               </Button>
             )}
             {editable && bitmap && (

@@ -168,6 +168,8 @@ async function session(script: EgressChunk[][], vault: ReturnType<typeof imageVa
   const labels: Record<string, (vars?: Record<string, string>) => string> = {
     "ai.image.ask": () => "Explain this image.",
     "ai.image.title": (vars) => `Image: ${vars?.name ?? ""}`,
+    "ai.image.noteAsk": () => "Make a note of this image.",
+    "ai.image.noteTitle": (vars) => `Note from ${vars?.name ?? ""}`,
   };
   const s = new AiSession({
     egress: fake.egress,
@@ -316,6 +318,49 @@ describe("explain image", () => {
     expect(overviews).toHaveLength(0);
     const user = (fake.sent[0]!.body!.messages as Array<{ role: string; content: unknown }>).find((message) => message.role === "user")!;
     expect(user.content).toContainEqual({ type: "image_url", image_url: { url: "data:image/jpeg;base64,QUJDRA==" } });
+  });
+});
+
+/** Plan KI-Harness P7: the same door with another task — the answer is the note. */
+describe("make a note of it", () => {
+  it("asks for a note instead of an explanation, with the same picture, the same warning and the same overview", async () => {
+    const vault = imageVault();
+    const { s, fake, overviews } = await session([answer("# Whiteboard: release plan\n\nThree columns: now, next, later.\n\n- [ ] Book the room")], vault);
+    const { made, loads } = request("Projects/Assets/Whiteboard.jpg", { purpose: "note" });
+    expect(await s.explainImage(made)).toEqual({ kind: "answered", conversationId: "id1" });
+    expect(loads()).toBe(1);
+    const [first] = messages(fake.sent[0]);
+    const [lead, image, question] = first!.content.slice(-3);
+    expect(lead!.text).toContain('the file "Projects/Assets/Whiteboard.jpg" from the user\'s vault');
+    expect(lead!.text).toContain("Write a note of it in Markdown");
+    expect(lead!.text).not.toContain("Say what it shows and explain it");
+    expect(lead!.text).toContain(IMAGE_IS_DATA);
+    expect(image!.type).toBe("image");
+    expect(question!.text).toBe("Make a note of this image.");
+    expect(overviews).toHaveLength(1);
+    expect(overviews[0]!.manifest.dataClasses).toContain("images");
+    // Called after the picture, not after its file: the name without its ending.
+    expect(vault.saved.get("id1")!.title).toBe("Note from Whiteboard");
+  });
+
+  it("is the same door: it reads and does not write — whatever becomes a note, the reader keeps", async () => {
+    const explain = imageVault();
+    const explained = await session([answer("A whiteboard.")], explain);
+    await explained.s.explainImage(request("Projects/Assets/Whiteboard.jpg").made);
+    const note = imageVault();
+    const noted = await session([answer("# Whiteboard\n\nThree columns.")], note);
+    await noted.s.explainImage(request("Projects/Assets/Whiteboard.jpg", { purpose: "note" }).made);
+    expect(toolNames(noted.fake.sent[0])).toEqual(toolNames(explained.fake.sent[0]));
+    expect(toolNames(noted.fake.sent[0])).not.toContain("run_command");
+  });
+
+  it("is kept from a model by the same rules as an explanation", async () => {
+    const vault = imageVault({ rules: [{ folder: "Projects/", cloud: "deny" }] });
+    const { s, fake } = await session([], vault);
+    const { made, loads } = request("Projects/Assets/Whiteboard.jpg", { purpose: "note" });
+    expect(await s.explainImage(made)).toEqual({ kind: "refused", reason: "denied" });
+    expect(loads()).toBe(0);
+    expect(fake.sent).toHaveLength(0);
   });
 });
 

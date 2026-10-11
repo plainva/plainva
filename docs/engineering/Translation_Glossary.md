@@ -278,6 +278,23 @@ in every language. **Can call tools** is said of the model, as something it can 
 | zh-CN | 运行模式 | 完全本地 | 云端 | 混合 | 暂不使用 | 上下文窗口 | 可调用工具 |
 | ja | 動作モード | 完全ローカル | クラウド | ハイブリッド | 休止 | コンテキストウィンドウ | ツールを呼び出せる |
 
+Capture without a network (`ai.transcribe.summary*`, `ai.image.note*`, AI harness P7-3): a **summary** is written for a person and stands in a note; a **gist** is written for the assistant and stands in its context. Where a language has two words
+it uses both (it "riassunto" beside "sintesi", pl "podsumowanie" beside "streszczenie"); where it has one, the summary takes it and the gist keeps its own. The label in the note — "Summary:" — is that word with the language's own colon.
+**Make a note of it** names what the reader gets, in the words of "Keep as a note": the same noun for the note, another verb — never "scan", "OCR" or "extract", which name a technique.
+
+| Language | Summarise transcripts on this device | Summary: | Gists | Make a note of it |
+|---|---|---|---|---|
+| en | Summarise transcripts on this device | Summary: | Gists | Make a note of it |
+| de | Transkripte auf diesem Gerät zusammenfassen | Zusammenfassung: | Gists | Notiz daraus machen |
+| fr | Résumer les transcriptions sur cet appareil | Résumé : | Résumés | En faire une note |
+| es | Resumir las transcripciones en este dispositivo | Resumen: | Resúmenes | Convertir en nota |
+| pt-BR | Resumir transcrições neste dispositivo | Resumo: | Resumos | Transformar em nota |
+| it | Riassumi le trascrizioni su questo dispositivo | Riassunto: | Sintesi | Ricavane una nota |
+| nl | Transcripties op dit apparaat samenvatten | Samenvatting: | Samenvattingen | Er een notitie van maken |
+| pl | Podsumowuj transkrypcje na tym urządzeniu | Podsumowanie: | Streszczenia | Zrób z tego notatkę |
+| zh-CN | 在此设备上为转写稿生成摘要 | 摘要： | 要点 | 整理成笔记 |
+| ja | 文字起こしをこの端末で要約する | 要約: | 要旨 | ノートにする |
+
 ## Daily note and journal (zh-CN)
 
 The daily note (one note per day, named by the vault's date format) and the

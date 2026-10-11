@@ -134,13 +134,13 @@ Rozmowa może nauczyć AI czegoś na później. Polecenie **Naucz się z tej roz
 
 ## Transkrypcja notatki głosowej
 
-Przy każdej notatce głosowej — w edytorze, w trybie czytania, w dzienniku i na kartach — **Transkrybuj** zamienia nagranie w tekst. Trafia ono bez zmian do modelu profilu **Audio**, przez ten sam przegląd co pytanie; nagranie to osobny rodzaj danych, więc przegląd pyta za pierwszym razem. Transkrypcja wraca jako propozycja pod nagraniem, z autorem **Plainva AI · ⟨model⟩** — zaakceptuj ją lub odrzuć w sekcji **Propozycje**.
+Przy każdej notatce głosowej — w edytorze, w trybie czytania, w dzienniku i na kartach — **Transkrybuj** zamienia nagranie w tekst. Trafia ono bez zmian do modelu profilu **Audio**, przez ten sam przegląd co pytanie; nagranie to osobny rodzaj danych, więc przegląd pyta za pierwszym razem. Transkrypcja wraca jako propozycja pod nagraniem, z autorem **Plainva AI · ⟨model⟩** — zaakceptuj ją lub odrzuć w sekcji **Propozycje**. Po włączeniu opcji **Podsumowuj transkrypcje na tym urządzeniu** (w **Ustawienia → AI & automatyzacja**, w sekcji **Streszczenia**) długa transkrypcja dostaje nad sobą krótkie podsumowanie, napisane przez model profilu **Lokalny** na tym urządzeniu i sprawdzone: nie wymienia żadnej liczby, daty ani linku, których nie ma w nagraniu. Bez takiego modelu albo gdy sprawdzenie się nie powiedzie, transkrypcja przychodzi sama.
 
 **Audio** wymaga dostawcy z obsługą audio: OpenAI (na przykład `gpt-4o-transcribe` lub `whisper-1`), Gemini albo własnego zgodnego serwera — serwer na tym komputerze zatrzymuje nagranie na urządzeniu. Można transkrybować nagrania do 11 MB. Nagranie w notatce, którą Twoje reguły trzymają z dala od chmury, nie trafia do żadnego modelu w chmurze, a zaszyfrowane obszary robocze jeszcze tego nie oferują.
 
 ## Wyjaśnianie obrazu
 
-Przy każdym obrazie w vaulcie **Wyjaśnij obraz** pyta AI, co ten obraz przedstawia.
+Przy każdym obrazie w vaulcie **Wyjaśnij obraz** pyta AI, co ten obraz przedstawia. **Zrób z tego notatkę**, tuż obok, prosi zamiast tego o notatkę: nagłówek, co pokazuje obraz, tekst z obrazu słowo w słowo i — jeśli obraz pokazuje rzeczy do zrobienia — listę zadań. Odpowiedź jest notatką: trafia do Twojego vaultu, gdy naciśniesz **Zachowaj jako notatkę**.
 
 - **Desktop:** na pasku narzędzi otwartego obrazu oraz w menu, które otwiera kliknięcie prawym przyciskiem myszy na obrazie w notatce — podczas edycji i w trybie czytania.
 - **Telefon:** pod otwartym obrazem (przy obrazie w notatce prowadzi tam **Otwórz obraz**).
@@ -229,7 +229,7 @@ Umiejętność ma te możliwości tylko wtedy, gdy je wymienia, a jej sprawdzeni
 
 ## Zachowywanie odpowiedzi jako notatki
 
-Pod każdą gotową odpowiedzią **Zachowaj jako notatkę** zamienia odpowiedź w notatkę w Twoim vaulcie. Ty naciskasz, a notatkę zapisuje Plainva — sam asystent nadal niczego nie zmienia.
+Pod każdą gotową odpowiedzią **Zachowaj jako notatkę** zamienia odpowiedź w notatkę w Twoim vaulcie. Ty naciskasz, a notatkę zapisuje Plainva — sam asystent nadal niczego nie zmienia. Notatka zachowana z odpowiedzi o obrazie pokazuje ten obraz, a odpowiedź, która zaczyna się własnym nagłówkiem, nadaje notatce nazwę.
 
 - **Dokąd trafia.** Do folderu ustawionego w vaulcie jako **Folder skrzynki** (**Ustawienia → Treść i struktura**), pod nazwą wziętą z Twojego pytania — w rozmowie rozpoczętej przez umiejętność, z umiejętności i notatki, która była otwarta, albo z dnia. Notatka, która już tam jest, nigdy nie jest ruszana: nowa dostaje następną wolną nazwę. Plainva od razu ją otwiera.
 - **Kto ją napisał.** Mówi o tym pierwszy wiersz, słowami — odpowiedź Plainva AI, z modelem, godziną i Twoim pytaniem. Właściwości notatki mówią to samo innym narzędziom: `generated`, z modelem i godziną. Nic nie oznacza notatki jako sprawdzonej; to zostaje Twoją sprawą — zob. [OKF](OKF.md).

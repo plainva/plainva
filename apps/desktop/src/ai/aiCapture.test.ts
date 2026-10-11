@@ -135,6 +135,43 @@ describe("the note an answer becomes", () => {
     expect(captureNote({ ...base, title: "  " }, t).title).toBe("What are the usual day rates for 2026?");
   });
 
+  it("takes the answer's own heading as its name, and does not repeat it under the title", () => {
+    const note = captureNote({ ...base, question: "Make a note of this image.", answer: "# Whiteboard: release [plan] #\n\nThree columns: now, next, later.\n\n- [ ] Book the room" }, t);
+    expect(note).toMatchObject({ title: "Whiteboard: release plan", stem: "Whiteboard release plan" });
+    expect(note.content.match(/^# /gm)).toHaveLength(1);
+    expect(note.content).toContain("# Whiteboard: release plan");
+    expect(note.content).toContain("Three columns: now, next, later.\n\n- [ ] Book the room");
+    // What was asked still stands in the first line.
+    expect(note.content).toContain("to: “Make a note of this image.”");
+    // A second-level heading, or a hash that opens no heading, names nothing.
+    expect(captureNote({ ...base, answer: "## Rates\n\nText." }, t).title).toBe("What are the usual day rates for 2026?");
+    expect(captureNote({ ...base, answer: "#1 on the list is the day rate." }, t).title).toBe("What are the usual day rates for 2026?");
+    expect(captureNote({ ...base, answer: "# \n\nText." }, t).title).toBe("What are the usual day rates for 2026?");
+    // A name that is given — a skill's — comes first, and the answer stays as it is.
+    const named = captureNote({ ...base, title: "Research – Offer", answer: "# Findings\n\nText." }, t);
+    expect(named.title).toBe("Research – Offer");
+    expect(named.content).toContain("# Findings");
+  });
+
+  it("is called after the picture where the answer names nothing — never after the door's own sentence", () => {
+    const note = captureNote({ ...base, question: "Make a note of this image.", fallback: "Note from Whiteboard", answer: "Three columns: now, next, later." }, t);
+    expect(note).toMatchObject({ title: "Note from Whiteboard", stem: "Note from Whiteboard" });
+    // The answer's own heading still comes first.
+    expect(captureNote({ ...base, fallback: "Note from Whiteboard", answer: "# Release plan\n\nText." }, t).title).toBe("Release plan");
+  });
+
+  it("shows the pictures the question was about, each once, and names them as what it rests on", () => {
+    const note = captureNote({ ...base, pages: [], searches: [], notes: [], pictures: [{ path: "Projects/Assets/Whiteboard.jpg" }, { path: "Projects/Assets/Whiteboard.jpg" }], answer: "# Release plan\n\nThree columns." }, t);
+    expect(note.content.match(/!\[\[Projects\/Assets\/Whiteboard\.jpg\]\]/g)).toHaveLength(1);
+    // Under the line that says who wrote it, above the answer.
+    expect(note.content.indexOf("![[Projects/Assets/Whiteboard.jpg]]")).toBeGreaterThan(note.content.indexOf("Answer by Plainva AI"));
+    expect(note.content.indexOf("![[Projects/Assets/Whiteboard.jpg]]")).toBeLessThan(note.content.indexOf("Three columns."));
+    expect(frontmatter(note.content).sources).toEqual([{ resource: "Projects/Assets/Whiteboard.jpg" }]);
+    // A path that would end the embed is not embedded: a name is never a way to write something else into the note.
+    const odd = captureNote({ ...base, pictures: [{ path: "Assets/a]]![[b.png" }, { path: "Assets/c|d.png" }, { path: "Assets/e\nf.png" }] }, t);
+    expect(odd.content).not.toContain("![[");
+  });
+
   it("lists only notes as notes: a picture that went along is no wikilink", () => {
     const note = captureNote({ ...base, notes: [...base.notes, { path: "Assets/Whiteboard.jpg", title: "Whiteboard.jpg" }, ...base.notes] }, t);
     expect(note.content.match(/\[\[Projects\/Offer 2026\|/g)).toHaveLength(1);

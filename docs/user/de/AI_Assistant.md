@@ -134,13 +134,13 @@ Ein Gespräch kann der KI etwas für später beibringen. **Aus diesem Gespräch 
 
 ## Eine Sprachnotiz transkribieren
 
-An jeder Sprachnotiz — im Editor, im Lesemodus, im Journal und auf Karten — macht **Transkribieren** aus der Aufnahme Text. Sie geht unverändert an das Modell des Profils **Audio**, über dieselbe Übersicht wie eine Frage; eine Aufnahme ist eine eigene Art von Daten, deshalb fragt die Übersicht beim ersten Mal. Das Transkript kommt als Vorschlag unter die Aufnahme, mit dem Autor **Plainva KI · ⟨Modell⟩** — unter **Vorschläge** übernimmst oder lehnst Du es ab.
+An jeder Sprachnotiz — im Editor, im Lesemodus, im Journal und auf Karten — macht **Transkribieren** aus der Aufnahme Text. Sie geht unverändert an das Modell des Profils **Audio**, über dieselbe Übersicht wie eine Frage; eine Aufnahme ist eine eigene Art von Daten, deshalb fragt die Übersicht beim ersten Mal. Das Transkript kommt als Vorschlag unter die Aufnahme, mit dem Autor **Plainva KI · ⟨Modell⟩** — unter **Vorschläge** übernimmst oder lehnst Du es ab. Mit **Transkripte auf diesem Gerät zusammenfassen** (in **Einstellungen → KI & Automatisierung**, unter **Gists**) steht über einem langen Transkript eine kurze Zusammenfassung — geschrieben vom Modell des Profils **Lokal** auf diesem Gerät und geprüft: Sie nennt keine Zahl, kein Datum und keinen Link, die in der Aufnahme nicht vorkommen. Ohne ein solches Modell, oder wenn die Prüfung scheitert, kommt das Transkript allein.
 
 **Audio** braucht einen Anbieter mit Audio-Weg: OpenAI (etwa `gpt-4o-transcribe` oder `whisper-1`), Gemini oder einen eigenen kompatiblen Server — einer auf diesem Rechner behält die Aufnahme auf dem Gerät. Aufnahmen bis 11 MB lassen sich transkribieren. Eine Aufnahme in einer Notiz, die Deine Regeln von der Cloud fernhalten, geht an kein Cloud-Modell, und verschlüsselte Workspaces bieten es noch nicht an.
 
 ## Ein Bild erklären
 
-An jedem Bild im Vault fragt **Bild erklären** die KI, was es zeigt.
+An jedem Bild im Vault fragt **Bild erklären** die KI, was es zeigt. **Notiz daraus machen** daneben bittet stattdessen um eine Notiz: eine Überschrift, was das Bild zeigt, den Text darin wörtlich und, wo es zu Erledigendes zeigt, eine Aufgabenliste. Die Antwort ist die Notiz — in Deinen Vault kommt sie, wenn Du **Als Notiz festhalten** drückst.
 
 - **Desktop:** in der Werkzeugleiste eines geöffneten Bildes und im Menü, das ein Rechtsklick auf ein Bild in einer Notiz öffnet — beim Bearbeiten wie im Lesemodus.
 - **Telefon:** unter einem geöffneten Bild (an einem Bild in einer Notiz führt **Bild öffnen** dorthin).
@@ -229,7 +229,7 @@ Ein Skill hat diese Fähigkeiten nur, wenn er sie nennt, und seine Prüfung sagt
 
 ## Eine Antwort als Notiz festhalten
 
-Unter jeder fertigen Antwort macht **Als Notiz festhalten** aus der Antwort eine Notiz Deines Vaults. Du drückst es, und Plainva schreibt die Notiz — der Assistent selbst ändert weiterhin nichts.
+Unter jeder fertigen Antwort macht **Als Notiz festhalten** aus der Antwort eine Notiz Deines Vaults. Du drückst es, und Plainva schreibt die Notiz — der Assistent selbst ändert weiterhin nichts. Eine Notiz, die aus einer Antwort zu einem Bild festgehalten wird, zeigt dieses Bild, und eine Antwort, die mit einer eigenen Überschrift beginnt, gibt der Notiz ihren Namen.
 
 - **Wohin sie kommt.** In den **Eingangsordner** des Vaults (**Einstellungen → Inhalt & Struktur**; am Telefon heißt er **Inbox-Ordner**), unter einem Namen aus Deiner Frage — in einem Gespräch, das ein Skill begonnen hat, aus dem Skill und der geöffneten Notiz oder dem Tag. Eine Notiz, die schon dort liegt, wird nie angerührt: die neue bekommt den nächsten freien Namen. Plainva öffnet sie sofort.
 - **Wer sie geschrieben hat.** Die erste Zeile sagt es in Worten — eine Antwort von Plainva KI, mit dem Modell, der Uhrzeit und Deiner Frage. Die Eigenschaften der Notiz sagen dasselbe für andere Werkzeuge: `generated`, mit dem Modell und der Uhrzeit. Nichts kennzeichnet die Notiz als geprüft; das bleibt Deine Sache — siehe [OKF](OKF.md).

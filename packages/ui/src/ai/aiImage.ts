@@ -20,7 +20,10 @@ export interface ImagePlace {
   notePath?: string;
 }
 
-export type ImageExplainer = (place: ImagePlace) => Promise<void>;
+/** What is asked at a picture: what it shows, or a note of it (plan KI-Harness P7). */
+export type ImagePurpose = "explain" | "note";
+
+export type ImageExplainer = (place: ImagePlace, purpose?: ImagePurpose) => Promise<void>;
 
 let current: ImageExplainer | null = null;
 const listeners = new Set<() => void>();
@@ -210,10 +213,11 @@ type Translate = (key: string, vars?: Record<string, unknown>) => string;
 /** The explainer a shell registers: hands the place to the session, which asks for the picture once it may go. */
 export function createImageExplainer(session: Pick<AiSession, "explainImage">, t: Translate, deps: ExplainerDeps): ImageExplainer {
   const prepare = deps.prepare ?? prepareImageInBrowser;
-  return async (place) => {
+  return async (place, purpose) => {
     const outcome = await session.explainImage({
       path: place.path,
       ...(place.notePath ? { notePath: place.notePath } : {}),
+      ...(purpose === "note" ? { purpose } : {}),
       load: async () => {
         const bytes = await deps.readBinary(place.path).catch(() => null);
         return bytes ? prepare(bytes, mimeTypeForPath(place.path)) : "unreadable";

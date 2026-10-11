@@ -1001,6 +1001,12 @@ textarea {
   flex-direction: column;
   align-items: stretch;
 }
+/* A row that holds more actions than a narrow phone shows side by side (the
+   image viewer since "Make a note of it"): the last one moves to a second
+   line instead of leaving the screen. */
+.m-sync-actions--wrap {
+  flex-wrap: wrap;
+}
 .m-danger {
   color: var(--error-text);
 }

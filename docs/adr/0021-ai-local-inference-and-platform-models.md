@@ -83,6 +83,16 @@ the answer itself comes from a cloud provider (the recommended hybrid mode).
    support, under the send overview, and lands as a proposal with author under
    the recording; offline transcription (platform speech recognition on
    mobile, whisper class on the desktop) comes with the local package.
+9. **Capture without a network** (plan P7): a long transcript can get a short
+   summary above it — written only by the model of the profile "Local" on
+   this device, checked like a gist of gists (nothing in it that the
+   recording does not hold) and left out when the check fails; off until
+   chosen. A picture has a second door beside "Explain image": "Make a note
+   of it" asks for a note of the picture instead. That door holds no tool
+   that writes; the note comes into the vault when the user keeps the
+   answer, which then shows the picture and takes the answer's own heading
+   as its name. The platform's speech recognition and a model shipped for
+   transcription stay with the local package.
 
 ## Consequences
 

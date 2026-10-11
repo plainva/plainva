@@ -125,12 +125,72 @@ test("explain image: the overview shows the picture as it would go; a note kept 
   }
 });
 
+// "Make a note of it" (AI harness P7-3): the second door at an opened picture
+// asks for a note instead of an explanation. It is the same door — the same
+// overview with the picture as it would go, the same rules about a note kept
+// from the cloud — and nothing is sent before the yes. The switch that lets
+// the model on this device sum up a long transcript sits with the gists.
+test("make a note of it: the second door at a picture brings the same overview and obeys the same rules; the summary of transcripts is a switch of this device", async ({ page, context }) => {
+  test.setTimeout(90_000);
+  const sql = await installSqlBridge(context);
+  try {
+    await start(page, AI_ON);
+
+    // 1. Two doors below the opened picture; the second asks for a note, and the overview shows the picture first.
+    await openPictureOf(page, "Board");
+    await expect(page.getByTestId("image-explain")).toBeVisible();
+    await expect(page.getByTestId("image-note")).toHaveText("Make a note of it");
+    // Every action of the row is on the screen: a third one moves to a second line, never off the edge.
+    const width = page.viewportSize()!.width;
+    const actions = await page.locator(".m-sync-actions button").all();
+    expect(actions).toHaveLength(3);
+    for (const action of actions) {
+      const box = (await action.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-picnote-doors-mobile.png") });
+    await page.getByTestId("image-note").click();
+    const overview = page.getByTestId("ai-consent");
+    await expect(overview).toBeVisible();
+    await expect(overview.getByTestId("ai-overview-pictures").locator("img")).toHaveCount(1);
+    await expect(overview).toContainText("image, 1,568 × 980 px");
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-picnote-overview-mobile.png") });
+    await overview.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(overview).toHaveCount(0);
+
+    // 2. A picture a note kept from the cloud shows stays, whichever door is asked.
+    await toList(page);
+    await openPictureOf(page, "Private");
+    await page.getByTestId("image-note").click();
+    await expect(page.getByText("Your rules keep this image from this model", { exact: false })).toBeVisible();
+    await expect(page.getByTestId("ai-consent")).toHaveCount(0);
+
+    // 3. The summary above a long transcript: a switch of this device in the AI's settings, off until chosen.
+    await toList(page);
+    await page.getByTestId("nav-settings").first().click();
+    await page.getByTestId("settings-area-ai").click();
+    const row = page.getByTestId("transcript-summary");
+    await row.scrollIntoViewIfNeeded();
+    await expect(row).toContainText("Summarise transcripts on this device");
+    const toggle = row.getByRole("switch");
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await expect.poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem("CapacitorStorage.ai") ?? "{}") as { transcriptSummary?: boolean }).transcriptSummary)).toBe(true);
+    if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath("ai-picnote-summary-mobile.png") });
+  } finally {
+    sql.close();
+  }
+});
+
 test("explain image: no door while the AI is off", async ({ page, context }) => {
   const sql = await installSqlBridge(context);
   try {
     await start(page, null);
     await openPictureOf(page, "Board");
     await expect(page.getByTestId("image-explain")).toHaveCount(0);
+    await expect(page.getByTestId("image-note")).toHaveCount(0);
     await back(page);
   } finally {
     sql.close();
