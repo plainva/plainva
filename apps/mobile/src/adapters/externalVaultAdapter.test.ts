@@ -1,68 +1,18 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { VaultFileExistsError, VaultFileNotFoundError } from "@plainva/core";
+import { VaultFileExistsError, VaultFileNotFoundError, VaultIndexer, parseJournal } from "@plainva/core";
+import { parseBaseConfig, parseHeadings } from "@plainva/ui";
+import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { ExternalVaultAdapter } from "./ExternalVaultAdapter";
-import type { PickFolderResult, VaultFolderAccess, VaultFolderEntry, VaultFolderNative } from "../platform/vaultFolder";
+import { fakeVaultFolder as fakePlugin } from "./fakeVaultFolder";
 
 /**
  * The external-folder adapter against a fake of the native plugin (external
- * vault folder plan, P4). The fake keeps a flat map of paths — enough to pin
- * the contract the chains above rely on: shared errors, dot-children filtered,
- * base64 on the bridge only, and the access state the vault detail shows.
+ * vault folder plan, P4; the fake is `fakeVaultFolder.ts`). The fake keeps a flat
+ * map of paths — enough to pin the contract the chains above rely on: shared
+ * errors, dot-children filtered, base64 on the bridge only, and the access
+ * state the vault detail shows.
  */
-function fakePlugin(files: Map<string, string | Uint8Array>, access: VaultFolderAccess = { state: "ok", label: "Notes" }) {
-  const dirs = new Set<string>([""]);
-  const enc = new TextEncoder();
-  const asBytes = (v: string | Uint8Array) => (typeof v === "string" ? enc.encode(v) : v);
-  const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
-  const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-  const parentOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
-  const entryOf = (path: string): VaultFolderEntry | null => {
-    if (dirs.has(path) && path !== "") return { name: path.split("/").pop()!, isDirectory: true, size: 0, mtime: 0 };
-    const v = files.get(path);
-    if (v === undefined) return null;
-    return { name: path.split("/").pop()!, isDirectory: false, size: asBytes(v).length, mtime: 1000 };
-  };
-  const calls: string[] = [];
-  const plugin: VaultFolderNative = {
-    async pickFolder(): Promise<PickFolderResult> { return { picked: false, reason: "cancelled" }; },
-    async resolve() { calls.push("resolve"); return access; },
-    async release() { calls.push("release"); },
-    async list({ path }) {
-      calls.push(`list:${path}`);
-      const entries: VaultFolderEntry[] = [];
-      for (const d of dirs) if (d !== "" && parentOf(d) === path) entries.push(entryOf(d)!);
-      for (const f of files.keys()) if (parentOf(f) === path) entries.push(entryOf(f)!);
-      return { entries };
-    },
-    async stat({ path }) { return { entry: entryOf(path) }; },
-    async read({ path }) {
-      const v = files.get(path);
-      if (v === undefined) throw new Error("ENOENT");
-      return { dataBase64: b64(asBytes(v)) };
-    },
-    async write({ path, dataBase64 }) { files.set(path, unb64(dataBase64)); },
-    async delete({ path, recursive }) {
-      if (dirs.has(path)) {
-        const inside = [...files.keys()].filter((f) => f.startsWith(path + "/"));
-        if (inside.length && !recursive) throw new Error("ENOTEMPTY");
-        for (const f of inside) files.delete(f);
-        dirs.delete(path);
-        return;
-      }
-      files.delete(path);
-    },
-    async rename({ from, to }) {
-      const v = files.get(from);
-      if (v === undefined) throw new Error("ENOENT");
-      files.delete(from);
-      files.set(to, v);
-    },
-    async mkdir({ path }) { dirs.add(path); },
-  };
-  return { plugin, calls, dirs };
-}
-
 const text = (a: Uint8Array | string) => (typeof a === "string" ? a : new TextDecoder().decode(a));
 
 describe("ExternalVaultAdapter", () => {
@@ -113,6 +63,62 @@ describe("ExternalVaultAdapter", () => {
       await a.writeTextFile(path, read);
       expect([...(files.get(path) as Uint8Array)], path).toEqual(before);
     }
+  });
+
+  it("gives what reads through it the same answers for a file with a mark as for the file without", async () => {
+    // The mark arrives as the text's first character since 2026-10-09. Until
+    // then it was dropped on the way, so nothing that reads a file in a picked
+    // folder had ever met one: the index, the properties, a database file,
+    // the outline of the note's sheet, the journal.
+    const MARK_BYTES = [0xef, 0xbb, 0xbf];
+    const note = (eol: string) => [
+      "---", "title: Plan", "type: Note", "status: open", "tags: [alpha]", "related: \"[[Other]]\"", "---",
+      "# Heading", "", "Text with [[Target#Part|a link]] and #inline.", "", "- [ ] first", "- [x] second", "",
+      "## Journal", "", "- 09:15 an entry", "",
+    ].join(eol);
+    const content: Record<string, string> = {
+      "Plan.md": note("\n"),
+      "Windows/Plan.md": note("\r\n"),
+      "Bare.md": "# Bare\n\n- [ ] a task #tagged\n[[Plan]]\n",
+      "Tasks.base": "filters:\n  and:\n    - file.inFolder(\"Windows\")\nviews:\n  - type: table\n    name: All\n    order:\n      - file.name\n      - status\n",
+    };
+    const folder = (marked: boolean) => new Map<string, string | Uint8Array>(Object.entries(content).map(([path, text]) =>
+      [path, marked ? new Uint8Array([...MARK_BYTES, ...new TextEncoder().encode(text)]) : text]));
+
+    const read = async (marked: boolean) => {
+      const adapter = new ExternalVaultAdapter(fakePlugin(folder(marked)).plugin, "h1");
+      const db = await realSqlite();
+      try {
+        await new VaultIndexer(adapter, db).indexVaultFull("test");
+        const rows = (sql: string) => db.query<Record<string, unknown>>(sql);
+        const index = {
+          files: await rows("SELECT path, title, mode FROM files ORDER BY path"),
+          properties: await rows("SELECT f.path, p.key, p.value, p.type FROM properties p JOIN files f ON f.id = p.file_id ORDER BY f.path, p.key"),
+          tags: await rows("SELECT f.path, t.tag FROM tags t JOIN files f ON f.id = t.file_id ORDER BY f.path, t.tag"),
+          links: await rows("SELECT f.path, l.target_raw, l.link_type, l.anchor, l.property_key, l.line_number FROM links l JOIN files f ON f.id = l.source_id ORDER BY f.path, l.target_raw"),
+        };
+        const texts = Object.fromEntries(await Promise.all(Object.keys(content).map(async (path) => [path, await adapter.readTextFile(path)] as const)));
+        // The mark is there: this compares readers, not a decoder that hides it.
+        for (const path of Object.keys(content)) expect(texts[path].charCodeAt(0) === 0xfeff, path).toBe(marked);
+        return {
+          index,
+          base: parseBaseConfig(texts["Tasks.base"]),
+          outline: Object.fromEntries(Object.keys(content).filter((p) => p.endsWith(".md")).map((p) => [p, parseHeadings(texts[p]).map((h) => [h.level, h.text, h.line])])),
+          journal: Object.fromEntries(Object.keys(content).filter((p) => p.endsWith(".md")).map((p) => [p, parseJournal(texts[p]).entries.map((e) => [e.line, e.time, e.text])])),
+        };
+      } finally { await db.close(); }
+    };
+
+    const plain = await read(false), marked = await read(true);
+    // What is compared is not empty.
+    expect(plain.index.files.map((f) => f.path)).toEqual(["Bare.md", "Plan.md", "Tasks.base", "Windows/Plan.md"]);
+    expect(plain.index.properties.length).toBeGreaterThan(6);
+    expect(plain.index.links.length).toBeGreaterThan(4);
+    expect(plain.outline["Plan.md"]).toEqual([[1, "Heading", 8], [2, "Journal", 15]]);
+    expect(plain.journal["Windows/Plan.md"]).toEqual([[16, "09:15", "an entry"]]);
+    expect(plain.base.views).toHaveLength(1);
+    // The outline led one line above each heading, and the journal read no entry.
+    expect(marked).toEqual(plain);
   });
 
   it("speaks the shared adapter errors", async () => {

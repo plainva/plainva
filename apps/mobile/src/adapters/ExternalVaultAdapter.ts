@@ -52,8 +52,11 @@ function utf8ToB64(text: string): string {
  * The file's text as every adapter hands it out — with its byte order mark as
  * the first character, where it has one (`textOfFileBytes`). A plain decoder
  * dropped it here: an editor saw a note or a `.csv` without its mark, and the
- * first save wrote the file back without one (finding 2026-10-09). The
- * container adapter and the desktop read through the platform, which keeps it.
+ * first save wrote the file back without one (finding 2026-10-09). The desktop
+ * reads through Rust, which keeps it. The container adapter reads through the
+ * system's own decoder, and the two systems differ: Android's leaves the mark
+ * in the text, iOS' skips it — an open gap, in the parity catalog as
+ * `byte-order-mark-in-app-storage`.
  */
 function b64ToUtf8(b64: string): string {
   return textOfFileBytes(b64ToBytes(b64));

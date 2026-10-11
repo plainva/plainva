@@ -14,7 +14,37 @@ interface SourceNode {
 }
 
 const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]);
-const treeFor = (text: string) => parser.parse(text) as unknown as SourceNode;
+const BYTE_ORDER_MARK = 0xfeff;
+
+/**
+ * The tree of `text`, every position an offset into `text`.
+ *
+ * The parser skips a byte order mark at the start of what it is given and
+ * counts from behind it: for a note that begins with one, each of its offsets
+ * is one short of the place it means. Everything here lays those offsets on
+ * the text again — and so every block of such a note began one character
+ * early, which for a block at the start of a line is the line above it. The
+ * journal read no entry in that note and refused to write one, an outline
+ * led one line above each heading, an embedded section began in front of its
+ * heading, and the reading view kept the last `-` of the properties block
+ * (finding 2026-10-09). The mark is parsed around instead, and the positions
+ * are counted from the start of the text it belongs to.
+ */
+function treeFor(text: string): SourceNode {
+  const mark = text.charCodeAt(0) === BYTE_ORDER_MARK ? 1 : 0;
+  const root = parser.parse(mark ? text.slice(mark) : text) as unknown as SourceNode;
+  if (mark) {
+    const shift = (node: SourceNode) => {
+      if (node.position) {
+        node.position.start.offset += mark;
+        node.position.end.offset += mark;
+      }
+      node.children?.forEach(shift);
+    };
+    shift(root);
+  }
+  return root;
+}
 const textOf = (node: SourceNode): string => node.value ?? (node.children ?? []).map(textOf).join("");
 
 export interface NoteSourceRange { from: number; to: number; line: number }
@@ -251,6 +281,8 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
     if (node.type !== "code" && node.type !== "inlineCode" && node.type !== "html") for (const child of node.children ?? []) walk(child, inLink || node.type === "link" || node.type === "image");
   };
   walk(treeFor(clean.text));
+  // What is read is the text: a byte order mark is the file's, like its `\r`.
+  if (clean.text.charCodeAt(0) === BYTE_ORDER_MARK) edits.push({ from: 0, to: 1, text: "" });
   for (const block of analyzeNoteSource(raw).blocks) edits.push({ from: clean.toClean(block.markerFrom), to: clean.toClean(block.markerTo), text: "" });
   for (const match of clean.text.matchAll(/\r\n/g)) if (!edits.some((e) => e.from <= match.index && e.to > match.index)) edits.push({ from: match.index, to: match.index + 2, text: "\n" });
   edits.sort((a, b) => a.from - b.from || b.to - a.to);

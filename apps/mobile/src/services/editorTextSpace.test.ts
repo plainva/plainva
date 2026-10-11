@@ -6,10 +6,13 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import ts from "typescript";
-import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, VersionHistoryService, applyTextShape, containsTextChanges, DEFAULT_TEXT_SHAPE, editorTextOf, mergeEditorText, type IDatabaseAdapter } from "@plainva/core";
+import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, VaultIndexer, VersionHistoryService, applyTextShape, containsTextChanges, DEFAULT_TEXT_SHAPE, editInShape, editorTextOf, mergeEditorText, type IDatabaseAdapter } from "@plainva/core";
 import { decideDirtyExternalUpdate, openEditorText } from "@plainva/ui";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
+import { ExternalVaultAdapter } from "../adapters/ExternalVaultAdapter";
+import { fakeVaultFolder, folderBytes } from "../adapters/fakeVaultFolder";
+import type { VaultFolderNative } from "../platform/vaultFolder";
 import { createSaveCoordinator, type SaveCoordinator } from "./saveCoordinator";
 import type { MobileVault } from "./vaultService";
 
@@ -326,6 +329,91 @@ describe("the phone writes a file back in its shape", () => {
     await history.restoreVersion({ backupPath: snapshot.backupPath, targetPath: "Note.md", writeAdapter: vault.files });
     expect(await bytes("Note.md")).toBe(first);
     expect(await phone.vaultOps.readEditor(vault, "Note.md")).toBe("first\nversion\n");
+  });
+});
+
+describe("the phone and a folder the user picked on the device", () => {
+  // The phone's code as above, over the OTHER raw adapter: the one for a folder
+  // the user picked, against a fake of the native plugin (fakeVaultFolder.ts).
+  // What lies in `folder` afterwards is what the plugin was handed, byte for
+  // byte — the tests above read real files through the core's file adapter,
+  // and a decoder in this one was not among what they could see.
+  const MARK_BYTES = [0xef, 0xbb, 0xbf];
+  const marked = (body: string) => new Uint8Array([...MARK_BYTES, ...utf8(body)]);
+  let folder: Map<string, string | Uint8Array>, plugin: VaultFolderNative, autoMerged: string[];
+  /** The chain `boot()` puts over the raw adapter of a picked folder. */
+  const pickedVault = (adapter: ExternalVaultAdapter): MobileVault => {
+    const snapshots = new BackupVaultAdapter(adapter);
+    const syncRepo = new SyncStateRepository(db, adapter, "device-a");
+    const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(snapshots, new SyncQueue(db)), syncRepo,
+      (path) => { autoMerged.push(path); }, syncRepo, "external-folder");
+    return { vaultId: "vault-picked", adapter, files, backup: snapshots, db, indexer: null, reindexPaths: async () => {} } as unknown as MobileVault;
+  };
+  beforeEach(() => {
+    folder = new Map(); autoMerged = [];
+    plugin = fakeVaultFolder(folder).plugin;
+    vault = pickedVault(new ExternalVaultAdapter(plugin, "picked"));
+  });
+
+  it("keeps a file's byte order mark when it is edited: one byte is new, every other one stays", async () => {
+    for (const [path, body, typed] of [
+      ["Note.md", "one\r\ntwo\r\nthree\r\n", "one\nTwo\nthree\n"],
+      ["Data.csv", "id;name\r\n1;Ada\r\n", "id;name\n1;Ida\n"],
+    ]) {
+      folder.set(path, marked(body));
+      const before = folderBytes(folder, path);
+      const file = await open(path);
+      expect(file.doc, path).toBe(body.split("\r\n").join("\n"));
+      file.type(typed);
+      await phone.noteSaver.flushAll();
+      const after = folderBytes(folder, path);
+      // The adapter used to hand a file out without its mark — a plain decoder
+      // drops it —, the editor's read took the file for one without, and its
+      // save wrote it back so: three bytes fewer, for a note as for a table
+      // another program expects to find them in (finding 2026-10-09).
+      expect(after.slice(0, 3), path).toEqual(MARK_BYTES);
+      expect(after.length, path).toBe(before.length);
+      expect(after.filter((byte, at) => byte !== before[at]), path).toHaveLength(1);
+      expect(phone.getLastPersistedText(vault, path), path).toBe(typed);
+    }
+    expect(conflicts).toEqual([]);
+  });
+
+  it("opens a folder an older build read without the marks: nothing counts as changed elsewhere, no write ends in a conflict copy", async () => {
+    /** The adapter as it read until 2026-10-09. */
+    class MarkDropping extends ExternalVaultAdapter {
+      override async readTextFile(path: string): Promise<string> { return new TextDecoder().decode(await this.readBinaryFile(path)); }
+    }
+    folder.set("Note.md", marked("one\r\ntwo\r\n"));
+    folder.set("Tasks.md", marked("- [ ] first\r\n- [ ] second\r\n"));
+    // What that build left in the index of such a vault: for each file a hash
+    // and a merge base of its text WITHOUT the mark.
+    await new VaultIndexer(pickedVault(new MarkDropping(plugin, "picked")).files, db).indexVaultFull("older build");
+    expect((await db.queryOne<{ base_text: string }>("SELECT base_text FROM sync_state WHERE path = 'Note.md'"))?.base_text).toBe("one\r\ntwo\r\n");
+
+    // The first pass of this build over the same folder: no file has changed, and none is reported as changed.
+    const foreign: string[] = [];
+    await new VaultIndexer(vault.files, db, { onExternalModification: (path) => { foreign.push(path); } }).indexVaultFull("open");
+    expect(foreign).toEqual([]);
+
+    // A writer beside the editor — a checkbox ticked in the task list — on a
+    // note nobody has opened since. The text it read does not have the hash on
+    // record, so the write goes through the merge with the base on record: it
+    // lands, and the note keeps its mark and its line ends.
+    const tasks = await vault.files.readTextFile("Tasks.md");
+    await vault.files.writeTextFile("Tasks.md", editInShape(tasks, (text) => text.replace("- [ ] first", "- [x] first")));
+    expect(autoMerged).toEqual(["Tasks.md"]);
+    expect(folderBytes(folder, "Tasks.md")).toEqual([...MARK_BYTES, ...utf8("- [x] first\r\n- [ ] second\r\n")]);
+
+    // The editor: one character, saved.
+    const note = await open("Note.md");
+    note.type("one\ntwo!\n");
+    await phone.noteSaver.flushAll();
+    expect(folderBytes(folder, "Note.md")).toEqual([...MARK_BYTES, ...utf8("one\r\ntwo!\r\n")]);
+
+    expect(conflicts).toEqual([]);
+    expect(await vault.files.listConflictSessions!()).toEqual([]);
+    expect([...folder.keys()].filter((path) => path.includes(".CONFLICT"))).toEqual([]);
   });
 });
 

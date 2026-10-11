@@ -106,6 +106,16 @@ file — a silent reformat of existing vault content, which this ADR rules out.
    one changes more than line endings (list bullets, emphasis marks, table
    rules); its result is brought back to the note's shape, the rest is a
    separate question.
+8. **Whoever reads a file's text meets the mark (added 2026-10-11).** Point 4
+   brought the mark to the phone's readers, which had never seen one, and
+   showed what the desktop's had done with it all along. A reader that names
+   PLACES in a note — the outline, an embedded section, the reading view, the
+   journal — counts them in the text it was given, mark included: the
+   Markdown parser skips the mark and counts from behind it, so its offsets
+   are brought back to the text before anything is laid on it (`treeFor` in
+   `packages/core/src/noteSource.ts`). What is handed to the reading view has
+   no mark, as it has no `\r`. And the journal reads and changes the lines
+   behind the mark and puts it back in front of them.
 
 **2026-10-12 — the encoding question of point 7, answered for the sync.** A
 file is text when its name says so AND its bytes are UTF-8 (`mergeableText` in
@@ -145,7 +155,10 @@ disks and on the server), `apps/desktop/src/services/editorSaveRecovery.test.ts`
 `apps/mobile/src/services/editorTextSpace.test.ts`,
 `apps/desktop/src/noteLineEnds.test.ts`, and
 `apps/mobile/e2e-prod/note-line-ends.spec.ts` against the phone's production
-bundle.
+bundle. For point 8: `packages/core/test/noteSource.test.ts`,
+`packages/core/test/journal.test.ts`, and
+`apps/mobile/src/adapters/externalVaultAdapter.test.ts`, which reads the same
+files with and without a mark through the phone's adapter for a picked folder.
 
 ## Addendum 2026-10-12 (a note is never written back from its parsed tree)
 
