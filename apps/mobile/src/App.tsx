@@ -63,7 +63,7 @@ import { StartupSheets } from "./components/StartupSheets";
 import { markReleaseDialogSeen, pendingReleaseDialog, type ReleaseDialog } from "./services/mobileWhatsNew";
 import {
   activeFolderPath,
-  backStep, currentArea,
+  backStep, calendarEntry, currentArea,
   ensureVisibleTab,
   hidesTabBar,
   initialNavState,
@@ -458,7 +458,7 @@ export default function App() {
       onCapture={capture}
       onNewTask={() => { requestNew("task"); void tabTapped("tasks", setNav); }}
       onJournal={() => setJournalCapture({ text: "" })}
-      onOpenCalendar={(focus) => setNav((n) => pushEntry(n, { kind: "pimcalendar", path: focus ? JSON.stringify(focus) : "" }))}
+      onOpenCalendar={(focus) => setNav((n) => pushEntry(n, calendarEntry(focus)))}
       onOpenNote={openNote}
       onOpenToday={() => openDaily(journalTodayKey())}
       pendingShortcut={pendingShortcut}

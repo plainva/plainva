@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 import {CalendarDays, Home, ListChecks, Mail, MessageSquare, NotebookText, Sun, Waypoints} from "lucide-react";
 import type { CloudProviderFamily } from "@plainva/ui";
+import { calendarFocusPath, type CalendarFocus } from "./services/calendarFocus";
 
 /**
  * Configurable bottom navigation. The persisted `tabSlots` value is the FULL
@@ -428,6 +429,17 @@ export const SCREEN_ENTRY: Record<TabScreenId, NavEntry> = {
   comments: { kind: "comments", path: "" },
   journal: { kind: "journal", path: "" },
 };
+
+/**
+ * The calendar as a pushed entry — at an appointment, when a tapped reminder
+ * names one. It stands beside SCREEN_ENTRY for the same reason: how an area is
+ * reached is the pool's vocabulary. The shell used to build this entry itself
+ * and spelled the path as JSON while doing so, with the reader two modules
+ * away (services/calendarFocus.ts).
+ */
+export function calendarEntry(focus?: CalendarFocus): NavEntry {
+  return { kind: "pimcalendar", path: calendarFocusPath(focus) };
+}
 
 /**
  * The area on screen, as the areas sheet marks it (finding 2026-09-24, E20).

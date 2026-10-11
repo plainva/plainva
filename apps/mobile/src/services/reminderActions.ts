@@ -1,5 +1,6 @@
 import { snoozeMoment, snoozeTask, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
+import type { CalendarFocus } from "./calendarFocus";
 import { getPimCache, openMeetingNoteFor } from "./pim/pimService";
 import { setTaskDone } from "./taskCompletionAction";
 import { rescheduleReminders, type ReminderIntent } from "./reminderScheduler";
@@ -24,14 +25,6 @@ function meetingDayKey(event: { allDay?: boolean; start?: { date?: string } }, s
   if (event.allDay && event.start?.date) return event.start.date;
   const d = new Date(startTs);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-/** The appointment a tapped reminder points at — enough to find it in the cache. */
-export interface CalendarFocus {
-  uid: string;
-  accountId: string;
-  calendarId: string;
-  startTs: number;
 }
 
 export interface ReminderActionHost {

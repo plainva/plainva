@@ -27,6 +27,7 @@ import { DeviceSignInCard } from "../components/DeviceSignInRow";
 import { AppBar } from "../components/AppBar";
 import { getMobileVault } from "../services/vaultService";
 import { getMobileSettings, updateMobileSettings } from "../services/mobileSettings";
+import type { CalendarFocus } from "../services/calendarFocus";
 
 /**
  * Mobile PIM calendar (calendar-mobile branch): the phone twin of the desktop
@@ -54,27 +55,6 @@ function storedView(): PimView {
   }
 }
 
-/** The appointment a pushed calendar should land on (a tapped reminder, M4). */
-export interface CalendarFocus {
-  uid: string;
-  accountId: string;
-  calendarId: string;
-  startTs: number;
-}
-
-/** Route payload → focus; an empty or foreign payload is simply "no focus". */
-export function parseCalendarFocus(path: string): CalendarFocus | undefined {
-  if (!path) return undefined;
-  try {
-    const v = JSON.parse(path) as Partial<CalendarFocus>;
-    if (typeof v.uid === "string" && typeof v.accountId === "string" && typeof v.calendarId === "string" && typeof v.startTs === "number") {
-      return { uid: v.uid, accountId: v.accountId, calendarId: v.calendarId, startTs: v.startTs };
-    }
-  } catch {
-    /* not a focus */
-  }
-  return undefined;
-}
 /** The hour gutter, one value for the header, the all-day strip and the grid. */
 const GUTTER_PX = 44;
 const PX_PER_HOUR = 40;
