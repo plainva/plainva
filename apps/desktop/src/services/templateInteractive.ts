@@ -1,7 +1,6 @@
 import {
   finalizeTemplate,
   resolveTemplate,
-  setPendingTemplateCaret,
   type TemplateContext,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -84,18 +83,9 @@ export async function applyTemplateInteractive(
 }
 
 /**
- * Parks the caret for a note that is about to be opened. `offset` is the place
- * in the WRITTEN note: the builders find a template's `{{cursor}}` there with
- * the shared `templateCaretInNote`, behind whatever the write path put in
- * front of the template's text (the OKF header, a view's prefills). `null`:
- * the template had no cursor marker, and nothing is parked.
+ * Pokes an already-mounted editor after the note was opened. The caret itself
+ * is parked with the shared `parkTemplateCaret`, on this shell as on the phone.
  */
-export function parkTemplateCaret(path: string, offset: number | null): void {
-  if (offset === null) return;
-  setPendingTemplateCaret({ path, offset });
-}
-
-/** Pokes an already-mounted editor after the note was opened. */
 export function pokeTemplateCaret(path: string): void {
   window.dispatchEvent(new CustomEvent("plainva-template-caret", { detail: { path } }));
 }

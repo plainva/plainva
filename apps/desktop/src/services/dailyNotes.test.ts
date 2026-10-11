@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse as parseYaml } from "yaml";
-import { buildDailyNotePath } from "@plainva/ui";
+import { editorTextOf } from "@plainva/core";
+import { buildDailyNotePath, clearPendingTemplateCaret, consumePendingTemplateCaret } from "@plainva/ui";
 import { listExistingDailyNotes, makeDailyPathProvider, noteStamp, resolveOrCreateDailyNote } from "./dailyNotes";
+import { applyTemplateInteractive } from "./templateInteractive";
 import {
   dailyNotesFolderKey,
   dailyNotesFormatKey,
@@ -263,6 +265,47 @@ describe("resolveOrCreateDailyNote — OKF write rule", () => {
     expect(content).toContain("## Plan für 2024-03-05");
     // A template defines the body — no extra H1 is injected.
     expect(content).not.toMatch(/^# /m);
+  });
+
+  // Finding 2026-10-09. The caret was parked as a place in the FILE; the
+  // editor that opens the note holds it with `\n` line ends and without its
+  // byte order mark, and a note keeps the line ends and the mark of its
+  // template. Every line above the cursor moved the caret one to the right.
+  it("parks the template's cursor as a place in the text the editor holds, whatever line ends and mark the template has", async () => {
+    storeValues[templateFolderKey(VAULT)] = "Templates";
+    storeValues[dailyNoteTemplateKey(VAULT)] = "daily.md";
+    // Built at run time: the mark is never typed into this file.
+    const mark = String.fromCharCode(0xfeff);
+    const templates: Record<string, string> = {
+      "\\n": "# {{title}}\n\n## Plan\n{{cursor}}\n## Abend\n",
+      "\\n, block": "---\nstatus: offen\n---\n# {{title}}\n\n## Plan\n{{cursor}}\n## Abend\n",
+      "\\r\\n": "# {{title}}\r\n\r\n## Plan\r\n{{cursor}}\r\n## Abend\r\n",
+      "\\r\\n, block": "---\r\nstatus: offen\r\n---\r\n# {{title}}\r\n\r\n## Plan\r\n{{cursor}}\r\n## Abend\r\n",
+      mark: `${mark}# {{title}}\n\n## Plan\n{{cursor}}\n## Abend\n`,
+      "mark, block": `${mark}---\nstatus: offen\n---\n# {{title}}\n\n## Plan\n{{cursor}}\n## Abend\n`,
+      "mark and \\r\\n, block": `${mark}---\r\nstatus: offen\r\n---\r\n# {{title}}\r\n\r\n## Plan\r\n{{cursor}}\r\n## Abend\r\n`,
+    };
+    for (const [name, template] of Object.entries(templates)) {
+      clearPendingTemplateCaret();
+      const { adapter, written } = makeAdapter({ "Templates/daily.md": template });
+      const path = await resolveOrCreateDailyNote(date, {
+        vaultPath: VAULT,
+        adapter,
+        onIndex: async () => {},
+        confirmCreate: false,
+        // A person opens the note: the template runs through the interactive
+        // pipeline, as `useDailyNoteAction` wires it.
+        resolveTemplate: (raw, ctx) => applyTemplateInteractive(raw, ctx, "Fragen"),
+      });
+      const note = written[path!];
+      // The note keeps what the template has …
+      expect(note.includes("\r\n"), name).toBe(template.includes("\r\n"));
+      expect(note.startsWith(mark), name).toBe(template.startsWith(mark));
+      expect(frontmatterOf(note.slice(note.startsWith(mark) ? 1 : 0)).type, name).toBe("Daily Note");
+      // … and its editor is handed the place in what IT holds.
+      const parked = consumePendingTemplateCaret(path);
+      expect(parked && editorTextOf(note).slice(parked.offset), name).toBe("\n## Abend\n");
+    }
   });
 });
 

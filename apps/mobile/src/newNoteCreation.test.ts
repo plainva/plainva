@@ -19,7 +19,8 @@ vi.mock("./services/mobileDialogs", () => ({ mTemplateAnswers: vi.fn() }));
 vi.mock("./services/editorSelection", () => ({ readEditorSelection: () => null }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? "" } }));
 
-import { buildNewNoteContent, clearPendingTemplateCaret, consumePendingTemplateCaret, setPendingTemplateCaret, wikiTargetToPath } from "@plainva/ui";
+import { editorTextOf } from "@plainva/core";
+import { buildNewNoteContent, clearPendingTemplateCaret, consumePendingTemplateCaret, parkTemplateCaret, wikiTargetToPath } from "@plainva/ui";
 import { buildNewNoteFromTemplate, buildNewNoteFromTemplateText } from "./services/templateInteractive";
 
 /**
@@ -82,7 +83,8 @@ function creationOps(): CreationOps {
     getActiveVaultEntry: async () => ({ name: "Vault" }),
     getMobileSettings: () => settings,
     reportCreated: (path: string) => void reported.push(path),
-    setPendingTemplateCaret,
+    // The one way to park a caret since 2026-10-09: with the note it counts in.
+    parkTemplateCaret,
     wikiTargetToPath,
   };
   return new Function(...Object.keys(scope), `${code}\nreturn vaultOps;`)(...Object.values(scope)) as CreationOps;
@@ -141,6 +143,53 @@ describe("the phone's new notes, as its three creation paths write them", () => 
     const note = vault.text.get("Eingang/Protokoll.md");
     expect(note).toBe("---\ntype: Note\n---\n## Agenda\n\n- \n");
     expect(consumePendingTemplateCaret("Eingang/Protokoll.md")).toEqual({ path: "Eingang/Protokoll.md", offset: note!.length - 1 });
+  });
+
+  /**
+   * What stands behind the parked caret in the editor that opens the note; ""
+   * is its end. The phone's editor is handed `vaultOps.readEditor`'s text: the
+   * file with `\n` line ends and without its byte order mark.
+   */
+  function behindParkedCaret(vault: MemoryVault, path: string): string {
+    const parked = consumePendingTemplateCaret(path);
+    if (!parked) throw new Error(`no caret was parked for ${path}`);
+    return editorTextOf(vault.text.get(path)!).slice(parked.offset);
+  }
+
+  // Finding 2026-10-09: the caret was parked as a place in the file. A note
+  // keeps the line ends and the mark of its template, the editor holds neither,
+  // and the caret stood one character too far right for every line above it.
+  it("a rule's template with Windows line ends: the parked caret is a place in the editor's text, with and without a properties block", async () => {
+    settings.folderTemplates = [
+      { folder: "Projekte", template: "Projekt.md" },
+      { folder: "Listen", template: "Liste.md" },
+    ];
+    const vault = memoryVault({
+      "Vorlagen/Projekt.md": "---\r\nstatus: entwurf\r\n---\r\n# {{title}}\r\n\r\n{{cursor}}Text\r\n",
+      "Vorlagen/Liste.md": "# {{title}}\r\n\r\n- [ ] {{cursor}}\r\nEnde\r\n",
+    });
+    const project = await ops.createNote(vault, "Projekte", "Note");
+    expect(vault.text.get(project!)).toBe("---\r\nstatus: entwurf\r\ntype: Note\r\n---\r\n# Notiz 1\r\n\r\nText\r\n");
+    expect(behindParkedCaret(vault, project!)).toBe("Text\n");
+    const list = await ops.createNote(vault, "Listen", "Note");
+    expect(vault.text.get(list!)).toBe("---\r\ntype: Note\r\n---\r\n# Notiz 1\r\n\r\n- [ ] \r\nEnde\r\n");
+    expect(behindParkedCaret(vault, list!)).toBe("\nEnde\n");
+  });
+
+  it("a picked template with a byte order mark: the parked caret is a place in the editor's text, with and without a properties block", async () => {
+    // Built at run time: the mark is never typed into this file.
+    const mark = String.fromCharCode(0xfeff);
+    const vault = memoryVault();
+    const block = await ops.createNoteFromTemplate(vault, "Eingang", "Plan", `${mark}---\nstatus: entwurf\n---\n# {{title}}\n{{cursor}}Text\n`);
+    expect(vault.text.get(block!)).toBe(`${mark}---\nstatus: entwurf\ntype: Note\n---\n# Plan\nText\n`);
+    expect(behindParkedCaret(vault, block!)).toBe("Text\n");
+    const plain = await ops.createNoteFromTemplate(vault, "Eingang", "Protokoll", `${mark}## Agenda\n\n- {{cursor}}\nEnde\n`);
+    expect(vault.text.get(plain!)).toBe(`${mark}---\ntype: Note\n---\n## Agenda\n\n- \nEnde\n`);
+    expect(behindParkedCaret(vault, plain!)).toBe("\nEnde\n");
+    // Both at once, as a template that was written on Windows by a tool that sets the mark.
+    const both = await ops.createNoteFromTemplate(vault, "Eingang", "Brief", `${mark}---\r\nstatus: entwurf\r\n---\r\n# {{title}}\r\n{{cursor}}Text\r\n`);
+    expect(vault.text.get(both!)).toBe(`${mark}---\r\nstatus: entwurf\r\ntype: Note\r\n---\r\n# Brief\r\nText\r\n`);
+    expect(behindParkedCaret(vault, both!)).toBe("Text\n");
   });
 
   it("a note made from a link is the same skeleton, next to the note the link stands in", async () => {

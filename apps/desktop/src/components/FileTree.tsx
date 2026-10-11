@@ -13,7 +13,7 @@ import {
 import { FileContextMenu } from "./FileContextMenu";
 import { TemplatePickerModal } from "./TemplatePickerModal";
 import { buildNewNoteFromTemplate } from "../services/newNoteTemplate";
-import { parkTemplateCaret } from "../services/templateInteractive";
+import { parkTemplateCaret } from "@plainva/ui";
 import { hasSnippetMark, renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
 import { useStableHandler } from "@plainva/ui";
@@ -786,7 +786,7 @@ export const FileTree: React.FC<{
           return;
         }
         await vaultAdapter.writeTextFile(newPath, built.content);
-        parkTemplateCaret(newPath, built.caret);
+        parkTemplateCaret(newPath, built.content, built.caret);
         onSelect(newPath, false);
       }
       setNewItemParams(null);

@@ -29,7 +29,25 @@ const contracts = [
   // without one there.
   ["templateAsNewNote", "services/newNoteTemplate.ts", "services/templateInteractive.ts"],
   ["templateCaretInNote", "components/BaseViewer.tsx", "services/baseOps.ts"],
+  // A template inserted INTO a note (finding 2026-10-11): the text as an editor
+  // holds one and the caret as a place in it. Handed over as it was read, a
+  // template with `\r\n` put the caret too far right, and without a cursor
+  // marker the editor refused the insertion at the end of a note.
+  ["templateInsertInEditor", "components/TemplatePickerModal.tsx", "EditorHost.tsx"],
 ] as const;
+
+/**
+ * Every place that makes a note from a template parks its `{{cursor}}` for the
+ * editor through the shared `parkTemplateCaret`, with the note the place was
+ * counted in (finding 2026-10-09). That call is where the place becomes one in
+ * the text an editor holds; a place that stops parking leaves the caret at the
+ * top of the note, and one that parked a bare number — as all of them did —
+ * put it one character too far right for every `\r\n` above it.
+ */
+const caretParkers = {
+  desktop: ["components/FileTree.tsx", "components/QuickSwitcher.tsx", "components/BaseViewer.tsx", "components/pimcal/CalendarView.tsx", "services/dailyNotes.ts"],
+  mobile: ["services/vaultService.ts", "services/baseOps.ts", "services/pim/pimService.ts"],
+} as const;
 
 function usesFeature(source: string, name: string): boolean {
   const tree = ts.createSourceFile("surface.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -56,6 +74,28 @@ describe("shared features remain wired in both shells", () => {
       expect(missingShells(name, desktopSource, mobileSource), `${name}: restore the missing shell or document and test a deliberate parity decision`).toEqual([]);
     });
   }
+});
+
+describe("a new note's caret is parked through the shared function", () => {
+  const sourceOf = (shell: keyof typeof caretParkers, file: string) =>
+    readFileSync(fileURLToPath(new URL(shell === "desktop" ? `./${file}` : `../../mobile/src/${file}`, import.meta.url)), "utf8");
+
+  for (const shell of ["desktop", "mobile"] as const) {
+    for (const file of caretParkers[shell]) {
+      it(`${shell}: ${file}`, () => {
+        expect(usesFeature(sourceOf(shell, file), "parkTemplateCaret"), `${file} creates notes from templates and no longer parks their caret`).toBe(true);
+      });
+    }
+  }
+
+  it("is the only way into the store: the module keeps no setter for a bare number", () => {
+    const source = readFileSync(fileURLToPath(new URL("../../../packages/ui/src/lib/templateCaret.ts", import.meta.url)), "utf8");
+    const exported = [...source.matchAll(/^export function (\w+)/gm)].map((match) => match[1]).sort();
+    expect(exported).toEqual(["clearPendingTemplateCaret", "consumePendingTemplateCaret", "parkTemplateCaret", "templateCaretInEditor", "templateCaretInNote", "templateInsertInEditor"]);
+    // One place writes the store, and it converts what it is given.
+    expect(source.match(/\bpending = \{/g)).toHaveLength(1);
+    expect(source).toMatch(/pending = \{ path, offset: templateCaretInEditor\(note, caret\) \}/);
+  });
 });
 
 describe("wiring guard counterexamples", () => {

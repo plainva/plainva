@@ -54,6 +54,7 @@ vi.mock("./templateInteractive", () => ({
   buildNewNoteFromTemplate: (opts: { type: string; fallbackBody: string }) => buildNewNoteFromTemplate(opts),
 }));
 
+import { editorTextOf } from "@plainva/core";
 import { consumePendingTemplateCaret, pinboardDraftHash, pinboardDraftKey, pinboardDraftLedger } from "@plainva/ui";
 import { createBaseItem, discardMobilePinboardEntry, finalizeMobilePinboardEntry, planMobilePinboardEntry, sweepMobilePinboardDrafts } from "./baseOps";
 
@@ -142,6 +143,31 @@ describe("planMobilePinboardEntry", () => {
     const before = files.size;
     expect(await planMobilePinboardEntry(vault, { ...zettel, newItemFolder: "Zettel", newItemTemplate: "Templates/Zettel.md" }, opts)).toEqual({ status: "cancelled" });
     expect(files.size).toBe(before);
+  });
+
+  it("parks the template's cursor for the entry's editor as a place in the text that editor holds", async () => {
+    // Finding 2026-10-09: `draft.caret` counts in the file the plan wrote; the
+    // entry page's editor holds it with `\n` line ends and without its mark.
+    // (The desktop's entry window asks `pinboardEntryCaret` — pinboardEntry.test.ts there.)
+    const mark = String.fromCharCode(0xfeff);
+    const templates: Record<string, string> = {
+      "\\n": "# Liste\n\n- [ ] |\nEnde\n",
+      "\\r\\n": "# Liste\r\n\r\n- [ ] |\r\nEnde\r\n",
+      "\\r\\n, block": "---\r\nprio: hoch\r\n---\r\n# Liste\r\n\r\n- [ ] |\r\nEnde\r\n",
+      mark: `${mark}# Liste\n\n- [ ] |\nEnde\n`,
+      "mark and \\r\\n, block": `${mark}---\r\nprio: hoch\r\n---\r\n# Liste\r\n\r\n- [ ] |\r\nEnde\r\n`,
+    };
+    for (const [name, marked] of Object.entries(templates)) {
+      answerTemplateFile.mockResolvedValueOnce({ text: marked.replace("|", ""), cursor: marked.indexOf("|") });
+      const draft = await ready({ ...zettel, newItemFolder: "Zettel", newItemTemplate: "Templates/Zettel.md" });
+      const written = files.get(draft.path)!;
+      expect(written, name).toBe(draft.initial);
+      expect(written.includes("\r\n"), name).toBe(marked.includes("\r\n"));
+      expect(written.startsWith(mark), name).toBe(marked.startsWith(mark));
+      expect(written, name).toMatch(/status: offen/);
+      const parked = consumePendingTemplateCaret(draft.path);
+      expect(parked && editorTextOf(written).slice(parked.offset), name).toBe("\nEnde\n");
+    }
   });
 });
 
@@ -252,6 +278,37 @@ describe("createBaseItem", () => {
     expect(text.endsWith("# Zettel_1\n\n- [ ] \n")).toBe(true);
     const caret = consumePendingTemplateCaret(made.path);
     expect(caret && text.slice(caret.offset)).toBe("\n");
+  });
+
+  it("parks that caret as a place in the editor's text when the template has Windows line ends or a byte order mark", async () => {
+    // Finding 2026-10-09. Both steps — the builder's note, then the tag and
+    // the filter's value into its block — count in the file; the editor that
+    // opens the item holds it with `\n` line ends and without its mark.
+    const mark = String.fromCharCode(0xfeff);
+    const config = {
+      filters: { and: ['file.hasTag("zettel")'] },
+      newItemFolder: "Zettel",
+      newItemTemplate: "Templates/Z.md",
+      views: [{ type: "table", name: "T", filters: { and: ['status == "offen"'] } }],
+    };
+    const notes: Record<string, string> = {
+      "\\r\\n": "---\r\ntype: Note\r\n---\r\n# Zettel_1\r\n\r\n- [ ] \r\nEnde\r\n",
+      mark: `${mark}---\ntype: Note\n---\n# Zettel_1\n\n- [ ] \nEnde\n`,
+      "mark and \\r\\n": `${mark}---\r\ntype: Note\r\n---\r\n# Zettel_1\r\n\r\n- [ ] \r\nEnde\r\n`,
+    };
+    for (const [name, built] of Object.entries(notes)) {
+      files.clear();
+      buildNewNoteFromTemplate.mockResolvedValueOnce({ content: built, caret: built.indexOf("- [ ] ") + "- [ ] ".length });
+      const made = await createBaseItem(vault, "Zettel.base", config, 0);
+      if (made.status !== "created") throw new Error(`not created: ${made.status}`);
+      const text = files.get(made.path)!;
+      // The block was written anew, in the note's line ends and behind its mark.
+      expect(text, name).toMatch(/status: offen/);
+      expect(text.includes("\r\n"), name).toBe(built.includes("\r\n"));
+      expect(text.startsWith(mark), name).toBe(built.startsWith(mark));
+      const caret = consumePendingTemplateCaret(made.path);
+      expect(caret && editorTextOf(text).slice(caret.offset), name).toBe("\nEnde\n");
+    }
   });
 });
 

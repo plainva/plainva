@@ -119,8 +119,13 @@ export interface ResolveMeetingNoteOptions {
 export interface ResolveMeetingNoteResult {
   path: string;
   created: boolean;
-  /** Offset of the template's `{{cursor}}` in the written file, when it had one. */
-  cursor?: number;
+  /**
+   * The template's `{{cursor}}`, when a note was written and its template had
+   * one: a place in `note`, the file as it was written. The two travel
+   * together, because the editor that opens the note counts in another text
+   * and the place is converted when it is parked (`parkTemplateCaret`).
+   */
+  caret?: { note: string; offset: number };
 }
 
 /**
@@ -299,7 +304,7 @@ export async function resolveOrCreateMeetingNote(opts: ResolveMeetingNoteOptions
     if (!built) return null;
     if (dir) await adapter.createDir(dir).catch(() => undefined);
     await adapter.writeTextFile(path, built.content);
-    return built.cursor === null ? { path, created: true } : { path, created: true, cursor: built.cursor };
+    return built.cursor === null ? { path, created: true } : { path, created: true, caret: { note: built.content, offset: built.cursor } };
   };
 
   // Probe the deterministic name and its numbered siblings: reuse on anchor

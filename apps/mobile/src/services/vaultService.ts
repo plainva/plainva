@@ -78,7 +78,7 @@ import {
   pushRecentEntry,
   renameFileWithLinkUpdates,
   serializeRecentsFile,
-  setPendingTemplateCaret,
+  parkTemplateCaret,
   sweepPinboardRefs,
   toast,
   isImagePath,
@@ -1236,7 +1236,7 @@ export const vaultOps = {
       if (!built) return null;
       await this.save(v, path, built.content);
       reportCreated(path);
-      if (built.caret !== null) setPendingTemplateCaret({ path, offset: built.caret });
+      parkTemplateCaret(path, built.content, built.caret);
       return path;
     }
   },
@@ -1270,7 +1270,7 @@ export const vaultOps = {
     if (!built) return null; // cancelled → nothing is created
     await this.save(v, path, built.content);
     reportCreated(path);
-    if (built.caret !== null) setPendingTemplateCaret({ path, offset: built.caret });
+    parkTemplateCaret(path, built.content, built.caret);
     return path;
   },
 
@@ -1323,7 +1323,7 @@ export const vaultOps = {
     );
     if (!ensured?.created) return ensured;
     reportCreated(ensured.path);
-    if (ensured.cursor !== null) setPendingTemplateCaret({ path: ensured.path, offset: ensured.cursor });
+    if (ensured.content !== null) parkTemplateCaret(ensured.path, ensured.content, ensured.cursor);
     return ensured;
   },
 

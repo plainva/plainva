@@ -1,4 +1,4 @@
-import { ensureDailyNote, noteStamp, setPendingTemplateCaret, type DailyNoteCreateConfig, type DailyNoteFiles } from "@plainva/ui";
+import { ensureDailyNote, noteStamp, parkTemplateCaret, type DailyNoteCreateConfig, type DailyNoteFiles } from "@plainva/ui";
 import { getSettingsStore } from "./settingsStore";
 import { appConfirm } from "./appDialogs";
 import {
@@ -160,7 +160,7 @@ export async function resolveOrCreateDailyNote(date: Date, opts: DailyNoteOption
   });
   if (!ensured) return null;
   if (!ensured.created) return ensured.path;
-  if (ensured.cursor !== null) setPendingTemplateCaret({ path: ensured.path, offset: ensured.cursor });
+  if (ensured.content !== null) parkTemplateCaret(ensured.path, ensured.content, ensured.cursor);
   await onIndex();
   opts.onCreated?.(ensured.path);
   return ensured.path;

@@ -1,10 +1,14 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
+import { editorTextOf } from "@plainva/core";
 import {
   applyPinboardEntryTitle,
   discardPinboardEntry,
   finalizePinboardEntry,
   pinboardDraftState,
+  pinboardEntryCaret,
   pinboardLabelProperty,
   planPinboardEntry,
   viewPrefill,
@@ -213,6 +217,74 @@ describe("planPinboardEntry: the draft exists before a word is typed", () => {
     const draft = await ready(files, { template: async () => ({ text: "---\nstatus: entwurf\n---\n\nText\n", caret: null }) });
     expect(frontmatter(store.get(draft.path)!).status).toBe("entwurf");
     expect(draft.chips.map((c) => c.key)).not.toContain("status");
+  });
+});
+
+/**
+ * Where the caret of a new entry goes in its editor (finding 2026-10-09).
+ *
+ * `draft.caret` is a place in the file the plan wrote. The entry's editor holds
+ * that file with `\n` line ends and without its byte order mark, and the
+ * desktop's window compared the two numbers as they were: with a template
+ * written on Windows the caret stood further right for every line above it,
+ * or fell to the end of the entry. `pinboardEntryCaret` is the window's rule
+ * now; the phone parks the same caret through the same conversion
+ * (baseOpsCapture.test.ts there).
+ */
+describe("pinboardEntryCaret: the caret of a new entry, in the text its editor holds", () => {
+  // Built at run time: the mark is never typed into this file.
+  const MARK = String.fromCharCode(0xfeff);
+
+  /** Plans an entry from a template in which `|` marks `{{cursor}}`; answers with the draft and what its editor holds. */
+  async function planned(marked: string): Promise<{ draft: PinboardDraft; written: string; doc: string }> {
+    const { files, store } = memoryFiles();
+    const at = marked.indexOf("|");
+    const draft = await ready(files, { template: async () => ({ text: marked.replace("|", ""), caret: at }) });
+    const written = store.get(draft.path)!;
+    return { draft, written, doc: editorTextOf(written) };
+  }
+
+  it("is the template's cursor, whatever line ends the template has and whether or not it opens with a mark or a block", async () => {
+    const templates: Record<string, string> = {
+      "\\n": "# Liste\n\n- [ ] |\nEnde\n",
+      "\\n, block": "---\nstatus: entwurf\n---\n# Liste\n\n- [ ] |\nEnde\n",
+      "\\r\\n": "# Liste\r\n\r\n- [ ] |\r\nEnde\r\n",
+      "\\r\\n, block": "---\r\nstatus: entwurf\r\n---\r\n# Liste\r\n\r\n- [ ] |\r\nEnde\r\n",
+      mark: `${MARK}# Liste\n\n- [ ] |\nEnde\n`,
+      "mark, block": `${MARK}---\nstatus: entwurf\n---\n# Liste\n\n- [ ] |\nEnde\n`,
+      "mark and \\r\\n, block": `${MARK}---\r\nstatus: entwurf\r\n---\r\n# Liste\r\n\r\n- [ ] |\r\nEnde\r\n`,
+    };
+    for (const [name, marked] of Object.entries(templates)) {
+      const { draft, written, doc } = await planned(marked);
+      // The draft keeps the template's line ends and its mark; the view's filters went into the block.
+      expect(written, name).toBe(draft.initial);
+      expect(written.includes("\r\n"), name).toBe(marked.includes("\r\n"));
+      expect(written.startsWith(MARK), name).toBe(marked.startsWith(MARK));
+      expect(written, name).toContain("prio: 2");
+      expect(doc.slice(pinboardEntryCaret(draft, doc)), name).toBe("\nEnde\n");
+    }
+  });
+
+  it("is the builder's own number for a template with \\n and without a mark", async () => {
+    const { draft, doc } = await planned("---\nstatus: entwurf\n---\n# Liste\n\n- [ ] |\nEnde\n");
+    expect(doc).toBe(draft.initial);
+    expect(pinboardEntryCaret(draft, doc)).toBe(draft.caret);
+  });
+
+  it("is the end without a cursor, and never a place in the properties block or past the text", () => {
+    const initial = "---\r\ntype: Note\r\n---\r\n- [ ] \r\n";
+    const doc = editorTextOf(initial);
+    expect(pinboardEntryCaret({ initial, caret: null }, doc)).toBe(doc.length);
+    // A caret that points into the block goes to the end, as it always did.
+    expect(pinboardEntryCaret({ initial, caret: 7 }, doc)).toBe(doc.length);
+    // The editor holds less than was written (the draft changed underneath): the end of what it holds.
+    expect(pinboardEntryCaret({ initial, caret: initial.length }, "---\ntype: Note\n---\n")).toBe("---\ntype: Note\n---\n".length);
+  });
+
+  it("is what the desktop's entry window asks — it compares no caret of the draft with its editor itself", () => {
+    const source = readFileSync(fileURLToPath(new URL("../components/base/PinboardEntryModal.tsx", import.meta.url)), "utf8");
+    expect(source).toMatch(/pinboardEntryCaret\(draft, /);
+    expect(source).not.toMatch(/draft\.caret/);
   });
 });
 

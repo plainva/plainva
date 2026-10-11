@@ -1914,8 +1914,9 @@ export const Editor: React.FC<{
       if (viewModeRef.current === 'read') return;
       const view = sessionRef.current?.view;
       if (!view) return retry();
-      // The offset comes from the template text; the note on disk carries the
-      // OKF frontmatter in front of it, so clamp instead of trusting it.
+      // A place in the text this editor holds: `parkTemplateCaret` counted it
+      // over from the file as it was written. Clamped all the same — the file
+      // may have changed between that write and this load.
       const pos = Math.min(Math.max(caret.offset, 0), view.state.doc.length);
       view.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'center' }) });
       view.focus();

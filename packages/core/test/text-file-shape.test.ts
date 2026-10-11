@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { ConflictAwareVaultAdapter } from "../src/vault/ConflictAwareVaultAdapter.js";
 import { SyncStateRepository } from "../src/vault/SyncStateRepository.js";
-import { applyTextShape, editInShape, editorTextFiles, editorTextOf, inShapeOf, mergedTextShape, readTextShape, textOfFileBytes } from "../src/textFileShape.js";
+import { applyTextShape, editInShape, editorOffsetOf, editorTextFiles, editorTextOf, inShapeOf, mergedTextShape, readTextShape, textOfFileBytes } from "../src/textFileShape.js";
 import { parseMarkdownAst } from "../src/markdown-parser.js";
 import { extractFrontmatter } from "../src/metadata-extractor.js";
 import { readFrontmatterPath } from "../src/frontmatter-surgical.js";
@@ -45,6 +45,65 @@ describe("the one text an editor holds", () => {
     // Never a second mark, never a line end turned twice: the text is read as an editor's first.
     expect(inShapeOf(`${MARK}a\r\n`, `${MARK}a changed\r\n`)).toBe(`${MARK}a changed\r\n`);
     expect(inShapeOf("a\n", `${MARK}a changed\r\n`)).toBe("a changed\n");
+  });
+});
+
+describe("a place in a file, as an editor counts it", () => {
+  it("leaves out the mark and one character of every \\r\\n in front of the place", () => {
+    const raw = `${MARK}one\r\ntwo\r\nthree`;
+    const text = editorTextOf(raw);
+    for (const word of ["one", "two", "three"]) {
+      expect(text.slice(editorOffsetOf(raw, raw.indexOf(word))).startsWith(word), word).toBe(true);
+    }
+    // The mark and two line ends stand in front of "three": three characters an editor does not hold.
+    expect(editorOffsetOf(raw, raw.indexOf("three"))).toBe(raw.indexOf("three") - 3);
+    expect(editorOffsetOf(raw, raw.length)).toBe(text.length);
+    // In a file as Plainva writes it the place is the same number.
+    expect(editorOffsetOf("one\ntwo\n", 4)).toBe(4);
+    expect(editorOffsetOf("", 0)).toBe(0);
+  });
+
+  it("takes a place inside a line end for the end of that line, and one outside the text for its edge", () => {
+    expect(editorOffsetOf("one\r\ntwo", 4)).toBe(3);
+    // In front of the mark and behind it is the same place for an editor: its first.
+    expect(editorOffsetOf(`${MARK}one`, 0)).toBe(0);
+    expect(editorOffsetOf(`${MARK}one`, 1)).toBe(0);
+    expect(editorOffsetOf("one\r\n", 99)).toBe(4);
+    expect(editorOffsetOf("one\r\n", -1)).toBe(0);
+    // A "\r" on its own is a character an editor holds, and so is a mark further down.
+    expect(editorOffsetOf("one\rtwo", 5)).toBe(5);
+    expect(editorOffsetOf(`one${MARK}two`, 5)).toBe(5);
+  });
+
+  it("is the one rule of the editor's text: what follows the place there is what follows it in the file", () => {
+    let seed = 20261011;
+    const random = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const pieces = ["a", "b", " ", "---", "\r\n", "\n", "\r", "\r\n\r\n", "\n\n", MARK, "x: y", "# T"];
+    let places = 0;
+    let shifted = 0;
+    for (let i = 0; i < 3000; i++) {
+      let raw = random() < 0.3 ? MARK : "";
+      for (let n = Math.floor(random() * 8); n > 0; n--) raw += pieces[Math.floor(random() * pieces.length)];
+      const text = editorTextOf(raw);
+      let last = 0;
+      for (let at = 0; at <= raw.length; at++) {
+        const found = editorOffsetOf(raw, at);
+        const where = JSON.stringify({ raw, at });
+        // Places keep their order, and none leaves the text.
+        expect(found, where).toBeGreaterThanOrEqual(last);
+        expect(found, where).toBeLessThanOrEqual(text.length);
+        last = found;
+        const inLineEnd = raw[at - 1] === "\r" && raw[at] === "\n";
+        const beforeMark = at === 0 && raw.startsWith(MARK);
+        // The rest of the file, read the way an editor reads a file: only a mark at the very start is the file's.
+        if (!inLineEnd && !beforeMark) expect(text.slice(found), where).toBe(raw.slice(at).replace(/\r\n/g, "\n"));
+        if (found !== at) shifted++;
+        places++;
+      }
+    }
+    expect(places).toBeGreaterThan(20000);
+    // Not a test of files that need no conversion.
+    expect(shifted).toBeGreaterThan(10000);
   });
 });
 

@@ -27,7 +27,8 @@
  *   rewrote it ended in a conflict copy, and no suggestion on it could be
  *   accepted. The desktop's editor kept a note's mark in its buffer while its
  *   comment operation read the note without one — the same refusal, for a note
- *   that starts with a mark.
+ *   that starts with a mark. A PLACE is in one of the two texts as well: one
+ *   that was counted in the file reaches an editor through `editorOffsetOf`.
  * - Every write of an editor's text says which shape it leaves in. The
  *   editor's own save takes it from where the file was opened (`openEditorText`
  *   in the UI package); a write that changes one passage takes it from the
@@ -100,6 +101,26 @@ export function applyTextShape(text: string, shape: TextFileShape): string {
 /** What an editor holds for these bytes: `\n` line ends, no byte order mark. */
 export function editorTextOf(raw: string): string {
   return readTextShape(raw).text;
+}
+
+/**
+ * Where a place in a file's text lies in what an editor holds for that file.
+ *
+ * A place is a count of characters, and the two texts do not count alike: the
+ * editor's has no mark, and one character where the file has `\r\n`. A place
+ * found in the file and handed to an editor as it is stands one character too
+ * far right for every `\r\n` in front of it, and one more behind a mark — the
+ * caret a template leaves in a new note did (finding 2026-10-09).
+ *
+ * The answer is the length of what an editor holds for everything in front of
+ * the place, so it is `editorTextOf`'s rule and no second one. A place between
+ * the two characters of a `\r\n` is the end of that line. Places outside the
+ * text count as its start and its end.
+ */
+export function editorOffsetOf(raw: string, offset: number): number {
+  const at = Math.min(Math.max(offset, 0), raw.length);
+  const inLineEnd = raw.charCodeAt(at - 1) === 13 && raw.charCodeAt(at) === 10;
+  return editorTextOf(raw.slice(0, inLineEnd ? at - 1 : at)).length;
 }
 
 /**

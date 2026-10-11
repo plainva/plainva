@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { PimEventRow } from "@plainva/core";
-import { readFrontmatterPath } from "@plainva/core";
+import { editorTextOf, readFrontmatterPath } from "@plainva/core";
 import { buildMeetingNoteContent, meetingNoteStem, resolveOrCreateMeetingNote, type MeetingNoteAdapter } from "./meetingNote";
 import {
   MEETING_TEMPLATE_TOKENS,
+  clearPendingTemplateCaret,
+  consumePendingTemplateCaret,
   finalizeTemplate,
   meetingTemplateEvent,
   meetingTemplatePath,
+  parkTemplateCaret,
   resolveTemplate,
   type MeetingTemplateSettings,
   type TemplateContext,
@@ -349,7 +352,45 @@ describe("meeting-note template: asked, cancelled, caret", () => {
     expect(seen!.title).toBe("Weekly Standup");
     const note = files.get(res!.path)!;
     expect(note).toContain("Budget");
-    expect(res!.cursor).toBe(note.indexOf("## Notizen\n") + "## Notizen\n".length);
+    // The place travels with the file it was counted in (finding 2026-10-09):
+    // until then the result named a bare number, and both shells handed it to
+    // an editor that counts in another text.
+    expect(res!.caret).toEqual({ note, offset: note.indexOf("## Notizen\n") + "## Notizen\n".length });
+  });
+
+  it("keeps the caret's place for the editor when the template has Windows line ends or a byte order mark", async () => {
+    // Built at run time: the mark is never typed into this file.
+    const mark = String.fromCharCode(0xfeff);
+    const templates: Record<string, string> = {
+      "\\n": "## Notizen\n{{cursor}}\n## Beschluss\n",
+      "\\r\\n": "## Notizen\r\n{{cursor}}\r\n## Beschluss\r\n",
+      "\\r\\n, block": "---\r\nstatus: offen\r\n---\r\n## Notizen\r\n{{cursor}}\r\n## Beschluss\r\n",
+      mark: `${mark}## Notizen\n{{cursor}}\n## Beschluss\n`,
+      "mark and \\r\\n, block": `${mark}---\r\nstatus: offen\r\n---\r\n## Notizen\r\n{{cursor}}\r\n## Beschluss\r\n`,
+    };
+    for (const [name, template] of Object.entries(templates)) {
+      clearPendingTemplateCaret();
+      const { adapter, files } = fakeAdapter({ "Templates/Meeting.md": template });
+      const res = await resolveOrCreateMeetingNote({
+        adapter,
+        event: timedEvent(),
+        dayKey: "2026-07-20",
+        folder: "Meetings",
+        noteType: "Meeting",
+        templates: settings({ template: "Meeting.md" }),
+        resolveTemplate: async (raw, ctx) => finalizeTemplate(resolveTemplate(raw, ctx, "interactive").text),
+      });
+      const note = files.get(res!.path)!;
+      // The note keeps the template's line ends and its mark, the event's fields went into its block …
+      expect(note.includes("\r\n"), name).toBe(template.includes("\r\n"));
+      expect(note.startsWith(mark), name).toBe(template.startsWith(mark));
+      expect(readFrontmatterPath(note, ["plainva", "pim", "uid"]), name).toBe("uid-abc");
+      expect(res!.caret?.note, name).toBe(note);
+      // … and what both shells do with the result hands the editor the place in ITS text.
+      parkTemplateCaret(res!.path, res!.caret!.note, res!.caret!.offset);
+      const parked = consumePendingTemplateCaret(res!.path);
+      expect(parked && editorTextOf(note).slice(parked.offset), name).toBe("\n## Beschluss\n");
+    }
   });
 
   it("writes nothing — not even the folder — when the questions are cancelled", async () => {

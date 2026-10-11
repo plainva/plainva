@@ -1,6 +1,6 @@
 import { deleteFrontmatterPath, frontmatterSpan, readFrontmatterPath, readTextShape, setFrontmatterPath } from "@plainva/core";
 import { finalizeItemContent } from "../lib/newItemContent";
-import { templateCaretInNote } from "../lib/templateCaret";
+import { templateCaretInEditor, templateCaretInNote } from "../lib/templateCaret";
 import { resolveNewItemTarget } from "./baseRelations";
 import { viewPrefill } from "./newItemPrefill";
 import { sweepPinboardDrafts, type PinboardDraftLedger, type PinboardDraftSweepFiles } from "./pinboardDraftLedger";
@@ -65,7 +65,11 @@ export interface PinboardDraft {
   stem: string;
   /** The content as written at creation; "untouched" compares against it. */
   initial: string;
-  /** Caret offset in `initial` from the template's `{{cursor}}`, or null. */
+  /**
+   * The template's `{{cursor}}` as a place in `initial` — the file as it was
+   * written —, or null. An editor counts in its own text: `pinboardEntryCaret`
+   * and `parkTemplateCaret` convert it.
+   */
   caret: number | null;
   /** Inherited values beyond membership, shown as removable chips. */
   chips: PinboardEntryChip[];
@@ -144,6 +148,23 @@ function cleanFolder(folder: string): string {
 /** Offset where the body starts, after a leading frontmatter block (0 when there is none). */
 export function frontmatterEndOf(content: string): number {
   return frontmatterSpan(content)?.end ?? 0;
+}
+
+/**
+ * Where the caret of a new entry goes in `doc`, the text its editor holds: to
+ * the template's `{{cursor}}`, else to the end — never into the properties
+ * block, which the live view hides and where it takes no keystroke.
+ *
+ * `draft.caret` counts in the file as it was written, and an editor holds that
+ * file with `\n` line ends and without its byte order mark. The desktop's
+ * entry window compared the two numbers as they were: with a template written
+ * on Windows the caret stood one character further right for every line above
+ * it, or fell to the end of the entry (finding 2026-10-09). The phone parks the
+ * same caret for its editor, through the same conversion (`parkTemplateCaret`).
+ */
+export function pinboardEntryCaret(draft: Pick<PinboardDraft, "initial" | "caret">, doc: string): number {
+  const caret = draft.caret === null ? null : templateCaretInEditor(draft.initial, draft.caret);
+  return caret !== null && caret >= frontmatterEndOf(doc) && caret <= doc.length ? caret : doc.length;
 }
 
 function listOf(value: unknown): string[] {

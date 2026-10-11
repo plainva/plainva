@@ -8,7 +8,7 @@ import { fuzzyFilter } from "@plainva/ui";
 import { renderSnippetNodes } from "@plainva/ui";
 import { setPendingSearchJump } from "@plainva/ui";
 import { buildNewNoteFromTemplate } from "../services/newNoteTemplate";
-import { parkTemplateCaret } from "../services/templateInteractive";
+import { parkTemplateCaret } from "@plainva/ui";
 import { toast } from "@plainva/ui";
 import { virtualTabMeta } from "./graph/virtualPaths";
 
@@ -178,7 +178,7 @@ export function QuickSwitcher({ isOpen, onClose, onOpenPath, recentPaths = [] }:
       });
       if (!built) return; // template questions cancelled — nothing is created
       await vaultAdapter.writeTextFile(path, built.content);
-      parkTemplateCaret(path, built.caret);
+      parkTemplateCaret(path, built.content, built.caret);
       if (indexer) await indexer.indexPath(path);
       triggerFileTreeUpdate([path]);
       onOpenPath(path, newTab);

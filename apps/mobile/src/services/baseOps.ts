@@ -32,7 +32,7 @@ import {
   renamePropertyInConfig,
   resolveNewItemTarget,
   serializeBaseConfig,
-  setPendingTemplateCaret,
+  parkTemplateCaret,
   templateCaretInNote,
   viewPrefill,
   writeNoteProperty,
@@ -415,9 +415,8 @@ export async function createBaseItem(
   await vaultOps.save(v, path, content);
   // `{{cursor}}` was found before the prefill rewrote the frontmatter; the
   // shared rule finds it again behind whatever grew in front of the text.
-  if (built.caret !== null) {
-    setPendingTemplateCaret({ path, offset: templateCaretInNote(built.content, content, built.caret) });
-  }
+  // Both steps count in the file; parking brings the place to the editor's text.
+  parkTemplateCaret(path, content, built.caret === null ? null : templateCaretInNote(built.content, content, built.caret));
   syncSoon();
   return { status: "created", path };
 }
@@ -510,7 +509,7 @@ export async function planMobilePinboardEntry(
   });
   if (plan.status === "ready") {
     notifyFileOps([{ type: "create", path: plan.draft.path }]);
-    if (plan.draft.caret !== null) setPendingTemplateCaret({ path: plan.draft.path, offset: plan.draft.caret });
+    parkTemplateCaret(plan.draft.path, plan.draft.initial, plan.draft.caret);
     syncSoon();
   }
   return plan;

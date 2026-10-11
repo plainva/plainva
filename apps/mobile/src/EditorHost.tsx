@@ -31,7 +31,7 @@ import {
   Image as ImageIcon,
   Paperclip,
 } from "lucide-react";
-import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
+import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, isVaultPathLink, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, splitLinkAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildDailyNotePath, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
 import { Filesystem } from "@capacitor/filesystem";
 import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, deleteFrontmatterPath, noteBodyOf, PLAINVA_NAMESPACE_KEY, setFrontmatterPath, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
@@ -699,7 +699,8 @@ export function EditorHost({
     }
     // {{cursor}} of a template a note was just created from (plan
     // Vorlagen-Engine P6). Same park-store as the desktop: the note is written
-    // and opened before this editor exists, so the offset waits here.
+    // and opened before this editor exists, so the offset waits here — as a
+    // place in the text this editor holds (`parkTemplateCaret`).
     const caret = consumePendingTemplateCaret(path);
     if (caret) {
       requestAnimationFrame(() => {
@@ -1281,7 +1282,9 @@ export function EditorHost({
         },
       });
       if (!answered) return; // cancelled → nothing is inserted
-      const { text, cursor } = answered;
+      // What the editor takes: the text as it holds one, and the caret as a
+      // place in that text — a template from Windows counts with `\r\n`.
+      const { text, cursor } = templateInsertInEditor(answered);
       const view = sessionRef.current?.view;
       if (!view || at === null) return;
       const pos = Math.min(at, view.state.doc.length);

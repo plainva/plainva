@@ -379,3 +379,17 @@ only where that text carried no properties block.
    had counted the offset on by what the note had grown, which is the same
    for a caret in the text and pointed a caret from the block at wherever
    that sum fell.
+4. **That rule counts in the file; the editor is handed a place in its own
+   text.** A note keeps the line endings and the byte order mark of its
+   template (point 2), and an editor holds a note with `\n` and without the
+   mark (ADR 0003, addendum 2026-10-09). The builders therefore answer with a
+   place in the file as it was written, and can be asked on from one rewrite
+   of the block to the next. The place is converted once, where it is parked
+   for the editor: `parkTemplateCaret(path, note, caret)` in
+   `packages/ui/src/lib/templateCaret.ts` is the only way into that store on
+   both shells, and it takes the note the place was counted in. The desktop's
+   pinboard entry window, which reads its caret from the draft instead, asks
+   the same conversion (`pinboardEntryCaret`). Before, the file's number went
+   to the editor as it was: for a template written on Windows the caret stood
+   one character too far right for every line above it, and one more behind
+   a mark.

@@ -37,7 +37,7 @@ import { toggleTaskDone } from "../../services/taskCompletion";
 import type { TaskCompletionModel } from "../../services/taskDatabase";
 import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "../../services/pim/calendarNav";
 import { usePageWheel } from "./pageWheel";
-import { calendarDay, consumePendingNew, setPendingTemplateCaret } from "@plainva/ui";
+import { calendarDay, consumePendingNew, parkTemplateCaret } from "@plainva/ui";
 import { isAuthorizationFailure, runCalendarBlocks } from "../../services/pim/blockCalendars";
 import { eventStateClass, eventStateLabelKey, eventVisualState } from "@plainva/ui";
 import { applyIndexChanges } from "../../services/fileActions";
@@ -1375,7 +1375,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         // note itself comes from the builder the phone shares (E24).
         const res = await openMeetingNoteInVault(vaultPath, vaultAdapter, e);
         if (!res) return; // the template's questions were cancelled — nothing was written
-        if (res.cursor !== undefined) setPendingTemplateCaret({ path: res.path, offset: res.cursor });
+        if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
         if (res.created) {
           if (indexer) await applyIndexChanges(indexer, { added: [res.path] }).catch(() => undefined);
           triggerFileTreeUpdate([res.path]);

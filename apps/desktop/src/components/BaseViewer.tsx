@@ -2,7 +2,7 @@ import { trimEndChars, trimChars } from "@plainva/core";
 import { BaseSearchField, IconButton, PinboardCache, searchableCellText, baseSearchMetadata, baseSearchRevision, filterRowsBySearch, noteColorOfRow, pinboardCache, useBaseSearch, withNoteColor } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { applyIndexChanges, duplicateFile, reindexAfterRename, renameInitialName, renameToName } from "../services/fileActions";
-import { applyTemplateInteractive, parkTemplateCaret } from "../services/templateInteractive";
+import { applyTemplateInteractive } from "../services/templateInteractive";
 import { useTranslation } from "react-i18next";
 import { BaseExportDialog } from "@plainva/ui";
 import { saveBaseExport } from "../services/exportBase";
@@ -33,7 +33,7 @@ import {
 } from "../services/newItemFlow";
 import { planPinboardEntry, pinboardDraftLedger, pinboardLabelProperty, viewPrefill, type PinboardDraft, type PinboardEntryFiles, type PinboardEntryResult } from "@plainva/ui";
 import { desktopDraftFiles } from "../services/pinboardDrafts";
-import { addTemplateForAssignment, removeTemplateForAssignment, templateCaretInNote } from "@plainva/ui";
+import { addTemplateForAssignment, parkTemplateCaret, removeTemplateForAssignment, templateCaretInNote } from "@plainva/ui";
 import { getConfiguredNoteType } from "../services/newNote";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
 import { resolveGoverningBase } from "../services/baseSchema";
@@ -1109,7 +1109,7 @@ export function BaseViewer({
       await vaultAdapter.writeTextFile(path, content);
       // `{{cursor}}` is measured in the template; the written file carries the
       // OKF header and the view's prefills in front of the template's text.
-      parkTemplateCaret(path, templateText === null || caretInBody === null ? null : templateCaretInNote(templateText, content, caretInBody));
+      parkTemplateCaret(path, content, templateText === null || caretInBody === null ? null : templateCaretInNote(templateText, content, caretInBody));
       await linkHostTo(path);
       // Reindex the new note (and the host note if its relation was written) —
       // no full-vault scan per new entry (Issue #9).

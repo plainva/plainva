@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { Search, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ICON, useFocusTrap } from "@plainva/ui";
+import { ICON, templateInsertInEditor, useFocusTrap } from "@plainva/ui";
 import { noteBodyOf } from "@plainva/core";
 import { getTemplateFolder, listTemplates } from "../services/newItemFlow";
 import { activeDocument } from "../services/activeDocument";
@@ -97,8 +97,11 @@ export function TemplatePickerModal({ isOpen, onClose, onPick, title }: Template
         t("templatePicker.answersTitle", { defaultValue: "Angaben für die Vorlage" })
       );
       if (!result) return; // cancelled → nothing is inserted
+      // What the editor takes: the text as it holds one, and the caret as a
+      // place in that text — a template from Windows counts with `\r\n`.
+      const insert = templateInsertInEditor(result);
       window.dispatchEvent(
-        new CustomEvent("plainva-insert-text", { detail: { text: result.text, cursorOffset: result.cursor ?? undefined } }),
+        new CustomEvent("plainva-insert-text", { detail: { text: insert.text, cursorOffset: insert.cursor ?? undefined } }),
       );
       onClose();
     } catch (e) {

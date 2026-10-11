@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { consumePendingTemplateCaret, clearPendingTemplateCaret } from "@plainva/ui";
-import { applyTemplateInteractive, parkTemplateCaret } from "./templateInteractive";
+import { clearPendingTemplateCaret } from "@plainva/ui";
+import { applyTemplateInteractive } from "./templateInteractive";
 import { dialogStore, settleDialog, type AnswersRequest } from "./appDialogs";
 
 vi.mock("@tauri-apps/plugin-store", () => {
@@ -68,30 +68,10 @@ describe("applyTemplateInteractive", () => {
   });
 });
 
-describe("parkTemplateCaret", () => {
-  beforeEach(() => clearPendingTemplateCaret());
-
-  it("parks the place in the written note it is given", () => {
-    // Until 2026-10-09 this took a second number — what the write path had put
-    // in front of the template — and added it to an offset measured in the
-    // template. Where a template's caret stands in the note is the shared
-    // `templateCaretInNote`'s to say now (newNote.test.ts); parking only parks.
-    parkTemplateCaret("Notes/A.md", 47);
-    expect(consumePendingTemplateCaret("Notes/A.md")).toEqual({ path: "Notes/A.md", offset: 47 });
-  });
-
-  it("parks nothing when the template had no cursor marker", () => {
-    parkTemplateCaret("Notes/A.md", null);
-    expect(consumePendingTemplateCaret("Notes/A.md")).toBeNull();
-  });
-
-  it("hands the caret only to the note it was parked for, and only once", () => {
-    parkTemplateCaret("Notes/A.md", 1);
-    expect(consumePendingTemplateCaret("Notes/B.md")).toBeNull();
-    expect(consumePendingTemplateCaret("Notes/A.md")).not.toBeNull();
-    expect(consumePendingTemplateCaret("Notes/A.md")).toBeNull();
-  });
-});
+// Parking a note's caret is the shared `parkTemplateCaret` since 2026-10-09 —
+// this shell's own function took a bare number, and the place it parked was
+// counted in the file, not in the text an editor holds. Its cases moved with
+// it: templateCaret.test.ts.
 
 describe("the background paths stay dialog-free", () => {
   it("no module that creates notes in the background reaches for the dialog", async () => {

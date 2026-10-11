@@ -58,7 +58,7 @@ import {
   type VerifiedProviderProfile,
   parseMicrosoftMe,
   resolveOrCreateMeetingNote,
-  setPendingTemplateCaret,
+  parkTemplateCaret,
   splitCalendarKey,
   verifiedProviderIdentityKey,
   verifiedProviderIdentityOf,
@@ -762,7 +762,7 @@ export async function openMeetingNoteFor(
   });
   if (!res) return null;
   // `{{cursor}}` of the template: the editor picks it up when the note opens.
-  if (res.cursor !== undefined) setPendingTemplateCaret({ path: res.path, offset: res.cursor });
+  if (res.caret) parkTemplateCaret(res.path, res.caret.note, res.caret.offset);
   return { path: res.path, created: res.created };
 }
 

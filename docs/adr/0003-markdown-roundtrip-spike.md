@@ -68,7 +68,10 @@ file — a silent reformat of existing vault content, which this ADR rules out.
    with what an editor holds is read into that text first; every write of it
    says which shape it leaves in. Both shells open a file through one function
    (`openEditorText` in the UI package), which returns the file's own shape
-   for every text file.
+   for every text file. A place is a place in one of the two texts: one that
+   was counted in the file reaches an editor through `editorOffsetOf`, as the
+   caret a template leaves in a new note does (ADR 0009, addendum
+   2026-10-09, point 4).
 3. **A merge decides the shape itself.** The merges in `conflict-resolver.ts`
    work on lines and hand their result back in the shape `mergedTextShape`
    gives: line endings and the mark are merged like a line — where one side
