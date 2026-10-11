@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorState, Text, type TextIterator } from "@codemirror/state";
 import { frontmatterSpan } from "@plainva/core";
 import { frontmatterHidePlugin } from "@plainva/ui";
-import { FRONTMATTER_FORMS } from "../../../../packages/core/test/fixtures/frontmatterForms";
+import { FRONTMATTER_FORMS, generatedNotes, hasLoneCarriageReturn } from "../../../../packages/core/test/fixtures/frontmatterForms";
 import { frontmatterLines, frontmatterYamlOf } from "../../../../packages/ui/src/components/editorFrontmatter";
 
 /**
@@ -18,8 +18,8 @@ import { frontmatterLines, frontmatterYamlOf } from "../../../../packages/ui/src
 
 /** The document the editor holds for a note's text: split into lines, whatever the line endings were. */
 const docOf = (text: string) => EditorState.create({ doc: text }).doc;
-/** The number of the line that begins at `offset`, counted in the note as it is on disk. */
-const lineNumberAt = (text: string, offset: number) => text.slice(0, offset).split("\n").length;
+/** The number of the line that begins at `offset`, counted in the note as it is on disk — in any of its three line endings. */
+const lineNumberAt = (text: string, offset: number) => text.slice(0, offset).split(/\r\n?|\n/).length;
 
 describe("frontmatterLines and the definition", () => {
   it.each(FRONTMATTER_FORMS.map((form) => [JSON.stringify(form), form] as const))("agrees on %s", (_label, form) => {
@@ -43,28 +43,13 @@ describe("frontmatterLines and the definition", () => {
   });
 
   it("gives the definition's answer on 20 000 generated notes", () => {
-    const LINES = ["---", "---", "---", "--- ", "---\t ", "----", " ---", "---x", "...", "", "", "a: 1", "b: [x, y]", "# Heading", "text --- text", "- item"];
     const MARK = String.fromCharCode(0xfeff);
-    // mulberry32: the same notes on every machine and every run.
-    let state = 20261009;
-    const next = (below: number) => {
-      state = (state + 0x6d2b79f5) | 0;
-      let t = Math.imul(state ^ (state >>> 15), 1 | state);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) % below;
-    };
-    const seen = { none: 0, block: 0, empty: 0, blanks: 0, mark: 0, windows: 0 };
+    const seen = { none: 0, block: 0, empty: 0, blanks: 0, mark: 0, windows: 0, classicMac: 0 };
 
-    for (let run = 0; run < 20_000; run++) {
-      // Up to seven lines, each with its own line ending; the last may lack
-      // one. Two notes in three open with a fence, one in eight with a mark.
-      const count = next(8);
-      let note = next(8) === 0 ? MARK : "";
-      for (let i = 0; i < count; i++) {
-        const last = i === count - 1;
-        const text = i === 0 && next(3) > 0 ? "---" : LINES[next(LINES.length)];
-        note += text + (last && next(2) === 0 ? "" : next(4) === 0 ? "\r\n" : "\n");
-      }
+    // Up to seven lines, each with a line ending of its own — `\n`, `\r\n` or
+    // a carriage return alone —; the last may lack one. Two notes in three
+    // open with a fence, one in eight with a mark.
+    for (const note of generatedNotes(20261009, 20_000)) {
       const doc = docOf(note);
       const block = frontmatterLines(doc);
       const held = doc.toString();
@@ -82,12 +67,15 @@ describe("frontmatterLines and the definition", () => {
       expect(block, JSON.stringify(note)).toEqual({ closeLine: closeLine.number, closeTo: closeLine.to, end: span.end });
       expect(frontmatterYamlOf(doc, block!), JSON.stringify(note)).toBe(span.yaml);
       expect(lineNumberAt(note, onDisk!.closeAt), JSON.stringify(note)).toBe(block!.closeLine);
+      // And the YAML of the file as it lies there is the YAML the editor holds.
+      expect(onDisk!.yaml.replace(/\r\n/g, "\n"), JSON.stringify(note)).toBe(span.yaml);
 
       seen.block++;
       if (block!.closeLine === 2) seen.empty++;
       if (doc.line(1).text.length > (note.startsWith(MARK) ? 4 : 3) || closeLine.text.length > 3) seen.blanks++;
       if (note.startsWith(MARK)) seen.mark++;
       if (note.includes("\r\n")) seen.windows++;
+      if (hasLoneCarriageReturn(note)) seen.classicMac++;
     }
 
     // The generator reaches every case, or the run proves nothing.
@@ -97,6 +85,7 @@ describe("frontmatterLines and the definition", () => {
     expect(seen.blanks).toBeGreaterThan(500);
     expect(seen.mark).toBeGreaterThan(500);
     expect(seen.windows).toBeGreaterThan(1_000);
+    expect(seen.classicMac).toBeGreaterThan(1_000);
   });
 });
 
@@ -122,16 +111,21 @@ describe("frontmatterLines", () => {
     expect(frontmatterYamlOf(blank, frontmatterLines(blank)!)).toBe("\n");
   });
 
-  it("reads a carriage return of its own as the line break the editor made of it", () => {
-    // The editor splits at a lone carriage return as well and writes a line
-    // feed back, so this is the answer for the note as it will be saved. The
-    // definition reads `\n` and `\r\n`: asked about the file as it still is,
-    // it sees one long line.
-    const classicMac = "---\ra: 1\r---\rBody";
+  it("reads a note whose lines end in a carriage return of its own as the definition does", () => {
+    // The editor splits at a lone carriage return and holds a line feed in its
+    // place. The definition ends a line there as well (it read such a note as
+    // one long line until 2026-10-11): asked about the file as it lies there
+    // or about the text the editor holds for it, the block is the same one, at
+    // the same offsets — a `\r` and the `\n` in its place are one character.
+    const classicMac = "---\ra: 1\rb: 2\r---\rBody\r";
     const doc = docOf(classicMac);
-    expect(doc.toString()).toBe("---\na: 1\n---\nBody");
-    expect(frontmatterLines(doc)!.end).toBe(frontmatterSpan(doc.toString())!.end);
-    expect(frontmatterSpan(classicMac)).toBeNull();
+    expect(doc.toString()).toBe("---\na: 1\nb: 2\n---\nBody\n");
+    const block = frontmatterLines(doc)!;
+    const onDisk = frontmatterSpan(classicMac)!;
+    expect(block).toEqual({ closeLine: 4, closeTo: 17, end: onDisk.end });
+    expect(frontmatterYamlOf(doc, block)).toBe(onDisk.yaml);
+    expect(frontmatterSpan(doc.toString())).toEqual(onDisk);
+    expect(classicMac.slice(onDisk.end)).toBe("Body\r");
   });
 });
 

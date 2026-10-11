@@ -8,6 +8,8 @@ import {
   renameFrontmatterWikiLinks,
   ensureOkfFrontmatter,
   frontmatterKeys,
+  frontmatterSpan,
+  noteBodyOf,
   readFrontmatterPath,
   FrontmatterSurgicalError
 } from "../src/frontmatter-surgical.js";
@@ -239,6 +241,98 @@ describe("a properties block without entries", () => {
     const note = "--- \na: 1\n---  \n# Note\n";
     expect(frontmatterKeys(note)).toEqual(["a"]);
     expect(setFrontmatterPath(note, ["b"], 2)).toBe("---\na: 1\nb: 2\n---\n# Note\n");
+  });
+});
+
+/**
+ * A carriage return of its own as a line end: every line of a file from a
+ * classic Mac ends in one. The Markdown parser reads the block of such a note,
+ * so the index and the properties panel had its properties; the writers read
+ * one long line, found no block and put a second one on top (2026-10-11).
+ *
+ * What they write into such a note: the block with `\n`, and not a byte of the
+ * text. The note's line end comes from the one definition of it
+ * (`readTextShape`), which knows `\n` and `\r\n`; no writer sets a lone `\r`.
+ */
+describe("a note whose lines end in a carriage return of its own", () => {
+  const TEXT = "# Single\r\rText with a [[Link]].\r";
+  const CLASSIC = `---\rstage: open\r# a comment\rtags:\r  - a\r  - b\r---\r${TEXT}`;
+  const WRITTEN = `---\nstage: open\n# a comment\ntags:\n  - a\n  - b\nowner: Anna\n---\n${TEXT}`;
+
+  it("reads the entries of its block line by line", () => {
+    expect(frontmatterKeys(CLASSIC)).toEqual(["stage", "tags"]);
+    expect(readFrontmatterPath(CLASSIC, ["stage"])).toBe("open");
+    expect(readFrontmatterPath(CLASSIC, ["tags"])).toEqual(["a", "b"]);
+  });
+
+  it("writes into the block that is there, with `\\n`, and leaves the text as it is", () => {
+    expect(setFrontmatterPath(CLASSIC, ["owner"], "Anna")).toBe(WRITTEN);
+    expect(upsertFrontmatterKeys(CLASSIC, { owner: "Anna" })).toBe(WRITTEN);
+    // One block, and the next write finds it again.
+    expect(frontmatterKeys(WRITTEN)).toEqual(["stage", "tags", "owner"]);
+    expect(deleteFrontmatterPath(WRITTEN, ["owner"])).toBe(WRITTEN.replace("owner: Anna\n", ""));
+    expect(renameFrontmatterKey(CLASSIC, "stage", "state")).toBe(`---\nstate: open\n# a comment\ntags:\n  - a\n  - b\n---\n${TEXT}`);
+    expect(renameFrontmatterTag(CLASSIC, "a", "c").content).toBe(`---\nstage: open\n# a comment\ntags:\n  - c\n  - b\n---\n${TEXT}`);
+  });
+
+  it("gives a note without a block its first one in front of the untouched text", () => {
+    expect(setFrontmatterPath(TEXT, ["owner"], "Anna")).toBe(`---\nowner: Anna\n---\n${TEXT}`);
+    expect(ensureOkfFrontmatter(TEXT, { type: "Note" }).content).toBe(`---\ntype: Note\n---\n${TEXT}`);
+    expect(setFrontmatterPath(`---\r---\r${TEXT}`, ["owner"], "Anna")).toBe(`---\nowner: Anna\n---\n${TEXT}`);
+  });
+
+  it("removes the block with its last entry: the text is the note, byte for byte", () => {
+    expect(deleteFrontmatterPath(`---\rstage: open\r---\r${TEXT}`, ["stage"])).toBe(TEXT);
+    // Set and removed again, a property leaves the note as it was.
+    expect(deleteFrontmatterPath(setFrontmatterPath(TEXT, ["plainva", "icon"], "🚀"), ["plainva", "icon"])).toBe(TEXT);
+    // The text's own rule would open a block at the top of the file: the empty fences stay.
+    const ruled = "---\rIntro\r---\rRest\r";
+    const emptied = deleteFrontmatterPath(`---\ronly: value\r---\r${ruled}`, ["only"]);
+    expect(emptied).toBe(`---\n---\n${ruled}`);
+    expect(frontmatterKeys(emptied)).toEqual([]);
+    expect(noteBodyOf(emptied)).toBe(ruled);
+  });
+
+  it("returns the note untouched where there is nothing to write", () => {
+    expect(deleteFrontmatterPath(CLASSIC, ["owner"])).toBe(CLASSIC);
+    expect(renameFrontmatterKey(CLASSIC, "owner", "lead")).toBe(CLASSIC);
+    expect(renameFrontmatterTag(CLASSIC, "old", "new")).toEqual({ content: CLASSIC, changed: false });
+    expect(upsertFrontmatterKeys(`---\r---\r${TEXT}`, {})).toBe(`---\r---\r${TEXT}`);
+    const typed = `---\rtype: Note\r---\r${TEXT}`;
+    expect(ensureOkfFrontmatter(typed, { type: "Other" })).toEqual({ content: typed, changed: false, setType: false });
+  });
+
+  it("finds the block behind a stray carriage return in a note with other line ends", () => {
+    // The parser closes the block on the fence behind it; the writers read on
+    // to the end of the note and found none.
+    expect(setFrontmatterPath("---\na: 1\r---\n# Note\n", ["b"], 2)).toBe("---\na: 1\nb: 2\n---\n# Note\n");
+    expect(setFrontmatterPath("---\r\na: 1\rb: 2\r\n---\r\n# Note\r\n", ["c"], 3)).toBe("---\r\na: 1\r\nb: 2\r\nc: 3\r\n---\r\n# Note\r\n");
+  });
+
+  it("finds the block of a note whose lines end in `\\r\\r\\n`", () => {
+    // What a file from Windows has after its `\r\n` was turned into line ends
+    // a second time: a carriage return of its own in front of every `\r\n`.
+    // For the Markdown parser that is a line end and an empty line.
+    const text = "\r\n# Note\r\r\nText\r\r\n";
+    const note = `---\r\r\nstage: open\r\r\ntags: [a]\r\r\n---\r${text}`;
+    expect(frontmatterKeys(note)).toEqual(["stage", "tags"]);
+    expect(noteBodyOf(note)).toBe(text);
+
+    const written = setFrontmatterPath(note, ["owner"], "Anna");
+    expect(frontmatterKeys(written)).toEqual(["stage", "tags", "owner"]);
+    // The block in the note's line end, `\r\n`, and the text as it was.
+    expect(written.startsWith("---\r\nstage: open\r\n")).toBe(true);
+    expect(written.endsWith(`owner: Anna\r\n---\r\n${text}`)).toBe(true);
+    expect(deleteFrontmatterPath(deleteFrontmatterPath(deleteFrontmatterPath(written, ["owner"]), ["tags"]), ["stage"])).toBe(text);
+  });
+
+  it("sets no carriage return of its own, whatever the note's lines end in", () => {
+    for (const note of [CLASSIC, TEXT, `---\r---\r${TEXT}`, "---\ra: 1\n---\nText\n", "---\na: 1\rb: 2\n---\nText\r", "Text\r\nmore\rtext\r", "---\r\r\na: 1\r\r\n---\r\r\nText\r\r\n"]) {
+      const written = setFrontmatterPath(note, ["owner"], "Anna");
+      const block = frontmatterSpan(written)!;
+      expect(written.slice(0, block.end), JSON.stringify(note)).not.toMatch(/\r(?!\n)/);
+      expect(noteBodyOf(written), JSON.stringify(note)).toBe(noteBodyOf(note));
+    }
   });
 });
 

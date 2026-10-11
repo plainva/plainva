@@ -32,9 +32,18 @@ import type { Text } from "@codemirror/state";
  * the mark is the block, and the mark counts to its range, hidden with it and
  * protected with it. The editor has no second opinion on where a block is.
  *
- * A line break is whatever the editor split the text at. A note read with
- * `\r\n` arrives here as lines, and the answer is the one the definition gives
- * for the text the editor writes back.
+ * A line break is whatever the editor split the text at: `\n`, `\r\n`, and a
+ * carriage return of its own — the three the definition ends a line at. Of
+ * one and the same text the two read the same lines, so the answer here is
+ * the definition's for the text the editor holds.
+ *
+ * That text is the file's without its shape: `\r\n` arrives as `\n`, and the
+ * save puts the file's own line ends back around it (`openEditorText`). The
+ * file has the same lines, so the block is where the definition finds it in
+ * the file — also in a file from a classic Mac, whose `\r` the editor splits
+ * at itself. The one exception is `\r\r\n`: the editor is handed `\r\n` and
+ * holds one line break where the file has two. It is the same block, with an
+ * empty line behind each of its lines in the file.
  */
 
 /** Where the properties block of an editor document is. */

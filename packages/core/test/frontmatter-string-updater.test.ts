@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { updateFrontmatterString } from "../src/frontmatter-string-updater.js";
 import { FrontmatterSurgicalError } from "../src/frontmatter-surgical.js";
+import { parseMarkdownAst } from "../src/markdown-parser.js";
+import { extractFrontmatter } from "../src/metadata-extractor.js";
 
 describe("updateFrontmatterString", () => {
   it("should preserve golden corpus exact markdown body including obsidian specific syntax", () => {
@@ -153,5 +155,50 @@ This is a horizontal rule.
     
     // Line endings should be CRLF
     expect(result).toBe(`---\r\ntitle: updated\r\n---\r\n\r\nBody`);
+  });
+
+  /**
+   * A note whose lines end in a carriage return of its own (a file from a
+   * classic Mac). Its block was a block for the Markdown parser and none for
+   * this writer, which put a second one on top (2026-10-11).
+   */
+  describe("in a note whose lines end in a carriage return of its own", () => {
+    const TEXT = "# Just a note\r[[link]]\r";
+
+    it("writes the block that is there with `\\n` and leaves the text as it is", () => {
+      expect(updateFrontmatterString(`---\rtitle: test\rdelete_me: yes\r---\r${TEXT}`, { title: "updated" })).toBe(`---\ntitle: updated\n---\n${TEXT}`);
+      expect(updateFrontmatterString(`---\r---\r${TEXT}`, { title: "Test" })).toBe(`---\ntitle: Test\n---\n${TEXT}`);
+      expect(updateFrontmatterString(TEXT, { title: "Test" })).toBe(`---\ntitle: Test\n---\n${TEXT}`);
+    });
+
+    it("removes the block with its last property, and makes none for none", () => {
+      expect(updateFrontmatterString(`---\rtitle: test\r---\r${TEXT}`, {})).toBe(TEXT);
+      expect(updateFrontmatterString(TEXT, {})).toBe(TEXT);
+      expect(updateFrontmatterString(`---\r---\r${TEXT}`, {})).toBe(`---\r---\r${TEXT}`);
+      expect(updateFrontmatterString("---\rstage: open\r---\r---\rIntro\r---\r", {})).toBe("---\n---\n---\rIntro\r---\r");
+    });
+
+    it("is handed the properties the index read, so it removes none of them", () => {
+      // The properties panel and a database cell read a note through the
+      // Markdown parser and write what they read, with their change, back as
+      // the whole block: a key that is not handed over is deleted. The parser
+      // found this block all along; the YAML library read its lines as one,
+      // so the panel had nothing to show and nothing to start a write from.
+      // Reader and writer read the same lines now.
+      const note = `---\rtitle: Old Mac\rtags:\r  - a\r  - b\rdue: 2026-10-11\r---\r${TEXT}`;
+      const read = extractFrontmatter(parseMarkdownAst(note));
+      expect(read).toEqual({ success: true, data: { title: "Old Mac", tags: ["a", "b"], due: "2026-10-11" } });
+      if (!read.success || !read.data) return;
+
+      const written = updateFrontmatterString(note, { ...read.data, owner: "Anna" });
+      expect(written).toBe(`---\ntitle: Old Mac\ntags:\n  - a\n  - b\ndue: 2026-10-11\nowner: Anna\n---\n${TEXT}`);
+      // And the index reads the written block the same way.
+      expect(extractFrontmatter(parseMarkdownAst(written))).toEqual({ success: true, data: { ...read.data, owner: "Anna" } });
+    });
+
+    it("refuses a block that is no map there as anywhere else", () => {
+      expect(() => updateFrontmatterString("---\rSome intro text\rover two lines\r---\rBody\r", { owner: "Anna" })).toThrow(FrontmatterSurgicalError);
+      expect(() => updateFrontmatterString("---\rtitle: [unclosed\r---\rBody\r", { owner: "Anna" })).toThrow(FrontmatterSurgicalError);
+    });
   });
 });

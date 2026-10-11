@@ -287,8 +287,14 @@ up to it was read as YAML.
      with it against typing. The editor has no second opinion on where a
      block is.
    - **Line breaks.** The editor's lines are what it split the text at —
-     `\n`, `\r\n`, and a carriage return of its own — and it writes `\n`
-     back. Its answer is the definition's for the text it writes.
+     `\n`, `\r\n`, and a carriage return of its own —, and those are the
+     three the definition ends a line at (point 10). Of one and the same text
+     the two read the same lines, so the editor's answer is the definition's
+     for the text it holds. That text has `\n` between its lines; the file's
+     own line ends are part of its shape and are put back around it when it
+     is saved (`openEditorText`, since 2026-10-09). The file has the same
+     lines as that text — but for `\r\r\n`, of which the editor is handed
+     `\r\n`: one line break where the file has two.
    - **Cost.** The answer is kept per document: a transaction that changes
      nothing asks for free, and an edit costs one pass that ends at the
      closing fence. Only a note that opens with `---` and never closes is
@@ -340,6 +346,38 @@ up to it was read as YAML.
    note's icon and colour, a column renamed or removed across its notes, the
    task and pinboard write paths) are not covered by it and have not all
    been read for this.
+10. **A carriage return of its own ends a line** (added 2026-10-11). The
+    definition knew `\n` and `\r\n`. The Markdown parser it follows also ends
+    a line at a `\r` alone: the line end of a file from a classic Mac, a
+    stray one among others, or the first of the two in `\r\r\n` — what a file
+    from Windows has when its line ends were converted twice. Such a note had
+    a block for the index and the properties panel and none for the writers,
+    which put a second one on top of it, and the sanitizer for published
+    slices let it leave with every property it had. The definition reads all
+    three now; the table of forms and a run over 20 000 generated notes hold
+    it against the parser in each.
+    - **What the block says.** YAML ends a line at a `\r` alone as well; the
+      YAML library does not (measured: two entries are a syntax error for
+      it, a list below a key is one string, a comment swallows the line
+      behind it, and in a `\r\r\n` file every value ends in a carriage
+      return, a number being a string). So a block's YAML reaches the
+      library with `\n` in that place (`yamlLinesOf`), from both of its
+      readers: the definition (`FrontmatterSpan.yaml`, which stays as long as
+      the stretch of the note it stands for) and the index's reader of the
+      parser's node (`extractFrontmatter`). The two have to read alike. The
+      panel and a database cell start from what the index's reader hands
+      them (point 8): where only the definition could read a block, they
+      would show no property of a note the other writers edit, and refuse
+      every write to it.
+    - **What the writers write.** The block in the note's line end, which
+      comes from the one definition of it (`readTextShape`) and is `\n` or
+      `\r\n`. No writer sets a `\r` alone. In a note from a classic Mac the
+      block is written with `\n`, in a `\r\r\n` note with `\r\n`, and the
+      text keeps its line ends, byte for byte.
+    - **Not decided here:** what a save from the editor leaves of such a
+      file. A file's shape knows two line ends, so the editor reads a `\r`
+      alone as a line break and writes `\n`: a file from a classic Mac does
+      not keep the line ends it came with.
 
 ## Addendum 2026-10-09 (the write rule for new files, on the phone too)
 

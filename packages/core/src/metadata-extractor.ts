@@ -1,4 +1,5 @@
 import { parse as parseYaml } from "yaml";
+import { yamlLinesOf } from "./frontmatter-block.js";
 import { MarkdownAst, MarkdownYamlNode } from "./markdown-ast.js";
 import { readableFrontmatterSchema, ReadableFrontmatter } from "./metadata.js";
 
@@ -15,7 +16,9 @@ export function extractFrontmatter(ast: MarkdownAst): ExtractedFrontmatterResult
 
   let parsedYaml: unknown;
   try {
-    parsedYaml = parseYaml(yamlNode.value);
+    // The block's lines as the writers read them (`yamlLinesOf`): the parser
+    // ends a line at a carriage return of its own, the YAML library does not.
+    parsedYaml = parseYaml(yamlLinesOf(yamlNode.value));
   } catch (e) {
     return { success: false, error: e instanceof Error ? e : new Error(String(e)) };
   }

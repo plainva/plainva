@@ -29,7 +29,12 @@ export class FrontmatterSurgicalError extends Error {
 
 /** The properties block at the top of a note, by its offsets. */
 export interface FrontmatterSpan {
-  /** The YAML between the two fences, without the line break that ends it; "" for a block without a line. */
+  /**
+   * The YAML between the two fences, without the line break that ends it; ""
+   * for a block without a line. It is as long as the stretch of the note it
+   * stands for, and that stretch itself but for one case: where a line of it
+   * ends in a carriage return of its own, a `\n` stands here (`yamlLinesOf`).
+   */
   yaml: string;
   /** Where the YAML begins: behind the opening fence. */
   yamlStart: number;
@@ -55,13 +60,37 @@ function fenceEnd(content: string, at: number): number {
   if (!content.startsWith("---", at)) return -1;
   let end = at + 3;
   while (content[end] === " " || content[end] === "\t") end++;
-  if (end === content.length || content[end] === "\n") return end;
-  return content[end] === "\r" && content[end + 1] === "\n" ? end : -1;
+  return end === content.length || content[end] === "\n" || content[end] === "\r" ? end : -1;
 }
 
-/** The offset behind the line break at `at` (`\n` or `\r\n`). */
+/** The offset behind the line break at `at`: `\n`, `\r\n`, or a `\r` of its own. */
 function behindLineBreak(content: string, at: number): number {
-  return at + (content[at] === "\r" ? 2 : 1);
+  return at + (content[at] === "\r" && content[at + 1] === "\n" ? 2 : 1);
+}
+
+const LONE_CARRIAGE_RETURN = /\r(?!\n)/g;
+
+/**
+ * A block's YAML with its lines as the YAML library reads them: a `\n` where a
+ * line ends in a carriage return of its own. The text keeps its length.
+ *
+ * YAML ends a line at `\n`, at `\r\n` and at a `\r` alone, and so does the
+ * Markdown parser that finds the block. The library that reads the YAML knows
+ * the first two (measured 2026-10-11): `a: 1\rb: 2` is an error for it, a
+ * list below `a:` one string, and in a note with `\r\r\n` line ends every
+ * value ends in a `\r`. Handed such a block as it stands, the writers would
+ * refuse it or — worse — write back what the library made of it.
+ *
+ * Both readers of a block's YAML go through here, so they cannot disagree on
+ * what it says: `frontmatterSpan`, for everything that asks the definition,
+ * and `extractFrontmatter`, for the node the Markdown parser hands the index
+ * and the properties panel. They must not. The panel and a database cell
+ * write what the index's reader handed them back as the whole block: a value
+ * it misread would be written as misread, and a block it could not read
+ * takes no write from them at all.
+ */
+export function yamlLinesOf(yaml: string): string {
+  return yaml.includes("\r") ? yaml.replace(LONE_CARRIAGE_RETURN, "\n") : yaml;
 }
 
 /**
@@ -80,27 +109,41 @@ function behindLineBreak(content: string, at: number): number {
  * This is what the Markdown parser reads (`remark-frontmatter`, which feeds the
  * index and the properties panel), including what it tolerates: blanks behind
  * a fence, and a byte order mark in front of the first one. A test holds the
- * two together. Line breaks are `\n` and `\r\n`.
+ * two together.
+ *
+ * A line ends where that parser ends one: at `\n`, at `\r\n`, and at a `\r` of
+ * its own — the line end of a file from a classic Mac, the first of the two in
+ * `\r\r\n` (a file from Windows whose line ends were converted twice), or a
+ * stray one in any file. The last was missing here until 2026-10-11: such a
+ * note had properties for the index and the panel and none for the writers,
+ * and a write put a second block on top of the first.
  */
 export function frontmatterSpan(content: string): FrontmatterSpan | null {
   const open = fenceEnd(content, byteOrderMarkOf(content).length);
   if (open < 0 || open === content.length) return null;
   const yamlStart = behindLineBreak(content, open);
   let yamlEnd = yamlStart;
+  // The next `\n` and the next `\r`, each looked for again only once the walk
+  // has passed it (-2: not looked for yet, -1: there is none). A note that has
+  // only one of the two is searched for the other once, not once per line.
+  let lineFeed = -2;
+  let carriageReturn = -2;
   for (let line = yamlStart; ; ) {
     const close = fenceEnd(content, line);
     if (close >= 0) {
       return {
-        yaml: content.slice(yamlStart, yamlEnd),
+        yaml: yamlLinesOf(content.slice(yamlStart, yamlEnd)),
         yamlStart,
         closeAt: line,
         end: close === content.length ? close : behindLineBreak(content, close),
       };
     }
-    const lineFeed = content.indexOf("\n", line);
-    if (lineFeed < 0) return null;
-    yamlEnd = lineFeed > line && content[lineFeed - 1] === "\r" ? lineFeed - 1 : lineFeed;
-    line = lineFeed + 1;
+    if (lineFeed !== -1 && lineFeed < line) lineFeed = content.indexOf("\n", line);
+    if (carriageReturn !== -1 && carriageReturn < line) carriageReturn = content.indexOf("\r", line);
+    const lineEnd = lineFeed < 0 ? carriageReturn : carriageReturn < 0 ? lineFeed : Math.min(lineFeed, carriageReturn);
+    if (lineEnd < 0) return null;
+    yamlEnd = lineEnd;
+    line = behindLineBreak(content, lineEnd);
   }
 }
 
@@ -142,6 +185,12 @@ export function splitDocument(content: string): SplitDocument {
   // The note's line end, by the one definition of it (`readTextShape`: what
   // most of its lines have). A single `\r\n` anywhere used to decide here, and
   // the block of a note with one stray line end was written in that one.
+  //
+  // That definition knows two line ends. A note whose lines end in a carriage
+  // return of its own has neither, so its block is written with `\n` — the
+  // line end a new file gets — and its text stays as it is, byte for byte. No
+  // writer sets a lone `\r`: this code reads a block written with one
+  // (`yamlLinesOf`), a reader that takes the YAML library's word does not.
   const eol = readTextShape(content).shape.eol;
   const byteOrderMark = byteOrderMarkOf(content);
   const span = frontmatterSpan(content);

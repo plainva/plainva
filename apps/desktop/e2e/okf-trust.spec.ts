@@ -34,6 +34,8 @@ test.beforeEach(async ({ page }) => {
     const deprecated = ['---', 'type: Note', 'status: deprecated', '---', '', '# Deprecated', '', 'Old.', ''].join('\n');
     const stale = ['---', 'type: Note', 'stale_after: 2000-01-01', '---', '', '# Stale', '', 'Old.', ''].join('\n');
     const task = ['---', 'type: Task', 'status: Offen', '---', '', '# Task', '', 'Todo.', ''].join('\n');
+    // A file from a classic Mac: every line ends in a carriage return of its own.
+    const classicMac = ['---', 'type: Note', 'stale_after: 2000-01-01', 'owner: Anna', '---', '', '# Classic Mac', '', 'Old.', ''].join('\r');
 
     (window as any).mockFs = {
       '/test-vault': { isDir: true },
@@ -43,6 +45,7 @@ test.beforeEach(async ({ page }) => {
       '/test-vault/Deprecated.md': deprecated,
       '/test-vault/Stale.md': stale,
       '/test-vault/Task.md': task,
+      '/test-vault/ClassicMac.md': classicMac,
     };
 
     (window as any).__TAURI_INTERNALS__ = {
@@ -279,4 +282,43 @@ test('mark as reviewed: asks for the reviewer once, appends human:<name> to veri
   await expect
     .poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Stale.md'] as string), { timeout: 10000 })
     .toMatch(/verified:[\s\S]*human:Marco/);
+});
+
+// A note whose lines end in a carriage return of its own. The Markdown parser
+// found its properties block; the definition of the block read one long line,
+// and the YAML library read the block's lines as one. So the banner and the
+// panel had nothing to show, and the panel — which starts every write from
+// the properties it could read — took no review.
+test('a note from a classic Mac shows what its properties say', async ({ page }) => {
+  await openNote(page, 'ClassicMac');
+  const banner = page.getByTestId('okf-stale-banner');
+  await expect(banner).toBeVisible({ timeout: 10000 });
+  await expect(banner).toContainText('2000');
+
+  await revealProperties(page);
+  await expect(page.getByTestId('okf-trust-level')).toHaveAttribute('data-level', 'unverified', { timeout: 10000 });
+  // `type` and `stale_after` are pinned rows; the one free row is `owner`.
+  await expect(page.locator('.pv-props').getByRole('textbox', { name: 'Name', disabled: false })).toHaveValue('owner');
+});
+
+test('a note from a classic Mac keeps every property when a review is added', async ({ page }) => {
+  await openNote(page, 'ClassicMac');
+  await revealProperties(page);
+  await expect(page.getByTestId('okf-trust-level')).toHaveAttribute('data-level', 'unverified', { timeout: 10000 });
+
+  await page.getByTestId('okf-mark-verified').click();
+  const dialog = page.getByRole('dialog').last();
+  await expect(dialog).toBeVisible({ timeout: 10000 });
+  await dialog.getByRole('textbox').fill('Marco');
+  await dialog.getByRole('button', { name: /Confirm|Bestätigen/ }).click();
+  await expect(page.getByTestId('okf-trust-level')).toHaveAttribute('data-level', 'human-reviewed', { timeout: 10000 });
+
+  const saved = () => page.evaluate(() => (window as any).mockFs['/test-vault/ClassicMac.md'] as string);
+  await expect.poll(saved, { timeout: 10000 }).toMatch(/verified:[\s\S]*human:Marco/);
+  const file = await saved();
+  // One block, with every property the note came with.
+  expect(file.split(/\r\n?|\n/).filter((line) => line === '---')).toHaveLength(2);
+  expect(file).toContain('type: Note');
+  expect(file).toContain('stale_after: 2000-01-01');
+  expect(file).toContain('owner: Anna');
 });

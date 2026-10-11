@@ -4,8 +4,8 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { frontmatterSpan, noteBodyOf } from "../src/frontmatter-surgical.js";
-import { composeNote } from "../src/frontmatter-block.js";
-import { FRONTMATTER_FORMS } from "./fixtures/frontmatterForms.js";
+import { composeNote, yamlLinesOf } from "../src/frontmatter-block.js";
+import { FRONTMATTER_FORMS, generatedNotes, hasLoneCarriageReturn } from "./fixtures/frontmatterForms.js";
 
 /**
  * The one definition of a note's properties block (finding 2026-10-07).
@@ -119,11 +119,111 @@ describe("frontmatterSpan", () => {
     expect(frontmatterSpan("\uFEFF# Heading\n")).toBeNull();
   });
 
-  it("reads a long note without a closing fence in one pass", () => {
-    const note = "---\n" + "a line of text that is not a fence\n".repeat(200_000);
+  it("ends a line at a carriage return of its own, as the Markdown parser does", () => {
+    // Every line of a file from a classic Mac ends in one. The definition read
+    // such a note as one long line and found no block in it.
+    const note = "---\rtitle: X\rtags: [a]\r---\r# Body\r";
+    const span = frontmatterSpan(note)!;
+    expect(note.slice(span.closeAt)).toBe("---\r# Body\r");
+    expect(note.slice(span.end)).toBe("# Body\r");
+    expect(noteBodyOf(note)).toBe("# Body\r");
+    // The YAML comes with the line breaks the YAML library reads, and with the
+    // length of the stretch it stands for: offsets counted on it hold.
+    expect(span.yaml).toBe("title: X\ntags: [a]");
+    expect(note.slice(span.yamlStart, span.yamlStart + span.yaml.length)).toBe("title: X\rtags: [a]");
+  });
+
+  it("takes fences that end in a carriage return of their own for a block without entries", () => {
+    for (const [note, body] of [
+      ["---\r---\r# Single\r", "# Single\r"],
+      ["---\r---", ""],
+      ["---\r---\r", ""],
+      ["---\r---\nText", "Text"],
+      ["---\n---\rText", "Text"],
+      ["--- \r---\t\rText", "Text"],
+    ] as const) {
+      const span = frontmatterSpan(note);
+      expect(span, JSON.stringify(note)).not.toBeNull();
+      expect(span!.yaml).toBe("");
+      expect(span!.closeAt).toBe(span!.yamlStart);
+      expect(note.slice(span!.end)).toBe(body);
+    }
+    // Blank lines between the fences: one gives no YAML, two give the break between them.
+    expect(frontmatterSpan("---\r\r---\rBody")!.yaml).toBe("");
+    expect(frontmatterSpan("---\r\r\r---\rBody")!.yaml).toBe("\n");
+    // A rule right behind the block is the first line of the text.
+    expect(noteBodyOf("---\r---\r---\rText\r")).toBe("---\rText\r");
+  });
+
+  it("reads a stray carriage return among other line ends as the end of a line", () => {
+    // The closing fence stands behind one: for the parser the block ends
+    // there, and the definition read on to the end of the note.
+    expect(frontmatterSpan("---\na: 1\r---\nBody\n")!.yaml).toBe("a: 1");
+    expect(noteBodyOf("---\na: 1\r---\nBody\n")).toBe("Body\n");
+    expect(noteBodyOf("---\na: 1\n---\rBody\n")).toBe("Body\n");
+    expect(frontmatterSpan("---\na: 1\rb: 2\n---\nBody\n")!.yaml).toBe("a: 1\nb: 2");
+    // `\r\n` stays ONE line break and stays as it is in the YAML.
+    expect(frontmatterSpan("---\r\na: 1\rb: 2\r\nc: 3\r\n---\r\nBody")!.yaml).toBe("a: 1\nb: 2\r\nc: 3");
+    // `\n\r` and `\r\r\n` are two: an empty line stands between the fences.
+    for (const note of ["---\n\r---\nBody", "---\r\r\n---\nBody"]) {
+      const span = frontmatterSpan(note)!;
+      expect(span.yaml, JSON.stringify(note)).toBe("");
+      expect(span.closeAt).toBe(span.yamlStart + (note.startsWith("---\r\r\n") ? 2 : 1));
+      expect(note.slice(span.end)).toBe("Body");
+    }
+  });
+
+  it("finds no block in a note without one, whatever ends its lines", () => {
+    for (const note of [
+      "---\r", // a rule
+      "---\ra: 1\r", // never closed
+      "\r---\ra: 1\r---\r", // not on the first line
+      " ---\ra: 1\r---\r", // indented
+      "---\ra: 1\r ---\r", // the closing fence is indented
+      "---\ra: 1\r----\r", // four dashes close nothing
+      "---a: 1\r---\r",
+      "---\ra: 1\r...\r", // the YAML document end is not a fence
+      "# Heading\r\r---\rnot: frontmatter\r---\r",
+    ]) {
+      expect(frontmatterSpan(note), JSON.stringify(note)).toBeNull();
+      expect(noteBodyOf(note)).toBe(note);
+    }
+  });
+
+  // What ends line `i` of a long note. The other kind every thousand lines, and
+  // the two in turns: each is looked for again only once it has been passed.
+  const LINE_ENDS: ReadonlyArray<readonly [string, (i: number) => string]> = [
+    ["line feeds", () => "\n"],
+    ["carriage returns and line feeds", () => "\r\n"],
+    ["carriage returns of their own", () => "\r"],
+    ["a stray carriage return every thousand lines", (i) => (i % 1_000 === 0 ? "\r" : "\n")],
+    ["a stray line feed every thousand lines", (i) => (i % 1_000 === 0 ? "\n" : "\r")],
+    ["both in turns", (i) => (i % 2 === 0 ? "\r" : "\n")],
+  ];
+
+  it.each(LINE_ENDS)("reads a long note without a closing fence in one pass: %s", (_name, lineEnd) => {
+    const parts = ["---", lineEnd(0)];
+    for (let i = 1; i <= 200_000; i++) parts.push("a line of text that is not a fence", lineEnd(i));
+    const note = parts.join("");
     const started = performance.now();
     expect(frontmatterSpan(note)).toBeNull();
     expect(performance.now() - started).toBeLessThan(2_000);
+  });
+});
+
+describe("yamlLinesOf", () => {
+  it("sets a line feed where a line ends in a carriage return of its own, and keeps the length", () => {
+    expect(yamlLinesOf("a: 1\rb: 2")).toBe("a: 1\nb: 2");
+    expect(yamlLinesOf("a:\r  - x\r  - y")).toBe("a:\n  - x\n  - y");
+    expect(yamlLinesOf("\r")).toBe("\n");
+    expect(yamlLinesOf("a: 1\rb: 2\r\nc: 3\r")).toBe("a: 1\nb: 2\r\nc: 3\n");
+    expect(yamlLinesOf("a: 1\r\r\nb: 2")).toBe("a: 1\n\r\nb: 2");
+  });
+
+  it("hands a block with other line ends back as it is", () => {
+    for (const yaml of ["", "a: 1", "a: 1\nb: 2", "a: 1\r\nb: 2", "a: |\r\n  one\r\n  two\r\n"]) {
+      expect(yamlLinesOf(yaml)).toBe(yaml);
+    }
   });
 });
 
@@ -135,23 +235,56 @@ describe("frontmatterSpan", () => {
 describe("frontmatterSpan and the Markdown parser", () => {
   const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]);
 
-  it.each(FRONTMATTER_FORMS.map((form) => [JSON.stringify(form), form] as const))("agrees on %s", (_label, form) => {
+  /** The definition's answer for a note against the parser's; whether the note has a block. */
+  const agreesOn = (note: string): boolean => {
     // The parser drops a leading byte order mark before it counts offsets.
-    const shift = form.charCodeAt(0) === 0xfeff ? 1 : 0;
-    const first = parser.parse(form).children[0] as { type: string; value?: string; position?: { end: { offset?: number } } } | undefined;
-    const span = frontmatterSpan(form);
+    const shift = note.charCodeAt(0) === 0xfeff ? 1 : 0;
+    const first = parser.parse(note).children[0] as { type: string; value?: string; position?: { end: { offset?: number } } } | undefined;
+    const span = frontmatterSpan(note);
 
     if (first?.type !== "yaml") {
-      expect(span).toBeNull();
-      return;
+      expect(span, JSON.stringify(note)).toBeNull();
+      return false;
     }
-    expect(span).not.toBeNull();
-    expect(span!.yaml.replace(/\r\n/g, "\n")).toBe(first.value!.replace(/\r\n/g, "\n"));
+    expect(span, JSON.stringify(note)).not.toBeNull();
+    // The parser hands the YAML out as it stands; the definition, with the
+    // line breaks the YAML library reads — and nothing else differs.
+    expect(span!.yaml, JSON.stringify(note)).toBe(yamlLinesOf(first.value!));
+    expect(yamlLinesOf(note.slice(span!.yamlStart, span!.yamlStart + span!.yaml.length)), JSON.stringify(note)).toBe(span!.yaml);
     // The parser's node ends behind the closing fence; the text starts behind its line break.
     const fenceEndsAt = first.position!.end.offset! + shift;
-    const lineBreak = form.startsWith("\r\n", fenceEndsAt) ? 2 : form[fenceEndsAt] === "\n" ? 1 : 0;
-    expect(span!.end).toBe(fenceEndsAt + lineBreak);
+    const lineBreak = note.startsWith("\r\n", fenceEndsAt) ? 2 : note[fenceEndsAt] === "\n" || note[fenceEndsAt] === "\r" ? 1 : 0;
+    expect(span!.end, JSON.stringify(note)).toBe(fenceEndsAt + lineBreak);
+    return true;
+  };
+
+  it.each(FRONTMATTER_FORMS.map((form) => [JSON.stringify(form), form] as const))("agrees on %s", (_label, form) => {
+    agreesOn(form);
   });
+
+  // The table names the forms someone thought of. This run asks about the
+  // ones nobody did: every line of a note with a line ending of its own.
+  it("agrees on 20 000 generated notes, whatever ends their lines", () => {
+    const seen = { none: 0, block: 0, classicMac: 0, classicMacBlock: 0, windows: 0, mark: 0 };
+    for (const note of generatedNotes(20261011, 20_000)) {
+      const block = agreesOn(note);
+      if (block) seen.block++;
+      else seen.none++;
+      if (hasLoneCarriageReturn(note)) {
+        seen.classicMac++;
+        if (block) seen.classicMacBlock++;
+      }
+      if (note.includes("\r\n")) seen.windows++;
+      if (note.charCodeAt(0) === 0xfeff) seen.mark++;
+    }
+    // The generator reaches every case, or the run proves nothing.
+    expect(seen.none).toBeGreaterThan(5_000);
+    expect(seen.block).toBeGreaterThan(5_000);
+    expect(seen.classicMac).toBeGreaterThan(5_000);
+    expect(seen.classicMacBlock).toBeGreaterThan(2_000);
+    expect(seen.windows).toBeGreaterThan(5_000);
+    expect(seen.mark).toBeGreaterThan(1_000);
+  }, 120_000);
 });
 
 /**
@@ -161,6 +294,10 @@ describe("frontmatterSpan and the Markdown parser", () => {
  * unchanged, and this run says why they could: on a note the old pattern read
  * right, the definition gives the same block. It answers differently only where
  * the old pattern was wrong — the three cases named below.
+ *
+ * A fourth is not in this run, because its notes carry none: a carriage return
+ * of its own. The old pattern read on past one; what the definition does there
+ * is held against the Markdown parser, above.
  */
 describe("frontmatterSpan against the pattern it replaces", () => {
   const OLD = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
@@ -255,6 +392,9 @@ describe("composeNote", () => {
     expect(noteBodyOf(note)).toBe(body);
     // A rule with blanks behind it would open one for the parser as well.
     expect(composeNote({ byteOrderMark: "", eol: "\r\n", yaml: "", body: "--- \r\nIntro\r\n" })).toBe("---\r\n---\r\n--- \r\nIntro\r\n");
+    // And so would one that ends in a carriage return of its own.
+    expect(composeNote({ ...LF, yaml: "", body: "---\rIntro\r---\rRest\r" })).toBe("---\n---\n---\rIntro\r---\rRest\r");
+    expect(noteBodyOf("---\n---\n---\rIntro\r---\rRest\r")).toBe("---\rIntro\r---\rRest\r");
     // A rule further down opens nothing.
     expect(composeNote({ ...LF, yaml: "", body: "\n---\nIntro\n" })).toBe("\n---\nIntro\n");
   });

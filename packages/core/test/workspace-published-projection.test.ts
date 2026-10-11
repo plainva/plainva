@@ -93,6 +93,11 @@ describe("published properties, wherever a reader sees a block", () => {
     ["closed by a fence with a blank behind it", "---\ntitle: Public\nsecret: hidden-value\n--- \nBody."],
     ["opened by a fence with a blank behind it", "--- \ntitle: Public\nsecret: hidden-value\n---\nBody."],
     ["behind a byte order mark", "\uFEFF---\ntitle: Public\nsecret: hidden-value\n---\nBody."],
+    // A carriage return of its own ends a line for the reader on the other
+    // side; the definition read on past it and found no block (2026-10-11).
+    ["of a note from a classic Mac", "---\rtitle: Public\rsecret: hidden-value\r---\rBody."],
+    ["closed by a fence behind a stray carriage return", "---\ntitle: Public\nsecret: hidden-value\r---\nBody."],
+    ["opened by a fence that ends in a carriage return", "---\rtitle: Public\nsecret: hidden-value\n---\nBody."],
   ])("withholds a private property of a block %s", (_form, markdown) => {
     const result = project(markdown);
     expect(result.markdown).not.toContain("hidden-value");
