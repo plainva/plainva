@@ -57,6 +57,18 @@ passed in, so a release never touches that hash. Whoever lifts the expression
 into nixpkgs updates it there with `nix-update --flake plainva` — the
 `passthru.updateScript` for that is already in place.
 
+## Updating nixpkgs — `flake.lock`
+
+The flake pins nixpkgs, and both packages take Node.js, pnpm, Rust and the
+Tauri libraries from that revision. Dependabot does not cover it:
+
+```bash
+nix flake update          # or: nix flake update nixpkgs
+```
+
+`docs/engineering/Dependency_Updates.md` lists the lockfile with the
+dependencies that move by hand instead of through Dependabot.
+
 ## Notes on the source build
 
 - `cargo-tauri.hook` replaces the usual cargo build and install hooks: on Linux

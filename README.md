@@ -48,7 +48,7 @@ Plainva has no code-plugin sandbox — the vault *is* the interface. Every file 
 - **Windows** — the `.msi` installer (or the `.exe`), code-signed as of 0.6.3. A fresh certificate has no SmartScreen reputation yet, so a warning may still appear on first launch: click **More info → Run anyway**.
 - **macOS** — the universal `.dmg` (Apple Silicon + Intel), signed and notarized: a normal double-click works.
 - **Linux** — the `.deb` (Debian/Ubuntu) or `.rpm` (Fedora/openSUSE) for your package manager; the `.AppImage` (`chmod +x Plainva*.AppImage`, then run) is the fallback for distributions without a package. On a very new system the AppImage can clash with the host's graphics libraries — the packages never do; see [Getting Started](docs/user/en/Getting_Started.md#system-requirements).
-- **Nix** — the repository carries a flake. `nix run github:plainva/plainva` builds the desktop app from source and starts it; `nix run github:plainva/plainva#plainva-bin` installs the binary from the release page instead of compiling. Both are Linux/x86_64; see [nix/README.md](nix/README.md).
+- **Nix** — the repository carries a flake. `nix run github:plainva/plainva` builds the desktop app from source and starts it; `nix run github:plainva/plainva#plainva-bin` starts the binary from the release page instead of compiling. Both are Linux/x86_64; see [nix/README.md](nix/README.md).
 
 ### Mobile (beta)
 

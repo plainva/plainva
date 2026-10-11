@@ -1,7 +1,7 @@
 # Dependency updates
 
-Status: 2026-09-30. Dependabot (`.github/dependabot.yml`) opens one weekly
-pull request per ecosystem for minor and patch updates. Three kinds of
+Status: 2026-10-11. Dependabot (`.github/dependabot.yml`) opens one weekly
+pull request per ecosystem for minor and patch updates. Four kinds of
 dependency are held back from that routine; this page says why and how they
 move instead.
 
@@ -65,3 +65,13 @@ whose types do not match (`expected BodyStructure<'_>, found
 BodyStructure<'_>`). `dependabot.yml` ignores `imap-proto` until `imap` has a
 stable release built on 0.16 (today only the 3.0 alpha); then both move
 together by hand and the ignore rule goes.
+
+## Nix inputs: moved by hand before a release
+
+`flake.lock` pins the nixpkgs revision that the flake in `flake.nix` builds
+with. Dependabot covers npm, cargo and the workflow actions only, so the
+lockfile moves with `nix flake update`. Run it before a release, or when an
+advisory names a package the flake pulls in. Rebuild both packages
+(`nix build`, `nix build .#plainva-bin`) before the commit — the source build
+takes its Node.js, pnpm and Rust toolchain from that revision, so a moved
+nixpkgs can move the build itself.
