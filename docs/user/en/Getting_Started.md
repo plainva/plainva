@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-10-06
+Last updated: 2026-10-11
 
 This page takes you from installation to your first real work: opening or creating a vault, learning the interface, and understanding the three editor modes.
 
@@ -204,7 +204,7 @@ The right panel cannot go below **200 px** — no section is usable under that. 
 
 ## Returning a tab
 
-In a separate or second full window, right-click a tab and choose **Return to main window**. Plainva carries its current text, selection, view, scroll position, history and pin state over. The source tab closes only after receipt is confirmed. If the main window cannot confirm, the tab and its draft stay available. Bookmark changes appear in every window.
+In a separate or second full window, right-click a tab and choose **Return to main window**. Plainva carries its current text, selection, view, scroll position, history and pin state over. The source tab closes only after receipt is confirmed. If the main window cannot confirm, the tab and its draft stay available. The main window does not switch vaults for a returned tab while a message with unsaved input is open in it: it comes forward and says so, and the tab stays where it is. Bookmark changes appear in every window.
 
 ## Folder bookmarks
 

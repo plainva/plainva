@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-10-09
+Ultimo aggiornamento: 2026-10-11
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -68,7 +68,7 @@ Fai clic destro su **E-mail** nella barra delle azioni per aprire la casella in 
 
 Durante la composizione, l'icona a comparsa solleva la finestra di composizione in una finestra propria — destinatari, oggetto, testo e allegati viaggiano con essa, compreso un indirizzo appena digitato e non ancora confermato. **L'invio avviene comunque nella finestra principale**: la finestra di composizione consegna il messaggio e si chiude, e l'avviso con **Annulla** compare dove stai continuando a lavorare. Così chiudere una finestra non decide mai tra inviare e perdere.
 
-Una finestra di composizione **non** viene ripristinata al prossimo avvio — quello che contiene vive in memoria. Quindi finisci un messaggio lungo, oppure salvalo come bozza. Chiudere una finestra così con un messaggio modificato fa prima la stessa domanda, come chiudere qualsiasi seconda finestra di Plainva che contiene una finestra di composizione. Uscendo da Plainva, cambiando vault o con **Ricostruisci indice** non viene chiesto nulla.
+Una finestra di composizione **non** viene ripristinata al prossimo avvio — quello che contiene vive in memoria. Quindi finisci un messaggio lungo, oppure salvalo come bozza. Chiudere una finestra così con un messaggio modificato fa prima la stessa domanda, come chiudere qualsiasi seconda finestra di Plainva che contiene una finestra di composizione. Anche cambiare vault o chiuderlo fa prima questa domanda; **Annulla** lascia il vault e il messaggio come sono. Quando Plainva si limita a ricaricare il vault — con **Ricostruisci l'indice da zero**, dopo una password modificata o una sincronizzazione appena collegata —, la finestra di composizione resta: non si vede mentre il vault viene caricato e poi è di nuovo lì, con tutto il suo contenuto. Solo uscendo da Plainva non viene chiesto nulla. Sul telefono Plainva fa la stessa domanda prima che qualcosa tolga dallo schermo un messaggio modificato: la freccia indietro e la barra, ma anche **Scegli vault** in **Contenuti condivisi** o, su un tablet, una nota toccata nel navigatore accanto.
 
 ## Consegnare una nota senza il client di posta
 

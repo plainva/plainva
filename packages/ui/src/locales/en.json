@@ -4629,6 +4629,7 @@
     "ownerUnreachable": "The main window is not responding.",
     "returnToMain": "Return to main window",
     "transferFailed": "The transfer did not complete. The source tab and its draft are retained.",
+    "transferBlockedByDraft": "The tab was not transferred: this window would have to switch vaults, and a message with unsaved input is open here.",
     "transferUnknown": "The main window has not confirmed yet. Your draft stays here; check the status again.",
     "transferPending": "Transferring the tab. It stays open here until the main window confirms receipt.",
     "transferCheck": "Check status again"

@@ -52,6 +52,14 @@ interface MailDraftModalProps {
   restore?: ComposeSnapshot;
   /** Offered as a pop-out button when set (floating variant only). */
   onPopOut?: (snapshot: ComposeSnapshot) => void;
+  /**
+   * The composer waits: it keeps everything written and draws nothing
+   * (finding 2026-10-09). Set by the host while the vault under it is loaded
+   * again and the shell is replaced by the loading screen — a composer one
+   * could still send from, over a vault that is half taken apart, would be the
+   * wrong thing to leave standing, and one that was gone afterwards worse.
+   */
+  suspended?: boolean;
   onClose: () => void;
 }
 
@@ -60,7 +68,16 @@ function foldRecips(val: string, draft: string): string {
   return (draft.trim() ? [...splitRecipients(val), draft.trim()] : splitRecipients(val)).join(", ");
 }
 
-export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, variant = "floating", restore, onPopOut, onClose }: MailDraftModalProps) {
+/**
+ * A typed-but-not-yet-chipped recipient confirmed the way its field confirms
+ * it (`ChipField`: Enter, a separator, leaving the field): parsed, and an
+ * address that is already a chip is not added a second time.
+ */
+function confirmRecips(val: string, draft: string): string {
+  return [...new Set([...splitRecipients(val), ...splitRecipients(draft)])].join(", ");
+}
+
+export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, variant = "floating", restore, onPopOut, suspended = false, onClose }: MailDraftModalProps) {
   const { t } = useTranslation();
   const { vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
@@ -143,11 +160,13 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     });
   }, [changed, confirmDiscard, onClose]);
 
-  // The fourth way out is the window around the composer being closed. That is
-  // not decided here, so the changed draft is declared to the window: a second
-  // window is then asked by the central one before it is destroyed, and puts
-  // this same question. The central window's own close asks nobody
-  // (windowCloseGuard.ts says why).
+  // The fourth way out is not the composer's own: the window around it is
+  // closed, or stops showing this vault — and with the vault goes everything
+  // that stands on it. Neither is decided here, so the changed draft is
+  // declared to the window: a second window is then asked by the central one
+  // before it is destroyed, a vault switch or close waits for the answer in
+  // whichever window it happens, and both put this same question. The central
+  // window's own close asks nobody (windowCloseGuard.ts says why).
   useEffect(() => {
     if (!changed) return;
     return holdWindowClose(confirmDiscard);
@@ -405,6 +424,32 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     onClose();
   }, [onPopOut, snapshot, onClose]);
 
+  // A composer that waits (`suspended`) draws no fields, and a recipient field
+  // comes back empty. What was typed into one and not yet confirmed is
+  // confirmed first, as leaving the field would have done: "loses nothing" has
+  // to mean nothing, and a recipient the field no longer shows must not be
+  // sent to.
+  // And it comes back without reaching for the keyboard: what it waited for
+  // was started somewhere else — in the settings, which are open again in the
+  // same moment — and that is where the person is typing.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    if (!suspended) return;
+    setWaited(true);
+    if (toDraft.trim()) {
+      setTo((list) => confirmRecips(list, toDraft));
+      setToDraft("");
+    }
+    if (ccDraft.trim()) {
+      setCc((list) => confirmRecips(list, ccDraft));
+      setCcDraft("");
+    }
+    if (bccDraft.trim()) {
+      setBcc((list) => confirmRecips(list, bccDraft));
+      setBccDraft("");
+    }
+  }, [suspended, toDraft, ccDraft, bccDraft]);
+
   // Recipient lists are stored as one comma-joined string (that is what the
   // send path takes); the field itself works on the split list.
   const renderChips = (
@@ -467,7 +512,7 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
               </div>
               <div className="pv-mail-addr">
                 <span className="k">{t("mail.draftTo", { defaultValue: "An" })}</span>
-                {renderChips(to, setTo, setToDraft, "draft-to", "name@example.org", true)}
+                {renderChips(to, setTo, setToDraft, "draft-to", "name@example.org", !waited)}
                 {!showCc && (
                   <button type="button" className="pv-mail-cctoggle" onClick={() => setShowCc(true)} data-testid="draft-cc-toggle">
                     {t("mail.ccBcc", { defaultValue: "Cc/Bcc" })}
@@ -604,6 +649,12 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       {panel}
     </FloatingWindow>
   );
+
+  // Waiting for its vault to come back: the draft lives in this component's
+  // state, so it only has to stay mounted — and the question it holds for the
+  // window stays armed, which is what the loading screen's "cancel" meets.
+  // Nothing is drawn, so nothing can be typed, sent or closed meanwhile.
+  if (suspended) return null;
 
   // As its own OS window the composer drops the floating chrome: the window
   // frame and the aux title bar above it are the chrome, and Escape belongs

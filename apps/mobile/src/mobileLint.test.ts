@@ -1226,19 +1226,13 @@ describe("the composer offers Send by the shared decision", () => {
 
 /**
  * Leaving the composer asks, and by the shared measure (finding 2026-10-09).
- * The desktop composer asks the same question since then; what the phone has
- * on top is that its composer is a screen — every ordinary route to another
- * vault leaves it first. The catalog entry this pins says where the desktop
- * still drops a draft without a word, and names the one route on which the
- * phone does too.
+ * The desktop composer asks the same question since then. Arming the guard is
+ * the composer's half; who asks it is pinned in the block below this one.
  */
 describe("the composer asks before a changed draft is left", () => {
   const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
 
-  // @parity-mobile mail-draft-survives-vault-switch
-  it("arms the leave guard, which the routes that leave the screen ask", () => {
-    // The bar, the back arrow and Android back. Not the share inbox's "choose
-    // vault", which pushes the vault list on top — the catalog entry says so.
+  it("arms the leave guard, which every step that takes it off the screen asks", () => {
     expect(screen).toMatch(/useLeaveGuard\(\s*"mail-compose",/);
   });
 
@@ -1247,6 +1241,94 @@ describe("the composer asks before a changed draft is left", () => {
     // signature as typing while the desktop did not ask at all.
     expect(screen).toMatch(/useLeaveGuard\(\s*"mail-compose",\s*composeChanged\(/);
     expect(screen).not.toMatch(/!==\s*untouchedBody/);
+  });
+});
+
+/**
+ * Who asks the guard (finding 2026-10-09).
+ *
+ * Only the screen on top is rendered, so whatever is put over a screen takes
+ * its state in that moment. The bar tap, the back arrow and Android back asked
+ * first; every other step the shell can start over a surface with unsaved
+ * input did not, and a message being written went without a word — with the
+ * share inbox's "Choose vault" the vault after it, which is where this was
+ * found. They go through `leaveThen` now. What it does is behaviour
+ * (services/leaveQuestion.test.ts, services/besideNav.test.ts, and the built
+ * app in e2e-prod/compose-leave.spec.ts); pinned here is that the shell's own
+ * steps are WIRED to it, because the shell cannot be rendered in a unit test
+ * and one forgotten prop is exactly how this hole came to be.
+ */
+describe("what the shell puts over a surface asks first", () => {
+  const app = stripComments(readFileSync(join(SRC, "App.tsx"), "utf8"));
+  /** The JSX opening tag of a component the shell renders, props and all. */
+  const tag = (name: string) => {
+    const at = app.indexOf(`<${name}`);
+    expect(at, `the shell renders <${name}>`).toBeGreaterThan(-1);
+    // The tag ends at the first "/>" on a line of its own indentation or at the
+    // end of a one-line tag; 1800 characters cover the longest of them.
+    const rest = app.slice(at, at + 1800);
+    const end = rest.search(/\n\s*\/>|\s\/>\s*\n/);
+    return end < 0 ? rest : rest.slice(0, end);
+  };
+  /** The handler a prop is given, up to the next prop of the same tag. */
+  const prop = (source: string, name: string) => {
+    const at = source.indexOf(`${name}={`);
+    expect(at, `${name} is wired`).toBeGreaterThan(-1);
+    const next = source.slice(at + name.length + 2).search(/\s[a-zA-Z]+=\{/);
+    return next < 0 ? source.slice(at) : source.slice(at, at + name.length + 2 + next);
+  };
+
+  it("the share inbox: choosing a vault, unlocking and the filed note", () => {
+    // The inbox asks itself, and closes only once the step is taken: "cancel"
+    // leaves the screen underneath and the sheet as they are.
+    const inbox = stripComments(readFileSync(join(SRC, "components/ShareInbox.tsx"), "utf8"));
+    expect(inbox).toMatch(/onClick=\{\(\) => leaveThen\(\(\) => \{ close\(\); onChooseVault\(\); \}\)\}/);
+    expect(inbox).toMatch(/onClick=\{\(\) => leaveThen\(\(\) => \{ close\(\); onUnlock\(\); \}\)\}/);
+    expect(inbox).toMatch(/leaveThen\(\(\) => onImported\(path\)\)/);
+    // And no second way on beside the asking one.
+    expect(inbox.match(/onChooseVault\(\);/g), "one call, the one above").toHaveLength(1);
+    expect(inbox.match(/onUnlock\(\);/g), "one call, the one above").toHaveLength(1);
+    expect(inbox.match(/onImported\(path\)/g), "one call, the one above").toHaveLength(1);
+  });
+
+  it("the rail's settings and the areas sheet", () => {
+    expect(prop(tag("NavBar"), "onOpenSettings")).toMatch(/=>\s*leaveThen\(/);
+    const sheet = tag("AreasSheet");
+    expect(prop(sheet, "onArrange")).toMatch(/leaveThen\(/);
+    expect(prop(sheet, "onPick")).toMatch(/leaveThen\(/);
+  });
+
+  it("what arrives from outside the app: a launcher shortcut, a reminder, a widget row", () => {
+    const runner = tag("PendingIntentRunner");
+    for (const name of ["onCapture", "onOpenCalendar", "onOpenNote", "onOpenToday"]) {
+      expect(prop(runner, name), `${name} navigates over whatever is on top`).toMatch(/=>\s*leaveThen\(/);
+    }
+    // These two ask already, or open a sheet that covers nothing.
+    expect(prop(runner, "onNewTask")).toMatch(/tabTapped\(/);
+    expect(prop(runner, "onJournal")).toMatch(/setJournalCapture\(/);
+  });
+
+  it("a notice's button, a remark's notification and a file revealed from a sheet", () => {
+    const links = stripComments(readFileSync(join(SRC, "hooks/useDeepLinkNav.ts"), "utf8"));
+    expect(links.match(/=>\s*leaveThen\(\(\) => setNav\(/g), "both notice routes").toHaveLength(2);
+    expect(app).toMatch(/useCommentShell\(vault, useCallback\(\(entry\) => leaveThen\(/);
+    expect(app).toMatch(/leaveThen\(\(\) => setNav\(st => pushEntry\(st, \{ kind: "folder"/);
+  });
+
+  it("the navigator column of a wide window, which stands beside the work", () => {
+    const layout = stripComments(readFileSync(join(SRC, "components/AdaptiveLayout.tsx"), "utf8"));
+    expect(layout).toMatch(/TAB_ROUTES\.notes\(besideContext\(ctx\)\)/);
+    // The surface on top keeps the plain context: its steps are its own.
+    expect(layout).toMatch(/renderRoute\(top, activeTab, ctx\)/);
+  });
+
+  it("leaves a surface's own steps alone", () => {
+    // `push`, `replace` and `done` are a surface moving on by its own decision
+    // (a wizard to its next page, a composer that has sent). Asking there is
+    // the fault `done` was made for.
+    const nav = stripComments(readFileSync(join(SRC, "services/navActions.ts"), "utf8"));
+    expect(nav).not.toMatch(/leaveThen/);
+    expect(nav).toMatch(/push: \(entry\) => setNav\(\(s\) => pushEntry\(s, entry\)\)/);
   });
 });
 

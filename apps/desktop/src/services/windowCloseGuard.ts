@@ -1,16 +1,20 @@
 import { getWindowBus } from "./windowBus";
-import { currentWindowParams, isOwnerWindow } from "./windowContext";
+import { currentWindowParams } from "./windowContext";
 
 /**
- * Unsaved work that a closing window would take with it (finding 2026-10-09).
+ * Unsaved work that would go with the window, or with the vault the window
+ * shows (finding 2026-10-09).
  *
  * The message composer asks before a changed draft is discarded — on Escape, on
- * its close button, on "Cancel". A composer in a window of its own has a fourth
- * way out, and so has every other client window that holds a floating one: the
- * window itself is closed, by its frame, Alt+F4 or Cmd/Ctrl+W. That close is
- * not this window's to decide. The central window created it and is the one
- * that destroys it (`openAuxWindow`), so a surface that holds unsaved work says
- * so HERE, and this module keeps the central window informed:
+ * its close button, on "Cancel". Two more ways to lose the draft do not come
+ * past the composer at all, because they take away what it stands on. A surface
+ * that holds unsaved work therefore says so HERE, and whoever is about to take
+ * the ground away asks here first.
+ *
+ * **The window is closed** — by its frame, Alt+F4 or Cmd/Ctrl+W. For a client
+ * window that close is not its own to decide. The central window created it
+ * and is the one that destroys it (`openAuxWindow`), so this module keeps the
+ * central window informed:
  *
  *  - while something is held, the central window knows (`window-close-hold`);
  *  - when a close is asked for, the central window asks back
@@ -26,9 +30,18 @@ import { currentWindowParams, isOwnerWindow } from "./windowContext";
  * or it is gone — is closed after a short wait, so nothing here can leave a
  * window that cannot be closed.
  *
- * The central window itself is not covered. Nobody created it and nobody is
- * asked when it closes: that is the app's own way out (or, with a tray icon, a
- * hide that loses nothing), and that way has no question on the phone either.
+ * **The window stops showing its vault** — it switches to another one, or
+ * closes the one it has. Everything under the vault's provider is torn down
+ * with it, the floating composer included, in the central window as in a full
+ * second one. That step is the window's own, so there is nobody to inform:
+ * whoever takes it puts the held questions first (`askHeldWork`, called from
+ * `AppContext`), and "cancel" leaves the vault and the composer as they are.
+ * This is why the central window holds its questions too.
+ *
+ * The central window's own CLOSE is still not covered. Nobody created it and
+ * nobody is asked when it closes: that is the app's own way out (or, with a
+ * tray icon, a hide that loses nothing), and that way has no question on the
+ * phone either. So it reports nothing and listens for nothing.
  */
 
 /** Puts the question to the person. Resolves true once the work may go. */
@@ -41,6 +54,8 @@ const held = new Set<CloseQuestion>();
 /** Set once the window may go for good: its work was sent, filed or given up. */
 let released = false;
 let asking = false;
+/** The questions as they are being put right now; whoever asks meanwhile joins it. */
+let round: Promise<boolean> | null = null;
 let listener: Promise<void> | null = null;
 
 const holdsWork = () => !released && held.size > 0;
@@ -73,6 +88,28 @@ async function closeThisWindow(): Promise<void> {
   }
 }
 
+/**
+ * Every held question, one after the other. Resolves true once all of the
+ * work may go, false at the first "cancel".
+ *
+ * One round at a time: a second reason to ask that turns up while a question
+ * stands — the window's close during a vault switch, or the other way round —
+ * gets the answer the person is already giving, not a dialog of its own.
+ */
+function putQuestions(): Promise<boolean> {
+  round ??= (async () => {
+    for (const question of [...held]) {
+      // Sent, filed or closed while an earlier question stood: nothing to ask.
+      if (!held.has(question)) continue;
+      if (!(await question())) return false;
+    }
+    return true;
+  })().finally(() => {
+    round = null;
+  });
+  return round;
+}
+
 /** A close was asked for while this window had said it holds unsaved work. */
 async function onCloseRequested(): Promise<void> {
   // The answer first: the central window waits for it before it decides.
@@ -80,9 +117,7 @@ async function onCloseRequested(): Promise<void> {
   if (!holdsWork() || asking) return;
   asking = true;
   try {
-    for (const question of [...held]) {
-      if (!(await question())) return;
-    }
+    if (!(await putQuestions())) return;
   } finally {
     asking = false;
   }
@@ -109,25 +144,45 @@ function ensureListener(label: string): void {
 }
 
 /**
- * Declares that this window holds work a close would lose, for as long as the
- * returned function has not been called. `question` is what the person is asked
- * when the window is about to close.
+ * Declares that this window holds work that would be lost with it, for as long
+ * as the returned function has not been called. `question` is what the person
+ * is asked when the window is about to close or to change its vault.
  *
  * Follows the phone's leave guard in spirit: a surface arms it while its work
  * is unsaved and disarms it the moment it is not — so an untouched surface
  * never asks.
  */
 export function holdWindowClose(question: CloseQuestion): () => void {
-  // The central window is never asked (see the head of this file).
-  if (isOwnerWindow()) return () => {};
+  // Only a window the central one created is asked back about its close (see
+  // the head of this file); the central window keeps the question for the
+  // steps it takes itself.
   const label = currentWindowParams().label;
-  if (!label) return () => {};
-  ensureListener(label);
+  if (label) ensureListener(label);
   held.add(question);
   if (held.size === 1) void report();
   return () => {
     if (held.delete(question) && held.size === 0) void report();
   };
+}
+
+/** True while a surface of this window has declared work that would be lost. */
+export function holdsUnsavedWork(): boolean {
+  return holdsWork();
+}
+
+/**
+ * Puts the held questions before a step that is this window's own to take and
+ * would tear down what the work stands on — the window is about to show
+ * another vault, or none. Resolves true when the work may go: nothing is held,
+ * or the person said to discard all of it. False means "cancel": the caller
+ * leaves everything as it is.
+ *
+ * With nothing held this does not wait for anything, so the step is not slowed
+ * down for the many times it is taken with no composer open. A caller for whom
+ * even a tick matters asks `holdsUnsavedWork()` first.
+ */
+export function askHeldWork(): Promise<boolean> {
+  return holdsWork() ? putQuestions() : Promise.resolve(true);
 }
 
 /**
@@ -147,5 +202,6 @@ export function resetWindowCloseGuardForTest(): void {
   held.clear();
   released = false;
   asking = false;
+  round = null;
   listener = null;
 }

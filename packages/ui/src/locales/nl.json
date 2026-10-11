@@ -4629,6 +4629,7 @@
     "ownerUnreachable": "Het hoofdvenster reageert niet.",
     "returnToMain": "Terug naar het hoofdvenster",
     "transferFailed": "De overdracht is niet voltooid. Het brontabblad en het concept blijven behouden.",
+    "transferBlockedByDraft": "Het tabblad is niet overgedragen: dit venster zou daarvoor van vault moeten wisselen, en hier staat een bericht met niet-opgeslagen invoer open.",
     "transferUnknown": "Het hoofdvenster heeft nog niet bevestigd. Je concept blijft hier; controleer de status opnieuw.",
     "transferPending": "Het tabblad wordt overgedragen. Het blijft hier open totdat het hoofdvenster de ontvangst bevestigt.",
     "transferCheck": "Status opnieuw controleren"

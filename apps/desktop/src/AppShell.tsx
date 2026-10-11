@@ -30,10 +30,8 @@ const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').th
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
-const MailDraftModal = lazy(() => import('./components/mail/MailDraftModal').then(m => ({ default: m.MailDraftModal })));
 const CommentsOverview = lazy(() => import('./components/comments/CommentsOverview').then(m => ({ default: m.CommentsOverview })));
 const JournalView = lazy(() => import('./components/journal/JournalView').then(m => ({ default: m.JournalView })));
-import type { MailAttachment } from "@plainva/ui/mail";
 const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
 const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, isVirtualPath } from "./components/graph/virtualPaths";
@@ -73,7 +71,6 @@ import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type Folde
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
 const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
-import { popOutCompose } from "./services/mail/composeWindow";
 import {
   openOrFocusContent,
   openPresetWindow,
@@ -147,9 +144,6 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // actually show sync state — the switcher cloud/error icon and the error
   // dialog — subscribe themselves as leaves (SyncSwitcherIcon / SyncErrorDialog
   // below), so a status flip re-renders only that icon, never the editor.
-  // Mail-raus (stage 6) / compose (mail-client E5): the dialog is prefilled
-  // from the active note, optionally with the note as an attachment.
-  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string } | null>(null);
   // Version history + deleted-files recovery (Gesamtplan Backups &
   // Versionierung, P5/P6), opened via window events from the file tree,
   // tab context menu and the settings section.
@@ -174,22 +168,15 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       const detail = (e as CustomEvent).detail as { forkId?: string; originalPath?: string; forkPath?: string } | undefined;
       if (detail?.forkId && detail.originalPath && detail.forkPath) setCompareTarget({ kind: "fork", forkId: detail.forkId, originalPath: detail.originalPath, forkPath: detail.forkPath });
     };
-    // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as attachment).
-    const onComposeMail = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string } | undefined;
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to });
-    };
     window.addEventListener("plainva-show-version-history", onShowVersions);
     window.addEventListener("plainva-show-deleted-files", onShowDeleted);
     window.addEventListener("plainva-resolve-conflict", onResolveConflict);
     window.addEventListener("plainva-compare-fork", onCompareFork);
-    window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => {
       window.removeEventListener("plainva-show-version-history", onShowVersions);
       window.removeEventListener("plainva-show-deleted-files", onShowDeleted);
       window.removeEventListener("plainva-resolve-conflict", onResolveConflict);
       window.removeEventListener("plainva-compare-fork", onCompareFork);
-      window.removeEventListener("plainva-compose-mail", onComposeMail);
     };
   }, []);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -1903,7 +1890,11 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
                 try {
                   const content = await vaultAdapter.readTextFile(p);
                   const title = (p.split("/").pop() ?? "").replace(/\.md$/i, "");
-                  setMailDraft({ subject: title, markdown: stripFrontmatter(content), to: frontmatterToAddress(content) ?? undefined });
+                  // The composer is hosted beside this shell (MailComposeHost), so
+                  // the palette asks for it the way the editor and the mail view do.
+                  window.dispatchEvent(new CustomEvent("plainva-compose-mail", {
+                    detail: { subject: title, markdown: stripFrontmatter(content), to: frontmatterToAddress(content) ?? undefined },
+                  }));
                 } catch (e) {
                   console.error("[App] draft prefill failed", e);
                 }
@@ -1914,18 +1905,6 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
       )}
       <Suspense fallback={null}>
         {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
-        {mailDraft && (
-          <Suspense fallback={null}>
-            <MailDraftModal
-              subject={mailDraft.subject}
-              markdown={mailDraft.markdown}
-              attachments={mailDraft.attachments}
-              initialTo={mailDraft.to}
-              onPopOut={vaultPath ? (snap) => void popOutCompose(vaultPath, snap) : undefined}
-              onClose={() => setMailDraft(null)}
-            />
-          </Suspense>
-        )}
         {showFindReplace && (
           <Suspense fallback={null}>
             <VaultFindReplaceModal onClose={() => setShowFindReplace(false)} onOpenPath={openInFocusedPane} />

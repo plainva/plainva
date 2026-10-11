@@ -25,7 +25,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 
 import { createWindowBus, OWNER_LABEL, setWindowBusForTest, type BusTransport, type WindowBus } from "./windowBus";
 import { resetWindowParamsForTest } from "./windowContext";
-import { holdWindowClose, releaseWindowClose, resetWindowCloseGuardForTest } from "./windowCloseGuard";
+import { askHeldWork, holdWindowClose, holdsUnsavedWork, releaseWindowClose, resetWindowCloseGuardForTest } from "./windowCloseGuard";
 
 function createWire() {
   const listeners = new Map<string, Set<{ label: string; fn: (p: unknown) => void }>>();
@@ -134,13 +134,118 @@ describe("holding work", () => {
     expect(told).toEqual([[LABEL, true], [LABEL, false], [LABEL, true]]);
   });
 
-  it("is nothing the central window does for itself: nobody asks it when it closes", async () => {
+  it("is nothing the central window reports: nobody asks it back when it closes", async () => {
     resetWindowParamsForTest("");
     const letGo = holdWindowClose(async () => true);
     await settle();
     letGo();
     await settle();
     expect(told).toEqual([]);
+  });
+});
+
+/**
+ * The other way a draft loses its ground (finding 2026-10-09): the window stops
+ * showing its vault. That is the window's own step, in the central window as
+ * in a full second one, so the questions are put here — nobody is told, and no
+ * window closes.
+ */
+describe("a step that takes the vault from under the work", () => {
+  it("waits for nothing while nothing is held", async () => {
+    expect(holdsUnsavedWork()).toBe(false);
+    // Resolved already: a vault switch with no composer open is not slowed down.
+    let answered = false;
+    void askHeldWork().then((go) => {
+      answered = go;
+    });
+    await Promise.resolve();
+    expect(answered).toBe(true);
+  });
+
+  it("puts the held question; Cancel keeps the work and the next step asks again", async () => {
+    const q = question();
+    holdWindowClose(q.asked);
+    expect(holdsUnsavedWork()).toBe(true);
+
+    const first = askHeldWork();
+    await settle();
+    expect(q.asked).toHaveBeenCalledTimes(1);
+    q.answer(false);
+    expect(await first).toBe(false);
+    expect(holdsUnsavedWork(), "Cancel: the work is still held").toBe(true);
+
+    const second = askHeldWork();
+    await settle();
+    expect(q.asked).toHaveBeenCalledTimes(2);
+    q.answer(true);
+    expect(await second).toBe(true);
+    // The step goes on; this window neither closes nor is done for good.
+    expect(os.closes).toBe(0);
+  });
+
+  it("is held in the central window too, which tells nobody about it", async () => {
+    resetWindowParamsForTest("");
+    const q = question();
+    const letGo = holdWindowClose(q.asked);
+    expect(holdsUnsavedWork()).toBe(true);
+    const asked = askHeldWork();
+    await settle();
+    expect(q.asked).toHaveBeenCalledTimes(1);
+    q.answer(true);
+    expect(await asked).toBe(true);
+    letGo();
+    await settle();
+    expect(holdsUnsavedWork()).toBe(false);
+    expect(told).toEqual([]);
+    expect(os.closes).toBe(0);
+  });
+
+  it("is one question when two steps want the answer at once", async () => {
+    const q = question();
+    holdWindowClose(q.asked);
+    const first = askHeldWork();
+    const second = askHeldWork();
+    await settle();
+    expect(q.asked).toHaveBeenCalledTimes(1);
+    q.answer(false);
+    expect(await Promise.all([first, second])).toEqual([false, false]);
+  });
+
+  it("joins the question a requested close is already asking, and the close goes on with its answer", async () => {
+    const q = question();
+    holdWindowClose(q.asked);
+    await settle();
+    await closeRequested();
+    const step = askHeldWork();
+    await settle();
+    expect(q.asked).toHaveBeenCalledTimes(1);
+    q.answer(true);
+    expect(await step).toBe(true);
+    await settle();
+    expect(os.closes, "the close that asked first still closes the window").toBe(1);
+  });
+
+  it("does not ask about work that was saved while an earlier question stood", async () => {
+    const first = question();
+    const second = question();
+    holdWindowClose(first.asked);
+    const secondSaved = holdWindowClose(second.asked);
+    const step = askHeldWork();
+    await settle();
+    expect(first.asked).toHaveBeenCalledTimes(1);
+    secondSaved();
+    first.answer(true);
+    expect(await step).toBe(true);
+    expect(second.asked).not.toHaveBeenCalled();
+  });
+
+  it("does not ask a window that is done with its work", async () => {
+    const q = question();
+    holdWindowClose(q.asked);
+    releaseWindowClose();
+    expect(holdsUnsavedWork()).toBe(false);
+    expect(await askHeldWork()).toBe(true);
+    expect(q.asked).not.toHaveBeenCalled();
   });
 });
 

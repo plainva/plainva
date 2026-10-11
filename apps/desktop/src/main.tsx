@@ -18,6 +18,7 @@ import { brokerTokenProvider, describeBrokerLookup } from "./services/accountBro
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
+import { MailComposeHost } from "./components/mail/MailComposeHost";
 import { ContextMenuHost } from "./components/ContextMenuHost";
 import { AppProvider, ClientAppProvider } from "./contexts/AppContext";
 import { ClientVaultHost, VaultHost } from "./contexts/VaultHost";
@@ -176,6 +177,10 @@ void i18nReady.then(async () => {
         <AppProvider>
           <VaultHost>
             <App />
+            {/* Beside the shell, not in it: `App` replaces the shell with the
+                loading screen whenever the vault is loaded again, and a
+                message being written must not go with it. */}
+            <MailComposeHost />
             <EncryptionUnlockHost />
           </VaultHost>
         </AppProvider>

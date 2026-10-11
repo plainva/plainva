@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-10-09
+Stan na: 2026-10-11
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -68,7 +68,7 @@ Kliknij prawym przyciskiem **E-mail** na pasku akcji, aby otworzyć skrzynkę we
 
 Podczas pisania ikona wysunięcia wynosi okno tworzenia wiadomości na zewnątrz — odbiorcy, temat, treść i załączniki wędrują razem z nim, łącznie z adresem, który dopiero co wpisałeś i jeszcze nie potwierdziłeś. **Wysyłanie nadal odbywa się w oknie głównym**: okno tworzenia wiadomości przekazuje wiadomość i się zamyka, a komunikat z przyciskiem **Cofnij** pojawia się tam, gdzie dalej pracujesz. Dzięki temu zamknięcie okna nigdy nie decyduje między wysłaniem a utratą.
 
-Okno tworzenia wiadomości **nie** jest przywracane przy następnym uruchomieniu — to, co w nim jest, żyje w pamięci. Dokończ więc dłuższą wiadomość albo zapisz ją jako szkic. Zamknięcie takiego okna ze zmienioną wiadomością najpierw zadaje to samo pytanie — tak samo jak zamknięcie każdego drugiego okna Plainva, w którym jest okno tworzenia wiadomości. Przy zamykaniu Plainva, przy przełączaniu vaultu i przy **Odbuduj indeks** pytania nie ma.
+Okno tworzenia wiadomości **nie** jest przywracane przy następnym uruchomieniu — to, co w nim jest, żyje w pamięci. Dokończ więc dłuższą wiadomość albo zapisz ją jako szkic. Zamknięcie takiego okna ze zmienioną wiadomością najpierw zadaje to samo pytanie — tak samo jak zamknięcie każdego drugiego okna Plainva, w którym jest okno tworzenia wiadomości. Także przełączenie vaultu albo jego zamknięcie najpierw zadaje to pytanie; **Anuluj** zostawia vault i wiadomość bez zmian. Gdy Plainva tylko wczytuje vault ponownie — przy **Odbuduj indeks od zera**, po zmianie hasła albo po połączeniu nowej synchronizacji — okno tworzenia wiadomości zostaje: nie widać go, dopóki vault się wczytuje, a potem jest z powrotem, ze wszystkim, co w nim było. Pytania nie ma tylko przy zamykaniu Plainva. Na telefonie Plainva zadaje to samo pytanie, zanim cokolwiek zdejmie z ekranu zmienioną wiadomość — strzałka wstecz i pasek, ale też **Wybierz vault** w arkuszu **Udostępniona zawartość** albo, na tablecie, notatka dotknięta w nawigatorze obok.
 
 ## Przekazanie notatki bez klienta pocztowego
 

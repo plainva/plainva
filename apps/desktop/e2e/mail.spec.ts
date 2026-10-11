@@ -74,7 +74,8 @@ test.beforeEach(async ({ page }) => {
         if (cmd === 'plugin:app|version') return '9.9.9';
         if (cmd === 'plugin:store|get') {
           if (args.key === 'lastVaultPath') return ['/test-vault', true];
-          if (args.key === 'recentVaults') return [['/test-vault'], true];
+          // A test that switches vaults names a second one to switch to.
+          if (args.key === 'recentVaults') return [(window as any).__recentVaults ?? ['/test-vault'], true];
           if (args.key === 'autoOpenLastVault') return [true, true];
           // Stage D remounts `App` when the shown vault arrives, which is when
           // the release dialog finally gets a vault to render over. A marker
@@ -1782,6 +1783,160 @@ test('multi-window P3: the composer pops out into its own window, losing nothing
   // NOT the content query an aux window carries: a draft is not vault content.
   expect(created.url).not.toContain('content=');
   await expect(page.getByTestId('draft-form')).toHaveCount(0);
+});
+
+/**
+ * The vault does not leave the window over a changed draft without the
+ * question (finding 2026-10-09).
+ *
+ * The composer floats beside the vault menu, and a draft belongs to the vault
+ * it was written in — its mailboxes are that vault's. Switching to another
+ * vault or closing this one tears down everything that stands on it, so both
+ * took the message along without a word. They ask now, with the composer's own
+ * question; "Cancel" leaves vault and composer as they are, and a composer
+ * nobody wrote in is no reason to ask.
+ */
+test('switching or closing the vault asks before it takes a changed draft along, and only then', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__recentVaults = ['/test-vault', '/second-vault'];
+    const fs = (window as any).mockFs;
+    fs['/second-vault'] = { isDir: true };
+    fs['/second-vault/.plainva'] = { isDir: true };
+    fs['/second-vault/Zweite.md'] = '# Zweite';
+  });
+  await openVault(page);
+
+  const form = page.getByTestId('draft-form');
+  const question = page.locator('.pv-overlay--dialog');
+  const answer = question.locator('.pv-modal-footer button');
+  const vaultLine = (name: string) => page.getByRole('button', { name, exact: true });
+  const vaultMenu = page.locator('.pv-menu');
+  const compose = (subject: string) =>
+    page.evaluate((s) => {
+      window.dispatchEvent(new CustomEvent('plainva-compose-mail', { detail: { subject: s, markdown: '', to: 'anna@example.org' } }));
+    }, subject);
+  /** Opens the vault line's menu and takes one of its entries. */
+  const fromVaultMenu = async (current: string, entry: RegExp) => {
+    await vaultLine(current).click();
+    await vaultMenu.getByRole('button', { name: entry }).click();
+  };
+  const SWITCH = /^(Vault wechseln|Switch Vault)$/;
+
+  await compose('Angebot');
+  await expect(form).toBeVisible();
+  await page.getByTestId('draft-subject').fill('Angebot, zweite Fassung');
+
+  // Another vault: the question comes first, and nothing has changed yet.
+  await fromVaultMenu('test-vault', /second-vault/);
+  await expect(question).toBeVisible();
+  await expect(form).toBeVisible();
+  await expect(vaultLine('test-vault')).toBeVisible();
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: test.info().outputPath('vault-switch-discard-question.png') });
+  }
+  await answer.first().click();
+  await expect(question).toHaveCount(0);
+  await expect(vaultLine('test-vault')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Angebot, zweite Fassung');
+
+  // Closing the vault ("Switch vault" leads back to the chooser): the same.
+  await fromVaultMenu('test-vault', SWITCH);
+  await expect(question).toBeVisible();
+  await answer.first().click();
+  await expect(question).toHaveCount(0);
+  await expect(vaultLine('test-vault')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Angebot, zweite Fassung');
+
+  // "Discard" is the answer that lets the vault go, and the draft with it.
+  await fromVaultMenu('test-vault', /second-vault/);
+  await answer.last().click();
+  await expect(vaultLine('second-vault')).toBeVisible({ timeout: 20000 });
+  await expect(form).toHaveCount(0);
+  await expect(question).toHaveCount(0);
+
+  // A composer nobody wrote in: the switch does not ask.
+  await compose('Unberührt');
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+  await fromVaultMenu('second-vault', /test-vault/);
+  await expect(vaultLine('test-vault')).toBeVisible({ timeout: 20000 });
+  await expect(question).toHaveCount(0);
+  await expect(form).toHaveCount(0);
+
+  // And no composer at all: closing the vault leads straight to the chooser.
+  await fromVaultMenu('test-vault', SWITCH);
+  await expect(page.getByRole('heading', { name: /Willkommen bei Plainva|Welcome to Plainva/ })).toBeVisible({ timeout: 20000 });
+  await expect(question).toHaveCount(0);
+});
+
+/**
+ * The composer outlives its vault being loaded again (finding 2026-10-09).
+ *
+ * The loading screen stands in place of the whole shell whenever the vault is
+ * reloaded — "Rebuild the index", but also saved credentials (a changed
+ * password, a different sync interval), locking or unlocking a workspace. The
+ * composer was part of that shell and went with it, without a word; and unlike
+ * a vault switch, most of these cannot be asked about first. So it does not
+ * ask: it is hosted beside the shell, waits while the vault loads, and stands
+ * there again with everything typed.
+ */
+test('the composer outlives the vault being loaded again: rebuilding the index, saved credentials', async ({ page }) => {
+  await openVault(page);
+  const form = page.getByTestId('draft-form');
+  const question = page.locator('.pv-overlay--dialog');
+  const tree = page.getByTestId('file-tree');
+  /** Marks the shell that is on screen now: a rebuilt shell does not carry the mark. */
+  const markShell = () => tree.evaluate((el) => el.setAttribute('data-shell-before', '1'));
+  const shellBefore = page.locator('[data-shell-before]');
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-compose-mail', { detail: { subject: 'Angebot', markdown: '', to: 'anna@example.org' } }));
+  });
+  await expect(form).toBeVisible();
+  await page.getByTestId('draft-subject').fill('Bleibt stehen');
+
+  // The palette is opened from the note, not from the composer's own field.
+  await tree.getByText('Todo').first().click();
+  await expect(page.locator('.cm-content').getByText('Some note content.').first()).toBeVisible();
+  await page.locator('.cm-content').filter({ hasText: 'Some note content.' }).first().focus();
+  await markShell();
+  await page.keyboard.press('Control+p');
+  const palette = page.getByTestId('command-palette');
+  await expect(palette).toBeVisible();
+  // The entry is triggered on the element, not by a pointer at its place: where
+  // the composer overlaps the palette's list it lies in front of it and would
+  // take the click. Which of the two is in front is not this test's question.
+  await palette.getByRole('button', { name: /Index vollständig neu aufbauen|Rebuild the index from scratch/ }).dispatchEvent('click');
+
+  // The shell was taken down and built again — that is what used to take the
+  // composer along …
+  await expect(page.getByText(/Index vollständig neu aufgebaut\.|Index rebuilt from scratch\./).first()).toBeVisible({ timeout: 20000 });
+  await expect(shellBefore).toHaveCount(0);
+  await expect(tree).toBeVisible();
+  // … and the composer stands there with what was typed. Nobody was asked.
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Bleibt stehen');
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+  await expect(question).toHaveCount(0);
+
+  // The reload nobody thinks of as one: credentials were saved. It cannot be
+  // asked about — they are saved by then — and loads the whole vault again.
+  await markShell();
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-credentials-saved', { detail: { isNewConnection: false } }));
+  });
+  await expect(shellBefore).toHaveCount(0, { timeout: 20000 });
+  await expect(tree.getByText('Todo').first()).toBeVisible({ timeout: 20000 });
+  await expect(form).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('Bleibt stehen');
+  await expect(question).toHaveCount(0);
+
+  // It is still the same draft: changed, so leaving it asks.
+  await page.getByTestId('draft-close').click();
+  await expect(question).toBeVisible();
+  await question.locator('.pv-modal-footer button').last().click();
+  await expect(form).toHaveCount(0);
 });
 
 /**

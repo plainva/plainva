@@ -4683,6 +4683,7 @@
     "ownerUnreachable": "La fenêtre principale ne répond pas.",
     "returnToMain": "Revenir à la fenêtre principale",
     "transferFailed": "Le transfert n’a pas abouti. L’onglet source et son brouillon sont conservés.",
+    "transferBlockedByDraft": "L’onglet n’a pas été transféré : cette fenêtre devrait changer de vault, et un message contenant une saisie non enregistrée y est ouvert.",
     "transferUnknown": "La fenêtre principale n’a pas encore confirmé. Votre brouillon reste ici ; vérifiez à nouveau l’état.",
     "transferPending": "Transfert de l’onglet. Il reste ouvert ici jusqu’à la confirmation de la fenêtre principale.",
     "transferCheck": "Vérifier à nouveau"

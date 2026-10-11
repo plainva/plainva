@@ -4683,6 +4683,7 @@
     "ownerUnreachable": "La ventana principal no responde.",
     "returnToMain": "Volver a la ventana principal",
     "transferFailed": "La transferencia no se completó. Se conservan la pestaña de origen y su borrador.",
+    "transferBlockedByDraft": "La pestaña no se ha transferido: esta ventana tendría que cambiar de vault y hay un mensaje abierto con datos sin guardar.",
     "transferUnknown": "La ventana principal aún no ha confirmado. El borrador permanece aquí; comprueba el estado de nuevo.",
     "transferPending": "Transfiriendo la pestaña. Permanecerá abierta aquí hasta que la ventana principal confirme la recepción.",
     "transferCheck": "Comprobar el estado"

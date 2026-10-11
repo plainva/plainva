@@ -1,6 +1,6 @@
 # Pierwsze kroki
 
-Stan na: 2026-10-06
+Stan na: 2026-10-11
 
 Ta strona prowadzi od instalacji do pierwszej realnej pracy: otwarcie lub utworzenie vaultu, poznanie interfejsu i zrozumienie trzech trybów edytora.
 
@@ -204,7 +204,7 @@ Prawy panel nie może zejść poniżej **200 px** — poniżej tej wartości ża
 
 ## Przenoszenie karty z powrotem
 
-W osobnym lub drugim pełnym oknie kliknij kartę prawym przyciskiem i wybierz **Wróć do głównego okna**. Tekst, zaznaczenie, widok, przewinięcie, historia i przypięcie zostają zachowane. Karta źródłowa zamyka się dopiero po potwierdzeniu. Bez potwierdzenia karta i szkic pozostają dostępne. Zakładki są aktualizowane we wszystkich oknach.
+W osobnym lub drugim pełnym oknie kliknij kartę prawym przyciskiem i wybierz **Wróć do głównego okna**. Tekst, zaznaczenie, widok, przewinięcie, historia i przypięcie zostają zachowane. Karta źródłowa zamyka się dopiero po potwierdzeniu. Bez potwierdzenia karta i szkic pozostają dostępne. Jeśli główne okno musiałoby w tym celu przełączyć vault, a jest w nim otwarta wiadomość z niezapisanymi danymi, nie przyjmuje karty: wychodzi na pierwszy plan i informuje o tym, a karta zostaje tam, gdzie jest. Zakładki są aktualizowane we wszystkich oknach.
 
 ## Zakładki folderów
 

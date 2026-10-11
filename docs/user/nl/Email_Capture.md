@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-10-09
+Laatst bijgewerkt: 2026-10-11
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -68,7 +68,7 @@ Rechtsklik op **E-mail** in de actiebalk om de mailbox in een eigen venster te o
 
 Tijdens het opstellen zet het uitklapicoon het opstelvenster om in een eigen venster — ontvangers, onderwerp, tekst en bijlagen gaan mee, ook een adres dat je net hebt getypt en nog niet hebt bevestigd. **Verzenden gebeurt nog steeds vanuit het hoofdvenster**: het opstelvenster draagt het bericht over en sluit, de melding met **Ongedaan maken** verschijnt waar je verder werkt. Zo bepaalt het sluiten van een venster nooit tussen versturen en verliezen.
 
-Een opstelvenster wordt bij de volgende start **niet** hersteld — wat erin staat, leeft in het geheugen. Maak een langer bericht dus af, of sla het op als concept. Sluit je zo'n venster met een gewijzigd bericht, dan komt eerst dezelfde vraag — net als bij elk tweede Plainva-venster waarin een opstelvenster ligt. Bij het afsluiten van Plainva, het wisselen van vault of **Index opnieuw opbouwen** wordt niets gevraagd.
+Een opstelvenster wordt bij de volgende start **niet** hersteld — wat erin staat, leeft in het geheugen. Maak een langer bericht dus af, of sla het op als concept. Sluit je zo'n venster met een gewijzigd bericht, dan komt eerst dezelfde vraag — net als bij elk tweede Plainva-venster waarin een opstelvenster ligt. Ook als je van vault wisselt of de vault sluit, komt eerst die vraag; **Annuleren** laat vault en bericht zoals ze zijn. Laadt Plainva de vault alleen opnieuw — bij **Index volledig opnieuw opbouwen**, na een gewijzigd wachtwoord of een nieuw verbonden synchronisatie —, dan blijft het opstelvenster bestaan: zolang de vault laadt is het niet te zien, daarna staat het er weer, met alles erin. Alleen bij het afsluiten van Plainva wordt niets gevraagd. Op de telefoon stelt Plainva dezelfde vraag voordat iets een gewijzigd bericht van het scherm haalt — de terugpijl en de balk, maar ook **Vault kiezen** onder **Gedeelde inhoud** of, op een tablet, een notitie die je in de navigator ernaast aantikt.
 
 ## Een notitie doorgeven zonder de mailclient
 

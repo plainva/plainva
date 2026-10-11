@@ -4575,6 +4575,7 @@
     "ownerUnreachable": "主窗口没有响应。",
     "returnToMain": "移回主窗口",
     "transferFailed": "转移未完成。原标签页及其草稿已保留。",
+    "transferBlockedByDraft": "标签页未转移：此窗口需要切换仓库，而这里有一封含未保存内容的邮件正在撰写。",
     "transferUnknown": "主窗口尚未确认。草稿仍保留在此处，请再次检查状态。",
     "transferPending": "正在转移标签页。主窗口确认接收之前，它将在此处保持打开。",
     "transferCheck": "再次检查状态"

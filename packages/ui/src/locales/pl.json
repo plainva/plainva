@@ -4737,6 +4737,7 @@
     "ownerUnreachable": "Główne okno nie odpowiada.",
     "returnToMain": "Wróć do głównego okna",
     "transferFailed": "Przenoszenie nie zostało ukończone. Karta źródłowa i jej szkic zostały zachowane.",
+    "transferBlockedByDraft": "Karta nie została przeniesiona: to okno musiałoby przełączyć vault, a jest tu otwarta wiadomość z niezapisanymi danymi.",
     "transferUnknown": "Główne okno jeszcze nie potwierdziło odbioru. Szkic pozostaje tutaj; sprawdź stan ponownie.",
     "transferPending": "Przenoszenie karty. Pozostanie otwarta tutaj, aż główne okno potwierdzi odbiór.",
     "transferCheck": "Sprawdź stan ponownie"

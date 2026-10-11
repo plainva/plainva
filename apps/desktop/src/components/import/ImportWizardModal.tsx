@@ -259,8 +259,10 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ targetVaul
       const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
       const res: unknown = await openDialog({ directory: true, multiple: false });
       if (typeof res === 'string' && res) {
-        await openVault(res);
-        onClose();
+        // Left where it is (a message with unsaved input was kept, or the
+        // folder overlaps a vault another window holds): the wizard stays, for
+        // nothing it was opened for has happened.
+        if (await openVault(res)) onClose();
       }
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : String(e));

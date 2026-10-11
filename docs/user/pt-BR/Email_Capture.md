@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-10-09
+Última revisão: 2026-10-11
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -68,7 +68,7 @@ Um clique com o botão direito em **E-mail** na barra de ações abre a caixa de
 
 Ao redigir, o ícone de destacar leva a janela de redação para uma janela própria — destinatários, assunto, corpo e anexos vão junto, inclusive um endereço que você acabou de digitar e ainda não confirmou. **O envio continua acontecendo na janela principal**: a janela de redação entrega a mensagem e fecha, e o aviso com **Desfazer** aparece onde você continua trabalhando. Assim, fechar uma janela nunca decide entre enviar e perder.
 
-Uma janela de redação **não** é restaurada na próxima inicialização — o que está nela vive na memória. Termine uma mensagem mais longa, então, ou salve-a como rascunho. Fechar uma janela assim com uma mensagem alterada faz primeiro a mesma pergunta, assim como fechar qualquer segunda janela do Plainva que contenha uma janela de redação. Ao sair do Plainva, trocar de vault ou usar **Reconstruir índice**, nada é perguntado.
+Uma janela de redação **não** é restaurada na próxima inicialização — o que está nela vive na memória. Termine uma mensagem mais longa, então, ou salve-a como rascunho. Fechar uma janela assim com uma mensagem alterada faz primeiro a mesma pergunta, assim como fechar qualquer segunda janela do Plainva que contenha uma janela de redação. Trocar de vault ou fechá-lo também faz primeiro essa pergunta; **Cancelar** deixa o vault e a mensagem como estão. Quando o Plainva apenas carrega o vault de novo — com **Reconstruir o índice do zero**, depois de uma senha alterada ou de uma sincronização recém-conectada —, a janela de redação permanece: ela não aparece enquanto o vault carrega e depois está de volta, com tudo o que havia nela. Só ao sair do Plainva nada é perguntado. No celular, o Plainva faz a mesma pergunta antes que algo tire da tela uma mensagem alterada — a seta de voltar e a barra, mas também **Escolher vault** em **Conteúdo compartilhado** ou, em um tablet, uma nota tocada no navegador ao lado.
 
 ## Entregar uma nota sem o cliente de e-mail
 

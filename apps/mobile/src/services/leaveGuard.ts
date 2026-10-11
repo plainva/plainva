@@ -46,14 +46,23 @@ export function activeLeaveGuard(): LeaveGuard | null {
  *
  * `confirm` is injected rather than imported so the decision stays testable
  * without a dialog host — and so the caller decides which dialog to use.
+ *
+ * `keepArmed` is for a step that may turn out not to leave after all (finding
+ * 2026-10-09): "new database" asks for a name next, and that prompt can be
+ * cancelled. "Discard" is consent to the step, not a statement that the work
+ * is gone — the surface is still on screen then, still holds its input, and
+ * the next way out has to ask again. With `keepArmed` the guard is left to the
+ * one thing that knows: the surface disarms it itself when it really goes
+ * (`useLeaveGuard`'s cleanup).
  */
 export async function confirmLeave(
   confirm: (message: string) => Promise<boolean>,
+  keepArmed = false,
 ): Promise<boolean> {
   const guard = current;
   if (!guard) return true;
   const ok = await confirm(guard.message);
-  if (ok) current = null;
+  if (ok && !keepArmed) current = null;
   return ok;
 }
 

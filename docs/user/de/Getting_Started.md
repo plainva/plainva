@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Stand: 2026-10-06
+Stand: 2026-10-11
 
 Diese Seite bringt Dich von der Installation zum ersten Arbeiten: Vault öffnen oder anlegen, die Oberfläche kennenlernen, die drei Editor-Modi verstehen.
 
@@ -204,7 +204,7 @@ Schmaler als **200 px** lässt sich die rechte Leiste nicht ziehen — darunter 
 
 ## Einen Tab zurückgeben
 
-Klicke in einem Nebenfenster oder zweiten Vollfenster mit rechts auf den Tab und wähle **Zurück ins Hauptfenster**. Plainva übernimmt Text, Auswahl, Ansicht, Scrollposition, Verlauf und Anheftung. Der Quelltab schließt erst nach bestätigter Übernahme. Ohne Bestätigung bleiben Tab und Entwurf erhalten. Lesezeichenänderungen erscheinen in allen Fenstern.
+Klicke in einem Nebenfenster oder zweiten Vollfenster mit rechts auf den Tab und wähle **Zurück ins Hauptfenster**. Plainva übernimmt Text, Auswahl, Ansicht, Scrollposition, Verlauf und Anheftung. Der Quelltab schließt erst nach bestätigter Übernahme. Ohne Bestätigung bleiben Tab und Entwurf erhalten. Müsste das Hauptfenster dafür den Vault wechseln, während dort eine Nachricht mit ungespeicherten Eingaben offen ist, übernimmt es den Tab nicht: Es kommt nach vorn und sagt, warum, und der Tab bleibt, wo er ist. Lesezeichenänderungen erscheinen in allen Fenstern.
 
 ## Ordner als Lesezeichen
 

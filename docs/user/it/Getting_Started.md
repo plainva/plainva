@@ -1,6 +1,6 @@
 # Per iniziare
 
-Ultimo aggiornamento: 2026-10-06
+Ultimo aggiornamento: 2026-10-11
 
 Questa pagina ti accompagna dall'installazione al tuo primo lavoro vero e proprio: aprire o creare un vault, conoscere l'interfaccia e capire le tre modalità dell'editor.
 
@@ -204,7 +204,7 @@ La barra laterale destra non può scendere sotto i **200 px** — nessuna sezion
 
 ## Riportare una scheda
 
-In una finestra separata o in una seconda finestra completa, fai clic destro sulla scheda e scegli **Torna alla finestra principale**. Testo, selezione, vista, scorrimento, cronologia e fissaggio vengono conservati. La scheda di origine si chiude solo dopo la conferma. Senza conferma, scheda e bozza rimangono disponibili. I segnalibri si aggiornano in tutte le finestre.
+In una finestra separata o in una seconda finestra completa, fai clic destro sulla scheda e scegli **Torna alla finestra principale**. Testo, selezione, vista, scorrimento, cronologia e fissaggio vengono conservati. La scheda di origine si chiude solo dopo la conferma. Senza conferma, scheda e bozza rimangono disponibili. Se la finestra principale dovesse cambiare vault mentre vi è aperto un messaggio con dati non salvati, non accetta la scheda: viene in primo piano e lo segnala, e la scheda resta dov’è. I segnalibri si aggiornano in tutte le finestre.
 
 ## Segnalibri di cartelle
 

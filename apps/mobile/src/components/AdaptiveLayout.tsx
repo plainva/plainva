@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { renderRoute, TAB_ROUTES, type RouteContext } from "../routes";
 import { SplitPlaceholder } from "./SplitPlaceholder";
+import { besideContext } from "../services/besideNav";
 import type { NavEntry, TabScreenId } from "../navigation";
 
 /**
@@ -29,7 +30,9 @@ export function AdaptiveLayout({
 }): ReactNode {
   return (
     <div className={`m-screen${twoColumn ? " m-screen--split" : ""}`}>
-      {twoColumn && <div className="m-col m-col--nav">{TAB_ROUTES.notes(ctx)}</div>}
+      {/* Beside the work, not on top of it: what the navigator opens takes the
+          surface in the work column off the screen, so it asks first. */}
+      {twoColumn && <div className="m-col m-col--nav">{TAB_ROUTES.notes(besideContext(ctx))}</div>}
       <div className={twoColumn ? "m-col m-col--work" : "m-col"}>
         {twoColumn && !top && activeTab === "notes" ? (
           <SplitPlaceholder onCreateNote={ctx.captureNote} />

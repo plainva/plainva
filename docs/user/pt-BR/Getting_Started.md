@@ -1,6 +1,6 @@
 # Primeiros Passos
 
-Última revisão: 2026-10-06
+Última revisão: 2026-10-11
 
 Esta página leva você da instalação ao primeiro trabalho de verdade: abrir ou criar um vault, conhecer a interface e entender os três modos do editor.
 
@@ -204,7 +204,7 @@ A barra lateral direita não pode ficar abaixo de **200 px** — nenhuma seção
 
 ## Devolver uma aba
 
-Em uma janela separada ou em uma segunda janela completa, clique com o botão direito na aba e escolha **Voltar à janela principal**. Texto, seleção, visualização, rolagem, histórico e fixação são mantidos. A aba de origem só fecha após a confirmação. Sem ela, a aba e o rascunho permanecem disponíveis. Os favoritos são atualizados em todas as janelas.
+Em uma janela separada ou em uma segunda janela completa, clique com o botão direito na aba e escolha **Voltar à janela principal**. Texto, seleção, visualização, rolagem, histórico e fixação são mantidos. A aba de origem só fecha após a confirmação. Sem ela, a aba e o rascunho permanecem disponíveis. Se a janela principal tivesse de trocar de vault enquanto há nela uma mensagem aberta com dados não salvos, ela não recebe a aba: vem para a frente e avisa, e a aba fica onde está. Os favoritos são atualizados em todas as janelas.
 
 ## Favoritos de pastas
 

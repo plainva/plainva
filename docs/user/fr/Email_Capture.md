@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-11
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -68,7 +68,7 @@ Faites un clic droit sur **E-mail** dans la barre d'actions pour ouvrir la boît
 
 Pendant la rédaction, l'icône de détachement en fait une fenêtre indépendante — destinataires, objet, corps et pièces jointes voyagent avec elle, y compris une adresse que vous venez de taper et n'avez pas encore validée. **L'envoi a toujours lieu dans la fenêtre principale** : la fenêtre de rédaction transmet le message et se ferme, et l'avis avec **Annuler** apparaît là où vous continuez à travailler. Ainsi, fermer une fenêtre ne décide jamais entre envoyer et perdre.
 
-Une fenêtre de rédaction n'est **pas** restaurée au démarrage suivant — ce qu'elle contient vit dans la mémoire. Terminez donc un message plus long, ou enregistrez-le comme brouillon. Fermer une telle fenêtre avec un message modifié pose d'abord la même question, tout comme fermer n'importe quelle deuxième fenêtre de Plainva qui contient une fenêtre de rédaction. Quitter Plainva, changer de vault ou lancer **Reconstruire l'index** ne demande rien.
+Une fenêtre de rédaction n'est **pas** restaurée au démarrage suivant — ce qu'elle contient vit dans la mémoire. Terminez donc un message plus long, ou enregistrez-le comme brouillon. Fermer une telle fenêtre avec un message modifié pose d'abord la même question, tout comme fermer n'importe quelle deuxième fenêtre de Plainva qui contient une fenêtre de rédaction. Changer de vault ou le fermer pose d'abord cette question, lui aussi ; **Annuler** laisse le vault et le message tels qu'ils sont. Quand Plainva ne fait que recharger le vault — avec **Reconstruire entièrement l'index**, après un mot de passe modifié ou une synchronisation nouvellement connectée —, la fenêtre de rédaction reste : elle n'est pas visible pendant le chargement du vault et revient ensuite avec tout son contenu. Seul le fait de quitter Plainva ne demande rien. Sur le téléphone, Plainva pose la même question avant que quoi que ce soit ne retire de l'écran un message modifié : la flèche de retour et la barre, mais aussi **Choisir un vault** dans **Contenu partagé** ou, sur une tablette, une note touchée dans le navigateur voisin.
 
 ## Transmettre une note sans le client de messagerie
 

@@ -4683,6 +4683,7 @@
     "ownerUnreachable": "A janela principal não responde.",
     "returnToMain": "Voltar à janela principal",
     "transferFailed": "A transferência não foi concluída. A aba de origem e seu rascunho foram mantidos.",
+    "transferBlockedByDraft": "A aba não foi transferida: esta janela teria de trocar de vault, e há uma mensagem aberta com dados não salvos.",
     "transferUnknown": "A janela principal ainda não confirmou. Seu rascunho continua aqui; verifique o status novamente.",
     "transferPending": "Transferindo a aba. Ela fica aberta aqui até a janela principal confirmar o recebimento.",
     "transferCheck": "Verificar o status"

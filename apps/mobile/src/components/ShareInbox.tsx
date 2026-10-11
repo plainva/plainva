@@ -11,10 +11,20 @@ import { appendPlannedJournalEntry, planSharedJournalEntry } from "../services/j
 import { vaultOps, type MobileVault } from "../services/vaultService";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
+import { leaveThen } from "../services/leaveQuestion";
 import { FolderPickerSheet } from "./FolderPickerSheet";
 import { SheetGrip } from "./SheetGrip";
 
-/** The native inbox owns waiting content; closing this surface only dismisses it. */
+/**
+ * The native inbox owns waiting content; closing this surface only dismisses it.
+ *
+ * It lies over whatever screen is open, and three of its ways on put another
+ * screen on top of that one: the vault list, the security settings, the note it
+ * has just filed. Only the screen on top is rendered — a message being written
+ * underneath was gone in that moment, unasked (finding 2026-10-09). Those three
+ * ask first (`leaveThen`), and the sheet closes only once the step is taken:
+ * "cancel" leaves the screen underneath AND this sheet as they are.
+ */
 export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImported, port = shareTarget }: {
   vault: MobileVault; vaultName: string; onChooseVault(): void; onUnlock(): void; onImported(path: string): void; port?: ShareTargetPort;
 }) {
@@ -105,7 +115,7 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
       // The note is the deliverable and exists; the provider copy is the
       // addition — same order and same reporting as every other way of creating a task.
       if (makesTask && taskTitle && providerList && atProvider) await sendTaskToProviderList(taskAdapter, taskDb, path, taskTitle).catch(() => toast.error(t("tasks.providerCreateFailed")));
-      toast.info(t("shareInbox.saved")); if (!controller.signal.aborted) onImported(path); await refresh();
+      toast.info(t("shareInbox.saved")); if (!controller.signal.aborted) leaveThen(() => onImported(path)); await refresh();
     } catch (failure) {
       if (controller.signal.aborted) return;
       const code = failure instanceof Error ? failure.message : "";
@@ -141,10 +151,10 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
           </div>
         )}
         <div className="m-btnrow">
-          <Button variant="ghost" disabled={busy} onClick={() => { close(); onChooseVault(); }}>{t("shareInbox.chooseVault")}</Button>
+          <Button variant="ghost" disabled={busy} onClick={() => leaveThen(() => { close(); onChooseVault(); })}>{t("shareInbox.chooseVault")}</Button>
           {!entry.plan && !asTask && !toJournal && <Button variant="ghost" disabled={busy || locked} onClick={() => setPickFolder(true)}><Folder size={ICON.ui} />{t("shareInbox.chooseFolder")}</Button>}
         </div>
-        {locked && <Banner kind="warning">{t("shareInbox.locked")} <Button variant="ghost" onClick={() => { close(); onUnlock(); }}>{t("workspaceSecurity.unlock")}</Button></Banner>}
+        {locked && <Banner kind="warning">{t("shareInbox.locked")} <Button variant="ghost" onClick={() => leaveThen(() => { close(); onUnlock(); })}>{t("workspaceSecurity.unlock")}</Button></Banner>}
         {entry.status !== "ready" && <Banner kind={entry.status === "failed" ? "error" : "info"}>{t(entry.status === "failed" ? "shareInbox.incomplete" : "shareInbox.receiving")}</Banner>}
         {error && <Banner kind="error">{error}</Banner>}
         {busy && <p className="m-hint" role="status">{progress || t("shareInbox.receiving")}</p>}

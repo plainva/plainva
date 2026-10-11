@@ -4629,6 +4629,7 @@
     "ownerUnreachable": "Das Hauptfenster antwortet nicht.",
     "returnToMain": "Zurück ins Hauptfenster",
     "transferFailed": "Die Übergabe wurde nicht abgeschlossen. Der Quelltab und sein Entwurf bleiben erhalten.",
+    "transferBlockedByDraft": "Der Tab wurde nicht übernommen: Dieses Fenster müsste dafür den Vault wechseln, und hier ist eine Nachricht mit ungespeicherten Eingaben offen.",
     "transferUnknown": "Das Hauptfenster hat noch nicht bestätigt. Dein Entwurf bleibt hier erhalten; prüfe den Status erneut.",
     "transferPending": "Der Tab wird übergeben. Er bleibt hier geöffnet, bis das Hauptfenster die Übernahme bestätigt.",
     "transferCheck": "Status erneut prüfen"

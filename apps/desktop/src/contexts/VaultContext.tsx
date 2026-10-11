@@ -162,7 +162,8 @@ export type PublicationCommentEntry = PublicationComment & { publicationName: st
 
 interface VaultContextType extends VaultState {
   selectVault: () => Promise<void>;
-  openVault: (path: string) => Promise<void>;
+  /** True once the window shows `path`; false when it was left where it is (`AppContext`). */
+  openVault: (path: string) => Promise<boolean>;
   /**
    * "Read the vault again" (P1): reconcile the index against the disk AND —
    * when the vault syncs — ask the cloud for a full listing. Returns the report

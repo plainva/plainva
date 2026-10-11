@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-11
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -68,7 +68,7 @@ Right-click **Email** in the ribbon to open the mailbox in a window of its own; 
 
 While composing, the pop-out icon lifts the composer into its own window — recipients, subject, body and attachments travel with it, including an address you have just typed and not yet confirmed. **Sending still happens in the main window**: the composer hands the message over and closes, and the notice with **Undo** appears where you keep working. That way closing a window never decides between sending and losing.
 
-A composer window is **not** restored on the next start — what it holds lives in memory. So finish a longer message, or save it as a draft. Closing such a window over a changed message asks the same question first, and so does closing any second Plainva window with a composer in it. Quitting Plainva, switching to another vault or **Rebuild index** does not ask.
+A composer window is **not** restored on the next start — what it holds lives in memory. So finish a longer message, or save it as a draft. Closing such a window over a changed message asks the same question first, and so does closing any second Plainva window with a composer in it. Switching to another vault, or closing the vault, asks that question first as well; **Cancel** leaves the vault and the message as they are. When Plainva only loads the vault again — **Rebuild the index from scratch**, a changed password, a newly connected sync — the composer stays: it is out of sight while the vault loads and stands there again afterwards, with everything in it. Only quitting Plainva does not ask. On the phone Plainva asks the same question before anything takes a changed message off the screen — the back arrow and the bar, but also **Choose vault** in **Shared content** or, on a tablet, a note tapped in the navigator beside it.
 
 ## Handing a note off without the mail client
 

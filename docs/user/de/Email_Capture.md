@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-10-09
+Stand: 2026-10-11
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -68,7 +68,7 @@ Ein Rechtsklick auf **E-Mail** in der Aktionsleiste öffnet das Postfach in eine
 
 Beim Verfassen löst das Ausklapp-Symbol das Verfassen-Fenster heraus — Empfänger, Betreff, Text und Anhänge wandern mit, auch eine Adresse, die Du gerade erst getippt und noch nicht bestätigt hast. **Gesendet wird weiterhin aus dem Hauptfenster**: Das Verfassen-Fenster übergibt die Nachricht und schließt, der Hinweis mit **Rückgängig** erscheint dort, wo Du weiterarbeitest. So entscheidet das Schließen eines Fensters nie zwischen Senden und Verlieren.
 
-Ein Verfassen-Fenster wird beim nächsten Start **nicht** wiederhergestellt — was darin steht, lebt im Arbeitsspeicher. Schreib eine längere Nachricht also zu Ende oder speichere sie als Entwurf. Schließt Du ein solches Fenster mit einer geänderten Nachricht, kommt zuerst dieselbe Frage — ebenso bei jedem zweiten Plainva-Fenster, in dem ein Verfassen-Fenster liegt. Beim Beenden von Plainva, beim Wechsel des Vaults und bei **Index neu aufbauen** wird nicht gefragt.
+Ein Verfassen-Fenster wird beim nächsten Start **nicht** wiederhergestellt — was darin steht, lebt im Arbeitsspeicher. Schreib eine längere Nachricht also zu Ende oder speichere sie als Entwurf. Schließt Du ein solches Fenster mit einer geänderten Nachricht, kommt zuerst dieselbe Frage — ebenso bei jedem zweiten Plainva-Fenster, in dem ein Verfassen-Fenster liegt. Auch wenn Du den Vault wechselst oder schließt, kommt zuerst diese Frage; **Abbrechen** lässt Vault und Nachricht, wie sie sind. Lädt Plainva den Vault nur neu — bei **Index vollständig neu aufbauen**, nach einem geänderten Passwort oder einer neu verbundenen Synchronisierung —, bleibt das Verfassen-Fenster erhalten: Solange der Vault lädt, ist es nicht zu sehen, danach steht es mit allem darin wieder da. Nur beim Beenden von Plainva wird nicht gefragt. Am Telefon stellt Plainva dieselbe Frage, bevor etwas eine geänderte Nachricht vom Bildschirm nimmt — der Zurück-Pfeil und die Leiste, aber auch **Vault wählen** unter **Geteilte Inhalte** oder, am Tablet, eine Notiz, die Du im Navigator daneben antippst.
 
 ## Eine Notiz ohne den Mail-Client weitergeben
 

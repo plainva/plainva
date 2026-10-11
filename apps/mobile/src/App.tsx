@@ -40,7 +40,7 @@ import { routeAppUrl } from "./services/appUrlRoutes";
 import { CloudFolderPickerSheet } from "./components/CloudFolderPickerSheet";
 import { App as CapApp } from "@capacitor/app";
 import { mActions, mPrompt } from "./services/mobileDialogs";
-import { askBeforeLeaving } from "./services/leaveQuestion";
+import { askBeforeLeaving, leaveThen } from "./services/leaveQuestion";
 import { createNavActions, restoreSession } from "./services/navActions";
 import { bindConflictStore } from "./services/conflictState";
 import { useNavPersistence } from "./services/sessionState";
@@ -272,7 +272,7 @@ export default function App() {
       const { path, vaultId } = (event as CustomEvent<{ path: string; vaultId: string }>).detail;
       if (barVaultRef.current !== vaultId) return;
       const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-      setNav(st => pushEntry(st, { kind: "folder", path: folder }));
+      leaveThen(() => setNav(st => pushEntry(st, { kind: "folder", path: folder })));
     };
     window.addEventListener("m-reveal-file", onRevealFile);
     window.addEventListener("m-vault-changed", onChanged);
@@ -400,7 +400,7 @@ export default function App() {
   // switch, so the timer is cancelled on pointerup/leave. Declared above the
   // early return: hooks must run in the same order on every render.
 
-  useCommentShell(vault, useCallback((entry) => setNav((s) => pushEntry(s, entry)), []));
+  useCommentShell(vault, useCallback((entry) => leaveThen(() => setNav((s) => pushEntry(s, entry))), []));
   if (!vault) return <div className="m-app" />;
 
   const top = navTop(nav);
@@ -455,12 +455,12 @@ export default function App() {
 
   const runPendingIntents = (
     <PendingIntentRunner
-      onCapture={capture}
+      onCapture={() => leaveThen(capture)}
       onNewTask={() => { requestNew("task"); void tabTapped("tasks", setNav); }}
       onJournal={() => setJournalCapture({ text: "" })}
-      onOpenCalendar={(focus) => setNav((n) => pushEntry(n, calendarEntry(focus)))}
-      onOpenNote={openNote}
-      onOpenToday={() => openDaily(journalTodayKey())}
+      onOpenCalendar={(focus) => leaveThen(() => setNav((n) => pushEntry(n, calendarEntry(focus))))}
+      onOpenNote={(path) => leaveThen(() => openNote(path))}
+      onOpenToday={() => leaveThen(() => openDaily(journalTodayKey()))}
       pendingShortcut={pendingShortcut}
       setPendingShortcut={setPendingShortcut}
     />
@@ -713,7 +713,7 @@ export default function App() {
           areasOpen={areasOpen}
           navCollapsed={navCollapsed}
           onOpenAreas={() => setAreasOpen(true)}
-          onOpenSettings={() => setNav((st) => pushEntry({ ...st, overlay: [] }, { kind: "settings", path: "" }))}
+          onOpenSettings={() => leaveThen(() => setNav((st) => pushEntry({ ...st, overlay: [] }, { kind: "settings", path: "" })))}
           onPick={(id) => void tabTapped(id, setNav)}
           onToggleNav={splitPossible ? toggleNav : undefined}
           tabs={slots}
@@ -736,7 +736,7 @@ export default function App() {
             setAreasOpen(false);
             // Straight to the setting that arranges the bar — noticing "this
             // should be in the bar" and fixing it is one tap apart.
-            setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "more", path: "" }));
+            leaveThen(() => setNav((s) => pushEntry({ ...s, overlay: [] }, { kind: "more", path: "" })));
           }}
           onClose={() => setAreasOpen(false)}
           onPick={(id) => {
@@ -744,11 +744,11 @@ export default function App() {
             haptics.light();
             // In the bar → switch tabs. Outside it → push the screen as an
             // overlay, so back returns to where the user came from.
-            setNav((s) =>
+            leaveThen(() => setNav((s) =>
               slots.includes(id)
                 ? tapTab(s, id)
                 : pushEntry({ ...s, overlay: [] }, SCREEN_ENTRY[id])
-            );
+            ));
           }}
         />
       )}

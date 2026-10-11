@@ -1,6 +1,6 @@
 # Primeros pasos
 
-Última actualización: 2026-10-06
+Última actualización: 2026-10-11
 
 Esta página te lleva desde la instalación hasta tu primer trabajo real: abrir o crear un vault, conocer la interfaz y entender los tres modos del editor.
 
@@ -204,7 +204,7 @@ La barra lateral derecha no puede bajar de **200 px** — ninguna sección es ut
 
 ## Devolver una pestaña
 
-En una ventana separada o en una segunda ventana completa, haz clic derecho en la pestaña y elige **Volver a la ventana principal**. Se conservan texto, selección, vista, desplazamiento, historial y fijación. La pestaña de origen solo se cierra tras la confirmación. Sin ella, se conservan la pestaña y el borrador. Los marcadores se actualizan en todas las ventanas.
+En una ventana separada o en una segunda ventana completa, haz clic derecho en la pestaña y elige **Volver a la ventana principal**. Se conservan texto, selección, vista, desplazamiento, historial y fijación. La pestaña de origen solo se cierra tras la confirmación. Sin ella, se conservan la pestaña y el borrador. Si la ventana principal tuviera que cambiar de vault mientras tiene abierto un mensaje con datos sin guardar, no acepta la pestaña: pasa al frente y lo indica, y la pestaña se queda donde está. Los marcadores se actualizan en todas las ventanas.
 
 ## Marcadores de carpetas
 

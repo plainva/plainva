@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import { pushEntry, type NavState } from "../navigation";
+import { leaveThen } from "../services/leaveQuestion";
 
 /**
  * Deep links from a notice into the screen that can act on it.
@@ -12,13 +13,17 @@ import { pushEntry, type NavState } from "../navigation";
  * can be set — a notice is worth little if the way to act on it has to be
  * searched for.
  *
+ * A notice can be tapped over ANY screen, also over one that holds unsaved
+ * input — a message being written, credentials typed into a form. The screen it
+ * opens takes that one off the screen, so it asks first (finding 2026-10-09).
+ *
  * In its own module rather than in App.tsx because App.tsx is under a shrinking
  * line budget: feature blocks belong in their own files.
  */
 export function useDeepLinkNav(setNav: (fn: (state: NavState) => NavState) => void): void {
   useEffect(() => {
-    const openSecurity = () => setNav((s) => pushEntry(s, { kind: "settingsArea", path: "security" }));
-    const openVault = () => setNav((s) => pushEntry(s, { kind: "vault", path: "" }));
+    const openSecurity = () => leaveThen(() => setNav((s) => pushEntry(s, { kind: "settingsArea", path: "security" })));
+    const openVault = () => leaveThen(() => setNav((s) => pushEntry(s, { kind: "vault", path: "" })));
     window.addEventListener("m-open-security", openSecurity);
     window.addEventListener("m-open-settings", openVault);
     return () => {

@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-10-09
+Última actualización: 2026-10-11
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -68,7 +68,7 @@ Haz clic derecho en **Correo** en la barra de acciones para abrir el buzón en u
 
 Mientras redactas, el icono de Abrir en su propia ventana saca la redacción a su propia ventana — destinatarios, asunto, cuerpo y adjuntos viajan con ella, incluida una dirección que acabas de escribir y aún no has confirmado. **El envío sigue ocurriendo en la ventana principal**: la ventana de redacción entrega el mensaje y se cierra, y el aviso con **Deshacer** aparece donde sigues trabajando. Así, cerrar una ventana nunca decide entre enviar y perder.
 
-Una ventana de redacción **no** se restaura al iniciar de nuevo — lo que contiene vive en memoria. Así que termina un mensaje largo, o guárdalo como borrador. Cerrar una ventana así con un mensaje cambiado hace primero la misma pregunta, igual que cerrar cualquier segunda ventana de Plainva que contenga una ventana de redacción. Al salir de Plainva, cambiar de vault o usar **Reconstruir índice** no se pregunta.
+Una ventana de redacción **no** se restaura al iniciar de nuevo — lo que contiene vive en memoria. Así que termina un mensaje largo, o guárdalo como borrador. Cerrar una ventana así con un mensaje cambiado hace primero la misma pregunta, igual que cerrar cualquier segunda ventana de Plainva que contenga una ventana de redacción. Cambiar de vault o cerrarlo también hace primero esa pregunta; **Cancelar** deja el vault y el mensaje como están. Cuando Plainva solo vuelve a cargar el vault — con **Reconstruir el índice por completo**, tras cambiar una contraseña o conectar una sincronización nueva —, la ventana de redacción se conserva: no se ve mientras el vault se carga y después vuelve a estar ahí, con todo su contenido. Solo al salir de Plainva no se pregunta. En el teléfono, Plainva hace la misma pregunta antes de que algo quite de la pantalla un mensaje cambiado: la flecha de retroceso y la barra, pero también **Elegir vault** en **Contenido compartido** o, en una tableta, una nota que toques en el navegador de al lado.
 
 ## Entregar una nota sin el cliente de correo
 

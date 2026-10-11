@@ -452,8 +452,10 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
 
   const requireWorkspace = async (action: () => void | Promise<void>, allowUnconfigured = false): Promise<void> => {
     if (!isActiveVault) {
-      await openVault(selectedVault);
-      toast.info(t("workspaceSecurity.vaultOpenedContinue", { defaultValue: "Vault opened. Choose the action again to continue." }));
+      // "Vault opened" only when it was: the person may have kept a message
+      // with unsaved input, and then this window still shows the other vault.
+      const opened = await openVault(selectedVault);
+      if (opened) toast.info(t("workspaceSecurity.vaultOpenedContinue", { defaultValue: "Vault opened. Choose the action again to continue." }));
       return;
     }
     if (!hasSyncConnection) {

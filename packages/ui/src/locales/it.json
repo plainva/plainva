@@ -4683,6 +4683,7 @@
     "ownerUnreachable": "La finestra principale non risponde.",
     "returnToMain": "Torna alla finestra principale",
     "transferFailed": "Il trasferimento non è stato completato. La scheda di origine e la bozza vengono conservate.",
+    "transferBlockedByDraft": "La scheda non è stata trasferita: questa finestra dovrebbe cambiare vault, e qui è aperto un messaggio con dati non salvati.",
     "transferUnknown": "La finestra principale non ha ancora confermato. La bozza rimane qui; verifica nuovamente lo stato.",
     "transferPending": "Trasferimento della scheda. Rimane aperta qui fino alla conferma della finestra principale.",
     "transferCheck": "Verifica lo stato"

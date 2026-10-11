@@ -49,16 +49,17 @@ import { createTaskInDatabase } from "../../services/taskPromotion";
 import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
 
 /**
- * Opens the composer — the one the window's shell hosts, through the event the
+ * Opens the composer — the one the window hosts, through the event the
  * editor's "send this note" already uses (finding 2026-10-09).
  *
  * This view used to render a composer of its own. The composer is a floating
  * window to work BESIDE, and the view is a tab: opening a note to look
  * something up replaced the tab, the view was unmounted, and the composer went
  * with it — a written message gone without a word, on the one route that asks
- * nobody. Every shell that shows this view answers the event (the central and
- * the full window in AppShell, an auxiliary window through `useAuxBridge`), so
- * the draft now lives where no tab can take it away.
+ * nobody. Every window that shows this view answers the event (the central and
+ * the full window in `MailComposeHost`, beside their shell; an auxiliary window
+ * through `useAuxBridge`), so the draft now lives where no tab can take it
+ * away — and, in the first two, no reload of the vault either.
  */
 function composeMail(draft: { subject: string; markdown: string; to?: string }): void {
   window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: draft }));

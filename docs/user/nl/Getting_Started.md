@@ -1,6 +1,6 @@
 # Aan de slag
 
-Laatst bijgewerkt: 2026-10-06
+Laatst bijgewerkt: 2026-10-11
 
 Deze pagina brengt je van de installatie naar je eerste echte werk: een vault openen of aanmaken, de interface leren kennen en de drie editormodi begrijpen.
 
@@ -204,7 +204,7 @@ De rechterzijbalk kan niet onder **200 px** komen — geen enkele sectie is daar
 
 ## Een tabblad terugplaatsen
 
-Klik in een apart of tweede volledig venster met rechts op het tabblad en kies **Terug naar het hoofdvenster**. Tekst, selectie, weergave, scrollpositie, geschiedenis en vastzetten blijven behouden. Het brontabblad sluit pas na bevestiging. Zonder bevestiging blijven tabblad en concept beschikbaar. Wijzigingen in bladwijzers verschijnen in alle vensters.
+Klik in een apart of tweede volledig venster met rechts op het tabblad en kies **Terug naar het hoofdvenster**. Tekst, selectie, weergave, scrollpositie, geschiedenis en vastzetten blijven behouden. Het brontabblad sluit pas na bevestiging. Zonder bevestiging blijven tabblad en concept beschikbaar. Zou het hoofdvenster daarvoor van vault moeten wisselen terwijl daar een bericht met niet-opgeslagen invoer openstaat, dan neemt het het tabblad niet over: het komt naar voren en meldt dat, en het tabblad blijft waar het is. Wijzigingen in bladwijzers verschijnen in alle vensters.
 
 ## Mapbladwijzers
 

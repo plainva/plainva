@@ -1,6 +1,6 @@
 # Prise en main
 
-Dernière mise à jour : 2026-10-06
+Dernière mise à jour : 2026-10-11
 
 Cette page vous accompagne de l'installation à votre premier vrai travail : ouvrir ou créer un vault, découvrir l'interface et comprendre les trois modes de l'éditeur.
 
@@ -204,7 +204,7 @@ La barre latérale droite ne peut pas descendre en dessous de **200 px** — auc
 
 ## Renvoyer un onglet
 
-Dans une fenêtre séparée ou une seconde fenêtre complète, faites un clic droit sur l’onglet et choisissez **Revenir à la fenêtre principale**. Le texte, la sélection, la vue, le défilement, l’historique et l’épinglage sont conservés. L’onglet source ne se ferme qu’après confirmation. Sans confirmation, l’onglet et le brouillon restent disponibles. Les favoris sont actualisés dans toutes les fenêtres.
+Dans une fenêtre séparée ou une seconde fenêtre complète, faites un clic droit sur l’onglet et choisissez **Revenir à la fenêtre principale**. Le texte, la sélection, la vue, le défilement, l’historique et l’épinglage sont conservés. L’onglet source ne se ferme qu’après confirmation. Sans confirmation, l’onglet et le brouillon restent disponibles. Si la fenêtre principale devait changer de vault alors qu’un message contenant une saisie non enregistrée y est ouvert, elle ne reprend pas l’onglet : elle passe au premier plan et l’indique, et l’onglet reste où il est. Les favoris sont actualisés dans toutes les fenêtres.
 
 ## Favoris de dossiers
 
