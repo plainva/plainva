@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-09
+Ultimo aggiornamento: 2026-10-11
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -43,7 +43,7 @@ Su uno schermo largo (un tablet a partire da 1024 px) quel pannello può restare
 
 I modelli funzionano esattamente come sul desktop: i segnaposto (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) vengono compilati quando la nota viene creata, **tutte** le domande di un modello arrivano insieme in **un unico** foglio — annullalo e non viene creato nulla — e `{{cursor}}` posiziona il cursore non appena la nota si apre.
 
-Le regole **cartella → modello** e **tipo di nota → modello** si impostano sul desktop; viaggiano con la sincronizzazione delle impostazioni e si applicano anche qui — quindi una nota in `Projekte/` inizia allo stesso modo su entrambi i dispositivi, inclusa la cattura con `＋` e con **+ Voce** in un database. Due dettagli: `{{weekday:…}}` conta sempre a partire da lunedì sul telefono (l'impostazione del primo giorno della settimana non esiste ancora lì), e `{{clipboard}}` chiede il contenuto degli appunti nello stesso foglio, invece di leggerlo senza chiedere. L'elenco completo dei segnaposto è in [Note e Markdown](Notes_and_Markdown.md).
+Le regole **cartella → modello** e **tipo di nota → modello** si impostano anche sul telefono: in **Impostazioni → Contenuto e struttura**, sotto **Modelli per cartella** e **Modelli per tipo di nota**. Viaggiano con la sincronizzazione delle impostazioni e si applicano anche sugli altri tuoi dispositivi — quindi una nota in `Projekte/` inizia allo stesso modo su entrambi i dispositivi, inclusa la cattura con `＋` e con **+ Voce** in un database. Due dettagli: `{{weekday:…}}` segue l'impostazione **Inizio settimana** in **Impostazioni → Aspetto** (ogni dispositivo conserva la propria), e `{{clipboard}}` chiede il contenuto degli appunti nello stesso foglio, invece di leggerlo senza chiedere. L'elenco completo dei segnaposto è in [Note e Markdown](Notes_and_Markdown.md).
 
 ## Database (`.base`)
 

@@ -1,6 +1,6 @@
 # Die mobile App
 
-Stand: 2026-10-09
+Stand: 2026-10-11
 
 Plainva gibt es auch als App für Android und iOS. Sie arbeitet mit denselben Markdown-Dateien, demselben **OKF**-Format und derselben Sync-Technik wie die Desktop-App — Dein Vault bleibt in beiden Welten identisch.
 
@@ -43,7 +43,7 @@ Auf einem breiten Bildschirm (Tablet ab 1024 px) kann dieses Blatt als **dritte 
 
 Vorlagen wirken auf dem Telefon genauso wie am Desktop: Die Platzhalter (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) werden beim Anlegen ersetzt, **alle** Fragen einer Vorlage erscheinen zusammen in **einem** Blatt — brichst Du es ab, entsteht nichts — und `{{cursor}}` setzt die Schreibmarke, sobald die Notiz aufgeht.
 
-Die Zuordnungen **Ordner → Vorlage** und **Notiztyp → Vorlage** legst Du am Desktop fest; sie reisen über die Einstellungs-Synchronisation mit und greifen hier ebenso — eine Notiz in `Projekte/` beginnt also auf beiden Geräten gleich, auch beim `＋`-Erfassen und bei **+ Eintrag** in einer Datenbank. Zwei Feinheiten: `{{weekday:…}}` rechnet auf dem Telefon immer ab Montag (der Wochenbeginn kommt aus **Erscheinungsbild**), und `{{clipboard}}` fragt den Inhalt der Zwischenablage im selben Blatt ab, statt ihn ungefragt zu lesen. Alle Platzhalter stehen in [Notizen und Markdown](Notes_and_Markdown.md).
+Die Zuordnungen **Ordner → Vorlage** und **Notiztyp → Vorlage** legst Du auch am Telefon fest: unter **Einstellungen → Inhalt & Struktur**, in **Vorlagen je Ordner** und **Vorlagen je Notiztyp**. Sie reisen über die Einstellungs-Synchronisation mit und greifen auf Deinen anderen Geräten ebenso — eine Notiz in `Projekte/` beginnt also auf beiden Geräten gleich, auch beim `＋`-Erfassen und bei **+ Eintrag** in einer Datenbank. Zwei Feinheiten: `{{weekday:…}}` richtet sich nach **Wochenbeginn** unter **Einstellungen → Erscheinungsbild** (die Einstellung gilt je Gerät), und `{{clipboard}}` fragt den Inhalt der Zwischenablage im selben Blatt ab, statt ihn ungefragt zu lesen. Alle Platzhalter stehen in [Notizen und Markdown](Notes_and_Markdown.md).
 
 ## Datenbanken (`.base`)
 

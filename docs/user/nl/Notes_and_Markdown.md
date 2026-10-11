@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-10-09
+Laatst bijgewerkt: 2026-10-11
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -125,7 +125,7 @@ Stel een **Sjablonenmap** in onder **Instellingen → Vault → Inhoud en struct
 
 Als een sjabloon iets vraagt, stelt Plainva **alle** vragen in één dialoogvenster, voordat de notitie wordt geschreven — of je nu invoegt of aanmaakt; annuleren maakt niets aan. Alleen bij notities die op de achtergrond ontstaan (bijvoorbeeld bij het synchroniseren van taken) wordt nooit iets gevraagd: daar blijven de antwoorden leeg. Een plaatshouder die Plainva niet kent, blijft zichtbaar staan — zo ziet een typefout eruit als een typefout.
 
-**Op de telefoon** werkt dezelfde engine: de plaatshouders worden ingevuld, de vragen van een sjabloon verschijnen samen in één blad (annuleren maakt niets aan), en de koppelingen map → sjabloon en notitietype → sjabloon gelden ook daar — een notitie in `Projekte/` begint dus op beide apparaten hetzelfde. Twee verschillen: de koppelingen worden op de desktop gemaakt (de telefoon past de regels alleen toe), en `{{weekday:…}}` rekent daar altijd vanaf maandag, omdat de instelling voor het begin van de week op mobiel nog niet bestaat.
+**Op de telefoon** werkt dezelfde engine: de plaatshouders worden ingevuld, de vragen van een sjabloon verschijnen samen in één blad (annuleren maakt niets aan), en de koppelingen map → sjabloon en notitietype → sjabloon gelden ook daar — een notitie in `Projekte/` begint dus op beide apparaten hetzelfde. De koppelingen kun je ook op de telefoon maken (**Instellingen → Inhoud en structuur**), en `{{weekday:…}}` volgt daar de instelling **Week begint op** onder **Instellingen → Weergave**; elk apparaat heeft zijn eigen instelling.
 
 **Instellingen die alleen voor het sjabloon gelden**: een sjabloon kan instellingen dragen die alleen op het sjabloon zelf slaan — dat zijn taken buiten het **Taken**-overzicht blijven, of bij welke databases het hoort. Een notitie die eruit ontstaat erft ze niet. Zeer oude dagelijkse notities kunnen ze nog dragen; de [FAQ](FAQ.md) legt uit hoe je ze vindt.
 

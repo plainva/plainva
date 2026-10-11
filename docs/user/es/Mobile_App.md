@@ -1,6 +1,6 @@
 # La aplicación móvil
 
-Última actualización: 2026-10-09
+Última actualización: 2026-10-11
 
 Plainva también está disponible como aplicación para Android e iOS. Funciona sobre los mismos archivos Markdown, el mismo formato **OKF** y el mismo motor de sincronización que la aplicación de escritorio — tu bóveda se mantiene idéntica en ambos mundos.
 
@@ -43,7 +43,7 @@ En una pantalla ancha (una tableta a partir de 1024 px) esa ficha puede permanec
 
 Las plantillas se comportan exactamente igual que en el escritorio: los marcadores de posición (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) se rellenan al crear la nota, **todas** las preguntas de una plantilla llegan juntas en **una sola** hoja — cancelarla no crea nada — y `{{cursor}}` coloca el cursor al abrirse la nota.
 
-Las reglas **carpeta → plantilla** y **tipo de nota → plantilla** se definen en el escritorio; viajan con la sincronización de ajustes y también se aplican aquí — de modo que una nota en `Projekte/` empieza igual en ambos dispositivos, incluida la captura con `＋` y **+ Entrada** en una base de datos. Dos detalles: `{{weekday:…}}` siempre cuenta desde el lunes en el teléfono (el inicio de semana viene de **Apariencia**), y `{{clipboard}}` pide el contenido del portapapeles en la misma hoja en lugar de leerlo sin preguntar. La lista completa de marcadores de posición está en [Notas y Markdown](Notes_and_Markdown.md).
+Las reglas **carpeta → plantilla** y **tipo de nota → plantilla** también se definen en el teléfono: en **Ajustes → Contenido y estructura**, en **Plantillas por carpeta** y **Plantillas por tipo de nota**. Viajan con la sincronización de ajustes y se aplican igualmente en tus otros dispositivos — de modo que una nota en `Projekte/` empieza igual en ambos dispositivos, incluida la captura con `＋` y **+ Entrada** en una base de datos. Dos detalles: `{{weekday:…}}` sigue el ajuste **Inicio de semana** de **Ajustes → Apariencia** (cada dispositivo conserva el suyo), y `{{clipboard}}` pide el contenido del portapapeles en la misma hoja en lugar de leerlo sin preguntar. La lista completa de marcadores de posición está en [Notas y Markdown](Notes_and_Markdown.md).
 
 ## Bases de datos (`.base`)
 

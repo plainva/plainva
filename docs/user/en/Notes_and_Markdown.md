@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Last updated: 2026-10-09
+Last updated: 2026-10-11
 
 Every note in Plainva is an ordinary Markdown file (`.md`). This page explains how to write comfortably and what actually ends up in the file — because that is exactly what makes your notes portable: any text editor, Obsidian, or a git diff can read them.
 
@@ -125,7 +125,7 @@ Set a **Template Folder** under **Settings → Vault → Content & structure** (
 
 When a template asks something, Plainva asks **everything** in one dialog before the note is written — whether you insert or create; cancelling creates nothing. Only notes created in the background (the task sync, for instance) are never asked about: there the answers stay empty. A placeholder Plainva does not know stays visible — so a typo looks like a typo.
 
-**On the phone** the same engine runs: placeholders are filled in, a template's questions arrive together in one sheet (cancelling creates nothing), and the folder → template and note type → template rules apply there as well — so a note in `Projekte/` starts the same way on both devices. Two differences: the rules are authored on the desktop (the phone only applies them), and `{{weekday:…}}` always counts from Monday there, because the first-day-of-week setting does not exist on mobile yet.
+**On the phone** the same engine runs: placeholders are filled in, a template's questions arrive together in one sheet (cancelling creates nothing), and the folder → template and note type → template rules apply there as well — so a note in `Projekte/` starts the same way on both devices. The rules can be set on the phone too (**Settings → Content & structure**), and `{{weekday:…}}` follows **Week starts on** under **Settings → Appearance** there; each device keeps its own setting.
 
 **Template-only settings**: a template can carry settings that apply to the template itself — that its tasks stay out of the **Tasks** view, or which databases it belongs to. A note created from it does not inherit them. Very old daily notes may still carry them; the [FAQ](FAQ.md) explains how to find them.
 

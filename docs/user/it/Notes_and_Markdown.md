@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-10-09
+Ultimo aggiornamento: 2026-10-11
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -125,7 +125,7 @@ Imposta una **Cartella dei modelli** in **Impostazioni → Vault → Contenuto e
 
 Quando un modello chiede qualcosa, Plainva pone **tutte** le domande in un unico dialogo prima che la nota venga scritta — sia che tu inserisca sia che tu crei; annullare non crea nulla. Solo per le note create in background (per esempio nella sincronizzazione delle attività) non viene chiesto nulla: lì le risposte restano vuote. Un segnaposto che Plainva non conosce resta visibile — così un errore di battitura sembra un errore di battitura.
 
-**Sul telefono** funziona lo stesso motore: i segnaposto vengono compilati, le domande di un modello arrivano insieme in un unico foglio (annullare non crea nulla), e le regole cartella → modello e tipo di nota → modello si applicano anche lì — quindi una nota in `Projekte/` inizia allo stesso modo su entrambi i dispositivi. Due differenze: le regole si definiscono sul desktop (il telefono le applica soltanto), e lì `{{weekday:…}}` calcola sempre a partire da lunedì, perché l'impostazione del primo giorno della settimana non esiste ancora su mobile.
+**Sul telefono** funziona lo stesso motore: i segnaposto vengono compilati, le domande di un modello arrivano insieme in un unico foglio (annullare non crea nulla), e le regole cartella → modello e tipo di nota → modello si applicano anche lì — quindi una nota in `Projekte/` inizia allo stesso modo su entrambi i dispositivi. Le regole si possono definire anche sul telefono (**Impostazioni → Contenuto e struttura**), e lì `{{weekday:…}}` segue l'impostazione **Inizio settimana** in **Impostazioni → Aspetto**; ogni dispositivo conserva la propria.
 
 **Impostazioni proprie del modello**: un modello può portare impostazioni valide solo per sé — che le sue attività restino fuori dalla vista **Attività**, o a quali database appartiene. Una nota creata da esso non le eredita. Le note giornaliere molto vecchie possono ancora portarle; le [FAQ](FAQ.md) spiegano come trovarle.
 

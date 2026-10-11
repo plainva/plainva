@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-10-09
+Última atualização: 2026-10-11
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -43,7 +43,7 @@ Em uma tela larga (um tablet a partir de 1024 px) esse painel pode ficar aberto 
 
 Os modelos funcionam exatamente como no desktop: os placeholders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) são preenchidos quando a nota é criada, **todas** as perguntas de um modelo chegam juntas em **uma** folha — cancele e nada é criado — e `{{cursor}}` posiciona o cursor assim que a nota é aberta.
 
-As regras **pasta → modelo** e **tipo de nota → modelo** são definidas no desktop; elas viajam com a sincronização de configurações e também valem aqui — então uma nota em `Projekte/` começa da mesma forma nos dois dispositivos, inclusive na captura pelo `＋` e em **+ Entrada** num banco de dados. Dois detalhes: `{{weekday:…}}` sempre conta a partir de segunda-feira no celular (o início da semana vem de **Aparência**), e `{{clipboard}}` pergunta o conteúdo da área de transferência na mesma folha, em vez de lê-lo sem perguntar. A lista completa de placeholders está em [Notas & Markdown](Notes_and_Markdown.md).
+As regras **pasta → modelo** e **tipo de nota → modelo** também são definidas no celular: em **Configurações → Conteúdo e estrutura**, em **Modelos por pasta** e **Modelos por tipo de nota**. Elas viajam com a sincronização de configurações e também valem nos seus outros dispositivos — então uma nota em `Projekte/` começa da mesma forma nos dois dispositivos, inclusive na captura pelo `＋` e em **+ Entrada** num banco de dados. Dois detalhes: `{{weekday:…}}` segue a configuração **Início da semana** em **Configurações → Aparência** (cada dispositivo mantém a sua), e `{{clipboard}}` pergunta o conteúdo da área de transferência na mesma folha, em vez de lê-lo sem perguntar. A lista completa de placeholders está em [Notas & Markdown](Notes_and_Markdown.md).
 
 ## Bancos de dados (`.base`)
 

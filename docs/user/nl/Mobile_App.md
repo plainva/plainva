@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-10-09
+Laatst bijgewerkt: 2026-10-11
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -43,7 +43,7 @@ Op een breed scherm (een tablet vanaf 1024 px) kan die kaart als **derde kolom**
 
 Sjablonen werken op de telefoon precies zoals op de desktop: de plaatshouders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) worden ingevuld zodra de notitie wordt aangemaakt, **alle** vragen van een sjabloon verschijnen samen in **één** blad — annuleer je het, dan wordt er niets aangemaakt — en `{{cursor}}` plaatst de cursor zodra de notitie opengaat.
 
-De koppelingen **map → sjabloon** en **notitietype → sjabloon** stel je in op de desktop; ze reizen mee via de instellingensynchronisatie en gelden ook hier — een notitie in `Projekte/` begint dus op beide apparaten hetzelfde, ook bij snelle `＋`-notities en bij **+ Item** in een database. Twee bijzonderheden: `{{weekday:…}}` rekent op de telefoon altijd vanaf maandag (de instelling voor het begin van de week bestaat daar nog niet), en `{{clipboard}}` vraagt in hetzelfde blad om de inhoud van het klembord, in plaats van hem ongevraagd te lezen. Alle plaatshouders staan in [Notities & Markdown](Notes_and_Markdown.md).
+De koppelingen **map → sjabloon** en **notitietype → sjabloon** stel je ook op de telefoon in: onder **Instellingen → Inhoud en structuur**, bij **Sjablonen per map** en **Sjablonen per notitietype**. Ze reizen mee via de instellingensynchronisatie en gelden ook op je andere apparaten — een notitie in `Projekte/` begint dus op beide apparaten hetzelfde, ook bij snelle `＋`-notities en bij **+ Item** in een database. Twee bijzonderheden: `{{weekday:…}}` volgt de instelling **Week begint op** onder **Instellingen → Weergave** (elk apparaat heeft zijn eigen instelling), en `{{clipboard}}` vraagt in hetzelfde blad om de inhoud van het klembord, in plaats van hem ongevraagd te lezen. Alle plaatshouders staan in [Notities & Markdown](Notes_and_Markdown.md).
 
 ## Databases (`.base`)
 

@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-10-09
+Last updated: 2026-10-11
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -43,7 +43,7 @@ On a wide screen (a tablet from 1024 px) that sheet can stay open as a **third c
 
 Templates behave exactly as they do on the desktop: the placeholders (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) are filled in when the note is created, **all** of a template's questions arrive together in **one** sheet — cancel it and nothing is created — and `{{cursor}}` places the caret as the note opens.
 
-The **folder → template** and **note type → template** rules are set on the desktop; they travel with the settings sync and apply here as well — so a note in `Projekte/` starts the same way on both devices, including `＋` capture and **+ Entry** in a database. Two details: `{{weekday:…}}` always counts from Monday on the phone (the first-day-of-week setting does not exist there yet), and `{{clipboard}}` asks for the clipboard's content in the same sheet instead of reading it unasked. The full placeholder list is in [Notes and Markdown](Notes_and_Markdown.md).
+The **folder → template** and **note type → template** rules can be set on the phone as well: under **Settings → Content & structure**, in **Templates per folder** and **Templates per note type**. They travel with the settings sync and apply on your other devices too — so a note in `Projekte/` starts the same way on both devices, including `＋` capture and **+ Entry** in a database. Two details: `{{weekday:…}}` follows **Week starts on** under **Settings → Appearance** (each device keeps its own setting), and `{{clipboard}}` asks for the clipboard's content in the same sheet instead of reading it unasked. The full placeholder list is in [Notes and Markdown](Notes_and_Markdown.md).
 
 ## Databases (`.base`)
 

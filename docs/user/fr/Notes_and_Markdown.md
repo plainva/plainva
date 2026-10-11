@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-11
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -125,7 +125,7 @@ Définissez un **Dossier de modèles** sous **Paramètres → Vault → Contenu 
 
 Quand un modèle demande quelque chose, Plainva pose **toutes** les questions dans une seule boîte de dialogue avant que la note soit écrite — que vous insériez ou créiez ; annuler ne crée rien. Seules les notes créées en arrière-plan (la synchronisation des tâches, par exemple) ne sont jamais interrogées : là, les réponses restent vides. Un espace réservé que Plainva ne connaît pas reste visible — ainsi, une faute de frappe ressemble à une faute de frappe.
 
-**Sur le téléphone**, le même moteur fonctionne : les espaces réservés sont remplis, les questions d'un modèle arrivent ensemble dans une seule feuille (annuler ne crée rien), et les règles **dossier → modèle** et **type de note → modèle** s'y appliquent aussi — de sorte qu'une note dans `Projekte/` démarre de la même façon sur les deux appareils. Deux différences : les règles sont définies sur le bureau (le téléphone se contente de les appliquer), et `{{weekday:…}}` y compte toujours à partir du lundi, car le réglage du premier jour de la semaine n'existe pas encore sur mobile.
+**Sur le téléphone**, le même moteur fonctionne : les espaces réservés sont remplis, les questions d'un modèle arrivent ensemble dans une seule feuille (annuler ne crée rien), et les règles **dossier → modèle** et **type de note → modèle** s'y appliquent aussi — de sorte qu'une note dans `Projekte/` démarre de la même façon sur les deux appareils. Les règles peuvent aussi être définies sur le téléphone (**Paramètres → Contenu et structure**), et `{{weekday:…}}` y suit le réglage **Début de la semaine** sous **Paramètres → Apparence** ; chaque appareil garde le sien.
 
 **Réglages propres au modèle** : un modèle peut porter des réglages qui ne valent que pour lui — que ses tâches restent hors de la vue **Tâches**, ou les bases de données auxquelles il appartient. Une note créée à partir de lui n’en hérite pas. De très anciennes notes quotidiennes peuvent encore les porter ; la [FAQ](FAQ.md) explique comment les retrouver.
 

@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-10-09
+Stand: 2026-10-11
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -125,7 +125,7 @@ Lege einen **Vorlagen-Ordner (Templates)** in den **Einstellungen → Vault → 
 
 Fragt eine Vorlage etwas, stellt Plainva **alle** Fragen zusammen in einem Dialog, bevor die Notiz geschrieben wird — beim Einfügen wie beim Anlegen; ein Abbruch legt nichts an. Nur bei Notizen, die im Hintergrund entstehen (etwa beim Aufgaben-Abgleich), wird nicht gefragt: dort bleiben die Antworten leer. Ein Platzhalter, den Plainva nicht kennt, bleibt sichtbar stehen — so sieht ein Tippfehler wie ein Tippfehler aus.
 
-**Auf dem Telefon** arbeitet dieselbe Engine: Die Platzhalter werden ersetzt, die Fragen einer Vorlage erscheinen zusammen in einem Blatt (ein Abbruch legt nichts an), und die Zuordnungen Ordner → Vorlage und Notiztyp → Vorlage greifen auch dort — eine Notiz in `Projekte/` beginnt also auf beiden Geräten gleich. Zwei Unterschiede: Zugeordnet wird am Desktop (das Telefon wendet die Regeln nur an), und `{{weekday:…}}` rechnet dort immer ab Montag, weil es die Einstellung für den Wochenbeginn mobil noch nicht gibt.
+**Auf dem Telefon** arbeitet dieselbe Engine: Die Platzhalter werden ersetzt, die Fragen einer Vorlage erscheinen zusammen in einem Blatt (ein Abbruch legt nichts an), und die Zuordnungen Ordner → Vorlage und Notiztyp → Vorlage greifen auch dort — eine Notiz in `Projekte/` beginnt also auf beiden Geräten gleich. Zuordnen kannst Du auch am Telefon (**Einstellungen → Inhalt & Struktur**), und `{{weekday:…}}` richtet sich dort nach **Wochenbeginn** unter **Einstellungen → Erscheinungsbild**; diese Einstellung gilt je Gerät.
 
 **Vorlagen-eigene Angaben**: Eine Vorlage kann Angaben tragen, die nur für sie selbst gelten — dass ihre Aufgaben nicht in der **Aufgaben**-Übersicht auftauchen, oder zu welchen Datenbanken sie gehört. Eine daraus erstellte Notiz erbt sie nicht. Sehr alte Tagesnotizen können sie noch tragen; wie Du sie findest, steht in den [Häufigen Fragen](FAQ.md).
 

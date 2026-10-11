@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-10-09
+Stan na: 2026-10-11
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -43,7 +43,7 @@ Na szerokim ekranie (tablet od 1024 px) ten arkusz może pozostawać otwarty jak
 
 Szablony na telefonie zachowują się dokładnie tak samo jak na komputerze: symbole zastępcze (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) są wypełniane w chwili tworzenia notatki, **wszystkie** pytania szablonu pojawiają się razem w **jednym** arkuszu — anulujesz go i nic nie powstaje — a `{{cursor}}` ustawia kursor, gdy notatka się otwiera.
 
-Reguły **folder → szablon** i **typ notatki → szablon** ustala się na komputerze; podróżują one wraz z synchronizacją ustawień i obowiązują też tutaj — notatka w `Projekte/` zaczyna się więc tak samo na obu urządzeniach, także przy szybkich notatkach z `＋` i przy **+ Wpis** w bazie danych. Dwa szczegóły: `{{weekday:…}}` na telefonie zawsze liczy od poniedziałku (ustawienie początku tygodnia jeszcze tam nie istnieje), a `{{clipboard}}` pyta o zawartość schowka w tym samym arkuszu, zamiast odczytywać ją bez pytania. Pełny wykaz symboli zastępczych zawiera [Notatki i Markdown](Notes_and_Markdown.md).
+Reguły **folder → szablon** i **typ notatki → szablon** ustala się także na telefonie: w **Ustawienia → Treść i struktura**, w sekcjach **Szablony dla folderów** i **Szablony dla typów notatek**. Podróżują one wraz z synchronizacją ustawień i obowiązują też na pozostałych urządzeniach — notatka w `Projekte/` zaczyna się więc tak samo na obu urządzeniach, także przy szybkich notatkach z `＋` i przy **+ Wpis** w bazie danych. Dwa szczegóły: `{{weekday:…}}` kieruje się ustawieniem **Początek tygodnia** w **Ustawienia → Wygląd** (każde urządzenie ma własne), a `{{clipboard}}` pyta o zawartość schowka w tym samym arkuszu, zamiast odczytywać ją bez pytania. Pełny wykaz symboli zastępczych zawiera [Notatki i Markdown](Notes_and_Markdown.md).
 
 ## Bazy danych (`.base`)
 

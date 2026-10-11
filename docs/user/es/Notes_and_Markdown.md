@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-10-09
+Última actualización: 2026-10-11
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -125,7 +125,7 @@ Configura una **Carpeta de plantillas** en **Configuración → Vault → Conten
 
 Cuando una plantilla pregunta algo, Plainva hace **todas** las preguntas en un único diálogo antes de escribir la nota — tanto si insertas como si creas; cancelar no crea nada. Solo en las notas creadas en segundo plano (por ejemplo, en la sincronización de tareas) nunca se pregunta nada: allí las respuestas quedan vacías. Un marcador de posición que Plainva no conoce permanece visible — así, una errata parece una errata.
 
-**En el teléfono** funciona el mismo motor: los marcadores de posición se rellenan, las preguntas de una plantilla llegan juntas en una sola hoja (cancelarla no crea nada), y las reglas **carpeta → plantilla** y **tipo de nota → plantilla** también se aplican ahí — de modo que una nota en `Projekte/` empieza igual en ambos dispositivos. Dos diferencias: las reglas se definen en el escritorio (el teléfono solo las aplica), y `{{weekday:…}}` siempre cuenta desde el lunes allí, porque el ajuste de inicio de semana todavía no existe en el móvil.
+**En el teléfono** funciona el mismo motor: los marcadores de posición se rellenan, las preguntas de una plantilla llegan juntas en una sola hoja (cancelarla no crea nada), y las reglas **carpeta → plantilla** y **tipo de nota → plantilla** también se aplican ahí — de modo que una nota en `Projekte/` empieza igual en ambos dispositivos. Las reglas también se pueden definir en el teléfono (**Ajustes → Contenido y estructura**), y `{{weekday:…}}` sigue allí el ajuste **Inicio de semana** de **Ajustes → Apariencia**; cada dispositivo conserva el suyo.
 
 **Ajustes propios de la plantilla**: una plantilla puede llevar ajustes que solo valen para ella misma — que sus tareas queden fuera de la vista **Tareas**, o a qué bases de datos pertenece. Una nota creada a partir de ella no los hereda. Las notas diarias muy antiguas todavía pueden llevarlos; el [FAQ](FAQ.md) explica cómo encontrarlos.
 

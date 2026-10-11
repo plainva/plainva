@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-10-09
+Última revisão: 2026-10-11
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -125,7 +125,7 @@ Defina uma **Pasta de modelos** em **Configurações → Vault → Conteúdo e e
 
 Quando um modelo pergunta algo, o Plainva faz **todas** as perguntas em um único diálogo antes de a nota ser escrita — seja ao inserir, seja ao criar; cancelar não cria nada. Só nas notas criadas em segundo plano (na sincronização de tarefas, por exemplo) nada é perguntado: ali as respostas ficam vazias. Um placeholder que o Plainva não conhece permanece visível — assim, um erro de digitação parece um erro de digitação.
 
-**No celular** o mesmo mecanismo funciona: os placeholders são preenchidos, as perguntas de um modelo chegam juntas em uma única folha (cancelar não cria nada), e as regras pasta → modelo e tipo de nota → modelo também se aplicam ali — então uma nota em `Projekte/` começa da mesma forma em ambos os dispositivos. Duas diferenças: as regras são definidas no desktop (o celular só as aplica), e `{{weekday:…}}` sempre conta a partir de segunda-feira ali, porque a configuração de início da semana ainda não existe no mobile.
+**No celular** o mesmo mecanismo funciona: os placeholders são preenchidos, as perguntas de um modelo chegam juntas em uma única folha (cancelar não cria nada), e as regras pasta → modelo e tipo de nota → modelo também se aplicam ali — então uma nota em `Projekte/` começa da mesma forma em ambos os dispositivos. As regras também podem ser definidas no celular (**Configurações → Conteúdo e estrutura**), e `{{weekday:…}}` segue ali a configuração **Início da semana** em **Configurações → Aparência**; cada dispositivo mantém a sua.
 
 **Configurações próprias do modelo**: um modelo pode carregar configurações válidas só para ele — que suas tarefas fiquem fora da visão **Tarefas**, ou a quais bancos de dados ele pertence. Uma nota criada a partir dele não as herda. Notas diárias muito antigas ainda podem carregá-las; a [FAQ](FAQ.md) explica como encontrá-las.
 

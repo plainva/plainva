@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-10-09
+Stan na: 2026-10-11
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -125,7 +125,7 @@ Ustaw **Folder szablonów** w **Ustawienia → Vault → Treść i struktura** (
 
 Gdy szablon o coś pyta, Plainva zadaje **wszystkie** pytania w jednym oknie dialogowym, zanim notatka zostanie zapisana — czy wstawiasz, czy tworzysz; anulowanie nie tworzy niczego. Tylko przy notatkach powstających w tle (na przykład przy synchronizacji zadań) nigdy się nie pyta: tam odpowiedzi pozostają puste. Symbol zastępczy, którego Plainva nie zna, pozostaje widoczny — dzięki temu literówka wygląda jak literówka.
 
-**Na telefonie** działa ten sam mechanizm: symbole zastępcze są wypełniane, pytania szablonu pojawiają się razem w jednym arkuszu (anulowanie nie tworzy niczego), a przypisania folder → szablon i typ notatki → szablon obowiązują też tam — notatka w `Projekte/` zaczyna się więc tak samo na obu urządzeniach. Dwie różnice: przypisania ustala się na komputerze (telefon tylko stosuje reguły), a `{{weekday:…}}` liczy tam zawsze od poniedziałku, ponieważ ustawienie początku tygodnia nie istnieje jeszcze na telefonie.
+**Na telefonie** działa ten sam mechanizm: symbole zastępcze są wypełniane, pytania szablonu pojawiają się razem w jednym arkuszu (anulowanie nie tworzy niczego), a przypisania folder → szablon i typ notatki → szablon obowiązują też tam — notatka w `Projekte/` zaczyna się więc tak samo na obu urządzeniach. Przypisania można ustalać także na telefonie (**Ustawienia → Treść i struktura**), a `{{weekday:…}}` kieruje się tam ustawieniem **Początek tygodnia** w **Ustawienia → Wygląd**; każde urządzenie ma własne.
 
 **Ustawienia należące do szablonu**: szablon może nieść ustawienia dotyczące wyłącznie jego samego — że jego zadania nie pojawiają się w widoku **Zadania**, albo do których baz danych należy. Notatka utworzona z szablonu ich nie dziedziczy. Bardzo stare notatki dzienne mogą je jeszcze nieść; [FAQ](FAQ.md) wyjaśnia, jak je znaleźć.
 

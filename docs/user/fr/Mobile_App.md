@@ -1,6 +1,6 @@
 # L'application mobile
 
-Dernière mise à jour : 2026-10-09
+Dernière mise à jour : 2026-10-11
 
 Plainva est aussi disponible sous forme d'application pour Android et iOS. Elle fonctionne sur les mêmes fichiers Markdown, le même format **OKF** et le même moteur de synchronisation que l'application de bureau — votre coffre reste identique dans les deux mondes.
 
@@ -43,7 +43,7 @@ Sur un écran large (une tablette à partir de 1024 px), cette fiche peut rester
 
 Les modèles se comportent exactement comme sur le bureau : les espaces réservés (`{{title}}`, `{{date}}`, `{{daily+1}}`, `{{weekday:monday}}` …) sont remplis à la création de la note, **toutes** les questions d'un modèle arrivent ensemble dans **une seule** feuille — l'annuler ne crée rien — et `{{cursor}}` place le curseur à l'ouverture de la note.
 
-Les règles **dossier → modèle** et **type de note → modèle** sont définies sur le bureau ; elles voyagent avec la synchronisation des paramètres et s'appliquent ici aussi — de sorte qu'une note dans `Projekte/` démarre de la même façon sur les deux appareils, y compris pour la capture `＋` et **+ Entrée** dans une base de données. Deux détails : `{{weekday:…}}` compte toujours à partir du lundi sur le téléphone (le réglage du premier jour de la semaine n'y existe pas encore), et `{{clipboard}}` demande le contenu du presse-papiers dans la même feuille au lieu de le lire sans le demander. La liste complète des espaces réservés se trouve dans [Notes & Markdown](Notes_and_Markdown.md).
+Les règles **dossier → modèle** et **type de note → modèle** se définissent aussi sur le téléphone : sous **Paramètres → Contenu et structure**, dans **Modèles par dossier** et **Modèles par type de note**. Elles voyagent avec la synchronisation des paramètres et s'appliquent aussi sur vos autres appareils — de sorte qu'une note dans `Projekte/` démarre de la même façon sur les deux appareils, y compris pour la capture `＋` et **+ Entrée** dans une base de données. Deux détails : `{{weekday:…}}` suit le réglage **Début de la semaine** sous **Paramètres → Apparence** (chaque appareil garde le sien), et `{{clipboard}}` demande le contenu du presse-papiers dans la même feuille au lieu de le lire sans le demander. La liste complète des espaces réservés se trouve dans [Notes & Markdown](Notes_and_Markdown.md).
 
 ## Bases de données (`.base`)
 
