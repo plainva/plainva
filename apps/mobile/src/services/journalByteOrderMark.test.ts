@@ -78,6 +78,7 @@ vi.mock("./mobileSettings", () => ({ getMobileSettings: () => SETTINGS }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (key: string) => key } }));
 
 import { appendPlannedJournalEntry, captureJournalEntry, journalFiles, journalHeading } from "./journalService";
+import { configuredDailyNoteType } from "./newNote";
 
 /** `vaultOps.read`, `.save`, `.update` and `.ensureDailyNote` as `vaultService.ts` defines them, run against the scope they need. */
 function phoneOps(): PhoneOps {
@@ -100,6 +101,8 @@ function phoneOps(): PhoneOps {
     updateVaultText,
     noteSaver: { flush: async () => {} },
     getMobileSettings: () => SETTINGS,
+    // The type a new daily note gets: the phone's one reader of the setting.
+    configuredDailyNoteType,
     getActiveVaultEntry: async () => ({ name: "Notes" }),
     ensureSharedDailyNote: ensureDailyNote,
     applyTemplateInteractive: () => { throw new Error("a capture never asks the template's questions"); },

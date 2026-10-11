@@ -27,6 +27,7 @@ import { TaskCaptureSheet } from "../components/TaskCaptureSheet";
 import { TimeBlockSheet } from "../components/TimeBlockSheet";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { getMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
 import { providerListLabel, sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mSelect, mTargets } from "../services/mobileDialogs";
 import { setTaskDone } from "../services/taskCompletionAction";
@@ -426,7 +427,7 @@ export function TasksScreen({
           sourcePath: task.path,
           task,
           dbPath,
-          noteType: getMobileSettings().defaultNoteType,
+          noteType: configuredNoteType(),
           allNotePaths,
           fallbackTitle: t("tasks.promoteFallbackTitle"),
         }).catch(() => null);
@@ -772,7 +773,7 @@ export function TasksScreen({
         adapter: promotionAdapter,
         dbPath: taskDb,
         title: result.title,
-        noteType: getMobileSettings().defaultNoteType,
+        noteType: configuredNoteType(),
         ...(result.due ? { dueDate: result.due, dueMinutes: result.minutes } : {}),
         tags: result.tags,
         priority: result.priority,

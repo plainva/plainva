@@ -647,3 +647,73 @@ all.
    has a second one is judged by the same rule. Where what stands between
    the two is no map, the file is now refused and named; before, those lines
    were dropped from the published copy.
+
+## Addendum 2026-10-21 (the type of a new file, on the phone too)
+
+Finding 2026-10-09, seen while the phone's header moved to the shared writer:
+point 3 of the decision makes the default `type` a setting of the vault, and
+every creation path owes a new file that type. On the phone the setting did
+not reach two creation paths, a blank setting reached the others as an empty
+`type`, and one path wrote no properties block at all; on the desktop two
+ways to a task note wrote a type of their own.
+
+1. **One place on the phone names the type of a new note:**
+   `configuredNoteType` and `configuredDailyNoteType`
+   (`apps/mobile/src/services/newNote.ts`). Every creation path of the phone
+   that writes the vault's type asks there: the capture button, a note made
+   from a link, a note from a template, a database and a pinboard entry,
+   every way a task note comes about, a new template, the target of a broken
+   link, a shared note and the daily note. A meeting note (`Meeting`) and a
+   captured mail (`Email`) keep types of their own, on both shells. The
+   capture button and the note made from a link wrote `Note` whatever the
+   setting said, so a "note type → template" rule for the configured type
+   never applied on capture. `vaultOps.createNote` takes no type any more;
+   it asks. The desktop wrote a fixed `Task` for a task made from a mail or
+   from a comment, where its own task view wrote the vault's type; it asks
+   there too now, and `apps/mobile/src/services/newNote.test.ts` fails a call
+   of either shell to the shared functions that make a task note
+   (`createTaskInDatabase`, `prepareTaskNote`, `promoteTask`) with a type
+   written into the call. The
+   desktop reads the setting by the same rule in
+   `getConfiguredNoteType` and `getConfiguredDailyNoteType`
+   (`apps/desktop/src/services/newNote.ts`) and in two copies beside them
+   (the daily note in `apps/desktop/src/services/dailyNotes.ts`, the task
+   reconciler in `apps/desktop/src/contexts/VaultContext.tsx`).
+2. **A blank setting is an unset one, on both shells.** The setting is read
+   as the name without the blanks around it, and as the default (`Note`,
+   `Daily Note`) where nothing is left. The phone handed the stored text on
+   as it was, and a field that had been cleared wrote `type: ""` — a note
+   that fails point 4 of the decision, made by Plainva itself. The phone's
+   two settings fields save by the same rule now, as the desktop's always
+   did, and name the default while they are empty.
+3. **The rule sits where the setting is read, not where it is loaded.**
+   Eleven places on the phone read the setting themselves, and all of them
+   moved to the one function. The alternative — tidying the stored value
+   when the settings record is filled — would have had to hold at each way
+   into that record (the store on start and on a vault switch, the settings
+   fields, the settings sync, which writes its patch into the live record
+   directly) and at every way added later, with nothing to notice one that
+   was missed. It would also have changed what the settings sync publishes —
+   and, with the next save, the stored value — on a device where nobody
+   changed the setting. A reader that asks the one function is something a
+   test can hold: `apps/mobile/src/services/newNote.test.ts` fails a shipped
+   phone file that reads the setting itself or names the default type as a
+   literal. The desktop reads its store the same way, at the places named in
+   point 1, and the phone already read the journal heading so.
+4. **A shared note is a new note.** The share import
+   (`apps/mobile/src/services/shareImport.ts`) built the note from a
+   heading, the shared text and the attachment links, without a properties
+   block. The text now goes through `withOkfDefaults` with the vault's type
+   for new notes, which the host names like the folder — before the plan is
+   made, so the header is part of the durable plan: a retry writes the
+   planned note, and a plan an earlier version made without a block is
+   finished as planned. A share that becomes a task brings the task's header;
+   a share that goes into the journal is an entry of the daily note and no
+   file of its own. The desktop has no share target (parity catalog,
+   `share-target`), so this path is the phone's alone.
+5. **The OKF conversion offers the vault's type on the phone too.** The
+   phone's wizard offered a lowercase `note` of its own as the type for files
+   without one, so one vault converted on the phone and on the desktop got two
+   types (finding 2026-10-21). It offers the vault's type for new notes now,
+   as the desktop always did, and an emptied field means the default type, as
+   there (`apps/mobile/src/screens/okfConversionOptions.test.tsx`).

@@ -5,7 +5,7 @@ import {
   type TextChange,
 } from "@plainva/core";
 import { buildMobilePlanDeps } from "./cascadeDelete";
-import { getMobileSettings } from "./mobileSettings";
+import { configuredNoteType } from "./newNote";
 import {
   applyRelationWrite,
   assertFileStillThere,
@@ -433,7 +433,7 @@ export async function createBaseItem(
   // on the database has already answered the question the rules exist for);
   // otherwise the rules decide, and without either it is the skeleton.
   // Questions are asked in one sheet — cancelling creates nothing (P6).
-  const type = getMobileSettings().defaultNoteType;
+  const type = configuredNoteType();
   const tplPath = typeof config?.newItemTemplate === "string" ? config.newItemTemplate : "";
   const built = await buildNewNoteFromTemplate({
     read: (p) => vaultOps.read(v, p),
@@ -531,7 +531,7 @@ export async function planMobilePinboardEntry(
     activeLabels: opts.activeLabels,
     labelProperty: opts.labelProperty,
     folder: opts.folder,
-    noteType: getMobileSettings().defaultNoteType,
+    noteType: configuredNoteType(),
     now: new Date(),
     ledger: mobileDraftLedger(v),
     // The base's default template fills the body; its questions come first.

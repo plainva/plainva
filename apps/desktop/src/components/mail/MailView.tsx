@@ -47,6 +47,7 @@ import {
   type MailColumns,
 } from "./mailColumns";
 import { createTaskInDatabase } from "../../services/taskPromotion";
+import { getConfiguredNoteType } from "../../services/newNote";
 import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
 
 /**
@@ -1608,12 +1609,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
       // (S30). This path used to resolve the target by hand and therefore
       // skipped two things the others do: the database's TEMPLATE, and the
       // checkbox pre-fill the completion model reads. A task born from a mail
-      // looked subtly unlike a task born from a checkbox.
+      // looked subtly unlike a task born from a checkbox. Its type is the
+      // vault's, as there; it was a fixed `Task` (finding 2026-10-21).
       const res = await createTaskInDatabase({
         adapter: vaultAdapter,
         dbPath,
         title,
-        noteType: "Task",
+        noteType: await getConfiguredNoteType(vaultPath),
         dueDate: mailDayKey(message),
         trailer: message.from ? `\n${t("mail.fromLabel", { defaultValue: "Von" })}: ${message.from}\n` : undefined,
       });

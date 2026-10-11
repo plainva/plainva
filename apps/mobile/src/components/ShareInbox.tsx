@@ -4,6 +4,7 @@ import { Banner, Button, Chip, ICON, noteDisplayName, notifyFileOps, prepareTask
 import { CheckSquare, FileText, Folder, NotebookPen, Paperclip } from "lucide-react";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { getMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
 import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "../services/mobileWorkspaceSecurity";
 import { listPendingShares, shareTarget, validateShare, type PendingShare, type ShareTargetPort } from "../services/shareTarget";
 import { importSharedContent } from "../services/shareImport";
@@ -91,14 +92,14 @@ export function ShareInbox({ vault, vaultName, onChooseVault, onUnlock, onImport
     const written: string[] = [];
     try {
       const path = await importSharedContent(port, entry, {
-        vaultId: vault.vaultId, files: vault.files, folder, signal: controller.signal,
+        vaultId: vault.vaultId, files: vault.files, folder, noteType: configuredNoteType(), signal: controller.signal,
         onFileWritten: (p) => void written.push(p),
         // A journal plan may have to be RESUMED after a restart, whatever the chips say now.
         appendJournal: (planned) => appendPlannedJournalEntry(vault, planned),
         ...(intoJournal ? { toJournal: async () => planSharedJournalEntry() } : {}),
         ...(makesTask ? {
           asTask: async ({ title, body }) => {
-            const prepared = await prepareTaskNote({ adapter: taskAdapter, dbPath: taskDb, title, noteType: getMobileSettings().defaultNoteType, trailer: body ? "\n" + body + "\n" : undefined });
+            const prepared = await prepareTaskNote({ adapter: taskAdapter, dbPath: taskDb, title, noteType: configuredNoteType(), trailer: body ? "\n" + body + "\n" : undefined });
             if (!prepared.ok) throw new Error("SHARE_TASK_UNAVAILABLE");
             taskTitle = title;
             return { folder: prepared.folder, text: prepared.content };

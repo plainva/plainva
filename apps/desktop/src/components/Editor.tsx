@@ -57,6 +57,7 @@ import { applyIndexChanges, duplicateFile, promptRenameFile } from "../services/
 import { retargetDesktopBookmarks } from "../services/bookmarks";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { getTemplateFolder } from "../services/newItemFlow";
+import { getConfiguredNoteType } from "../services/newNote";
 import { TemplateTargetsModal } from "./TemplateTargetsModal";
 import { rememberSessionViewMode, resolveViewModeForPath, type EditorViewMode } from "../services/viewModeDefault";
 import { notifyFileOps } from "../services/indexMdAutoUpdate";
@@ -2911,7 +2912,8 @@ export const Editor: React.FC<{
       adapter: vaultAdapter,
       dbPath,
       title,
-      noteType: "Task",
+      // The vault's type, as the task view writes it; it was a fixed `Task` (finding 2026-10-21).
+      noteType: await getConfiguredNoteType(vaultPath),
       trailer: commentTaskTrailer({
         body: comment.body,
         quote: (comment.anchor as WorkspaceCommentAnchor | null)?.quote ?? null,

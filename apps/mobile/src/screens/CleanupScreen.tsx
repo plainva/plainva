@@ -17,7 +17,7 @@ import {
 } from "@plainva/ui";
 import { AppBar } from "../components/AppBar";
 import { confirmDeleteFile } from "../lib/deleteFile";
-import { getMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
 import { syncSoon } from "../services/syncService";
 import type { MobileVault } from "../services/vaultService";
 
@@ -128,7 +128,7 @@ export function CleanupScreen({
     if (!service) return;
     try {
       // Where the link will find it — the place a tap on the link creates the note.
-      const path = await createBrokenLinkTarget(vault.files, service, item, getMobileSettings().defaultNoteType);
+      const path = await createBrokenLinkTarget(vault.files, service, item, configuredNoteType());
       if (!path) {
         toast.error(t("graph.cleanupActionFailed"));
         return;

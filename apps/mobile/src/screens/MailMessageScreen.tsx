@@ -51,6 +51,7 @@ import { runJunkAction } from "./mail/junkAction";
 import { listMobileMailAccounts, mailVaultId } from "../services/mail/mailRuntime";
 import { isImapUnavailable } from "../services/mail/mobileMailPlatform";
 import { getMobileSettings } from "../services/mobileSettings";
+import { configuredNoteType } from "../services/newNote";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
@@ -496,7 +497,7 @@ export function MailMessageScreen({
           adapter: vaultTextFiles(vault),
           dbPath,
           title: message.subject.trim() || t("mail.noSubject"),
-          noteType: getMobileSettings().defaultNoteType,
+          noteType: configuredNoteType(),
           dueDate: mailDayKey(message),
           trailer: message.from ? `\n${t("mail.fromLabel")}: ${message.from}\n` : undefined,
         });
