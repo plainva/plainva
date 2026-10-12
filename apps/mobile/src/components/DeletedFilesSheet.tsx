@@ -55,11 +55,8 @@ export function DeletedFilesSheet({ vault, onClose }: { vault: MobileVault; onCl
         toast.warning(t("versions.restoreFailed"));
         return;
       }
-      try {
-        await vault.indexer?.indexFile(await vault.adapter.getFileInfo(g.originalPath));
-      } catch {
-        /* next full pass repairs it */
-      }
+      // A restored database or table is back in the index like a restored note.
+      await vault.reindexPaths([g.originalPath]);
       syncSoon();
       toast.info(g.originalPath);
       window.dispatchEvent(new CustomEvent("m-vault-changed"));

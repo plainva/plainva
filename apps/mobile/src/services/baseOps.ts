@@ -96,13 +96,9 @@ export async function saveBaseConfig(v: MobileVault, path: string, config: any, 
   const text = serializeBaseConfig(config);
   if (!recreate) await assertFileStillThere(v.files, path);
   await v.files.writeTextFile(path, text);
-  if (v.indexer) {
-    try {
-      await v.indexer.indexFile(await v.adapter.getFileInfo(path));
-    } catch {
-      /* next full pass repairs it */
-    }
-  }
+  // The index hears of a database like of a note (finding 2026-10-09): the
+  // call that stood here took notes only and never did anything for a `.base`.
+  if (v.indexer) await v.reindexPaths([path]);
   syncSoon();
 }
 
@@ -221,13 +217,7 @@ export async function writeRelationSchema(
     readTextFile: (p: string) => vaultOps.read(v, p),
     writeTextFile: async (p: string, text: string) => {
       await v.files.writeTextFile(p, text);
-      if (v.indexer) {
-        try {
-          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
-        } catch {
-          /* next full pass repairs it */
-        }
-      }
+      if (v.indexer) await v.reindexPaths([p]);
     },
   };
   return applyRelationWrite(
@@ -602,13 +592,7 @@ export async function createDatabase(
     views: [{ type: "table", name: tableLabel, order: ["file.name"] }],
   };
   await v.files.writeTextFile(path, serializeBaseConfig(config));
-  if (v.indexer) {
-    try {
-      await v.indexer.indexFile(await v.adapter.getFileInfo(path));
-    } catch {
-      /* next full pass repairs it */
-    }
-  }
+  if (v.indexer) await v.reindexPaths([path]);
   window.dispatchEvent(new CustomEvent("m-vault-changed"));
   syncSoon();
   return path;

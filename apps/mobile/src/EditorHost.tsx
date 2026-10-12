@@ -1331,7 +1331,7 @@ export function EditorHost({
             t("editor.inlineBaseDefaultName", { defaultValue: "Datenbank" }),
             t("database.viewTable", { defaultValue: "Table" }),
           );
-          await vault.indexer?.indexPath(created);
+          await vault.reindexPaths([created]);
           embedBaseAt(created, pos);
           syncSoon();
         } catch (error) {

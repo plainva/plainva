@@ -28,7 +28,6 @@ import {
   type DeletionConfirmation,
   type SearchResult,
   type PersonalWorkspaceRuntime,
-  type VaultFileInfo,
   PimCacheRepository,
   toPathIdentity,
   formatFullScan,
@@ -56,6 +55,7 @@ import { clearMobileSyncState, mobileSyncDeviceId } from "./mobileSettingsSync";
 import { recoverProfileImportIfNeeded } from "./profileImportJournal";
 import { clearCloudAccounts } from "./cloudAccountsStore";
 import { createSaveCoordinator } from "./saveCoordinator";
+import { createAnnouncer, createIndexTurns, createPathReindexer } from "./pathReindex";
 import { writeDraft, clearDraft, relocateDrafts } from "./draftJournal";
 import { loadCloudAccounts } from "./cloudAccountsStore";
 import { listMailAccounts } from "@plainva/ui/mail";
@@ -145,7 +145,12 @@ export interface MobileVault {
    * gets imported a second time — the duplicate 0.6.7 exists to prevent.
    */
   indexSettled(): boolean;
-  /** Re-indexes pulled paths so tree and search reflect remote changes. */
+  /**
+   * The index follows these paths — written, moved here or removed, by the
+   * app, a restore or a pull, and whatever kind of file they are. The ONE
+   * door for it on the phone, which has no watcher to pass by later
+   * (pathReindex.ts). Never rejects.
+   */
   reindexPaths(paths: string[]): Promise<void>;
   /** Closes the per-vault database (used when switching vaults). */
   dispose(): Promise<void>;
@@ -497,11 +502,30 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
   let workspaceState: SqlWorkspaceStateStore | null = null;
   let permissioned: PermissionedVaultAdapter | null = null;
 
+  // A pass over a path and what a pass sets off each take a turn: one
+  // transaction at a time on the phone's one connection (pathReindex.ts). The
+  // hooks below queued without waiting, each in a transaction of its own — of
+  // several files one pass announced, the second ran into the first.
+  const indexTurns = createIndexTurns();
+  // An entry that is refused all the same — somebody outside that row had a
+  // transaction open — is tried once more and then named in the diagnostics:
+  // for a file changed or removed outside the app, the index's word is the
+  // only one the sync gets.
+  const announce = createAnnouncer(indexTurns, {
+    whenIdle: async () => { await indexer?.whenIdle(); },
+    onDropped: () => logDiagnostic("index", "an upload or a deletion the index announced could not be queued"),
+  });
+  // A deletion is asked before each attempt whether the file is still gone:
+  // the entry can be seconds old by the time its turn comes, and a file that
+  // is back has nothing to delete remotely.
+  const stillGone = (path: string) => () => adapter.exists(path).then((there) => !there);
+
   const enqueueLocal = async (path: string) => {
     if (!syncEnqueueEnabled || isInternal(path)) return;
     if (permissioned && !await permissioned.authorizeExternalChange(path, true)) return;
-    if (workspaceState) void workspaceState.enqueue("write", path).catch(() => {});
-    else if (queue) void queue.queueWrite(path).catch(() => {});
+    const sealed = workspaceState, plain = queue;
+    if (sealed) void announce(() => sealed.enqueue("write", path));
+    else if (plain) void announce(() => plain.queueWrite(path));
   };
 
   let files: IVaultAdapter;
@@ -640,8 +664,9 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
         // consumed whether or not enqueueing is on yet.
         if (ownDeletions.consume(path)) return;
         if (!syncEnqueueEnabled || isInternal(path)) return;
-        if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) return workspaceState!.enqueue("delete", path); }).catch(() => {}); }
-        else if (queue) void queue.queueDelete(path).catch(() => {});
+        const plain = queue;
+        if (permissioned) { void permissioned.authorizeExternalChange(path, false).then((allowed) => { if (allowed) void announce(() => workspaceState!.enqueue("delete", path), stillGone(path)); }).catch(() => {}); }
+        else if (plain) void announce(() => plain.queueDelete(path), stillGone(path));
       },
     });
     queryService = new VaultQueryService(db);
@@ -713,16 +738,15 @@ async function boot(entry: VaultEntry): Promise<MobileVault> {
       deferInitialEnqueue = false;
     },
     indexSettled: () => indexPassSettled,
-    reindexPaths: async (paths) => {
-      if (!indexer) return;
-      for (const p of paths) {
-        try {
-          await indexer.indexFile(await adapter.getFileInfo(p));
-        } catch {
-          /* deleted or transient — the next full pass repairs it */
-        }
-      }
-    },
+    // Every kind of file, a removed one included, one path at a time (pathReindex.ts).
+    reindexPaths: createPathReindexer(indexer, adapter, {
+      turns: indexTurns,
+      // Counts only, like every line of the diagnostics export.
+      onLeftBehind: (count) => logDiagnostic("index", `${count} path(s) the index was told of could not be followed — left to the next full scan`),
+      // The batch was announced to the screens when it was handed over; what
+      // got through only now is not in the lists they drew then.
+      onFollowedLate: () => window.dispatchEvent(new CustomEvent("m-vault-changed")),
+    }),
     dispose: async () => {
       clearPinboardCache(queryService ?? files);
       indexAbort.abort();
@@ -925,13 +949,7 @@ export const vaultOps = {
       // The index follows the rename (issue 113): reporting the old name as
       // deleted queued a remote DELETE next to the queued MOVE.
       await v.indexer.relocatePathInIndex(oldPath, newPath).catch(() => {});
-      for (const p of [newPath, ...changedPaths]) {
-        try {
-          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
-        } catch {
-          /* next full pass repairs it */
-        }
-      }
+      await v.reindexPaths([newPath, ...changedPaths]);
     }
     await renameBookmarksOnDisk(v.adapter, oldPath, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: oldPath, to: newPath }]);
@@ -1020,15 +1038,11 @@ export const vaultOps = {
     // Retarget pinboard arrangements (vault-relative paths, plan Pinboard P5).
     const sweptBases = await sweepPinboardRefs({ adapter: v.files, queryService: v.queryService }, [{ from: path, to: newPath }]).catch(() => [] as string[]);
     if (v.indexer) {
-      // Follows the move as a rename, never as a deletion (issue 113).
+      // Follows the move as a rename, never as a deletion (issue 113). The
+      // databases whose pinboard places were rewritten are files like any
+      // other: the index hears of them here, not at the next start.
       await v.indexer.relocatePathInIndex(path, newPath).catch(() => {});
-      for (const p of [newPath, ...sweptBases]) {
-        try {
-          await v.indexer.indexFile(await v.adapter.getFileInfo(p));
-        } catch {
-          /* next full pass repairs it */
-        }
-      }
+      await v.reindexPaths([newPath, ...sweptBases]);
     }
     await renameBookmarksOnDisk(v.adapter, path, newPath).catch(() => toast.error(i18n.t("sidebar.bookmarkSaveFailed")));
     await relocateDrafts(v, [{ from: path, to: newPath }]);
@@ -1052,13 +1066,7 @@ export const vaultOps = {
     }
     await v.files.writeTextFile(candidate, text);
     reportCreated(candidate);
-    if (v.indexer) {
-      try {
-        await v.indexer.indexFile(await v.adapter.getFileInfo(candidate));
-      } catch {
-        /* next full pass repairs it */
-      }
-    }
+    if (v.indexer) await v.reindexPaths([candidate]);
     window.dispatchEvent(new CustomEvent("m-vault-changed"));
     return candidate;
   },
@@ -1192,14 +1200,10 @@ export const vaultOps = {
 
   async save(v: MobileVault, path: string, text: string): Promise<void> {
     await v.files.writeTextFile(path, text);
-    if (v.indexer) {
-      try {
-        const info: VaultFileInfo = await v.adapter.getFileInfo(path);
-        await v.indexer.indexFile(info);
-      } catch {
-        /* index lag is acceptable; the next full pass repairs it */
-      }
-    }
+    // Whatever kind of file it is — "save here again" also writes a table or
+    // a settings file. An index that lags is acceptable; the next full pass
+    // repairs it.
+    if (v.indexer) await v.reindexPaths([path]);
   },
 
   /**

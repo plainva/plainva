@@ -88,7 +88,7 @@ export async function executeMobileCascade(
           propertyKey: ref.propertyKey,
           targetNotePath: ref.target,
         });
-        if (res.changed && v.indexer) await v.indexer.indexPath(ref.source).catch(() => {});
+        if (res.changed && v.indexer) await v.reindexPaths([ref.source]);
       } catch (e) {
         console.error("mobile cascade cleanup failed", ref, e);
         errors++;

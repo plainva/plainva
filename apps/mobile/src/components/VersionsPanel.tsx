@@ -103,11 +103,7 @@ export function VersionsPanel({
         toast.warning(t("versions.restoreFailed"));
         return;
       }
-      try {
-        await vault.indexer?.indexFile(await vault.adapter.getFileInfo(path));
-      } catch {
-        /* next full pass repairs it */
-      }
+      await vault.reindexPaths([path]);
       syncSoon();
       onRestored();
       onDone();
@@ -130,11 +126,7 @@ export function VersionsPanel({
         targetPath: target,
         writeAdapter: vault.files,
       });
-      try {
-        await vault.indexer?.indexFile(await vault.adapter.getFileInfo(target));
-      } catch {
-        /* next full pass repairs it */
-      }
+      await vault.reindexPaths([target]);
       syncSoon();
       toast.info(t("versions.copyCreated", { path: target }));
       window.dispatchEvent(new CustomEvent("m-vault-changed"));

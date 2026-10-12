@@ -489,7 +489,8 @@ describe("VaultIndexer", () => {
       const result = await indexer.indexPath("projects");
 
       expect(result).toBe("needs-full-scan");
-      const childQuery = db.queries.at(-1)!;
+      // The last statement of the pass's own transaction.
+      const childQuery = db.queries.filter((q) => q.query !== "COMMIT").at(-1)!;
       expect(childQuery.query).toContain("LIKE ?");
       expect(childQuery.query).toContain("ESCAPE");
       expect((childQuery.params as any[])[0]).toBe("projects/%");
@@ -520,7 +521,7 @@ describe("VaultIndexer", () => {
 
       await indexer.indexPath("50%_off");
 
-      const childQuery = db.queries.at(-1)!;
+      const childQuery = db.queries.filter((q) => q.query !== "COMMIT").at(-1)!;
       expect((childQuery.params as any[])[0]).toBe("50\\%\\_off/%");
     });
   });

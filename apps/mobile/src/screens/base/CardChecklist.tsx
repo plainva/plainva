@@ -37,8 +37,8 @@ export function CardChecklist({ vault, path, progress, onChanged }: { vault: Mob
         const fresh = await vaultOps.read(vault, path);
         const next = mutate(fresh);
         if (next === null || next === fresh) return;
+        // The save tells the index itself (vaultOps.save).
         await vaultOps.save(vault, path, next);
-        await vault.indexer?.indexPath(path).catch(() => {});
         await load();
         onChanged();
       } catch (e: unknown) {

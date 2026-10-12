@@ -217,8 +217,9 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       }).catch(() => null);
       if (!path) return;
       update({ taskDatabase: path });
-      // The watcher indexes the new file; the tasks area should see it now.
-      void vault.indexer?.indexPath(path).catch(() => {});
+      // The phone has no watcher to find the new file: the index is told
+      // here, so the tasks area sees it now and the sync takes it along.
+      void vault.reindexPaths([path]);
     })();
   };
 

@@ -318,13 +318,7 @@ export function PinboardView({
 
   // ── Card writes (shared semantics with the desktop view) ──
   const afterCardWrite = useCallback(async (path: string) => {
-    if (vault.indexer) {
-      try {
-        await vault.indexer.indexFile(await vault.adapter.getFileInfo(path));
-      } catch {
-        /* next full pass repairs it */
-      }
-    }
+    await vault.reindexPaths([path]);
     onMutated();
   }, [vault, onMutated]);
 

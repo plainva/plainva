@@ -25,6 +25,48 @@ notify (ReadDirectoryChangesW / FSEvents / inotify)
 
 The phone has no watcher. Nothing there scans because of a save; the full scan runs when a vault opens, on the return to the app (at most once a minute), on pull-to-refresh and after folder operations.
 
+## The way of a change (phone)
+
+Between two full scans the phone's index knows what the app tells it. Every path somebody wrote, moved here or removed is therefore handed to one door, `MobileVault.reindexPaths` (`apps/mobile/src/services/pathReindex.ts`): the savers, the restores, the conflict resolution, the share inbox, the task sync and both sync workers call it. `indexFile` and `indexPath` — the two calls that follow one path — are made nowhere else, with one exception that is not a write: a note opened in an external folder has its timestamp checked (`pathReindex.test.ts` holds that from the sources).
+
+Beside the door stays what is another kind of work, and none of it takes a turn there: the full scan and the folder re-read, which look at the disk themselves (among others the import, a vault template, a folder moved or deleted in the app and the pull-to-refresh end in one); the app's own move, which re-keys rows without reading a file (`relocatePathInIndex`); the app's own deletion (`removePathFromIndex`); and that one look at a note opened in an external folder.
+
+```
+a save · a restore · a move · a pull (worker.onFilesChanged)
+  └─ MobileVault.reindexPaths       one path at a time, whoever asked
+      ├─ the file is there → VaultIndexer.indexFile    as it lies there, no timestamp asked;
+      │                                                a note as a note, anything else as an attachment
+      ├─ the file is gone  → VaultIndexer.indexPath    the row leaves in a transaction of its own;
+      │                                                then onLocalFileDeleted
+      └─ the pass failed   → once more: a file a moment later, a removal once the full scan
+                             under way is through; then left to the next full scan and counted
+```
+
+- **Every kind of file.** Until 2026-10-09 `indexFile` took `.md` and did nothing for anything else, without a word. On the desktop the watcher passed by a moment later; on the phone a database saved there, a table or a settings file a pull brought, and a restored file stayed unknown to the index until the next full scan. `indexFile` now makes the split every other route makes. It does not ask the file's timestamp — the caller knows the file changed, and a storage provider that rounds its timestamps must not talk the index out of it. `indexPath` asks, and is the door for "something may have happened here".
+- **A removed path leaves.** A file a pull deleted used to stay in the index — a path that is gone could not be read and was skipped. Only "it is not there" counts as gone; a read that failed for another reason concludes no deletion. The removal is reported to the shell like any other (`onLocalFileDeleted`); for a file the plain sync worker removed, its mark answers "that was mine" and nothing is queued. The worker of an encrypted workspace leaves no such mark on the phone: there the report goes on to the workspace's own authorization, as it did when the next full scan made it.
+- **One at a time.** The phone's index database is a single connection, and the SQLite plugin refuses a second transaction while one is open. The single paths of all callers, and the queue entries a pass sets off through the indexer's hooks, take turns (`createIndexTurns`): a caller waits for the turns asked for before its own. Everything else that opens a transaction on that database is not in that row — a full scan, a folder re-read, the app's own move in the index, the look at a note opened in an external folder, every save's entry in the sync queue, the sync worker's queue operations, the calendar cache. A pass that meets one of them is refused and tried once more; what fails twice is left to the next full scan and counted. A full scan that found something to write holds its transaction until it is through. A file the index is told of meanwhile is tried again 400 ms later and, where the scan still writes, left to the next one — a call that holds only files does not wait for a scan. (A save rarely gets that far while a scan writes: its own entry in the sync queue is refused first, and the save is tried again.) A call with a removal that was refused waits for the scan under way before its second attempt: the worker's mark lives in memory, for an hour, and a removal that is left to the next full scan is reported by that scan — to the mark only if this run of the app and that hour still last. Where the second attempt changed the index, the screens are told once more (`m-vault-changed`).
+- **What a pass announces is not let go at a refusal.** The uploads and remote deletions a pass sets off are queued by the shell's hooks — for the plain sync each in a transaction of its own. For a file another program changed or removed that is the only word the sync gets, and it is said once. An entry that is refused waits for a full scan under way and a moment more, and is tried once again (`createAnnouncer`); what fails then is written to the diagnostics instead of being dropped without a trace. The entries have a row of their own, so that none announced later overtakes one that waits, and take a turn in the door's row only for each attempt — the door does not stand behind an entry that waits. A deletion is asked before each attempt whether the file is still gone: an entry can be seconds old by the time its turn comes, and a file that is back has nothing to delete.
+
+## The merge base belongs to the sync
+
+A `sync_state` row carries two things that are easy to take for one: what the app last saw on this device (`local_sha256`), and the common ancestor with the remote (`base_sha256`, `base_etag`, `base_text`). The index renews the first. The second belongs to the sync: `base_sha256` and `base_etag` are written by the sync worker and the sync engine and by nothing else.
+
+The index writes a base text only for a file no sync has seen: no row, or a row without `base_sha256` (the leftover of a deleted, never-synced file whose name a new file took — feedback Build 91). A row that carries `base_sha256` keeps its base text whatever the index knows about the path (`VaultIndexer.judgeSyncState`, `keepsSyncedBase`); only the local marker is renewed, and the file is announced so the shell can queue it.
+
+That rule exists because "a row without an index entry" is also what a live file looks like for a while: a file a pull just wrote, every file after the index was dropped to be rebuilt (the desktop's `rebuildIndex` keeps `sync_state` on purpose), and — until the same change — a file that is no note and had just been moved in the app, whose index row was looked up by id alone. Each of them had its current text written over its merge base. A local change that had not gone up yet then counted as contained in the remote, and the next change from another device replaced it without a conflict copy (finding 2026-10-09; `packages/core/test/sync/merge-base-and-index.test.ts` walks both ways there on two devices).
+
+Outside the index, two writes of `base_text` without a sync remain, both in `ConflictAwareVaultAdapter.writeTextFileLocked`: after it merged a foreign change on disk into a write of the app, and where it heals a row that still carries a byte hash from an old version. This rule does not cover them.
+
+## Passes overlap
+
+A full scan runs for seconds and lets go in between. A single path — a save, a pull, a watcher event — comes in meanwhile, and so does the app removing a file. Three rules hold where passes meet, since 2026-10-12 (`packages/core/test/vault-indexer-overlapping-passes.test.ts`):
+
+- **What a pass found is its own.** New files and foreign changes are announced after the pass's transaction committed (`onNewLocalFile`, `onExternalModification`). The lists were fields of the indexer, emptied by every pass on its way in: a single path that met a scan threw away what the scan had found so far — even when its own transaction was refused a moment later — and those files were not announced. A new file was then queued only by the sweep of the next sync start; a foreign change of a file the remote knew, not at all. Each pass now carries its own (`IndexPass`); a pass that fails takes its findings with it and nobody else's.
+- **A pass leaves alone what another pass touched since it began.** A pass decides from what it read when it began, and removes and reports when it is through; a full scan can be seconds away from its own reading. A path whose row another pass removed and reported in between was reported a second time — and the sync worker's "that deletion was mine" (`OwnDeletionRegister`) answers one question, so the second report queued a remote deletion. On the phone the overlap is built in: a return to the app starts the re-read and the sync in the same moment (each at most once a minute), and a warm start does the same. A path another pass indexed in between fared worse: a file that came back after the scan had listed its folder lost its fresh row and was reported gone while it lay on disk. A pass now neither removes nor reports a path somebody indexed or reported after it began (`VaultIndexer.stillMine`); a row that is stale after all is found by the next pass, with a reading of its own. "Indexed" starts with the asking: a single path that holds a file marks the path before it tries to write, so that a scan which is already writing — and on the phone refuses that single path — at least does not report the file gone. The app's own removal (`removePathFromIndex`) always reports — its caller knows the file went.
+- **A single path that finds its file gone asks and removes in a transaction of its own, and reports after it** (`inspectPathIn`). With plain statements both rode in whatever transaction was open on the phone's one connection. The removal was reported there, the worker's mark spent — and the row back in the index when that transaction was rolled back, for the next scan to report to a register that had answered already. And the question could be answered wrongly: a scan's own removal of the row, not committed yet, read as "nothing here". On that connection the pass is now refused while another transaction is open, and the door comes again; on the desktop it waits its turn — and because that wait can be seconds, it looks at the disk once more before it removes: a file that is back keeps its row.
+
+Known and left as it is: a full scan still indexes a file from a listing that may be older than another pass's row (the file is then announced twice — cost, not loss); it reports the old path of a file the app moved while the scan was under way; the app's own removal (`removePathFromIndex`) still removes with plain statements and reports at once, so on the phone's one connection it rides in an open transaction like any plain statement; and so do the queue entries of an encrypted workspace, which are single statements — never refused, and gone with the rollback of whatever transaction they rode in.
+
 ## What the watcher really reports
 
 The event KIND is what separates a harmless report from a structural one, and it used to be thrown away on the way to the queue (only paths and a `moved` set arrived). The kinds per platform, for the three cases that matter:
@@ -87,6 +129,13 @@ full scan (automatic refresh): 20120 files walked in 180 ms — nothing changed
 ```
 
 The trigger is the token the caller of `indexVaultFull(trigger)` passed: `open`, `manual refresh`, `automatic refresh`, `return to the app`, `sync: batch above the limit`, `watcher: rescan requested`, `folder moved in the app`, `index rebuild`, and so on.
+
+The phone adds two lines of its own: when a path it was told about could not be followed even on the second attempt, and when an upload or a deletion the index announced could not be queued at either attempt:
+
+```
+2 path(s) the index was told of could not be followed — left to the next full scan
+an upload or a deletion the index announced could not be queued
+```
 
 ## Measuring
 
