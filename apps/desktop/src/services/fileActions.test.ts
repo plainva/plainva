@@ -150,8 +150,10 @@ describe("renameToName", () => {
       expect(r.newPath).toBe("New.md");
       expect(r.renamedLinks).toBe(1);
       expect(r.linkUpdateFailed).toBe(false);
-      // serializeMarkdownAst terminates the file with a newline.
-      expect(await files.readTextFile("Ref.md")).toBe("See [[New]].\n");
+      // The link is rewritten where it stands: the note gets no line end it
+      // did not have (it came back with one while the rewrite went through
+      // the Markdown serializer, finding 2026-10-09).
+      expect(await files.readTextFile("Ref.md")).toBe("See [[New]].");
     }
   });
 

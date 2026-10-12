@@ -204,12 +204,16 @@ describe("a note that is written anew keeps the shape it has", () => {
     expect(result).toMatchObject({ renamedLinks: 1, changedFiles: 1, failed: false });
     const after = await files.readTextFile("A.md");
     expect(after).toContain("See [[New]] here");
-    // The rewrite goes through the Markdown serializer, which writes "\n"
+    // The rewrite went through the Markdown serializer, which writes "\n"
     // between its blocks and no mark: the note came back with both kinds of
     // line end, and without the mark it had.
     expect(after.charCodeAt(0)).toBe(0xfeff);
     expect(onlyWindowsLineEnds(after)).toBe(true);
     expect((await bytes("A.md")).slice(0, 3)).toEqual(MARK_BYTES);
+    // Since 2026-10-12 the link is rewritten where it stands, and the note is
+    // the one that was there but for the target (renameLinkBytes.test.ts
+    // holds that for every form of link and of note).
+    expect(await bytes("A.md")).toEqual(marked(note.slice(MARK.length).replace("[[Old]]", "[[New]]")));
     // A "\n" note comes back as a "\n" note.
     await files.writeTextFile("B.md", "# B\n\nSee [[Old]].\n");
     await applyLinkUpdates(files, { sources: [{ path: "B.md", body: [{ raw: "Old", target: "New" }], frontmatter: [] }] } as never);
@@ -228,6 +232,9 @@ describe("a note that is written anew keeps the shape it has", () => {
     expect(adopted).toContain("[Alpha](Alpha.md)");
     expect(adopted.charCodeAt(0)).toBe(0xfeff);
     expect(onlyWindowsLineEnds(adopted)).toBe(true);
+    // Since 2026-10-12: the block is gone, the two links are converted where
+    // they stand, and every other byte is the one that was there.
+    expect(await bytes("Projects/index.md")).toEqual(marked("# Map\r\n\r\n- [Alpha](Alpha.md)\r\n- [Beta](Beta.md)\r\n"));
   });
 });
 

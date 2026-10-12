@@ -1,12 +1,9 @@
 import {
   buildLinkTargetIndex,
   explicitLinkPath,
-  parseMarkdownAst,
   resolveLinkTargetIndexed,
-  serializeMarkdownAst,
-  renameVaultLink,
+  renameNoteLinks,
   renameFrontmatterWikiLinks,
-  inShapeOf,
   type FrontmatterLinkRename,
   type VaultQueryService,
 } from "@plainva/core";
@@ -17,6 +14,12 @@ import { sweepPinboardRefs } from "../base/pinboardSweep";
  * embeds, markdown links; anchors preserved) — the Alpha-roadmap feature
  * "Umbenennen mit vault-weitem Link-Update", pulled forward for the index.md
  * adoption flow (Gesamtplan OKF/Icons/Header, W5).
+ *
+ * A note that links to the renamed one changes in the part of each link that
+ * names the file, and in nothing else — byte for byte (finding 2026-10-09).
+ * The links are rewritten where they stand (`renameNoteLinks`, and
+ * `renameFrontmatterWikiLinks` for a link in the properties); the note is
+ * never written back from a parsed tree, which reformatted all of it.
  *
  * Assumes a same-directory rename (both call sites — file-tree rename and
  * index.md adoption — only change the file name, never the folder), so a raw
@@ -167,7 +170,13 @@ export async function planLinkUpdates(
   return { plan, failed };
 }
 
-/** Rewrites the referencing files of a plan. Safe to run twice. */
+/**
+ * Rewrites the referencing files of a plan. Safe to run twice.
+ *
+ * `failed` also says that a link was found and could not be rewritten where
+ * it stands (a character reference inside it, a link folded over two lines of
+ * a block scalar): it still names the old file, and nothing was guessed.
+ */
 export async function applyLinkUpdates(
   adapter: Pick<RenameAdapter, "readTextFile" | "writeTextFile">,
   plan: LinkUpdatePlan
@@ -179,16 +188,14 @@ export async function applyLinkUpdates(
   for (const source of plan.sources) {
     try {
       let text = await adapter.readTextFile(source.path);
+      let left = 0;
 
       let bodyCount = 0;
       if (source.body.length > 0) {
-        // preserveObsidianSyntax keeps wikilinks/embeds as retargetable nodes
-        // and guarantees they serialize back byte-identically.
-        const ast = parseMarkdownAst(text, { preserveObsidianSyntax: true });
-        for (const { raw, target } of source.body) bodyCount += renameVaultLink(ast, raw, target);
-        // The serializer joins its blocks with `\n` and writes no byte order
-        // mark: the note comes back in the shape it has (finding 2026-10-09).
-        if (bodyCount > 0) text = inShapeOf(text, serializeMarkdownAst(ast));
+        const res = renameNoteLinks(text, new Map(source.body.map(({ raw, target }) => [raw, target])));
+        text = res.content;
+        bodyCount = res.renamed;
+        left += res.unplaced;
       }
 
       let fmCount = 0;
@@ -197,6 +204,7 @@ export async function applyLinkUpdates(
           const res = renameFrontmatterWikiLinks(text, source.frontmatter);
           text = res.content;
           fmCount = res.renamed;
+          left += res.skipped;
         } catch (e) {
           // Never lose the body-side fix over unparseable frontmatter.
           console.warn(`[renameNote] frontmatter link update in ${source.path} failed`, e);
@@ -208,6 +216,10 @@ export async function applyLinkUpdates(
         renamedLinks += bodyCount + fmCount;
         changedFiles++;
         changedPaths.push(source.path);
+      }
+      if (left > 0) {
+        console.warn(`[renameNote] ${left} link(s) in ${source.path} could not be rewritten where they stand`);
+        failed = true;
       }
     } catch (e) {
       console.warn(`[renameNote] updating links in ${source.path} failed`, e);

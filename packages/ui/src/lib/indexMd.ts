@@ -2,12 +2,9 @@ import {
   findIndexCandidates,
   convertWikilinksToMarkdownLinks,
   frontmatterSpan,
-  inShapeOf,
   isPlainvaManagedIndex,
   isReservedOkfName,
-  noteBodyOf,
-  parseMarkdownAst,
-  serializeMarkdownAst,
+  noteWithoutProperties,
   type IndexCandidate,
   type VaultQueryService,
   type WikilinkConversionResult,
@@ -145,6 +142,13 @@ export interface AdoptionResult {
  * (backup first), this file's wikilinks converted to relative markdown links
  * (embeds/unresolved stay and are reported). The rename retargets all links
  * pointing at the old name (W5).
+ *
+ * Preparation changes those two things and nothing else (finding 2026-10-09):
+ * the properties block goes by the rule every writer follows when a block
+ * goes, each converted link is replaced where it stands, and the rest of the
+ * note — list markers, emphasis, tables, blank lines, line ends, a byte order
+ * mark — stays byte for byte. The note used to be written back from its
+ * parsed tree, which reformatted all of it.
  */
 export async function adoptFileAsIndex(opts: {
   adapter: IndexMdAdapter;
@@ -159,17 +163,16 @@ export async function adoptFileAsIndex(opts: {
   if (prepare) {
     const content = await adapter.readTextFile(candidatePath);
     await backupIndexFile(adapter, candidatePath, content);
-    const body = noteBodyOf(content);
-    const ast = parseMarkdownAst(body, { preserveObsidianSyntax: true });
     // A wiki link is resolved by the link rule over the whole vault, title
     // included — where it leads in the editor. It becomes a Markdown link only
     // where that is one of the notes a listing may point at; resolving over
     // those notes alone made a link lead to ANOTHER note of the same name
     // whenever the one it means is not among them.
     const only = new Set(await listMarkdownPaths(queryService));
-    preparation = convertWikilinksToMarkdownLinks(ast, { sourcePath: candidatePath, allFilePaths: await queryService.linkTargets(), only });
-    // In the shape the note has: the serializer writes `\n` and no mark.
-    await adapter.writeTextFile(candidatePath, inShapeOf(content, serializeMarkdownAst(ast)));
+    const prepared = convertWikilinksToMarkdownLinks(noteWithoutProperties(content), { sourcePath: candidatePath, allFilePaths: await queryService.linkTargets(), only });
+    preparation = prepared.result;
+    // A note without a block and without a link to convert is as it has to be: nothing is written.
+    if (prepared.content !== content) await adapter.writeTextFile(candidatePath, prepared.content);
   }
 
   const indexPath = folder ? `${folder}/index.md` : "index.md";

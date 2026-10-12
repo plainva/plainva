@@ -189,7 +189,7 @@ describe("a properties block without entries", () => {
     expect(deleteFrontmatterPath(note, ["owner"])).toBe(note);
     expect(renameFrontmatterKey(note, "owner", "lead")).toBe(note);
     expect(renameFrontmatterTag(note, "old", "new")).toEqual({ content: note, changed: false });
-    expect(renameFrontmatterWikiLinks(note, [{ key: "owner", oldTarget: "A", newTarget: "B" }])).toEqual({ content: note, renamed: 0 });
+    expect(renameFrontmatterWikiLinks(note, [{ key: "owner", oldTarget: "A", newTarget: "B" }])).toEqual({ content: note, renamed: 0, skipped: 0 });
   });
 
   it.each([
@@ -506,13 +506,153 @@ describe("renameFrontmatterWikiLinks", () => {
   it("is a no-op without frontmatter and throws on malformed frontmatter", () => {
     expect(renameFrontmatterWikiLinks("Nur Body [[Alt]]\n", [
       { key: "x", oldTarget: "Alt", newTarget: "Neu" },
-    ])).toEqual({ content: "Nur Body [[Alt]]\n", renamed: 0 });
+    ])).toEqual({ content: "Nur Body [[Alt]]\n", renamed: 0, skipped: 0 });
 
     expect(() =>
       renameFrontmatterWikiLinks('---\n{ kaputt: [\n---\n', [
         { key: "x", oldTarget: "Alt", newTarget: "Neu" },
       ])
     ).toThrow(FrontmatterSurgicalError);
+  });
+
+  /**
+   * Finding 2026-10-09: a link in the properties was renamed by writing the
+   * whole block anew through the YAML library, and the block came back in the
+   * library's form. A rename runs over notes nobody opened; here the target
+   * changes where it stands, and every other character of the note stays.
+   */
+  describe("changes the target and nothing else — byte for byte", () => {
+    // Built at run time: the mark is never typed into this file.
+    const MARK = String.fromCharCode(0xfeff);
+    const LONG = "word ".repeat(30).trim();
+    /** A block with everything the YAML library writes its own way. */
+    const BLOCK = [
+      "---",
+      "# a comment at the top",
+      "",
+      "title:    Spaced out",
+      "tags: [a, b]",
+      "map: {x: 1, y: 2}",
+      `long: ${LONG}`,
+      `quoted: "${LONG}"`,
+      "plz: 01067",
+      "phone: +4915112345678",
+      "id: 12345678901234567890",
+      "half: .5",
+      "",
+      "",
+      'project:   "[[Alt]]"   # why this one',
+      "single: '[[Alt#Abschnitt|Anzeige]]'",
+      "refs:",
+      '- "[[Alt]]"',
+      "- '[[Ordner/Alt]]'",
+      '- "[[Bleibt]]"',
+      "- 42",
+      'flow: ["[[Alt]]", "[[Bleibt]]"]',
+      "---",
+      "Body with [[Alt]] stays.",
+      "",
+    ];
+    const renames = [
+      { key: "project", oldTarget: "Alt", newTarget: "Neu" },
+      { key: "single", oldTarget: "Alt", newTarget: "Neu" },
+      { key: "refs", oldTarget: "Alt", newTarget: "Neu" },
+      { key: "refs", oldTarget: "Ordner/Alt", newTarget: "Ordner/Neu" },
+      { key: "flow", oldTarget: "Alt", newTarget: "Neu" },
+    ];
+    /** What has to come back: the same lines, with the five targets changed. */
+    const after = (lines: string[]) =>
+      lines.map((line) => (line.startsWith("Body") ? line : line.replace("[[Alt", "[[Neu").replace("[[Ordner/Alt", "[[Ordner/Neu")));
+
+    it.each([
+      ["\\n", "\n", ""],
+      ["\\r\\n", "\r\n", ""],
+      ["\\r\\n and a byte order mark", "\r\n", MARK],
+    ])("in a block the library would write differently (%s)", (_name, eol, mark) => {
+      const note = mark + BLOCK.join(eol);
+      expect(renameFrontmatterWikiLinks(note, renames)).toEqual({ content: mark + after(BLOCK).join(eol), renamed: 5, skipped: 0 });
+      // The proof that this block is one the library rewrites: any other
+      // writer of this file brings the lines back in its own form.
+      const rewritten = upsertFrontmatterKeys(note, { status: "open" });
+      for (const form of ["title:    Spaced out", "tags: [a, b]", `long: ${LONG}`, "plz: 01067", '- "[[Alt]]"']) expect(rewritten, form).not.toContain(eol + form + eol);
+    });
+
+    it("writes a name the way the scalar's quotes need it", () => {
+      const note = '---\na: "[[Alt]]"\nb: \'[[Alt]]\'\nc: "[[He said \\"hi\\"]]"\nd: \'[[it\'\'s]]\'\n---\n';
+      const res = renameFrontmatterWikiLinks(note, [
+        { key: "a", oldTarget: "Alt", newTarget: 'Say "new"' },
+        { key: "b", oldTarget: "Alt", newTarget: "it's new" },
+        { key: "c", oldTarget: 'He said "hi"', newTarget: "Neu" },
+        { key: "d", oldTarget: "it's", newTarget: "Neu" },
+      ]);
+      expect(res).toEqual({ content: '---\na: "[[Say \\"new\\"]]"\nb: \'[[it\'\'s new]]\'\nc: "[[Neu]]"\nd: \'[[Neu]]\'\n---\n', renamed: 4, skipped: 0 });
+      // What was written reads back as the new names.
+      expect(parseYaml(res.content.split("---\n")[1])).toEqual({ a: '[[Say "new"]]', b: "[[it's new]]", c: "[[Neu]]", d: "[[Neu]]" });
+    });
+
+    it("keeps blanks, anchor and alias inside the link, and an anchored or tagged scalar", () => {
+      const note = '---\na: "  [[ Alt #H | shown ]]  "\nb: &ref "[[Alt]]"\nc: *ref\nd: !!str \'[[Alt^block]]\'\n---\n';
+      const res = renameFrontmatterWikiLinks(note, ["a", "b", "c", "d"].map((key) => ({ key, oldTarget: "Alt", newTarget: "Neu" })));
+      // `c` is an alias of `b`: it has no text of its own and follows it.
+      expect(res).toEqual({ content: '---\na: "  [[ Neu #H | shown ]]  "\nb: &ref "[[Neu]]"\nc: *ref\nd: !!str \'[[Neu^block]]\'\n---\n', renamed: 3, skipped: 0 });
+    });
+
+    it("changes a link in a block scalar where it stands", () => {
+      const note = "---\na: |-\n  [[Alt]]\nb: >\n    [[Alt#H|x]]\nc: keep\n---\ntext\n";
+      const res = renameFrontmatterWikiLinks(note, [{ key: "a", oldTarget: "Alt", newTarget: "Neu" }, { key: "b", oldTarget: "Alt", newTarget: "Neu" }]);
+      expect(res).toEqual({ content: "---\na: |-\n  [[Neu]]\nb: >\n    [[Neu#H|x]]\nc: keep\n---\ntext\n", renamed: 2, skipped: 0 });
+    });
+
+    it("leaves a scalar folded where its writer folded it", () => {
+      // As it lies in a real vault: the alias runs onto a second line, and the
+      // address above it was folded with a backslash. Neither line moves.
+      const note = '---\r\nsource: "https://example.com/watch?v=8RSpdD5zojk&list=PLHluZpyhn1-zUtlFOsWE\\\r\n  d0x4zgNMFc7lu&index=16"\r\ncreator: "[[Atlas/Creator/Old_Name|A long alias that its writer\r\n  folded here]]"\r\n---\r\n# T\r\n';
+      const res = renameFrontmatterWikiLinks(note, [{ key: "creator", oldTarget: "Atlas/Creator/Old_Name", newTarget: "Atlas/Creator/New_Name" }]);
+      expect(res).toEqual({ content: note.replace("Old_Name", "New_Name"), renamed: 1, skipped: 0 });
+    });
+
+    it("writes a scalar anew only where its quotes spell the target itself another way — and nothing outside it", () => {
+      // An escape the quotes do not need, and a name folded over two lines.
+      const note = '---\n# top\na:   "[[A\\u006Ct]]"   # kept\nb: "[[Alt\n  Zwei]]"\nlist: [x, y]\n---\n';
+      const res = renameFrontmatterWikiLinks(note, [{ key: "a", oldTarget: "Alt", newTarget: "Neu" }, { key: "b", oldTarget: "Alt Zwei", newTarget: "Neu" }]);
+      expect(res).toEqual({ content: '---\n# top\na:   "[[Neu]]"   # kept\nb: "[[Neu]]"\nlist: [x, y]\n---\n', renamed: 2, skipped: 0 });
+    });
+
+    it("reports a link it cannot rewrite where it stands, and leaves the note as it is", () => {
+      // A link folded over two lines of a block scalar reads as one line; its place cannot be told.
+      const note = "---\na: >-\n  [[Alt\n  Zwei]]\nb: \"[[Alt Zwei]]\"\n---\n";
+      const res = renameFrontmatterWikiLinks(note, [{ key: "a", oldTarget: "Alt Zwei", newTarget: "Neu" }, { key: "b", oldTarget: "Alt Zwei", newTarget: "Neu" }]);
+      expect(res).toEqual({ content: "---\na: >-\n  [[Alt\n  Zwei]]\nb: \"[[Neu]]\"\n---\n", renamed: 1, skipped: 1 });
+    });
+
+    it("finds a key the YAML does not read as text: the index lists it by its text", () => {
+      const block = '1: "[[Alt]]"\ntrue: "[[Alt]]"\n2026:\n  - "[[Alt]]"\n  - other\n~: "[[Alt]]"';
+      const note = `---\n${block}\n---\ntext\n`;
+      // The keys as the index has them, which reads the block as data.
+      const keys = Object.keys(parseYaml(block) as Record<string, unknown>);
+      expect([...keys].sort()).toEqual(["", "1", "2026", "true"]);
+      const res = renameFrontmatterWikiLinks(note, keys.map((key) => ({ key, oldTarget: "Alt", newTarget: "Neu" })));
+      expect(res).toEqual({ content: note.split("[[Alt]]").join("[[Neu]]"), renamed: 4, skipped: 0 });
+    });
+
+    it("says so where a key holds its link only by reference and the value it refers to stays", () => {
+      // The index lists `other` and `list`; what they refer to lies under a key
+      // nobody asked for, and is not theirs to change.
+      const note = '---\nplainva:\n  x: &a "[[Alt]]"\nother: *a\nlist:\n  - *a\n  - "[[Alt]]"\n---\n';
+      const renames = ["other", "list"].map((key) => ({ key, oldTarget: "Alt", newTarget: "Neu" }));
+      expect(renameFrontmatterWikiLinks(note, renames)).toEqual({ content: note.replace('- "[[Alt]]"', '- "[[Neu]]"'), renamed: 1, skipped: 2 });
+    });
+
+    it("stays linear over a long list of links", () => {
+      const note = `---\nrelated:\n${'  - "[[Alt]]"\n'.repeat(20_000)}---\n`;
+      const started = performance.now();
+      const res = renameFrontmatterWikiLinks(note, [{ key: "related", oldTarget: "Alt", newTarget: "Neu" }]);
+      const took = performance.now() - started;
+      expect(res.renamed).toBe(20_000);
+      expect(res.content).toBe(note.split("[[Alt]]").join("[[Neu]]"));
+      // Reading the block dominates; putting the note together again for every link took twenty times as long.
+      expect(took).toBeLessThan(3_000);
+    });
   });
 });
 

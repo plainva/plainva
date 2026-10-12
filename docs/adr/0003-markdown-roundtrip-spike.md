@@ -115,3 +115,87 @@ disks and on the server), `apps/desktop/src/services/editorSaveRecovery.test.ts`
 `apps/desktop/src/noteLineEnds.test.ts`, and
 `apps/mobile/e2e-prod/note-line-ends.spec.ts` against the phone's production
 bundle.
+
+## Addendum 2026-10-12 (a note is never written back from its parsed tree)
+
+The question point 7 above left open, decided the way this ADR decides it:
+parse-serialize is no way to change a note that is already there.
+
+Finding 2026-10-09: renaming a note sent every note that links to it through
+the Markdown serializer — parse the note, change the link in the tree, write
+the tree back. So did preparing a note as the overview of its folder. The
+serializer writes in its own form, and the note came back in it: `- ` for
+whatever list marker the note uses, `_emphasis_`, a table rule as `| - | - |`
+with its cells padded, a blank line behind the properties block, a line end at
+the end of the file. An aliased link in a table cell, `[[Note\|alias]]`, came
+back without the backslash that keeps its `|` in the cell, and the row had one
+cell more. A link in the properties was renamed by writing the whole block
+anew through the YAML library: a long line folded at 80 characters, `[a, b]` as
+`[ a, b ]`, an unquoted `007` as `7`. Measured on real vaults (3 139 notes):
+written back from its tree, 3 122 of them come back changed. For a vault kept
+in Git, renaming one note was a diff across every note that links to it — a
+silent reformat of existing vault content.
+
+1. **A change stands where it is made.** A rename changes, in every note that
+   links to the renamed one, the part of each link that names the file — and
+   no other byte. Anchor, alias, label, title, line endings and a byte order
+   mark stay. Of the name itself, what the old and the new one begin and end
+   with stays as it is spelled: a folder in another tool's encoding
+   (`Projects%20(old)/`), an escaped character (`My\_Note`), the extension;
+   what is written anew follows the form the destination had (percent-encoded,
+   between angle brackets, with letters beyond ASCII left as they are). A
+   destination is read back before it is written: where what is kept and what
+   is new would read as something else together — `&amp;` in a name is a
+   character reference, `41` behind a `%` the note left bare an encoded
+   letter —, all of it is written in Plainva's own encoding, with `&` encoded
+   as well. A wiki link's name is written as the name it is. The same holds
+   for a link in the properties: the target changes inside its scalar, the
+   block is not written anew.
+2. **The parser says where, the text is what is changed.**
+   `packages/core/src/linkRewrite.ts` reads a note's links with their places
+   (`readNoteLinks`) from the same tree the index lists a note's links from, so
+   a link that counts as a backlink is a link that is rewritten, and what the
+   index does not take for a link — code, HTML, the properties block — is left
+   alone. `rewriteNoteLinks` and `renameNoteLinks` replace characters of the
+   text as it was read. The parser hands out a text with its backslash escapes
+   and character references resolved; a link is therefore placed by finding it
+   in the source lines with their escapes taken out — `\|` in a table cell is
+   the common one — and only where the source spells it out: the n-th link
+   read is the n-th link spelled, where the two are spelled the same. A link
+   the source does not spell (a character reference inside it,
+   `[[A &amp; B]]`) is reported and left as it is: the rename says that a link
+   could not be updated, as it does when the index cannot be read, and nothing
+   is guessed. Where the two readings do not even hold the same number of
+   links (`&#91;` spells a bracket), a place is only tried, and the note is
+   read once more with a name of its own there: a link is handed out only
+   where the parser reads it.
+3. **Preparing an overview changes two things.** The properties block goes by
+   the rule every writer follows when a block goes (`noteWithoutProperties`,
+   over `composeNote`), and each wiki link that leads to a listed note is
+   replaced, where it stands, by a Markdown link. The rest of the note stays
+   byte for byte.
+4. **The serializer writes new text only.** Its one use in the app is the
+   Markdown link that takes a wiki link's place (`serializeMarkdownLink`).
+   `apps/desktop/src/markdownSerializerUse.test.ts` fails a shipped file that
+   reaches for `serializeMarkdownAst` or for a package that writes Markdown
+   from a tree. It stays in the core for tools outside the app that build a
+   note from a tree of their own.
+5. **Outside this decision.** The writers of a note's properties other than a
+   rename — the properties panel, a database cell, a renamed tag or key —
+   still write the block anew through the YAML library when one entry
+   changes, and the other entries come back in the library's form. That is
+   the same question for another writer, and a separate one. So is what the
+   index takes for a wiki link: it scans Markdown text, and a link whose name
+   carries marks that pair up (`[[_draft_]]`) is none for it, typed by hand
+   or written by a rename. The rename writes the name as it is — a backslash
+   in it would be part of the name for every reader that takes a wiki link
+   as it stands — and leaves that to the scan.
+
+Tests: `packages/core/test/link-rewrite.test.ts` (every form of link and of
+note; the rewriter lists the links the index lists),
+`packages/core/test/frontmatter-surgical.test.ts`,
+`packages/core/test/okf-index.test.ts`, and each shell's own rename over real
+files, a real index and bytes read back —
+`apps/desktop/src/renameLinkBytes.test.ts` and
+`apps/mobile/src/services/renameLinkBytes.test.ts`, over the notes in
+`packages/core/test/helpers/renameNotes.ts`.

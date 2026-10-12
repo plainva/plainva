@@ -26,6 +26,12 @@ keeps the class closed.
      (`wikiLinks`, `bracketLinks`, `replaceBracketLinks`, the matchers and the
      `nextWhere` cursor they are built on), used by the editor plugins, the
      inline renderer, the importers, publications and the reader;
+   - `packages/core/src/linkRewrite.ts` — where the links of a note stand in
+     its text (`readNoteLinks`), and their rewrite in that place
+     (`rewriteNoteLinks`, `renameNoteLinks`): a rename and the preparation of
+     an overview change a link there and never write the note back from its
+     parsed tree (ADR 0003, addendum 2026-10-12;
+     `markdownSerializerUse.test.ts` fails a file that does);
    - `packages/core/src/frontmatter-block.ts` — the properties block at the top
      of a note: `frontmatterSpan` for where it is, `noteBodyOf` for the text
      behind it. Every reader and writer asks there; a pattern or a search of

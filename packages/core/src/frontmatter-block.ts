@@ -14,9 +14,9 @@ import { readTextShape } from "./textFileShape.js";
  * the two old fences became rules in the note; and with a rule further down in
  * the text, the readers took everything up to that rule for YAML.
  *
- * `frontmatterSpan` and `noteBodyOf` are the public half (re-exported by
- * `frontmatter-surgical.ts`). The rest is shared by the two modules that write
- * properties and is not part of the package API.
+ * `frontmatterSpan`, `noteBodyOf` and `noteWithoutProperties` are the public
+ * half (re-exported by `frontmatter-surgical.ts`). The rest is shared by the
+ * two modules that write properties and is not part of the package API.
  */
 
 /** Raised when a document cannot be edited safely (caller should skip the file). */
@@ -168,6 +168,17 @@ export function composeNote(parts: { byteOrderMark: string; yaml: string; body: 
   return fenceEnd(body, 0) >= 0 ? `${byteOrderMark}---${eol}---${eol}${body}` : `${byteOrderMark}${body}`;
 }
 
+/**
+ * The note without its properties block: its mark, then its text, byte for
+ * byte — by the rule every writer follows when a block goes (`composeNote`).
+ * A note without a block comes back as it is.
+ */
+export function noteWithoutProperties(content: string): string {
+  const span = frontmatterSpan(content);
+  if (!span) return content;
+  return composeNote({ byteOrderMark: byteOrderMarkOf(content), yaml: "", body: content.slice(span.end), eol: readTextShape(content).shape.eol });
+}
+
 export interface SplitDocument {
   doc: Document;
   /** The note's text behind the block. */
@@ -181,7 +192,12 @@ export interface SplitDocument {
   content: string;
 }
 
-export function splitDocument(content: string): SplitDocument {
+/**
+ * `sourceTokens` keeps, on every node, the token it was read from — for a
+ * writer that changes one value where it stands instead of writing the block
+ * anew (`renameFrontmatterWikiLinks`).
+ */
+export function splitDocument(content: string, options: { sourceTokens?: boolean } = {}): SplitDocument {
   // The note's line end, by the one definition of it (`readTextShape`: what
   // most of its lines have). A single `\r\n` anywhere used to decide here, and
   // the block of a note with one stray line end was written in that one.
@@ -200,7 +216,7 @@ export function splitDocument(content: string): SplitDocument {
     return { doc, body: content.slice(byteOrderMark.length), hadFrontmatter: false, hadEntries: false, eol, byteOrderMark, content };
   }
 
-  const doc = parseDocument(span.yaml);
+  const doc = options.sourceTokens ? parseDocument(span.yaml, { keepSourceTokens: true }) : parseDocument(span.yaml);
   if (doc.errors.length > 0) {
     throw new FrontmatterSurgicalError(
       `Frontmatter is not parseable YAML: ${doc.errors[0].message}`

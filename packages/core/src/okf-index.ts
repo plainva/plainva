@@ -1,6 +1,6 @@
 import { encodeMarkdownLinkAnchor, encodeMarkdownLinkPath } from "./linkEncoding.js";
-import { visit } from "unist-util-visit";
-import { MarkdownAst, MarkdownHtmlNode } from "./markdown-ast.js";
+import { rewriteNoteLinks } from "./linkRewrite.js";
+import { serializeMarkdownLink } from "./markdown-serializer.js";
 import { buildLinkTargetIndex, resolveLinkTargetIndexed, type LinkCorpusFile } from "./vault/LinkResolver.js";
 import { OKF_VERSION } from "./metadata.js";
 
@@ -199,16 +199,22 @@ export interface WikilinkConversionResult {
  * "OKF-konform aufbereiten" when adopting a note as index.md). Embeds and
  * unresolvable targets are preserved and reported.
  *
+ * Each link is replaced where it stands in the text, and nothing else of the
+ * document changes (finding 2026-10-09). The document used to be written back
+ * from its tree, which reformatted all of it: list markers, emphasis, table
+ * rules, the blank lines between its blocks.
+ *
  * `allFilePaths` is what the link rule resolves over — the whole vault, so a
  * link leads where it leads in the editor. `only` names the files a link may
  * be converted for (the notes a listing points at); a link that leads to any
- * other file stays a wikilink and counts as unresolved. Without `only`, every
- * file of the list may be linked.
+ * other file stays a wikilink and counts as unresolved, and so does one whose
+ * place in the text cannot be told. Without `only`, every file of the list may
+ * be linked.
  */
 export function convertWikilinksToMarkdownLinks(
-  ast: MarkdownAst,
+  content: string,
   opts: { sourcePath: string; allFilePaths: readonly (string | LinkCorpusFile)[]; only?: ReadonlySet<string> }
-): WikilinkConversionResult {
+): { content: string; result: WikilinkConversionResult } {
   const result: WikilinkConversionResult = { converted: 0, embeds: 0, unresolved: 0 };
   const sourceFolder = opts.sourcePath.includes("/")
     ? opts.sourcePath.slice(0, opts.sourcePath.lastIndexOf("/"))
@@ -216,16 +222,11 @@ export function convertWikilinksToMarkdownLinks(
   // One corpus index for the whole document (P2.3) instead of per wikilink.
   const corpusIndex = buildLinkTargetIndex(opts.allFilePaths);
 
-  visit(ast as any, "html", (node: MarkdownHtmlNode, index: number | undefined, parent: any) => {
-    const value = node.value;
-    if (value.startsWith("![[") && value.endsWith("]]")) {
-      result.embeds++;
-      return;
-    }
-    if (!value.startsWith("[[") || !value.endsWith("]]") || index === undefined || !parent) return;
+  const rewritten = rewriteNoteLinks(content, (link) => {
+    if (link.type === "embed") result.embeds++;
+    if (link.type !== "wikilink") return null;
 
-    const inner = value.slice(2, -2);
-    const pipe = inner.split("|");
+    const pipe = link.inner.split("|");
     const alias = pipe.length > 1 ? pipe.slice(1).join("|") : undefined;
     const hashIdx = pipe[0].indexOf("#");
     const target = hashIdx >= 0 ? pipe[0].slice(0, hashIdx) : pipe[0];
@@ -234,18 +235,18 @@ export function convertWikilinksToMarkdownLinks(
     const resolved = resolveLinkTargetIndexed(opts.sourcePath, target, corpusIndex);
     if (!resolved || (opts.only && !opts.only.has(resolved.replace(/\\/g, "/")))) {
       result.unresolved++;
-      return;
+      return null;
     }
 
     const url = relativeMarkdownUrl(sourceFolder, resolved) + encodeMarkdownLinkAnchor(anchor);
     const text = alias ?? (hashIdx >= 0 ? pipe[0] : target.split("/").pop()!);
-    parent.children[index] = {
-      type: "link",
-      url,
-      children: [{ type: "text", value: text }],
-    };
-    result.converted++;
+    return { replacement: serializeMarkdownLink(text, url, { inTable: link.inTable }) };
   });
 
-  return result;
+  result.converted = rewritten.rewritten;
+  for (const link of rewritten.unplaced) {
+    if (link.type === "embed") result.embeds++;
+    else if (link.type === "wikilink") result.unresolved++;
+  }
+  return { content: rewritten.content, result };
 }

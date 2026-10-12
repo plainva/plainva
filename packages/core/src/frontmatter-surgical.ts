@@ -1,7 +1,8 @@
-import { isMap, isScalar, isSeq } from "yaml";
+import { CST, Scalar, isAlias, isMap, isScalar, isSeq, type YAMLMap } from "yaml";
 import {
   FrontmatterSurgicalError,
   ensureMapContents,
+  frontmatterSpan,
   joinDocument,
   splitDocument,
   type SplitDocument,
@@ -20,7 +21,7 @@ import {
  * updateFrontmatterString alike.
  */
 
-export { FrontmatterSurgicalError, frontmatterSpan, noteBodyOf, type FrontmatterSpan } from "./frontmatter-block.js";
+export { FrontmatterSurgicalError, frontmatterSpan, noteBodyOf, noteWithoutProperties, type FrontmatterSpan } from "./frontmatter-block.js";
 
 /**
  * Sets the given top-level keys (nested plain objects/arrays allowed as
@@ -264,21 +265,97 @@ function splitWikiInner(inner: string): { base: string; anchor: string; alias: s
   return { base: trimmed, anchor: "", alias };
 }
 
+/** A text as it stands between double quotes in YAML, for the two characters that need a backslash there. */
+const inDoubleQuotes = (text: string): string => text.replace(/[\\"]/g, "\\$&");
+/** A text as it stands between single quotes in YAML. */
+const inSingleQuotes = (text: string): string => text.replace(/'/g, "''");
+
+/** A change to a scalar as it is written in the YAML: the stretch from `from` to `to` of it becomes `text`. */
+interface ScalarEdit {
+  from: number;
+  to: number;
+  text: string;
+}
+
+/**
+ * What has to change in one scalar, as it is written in the YAML, for the
+ * `base` that begins at `at` of its value to become `next` — or null where
+ * that cannot be done without guessing.
+ *
+ * The value is one link, so `[[` stands in the scalar once, and the target
+ * follows it the way the value says: as it is in a block scalar, and between
+ * quotes but for the characters the quote style escapes. Where the scalar
+ * spells it so, the target's characters are the whole change — whatever the
+ * rest of the scalar looks like: an alias folded onto a second line stays
+ * folded, and a line end inside the scalar stays the one the note has.
+ * A quoted scalar that spells the target itself another way — an escape the
+ * quotes do not need (`[`), a fold inside the name — is written anew by
+ * the YAML library in the quotes it has; nothing outside the scalar moves then
+ * either.
+ */
+function targetInScalar(written: string, node: Scalar, value: string, at: number, base: string, next: string): ScalarEdit | null {
+  const quoted = node.type === Scalar.QUOTE_DOUBLE || node.type === Scalar.QUOTE_SINGLE;
+  const quote = node.type === Scalar.QUOTE_DOUBLE ? inDoubleQuotes : node.type === Scalar.QUOTE_SINGLE ? inSingleQuotes : (text: string) => text;
+  const open = written.indexOf("[[");
+  // The blanks between `[[` and the target, then the target.
+  const lead = value.slice(value.indexOf("[[") + 2, at);
+  if (open >= 0 && written.indexOf("[[", open + 1) < 0 && written.startsWith(lead + quote(base), open + 2)) {
+    const from = open + 2 + lead.length;
+    return { from, to: from + quote(base).length, text: quote(next) };
+  }
+  const token = node.srcToken;
+  if (!quoted || !token || (token.type !== "double-quoted-scalar" && token.type !== "single-quoted-scalar") || token.source !== written) return null;
+  CST.setScalarValue(token, value.slice(0, at) + next + value.slice(at + base.length));
+  return { from: 0, to: written.length, text: token.source };
+}
+
+/**
+ * The value under a key as the index names the key. The index reads the block
+ * as data, where every key is a text: `1:` is listed as "1", `true:` as
+ * "true", a key without a name (`~:`) as "". In the YAML they are a number, a
+ * boolean and nothing, and asked for by their text they are not found.
+ */
+function valueUnder(map: YAMLMap, key: string): unknown {
+  const direct = map.get(key, true);
+  if (direct !== undefined) return direct;
+  for (const pair of map.items) {
+    const name = isScalar(pair.key) ? pair.key.value : pair.key;
+    if (typeof name === "string" || (typeof name === "object" && name !== null)) continue;
+    if ((name === null || name === undefined ? "" : String(name)) === key) return pair.value;
+  }
+  return undefined;
+}
+
 /**
  * Rewrites whole-value wiki links (`"[[T]]"`, `"[[T#a|alias]]"`) in the given
  * frontmatter keys — scalar string values and string items of sequences —
- * preserving anchors, aliases, each scalar's quoting style, YAML comments, key
- * order and the body byte-for-byte. Only the listed keys are inspected;
- * missing keys and non-string items are no-ops. Malformed frontmatter throws
- * FrontmatterSurgicalError (callers keep their body-side fix, see renameNote).
+ * where they stand: the characters of the target change, and nothing else in
+ * the note does. Anchor, alias, the scalar's quotes, the block's comments,
+ * spacing and line ends, every other entry and the text behind the block stay
+ * byte for byte.
+ *
+ * It does not write the block anew through the YAML library the way the other
+ * helpers here do (finding 2026-10-09). A rename runs over notes nobody
+ * opened, and a block written anew comes back in the library's form: a long
+ * line folded at 80 characters, `[a, b]` as `[ a, b ]`, `- item` under a key
+ * indented, `007` as `7`.
+ *
+ * Only the listed keys are inspected; missing keys and non-string items are
+ * no-ops. `skipped` counts links that name one of the targets and could not
+ * be rewritten in place — a link folded over two lines of a block scalar, or
+ * one a key holds only by reference (`key: *a`) while the value it refers to
+ * was not rewritten: they still name the old file. Malformed frontmatter
+ * throws FrontmatterSurgicalError (callers keep their body-side fix, see
+ * renameNote).
  */
 export function renameFrontmatterWikiLinks(
   content: string,
   renames: readonly FrontmatterLinkRename[]
-): { content: string; renamed: number } {
-  if (renames.length === 0) return { content, renamed: 0 };
-  const split = splitDocument(content);
-  if (!split.hadFrontmatter || split.doc.contents === null) return { content, renamed: 0 };
+): { content: string; renamed: number; skipped: number } {
+  if (renames.length === 0) return { content, renamed: 0, skipped: 0 };
+  const split = splitDocument(content, { sourceTokens: true });
+  const span = frontmatterSpan(content);
+  if (!span || !split.hadFrontmatter || split.doc.contents === null) return { content, renamed: 0, skipped: 0 };
   const map = ensureMapContents(split.doc);
 
   const byKey = new Map<string, Map<string, string>>();
@@ -287,21 +364,49 @@ export function renameFrontmatterWikiLinks(
     byKey.get(r.key)!.set(r.oldTarget, r.newTarget);
   }
 
-  let renamed = 0;
-  const rewriteScalar = (node: unknown, targets: Map<string, string>) => {
-    if (!isScalar(node) || typeof node.value !== "string") return;
+  /** Changes to the YAML as it stands in the note, by its offsets. */
+  const edits: Array<{ from: number; to: number; text: string }> = [];
+  let skipped = 0;
+  /** The scalars a change was made in, and — once per reference — those a key holds by reference. */
+  const rewritten = new Set<Scalar>();
+  const referred: Scalar[] = [];
+  /** The target a scalar's link is to get, and where the old one begins in its value; null where it holds no such link. */
+  const wanted = (node: Scalar, targets: Map<string, string>): { base: string; next: string; at: number } | null => {
+    if (typeof node.value !== "string") return null;
     const match = WHOLE_WIKILINK_RE.exec(node.value);
-    if (!match) return;
-    const { base, anchor, alias } = splitWikiInner(match[1]);
+    if (!match) return null;
+    const { base } = splitWikiInner(match[1]);
     const next = targets.get(base);
-    if (next === undefined || next === base) return;
-    // In-place value swap keeps the scalar's quoting style and comments.
-    node.value = `[[${next}${anchor}${alias}]]`;
-    renamed++;
+    if (next === undefined || next === base) return null;
+    // Behind `[[` and the blanks in front of the target.
+    const inner = match[1];
+    const pipe = inner.indexOf("|");
+    const target = pipe === -1 ? inner : inner.slice(0, pipe);
+    return { base, next, at: node.value.indexOf("[[") + 2 + (target.length - target.trimStart().length) };
+  };
+  const rewriteScalar = (node: unknown, targets: Map<string, string>) => {
+    if (isAlias(node)) {
+      // The value stands where its anchor is; it changes there or not at all.
+      const source = node.resolve(split.doc);
+      if (isScalar(source) && wanted(source, targets)) referred.push(source);
+      return;
+    }
+    if (!isScalar(node) || typeof node.value !== "string") return;
+    const link = wanted(node, targets);
+    if (!link || rewritten.has(node)) return;
+    const range = node.range;
+    const written = range ? span.yaml.slice(range[0], range[1]) : null;
+    const edit = range && written !== null && node.value.startsWith(link.base, link.at) ? targetInScalar(written, node, node.value, link.at, link.base, link.next) : null;
+    if (!range || edit === null) {
+      skipped++;
+      return;
+    }
+    edits.push({ from: range[0] + edit.from, to: range[0] + edit.to, text: edit.text });
+    rewritten.add(node);
   };
 
   for (const [key, targets] of byKey) {
-    const value = map.get(key, true);
+    const value = valueUnder(map, key);
     if (value == null) continue;
     if (isSeq(value)) {
       for (const item of value.items) rewriteScalar(item, targets);
@@ -309,9 +414,19 @@ export function renameFrontmatterWikiLinks(
       rewriteScalar(value, targets);
     }
   }
+  for (const source of referred) if (!rewritten.has(source)) skipped++;
 
-  if (renamed === 0) return { content, renamed: 0 };
-  return { content: joinDocument(split), renamed };
+  if (edits.length === 0) return { content, renamed: 0, skipped };
+  // In one pass over the note. A scalar is changed once, so no two changes meet.
+  edits.sort((a, b) => a.from - b.from);
+  const pieces: string[] = [];
+  let cursor = 0;
+  for (const edit of edits) {
+    pieces.push(content.slice(cursor, span.yamlStart + edit.from), edit.text);
+    cursor = span.yamlStart + edit.to;
+  }
+  pieces.push(content.slice(cursor));
+  return { content: pieces.join(""), renamed: edits.length, skipped };
 }
 
 export interface EnsureOkfFrontmatterOptions {

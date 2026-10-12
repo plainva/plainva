@@ -5,8 +5,6 @@ import {
   relativeMarkdownUrl,
   convertWikilinksToMarkdownLinks,
 } from "../src/okf-index.js";
-import { parseMarkdownAst } from "../src/markdown-parser.js";
-import { serializeMarkdownAst } from "../src/markdown-serializer.js";
 
 describe("relativeMarkdownUrl", () => {
   it("builds relative urls from a folder", () => {
@@ -119,31 +117,94 @@ describe("convertWikilinksToMarkdownLinks", () => {
 
   it("converts wikilinks to relative markdown links, keeping aliases and anchors", () => {
     const md = "See [[Alpha]] and [[Beta Note|Beta]] and [[Gamma#Intro]].";
-    const ast = parseMarkdownAst(md, { preserveObsidianSyntax: true });
-    const result = convertWikilinksToMarkdownLinks(ast, {
+    const { content: out, result } = convertWikilinksToMarkdownLinks(md, {
       sourcePath: "Projects/MOC.md",
       allFilePaths: allFiles,
     });
 
     expect(result.converted).toBe(3);
-    const out = serializeMarkdownAst(ast);
     expect(out).toContain("[Alpha](Alpha.md)");
     expect(out).toContain("[Beta](Beta%20Note.md)");
     expect(out).toContain("[Gamma#Intro](../Other/Gamma.md#Intro)");
+    // …and nothing around the links moves.
+    expect(out).toBe("See [Alpha](Alpha.md) and [Beta](Beta%20Note.md) and [Gamma#Intro](../Other/Gamma.md#Intro).");
   });
 
   it("leaves embeds and unresolved targets untouched", () => {
     const md = "Embed ![[Alpha]] and missing [[Nowhere]].";
-    const ast = parseMarkdownAst(md, { preserveObsidianSyntax: true });
-    const result = convertWikilinksToMarkdownLinks(ast, {
+    const { content: out, result } = convertWikilinksToMarkdownLinks(md, {
       sourcePath: "Projects/MOC.md",
       allFilePaths: allFiles,
     });
 
     expect(result).toEqual({ converted: 0, embeds: 1, unresolved: 1 });
-    const out = serializeMarkdownAst(ast);
     expect(out).toContain("![[Alpha]]");
     expect(out).toContain("[[Nowhere]]");
+    // Nothing to convert: the very text that was handed in.
+    expect(out).toBe(md);
+  });
+
+  // Finding 2026-10-09: the note was written back from its parsed tree, so
+  // preparing an overview reformatted all of it. Each link is replaced where it
+  // stands; every other character is the one that was there.
+  it("changes the converted links and nothing else — byte for byte", () => {
+    const mark = String.fromCharCode(0xfeff);
+    const note = [
+      "# Map",
+      "",
+      "* item with [[Alpha]]",
+      "* *emphasis* and __strong__ [[Nowhere]]",
+      "",
+      "| note | what |",
+      "|---|---|",
+      "| [[Beta Note\\|the second]] | ![[Alpha]] |",
+      "",
+      "***",
+      "",
+      "1) [[Gamma#Intro|a*b]]",
+      "2) `[[Alpha]]` stays code",
+      "",
+      "last line without a line end [[Alpha|a [b] c]]",
+    ].join("\n");
+    const expected = note
+      .replace("[[Alpha]]", "[Alpha](Alpha.md)")
+      // In a table cell the `|` of an alias was `\|`; the link that takes its place needs none.
+      .replace("[[Beta Note\\|the second]]", "[the second](Beta%20Note.md)")
+      // A label is written so that it reads as the text it is.
+      .replace("[[Gamma#Intro|a*b]]", "[a\\*b](../Other/Gamma.md#Intro)")
+      .replace("[[Alpha|a [b] c]]", "[a \\[b\\] c](Alpha.md)");
+    for (const [text, after] of [[note, expected], [mark + note.replace(/\n/g, "\r\n"), mark + expected.replace(/\n/g, "\r\n")]]) {
+      const { content, result } = convertWikilinksToMarkdownLinks(text, { sourcePath: "Projects/MOC.md", allFilePaths: allFiles });
+      expect(content).toBe(after);
+      expect(result).toEqual({ converted: 4, embeds: 1, unresolved: 1 });
+    }
+  });
+
+  it("writes a `|` in a table cell so that it stays in the cell", () => {
+    const table = "| a |\n|---|\n| [[Alpha\\|one \\| two]] |\n";
+    const { content } = convertWikilinksToMarkdownLinks(table, { sourcePath: "Projects/MOC.md", allFilePaths: allFiles });
+    expect(content).toBe("| a |\n|---|\n| [one \\| two](Alpha.md) |\n");
+  });
+
+  it("counts a link whose place cannot be told as not converted, and leaves it", () => {
+    // `&amp;` is read as `&`: the link names `Alpha & Co`, which the line does not spell.
+    const note = "[[Alpha &amp; Co]] and ![[Alpha &amp; Co]]\n";
+    const vault = [...allFiles, "Projects/Alpha & Co.md"];
+    expect(convertWikilinksToMarkdownLinks(note, { sourcePath: "Projects/MOC.md", allFilePaths: vault })).toEqual({ content: note, result: { converted: 0, embeds: 1, unresolved: 1 } });
+  });
+
+  it("converts the link behind an address or a reference, never a place that only looks like it", () => {
+    const options = { sourcePath: "Projects/MOC.md", allFilePaths: allFiles };
+    // Cut out of its text, the address takes `[[Alpha` along; the link is the one behind it.
+    expect(convertWikilinksToMarkdownLinks("[www.example.com/[[Alpha]] [[Alpha]]]\n", options)).toEqual({
+      content: "[www.example.com/[[Alpha]] [Alpha](Alpha.md)]\n",
+      result: { converted: 1, embeds: 0, unresolved: 0 },
+    });
+    // `&#33;` is read as `!`: an embed the source does not spell as one. It stays, and is counted as an embed.
+    expect(convertWikilinksToMarkdownLinks("&#33;[[Alpha]] and [[Alpha]]\n", options)).toEqual({
+      content: "&#33;[[Alpha]] and [Alpha](Alpha.md)\n",
+      result: { converted: 1, embeds: 1, unresolved: 0 },
+    });
   });
 
   // One rule for where a link leads (2026-10-09): the link is resolved over the
@@ -159,11 +220,9 @@ describe("convertWikilinksToMarkdownLinks", () => {
     ];
     // A listing leaves the root's `Brief.md` out; the link leads there all the same.
     const only = new Set(["Projects/Archiv/Brief.md", "Projects/Alpha.md"]);
-    const ast = parseMarkdownAst("See [[Brief]], [[Alpha]] and [[Aufgaben.base]].", { preserveObsidianSyntax: true });
-    const result = convertWikilinksToMarkdownLinks(ast, { sourcePath: "Projects/MOC.md", allFilePaths: vault, only });
+    const { content: out, result } = convertWikilinksToMarkdownLinks("See [[Brief]], [[Alpha]] and [[Aufgaben.base]].", { sourcePath: "Projects/MOC.md", allFilePaths: vault, only });
 
     expect(result).toEqual({ converted: 1, embeds: 0, unresolved: 2 });
-    const out = serializeMarkdownAst(ast);
     expect(out).toContain("[[Brief]]");
     expect(out).not.toContain("Archiv/Brief.md");
     expect(out).toContain("[Alpha](Alpha.md)");
