@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-10-11
+Ultimo aggiornamento: 2026-10-12
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -55,12 +55,13 @@ Tre pulsanti su ogni messaggio:
 
 Non appena un account può inviare — un account **Microsoft**, oppure un account **IMAP** con un **host SMTP** configurato —, puoi scrivere e inviare e-mail da Plainva:
 
-- **Scrivi** (nella scheda e-mail) apre una finestra fluttuante con righe etichettate **Da / A / Cc / Ccn**. Digita un indirizzo e premi Invio o virgola per trasformarlo in un chip; **Cc/Ccn** compaiono su richiesta. Il corpo è un editor Markdown con una barra degli strumenti di formattazione e un menu comandi "/". Un link `[testo](https://…)` compare come un link già formato mentre scrivi — i caratteri Markdown ricompaiono non appena il cursore vi entra, e un clic apre la destinazione nel tuo browser. All'invio il corpo viene comunque convertito in HTML: il destinatario riceve sempre un link vero, indipendentemente da come appariva nella finestra.
+- **Nuovo messaggio** (nella scheda e-mail) apre una finestra fluttuante con righe etichettate **Da / A / Cc / Ccn**. Digita un indirizzo e premi Invio o virgola per trasformarlo in un chip; **Cc/Ccn** compaiono su richiesta. Il corpo è un editor Markdown con una barra degli strumenti di formattazione e un menu comandi "/". Un link `[testo](https://…)` compare come un link già formato mentre scrivi — i caratteri Markdown ricompaiono non appena il cursore vi entra, e un clic apre la destinazione nel tuo browser. All'invio il corpo viene comunque convertito in HTML: il destinatario riceve sempre un link vero, indipendentemente da come appariva nella finestra.
 - **Inserisci modello…** mette un modello di nota nel corpo del messaggio. Le domande del modello (`{{prompt:…}}`) vengono poste **una volta sola, in un'unica finestra**, invece di viaggiare come segnaposto; il suo frontmatter resta fuori — un corpo di posta non ne ha, e il destinatario riceverebbe YAML. Se annulli, non viene inserito nulla.
 - **Rispondi**, **Rispondi a tutti** e **Inoltra** su qualsiasi messaggio aprono la stessa finestra con l'originale citato e i destinatari precompilati; un inoltro porta con sé il testo dell'originale, non i suoi allegati.
 - **Invia** parte via SMTP (account IMAP) o Microsoft Graph (account Microsoft).
 - **Annulla**, il pulsante di chiusura e `Esc` chiedono **Scartare i dati inseriti?** prima che un messaggio che hai modificato vada perso. **Annulla** in quella domanda ti riporta al messaggio con tutto al suo posto; **Scarta** lo chiude. Un messaggio che non hai toccato si chiude subito — la firma che Plainva inserisce e un file con cui il messaggio è arrivato (una nota inviata come allegato, un invito) non contano come tue modifiche. **Invia**, **Salva bozza** e lo spostamento in una finestra propria non chiedono mai, e la finestra resta aperta mentre apri una nota o cambi scheda accanto.
 - **Questa nota via e-mail** (menu `⋮` di una nota, o la palette dei comandi) avvia un messaggio con la nota attuale come allegato, oppure incorporata come testo.
+- Ogni finestra di Plainva ha **una** finestra di composizione. Se chiedi un altro messaggio mentre è aperta — **Rispondi** su un altro messaggio, **Nuovo messaggio**, **Inoltra**, **Questa nota via e-mail** —, mostra la nuova bozza nello stesso punto, purché tu non abbia toccato il messaggio che era aperto. Se lo hai modificato, prima compare **Scartare i dati inseriti?**: **Scarta** apre il nuovo messaggio, **Annulla** lascia quello vecchio con tutto ciò che contiene. Sul telefono la composizione occupa tutto lo schermo; lì arrivi a un altro messaggio con la freccia indietro, che fa la stessa domanda.
 
 ## La posta in una finestra propria
 

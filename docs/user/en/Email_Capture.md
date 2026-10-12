@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-10-11
+Last reviewed: 2026-10-12
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -55,12 +55,13 @@ Three buttons on every message:
 
 Once an account can send — a **Microsoft** account, or an **IMAP** account with an **SMTP host** configured — you can write and send mail from Plainva:
 
-- **Compose** (in the mail tab) opens a floating window with labelled **From / To / Cc / Bcc** rows. Type an address and press Enter or comma to turn it into a chip; **Cc/Bcc** reveal on demand. The body is a Markdown editor with a formatting toolbar and a "/" command menu. A link `[text](https://…)` renders as a finished link while you write — the markdown characters come back when the caret moves into it, and a click opens the target in your browser. On send the body is converted to HTML anyway: the recipient always receives a real link, whatever it looked like in the window.
+- **New message** (in the mail tab) opens a floating window with labelled **From / To / Cc / Bcc** rows. Type an address and press Enter or comma to turn it into a chip; **Cc/Bcc** reveal on demand. The body is a Markdown editor with a formatting toolbar and a "/" command menu. A link `[text](https://…)` renders as a finished link while you write — the markdown characters come back when the caret moves into it, and a click opens the target in your browser. On send the body is converted to HTML anyway: the recipient always receives a real link, whatever it looked like in the window.
 - **Insert template…** puts a note template into the body. The template's questions (`{{prompt:…}}`) are asked **once, in one dialog**, rather than travelling along as placeholders; its frontmatter stays out — a mail body has none, and the recipient would otherwise receive YAML. Cancel the dialog and nothing is inserted.
 - **Reply**, **reply-all** and **forward** on any message open the same window with the original quoted and the recipients pre-filled; a forward carries the text of the original, not its attachments.
 - **Send** goes out over SMTP (IMAP accounts) or Microsoft Graph (Microsoft accounts).
 - **Cancel**, the close button and `Esc` ask **Discard your input?** before a message you have changed is thrown away. **Cancel** in that question takes you back to the message with everything in place; **Discard** closes it. A message you have not touched closes at once — the signature Plainva puts in and a file the message arrived with (a note sent as an attachment, an invitation) are not your changes. **Send**, **Save draft** and lifting the composer into its own window never ask, and the window stays open while you open a note or switch tabs beside it.
 - **Email this note** (a note's `⋮` menu, or the command palette) starts a message with the current note attached, or inlined as text.
+- Each Plainva window has **one** composer window. Ask for another message while it is open — **Reply** on a different message, **New message**, **Forward**, **Email this note** — and it shows the new draft in the same place, as long as you have not touched the message that was open. If you have changed it, **Discard your input?** comes first: **Discard** opens the new message, **Cancel** leaves the old one standing with everything in it. On the phone the composer fills the screen; you get to another message through the back arrow there, and it asks the same question.
 
 ## Email in its own window
 

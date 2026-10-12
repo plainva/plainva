@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-10-11
+Stand: 2026-10-12
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -55,12 +55,13 @@ Drei Knöpfe an jeder Nachricht:
 
 Sobald ein Konto senden kann — ein **Microsoft**-Konto oder ein **IMAP**-Konto mit hinterlegtem **SMTP-Host** —, kannst Du in Plainva Mails schreiben und senden:
 
-- **Verfassen** (im Mail-Tab) öffnet ein freischwebendes Fenster mit beschrifteten Zeilen **Von / An / Cc / Bcc**. Tipp eine Adresse und drück Enter oder Komma, um sie in einen Chip zu verwandeln; **Cc/Bcc** blenden sich bei Bedarf ein. Der Textkörper ist ein Markdown-Editor mit Formatierungsleiste und „/"-Befehlsmenü. Ein Link `[Text](https://…)` erscheint beim Schreiben als fertiger Link — die Markdown-Zeichen tauchen wieder auf, sobald der Cursor hineinfährt, und ein Klick öffnet das Ziel im Browser. Beim Versand wird der Text ohnehin in HTML umgewandelt: Der Empfänger bekommt immer einen echten Link, unabhängig davon, wie er im Fenster aussieht.
+- **Neue Nachricht** (im Mail-Tab) öffnet ein freischwebendes Fenster mit beschrifteten Zeilen **Von / An / Cc / Bcc**. Tipp eine Adresse und drück Enter oder Komma, um sie in einen Chip zu verwandeln; **Cc/Bcc** blenden sich bei Bedarf ein. Der Textkörper ist ein Markdown-Editor mit Formatierungsleiste und „/"-Befehlsmenü. Ein Link `[Text](https://…)` erscheint beim Schreiben als fertiger Link — die Markdown-Zeichen tauchen wieder auf, sobald der Cursor hineinfährt, und ein Klick öffnet das Ziel im Browser. Beim Versand wird der Text ohnehin in HTML umgewandelt: Der Empfänger bekommt immer einen echten Link, unabhängig davon, wie er im Fenster aussieht.
 - **Vorlage einfügen…** setzt eine Notiz-Vorlage in den Textkörper. Fragen der Vorlage (`{{prompt:…}}`) werden **einmal in einem Dialog** gestellt, nicht als Platzhalter mitgeschickt; das Frontmatter der Vorlage bleibt draußen — ein Mail-Text hat keins, und der Empfänger bekäme sonst YAML. Bricht der Dialog ab, wird nichts eingefügt.
 - **Antworten**, **Allen antworten** und **Weiterleiten** an jeder Nachricht öffnen dasselbe Fenster mit zitiertem Original und vorbelegten Empfängern; beim Weiterleiten kommt der Text des Originals mit, seine Anhänge nicht.
 - **Senden** läuft über SMTP (IMAP-Konten) oder Microsoft Graph (Microsoft-Konten).
 - **Abbrechen**, der Schließen-Knopf und `Esc` fragen **Eingaben verwerfen?**, bevor eine geänderte Nachricht verloren geht. **Abbrechen** in dieser Frage bringt Dich zur Nachricht zurück, mit allem, was darin steht; **Verwerfen** schließt sie. Eine Nachricht, die Du nicht angefasst hast, schließt sofort — die Signatur, die Plainva einsetzt, und eine Datei, mit der die Nachricht ankam (eine Notiz als Anhang, eine Einladung), zählen nicht als Deine Änderung. **Senden**, **Als Entwurf** und das Herauslösen in ein eigenes Fenster fragen nie, und das Fenster bleibt offen, während Du daneben eine Notiz öffnest oder den Tab wechselst.
 - **Diese Notiz per Mail** (⋮-Menü einer Notiz oder Befehlspalette) startet eine Nachricht mit der aktuellen Notiz als Anhang oder inline als Text.
+- Jedes Plainva-Fenster hat **ein** Verfassen-Fenster. Fragst Du nach einer weiteren Nachricht, während es offen ist — **Antworten** auf eine andere Nachricht, **Neue Nachricht**, **Weiterleiten**, **Diese Notiz per Mail** —, zeigt es an derselben Stelle den neuen Entwurf, solange Du die offene Nachricht nicht angefasst hast. Hast Du sie geändert, kommt zuerst **Eingaben verwerfen?**: **Verwerfen** öffnet die neue Nachricht, **Abbrechen** lässt die alte stehen, mit allem, was darin steht. Am Telefon füllt das Verfassen den Bildschirm; zu einer anderen Nachricht kommst Du dort über den Zurück-Pfeil, und er stellt dieselbe Frage.
 
 ## E-Mail in einem eigenen Fenster
 

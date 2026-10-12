@@ -12,6 +12,7 @@ import { applyTemplateInteractive, withShellContext } from "../../services/templ
 import { templateInsertText } from "@plainva/ui";
 import { submitDraft, submitSend } from "../../services/mail/sendQueue";
 import type { ComposeSnapshot } from "../../services/mail/composeHandoff";
+import { holdComposeDraft } from "../../services/mail/composeHost";
 import { composeChanged, splitRecipients, type ComposeContent } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
 import { holdWindowClose } from "../../services/windowCloseGuard";
@@ -171,6 +172,44 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     if (!changed) return;
     return holdWindowClose(confirmDiscard);
   }, [changed, confirmDiscard]);
+
+  // And a fifth way to lose a draft is another message being asked for while
+  // this one is open — "Reply" in the mail view beside it, a note sent by mail.
+  // That is its host's to decide (services/mail/composeHost.ts), so the host
+  // is told what stands here. A changed draft: it puts this same question
+  // before the new draft takes this composer's place, and replaces an
+  // untouched one without it.
+  useEffect(() => {
+    if (!changed || busy) return;
+    return holdComposeDraft(confirmDiscard);
+  }, [changed, busy, confirmDiscard]);
+
+  // A message that is being sent or filed this moment is neither. What becomes
+  // of it is not known yet, and "discard?" is the wrong question about a
+  // message on its way, so the request waits for the outcome. Sent or filed,
+  // this composer has closed by then and the new draft may come. Failed, it is
+  // still here with its error and everything in it — and stays, whether or
+  // not anyone wrote in it: the error is for the person, not for nobody.
+  const here = useRef(true);
+  useEffect(() => {
+    here.current = true;
+    return () => {
+      here.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!busy) return;
+    let landed!: () => void;
+    const outcome = new Promise<void>((resolve) => (landed = resolve));
+    const release = holdComposeDraft(async () => {
+      await outcome;
+      return !here.current;
+    });
+    return () => {
+      landed();
+      release();
+    };
+  }, [busy]);
 
   /**
    * The From picker offers ADDRESSES, not accounts: an account contributes its

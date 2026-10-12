@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-10-11
+Stan na: 2026-10-12
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -55,12 +55,13 @@ Trzy przyciski przy każdej wiadomości:
 
 Gdy tylko konto może wysyłać — konto **Microsoft** albo konto **IMAP** ze skonfigurowanym **hostem SMTP** — możesz pisać i wysyłać wiadomości z Plainva:
 
-- **Napisz** (w karcie e-mail) otwiera pływające okno z opisanymi wierszami **Od / Do / DW / UDW**. Wpisz adres i naciśnij Enter lub przecinek, aby zamienić go w chip; **DW/UDW** pojawiają się na żądanie. Treść to edytor Markdown z paskiem narzędzi formatowania i menu poleceń „/". Link `[tekst](https://…)` wyświetla się jako gotowy link już podczas pisania — znaki Markdown wracają, gdy tylko kursor do niego wejdzie, a kliknięcie otwiera cel w przeglądarce. Przy wysyłce treść i tak jest przekształcana do HTML: odbiorca zawsze otrzymuje prawdziwy link, niezależnie od tego, jak wyglądał w oknie.
+- **Nowa wiadomość** (w karcie e-mail) otwiera pływające okno z opisanymi wierszami **Od / Do / DW / UDW**. Wpisz adres i naciśnij Enter lub przecinek, aby zamienić go w chip; **DW/UDW** pojawiają się na żądanie. Treść to edytor Markdown z paskiem narzędzi formatowania i menu poleceń „/". Link `[tekst](https://…)` wyświetla się jako gotowy link już podczas pisania — znaki Markdown wracają, gdy tylko kursor do niego wejdzie, a kliknięcie otwiera cel w przeglądarce. Przy wysyłce treść i tak jest przekształcana do HTML: odbiorca zawsze otrzymuje prawdziwy link, niezależnie od tego, jak wyglądał w oknie.
 - **Wstaw szablon…** umieszcza szablon notatki w treści wiadomości. Pytania szablonu (`{{prompt:…}}`) są zadawane **raz, w jednym oknie**, zamiast wędrować dalej jako symbole zastępcze; jego frontmatter zostaje na zewnątrz — treść maila go nie ma, a odbiorca dostałby YAML. Po anulowaniu nic nie zostaje wstawione.
 - **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej** przy dowolnej wiadomości otwierają to samo okno z zacytowanym oryginałem i wstępnie wypełnionymi odbiorcami; przekazanie zabiera ze sobą tekst oryginału, ale nie jego załączniki.
 - **Wyślij** wychodzi przez SMTP (konta IMAP) lub Microsoft Graph (konta Microsoft).
 - **Anuluj**, przycisk zamykania i `Esc` pytają **Odrzucić wpisane dane?**, zanim zmieniona wiadomość przepadnie. **Anuluj** w tym pytaniu wraca do wiadomości ze wszystkim, co w niej jest; **Odrzuć** ją zamyka. Wiadomość, w której nic nie zostało zmienione, zamyka się od razu — podpis wstawiany przez Plainva i plik, z którym wiadomość przyszła (notatka wysłana jako załącznik, zaproszenie), nie liczą się jako Twoje zmiany. **Wyślij**, **Zapisz roboczą** i przeniesienie do własnego okna nigdy nie pytają, a okno pozostaje otwarte, gdy obok otwierasz notatkę albo zmieniasz kartę.
 - **Ta notatka e-mailem** (menu `⋮` notatki lub paleta poleceń) rozpoczyna wiadomość z bieżącą notatką w załączniku lub wstawioną jako tekst.
+- Każde okno Plainva ma **jedno** okno tworzenia wiadomości. Gdy poprosisz o kolejną wiadomość, kiedy jest otwarte — **Odpowiedz** przy innej wiadomości, **Nowa wiadomość**, **Przekaż dalej**, **Ta notatka e-mailem** —, pokazuje ono w tym samym miejscu nowy szkic, o ile otwarta wiadomość nie została zmieniona. Jeśli została zmieniona, najpierw pojawia się **Odrzucić wpisane dane?**: **Odrzuć** otwiera nową wiadomość, **Anuluj** zostawia poprzednią ze wszystkim, co w niej jest. Na telefonie tworzenie wiadomości zajmuje cały ekran; do innej wiadomości przechodzisz tam strzałką wstecz, a ona zadaje to samo pytanie.
 
 ## E-mail we własnym oknie
 

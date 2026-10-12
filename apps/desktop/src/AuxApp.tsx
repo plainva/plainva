@@ -530,6 +530,7 @@ export function AuxApp() {
         )}
         {bridge.mailDraft && vaultPath && (
           <MailDraftModal
+            key={bridge.mailDraftKey}
             subject={bridge.mailDraft.subject}
             markdown={bridge.mailDraft.markdown}
             attachments={bridge.mailDraft.attachments}

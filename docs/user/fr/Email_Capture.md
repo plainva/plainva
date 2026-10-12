@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-10-11
+Dernière mise à jour : 2026-10-12
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -55,12 +55,13 @@ Trois boutons sur chaque message :
 
 Dès qu'un compte peut envoyer — un compte **Microsoft**, ou un compte **IMAP** avec un **hôte SMTP** configuré —, vous pouvez écrire et envoyer des e-mails depuis Plainva :
 
-- **Rédiger** (dans l'onglet e-mail) ouvre une fenêtre flottante avec des lignes étiquetées **De / À / Cc / Cci**. Tapez une adresse et appuyez sur Entrée ou une virgule pour la transformer en puce ; **Cc/Cci** s'affichent à la demande. Le corps est un éditeur Markdown avec une barre d'outils de mise en forme et un menu de commandes « / ». Un lien `[texte](https://…)` s'affiche comme un lien fini pendant que vous écrivez — les caractères Markdown réapparaissent dès que le curseur y entre, et un clic ouvre la cible dans votre navigateur. À l'envoi, le corps est de toute façon converti en HTML : le destinataire reçoit toujours un vrai lien, quelle que soit son apparence dans la fenêtre.
+- **Nouveau message** (dans l'onglet e-mail) ouvre une fenêtre flottante avec des lignes étiquetées **De / À / Cc / Cci**. Tapez une adresse et appuyez sur Entrée ou une virgule pour la transformer en puce ; **Cc/Cci** s'affichent à la demande. Le corps est un éditeur Markdown avec une barre d'outils de mise en forme et un menu de commandes « / ». Un lien `[texte](https://…)` s'affiche comme un lien fini pendant que vous écrivez — les caractères Markdown réapparaissent dès que le curseur y entre, et un clic ouvre la cible dans votre navigateur. À l'envoi, le corps est de toute façon converti en HTML : le destinataire reçoit toujours un vrai lien, quelle que soit son apparence dans la fenêtre.
 - **Insérer un modèle…** place un modèle de note dans le corps du message. Les questions du modèle (`{{prompt:…}}`) sont posées **une fois, dans une seule boîte de dialogue**, au lieu de partir telles quelles ; son frontmatter reste dehors — un corps de mail n'en a pas, et le destinataire recevrait sinon du YAML. Si tu annules, rien n'est inséré.
 - **Répondre**, **Répondre à tous** et **Transférer** sur n'importe quel message ouvrent la même fenêtre avec l'original cité et les destinataires préremplis ; un transfert emporte le texte de l'original, pas ses pièces jointes.
 - **Envoyer** part par SMTP (comptes IMAP) ou Microsoft Graph (comptes Microsoft).
 - **Annuler**, le bouton de fermeture et `Esc` demandent **Abandonner la saisie ?** avant qu'un message que vous avez modifié ne soit perdu. **Annuler** dans cette question vous ramène au message, avec tout ce qu'il contient ; **Abandonner** le ferme. Un message auquel vous n'avez pas touché se ferme aussitôt — la signature que Plainva insère et un fichier avec lequel le message est arrivé (une note envoyée en pièce jointe, une invitation) ne comptent pas comme vos modifications. **Envoyer**, **Enregistrer le brouillon** et le détachement dans une fenêtre indépendante ne demandent jamais rien, et la fenêtre reste ouverte pendant que vous ouvrez une note ou changez d'onglet à côté.
 - **Cette note par e-mail** (menu `⋮` d'une note ou palette de commandes) démarre un message avec la note actuelle en pièce jointe, ou intégrée en texte.
+- Chaque fenêtre de Plainva a **une** fenêtre de rédaction. Si vous demandez un autre message pendant qu'elle est ouverte — **Répondre** sur un autre message, **Nouveau message**, **Transférer**, **Cette note par e-mail** —, elle affiche le nouveau brouillon au même endroit, tant que vous n'avez pas touché au message qui était ouvert. Si vous l'avez modifié, **Abandonner la saisie ?** s'affiche d'abord : **Abandonner** ouvre le nouveau message, **Annuler** laisse l'ancien en place, avec tout ce qu'il contient. Sur le téléphone, la rédaction occupe tout l'écran ; on y rejoint un autre message par la flèche de retour, qui pose la même question.
 
 ## E-mail dans sa propre fenêtre
 

@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import type { MailAttachment } from "@plainva/ui/mail";
 import { useVault } from "../../contexts/VaultContext";
+import { useComposeHost } from "../../services/mail/composeHost";
 import { popOutCompose } from "../../services/mail/composeWindow";
 
 const MailDraftModal = lazy(() => import("./MailDraftModal").then((m) => ({ default: m.MailDraftModal })));
@@ -37,8 +38,11 @@ export function MailComposeHost() {
   const { vaultPath, isLoading } = useVault();
   // Mail-raus (stage 6) / compose (mail-client E5): the composer is prefilled
   // from what asked for it — a note, a reply, an invitation —, optionally with
-  // a file already attached.
-  const [mailDraft, setMailDraft] = useState<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string } | null>(null);
+  // a file already attached. One composer per window, and `setMailDraft` is a
+  // request rather than a setter: with a composer open it replaces an
+  // untouched draft, and asks before a changed one goes
+  // (services/mail/composeHost.ts).
+  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string }>();
   useEffect(() => {
     // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as
     // attachment, the mail view, an event's invitation, the command palette).
@@ -48,19 +52,20 @@ export function MailComposeHost() {
     };
     window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => window.removeEventListener("plainva-compose-mail", onComposeMail);
-  }, []);
+  }, [setMailDraft]);
 
   if (!mailDraft || !vaultPath) return null;
   return (
     <Suspense fallback={null}>
       <MailDraftModal
+        key={mailDraftKey}
         subject={mailDraft.subject}
         markdown={mailDraft.markdown}
         attachments={mailDraft.attachments}
         initialTo={mailDraft.to}
         suspended={isLoading}
         onPopOut={(snap) => void popOutCompose(vaultPath, snap)}
-        onClose={() => setMailDraft(null)}
+        onClose={closeMailDraft}
       />
     </Suspense>
   );

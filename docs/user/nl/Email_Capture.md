@@ -1,6 +1,6 @@
 # E-mail vastleggen
 
-Laatst bijgewerkt: 2026-10-11
+Laatst bijgewerkt: 2026-10-12
 
 Plainva kan je mailbox lezen om kennis uit e-mail naar je vault te halen, en — sinds 0.4.0 — ook mail opstellen en versturen. De focus blijft op het **vastleggen** van berichten als notities; een via **IMAP** verbonden mailbox wordt alleen gelezen om vast te leggen (er verandert niets in, zelfs de ongelezen-markeringen niet) zolang je het verzenden niet instelt.
 
@@ -55,12 +55,13 @@ Drie knoppen bij elk bericht:
 
 Zodra een account kan verzenden — een **Microsoft**-account, of een **IMAP**-account met een ingestelde **SMTP-host** —, kun je vanuit Plainva mail schrijven en versturen:
 
-- **Opstellen** (in het e-mailtabblad) opent een zwevend venster met beschreven regels **Van / Aan / Cc / Bcc**. Typ een adres en druk op Enter of komma om er een chip van te maken; **Cc/Bcc** klappen open op aanvraag. De inhoud is een Markdown-editor met een opmaakwerkbalk en een "/"-opdrachtmenu. Een link `[tekst](https://…)` verschijnt als een kant-en-klare link terwijl je typt — de Markdown-tekens komen terug zodra de cursor erin staat, en een klik opent het doel in je browser. Bij het verzenden wordt de tekst hoe dan ook naar HTML omgezet: de ontvanger krijgt altijd een echte link, ongeacht hoe hij er in het venster uitzag.
+- **Nieuw bericht** (in het e-mailtabblad) opent een zwevend venster met beschreven regels **Van / Aan / Cc / Bcc**. Typ een adres en druk op Enter of komma om er een chip van te maken; **Cc/Bcc** klappen open op aanvraag. De inhoud is een Markdown-editor met een opmaakwerkbalk en een "/"-opdrachtmenu. Een link `[tekst](https://…)` verschijnt als een kant-en-klare link terwijl je typt — de Markdown-tekens komen terug zodra de cursor erin staat, en een klik opent het doel in je browser. Bij het verzenden wordt de tekst hoe dan ook naar HTML omgezet: de ontvanger krijgt altijd een echte link, ongeacht hoe hij er in het venster uitzag.
 - **Sjabloon invoegen…** zet een notitiesjabloon in de berichttekst. De vragen van het sjabloon (`{{prompt:…}}`) worden **één keer, in één dialoogvenster** gesteld in plaats van als tijdelijke aanduiding mee te reizen; de frontmatter blijft erbuiten — een mailtekst heeft er geen, en de ontvanger zou anders YAML krijgen. Annuleer je, dan wordt er niets ingevoegd.
 - **Beantwoorden**, **Allen beantwoorden** en **Doorsturen** bij elk bericht openen hetzelfde venster met het origineel geciteerd en de ontvangers vooraf ingevuld; bij doorsturen gaat de tekst van het origineel mee, de bijlagen niet.
 - **Verzenden** gaat via SMTP (IMAP-accounts) of Microsoft Graph (Microsoft-accounts).
 - **Annuleren**, de sluitknop en `Esc` vragen **Invoer verwerpen?** voordat een bericht dat je hebt gewijzigd verloren gaat. **Annuleren** in die vraag brengt je terug naar het bericht, met alles wat erin staat; **Verwerpen** sluit het. Een bericht dat je niet hebt aangeraakt sluit meteen — de handtekening die Plainva invoegt en een bestand waarmee het bericht binnenkwam (een notitie als bijlage, een uitnodiging) tellen niet als jouw wijzigingen. **Verzenden**, **Concept opslaan** en het losmaken naar een eigen venster vragen nooit, en het venster blijft open terwijl je ernaast een notitie opent of van tabblad wisselt.
 - **Deze notitie per e-mail** (⋮-menu van een notitie, of het opdrachtenpalet) start een bericht met de huidige notitie als bijlage, of inline als tekst.
+- Elk Plainva-venster heeft **één** opstelvenster. Vraag je om een ander bericht terwijl het open is — **Beantwoorden** bij een ander bericht, **Nieuw bericht**, **Doorsturen**, **Deze notitie per e-mail** —, dan toont het op dezelfde plek het nieuwe concept, zolang je het geopende bericht niet hebt aangeraakt. Heb je het gewijzigd, dan komt eerst **Invoer verwerpen?**: **Verwerpen** opent het nieuwe bericht, **Annuleren** laat het oude staan, met alles wat erin staat. Op de telefoon vult het opstellen het hele scherm; daar kom je bij een ander bericht via de terugpijl, en die stelt dezelfde vraag.
 
 ## E-mail in een eigen venster
 

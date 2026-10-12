@@ -7,6 +7,7 @@ import { useVault } from "../contexts/VaultContext";
 import { appConfirm } from "../services/appDialogs";
 import { createNoteFromLink } from "../services/createNoteFromLink";
 import { getAskBeforeCreateLink } from "../services/linkCreatePrompt";
+import { useComposeHost } from "../services/mail/composeHost";
 import { getConfiguredNoteType } from "../services/newNote";
 import { routeOpenThroughOwner } from "../services/openRouting";
 import { requestRevealInTree, requestRevealTag } from "../services/revealRouting";
@@ -56,7 +57,10 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
 
   const [compareTarget, setCompareTarget] = useState<CompareSubject | null>(null);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
-  const [mailDraft, setMailDraft] = useState<MailDraftSeed | null>(null);
+  // One composer per window. `setMailDraft` is a request rather than a setter:
+  // with a composer open it replaces an untouched draft, and asks before a
+  // changed one goes (services/mail/composeHost.ts).
+  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<MailDraftSeed>();
 
   useEffect(() => {
     // --- local: the comparison surface (version history, conflict) ---------
@@ -191,11 +195,10 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
       window.removeEventListener("plainva-open-sync-settings", onOpenSyncSettings);
       window.removeEventListener("plainva-encryption-locked", onEncryptionLocked);
     };
-  }, [t]);
+  }, [t, setMailDraft]);
 
   const closeCompare = useCallback(() => setCompareTarget(null), []);
   const closeTemplatePicker = useCallback(() => setTemplatePickerOpen(false), []);
-  const closeMailDraft = useCallback(() => setMailDraft(null), []);
 
-  return { compareTarget, closeCompare, templatePickerOpen, closeTemplatePicker, mailDraft, closeMailDraft };
+  return { compareTarget, closeCompare, templatePickerOpen, closeTemplatePicker, mailDraft, mailDraftKey, closeMailDraft };
 }

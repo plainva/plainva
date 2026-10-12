@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-10-11
+Última revisão: 2026-10-12
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -55,12 +55,13 @@ Três botões em cada mensagem:
 
 Assim que uma conta puder enviar — uma conta **Microsoft**, ou uma conta **IMAP** com um **host SMTP** configurado —, você pode escrever e enviar e-mails a partir do Plainva:
 
-- **Redigir** (na aba de e-mail) abre uma janela flutuante com linhas rotuladas **De / Para / Cc / Cco**. Digite um endereço e pressione Enter ou vírgula para transformá-lo em um chip; **Cc/Cco** aparecem sob demanda. O corpo é um editor Markdown com uma barra de ferramentas de formatação e um menu de comandos "/". Um link `[texto](https://…)` aparece como um link pronto enquanto você escreve — os caracteres de Markdown voltam a aparecer assim que o cursor entra nele, e um clique abre o destino no navegador. No envio, o corpo é convertido para HTML de qualquer forma: o destinatário sempre recebe um link de verdade, não importa como ele aparecia na janela.
+- **Nova mensagem** (na aba de e-mail) abre uma janela flutuante com linhas rotuladas **De / Para / Cc / Cco**. Digite um endereço e pressione Enter ou vírgula para transformá-lo em um chip; **Cc/Cco** aparecem sob demanda. O corpo é um editor Markdown com uma barra de ferramentas de formatação e um menu de comandos "/". Um link `[texto](https://…)` aparece como um link pronto enquanto você escreve — os caracteres de Markdown voltam a aparecer assim que o cursor entra nele, e um clique abre o destino no navegador. No envio, o corpo é convertido para HTML de qualquer forma: o destinatário sempre recebe um link de verdade, não importa como ele aparecia na janela.
 - **Inserir modelo…** coloca um modelo de nota no corpo da mensagem. As perguntas do modelo (`{{prompt:…}}`) são feitas **uma vez, em um único diálogo**, em vez de seguirem como marcadores; o frontmatter dele fica de fora — um corpo de e-mail não tem um, e o destinatário receberia YAML. Se você cancelar, nada é inserido.
 - **Responder**, **Responder a todos** e **Encaminhar** em qualquer mensagem abrem a mesma janela com o original citado e os destinatários pré-preenchidos; um encaminhamento leva consigo o texto do original, não os seus anexos.
 - **Enviar** sai por SMTP (contas IMAP) ou Microsoft Graph (contas Microsoft).
 - **Cancelar**, o botão de fechar e `Esc` perguntam **Descartar o que foi inserido?** antes que uma mensagem que você alterou se perca. **Cancelar** nessa pergunta leva você de volta à mensagem, com tudo no lugar; **Descartar** a fecha. Uma mensagem em que você não mexeu fecha na hora — a assinatura que o Plainva insere e um arquivo com que a mensagem chegou (uma nota enviada como anexo, um convite) não contam como alterações suas. **Enviar**, **Salvar rascunho** e destacar a redação para uma janela própria nunca perguntam, e a janela continua aberta enquanto você abre uma nota ou troca de aba ao lado.
 - **Esta nota por e-mail** (menu `⋮` de uma nota, ou a paleta de comandos) inicia uma mensagem com a nota atual anexada, ou incorporada como texto.
+- Cada janela do Plainva tem **uma** janela de redação. Se você pedir outra mensagem enquanto ela está aberta — **Responder** em outra mensagem, **Nova mensagem**, **Encaminhar**, **Esta nota por e-mail** —, ela mostra o novo rascunho no mesmo lugar, desde que você não tenha mexido na mensagem que estava aberta. Se você a alterou, primeiro aparece **Descartar o que foi inserido?**: **Descartar** abre a nova mensagem, **Cancelar** deixa a antiga no lugar, com tudo o que há nela. No telefone a redação ocupa a tela inteira; lá você chega a outra mensagem pela seta de voltar, e ela faz a mesma pergunta.
 
 ## E-mail em uma janela própria
 

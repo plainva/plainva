@@ -2111,6 +2111,133 @@ test('the composer outlives the mail tab it was opened from', async ({ page }) =
   await expect(page.getByTestId('draft-subject')).toHaveValue('Nicht verlieren');
 });
 
+/**
+ * Asking for another message while the composer is open (finding 2026-10-09).
+ *
+ * The composer floats beside the mail view, so "Reply" to a second message is
+ * one click away while the first reply is still open — and that click did
+ * nothing: its host took the new draft, the composer kept showing the old one,
+ * and nothing said why. The same held for "New message", "Forward" and a note
+ * sent by mail. Now a composer nobody wrote in is replaced by the new draft,
+ * where it stands; a changed one is asked about first, and both answers do what
+ * they say.
+ */
+test('another message is asked for while the composer is open: an untouched draft is replaced, a changed one is asked about first', async ({ page }) => {
+  await page.addInitScript(() => {
+    // A mailbox that signs its mail: the signature is the composer's doing and
+    // must not make a draft count as written.
+    (window as any).__mailAccountsOverride = [
+      { id: 'm1', label: 'marco@example.org', host: 'imap.example.org', port: 993, user: 'marco@example.org', smtpHost: 'smtp.example.org', smtpPort: 587, signature: 'Marco\nPlainva' },
+    ];
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+
+  const form = page.getByTestId('draft-form');
+  const composer = page.locator('.pv-mail-window');
+  const subject = page.getByTestId('draft-subject');
+  const body = page.getByTestId('draft-body');
+  const recipient = (address: string) => page.getByTestId('draft-to-chip').filter({ hasText: address });
+  const question = page.locator('.pv-overlay--dialog');
+  const answer = question.locator('.pv-modal-footer button');
+
+  // Message A, and the reply to it.
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-reply').click();
+  await expect(subject).toHaveValue('Re: Rechnung Q3');
+  await expect(recipient('anna@example.org')).toBeVisible();
+  await expect(body).toContainText('anbei die Rechnung.');
+  await expect(body).toContainText('Marco');
+
+  // Put aside the way a person does it who wants to read another message: made
+  // small by its corner, moved by its head. It opens over the middle of the
+  // window, on top of the list.
+  const openedAt = (await composer.boundingBox())!;
+  const view = page.viewportSize()!;
+  const grip = (await composer.locator('.pv-peek-resize').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  // Up and to the left as far as the window lets it: it stops at its smallest.
+  await page.mouse.move(openedAt.x + 20, openedAt.y + 20, { steps: 6 });
+  await page.mouse.up();
+  const head = (await composer.locator('.pv-peek-head').boundingBox())!;
+  await page.mouse.move(head.x + 60, head.y + head.height / 2);
+  await page.mouse.down();
+  // Into the bottom right corner; the window stops at the edge.
+  await page.mouse.move(view.width - 20, view.height - 20, { steps: 6 });
+  await page.mouse.up();
+  const place = (await composer.boundingBox())!;
+  // Small, and in the corner: off the list and off the reader's buttons.
+  expect(place.width).toBeLessThan(openedAt.width);
+  expect(place.x).toBeGreaterThan(openedAt.x);
+  expect(place.y).toBeGreaterThan(openedAt.y);
+
+  // Message B, and "Reply" again. Nothing was written into the first reply, so
+  // nothing is asked: the composer shows the new draft, all of it.
+  await page.evaluate(() => {
+    (window as any).__fullMessage = { uid: 1, subject: 'Newsletter Juli', from: 'News <news@example.org>', text: 'Neues im Juli.\n', html: null, attachments: [] };
+  });
+  await page.getByTestId('mail-envelope').nth(1).click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Newsletter Juli');
+  await page.getByTestId('mail-reply').click();
+  await expect(subject).toHaveValue('Re: Newsletter Juli');
+  await expect(question).toHaveCount(0);
+  await expect(form).toHaveCount(1);
+  await expect(recipient('news@example.org')).toBeVisible();
+  await expect(recipient('anna@example.org')).toHaveCount(0);
+  await expect(body).toContainText('Neues im Juli.');
+  await expect(body).toContainText('Marco');
+  await expect(body).not.toContainText('anbei die Rechnung.');
+  // A new composer, in the place and at the size the old one was left in.
+  await expect.poll(() => composer.boundingBox()).toEqual(place);
+
+  // Written in. "New message" now asks first, and "Cancel" leaves the reply
+  // standing with what was typed.
+  await body.locator('.cm-content').click();
+  await page.keyboard.type('Bitte abmelden.');
+  await page.getByTestId('mail-compose').click();
+  await expect(question).toBeVisible();
+  await expect(subject).toHaveValue('Re: Newsletter Juli');
+  if (process.env.PLAINVA_EVIDENCE) {
+    // The dialog fades in; a picture taken at once shows it half there.
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: test.info().outputPath('compose-second-request-question.png') });
+  }
+  await answer.first().click();
+  await expect(question).toHaveCount(0);
+  await expect(subject).toHaveValue('Re: Newsletter Juli');
+  await expect(body).toContainText('Bitte abmelden.');
+
+  // A note sent as an attachment — the editor's request, from the note beside
+  // the composer. Asked again; "Discard" opens the new draft with its file.
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent('plainva-compose-mail', {
+      detail: { subject: 'Meine Notiz', markdown: '', to: 'ben@example.org', attachments: [{ name: 'Note.md', mime: 'text/markdown', contentBase64: btoa('# Hallo') }] },
+    }));
+  });
+  await expect(question).toBeVisible();
+  await expect(subject).toHaveValue('Re: Newsletter Juli');
+  await answer.last().click();
+  await expect(question).toHaveCount(0);
+  await expect(subject).toHaveValue('Meine Notiz');
+  await expect(recipient('ben@example.org')).toBeVisible();
+  await expect(recipient('news@example.org')).toHaveCount(0);
+  await expect(page.getByTestId('draft-attachments')).toContainText('Note.md');
+  await expect(body).not.toContainText('Bitte abmelden.');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('compose-second-request-replaced.png') });
+
+  // Untouched again — the file came with the draft. "Forward" replaces it
+  // without a word, and nothing of the note's message stays behind.
+  await page.getByTestId('mail-forward').click();
+  await expect(subject).toHaveValue('Fwd: Newsletter Juli');
+  await expect(question).toHaveCount(0);
+  await expect(form).toHaveCount(1);
+  await expect(page.getByTestId('draft-to-chip')).toHaveCount(0);
+  await expect(page.getByTestId('draft-attachments')).toHaveCount(0);
+  await expect(body).toContainText('Neues im Juli.');
+});
+
 test('conversations: the arrow keys read INTO a folded conversation instead of stopping on it', async ({ page }) => {
   // Reported 2026-09-07: with conversations on, Up/Down landed on a folded
   // conversation's header and opened nothing — from the reader's point of view
