@@ -252,6 +252,13 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Note Lifecycle: Edit note and persist via mock fs', async ({ page }) => {
+  // The scan at the end reads colours, and chrome that is still fading in has
+  // not reached its own yet. Twice on 2026-10-09 the scan met the tooltip of
+  // the Files tab early in its fade — the tab had come to lie under the pointer
+  // the click below leaves behind — and reported the half-transparent text as
+  // a contrast of 1.93. Reduced motion collapses the chrome durations
+  // (tokens.css), so whatever is on the page is in its final colours.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   
   // Wait for the file tree to load the mocked "Welcome.md"
