@@ -46,6 +46,7 @@ import {
   accountSecretKey,
   brokerFamily,
   brokerTokenProvider,
+  claimPendingMailbox,
   fileBrokerTokenProvider,
   describeBrokerLookup,
   forgetAccountBroker,
@@ -182,14 +183,14 @@ describe("google account tokens are only used for the services they cover", () =
 
   it("does not hand a drive-only sign-in to the calendar", async () => {
     given(googleScopeFor("files"));
-    expect(await brokerTokenProvider(V, "calendar")).toBeUndefined();
+    expect(await brokerTokenProvider(V, "calendar", "p1")).toBeUndefined();
     // File sync, which that consent DID cover, keeps using it.
     expect(await fileBrokerTokenProvider(V, { provider: "drive", clientId: "cid" })).toBeTypeOf("function");
   });
 
   it("uses the shared sign-in once the consent covers the calendar", async () => {
     given(`${googleScopeFor("files")} ${googleScopeFor("calendar")}`);
-    expect(await brokerTokenProvider(V, "calendar")).toBeTypeOf("function");
+    expect(await brokerTokenProvider(V, "calendar", "p1")).toBeTypeOf("function");
   });
 
   // Unprovable is not permission. Every writer records the scopes; a slot that
@@ -197,12 +198,12 @@ describe("google account tokens are only used for the services they cover", () =
   // service it may not cover.
   it("does not claim a service on a slot whose scopes are unknown", async () => {
     given(undefined);
-    expect(await brokerTokenProvider(V, "calendar")).toBeUndefined();
+    expect(await brokerTokenProvider(V, "calendar", "p1")).toBeUndefined();
   });
 
   it("says WHY the calendar has no sign-in, instead of leaving a bare 401", async () => {
     given(googleScopeFor("files"));
-    expect(await describeBrokerLookup(V, "calendar")).toMatch(/other services only/);
+    expect(await describeBrokerLookup(V, "calendar", "p1")).toMatch(/other services only/);
   });
 });
 
@@ -279,6 +280,71 @@ describe("the broker answers for the account that is asking", () => {
       // No card claims this subsystem yet — exactly the mid-connect case.
       const provider = await brokerTokenProvider(V, "calendar", "pim-just-created");
       expect(await provider?.(false)).toBe("AT-MICROSOFT");
+    });
+
+    it("answers nobody when nobody says who is asking", async () => {
+      // A question without its account used to count as part of the connect:
+      // mail asked that way, and every OAuth mailbox of the vault drew the
+      // token just minted for the new account (finding 2026-10-12).
+      expect(await brokerTokenProvider(V, "mail", "")).toBeUndefined();
+      expect(await brokerTokenProvider(V, "calendar", "")).toBeUndefined();
+    });
+
+    /**
+     * A mailbox is part of the connect when the connect says so, not when no
+     * card claims it. "No card claims it" is true of a mailbox that has its
+     * own sign-in and no card — it drew the new account's token — and it stops
+     * being true of the connect's own mailbox the moment the registry
+     * reconcile writes a card for it, which it does for every mailbox it
+     * finds.
+     */
+    describe("and the connect creates a mailbox", () => {
+      beforeEach(() => {
+        secrets.set(accountSecretKey(V, "m1"), {
+          clientId: "mid",
+          refreshToken: "RT-M",
+          scopes: `${microsoftScopeFor("calendar")} ${microsoftScopeFor("mail")}`,
+        });
+      });
+
+      it("serves the mailbox the connect named", async () => {
+        claimPendingMailbox(V, "mail-just-created");
+        const provider = await brokerTokenProvider(V, "mail", "mail-just-created");
+        expect(await provider?.(false)).toBe("AT-MICROSOFT");
+      });
+
+      it("serves it even when a card without a sign-in was written for it meanwhile", async () => {
+        claimPendingMailbox(V, "mail-just-created");
+        cloudRecords.push({ id: "found", family: "microsoft", label: "", services: { mail: { mailAccountId: "mail-just-created" } } });
+        const provider = await brokerTokenProvider(V, "mail", "mail-just-created");
+        expect(await provider?.(false)).toBe("AT-MICROSOFT");
+      });
+
+      it("does not serve a mailbox the connect did not name", async () => {
+        // Before the connect names its mailbox, and after.
+        expect(await brokerTokenProvider(V, "mail", "mail-of-nobody")).toBeUndefined();
+        claimPendingMailbox(V, "mail-just-created");
+        expect(await brokerTokenProvider(V, "mail", "mail-of-nobody")).toBeUndefined();
+      });
+
+      it("ignores a name given for another vault", async () => {
+        claimPendingMailbox("/another-vault", "mail-just-created");
+        expect(await brokerTokenProvider(V, "mail", "mail-just-created")).toBeUndefined();
+      });
+
+      it("forgets the name with the marker", async () => {
+        claimPendingMailbox(V, "mail-just-created");
+        setPendingBrokerAccount({ vaultPath: V, accountId: "m1", family: "microsoft" });
+        expect(await brokerTokenProvider(V, "mail", "mail-just-created")).toBeUndefined();
+      });
+
+      it("leaves the calendar's rule as it was", async () => {
+        claimPendingMailbox(V, "mail-just-created");
+        const provider = await brokerTokenProvider(V, "calendar", "pim-just-created");
+        expect(await provider?.(false)).toBe("AT-MICROSOFT");
+        const own = await brokerTokenProvider(V, "calendar", "pim-google");
+        expect(await own?.(false)).toBe("AT-GOOGLE");
+      });
     });
   });
 });

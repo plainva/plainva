@@ -56,6 +56,7 @@ import { restartPimAccountAfterLogin, type PimRuntime } from "./pim/pimRuntime";
 import { loadCloudAccounts, saveCloudAccounts, refreshCloudAccounts } from "./cloudAccounts";
 import {
   brokerFamily,
+  claimPendingMailbox,
   fileBrokerTokenProvider,
   clearAccountToken,
   getAccountToken,
@@ -291,6 +292,11 @@ async function connectMicrosoftMailAccount(vaultPath: string, clientId: string, 
   if (!viaBroker) throw new ServiceConnectionError("needsConsent");
   const refreshToken = "";
   const id = newId();
+  // This mailbox is validated with the sign-in of the connect in progress —
+  // just minted, or the one of the card the connect reuses — before any
+  // card points at it. The broker hands that sign-in to the mailbox the
+  // connect names and to no other, so the name comes first.
+  claimPendingMailbox(vaultPath, id);
   const account: MailAccountConfig = { id, label: "Microsoft", host: "", port: 0, user: "", kind: "microsoft", clientId };
   await saveMicrosoftMailAccount(vaultPath, account, refreshToken);
   try {
@@ -511,7 +517,9 @@ export async function bindConnectResult(
       await clearAccountToken(vaultPath, result.accountId);
       const family = brokerFamily(record.family);
       if (family) {
-        setPendingBrokerAccount({ vaultPath, accountId: record.id, family });
+        // The token moved to this card. Until the card is written the marker
+        // answers for it — for mail only the mailbox this binding brings.
+        setPendingBrokerAccount({ vaultPath, accountId: record.id, family, mailAccountId: result.mailAccountId });
         marked = true;
       }
     }

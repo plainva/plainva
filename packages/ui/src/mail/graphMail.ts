@@ -47,9 +47,13 @@ const runtimeKey = (vaultPath: string, accountId: string) => JSON.stringify([vau
  * (mirrors buildPimAuthProvider — Microsoft rotates the refresh token). */
 /**
  * Set by the shell (cloud accounts stage B): resolves the account broker's
- * access-token provider for the mail service of a vault, or undefined when the
- * account still holds its own refresh token. Injected rather than imported,
+ * access-token provider for ONE mailbox of a vault, or undefined when that
+ * mailbox still holds its own refresh token. Injected rather than imported,
  * because the broker wiring is platform code and this module is not.
+ *
+ * Both arguments are the question. A resolver that answers for the vault alone
+ * hands every mailbox the sign-in of whichever account it finds first — which
+ * is what both shells registered until 2026-10-12.
  */
 export type MailTokenResolver = (
   vaultPath: string,
@@ -63,9 +67,12 @@ export function setMailTokenResolver(resolver: MailTokenResolver | null): void {
 /**
  * Optional companion to the resolver: one sentence on WHY it came back empty,
  * for the error a person reads (finding 2026-07-30). Without it the message
- * still names the situation, just not which sign-in was looked for.
+ * still names the situation, just not which sign-in was looked for. It is
+ * asked for the mailbox the resolver was asked for — the sentence is about
+ * that mailbox's account, not about whichever one the vault holds first
+ * (finding 2026-10-12).
  */
-export type MailLookupNote = (vaultPath: string) => Promise<string>;
+export type MailLookupNote = (vaultPath: string, accountId: string) => Promise<string>;
 let mailLookupNote: MailLookupNote | null = null;
 export function setMailLookupNote(note: MailLookupNote | null): void {
   mailLookupNote = note;
@@ -120,7 +127,7 @@ async function runtimeFor(vaultPath: string, account: MailAccountConfig): Promis
     if (!refreshToken && !viaBroker) {
       // Distinguish a never-connected mailbox from one whose per-service
       // credential was cleared but whose account sign-in cannot be read.
-      const why = mailLookupNote ? await mailLookupNote(vaultPath).catch(() => "") : "";
+      const why = mailLookupNote ? await mailLookupNote(vaultPath, account.id).catch(() => "") : "";
       throw new Error(`${NO_STORED_SIGN_IN}: this mailbox has no stored sign-in${why ? ` — ${why}` : "."}`);
     }
     return buildRuntime(vaultPath, account, refreshToken ?? "", viaBroker);

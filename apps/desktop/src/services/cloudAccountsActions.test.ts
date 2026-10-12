@@ -91,6 +91,12 @@ vi.mock("./CredentialManager", () => ({
 }));
 vi.mock("./mail/mailAccounts", () => ({ listMailAccounts: vi.fn(async () => []), mailAccountKind: () => "imap" }));
 vi.mock("./mail/graphMail", () => ({}));
+// The mail module is the real one; only the question a connect asks Graph for
+// the new mailbox's address is answered here.
+vi.mock("@plainva/ui/mail", async (original) => ({
+  ...(await original<typeof import("@plainva/ui/mail")>()),
+  graphMailAddress: vi.fn(async () => "marco@outlook.com"),
+}));
 
 vi.mock("./syncTargets", () => ({
   buildWebDavTarget: vi.fn((creds: { pass: string }) => ({
@@ -149,6 +155,7 @@ vi.mock("./accountBroker", () => ({
     accountTokens.delete(id);
   }),
   setPendingBrokerAccount: vi.fn(),
+  claimPendingMailbox: vi.fn(),
   fileBrokerTokenProvider: vi.fn(async () => async () => "access"),
   getAccountToken: vi.fn(async (_v: string, id: string) => accountTokens.get(id) ?? null),
   getAccountBroker: vi.fn(() => ({ getAccessToken: vi.fn(async () => "verified-access") })),
@@ -168,7 +175,8 @@ vi.mock("./pim/pimCredentials", () => ({
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn(async () => ({ get: async () => null, set: async () => undefined, save: async () => undefined })) }));
 
 import i18n from "@plainva/ui/i18n";
-import { fileBrokerTokenProvider, setPendingBrokerAccount } from "./accountBroker";
+import { graphMailAddress } from "@plainva/ui/mail";
+import { claimPendingMailbox, fileBrokerTokenProvider, setPendingBrokerAccount } from "./accountBroker";
 import { buildDriveTarget, buildOneDriveTarget } from "./syncTargets";
 import {
   bindConnectResult,
@@ -278,6 +286,26 @@ describe("bindConnectResult", () => {
     const calls = vi.mocked(setPendingBrokerAccount).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
     expect(calls[calls.length - 1][0]).toBeNull();
+  });
+
+  it("names the mailbox of the binding while the sign-in moves to the card", async () => {
+    // The marker answers the mailbox it names and no other: until the card is
+    // written, the mailbox this binding brings has no card pointing at it.
+    accountTokens.set("minted", { clientId: "c", refreshToken: "RT" });
+    vi.mocked(setPendingBrokerAccount).mockClear();
+    await bindConnectResult(
+      "/v",
+      null,
+      { family: "microsoft", services: ["mail"] },
+      { mailAccountId: "M", accountId: "minted", identity: "marco@outlook.com" },
+      "card1"
+    );
+    expect(vi.mocked(setPendingBrokerAccount).mock.calls[0][0]).toEqual({
+      vaultPath: "/v",
+      accountId: "card1",
+      family: "microsoft",
+      mailAccountId: "M",
+    });
   });
 
   it("a fresh files bind strips the files reference from every other record", async () => {
@@ -521,6 +549,68 @@ describe("Microsoft union consent", () => {
     await runConnectSequence("/v", runtime, { family: "microsoft", services: ["calendar"] }, () => {});
     expect(accountTokens.size).toBe(1);
     expect([...accountTokens.values()][0]).toMatchObject({ scopes: oauthScopeFor("microsoft", "calendar"), providerIdentity: { issuer: "microsoft" } });
+  });
+});
+
+/**
+ * A Microsoft mailbox comes into being in two steps: its row is saved, then
+ * its address is read — with the sign-in of the connect in progress, before
+ * any card points at the mailbox. The broker hands that sign-in to the mailbox
+ * the connect NAMES and to no other (`claimPendingMailbox`), so the name has to
+ * be there before anything asks on the mailbox's behalf.
+ */
+describe("a Microsoft mailbox being connected", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", { dispatchEvent: vi.fn() });
+    registry.clear();
+    slots.clear();
+    accountTokens.clear();
+    consents.length = 0;
+    vi.mocked(setPendingBrokerAccount).mockClear();
+    vi.mocked(claimPendingMailbox).mockClear();
+    vi.mocked(graphMailAddress).mockClear();
+  });
+
+  it("is named to the broker before its address is asked for", async () => {
+    const { getPlatformServices, hasPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    const { listMailAccounts } = await import("@plainva/ui/mail");
+    const platform = hasPlatformServices() ? getPlatformServices() : undefined;
+    const metadata = new Map<string, unknown>();
+    const mailSecrets = new Map<string, unknown>();
+    setPlatformServices({ ...platform, openExternal: async () => {},
+      loadSettings: async () => ({
+        get: async <T,>(key: string) => metadata.get(key) as T | undefined,
+        set: async (key: string, value: unknown) => { metadata.set(key, value); },
+        delete: async (key: string) => metadata.delete(key), keys: async () => [...metadata.keys()], save: async () => {},
+      }),
+      credentials: {
+        readSecret: async <T,>(key: string) => (mailSecrets.get(key) as T) ?? null,
+        writeSecret: async <T,>(key: string, value: T) => { mailSecrets.set(key, value); },
+        removeSecret: async (key: string) => { mailSecrets.delete(key); },
+      },
+    });
+    try {
+      const result = await runConnectSequence("/v", null, { family: "microsoft", services: ["mail"] }, () => {});
+      expect(result.mailAccountId).toBeTruthy();
+      expect(await listMailAccounts("/v")).toMatchObject([{ id: result.mailAccountId, kind: "microsoft", user: "marco@outlook.com" }]);
+
+      expect(vi.mocked(claimPendingMailbox)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(claimPendingMailbox)).toHaveBeenCalledWith("/v", result.mailAccountId);
+      expect(vi.mocked(graphMailAddress).mock.calls[0][1]).toMatchObject({ id: result.mailAccountId });
+      // The marker stands, then the mailbox is named on it, then Graph is asked
+      // — and no marker is set in between: a new one would carry no name.
+      const named = vi.mocked(claimPendingMailbox).mock.invocationCallOrder[0];
+      const asked = vi.mocked(graphMailAddress).mock.invocationCallOrder[0];
+      expect(named).toBeLessThan(asked);
+      const markers = vi.mocked(setPendingBrokerAccount).mock;
+      const set = markers.invocationCallOrder.filter((_, call) => markers.calls[call][0] !== null);
+      const cleared = markers.invocationCallOrder.filter((_, call) => markers.calls[call][0] === null);
+      expect(set.length).toBeGreaterThan(0);
+      for (const order of set) expect(order).toBeLessThan(named);
+      // And the marker is gone once the connect is over, not before.
+      expect(cleared).toHaveLength(1);
+      expect(cleared[0]).toBeGreaterThan(asked);
+    } finally { if (platform) setPlatformServices(platform); }
   });
 });
 

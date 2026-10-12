@@ -12,9 +12,8 @@ import { getSettingsStore } from "./services/settingsStore";
 import { requestSaveFlush } from "./services/saveFlush";
 import { credentialManager } from "./services/CredentialManager";
 import { registerDesktopMailPlatform } from "./services/mail/tauriMailTransport";
+import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { getAppVersion } from "./services/whatsNew";
-import { setMailLookupNote, setMailTokenResolver } from "@plainva/ui/mail";
-import { brokerTokenProvider, describeBrokerLookup } from "./services/accountBroker";
 import { ToastHost } from "@plainva/ui";
 import { DialogHost } from "./components/ui/DialogHost";
 import { EncryptionUnlockHost } from "./components/settings/EncryptionUnlockHost";
@@ -92,12 +91,11 @@ setPlatformServices({
 if (isOwnerWindow) {
   registerDesktopMailPlatform();
 
-  // Mail draws its Graph token from the shared account broker when the account
-  // was connected through the union consent (cloud accounts stage B); otherwise
-  // the resolver returns undefined and the per-account refresh path stays.
-  setMailTokenResolver((vaultPath) => brokerTokenProvider(vaultPath, "mail"));
-  // And why it came back empty, when it does (finding 2026-07-30).
-  setMailLookupNote((vaultPath) => describeBrokerLookup(vaultPath, "mail"));
+  // A mailbox draws its OAuth token from the shared account broker when a
+  // cloud account card carries it (cloud accounts stage B) — asked for THAT
+  // mailbox, which is why the registration is a function with a test of its
+  // own rather than two lines here (`mailSignIn.ts`, finding 2026-10-12).
+  registerMailSignIn();
 }
 
 // First render waits for the active locale bundle (P2.8): locales are lazy

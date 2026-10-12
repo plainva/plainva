@@ -1,6 +1,6 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fixtureStorage, installSqlBridge } from "../scripts/screenshot-fixture.mjs";
-import { installMailFixture } from "../scripts/screenshot-services.mjs";
+import { FIXTURE_SIGN_IN, fixtureAccessToken, installMailFixture } from "../scripts/screenshot-services.mjs";
 import { waitForVaultDirectory } from "./exampleVault";
 
 /**
@@ -19,8 +19,13 @@ import { waitForVaultDirectory } from "./exampleVault";
  * `apps/desktop/e2e/mail.spec.ts`: the sender the composer opens with, the
  * signature that belongs to it, and the message that is handed over.
  *
- * It does not look at which sign-in the request travels with: both mailboxes
- * are Microsoft ones behind the same locally routed fixture.
+ * And it holds which sign-in the second mailbox travels with (finding
+ * 2026-10-12): when this was written every request of the second mailbox and
+ * its `POST /me/sendMail` carried the access token of the first — the phone
+ * asked for "the mail token of this vault", and the fixture's account card
+ * answered for both. The composer said the second address; the message left
+ * from the first account. `mail-sign-in.spec.ts` holds that on its own, with
+ * an inbox per account.
  *
  * No request leaves localhost.
  */
@@ -28,6 +33,10 @@ import { waitForVaultDirectory } from "./exampleVault";
 type MailboxSeed = Record<string, unknown> & { id: string };
 
 const SECOND = "mail-fixture-2";
+/** The second mailbox's own sign-in, and the access token the fixture answers it with. */
+const SECOND_SIGN_IN = "second-sign-in";
+const FIRST_BEARER = `Bearer ${fixtureAccessToken(FIXTURE_SIGN_IN)}`;
+const SECOND_BEARER = `Bearer ${fixtureAccessToken(SECOND_SIGN_IN)}`;
 
 /** The app with two signing Microsoft mailboxes, signed in on this device, in English, on the first one's inbox. */
 async function bootTwoMailboxes(context: BrowserContext, page: Page) {
@@ -49,10 +58,15 @@ async function bootTwoMailboxes(context: BrowserContext, page: Page) {
         { ...first, id: SECOND, label: "privat@example.net", user: "privat@example.net", signature: "Anna\nZweites Postfach" },
       ];
     }
-    if (key.startsWith("secret_mail_") && key.endsWith("_mail-fixture-1")) {
-      storage[key.replace(/_mail-fixture-1$/, `_${SECOND}`)] = { refreshToken: "local-fixture-only" };
-    }
   }
+  // The slot the mail module reads a mailbox's own sign-in from is
+  // `mail_<mailbox>_<vault>`; the second mailbox gets one of that shape, with a
+  // sign-in of its own. (It used to be seeded under `mail_<vault>_<mailbox>`,
+  // which nothing reads: the second mailbox had no sign-in at all and worked
+  // only because the first one's was handed to it.)
+  const firstSlot = Object.keys(storage).find((key) => key.startsWith("secret_mail_mail-fixture-1_"));
+  if (!firstSlot) throw new Error("the fixture no longer seeds the mailbox's sign-in under secret_mail_<mailbox>_<vault>");
+  storage[firstSlot.replace("mail-fixture-1", SECOND)] = { refreshToken: SECOND_SIGN_IN };
   await context.addInitScript((seed) => {
     if (localStorage.getItem("CapacitorStorage.mobile-settings")) return;
     localStorage.setItem("CapacitorStorage.mobile-settings", JSON.stringify({ onboarded: true, language: "en", motion: "off" }));
@@ -68,6 +82,23 @@ async function bootTwoMailboxes(context: BrowserContext, page: Page) {
   await page.getByTestId("areas-mail").click();
   await expect(page.locator("button.m-mailrow")).toHaveCount(3, { timeout: 15000 });
   return { mail, sql };
+}
+
+type GraphRequest = { method: string; path: string; authorization: string | null };
+
+/**
+ * Every mailbox request made so far, once no new one has started for a moment.
+ * A request does not say which mailbox it is for, so the test tells them apart
+ * by WHEN they were made.
+ */
+async function settled(page: Page, mail: Awaited<ReturnType<typeof installMailFixture>>): Promise<GraphRequest[]> {
+  let seen = -1;
+  for (;;) {
+    const requests = mail.requests as GraphRequest[];
+    if (requests.length === seen) return [...requests];
+    seen = requests.length;
+    await page.waitForTimeout(400);
+  }
 }
 
 const back = (page: Page) => page.getByRole("button", { name: /^Back$/ }).first().click();
@@ -92,6 +123,10 @@ test("a reply, a forward and a new message start from the mailbox they are writt
     await expect(body(page)).toContainText("Erstes Postfach");
     await expect(body(page)).not.toContainText("Zweites Postfach");
     await back(page);
+    // Everything so far was the first mailbox's, with its own sign-in.
+    const first = await settled(page, mail);
+    expect(first.length).toBeGreaterThan(0);
+    for (const request of first) expect(request.authorization, `${request.method} ${request.path}`).toBe(FIRST_BEARER);
 
     // The second mailbox, chosen by hand in the sheet.
     await page.locator(".m-mboxline").click();
@@ -130,6 +165,15 @@ test("a reply, a forward and a new message start from the mailbox they are writt
     expect(message.toRecipients).toEqual([{ emailAddress: { address: "carla@example.org" } }]);
     expect(message.body.content).toContain("Zweites Postfach");
     expect(message.body.content).not.toContain("Erstes Postfach");
+    // And it leaves from the second mailbox's ACCOUNT: the request carries the
+    // access token of that mailbox's own sign-in, like everything the mailbox
+    // asked for since it was opened — its folders, its list, the message, the
+    // file a forward brings along.
+    expect(mail.sentWith).toEqual([SECOND_BEARER]);
+    const second = (await settled(page, mail)).slice(first.length);
+    expect(second.some((request) => request.method === "GET" && request.path === "/me/mailFolders")).toBe(true);
+    expect(second.some((request) => request.method === "GET" && /^\/me\/messages\/[^/]+$/.test(request.path))).toBe(true);
+    for (const request of second) expect(request.authorization, `${request.method} ${request.path}`).toBe(SECOND_BEARER);
   } finally {
     await sql.close();
   }

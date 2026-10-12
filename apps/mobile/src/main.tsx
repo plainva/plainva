@@ -17,9 +17,8 @@ import { capacitorSettingsStore } from "./platform/capacitorPlatform";
 import { secureCredentialStore } from "./platform/secureStore";
 import { MobileDialogHost } from "./components/MobileDialogHost";
 import { registerMobileMailPlatform } from "./services/mail/mobileMailPlatform";
+import { registerMailSignIn } from "./services/mail/mailSignIn";
 import { applyMobileSlashSupport } from "./services/slashSupport";
-import { setMailTokenResolver } from "@plainva/ui/mail";
-import { brokerTokenProvider } from "./services/accountBroker";
 import App from "./App";
 import { registerAccountLoginHandler } from "./services/accountLogin";
 
@@ -116,10 +115,11 @@ registerMobileMailPlatform();
 // open one from the slash menu.
 applyMobileSlashSupport();
 
-// Mail reads its Graph token from the shared account broker when the account
-// was connected through the union consent; otherwise the resolver returns
-// undefined and the per-account refresh path stays (cloud accounts stage B).
-setMailTokenResolver((vaultId) => brokerTokenProvider(vaultId, "mail"));
+// A mailbox reads its OAuth token from the shared account broker when a cloud
+// account card carries it (cloud accounts stage B) — asked for THAT mailbox,
+// which is why the registration is a function with a test of its own rather
+// than a line here (`mailSignIn.ts`, finding 2026-10-12).
+registerMailSignIn();
 
 // The union consent ("one login for all services") completes through the same
 // single OAuth redirect handler as calendar and mail; registering its purpose
