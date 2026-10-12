@@ -1,6 +1,6 @@
 # O app mobile
 
-Última atualização: 2026-10-11
+Última atualização: 2026-10-12
 
 O Plainva também está disponível como aplicativo para Android e iOS. Ele funciona com os mesmos arquivos Markdown, o mesmo formato **OKF** e o mesmo mecanismo de sincronização do app de desktop — seu vault permanece idêntico nos dois mundos.
 
@@ -155,7 +155,7 @@ Depois você pode abrir **E-mail** como uma área própria pela **folha de seç�
 
 **Caixas IMAP também funcionam no telefone.** Adicione uma em **Configurações → E-mail**: escolha o provedor, informe o endereço e a senha de aplicativo, e o Plainva preenche os servidores. Se o seu provedor não estiver na lista, **Avançado** permite digitar você mesmo os servidores IMAP e SMTP, as portas e um nome de usuário diferente, e uma conta existente pode ser editada depois. Para selecionar várias mensagens, basta tocar e segurar uma delas; depois, um toque adiciona outras. Na visão de conversas, manter pressionada ou tocar a linha da conversa escolhe a troca inteira — e cada mensagem mantém a própria pasta, então uma resposta de **Enviados** é marcada lá.
 
-Uma mensagem aberta oferece **Responder**, **Responder a todos** e **Encaminhar**. Uma resposta cita o original abaixo do seu texto; "Responder a todos" também inclui os demais destinatários e deixa de fora o seu próprio endereço. Ao **redigir**, **Anexar arquivo** adiciona um arquivo do cofre — no celular, o cofre é o armazenamento que você consegue acessar, e tudo o que chega ao dispositivo (um anexo salvo, uma foto inserida) já está lá. Cada anexo ganha sua própria linha com **Remover anexo**, enquanto a mensagem ainda não tiver sido enviada.
+Uma mensagem aberta oferece **Responder**, **Responder a todos** e **Encaminhar**. Uma resposta cita o original abaixo do seu texto; "Responder a todos" também inclui os demais destinatários e deixa de fora o seu próprio endereço. **Encaminhar** leva consigo o texto e os anexos do original; cada arquivo mostra se está carregando, se já chegou ou se não veio, e **Enviar** aguarda a chegada deles (limites e detalhes: [Captura de e-mail](Email_Capture.md)). Um toque em um anexo abaixo de uma mensagem o salva na pasta `Attachments` dentro da sua **Pasta de e-mail** (padrão `Mail/Attachments`). Ao **redigir**, **Anexar arquivo** adiciona um arquivo do cofre — no celular, o cofre é o armazenamento que você consegue acessar, e tudo o que chega ao dispositivo (um anexo salvo, uma foto inserida) já está lá. Cada anexo ganha sua própria linha com **Remover anexo**, enquanto a mensagem ainda não tiver sido enviada.
 
 Uma mensagem que você começou não precisa ser enviada: **Salvar rascunho** a arquiva na pasta de rascunhos da sua conta — onde qualquer programa de e-mail nessa caixa vai encontrá-la, não em um lugar exclusivo do telefone. Qual é essa pasta, o servidor informa; só quando ele fica em silêncio o nome é adivinhado. Na lista, dois interruptores ficam ao lado da linha da pasta: **Não lidos** reduz o que está carregado no momento (assim o contador e **Carregar mais** continuam acessíveis), enquanto **Marcadas** pede ao servidor todas as mensagens marcadas da pasta — inclusive as que estão bem abaixo da página carregada. Em **Todas as caixas de entrada** o interruptor de marcadas fica ausente de propósito: essa consulta nomeia exatamente uma caixa de entrada.
 

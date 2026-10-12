@@ -1129,9 +1129,35 @@ describe("mail can answer everyone, pass on, and carry a file", () => {
 
   it("actually sends the attachments instead of an empty array", () => {
     const screen = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
-    expect(screen).toMatch(/sendMail\(.*\bbody,\s*attach\s*,/);
+    // What goes out is ONE list: the files of a forwarded original that have
+    // arrived, then the files attached by hand — sending and filing a draft
+    // both take it, so neither can leave one kind behind.
+    expect(screen).toMatch(/const outgoing = \[\.\.\.carried\.attachments, \.\.\.attach\.filter\(/);
+    expect(screen).toMatch(/sendMail\(.*\bbody,\s*outgoing\s*,/);
+    expect(screen).toMatch(/appendDraft\(.*\bbody,\s*outgoing\s*,/);
     // The hard-coded empty array is what made the whole pipeline unreachable.
     expect(screen).not.toMatch(/sendMail\(.*\bbody,\s*\[\]\s*,/);
+  });
+
+  it("forwards the files of the original by reference, and loads them by the shared rule", () => {
+    // A forward carried the text and none of the files (finding 2026-10-09).
+    // The message screen names the message; the composer fetches. The bytes
+    // must not ride in the draft — it is its own nav path.
+    const message = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+    expect(message).toMatch(/forward: forwardSource\(accountId, mailbox, message\)/);
+    const compose = stripComments(readFileSync(join(SRC, "screens/MailComposeScreen.tsx"), "utf8"));
+    expect(compose).toMatch(/useCarriedFiles\(\{/);
+    expect(compose).toMatch(/source: draft\.forward,/);
+    const codec = stripComments(readFileSync(join(SRC, "screens/mail/mailNavRefs.ts"), "utf8"));
+    expect(codec).toMatch(/readForwardSource\(d\.forward\)/);
+  });
+
+  it("saves a received attachment by the rule the desktop reads too", () => {
+    const message = stripComments(readFileSync(join(SRC, "screens/MailMessageScreen.tsx"), "utf8"));
+    expect(message).toMatch(/saveMailAttachment\(vault\.files, getMobileSettings\(\)\.mailFolder, name, base64\)/);
+    // Not a second copy of where it goes and what it is called.
+    expect(message).not.toMatch(/\/Attachments/);
+    expect(message).not.toMatch(/safeFileStem\(/);
   });
 
   it("asks the shared guess for an attachment's type", () => {
@@ -1214,13 +1240,16 @@ describe("the composer offers Send by the shared decision", () => {
 
   it("closes both ways to send, and says what is missing", () => {
     // The bar's icon and the button under the body: one without the other
-    // leaves a Send that can only fail.
-    expect(screen.match(/disabled=\{busy \|\| !canSend\}/g)).toHaveLength(2);
+    // leaves a Send that can only fail. Both also wait while a file of a
+    // forwarded original is on its way (`waiting`).
+    expect(screen.match(/disabled=\{busy \|\| !canSend \|\| waiting\}/g)).toHaveLength(2);
     expect(screen).toMatch(/accountsLoaded && !canSend && <p className="m-hint"[^>]*>\{t\("mail\.noSmtpHint"\)\}/);
   });
 
   it("leaves saving a draft open — that needs no way to send", () => {
-    expect(screen).toMatch(/<Button variant="ghost" disabled=\{busy\}[^>]*onClick=\{\(\) => void saveDraft\(\)\}>/);
+    // Open to a mailbox that cannot send; it waits for files on their way like
+    // Send does, because a draft filed without them would have lost them.
+    expect(screen).toMatch(/<Button variant="ghost" disabled=\{busy \|\| waiting\}[^>]*onClick=\{\(\) => void saveDraft\(\)\}>/);
   });
 });
 
@@ -1310,7 +1339,9 @@ describe("what the shell puts over a surface asks first", () => {
 
   it("a notice's button, a remark's notification and a file revealed from a sheet", () => {
     const links = stripComments(readFileSync(join(SRC, "hooks/useDeepLinkNav.ts"), "utf8"));
-    expect(links.match(/=>\s*leaveThen\(\(\) => setNav\(/g), "both notice routes").toHaveLength(2);
+    // Two events, and the way back of a message the mail server refused.
+    expect(links.match(/=>\s*leaveThen\(\(\) => setNav\(/g), "all three notice routes").toHaveLength(3);
+    expect(links).not.toMatch(/askBeforeLeaving/);
     expect(app).toMatch(/useCommentShell\(vault, useCallback\(\(entry\) => leaveThen\(/);
     expect(app).toMatch(/leaveThen\(\(\) => setNav\(st => pushEntry\(st, \{ kind: "folder"/);
   });

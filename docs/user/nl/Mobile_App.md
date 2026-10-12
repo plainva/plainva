@@ -1,6 +1,6 @@
 # De mobiele app
 
-Laatst bijgewerkt: 2026-10-11
+Laatst bijgewerkt: 2026-10-12
 
 Plainva is ook beschikbaar als app voor Android en iOS. Ze werkt met dezelfde Markdown-bestanden, hetzelfde **OKF**-formaat en dezelfde synchronisatie-engine als de desktop-app — je kluis blijft in beide werelden identiek.
 
@@ -155,7 +155,7 @@ Daarna open je **E-mail** als eigen gebied via het **onderdelenblad** en zet je 
 
 **IMAP-postbussen werken ook op de telefoon.** Voeg er een toe bij **Instellingen → E-mail**: kies de provider, vul het adres en het app-wachtwoord in, en Plainva vult de servers aan. Staat je provider er niet bij, dan kun je bij **Geavanceerd** zelf de IMAP- en SMTP-server, de poort en een afwijkende gebruikersnaam invullen, en een bestaand account kan later worden bewerkt. Meerdere berichten selecteer je door er een ingedrukt te houden; daarna voegt een tik meer toe. In de gespreksweergave kiest lang indrukken of tikken op de gespreksregel de hele uitwisseling — en elk bericht behoudt zijn eigen map, dus een antwoord uit **Verzonden** wordt daar gemarkeerd.
 
-Een geopend bericht biedt **Beantwoorden**, **Allen beantwoorden** en **Doorsturen**. Een antwoord citeert het origineel onder je tekst; "Allen beantwoorden" neemt bovendien de overige ontvangers mee en laat je eigen adres weg. Bij het **opstellen** voeg je met **Bestand bijvoegen** een bestand uit de kluis toe — op de telefoon is de kluis de opslag die je kunt bereiken, en alles wat op het apparaat binnenkomt (een opgeslagen bijlage, een ingevoegde foto) staat daar al. Elke bijlage krijgt een eigen regel met **Bijlage verwijderen**, zolang het bericht nog niet is verstuurd.
+Een geopend bericht biedt **Beantwoorden**, **Allen beantwoorden** en **Doorsturen**. Een antwoord citeert het origineel onder je tekst; "Allen beantwoorden" neemt bovendien de overige ontvangers mee en laat je eigen adres weg. **Doorsturen** neemt de tekst en de bijlagen van het origineel mee; elk bestand laat zien of het wordt geladen, er is of niet is aangekomen, en **Verzenden** wacht daarop (grenzen en details: [E-mail vastleggen](Email_Capture.md)). Een tik op een bijlage onder een bericht slaat die op in de map `Attachments` onder je **E-mailmap** (standaard `Mail/Attachments`). Bij het **opstellen** voeg je met **Bestand bijvoegen** een bestand uit de kluis toe — op de telefoon is de kluis de opslag die je kunt bereiken, en alles wat op het apparaat binnenkomt (een opgeslagen bijlage, een ingevoegde foto) staat daar al. Elke bijlage krijgt een eigen regel met **Bijlage verwijderen**, zolang het bericht nog niet is verstuurd.
 
 Een bericht dat je bent begonnen hoeft niet verstuurd te worden: **Concept opslaan** plaatst het in de conceptenmap van je account — daar waar elk mailprogramma op die postbus het vindt, niet op een plek die alleen op de telefoon bestaat. Welke map dat is, geeft de server aan; pas als die zwijgt, wordt de naam geraden. In de lijst staan twee schakelaars naast de mapregel: **Ongelezen** beperkt wat op dit moment geladen is (zo blijven de teller en **Meer laden** bereikbaar), terwijl **Gemarkeerd** de server naar alle gemarkeerde berichten in de map vraagt — ook die ver onder de geladen pagina. Bij **Alle postvakken IN** ontbreekt de gemarkeerd-schakelaar met opzet: die zoekopdracht wijst precies één postbus aan.
 

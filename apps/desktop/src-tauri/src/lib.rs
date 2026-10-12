@@ -429,6 +429,7 @@ pub fn run() {
             mail_imap::mail_fetch_message,
             mail_imap::mail_fetch_raw,
             mail_imap::mail_fetch_attachment,
+            mail_imap::mail_fetch_attachments,
             mail_imap::mail_append_draft,
             mail_imap::mail_set_seen,
             mail_imap::mail_set_flagged,

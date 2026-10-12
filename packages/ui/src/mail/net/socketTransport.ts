@@ -1,5 +1,5 @@
 import { quoteImapString } from "./imap";
-import type { ImapCreds, MailTransport } from "../transport";
+import { MAIL_MAILBOX_CHANGED, type ImapCreds, type MailTransport } from "../transport";
 import { ImapConnection, pageEnvelopes } from "./imap";
 import { buildMimeMessage } from "./mimeBuild";
 import { smtpSend } from "./smtp";
@@ -63,6 +63,16 @@ export function createSocketMailTransport(): MailTransport {
       withConn(creds, async (c) => {
         await c.examine(args.mailbox);
         return c.fetchAttachment(args.uid, args.index);
+      }),
+
+    // One fetch for all of a message's files. The epoch is compared before the
+    // message is asked for: a UID read under another UIDVALIDITY names another
+    // message, and its files must not land on a draft that forwards this one.
+    fetchAttachments: (creds, args) =>
+      withConn(creds, async (c) => {
+        const { uidValidity } = await c.examine(args.mailbox);
+        if (args.uidValidity && uidValidity && args.uidValidity !== uidValidity) throw new Error(MAIL_MAILBOX_CHANGED);
+        return c.fetchAttachments(args.uid, args.indexes);
       }),
 
     appendDraft: (creds, args) =>

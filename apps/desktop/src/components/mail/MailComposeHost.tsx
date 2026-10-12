@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import type { MailAttachment } from "@plainva/ui/mail";
+import type { ForwardSource, MailAttachment } from "@plainva/ui/mail";
 import { useVault } from "../../contexts/VaultContext";
 import { useComposeHost } from "../../services/mail/composeHost";
 import { popOutCompose } from "../../services/mail/composeWindow";
@@ -42,13 +42,15 @@ export function MailComposeHost() {
   // request rather than a setter: with a composer open it replaces an
   // untouched draft, and asks before a changed one goes
   // (services/mail/composeHost.ts).
-  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; accountId?: string }>();
+  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; accountId?: string; forward?: ForwardSource }>();
   useEffect(() => {
     // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as
     // attachment, the mail view, an event's invitation, the command palette).
     const onComposeMail = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; accountId?: string } | undefined;
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId });
+      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; accountId?: string; forward?: ForwardSource } | undefined;
+      // A forward names the message whose files it carries (`forward`); the
+      // composer loads them, and checks the reference before it asks anyone.
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId, forward: detail.forward });
     };
     window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => window.removeEventListener("plainva-compose-mail", onComposeMail);
@@ -64,6 +66,7 @@ export function MailComposeHost() {
         attachments={mailDraft.attachments}
         initialTo={mailDraft.to}
         initialAccountId={mailDraft.accountId}
+        forward={mailDraft.forward}
         suspended={isLoading}
         onPopOut={(snap) => void popOutCompose(vaultPath, snap)}
         onClose={closeMailDraft}

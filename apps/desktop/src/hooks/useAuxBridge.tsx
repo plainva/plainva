@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "@plainva/ui";
-import type { MailAttachment } from "@plainva/ui/mail";
+import type { ForwardSource, MailAttachment } from "@plainva/ui/mail";
 import type { CompareSubject } from "../components/CompareModal";
 import { useVault } from "../contexts/VaultContext";
 import { appConfirm } from "../services/appDialogs";
@@ -21,6 +21,8 @@ export interface MailDraftSeed {
   to?: string;
   /** The mailbox the draft is written from, where the asker has one (the mail view). */
   accountId?: string;
+  /** A forward names the message whose files it carries; the composer loads them. */
+  forward?: ForwardSource;
 }
 
 export interface AuxBridgeOptions {
@@ -130,7 +132,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
     // --- local: the floating composer -----------------------------------------
     const onComposeMail = (e: Event) => {
       const detail = (e as CustomEvent).detail as MailDraftSeed | undefined;
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId });
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId, forward: detail.forward });
     };
 
     // --- local: the template picker, the context sidebar ----------------------

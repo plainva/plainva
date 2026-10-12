@@ -1,6 +1,6 @@
 # L'app mobile
 
-Ultimo aggiornamento: 2026-10-11
+Ultimo aggiornamento: 2026-10-12
 
 Plainva è disponibile anche come app per Android e iOS. Funziona con gli stessi file Markdown, lo stesso formato **OKF** e lo stesso motore di sincronizzazione dell'app desktop — il tuo vault resta identico in entrambi i mondi.
 
@@ -155,7 +155,7 @@ In seguito puoi aprire **E-mail** come area a sé dal **foglio delle aree** e co
 
 **Anche le caselle IMAP funzionano sul telefono.** Aggiungine una in **Impostazioni → E-mail**: scegli il provider, inserisci l’indirizzo e la password per app, e Plainva compila i server. Se il tuo provider non è nell’elenco, **Avanzate** ti permettono di inserire tu stesso i server IMAP e SMTP, le porte e un nome utente diverso, e un account esistente si può modificare in seguito. Per selezionare più messaggi basta tenere premuto uno di essi; poi un tocco ne aggiunge altri. Nella vista conversazioni, tenere premuta o toccare la riga della conversazione sceglie l’intero scambio — e ogni messaggio conserva la propria cartella, quindi una risposta da **Inviata** viene contrassegnata lì.
 
-Un messaggio aperto offre **Rispondi**, **Rispondi a tutti** e **Inoltra**. Una risposta cita l'originale sotto il tuo testo; "Rispondi a tutti" include anche gli altri destinatari e omette il tuo indirizzo. Quando **componi**, **Allega file** aggiunge un file dal vault — sul telefono il vault è l'archivio a cui puoi accedere, e tutto ciò che arriva sul dispositivo (un allegato salvato, una foto inserita) si trova già lì. Ogni allegato ha una propria riga con **Rimuovi allegato**, finché il messaggio non è ancora partito.
+Un messaggio aperto offre **Rispondi**, **Rispondi a tutti** e **Inoltra**. Una risposta cita l'originale sotto il tuo testo; "Rispondi a tutti" include anche gli altri destinatari e omette il tuo indirizzo. **Inoltra** porta con sé il testo e gli allegati dell'originale; ogni file mostra se è in caricamento, se c'è o se non è arrivato, e **Invia** attende che arrivino (limiti e dettagli: [Cattura e-mail](Email_Capture.md)). Un tocco su un allegato sotto un messaggio lo salva nella cartella `Attachments` dentro la tua **Cartella e-mail** (predefinita `Mail/Attachments`). Quando **componi**, **Allega file** aggiunge un file dal vault — sul telefono il vault è l'archivio a cui puoi accedere, e tutto ciò che arriva sul dispositivo (un allegato salvato, una foto inserita) si trova già lì. Ogni allegato ha una propria riga con **Rimuovi allegato**, finché il messaggio non è ancora partito.
 
 Un messaggio che hai iniziato non deve per forza essere inviato: **Salva bozza** lo archivia nella cartella delle bozze del tuo account — dove qualsiasi programma di posta su quella casella lo troverà, non in un posto riservato al telefono. Quale sia quella cartella lo dice il server; solo quando tace il nome viene indovinato. Nell'elenco, accanto alla riga della cartella ci sono due interruttori: **Non letti** riduce ciò che è caricato al momento (così il contatore e **Carica altro** restano raggiungibili), mentre **Contrassegnati** chiede al server tutti i messaggi contrassegnati della cartella — compresi quelli ben oltre la pagina caricata. In **Tutte le caselle di posta** l'interruttore dei contrassegnati manca di proposito: quella richiesta indica esattamente una casella.
 

@@ -105,6 +105,16 @@ pub struct MailAttachmentInfo {
     pub size: usize,
 }
 
+/// One attachment's bytes, as `mail_fetch_attachments` hands them out. `index`
+/// is the one `MailAttachmentInfo` carried, so the caller can match an answer
+/// to the file it asked for.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchedAttachment {
+    pub index: usize,
+    pub content_base64: String,
+}
+
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MailMessage {
@@ -718,12 +728,203 @@ pub async fn mail_fetch_attachment(
                 .examine(&mailbox)
                 .map_err(|e| format!("examine failed: {e}"))?;
             let raw = fetch_raw(session, uid)?;
-            let parsed = parse_message(&raw)?;
-            let part = parsed
-                .attachments()
-                .nth(index)
-                .ok_or_else(|| "attachment not found".to_string())?;
-            Ok(base64::engine::general_purpose::STANDARD.encode(part.contents()))
+            attachment_contents(&raw, &[index])?
+                .pop()
+                .map(|found| found.content_base64)
+                .ok_or_else(|| "attachment not found".to_string())
+        })
+    })
+    .await
+    .map_err(|e| format!("task join failed: {e}"))?
+}
+
+/// What the frontend reads as "the mailbox is not the one the message was read
+/// in any more" (`MAIL_MAILBOX_CHANGED` in the shared mail client).
+const MAILBOX_CHANGED: &str = "MAIL_MAILBOX_CHANGED";
+
+/// Base64 as it stands in a message body: line breaks are stripped before this
+/// is asked, and a missing or surplus `=` at the end is not a reason to give
+/// the file up.
+const BODY_BASE64: base64::engine::GeneralPurpose = base64::engine::GeneralPurpose::new(
+    &base64::alphabet::STANDARD,
+    base64::engine::GeneralPurposeConfig::new()
+        .with_decode_padding_mode(base64::engine::DecodePaddingMode::Indifferent)
+        .with_decode_allow_trailing_bits(true),
+);
+
+/// Quoted-printable with the transfer encoding taken off, as mail really comes.
+///
+/// `=XX` is a byte, `=` at the end of a line joins it to the next, blanks at
+/// the end of a line were added on the way and go — and an `=` that is neither
+/// stays what it is. That last part is why this is not mail-parser's own
+/// `quoted_printable_decode`: it gives the whole part up on one stray `=`, the
+/// parser's reading of a message does not, and no mail program does. A CSV from
+/// a generator that left one `=` unencoded was then handed out as the parser's
+/// UTF-8 reading of it — another file than the one that was sent, and nothing
+/// said so. For a well-formed body the two answer alike (held by a test).
+fn quoted_printable_bytes(body: &[u8]) -> Vec<u8> {
+    #[derive(Clone, Copy)]
+    enum State {
+        Plain,
+        /// After `=`.
+        Escape,
+        /// After `=` and one hex digit: the digit as written, and its value.
+        Digit(u8, u8),
+    }
+    let hex = |byte: u8| (byte as char).to_digit(16).map(|digit| digit as u8);
+    let mut out = Vec::with_capacity(body.len());
+    let mut state = State::Plain;
+    // Blanks written since the last other byte of this line.
+    let mut blanks = 0usize;
+    let mut line_end: &[u8] = b"\n";
+    for &byte in body {
+        match byte {
+            b'=' => match state {
+                State::Plain => state = State::Escape,
+                // `==`: the first one was itself; this one may open an escape.
+                State::Escape => {
+                    out.push(b'=');
+                    blanks = 0;
+                }
+                State::Digit(written, _) => {
+                    out.extend_from_slice(&[b'=', written]);
+                    blanks = 0;
+                    state = State::Escape;
+                }
+            },
+            b'\n' => {
+                match state {
+                    // A soft line break: the line goes on.
+                    State::Escape => {}
+                    State::Digit(written, _) => {
+                        out.extend_from_slice(&[b'=', written]);
+                        out.extend_from_slice(line_end);
+                    }
+                    State::Plain => {
+                        out.truncate(out.len().saturating_sub(blanks));
+                        out.extend_from_slice(line_end);
+                    }
+                }
+                state = State::Plain;
+                blanks = 0;
+            }
+            b'\r' => line_end = b"\r\n",
+            _ => match state {
+                State::Plain => {
+                    blanks = if byte.is_ascii_whitespace() { blanks + 1 } else { 0 };
+                    out.push(byte);
+                }
+                State::Escape => match hex(byte) {
+                    Some(value) => state = State::Digit(byte, value),
+                    // Blanks between `=` and the end of its line.
+                    None if byte.is_ascii_whitespace() => {}
+                    None => {
+                        out.extend_from_slice(&[b'=', byte]);
+                        blanks = 0;
+                        state = State::Plain;
+                    }
+                },
+                State::Digit(written, high) => {
+                    match hex(byte) {
+                        Some(low) => out.push((high << 4) | low),
+                        None => out.extend_from_slice(&[b'=', written, byte]),
+                    }
+                    blanks = 0;
+                    state = State::Plain;
+                }
+            },
+        }
+    }
+    if let State::Digit(written, _) = state {
+        out.extend_from_slice(&[b'=', written]);
+    }
+    out
+}
+
+/// The bytes of one attachment as the sender attached them.
+///
+/// `contents()` is that for a binary part. For a part the parser reads as TEXT
+/// it is not: mail-parser hands out the text decoded to UTF-8, so a CSV written
+/// in Windows-1252 would be saved and forwarded as a different file, and one
+/// whose charset is not declared would lose every byte that is not UTF-8. The
+/// file's own bytes are still in the message — the part's raw body with only
+/// the transfer encoding taken off — and those are what a file is.
+fn attachment_bytes(raw: &[u8], part: &mail_parser::MessagePart) -> Vec<u8> {
+    use mail_parser::{Encoding, PartType};
+    if !matches!(part.body, PartType::Text(_) | PartType::Html(_)) {
+        return part.contents().to_vec();
+    }
+    let body = raw.get(part.offset_body as usize..part.offset_end as usize);
+    let own = body.and_then(|body| match part.encoding {
+        Encoding::None => Some(body.to_vec()),
+        Encoding::QuotedPrintable => Some(quoted_printable_bytes(body)),
+        Encoding::Base64 => {
+            let compact: Vec<u8> = body.iter().copied().filter(|b| !b.is_ascii_whitespace()).collect();
+            BODY_BASE64.decode(compact).ok()
+        }
+    });
+    // A body the parser could read and this cannot is still better handed out
+    // as the parser read it than not at all.
+    own.unwrap_or_else(|| part.contents().to_vec())
+}
+
+/// The attachments a caller names, out of ONE parse of the message.
+///
+/// `indexes` are positions in `attachments()` — the list `mail_fetch_message`
+/// reported. They come back in the order asked, each once; one the message
+/// does not have is simply absent from the answer, because a file that is not
+/// there must not take the others with it.
+fn attachment_contents(raw: &[u8], indexes: &[usize]) -> Result<Vec<FetchedAttachment>, String> {
+    let parsed = parse_message(raw)?;
+    let parts: Vec<_> = parsed.attachments().collect();
+    let mut found: Vec<FetchedAttachment> = Vec::with_capacity(indexes.len());
+    for &index in indexes {
+        if found.iter().any(|f| f.index == index) {
+            continue;
+        }
+        if let Some(part) = parts.get(index) {
+            found.push(FetchedAttachment {
+                index,
+                content_base64: base64::engine::general_purpose::STANDARD.encode(attachment_bytes(raw, part)),
+            });
+        }
+    }
+    Ok(found)
+}
+
+/// Every attachment of one message the caller names, from ONE fetch of it.
+///
+/// `mail_fetch_attachment` loads the whole message for a single file, so the
+/// three files of one mail were three full downloads. A forward wants all of
+/// them at once, and this is the same cost as opening the message once more.
+///
+/// `uid_validity` is the mailbox epoch the message was READ under. A UID names
+/// a message only within its epoch: once the server has renumbered the mailbox
+/// the same number is another message, and its files must not end up on a
+/// draft that says it forwards this one.
+#[tauri::command]
+// The flat IPC parameters of the commands beside it, plus the two of its own.
+#[allow(clippy::too_many_arguments)]
+pub async fn mail_fetch_attachments(
+    host: String,
+    port: u16,
+    user: String,
+    pass: String, auth: Option<MailAuth>,
+    mailbox: String,
+    uid: u32,
+    indexes: Vec<usize>,
+    uid_validity: Option<u32>,
+) -> Result<Vec<FetchedAttachment>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        with_session(&host, port, &user, &pass, auth, |session| {
+            let selected = session
+                .examine(&mailbox)
+                .map_err(|e| format!("examine failed: {e}"))?;
+            if uid_validity.is_some() && selected.uid_validity.is_some() && uid_validity != selected.uid_validity {
+                return Err(MAILBOX_CHANGED.to_string());
+            }
+            let raw = fetch_raw(session, uid)?;
+            attachment_contents(&raw, &indexes)
         })
     })
     .await
@@ -1221,6 +1422,118 @@ mod tests {
         let raw = b"Subject: Gr\xc3\xbc\xc3\x9fe\r\n\r\nM\xfcnchen \x00 \xff\n";
         assert_eq!(raw_message_base64(raw), "U3ViamVjdDogR3LDvMOfZQ0KDQpN/G5jaGVuIAAg/wo=");
         assert_eq!(base64::engine::general_purpose::STANDARD.decode(raw_message_base64(raw)).expect("decodes"), raw);
+    }
+
+    fn fetched_bytes(found: &FetchedAttachment) -> Vec<u8> {
+        base64::engine::general_purpose::STANDARD.decode(&found.content_base64).unwrap()
+    }
+
+    /// A message with three files: a PDF, and the same Latin-1 text twice — once
+    /// as the bytes themselves, once in quoted-printable.
+    fn three_files(csv_encoding: &str, csv_body: &[u8]) -> Vec<u8> {
+        let mut raw = Vec::new();
+        raw.extend_from_slice(b"From: anna@example.org\r\nSubject: Dateien\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=B\r\n\r\n");
+        raw.extend_from_slice(b"--B\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nSiehe Anhang.\r\n");
+        raw.extend_from_slice(b"--B\r\nContent-Type: application/pdf; name=a.pdf\r\nContent-Disposition: attachment; filename=a.pdf\r\nContent-Transfer-Encoding: base64\r\n\r\nJVBERi0=\r\n");
+        raw.extend_from_slice(b"--B\r\nContent-Type: text/csv; charset=iso-8859-1; name=liste.csv\r\nContent-Disposition: attachment; filename=liste.csv\r\nContent-Transfer-Encoding: ");
+        raw.extend_from_slice(csv_encoding.as_bytes());
+        raw.extend_from_slice(b"\r\n\r\n");
+        raw.extend_from_slice(csv_body);
+        raw.extend_from_slice(b"\r\n--B\r\nContent-Type: image/png\r\nContent-Disposition: attachment; filename=b.png\r\nContent-Transfer-Encoding: base64\r\n\r\nAAECA//+\r\n--B--\r\n");
+        raw
+    }
+
+    /// "Größe;Müller" + CRLF + "1;ä", written in ISO-8859-1.
+    const LATIN1_CSV: &[u8] = b"Gr\xf6\xdfe;M\xfcller\r\n1;\xe4";
+
+    #[test]
+    fn hands_out_the_named_attachments_from_one_parse() {
+        let raw = three_files("8bit", LATIN1_CSV);
+        // In the order asked, each once; the index the message does not have is
+        // absent and does not cost the others.
+        let found = attachment_contents(&raw, &[2, 0, 2, 7]).unwrap();
+        assert_eq!(found.iter().map(|f| f.index).collect::<Vec<_>>(), vec![2, 0]);
+        assert_eq!(fetched_bytes(&found[0]), vec![0, 1, 2, 3, 255, 254]);
+        assert_eq!(fetched_bytes(&found[1]), b"%PDF-");
+        assert!(attachment_contents(&raw, &[]).unwrap().is_empty());
+        assert!(attachment_contents(b"", &[0]).is_err());
+    }
+
+    #[test]
+    fn a_text_attachment_keeps_the_bytes_it_was_attached_with() {
+        // The parser reads a text part as text and hands it out decoded to
+        // UTF-8. A file is its bytes: a CSV in Latin-1 must leave as Latin-1,
+        // whichever transfer encoding it travelled in.
+        let cases: [(&str, &[u8]); 3] = [
+            ("8bit", LATIN1_CSV),
+            ("quoted-printable", b"Gr=F6=DFe;M=FCller\r\n1;=E4"),
+            ("base64", b"R3L232U7TfxsbGVyDQox\r\nO+Q="),
+        ];
+        for (encoding, body) in cases {
+            let raw = three_files(encoding, body);
+            // What the parser itself offers is NOT these bytes — the reason
+            // this function exists, held here so it stays true.
+            let parsed = parse_message(&raw).unwrap();
+            let as_parsed = parsed.attachments().nth(1).unwrap().contents().to_vec();
+            assert_ne!(as_parsed, LATIN1_CSV, "{encoding}: the parser already hands out the file's own bytes");
+
+            let found = attachment_contents(&raw, &[1]).unwrap();
+            assert_eq!(fetched_bytes(&found[0]), LATIN1_CSV, "{encoding}");
+        }
+    }
+
+    #[test]
+    fn quoted_printable_is_read_as_the_parser_reads_it_where_it_is_well_formed() {
+        // Soft line breaks, blanks the transport added at a line's end, a blank
+        // that was encoded to survive there, both kinds of line end, lower-case
+        // digits: on all of it the two readers agree.
+        let bodies: [&[u8]; 6] = [
+            b"Gr=F6=DFe;M=FCller\r\n1;=E4",
+            b"eine lange Zei=\r\nle ohne Umbruch",
+            b"am Ende Leerzeichen   \r\nund eins, das bleibt=20\r\n",
+            b"weich mit Leerzeichen dahinter=  \r\nweiter",
+            b"nur LF\nzweite=3D=3d\n",
+            b"",
+        ];
+        for body in bodies {
+            let strict = mail_parser::decoders::quoted_printable::quoted_printable_decode(body);
+            assert_eq!(Some(quoted_printable_bytes(body)), strict, "{:?}", String::from_utf8_lossy(body));
+        }
+        assert_eq!(quoted_printable_bytes(b"a=\r\nb"), b"ab");
+        assert_eq!(quoted_printable_bytes(b"x  \r\ny=20\r\n"), b"x\r\ny \r\n");
+    }
+
+    #[test]
+    fn a_stray_equals_sign_does_not_cost_a_text_attachment_its_bytes() {
+        // Not every generator encodes `=`. The strict reader gives such a part
+        // up, and the file was then handed out as the parser's UTF-8 reading —
+        // another file, and nothing said so.
+        let sloppy: [(&[u8], &[u8]); 4] = [
+            (b"a=b;Gr=F6=DFe", b"a=b;Gr\xf6\xdfe"),
+            (b"x==F6", b"x=\xf6"),
+            (b"Summe=4;=E4", b"Summe=4;\xe4"),
+            (b"=Zz=F6", b"=Zz\xf6"),
+        ];
+        for (body, bytes) in sloppy {
+            assert!(mail_parser::decoders::quoted_printable::quoted_printable_decode(body).is_none(), "{:?} is well-formed after all", String::from_utf8_lossy(body));
+            assert_eq!(quoted_printable_bytes(body), bytes, "{:?}", String::from_utf8_lossy(body));
+        }
+        // Cut off in the middle of an escape: what stands there stays. (The
+        // strict reader drops it without a word, so no comparison here.)
+        assert_eq!(quoted_printable_bytes(b"am Ende=4"), b"am Ende=4");
+        assert_eq!(quoted_printable_bytes(b"am Ende="), b"am Ende");
+        // End to end: the Latin-1 list with one `=` nobody encoded.
+        let raw = three_files("quoted-printable", b"Gr=F6=DFe;M=FCller\r\na=b;=E4");
+        let found = attachment_contents(&raw, &[1]).unwrap();
+        assert_eq!(fetched_bytes(&found[0]), b"Gr\xf6\xdfe;M\xfcller\r\na=b;\xe4");
+    }
+
+    #[test]
+    fn a_single_attachment_is_the_same_bytes_as_in_the_batch() {
+        let raw = three_files("8bit", LATIN1_CSV);
+        let one = attachment_contents(&raw, &[1]).unwrap().pop().map(|f| f.content_base64);
+        let all = attachment_contents(&raw, &[0, 1, 2]).unwrap();
+        assert_eq!(one.as_deref(), Some(all[1].content_base64.as_str()));
     }
 
     /// P9.1: the thread headers of an envelope, read out of the header block the

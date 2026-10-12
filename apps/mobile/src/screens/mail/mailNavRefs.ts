@@ -1,4 +1,4 @@
-import type { MailAttachment } from "@plainva/ui/mail";
+import { readForwardSource, type MailAttachment } from "@plainva/ui/mail";
 import type { MailDraft } from "../MailComposeScreen";
 
 /**
@@ -53,6 +53,11 @@ const isAttachment = (a: unknown): a is MailAttachment =>
 export function parseDraft(path: string): MailDraft {
   try {
     const d = JSON.parse(path) as Partial<MailDraft>;
+    // The message a forward was made from, by reference (never its files: a
+    // nav path is read on every render). Read by the shared reader, which
+    // hands on a well-formed reference or none — what arrives here decides
+    // which mailbox is asked for whose bytes.
+    const forward = readForwardSource(d.forward);
     return {
       accountId: d.accountId ?? "",
       to: d.to ?? "",
@@ -61,6 +66,9 @@ export function parseDraft(path: string): MailDraft {
       // Only a list is a list of files, and only its well-formed entries are
       // files: the composer encodes and sends whatever arrives here unseen.
       ...(Array.isArray(d.attachments) ? { attachments: d.attachments.filter(isAttachment) } : {}),
+      ...(forward ? { forward } : {}),
+      // A message the mail server refused, named by the id it is held under.
+      ...(typeof d.refused === "number" && Number.isInteger(d.refused) && d.refused > 0 ? { refused: d.refused } : {}),
     };
   } catch {
     return { accountId: "", to: "", subject: "", body: "" };

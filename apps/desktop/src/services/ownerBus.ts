@@ -3,7 +3,7 @@ import { CommentOperationError, PimConflictError, type CommentOperationService, 
 import { applyIndexChanges, type RenameReindexer } from "./fileActions";
 import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus, OWNER_LABEL, type RpcMap } from "./windowBus";
-import { enqueueSend, appendDraftFor } from "./mail/sendQueue";
+import { enqueueSend, appendDraftFor, releaseRefusedSend } from "./mail/sendQueue";
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
 import { parkTreeReveal, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk } from "@plainva/ui";
@@ -589,7 +589,13 @@ export async function installOwnerAppBus(): Promise<() => void> {
     await bus.handle("mail-token", async ({ vaultPath, accountId, force }) =>
       mailAccessTokenFor(vaultPath, accountId, force),
     ),
-    await bus.handle("compose-draft", async ({ label }) => readComposeDraft(label)),
+    await bus.handle("compose-draft", async ({ label }) => {
+      const snapshot = readComposeDraft(label);
+      // A message the mail server refused is open again from this moment: its
+      // window has it, so the send queue lets go and takes its notice down.
+      releaseRefusedSend(snapshot?.refused);
+      return snapshot;
+    }),
   );
 
   offs.push(

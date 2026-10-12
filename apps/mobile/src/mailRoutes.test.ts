@@ -75,6 +75,24 @@ describe("a draft reaches the composer as it left", () => {
     expect(composed(pushed, ctx)).toEqual(draft);
   });
 
+  it("from a message that is forwarded: the reference to its files travels with the draft", () => {
+    // A forward used to reach the composer as text alone. The message screen
+    // now names the message its files come from; the composer fetches them.
+    const { ctx, pushed } = shell();
+    const entry: NavEntry = { kind: "mailmsg", path: JSON.stringify({ a: "acc", m: "INBOX", id: "7", f: false, s: true }) };
+    const draft: MailDraft = {
+      accountId: "acc",
+      to: "",
+      subject: "Fwd: Angebot",
+      body: "\n\n---------- Forwarded message ----------\n",
+      forward: { accountId: "acc", mailbox: "INBOX", messageId: "7", uidValidity: 5, files: [{ index: 2, name: "Angebot.pdf", mime: "application/pdf", size: 20480 }] },
+    };
+    propsOf<MessageProps>(PUSHED_ROUTES.mailmsg(entry, ctx)).onReply(draft);
+    expect(composed(pushed, ctx)).toEqual(draft);
+    // The path holds names and sizes, never a file's content.
+    expect(pushed[pushed.length - 1].path).not.toContain("contentBase64");
+  });
+
   for (const [name, list] of [
     ["the pushed mail screen", (ctx: RouteContext) => PUSHED_ROUTES.mail({ kind: "mail", path: "" }, ctx)],
     ["the mail tab", (ctx: RouteContext) => TAB_ROUTES.mail(ctx)],

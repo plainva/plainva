@@ -4179,6 +4179,19 @@ textarea {
    (device report B3) — every mobile mail client gives the sender the largest
    type and the body a line of its own. */
 .m-maillist { list-style: none; margin: 0; padding: 0; }
+
+/* A file on a message that is being written, and what is with it (design
+   language: "A file says what is with it"). The glyph carries the state — on
+   its way, did not come, stays behind — and the tone only repeats it: a row
+   that stays behind is quieter and its name is struck, one that did not come
+   speaks in the warning voice. Every file of the draft is this one row, so a
+   file that has arrived looks like one attached by hand — and a name from
+   somebody else's mail wraps instead of pushing the buttons off the row. */
+.m-mailfile .m-linestack > span { overflow-wrap: anywhere; }
+.m-mailfile--loading { color: var(--text-muted); }
+.m-mailfile--failed small { color: var(--warning-text); }
+.m-mailfile--left { color: var(--text-faint); }
+.m-mailfile--left .m-linestack > span { text-decoration: line-through; }
 .m-mailrow {
   display: flex;
   align-items: flex-start;

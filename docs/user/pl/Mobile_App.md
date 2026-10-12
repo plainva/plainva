@@ -1,6 +1,6 @@
 # Aplikacja mobilna
 
-Stan na: 2026-10-11
+Stan na: 2026-10-12
 
 Plainva jest też dostępna jako aplikacja na Androida i iOS. Działa na tych samych plikach Markdown, tym samym formacie **OKF** i tym samym mechanizmie synchronizacji co aplikacja desktopowa — Twój sejf pozostaje identyczny w obu światach.
 
@@ -155,7 +155,7 @@ Potem otworzysz **Pocztę e-mail** jako osobny obszar przez **arkusz obszarów**
 
 **Skrzynki IMAP działają też na telefonie.** Dodaj jedną w **Ustawieniach → Poczta e-mail**: wybierz dostawcę, wpisz adres i hasło aplikacji, a Plainva uzupełni serwery. Jeśli Twojego dostawcy nie ma na liście, przycisk **Zaawansowane** pozwoli Ci samodzielnie wpisać serwery IMAP i SMTP, porty oraz inną nazwę użytkownika, a istniejące konto można później edytować. Wybór kilku wiadomości działa przez przytrzymanie jednej z nich; potem kolejne dodaje zwykłe dotknięcie. W widoku konwersacji przytrzymanie lub dotknięcie wiersza konwersacji wybiera całą wymianę — a każda wiadomość zachowuje własny folder, więc odpowiedź z folderu **Wysłane** zostanie oznaczona właśnie tam.
 
-Otwarta wiadomość oferuje **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej**. Odpowiedź cytuje oryginał pod Twoim tekstem; „Odpowiedz wszystkim” dodatkowo uwzględnia pozostałych odbiorców i pomija Twój własny adres. Podczas **redagowania** przycisk **Załącz plik** dodaje plik z sejfu — na telefonie sejf jest magazynem, do którego masz dostęp, a wszystko, co trafia na urządzenie (zapisany załącznik, wstawione zdjęcie), już się w nim znajduje. Każdy załącznik dostaje własny wiersz z przyciskiem **Usuń załącznik**, dopóki wiadomość nie zostanie wysłana.
+Otwarta wiadomość oferuje **Odpowiedz**, **Odpowiedz wszystkim** i **Przekaż dalej**. Odpowiedź cytuje oryginał pod Twoim tekstem; „Odpowiedz wszystkim” dodatkowo uwzględnia pozostałych odbiorców i pomija Twój własny adres. **Przekaż dalej** zabiera ze sobą tekst i załączniki oryginału; przy każdym pliku widać, czy jest wczytywany, czy już jest, czy nie dotarł, a **Wyślij** czeka na nie (limity i szczegóły: [Przechwytywanie e-maili](Email_Capture.md)). Dotknięcie załącznika pod wiadomością zapisuje go w folderze `Attachments` wewnątrz folderu z ustawienia **Folder e-mail** (domyślnie `Mail/Attachments`). Podczas **redagowania** przycisk **Załącz plik** dodaje plik z sejfu — na telefonie sejf jest magazynem, do którego masz dostęp, a wszystko, co trafia na urządzenie (zapisany załącznik, wstawione zdjęcie), już się w nim znajduje. Każdy załącznik dostaje własny wiersz z przyciskiem **Usuń załącznik**, dopóki wiadomość nie zostanie wysłana.
 
 Rozpoczętej wiadomości nie musisz wysyłać: **Zapisz roboczą** umieści ją w folderze roboczych Twojego konta — tam, gdzie znajdzie ją każdy program pocztowy działający na tej skrzynce, a nie w miejscu dostępnym tylko na telefonie. Który to folder, mówi serwer; dopiero gdy milczy, nazwa jest zgadywana. Na liście, obok wiersza folderu, znajdują się dwa przełączniki: **Nieprzeczytane** zawęża to, co jest aktualnie wczytane (dzięki temu licznik i **Wczytaj więcej** pozostają dostępne), natomiast **Oznaczone** pyta serwer o wszystkie oznaczone wiadomości w folderze — łącznie z tymi daleko poniżej wczytanej strony. W widoku **Wszystkie skrzynki odbiorcze** przełącznik oznaczonych celowo nie występuje: to zapytanie dotyczy dokładnie jednej skrzynki.
 

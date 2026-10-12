@@ -62,8 +62,10 @@ vi.mock("./screens/mail/MailComposeEditor", () => ({ MailComposeEditor: () => nu
 let container: HTMLDivElement;
 let root: Root;
 
-/** The notices that stay until their owner takes them down — here: the one with "Undo". */
-const notices = () => toastStore.get().filter((item) => item.persistent);
+/** The notice that offers "Undo" while a message waits: it stays until the queue takes it down. */
+const notices = () => toastStore.get().filter((item) => item.persistent && !item.owed);
+/** The notices that stand for a message the mail server refused (`mailComposeRefused.test.tsx` holds the way back). */
+const owed = () => toastStore.get().filter((item) => item.owed);
 /** What the app said in passing, by kind. */
 const said = (kind: string) =>
   toastStore
@@ -147,7 +149,7 @@ describe("the undo notice of a delayed send", () => {
     expect(said("success")).toEqual([i18n.t("mail.sent")]);
   });
 
-  it("is gone when the server refuses the message — the error stands alone", async () => {
+  it("is gone when the server refuses the message — and the message is not: it is kept, with its way back", async () => {
     await compose("Refused");
     await tapSend();
     await pass(UNDO_SEND_MS);
@@ -155,8 +157,14 @@ describe("the undo notice of a delayed send", () => {
     transport.calls[0].reject(new Error("550 mailbox unavailable"));
     await pass(0);
     expect(notices()).toEqual([]);
-    expect(said("error")).toEqual(["550 mailbox unavailable"]);
     expect(said("success")).toEqual([]);
+    // Until 2026-10 the refusal was one passing line of text, and the message
+    // was gone with it.
+    expect(said("error")).toEqual([]);
+    expect(owed()).toHaveLength(1);
+    expect(owed()[0].kind).toBe("error");
+    expect(owed()[0].message).toBe(i18n.t("mail.sendFailed", { reason: "550 mailbox unavailable" }));
+    expect(owed()[0].action?.label).toBe(i18n.t("mail.sendReopen"));
   });
 
   it("is gone when the app goes to the background and the message is sent at once", async () => {

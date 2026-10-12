@@ -21,6 +21,21 @@ const fullDraft: Required<MailDraft> = {
   subject: 'Angebot "Nord" — Stand 10/2026',
   body: "Hallo Ben,\n\nanbei das Angebot.\n\n> zitiert\n",
   attachments: [file, { name: "Skizze.png", mime: "image/png", contentBase64: "iVBORw0KGgo=" }],
+  // The message a forward was made from — a reference with the reader's list,
+  // never the files themselves.
+  forward: {
+    accountId: "acc-2",
+    mailbox: 'Projekte/"Nord" & Süd',
+    messageId: "AAMkAD=/+7",
+    uidValidity: 42,
+    files: [
+      { index: 2, name: "Übersicht.pdf", mime: "application/pdf", size: 412345 },
+      { index: 3, name: "Begehung.mp4", mime: "video/mp4", size: 7654321 },
+    ],
+  },
+  // A message the mail server refused, by the id it is held under — never the
+  // message itself.
+  refused: 3,
 };
 
 const fullRef: Required<MailRef> = {
@@ -82,6 +97,46 @@ describe("a draft through the nav path", () => {
   it("is total: a path that is no draft opens an empty one", () => {
     const empty = { accountId: "", to: "", subject: "", body: "" };
     for (const path of ["", "{not json", "null", "7", '"text"', "[]", "{}"]) expect(parseDraft(path), path).toEqual(empty);
+  });
+
+  it("carries the message a forward was made from as a reference, not as its files", () => {
+    const forwarded: MailDraft = { accountId: "acc-1", to: "", subject: "Fwd: Angebot", body: "text", forward: fullDraft.forward };
+    const path = draftPath(forwarded);
+    expect(parseDraft(path).forward).toEqual(fullDraft.forward);
+    // Names and sizes travel; bytes never do — a nav path is read on every
+    // render, and megabytes do not belong in one.
+    expect(path).not.toContain("contentBase64");
+    // A Microsoft message has no epoch: the reference comes back without one.
+    const noEpoch = { accountId: "acc-2", mailbox: "Posteingang", messageId: "AAMk=", files: fullDraft.forward.files };
+    expect(parseDraft(draftPath({ ...forwarded, forward: noEpoch })).forward).toEqual(noEpoch);
+  });
+
+  it("opens a draft without a forward when the reference is not one", () => {
+    // What arrives here decides which mailbox is asked for whose bytes: a
+    // reference that is not well-formed is no reference, and a file in it that
+    // is not well-formed is no file.
+    const base = { accountId: "acc-1", to: "", subject: "Fwd", body: "" };
+    for (const forward of [null, 7, "INBOX", [], {}, { accountId: "a", mailbox: "INBOX", messageId: "7" }, { accountId: "a", mailbox: "INBOX", messageId: "7", files: [] }, { accountId: "a", mailbox: "INBOX", messageId: "7", files: [{ index: "0", name: "x" }] }]) {
+      const draft = parseDraft(JSON.stringify({ ...base, forward }));
+      expect("forward" in draft, JSON.stringify(forward)).toBe(false);
+      expect(draft).toEqual(base);
+    }
+    const mixed = { accountId: "a", mailbox: "INBOX", messageId: "7", files: [{ index: 1, name: "ok.pdf", mime: "application/pdf", size: 9, contentBase64: "AAAA" }, { index: -1, name: "bad", mime: "a/b", size: 1 }] };
+    expect(parseDraft(JSON.stringify({ ...base, forward: mixed })).forward).toEqual({
+      accountId: "a",
+      mailbox: "INBOX",
+      messageId: "7",
+      files: [{ index: 1, name: "ok.pdf", mime: "application/pdf", size: 9 }],
+    });
+  });
+
+  it("names a message that comes back unsent by its id, and takes nothing else for one", () => {
+    const base = { accountId: "", to: "", subject: "", body: "" };
+    expect(parseDraft(draftPath({ ...base, refused: 12 })).refused).toBe(12);
+    // The id is looked up in memory: only a whole positive number is one.
+    for (const refused of [0, -1, 1.5, "3", null, {}, [3], Number.NaN]) {
+      expect("refused" in parseDraft(JSON.stringify({ ...base, refused })), JSON.stringify(refused)).toBe(false);
+    }
   });
 });
 

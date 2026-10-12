@@ -1,4 +1,4 @@
-import type { ComposeContent, MailAttachment } from "@plainva/ui/mail";
+import type { CarriedSnapshot, ComposeContent, MailAttachment } from "@plainva/ui/mail";
 
 /**
  * What a compose window is opened with (multi-window P3).
@@ -33,6 +33,20 @@ export interface ComposeSnapshot {
    * what the writer attached by hand.
    */
   opened?: ComposeContent;
+  /**
+   * The files of a forwarded original: the reference they are loaded by, the
+   * ones still on the draft, and the bytes that had arrived. They travel ONCE —
+   * the opened state above names them by index instead of holding them — and a
+   * file that was still on its way is asked for again in the new window.
+   */
+  carried?: CarriedSnapshot;
+  /**
+   * Set when this is a message the mail server refused, coming back
+   * (`sendQueue.ts`): the id it is held under. The queue lets go of it when
+   * the window has collected this snapshot — until then the notice that
+   * offers the way back stays.
+   */
+  refused?: number;
 }
 
 const drafts = new Map<string, ComposeSnapshot>();

@@ -23,6 +23,12 @@ export interface ToastItem {
   action?: ToastAction;
   /** Stays until dismissed explicitly (e.g. a running install) — no auto-dismiss. */
   persistent?: boolean;
+  /**
+   * Stands for something still owed (a message that was not sent): it cannot be
+   * closed by hand, and running its action does not take it down — only its
+   * owner does, once the thing is dealt with. See `toast.owed`.
+   */
+  owed?: boolean;
 }
 
 const AUTO_DISMISS_MS: Record<ToastKind, number> = {
@@ -50,9 +56,9 @@ function remove(id: number) {
   if (items.length !== before) emit();
 }
 
-function push(kind: ToastKind, message: string, action?: ToastAction, persistent?: boolean): number {
+function push(kind: ToastKind, message: string, action?: ToastAction, persistent?: boolean, owed?: boolean): number {
   const id = nextId++;
-  items = [...items, { id, kind, message, action, persistent }];
+  items = [...items, { id, kind, message, action, persistent, ...(owed ? { owed } : {}) }];
   // Persistent toasts (e.g. a running install) stay until dismissed explicitly;
   // actionable toasts linger longer so the user can reach the button.
   if (!persistent) {
@@ -79,6 +85,14 @@ export const toast = {
    *  end (carried out, taken back, cancelled because the app goes away): a way
    *  out that skips the dismiss leaves the toast, and its action, for good. */
   progress: (message: string, action?: ToastAction) => push("info", message, action, true),
+  /**
+   * A notice that stands for something still OWED — a message the mail server
+   * refused, kept until it is open again. It says what went wrong and its
+   * action is the way back. Unlike every other toast it has no close button
+   * and its action does not take it down: the caller dismisses it when the
+   * thing is dealt with, so waving a notice off can never be what loses it.
+   */
+  owed: (message: string, action: ToastAction) => push("error", message, action, true, true),
   dismiss: remove,
   /** Hover pause: stop the auto-dismiss timer … */
   pause(id: number) {

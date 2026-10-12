@@ -1,6 +1,6 @@
 import { trimEndChars } from "@plainva/core";
 import type { MailboxInfo, RawImapEnvelope, RawImapEnvelopePage, RawImapMessage } from "../types";
-import type { AppendDraftArgs, ImapCreds } from "../transport";
+import type { AppendDraftArgs, FetchedAttachment, ImapCreds } from "../transport";
 import { LineSocket } from "./socket";
 import { decodeHeaderBlock, decodeWords, headerAddresses, headerDate, parseHeaders, parseMessage, previewFromBodyPrefix } from "./mime";
 import { bytesToBase64, decodeImapUtf7, mailboxRoles } from "../mailOut";
@@ -370,13 +370,22 @@ export class ImapConnection {
     return out;
   }
 
-  /** One full message (raw RFC 822), parsed into the shared shape. */
+  /**
+   * One full message (raw RFC 822), parsed into the shared shape.
+   *
+   * It carries the epoch of the mailbox it was read in, like an envelope does:
+   * a UID names a message only within one epoch. Without it a forward made
+   * from this message could not be refused once the mailbox was renumbered —
+   * the same UID would fetch another message's files and attach them. The
+   * desktop's client has always said it; this one did not until 2026-10.
+   */
   async fetchMessage(uid: number): Promise<RawImapMessage> {
     const raw = await this.fetchRaw(uid);
     const parsed = parseMessage(raw);
     const h = parsed.headers;
     return {
       uid,
+      uidValidity: this.uidValidity,
       subject: decodeWords(h.get("subject") ?? ""),
       from: headerAddresses(h.get("from")),
       to: headerAddresses(h.get("to")),
@@ -395,11 +404,29 @@ export class ImapConnection {
     return res.literals[0];
   }
 
-  async fetchAttachment(uid: number, index: number): Promise<string> {
+  /**
+   * Every attachment the caller names, out of ONE fetch of the message.
+   *
+   * Asked file by file, each attachment cost the whole message again. In the
+   * order asked, each once; an index the message does not have is absent from
+   * the answer, so a file that is not there does not take the others with it.
+   */
+  async fetchAttachments(uid: number, indexes: readonly number[]): Promise<FetchedAttachment[]> {
     const raw = await this.fetchRaw(uid);
-    const part = parseMessage(raw).parts.find((p) => p.index === index);
-    if (!part?.bytes) throw new Error("attachment not found");
-    return bytesToBase64(part.bytes);
+    const parts = parseMessage(raw).parts;
+    const found: FetchedAttachment[] = [];
+    for (const index of indexes) {
+      if (found.some((f) => f.index === index)) continue;
+      const part = parts.find((p) => p.index === index);
+      if (part?.bytes) found.push({ index, contentBase64: bytesToBase64(part.bytes) });
+    }
+    return found;
+  }
+
+  async fetchAttachment(uid: number, index: number): Promise<string> {
+    const [found] = await this.fetchAttachments(uid, [index]);
+    if (!found) throw new Error("attachment not found");
+    return found.contentBase64;
   }
 
   async store(uid: number, flag: string, on: boolean): Promise<void> {

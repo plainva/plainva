@@ -19,7 +19,9 @@ import type { MailAttachment } from "./mailOut";
  *  - the body as an untouched composer shows it — the draft's text plus what
  *    the composer adds on its own, the sender's signature. A composer that
  *    re-signs the body for another sender re-signs this one too;
- *  - the files it arrived with: a note sent as an attachment, an invitation.
+ *  - the files it arrived with: a note sent as an attachment, an invitation;
+ *  - the files of a forwarded original, by name (`carried`) — whether they
+ *    have arrived yet is not part of the question.
  *
  * So a signature alone is not a change, and neither is a file that came with
  * the draft. One put on or taken off by hand is.
@@ -36,6 +38,18 @@ export interface ComposeContent {
   subject: string;
   body: string;
   attachments: readonly MailAttachment[];
+  /**
+   * The files of a forwarded original that are on the draft, NAMED by the index
+   * the reader listed them under — not held (see `carriedFiles.ts`).
+   *
+   * They arrive after the composer has opened, one batch at a time. Entering
+   * them into `attachments` "once they are there" would make the answer hang on
+   * the moment the question is asked: an untouched forward closed between two
+   * arrivals would count as changed. Named instead, the list is the same
+   * whether a file is still loading, here, or did not come — and it differs
+   * exactly when a person took one off.
+   */
+  carried?: readonly number[];
 }
 
 /**
@@ -88,9 +102,15 @@ function sameFile(a: MailAttachment, b: MailAttachment): boolean {
   return a === b || (a.name === b.name && a.mime === b.mime && a.contentBase64 === b.contentBase64);
 }
 
+/** The same files of the original, in the same order. Absent is none. */
+function sameCarried(a: readonly number[] = [], b: readonly number[] = []): boolean {
+  return a.length === b.length && a.every((index, i) => index === b[i]);
+}
+
 /** Whether `now` differs from what the composer opened with. Pure. */
 export function composeChanged(opened: ComposeContent, now: ComposeContent): boolean {
   return (
+    !sameCarried(opened.carried, now.carried) ||
     !sameRecipients(opened.to, now.to) ||
     !sameRecipients(opened.cc, now.cc) ||
     !sameRecipients(opened.bcc, now.bcc) ||

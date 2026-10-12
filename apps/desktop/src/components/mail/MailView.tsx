@@ -32,6 +32,7 @@ import { cacheEnvelopes, cachedEnvelopes, cacheMessage, cachedMessage, forgetCac
 import { sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit } from "@plainva/ui/mail";
 import { attachMailLinks, LinkTargetText, MailPlainText, messageJunkState, remoteImagesDecision } from "@plainva/ui/mail";
 import { captureMailAsNote, saveEmlFile, mailDayKey, mailNoteStem } from "@plainva/ui/mail";
+import { fetchAttachment, formatAttachmentSize, forwardSource, saveMailAttachment, type ForwardSource, type MailAttachmentInfo } from "@plainva/ui/mail";
 import { AUTO_READ_DELAY_MS, applyManualSeen, retainOnlyOpen, shouldScheduleAutoRead } from "@plainva/ui/mail";
 import { buildReplyNoteContent, buildReplyBody, replyAllRecipients, buildForwardBody, classifyFolderRole, applyJunk, planJunkAction, pickJunkFolder, listMailRules, runRules, mailFolderLabel, sortMailFolders, pickInboxFolder, pickSentFolder, pickTrashFolder, threadRows, groupByOrigin, mergeInboxes, parseUnifiedId, unifiedId } from "@plainva/ui/mail";
 import { appConfirm } from "../../services/appDialogs";
@@ -74,6 +75,8 @@ function composeMail(draft: {
   subject: string;
   markdown: string;
   to?: string;
+  /** A forward names the message whose files it carries; the composer loads them. */
+  forward?: ForwardSource;
 }): void {
   window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: draft }));
 }
@@ -1561,6 +1564,37 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     [vaultPath, vaultAdapter, account, message, mailbox, mailFolder, indexer, triggerFileTreeUpdate, onOpenPath, t]
   );
 
+  /**
+   * Saves a received file into the vault — next to where captured mail lands,
+   * under the name and by the rule the phone uses (`saveMailAttachment`), so
+   * the same file ends up in the same place from either shell. The vault is
+   * the storage that syncs; a file saved here is on the other devices too.
+   *
+   * Asked of the mailbox the MESSAGE lies in: in the merged inbox that is not
+   * necessarily the one the folder list shows.
+   */
+  const [savingFile, setSavingFile] = useState<number | null>(null);
+  const saveAttachment = useCallback(
+    async (file: MailAttachmentInfo) => {
+      const origin = openOrigin ?? { accountId, mailbox };
+      const from = accounts.find((a) => a.id === origin.accountId);
+      if (!vaultPath || !vaultAdapter || !from || !message || savingFile !== null) return;
+      setSavingFile(file.index);
+      try {
+        const content = await fetchAttachment(vaultPath, from, origin.mailbox, message.id, file.index);
+        const path = await saveMailAttachment(vaultAdapter, await mailFolder(), file.name, content);
+        if (indexer) await applyIndexChanges(indexer, { added: [path] }).catch(() => undefined);
+        triggerFileTreeUpdate([path]);
+        toast.success(t("mail.attachmentSaved", { name: path }));
+      } catch (e) {
+        toast.error(mailErrorText(e, t));
+      } finally {
+        setSavingFile(null);
+      }
+    },
+    [vaultPath, vaultAdapter, accounts, accountId, mailbox, openOrigin, message, savingFile, mailFolder, indexer, triggerFileTreeUpdate, t]
+  );
+
   const captureTask = useCallback(async () => {
     if (!vaultPath || !vaultAdapter || !account || !message) return;
     try {
@@ -2219,7 +2253,16 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => composeMail({ accountId: messageAccountId, subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
+                onClick={() =>
+                  composeMail({
+                    accountId: messageAccountId,
+                    subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(),
+                    markdown: buildForwardBody(message),
+                    // The files of the original come along by reference: the
+                    // composer loads them from the mailbox the message lies in.
+                    forward: forwardSource(messageAccountId, openOrigin?.mailbox ?? mailbox, message),
+                  })
+                }
                 data-testid="mail-forward"
                 icon={<Forward size={ICON.ui} />}
               >
@@ -2278,13 +2321,24 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               </IconButton>
             </div>
 
+            {/* A received file is saved into the vault, as the phone does it
+                (finding 2026-10-09: until then the desktop listed attachments
+                as text and could do nothing with them). */}
             {message.attachments.length > 0 && (
               <div className="pv-mail-attach">
                 {message.attachments.map((a) => (
-                  <span key={a.index} className="pv-mail-attach-chip">
-                    <Paperclip size={ICON.ui} />
-                    {a.name} ({Math.max(1, Math.round(a.size / 1024))} KB)
-                  </span>
+                  <Button
+                    key={a.index}
+                    variant="secondary"
+                    size="sm"
+                    icon={<Paperclip size={ICON.ui} />}
+                    disabled={savingFile !== null}
+                    onClick={() => void saveAttachment(a)}
+                    data-tip={t("mail.attachmentSave")}
+                    data-testid="mail-attachment"
+                  >
+                    {a.name} ({formatAttachmentSize(a.size, i18n.language)})
+                  </Button>
                 ))}
               </div>
             )}

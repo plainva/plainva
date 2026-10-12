@@ -187,8 +187,27 @@ test.beforeEach(async ({ page }) => {
           return envelopes.filter((e) => e.subject.toLowerCase().includes(q));
         }
         if (cmd === 'mail_append_draft') {
-          (window as any).__appendedDraft = { mailbox: args.mailbox, to: args.to, subject: args.subject, text: args.text, html: args.html };
+          (window as any).__appendedDraft = { mailbox: args.mailbox, to: args.to, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
           return null;
+        }
+        // The files of a message: all of them in one call (a forward brings
+        // them along), or the one the reader saves. The bytes are the test's
+        // (`__attachmentFiles`, by index); a test can let the call take its
+        // time (`__slowAttachments`) or fail a number of times first.
+        if (cmd === 'mail_fetch_attachments' || cmd === 'mail_fetch_attachment') {
+          const files: Record<number, string> = (window as any).__attachmentFiles ?? { 0: btoa('%PDF-1.7 Rechnung Q3') };
+          const asked: number[] = cmd === 'mail_fetch_attachments' ? args.indexes : [args.index];
+          ((window as any).__attachmentFetches ||= []).push({ cmd, mailbox: args.mailbox, uid: args.uid, indexes: asked });
+          if ((window as any).__slowAttachments) await new Promise((r) => setTimeout(r, (window as any).__slowAttachments));
+          if (((window as any).__attachmentFailures ?? 0) > 0) {
+            (window as any).__attachmentFailures--;
+            throw new Error('fetch failed: connection reset');
+          }
+          if (cmd === 'mail_fetch_attachment') {
+            if (files[args.index] === undefined) throw new Error('attachment not found');
+            return files[args.index];
+          }
+          return asked.filter((i) => files[i] !== undefined).map((i) => ({ index: i, contentBase64: files[i] }));
         }
         if (cmd === 'plugin:webview|create_webview_window') {
           // Multi-window P3: popping the composer out creates a real window.
@@ -197,6 +216,11 @@ test.beforeEach(async ({ page }) => {
           return null;
         }
         if (cmd === 'mail_send') {
+          // A server that refuses the message for its size, a number of times.
+          if (((window as any).__sendRefusals ?? 0) > 0) {
+            (window as any).__sendRefusals--;
+            throw new Error('smtp error (552): 5.3.4 Message size exceeds fixed maximum message size');
+          }
           (window as any).__sentMail = { host: args.host, port: args.port, from: args.from, to: args.to, cc: args.cc, bcc: args.bcc, subject: args.subject, text: args.text, html: args.html, attachments: args.attachments };
           return null;
         }
@@ -612,45 +636,222 @@ test('mail-client E3: compose sends via SMTP once the undo window is over', asyn
 });
 
 /**
- * What a forward carries (finding 2026-10-09).
+ * What a forward carries.
  *
- * The handbook said a forward takes the attachments along. No build ever did:
- * the draft a forward opens is the original's text under a header block
- * (`buildForwardBody`), and nothing between the button and the transport asks
- * the mailbox for a file. The reader lists the file, the composer opens
- * without it, and the message goes out without it.
+ * Until 2026-10 a forward took the text of the original and none of its files,
+ * on either shell, while the handbook said otherwise (finding 2026-10-09). Now
+ * it brings them: the reader hands the composer a REFERENCE to the message,
+ * the composer fetches the files once its window is up — all of them in one
+ * call — and every file says what is with it.
  *
- * This holds the two ends the handbook sentence is about — what the composer
- * shows and what the transport is handed — so the page and the app cannot come
- * apart on it unnoticed again. Whoever teaches a forward to bring the files
- * changes this test and the sentence in `docs/user/<lang>/Email_Capture.md`
- * ("Composing and sending") in the same commit; the phone holds the same in
- * `apps/mobile/e2e-prod/mail-forward.spec.ts`.
+ * These hold the ends the handbook sentence is about
+ * (`docs/user/<lang>/Email_Capture.md`, "Composing and sending"): what the
+ * composer shows, and what the transport is handed, byte for byte. The phone
+ * holds the same in `apps/mobile/e2e-prod/mail-forward.spec.ts`.
  */
-test('a forward carries the text of the original, and none of its files', async ({ page }) => {
+const PDF = '%PDF-1.7 Rechnung Q3';
+
+/** Opens the message that carries `rechnung.pdf` and forwards it. */
+async function forwardInvoice(page: any) {
   await openVault(page);
   await page.getByTestId('ribbon-mail').click();
   await page.getByTestId('mail-envelope').first().click();
   // The message has a file on it, and the reader says so.
-  await expect(page.getByText('rechnung.pdf (20 KB)')).toBeVisible();
-
+  await expect(page.getByTestId('mail-attachment')).toHaveText('rechnung.pdf (20 KB)');
   await page.getByTestId('mail-forward').click();
   await expect(page.getByTestId('draft-form')).toBeVisible();
   await expect(page.getByTestId('draft-subject')).toHaveValue('Fwd: Rechnung Q3');
-  // The text of the original is in the draft; its file is not.
+}
+
+test('a forward carries the text of the original and its files', async ({ page }) => {
+  await forwardInvoice(page);
+  // The text of the original is in the draft, and so is its file — as a file
+  // of the original, not as one attached by hand.
   await expect(page.getByTestId('draft-body')).toContainText('anbei die Rechnung.');
+  const carried = page.getByTestId('draft-carried');
+  await expect(carried).toHaveCount(1);
+  await expect(carried).toContainText('rechnung.pdf');
+  await expect(carried).toContainText('20 KB');
+  await expect(carried).toHaveAttribute('data-state', 'ready');
   await expect(page.getByTestId('draft-attachments')).toHaveCount(0);
+  await expect(page.getByTestId('draft-files-loading')).toHaveCount(0);
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('forward-files-ready.png') });
 
   await page.getByTestId('draft-to').fill('ben@example.org');
   await page.getByTestId('draft-to').press('Enter');
   await page.getByTestId('draft-send').click();
+  // Everything on the draft goes: there is nothing to ask.
+  await expect(page.locator('.pv-overlay--dialog')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
   const sent = await page.evaluate(() => (window as any).__sentMail);
   expect(sent.to).toBe('ben@example.org');
   expect(sent.subject).toBe('Fwd: Rechnung Q3');
   expect(sent.text).toContain('anbei die Rechnung.');
-  // The transport is handed the text and no file.
-  expect(sent.attachments).toBeNull();
+  // The transport is handed the text AND the file, byte for byte.
+  expect(sent.attachments).toEqual([{ name: 'rechnung.pdf', mime: 'application/pdf', contentBase64: Buffer.from(PDF).toString('base64') }]);
+  // One call for the files of the message, to the mailbox it lies in.
+  expect(await page.evaluate(() => (window as any).__attachmentFetches)).toEqual([{ cmd: 'mail_fetch_attachments', mailbox: 'INBOX', uid: 2, indexes: [0] }]);
+});
+
+test('the files of a forward arrive after the window: Send and Save draft wait, and leaving an untouched forward asks nothing', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__slowAttachments = 2500;
+  });
+  await forwardInvoice(page);
+  const carried = page.getByTestId('draft-carried');
+  // The window is there at once; the file says it is on its way.
+  await expect(carried).toHaveAttribute('data-state', 'loading');
+  await expect(page.getByTestId('draft-files-loading')).toBeVisible();
+  await expect(page.getByTestId('draft-send')).toBeDisabled();
+  await expect(page.getByTestId('draft-save')).toBeDisabled();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('forward-files-loading.png') });
+
+  // Then it is here, and the buttons are back.
+  await expect(carried).toHaveAttribute('data-state', 'ready', { timeout: 10_000 });
+  await expect(page.getByTestId('draft-files-loading')).toHaveCount(0);
+  await expect(page.getByTestId('draft-send')).toBeEnabled();
+  await expect(page.getByTestId('draft-save')).toBeEnabled();
+
+  // A file that arrived is not something somebody typed.
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.locator('.pv-overlay--dialog')).toHaveCount(0);
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // Taking it off by hand is a change, and that one asks.
+  await page.getByTestId('mail-forward').click();
+  await expect(carried).toHaveAttribute('data-state', 'ready', { timeout: 10_000 });
+  await page.getByTestId('draft-carried-remove').click();
+  await expect(carried).toHaveCount(0);
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.locator('.pv-overlay--dialog')).toBeVisible();
+});
+
+test('a file that did not come says so, is asked about before the message leaves, and comes when asked again', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__attachmentFailures = 1;
+  });
+  await forwardInvoice(page);
+  const carried = page.getByTestId('draft-carried');
+  const question = page.locator('.pv-overlay--dialog');
+  await expect(carried).toHaveAttribute('data-state', 'failed');
+  // The reason stands under the files, with the way to ask again.
+  await expect(page.getByTestId('draft-files-failed')).toContainText('connection reset');
+  await expect(page.getByTestId('draft-send')).toBeEnabled();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('forward-file-failed.png') });
+
+  // Send asks first, and names the file; "Cancel" keeps everything.
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-send').click();
+  await expect(question).toBeVisible();
+  await expect(question).toContainText('rechnung.pdf');
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: test.info().outputPath('forward-send-question.png') });
+  }
+  await question.locator('.pv-modal-footer button').first().click();
+  await expect(question).toHaveCount(0);
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__sentMail ?? null)).toBeNull();
+
+  // Asked again, it comes — from its own chip.
+  await page.getByTestId('draft-carried-retry').click();
+  await expect(carried).toHaveAttribute('data-state', 'ready');
+  await expect(page.getByTestId('draft-files-failed')).toHaveCount(0);
+  await page.getByTestId('draft-send').click();
+  await expect(question).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.attachments.map((a: any) => a.name)).toEqual(['rechnung.pdf']);
+});
+
+test('a draft is filed with the files of the original on it', async ({ page }) => {
+  await forwardInvoice(page);
+  await expect(page.getByTestId('draft-carried')).toHaveAttribute('data-state', 'ready');
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-save').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__appendedDraft ?? null), { timeout: 15_000 }).toBeTruthy();
+  const draft = await page.evaluate(() => (window as any).__appendedDraft);
+  expect(draft.attachments).toEqual([{ name: 'rechnung.pdf', mime: 'application/pdf', contentBase64: Buffer.from(PDF).toString('base64') }]);
+});
+
+/**
+ * A received file is saved into the vault (finding 2026-10-09, § 3.59).
+ *
+ * The desktop listed attachments as text and could do nothing with them, while
+ * the phone saved them — a parity gap without a catalog entry. Both shells now
+ * save by the one rule (`saveMailAttachment`): next to the captured mail, under
+ * the file's own name, never over a file that is already there.
+ */
+test('a received attachment is saved into the vault, and a second one of that name gets a number', async ({ page }) => {
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  const file = page.getByTestId('mail-attachment');
+  await expect(file).toHaveText('rechnung.pdf (20 KB)');
+
+  await file.click();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Mail/Attachments/rechnung.pdf'] ?? null)).toBe(PDF);
+  // The note says where it went.
+  await expect(page.locator('.pv-toast--success')).toContainText('Mail/Attachments/rechnung.pdf');
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('attachment-saved.png') });
+
+  // Saved again, the first one stays as it is.
+  await expect(file).toBeEnabled();
+  await file.click();
+  await expect.poll(() => page.evaluate(() => (window as any).mockFs['/test-vault/Mail/Attachments/rechnung-2.pdf'] ?? null)).toBe(PDF);
+  expect(await page.evaluate(() => (window as any).mockFs['/test-vault/Mail/Attachments/rechnung.pdf'])).toBe(PDF);
+  // Asked of the mailbox the message lies in, one file at a time.
+  expect(await page.evaluate(() => (window as any).__attachmentFetches)).toEqual([
+    { cmd: 'mail_fetch_attachment', mailbox: 'INBOX', uid: 2, indexes: [0] },
+    { cmd: 'mail_fetch_attachment', mailbox: 'INBOX', uid: 2, indexes: [0] },
+  ]);
+});
+
+/**
+ * A message the mail server refuses comes back.
+ *
+ * The composer is closed when the server answers, eight seconds after "Send".
+ * A refusal used to be one line of error text and the message was gone. Now it
+ * is kept: a notice says why, cannot be closed, and its action brings the
+ * message back in a compose window — where it stays held until that window
+ * has collected it.
+ */
+test('a message the mail server refuses is kept, and its notice is the way back', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__sendRefusals = 1;
+  });
+  await forwardInvoice(page);
+  await expect(page.getByTestId('draft-carried')).toHaveAttribute('data-state', 'ready');
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-send').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // The undo window passes, the server refuses. The notice stays, with an
+  // action and without a close button.
+  const notice = page.locator('.pv-toast--error');
+  await expect(notice).toBeVisible({ timeout: 15_000 });
+  await expect(notice.locator('.pv-toast-action')).toBeVisible();
+  await expect(notice.locator('.pv-toast-x')).toHaveCount(0);
+  // The server's words are not shown: a refusal for size is said as one.
+  await expect(notice).not.toContainText('5.3.4');
+  expect(await page.evaluate(() => (window as any).__sentMail ?? null)).toBeNull();
+  if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: test.info().outputPath('send-refused-notice.png') });
+
+  // The way back is a compose window of this vault, titled with the subject.
+  await notice.locator('.pv-toast-action').click();
+  await expect
+    .poll(async () => await page.evaluate(() => ((window as any).createdWindows || []).length), { timeout: 10_000 })
+    .toBe(1);
+  const created = await page.evaluate(() => (window as any).createdWindows[0]);
+  expect(created.label).toMatch(/^compose/);
+  expect(created.url).toContain('win=compose');
+  // Asking for the window is not having the message: no second window is
+  // there to collect it in this test, so it stays held, and its notice with it.
+  await page.waitForTimeout(3000);
+  await expect(notice).toBeVisible();
 });
 
 /**

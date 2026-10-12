@@ -65,7 +65,16 @@ vi.mock("@plainva/ui/mail", async (importOriginal) => ({
 }));
 
 const file: MailAttachment = { name: "Angebot.md", mime: "text/markdown; charset=utf-8", contentBase64: "IyBBbmdlYm90Cg==" };
-const plain = { id: "m1", label: "anna@example.org", host: "imap.example.org", port: 993, smtpHost: "smtp.example.org", smtpPort: 587, user: "anna@example.org", kind: "imap" };
+/**
+ * The same file as it leaves the composer: its type without the parameter. The
+ * note route types it `text/markdown; charset=utf-8`, and the MIME builder an
+ * IMAP mailbox sends through takes a type of two tokens and nothing else — with
+ * the parameter, a note sent as an attachment was refused there after the undo
+ * window ("Invalid attachment header", finding 2026-10-12). Held against the
+ * builder itself in `carriedFiles.test.ts`.
+ */
+const sent: MailAttachment = { ...file, mime: "text/markdown" };
+const plain ={ id: "m1", label: "anna@example.org", host: "imap.example.org", port: 993, smtpHost: "smtp.example.org", smtpPort: 587, user: "anna@example.org", kind: "imap" };
 const signing = { ...plain, signature: "Anna Beispiel" };
 
 /** The draft as the note route hands it over — through the nav path, like the app. */
@@ -234,7 +243,7 @@ describe("sending and filing are not leaving", () => {
     });
     expect(mocks.sendMail).toHaveBeenCalledTimes(1);
     const [, , to, subject, , attachments] = mocks.sendMail.mock.calls[0];
-    expect({ to, subject, attachments }).toEqual({ to: "ben@example.org", subject: "Angebot", attachments: [file] });
+    expect({ to, subject, attachments }).toEqual({ to: "ben@example.org", subject: "Angebot", attachments: [sent] });
   });
 
   it("files a draft without the discard question, with the file on it", async () => {
@@ -243,7 +252,7 @@ describe("sending and filing are not leaving", () => {
     await tap(q("compose-save-draft"));
     expect(mocks.appendDraft).toHaveBeenCalledTimes(1);
     expect(mocks.appendDraft.mock.calls[0][2]).toBe("Entwürfe");
-    expect(mocks.appendDraft.mock.calls[0][6]).toEqual([file]);
+    expect(mocks.appendDraft.mock.calls[0][6]).toEqual([sent]);
     expect(question(), "the shell asked whether to discard a draft that was just saved").toBeNull();
     expect(left).toBe(1);
   });

@@ -53,6 +53,11 @@ const MESSAGES = [
   body: { contentType: "text", content: `${m.bodyPreview}\n\nDie Projektplanung liegt im gemeinsamen Vault.\n\nViele Grüße\nBen` },
 }));
 
+/** The file the third message carries, and what is in it. */
+export const ATTACHMENT_TEXT = "Projektplan: Stand 14. September 26\n";
+const FILE_ATTACHMENT = "#microsoft.graph.fileAttachment";
+const DEFAULT_ATTACHMENTS = [{ id: "attachment-1", name: "Projektübersicht.txt", contentType: "text/plain", content: Buffer.from(ATTACHMENT_TEXT) }];
+
 /** Install after the general external-request blocker: Playwright tries the
  * most recently registered matching route first. Unknown requests fail closed.
  *
@@ -62,9 +67,32 @@ const MESSAGES = [
  * messages whose subject or preview contains the term, like the server does;
  * `observed.searches` records what was asked. `POST /me/sendMail` is accepted
  * the way the server accepts it - 202, no body - and `observed.sent` keeps
- * what the mailbox was asked to send. */
-export async function installMailFixture(context, { extra = {} } = {}) {
+ * what the mailbox was asked to send.
+ *
+ * `attachments` replaces the files of the message that carries one. Each is
+ * `{ id, name, contentType, content?, size?, type?, failTimes? }`: `content`
+ * (a Buffer) is what a request for the file answers with and gives the listed
+ * size unless `size` says otherwise - a file listed large and never asked for
+ * needs no content; `type` is its `@odata.type` (an Outlook item or a cloud
+ * link has no bytes); `failTimes` makes the first requests for it fail.
+ * `observed.attachmentFetches` records which files were asked for.
+ *
+ * A message that does not fit one request goes the way Microsoft describes
+ * for several files - `POST /me/messages` (a draft), one
+ * `POST .../attachments` per file, `POST .../send` - and arrives in
+ * `observed.sent` like any other, marked `viaDraft`. `refuseSends` makes the
+ * first sends fail with that HTTP status, either way. */
+export async function installMailFixture(context, { extra = {}, attachments = DEFAULT_ATTACHMENTS, refuseSends = { times: 0, status: 413 } } = {}) {
   const messages = structuredClone(MESSAGES);
+  const files = attachments.map((file) => ({ ...file, failsLeft: file.failTimes ?? 0 }));
+  const listed = (file) => ({ id: file.id, "@odata.type": file.type ?? FILE_ATTACHMENT, name: file.name, contentType: file.contentType, size: file.size ?? file.content?.length ?? 0 });
+  const drafts = new Map();
+  let refusalsLeft = refuseSends.times;
+  const refused = () => {
+    if (refusalsLeft <= 0) return null;
+    refusalsLeft--;
+    return { status: refuseSends.status, json: { error: { code: "RequestEntityTooLarge", message: "The request is larger than the mailbox takes." } } };
+  };
   const others = Object.fromEntries(Object.entries(structuredClone(extra)).map(([folder, list]) => [folder, list.map((m, i) => ({
     from: { emailAddress: { name: "Ben Beispiel", address: "ben@example.org" } },
     toRecipients: [{ emailAddress: { name: "Anna Beispiel", address: "anna@example.org" } }],
@@ -72,7 +100,7 @@ export async function installMailFixture(context, { extra = {} } = {}) {
     bodyPreview: "", ...m,
   }))]));
   const everything = () => [...messages, ...Object.values(others).flat()];
-  const observed = { lists: 0, bodies: 0, searches: [], sent: [], tokenRefreshes: 0, unexpected: [] };
+  const observed = { lists: 0, bodies: 0, searches: [], sent: [], attachmentFetches: [], tokenRefreshes: 0, unexpected: [] };
   await context.route("https://login.microsoftonline.com/**", async (route) => {
     if (!route.request().url().includes("/oauth2/v2.0/token")) return route.abort("blockedbyclient");
     observed.tokenRefreshes++;
@@ -104,15 +132,51 @@ export async function installMailFixture(context, { extra = {} } = {}) {
         const item = everything().find(m => m.id === message[1]);
         if (item) { observed.bodies++; return route.fulfill({ json: item }); }
       }
-      if (path.endsWith("/attachments")) return route.fulfill({ json: { value: [{ id: "attachment-1", name: "Projektübersicht.txt", contentType: "text/plain", size: 36 }] } });
+      if (path.endsWith("/attachments")) return route.fulfill({ json: { value: files.map(listed) } });
+      // One file's content - asked for by a forward, or by saving it.
+      const one = /^\/me\/messages\/[^/]+\/attachments\/([^/]+)$/.exec(path);
+      const file = one && files.find(f => f.id === one[1]);
+      if (file) {
+        observed.attachmentFetches.push(file.id);
+        if (file.failsLeft > 0) {
+          file.failsLeft--;
+          return route.fulfill({ status: 503, json: { error: { code: "ServiceUnavailable", message: "The service is unavailable." } } });
+        }
+        return route.fulfill({ json: { ...listed(file), ...(file.content ? { contentBytes: file.content.toString("base64") } : {}) } });
+      }
     }
     if (request.method() === "PATCH") {
       const item = everything().find(m => path === `/me/messages/${m.id}`);
       if (item) { Object.assign(item, request.postDataJSON()); return route.fulfill({ status: 204 }); }
     }
     if (request.method() === "POST" && path === "/me/sendMail") {
+      const refusal = refused();
+      if (refusal) return route.fulfill(refusal);
       observed.sent.push(request.postDataJSON());
       return route.fulfill({ status: 202, body: "" });
+    }
+    // The draft way: a draft, each file with a request of its own, then send.
+    if (request.method() === "POST" && path === "/me/messages") {
+      const id = `draft-${drafts.size + 1}`;
+      drafts.set(id, { message: request.postDataJSON(), attachments: [] });
+      return route.fulfill({ status: 201, json: { id } });
+    }
+    const step = /^\/me\/messages\/(draft-\d+)(?:\/(attachments|send))?$/.exec(path);
+    const draft = step && drafts.get(step[1]);
+    if (draft && request.method() === "POST" && step[2] === "attachments") {
+      draft.attachments.push(request.postDataJSON());
+      return route.fulfill({ status: 201, json: { id: `${step[1]}-file-${draft.attachments.length}` } });
+    }
+    if (draft && request.method() === "POST" && step[2] === "send") {
+      const refusal = refused();
+      if (refusal) return route.fulfill(refusal);
+      drafts.delete(step[1]);
+      observed.sent.push({ message: { ...draft.message, attachments: draft.attachments }, saveToSentItems: true, viaDraft: true });
+      return route.fulfill({ status: 202, body: "" });
+    }
+    if (draft && request.method() === "DELETE" && !step[2]) {
+      drafts.delete(step[1]);
+      return route.fulfill({ status: 204, body: "" });
     }
     observed.unexpected.push(`${request.method()} ${path}`);
     return route.fulfill({ status: 501, json: { error: { message: "Unsupported local fixture request" } } });

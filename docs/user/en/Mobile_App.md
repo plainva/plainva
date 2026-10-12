@@ -1,6 +1,6 @@
 # The mobile app
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 Plainva is also available as an app for Android and iOS. It works on the same Markdown files, the same **OKF** format and the same sync engine as the desktop app — your vault stays identical in both worlds.
 
@@ -155,7 +155,7 @@ After that you can open **Email** as its own area from the **areas sheet** and p
 
 **IMAP mailboxes work on the phone too.** Add one under **Settings → Email**: pick the provider, enter the address and the app password, and Plainva fills in the servers. If your provider is not in the list, **Advanced** lets you type the IMAP and SMTP host, port and a different user name yourself, and an existing account can be edited later. Selecting several messages works by pressing and holding one of them; after that a tap adds more. In the conversation view, holding or tapping the conversation row picks the whole exchange — and every message in it keeps its own folder, so a reply from **Sent** is marked there.
 
-An open message offers **Reply**, **Reply all** and **Forward**. A reply quotes the original below your text; "Reply all" additionally picks up the other recipients and leaves out your own address. When **composing**, **Attach file** adds a file from the vault — on the phone the vault is the storage you can reach, and everything that arrives on the device (a saved attachment, an inserted photo) already lives there. Each attachment gets its own row with **Remove attachment** for as long as the message has not gone out.
+An open message offers **Reply**, **Reply all** and **Forward**. A reply quotes the original below your text; "Reply all" additionally picks up the other recipients and leaves out your own address. **Forward** carries the text and the attachments of the original; each file shows whether it is loading, here, or did not come, and **Send** waits for them (bounds and details: [Email capture](Email_Capture.md)). A tap on an attachment under a message saves it into the `Attachments` folder under your **Mail folder** (default `Mail/Attachments`). When **composing**, **Attach file** adds a file from the vault — on the phone the vault is the storage you can reach, and everything that arrives on the device (a saved attachment, an inserted photo) already lives there. Each attachment gets its own row with **Remove attachment** for as long as the message has not gone out.
 
 A message you have started does not have to be sent: **Save draft** files it in your account's drafts folder — where every mail program on that mailbox will find it, not in a phone-only place. Which folder that is, the server states; only when it stays silent is the name guessed. In the list, two toggles sit next to the folder line: **Unread** narrows what is currently loaded (so the count and **Load more** stay reachable), while **Flagged** asks the server for every flagged message in the folder — including ones far below the loaded page. In **All inboxes** the flagged toggle is deliberately absent: that query names exactly one mailbox.
 

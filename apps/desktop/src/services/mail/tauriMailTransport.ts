@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
 import type {
   AppendDraftArgs,
+  FetchedAttachment,
   ImapCreds,
   MailTransport,
   MailboxInfo,
@@ -39,6 +40,15 @@ export const tauriMailTransport: MailTransport = {
 
   fetchAttachment: (creds, args) =>
     invoke<string>("mail_fetch_attachment", { ...creds, mailbox: args.mailbox, uid: args.uid, index: args.index }),
+
+  fetchAttachments: (creds, args) =>
+    invoke<FetchedAttachment[]>("mail_fetch_attachments", {
+      ...creds,
+      mailbox: args.mailbox,
+      uid: args.uid,
+      indexes: args.indexes,
+      uidValidity: args.uidValidity ?? null,
+    }),
 
   appendDraft: async (creds: ImapCreds, args: AppendDraftArgs) => {
     await invoke("mail_append_draft", {

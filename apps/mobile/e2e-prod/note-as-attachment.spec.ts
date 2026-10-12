@@ -104,7 +104,10 @@ test("a note sent as an attachment arrives in the composer with the file on it, 
     const { message } = mail.sent[0] as { message: { subject: string; toRecipients: unknown; attachments: { name: string; contentType: string; contentBytes: string }[] } };
     expect(message.subject).toBe("Angebot");
     expect(message.toRecipients).toEqual([{ emailAddress: { address: "ben@example.org" } }]);
-    expect(message.attachments.map((a) => [a.name, a.contentType])).toEqual([["Angebot.md", "text/markdown; charset=utf-8"]]);
+    // Its type leaves without the `charset` parameter the note route gives it:
+    // the MIME builder an IMAP mailbox sends through takes two tokens and
+    // nothing else, and refused the note with it (finding 2026-10-12).
+    expect(message.attachments.map((a) => [a.name, a.contentType])).toEqual([["Angebot.md", "text/markdown"]]);
     // Byte for byte the note as it lies in the vault.
     expect(Buffer.from(message.attachments[0].contentBytes, "base64").toString("utf8")).toBe(NOTE);
     await expect(discard).toHaveCount(0);

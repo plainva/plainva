@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, BellOff, Copy, ExternalLink, FileText, Link2, ListChecks, Mail, MailOpen, MoreVertical, Paperclip, PenLine, Reply, ReplyAll, Forward, Star, Trash2, TriangleAlert } from "lucide-react";
 import { hasEmlWikiLink } from "@plainva/core";
-import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, safeFileStem, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
-import type { MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
+import { Banner, Button, createTaskInDatabase, DockedToolbar, EmptyState, getPlatformServices, ICON, IconButton, plainvaProducer, toast, useStableHandler, type LinkTarget } from "@plainva/ui";
+import type { ForwardSource, MailAccountConfig, MailMessage, MailboxInfo } from "@plainva/ui/mail";
 import { parseUnsubscribe, preferredRoute, mailErrorText } from "@plainva/ui/mail";
 import { Browser } from "@capacitor/browser";
 import {
@@ -24,6 +24,9 @@ import {
   saveEmlFile,
   mailDayKey,
   fetchAttachment,
+  forwardSource,
+  formatAttachmentSize,
+  saveMailAttachment,
   deleteMessagePermanently,
   fetchMessage,
   guessTrashMailbox,
@@ -85,7 +88,9 @@ export function MailMessageScreen({
   messageId: string;
   onBack: () => void;
   onOpenNote: (path: string) => void;
-  onReply: (draft: { accountId: string; to: string; subject: string; body: string }) => void;
+  /** `forward` names the message a forward was made from, so the composer can
+   *  fetch its files — a reference, never the files themselves. */
+  onReply: (draft: { accountId: string; to: string; subject: string; body: string; forward?: ForwardSource }) => void;
   /** Envelope flag from the list — a fetched message carries none, so the star
    *  would otherwise always start empty (the reason G1 left it out). */
   flagged?: boolean;
@@ -444,23 +449,15 @@ export function MailMessageScreen({
 
   /** Saves an attachment into the vault, next to where captured mail lands —
    *  a phone has no "download folder" the app may write to, and a file inside
-   *  the vault syncs with everything else. */
+   *  the vault syncs with everything else. Where it goes and what it is called
+   *  is the shared rule (`saveMailAttachment`): the desktop saves the same file
+   *  to the same place. */
   const saveAttachment = async (index: number, name: string) => {
     if (!vaultId || !account) return;
     setBusy(true);
     try {
       const base64 = await fetchAttachment(vaultId, account, mailbox, messageId, index);
-      const folder = `${getMobileSettings().mailFolder || "Mail"}/Attachments`;
-      await vault.files.createDir(folder).catch(() => undefined);
-      const safe = safeFileStem(name.replace(/\.[^.]+$/, "")) ?? "attachment";
-      const ext = /\.([^.]+)$/.exec(name)?.[1] ?? "bin";
-      let path = `${folder}/${safe}.${ext}`;
-      // Never overwrite: two mails may carry the same file name.
-      for (let n = 2; await vault.files.exists(path); n++) path = `${folder}/${safe}-${n}.${ext}`;
-      const bin = atob(base64);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      await vault.files.writeBinaryFile(path, bytes);
+      const path = await saveMailAttachment(vault.files, getMobileSettings().mailFolder, name, base64);
       toast.success(t("mail.attachmentSaved", { name: path }));
     } catch (e) {
       toast.error(describe(e, t));
@@ -728,7 +725,7 @@ export function MailMessageScreen({
                     <Paperclip size={ICON.ui} />
                     <span className="m-linestack">
                       {a.name}
-                      <small>{formatSize(a.size)}</small>
+                      <small>{formatAttachmentSize(a.size, i18n.language)}</small>
                     </span>
                   </button>
                 </li>
@@ -757,6 +754,9 @@ export function MailMessageScreen({
                   to: "",
                   subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(),
                   body: buildForwardBody(message),
+                  // The files of the original go along — by reference: the
+                  // composer fetches them and says for each how far it is.
+                  forward: forwardSource(accountId, mailbox, message),
                 })
               }
             >
@@ -779,10 +779,4 @@ function describe(e: unknown, t: (k: string) => string): string {
   if (isImapUnavailable(e)) return t("mail.imapMobileUnavailable");
   // See MailListScreen: the core names what it can, once, for both shells.
   return mailErrorText(e, t);
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

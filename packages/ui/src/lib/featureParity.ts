@@ -558,6 +558,29 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-04",
   },
   {
+    id: "mail-attachment-list",
+    title: "Which parts of an IMAP message count as its attachments",
+    area: "pim",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "The reader's list of attachments is what a forward carries and what can be " +
+      "saved, and for an IMAP mailbox the two shells build it with two parsers. The " +
+      "desktop's (mail-parser, mail_imap.rs) lists every part that is not the body " +
+      "shown: an embedded image without a name, a named text part, the calendar " +
+      "alternative of an invitation, an attached message. The phone's (net/mime.ts) " +
+      "lists a part only when it carries a file name or is marked as an attachment, " +
+      "and never a text part that is not marked so. The same message can therefore " +
+      "show more files on the desktop - one for every such part, the logo of a " +
+      "signature included -, and a forward then carries them from there, each " +
+      "counted against what a forward loads on its own. A Microsoft mailbox is " +
+      "not affected: both shells read Graph's list. " +
+      "Closing this means one rule for what counts, held by the same example " +
+      "messages against both parsers (finding 2026-10-11).",
+    verified: "2026-10-12",
+  },
+  {
     id: "note-copy-as-email",
     title: "Copying a note as formatted text for an email",
     area: "pim",

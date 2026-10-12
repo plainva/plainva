@@ -201,6 +201,15 @@ describe("attachment mime guessing", () => {
     // A dotfile has no extension to speak of; the leading dot is not one.
     expect(guessAttachmentMime(".gitignore")).toBe("application/octet-stream");
   });
+
+  it("answers with a type for a name that is a property every object has", () => {
+    // The table was read like any object, so these names found what objects
+    // inherit — a function, or the prototype — and that became the file's
+    // type. A file's name is somebody else's choice once a forward carries it.
+    for (const name of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__", "bericht.constructor", "notes.__proto__", "x.toString"]) {
+      expect(guessAttachmentMime(name), name).toBe("application/octet-stream");
+    }
+  });
 });
 
 /**

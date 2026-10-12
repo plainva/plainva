@@ -364,7 +364,11 @@ const MIME_BY_EXT: Record<string, string> = {
 
 export function guessAttachmentMime(name: string): string {
   const ext = name.toLowerCase().split(".").pop() ?? "";
-  return MIME_BY_EXT[ext] ?? "application/octet-stream";
+  // An entry of the table itself, never one every object inherits: a file
+  // called `constructor` or `notes.__proto__` found a function or an object
+  // here, and that went on as the file's type. Names come from other people's
+  // mail since a forward carries their files.
+  return Object.prototype.hasOwnProperty.call(MIME_BY_EXT, ext) ? MIME_BY_EXT[ext] : "application/octet-stream";
 }
 
 export interface MailAttachment {

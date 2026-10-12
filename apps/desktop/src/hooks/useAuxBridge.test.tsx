@@ -203,6 +203,12 @@ const CASES: Record<string, () => Promise<void>> = {
     // written here starts with the first mailbox that is stored.
     await fire("plainva-compose-mail", { subject: "Re: Betreff", markdown: "Text", to: "a@b.c", accountId: "m2" });
     expect(JSON.parse(text("draft"))).toEqual({ subject: "Re: Betreff", markdown: "Text", to: "a@b.c", accountId: "m2" });
+    // A forward names the message whose files it carries. Dropped here, the
+    // composer of this window opens with the text and without a word about
+    // the files — which is what every forward did until 2026-10.
+    const forward = { accountId: "m2", mailbox: "INBOX", messageId: "7", uidValidity: 42, files: [{ index: 0, name: "a.pdf", mime: "application/pdf", size: 3 }] };
+    await fire("plainva-compose-mail", { subject: "Fwd: Betreff", markdown: "Text", accountId: "m2", forward });
+    expect(JSON.parse(text("draft"))).toEqual({ subject: "Fwd: Betreff", markdown: "Text", accountId: "m2", forward });
   },
   "plainva-open-template-picker": async () => {
     expect(text("picker")).toBe("closed");

@@ -3361,6 +3361,38 @@
     "noTrashFolder": "此邮箱没有回收站——请在你的邮件服务商处删除该邮件。",
     "search": "在此文件夹中搜索",
     "attachmentSaved": "已保存到 {{name}}",
+    "attachmentSave": "保存到 vault",
+    "fileState": {
+      "loading": "正在加载…",
+      "failed": "未加载",
+      "tooLarge": "太大",
+      "overTotal": "不会带上",
+      "notAFile": "不是文件"
+    },
+    "fileLeft": {
+      "failed": "未加载",
+      "tooLarge": "对此邮箱来说太大",
+      "overTotal": "超出 Plainva 自动带上的上限",
+      "notAFile": "不是文件"
+    },
+    "fileFailure": {
+      "failed": "无法加载原邮件的附件。",
+      "missing": "邮件中已没有这个附件。",
+      "changed": "邮件所在的文件夹已被重新整理。请重新打开邮件，再从那里转发。",
+      "account": "邮件所在的邮箱已不再连接。"
+    },
+    "fileRetry": "重新加载",
+    "filesLoading_other": "正在加载原邮件的 {{count}} 个附件…",
+    "filesWaiting": "“发送”和“存草稿”会等它们加载完。",
+    "fileLimitMailbox": "从此邮箱可发送不超过 {{size}} 的文件。",
+    "fileLimitOwn": "转发时，Plainva 自动带上的附件合计不超过 {{size}}。",
+    "sendWithoutTitle": "不带这些附件发送？",
+    "sendWithout": "不带附件发送",
+    "draftWithoutTitle": "不带这些附件存为草稿？",
+    "draftWithout": "不带附件保存",
+    "sendFailed": "未发送：{{reason}}",
+    "sendReopen": "重新打开",
+    "sendTooLarge": "邮件服务器不接受这么大的邮件。",
     "offlineCopy": "离线——显示的是本设备上的最后一份副本。",
     "sendingGroup": "发送",
     "signature": "签名",

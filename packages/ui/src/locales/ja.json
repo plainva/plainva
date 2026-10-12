@@ -3361,6 +3361,38 @@
     "noTrashFolder": "このメールボックスにはごみ箱がありません。プロバイダー側で削除してください。",
     "search": "このフォルダー内を検索",
     "attachmentSaved": "{{name}} に保存しました",
+    "attachmentSave": "Vault に保存",
+    "fileState": {
+      "loading": "読み込み中…",
+      "failed": "読み込めませんでした",
+      "tooLarge": "大きすぎます",
+      "overTotal": "引き継がれません",
+      "notAFile": "ファイルではありません"
+    },
+    "fileLeft": {
+      "failed": "読み込めませんでした",
+      "tooLarge": "このメールボックスには大きすぎます",
+      "overTotal": "Plainva が自動で引き継ぐ上限を超えています",
+      "notAFile": "ファイルではありません"
+    },
+    "fileFailure": {
+      "failed": "元のメールの添付ファイルを読み込めませんでした。",
+      "missing": "このメールにはこの添付ファイルがもうありません。",
+      "changed": "メールのフォルダがその後整理し直されました。メールを開き直して、そこから転送してください。",
+      "account": "このメールがあるメールボックスは、もう接続されていません。"
+    },
+    "fileRetry": "再読み込み",
+    "filesLoading_other": "元のメールの添付ファイル {{count}} 件を読み込み中…",
+    "filesWaiting": "「送信」と「下書きを保存」は読み込みが終わるまで待ちます。",
+    "fileLimitMailbox": "このメールボックスからは、{{size}} までのファイルを送れます。",
+    "fileLimitOwn": "転送のとき Plainva が自動で引き継ぐのは合計 {{size}} までです。",
+    "sendWithoutTitle": "これらの添付ファイルなしで送信しますか？",
+    "sendWithout": "添付なしで送信",
+    "draftWithoutTitle": "これらの添付ファイルなしで下書きを保存しますか？",
+    "draftWithout": "添付なしで保存",
+    "sendFailed": "送信できませんでした: {{reason}}",
+    "sendReopen": "もう一度開く",
+    "sendTooLarge": "メールサーバーがこのサイズのメッセージを受け付けません。",
     "offlineCopy": "オフライン — この端末に残っている最後のコピーを表示しています。",
     "sendingGroup": "送信",
     "signature": "署名",

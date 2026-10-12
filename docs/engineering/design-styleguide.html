@@ -1146,6 +1146,27 @@
     <p>The existing sheet hosts destination review. Pending content uses an inline Banner with Review above the app header and owns its status-bar inset. Later and Cancel are ghost buttons; Import is primary. Discard is a separate ghost action followed by the existing danger confirmation. Banner, Button and sheet keep their established LCARS and Win95 docking. The native iOS extension confirms local staging; destination review happens in the host app.</p>
   </section>
 
+  <section id="file-states">
+    <h2>A file says what is with it · a notice for something still owed</h2>
+    <p class="sec-sub">The files of a forwarded original arrive after the composer has opened. Each carries its state as a glyph and as words behind its name; colour only seconds them. A file that cannot go keeps its place and its name. One quiet line under the files says that the ways out wait, and the bound a file was held against.</p>
+    <div class="card" style="max-width: 640px; display: grid; gap: var(--space-2)">
+      <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; font-size: var(--text-sm)">
+        <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px dashed var(--border-color-light); border-radius: var(--radius-xs); padding: 5px 10px; color: var(--text-muted)"><span aria-hidden="true">↻</span>plan.pdf <span style="color: var(--text-faint)">412 KB · loading…</span> <span aria-hidden="true">✕</span></span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border-color-light); border-radius: var(--radius-xs); padding: 5px 10px; color: var(--text-muted)"><span aria-hidden="true" style="color: var(--accent-color)">📎</span>site.png <span style="color: var(--text-faint)">2 MB</span> <span aria-hidden="true">✕</span></span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--warning-border); border-radius: var(--radius-xs); padding: 5px 10px; color: var(--text-muted)"><span aria-hidden="true" style="color: var(--warning-text)">⚠</span>notes.docx <span style="color: var(--warning-text)">not loaded</span> <span aria-hidden="true">⟳</span> <span aria-hidden="true">✕</span></span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border-color-light); border-radius: var(--radius-xs); padding: 5px 10px; color: var(--text-faint)"><span aria-hidden="true">⊘</span><s>film.mp4</s> <span>7 MB · too large</span> <span aria-hidden="true">✕</span></span>
+      </div>
+      <p class="sec-sub" style="margin: 0">1 attachment of the original is loading… “Send” and “Save draft” wait for them.</p>
+      <p class="sec-sub" style="margin: 0">From this mailbox, any file up to 2.8 MB goes along.</p>
+    </div>
+    <p class="sec-sub">A notice that stands for something the app still holds — a message the mail server refused — is an error toast without a close button. Its action asks for the way back and does not take the notice down; the owner dismisses it once a composer has the message again.</p>
+    <div class="toast" style="border-left-color: var(--error-text)">
+      <span aria-hidden="true" style="color: var(--error-text)">!</span>
+      Not sent: The mail server does not accept a message of this size.
+      <button class="pvbtn ghost" style="margin-left: auto; height: var(--control-sm)">Open again</button>
+    </div>
+  </section>
+
   <!-- ================= FRAGEN ================= -->
   <section id="fragen">
     <h2><span class="no">13</span>Entscheidungen</h2>
