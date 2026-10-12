@@ -402,10 +402,11 @@ describe("SyncWorker", () => {
     });
     target.download.mockResolvedValueOnce(new TextEncoder().encode("remote line"));
 
-    // Simulate local edits with a known base.
+    // Simulate local edits with a known base — the hash names the base text,
+    // or the worker would not take that text for the ancestor at all.
     stateRepo.getAllStates.mockResolvedValueOnce(new Map([["conflict.md", {
       local_sha256: "local-hash",
-      base_sha256: "base-hash",
+      base_sha256: await sha("base line"),
       remote_etag: "old-etag"
     }]]));
     vault.exists.mockResolvedValueOnce(true);
@@ -468,6 +469,36 @@ describe("SyncWorker", () => {
     expect(writeCall![1]).toContain("Line 2 (external)");
     // The merge result is queued so it propagates back to the remote.
     expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+    // Until that upload is through, the common ancestor is the REMOTE version
+    // — hash and text. The merged text recorded in its place made the next
+    // remote change replace the local one (finding 2026-10-12).
+    expect(stateRepo.updateLocalHashAndBaseText).toHaveBeenCalledWith("note.md", await sha(writeCall![1]), remote);
+    expect(stateRepo.updateBaseState).toHaveBeenCalledWith("note.md", await sha(remote), "etag-remote");
+  });
+
+  it("does not take a base text for the ancestor that is not the version the base hash names", async () => {
+    // What a row looks like that an older version left behind: the device's
+    // own text where the common ancestor belongs. Merged against it, nothing
+    // changed here and the remote version would simply win.
+    const local = "Line 1 (local)\n\nLine 2\n\nLine 3";
+    const remote = "Line 1\n\nLine 2 (external)\n\nLine 3";
+    target.pull.mockResolvedValueOnce({ etagMap: new Map([["note.md", "etag-remote"]]) });
+    target.download.mockResolvedValueOnce(new TextEncoder().encode(remote));
+    stateRepo.getAllStates.mockResolvedValueOnce(new Map([["note.md", {
+      local_sha256: await sha(local),
+      base_sha256: await sha("Line 1\n\nLine 2\n\nLine 3"),
+      remote_etag: "etag-old"
+    }]]));
+    stateRepo.getBaseText.mockResolvedValueOnce(local);
+    vault.exists.mockResolvedValueOnce(true);
+    vault.readTextFile.mockResolvedValueOnce(local);
+
+    await worker.runCycle();
+
+    const calls = vault.writeTextFile.mock.calls;
+    expect(calls[0][0]).toMatch(/note\.CONFLICT-.*\.md$/);
+    expect(calls[0][1]).toBe(local);
+    expect(calls[1]).toEqual(["note.md", remote]);
   });
 
   describe("two devices append to the journal of the same daily note (plan Journal, E6)", () => {
@@ -544,6 +575,9 @@ describe("SyncWorker", () => {
     const wroteNote = vault.writeTextFile.mock.calls.some((c: any[]) => c[0] === "note.md");
     expect(wroteNote).toBe(false);
     expect(queue.queueWrite).toHaveBeenCalledWith("note.md");
+    // The local change is not the common ancestor before it has been uploaded:
+    // the base text stays the remote version (finding 2026-10-12).
+    expect(stateRepo.updateLocalHashAndBaseTextGuarded).toHaveBeenCalledWith("note.md", await sha(local), remote, await sha(local));
   });
 
   it("reconciles a pending-write file against a changed remote instead of clobbering it (3a)", async () => {

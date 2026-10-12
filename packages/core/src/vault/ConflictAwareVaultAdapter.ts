@@ -36,7 +36,7 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
   private readonly sessions: ConflictSessions;
   constructor(
     private readonly inner: IVaultAdapter,
-    private readonly syncRepo: Pick<SyncStateRepository, "getSyncState" | "getBaseText" | "updateLocalHash" | "updateLocalHashAndBaseText" | "getConflictSession" | "listConflictSessions" | "saveConflictSession" | "removeConflictSession" | "recordConflictDiagnostic" | "listConflictDiagnostics">,
+    private readonly syncRepo: Pick<SyncStateRepository, "getSyncState" | "getBaseText" | "updateLocalHash" | "updateLocalHashAndUnsyncedBaseText" | "getConflictSession" | "listConflictSessions" | "saveConflictSession" | "removeConflictSession" | "recordConflictDiagnostic" | "listConflictDiagnostics">,
     private readonly onAutoMerge?: (path: string, mergedText: string) => void,
     private readonly mutationScope: object = syncRepo,
     private readonly adapterKind = "local"
@@ -242,14 +242,21 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       // `.base`) as raw bytes (sha256 of readBinaryFile), which can differ from the text
       // hash used here even when the file is byte-for-byte unchanged. If the stored hash
       // equals the byte hash of the *current* disk content, the file did NOT change
-      // externally — adopt it and record a proper text hash + base instead of falsely
+      // externally — adopt it and record a proper text hash instead of falsely
       // flagging a conflict on every save.
+      //
+      // Still met today where a platform's text reader hands a file out
+      // without its byte order mark while the sync recorded the hash of its
+      // bytes. The text written here is a local change like any other: it
+      // becomes the base only for a file no sync has seen (see
+      // `updateLocalHashAndUnsyncedBaseText`). Written over a base the sync
+      // recorded, it made the next change from another device replace this one.
       try {
         const diskBytes = await this.inner.readBinaryFile(path);
         if ((await sha256BytesHex(diskBytes)) === syncState.local_sha256) {
           await this.inner.writeTextFile(path, localContent);
           const healedHash = await sha256Hash(localContent);
-          await this.syncRepo.updateLocalHashAndBaseText(path, healedHash, localContent);
+          await this.syncRepo.updateLocalHashAndUnsyncedBaseText(path, healedHash, localContent);
           this.rememberWrite(path, healedHash);
           return;
         }
@@ -276,7 +283,19 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
       // Auto-merge successful, save the merged content and update our expected local hash.
       await this.inner.writeTextFile(path, mergeResult.mergedText);
       const mergedHash = await sha256Hash(mergeResult.mergedText);
-      await this.syncRepo.updateLocalHashAndBaseText(path, mergedHash, mergeResult.mergedText);
+      // The merged text is this device's new local text, not a version the
+      // remote has seen. On a row a sync recorded a base for, that base stays
+      // (finding 2026-10-11): stored in its place, the merged text made the
+      // next change from another device replace both changes merged here,
+      // without a conflict copy.
+      //
+      // That has a price, and it is paid here the next time: such a row keeps
+      // no text for the new marker, so a SECOND change from outside before the
+      // upload finds nothing to merge against (the snapshots hold what was
+      // there before a write, not what was written) and this write ends as a
+      // conflict copy instead of a merge. A writer that hands in the text it
+      // started from — `writeEditorText` — is not asked that price.
+      await this.syncRepo.updateLocalHashAndUnsyncedBaseText(path, mergedHash, mergeResult.mergedText);
       this.rememberWrite(path, mergedHash);
       // Notify listeners (e.g. the editor) so the in-memory view adopts the merged
       // content. Otherwise a subsequent save would overwrite the merge with stale,

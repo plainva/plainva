@@ -50,6 +50,10 @@ The desktop's context keeps the files to itself and hands out the chain, plus it
 
 A file must not be written through the chain in one place and below it in another: the chain then meets a text it did not write, and refuses the next write as a conflict. That is the finding above in small, and it holds for the app's own files under `.plainva` as well — the chain keeps what it knows of them like of any other file.
 
+## What the chain records, and what it leaves to the sync
+
+Of a file's row in `sync_state` the chain writes one thing: the local marker (`local_sha256`) — after every write of its own, and when an editor opens a file (`acknowledgeExternalUpdate`). The common ancestor with the remote is the sync's: `base_sha256`, `base_etag` and, on a row that carries a `base_sha256`, the base text. That holds after the chain merged a change from outside into a write, too: the merged text is this device's new text, not a version the remote has seen. Only for a file no sync has seen does the chain keep a text of its own in that column, to merge against the next time. What went wrong while it wrote there, and what the rule costs: [Vault watcher and indexing](Vault_Watcher_and_Indexing.md), "The merge base belongs to the sync".
+
 ## The phone writes many notes one after the other
 
 Every write through the chain opens a transaction for the sync queue and one for the index. The desktop's database adapter queues transactions. The phone's is a single connection whose plugin refuses a second transaction while one is open ("Already in transaction") — the note would be changed on disk and counted as failed, with no entry in the queue. The chain's own gate (`withPathMutation`) does not prevent that: it holds apart writes below a common folder only, and the index is written outside it.

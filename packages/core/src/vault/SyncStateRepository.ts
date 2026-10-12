@@ -183,6 +183,36 @@ export class SyncStateRepository {
   }
 
   /**
+   * What the write chain records after a write of its own that leaves the row
+   * without a text for its marker — a merge with a change from outside, a
+   * marker put right: the local marker, and the text as the base ONLY for a
+   * file no sync has seen.
+   *
+   * `base_sha256`, `base_etag` and the base text of a row that carries a
+   * `base_sha256` are the sync's: the version this device and the remote last
+   * agreed on. A text put there from outside a sync makes the row name one
+   * version and hold another, and the next change from another device is
+   * merged against a text that is not the common ancestor. Where that text is
+   * this device's own, nothing has changed here as far as the merge can tell —
+   * the other device's version comes out, every change made here is gone, and
+   * no conflict copy is written (finding 2026-10-11).
+   *
+   * The condition stands in the statement itself, not in a look at the row
+   * beforehand: a first upload that finishes in between must not find its base
+   * text replaced a moment later.
+   */
+  async updateLocalHashAndUnsyncedBaseText(path: string, localSha256: string, text: string): Promise<void> {
+    await this.db.execute(
+      `INSERT INTO sync_state (path, local_sha256, base_text)
+       VALUES (?, ?, ?)
+       ON CONFLICT(path) DO UPDATE SET
+         local_sha256 = excluded.local_sha256,
+         base_text = CASE WHEN sync_state.base_sha256 IS NULL THEN excluded.base_text ELSE sync_state.base_text END`,
+      [path, localSha256, text]
+    );
+  }
+
+  /**
    * Post-sync variant of updateLocalHashAndBaseText: base_text always advances
    * (the pushed/reconciled content IS the new common ancestor), but local_sha256
    * is only adopted when it still equals `expectedLocalSha` — the value read when

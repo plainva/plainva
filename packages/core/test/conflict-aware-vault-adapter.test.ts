@@ -4,6 +4,8 @@ import { BackupVaultAdapter } from "../src/vault/BackupVaultAdapter.ts";
 import { ConflictAwareVaultAdapter, ConflictError } from "../src/vault/ConflictAwareVaultAdapter.ts";
 import { SyncStateRepository } from "../src/vault/SyncStateRepository.ts";
 import { MockDatabaseAdapter } from "./mocks/MockDatabaseAdapter.ts";
+import { realSqlite } from "./helpers/realSqlite.ts";
+import type { IDatabaseAdapter } from "../src/db/IDatabaseAdapter.ts";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -190,7 +192,8 @@ describe("ConflictAwareVaultAdapter", () => {
       async getSyncState(p: string) { return states.get(p) ?? null; },
       async getBaseText(p: string) { return states.get(p)?.base_text ?? null; },
       async updateLocalHash() {},
-      async updateLocalHashAndBaseText(p: string, h: string, t: string) { states.set(p, { local_sha256: h, base_text: t }); },
+      // No sync has seen this file: the text written is the chain's own base.
+      async updateLocalHashAndUnsyncedBaseText(p: string, h: string, t: string) { states.set(p, { local_sha256: h, base_text: t }); },
     };
     const healAdapter = new ConflictAwareVaultAdapter(inner as any, repo as any);
 
@@ -227,7 +230,7 @@ describe("ConflictAwareVaultAdapter", () => {
         const s = states.get(p) ?? { local_sha256: null, base_text: null };
         s.local_sha256 = h; states.set(p, s);
       },
-      async updateLocalHashAndBaseText(p: string, h: string, txt: string) {
+      async updateLocalHashAndUnsyncedBaseText(p: string, h: string, txt: string) {
         states.set(p, { local_sha256: h, base_text: txt });
       },
     };
@@ -236,7 +239,7 @@ describe("ConflictAwareVaultAdapter", () => {
 
     // Seed an existing file whose recorded hash matches disk (no pending external change).
     store.set("db.base", "v0");
-    await repo.updateLocalHashAndBaseText("db.base", await sha256Hash("v0"), "v0");
+    await repo.updateLocalHashAndUnsyncedBaseText("db.base", await sha256Hash("v0"), "v0");
 
     reads.length = 0;
     await Promise.all([
@@ -249,5 +252,114 @@ describe("ConflictAwareVaultAdapter", () => {
     expect(store.get("db.base")).toBe("v2");
     // Serialized: the second write observed the first write's result on disk.
     expect(reads).toEqual(["v0", "v1"]);
+  });
+});
+
+/**
+ * The row after the write chain merged a change from outside into a write of
+ * the app (finding 2026-10-11). The base text of a row has two readers: the
+ * sync, for which it is the common ancestor with the remote, and this adapter,
+ * for which it is the text the app last knew. Where a sync has recorded a base
+ * (`base_sha256`), the place is the sync's; where none has, it is the
+ * adapter's own. Real files and real SQLite.
+ */
+describe("ConflictAwareVaultAdapter — what a merge of its own leaves in the row", () => {
+  const start = "one\ntwo\nthree\nfour\nfive\nsix\nseven\n";
+  const outside = start.replace("one", "one outside");
+  const merged = outside.replace("four", "four here");
+  const outsideAgain = merged.replace("six", "six outside");
+  const write = outsideAgain.replace("two", "two here");
+
+  let tmpDir: string;
+  let db: IDatabaseAdapter;
+  let repo: SyncStateRepository;
+  let adapter: ConflictAwareVaultAdapter;
+  const disk = (text?: string) => text === undefined
+    ? fs.readFile(path.join(tmpDir, "Note.md"), "utf-8")
+    : fs.writeFile(path.join(tmpDir, "Note.md"), text).then(() => text);
+  const copies = async () => (await fs.readdir(tmpDir)).filter((name) => name.includes(".CONFLICT-"));
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-merge-row-"));
+    const files = new LocalVaultAdapter(tmpDir);
+    await files.initialize();
+    db = await realSqlite();
+    repo = new SyncStateRepository(db);
+    adapter = new ConflictAwareVaultAdapter(new BackupVaultAdapter(files), repo);
+    // The file as the index first met it.
+    await disk(start);
+    await repo.updateLocalHashAndBaseText("Note.md", await sha256Hash(start), start);
+  });
+
+  afterEach(async () => {
+    await db.close();
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it("a file no sync has seen: the merged text is kept, and a second change from outside merges again", async () => {
+    await disk(outside);
+    await adapter.writeTextFile("Note.md", merged);
+    expect(await repo.getSyncState("Note.md")).toMatchObject({ local_sha256: await sha256Hash(merged), base_sha256: null, base_text: merged });
+
+    // A vault without a sync provider never uploads: this has to go on working for as long as the app runs there.
+    await disk(outsideAgain);
+    await adapter.writeTextFile("Note.md", write);
+    expect(await disk()).toBe(write);
+    expect(await copies()).toEqual([]);
+  });
+
+  it("a file the sync knows: the base the sync recorded stays — hash and text", async () => {
+    await repo.updateBaseState("Note.md", await sha256Hash(start), "etag-1");
+    await disk(outside);
+    await adapter.writeTextFile("Note.md", merged);
+    expect(await disk()).toBe(merged);
+    expect(await repo.getSyncState("Note.md")).toMatchObject({ local_sha256: await sha256Hash(merged), base_sha256: await sha256Hash(start), base_etag: "etag-1", base_text: start });
+
+    // The price: the text the app last knew is kept nowhere now. A second
+    // change from outside before the upload is not merged in silence.
+    await disk(outsideAgain);
+    await expect(adapter.writeTextFile("Note.md", write)).rejects.toThrow(/base version not found/);
+    expect(await disk()).toBe(outsideAgain);
+    const kept = await copies();
+    expect(kept).toHaveLength(1);
+    expect(await fs.readFile(path.join(tmpDir, kept[0]!), "utf-8")).toBe(write);
+    // Whatever the adapter did, the row still names and holds the version the sync left.
+    expect(await repo.getSyncState("Note.md")).toMatchObject({ base_sha256: await sha256Hash(start), base_text: start });
+  });
+
+  describe("a marker put right: the reader hands the file out without its mark, the row holds the hash of its bytes", () => {
+    // Built at run time: the mark is never typed into this file.
+    const mark = String.fromCharCode(0xfeff);
+    const lying = `${mark}[view]\r\nzoom=1\r\n`;
+    const written = "[view]\r\nzoom=2\r\n";
+    class MarklessReader extends LocalVaultAdapter {
+      override async readTextFile(vaultPath: string): Promise<string> {
+        const text = await super.readTextFile(vaultPath);
+        return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+      }
+    }
+    let markless: ConflictAwareVaultAdapter;
+
+    beforeEach(async () => {
+      const files = new MarklessReader(tmpDir);
+      await files.initialize();
+      markless = new ConflictAwareVaultAdapter(new BackupVaultAdapter(files), repo);
+      await fs.writeFile(path.join(tmpDir, "Settings.ini"), lying);
+      await repo.updateLocalHashAndBaseText("Settings.ini", await sha256Hash(lying), lying);
+    });
+
+    it("on a row the sync knows, the write goes through and the base stays — hash and text", async () => {
+      await repo.updateBaseState("Settings.ini", await sha256Hash(lying), "etag-1");
+      await markless.writeTextFile("Settings.ini", written);
+      expect(await fs.readFile(path.join(tmpDir, "Settings.ini"), "utf-8")).toBe(written);
+      expect(await copies()).toEqual([]);
+      expect(await repo.getSyncState("Settings.ini")).toMatchObject({ local_sha256: await sha256Hash(written), base_sha256: await sha256Hash(lying), base_text: lying });
+    });
+
+    it("on a row no sync has seen, the text written is the chain's own base", async () => {
+      await markless.writeTextFile("Settings.ini", written);
+      expect(await copies()).toEqual([]);
+      expect(await repo.getSyncState("Settings.ini")).toMatchObject({ local_sha256: await sha256Hash(written), base_sha256: null, base_text: written });
+    });
   });
 });

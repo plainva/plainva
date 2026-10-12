@@ -72,7 +72,7 @@ export class ConflictFileStore implements ConflictSessionStore {
   async updateLocalHash(path: string, hash: string): Promise<void> {
     await this.write(await this.key("markers", path), { path: conflictSessionKey(path), hash });
   }
-  async updateLocalHashAndBaseText(path: string, hash: string, _text: string): Promise<void> {
+  async updateLocalHashAndUnsyncedBaseText(path: string, hash: string, _text: string): Promise<void> {
     await this.updateLocalHash(path, hash);
   }
 }

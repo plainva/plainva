@@ -120,6 +120,9 @@ function bytesToHex(buffer: ArrayBuffer): string {
 /** U+FFFD — what a decoder puts where the bytes were not UTF-8. */
 const REPLACEMENT_CHARACTER = String.fromCharCode(0xfffd);
 
+/** The byte order mark as text. Built here, so that this file does not carry the character itself. */
+const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
+
 async function sha256Hash(text: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(text);
@@ -978,9 +981,13 @@ export class SyncWorker {
    * Preserves the local version of a diverged file as a .CONFLICT-<ts> sibling so
    * no local edits are lost when we adopt the remote version. .CONFLICT files are
    * excluded from pushes by the sync target, so they stay local-only.
+   *
+   * `knownBase` is handed in where the caller has already judged the row's
+   * base text — `null` for one that is not the common ancestor: the copy is
+   * then kept without a starting version rather than with a wrong one.
    */
-  private async preserveLocalAsConflict(path: string, localContent: string, external: string, state: SyncState | null, gate: ConflictSessionGate): Promise<string> {
-    const base = state?.base_text ?? await this.stateRepo.getBaseText(path);
+  private async preserveLocalAsConflict(path: string, localContent: string, external: string, state: SyncState | null, gate: ConflictSessionGate, knownBase?: string | null): Promise<string> {
+    const base = knownBase !== undefined ? knownBase : state?.base_text ?? await this.stateRepo.getBaseText(path);
     const session = await new ConflictSessions(this.vault, this.stateRepo, this.stateRepo).preserveLocked(gate, {
       path, text: localContent, base, external, writer: "sync-pull",
       diagnostic: await conflictDiagnostic({ path, adapter: "cloud", writer: "sync-pull", disk: localContent,
@@ -996,11 +1003,42 @@ export class SyncWorker {
    * (`mergeWithoutBase`). Every other divergence keeps the careful path: the
    * local version is preserved as .CONFLICT and the remote one adopted.
    */
-  private async reconcileWithoutBase(path: string, localContent: string, remoteContent: string, state: SyncState | null, gate: ConflictSessionGate, changedPaths: string[]): Promise<string> {
+  private async reconcileWithoutBase(path: string, localContent: string, remoteContent: string, state: SyncState | null, gate: ConflictSessionGate, changedPaths: string[], knownBase?: string | null): Promise<string> {
     const united = mergeWithoutBase(localContent, remoteContent);
     if (!united.hasConflicts) return united.mergedText;
-    changedPaths.push(await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate));
+    changedPaths.push(await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate, knownBase));
     return remoteContent;
+  }
+
+  /**
+   * The base text of `path` — where it IS the version `base_sha256` names.
+   *
+   * A three-way merge takes its ancestor on trust: against a text that is not
+   * the common ancestor it hands back a clean, wrong result. Against this
+   * device's own current text nothing has changed here at all — the remote
+   * version comes out, every local change is gone, and no conflict copy is
+   * written (finding 2026-10-11). More than one writer has put such a text
+   * into a row over time: the index, the write chain after a merge of its own,
+   * and this worker, which recorded a merge as the base before its upload had
+   * gone through. Rows they left are still out there, and a streamed upload
+   * moves the hash on without a text. So the text is asked what it is before
+   * anything is merged against it; one that is another version counts as
+   * none, and the file takes the careful way without an ancestor.
+   *
+   * One kind of row is let through. Until 2026-10-09 the base text of an
+   * upload was kept without the file's byte order mark while the hash was
+   * taken with it (and a database layer that drops a leading mark from a
+   * bound text leaves the same row). That text is the ancestor's, short of
+   * its mark — which is put back in front of it.
+   */
+  private async commonAncestorText(path: string, baseSha256: string): Promise<string | null> {
+    const text = await this.stateRepo.getBaseText(path);
+    if (text === null) return null;
+    if ((await sha256Hash(text)) === baseSha256) return text;
+    // With its mark the text IS the version the hash names: that is the ancestor handed out.
+    if (!text.startsWith(BYTE_ORDER_MARK) && (await sha256Hash(BYTE_ORDER_MARK + text)) === baseSha256) return BYTE_ORDER_MARK + text;
+    console.warn(`[SyncWorker] ${path}: the stored base text is not the version the base hash names (base=${baseSha256.slice(0, 8)}); reconciling without an ancestor`);
+    return null;
   }
 
   /**
@@ -1614,19 +1652,28 @@ export class SyncWorker {
       } else if (state && state.base_sha256 && localSha === state.base_sha256) {
         mergedContent = remoteContent; // local unchanged since base -> fast-forward
       } else if (state && state.base_sha256) {
-        // Both sides changed -> attempt a 3-way merge against the base.
-        const baseText = await this.stateRepo.getBaseText(path);
+        // Both sides changed -> attempt a 3-way merge against the base — the
+        // text that is the version `base_sha256` names, and no other.
+        //
+        // Where the remote is unchanged since the base — a new ETag and
+        // nothing else: a server that re-stamped the file, or one that sends
+        // no ETag on an upload, so that the next listing is the first to bring
+        // one — its content IS that version, whatever text the row holds. The
+        // local change then merges against it and stands; a row without a
+        // usable text must not turn a change nobody else touched into a
+        // conflict copy.
+        const baseText = remoteSha === state.base_sha256 ? remoteContent : await this.commonAncestorText(path, state.base_sha256);
         if (baseText !== null) {
           const mergeRes = mergeText(baseText, localContent, remoteContent);
           if (mergeRes.hasConflicts) {
-            const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate);
+            const cp = await this.preserveLocalAsConflict(path, localContent, remoteContent, state, gate, baseText);
             changedPaths.push(cp);
             mergedContent = remoteContent; // adopt remote; local kept as .CONFLICT
           } else {
             mergedContent = mergeRes.mergedText;
           }
         } else {
-          mergedContent = await this.reconcileWithoutBase(path, localContent, remoteContent, state, gate, changedPaths);
+          mergedContent = await this.reconcileWithoutBase(path, localContent, remoteContent, state, gate, changedPaths, null);
         }
       } else {
         // No reliable base (e.g. first connect) and content diverges. Never
@@ -1653,12 +1700,23 @@ export class SyncWorker {
     const newLocalSha = await sha256Hash(mergedContent);
     // When we did NOT rewrite the file, adopt the local marker only while no
     // concurrent app save changed it since our read (guarded, P1 conflict-race);
-    // base_text still advances unconditionally — the reconciled content IS the
-    // new common ancestor. After our own write the update stays unconditional.
+    // base_text still advances unconditionally. After our own write the update
+    // stays unconditional.
+    //
+    // The base text is the REMOTE version — the one the base hash recorded
+    // below names. Where the reconciled content is ahead of it (both sides
+    // merged, or a local change that still waits for its upload), that content
+    // is this device's text and no common ancestor until its upload has gone
+    // through; the push records it as the base then. It used to be recorded
+    // here already. An upload that was refused, deferred or cut off left the
+    // row naming the remote version and holding the local one — and the next
+    // change from the other device was merged against this device's own text:
+    // its version came out, the change made here was gone, and no conflict
+    // copy was written (finding 2026-10-12).
     if (writeNeeded) {
-      await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, mergedContent);
+      await this.stateRepo.updateLocalHashAndBaseText(path, newLocalSha, remoteContent);
     } else {
-      await this.stateRepo.updateLocalHashAndBaseTextGuarded(path, newLocalSha, mergedContent, localShaAtRead);
+      await this.stateRepo.updateLocalHashAndBaseTextGuarded(path, newLocalSha, remoteContent, localShaAtRead);
     }
 
     if (pushMerge) {
