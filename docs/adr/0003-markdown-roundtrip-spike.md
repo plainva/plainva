@@ -112,10 +112,31 @@ file — a silent reformat of existing vault content, which this ADR rules out.
    PLACES in a note — the outline, an embedded section, the reading view, the
    journal — counts them in the text it was given, mark included: the
    Markdown parser skips the mark and counts from behind it, so its offsets
-   are brought back to the text before anything is laid on it (`treeFor` in
-   `packages/core/src/noteSource.ts`). What is handed to the reading view has
-   no mark, as it has no `\r`. And the journal reads and changes the lines
-   behind the mark and puts it back in front of them.
+   are brought back to the text before anything is laid on it (point 9). What
+   is handed to the reading view has no mark, as it has no `\r`. And the
+   journal reads and changes the lines behind the mark and puts it back in
+   front of them.
+9. **Markdown is parsed in one place, and its places are places in the text
+   it was given (added 2026-10-12).** The note source was one of three readers
+   that laid a parser's offsets on a file's text, each with a parser of its
+   own: the import from Joplin kept a link definition unresolved in a body
+   that starts with a mark, and `parseMarkdownAst` handed out offsets one
+   short — the index reads lines only, and the link rewriter of the addendum
+   below cuts the mark off itself before it parses. All three take their tree
+   from
+   `packages/core/src/markdown-parser.ts` now (`parseMarkdownTree`,
+   `parseCommonMarkTree`, `parseMarkdownAst`), which adds the one character
+   the parser skipped back to every offset, and to the columns of the first
+   line. A reader of places has nothing to remember about a mark, and a
+   shipped file that brings a parser of its own fails a guard. The reading
+   view's renderer is the one other parse; what it is handed has no mark at
+   its start (point 8). A reader that goes through a file's LINES reads them
+   as an editor holds them (`editorTextOf`): the context of a backlink took a
+   list item in the first line of such a note for plain text, and the reading
+   view read the writing direction of an embedded note's blocks from lines of
+   which the first began with the mark — a task there ran left to right
+   whatever it was written in, and behind a properties block the whole note
+   did.
 
 **2026-10-12 — the encoding question of point 7, answered for the sync.** A
 file is text when its name says so AND its bytes are UTF-8 (`mergeableText` in
@@ -159,6 +180,12 @@ bundle. For point 8: `packages/core/test/noteSource.test.ts`,
 `packages/core/test/journal.test.ts`, and
 `apps/mobile/src/adapters/externalVaultAdapter.test.ts`, which reads the same
 files with and without a mark through the phone's adapter for a picked folder.
+For point 9: `packages/core/test/markdown-places.test.ts`, the guard
+`apps/desktop/src/markdownParseSites.test.ts`, and a daily note with a mark
+taken through every change the journal makes, on each shell's own way and
+with the bytes read back — `apps/desktop/src/journalByteOrderMark.test.ts`,
+`apps/mobile/src/services/journalByteOrderMark.test.ts` —, and through the
+reading view: `apps/desktop/src/lib/readerByteOrderMark.test.tsx`.
 
 ## Addendum 2026-10-12 (a note is never written back from its parsed tree)
 

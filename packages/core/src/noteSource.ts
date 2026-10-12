@@ -1,7 +1,4 @@
-import { unified } from "unified";
-import remarkParse from "remark-parse";
-import remarkGfm from "remark-gfm";
-import remarkFrontmatter from "remark-frontmatter";
+import { parseMarkdownTree } from "./markdown-parser.js";
 import { stripAnchorMarkers } from "./workspace/commentAnchor.js";
 import { wikiLinkMatcher } from "./linkScan.js";
 
@@ -13,38 +10,16 @@ interface SourceNode {
   position?: { start: { offset: number }; end: { offset: number } };
 }
 
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ["yaml"]);
 const BYTE_ORDER_MARK = 0xfeff;
 
 /**
- * The tree of `text`, every position an offset into `text`.
- *
- * The parser skips a byte order mark at the start of what it is given and
- * counts from behind it: for a note that begins with one, each of its offsets
- * is one short of the place it means. Everything here lays those offsets on
- * the text again — and so every block of such a note began one character
- * early, which for a block at the start of a line is the line above it. The
- * journal read no entry in that note and refused to write one, an outline
- * led one line above each heading, an embedded section began in front of its
- * heading, and the reading view kept the last `-` of the properties block
- * (finding 2026-10-09). The mark is parsed around instead, and the positions
- * are counted from the start of the text it belongs to.
+ * The tree of `text`, every position an offset into `text` — also where the
+ * text starts with a byte order mark, which the parser skips and counts from
+ * behind. Everything here lays those offsets on the text again; that they
+ * fit is the parse's own business now (`parseMarkdownTree`, which tells what
+ * a note with a mark looked like while they did not).
  */
-function treeFor(text: string): SourceNode {
-  const mark = text.charCodeAt(0) === BYTE_ORDER_MARK ? 1 : 0;
-  const root = parser.parse(mark ? text.slice(mark) : text) as unknown as SourceNode;
-  if (mark) {
-    const shift = (node: SourceNode) => {
-      if (node.position) {
-        node.position.start.offset += mark;
-        node.position.end.offset += mark;
-      }
-      node.children?.forEach(shift);
-    };
-    shift(root);
-  }
-  return root;
-}
+const treeFor = (text: string): SourceNode => parseMarkdownTree(text);
 const textOf = (node: SourceNode): string => node.value ?? (node.children ?? []).map(textOf).join("");
 
 export interface NoteSourceRange { from: number; to: number; line: number }
@@ -282,7 +257,12 @@ export function prepareReaderSource(raw: string, options: { formatDate?: (iso: s
   };
   walk(treeFor(clean.text));
   // What is read is the text: a byte order mark is the file's, like its `\r`.
-  if (clean.text.charCodeAt(0) === BYTE_ORDER_MARK) edits.push({ from: 0, to: 1, text: "" });
+  // None is left at the start, however many stand there: the renderer parses
+  // this text with a parser of its own, which would skip one and count from
+  // behind it.
+  let marks = 0;
+  while (clean.text.charCodeAt(marks) === BYTE_ORDER_MARK) marks++;
+  if (marks > 0) edits.push({ from: 0, to: marks, text: "" });
   for (const block of analyzeNoteSource(raw).blocks) edits.push({ from: clean.toClean(block.markerFrom), to: clean.toClean(block.markerTo), text: "" });
   for (const match of clean.text.matchAll(/\r\n/g)) if (!edits.some((e) => e.from <= match.index && e.to > match.index)) edits.push({ from: match.index, to: match.index + 2, text: "\n" });
   edits.sort((a, b) => a.from - b.from || b.to - a.to);

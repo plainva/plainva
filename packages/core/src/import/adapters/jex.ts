@@ -1,5 +1,4 @@
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
+import { parseCommonMarkTree } from '../../markdown-parser.js';
 import { upsertFrontmatterKeys } from '../../frontmatter-surgical.js';
 import { ImportWriter } from '../ImportWriter.js';
 import { DEFAULT_IMPORT_LABELS, type ImportOptions, type ImportPlan, type ImportSource, type UnpackedFile } from '../ImportTypes.js';
@@ -120,8 +119,13 @@ export function analyzeJex(files: UnpackedFile[], opts: ImportOptions, source: I
 }
 
 type Node = { type: string; url?: string; children?: Node[]; position?: { start: { offset?: number }; end: { offset?: number } } };
-const parser = unified().use(remarkParse);
-/** Only real link/image/reference nodes are changed; code and text stay verbatim. */
+/**
+ * Only real link/image/reference nodes are changed; code and text stay verbatim.
+ * The places come from `parseCommonMarkTree`, which counts them in `body` as it
+ * was handed in. Counted by the parser alone they were one short in a body
+ * that starts with a byte order mark: a link definition there kept its Joplin
+ * address and was reported as a link that leads nowhere (seen 2026-10-12).
+ */
 export function rewriteJexLinks(body: string, fromPath: string, paths: Map<string, string>): { content: string; missing: number } {
   const edits: { start: number; end: number; value: string }[] = [];
   let missing = 0;
@@ -152,7 +156,7 @@ export function rewriteJexLinks(body: string, fromPath: string, paths: Map<strin
     }
     for (const child of node.children ?? []) walk(child);
   }
-  walk(parser.parse(body));
+  walk(parseCommonMarkTree(body));
   let content = body;
   for (const edit of edits.sort((a, b) => b.start - a.start)) content = content.slice(0, edit.start) + edit.value + content.slice(edit.end);
   return { content, missing };

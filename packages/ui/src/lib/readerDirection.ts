@@ -1,3 +1,4 @@
+import { editorTextOf } from "@plainva/core";
 import type { HastNode } from "./readerAnchors";
 import { lineDirections, mayContainRtl, textDirectionOf, type TextDirection } from "./textDirection";
 
@@ -19,7 +20,13 @@ const LINE_BLOCKS = new Set(["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "ul"
  * at all, so its markup is exactly what it was.
  */
 export function rehypeReaderDirection(original: string) {
-  const dirs: readonly TextDirection[] | null = mayContainRtl(original) ? lineDirections(original) : null;
+  // The rule reads LINES, and it reads them as the editor holds them. For the
+  // note an editor shows that is `original` itself; an embedded note comes
+  // from its file, with `\r` at its line ends and, where the file has one, a
+  // byte order mark in front of its first line — a task there kept its box in
+  // what was read, and the `x` in it decided for a line written in Arabic
+  // (finding 2026-10-09). The line numbers are the same in both texts.
+  const dirs: readonly TextDirection[] | null = mayContainRtl(original) ? lineDirections(editorTextOf(original)) : null;
   return () => (root: HastNode) => {
     if (!dirs) return;
     const walk = (node: HastNode, table: TextDirection | null) => {
