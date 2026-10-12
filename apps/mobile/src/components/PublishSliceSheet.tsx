@@ -6,7 +6,7 @@ import {
   type PublishedSliceMode,
   type PublishedSliceProvider,
 } from "@plainva/core";
-import { Banner, Button, publicationInstructionText, Segmented, TextInput } from "@plainva/ui";
+import { Banner, Button, publicationErrorText, publicationInstructionText, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { mSelect } from "../services/mobileDialogs";
 
@@ -71,13 +71,21 @@ export function PublishSliceSheet({
      computed for is worse than no count. */
   const shown = preview && preview.mode === mode ? preview.data : null;
 
+  /* A failure is said through the shared text, as on the desktop: a note the
+     sanitizer refuses is named in the app's language, and a publication code
+     is a sentence. The banner used to show the thrown message as it came.
+     An earlier answer goes with a failed one: numbers beside a reason why
+     there are none would be numbers for a publication that does not come. */
   const runPreview = () => {
     if (previewBusy) return;
     setPreviewBusy(true);
     setError(null);
     void onPreview(mode)
       .then((data) => setPreview({ mode, data }))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => {
+        setPreview(null);
+        setError(publicationErrorText(e, t));
+      })
       .finally(() => setPreviewBusy(false));
   };
 
@@ -86,7 +94,7 @@ export function PublishSliceSheet({
     setBusy(true);
     setError(null);
     void onSubmit({ name: name.trim(), mode, access, provider }).catch((e: unknown) => {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(publicationErrorText(e, t));
       setBusy(false);
     });
   };

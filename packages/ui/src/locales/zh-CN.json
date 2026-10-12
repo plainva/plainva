@@ -3857,6 +3857,7 @@
     "publicationUnknown": "本仓库不认识该发布。它可能已在此删除，或属于另一个仓库。",
     "publicationRecipientGroupMissing": "该发布没有接收人分组，因此无法添加任何人。请重新创建该发布。",
     "publicationNotRecipient": "此人不是该发布的接收人。你无法用这种方式收回自己的访问权。",
+    "publicationNoteRefused": "无法发布“{{path}}”：笔记开头的区块无法作为属性读取。请在笔记文本中修正；在此之前，该发布不会完整刷新。",
     "revokeRecipient": "收回访问权",
     "recipientRevoked": "已收回",
     "withdrawPublication": "撤回发布",

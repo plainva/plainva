@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   FakeWorkspaceObjectStore,
   MemoryWorkspaceStateStore,
+  PUBLISHED_NOTE_REFUSED,
   WorkspaceCommentStore,
   publishQueuedWorkspaceComment,
   PublishedSliceObjectStore,
@@ -1301,6 +1302,104 @@ describe("refreshWorkspacePublications", () => {
     });
     const exactWrite = exactState.saved.at(-1)!.manifest.objects[0];
     expect(await readPublishedText(exact, exactWrite.sourceObjectId)).toBe(markdown);
+  });
+
+  it("stops at a note whose block names no properties, names it, and publishes it once it is corrected", async () => {
+    // Text between two rules at the top of a note is no YAML map, and the
+    // allowlist has no names to judge it by. The note used to go out without
+    // those lines and the run reported nothing (finding 2026-10-09). Now the
+    // sanitizer refuses it, like a note whose YAML does not parse - and the
+    // reason the record keeps names the note, because the person publishing
+    // has to find it among everything the slice covers.
+    const OBJ_DRAFT = "d8".repeat(16);
+    const made = await makePublication();
+    const objects = [
+      object({ objectId: OBJ_TEXT, path: "Projects/A.md" }),
+      object({ objectId: OBJ_DRAFT, path: "Projects/Draft.md" }),
+    ];
+    const state = fakeState([makeRecord(made.handle)], objects);
+    const files: Record<string, string> = {
+      "Projects/A.md": "---\ntitle: A\n---\nShipped.\n",
+      "Projects/Draft.md": "---\nSalary 4800, hidden-value\n---\nNot ready.\n",
+    };
+    const run = () => refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async (path: string) => files[path] },
+      policy: { slices: [slice([OBJ_TEXT, OBJ_DRAFT])] },
+      store: made.outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => made.handle.runtime,
+      now: () => "2026-10-09T12:00:00.000Z",
+    });
+
+    const [stopped] = await run();
+    expect(stopped.applied).toBe(1);
+    expect(stopped.error).toBe(`${PUBLISHED_NOTE_REFUSED}Projects/Draft.md`);
+    const kept = state.saved.at(-1)!;
+    expect(kept.lastError).toBe(`${PUBLISHED_NOTE_REFUSED}Projects/Draft.md`);
+    // Nothing of the note is in the reason, and nothing of it was written: the
+    // manifest knows one object, and one object lies in the publication.
+    expect(kept.lastError).not.toContain("hidden-value");
+    expect(kept.lastError).not.toContain("4800");
+    expect(kept.manifest.objects.map((entry) => entry.sourceObjectId)).toEqual([OBJ_TEXT]);
+    expect((await made.outer.list(`.pvws/publications/${made.handle.publicationId}/objects`)).items).toHaveLength(1);
+
+    // Corrected in the note's text, the note goes out with the next run and
+    // the reason is gone.
+    files["Projects/Draft.md"] = "---\ntitle: Draft\nsalary: 4800\n---\nNot ready.\n";
+    const [resumed] = await run();
+    expect(resumed).toEqual({ publicationId: made.handle.publicationId, planned: 1, applied: 1, error: null, skipped: null });
+    expect(state.saved.at(-1)!.lastError).toBeNull();
+    const published = await readPublishedText(made, OBJ_DRAFT);
+    expect(published).not.toContain("4800");
+    expect(published).toBe("---\ntitle: Draft\n---\nNot ready.\n");
+  });
+
+  it("names a note whose YAML does not parse, without the line the parser quotes", async () => {
+    // Refused before as well - by a sentence that named no note, so a slice of
+    // two hundred had to be searched by hand. The parser's own message, which
+    // quotes the line it stumbled over, stays out of the record as it did.
+    const made = await makePublication();
+    const state = fakeState([makeRecord(made.handle)], [object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" })]);
+
+    const [outcome] = await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => "---\ntitle: \"unclosed\nsalary: hidden-value\n---\nText.\n" },
+      policy: { slices: [slice([OBJ_TEXT])] },
+      store: made.outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => made.handle.runtime,
+    });
+
+    expect(outcome.applied).toBe(0);
+    expect(outcome.error).toBe(`${PUBLISHED_NOTE_REFUSED}Projects/Q3.md`);
+    expect(state.saved.at(-1)!.lastError).not.toContain("hidden-value");
+    expect(state.saved.at(-1)!.lastError).not.toContain("unclosed");
+    expect((await made.outer.list(`.pvws/publications/${made.handle.publicationId}/objects`)).items).toEqual([]);
+  });
+
+  it("hands a note with such a block out as it is where the publication is exact", async () => {
+    // Exact is the whole note: nothing is judged, so nothing is refused and
+    // no line is missing.
+    const markdown = "---\nA line between two rules\n---\nText.\n";
+    const exact = await makePublication({ mode: "exact" });
+    const record = makeRecord(exact.handle);
+    const state = fakeState(
+      [{ ...record, config: { ...record.config, mode: "exact" } }],
+      [object({ objectId: OBJ_TEXT, path: "Projects/Q3.md" })],
+    );
+
+    const [outcome] = await refreshWorkspacePublications({
+      state: state.store,
+      vault: { readTextFile: async () => markdown },
+      policy: { slices: [slice([OBJ_TEXT])] },
+      store: exact.outer,
+      workspaceId: WORKSPACE,
+      openPublicationRuntime: async () => exact.handle.runtime,
+    });
+
+    expect(outcome.error).toBeNull();
+    expect(await readPublishedText(exact, OBJ_TEXT)).toBe(markdown);
   });
 
   it("refreshes into the same folder the publication was created in", async () => {

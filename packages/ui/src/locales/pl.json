@@ -3980,6 +3980,7 @@
     "publicationUnknown": "Ten vault nie zna tej publikacji. Została tu usunięta albo należy do innego vaultu.",
     "publicationRecipientGroupMissing": "Ta publikacja nie ma grupy odbiorców, więc nikogo nie da się do niej dodać. Utwórz ją ponownie.",
     "publicationNotRecipient": "Ta osoba nie jest odbiorcą tej publikacji. Własnego dostępu nie możesz odebrać w ten sposób.",
+    "publicationNoteRefused": "Nie można opublikować „{{path}}”: bloku na początku notatki nie da się odczytać jako właściwości. Popraw go w tekście notatki; do tego czasu publikacja nie jest w pełni odświeżana.",
     "revokeRecipient": "Odbierz dostęp",
     "recipientRevoked": "Odebrano",
     "withdrawPublication": "Wycofaj publikację",

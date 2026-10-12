@@ -3898,6 +3898,7 @@
     "publicationUnknown": "Deze vault kent die publicatie niet. Ze is hier verwijderd, of ze hoort bij een andere vault.",
     "publicationRecipientGroupMissing": "Deze publicatie heeft geen ontvangersgroep, dus er kan niemand aan worden toegevoegd. Maak haar opnieuw aan.",
     "publicationNotRecipient": "Deze persoon is geen ontvanger van deze publicatie. Je eigen toegang kun je op deze manier niet intrekken.",
+    "publicationNoteRefused": "“{{path}}” kan niet worden gepubliceerd: het blok bovenaan de notitie kan niet als eigenschappen worden gelezen. Corrigeer het in de tekst van de notitie; tot die tijd wordt de publicatie niet volledig vernieuwd.",
     "revokeRecipient": "Toegang intrekken",
     "recipientRevoked": "Ingetrokken",
     "withdrawPublication": "Publicatie intrekken",

@@ -431,3 +431,77 @@ only where that text carried no properties block.
    to the editor as it was: for a template written on Windows the caret stood
    one character too far right for every line above it, and one more behind
    a mark.
+
+## Addendum 2026-10-12 (published slices: a block that names no properties)
+
+Finding 2026-10-09, seen while the sanitizer was moved onto the definition
+(point 5 of the first addendum of 2026-10-09): `projectPublishedMarkdown`
+read a block's YAML as a record, whatever it was. Text between two rules at
+the top of a note parses as one string and a list as an array, and the
+string's characters and the list's places were walked as properties. The
+report named "0", "1", "2" as removed properties, the preview counted them,
+and the block was gone from the published note without a word. A number, or
+a `null` that is spelt out, went the same way with no entry in the report at
+all.
+
+1. **Such a note is refused**, as a note whose YAML does not parse always
+   was. Point 2 of the decision holds for the sanitizer, too: a block that is
+   unparsable or no YAML map is an anomaly, and the note is skipped and
+   reported, never repaired. What the anomaly is, is asked in one place by
+   the writers and the sanitizer alike — `parseBlockYaml` in
+   `packages/core/src/frontmatter-block.ts` —, and a test holds the two
+   together on the table of forms the definition is held on. A block without
+   content (no line, blank lines, comments only) is a block without entries:
+   the note is published without a block, and no comment leaves with it. A
+   `null` that is spelt out says something, and it is no map.
+2. **Why the block is not left out and the rest published.** Both answers
+   are safe: nothing of the block leaves either way. They differ in what the
+   publisher is told. An allowlist judges names, and such a block has none,
+   so there is no property to pass and none to name in a report. Without its
+   block the published note is not the note its author holds, for a reason
+   no line of the policy gives — and the one place that could say so is the
+   preview, which is shown once, before the publication exists. Every
+   refresh after that runs where nobody watches: a note that gets such a
+   block later would lose it on the way out, silently. And "could not be
+   read" is not "has none" (point 8 of the first addendum of 2026-10-09). A
+   refusal stays on the publication's row until the note is corrected.
+3. **The refusal names the note, in the user's language, and carries nothing
+   the note says.** `projectPublishedNote` adds the vault path where the
+   caller knows it — the preview and the refresh —, and
+   `publicationErrorText` in
+   `packages/ui/src/lib/publicationInstructions.ts` says the sentence on
+   both shells. A note with unparsable YAML used to be refused by a protocol
+   sentence without a note in it, and a slice is many notes. The YAML
+   parser's message, which quotes the line it stumbled over, never reaches
+   the reason: the reason is shown in the app and kept in the publication's
+   record. A vault path may stand there, as it may in the diagnostics log; a
+   note's text may not.
+4. **Both shells say it in the same two places:** where the preview would
+   stand — the review step of the desktop's slice wizard, the banner of the
+   phone's publish sheet —, and on the publication's row. The preview ends
+   at the note instead of counting on: numbers for the notes around it would
+   describe a publication that does not come about. The desktop used to say
+   a failed preview in a toast while the review step went on promising that
+   the notes were being read; the phone showed the thrown message as it
+   came, protocol sentence or error code.
+5. **What follows from the refresh as it is.** A refresh stops at the first
+   note that will not publish and leaves the rest of its plan to the next
+   run (it stops rather than skips, so that a refresh is never reported as
+   done while a note kept its old text). Behind a refused note, changes to
+   other notes and the withdrawal of notes that left the slice therefore
+   wait until the note is corrected. That is the refresh's rule for every
+   failure and not new here; new is that the wait names the note that ends
+   it. Whether a note that will not publish may hold back the withdrawal of
+   another is a question for the refresh, not for the sanitizer, and is left
+   open.
+6. **Not affected:** an exact publication, which projects nothing and hands
+   every note out as it is; and what is already published — the plan
+   compares revisions, so a note that went out without its block before
+   stays as it is until its source changes, and only then is the next
+   publish refused.
+7. **Known and left as it is:** the sanitizer reads every text file a slice
+   covers as a note (`publishableObjects` takes `contentKind: "text"`), so a
+   `.txt` or a `.yaml` of several documents that opens with a `---` line and
+   has a second one is judged by the same rule. Where what stands between
+   the two is no map, the file is now refused and named; before, those lines
+   were dropped from the published copy.

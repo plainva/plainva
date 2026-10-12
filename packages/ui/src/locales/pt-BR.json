@@ -3939,6 +3939,7 @@
     "publicationUnknown": "Este vault não conhece essa publicação. Ela foi removida aqui ou pertence a outro vault.",
     "publicationRecipientGroupMissing": "Esta publicação não tem grupo de destinatários, então ninguém pode ser adicionado a ela. Crie-a novamente.",
     "publicationNotRecipient": "Essa pessoa não é destinatária desta publicação. Você não pode retirar o seu próprio acesso por este caminho.",
+    "publicationNoteRefused": "Não é possível publicar “{{path}}”: o bloco no início da nota não pode ser lido como propriedades. Corrija-o no texto da nota; até lá, a publicação não é atualizada por completo.",
     "revokeRecipient": "Retirar o acesso",
     "recipientRevoked": "Retirado",
     "withdrawPublication": "Retirar a publicação",

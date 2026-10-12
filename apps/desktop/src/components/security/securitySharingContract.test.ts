@@ -365,4 +365,24 @@ describe("security centre: what the source still wires (source guard, not behavi
     const parity = readFileSync(new URL("../../../../../packages/ui/src/lib/featureParity.ts", import.meta.url), "utf8");
     expect(parity).not.toContain('id: "workspace-publication-create"');
   });
+
+  it("source: a preview that cannot be made says why where it would stand, through one text on both shells", () => {
+    // A sanitized publication refuses a covered note whose block at the top
+    // cannot be read as properties, and the preview ends at it (finding
+    // 2026-10-09). The page keeps the reason - said by the shared text, which
+    // names the note - and hands it to the review step; it used to be a toast,
+    // and the step went on saying that the notes were being read. What the
+    // step and the phone's sheet then show is mounted in
+    // `publicationRefusalSurfaces.test.tsx`; this holds the wire between them.
+    expect(page).toMatch(/catch \(error\) \{ setPublicationPreviewError\(publicationErrorText\(error, t\)\); \}/);
+    expect(page).toContain("publicationPreviewError={publicationPreviewError}");
+    // The answer and the reason why there is none are cleared together,
+    // wherever the question is asked anew or dropped.
+    expect(page).toContain("const clearPublicationPreview = () => { setPublicationPreview(null); setPublicationPreviewError(null); };");
+    expect(page.match(/setPublicationPreview\(null\)/g)).toHaveLength(1);
+    expect(dialog).toMatch(/publicationPreviewError \? <Banner kind="error" rounded>\{publicationPreviewError\}<\/Banner> : <SettingCardNote>\{t\("workspaceSecurity\.projectionLoading"/);
+    const sheet = readFileSync(new URL("../../../../mobile/src/components/PublishSliceSheet.tsx", import.meta.url), "utf8");
+    expect(sheet).not.toMatch(/setError\(e instanceof Error \? e\.message/);
+    expect(sheet.match(/setError\(publicationErrorText\(e, t\)\)/g)).toHaveLength(2);
+  });
 });

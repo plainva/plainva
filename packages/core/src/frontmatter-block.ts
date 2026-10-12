@@ -16,7 +16,8 @@ import { readTextShape } from "./textFileShape.js";
  *
  * `frontmatterSpan`, `noteBodyOf` and `noteWithoutProperties` are the public
  * half (re-exported by `frontmatter-surgical.ts`). The rest is shared by the
- * two modules that write properties and is not part of the package API.
+ * two modules that write properties and by the sanitizer for published
+ * slices, and is not part of the package API.
  */
 
 /** Raised when a document cannot be edited safely (caller should skip the file). */
@@ -179,6 +180,34 @@ export function noteWithoutProperties(content: string): string {
   return composeNote({ byteOrderMark: byteOrderMarkOf(content), yaml: "", body: content.slice(span.end), eol: readTextShape(content).shape.eol });
 }
 
+/**
+ * The YAML between a block's fences as a document, or the one refusal for a
+ * block the app cannot take for properties.
+ *
+ * Properties are a YAML map. A block without content — no line, blank lines,
+ * comments only — is a block without entries. Anything else is an anomaly that
+ * is refused and never repaired (ADR 0009, decision point 2): YAML that does
+ * not parse, and YAML that is no map — text between two rules, a list, a
+ * number, a `null` that is spelt out. The writers ask here, and so does the
+ * sanitizer for published slices: a block that cannot be written by its
+ * property names cannot be filtered by them either.
+ *
+ * `sourceTokens` keeps, on every node, the token it was read from (see
+ * `splitDocument`).
+ */
+export function parseBlockYaml(yaml: string, options: { sourceTokens?: boolean } = {}): Document {
+  const doc = options.sourceTokens ? parseDocument(yaml, { keepSourceTokens: true }) : parseDocument(yaml);
+  if (doc.errors.length > 0) {
+    throw new FrontmatterSurgicalError(
+      `Frontmatter is not parseable YAML: ${doc.errors[0].message}`
+    );
+  }
+  if (doc.contents !== null && !isMap(doc.contents)) {
+    throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
+  }
+  return doc;
+}
+
 export interface SplitDocument {
   doc: Document;
   /** The note's text behind the block. */
@@ -216,15 +245,7 @@ export function splitDocument(content: string, options: { sourceTokens?: boolean
     return { doc, body: content.slice(byteOrderMark.length), hadFrontmatter: false, hadEntries: false, eol, byteOrderMark, content };
   }
 
-  const doc = options.sourceTokens ? parseDocument(span.yaml, { keepSourceTokens: true }) : parseDocument(span.yaml);
-  if (doc.errors.length > 0) {
-    throw new FrontmatterSurgicalError(
-      `Frontmatter is not parseable YAML: ${doc.errors[0].message}`
-    );
-  }
-  if (doc.contents !== null && !isMap(doc.contents)) {
-    throw new FrontmatterSurgicalError("Frontmatter is not a YAML map");
-  }
+  const doc = parseBlockYaml(span.yaml, options);
   const hadEntries = isMap(doc.contents) && doc.contents.items.length > 0;
   return { doc, body: content.slice(span.end), hadFrontmatter: true, hadEntries, eol, byteOrderMark, content };
 }
