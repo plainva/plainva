@@ -11,8 +11,12 @@ import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatterLinks, extractLinksAndTags } from "../ast-scanner.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
 import { isTextFile } from "../sync/fileType.js";
+import { readLocalText } from "./localText.js";
 import { encodeIndexedProperty } from "./indexedProperty.js";
 import { segmentedIndexText } from "./spacelessText.js";
+
+/** U+0000, built here so that no source line has to carry the character. */
+const NUL = String.fromCharCode(0);
 
 /**
  * Minimal write sink. The cold full-scan (indexVaultFull) records its pure-write
@@ -306,8 +310,17 @@ export class VaultIndexer {
     writer: SqlWriter = this.dbAdapter
   ): Promise<void> {
     const fileId = await this.generateFileId(fileInfo.path);
-    const content = await this.vaultAdapter.readTextFile(fileInfo.path);
-    const sha256 = await sha256Hash(content);
+    // The hash is the one of the note's BYTES, and its text is a merge base
+    // only where it IS the note (`readLocalText`). A note in another encoding
+    // — Windows-1252 from an old tool, UTF-16 — is indexed from a reading with
+    // replacement characters, which is good enough to find it; kept as the
+    // merge base, that reading would be written back by the next merge (see
+    // the end of this method).
+    const read = await readLocalText(this.vaultAdapter, fileInfo.path);
+    // UTF-16 read as UTF-8 carries a NUL after every character; without them
+    // the reading has the note's headings and links again.
+    const content = read.exact ? read.text : read.text.split(NUL).join("");
+    const sha256 = read.sha256;
     const existingFileState = lookups
       ? lookups.fileStateById.get(fileId) ?? null
       : // By id, and failing that by PATH: an in-app move or rename keeps the
@@ -525,6 +538,15 @@ export class VaultIndexer {
       }
     }
 
+    // What was indexed for a note in another encoding is a READING of it, not
+    // the note. Where this pass just recorded that reading as the merge base —
+    // or found one in a row an earlier file left under this name — the base
+    // text goes: such a note has the hash of its bytes and nothing to merge
+    // against (`mergeableText`).
+    if (!read.exact && (isNewLocalFile || !oldSyncState)) {
+      await this.syncRepo.clearBaseText(fileInfo.path, writer);
+    }
+
     // A brand-new local file is indexed (and visible) but was never enqueued for sync.
     // Buffer it; the host is notified after the transaction commits (see flush below).
     if (isNewLocalFile) {
@@ -545,17 +567,21 @@ export class VaultIndexer {
   ): Promise<void> {
     const fileId = await this.generateFileId(fileInfo.path);
     // Text-like non-.md files (e.g. `.base`, `.canvas`) must be hashed the SAME way the
-    // conflict-aware adapter and sync worker hash them — a text hash of the decoded
-    // content — and need a base_text for 3-way merges. Hashing them as raw bytes here
-    // produced a permanent hash mismatch vs. the (text-hashing) write path, which made
-    // every save of a `.base` file create a spurious .CONFLICT. Truly binary files
-    // (images, PDFs, …) keep the byte hash and have no base_text.
+    // conflict-aware adapter and sync worker hash them, and need a base_text for 3-way
+    // merges. Hashing them as raw bytes here, next to a write path that hashed the text
+    // it had read, once produced a permanent hash mismatch, which made every save of a
+    // `.base` file create a spurious .CONFLICT. The two agree for UTF-8 text — the hash
+    // of the text IS the hash of the bytes — and `readLocalText` gives that one hash.
+    // A file that is text by its name and not by its bytes (a `.csv` in Windows-1252,
+    // a `.txt` in UTF-16) has the hash of its bytes and no base_text, like the truly
+    // binary files (images, PDFs, …).
     const textLike = isTextFile(fileInfo.path);
     let sha256: string;
     let textContent: string | null = null;
     if (textLike) {
-      textContent = await this.vaultAdapter.readTextFile(fileInfo.path);
-      sha256 = await sha256Hash(textContent);
+      const read = await readLocalText(this.vaultAdapter, fileInfo.path);
+      textContent = read.exact ? read.text : null;
+      sha256 = read.sha256;
     } else {
       const bytes = await this.vaultAdapter.readBinaryFile(fileInfo.path);
       sha256 = await sha256Bytes(bytes);
@@ -609,6 +635,12 @@ export class VaultIndexer {
         await this.syncRepo.updateLocalHash(fileInfo.path, sha256, writer);
       }
       this.pendingNewLocalFiles.push(fileInfo.path);
+    }
+
+    // Text by its name and not by its bytes: no base_text either — not even
+    // the one an earlier file under this name left in its row.
+    if (isNewLocalFile && textLike && textContent === null) {
+      await this.syncRepo.clearBaseText(fileInfo.path, writer);
     }
   }
 

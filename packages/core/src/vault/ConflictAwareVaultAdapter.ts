@@ -2,6 +2,7 @@ import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, Vault
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { parseBackupFileName } from "./backupNaming.js";
+import { readLocalText } from "./localText.js";
 import { withPathMutation } from "./pathMutation.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictEditSession, type ConflictResolution, type ConflictSessionGate, type ConflictWriter, type EditorWriteResult } from "./conflictSession.js";
 
@@ -27,6 +28,9 @@ async function sha256BytesHex(bytes: Uint8Array): Promise<string> {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+
+/** U+FFFD — what a decoder puts where the bytes were not UTF-8. */
+const REPLACEMENT_CHARACTER = String.fromCharCode(0xfffd);
 
 export class ConflictAwareVaultAdapter implements IVaultAdapter {
   private readonly sessions: ConflictSessions;
@@ -155,6 +159,22 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     return withPathMutation(this.mutationScope, [path], fn);
   }
 
+  /**
+   * The hash `local_sha256` is compared with: the one of the file's bytes
+   * (`readLocalText`). For UTF-8 the hash of the text just read is that hash.
+   * A text that came back with a replacement character in it may be the
+   * reading of a file in another encoding, so there the bytes are asked — or
+   * the unchanged file would count as changed by someone else on every write.
+   *
+   * Only the comparison is put right here. What is written afterwards is still
+   * the text the caller hands in: an editor that held the lossy reading of
+   * such a file saves that reading (see `mergeableText`).
+   */
+  private async diskSha(path: string, text: string): Promise<string> {
+    const suspect = typeof text === "string" && text.includes(REPLACEMENT_CHARACTER);
+    return suspect ? sha256BytesHex(await this.inner.readBinaryFile(path)) : sha256Hash(text);
+  }
+
   async initialize(): Promise<void> {
     return this.inner.initialize();
   }
@@ -174,9 +194,13 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     // pull would silently overwrite those edits. The base only advances on sync.
     // Serialized with writes to the same path so it never interleaves with an
     // in-flight write's check-then-update.
+    //
+    // The marker is the hash of the file's BYTES, as the indexer, the push and
+    // the pull keep it (`readLocalText`). The hash of what a decoder made of a
+    // file in another encoding is the hash of no file: compared with a marker
+    // any of the others wrote, it reads as "changed by someone else".
     return this.runExclusive(path, async () => {
-      const content = await this.inner.readTextFile(path);
-      await this.syncRepo.updateLocalHash(path, await sha256Hash(content));
+      await this.syncRepo.updateLocalHash(path, (await readLocalText(this.inner, path)).sha256);
     });
   }
 
@@ -208,7 +232,7 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
     }
 
     const currentDiskContent = await this.inner.readTextFile(path);
-    const diskSha256 = await sha256Hash(currentDiskContent);
+    const diskSha256 = await this.diskSha(path, currentDiskContent);
     // The disk holds what we wrote last: not a foreign change, whatever the
     // stored hash claims (see `lastWritten`).
     const ownContent = this.wasWrittenByUs(path, diskSha256);

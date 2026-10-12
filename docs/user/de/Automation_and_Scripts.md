@@ -1,6 +1,6 @@
 # Automatisierung & Skripte
 
-Stand: 2026-10-09
+Stand: 2026-10-12
 
 Plainva hat kein Plugin-System, das fremden Code ausführt. Stattdessen ist der Vault selbst die Erweiterungs-Schnittstelle: Deine Notizen sind reines Markdown, Datenbanken sind reines YAML (`.base`), und die [OKF-Konventionen](OKF.md) geben jeder Datei eine vorhersagbare Struktur. Alles, was Dateien lesen und schreiben kann — ein Shell-Skript, ein Python-Programm, ein CLI-Werkzeug, ein geplanter Job oder ein KI-Agent — kann Deinen Vault erweitern, erzeugen oder umbauen, ganz ohne eine Plainva-spezifische API.
 
@@ -28,7 +28,7 @@ Lesen braucht nie besondere Vorsicht — Textdateien können durch bloßes Lesen
 
 Hältst Du diese Regeln ein, übernehmen Plainva (und Obsidian) Deine Änderungen sauber. Plainva überwacht den Vault-Ordner: Ein externer Schreibvorgang wird automatisch erkannt und neu indexiert, meist innerhalb einer Sekunde.
 
-1. **Schreibe UTF-8.** Gib einer neuen Datei LF-Zeilenenden und kein BOM — so schreibt Plainva selbst. Eine Datei, die schon CRLF-Zeilenenden oder ein BOM hat, darf sie behalten: Plainva liest beides und lässt beides, wie es ist, auch wenn die Notiz bearbeitet oder synchronisiert wird. Nicht lesen kann es eine andere Kodierung — UTF-16 oder Windows-1252, wie manche Windows-Werkzeuge sie standardmäßig schreiben: eine solche Datei zeigt falsche Zeichen, und ein Sync überträgt sie nicht unversehrt.
+1. **Schreibe UTF-8.** Gib einer neuen Datei LF-Zeilenenden und kein BOM — so schreibt Plainva selbst. Eine Datei, die schon CRLF-Zeilenenden oder ein BOM hat, darf sie behalten: Plainva liest beides und lässt beides, wie es ist, auch wenn die Notiz bearbeitet oder synchronisiert wird. Nicht lesen kann es eine andere Kodierung — UTF-16 oder Windows-1252, wie manche Windows-Werkzeuge sie standardmäßig schreiben: eine solche Datei zeigt falsche Zeichen oder lässt sich nicht öffnen. Bearbeite sie nicht in Plainva: Wo sie sich öffnen lässt, schreibt das Speichern die falschen Zeichen in die Datei. Ein Sync überträgt sie trotzdem unversehrt — Byte für Byte, wie ein Bild: sie wird nicht zusammengeführt, und haben zwei Geräte sie gleichzeitig geändert, bleibt Deine Fassung als `.CONFLICT`-Datei erhalten.
 2. **Schreibe atomar.** Schreibe in eine temporäre Datei im selben Ordner und benenne sie dann über das Ziel um. Eine halb geschriebene Notiz (etwa nach einem Absturz) ist schlimmer als keine Änderung. Plainva selbst schreibt jede Notiz so.
 3. **Bewahre OKF-Frontmatter und unbekannte Schlüssel.** Behalte `type` und `okf_version`, wenn Du eine Notiz neu schreibst, und wirf nie Frontmatter-Schlüssel weg, die Du nicht kennst — reiche sie unverändert durch. „Räume" keine Schlüssel auf, die Du nicht verstehst.
 4. **Fass `.plainva/` nie an.** Dieser Ordner enthält Plainvas gerätelokalen Index, Backups, Graph-Pins und Sync-Status. Er ist nicht Teil Deiner Inhalte und darf von Deinen Skripten nie geschrieben, synchronisiert oder nach Git committet werden.

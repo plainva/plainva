@@ -167,6 +167,23 @@ export function textOfFileBytes(bytes: Uint8Array, options: { strict?: boolean }
 }
 
 /**
+ * The text these bytes ARE, or null where they are not UTF-8.
+ *
+ * A file's name says what it is meant to be; whether it is text is a question
+ * to its bytes. A `.csv` that Excel saved in Windows-1252, a `.txt` in UTF-16,
+ * a note from an old tool: decoded all the same, each byte that is not UTF-8
+ * becomes the replacement character, and whatever is written back from such a
+ * text has lost the file. Null says "handle these bytes as bytes".
+ */
+export function utf8TextOf(bytes: Uint8Array): string | null {
+  try {
+    return strictFileTextDecoder.decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The shape a merge leaves.
  *
  * A merge works on lines. What stands between them and in front of the first

@@ -1,5 +1,6 @@
 import { IDatabaseAdapter } from "./IDatabaseAdapter.js";
 import { migratePathIdentity } from "./pathIdentityMigration.js";
+import { flagLossyTextBases } from "./lossyTextBaseMigration.js";
 import { runStatementsAtomic } from "./batch.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 
@@ -110,7 +111,8 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
       remote_id TEXT,
       last_sync_ts INTEGER,
       base_text TEXT,
-      pending_push_sha TEXT
+      pending_push_sha TEXT,
+      recheck INTEGER
     );`,
 
     `CREATE TABLE IF NOT EXISTS meta (
@@ -546,6 +548,17 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   }
 
   try {
+    // "Look at this file again" (2026-10-11): set once for the rows an older
+    // version left for a file it synced as decoded text although its bytes are
+    // not UTF-8 (lossyTextBaseMigration.ts), cleared by the reconcile that has
+    // compared the file with the server's copy. A column of its own, because it
+    // has to outlive a rename and a push, which both rewrite the remote marker.
+    await db.execute(`ALTER TABLE sync_state ADD COLUMN recheck INTEGER;`);
+  } catch {
+    // Column might already exist
+  }
+
+  try {
     // Per-event colour (2026-07-18): overrides the calendar colour on the grid.
     await db.execute(`ALTER TABLE pim_events ADD COLUMN color TEXT;`);
   } catch {
@@ -607,6 +620,9 @@ export async function initializeSchema(db: IDatabaseAdapter): Promise<void> {
   await migrateIndexFormat(db);
   // Paths are NFC identities since ADR 0016; re-keys what older versions stored.
   await migratePathIdentity(db);
+  // Files an older version synced as text although their bytes are not UTF-8
+  // are reconciled once more by the next full listing.
+  await flagLossyTextBases(db);
 }
 
 /**

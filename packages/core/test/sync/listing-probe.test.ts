@@ -89,6 +89,8 @@ describe("a listing is a claim, not a fact (finding 2026-09-20)", () => {
     vault = {
       exists: vi.fn().mockResolvedValue(true),
       readTextFile: vi.fn().mockResolvedValue("same"),
+      // The worker reads a local file as bytes.
+      readBinaryFile: vi.fn(async (p: string) => new TextEncoder().encode(await vault.readTextFile(p))),
       writeTextFile: vi.fn().mockResolvedValue(undefined),
       deleteItem: vi.fn().mockResolvedValue(undefined),
     };
@@ -243,6 +245,76 @@ describe("a listing is a claim, not a fact (finding 2026-09-20)", () => {
     await worker.runCycle();
 
     expect(vault.deleteItem.mock.calls.map((c: any[]) => c[0]).sort()).toEqual(known.slice(37).sort());
+  });
+
+  it("keeps the mark of a file that is still to be compared with the remote copy while the remote holds it", async () => {
+    // An older version left such a file to be looked at again
+    // (`SyncState.recheck`), and nothing of it is pushed before. A listing that
+    // lost the file must not take the mark off: the push would then carry what
+    // lies here over a copy nobody has compared it with.
+    build();
+    const marked = known[39]!;
+    states.get(marked).recheck = 1;
+    stateRepo.clearRecheck = vi.fn().mockResolvedValue(undefined);
+    // Changed here since the last sync, so the file is kept either way.
+    vault.readTextFile.mockImplementation(async (p: string) => (p === marked ? "changed here" : "same"));
+    listOnly(39);
+    // The first question about it gets no answer, the second finds it alive.
+    let asked = 0;
+    target.probeExists.mockImplementation(async (probe: RemoteProbe): Promise<RemotePresence> => {
+      probes.push(probe);
+      if (probe.path === marked && asked++ === 0) return "unknown";
+      return remoteAlive.has(probe.path) ? "present" : "absent";
+    });
+    const incomplete = vi.fn();
+    worker.onListingIncomplete = incomplete;
+
+    await worker.runCycle();
+
+    expect(probes.filter((p) => p.path === marked)).toHaveLength(2);
+    expect(stateRepo.clearRecheck).not.toHaveBeenCalled();
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    expect(incomplete.mock.calls[0][0]).toMatchObject({ missing: 1, present: 1 });
+
+    // Really gone: nothing is left to compare it with, and the mark comes off.
+    remoteAlive.delete(marked);
+    const report = vi.fn();
+    worker.onDeletionReport = report;
+
+    await worker.runCycle();
+
+    expect(stateRepo.clearRecheck).toHaveBeenCalledWith(marked);
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    expect(report.mock.calls.at(-1)?.[0]).toMatchObject({ mirrored: 0, keptLocalEdits: [marked] });
+  });
+
+  it("keeps that mark while the question about the file gets no answer at all", async () => {
+    // A probe that failed says nothing. Taking the mark off on it let the push
+    // of the same cycle carry the file up over a copy that may well be there.
+    build();
+    const marked = known[39]!;
+    states.get(marked).recheck = 1;
+    stateRepo.clearRecheck = vi.fn().mockResolvedValue(undefined);
+    vault.readTextFile.mockImplementation(async (p: string) => (p === marked ? "changed here" : "same"));
+    listOnly(39);
+    target.probeExists.mockImplementation(async (probe: RemoteProbe): Promise<RemotePresence> => {
+      probes.push(probe);
+      if (probe.path === marked) throw new Error("503 Service Unavailable");
+      return remoteAlive.has(probe.path) ? "present" : "absent";
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const report = vi.fn();
+    worker.onDeletionReport = report;
+
+    await worker.runCycle();
+    await worker.runCycle();
+    warn.mockRestore();
+
+    expect(probes.filter((p) => p.path === marked).length).toBeGreaterThanOrEqual(4);
+    expect(stateRepo.clearRecheck).not.toHaveBeenCalled();
+    expect(vault.deleteItem).not.toHaveBeenCalled();
+    // The file is kept, and said to be: it carries changes of this device.
+    expect(report.mock.calls.at(-1)?.[0]).toMatchObject({ mirrored: 0, keptLocalEdits: [marked] });
   });
 
   it("does not let a journal alone delete a large share: uncorroborated entries are asked about", async () => {

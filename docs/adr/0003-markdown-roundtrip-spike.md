@@ -107,6 +107,37 @@ file — a silent reformat of existing vault content, which this ADR rules out.
    rules); its result is brought back to the note's shape, the rest is a
    separate question.
 
+**2026-10-12 — the encoding question of point 7, answered for the sync.** A
+file is text when its name says so AND its bytes are UTF-8 (`mergeableText` in
+`packages/core/src/sync/fileType.ts`). Every other file travels byte for byte,
+like an image: it has no merge base text, it is never merged, and where both
+sides changed it the local version is kept as a `.CONFLICT` copy. Until then
+the name alone decided: a pull wrote the decoded text of a `.csv` in
+Windows-1252 or a `.txt` in UTF-16 as the file — every byte that is not UTF-8
+replaced —, and a change on both sides merged the two decoded texts and sent
+the result to everyone. The sync worker asks the question for both sides of a
+pull and reads both as bytes; the sync engine asks it for what it pushed. The
+indexer, and the marker the conflict-aware adapter records when a file is
+opened, read a file of the device through `readLocalText`
+(`packages/core/src/vault/localText.ts`), which answers the same question and
+gives the one hash all of them compare by — the hash of the file's bytes —
+whether the platform's text reader replaces such bytes or refuses the file.
+Rows an older version left behind are marked (`sync_state.recheck`,
+`packages/core/src/db/lossyTextBaseMigration.ts`): the file is compared with
+the server's copy once more, and nothing of it is pushed before. As long as
+a device with an older version can still send a decoded text: such a version,
+arriving over an unchanged file in another encoding, is taken like any other,
+and that file is kept next to it as a `.CONFLICT` copy.
+What the app itself does with such a file is outside this decision — the
+editors, a restored version, a duplicate still take the text a reader hands out
+for the file. Where the platform's reader replaces instead of refusing, a file
+in Windows-1252 passes `openEditorText` (which refuses a file for a NUL
+character only) with replacement characters in it, and a save writes them; the
+user guide says not to edit such a file in Plainva. Tests:
+`packages/core/test/sync/non-utf8-text-sync.test.ts` (two devices, both kinds
+of text reader, bytes on both disks and on the server),
+`packages/core/test/local-text.test.ts`.
+
 Tests: `packages/core/test/text-file-shape.test.ts`,
 `packages/core/test/conflict-resolver.test.ts`,
 `packages/core/test/sync/text-shape-sync.test.ts` (two devices, bytes on both

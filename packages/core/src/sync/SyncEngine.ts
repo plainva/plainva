@@ -4,8 +4,7 @@ import { SyncStateRepository } from "../vault/SyncStateRepository.js";
 import { IVaultAdapter, type VaultFileInfo } from "../vault/IVaultAdapter.js";
 import { findCollidingPath, foldPathForCollision, foldPathNormalization, isTwinSpelling, toPathIdentity, type NameCollision } from "./pathIdentity.js";
 import { withPathSpellings } from "./spellingSyncTarget.js";
-import { isTextFile } from "./fileType.js";
-import { textOfFileBytes } from "../textFileShape.js";
+import { isTextFile, mergeableText } from "./fileType.js";
 import { hasAppleDoubleHeader, isAppleDoubleName, isSystemJunkPath } from "../vault/systemJunk.js";
 
 async function sha256Bytes(bytes: Uint8Array): Promise<string> {
@@ -166,6 +165,20 @@ export class SyncEngine {
     return null;
   }
 
+  /**
+   * Retires queued DELETEs of `path` and of every folder above it. The caller
+   * has just found `path` on this device, and a DELETE of a path that is here
+   * is stale by the rule in `processQueue` — dropped, never pushed. Done ahead
+   * of its turn only where that turn would never come (a held write before it).
+   */
+  private async dropStaleDeletesOf(path: string): Promise<void> {
+    for (const pending of await this.queue.getPendingDeleteOperations()) {
+      if (pending.file_path !== path && !path.startsWith(`${pending.file_path}/`)) continue;
+      console.warn(`[SyncEngine] dropping deletion of ${pending.file_path}: ${path} exists on this device`);
+      await this.queue.markSynced(pending.id, pending.file_path, pending.file_path);
+    }
+  }
+
   public async processQueue(
     isAborted?: () => boolean,
     onProgress?: (current: number, total: number) => void,
@@ -295,6 +308,20 @@ export class SyncEngine {
             }
             continue;
           }
+          // An absence nobody confirmed — the file vanished from this device,
+          // or was moved by another program — of a file that is still to be
+          // compared with the remote copy (`SyncState.recheck`): what lay here
+          // may have been the decoded text an older version wrote, and the
+          // server's copy the only original. Its DELETE is not pushed. The row
+          // goes instead, so that the next listing brings the server's copy
+          // back under this name; a copy moved elsewhere goes up as a new file.
+          if (op.delete_confirmed_at == null && this.stateRepo && (await this.stateRepo.getSyncState(op.file_path))?.recheck) {
+            console.warn(`[SyncEngine] not pushing deletion of ${op.file_path}: it was never compared with the remote copy`);
+            await this.stateRepo.deleteSyncState(op.file_path);
+            await this.queue.markSynced(op.id, op.file_path, op.file_path);
+            consecutiveFailures = 0;
+            continue;
+          }
         }
         // The same lock for a folder the remote already holds in the other
         // spelling (issue #112): a Finder-made folder is decomposed, the
@@ -327,6 +354,29 @@ export class SyncEngine {
               // than the pushed content, never newer, or the guard could still
               // clobber a concurrent save's hash.
               const state = this.stateRepo ? await this.stateRepo.getSyncState(op.file_path) : null;
+              // A row an older version left to be looked at again
+              // (`SyncState.recheck`, lossyTextBaseMigration.ts) waits for the
+              // reconcile: what lies here may be the decoded text that version
+              // wrote over the file, and a push — a forced one too — would put
+              // it in place of the original the server still holds. The
+              // reconcile runs before the push in every cycle, compares the two
+              // and takes the mark off.
+              if (state?.recheck) {
+                // A file that is gone has nothing to carry: the write is retired,
+                // as the read below would have retired it.
+                if (!(await this.vault.exists(op.file_path))) {
+                  await this.queue.markSynced(op.id, op.file_path, op.file_path);
+                  consecutiveFailures = 0;
+                  continue;
+                }
+                // The file is here, so a queued DELETE of it — or of a folder above
+                // it — is stale by the rule further up. Left queued, it would wait
+                // behind this write for good, and the reconcile for it in turn.
+                await this.dropStaleDeletesOf(op.file_path);
+                // Stays queued and spends no retry.
+                console.log(`[SyncEngine] holding push of ${op.file_path}: it is compared with the remote copy first`);
+                continue;
+              }
               expectedLocalSha = state?.local_sha256 ?? null;
               // A large file is handed over as a handle, not as bytes: carrying
               // 90 MB through the IPC boundary is what froze the app (issue
@@ -448,6 +498,18 @@ export class SyncEngine {
             consecutiveFailures = 0;
             continue;
           }
+          // Nothing of a file that is still to be compared with the remote copy
+          // goes up (`SyncState.recheck`) — not this way either: a MOVE whose
+          // answer was lost has put the server's copy under the new name, and
+          // this upload would land on it. The MOVE is retired; the next listing
+          // carries the file under its new name, or does not carry it, and then
+          // the deletion mirror decides.
+          if (this.stateRepo && (await this.stateRepo.getSyncState(op.new_path))?.recheck) {
+            console.warn(`[SyncEngine] rename source missing remotely; ${op.new_path} is compared with the remote copy before anything of it goes up`);
+            await this.queue.markSynced(op.id, op.file_path, op.new_path);
+            consecutiveFailures = 0;
+            continue;
+          }
           let content: Uint8Array;
           try {
             content = await this.vault.readBinaryFile(op.new_path);
@@ -506,19 +568,30 @@ export class SyncEngine {
              // Guarded (P1 conflict-race): local_sha256 is only adopted while it still
              // equals the value read at push start — a save that landed during the
              // upload keeps its newer hash (the base still advances unconditionally).
-             // A streamed file keeps no base_text either: decoding megabytes
+             // A streamed file gets no new base_text either: decoding megabytes
              // just to store them would undo the point of streaming. The hash
-             // alone still carries the merge base; the 3-way merge falls back
-             // to the binary path, which is what a file that large is anyway.
-             if (op.content && isTextFile(syncedPath)) {
-               // The base is the file's text as every adapter reads it, mark
-               // included: without it the base no longer hashed to the bytes
-               // that were pushed, and the next change from elsewhere found
-               // "no base version" for a file that starts with a mark.
-               const textContent = textOfFileBytes(op.content);
+             // alone carries the merge base from here on; a text the row still
+             // holds is the one of an earlier version of the file.
+             //
+             // The base is the file's text as every adapter reads it, mark
+             // included: without it the base no longer hashed to the bytes
+             // that were pushed, and the next change from elsewhere found
+             // "no base version" for a file that starts with a mark.
+             //
+             // And it is a text only where the pushed bytes ARE one
+             // (`mergeableText`). A `.csv` in Windows-1252 got the lossy
+             // decode of its bytes as its base here — a text that hashes to
+             // nothing that was ever pushed, kept for the next merge.
+             const textContent = op.content ? mergeableText(syncedPath, op.content) : null;
+             if (textContent !== null) {
                await this.stateRepo.updateLocalHashAndBaseTextGuarded(syncedPath, shaStr, textContent, expectedLocalSha);
              } else {
                await this.stateRepo.updateLocalHashGuarded(syncedPath, shaStr, expectedLocalSha);
+               // Text by its name, and the bytes just pushed are not UTF-8:
+               // whatever base text the row held is the text of another
+               // content. (A streamed file is not asked — its bytes were
+               // never in hand.)
+               if (op.content && isTextFile(syncedPath)) await this.stateRepo.clearBaseText(syncedPath);
              }
              // The push round-trip completed and the base advanced: retire the
              // push-journal entry (see setPendingPushSha above).

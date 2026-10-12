@@ -111,6 +111,9 @@ describe("SyncWorker", () => {
     vault = {
       exists: vi.fn().mockResolvedValue(false),
       readTextFile: vi.fn().mockResolvedValue(""),
+      // The worker reads a local file as bytes; here they are the bytes of
+      // whatever text a test put there.
+      readBinaryFile: vi.fn(async (p: string) => new TextEncoder().encode(await vault.readTextFile(p))),
       writeTextFile: vi.fn().mockResolvedValue(undefined),
       deleteItem: vi.fn().mockResolvedValue(undefined)
     };

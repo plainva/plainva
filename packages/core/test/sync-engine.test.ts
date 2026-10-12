@@ -175,6 +175,110 @@ describe("SyncEngine", () => {
     expect(target.pushes[0].file_path).toBe("note.md");
   });
 
+  it("does not push a file that is still to be compared with the remote copy — a forced write neither", async () => {
+    // An older version left the row marked (`SyncState.recheck`): what lies here
+    // may be the decoded text it wrote over a file that is not UTF-8, and the
+    // reconcile has not compared it with the server's copy yet.
+    const repo = new SyncStateRepository(db);
+    const marked = { path: "Data.csv", local_sha256: "l", remote_etag: "etag1", base_sha256: "b", base_etag: "etag1", remote_id: null, last_sync_ts: null, base_text: null, recheck: 1 };
+    const here = new Set(["Data.csv"]);
+    const files = Object.assign(vault, { exists: async (path: string) => here.has(path) });
+    engine = new SyncEngine(queue, target, files as any, repo);
+    vault.files.set("Data.csv", new TextEncoder().encode("id;name"));
+    for (const force of [0, 1]) {
+      db.mockedResults.push([
+        { id: 1, file_path: "Data.csv", operation: "write", force, retry_count: 0, next_retry_at: 0, queued_at: 0 }
+      ]);
+      db.mockedResults.push([marked]);
+      await engine.processQueue();
+    }
+
+    expect(target.pushes).toEqual([]);
+    // It stays queued as it is: no retry is spent on waiting, and nothing is retired.
+    expect(db.queries.some(q => q.query.includes("retry_count = retry_count + 1"))).toBe(false);
+    expect(db.queries.some(q => q.query.includes("DELETE FROM offline_queue"))).toBe(false);
+    // And no push journal: an upload that never started must not be taken for an echo later.
+    expect(db.queries.some(q => q.query.includes("pending_push_sha = excluded.pending_push_sha"))).toBe(false);
+
+    // A DELETE of the same path queued behind it is stale — the file is here —
+    // and would wait behind the held write for good: it is dropped ahead of its turn.
+    db.clear();
+    db.mockedResults.push([
+      { id: 1, file_path: "Data.csv", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    db.mockedResults.push([marked]);
+    db.mockedResults.push([
+      { id: 2, file_path: "Data.csv", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 1 },
+      { id: 3, file_path: "Other.csv", operation: "delete", retry_count: 0, next_retry_at: 0, queued_at: 1 },
+    ]);
+    await engine.processQueue();
+    expect(target.pushes).toEqual([]);
+    const retired = db.queries.filter(q => q.query.includes("DELETE FROM offline_queue")).map(q => (q.params as any[])[0]);
+    expect(retired).toEqual([2]);
+
+    // The file is gone: the write has nothing to carry and is retired, as a
+    // write of a missing file always was — or the DELETE behind it never ran.
+    here.clear();
+    db.clear();
+    db.mockedResults.push([
+      { id: 1, file_path: "Data.csv", operation: "write", retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    db.mockedResults.push([marked]);
+    await engine.processQueue();
+    expect(target.pushes).toEqual([]);
+    expect(db.queries.filter(q => q.query.includes("DELETE FROM offline_queue")).map(q => (q.params as any[])[0])).toEqual([1]);
+  });
+
+  it("does not push the deletion of a file that was never compared with the remote copy — unless a person confirmed it", async () => {
+    // The file vanished from this device, or another program moved it. What lay
+    // here may have been the decoded text an older version wrote; the server's
+    // copy is the original.
+    const repo = new SyncStateRepository(db);
+    const marked = { path: "Data.csv", local_sha256: "l", remote_etag: "etag1", base_sha256: "b", base_etag: "etag1", remote_id: null, last_sync_ts: null, base_text: null, recheck: 1 };
+    engine = new SyncEngine(queue, target, vault as any, repo);
+    db.mockedResults.push([
+      { id: 4, file_path: "Data.csv", operation: "delete", delete_confirmed_at: null, retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    db.mockedResults.push([marked]);
+
+    await engine.processQueue();
+
+    expect(target.pushes).toEqual([]);
+    // The row goes, so that the next listing brings the server's copy back; the operation is retired.
+    expect(db.queries.some(q => q.query.includes("DELETE FROM sync_state") && (q.params as any[])[0] === "Data.csv")).toBe(true);
+    expect(db.queries.filter(q => q.query.includes("DELETE FROM offline_queue")).map(q => (q.params as any[])[0])).toEqual([4]);
+
+    // Deleted in the app, with the person's confirmation: that deletion is theirs to make.
+    db.clear();
+    db.mockedResults.push([
+      { id: 5, file_path: "Data.csv", operation: "delete", delete_confirmed_at: 1700000000000, retry_count: 0, next_retry_at: 0, queued_at: 0 }
+    ]);
+    await engine.processQueue();
+    expect(target.pushes.map((op) => `${op.operation} ${op.file_path}`)).toEqual(["delete Data.csv"]);
+  });
+
+  it("does not upload a file that was never compared with the remote copy when its rename finds no source", async () => {
+    // A MOVE whose answer was lost has put the server's copy under the new
+    // name; replayed, it finds no source — and the fallback upload would land
+    // on that copy.
+    const repo = new SyncStateRepository(db);
+    engine = new SyncEngine(queue, target, vault as any, repo);
+    db.mockedResults.push([
+      { id: 7, file_path: "Data.csv", operation: "rename", new_path: "Renamed.csv", retry_count: 0, next_retry_at: 0, queued_at: 1 }
+    ]);
+    db.mockedResults.push([
+      { path: "Renamed.csv", local_sha256: "l", remote_etag: "etag1", base_sha256: "b", base_etag: "etag1", remote_id: null, last_sync_ts: null, base_text: null, recheck: 1 }
+    ]);
+    target.renameSourceMissingPaths.add("Data.csv");
+    vault.files.set("Renamed.csv", new Uint8Array([42]));
+
+    await engine.processQueue();
+
+    expect(target.pushes).toEqual([]);
+    // The MOVE is retired; the next listing meets the file under its new name.
+    expect(db.queries.filter(q => q.query.includes("DELETE FROM offline_queue")).map(q => (q.params as any[])[0])).toEqual([7]);
+  });
+
   it("persists the push journal BEFORE the upload and clears it once the base advanced (2026-07-16)", async () => {
     const repo = new SyncStateRepository(db);
     engine = new SyncEngine(queue, target, vault as any, repo);
