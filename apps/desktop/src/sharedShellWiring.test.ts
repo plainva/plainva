@@ -34,6 +34,12 @@ const contracts = [
   // template with `\r\n` put the caret too far right, and without a cursor
   // marker the editor refused the insertion at the end of a note.
   ["templateInsertInEditor", "components/TemplatePickerModal.tsx", "EditorHost.tsx"],
+  // What a publication cannot do is said through ONE text on both shells
+  // (finding 2026-10-09): a note the sanitizer refuses is named, in the app's
+  // language, where the preview would stand and on the publication's row. The
+  // phone's sheet used to show the thrown message as it came.
+  ["publicationErrorText", "components/security/SecuritySharingPage.tsx", "components/PublishSliceSheet.tsx"],
+  ["publicationStatusText", "components/security/SecuritySharingPage.tsx", "screens/SecurityAreaScreen.tsx"],
 ] as const;
 
 /**

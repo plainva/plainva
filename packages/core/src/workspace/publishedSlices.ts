@@ -1,7 +1,8 @@
-import { parseDocument, stringify } from "yaml";
+import { stringify } from "yaml";
 import { sha256Hex, utf8Encode } from "./encoding.js";
-import { protocolAssert } from "./errors.js";
-import { byteOrderMarkOf, composeNote, frontmatterSpan } from "../frontmatter-block.js";
+import { protocolAssert, WorkspaceProtocolError } from "./errors.js";
+import { byteOrderMarkOf, composeNote, FrontmatterSurgicalError, frontmatterSpan, parseBlockYaml } from "../frontmatter-block.js";
+import { dataOfBlock } from "../frontmatter-entry.js";
 import { nextWhere } from "../linkScan.js";
 import type { WorkspaceCapability } from "./documents.js";
 import type { WorkspaceListPage, WorkspaceObjectInfo, WorkspaceObjectStore, WorkspaceRequestOptions } from "./objectStore.js";
@@ -544,6 +545,50 @@ function lastClosingTag(text: string, tag: string): number {
 const htmlImages = htmlAttributeLinks("img", "src", false);
 const htmlAnchors = htmlAttributeLinks("a", "href", true);
 
+/** What the sanitizer says about a properties block it will not publish from. */
+const FRONTMATTER_REFUSED = "published slice frontmatter is invalid";
+
+/**
+ * A block's properties by name — the only form an allowlist can judge.
+ *
+ * A block that is no YAML map names nothing. Text between two rules at the top
+ * of a note parses as one string, a list as an array, and both were read as a
+ * record all the same: the string's characters and the list's places were
+ * walked as properties. The report named "0", "1", "2" as removed, the preview
+ * counted them, and the block was gone from the published note without a word.
+ * A number or a `null` that is spelt out went the same way with no entry in
+ * the report at all (finding 2026-10-09).
+ *
+ * Such a note is refused, as one whose YAML does not parse always was. Both are
+ * the anomaly every writer refuses by the same rule (`parseBlockYaml`; ADR
+ * 0009, decision point 2), and "could not be read" is not "has none". So is a
+ * map that cannot say what it holds — a reference that leads nowhere
+ * (`title: *Draft*` is one for YAML, not emphasis) or references that multiply
+ * past the library's limit: the writers turn a block into data by
+ * `dataOfBlock`, and so does this. The library's own sentence for it named no
+ * note and quoted the reference. The other
+ * safe answer — leave the block out and publish the rest — hands out a note
+ * that is not the one its author holds, for a reason no line of the policy
+ * gives, and has one place to say so: the preview, shown once, before the
+ * publication exists. Every refresh after that runs where nobody watches. A
+ * refusal stays on the publication's row until the note is corrected.
+ *
+ * A block without content — no line, blank lines, comments only — is a block
+ * without entries and is published as none; a comment never leaves with it.
+ *
+ * The refusal carries nothing of the note. The YAML parser's own message quotes
+ * the line it stumbled over, and this one is shown in the app and kept in the
+ * publication's record.
+ */
+function publishableProperties(yaml: string): Record<string, unknown> {
+  try {
+    return dataOfBlock(parseBlockYaml(yaml));
+  } catch (error) {
+    if (!(error instanceof FrontmatterSurgicalError)) throw error;
+    throw new WorkspaceProtocolError("format", FRONTMATTER_REFUSED);
+  }
+}
+
 /**
  * Creates a non-round-trippable Markdown projection for an external slice.
  *
@@ -564,7 +609,10 @@ const htmlAnchors = htmlAttributeLinks("a", "href", true);
  * Frontmatter runs through the allowlist above unless the caller names its own
  * (see `DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST` for why an allowlist and not a
  * denylist). `privateProperties` still applies on top: an explicitly named key
- * is removed even when the allowlist would let it through.
+ * is removed even when the allowlist would let it through. A note whose block
+ * cannot be read as properties is refused with a protocol error (see
+ * `publishableProperties`); a caller that knows the note's path runs
+ * `projectPublishedNote` instead, so the refusal names it.
  */
 export function projectPublishedMarkdown(input: {
   markdown: string;
@@ -590,11 +638,8 @@ export function projectPublishedMarkdown(input: {
   const block = frontmatterSpan(markdown);
   if (block) {
     const newline = markdown[block.yamlStart - 2] === "\r" ? "\r\n" : "\n";
-    const doc = parseDocument(block.yaml, { uniqueKeys: true });
-    protocolAssert(doc.errors.length === 0, "format", "published slice frontmatter is invalid");
-    const source = doc.toJS() as Record<string, unknown> | null;
     const clean: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(source ?? {})) {
+    for (const [key, value] of Object.entries(publishableProperties(block.yaml))) {
       const normalized = normalizePropertyKey(key);
       if (privateKeys.has(normalized) || !allow.has(normalized)) removedProperties.add(key);
       else clean[key] = value;
@@ -685,6 +730,51 @@ export function projectPublishedMarkdown(input: {
   };
 }
 
+/**
+ * How the refusal of one note begins where a person is shown it; the note's
+ * vault path follows. Matched by how the message begins, because the reason
+ * reaches the shells as text: thrown out of the preview, and read back from
+ * the publication's record after a refresh nobody watched.
+ */
+export const PUBLISHED_NOTE_REFUSED = "published note frontmatter is invalid: ";
+
+/** A note of a slice that the sanitizer will not publish as it is, by its vault path. */
+export class PublishedNoteRefusedError extends Error {
+  constructor(public readonly path: string) {
+    super(`${PUBLISHED_NOTE_REFUSED}${path}`);
+    this.name = "PublishedNoteRefusedError";
+  }
+}
+
+/**
+ * The sanitizer, for a note whose path the caller knows.
+ *
+ * `projectPublishedMarkdown` is handed text, not a file, so its refusal cannot
+ * say which note it is about — and a slice is many notes. The two places that
+ * run it over a slice do know: the preview before a publication exists and the
+ * refresh that keeps one current. Both come through here, so the refusal names
+ * the note the same way in both and the person publishing can open it.
+ *
+ * A vault path and nothing of the note's text, as everywhere a reason is shown
+ * or kept.
+ */
+export function projectPublishedNote(input: {
+  path: string;
+  markdown: string;
+  includedPaths: Iterable<string>;
+  propertyAllowlist?: string[] | null;
+  privateProperties?: string[];
+}): PublishedSliceProjection {
+  try {
+    return projectPublishedMarkdown(input);
+  } catch (error) {
+    if (error instanceof WorkspaceProtocolError && error.message === FRONTMATTER_REFUSED) {
+      throw new PublishedNoteRefusedError(input.path);
+    }
+    throw error;
+  }
+}
+
 export interface PublishedProjectionSample {
   path: string;
   /** The note as it is stored, so the two can be shown side by side. */
@@ -727,6 +817,11 @@ export interface PublishedProjectionPreview {
  *   preview exists to answer "what gets taken out", and a first object that
  *   happens to be clean answers it with silence. Ties keep the earlier object,
  *   so the same slice always previews the same way.
+ *
+ * A note the sanitizer refuses ends the preview with `PublishedNoteRefusedError`
+ * instead of being left out of the numbers: the refresh stops at that note,
+ * too, and a preview of the notes around it would describe a publication that
+ * does not come about. `exact` projects nothing and so refuses nothing.
  */
 export function previewPublishedProjection(input: {
   mode: PublishedSliceMode;
@@ -745,7 +840,8 @@ export function previewPublishedProjection(input: {
     const projection =
       input.mode === "exact"
         ? { markdown: object.markdown, report: { removedProperties: [], neutralizedLinks: [], removedEmbeds: [] } }
-        : projectPublishedMarkdown({
+        : projectPublishedNote({
+            path: object.path,
             markdown: object.markdown,
             includedPaths,
             propertyAllowlist: input.propertyAllowlist,

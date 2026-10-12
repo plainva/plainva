@@ -79,8 +79,8 @@ const KNOWN = new Map<string, { takes: string[]; why: string }>([
   [
     "packages/core/src/workspace/publishedSlices.ts",
     {
-      takes: ["parseDocument", "stringify"],
-      why: "the COPY of a note that leaves the vault: the properties its allow-list lets through are written anew on purpose — a comment or a line left standing could carry what was withheld. The note itself is not written",
+      takes: ["stringify"],
+      why: "the COPY of a note that leaves the vault: the properties its allow-list lets through are written anew on purpose — a comment or a line left standing could carry what was withheld. It reads the block through the one reader (`parseBlockYaml`, which refuses a block that is no map), and the note itself is not written",
     },
   ],
   ["packages/ui/src/base/baseFormat.ts", { takes: ["parse", "stringify"], why: "a `.base` file: a database's definition, written whole from its model — not a note's properties" }],
@@ -111,7 +111,10 @@ describe("a properties block that was read is not written back through the YAML 
 
   it("the reader of a note's block prints nothing", () => {
     const block = code(sourceFile("packages/core/src/frontmatter-block.ts"));
-    expect(block).toMatch(/parseDocument\(span\.yaml/);
+    // One reader of a block's YAML, asked by the writers and by the sanitizer
+    // for published slices alike (finding 2026-10-09).
+    expect(block).toMatch(/parseBlockYaml\(span\.yaml/);
+    expect(block).toMatch(/export function parseBlockYaml\(yaml: string/);
     expect(block).not.toMatch(/\.toString\(/);
     expect(block).not.toMatch(/\bstringify\b/);
     // Nor do the writers that are handed its document.

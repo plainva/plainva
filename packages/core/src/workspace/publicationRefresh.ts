@@ -28,7 +28,7 @@ import {
   type PublicationSourceObject,
   type PublicationManifest,
 } from "./publication.js";
-import { publicationStoreFor, projectPublishedMarkdown } from "./publishedSlices.js";
+import { publicationStoreFor, projectPublishedNote } from "./publishedSlices.js";
 import type { WorkspaceObjectStore } from "./objectStore.js";
 import type { PersonalWorkspaceRuntime } from "./personal.js";
 import type { WorkspaceObjectRecord, WorkspacePublicationRecord, WorkspaceStateStore } from "./state.js";
@@ -234,10 +234,14 @@ export async function refreshWorkspacePublications(
     const project = async (item: PublicationRefreshItem) => {
       const markdown = await input.vault.readTextFile(item.path);
       const source = byId.get(item.sourceObjectId);
+      // By its path, so a note the sanitizer refuses is named in the reason the
+      // record keeps: the run stops there, and the person publishing has to
+      // find that one note among everything the slice covers.
       const text =
         record.config.mode === "exact"
           ? markdown
-          : projectPublishedMarkdown({
+          : projectPublishedNote({
+              path: item.path,
               markdown,
               includedPaths,
               propertyAllowlist: record.config.propertyAllowlist,

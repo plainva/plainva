@@ -10,7 +10,7 @@
  * advice, and a second copy is how desktop and mobile come to tell a publisher
  * two different things about the same folder.
  */
-import type { PublishedSliceInstruction, PublishedSlicePermissionHint } from "@plainva/core";
+import { PUBLISHED_NOTE_REFUSED, type PublishedSliceInstruction, type PublishedSlicePermissionHint } from "@plainva/core";
 
 /** Fallbacks, so a missing translation degrades to English instead of a blank line. */
 const DEFAULTS: Record<string, string> = {
@@ -87,12 +87,38 @@ const PUBLICATION_ERROR_KEYS: Record<string, string> = {
   "member is not a publication recipient": "publicationNotRecipient",
 };
 
-/** Turn a thrown publication error into a sentence, or leave it alone. */
+/**
+ * Whether a publication error is a note the sanitizer refuses. Such a reason
+ * belongs to the sanitized copy alone — an exact one hands the note out as it
+ * is —, while any other failure of a preview (a note that cannot be read, a
+ * locked vault) stands whatever the mode.
+ */
+export function isPublishedNoteRefusal(error: unknown): boolean {
+  return (error instanceof Error ? error.message : String(error)).startsWith(PUBLISHED_NOTE_REFUSED);
+}
+
+/**
+ * Turn a thrown publication error into a sentence, or leave it alone.
+ *
+ * One of them carries a value: the note a sanitized publication will not
+ * publish because the block at its top cannot be read as properties
+ * (`projectPublishedNote` in core). The sentence names that note — a slice is
+ * many notes, and the reason is of no use without the one it is about. It is
+ * said the same way wherever it arrives: thrown out of the preview on either
+ * shell, or read back from the publication's record on its row.
+ */
 export function publicationErrorText(
   error: unknown,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
   const raw = error instanceof Error ? error.message : String(error);
+  if (isPublishedNoteRefusal(error)) {
+    return t("workspaceSecurity.publicationNoteRefused", {
+      defaultValue:
+        "“{{path}}” cannot be published: the block at the top of the note cannot be read as properties. Correct it in the note's text; until then the publication is not fully refreshed.",
+      path: raw.slice(PUBLISHED_NOTE_REFUSED.length),
+    });
+  }
   const key = PUBLICATION_ERROR_KEYS[raw];
   return key ? t(`workspaceSecurity.${key}`, { defaultValue: raw }) : raw;
 }

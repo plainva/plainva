@@ -566,13 +566,21 @@ export type PublicationRefreshItem = PublicationPublishItem | PublicationRetract
  * moved, it was deleted (finding B5) - comes back as a retraction, because the
  * silent alternative is a publication that keeps handing out a note whose
  * author believes they took it back.
+ *
+ * Retractions come FIRST. They need no projection and no read of the vault,
+ * so nothing about another note can stop them - while a publish can be
+ * refused (a note whose properties block cannot be read, finding 2026-10-09),
+ * and `runPublicationRefresh` stops at the first item that fails. Behind a
+ * refused note the withdrawal of another one waited until that note was
+ * corrected: the publication went on handing out what its author had taken
+ * back, for a reason that had nothing to do with it.
  */
 export function planPublicationRefresh(input: {
   manifest: PublicationManifest;
   covered: readonly PublicationSourceObject[];
 }): PublicationRefreshItem[] {
   const held = new Map(input.manifest.objects.map((record) => [record.sourceObjectId, record]));
-  const items: PublicationRefreshItem[] = [];
+  const publishes: PublicationRefreshItem[] = [];
   const seen = new Set<string>();
 
   for (const object of input.covered) {
@@ -580,7 +588,7 @@ export function planPublicationRefresh(input: {
     seen.add(object.sourceObjectId);
     const record = held.get(object.sourceObjectId);
     if (!record) {
-      items.push({
+      publishes.push({
         action: "publish",
         sourceObjectId: object.sourceObjectId,
         path: object.path,
@@ -593,7 +601,7 @@ export function planPublicationRefresh(input: {
     // sealed into the frame metadata, so a stale path leaves the recipient with
     // the note filed where it no longer belongs.
     if (record.sourceRevisionId !== object.sourceRevisionId || record.path !== object.path) {
-      items.push({
+      publishes.push({
         action: "republish",
         sourceObjectId: object.sourceObjectId,
         path: object.path,
@@ -603,9 +611,10 @@ export function planPublicationRefresh(input: {
     }
   }
 
+  const retractions: PublicationRefreshItem[] = [];
   for (const record of input.manifest.objects) {
     if (seen.has(record.sourceObjectId)) continue;
-    items.push({
+    retractions.push({
       action: "retract",
       sourceObjectId: record.sourceObjectId,
       path: record.path,
@@ -613,7 +622,7 @@ export function planPublicationRefresh(input: {
       parentRevisionId: record.publishedRevisionId,
     });
   }
-  return items;
+  return [...retractions, ...publishes];
 }
 
 /** The projected text for one item, produced by the caller only for the items the plan named. */
@@ -658,6 +667,8 @@ export interface RunPublicationRefreshInput {
  * It stops rather than skips: an object that will not publish is reported with
  * its reason and the remaining items stay in the plan. Carrying on past a
  * failure would report a refresh as done while a note quietly kept its old text.
+ * No withdrawal waits behind such a stop: `planPublicationRefresh` puts the
+ * retractions first.
  */
 export async function runPublicationRefresh(input: RunPublicationRefreshInput): Promise<PublicationRefreshResult> {
   let manifest = input.manifest;

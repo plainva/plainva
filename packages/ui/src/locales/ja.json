@@ -3857,6 +3857,7 @@
     "publicationUnknown": "この保管庫はその公開を認識していません。ここで削除されたか、別の保管庫のものです。",
     "publicationRecipientGroupMissing": "この公開には受け取り手グループがないため、誰も追加できません。作り直してください。",
     "publicationNotRecipient": "この人はこの公開の受け取り手ではありません。自分自身のアクセス権をこの方法で取り消すことはできません。",
+    "publicationNoteRefused": "「{{path}}」は公開できません。ノートの先頭にあるブロックをプロパティとして読み取れません。ノートのテキストで修正してください。それまで、この公開は完全には更新されません。",
     "revokeRecipient": "アクセス権を取り消す",
     "recipientRevoked": "取り消し済み",
     "withdrawPublication": "公開を取り下げる",
