@@ -7,6 +7,14 @@ import type { MailAttachmentInfo } from "../types";
  * The desktop gets parsed messages back from Rust; on mobile the raw RFC 822
  * bytes come off the socket, so the parsing happens here — once, in shared
  * code, rather than twice in Java and Swift.
+ *
+ * A message is BYTES until a part says what they mean (finding 2026-10-09).
+ * Its structure — header lines, boundaries, transfer encodings — is ASCII, and
+ * is read from a string that holds one character per byte (`wireOf`); what a
+ * part's bytes say is decided last, by the charset the part declares. The IMAP
+ * client used to turn a whole message into UTF-8 text before any of this ran:
+ * an 8-bit body came out with a replacement character for every umlaut, and an
+ * 8-bit attachment as different bytes.
  */
 
 export interface ParsedPart {
@@ -35,6 +43,43 @@ const dec = (label: string) => {
     return new TextDecoder("utf-8", { fatal: false });
   }
 };
+
+/**
+ * A message in the form its structure is read in: one character per byte. A
+ * string stands for its UTF-8 bytes — what a message built here is sent as.
+ */
+function wireOf(raw: Uint8Array | string): string {
+  const bytes = typeof raw === "string" ? new TextEncoder().encode(raw) : raw;
+  let wire = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) wire += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return wire;
+}
+
+/** The bytes a stretch of `wireOf` stands for. */
+function wireBytes(wire: string): Uint8Array {
+  const out = new Uint8Array(wire.length);
+  for (let i = 0; i < wire.length; i++) out[i] = wire.charCodeAt(i) & 0xff;
+  return out;
+}
+
+/** Without a UTF-8 sequence that a cut-off prefix left unfinished at its end. */
+function withoutCutSequence(bytes: Uint8Array): Uint8Array {
+  let lead = bytes.length - 1;
+  while (lead >= 0 && bytes.length - lead < 4 && (bytes[lead] & 0xc0) === 0x80) lead--;
+  if (lead < 0) return bytes;
+  const length = bytes[lead] >= 0xf0 ? 4 : bytes[lead] >= 0xe0 ? 3 : bytes[lead] >= 0xc0 ? 2 : 1;
+  return bytes.length - lead < length ? bytes.subarray(0, lead) : bytes;
+}
+
+/**
+ * A header block off the wire as text, for `parseHeaders`. Headers are ASCII by
+ * rule; one written in raw 8 bit is read as UTF-8 (RFC 6532), and a byte that
+ * is not UTF-8 becomes a replacement mark. That is how the desktop's parser
+ * reads it, too — nothing is guessed here that the other shell does not guess.
+ */
+export function decodeHeaderBlock(bytes: Uint8Array): string {
+  return dec("utf-8").decode(bytes);
+}
 
 /** Splits a raw message into its header block and body. */
 export function splitHeaders(raw: string): { head: string; body: string } {
@@ -152,44 +197,74 @@ export function parseParams(value: string): Map<string, string> {
   return out;
 }
 
-function contentType(headers: Map<string, string>): string {
+/** A parsed header block, as `parseHeaders` returns it. */
+type HeaderMap = ReadonlyMap<string, string>;
+
+function contentType(headers: HeaderMap): string {
   return (headers.get("content-type") ?? "text/plain").split(";")[0].trim().toLowerCase();
 }
 
-function decodeBody(headers: Map<string, string>, body: string): Uint8Array {
+/** A part's bytes, its transfer encoding undone. `body` is in `wireOf` form. */
+function decodeBody(headers: HeaderMap, body: string): Uint8Array {
   const encoding = (headers.get("content-transfer-encoding") ?? "7bit").trim().toLowerCase();
   if (encoding === "base64") return base64Bytes(body);
   if (encoding === "quoted-printable") return qpBytes(body);
-  const out = new Uint8Array(body.length);
-  for (let i = 0; i < body.length; i++) out[i] = body.charCodeAt(i) & 0xff;
-  return out;
+  return wireBytes(body);
 }
 
-function decodeText(headers: Map<string, string>, body: string): string {
+/**
+ * Bytes as text in the charset a part declares. Without one they are read as
+ * UTF-8 — as they always were here, and as the desktop's parser reads them.
+ * `cut` is for a prefix that may end inside a character.
+ */
+function decodeCharset(headers: HeaderMap, bytes: Uint8Array, cut = false): string {
   const charset = parseParams(headers.get("content-type") ?? "").get("charset") ?? "utf-8";
-  return dec(charset).decode(decodeBody(headers, body));
+  return dec(charset).decode(cut && /^utf-?8$/i.test(charset) ? withoutCutSequence(bytes) : bytes);
 }
 
-/** Splits a multipart body on its boundary. */
+function decodeText(headers: HeaderMap, body: string): string {
+  return decodeCharset(headers, decodeBody(headers, body));
+}
+
+/**
+ * A delimiter line without the blanks a transport may have put behind it. Only
+ * a blank, a tab and the carriage return: in a string of one character per
+ * byte, `trimEnd` would take the byte 0xA0 for padding, too.
+ */
+function withoutPadding(line: string): string {
+  let end = line.length;
+  while (end > 0 && (line[end - 1] === " " || line[end - 1] === "\t" || line[end - 1] === "\r")) end--;
+  return line.slice(0, end);
+}
+
+/**
+ * Splits a multipart body on its boundary. The parts are cut out of the body
+ * as they stand: a part can be a file, and a file's line breaks are its own.
+ * Only the line break in front of a delimiter belongs to the delimiter.
+ */
 function splitMultipart(body: string, boundary: string): string[] {
-  const marker = "--" + boundary;
+  // The boundary comes from a header that was read as text; the body is bytes.
+  const marker = "--" + wireOf(boundary);
   const parts: string[] = [];
-  const lines = body.split(/\r?\n/);
-  let current: string[] | null = null;
-  for (const line of lines) {
-    if (line.trimEnd() === marker) {
-      if (current) parts.push(current.join("\r\n"));
-      current = [];
-      continue;
+  /** Where the open part's content begins; -1 in front of the first delimiter. */
+  let partStart = -1;
+  for (let lineStart = 0; lineStart <= body.length; ) {
+    const newline = body.indexOf("\n", lineStart);
+    const line = withoutPadding(body.slice(lineStart, newline < 0 ? body.length : newline));
+    if (line === marker || line === marker + "--") {
+      if (partStart >= 0) {
+        let partEnd = lineStart;
+        if (partEnd > partStart && body[partEnd - 1] === "\n") partEnd--;
+        if (partEnd > partStart && body[partEnd - 1] === "\r") partEnd--;
+        parts.push(body.slice(partStart, partEnd));
+      }
+      if (line !== marker) return parts;
+      partStart = newline < 0 ? body.length : newline + 1;
     }
-    if (line.trimEnd() === marker + "--") {
-      if (current) parts.push(current.join("\r\n"));
-      current = null;
-      break;
-    }
-    if (current) current.push(line);
+    if (newline < 0) break;
+    lineStart = newline + 1;
   }
-  if (current) parts.push(current.join("\r\n"));
+  if (partStart >= 0) parts.push(body.slice(partStart));
   return parts;
 }
 
@@ -197,22 +272,40 @@ function splitMultipart(body: string, boundary: string): string[] {
  * Parses a raw RFC 822 message into the shape the shared mail client already
  * speaks (text, html, attachment list). Deliberately tolerant: a malformed
  * part must never lose the rest of the message.
+ *
+ * Takes the message as the bytes the server sent. A string is read as its
+ * UTF-8 bytes, so a message built in a test parses like the one on the wire.
+ *
+ * `text` is the plain-text version of the message's BODY: the first text part
+ * a reader would show, or — where that one is HTML — its other version in the
+ * same multipart/alternative. A plain-text part further down is something
+ * else: under an HTML mail it is typically the footer a mailing list appended,
+ * and a reply that quoted it instead of the mail would quote a different text
+ * on the phone than on the desktop, whose parser reads the body the same way.
  */
-export function parseMessage(raw: string): ParsedMessage {
-  const { head, body } = splitHeaders(raw);
-  const headers = parseHeaders(head);
+export function parseMessage(raw: Uint8Array | string): ParsedMessage {
+  const { head, body } = splitHeaders(wireOf(raw));
+  // Header blocks become text before they are parsed: trimming a value while
+  // it is still bytes would cut a UTF-8 sequence that ends in 0xA0.
+  const headersOf = (block: string): Map<string, string> => parseHeaders(decodeHeaderBlock(wireBytes(block)));
+  const headers = headersOf(head);
   const parts: ParsedPart[] = [];
+  /** Per part, in the order of `parts`: the multipart/alternative it is a version in, 0 for none. */
+  const versionIn: number[] = [];
+  let alternatives = 0;
   let index = 0;
 
-  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number): void => {
+  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, alternative: number): void => {
     if (depth > 12) return; // pathological nesting guard
     const type = contentType(partHeaders);
     if (type.startsWith("multipart/")) {
       const boundary = parseParams(partHeaders.get("content-type") ?? "").get("boundary");
       if (!boundary) return;
+      // What lies inside one version (an HTML part with its images) belongs to that version.
+      const inside = type === "multipart/alternative" ? ++alternatives : alternative;
       for (const chunk of splitMultipart(partBody, boundary)) {
         const sub = splitHeaders(chunk);
-        walk(parseHeaders(sub.head), sub.body, depth + 1);
+        walk(headersOf(sub.head), sub.body, depth + 1, inside);
       }
       return;
     }
@@ -230,11 +323,19 @@ export function parseMessage(raw: string): ParsedMessage {
       bytes: isText ? null : decodeBody(partHeaders, partBody),
       index: ++index,
     });
+    versionIn.push(alternative);
   };
 
-  walk(headers, body, 0);
+  walk(headers, body, 0, 0);
 
-  const text = parts.find((p) => p.mime === "text/plain" && p.text !== null)?.text ?? null;
+  const shown = (part: ParsedPart): boolean => part.text !== null && (part.mime === "text/plain" || part.mime === "text/html");
+  const first = parts.findIndex(shown);
+  let text: string | null = null;
+  if (first >= 0 && parts[first].mime === "text/plain") {
+    text = parts[first].text;
+  } else if (first >= 0 && versionIn[first] > 0) {
+    text = parts.find((part, at) => part.mime === "text/plain" && part.text !== null && versionIn[at] === versionIn[first])?.text ?? null;
+  }
   const html = parts.find((p) => p.mime === "text/html" && p.text !== null)?.text ?? null;
   const attachments: MailAttachmentInfo[] = parts
     .filter((p) => p.bytes !== null && (p.disposition === "attachment" || p.name !== null))
@@ -254,11 +355,18 @@ export function parseMessage(raw: string): ParsedMessage {
  * best-effort and MUST degrade to "" rather than show MIME plumbing to a
  * reader. `BODY[TEXT]` is used rather than `BODY[1]` because TEXT is accepted
  * by every server, and a BAD reply here would take the whole message list down.
+ *
+ * The prefix is bytes like the message it is cut from (a string stands for its
+ * UTF-8 bytes), and the cut may fall inside a character. What the bytes mean
+ * — charset and transfer encoding — stands in a header: `message` is the
+ * message's own (a body of one part has no other), and a part inside the
+ * prefix that brings its header replaces it. Without either, the list showed
+ * `Gr=C3=BC=C3=9Fe` for a quoted-printable mail and marks for a Latin-1 one.
  */
-export function previewFromBodyPrefix(raw: string, max = 160): string {
-  if (!raw.trim()) return "";
-  let body = raw;
-  let headers = new Map<string, string>();
+export function previewFromBodyPrefix(raw: Uint8Array | string, max = 160, message: HeaderMap = new Map()): string {
+  let body = wireOf(raw);
+  if (!body.trim()) return "";
+  let headers = message;
 
   // Multipart: walk to the first text part inside the prefix we were given.
   // Anything past the truncation point simply is not there — then the preview
@@ -285,7 +393,10 @@ export function previewFromBodyPrefix(raw: string, max = 160): string {
   // group) — better no preview than mojibake.
   const encoding = (headers.get("content-transfer-encoding") ?? "").trim().toLowerCase();
   if (encoding === "base64") return "";
-  let text = encoding === "quoted-printable" || /=[0-9A-F]{2}/.test(body) ? decodeText(headers, body) : body;
+  // A prefix cut inside an escape ends in "=" or "=X": no text, and the byte
+  // in front of it may be half a character, which the decoding below drops.
+  const bytes = encoding === "quoted-printable" ? qpBytes(body.replace(/=[0-9A-Fa-f]?$/, "")) : wireBytes(body);
+  let text = decodeCharset(headers, bytes, true);
 
   if ((headers.get("content-type") ?? "").includes("text/html") || /<\/?(p|div|br|span|table)\b/i.test(text)) {
     text = htmlToPlainText(text);

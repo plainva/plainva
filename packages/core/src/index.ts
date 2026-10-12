@@ -128,3 +128,4 @@ export * from "./mailText.js";
 export * from "./vault/filterComparison.js";
 export * from "./linkScan.js";
 export { htmlToPlainText } from "./pim/htmlToMarkdown.js";
+export { htmlToVisibleText, type MarkupNode } from "./pim/htmlVisibleText.js";

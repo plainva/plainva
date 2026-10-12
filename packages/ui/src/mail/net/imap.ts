@@ -2,8 +2,8 @@ import { trimEndChars } from "@plainva/core";
 import type { MailboxInfo, RawImapEnvelope, RawImapEnvelopePage, RawImapMessage } from "../types";
 import type { AppendDraftArgs, ImapCreds } from "../transport";
 import { LineSocket } from "./socket";
-import { decodeWords, headerAddresses, headerDate, parseHeaders, parseMessage, previewFromBodyPrefix } from "./mime";
-import { decodeImapUtf7, mailboxRoles } from "../mailOut";
+import { decodeHeaderBlock, decodeWords, headerAddresses, headerDate, parseHeaders, parseMessage, previewFromBodyPrefix } from "./mime";
+import { bytesToBase64, decodeImapUtf7, mailboxRoles } from "../mailOut";
 import { MAIL_OAUTH_REJECTED, xoauth2Payload } from "./xoauth2";
 import { validatedUids, type ImapBulkArgs, type ImapBulkResult } from "../bulkActions";
 import { bodyStructureAttachments } from "./bodyStructure";
@@ -123,8 +123,15 @@ export function quoteImapString(s: string): string {
 interface Response {
   /** Untagged lines, literals already inlined as `{n}` + the payload below. */
   lines: string[];
-  /** Literal payloads in the order they appeared. */
-  literals: string[];
+  /**
+   * Literal payloads in the order they appeared — the BYTES the server sent
+   * (finding 2026-10-09). A literal is a message, a header block or a stretch
+   * of a body: what its bytes say is for the reader of that literal to decide,
+   * part by part, and the raw message is handed on without being read at all.
+   * Turned into UTF-8 text here, an 8-bit mail lost its umlauts and the raw
+   * copy stopped being the original.
+   */
+  literals: Uint8Array[];
   ok: boolean;
   text: string;
 }
@@ -219,15 +226,14 @@ export class ImapConnection {
 
   private async readResponse(tag: string, continuation?: () => Promise<void>): Promise<Response> {
     const lines: string[] = [];
-    const literals: string[] = [];
+    const literals: Uint8Array[] = [];
     for (;;) {
       let line = await this.sock.readLine();
       if (line.startsWith("+") && continuation) { await continuation(); continue; }
       // Inline any counted literal that terminates the line.
       let m = /\{(\d+)\}$/.exec(line);
       while (m) {
-        const bytes = await this.sock.readBytes(Number(m[1]));
-        literals.push(new TextDecoder("utf-8", { fatal: false }).decode(bytes));
+        literals.push(await this.sock.readBytes(Number(m[1])));
         const rest = await this.sock.readLine();
         line = line + LITERAL_MARK + rest; // marker: a literal was spliced here
         m = /\{(\d+)\}$/.exec(line);
@@ -313,12 +319,14 @@ export class ImapConnection {
    * is why the parsing below walks the segments a literal was spliced into
    * instead of assuming one per line — and why each segment is classified by
    * the section it names rather than by position: nothing obliges a server to
-   * answer in the order we asked.
+   * answer in the order we asked. CONTENT-TYPE and CONTENT-TRANSFER-ENCODING
+   * ride along for that opening line: the first bytes of a body do not say
+   * what charset they are in or how they are encoded.
    */
   async fetchEnvelopes(uids: number[]): Promise<RawImapEnvelope[]> {
     if (uids.length === 0) return [];
     const res = await this.command(
-      `UID FETCH ${uids.join(",")} (UID FLAGS BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE MESSAGE-ID IN-REPLY-TO REFERENCES)] BODY.PEEK[TEXT]<0.${PREVIEW_BYTES}>)`,
+      `UID FETCH ${uids.join(",")} (UID FLAGS BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE MESSAGE-ID IN-REPLY-TO REFERENCES CONTENT-TYPE CONTENT-TRANSFER-ENCODING)] BODY.PEEK[TEXT]<0.${PREVIEW_BYTES}>)`,
     );
     if (!res.ok) throw new Error(res.text || "could not read the message list");
     const out: RawImapEnvelope[] = [];
@@ -329,16 +337,18 @@ export class ImapConnection {
       // One literal per splice point; the LAST segment carries no literal.
       const taken = res.literals.slice(li, li + segments.length - 1);
       li += segments.length - 1;
-      let header = "";
-      let bodyPrefix = "";
-      segments.slice(0, -1).forEach((segment, i) => {
-        if (/BODY\[TEXT\]/i.test(segment)) bodyPrefix = taken[i] ?? "";
-        else if (/HEADER/i.test(segment)) header = taken[i] ?? "";
-      });
+      let header: Uint8Array = new Uint8Array(0);
+      let bodyPrefix: Uint8Array = new Uint8Array(0);
+      for (let i = 0; i < taken.length; i++) {
+        if (/BODY\[TEXT\]/i.test(segments[i])) bodyPrefix = taken[i];
+        else if (/HEADER/i.test(segments[i])) header = taken[i];
+      }
       const uidM = /UID\s+(\d+)/i.exec(line);
       if (!uidM) continue;
       const flags = (/FLAGS\s+\(([^)]*)\)/i.exec(line)?.[1] ?? "").toLowerCase();
-      const h = parseHeaders(header);
+      // The same reading of raw header bytes as an opened message gets
+      // (`parseMessage`), so a subject is spelled alike in the list and above it.
+      const h = parseHeaders(decodeHeaderBlock(header));
       out.push({
         uid: Number(uidM[1]),
         uidValidity: this.uidValidity,
@@ -348,7 +358,9 @@ export class ImapConnection {
         dateTs: headerDate(h.get("date")),
         seen: flags.includes("\\seen"),
         flagged: flags.includes("\\flagged"),
-        preview: previewFromBodyPrefix(bodyPrefix),
+        // The body's first bytes say nothing about themselves: the message's
+        // own type and transfer encoding come along in the header fields.
+        preview: previewFromBodyPrefix(bodyPrefix, undefined, h),
         // Raw header text; `mailClient` runs the shared normaliser (P9.1).
         messageId: h.get("message-id") ?? undefined,
         inReplyTo: h.get("in-reply-to") ?? undefined,
@@ -376,7 +388,8 @@ export class ImapConnection {
     };
   }
 
-  async fetchRaw(uid: number): Promise<string> {
+  /** The raw RFC 822 message — the bytes the server holds, unread. */
+  async fetchRaw(uid: number): Promise<Uint8Array> {
     const res = await this.command(`UID FETCH ${uid} (BODY.PEEK[])`);
     if (!res.ok || res.literals.length === 0) throw new Error(res.text || "could not read the message");
     return res.literals[0];
@@ -386,9 +399,7 @@ export class ImapConnection {
     const raw = await this.fetchRaw(uid);
     const part = parseMessage(raw).parts.find((p) => p.index === index);
     if (!part?.bytes) throw new Error("attachment not found");
-    let bin = "";
-    for (let i = 0; i < part.bytes.length; i += 0x8000) bin += String.fromCharCode(...part.bytes.subarray(i, i + 0x8000));
-    return btoa(bin);
+    return bytesToBase64(part.bytes);
   }
 
   async store(uid: number, flag: string, on: boolean): Promise<void> {

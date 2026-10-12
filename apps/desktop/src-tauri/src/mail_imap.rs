@@ -600,6 +600,31 @@ fn parse_message(raw: &[u8]) -> Result<mail_parser::Message<'_>, String> {
         .ok_or_else(|| "unparseable message".to_string())
 }
 
+/// The message's own plain-text body, when it has one.
+///
+/// `body_text(0)` also answers for a message that is HTML only — with a text
+/// mail-parser makes out of the markup, hidden parts included. What a reply
+/// quotes and a filed note holds is decided in ONE place, the shared mail core
+/// (`mailMessageText` in `packages/ui/src/mail/messageText.ts`), from the parts
+/// a message really has; the phone's parser and Microsoft Graph report only
+/// those, so the same mail gave one quote here and another there (finding
+/// 2026-10-09). This reports the part, and nothing made from another one.
+fn plain_text_body(parsed: &mail_parser::Message<'_>) -> Option<String> {
+    match &parsed.text_bodies().next()?.body {
+        mail_parser::PartType::Text(text) => Some(text.to_string()),
+        _ => None,
+    }
+}
+
+/// The raw message as the frontend receives it: standard base64, with padding
+/// and without line breaks, of exactly the bytes the server sent. Three
+/// transports hand this out — this command, the phone's socket client and
+/// Microsoft Graph — and one reader decodes it (`saveEmlFile`); the fixture in
+/// the test below is the one `rawFetchContract.test.ts` holds for the other two.
+fn raw_message_base64(raw: &[u8]) -> String {
+    base64::engine::general_purpose::STANDARD.encode(raw)
+}
+
 #[tauri::command]
 pub async fn mail_fetch_message(
     host: String,
@@ -639,7 +664,7 @@ pub async fn mail_fetch_message(
                 from: address_text(parsed.header(mail_parser::HeaderName::From).and_then(|h| h.as_address())),
                 to: address_text(parsed.header(mail_parser::HeaderName::To).and_then(|h| h.as_address())),
                 date_ts: parsed.date().map(|d| d.to_timestamp() * 1000).unwrap_or(0),
-                text: parsed.body_text(0).map(|c| c.to_string()),
+                text: plain_text_body(&parsed),
                 html: parsed.body_html(0).map(|c| c.to_string()),
                 attachments,
                 uid_validity,
@@ -668,7 +693,7 @@ pub async fn mail_fetch_raw(
                 .examine(&mailbox)
                 .map_err(|e| format!("examine failed: {e}"))?;
             let raw = fetch_raw(session, uid)?;
-            Ok(base64::engine::general_purpose::STANDARD.encode(raw))
+            Ok(raw_message_base64(&raw))
         })
     })
     .await
@@ -1158,6 +1183,44 @@ mod tests {
         let atts: Vec<_> = parsed.attachments().collect();
         assert_eq!(atts.len(), 1);
         assert_eq!(atts[0].attachment_name(), Some("doc.pdf"));
+    }
+
+    /// The text of a message is its plain-text part, or none (finding
+    /// 2026-10-09): for an HTML-only mail the shared mail core makes the text
+    /// from the markup, the same on both shells and without what the message
+    /// hides. mail-parser's own conversion — one line, hidden parts included —
+    /// must not reach the frontend as if the sender had written it.
+    #[test]
+    fn reports_a_plain_text_body_only_where_the_message_has_one() {
+        let html_only = b"From: a@example.org\r\nSubject: Rechnung\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<div style=\"display:none\">Vorschau</div><p>Hallo</p><p>Welt</p>\r\n";
+        let parsed = parse_message(html_only).expect("parses");
+        assert_eq!(plain_text_body(&parsed), None);
+        assert!(parsed.body_html(0).expect("html part").contains("<p>Hallo</p>"));
+        // What the frontend used to receive as the text of this message.
+        assert!(parsed.body_text(0).expect("converted").contains("Vorschau"));
+
+        let both = b"MIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=B\r\n\r\n--B\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHallo Welt\r\n--B\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>Hallo <b>Welt</b></p>\r\n--B--\r\n";
+        let parsed = parse_message(both).expect("parses");
+        assert_eq!(plain_text_body(&parsed).as_deref(), Some("Hallo Welt"));
+
+        assert_eq!(plain_text_body(&parse_message(SAMPLE).expect("parses")).as_deref(), Some("Hallo Welt"));
+
+        // An 8-bit body in a charset that is not UTF-8 arrives as its text.
+        let latin1 = b"MIME-Version: 1.0\r\nContent-Type: text/plain; charset=iso-8859-1\r\nContent-Transfer-Encoding: 8bit\r\n\r\nGr\xfc\xdfe aus M\xfcnchen.\r\n";
+        let parsed = parse_message(latin1).expect("parses");
+        assert_eq!(plain_text_body(&parsed).as_deref().map(str::trim_end), Some("Gr\u{00fc}\u{00df}e aus M\u{00fc}nchen."));
+    }
+
+    /// One fixture, one expected string, on both sides of the IPC: the same
+    /// bytes and the same base64 stand in `rawFetchContract.test.ts`, where the
+    /// phone's socket client and Microsoft Graph have to produce it too. The
+    /// bytes are a mail no text decoder leaves alone — UTF-8, a lone Latin-1
+    /// byte, a NUL and a bare line feed.
+    #[test]
+    fn raw_message_is_standard_base64_of_the_untouched_bytes() {
+        let raw = b"Subject: Gr\xc3\xbc\xc3\x9fe\r\n\r\nM\xfcnchen \x00 \xff\n";
+        assert_eq!(raw_message_base64(raw), "U3ViamVjdDogR3LDvMOfZQ0KDQpN/G5jaGVuIAAg/wo=");
+        assert_eq!(base64::engine::general_purpose::STANDARD.decode(raw_message_base64(raw)).expect("decodes"), raw);
     }
 
     /// P9.1: the thread headers of an envelope, read out of the header block the

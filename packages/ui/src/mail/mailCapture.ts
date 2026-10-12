@@ -3,6 +3,7 @@ import { upsertFrontmatterKeys, readFrontmatterPath, type OkfSource } from "@pla
 import { buildNewNoteContent } from "../lib/newNoteContent";
 import { safeFileStem } from "../lib/fileStem";
 import { generatedStamp } from "../lib/okfProvenance";
+import { mailMessageText } from "./messageText";
 import type { MailMessage } from "./types";
 
 /**
@@ -59,7 +60,7 @@ function mailSource(message: MailMessage): OkfSource | null {
 }
 
 /** Fresh e-mail note: OKF frontmatter (type Email), sender/date fields, the
- * pim anchor and the plain-text body under the subject H1. */
+ * pim anchor and the message's text (`mailMessageText`) under the subject H1. */
 export function buildEmailNoteContent(
   message: MailMessage,
   accountId: string,
@@ -101,7 +102,7 @@ export function buildEmailNoteContent(
       /* stamp best-effort */
     }
   }
-  const body = (message.text ?? "").trim();
+  const body = mailMessageText(message).trim();
   if (body) content = (content.trimEnd() + "\n\n") + body + "\n";
   return content;
 }

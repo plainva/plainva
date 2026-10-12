@@ -30,6 +30,7 @@ const account = (signature: string): MailAccountConfig => ({
 const message = {
   from: "Anna <anna@example.org>",
   text: "Hallo,\nanbei die Rechnung.",
+  html: null,
   dateTs: Date.UTC(2026, 6, 1, 9, 30),
   subject: "Rechnung",
 };
@@ -148,7 +149,7 @@ describe("buildReplyBody", () => {
   });
 
   it("writes no attribution when the message has no sender", () => {
-    const body = buildReplyBody({ from: "", text: "Hallo", dateTs: 0 });
+    const body = buildReplyBody({ from: "", text: "Hallo", html: null, dateTs: 0 });
     expect(body).toBe("\n\n> Hallo\n");
   });
 });

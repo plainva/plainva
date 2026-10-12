@@ -7,6 +7,7 @@ import type { MailAccountConfig } from "./mailAccounts";
 import { mailAccountKind, mailSendRoute } from "./mailAccounts";
 import { withMailCredentials } from "./mailCredentials";
 import { buildQuoteBlock, quoteText, FORWARD_SEPARATOR } from "./replyQuote";
+import { mailMessageText } from "./messageText";
 import type { MailMessage } from "./types";
 import { graphSendMail, graphAppendDraft } from "./graphMail";
 import { mailTransport } from "./transport";
@@ -189,7 +190,7 @@ export function resolveDraftsMailbox(
 
 /** Reply note: a NORMAL vault note addressed at the sender, with the
  * original quoted below — written in Plainva, sent later via draft/mailto. */
-export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text">, dayKey: string): string {
+export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "from" | "text" | "html">, dayKey: string): string {
   const subject = message.subject.trim().replace(/^(re|aw|antw):\s*/i, "");
   const title = `Re: ${subject || "E-Mail"}`;
   let content = buildNewNoteContent("Email", title);
@@ -198,7 +199,7 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
   } catch {
     /* best effort */
   }
-  const quoted = quoteText(message.text ?? "");
+  const quoted = quoteText(mailMessageText(message));
   content = (content.trimEnd() + "\n\n") + (quoted ? `\n${quoted}\n` : "");
   return content;
 }
@@ -214,11 +215,11 @@ export function buildReplyNoteContent(message: Pick<MailMessage, "subject" | "fr
  * never produces an unattributed quote.
  */
 export function buildReplyBody(
-  message: Pick<MailMessage, "from" | "text" | "dateTs">,
+  message: Pick<MailMessage, "from" | "text" | "html" | "dateTs">,
   attribution?: string
 ): string {
   const line = attribution?.trim() || defaultAttribution(message);
-  return `\n\n${buildQuoteBlock(message.text ?? "", line)}\n`;
+  return `\n\n${buildQuoteBlock(mailMessageText(message), line)}\n`;
 }
 
 /** Fallback attribution: local date and sender, never a machine timestamp. */
@@ -261,7 +262,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
 
 /** Forwarded-message body (mail-client E1): the quoted original with a header
  * block, ready to drop into a compose draft. Pure. */
-export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" | "text" | "dateTs">): string {
+export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" | "text" | "html" | "dateTs">): string {
   // The separator is shared grammar: it is how `quotedOriginalStart` recognises
   // a forward, so a signature lands ABOVE the forwarded message rather than
   // below it. The header field names stay English on purpose — mail convention.
@@ -269,7 +270,7 @@ export function buildForwardBody(message: Pick<MailMessage, "subject" | "from" |
   if (message.from) header.push(`From: ${message.from}`);
   if (message.dateTs > 0) header.push(`Date: ${new Date(message.dateTs).toLocaleString()}`);
   if (message.subject) header.push(`Subject: ${message.subject}`);
-  return `\n\n${header.join("\n")}\n\n${(message.text ?? "").trim()}\n`;
+  return `\n\n${header.join("\n")}\n\n${mailMessageText(message).trim()}\n`;
 }
 
 /** Escapes a string for use inside a RegExp character class / literal. Pure. */

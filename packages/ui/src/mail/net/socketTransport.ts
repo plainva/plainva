@@ -6,6 +6,7 @@ import { smtpSend } from "./smtp";
 import { activeScriptName, sieveConnect } from "./sieve";
 import { hasMailSocket } from "./socket";
 import { SessionPool, accountMarker, sessionKey } from "./sessionPool";
+import { bytesToBase64 } from "../mailOut";
 
 /**
  * `MailTransport` built on the shared IMAP/SMTP clients (mail feinplan G2).
@@ -50,10 +51,12 @@ export function createSocketMailTransport(): MailTransport {
         return c.fetchMessage(args.uid);
       }),
 
+    // Base64 of the bytes, as the interface says and as the desktop command and
+    // Graph answer (`rawFetchContract.test.ts` holds the three together).
     fetchRaw: (creds, args) =>
       withConn(creds, async (c) => {
         await c.examine(args.mailbox);
-        return c.fetchRaw(args.uid);
+        return bytesToBase64(await c.fetchRaw(args.uid));
       }),
 
     fetchAttachment: (creds, args) =>

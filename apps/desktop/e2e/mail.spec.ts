@@ -439,6 +439,72 @@ test('mail tab lists envelopes, sandboxes the message and captures it as an anch
   await expect(page.locator('.cm-content').getByText('Rechnung Q3').first()).toBeVisible();
 });
 
+/**
+ * A message without a plain-text part (finding 2026-10-09).
+ *
+ * Microsoft Graph hands a body over as HTML, and a sender is free to write
+ * HTML only. A reply's quote, a forward and the filed note each read the text
+ * part alone: the reply quoted nothing, the forward carried its header block,
+ * the note was properties and a heading. The double answers here the way the
+ * desktop's own IMAP command does for such a mail — `text: null` — and the test
+ * holds the ends a person sees: the draft in the composer and the note on disk.
+ * The line a sender hides above the message, so that a mail list shows it as
+ * the preview, is on the reader's screen nowhere, and in none of the three.
+ * The phone holds the same in `apps/mobile/e2e-prod/mail-html-message.spec.ts`.
+ */
+test('a message without a text part: reply and forward carry its text, the filed note holds it', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = {
+      text: null,
+      html:
+        '<div style="display:none;max-height:0;overflow:hidden">Nur heute: 50 % Rabatt</div>' +
+        '<p>Hallo Marco,</p><p>anbei die <b>Rechnung</b> f&uuml;r Oktober.</p>',
+      // No file on it: what a forward does with one is not this test's subject.
+      attachments: [],
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await expect(page.getByTestId('mail-frame')).toBeVisible();
+
+  // Reply: the draft opens with the original quoted.
+  const body = page.getByTestId('draft-body');
+  await page.getByTestId('mail-reply').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Re: Rechnung Q3/);
+  await expect(body).toContainText('Hallo Marco,');
+  await expect(body).toContainText('anbei die Rechnung für Oktober.');
+  await expect(body).not.toContainText('Rabatt');
+  // Nothing was typed: the draft closes without a question.
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // Forward: the text stands under the header block.
+  await page.getByTestId('mail-forward').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue(/Fwd: Rechnung Q3/);
+  await expect(body).toContainText('Forwarded message');
+  await expect(body).toContainText('anbei die Rechnung für Oktober.');
+  await expect(body).not.toContainText('Rabatt');
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  // Filed as a note: the text is under the subject.
+  await page.getByTestId('mail-capture-note').click();
+  const filed = () =>
+    page.evaluate(() => {
+      const fs = (window as any).mockFs;
+      const path = Object.keys(fs).find((p) => p.startsWith('/test-vault/Mail/') && p.endsWith('.md'));
+      return path ? (fs[path] as string) : null;
+    });
+  await expect.poll(filed).toBeTruthy();
+  const note = (await filed())!;
+  expect(note).toContain('# Rechnung Q3\n\nHallo Marco,\n\nanbei die Rechnung für Oktober.\n');
+  expect(note).not.toContain('Rabatt');
+});
+
 test('mail-client E1: folder column, new-message compose and forward', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-mail').click();

@@ -70,6 +70,8 @@ export interface MailTransport {
   checkLogin(creds: ImapCreds): Promise<MailboxInfo[]>;
   listEnvelopes(creds: ImapCreds, args: { mailbox: string; offset: number; limit: number; beforeUid?: number }): Promise<RawImapEnvelopePage>;
   fetchMessage(creds: ImapCreds, args: { mailbox: string; uid: number }): Promise<RawImapMessage>;
+  /** The raw RFC 822 message as standard base64 (with padding, no line breaks)
+   * of exactly the bytes the server holds — `saveEmlFile` decodes it. */
   fetchRaw(creds: ImapCreds, args: { mailbox: string; uid: number }): Promise<string>;
   fetchAttachment(creds: ImapCreds, args: { mailbox: string; uid: number; index: number }): Promise<string>;
   appendDraft(creds: ImapCreds, args: AppendDraftArgs): Promise<void>;
