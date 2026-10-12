@@ -42,13 +42,13 @@ export function MailComposeHost() {
   // request rather than a setter: with a composer open it replaces an
   // untouched draft, and asks before a changed one goes
   // (services/mail/composeHost.ts).
-  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string }>();
+  const [mailDraft, setMailDraft, mailDraftKey, closeMailDraft] = useComposeHost<{ subject: string; markdown: string; attachments?: MailAttachment[]; to?: string; accountId?: string }>();
   useEffect(() => {
     // Compose mail from anywhere (mail-client E5: editor ⋮ send / send as
     // attachment, the mail view, an event's invitation, the command palette).
     const onComposeMail = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string } | undefined;
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to });
+      const detail = (e as CustomEvent).detail as { subject?: string; markdown?: string; attachments?: MailAttachment[]; to?: string; accountId?: string } | undefined;
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId });
     };
     window.addEventListener("plainva-compose-mail", onComposeMail);
     return () => window.removeEventListener("plainva-compose-mail", onComposeMail);
@@ -63,6 +63,7 @@ export function MailComposeHost() {
         markdown={mailDraft.markdown}
         attachments={mailDraft.attachments}
         initialTo={mailDraft.to}
+        initialAccountId={mailDraft.accountId}
         suspended={isLoading}
         onPopOut={(snap) => void popOutCompose(vaultPath, snap)}
         onClose={closeMailDraft}

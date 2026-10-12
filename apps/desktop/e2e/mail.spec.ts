@@ -1314,6 +1314,143 @@ test('all inboxes: one list across accounts, and every action goes to its own ma
   await expect(page.getByTestId('mail-search')).toBeVisible();
 });
 
+/**
+ * A message written from a mailbox goes out from that mailbox (finding
+ * 2026-10-09).
+ *
+ * The mail view asked for the composer with a subject, a text and a recipient
+ * — and no account, so the composer started with the first one that is stored,
+ * and with its signature. With one mailbox nobody could tell. With two, a reply
+ * to a message in the second went out under the first one's address unless
+ * "From" was changed by hand; the phone had it right all along, because there
+ * the account travels with the draft.
+ *
+ * Both ends are held for every way in: what "From" shows the moment the
+ * composer opens, with the signature that belongs to it, and what the transport
+ * is handed. The two mailboxes sign differently and carry a name of their own,
+ * so neither end can pass by showing the wrong one.
+ */
+const twoSigningMailboxes = [
+  { id: 'm1', label: 'Arbeit', host: 'imap.example.org', port: 993, user: 'marco@example.org', smtpHost: 'smtp.example.org', smtpPort: 587, signature: 'Marco\nErstes Postfach' },
+  { id: 'm2', label: 'Privat', host: 'imap.example.net', port: 993, user: 'zweit@example.net', smtpHost: 'smtp.example.net', smtpPort: 587, signature: 'Zoe\nZweites Postfach' },
+];
+
+/** The mail view with the SECOND of the two mailboxes open — chosen by hand, as a reader does. */
+async function openSecondMailbox(page: any, message?: Record<string, unknown>) {
+  await page.addInitScript(
+    (given: { list: unknown[]; message?: Record<string, unknown> }) => {
+      (window as any).__mailAccountsOverride = given.list;
+      if (given.message) (window as any).__fullMessage = given.message;
+    },
+    { list: twoSigningMailboxes, message },
+  );
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await expect(page.getByTestId('mail-folders')).toContainText('INBOX');
+  await page.getByRole('button', { name: /^(Konto|Account)$/ }).click();
+  await page.getByRole('option', { name: 'Privat' }).click();
+  await expect(page.locator('.pv-mail-folder.on')).toHaveText(/Posteingang/, { timeout: 10000 });
+}
+
+/** The composer as it opens: the second mailbox in "From", and its signature — not the first one's. */
+async function expectSecondMailbox(page: any) {
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(page.getByTestId('draft-from-select')).toHaveText('zweit@example.net · Privat');
+  await expect(page.getByTestId('draft-body')).toContainText('Zweites Postfach');
+  await expect(page.getByTestId('draft-body')).not.toContainText('Erstes Postfach');
+}
+
+/** Sends, and holds the other end: the second mailbox's address, through the second mailbox's server. */
+async function sendFromSecondMailbox(page: any) {
+  await page.getByTestId('draft-send').click();
+  await expect.poll(() => page.evaluate(() => (window as any).__sentMail ?? null), { timeout: 15_000 }).toBeTruthy();
+  const sent = await page.evaluate(() => (window as any).__sentMail);
+  expect(sent.from).toBe('zweit@example.net');
+  expect(sent.host).toBe('smtp.example.net');
+  expect(sent.text).toContain('Zweites Postfach');
+  expect(sent.text).not.toContain('Erstes Postfach');
+  return sent;
+}
+
+test('a reply goes out from the mailbox the message is in, not from the first one stored', async ({ page }) => {
+  await openSecondMailbox(page);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  await page.getByTestId('mail-reply').click();
+  await expectSecondMailbox(page);
+  if (process.env.PLAINVA_EVIDENCE) {
+    await page.screenshot({ path: test.info().outputPath('reply-from-second-mailbox.png') });
+  }
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('anna@example.org');
+  expect(sent.subject).toBe('Re: Rechnung Q3');
+});
+
+test('a forward goes out from the mailbox the message is in', async ({ page }) => {
+  await openSecondMailbox(page);
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  await page.getByTestId('mail-forward').click();
+  await expectSecondMailbox(page);
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('ben@example.org');
+  expect(sent.subject).toBe('Fwd: Rechnung Q3');
+});
+
+test('a new message goes out from the mailbox that is open', async ({ page }) => {
+  await openSecondMailbox(page);
+
+  await page.getByTestId('mail-compose').click();
+  await expectSecondMailbox(page);
+  await page.getByTestId('draft-to').fill('ben@example.org');
+  await page.getByTestId('draft-to').press('Enter');
+  await page.getByTestId('draft-subject').fill('Hallo');
+  const sent = await sendFromSecondMailbox(page);
+  expect(sent.to).toBe('ben@example.org');
+  expect(sent.subject).toBe('Hallo');
+});
+
+test('a reply to all and the message a list asks for to unsubscribe start from that mailbox too', async ({ page }) => {
+  // The second is the one that matters most: a list takes the address a
+  // request comes FROM off its roll, so asking from another mailbox leaves the
+  // subscription where it was.
+  await openSecondMailbox(page, { listUnsubscribe: '<mailto:bye@list.example?subject=unsubscribe>' });
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+
+  await page.getByTestId('mail-reply-all').click();
+  await expectSecondMailbox(page);
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'anna@example.org' })).toBeVisible();
+  // Nothing was written, so it closes without a question.
+  await page.getByTestId('draft-close').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+
+  await page.getByTestId('mail-unsubscribe').click();
+  await expectSecondMailbox(page);
+  await expect(page.getByTestId('draft-to-chip').filter({ hasText: 'bye@list.example' })).toBeVisible();
+  await expect(page.getByTestId('draft-subject')).toHaveValue('unsubscribe');
+});
+
+test('all inboxes: a reply to a row starts from the mailbox of that row', async ({ page }) => {
+  // In the merged list a row is addressed by its mailbox, and the reply reads
+  // the mailbox from the message that is open — not from a place in a list.
+  // The row is one of the mailbox that is open: opening a row of another
+  // mailbox switches the open mailbox first, which is a matter of its own and
+  // not what this is about.
+  await openSecondMailbox(page);
+  await page.getByTestId('mail-all-inboxes').click();
+  await expect(page.getByTestId('mail-envelope')).toHaveCount(4);
+
+  await page.getByTestId('mail-envelope').filter({ hasText: 'Privat' }).first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  await page.getByTestId('mail-reply').click();
+  await expectSecondMailbox(page);
+});
+
 test('signature: the field fills the settings row and is draggable in height only', async ({ page }) => {
   // Reported twice (2026-07-30): the box stayed at its content width. The
   // control column of a settings row is a centring flex row, so a control that

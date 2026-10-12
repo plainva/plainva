@@ -39,6 +39,14 @@ interface MailDraftModalProps {
   /** Optional recipient prefill (reply / reply-all / invite attendees). */
   initialTo?: string;
   /**
+   * The mailbox the draft is written from: the one a reply's message is in,
+   * the one that is open in the mail view (finding 2026-10-09). The composer
+   * starts with it and with its signature. Read once, when the composer
+   * opens. Where nobody names one — a note sent by mail, an invitation — or
+   * the named one is gone, it starts with the first mailbox that is stored.
+   */
+  initialAccountId?: string;
+  /**
    * How this composer is framed (multi-window P3). `floating` is the default —
    * a movable window inside the app, unchanged from before. `window` means the
    * composer IS the window: the OS frame and the aux title bar are the chrome,
@@ -78,7 +86,7 @@ function confirmRecips(val: string, draft: string): string {
   return [...new Set([...splitRecipients(val), ...splitRecipients(draft)])].join(", ");
 }
 
-export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, variant = "floating", restore, onPopOut, suspended = false, onClose }: MailDraftModalProps) {
+export function MailDraftModal({ subject: initialSubject, markdown, attachments, initialTo, initialAccountId, variant = "floating", restore, onPopOut, suspended = false, onClose }: MailDraftModalProps) {
   const { t } = useTranslation();
   const { vaultPath, vaultAdapter } = useVault();
   const [accounts, setAccounts] = useState<MailAccountConfig[]>([]);
@@ -266,6 +274,10 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
     setOpened((o) => ({ ...o, body: sign(o.body) }));
   }, [accounts, accountId, fromAddress]);
 
+  // The mailbox the draft was asked for from, as it was when the composer
+  // opened — like every other prefill. A composer does not change its sender
+  // because its host rendered again.
+  const askedAccount = useRef(initialAccountId);
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -273,11 +285,16 @@ export function MailDraftModal({ subject: initialSubject, markdown, attachments,
       const list = await listMailAccounts(vaultPath);
       if (!alive) return;
       setAccounts(list);
-      // A restored composer already knows its sender — picking the first
+      // A restored composer already knows its sender — picking another
       // account here would silently switch it (and its signature).
       if (restore) return;
-      setAccountId(list[0]?.id ?? "");
-      setFromAddress(list[0] ? senderOptions(list[0])[0] ?? "" : "");
+      // A reply leaves from the mailbox its message is in, a new message from
+      // the one that is open (finding 2026-10-09): this took the first account
+      // of the list whatever the draft came from. The first one is what is
+      // left where nobody named a mailbox, or the named one is gone.
+      const start = list.find((a) => a.id === askedAccount.current) ?? list[0];
+      setAccountId(start?.id ?? "");
+      setFromAddress(start ? senderOptions(start)[0] ?? "" : "");
     })();
     return () => { alive = false; };
   }, [vaultPath, restore]);

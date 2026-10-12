@@ -19,6 +19,8 @@ export interface MailDraftSeed {
   markdown: string;
   attachments?: MailAttachment[];
   to?: string;
+  /** The mailbox the draft is written from, where the asker has one (the mail view). */
+  accountId?: string;
 }
 
 export interface AuxBridgeOptions {
@@ -128,7 +130,7 @@ export function useAuxBridge(opts: AuxBridgeOptions) {
     // --- local: the floating composer -----------------------------------------
     const onComposeMail = (e: Event) => {
       const detail = (e as CustomEvent).detail as MailDraftSeed | undefined;
-      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to });
+      if (detail) setMailDraft({ subject: detail.subject ?? "", markdown: detail.markdown ?? "", attachments: detail.attachments, to: detail.to, accountId: detail.accountId });
     };
 
     // --- local: the template picker, the context sidebar ----------------------

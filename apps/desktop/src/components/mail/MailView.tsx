@@ -61,7 +61,20 @@ import { sendTaskToProviderList } from "../../services/pim/taskToProvider";
  * through `useAuxBridge`), so the draft now lives where no tab can take it
  * away — and, in the first two, no reload of the vault either.
  */
-function composeMail(draft: { subject: string; markdown: string; to?: string }): void {
+function composeMail(draft: {
+  /**
+   * The mailbox the message is written from (finding 2026-10-09). Not
+   * optional here: the event went out without it, so the composer started
+   * with the first mailbox that is stored and with its signature — a reply to
+   * a message in the second one left under the first one's address unless
+   * "From" was changed by hand. Every way into the composer from this view
+   * has a mailbox, so every one of them has to name it.
+   */
+  accountId: string;
+  subject: string;
+  markdown: string;
+  to?: string;
+}): void {
   window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail: draft }));
 }
 
@@ -178,6 +191,13 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
    * the message's folder — spam stays spam when it is read from a thread.
    */
   const [openOrigin, setOpenOrigin] = useState<{ accountId: string; mailbox: string } | null>(null);
+  /**
+   * The mailbox a message written from the reader goes out from: the one the
+   * open message is in (finding 2026-10-09). A reply, a forward and the
+   * message a list asks for to unsubscribe all answer for THAT mailbox — in
+   * "All inboxes" every row has one of its own.
+   */
+  const messageAccountId = openOrigin?.accountId ?? accountId;
   /** The link under the pointer or holding the keyboard focus (M1). */
   const [pointedLink, setPointedLink] = useState<LinkTarget | null>(null);
   /** The link that was right-clicked, and where: open it, or copy its address. */
@@ -934,8 +954,10 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     if (!unsubRoute || !message) return;
     if (unsubRoute.kind === "mailto") {
       // A mailto route is a message the reader SENDS — it opens the composer
-      // rather than going out behind their back.
+      // rather than going out behind their back. From the mailbox the list
+      // wrote to: a list takes the address a request comes from off its roll.
       composeMail({
+        accountId: messageAccountId,
         to: unsubRoute.target,
         subject: unsubRoute.subject || "unsubscribe",
         markdown: "",
@@ -952,7 +974,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     } catch {
       toast.error(t("mail.unsubscribeFailed"));
     }
-  }, [unsubRoute, message, t]);
+  }, [unsubRoute, message, messageAccountId, t]);
 
   const currentSeen = displayedEnvelopes.find((e) => e.id === selectedId)?.seen ?? false;
   const currentFlagged = displayedEnvelopes.find((e) => e.id === selectedId)?.flagged ?? false;
@@ -1632,16 +1654,18 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
   );
   const handleReply = useCallback(() => {
     if (!message) return;
-    composeMail({ subject: replySubject(message), markdown: buildReplyBody(message, replyAttribution(message)), to: fromAddr(message.from) });
-  }, [message, replySubject, replyAttribution]);
+    composeMail({ accountId: messageAccountId, subject: replySubject(message), markdown: buildReplyBody(message, replyAttribution(message)), to: fromAddr(message.from) });
+  }, [message, messageAccountId, replySubject, replyAttribution]);
   const handleReplyAll = useCallback(() => {
     if (!message) return;
     composeMail({
+      accountId: messageAccountId,
       subject: replySubject(message),
       markdown: buildReplyBody(message, replyAttribution(message)),
-      to: replyAllRecipients(message, account?.user ?? ""),
+      // "Everyone but me" is asked of the same mailbox the reply leaves from.
+      to: replyAllRecipients(message, accounts.find((a) => a.id === messageAccountId)?.user ?? ""),
     });
-  }, [message, account, replySubject, replyAttribution]);
+  }, [message, messageAccountId, accounts, replySubject, replyAttribution]);
 
   const dateFmt = useMemo(() => new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }), [i18n.language]);
   // Compact list time (mockup: "14:32" today, "Di" this week, "9. Jul" older).
@@ -1763,7 +1787,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
             <span className="pv-mail-acct-name">{account?.label}</span>
           )}
         </div>
-        <button type="button" className="pv-mail-compose" data-testid="mail-compose" onClick={() => composeMail({ subject: "", markdown: "" })}>
+        <button type="button" className="pv-mail-compose" data-testid="mail-compose" onClick={() => composeMail({ accountId, subject: "", markdown: "" })}>
           <Pencil size={ICON.ui} /> {t("mail.newMessage", { defaultValue: "Neue Nachricht" })}
         </button>
         <div className="pv-mail-flist" data-testid="mail-folders">
@@ -2195,7 +2219,7 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => composeMail({ subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
+                onClick={() => composeMail({ accountId: messageAccountId, subject: `Fwd: ${message.subject.trim().replace(/^(fwd|wg):\s*/i, "")}`.trim(), markdown: buildForwardBody(message) })}
                 data-testid="mail-forward"
                 icon={<Forward size={ICON.ui} />}
               >

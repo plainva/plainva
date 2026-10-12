@@ -535,6 +535,7 @@ export function AuxApp() {
             markdown={bridge.mailDraft.markdown}
             attachments={bridge.mailDraft.attachments}
             initialTo={bridge.mailDraft.to}
+            initialAccountId={bridge.mailDraft.accountId}
             onPopOut={(snap) => void popOutCompose(vaultPath, snap)}
             onClose={bridge.closeMailDraft}
           />

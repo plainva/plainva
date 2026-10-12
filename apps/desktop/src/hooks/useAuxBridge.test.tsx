@@ -198,6 +198,11 @@ const CASES: Record<string, () => Promise<void>> = {
   "plainva-compose-mail": async () => {
     await fire("plainva-compose-mail", { subject: "Betreff", markdown: "Text", to: "a@b.c" });
     expect(JSON.parse(text("draft"))).toEqual({ subject: "Betreff", markdown: "Text", to: "a@b.c" });
+    // The mail view names the mailbox the draft is written from (finding
+    // 2026-10-09): it reaches this window's composer like the rest, or a reply
+    // written here starts with the first mailbox that is stored.
+    await fire("plainva-compose-mail", { subject: "Re: Betreff", markdown: "Text", to: "a@b.c", accountId: "m2" });
+    expect(JSON.parse(text("draft"))).toEqual({ subject: "Re: Betreff", markdown: "Text", to: "a@b.c", accountId: "m2" });
   },
   "plainva-open-template-picker": async () => {
     expect(text("picker")).toBe("closed");
