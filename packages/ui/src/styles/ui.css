@@ -124,9 +124,18 @@
    inline styles carry coordinates only. */
 .pv-fixed-ghost { position: fixed; pointer-events: none; z-index: var(--z-tooltip); }
 
-/* Invisible full-viewport click catcher for outside-click dismissal of
-   non-modal popovers (no dim - the pickers stay visually anchored). */
-.pv-click-catch { position: fixed; inset: 0; }
+/* Invisible full-viewport click catcher for the dialog-like popovers (colour,
+   emoji, date jump, a selection's "set a value" form): the press beside them
+   closes them and goes nowhere else (no dim - they stay visually anchored).
+   It carries the menus' layer ITSELF: a catcher takes only what no higher
+   layer takes first, and one without a layer lay under the floating windows -
+   a press into a note preview never reached it. Drawn by the ClickCatch
+   primitive alone, BEFORE its popover (they share the layer); the primitive
+   also hears the press the catcher does not get, because a layer counts only
+   inside its own stacking context (a database embedded in a note sits in the
+   editor's). Menus and popovers that let the press through hear it at the
+   window instead (useOutsidePress) and lay nothing over the page. */
+.pv-click-catch { position: fixed; inset: 0; z-index: var(--z-menu); }
 
 /* ----------------------------------------------------------------- fields */
 /* Field metric roles (design sweep 2026-07-19, E10): the FORM standard is the

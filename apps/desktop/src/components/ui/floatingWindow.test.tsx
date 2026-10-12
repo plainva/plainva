@@ -273,26 +273,25 @@ describe("FloatingWindow: Escape goes to what is in front", () => {
     expect([closeWindow.mock.calls.length, closeDialog.mock.calls.length]).toEqual([0, 1]);
   });
 
-  it("does not wait for what has no Escape of its own: a hand-built menu, a click catcher, a list nobody is in", () => {
-    // The vault menu and a database's header menu are `.pv-menu` without the
-    // menu primitive, the calendar's quick-create card lays a bare
-    // `.pv-overlay` under itself, and a select list opened with the mouse has
-    // no focus where a clicked button takes none. None of them closes on
-    // Escape by itself — a window that stood back for them would be deaf to
-    // the key for as long as they are open.
+  it("does not wait for what has no Escape of its own: a click catcher, a list nobody is in", () => {
+    // The calendar's quick-create card lays a bare `.pv-overlay` under itself,
+    // and a select list opened with the mouse has no focus where a clicked
+    // button takes none. Neither closes on Escape by itself — a window that
+    // stood back for them would be deaf to the key for as long as they are
+    // open. (A menu is not among them any more: every `.pv-menu` is the menu
+    // primitive, which takes the key wherever the keyboard is — the case above.)
     const closeWindow = vi.fn();
     render(
       <>
         <Win id="a" onEscape={closeWindow} />
-        <div className="pv-menu"><button data-testid="vault-item">Vault</button></div>
         <div className="pv-overlay" />
-        <div className="pv-selectpanel" />
+        <div className="pv-selectpanel"><button data-testid="list-item">Choice</button></div>
       </>
     );
     escape();
     expect(closeWindow).toHaveBeenCalledTimes(1);
     // With the keyboard IN one of them it is not the window's key.
-    escape(byId("vault-item"));
+    escape(byId("list-item"));
     expect(closeWindow).toHaveBeenCalledTimes(1);
   });
 

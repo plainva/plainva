@@ -682,7 +682,7 @@ const mockHas = (page: import('@playwright/test').Page, path: string) => page.ev
 const mockText = (page: import('@playwright/test').Page, path: string) => page.evaluate((p) => String((window as any).mockFs[p] ?? ''), `/test-vault/${path}`);
 async function addListView(page: import('@playwright/test').Page) {
   await page.locator('button.base-view-add').click();
-  await page.locator('.base-view-menu').getByRole('button', { name: 'List', exact: true }).click();
+  await page.getByRole('menu', { name: 'Add view' }).getByRole('menuitem', { name: 'List', exact: true }).click();
 }
 
 test('an open database follows its file when it is moved outside Plainva, and so does its bookmark (issue 110)', async ({ page }) => {

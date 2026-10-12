@@ -1,6 +1,6 @@
-import { useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Checkbox, ICON, Select, TextInput, useFixedPopover } from "@plainva/ui";
+import { Button, Checkbox, ClickCatch, ICON, Select, TextInput, useFixedPopover } from "@plainva/ui";
 import { Check } from "lucide-react";
 
 /**
@@ -33,6 +33,12 @@ export function BulkSetPopover({
   const [checked, setChecked] = useState(false);
   const chosen = columns.find((c) => c.key === col);
   const popRef = useFixedPopover(true, anchorRef, { minWidth: 260 });
+  // The keyboard goes into the form once it has been placed (before that it is
+  // hidden and takes no focus): Escape then closes it, also while a floating
+  // window beside it would take the key otherwise.
+  useEffect(() => {
+    popRef.current?.querySelector<HTMLElement>("button:not(:disabled), input:not(:disabled)")?.focus({ preventScroll: true });
+  }, [popRef]);
 
   const value = () => {
     if (!chosen) return "";
@@ -46,8 +52,27 @@ export function BulkSetPopover({
 
   return (
     <>
-      <div className="pv-click-catch" onClick={onClose} />
-      <div className="pv-popover pv-popover--fixed pv-bulkset" ref={popRef} data-testid="base-bulkset">
+      {/* The press beside the form is caught and goes nowhere else. The
+          catcher is the shared one: here it once was the bare class without a
+          layer, lay under the floating windows, and a press into a note
+          preview did not reach it. */}
+      <ClickCatch onPress={onClose} popover={popRef} />
+      <div
+        className="pv-popover pv-popover--fixed pv-bulkset"
+        ref={popRef}
+        data-testid="base-bulkset"
+        // The panel takes the focus a press on its own blank parts would
+        // otherwise drop on the page — and with it the Escape below.
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          // A select list inside takes its own Escape first and stops it there.
+          if (e.key !== "Escape") return;
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+          anchorRef.current?.focus();
+        }}
+      >
         <p className="pv-bulkset-head">{t("database.bulkSetTitle", { count })}</p>
 
         <Select

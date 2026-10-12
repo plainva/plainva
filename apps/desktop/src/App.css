@@ -315,20 +315,18 @@ option {
   background-color: var(--selection-bg) !important;
 }
 
-/* .base viewer header: responsive to the PANE width (a size container), so it
-   degrades correctly inside a split pane where a viewport media query would be
-   wrong. Below the threshold the Filter/Sort/Columns buttons collapse to
-   icon-only — the visible label is hidden, accessible names stay via
-   aria-label/title. The view switcher wraps on its own via flex-wrap.
-   The threshold is purely cosmetic and safe to tune. */
-.base-header-container {
-  container-type: inline-size;
-  container-name: base-header;
-}
-@container base-header (max-width: 600px) {
-  .base-toolbar-label {
-    display: none;
-  }
+/* .base viewer header: responsive to the PANE width, so it degrades correctly
+   inside a split pane where a viewport media query would be wrong. Below the
+   threshold the buttons collapse to icon-only — the visible label is hidden,
+   accessible names stay via aria-label. The view switcher wraps on its own via
+   flex-wrap. The threshold (base/baseHeadWidth.ts) is purely cosmetic.
+   The head MEASURES its width and says `data-narrow`; it is deliberately no
+   size container. Its menus and popovers are placed by the window, and where
+   `container-type` still brings layout containment (older WebKit) a container
+   becomes the box they are placed in — displaced, and under the floating
+   windows. The sidebars and the calendar grid keep clear of it the same way. */
+.base-header-container[data-narrow] .base-toolbar-label {
+  display: none;
 }
 
 /* ============================================================

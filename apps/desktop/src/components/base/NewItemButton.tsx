@@ -1,6 +1,6 @@
 import { trimChars } from "@plainva/core";
-import { useEffect, useRef, useState } from "react";
-import { errorText, ICON, useFixedPopover, Modal, Button } from "@plainva/ui";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { errorText, ICON, useFixedPopover, useOutsidePress, Modal, Button } from "@plainva/ui";
 import { Plus, ChevronDown, ChevronRight, Check, Star, Database, FolderCog, FilePlus2, FolderOpen } from "lucide-react";
 import { useVault } from "../../contexts/VaultContext";
 import { groupTemplatesForBase, templateMatchesBase, type ScopedTemplateItem } from "../../services/newItemFlow";
@@ -19,6 +19,15 @@ type TFn = (key: string, opts?: any) => string;
  * show by default, everything else sits behind "show all templates", and each
  * row carries a quick-assign toggle. All persistence goes through the host's
  * callbacks.
+ *
+ * The dropdown is a popover, not a menu: its list arrives after it has opened
+ * and grows again behind "show all templates", so it has to be placed anew as
+ * it changes (`useFixedPopover` does that, a menu is placed once), and its rows
+ * carry switches that keep it open. How it is left is therefore its own: a
+ * press beside it, heard wherever it lands, and Escape while the keyboard is in
+ * it — which is where opening it puts the keyboard. Until 2026-10-11 an element
+ * laid over the page caught the press, on a layer below the floating windows,
+ * and there was no Escape.
  */
 export function NewItemButton({
   t,
@@ -57,6 +66,24 @@ export function NewItemButton({
   const [open, setOpen] = useState(false);
   const splitRef = useRef<HTMLDivElement>(null);
   const popRef = useFixedPopover(open, splitRef, { minWidth: 240 });
+  // What opens the popover; a press on it is its own, not one beside the popover.
+  const chevronRef = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useOutsidePress(open, close, popRef, chevronRef);
+  // The keyboard goes where the popover is, once it has been placed (before
+  // that it is hidden and takes no focus). Escape then is the popover's, also
+  // while a floating window beside it would take the key otherwise. The PANEL
+  // takes it, as a dialog's does, not its first row: a row would open lit and
+  // show its tip unasked.
+  useEffect(() => {
+    if (open) popRef.current?.focus({ preventScroll: true });
+  }, [open, popRef]);
+  // …and it comes back to the panel when what held it has left the page — a
+  // row that changed its group, the "show all" line once it has been used —
+  // and it would stand nowhere: Escape would no longer be the popover's.
+  useEffect(() => {
+    if (open && document.activeElement === document.body) popRef.current?.focus({ preventScroll: true });
+  });
   const [templates, setTemplates] = useState<ScopedTemplateItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [templateFolder, setTemplateFolder] = useState<string>("");
@@ -159,6 +186,7 @@ export function NewItemButton({
         <Plus size={ICON.ui} /><span className="base-toolbar-label">{t("database.newItem", { defaultValue: "Eintrag" })}</span>
       </button>
       <button
+        ref={chevronRef}
         type="button"
         className="pv-btn pv-btn--primary pv-btn--sm"
         onClick={() => setOpen((s) => !s)}
@@ -171,8 +199,21 @@ export function NewItemButton({
       </button>
       {open && (
         <>
-          <div className="base-menu-backdrop" onClick={() => setOpen(false)} />
-          <div ref={popRef} className="pv-popover pv-popover--fixed" style={{ padding: "0.25rem", maxWidth: 320 }}>
+          <div
+            ref={popRef}
+            tabIndex={-1}
+            className="pv-popover pv-popover--fixed"
+            style={{ padding: "0.25rem", maxWidth: 320 }}
+            onKeyDown={(e) => {
+              if (e.key !== "Escape") return;
+              // Used here: it closes the popover and nothing behind it, and
+              // the keyboard goes back to what opened it.
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+              chevronRef.current?.focus();
+            }}
+          >
             <div className="pv-popover-label">
               {t("database.templatesSection", { defaultValue: "Vorlagen" })}
             </div>

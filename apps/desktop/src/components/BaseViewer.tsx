@@ -64,6 +64,7 @@ import { applyNewItemFolder, stripPropertyFilters, combineFilters, migrateFilter
 import { baseNeedsRefresh } from "./base/baseRefreshScope";
 import { useBaseCells } from "./base/useBaseCells";
 import { BaseViewTabs } from "./base/BaseViewTabs";
+import { useNarrowHead } from "./base/baseHeadWidth";
 import { BaseConfigPanel } from "./base/BaseConfigPanel";
 import { detectMac } from "./WindowControls";
 
@@ -287,6 +288,11 @@ export function BaseViewer({
   const [entryDraft, setEntryDraft] = useState<PinboardDraft | null>(null);
 
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const headerMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const closeHeaderMenu = useCallback(() => setShowHeaderMenu(false), []);
+  // The head measures itself instead of being a size container: its menus and
+  // popovers are placed by the window (see baseHeadWidth.ts).
+  const { narrow: narrowHead, ref: headRef } = useNarrowHead();
   // Color picker for the database icon (P7): anchored under the header icon.
   const [iconColorPicker, setIconColorPicker] = useState<{ x: number; y: number } | null>(null);
   /** The colour picker of one board CARD (finding 2026-09-19) - the pinboard's, opened from the entry menu. */
@@ -2474,7 +2480,7 @@ export function BaseViewer({
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       {/* Header */}
-      <div className="base-header-container pv-appbar pv-appbar--wrap">
+      <div ref={headRef} data-narrow={narrowHead ? "" : undefined} className="base-header-container pv-appbar pv-appbar--wrap">
         {/* While rows are selected, the strip REPLACES the toolbar rather than
             stacking on top of it: a second row would push the very rows a
             person is reading down by its own height, and a selection is what
@@ -2645,44 +2651,46 @@ export function BaseViewer({
           <SlidersHorizontal size={ICON.ui} /><span className="base-toolbar-label">{t("database.configure", "Konfigurieren")}</span>
         </button>
         <SplitButton onSplit={onSplit} activeDirection={activeSplitDirection} />
-        <div style={{ position: "relative", marginLeft: "0.5rem" }}>
+        <div style={{ marginLeft: "0.5rem" }}>
           <button
+            ref={headerMenuBtnRef}
             onClick={() => setShowHeaderMenu(!showHeaderMenu)}
             data-tip={t("editor.menu", { defaultValue: "Menu" })}
             aria-label={t("editor.menu", { defaultValue: "Menu" })}
+            aria-haspopup="menu"
+            aria-expanded={showHeaderMenu}
             className="pv-iconbtn"
           >
             <MoreVertical size={ICON.ui} />
           </button>
-          {showHeaderMenu && (
-            <>
-              <div className="base-menu-backdrop" onClick={() => setShowHeaderMenu(false)} />
-              <div className="pv-menu" style={{ position: "absolute", top: "100%", right: 0, left: "auto", marginTop: 4, minWidth: 170 }}>
-                <button
-                  onClick={() => { setShowHeaderMenu(false); onToggleBookmark?.(); }}
-                  className="pv-menu-item"
-                >
-                  <Bookmark size={ICON.ui} fill={isBookmarked ? "currentColor" : "none"} />
-                  {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
-                </button>
-                <div className="pv-menu-sep" role="separator" />
-                <MenuItem
-                  onSelect={() => { setShowHeaderMenu(false); setShowExport(true); }}
-                  disabled={!dbConfig || isLoading || !!error}
-                  icon={<Download size={ICON.ui} />}
-                >
-                  {t("database.exportTitle")}
-                </MenuItem>
-                <button
-                  onClick={() => { setShowHeaderMenu(false); onDelete?.(); }}
-                  className="pv-menu-item pv-menu-item--danger"
-                >
-                  <Trash2 size={ICON.ui} />
-                  {t("editor.delete", { defaultValue: "Löschen" })}
-                </button>
-              </div>
-            </>
-          )}
+          {/* The menu primitive, as the editor's ⋮ menu is. Drawn by hand, with
+              an element laid over the page to catch the press beside it, this
+              menu did not close on Escape, and not on a press into a note
+              preview either: the catcher lay under the floating windows. */}
+          <MenuSurface
+            open={showHeaderMenu}
+            onClose={closeHeaderMenu}
+            anchorRef={headerMenuBtnRef}
+            align="right"
+            minWidth={170}
+            ariaLabel={t("editor.menu", { defaultValue: "Menu" })}
+          >
+            <MenuItem icon={<Bookmark size={ICON.ui} fill={isBookmarked ? "currentColor" : "none"} />} onSelect={() => onToggleBookmark?.()}>
+              {isBookmarked ? t("editor.removeBookmark", { defaultValue: "Lesezeichen entfernen" }) : t("editor.addBookmark", { defaultValue: "Lesezeichen hinzufügen" })}
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem
+              icon={<Download size={ICON.ui} />}
+              disabled={!dbConfig || isLoading || !!error}
+              onSelect={() => setShowExport(true)}
+            >
+              {t("database.exportTitle")}
+            </MenuItem>
+            <MenuSeparator />
+            <MenuItem danger icon={<Trash2 size={ICON.ui} />} onSelect={() => onDelete?.()}>
+              {t("editor.delete", { defaultValue: "Löschen" })}
+            </MenuItem>
+          </MenuSurface>
         </div>
         </>
         )}

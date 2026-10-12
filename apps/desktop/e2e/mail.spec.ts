@@ -2197,7 +2197,7 @@ test('switching or closing the vault asks before it takes a changed draft along,
   /** Opens the vault line's menu and takes one of its entries. */
   const fromVaultMenu = async (current: string, entry: RegExp) => {
     await vaultLine(current).click();
-    await vaultMenu.getByRole('button', { name: entry }).click();
+    await vaultMenu.getByRole('menuitem', { name: entry }).click();
   };
   const SWITCH = /^(Vault wechseln|Switch Vault)$/;
 

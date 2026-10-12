@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from "react";
 import { cx } from "./cx";
+import { useOutsidePress } from "./useOutsidePress";
 
 /**
  * Menu primitives (plan Designsprache P2). ONE floating-menu look for
@@ -17,8 +18,12 @@ import { cx } from "./cx";
  * --shadow-2, --z-menu) + .pv-menu-item rows. Two anchor modes:
  *   anchorRef — opens below/above an element (dropdown pattern)
  *   at        — opens at a point, viewport-clamped (context-menu pattern)
- * Closes on outside click, Escape, scroll and resize (same contract as the
+ * Closes on a press outside, Escape, scroll and resize (same contract as the
  * previous DropdownMenu, which now renders through this surface).
+ *
+ * This is the one place `.pv-menu` is drawn. A menu drawn by hand has the
+ * look and none of the contract: the two that existed until 2026-10-11 did
+ * not close on Escape, and one of them not on a press beside it either.
  */
 
 const MenuCtx = createContext<{ onClose: () => void } | null>(null);
@@ -32,6 +37,14 @@ export interface MenuSurfaceProps {
   at?: { x: number; y: number };
   align?: "left" | "right";
   minWidth?: number;
+  /**
+   * As wide as the anchor, no narrower and no wider — for a menu that hangs on
+   * a line across its whole panel (the vault line at the foot of the sidebar)
+   * and reads as that line's other half. A long entry is cut short like the
+   * line's own text, and under a narrow line the menu does not hang out of the
+   * panel. `minWidth` does not apply then.
+   */
+  matchAnchorWidth?: boolean;
   ariaLabel?: string;
   className?: string;
   /**
@@ -56,13 +69,14 @@ export function MenuSurface({
   at,
   align = "left",
   minWidth = 180,
+  matchAnchorWidth = false,
   ariaLabel,
   className,
   autoFocus = true,
   children,
 }: MenuSurfaceProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number; fit: number | null } | null>(null);
 
   // Measure after render, then clamp/flip into the viewport.
   useLayoutEffect(() => {
@@ -72,12 +86,19 @@ export function MenuSurface({
     }
     const el = ref.current;
     if (!el) return;
+    const r = anchorRef?.current?.getBoundingClientRect();
+    // The anchor's width is taken on before the menu is measured: how wide the
+    // menu is decides where it fits.
+    const fit = matchAnchorWidth && r ? r.width : null;
+    if (fit !== null) {
+      el.style.minWidth = `${fit}px`;
+      el.style.maxWidth = `${fit}px`;
+    }
     const w = el.offsetWidth;
     const h = el.offsetHeight;
     let left: number;
     let top: number;
-    if (anchorRef?.current) {
-      const r = anchorRef.current.getBoundingClientRect();
+    if (r) {
       left = align === "right" ? r.right - w : r.left;
       const spaceBelow = window.innerHeight - r.bottom;
       const openUp = spaceBelow < h + MARGIN + 6 && r.top > spaceBelow;
@@ -89,7 +110,7 @@ export function MenuSurface({
     }
     left = Math.min(Math.max(MARGIN, left), Math.max(MARGIN, window.innerWidth - w - MARGIN));
     top = Math.min(Math.max(MARGIN, top), Math.max(MARGIN, window.innerHeight - h - MARGIN));
-    setPos({ left, top });
+    setPos({ left, top, fit });
     // Roving focus starts on the first enabled item.
     if (autoFocus) {
       const first = el.querySelector<HTMLElement>(".pv-menu-item:not(:disabled)");
@@ -109,18 +130,14 @@ export function MenuSurface({
       if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return;
       onClose();
     };
-    const onDown = (e: MouseEvent) => {
-      if (ref.current?.contains(e.target as Node)) return;
-      if (anchorRef?.current?.contains(e.target as Node)) return;
-      onClose();
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
       }
     };
-    // No native context menu ON a menu (right-click elsewhere closes via mousedown).
+    // No native context menu ON a menu (a right-click elsewhere is a press
+    // outside and closes it).
     const onCtx = (e: MouseEvent) => {
       if (ref.current?.contains(e.target as Node)) e.preventDefault();
     };
@@ -132,18 +149,20 @@ export function MenuSurface({
     // that was pending has been delivered.
     const frame = requestAnimationFrame(() => window.addEventListener("scroll", onScroll, true));
     window.addEventListener("resize", close);
-    document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     document.addEventListener("contextmenu", onCtx);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", close);
-      document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("contextmenu", onCtx);
     };
-  }, [open, onClose, anchorRef]);
+  }, [open, onClose]);
+
+  // A press anywhere but on the menu and on what it hangs on — the anchor's
+  // own press is the anchor's to answer.
+  useOutsidePress(open, onClose, ref, anchorRef);
 
   if (!open) return null;
 
@@ -168,7 +187,8 @@ export function MenuSurface({
         style={{
           left: pos?.left ?? -9999,
           top: pos?.top ?? -9999,
-          minWidth,
+          minWidth: pos?.fit ?? minWidth,
+          maxWidth: pos?.fit ?? undefined,
           visibility: pos ? "visible" : "hidden",
         }}
         onKeyDown={(e) => {

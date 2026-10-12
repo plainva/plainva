@@ -19,6 +19,7 @@ export { Radio, type RadioProps } from "./Radio";
 export { Checkbox, type CheckboxProps } from "./Checkbox";
 export { Switch, type SwitchProps } from "./Switch";
 export { MenuSurface, MenuItem, MenuSeparator, MenuLabel, type MenuSurfaceProps } from "./Menu";
+export { ClickCatch } from "./ClickCatch";
 export { Modal, type ModalProps, type ModalSize } from "./Modal";
 export { FloatingWindow, type FloatingWindowProps, type FloatingRect } from "./FloatingWindow";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";

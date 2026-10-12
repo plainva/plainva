@@ -1,6 +1,7 @@
+import { useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronUp, Folder, Settings, SquareArrowOutUpRight } from "lucide-react";
-import { ICON, IconButton } from "@plainva/ui";
+import { ICON, IconButton, MenuItem, MenuLabel, MenuSurface } from "@plainva/ui";
 import { SyncSwitcherIcon } from "./SyncSwitcherIcon";
 import type { VaultSyncWorker } from "../contexts/VaultContext";
 
@@ -48,32 +49,46 @@ export function VaultSwitcher({
   const { t } = useTranslation();
   const setOpen = onOpenChange;
   const canSwitchHere = !!closeVault;
+  // The line the menu hangs on. A press on it is the line's own — it is what
+  // opens and closes the menu — and never a press beside the menu.
+  const lineRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 
   return (
-    <div style={{ position: "relative", width: "100%", marginTop: "auto" }}>
-      {open && canSwitchHere && (
-        <div className="pv-menu" style={{ position: "absolute", bottom: "100%", left: 0, width: "100%", marginBottom: "0.25rem", zIndex: "var(--z-menu)" }}>
-          <div className="pv-menu-label">{t("sidebar.recentVaults")}</div>
-          {(recentVaults ?? []).filter((p) => p !== vaultPath).slice(0, 5).map((path) => (
-            <div key={path} style={{ display: "flex", alignItems: "center" }}>
-              <button onClick={() => { setOpen(false); openVault?.(path); }} className="pv-menu-item" style={{ flex: 1 }}>
-                <Folder size={ICON.ui} color="var(--accent-color)" />
-                <span className="pv-menu-text">{path.split(/[/\\]/).pop() || path}</span>
-              </button>
-              {openVaultWindow && (
-                <IconButton label={t("window.openVaultWindow")} onClick={() => { setOpen(false); openVaultWindow(path); }}>
-                  <SquareArrowOutUpRight size={ICON.ui} />
-                </IconButton>
-              )}
-            </div>
-          ))}
-          <button onClick={() => { setOpen(false); closeVault?.(); }} className="pv-menu-item">
-            <Settings size={ICON.ui} />
-            <span className="pv-menu-text">{t("sidebar.switchVault")}</span>
-          </button>
-        </div>
-      )}
-      <div style={{
+    <div style={{ width: "100%", marginTop: "auto" }}>
+      {/* The menu primitive, so that Escape, a press beside it and its layer
+          are the ones every menu has. Drawn by hand it had none of them: it
+          stayed open until its own line was pressed again. It opens over the
+          line — there is no room under it — and is as wide as the line. */}
+      <MenuSurface
+        open={open && canSwitchHere}
+        onClose={close}
+        anchorRef={lineRef}
+        matchAnchorWidth
+        ariaLabel={t("sidebar.switchVault")}
+      >
+        <MenuLabel>{t("sidebar.recentVaults")}</MenuLabel>
+        {(recentVaults ?? []).filter((p) => p !== vaultPath).slice(0, 5).map((path) => (
+          <div key={path} style={{ display: "flex", alignItems: "center" }}>
+            <MenuItem
+              icon={<Folder size={ICON.ui} color="var(--accent-color)" />}
+              onSelect={() => openVault?.(path)}
+              style={{ flex: 1, minWidth: 0 }}
+            >
+              {path.split(/[/\\]/).pop() || path}
+            </MenuItem>
+            {openVaultWindow && (
+              <IconButton label={t("window.openVaultWindow")} onClick={() => { close(); openVaultWindow(path); }}>
+                <SquareArrowOutUpRight size={ICON.ui} />
+              </IconButton>
+            )}
+          </div>
+        ))}
+        <MenuItem icon={<Settings size={ICON.ui} />} onSelect={() => closeVault?.()}>
+          {t("sidebar.switchVault")}
+        </MenuItem>
+      </MenuSurface>
+      <div ref={lineRef} style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         width: "100%", padding: "0.75rem 0.5rem", background: open ? "var(--bg-hover)" : "transparent",
       }}>

@@ -10,7 +10,7 @@ import {
   loadRecentPicks,
   saveRecentPick,
 } from "@plainva/ui";
-import { DocIcon, SearchField, Segmented, SwatchGrid } from "@plainva/ui";
+import { ClickCatch, DocIcon, SearchField, Segmented, SwatchGrid } from "@plainva/ui";
 import { ACCENT_PALETTE } from "./palette";
 
 export interface EmojiPickerLabels {
@@ -140,6 +140,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
   );
   const [tint, setTint] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -249,11 +250,11 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ x, y, labels, showRemo
 
   return (
     <>
-      {/* Invisible full-viewport click-catcher (dismiss on outside click). No
-          shared class provides a bare, non-dimmed fixed overlay without
-          touching styles/ui.css — position:fixed stays inline here. */}
-      <div className="pv-click-catch" style={{ zIndex: "var(--z-menu)" }} onClick={onClose} />
+      {/* Invisible full-viewport click-catcher (dismiss on outside click): the
+          shared one, which carries its layer and hears what does not reach it. */}
+      <ClickCatch onPress={onClose} popover={panelRef} />
       <div
+        ref={panelRef}
         role="dialog"
         data-testid="emoji-picker"
         className="pv-popover pv-popover--fixed"

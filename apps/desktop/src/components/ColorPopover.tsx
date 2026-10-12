@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
-import { ACCENT_PALETTE, Button, ICON, SwatchGrid } from "@plainva/ui";
+import { ACCENT_PALETTE, Button, ClickCatch, ICON, SwatchGrid } from "@plainva/ui";
 
 export interface ColorPopoverProps {
   x: number;
@@ -66,7 +66,7 @@ export const ColorPopover: React.FC<ColorPopoverProps> = ({ x, y, value, presets
       {/* Invisible full-viewport click-catcher (dismiss on outside click). A
           change from the OS colour dialog is not a click here — the dialog is
           a native window — so the popover survives a free pick. */}
-      <div className="pv-click-catch" style={{ zIndex: "var(--z-menu)" }} onClick={onClose} />
+      <ClickCatch onPress={onClose} popover={ref} />
       <div
         ref={ref}
         role="dialog"

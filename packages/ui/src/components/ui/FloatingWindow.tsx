@@ -85,14 +85,15 @@ const DIALOG = ".pv-overlay, .pv-palette-overlay";
 // What lies in front of a floating window and takes Escape wherever the
 // keyboard is: Modal and MenuSurface listen on the document, a palette holds
 // the keyboard for as long as it is open. Named by what ONLY those primitives
-// render. `.pv-menu` alone is also the vault menu and a database's header
-// menu, and the bare `.pv-overlay` the click catcher of the calendar's
-// quick-create card — none of them has an Escape of its own, and a window
-// that stood back for them would not hear the key again until they are gone.
+// render: the bare `.pv-overlay` is also the click catcher of the calendar's
+// quick-create card, which has no Escape of its own — a window that stood
+// back for it would not hear the key again until it is gone. (`.pv-menu` is
+// the menu primitive's alone since 2026-10-11, when the last two menus drawn
+// by hand moved onto it; the role in the selector is what names the primitive.)
 const TAKES_ESCAPE = '.pv-modal, .pv-menu[role="menu"], .pv-palette-overlay';
 // What takes Escape only while the keyboard is in it: a popover with a field,
 // the quick-create card, a select list (its trigger has the focus then).
-const HOLDS_KEYBOARD = `${DIALOG}, .pv-menu, .pv-selectpanel, .pv-popover--fixed, .pv-selecttrigger[aria-expanded="true"]`;
+const HOLDS_KEYBOARD = `${DIALOG}, .pv-selectpanel, .pv-popover--fixed, .pv-selecttrigger[aria-expanded="true"]`;
 
 /**
  * Whether Escape belongs to something in front of the window whose mount

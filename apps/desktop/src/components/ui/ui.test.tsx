@@ -11,7 +11,7 @@ import { Checkbox } from "@plainva/ui";
 import { Switch } from "@plainva/ui";
 import { EmptyState } from "@plainva/ui";
 import { Modal } from "@plainva/ui";
-import { MenuSurface, MenuItem } from "@plainva/ui";
+import { ClickCatch, MenuSurface, MenuItem } from "@plainva/ui";
 import { GroupCard, Row, RowList, SectionLabel } from "@plainva/ui";
 import { SearchField } from "@plainva/ui";
 import { TooltipHost } from "@plainva/ui";
@@ -289,6 +289,124 @@ describe("MenuSurface / MenuItem", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("closes on a press outside, heard as pointerdown at the window — not on a press in the menu or on its anchor", () => {
+    const onClose = vi.fn();
+    const anchor = createRef<HTMLButtonElement>();
+    render(
+      <>
+        <button ref={anchor}>Mehr</button>
+        <MenuSurface open onClose={onClose} anchorRef={anchor}>
+          <MenuItem onSelect={() => {}}>Eintrag</MenuItem>
+        </MenuSurface>
+        {/* What is dragged by takes the press for itself: it cancels it and
+            stops it. A browser then sends no mousedown at all — the head of a
+            floating window is such a handle, and a menu that waited for
+            mousedown stayed open while the window beside it was moved. */}
+        <div data-testid="handle" onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }} />
+      </>
+    );
+    const down = (target: Element, type = "pointerdown") =>
+      act(() => void target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true })));
+
+    down(container.querySelector(".pv-menu-item")!);
+    down(anchor.current!);
+    expect(onClose).not.toHaveBeenCalled();
+
+    down(container.querySelector("[data-testid=handle]")!);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    down(document.body);
+    expect(onClose).toHaveBeenCalledTimes(2);
+    // One press is one pointerdown; the mousedown that follows it is not a second one.
+    down(document.body, "mousedown");
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("hears a finger when its tap has been made out — by the mousedown the browser sends for it, not by the raw pointerdown", () => {
+    const onClose = vi.fn();
+    render(
+      <MenuSurface open onClose={onClose} at={{ x: 10, y: 10 }} autoFocus={false}>
+        <MenuItem onSelect={() => {}}>Eintrag</MenuItem>
+      </MenuSurface>
+    );
+    const send = (target: Element, type: string, pointerType?: string) =>
+      act(() => {
+        const event = new MouseEvent(type, { bubbles: true, cancelable: true });
+        if (pointerType) Object.defineProperty(event, "pointerType", { value: pointerType });
+        target.dispatchEvent(event);
+      });
+    // A finger comes down beside the list: nothing yet. It may go on to
+    // scroll, and the tap may still be given to a row a few pixels away.
+    send(document.body, "pointerdown", "touch");
+    expect(onClose).not.toHaveBeenCalled();
+    // The tap the browser gave to a row is no press beside the list…
+    send(container.querySelector(".pv-menu-item")!, "mousedown");
+    expect(onClose).not.toHaveBeenCalled();
+    // …the tap that stayed beside it is.
+    send(document.body, "pointerdown", "touch");
+    send(document.body, "mousedown");
+    expect(onClose).toHaveBeenCalledTimes(1);
+    // A mouse after the finger is heard at once again.
+    send(document.body, "pointerdown", "mouse");
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not lose a finger's tap when its owner renders again between the press and the tap", () => {
+    // `onClose` is a closure of the owner's render almost everywhere. A
+    // listener put up anew with each render forgot, between a finger's press
+    // and the mousedown of its tap, that a finger had come down: the tap went
+    // unheard and the menu stayed.
+    const closed: string[] = [];
+    const show = (rendering: string) =>
+      render(
+        <MenuSurface open onClose={() => closed.push(rendering)} at={{ x: 10, y: 10 }} autoFocus={false}>
+          <MenuItem onSelect={() => {}}>Eintrag</MenuItem>
+        </MenuSurface>
+      );
+    const send = (type: string, pointerType?: string) =>
+      act(() => {
+        const event = new MouseEvent(type, { bubbles: true, cancelable: true });
+        if (pointerType) Object.defineProperty(event, "pointerType", { value: pointerType });
+        document.body.dispatchEvent(event);
+      });
+    show("first");
+    send("pointerdown", "touch");
+    show("second");
+    send("mousedown");
+    // Heard — and by the closure of the render that is current.
+    expect(closed).toEqual(["second"]);
+  });
+
+  it("is exactly as wide as its anchor where it is asked to be — no wider, and no narrower than a narrow one", () => {
+    const anchor = createRef<HTMLDivElement>();
+    const box = (width: number) => ({ left: 40, top: 500, right: 40 + width, bottom: 540, width, height: 40, x: 40, y: 500, toJSON: () => ({}) }) as DOMRect;
+    const rect = vi.spyOn(Element.prototype, "getBoundingClientRect");
+    const menu = () => container.querySelector<HTMLElement>(".pv-menu")!;
+    const open = (key: string, match: boolean) =>
+      render(
+        <>
+          <div ref={anchor} />
+          <MenuSurface key={key} open onClose={() => {}} anchorRef={anchor} matchAnchorWidth={match}>
+            <MenuItem onSelect={() => {}}>Ein Eintrag mit einem sehr langen Namen</MenuItem>
+          </MenuSurface>
+        </>
+      );
+    try {
+      rect.mockReturnValue(box(240));
+      open("wide", true);
+      expect([menu().style.minWidth, menu().style.maxWidth]).toEqual(["240px", "240px"]);
+      // Under a line narrower than a menu's own least width it does not hang
+      // out of the panel: the line's width wins.
+      rect.mockReturnValue(box(133));
+      open("narrow", true);
+      expect([menu().style.minWidth, menu().style.maxWidth]).toEqual(["133px", "133px"]);
+      // Not asked: its own least width, and the stylesheet's ceiling.
+      open("plain", false);
+      expect([menu().style.minWidth, menu().style.maxWidth]).toEqual(["180px", ""]);
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
   it("does not close itself by opening: its focus scrolls nothing, and a scroll already on its way is not its own", async () => {
     // A context menu in the file tree (finding 2026-10-06). The menu is
     // rendered inside the list it belongs to and measured off screen first;
@@ -322,6 +440,68 @@ describe("MenuSurface / MenuItem", () => {
     expect(onClose).not.toHaveBeenCalled();
     act(() => void list.dispatchEvent(new Event("scroll")));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ClickCatch", () => {
+  const send = (target: Element, type: string) =>
+    act(() => void target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true })));
+
+  it("catches the press beside its popover, and hears the press it does not get", () => {
+    const onPress = vi.fn();
+    const popover = createRef<HTMLDivElement>();
+    render(
+      <>
+        <ClickCatch onPress={onPress} popover={popover} />
+        <div ref={popover}><button>Übernehmen</button></div>
+        {/* Something that lies in front of the catcher — a floating window when
+            the popover sits in a stacking context of its own. */}
+        <div data-testid="in-front" />
+      </>
+    );
+    const catcher = container.querySelector<HTMLElement>(".pv-click-catch")!;
+
+    // In the popover: no press beside it.
+    send(popover.current!.querySelector("button")!, "pointerdown");
+    expect(onPress).not.toHaveBeenCalled();
+
+    // On the catcher: the press is the catcher's own, and its click closes —
+    // once, not a second time through the listener.
+    send(catcher, "pointerdown");
+    expect(onPress).not.toHaveBeenCalled();
+    act(() => catcher.click());
+    expect(onPress).toHaveBeenCalledTimes(1);
+
+    // In front of the catcher: it never gets that press, and hears it all the same.
+    send(container.querySelector("[data-testid=in-front]")!, "pointerdown");
+    expect(onPress).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes on the mousedown already where it is asked to", () => {
+    const onPress = vi.fn();
+    const popover = createRef<HTMLDivElement>();
+    render(
+      <>
+        <ClickCatch onPress={onPress} popover={popover} on="mousedown" />
+        <div ref={popover} />
+      </>
+    );
+    const catcher = container.querySelector<HTMLElement>(".pv-click-catch")!;
+    send(catcher, "mousedown");
+    expect(onPress).toHaveBeenCalledTimes(1);
+    act(() => catcher.click());
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries no layer of its own: the class does", () => {
+    const popover = createRef<HTMLDivElement>();
+    render(
+      <>
+        <ClickCatch onPress={() => {}} popover={popover} />
+        <div ref={popover} />
+      </>
+    );
+    expect(container.querySelector<HTMLElement>(".pv-click-catch")!.getAttribute("style")).toBeNull();
   });
 });
 

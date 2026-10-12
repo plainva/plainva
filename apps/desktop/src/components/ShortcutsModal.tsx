@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal } from "@plainva/ui";
+import { Modal, SearchField } from "@plainva/ui";
 import { SHORTCUT_CATEGORIES, type KeyRow, type MouseRow } from "../services/shortcutCatalog";
 
 interface ShortcutsModalProps {
@@ -116,14 +116,18 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ onClose }) => {
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
         <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t("shortcuts.subtitle")}</p>
 
-        <input
-          type="text"
+        {/* The app's search field: magnifier, an x once there is text, and
+            Escape clears before it closes — with an empty field the key is the
+            window's. A bare input here closed the window on the first Escape,
+            query and all. */}
+        <SearchField
+          form
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onValueChange={setQuery}
+          clearLabel={t("sidebar.clearSearch")}
           placeholder={t("shortcuts.searchPlaceholder")}
           aria-label={t("shortcuts.searchPlaceholder")}
           data-testid="shortcuts-search"
-          className="pv-field"
         />
 
         {!q && (

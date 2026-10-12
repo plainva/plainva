@@ -1648,7 +1648,12 @@ for (const theme of [
     await clickCentreOf('shortcuts-search');
     await page.keyboard.type('F1');
     await expect(page.getByTestId('shortcuts-search')).toHaveValue('F1');
-    // Escape belongs to the dialog; the peek under it stays.
+    // Escape belongs to the dialog — to its search field first, which it
+    // clears, then to the dialog itself; the peek under it stays through both.
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('shortcuts-search')).toHaveValue('');
+    await expect(page.getByTestId('shortcuts-modal')).toBeVisible();
+    await expect(peek).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('shortcuts-modal')).toHaveCount(0);
     await expect(peek).toBeVisible();
@@ -2133,7 +2138,7 @@ test('Base "Neu" templates: create with a template once and set it as default', 
 
   const chevron = page.getByRole('button', { name: /Vorlagen und Ablage-Ordner|Templates and storage folder/ });
   await chevron.click();
-  // Open dropdown adds backdrop+popover into .pv-splitbtn: the chevron must
+  // Open dropdown adds the popover into .pv-splitbtn: the chevron must
   // KEEP its half-pill shape (regression: :last-child lost to the popover div).
   await expect(chevron).toHaveCSS('border-top-left-radius', '0px');
   await expect(chevron).toHaveCSS('border-bottom-left-radius', '0px');
