@@ -172,23 +172,20 @@ describe("htmlToVisibleText", () => {
     expect(lines.length).toBeLessThan(6_001);
   });
 
-  it("walks the tree of whatever parser the caller brings", () => {
-    // The shape of a browser's DOM: names in capitals, text under `data`, attributes behind a method.
-    interface DomNode {
+  it("walks a tree the caller brings: plain objects in the shape of the portable parser's", () => {
+    // A copy of what a browser's parser made: names in capitals, as a DOM spells them.
+    interface CopiedNode {
       nodeName: string;
-      childNodes: DomNode[];
-      data?: string;
-      getAttribute?: (attribute: string) => string | null;
-      close?: () => void;
+      childNodes: CopiedNode[];
+      value?: string;
+      attrs?: Array<{ name: string; value: string }>;
     }
-    const element = (name: string, attributes: Record<string, string>, ...childNodes: DomNode[]): DomNode => ({
+    const element = (name: string, attributes: Record<string, string>, ...childNodes: CopiedNode[]): CopiedNode => ({
       nodeName: name,
       childNodes,
-      getAttribute: (attribute) => attributes[attribute] ?? null,
-      // A dialog element has a method of this name; it must not be taken for the end of an element.
-      close: () => undefined,
+      attrs: Object.entries(attributes).map(([attribute, value]) => ({ name: attribute, value })),
     });
-    const text = (data: string): DomNode => ({ nodeName: "#text", data, childNodes: [] });
+    const text = (value: string): CopiedNode => ({ nodeName: "#text", value, childNodes: [] });
     const body = element(
       "BODY",
       { style: "display:none" },
@@ -199,5 +196,18 @@ describe("htmlToVisibleText", () => {
     );
     // The root is a container: its own style is not the message's.
     expect(htmlToVisibleText("", () => body)).toBe("Hallo Welt\n\nHinweis");
+  });
+
+  it("reads one long line in time that grows with its length", () => {
+    // 200 000 short texts on one line, each beginning with a blank. Whether the
+    // line ended in a blank was asked of the line itself, which flattened the
+    // growing string once per text: a quarter of a minute for this one.
+    const pieces = Array.from({ length: 200_000 }, () => ({ nodeName: "b", attrs: [], childNodes: [{ nodeName: "#text", value: " a" }] }));
+    const start = performance.now();
+    const text = htmlToVisibleText("", () => ({ nodeName: "#root", childNodes: pieces }));
+    expect(performance.now() - start).toBeLessThan(2_000);
+    expect(text.length).toBe(2 * 200_000 - 1);
+    expect(text.startsWith("a a a ")).toBe(true);
+    expect(text.endsWith(" a a")).toBe(true);
   });
 });

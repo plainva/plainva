@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 
 /**
  * The text of a message that has no plain-text part (finding 2026-10-09).
@@ -19,8 +19,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
  */
 
 vi.mock("@plainva/core", async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>;
-  return { ...actual, refreshOneDriveAccessToken: vi.fn(async () => ({ accessToken: "ACCESS", expiresIn: 3600 })) };
+  const actual = await importOriginal<typeof import("@plainva/core")>();
+  return {
+    ...actual,
+    refreshOneDriveAccessToken: vi.fn(async () => ({ accessToken: "ACCESS", expiresIn: 3600 })),
+    // The real one, watched: a test below asks which parser read a message.
+    htmlToVisibleText: vi.fn(actual.htmlToVisibleText),
+  };
 });
 
 import { htmlToVisibleText, readFrontmatterPath } from "@plainva/core";
@@ -102,6 +107,70 @@ describe("mailMessageText", () => {
     for (const html of [HTML, layout, "<p>eins<br>zwei</p><pre> drei\n  vier</pre>", "nur Text", ""]) {
       expect(mailMessageText({ text: null, html })).toBe(htmlToVisibleText(html));
     }
+  });
+});
+
+/**
+ * The tree of a parsed document answers to names the MARKUP chose (finding
+ * 2026-10-12): a form to the names of its controls, the document to the names
+ * of its images and forms. The text was read off the tree of the RAW markup,
+ * by asking each node for `childNodes`, `nodeName` and its attributes — so a
+ * message could decide what the answers were. With a control named `nodeName`
+ * the walk threw and the portable parser read the message instead: the one
+ * whose work a sender can drive up with nesting, and one that reads a form the
+ * reader's sanitizer takes out whole. Two things hold now. The text is read
+ * from the markup the reader's frame is given, and that tree is asked through
+ * the prototypes and copied into plain objects first.
+ *
+ * In a browser a form answers to its controls and this test DOM's does not, so
+ * what a browser does with such a form is held by the E2E of both shells.
+ */
+describe("a message cannot rename what its own tree answers", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reads the markup the reader's frame is given, whatever the message names its elements", () => {
+    const markups = [
+      // An image named like the document's body: in this DOM `document.body` answers the image.
+      '<p>A</p><img name="body" src="cid:x"><p>B</p>',
+      '<form name="body"><p>Formular</p></form><p>B</p>',
+      '<p>A</p><form><input name="childNodes"><input name="nodeName"><input name="getAttribute"><p>Formular</p></form><p>B</p>',
+      // What the sanitizer takes out with its content is not in the text either.
+      "<p>A</p><xmp><b>roh</b></xmp><noembed>ohne Einbettung</noembed><p>B</p>",
+      HTML,
+    ];
+    for (const html of markups) {
+      expect(mailMessageText({ text: null, html })).toBe(htmlToVisibleText(sanitizeEmailHtml(html).html));
+    }
+    expect(mailMessageText({ text: null, html: markups[0] })).toBe("A\n\nB");
+    expect(mailMessageText({ text: null, html: markups[1] })).toBe("Formular\n\nB");
+  });
+
+  it("asks the tree through the prototypes: nodes that answer to every name it uses change nothing, and the portable parser is not called", () => {
+    // The worst a tree can do: every element answers `childNodes`, `nodeName`,
+    // `nodeType`, `getAttribute` and the rest with something else, and so does
+    // the document for `body`.
+    const Platform = DOMParser;
+    class Renamed {
+      parseFromString(html: string, type: DOMParserSupportedType): Document {
+        const page = new Platform().parseFromString(html, type);
+        const decoy = page.createElement("input");
+        for (const element of Array.from(page.querySelectorAll("*"))) {
+          for (const name of ["childNodes", "nodeName", "nodeType", "getAttribute", "attrs", "value", "data"]) {
+            Object.defineProperty(element, name, { value: decoy, configurable: true });
+          }
+        }
+        Object.defineProperty(page, "body", { value: decoy, configurable: true });
+        Object.defineProperty(page, "getElementsByTagName", { value: decoy, configurable: true });
+        return page;
+      }
+    }
+    vi.stubGlobal("DOMParser", Renamed);
+    const reads = vi.mocked(htmlToVisibleText);
+    reads.mockClear();
+    const html = '<p>A</p><div style="display:none">Versteckt</div><div><ol start="3"><li>Mitte</li></ol></div><p>B</p>';
+    expect(mailMessageText({ text: null, html })).toBe("A\n\n3. Mitte\n\nB");
+    // One read, and it was handed the platform's tree.
+    expect(reads.mock.calls.map((call) => typeof call[1])).toEqual(["function"]);
   });
 });
 
@@ -280,6 +349,33 @@ describe("a message without a plain-text part, as each backend delivers it", () 
     const html = ["Content-Type: text/html; charset=utf-8", "", "<p>Der Text des Absenders.</p>"];
     expect(parseMessage(alternative(plain, html)).text).toBe("Der Text des Absenders.");
     expect(parseMessage(alternative(html, plain)).text).toBe("Der Text des Absenders.");
+
+    // A text part BESIDE the HTML inside one branch is a second piece of that
+    // version, not another version of the body (finding 2026-10-12): the
+    // desktop's parser reports no text part there, and so does this one.
+    const beside = ["Content-Type: text/plain; charset=utf-8", "", "Text daneben"];
+    const inOneBranch = [
+      "Subject: Rechnung",
+      'Content-Type: multipart/alternative; boundary="a"',
+      "",
+      "--a",
+      'Content-Type: multipart/mixed; boundary="m"',
+      "",
+      "--m",
+      ...html,
+      "--m",
+      ...beside,
+      "--m--",
+      "--a--",
+      "",
+    ].join("\r\n");
+    const sameBranch = parseMessage(inOneBranch);
+    expect(sameBranch.text).toBeNull();
+    expect(sameBranch.html).toBe("<p>Der Text des Absenders.</p>");
+    // The other version may stand one level further out.
+    const calendar = ["Content-Type: text/calendar; charset=utf-8", "", "BEGIN:VCALENDAR"];
+    const inner = ['Content-Type: multipart/alternative; boundary="b"', "", "--b", ...html, "--b", ...calendar, "--b--"];
+    expect(parseMessage(alternative(inner, plain)).text).toBe("Der Text des Absenders.");
   });
 });
 

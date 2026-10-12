@@ -506,6 +506,47 @@ test('a message without a text part: reply and forward carry its text, the filed
   expect(note).not.toContain('Rabatt');
 });
 
+/**
+ * A form in a message answers to the names of its controls (finding
+ * 2026-10-12). In a browser `form.nodeName` is the control of that name, and
+ * the reader's sanitizer takes a form whose properties are renamed like that
+ * out whole — nothing inside it reaches the screen. The text of the message
+ * was read off the RAW markup: asked for `nodeName`, such a form made the walk
+ * throw, the portable parser read the message instead, and the reply quoted
+ * the words of a form nobody had seen. The text is read from the markup the
+ * reader's frame is given now. No unit test sees this: the test DOM's forms do
+ * not answer to their controls, a browser's do. This is the browser.
+ */
+test('a message with a form whose control is named like a DOM property: the reply quotes what the reader shows, and no more', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__fullMessage = {
+      text: null,
+      html:
+        '<p>Hallo Marco,</p>' +
+        '<form action="https://example.org/umfrage"><input type="hidden" name="nodeName" value="1"><p>Nur im Quelltext: bis Freitag best&auml;tigen.</p></form>' +
+        '<p>Viele Gr&uuml;&szlig;e</p>',
+      attachments: [],
+    };
+  });
+  await openVault(page);
+  await page.getByTestId('ribbon-mail').click();
+  await page.getByTestId('mail-envelope').first().click();
+  await expect(page.getByTestId('mail-subject')).toHaveText('Rechnung Q3');
+  // The reader: the message is there, the form and what it holds are not.
+  const frame = page.frameLocator('[data-testid="mail-frame"]');
+  await expect(frame.locator('body')).toContainText('Viele Grüße');
+  await expect(frame.locator('body')).not.toContainText('Nur im Quelltext');
+
+  const body = page.getByTestId('draft-body');
+  await page.getByTestId('mail-reply').click();
+  await expect(page.getByTestId('draft-form')).toBeVisible();
+  await expect(body).toContainText('Hallo Marco,');
+  await expect(body).toContainText('Viele Grüße');
+  await expect(body).not.toContainText('Nur im Quelltext');
+  await page.getByTestId('draft-cancel').click();
+  await expect(page.getByTestId('draft-form')).toHaveCount(0);
+});
+
 test('mail-client E1: folder column, new-message compose and forward', async ({ page }) => {
   await openVault(page);
   await page.getByTestId('ribbon-mail').click();

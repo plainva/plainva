@@ -200,6 +200,12 @@ export function parseParams(value: string): Map<string, string> {
 /** A parsed header block, as `parseHeaders` returns it. */
 type HeaderMap = ReadonlyMap<string, string>;
 
+/** One multipart/alternative around a part, and the direct child of it that leads to the part. */
+interface AlternativeBranch {
+  alternative: number;
+  child: number;
+}
+
 function contentType(headers: HeaderMap): string {
   return (headers.get("content-type") ?? "text/plain").split(";")[0].trim().toLowerCase();
 }
@@ -277,11 +283,13 @@ function splitMultipart(body: string, boundary: string): string[] {
  * UTF-8 bytes, so a message built in a test parses like the one on the wire.
  *
  * `text` is the plain-text version of the message's BODY: the first text part
- * a reader would show, or — where that one is HTML — its other version in the
- * same multipart/alternative. A plain-text part further down is something
- * else: under an HTML mail it is typically the footer a mailing list appended,
- * and a reply that quoted it instead of the mail would quote a different text
- * on the phone than on the desktop, whose parser reads the body the same way.
+ * a reader would show, or — where that one is HTML — its other version: a
+ * text/plain part in ANOTHER branch of a multipart/alternative the HTML lies
+ * in. A plain-text part anywhere else is something else. Under an HTML mail it
+ * is typically the footer a mailing list appended; next to the HTML inside one
+ * branch it is a second piece of that version, not a version of its own. A
+ * reply that quoted either instead of the mail would quote a different text on
+ * the phone than on the desktop, whose parser reads the body this way.
  */
 export function parseMessage(raw: Uint8Array | string): ParsedMessage {
   const { head, body } = splitHeaders(wireOf(raw));
@@ -290,23 +298,27 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
   const headersOf = (block: string): Map<string, string> => parseHeaders(decodeHeaderBlock(wireBytes(block)));
   const headers = headersOf(head);
   const parts: ParsedPart[] = [];
-  /** Per part, in the order of `parts`: the multipart/alternative it is a version in, 0 for none. */
-  const versionIn: number[] = [];
+  /**
+   * Per part, in the order of `parts`: the branches it lies in — one entry for
+   * each multipart/alternative around it, naming that alternative and which of
+   * its direct children leads to the part.
+   */
+  const branchesOf: Array<ReadonlyArray<AlternativeBranch>> = [];
   let alternatives = 0;
   let index = 0;
 
-  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, alternative: number): void => {
+  const walk = (partHeaders: Map<string, string>, partBody: string, depth: number, branches: ReadonlyArray<AlternativeBranch>): void => {
     if (depth > 12) return; // pathological nesting guard
     const type = contentType(partHeaders);
     if (type.startsWith("multipart/")) {
       const boundary = parseParams(partHeaders.get("content-type") ?? "").get("boundary");
       if (!boundary) return;
-      // What lies inside one version (an HTML part with its images) belongs to that version.
-      const inside = type === "multipart/alternative" ? ++alternatives : alternative;
-      for (const chunk of splitMultipart(partBody, boundary)) {
+      // What lies inside one branch (an HTML part with its images) belongs to that version.
+      const alternative = type === "multipart/alternative" ? ++alternatives : 0;
+      splitMultipart(partBody, boundary).forEach((chunk, child) => {
         const sub = splitHeaders(chunk);
-        walk(headersOf(sub.head), sub.body, depth + 1, inside);
-      }
+        walk(headersOf(sub.head), sub.body, depth + 1, alternative ? [...branches, { alternative, child }] : branches);
+      });
       return;
     }
     const disposition = (partHeaders.get("content-disposition") ?? "").split(";")[0].trim().toLowerCase() || null;
@@ -323,18 +335,21 @@ export function parseMessage(raw: Uint8Array | string): ParsedMessage {
       bytes: isText ? null : decodeBody(partHeaders, partBody),
       index: ++index,
     });
-    versionIn.push(alternative);
+    branchesOf.push(branches);
   };
 
-  walk(headers, body, 0, 0);
+  walk(headers, body, 0, []);
 
   const shown = (part: ParsedPart): boolean => part.text !== null && (part.mime === "text/plain" || part.mime === "text/html");
   const first = parts.findIndex(shown);
   let text: string | null = null;
   if (first >= 0 && parts[first].mime === "text/plain") {
     text = parts[first].text;
-  } else if (first >= 0 && versionIn[first] > 0) {
-    text = parts.find((part, at) => part.mime === "text/plain" && part.text !== null && versionIn[at] === versionIn[first])?.text ?? null;
+  } else if (first >= 0) {
+    const own = branchesOf[first];
+    const otherVersion = (at: number): boolean =>
+      branchesOf[at].some((branch) => own.some((mine) => mine.alternative === branch.alternative && mine.child !== branch.child));
+    text = parts.find((part, at) => part.mime === "text/plain" && part.text !== null && otherVersion(at))?.text ?? null;
   }
   const html = parts.find((p) => p.mime === "text/html" && p.text !== null)?.text ?? null;
   const attachments: MailAttachmentInfo[] = parts

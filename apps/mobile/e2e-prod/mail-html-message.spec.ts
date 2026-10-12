@@ -25,6 +25,7 @@ import { readVaultFile, waitForVaultDirectory, type MobileTestGlobals } from "./
  */
 
 const PREHEADER = "Nur heute: 50 % Rabatt";
+const ONLY_IN_SOURCE = "Nur im Quelltext: bis Freitag bestätigen.";
 const HTML_MESSAGE = {
   id: "fixture-html-only",
   subject: "Rechnung Oktober",
@@ -38,6 +39,11 @@ const HTML_MESSAGE = {
       "<html><head><style>p { margin: 0 }</style></head><body>" +
       `<div style="display:none;max-height:0;overflow:hidden">${PREHEADER}</div>` +
       "<p>Hallo Marco,</p><p>anbei die <b>Rechnung</b> für Oktober.</p>" +
+      // A form whose control is named like a property of the DOM (finding
+      // 2026-10-12): in a browser `form.nodeName` answers that control, and the
+      // reader's sanitizer takes such a form out whole. Read off the raw markup,
+      // the text of the message still had the form's words in it.
+      `<form action="https://example.org/umfrage"><input type="hidden" name="nodeName" value="1"><p>${ONLY_IN_SOURCE}</p></form>` +
       "</body></html>",
   },
 };
@@ -95,6 +101,7 @@ test("a message that is HTML only: the reply quotes its text, and the filed note
     await expect(frame).toBeVisible();
     const shown = () => frame.evaluate((el: HTMLIFrameElement) => el.contentDocument?.body?.innerText ?? "");
     await expect.poll(shown).toContain("anbei die Rechnung für Oktober.");
+    expect(await shown()).not.toContain(ONLY_IN_SOURCE);
     expect(await shown()).not.toContain(PREHEADER);
     expect(await frame.evaluate((el: HTMLIFrameElement) => el.contentDocument?.body?.textContent ?? "")).toContain(PREHEADER);
 
@@ -105,6 +112,7 @@ test("a message that is HTML only: the reply quotes its text, and the filed note
     const draft = page.locator(".cm-content");
     await expect(draft.filter({ hasText: "anbei die Rechnung für Oktober." })).toHaveCount(1);
     await expect(draft.filter({ hasText: "Hallo Marco," })).toHaveCount(1);
+    await expect(draft.filter({ hasText: ONLY_IN_SOURCE })).toHaveCount(0);
     await expect(draft.filter({ hasText: PREHEADER })).toHaveCount(0);
     if (process.env.PLAINVA_EVIDENCE) await page.screenshot({ path: testInfo.outputPath("mail-html-reply.png") });
 
@@ -122,6 +130,7 @@ test("a message that is HTML only: the reply quotes its text, and the filed note
     expect(name).toBe("2026-09-13 Rechnung Oktober.md");
     const note = await readVaultFile(page, `Mail/${name}`);
     expect(note.endsWith("# Rechnung Oktober\n\nHallo Marco,\n\nanbei die Rechnung für Oktober.\n")).toBe(true);
+    expect(note).not.toContain(ONLY_IN_SOURCE);
     expect(note).not.toContain(PREHEADER);
     // ... and it opens, with its text on screen.
     await expect(page.locator(".cm-content").filter({ hasText: "anbei die Rechnung für Oktober." })).toHaveCount(1, { timeout: 15_000 });

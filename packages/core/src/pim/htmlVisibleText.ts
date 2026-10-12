@@ -1,21 +1,19 @@
 import { parseFragment } from "parse5";
 
 /**
- * What the walk reads of a node. parse5's tree has it, and so has a browser's
- * DOM — which is why a caller may bring the tree the platform's own parser
- * made (see `htmlToVisibleText`).
+ * What the walk reads of a node: the shape of parse5's tree. A caller with a
+ * parser of its own hands in a tree of plain objects of this shape (see
+ * `htmlToVisibleText`) — never the nodes of a live DOM. What a DOM node answers
+ * to a property name is partly up to the markup it was made from: a form
+ * answers `form.childNodes` with its control of that name (finding 2026-10-12).
  */
 export interface MarkupNode {
   readonly nodeName: string;
   readonly childNodes?: ArrayLike<MarkupNode>;
-  /** A text node's text, as parse5 names it … */
+  /** A text node's text. */
   readonly value?: unknown;
-  /** … and as the DOM names it. */
-  readonly data?: unknown;
-  /** An element's attributes in parse5's tree … */
+  /** An element's attributes. */
   readonly attrs?: ReadonlyArray<{ readonly name: string; readonly value: string }>;
-  /** … and in the DOM. */
-  getAttribute?(name: string): string | null;
 }
 
 /** Never text on screen: scripts and styles, the document head, embedded
@@ -62,13 +60,11 @@ function elementName(node: MarkupNode): string {
 }
 
 function attributeOf(node: MarkupNode, name: string): string | null {
-  if (node.attrs) return node.attrs.find(attr => attr.name === name)?.value ?? null;
-  return node.getAttribute ? node.getAttribute(name) : null;
+  return node.attrs?.find(attr => attr.name === name)?.value ?? null;
 }
 
 function textOf(node: MarkupNode): string {
-  if (typeof node.value === "string") return node.value;
-  return typeof node.data === "string" ? node.data : "";
+  return typeof node.value === "string" ? node.value : "";
 }
 
 /** A CSS length of nothing, or of a single pixel or point at most. */
@@ -183,17 +179,22 @@ class Closing {
  * per level), a list (`- `, `1. `) and preformatted lines. Link targets and
  * images are not text and are not in it.
  *
- * `parse` makes the tree; by default that is parse5. A caller that runs in a
- * browser should hand in the browser's own parser (`mailMessageText` does): it
- * is the one the reader's frame uses, and it stops nesting at a depth a page
- * can have — parse5 does not, and its work grows with the square of the depth.
+ * `parse` makes the tree; by default that is parse5, the parser for a place
+ * without a DOM. Its work grows with the square of the nesting depth, and a
+ * browser's own parser stops nesting at a depth a page can have: a caller that
+ * runs in a browser hands in a copy of the tree that parser made
+ * (`mailMessageText` does) — a copy in plain objects, see `MarkupNode`.
  *
- * The walk itself does not recurse, and what it writes grows with the input,
- * not faster: the markup is a stranger's.
+ * The walk itself does not recurse, and its work and what it writes grow with
+ * the input, not faster: the markup is a stranger's.
  */
 export function htmlToVisibleText(html: string, parse: (html: string) => MarkupNode = markup => parseFragment(markup)): string {
   const lines: Line[] = [];
   let line = "";
+  /** Whether `line` ends in a blank. Kept beside it: asking the line itself
+   * flattens a string that is still growing, once per text — on one long line
+   * that is the square of its length (finding 2026-10-12). */
+  let lineEndsBlank = false;
   let marker = "";
   let quote = 0;
   /** Handed down from an element to its content, until one inside says otherwise. */
@@ -214,6 +215,7 @@ export function htmlToVisibleText(html: string, parse: (html: string) => MarkupN
   const endLine = (kept = false): void => {
     const text = line.trimEnd();
     line = "";
+    lineEndsBlank = false;
     if (isBlank(text)) {
       if (kept) emptyLine();
       return;
@@ -225,20 +227,25 @@ export function htmlToVisibleText(html: string, parse: (html: string) => MarkupN
     endLine();
     emptyLine();
   };
+  const append = (piece: string): void => {
+    if (piece === "") return;
+    line += piece;
+    lineEndsBlank = piece.endsWith(" ");
+  };
   /** Running text: a run of the blanks HTML folds — blank, tab, line break — is
    * one blank, and none opens a line or follows another. Other spaces are
    * characters of the text (the wide one of a Japanese mail) and stay. */
   const addText = (text: string): void => {
     let folded = text.replace(/[ \t\n\f\r]+/g, " ");
-    if (folded.startsWith(" ") && (line === "" || line.endsWith(" "))) folded = folded.slice(1);
-    line += plainBlanks(folded);
+    if (folded.startsWith(" ") && (line === "" || lineEndsBlank)) folded = folded.slice(1);
+    append(plainBlanks(folded));
   };
   /** Text whose blanks and line breaks stand as written. */
   const addKept = (text: string): void => {
     const rows = text.replace(/\r\n?/g, "\n").split("\n");
     for (let index = 0; index < rows.length; index++) {
       if (index > 0) endLine(true);
-      line += plainBlanks(rows[index]);
+      append(plainBlanks(rows[index]));
     }
   };
 
