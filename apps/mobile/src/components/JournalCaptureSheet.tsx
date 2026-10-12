@@ -60,9 +60,9 @@ export function JournalCaptureSheet({
         { name: voiceMemoFileName(new Date(), t("voiceMemo.fileName"), memo.extension), mime: memo.mime, bytes: memo.bytes },
         { configuredFolder: ms.attachmentFolder || "Attachments", noteFolder: ms.dailyFolder || "" },
         {
-          exists: (candidate) => vault.adapter.exists(candidate),
-          createDir: (dir) => vault.adapter.createDir(dir),
-          writeBinaryFile: (p, bytes) => vault.adapter.writeBinaryFile(p, bytes),
+          exists: (candidate) => vault.files.exists(candidate),
+          createDir: (dir) => vault.files.createDir(dir),
+          writeBinaryFile: (p, bytes) => vault.files.writeBinaryFile(p, bytes),
         },
       );
       setValue((v) => (v.trim() ? `${v.trimEnd()}\n${insert}` : insert));

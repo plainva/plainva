@@ -205,7 +205,7 @@ export function ContentAreaScreen({ vault, onBack }: { vault: MobileVault; onBac
       if (name.cancelled || !name.value.trim()) return;
       // The scaffold is the shared one, so a database created here is the same
       // file the desktop would have written — same views, same status options.
-      const path = await createTaskDatabase(vault.adapter, name.value, {
+      const path = await createTaskDatabase(vault.files, name.value, {
         viewTable: t("database.viewTable"),
         viewBoard: t("database.viewBoard"),
         viewTimeline: t("database.viewTimeline"),

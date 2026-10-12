@@ -36,6 +36,10 @@ import {
   templateCaretInNote,
   viewPrefill,
   writeNoteProperty,
+  bulkSetProperty,
+  type BulkSetOptions,
+  type BulkSetResult,
+  type PropertyWriteAdapter,
   type PinboardDraft,
   type PinboardDraftLedger,
   type PinboardDraftSweep,
@@ -119,22 +123,63 @@ export async function commitCellValue(
   col: string,
   value: unknown,
 ): Promise<void> {
-  // The note may be open in the editor — land its pending keystrokes first
-  // so the frontmatter rewrite starts from the live text.
-  await noteSaver.flush(notePath, v);
-  await writeNoteProperty(
-    {
-      readTextFile: (p) => vaultOps.read(v, p),
-      // vaultOps.save is the conflict-aware adapter chain — snapshot, sync
-      // queue, index — so the shared write keeps every guarantee a mobile
-      // write has.
-      writeTextFile: (p, text) => vaultOps.save(v, p, text),
-    },
-    notePath,
-    col,
-    value,
-  );
+  await writeNoteProperty(noteFiles(v), notePath, col, value);
   syncSoon();
+}
+
+/**
+ * Sets one property across many notes — the selection of a database (plan
+ * Mehrfachauswahl, P5) — through the same write as one cell.
+ *
+ * The loop, its progress, its cancel and its count of the notes that failed
+ * are the shared ones the desktop runs. The phone's own are the vault it
+ * hands that loop, and the gate: ONE note at a time. A write through the chain
+ * opens a transaction for the sync queue and one for the index, and the
+ * phone's database is a single connection whose plugin refuses a second
+ * transaction while one is open — the note would be changed on disk and
+ * counted as failed, with no entry in the queue. The chain's own gate does not
+ * prevent that: it holds apart writes below a common folder only, and the
+ * index is written outside it. (The desktop's database adapter queues its
+ * transactions; that is why it writes six at a time.)
+ */
+export async function commitBulkValue(
+  v: MobileVault,
+  paths: readonly string[],
+  col: string,
+  value: unknown,
+  options: Pick<BulkSetOptions, "onProgress" | "isCancelled"> = {},
+): Promise<BulkSetResult> {
+  const result = await bulkSetProperty(noteFiles(v), paths, col, value, { ...options, concurrency: 1 });
+  if (result.written.length > 0) syncSoon();
+  return result;
+}
+
+/**
+ * A note as the shared property writers read and write it on the phone — ONE
+ * definition for a cell and for a selection.
+ *
+ * Reading lands the editor's pending keystrokes first: the note may be open,
+ * and the rewrite of its properties has to start from the live text. Writing
+ * is `vaultOps.save` — the vault's chain (a version of the note as it was, the
+ * conflict check, the sync queue) and the index — so a property written here
+ * keeps every guarantee a write on the phone has.
+ *
+ * The selection had no part in this (finding 2026-10-09): its screen handed
+ * the shared loop `vault.adapter`, the storage BELOW the chain. Forty notes
+ * changed at once had no version to go back to and no entry in the sync
+ * queue, and the table went on showing the old values because the index had
+ * not heard of the write. And the next cell written in one of those rows was
+ * refused: the chain met a file it did not know, could not merge it, and cut
+ * a conflict copy of a note nobody else had touched.
+ */
+function noteFiles(v: MobileVault): PropertyWriteAdapter {
+  return {
+    readTextFile: async (p) => {
+      await noteSaver.flush(p, v);
+      return vaultOps.read(v, p);
+    },
+    writeTextFile: (p, text) => vaultOps.save(v, p, text),
+  };
 }
 
 /** Candidate rows of a relation's target base (desktop picker contract). */

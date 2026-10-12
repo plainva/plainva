@@ -1326,7 +1326,7 @@ export function EditorHost({
         try {
           const folder = folderOf(path);
           const created = await createInlineBase(
-            vault.adapter,
+            vault.files,
             folder,
             t("editor.inlineBaseDefaultName", { defaultValue: "Datenbank" }),
             t("database.viewTable", { defaultValue: "Table" }),

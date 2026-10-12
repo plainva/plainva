@@ -42,6 +42,7 @@ import { applyNewItemFolder, newItemFolderMode, resolveNewItemTarget, suggestNew
 import { getLastActiveView, resolveViewIndex, setLastActiveView, viewStateName } from "@plainva/ui";
 import { errorText, isFileNotFound, pinboardLabelProperty, useStableHandler } from "@plainva/ui";
 import {
+  commitBulkValue,
   commitCellValue,
   createBaseItem,
   loadBase,
@@ -51,6 +52,7 @@ import {
   type LoadedBase,
 } from "../../services/baseOps";
 import { reloadActiveMobileVault, reportMoveFailure, vaultOps, type MobileVault } from "../../services/vaultService";
+import { syncSoon } from "../../services/syncService";
 import { MissingFileState } from "../../components/MissingFileState";
 import { useOpenFileLookup } from "../useOpenFileLookup";
 import { canCommentOnNote, listAllMobileComments } from "../../services/mobileComments";
@@ -66,7 +68,7 @@ import { BaseConfigSheet } from "./BaseConfigSheet";
 import { ColumnSummaryRow } from "@plainva/ui";
 import { isoOf } from "../../lib/dates";
 import { usePullToRefresh } from "../../lib/usePullToRefresh";
-import { buildMonthCells, useRowSelection, bulkSetProperty, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
+import { buildMonthCells, useRowSelection, isLargeBulkChange, BULK_SETTABLE_INPUTS, findPropertyCommentThread, requestCommentJump } from "@plainva/ui";
 import { AppBar } from "../../components/AppBar";
 import { LONG_PRESS_MS } from "../../lib/useLongPress";
 import { holdGestureEnd, holdMoved } from "../../lib/holdGesture";
@@ -779,8 +781,11 @@ export function BaseScreen({
    *
    * Two sheets, not a form: pick the property, then give it a value with the
    * editor its type already has. The execution is the SHARED one — same
-   * limiter, same partial-failure report, same threshold question as the
-   * desktop, because a slow write on a phone is the same slow write.
+   * loop, same partial-failure report, same threshold question as the
+   * desktop, because a slow write on a phone is the same slow write. What it
+   * writes through is the phone's (`commitBulkValue`): each note the way a
+   * single cell is written, with its version, its conflict check and its
+   * place in the sync queue.
    */
   const [bulkBusy, setBulkBusy] = useState<{ done: number; total: number } | null>(null);
   const bulkCancelRef = useRef(false);
@@ -862,12 +867,9 @@ export function BaseScreen({
 
     bulkCancelRef.current = false;
     setBulkBusy({ done: 0, total: paths.length });
-    const result = await bulkSetProperty(vault.adapter, paths, col, value, {
+    const result = await commitBulkValue(vault, paths, col, value, {
       onProgress: (done, total) => setBulkBusy({ done, total }),
       isCancelled: () => bulkCancelRef.current,
-      // The phone's chain is the same read-parse-write per file, and its
-      // storage is slower — a narrower gate rather than the desktop's six.
-      concurrency: 3,
     });
     setBulkBusy(null);
 
@@ -1005,7 +1007,9 @@ export function BaseScreen({
       if (!calendarKey) return;
       try {
         const res = await createEntryEvent({
-          adapter: vault.adapter,
+          // The anchor is a write to the entry's note like any other: through
+          // the vault's chain, never the storage below it (finding 2026-10-09).
+          adapter: vault.files,
           // The phone writes through the shared rules in `createPimEvent`; the
           // uid comes back on the row it wrote.
           createEvent: async (key, draft) => {
@@ -1026,6 +1030,7 @@ export function BaseScreen({
         // a claim that nothing happened.
         toast.info(res.anchored ? t("pim.entryScheduled") : t("pim.blockNotAnchored"));
         await vault.reindexPaths([p]).catch(() => undefined);
+        if (res.anchored) syncSoon();
         if (loaded) requery(loaded.config, viewIndex);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : t("pim.eventWriteFailed"));

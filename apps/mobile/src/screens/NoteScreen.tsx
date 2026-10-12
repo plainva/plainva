@@ -851,7 +851,7 @@ export function NoteScreen({
     void (async () => {
       await noteSaver.flush(path, vault).catch(() => {});
       const saved = await saveNoteAsTemplateIn(
-        vault.adapter,
+        vault.files,
         getMobileSettings().templateFolder,
         path,
       ).catch(() => null);

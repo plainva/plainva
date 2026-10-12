@@ -28,7 +28,7 @@ export async function createTemplatePrompt(
 
   const settings = getMobileSettings();
   const created = await createTemplateIn(
-    vault.adapter,
+    vault.files,
     { folder: settings.templateFolder, noteType: settings.defaultNoteType },
     name,
   ).catch(() => null);

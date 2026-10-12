@@ -36,6 +36,9 @@ const WRITERS: Record<string, string[]> = {
   // The phone's wrapper around `writeNoteProperty`. The desktop's cell hook has
   // a function of the same name; that one answers a boolean and never throws.
   commitCellValue: ["apps/mobile/src"],
+  // The phone's wrapper around `bulkSetProperty`: the same note files as a
+  // cell, one note at a time (finding 2026-10-09, `vaultChainWrites.test.ts`).
+  commitBulkValue: ["apps/mobile/src"],
 };
 
 interface Site {
@@ -113,7 +116,12 @@ const SITES: Site[] = [
     says: [SAID], within: 600,
   },
   {
-    file: "apps/mobile/src/screens/base/BaseScreen.tsx", writer: "bulkSetProperty", calls: 1,
+    file: "apps/mobile/src/services/baseOps.ts", writer: "bulkSetProperty", calls: 1,
+    how: "handed back to the caller of commitBulkValue, which is listed below: the notes written and the notes that failed",
+    says: [/return result;\s*\}/], never: [/catch/], within: 200,
+  },
+  {
+    file: "apps/mobile/src/screens/base/BaseScreen.tsx", writer: "commitBulkValue", calls: 1,
     how: "one message that counts the notes written and the notes that failed",
     says: [COUNTED], within: 800,
   },
