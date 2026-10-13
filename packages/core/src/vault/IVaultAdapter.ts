@@ -124,6 +124,14 @@ export interface IVaultAdapter {
 
   /**
    * Checks if a file or directory exists.
+   *
+   * `false` means the platform said "nothing is there". A check that failed
+   * for any other reason — permission, a device or provider that is away —
+   * rejects: callers conclude deletions from a `false`.
+   *
+   * `""` asks for the vault's own folder. The index asks it before it takes a
+   * path's absence for a deletion (`VaultIndexer.vaultIsThere`), so it must
+   * answer `true` for a vault that is there, and never for one that is not.
    */
   exists(path: string): Promise<boolean>;
 

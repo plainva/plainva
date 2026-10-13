@@ -230,7 +230,8 @@ export function createPathReindexer(
     const first = await pass(indexer, paths);
     if (first.failed.length === 0) return;
     // A removal that was refused met an open transaction, most likely a full
-    // scan's — and that one holds its transaction until it is through.
+    // scan's — and that one holds its transaction until it is through. (Or
+    // the index could not look at the path itself; the second pass asks again.)
     if (first.removalWaits) await indexer.whenIdle?.();
     await wait(retryDelayMs);
     const second = await pass(indexer, first.failed);

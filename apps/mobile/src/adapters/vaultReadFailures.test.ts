@@ -69,6 +69,19 @@ for (const kind of ["sandbox", "external"] as const) {
       await expect(vault.deleteItem("note.md")).rejects.toBe(error);
     });
 
+    it("answers for the vault's own folder: there, absent, or not known", async () => {
+      // The index asks this before it takes a missing path for a deletion.
+      const vault = adapter();
+      native.stat.mockResolvedValue(kind === "sandbox" ? { type: "directory", size: 0, mtime: 1 } : { entry: { name: "", isDirectory: true, size: 0, mtime: 1 } });
+      expect(await vault.exists("")).toBe(true);
+      if (kind === "sandbox") native.stat.mockRejectedValue(failure("ENOENT"));
+      else native.stat.mockResolvedValue({ entry: null });
+      expect(await vault.exists("")).toBe(false);
+      const away = failure("EIO");
+      native.stat.mockRejectedValue(away);
+      await expect(vault.exists("")).rejects.toBe(away);
+    });
+
     it.each(["ENOENT", "OS-PLUG-FILE-0008"])("still recognizes actual absence (%s)", async (code) => {
       native.read.mockRejectedValue(failure(code));
       native.stat.mockRejectedValue(failure(code));

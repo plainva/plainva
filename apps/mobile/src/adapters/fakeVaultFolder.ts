@@ -26,7 +26,9 @@ export function fakeVaultFolder(files: Map<string, string | Uint8Array>, access:
     return all;
   };
   const entryOf = (path: string): VaultFolderEntry | null => {
-    if (path !== "" && folders().has(path)) return { name: path.split("/").pop()!, isDirectory: true, size: 0, mtime: 0 };
+    // The picked folder itself answers as a folder, as both native plugins do.
+    if (path === "") return { name: "", isDirectory: true, size: 0, mtime: 0 };
+    if (folders().has(path)) return { name: path.split("/").pop()!, isDirectory: true, size: 0, mtime: 0 };
     const v = files.get(path);
     if (v === undefined) return null;
     return { name: path.split("/").pop()!, isDirectory: false, size: asBytes(v).length, mtime: mtimes.get(path) ?? 1000 };

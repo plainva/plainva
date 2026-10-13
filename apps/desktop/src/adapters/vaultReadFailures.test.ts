@@ -35,6 +35,18 @@ describe("desktop vault read failures", () => {
     await expect(vault.readBinaryFile("gone.md")).rejects.toBeInstanceOf(VaultFileNotFoundError);
     expect(fs.readFile).not.toHaveBeenCalled();
   });
+  it("answers for the vault's own folder: there, absent, or not known", async () => {
+    // The index asks this before it takes a missing path for a deletion
+    // (finding 2026-10-13): the checked command answers an empty path for
+    // the registered root, and a vault on a share that dropped must not look
+    // like a vault emptied.
+    await expect(vault.exists("")).resolves.toBe(true);
+    native.exists.mockResolvedValue(false);
+    await expect(vault.exists("")).resolves.toBe(false);
+    const away = new Error("cannot inspect path: The device is not ready. (os error 21)");
+    native.exists.mockRejectedValue(away);
+    await expect(vault.exists("")).rejects.toBe(away);
+  });
   it("does not trust an unsupported or malformed native existence response", async () => {
     native.exists.mockResolvedValue(undefined);
     await expect(vault.exists("note.md")).rejects.toThrow("could not be confirmed");

@@ -810,12 +810,11 @@ export class VaultIndexer {
   }
 
   private async inspectPathIn(path: string, pass: IndexPass): Promise<"indexed" | "removed" | "unchanged" | "directory" | "folder-gone"> {
-    let info: VaultFileInfo | null = null;
-    try {
-      info = await this.vaultAdapter.getFileInfo(path);
-    } catch {
-      info = null;
-    }
+    // A look that fails throws (`lookAt`): nothing is known about the path,
+    // its row stays and nobody is told. The caller sees a pass that could not
+    // be made, as for any other failure in here; the two that follow files
+    // on their own — the desktop's watcher queue, the phone's door — come again.
+    const info = await this.lookAt(path);
 
     if (!info) {
       // Gone from disk. Asked and answered in ONE transaction of this pass's
@@ -862,8 +861,12 @@ export class VaultIndexer {
         // The look at the disk may be seconds old by now — where a second
         // transaction waits, this pass stood behind a full scan. A file that
         // is back is left alone; its own event, or the next pass, indexes it.
-        const back = await this.vaultAdapter.getFileInfo(path).then(() => true, () => false);
-        if (back) return "unchanged";
+        // And only a file that is PROVEN gone leaves: a look that fails now
+        // throws, and "not found" proves nothing in a vault whose own folder
+        // is away. That folder is asked before AND after the look: a share
+        // that comes back or drops once in between answers one of the two
+        // (one that drops and returns between the two questions does not).
+        if (!(await this.vaultIsThere()) || (await this.lookAt(path)) || !(await this.vaultIsThere())) return "unchanged";
         await this.deleteIndexRows([path]);
         return "reported";
       });
@@ -905,6 +908,57 @@ export class VaultIndexer {
     });
     this.flushCallbacks(pass);
     return "indexed";
+  }
+
+  /**
+   * One look at a path: the file or folder that is there, or null when the
+   * adapter says nothing is there. A look that failed throws what the adapter
+   * threw (finding 2026-10-13).
+   *
+   * Every failure used to count as "missing". The row left the index, the host
+   * was told the file had been deleted and queued its deletion on the remote:
+   * a file that was locked for a moment, sat on a share that had dropped or
+   * behind a provider that did not answer was deleted on every other device.
+   *
+   * Absent is what the adapter SAYS is absent — its not-found error, or,
+   * where the metadata call failed with something else, its existence check
+   * (the desktop adapter asks "is it there" and then reads the metadata; a
+   * file removed between the two fails with the platform's own message, and
+   * that deletion must not stay in the index for good). Where the existence
+   * check fails as well, or says the path is there, the answer is open, and
+   * the pass fails with the metadata call's error: the desktop's watcher
+   * queue and the phone's `pathReindex` try such a path again and then leave
+   * it to the full scan; a caller that indexes a path it just wrote sees the
+   * error, as it does when the file cannot be read.
+   */
+  private async lookAt(path: string): Promise<VaultFileInfo | null> {
+    try {
+      return await this.vaultAdapter.getFileInfo(path);
+    } catch (error) {
+      if ((error as { code?: unknown } | null)?.code === "FILE_NOT_FOUND") return null;
+      const there = await this.vaultAdapter.exists(path).catch(() => true);
+      if (there) throw error;
+      return null;
+    }
+  }
+
+  /**
+   * Whether the vault's own folder is there (`exists("")`), asked before a
+   * path's absence is taken for a deletion.
+   *
+   * Where it is not — a network drive that dropped, a removable disk, a picked
+   * folder whose provider is away — every path in it honestly answers "not
+   * found", and none of that is a deletion. Unknown counts as away. The full
+   * scan needs no such question: it judges from a listing of that folder,
+   * which fails or reports the folder unreadable.
+   *
+   * This knows the vault's own folder and nothing below it: a folder mounted
+   * or linked INTO the vault whose target dropped, or a vault that is a mount
+   * point left behind empty, still answers "not found" in a folder that is
+   * there. Nothing here can tell that from a deletion.
+   */
+  private vaultIsThere(): Promise<boolean> {
+    return this.vaultAdapter.exists("").catch(() => false);
   }
 
   /**
@@ -1040,7 +1094,8 @@ export class VaultIndexer {
    * read protects everything under it, an excluded path (internal, OS junk,
    * AppleDouble) is forgotten without being reported, and only a genuinely
    * vanished file reaches `onLocalFileDeleted`. A folder that is itself gone
-   * counts as empty only when the adapter says so (`exists` is false).
+   * counts as empty only when the adapter says so (`exists` is false) and the
+   * vault's own folder is there (`vaultIsThere`).
    */
   async reconcileFolder(folder: string, opts: { recursive?: boolean } = {}): Promise<FolderReconcileReport> {
     return this.inPass((pass) => this.reconcileFolderIn(folder, opts, pass));
@@ -1064,7 +1119,7 @@ export class VaultIndexer {
     // The folder itself could not be listed. Proven absent → it is empty (its
     // rows go); anything else → nothing here can be judged.
     if (skipped.some((s) => s.path === root || (!s.path && !root))) {
-      const gone = root !== "" && (await this.vaultAdapter.exists(root).then((e) => !e, () => false));
+      const gone = root !== "" && (await this.vaultAdapter.exists(root).then((e) => !e, () => false)) && (await this.vaultIsThere());
       if (!gone) {
         report.skipped = skipped;
         return report;
